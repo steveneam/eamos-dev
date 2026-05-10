@@ -1,19 +1,14 @@
-# DESIGN.md — Eamos Design System
-# Reference this file for ALL frontend work.
-# The HTML prototype (eamos-prototype-v1.html) is the visual
-# source of truth. This file documents its design system precisely
-# so it can be replicated in the React frontend.
-# Do NOT use the hackathon team's existing frontend styling.
+# Eamos Design System
+
+Reference this file for all frontend work.
+Reference design: [Franklin](https://franklin.genoox.com) — clinical genomics tool with similar density and professional register.
 
 ---
 
 ## Design Philosophy
 
 Clean, professional, clinical — not consumer, not corporate.
-Dense but scannable. Clinicians and researchers read fast and
-need to find specific numbers quickly. Every element earns its place.
-No decorative elements. No gradients. No shadows. No rounded corners
-on single-sided borders. Subtle borders, not heavy outlines.
+Dense but scannable. Clinicians and researchers read fast and need to find specific numbers quickly. Every element earns its place. No decorative elements. No gradients. No shadows. No rounded corners on single-sided borders. Subtle borders, not heavy outlines.
 
 ---
 
@@ -310,6 +305,25 @@ Small inline tag for individual ACMG criteria codes.
 }
 ```
 
+### Ghost Button (Patient Report entry — landing page)
+```css
+{
+  font-size: 12px;
+  color: #475569;
+  background: none;
+  border: 0.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  margin-top: 12px;
+}
+/* Label: "For clinicians: Generate a patient report →" */
+/* Sublabel: font-size 11px, color #94a3b8 */
+/*   "Upload genomic sequencing data + patient history" */
+```
+
 ### Back Button (small, ghost)
 ```css
 {
@@ -469,7 +483,7 @@ Secondary content box within a card.
 /* Content: font-size 12px, color #475569, line-height 1.7 */
 ```
 
-### Upload Zone (landing page)
+### Upload Zone (patient report intake page)
 ```css
 {
   border: 0.5px dashed #cbd5e1;  /* --border2 — dashed */
@@ -579,22 +593,14 @@ Tab container:
 
 ## Page Layouts & Information Hierarchy
 
-### IMPORTANT — Primary Product is the Variant Lookup Tool
-The variant lookup IS the landing page. Users arrive and immediately
-see the search bar. This is the primary product (Layer 1).
+### Primary Product — Variant Lookup
+The variant lookup IS the landing page. Users arrive and immediately see the search bar. Think of it like Google — the search is the homepage, not something you navigate to.
 
-The clinical report generation (Layer 2) is secondary — accessed via
-a clearly labelled button on the landing page that takes the user to
-a separate page/view. It is NOT the first thing users see.
-
-Think of it like Google — the search IS the homepage, not something
-you navigate to from a homepage.
+The Patient Report (Layer 2) is secondary — accessed via a ghost button at the bottom of the landing page. Mode-switching tabs are not in the header.
 
 ---
 
 ### Landing Page — Variant Lookup (PRIMARY)
-This is what users see first. The search tool is the hero.
-
 ```css
 {
   background: #f1f5f9;
@@ -665,33 +671,11 @@ Helper text below search:
 - "Enter gene name (e.g. RPE65) or variant in HGVS notation
   (e.g. c.260A>G, p.Asp87Gly). No patient data required."
 
-Access to Layer 2 (Report Generation):
-Small, understated link/button at the bottom of the page — not competing
-with the search bar. Something like:
-
+Patient Report access (ghost button at bottom of page):
 ```
 ─────────────────────────────────────────
 For clinicians: Generate a patient report →
 ─────────────────────────────────────────
-```
-
-```css
-/* Layer 2 access button — subtle, not competing with search */
-{
-  font-size: 12px;
-  color: #475569;
-  background: none;
-  border: 0.5px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  margin-top: 12px;
-}
-/* Label: "For clinicians: Generate a patient report →" */
-/* Sublabel: font-size 11px, color #94a3b8 */
-/*   "Upload genomic sequencing data + patient history" */
 ```
 
 Footer note: font-size 11px, color #94a3b8, margin-top 16px
@@ -736,9 +720,8 @@ Search directly:
 
 ---
 
-### Report Generation Page (SECONDARY — Layer 2)
-Accessed by clicking "For clinicians: Generate a patient report →"
-from the landing page. Separate view/page.
+### Patient Report Intake Page (SECONDARY — Layer 2)
+Accessed via ghost button from the landing page. Separate view.
 
 ```css
 {
@@ -763,16 +746,10 @@ Upload patient data
 [Load demo patient — Sarah Chen (IRD panel, 5 variants)]
 ```
 
-This page is clearly secondary — smaller, simpler, accessed only
-by users who specifically want the report generation feature.
-The "← Back to search" button is prominent so users can return
-to the primary variant lookup tool easily.
-
 ---
 
 ### Patient Report Page (Layer 2 output)
-Full report view. Same layout as currently designed.
-Sticky top nav with patient name, MRN, version stamp.
+Full report view. Sticky top nav with patient name, MRN, version stamp.
 Variant switcher tabs below nav.
 Report sections in scrollable content area below.
 Max-width: 860px, centered.
@@ -785,23 +762,17 @@ Max-width: 860px, centered.
 Landing page (Variant Lookup — PRIMARY)
     │
     ├── [search] → Results appear on same page
-    │       └── [Generate patient report →] → Report Generation page
+    │       └── [Generate patient report →] → Patient Report Intake
     │
     └── [For clinicians: Generate a patient report →]
-            └── Report Generation page (Layer 2)
+            └── Patient Report Intake (Layer 2)
                     └── [Load demo / upload] → Patient Report view
 ```
-
-The variant lookup result also has a "Generate patient report →"
-button — so a researcher who found a variant can seamlessly move
-into the clinical report flow if needed. The two layers connect
-naturally without forcing users through the landing page twice.
 
 ---
 
 ## Eamos Logo Mark
 
-Used in all headers and navigation:
 ```css
 {
   width: 26-30px;               /* 26px in nav, 30px on landing */
@@ -897,7 +868,6 @@ Desktop first. The tool is used on desktop monitors in clinical settings.
 - No pure white backgrounds for the page — use #f8fafc or #f1f5f9
 - No centered body text — always left-aligned
 - No ALL CAPS text except badge labels and small metadata labels
-- Do not use the hackathon team's existing CSS/styling
 
 ---
 
@@ -928,5 +898,45 @@ Gap between cards: 12px
 Page padding:    16-20px
 ```
 
-EOF
-echo "Done. Lines: $(wc -l < /home/claude/eamos/DESIGN.md)"
+---
+
+## Implementation Status
+
+### Done (through session 9)
+- Classification colour system (all 5 tiers + priority + score colours)
+- Typography scale (font sizes, weights, line heights)
+- Card component + section header + number circle
+- Classification badge (.cb) + priority badge (.pb)
+- ACMG criteria tags
+- Button variants (primary, secondary, navy, ghost, back, search)
+- Input / select styling
+- Database link buttons (blue pill style)
+- Inline source links (dotted underline)
+- Table layout + label column
+- Clinical integration bullets
+- Bottom line / evidence banner
+- Info banner
+- Gene function / content box
+- Upload zone
+- Loading state + spinner
+- Top navigation bar (report view)
+- Variant switcher tabs (cdna-first, classification color)
+- ERG waveform SVG
+- Pedigree SVG
+- Landing page layout (variant lookup as primary product)
+- Species toggle (Human active, Mouse "soon" badge)
+- Ghost button entry to Patient Report
+- "← Back to search" in report intake view
+
+### Still to do (session 10+)
+- Font weight audit — ensure no 600/700 weights remain from Tailwind defaults
+- Logo placeholder — "E" mark in correct teal, correct size per context
+- Species toggle pill shape — verify border-radius matches spec
+- Input border-radius — audit all inputs for 8px radius
+- Max-width container — enforce 680px/860px/580px limits consistently
+- Accessibility — contrast ratios, focus ring styles
+- Gene-only search mode — accept bare gene name (e.g. "USH2A") without variant
+- Idle state polish — landing page before first search
+- Scroll-to-results — auto-scroll after search submission
+- Loading skeleton — placeholder cards while lookup runs
+- Therapeutic landscape card — gene therapy + clinical trials sections

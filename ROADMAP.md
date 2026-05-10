@@ -1,177 +1,87 @@
-# HSIL-2026 Roadmap
+# Eamos — Roadmap
 
-## Core rule
+## Product Layers
 
-**Research first. Build second. Pitch third.**
+### Layer 1 — Variant Lookup (current)
 
-We do not start implementation until the team agrees on:
-- one primary user,
-- one narrow decision moment,
-- one concrete output,
-- and clear non-goals.
+Web tool: researcher or clinician types a gene or variant (HGVS notation) and gets an aggregated evidence report from ClinVar, VEP, SpliceAI, gnomAD, AlphaMissense, PubMed, and more — in one place.
 
-## Current working hypothesis
-
-The strongest current direction is a **narrow clinician-facing decision-support tool** for inherited retinal disease cases, likely centered on **RPE65-related referral support**.
-
-This is still a working hypothesis, not a locked final concept.
+**Status: prototype complete, mock data mode**
 
 ---
 
-## Phase 0 — Team alignment + concept lock
+#### Completed milestones
 
-### Goal
-Get everyone describing the same project in the same words.
-
-### Questions to answer
-- What exact problem are we solving?
-- Who is the primary user?
-- What is the single clinical decision moment?
-- What should the output look like?
-
-### Outputs
-- One-sentence problem statement
-- One-sentence solution statement
-- Initial non-goals list
-
-### Exit criteria
-- Team can explain the project consistently without drifting into different products
+| Session | Date | What was built |
+| ------- | ---- | -------------- |
+| 1–2 | pre-08 May 2026 | Hackathon prototype — widget demo, 5 IRD variants, 11 report sections, Anthropic API for AI summaries |
+| 3 | 07 May 2026 | Backend architecture deep-read; all 4 tools identified as hardcoded to RPE65 |
+| 4 | 08 May 2026 | DNA notation leads everywhere; plain language variant decoder; all 4 tools parameterised (gene-agnostic) |
+| 5 | 09 May 2026 | JWT secret hardening; PubMed tool (fixture + live path); publications section; species selector |
+| 6 | May 2026 | Report section restructure |
+| 7 | May 2026 | PubMed abstract excerpts with per-article expand toggle |
+| 8 | May 2026 | Eamos branding; Layer 1 lookup endpoint (`POST /api/v1/lookup`); frontend type-wired |
+| 9 | May 2026 | DESIGN.md; 6 custom subagents; information hierarchy fix (Lookup = landing page; Patient Report = ghost button) |
 
 ---
 
-## Phase 1 — Narrowing research
+#### Next for Layer 1
 
-### Goal
-Compare a few candidate scopes and choose the one that is most:
-- clinically credible,
-- feasible in a hackathon,
-- easy to explain,
-- and strong in a live demo.
+1. **Frontend styling pass** — finish items 2–16 from DESIGN.md:
+   font weights, logo placeholder, species toggle pill shape, input border-radius,
+   max-width container, card shadows, accessibility (contrast/focus),
+   gene-only search mode, idle state polish, scroll-to-results, loading skeleton.
 
-### What we will do
-- List 2–3 viable concept framings
-- Score them on scope, risk, demo clarity, and evidence support
-- Reject anything too broad or too hard to defend
+2. **Therapeutic Landscape** — wire gene therapy + trials data:
+   - `GENE_THERAPY_MAP` (RPE65→Luxturna etc.) in `workflow.py` + `lookup_service.py`
+   - ClinicalTrials.gov REST API v2 call (recruiting/active, filtered by gene name)
+   - Populate `therapeutic_landscape` field in both `ReportPayload` builders
 
-### Outputs
-- Selected concept direction
-- Short rejection notes for discarded options
-- Clear statement of what we are **not** building
+3. **Live API test** — set `USE_REAL_APIS=true`, run pipeline with `RPE65:c.260A>G`.
+   Blocked on IT network clearance for Python outbound connections.
+   Confirm SpliceAI REST endpoint accepts `GENE:c.cdna` format.
 
-### Exit criteria
-- One narrowed concept is chosen and defensible
+4. **Wire frontend to real backend** — replace mock data in React app with live FastAPI responses.
+   Requires live API test (item 3) first.
 
 ---
 
-## Phase 2 — Problem definition + evidence pack
+### Layer 2 — Clinical Report Generation (next)
 
-### Goal
-Prove that the chosen problem is real, meaningful, and worth solving.
+Patient-facing: upload sequencing report + clinical history → structured 11-section clinical report, AI-generated with clinician sign-off step. IRD scope. Enterprise-gated.
 
-### What we will do
-- Describe the current workflow
-- Identify where friction, delay, ambiguity, or risk appears
-- Gather evidence and prior-art references
-- Translate discussion into a concrete problem statement
+**Status: prototype complete in demo mode (Sarah Chen fixture, 5 IRD variants)**
 
-### Outputs
-- Problem brief
-- Workflow summary
-- Evidence/reference pack
-- Prior-art / competitor notes
-
-### Exit criteria
-- We can justify the problem clearly to judges in plain English
+Timeline TBD — depends on IT network clearance, live API stability, and governance decisions.
+Access via ghost button on the variant lookup landing page. Not the primary product.
 
 ---
 
-## Phase 3 — MVP boundary + safety framing
+### Layer 3
 
-### Goal
-Define exactly what the prototype does and does not do.
-
-### What we will do
-- Lock the single happy-path workflow
-- Define one uncertainty / edge branch
-- Write the safety boundary and claims language
-- Remove overclaiming from the concept
-
-### Outputs
-- MVP scope
-- Non-goals / exclusions
-- Safety boundary notes
-- Judge-safe wording for deck and demo
-
-### Exit criteria
-- No ambiguity about whether this is assistive support vs autonomous diagnosis
+Internal. Not discussed publicly.
 
 ---
 
-## Phase 4 — Demo design + technical plan
+## Known Blockers
 
-### Goal
-Turn the research decision into a buildable demo plan.
-
-### What we will do
-- Define the primary demo scenario
-- Define 1–2 fallback / edge scenarios
-- Choose the minimum data model and fixtures
-- Sketch the architecture needed for the MVP
-
-### Outputs
-- Demo flow
-- Screen / interaction plan
-- Technical architecture note
-- Fixture/data plan
-
-### Exit criteria
-- Demo can be described end-to-end before code starts
+| Blocker | Detail |
+| ------- | ------ |
+| IT network clearance | Python outbound connections restricted on corporate network. Blocks `USE_REAL_APIS=true` and all live database calls. |
+| GitHub PAT rotation | Session 4 token was visible in chat. Generate a new one in GitHub settings, update `.env`. |
+| SpliceAI REST endpoint | Web UI confirmed to accept `GENE:c.cdna`. REST API endpoint (`spliceai-38-xwkwwwxdwq-uc.a.run.app`) not yet live-tested — verify when `USE_REAL_APIS=true` runs. |
 
 ---
 
-## Phase 5 — Build sprint
+## Architecture Reference
 
-### Goal
-Build the smallest working prototype that proves the concept.
+```
+Layer 1 lookup:   POST /api/v1/lookup  (no auth — public variant search)
+Layer 2 report:   POST /api/v1/reports/upload → /api/v1/runs  (auth required)
 
-### Build principles
-- One primary workflow first
-- Deterministic demo data before ambitious integrations
-- Human review step must stay visible
-- Prefer reliability over breadth
-
-### Outputs
-- Working prototype
-- Demo-ready scenario
-- Backup path if live integration fails
-
----
-
-## Phase 6 — Pitch + submission polish
-
-### Goal
-Package the work into something judges can understand fast.
-
-### What we will do
-- Write the pitch storyline
-- Prepare FAQ / challenge responses
-- Align demo, wording, and claims
-- Finalize required deliverables
-
-### Outputs
-- Pitch deck / speaking notes
-- Demo script
-- Final repo / deliverables checklist
-
----
-
-## Immediate next steps
-
-1. Rewrite and expand `02_research/ROADMAP.md`
-2. Decide the narrowing candidates
-3. Lock the first-pass problem statement
-4. Build the evidence pack before solution drift starts
-
-## Working reminder
-
-If the idea cannot be explained as **one user + one decision + one output**, it is still too broad.
+Default mode:     USE_REAL_APIS=false  (all tools return fixture JSON)
+                  LLM_PROVIDER=mock    (no OpenAI calls)
+Database:         SQLite in-memory (data lost on restart — no migrations)
+Node.js:          C:\temp\node\node-v22.15.0-win-x64 (portable)
+Dev server:       npm run dev → http://localhost:5173
+```
