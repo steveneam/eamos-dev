@@ -1,7 +1,7 @@
 [project]
-name = "hsil-demo-backend"
+name = "eamos-backend"
 version = "0.1.0"
-description = "Fixture-first backend for the HSIL 2026 demo"
+description = "Eamos genomic intelligence platform — FastAPI backend"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

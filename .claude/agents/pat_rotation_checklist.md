@@ -4,7 +4,7 @@
 
 | File | Line(s) | Contains token value? |
 |---|---|---|
-| `04_demo/app/backend/.env` | 31 | **YES — rotate this token immediately** |
+| `app/backend/.env` | 31 | **YES — rotate this token immediately** |
 | `.env.example` | — | No placeholder line present — add one (see step 4) |
 | `HANDOFF-session6.md` | 13, 40, 166 | Key name only, no value |
 | `PROGRESS.md` | 112 | Key name only, no value |
@@ -28,14 +28,14 @@ session. It must be revoked and replaced before any use of the push scripts.
 - Click **Generate token** — copy the value immediately, it is shown once
 
 ### 3. Update .env
-Open `E:\HSIL-2026\04_demo\app\backend\.env` and replace the
+Open `E:\HSIL-2026\app\backend\.env` and replace the
 `GITHUB_PAT=` line with the new value:
 ```
 GITHUB_PAT=<new token here>
 ```
 
 ### 4. Add placeholder to .env.example
-Open `E:\HSIL-2026\04_demo\app\backend\.env.example` and add:
+Open `E:\HSIL-2026\app\backend\.env.example` and add:
 ```
 # GitHub — push scripts
 GITHUB_PAT=
@@ -50,6 +50,6 @@ committing a real value.
 
 ## .env variable name
 `GITHUB_PAT`
-Set in: `E:\HSIL-2026\04_demo\app\backend\.env`
+Set in: `E:\HSIL-2026\app\backend\.env`
 Used by: push scripts that call the GitHub REST API directly (no git binary)
 Minimum scope needed: `repo`
