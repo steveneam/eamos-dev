@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(fsutil volume diskfree C: 2>&1)",
+      "PowerShell(fsutil volume diskfree D: 2>&1)",
+      "PowerShell(fsutil volume diskfree E: 2>&1)"
+    ]
+  }
+}

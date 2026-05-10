@@ -1,0 +1,19 @@
+{
+  "case_label": "Ravi",
+  "report_title": "RPE65 variant review demo case",
+  "patient_context": "Ravi (RAVI-DEMO-003) attended Ophthalmology clinic on 14 March 2026 for review of inherited retinal dystrophy. The uploaded genomic report is being used to support clinician interpretation of a possible RPE65-related finding within the current referral.",
+  "clinical_findings": "The report context describes progressive visual impairment with night blindness and peripheral field difficulty. ERG shows severely attenuated scotopic responses (b-wave ~18 µV; reference >150 µV), and OCT demonstrates outer nuclear layer thinning (~42 µm), supporting rod-predominant retinal dysfunction.",
+  "summary": "Genomic testing identified an RPE65 NM_000329.3:c.260A>G (p.Asp87Gly) variant for clinician review in a patient with inherited retinal dystrophy.",
+  "genome_build": "GRCh38",
+  "variants": [
+    {
+      "gene": "RPE65",
+      "transcript_hgvs": "NM_000329.3:c.260A>G",
+      "protein_change": "p.Asp87Gly",
+      "genomic_hg38": "chr1:68444869 T>C",
+      "variation_type": "single nucleotide variant",
+      "consequence": "missense variant"
+    }
+  ],
+  "issues": []
+}

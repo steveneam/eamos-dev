@@ -1,0 +1,17 @@
+{
+  "request_identity": {
+    "clinvar_id": "1421454"
+  },
+  "summary": {
+    "gene": "RPE65",
+    "protein_change": "D87G",
+    "classification": "Uncertain significance",
+    "review_status": "criteria provided, single submitter",
+    "conditions": [
+      "Leber congenital amaurosis 2",
+      "Retinitis pigmentosa 20"
+    ],
+    "consequence": "missense variant",
+    "accession": "VCV001421454"
+  }
+}

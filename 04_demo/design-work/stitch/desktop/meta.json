@@ -1,0 +1,178 @@
+{
+  "mode": "edit",
+  "projectId": "13757930563934086168",
+  "inputScreenId": "325390a4d5714876b550af5aa977c528",
+  "inputScreenSource": "state.current.desktop",
+  "stateUpdate": "current",
+  "deviceType": "DESKTOP",
+  "modelId": "GEMINI_3_1_PRO",
+  "sourcePromptFile": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop/edit-2-prompt.md",
+  "htmlUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sXzU5YzFhZDQ0OGI5YzQyM2I5YTczNmQyNDhhYjVlNjY1EgsSBxCnuZ39rhwYAZIBJAoKcHJvamVjdF9pZBIWQhQxMzc1NzkzMDU2MzkzNDA4NjE2OA&filename=&opi=96797242",
+  "outputScreenId": "8c9edcbbd27f45c7978f5055ddf61923",
+  "exportedAt": "2026-04-10T07:49:34.071Z",
+  "renderedPreview": {
+    "previewPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop/screen.png",
+    "fullPagePath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop/screen-full.png",
+    "viewport": {
+      "width": 1440,
+      "height": 900,
+      "deviceScaleFactor": 2,
+      "delayMs": 1500
+    },
+    "renderedCssSize": {
+      "width": 1440,
+      "height": 900
+    },
+    "fullPageRenderedCssSize": {
+      "width": 1440,
+      "height": 900
+    },
+    "viewportCapture": {
+      "previewPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop/screen.png",
+      "renderedCssSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "imageSize": {
+        "width": 2880,
+        "height": 1800
+      }
+    },
+    "fullPageCapture": {
+      "previewPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop/screen-full.png",
+      "renderedCssSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "imageSize": {
+        "width": 2880,
+        "height": 1800
+      }
+    },
+    "contentMetrics": {
+      "layoutHeight": 900,
+      "domFullHeight": 900,
+      "meaningfulHeight": 1411,
+      "meaningfulElementCount": 68
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1800
+    },
+    "fullPageImageSize": {
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  "semanticCheck": {
+    "rulesPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/semantic-rules.json",
+    "passed": true,
+    "bannedFound": [],
+    "missingRequiredAll": [],
+    "requiredAny": [
+      "submit reports",
+      "run batch",
+      "approve",
+      "drop"
+    ],
+    "requiredAnyFound": [
+      "submit reports",
+      "run batch",
+      "approve",
+      "drop"
+    ],
+    "preferredFound": [
+      {
+        "term": "review required",
+        "count": 1
+      },
+      {
+        "term": "VEP",
+        "count": 1
+      },
+      {
+        "term": "ClinVar",
+        "count": 1
+      },
+      {
+        "term": "SpliceAI",
+        "count": 1
+      }
+    ]
+  },
+  "preApprovalLockCheck": {
+    "preApprovalLockPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/pre-approval-lock.md",
+    "passed": true,
+    "pageTitle": {
+      "expected": "Batch review workspace",
+      "actual": "Batch review workspace",
+      "actualSource": "visible-text",
+      "matched": true
+    },
+    "missing": [],
+    "bannedFound": [],
+    "unexpectedTopFraming": [],
+    "matched": [
+      {
+        "kind": "siteTitle",
+        "expected": "HSIL demo"
+      },
+      {
+        "kind": "keySectionHeading",
+        "expected": "Submit reports"
+      },
+      {
+        "kind": "keySectionHeading",
+        "expected": "Selected report"
+      },
+      {
+        "kind": "keySectionHeading",
+        "expected": "Evidence"
+      },
+      {
+        "kind": "keySectionHeading",
+        "expected": "Clinician review"
+      },
+      {
+        "kind": "keyCtaLinkLabel",
+        "expected": "Run batch"
+      },
+      {
+        "kind": "keyCtaLinkLabel",
+        "expected": "Approve"
+      },
+      {
+        "kind": "keyCtaLinkLabel",
+        "expected": "Drop"
+      },
+      {
+        "kind": "requiredNoun",
+        "expected": "batch"
+      },
+      {
+        "kind": "requiredNoun",
+        "expected": "report"
+      },
+      {
+        "kind": "requiredNoun",
+        "expected": "evidence"
+      },
+      {
+        "kind": "requiredNoun",
+        "expected": "clinician review"
+      }
+    ]
+  },
+  "copyLockCheck": null,
+  "reviewedAt": "2026-04-10T07:49:38.094Z",
+  "recovery": null,
+  "statePath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/state.json",
+  "designSystem": {
+    "assetId": "73a524b3e6d24f26a87687726718f6cb",
+    "displayName": "Helix Clinical",
+    "jsonPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/design-system.json",
+    "mdPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/design-system.md",
+    "stylePath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/design-style.md",
+    "updatedAt": "2026-04-10T07:49:39.640Z"
+  }
+}

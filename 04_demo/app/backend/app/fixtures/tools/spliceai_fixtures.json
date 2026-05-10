@@ -1,0 +1,18 @@
+{
+  "request_identity": {
+    "hg": 38,
+    "variant": "chr1-68444869-T-C",
+    "distance": 500,
+    "mask": 0
+  },
+  "summary": {
+    "gene": "RPE65",
+    "transcript_id": "ENST00000262340.6",
+    "acceptor_loss": 0.12,
+    "donor_loss": 0.04,
+    "acceptor_gain": 0.0,
+    "donor_gain": 0.0,
+    "distance": 500,
+    "mask": 0
+  }
+}

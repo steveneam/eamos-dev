@@ -1,0 +1,42 @@
+{
+  "endpoints": {
+    "upload_report": {
+      "method": "POST",
+      "path": "/api/v1/reports/upload"
+    },
+    "run_reports": {
+      "method": "POST",
+      "path": "/api/v1/runs"
+    },
+    "get_run": {
+      "method": "GET",
+      "path": "/api/v1/runs/{run_id}"
+    },
+    "review_run": {
+      "method": "POST",
+      "path": "/api/v1/runs/{run_id}/review"
+    },
+    "approve_run": {
+      "method": "POST",
+      "path": "/api/v1/runs/{run_id}/approve"
+    },
+    "drop_run": {
+      "method": "POST",
+      "path": "/api/v1/runs/{run_id}/drop"
+    },
+    "run_pdf": {
+      "method": "GET",
+      "path": "/api/v1/runs/{run_id}/pdf"
+    },
+    "healthz": {
+      "method": "GET",
+      "path": "/healthz"
+    }
+  },
+  "state_fields": [
+    "run_status",
+    "review_status",
+    "review_note",
+    "reviewed_at"
+  ]
+}

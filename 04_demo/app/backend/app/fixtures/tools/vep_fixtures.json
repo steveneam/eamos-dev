@@ -1,0 +1,19 @@
+{
+  "request_identity": {
+    "hgvs": "NM_000329.3:c.260A>G"
+  },
+  "summary": {
+    "gene": "RPE65",
+    "transcript_id": "ENST00000262340",
+    "biotype": "protein_coding",
+    "protein_change": "D/G",
+    "cds_position": 260,
+    "protein_position": 87,
+    "most_severe_consequence": "missense_variant",
+    "consequence_distribution": {
+      "missense_variant": 44.4,
+      "NMD_transcript_variant": 44.4,
+      "3_prime_UTR_variant": 11.1
+    }
+  }
+}

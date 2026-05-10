@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --canvas: #f4f8f8;
+  --panel: #edf2f3;
+  --paper: #f7fafa;
+  --summary-bg: #edf3f4;
+  --shell: rgba(251, 253, 253, 0.92);
+  --shell-soft: rgba(248, 251, 251, 0.88);
+  --wash: #eaf0f1;
+  --ink: #1f2f38;
+  --muted-ink: #4f6674;
+  --muted: #7a8f9a;
+  --placeholder: #adb9c2;
+  --line: #d8e2e6;
+  --line-strong: #c2d3d8;
+  --teal: #2c6d70;
+  --teal-deep: #235b5d;
+  --teal-soft: #8bb3b2;
+  --teal-faint: #dbeceb;
+  --teal-ghost: #eff6f5;
+  --teal-wash: rgba(44, 109, 112, 0.12);
+  --danger: #b84a43;
+  --danger-border: #ebc9c5;
+  --danger-soft: #ff8c86;
+  --danger-faint: #fff2f1;
+  --report: #9e4039;
+  --report-soft: #f6dbd8;
+  --impact: #ad4741;
+  --sync-bg: #29343a;
+  --chat-shell: #1f2a31;
+  --chat-accent: #85c8c6;
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(44, 109, 112, 0.08), transparent 28%),
+    linear-gradient(180deg, #f7fbfb 0%, #eff4f5 100%);
+  color: var(--ink);
+  font-family: 'Manrope', sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.font-mono {
+  font-family: 'IBM Plex Mono', monospace;
+}

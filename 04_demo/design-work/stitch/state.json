@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "projectId": "13757930563934086168",
+  "designSystem": {
+    "assetId": "73a524b3e6d24f26a87687726718f6cb",
+    "displayName": "Helix Clinical",
+    "jsonPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/design-system.json",
+    "mdPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/design-system.md",
+    "stylePath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/design-style.md",
+    "updatedAt": "2026-04-10T07:49:39.640Z"
+  },
+  "current": {
+    "desktop": {
+      "projectId": "13757930563934086168",
+      "screenId": "8c9edcbbd27f45c7978f5055ddf61923",
+      "deviceType": "DESKTOP",
+      "outdir": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop",
+      "metaPath": "/home/ubuntu/leo/projects/HSIL-2026/04_demo/design-work/stitch/desktop/meta.json",
+      "recovery": null,
+      "updatedAt": "2026-04-10T07:49:39.640Z"
+    }
+  },
+  "approved": {},
+  "updatedAt": "2026-04-10T07:49:39.640Z"
+}

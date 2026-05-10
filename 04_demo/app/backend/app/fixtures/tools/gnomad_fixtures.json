@@ -1,0 +1,18 @@
+{
+  "request_identity": {
+    "variant_id": "1-68444869-T-C",
+    "dataset": "gnomad_r4"
+  },
+  "summary": {
+    "gene": "RPE65",
+    "variant_id": "1-68444869-T-C",
+    "allele_frequency": 0.0000159,
+    "allele_count": 2,
+    "allele_number": 125748,
+    "homozygote_count": 0,
+    "popmax_frequency": 0.0000486,
+    "popmax_population": "NFE",
+    "flags": [],
+    "url": "https://gnomad.broadinstitute.org/variant/1-68444869-T-C?dataset=gnomad_r4"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "request_identity": {
+    "search_text": "RPE65:c.260A>G"
+  },
+  "summary": {
+    "search_text": "RPE65:c.260A>G",
+    "transcript": "NM_000329",
+    "functional_data": "Pathogenic moderate",
+    "population_data": "Pathogenic moderate",
+    "in_silico_prediction": "Pathogenic supporting"
+  }
+}

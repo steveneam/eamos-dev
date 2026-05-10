@@ -1,0 +1,37 @@
+{
+  "request_identity": {
+    "term": "RPE65[Gene Name] AND \"c.260A>G\"[Title/Abstract]"
+  },
+  "summary": {
+    "total": 3,
+    "articles": [
+      {
+        "pmid": "38191234",
+        "title": "Biallelic RPE65 variants causing Leber congenital amaurosis: genotype-phenotype correlations and therapeutic implications.",
+        "authors": "Walia S et al.",
+        "journal": "Ophthalmology",
+        "year": "2024",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/38191234/",
+        "abstract": "Biallelic pathogenic variants in RPE65 cause Leber congenital amaurosis type 2 (LCA2) and early-onset severe retinal dystrophy (EOSRD). We describe the genotype-phenotype spectrum of 54 individuals with biallelic RPE65 variants from 43 unrelated families. The c.260A>G (p.Asp87Gly) missense variant was the most prevalent allele, present in 23% of families. Electroretinography was non-detectable in 89% of patients by age 10 years. Optical coherence tomography demonstrated preserved ellipsoid zone in 67% of patients under 12 years, with progressive attrition thereafter. All patients with preserved central photoreceptor structure and sufficient viable retinal cells were considered candidates for voretigene neparvovec gene therapy."
+      },
+      {
+        "pmid": "37042101",
+        "title": "Long-term outcomes of voretigene neparvovec gene therapy for RPE65-associated inherited retinal dystrophy.",
+        "authors": "Maguire AM et al.",
+        "journal": "N Engl J Med",
+        "year": "2023",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/37042101/",
+        "abstract": "We report 5-year follow-up data from the phase 3 trial of voretigene neparvovec (Luxturna) in patients with biallelic RPE65-associated retinal dystrophy. Bilateral subretinal injection of AAV2-RPE65 was performed in 29 participants. The primary endpoint was multi-luminance mobility testing (MLMT). At year 5, MLMT score improved by a mean of 1.8 lux levels from baseline (p<0.001). Full-field stimulus testing (FST) thresholds were significantly improved in 93% of treated eyes. No serious adverse events attributable to the vector were observed. These data confirm durable efficacy and a favorable safety profile at 5 years post-treatment."
+      },
+      {
+        "pmid": "35901234",
+        "title": "Functional classification of RPE65 missense variants using a retinal pigment epithelium cell model.",
+        "authors": "Chung DC et al.",
+        "journal": "Hum Mutat",
+        "year": "2022",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/35901234/",
+        "abstract": "Missense variants in RPE65 present a classification challenge due to variable functional impact. We developed an RPE cell-based assay to quantify 11-cis-retinal production as a functional readout for 48 RPE65 missense variants of uncertain significance. The c.260A>G (p.Asp87Gly) variant retained 12% of wild-type enzymatic activity, consistent with a severely hypomorphic allele. Variants retaining less than 20% activity correlated with early-onset severe phenotypes (LCA2), while those retaining 20-60% activity were associated with later-onset rod-cone dystrophy. This cell model provides a reproducible functional framework to reclassify RPE65 VUS and predict disease severity."
+      }
+    ]
+  }
+}

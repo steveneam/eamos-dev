@@ -1,0 +1,7 @@
+{
+  "requiredAll": ["batch review workspace", "selected report", "evidence", "clinician review"],
+  "requiredAny": ["submit reports", "run batch", "approve", "drop"],
+  "preferred": ["review required", "VEP", "ClinVar", "SpliceAI", "PDF preview"],
+  "banned": ["dashboard", "analytics", "patient portal", "wizard", "stepper", "tabs", "sidebar"],
+  "notes": "Preserve a one-page clinician batch-review workspace with a large selected PDF preview and a right-side evidence/review rail."
+}
