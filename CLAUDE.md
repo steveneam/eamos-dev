@@ -107,10 +107,10 @@ Do not discuss Layer 3 in any public-facing code, comments, or documentation.
 shows target UI and report structure)
 
 **Key paths (canonical working copy: E:\HSIL-2026):**
-- Frontend: E:\HSIL-2026\04_demo\app\frontend\src\App.tsx
-- Backend: E:\HSIL-2026\04_demo\app\backend\
+- Frontend: E:\HSIL-2026\app\frontend\src\App.tsx
+- Backend: E:\HSIL-2026\app\backend\
 - Node.js portable: C:\temp\node\node-v22.15.0-win-x64
-- Start dev server: cd E:\HSIL-2026\04_demo\app\frontend && npm run dev
+- Start dev server: cd E:\HSIL-2026\app\frontend && npm run dev
 - Dev server: http://localhost:5173 (pending IT network clearance)
 
 ---
@@ -301,7 +301,7 @@ See PROGRESS.md and CHANGELOG.md for full detail.
 - Refined AI prompts — active voice, clinical register, no hedging,
   numeric values required in every clinical bullet
 
-**Hackathon backend (04_demo/app/backend/) — current state:**
+**Backend (app/backend/) — current state:**
 - FastAPI backend fully wired: upload → pipeline → review → PDF export
 - All four tool files (clinvar.py, spliceai.py, franklin.py,
   ensembl_vep.py) are now gene-agnostic — session 4 complete ✓
@@ -395,3 +395,44 @@ Project owner: Steven (steveneam on GitHub)
 Private repo: github.com/steveneam/eamos-dev
 Public portfolio repo: github.com/steveneam/Eamos---Genomic-Diagnosis-Tool
 (public repo is frozen — do not push development work there)
+
+---
+
+## Development Workflow
+
+*Adapted from [solatis/claude-config](https://github.com/solatis/claude-config)*
+
+### Agent Roles
+Specialized agents are defined in `.claude/agents/`:
+- **architect** — designs systems, produces plans
+- **developer** — implements specs
+- **debugger** — investigates bugs systematically
+- **quality-reviewer** — code + doc review
+- **technical-writer** — LLM-optimised documentation
+- **ui-ux-consultant** — UI/UX and accessibility
+
+### Conventions
+Universal coding and documentation standards in `.claude/conventions/`:
+- `documentation.md` — CLAUDE.md/README.md format spec
+- `diff-format.md` — unified diff specification
+- `intent-markers.md` — :PERF:/:UNSAFE:/:SCHEMA: marker system
+- `severity.md` — MUST/SHOULD/COULD severity taxonomy
+- `structural.md` — code structure defaults
+- `temporal.md` — timeless present rule for comments
+- `code-quality/` — 8 code-quality guideline files
+
+### Output Styles
+Communication style guides in `.claude/output-styles/`:
+- `direct.md` — direct, no-hedging communication style
+
+### Skills
+Agent workflow scripts in `.claude/skills/`:
+- `planner/` — planning and execution with quality gates
+- `deepthink/` — structured reasoning for open questions
+- `codebase-analysis/` — systematic codebase exploration
+- `problem-analysis/` — root cause identification
+- `decision-critic/` — adversarial decision analysis
+- `refactor/` — technical debt analysis
+- `prompt-engineer/` — prompt optimisation
+- `incoherence/` — consistency detection
+- `doc-sync/` — documentation synchronisation

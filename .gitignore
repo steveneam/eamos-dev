@@ -20,8 +20,15 @@ Thumbs.db
 # Demo artifacts
 *.db
 *.sqlite
-04_demo/app/backend/data/
+app/backend/data/
+node_modules_temp/
 
 # Notes that should stay local
 *.local.md
 .venv/
+
+# Added from solatis/claude-config
+.hypothesis
+.pytest_cache
+**/__pycache__
+**/.DS_Store
