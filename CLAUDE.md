@@ -6,7 +6,7 @@ Variant intelligence web tool: a researcher or clinician types a gene and varian
 
 | File | What | When to read |
 | ---- | ---- | ------------ |
-| `README.md` | Full project spec: layers, database stack, report structure, HGVS table, design reference | Onboarding, spec questions, product vision |
+| `README.md` | Full project spec: layers, database stack, report structure, HGVS table, design reference, invariants | Onboarding, spec questions, product vision, invariants |
 | `PROGRESS.md` | Session-by-session build log | Checking what has been built |
 | `CHANGELOG.md` | Feature changelog | Reviewing recent changes |
 | `DESIGN.md` | Design system, styling items 2–16 | Frontend styling work |
@@ -34,37 +34,64 @@ cd app/frontend && npm run dev
 # LLM default: provider=mock (offline dev) — never assume use_real_apis=True
 ```
 
-## Critical Rules — Never Break These
+## Coding Guidelines
 
-1. **DNA notation leads** — always `c.cdna` first, protein `(p.xxx)` second.
-   CORRECT: `RPE65 c.260A>G (p.Asp87Gly)` — WRONG: `RPE65 p.Asp87Gly`.
-   Apply everywhere: report headers, variant tabs, search results, search bar placeholder, plain language decoder.
+Behavioral guidelines to reduce common LLM coding mistakes.
 
-2. **Gene-agnostic — never hardcode** a gene name, variant, or ClinVar ID.
-   All API calls constructed dynamically: `f"{variant.gene}:{variant.cdna}"`.
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-3. **Source link on every data point** — every score, classification, or number must hyperlink to its source database. Dotted underline, opens in new tab.
+### 1. Think Before Coding
 
-4. **Plain language first** — every report opens with a plain English explanation of the variant notation before any technical sections. Written for a non-specialist clinician. No jargon. One short paragraph.
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-5. **AI drafts, human checks** — never autonomous clinical decisions. Every AI-generated section must be labelled AI-generated and subject to clinician review.
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-6. **Active voice, clinical register, no hedging** — lead with the gene, variant, or clinical finding. Never open with "This report…", "Based on…", "It should be noted…", "Please note…".
+### 2. Simplicity First
 
-7. **Every score needs a number with units** — clinical bullets must cite actual values.
-   WRONG: "ERG shows reduced responses"
-   RIGHT: "Scotopic b-wave ~18 µV (reference: >150 µV) reflects severe rod system dysfunction"
+**Minimum code that solves the problem. Nothing speculative.**
 
-Do not discuss the pet genetics business in any public-facing code, comments, or documentation.
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
 
-## Immediate Next Tasks
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-1. **Therapeutic Landscape** — wire `GENE_THERAPY_MAP` in `app/backend/app/services/` and populate `therapeutic_landscape` in both `ReportPayload` builders. Add ClinicalTrials.gov REST API v2 call (recruiting/active only, filtered by gene name) following the ClinVar/PubMed tool pattern in `app/backend/app/tools/`.
+### 3. Surgical Changes
 
-2. **Frontend styling pass** — items 2–16 from `DESIGN.md`: font weights, logo placeholder, species toggle pill shape, input border-radius, card shadows, accessibility (contrast/focus), gene-only search mode, idle state polish, scroll-to-results, loading skeleton. Patient Report accessed via ghost button on landing page — mode-switching tabs removed from header.
+**Touch only what you must. Clean up only your own mess.**
 
-3. **Live API test** — set `USE_REAL_APIS=true` in `.env`, run pipeline with `RPE65:c.260A>G`. Blocked on IT network clearance for Python outbound connections. Confirm SpliceAI REST endpoint accepts `GENE:c.cdna` format.
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
 
-4. **Wire frontend to real backend** — replace mock data in React app with live FastAPI responses. Requires task 3 first.
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
 
-5. **Rotate GitHub PAT** — token from session 4 was exposed in chat. Generate new one in GitHub settings and update `.env`.
+The test: Every changed line should trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
