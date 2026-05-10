@@ -8,6 +8,7 @@ Retired session handoffs, superseded planning documents, and completed checklist
 | ---- | ---- | ------------ |
 | `HANDOFF-session6.md` | Session 6 state dump — file paths, .env setup notes, what was built | Historical context for session 6 work |
 | `IT_CLEARANCE_CHECKLIST.md` | IT network/permissions checklist for enabling `USE_REAL_APIS=true` | Checking IT clearance status or requirements |
+| `pat_rotation_checklist.md` | Steps to revoke and replace the exposed GitHub PAT | Rotating the GitHub personal access token |
 | `02_research-ROADMAP.md` | Pre-build research roadmap (superseded by `ROADMAP.md` at repo root) | Understanding pre-build scope decisions |
 | `demo-plan.md` | Original hackathon demo plan and scenario | Historical demo structure reference |
 

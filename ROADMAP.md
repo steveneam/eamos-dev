@@ -44,6 +44,8 @@ Web tool: researcher or clinician types a gene or variant (HGVS notation) and ge
 4. **Wire frontend to real backend** — replace mock data in React app with live FastAPI responses.
    Requires live API test (item 3) first.
 
+5. **Mouse variant lookup** — implement mm39 pipeline (MGI, VEP, REVEL, CADD, SpliceAI, AlphaMissense).
+
 ---
 
 ### Layer 2 — Clinical Report Generation (next)

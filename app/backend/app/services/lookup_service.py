@@ -103,6 +103,7 @@ class LookupService:
                 request_identity=result.request_identity,
                 summary=result.summary,
                 warnings=result.warnings,
+                source_url=result.source_url,
             ))
             evidence_map[name] = result.summary or {}
             evidence_statuses[name] = result.status

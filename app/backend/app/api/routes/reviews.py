@@ -12,4 +12,4 @@ def review_report(report_id: str, payload: ClinicianReviewPayload, request: Requ
 
 @router.post('/api/v1/runs/{run_id}/review', response_model=ReviewResult)
 def review_run(run_id: str, payload: ClinicianReviewPayload, request: Request) -> ReviewResult:
-    return request.app.state.recommendation_service.apply_review_to_run(run_id, payload)
+    return request.app.state.recommendation_service.apply_review(run_id, payload)

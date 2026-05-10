@@ -28,14 +28,14 @@ session. It must be revoked and replaced before any use of the push scripts.
 - Click **Generate token** — copy the value immediately, it is shown once
 
 ### 3. Update .env
-Open `E:\HSIL-2026\app\backend\.env` and replace the
+Open `E:\eamos\app\backend\.env` and replace the
 `GITHUB_PAT=` line with the new value:
 ```
 GITHUB_PAT=<new token here>
 ```
 
 ### 4. Add placeholder to .env.example
-Open `E:\HSIL-2026\app\backend\.env.example` and add:
+Open `E:\eamos\app\backend\.env.example` and add:
 ```
 # GitHub — push scripts
 GITHUB_PAT=
@@ -44,12 +44,12 @@ This signals to collaborators that the variable is required without
 committing a real value.
 
 ### 5. Confirm .gitignore coverage
-- Root `E:\HSIL-2026\.gitignore` already lists `.env` — confirmed
+- Root `E:\eamos\.gitignore` already lists `.env` — confirmed
 - Backend folder has no separate `.gitignore`; the root rule covers it
 - Never commit `.env` to any branch
 
 ## .env variable name
 `GITHUB_PAT`
-Set in: `E:\HSIL-2026\app\backend\.env`
+Set in: `E:\eamos\app\backend\.env`
 Used by: push scripts that call the GitHub REST API directly (no git binary)
 Minimum scope needed: `repo`

@@ -91,6 +91,7 @@ export interface ReportPayload {
   variant_decoder?: string | null
   therapeutic_landscape?: string | null
   pubmed_articles?: PubMedArticle[]
+  ai_generated_sections?: string[]
 }
 
 export interface EvidenceSourceSummary {
@@ -99,6 +100,7 @@ export interface EvidenceSourceSummary {
   request_identity: Record<string, unknown>
   summary: Record<string, unknown>
   warnings: string[]
+  source_url?: string | null
 }
 
 export interface RunResponse {

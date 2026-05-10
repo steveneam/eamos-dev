@@ -31,6 +31,7 @@ class EvidenceSourceSummary(BaseModel):
     request_identity: dict[str, Any] = Field(default_factory=dict)
     summary: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
+    source_url: str | None = None
 
 
 class VariantSummaryRow(BaseModel):
@@ -70,6 +71,7 @@ class ReportPayload(BaseModel):
     variant_decoder: str | None = None
     therapeutic_landscape: str | None = None
     pubmed_articles: list[PubMedArticle] = Field(default_factory=list)
+    ai_generated_sections: list[str] = Field(default_factory=list)
 
 
 class RunResponse(BaseModel):

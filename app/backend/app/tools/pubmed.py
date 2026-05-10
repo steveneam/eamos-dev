@@ -22,15 +22,24 @@ class PubmedTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status="fixture", **fixture)
+            gene = (variant.gene if variant is not None else None) or ""
+            fallback_url = (
+                f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            )
+            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
+            gene = variant.gene or ""
+            fallback_url = (
+                f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            )
             return ToolResult(
                 source=self.source,
                 status="fallback",
                 warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                source_url=fallback_url,
                 **fixture,
             )
 
@@ -64,6 +73,7 @@ class PubmedTool(FixtureBackedTool):
                 request_identity={"term": term},
                 summary={"articles": [], "total": 0},
                 raw=None,
+                source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]",
             )
 
         pmid_str = ",".join(id_list)
@@ -110,6 +120,7 @@ class PubmedTool(FixtureBackedTool):
             request_identity={"term": term},
             summary={"articles": articles, "total": len(articles)},
             raw=result,
+            source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]",
         )
 
 

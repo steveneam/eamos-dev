@@ -120,6 +120,6 @@ Action for each failure mode:
 - [ ] All five tools return status == "ok" for RPE65 c.260A>G
 - [ ] LLM draft text passes clinical register check (no hedging openers)
 - [ ] .env is NOT committed to git (verify with git status)
-- [ ] GITHUB_PAT rotated (see .claude/agents/pat_rotation_checklist.md)
+- [ ] GITHUB_PAT rotated (see archive/pat_rotation_checklist.md)
 - [ ] JWT_SECRET updated from dev placeholder to a strong random value
   before any multi-user or network-accessible deployment

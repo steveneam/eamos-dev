@@ -14,15 +14,24 @@ class EnsemblVepTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status="fixture", **fixture)
+            hgvs = variant.transcript_hgvs if variant is not None else None
+            fallback_url = (
+                f"https://www.ensembl.org/Homo_sapiens/Variation/Explore?v={hgvs}" if hgvs else None
+            )
+            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
+            hgvs = variant.transcript_hgvs
+            fallback_url = (
+                f"https://www.ensembl.org/Homo_sapiens/Variation/Explore?v={hgvs}" if hgvs else None
+            )
             return ToolResult(
                 source=self.source,
                 status="fallback",
                 warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                source_url=fallback_url,
                 **fixture,
             )
 
@@ -69,4 +78,5 @@ class EnsemblVepTool(FixtureBackedTool):
             request_identity={"hgvs": hgvs},
             summary=summary,
             raw=payload,
+            source_url=f"https://www.ensembl.org/Homo_sapiens/Variation/Explore?v={hgvs}",
         )

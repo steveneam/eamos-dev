@@ -19,15 +19,24 @@ class ClinvarTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status="fixture", **fixture)
+            gene = (variant.gene if variant is not None else None) or ""
+            fallback_url = (
+                f"https://www.ncbi.nlm.nih.gov/clinvar/?term={gene}[gene]" if gene else None
+            )
+            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
+            gene = variant.gene or ""
+            fallback_url = (
+                f"https://www.ncbi.nlm.nih.gov/clinvar/?term={gene}[gene]" if gene else None
+            )
             return ToolResult(
                 source=self.source,
                 status="fallback",
                 warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                source_url=fallback_url,
                 **fixture,
             )
 
@@ -73,4 +82,5 @@ class ClinvarTool(FixtureBackedTool):
             request_identity={"search_text": search_text, "clinvar_id": clinvar_id},
             summary=summary,
             raw=payload,
+            source_url=f"https://www.ncbi.nlm.nih.gov/clinvar/variation/{clinvar_id}/",
         )

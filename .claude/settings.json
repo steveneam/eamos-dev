@@ -1,11 +1,16 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem *)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "$env:PATH = 'C:\\temp\\node\\node-v22.15.0-win-x64;' + $env:PATH; Set-Location 'E:\\HSIL-2026\\app\\frontend'; & 'C:\\temp\\node\\node-v22.15.0-win-x64\\npx.cmd' tsc --noEmit",
+            "command": "$env:PATH = 'C:\\temp\\node\\node-v22.15.0-win-x64;' + $env:PATH; Set-Location 'E:\\eamos\\app\\frontend'; & 'C:\\temp\\node\\node-v22.15.0-win-x64\\npx.cmd' tsc --noEmit",
             "shell": "powershell",
             "timeout": 60,
             "statusMessage": "TypeScript type-check running..."

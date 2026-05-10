@@ -43,15 +43,24 @@ class GnomadTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status="fixture", **fixture)
+            gene = (variant.gene if variant is not None else None) or ""
+            fallback_url = (
+                f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}" if gene else None
+            )
+            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
+            gene = variant.gene or ""
+            fallback_url = (
+                f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}" if gene else None
+            )
             return ToolResult(
                 source=self.source,
                 status="fallback",
                 warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                source_url=fallback_url,
                 **fixture,
             )
 
@@ -78,6 +87,10 @@ class GnomadTool(FixtureBackedTool):
                     "gnomAD live query requires genomic coordinates (chr-pos-ref-alt) "
                     "from VEP; populate variant.genomic_hg38 before calling live mode."
                 ],
+                source_url=(
+                    f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}"
+                    if gene else None
+                ),
             )
 
         response = httpx.post(
@@ -120,4 +133,5 @@ class GnomadTool(FixtureBackedTool):
             request_identity={"variant_id": variant_id, "dataset": self.DATASET},
             summary=summary,
             raw=data,
+            source_url=f"https://gnomad.broadinstitute.org/variant/{variant_id}?dataset={self.DATASET}",
         )

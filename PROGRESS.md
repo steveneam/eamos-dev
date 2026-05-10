@@ -45,7 +45,7 @@
 ## Session 4 — what was done (08 May 2026)
 
 ### Environment
-- Project canonical location moved from D: (FAT32, full) to E:\HSIL-2026 (NTFS, 12 GB free)
+- Project canonical location moved from D: (FAT32, full) to e:\eamos (NTFS, 12 GB free) (renamed from E:\HSIL-2026 after Session 5, commit d1060c0)
 - E: drive reformatted from FAT32 to NTFS to support node_modules
 - Node.js v22.15.0 portable at C:\temp\node\node-v22.15.0-win-x64 (IT permission pending for
   full network access — dev server starts but can't bind due to corporate network policy)
@@ -56,7 +56,7 @@
   Pushed via GitHub REST API (git not installed, github.com downloads blocked by IT)
 
 ### Task 1 — DNA notation fix (frontend, App.tsx)
-File: 04_demo/app/frontend/src/App.tsx
+File: app/frontend/src/App.tsx
 - buildVariantRows() now returns variantDna + variantProtein separately
   instead of a single joined string
 - variantDna = transcript_hgvs (falls back to consequence)
@@ -115,7 +115,7 @@ app/frontend/src/App.tsx — "What this variant means" callout block rendered
 1. [x] JWT secret hardening — `config.py` `jwt_secret` now required, no default
 2. [x] `franklin.py` dead-code typo removed (`canonical_tanscript`)
 3. [x] Backend README rewritten (architecture diagram, actual routes, setup)
-4. [x] `CLAUDE.md` created at `E:\HSIL-2026` (was missing from E: drive copy)
+4. [x] `CLAUDE.md` created at `e:\eamos` (was missing from E: drive copy)
 5. [x] PubMed tool — `pubmed.py`, fixture, registry, schema, workflow wired
 6. [x] Frontend publications section — 3 shown default, "Show N more", gene PubMed link
 7. [x] Species selector — pill toggle in submit bar, Mouse disabled with "soon" badge
@@ -132,9 +132,9 @@ app/frontend/src/App.tsx — "What this variant means" callout block rendered
 7. [ ] Print/PDF export styling
 
 ## Codebase location
-E:\HSIL-2026  ← canonical working copy (moved here 08 May 2026, D: was full/FAT32)
+e:\eamos  ← canonical working copy (moved here 08 May 2026, D: was full/FAT32)
 - Backend: FastAPI + Python
-- Frontend: React + TypeScript (E:\HSIL-2026\04_demo\app\frontend)
+- Frontend: React + TypeScript (e:\eamos\app\frontend)
 - Node.js portable: C:\temp\node\node-v22.15.0-win-x64
 - Dev server: npm run dev → http://localhost:5173
 - Agents: ClinVar, VEP, SpliceAI, Franklin API calls

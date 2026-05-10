@@ -11,7 +11,7 @@ PDF upload
     ↓
 PDF extractor (LLM-backed or fixture fallback)
     ↓
-Variant evidence tools (ClinVar, Ensembl VEP, SpliceAI, Franklin)
+Variant evidence tools (ClinVar, Ensembl VEP, SpliceAI, Franklin, gnomAD, PubMed, ClinicalTrials.gov)
     ↓
 Rules engine (ACMG criteria, classification tiers)
     ↓
@@ -32,7 +32,7 @@ app/
   rules/          Deterministic rules engine (clinic_rules.py)
   schemas/        Pydantic request/response models
   services/       workflow.py (pipeline orchestration), variant_decoder.py
-  tools/          clinvar.py, ensembl_vep.py, spliceai.py, franklin.py
+  tools/          clinvar.py, ensembl_vep.py, spliceai.py, franklin.py, gnomad.py, pubmed.py, clinical_trials.py
 tests/            pytest suite (SQLite for local, Postgres for Docker integration)
 ```
 
@@ -57,6 +57,9 @@ tests/            pytest suite (SQLite for local, Postgres for Docker integratio
 | Ensembl VEP | rest.ensembl.org | `TRANSCRIPT:c.cdna` | `USE_REAL_APIS=true` |
 | SpliceAI | Broad Institute | `GENE:c.cdna` | `USE_REAL_APIS=true` |
 | Franklin | api.genoox.com | `GENE:c.cdna` + auth | `USE_REAL_APIS=true` + Franklin credentials |
+| gnomAD | gnomAD GraphQL API | `GENE:c.cdna` → allele frequency, homozygous count | `USE_REAL_APIS=true` |
+| PubMed | NCBI E-utilities (esearch + esummary) | gene + variant keywords → abstracts, article metadata | `USE_REAL_APIS=true` |
+| ClinicalTrials.gov | ClinicalTrials REST API v2 | gene name → recruiting/active trials | `USE_REAL_APIS=true` |
 
 All tools fall back to fixture JSON when `USE_REAL_APIS=false` (default).
 The variant plain-language decoder (`services/variant_decoder.py`) runs

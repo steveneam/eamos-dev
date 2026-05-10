@@ -16,6 +16,7 @@ class ToolResult:
     summary: dict[str, Any]
     warnings: list[str] = field(default_factory=list)
     raw: Any = None
+    source_url: str | None = None
 
 
 class ToolError(RuntimeError):

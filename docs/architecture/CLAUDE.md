@@ -1,6 +1,6 @@
 # architecture/
 
-Field guides and pipeline documentation for the Eamos data pipeline. Each guide covers one external data source: API format, authentication, field map, and tool integration notes.
+Field guides and pipeline documentation for the Eamos data pipeline.
 
 ## Files
 

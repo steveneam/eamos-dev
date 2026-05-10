@@ -19,10 +19,12 @@ class SpliceAiTool(FixtureBackedTool):
     DISTANCE = 500
     MASK = 0
 
+    _TOOL_URL = "https://spliceailookup.broadinstitute.org/"
+
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status="fixture", **fixture)
+            return ToolResult(source=self.source, status="fixture", source_url=self._TOOL_URL, **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
@@ -31,6 +33,7 @@ class SpliceAiTool(FixtureBackedTool):
                 source=self.source,
                 status="fallback",
                 warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                source_url=self._TOOL_URL,
                 **fixture,
             )
 
@@ -73,4 +76,5 @@ class SpliceAiTool(FixtureBackedTool):
             },
             summary=summary,
             raw=payload,
+            source_url=self._TOOL_URL,
         )

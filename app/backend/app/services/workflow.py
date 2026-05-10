@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.rules.base import DecisionInput
+from app.services.lookup_service import GENE_THERAPY_MAP
 from app.services.variant_decoder import decode_variant
 from app.schemas.report import ExtractedCase, ExtractedVariant
 from app.schemas.run import (
@@ -63,7 +64,7 @@ class WorkflowService:
         evidence_map = {}
         evidence_statuses = {}
         warnings: list[str] = []
-        for name in ('vep', 'spliceai', 'clinvar', 'franklin', 'pubmed'):
+        for name in ('vep', 'spliceai', 'clinvar', 'franklin', 'gnomad', 'pubmed'):
             tool = self.tool_registry[name]
             result = tool.get_evidence(variant=primary_variant)
             summary = EvidenceSourceSummary(
@@ -72,6 +73,7 @@ class WorkflowService:
                 request_identity=result.request_identity,
                 summary=result.summary,
                 warnings=result.warnings,
+                source_url=result.source_url,
             )
             evidence.append(summary)
             evidence_map[name] = result.summary
@@ -432,6 +434,20 @@ class WorkflowService:
                 except Exception:
                     pass
 
+        gene_name = (primary_row.gene or '').strip().upper() if primary_row else ''
+        therapy_text = GENE_THERAPY_MAP.get(gene_name) or (
+            f"No approved gene therapy identified for {gene_name}. "
+            "Check ClinicalTrials.gov for active trials."
+            if gene_name else
+            "No gene identified; therapeutic landscape unavailable."
+        )
+        trials_tool = self.tool_registry.get('clinical_trials')
+        if trials_tool is not None:
+            trials_text = trials_tool.get_trials_summary(gene_name)
+            therapeutic_landscape = f"{therapy_text}\n\n{trials_text}"
+        else:
+            therapeutic_landscape = therapy_text
+
         base_payload = ReportPayload(
             patient_id=patient_id,
             case_label=None,
@@ -448,6 +464,7 @@ class WorkflowService:
             recommendations=self._build_recommendations(variant_descriptions, decision),
             limitations=decision.uncertainty,
             variant_decoder=variant_decoder_text,
+            therapeutic_landscape=therapeutic_landscape,
             pubmed_articles=pubmed_articles,
         )
         if self.draft_render_service is None:
@@ -468,4 +485,10 @@ class WorkflowService:
         base_payload.clinical_integration = draft_payload.clinical_integration
         base_payload.recommendations = draft_payload.recommendations
         base_payload.limitations = draft_payload.limitations
+        base_payload.ai_generated_sections = [
+            "ai_clinical_summary",
+            "expanded_evidence",
+            "clinical_integration",
+            "recommendations",
+        ]
         return base_payload, draft_warnings

@@ -16,10 +16,19 @@ class FranklinTool(FixtureBackedTool):
     source = 'franklin'
     fixture_name = 'franklin_fixtures.json'
 
+    _FRANKLIN_HOME = "https://franklin.genoox.com/"
+
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status='fixture', **fixture)
+            gene = (variant.gene if variant is not None else None) or ""
+            hgvs = _extract_cdna(variant.transcript_hgvs if variant is not None else None) or ""
+            fallback_url = (
+                f"https://franklin.genoox.com/clinical-db/variant/snp/{gene}-{hgvs}"
+                if gene and hgvs
+                else self._FRANKLIN_HOME
+            )
+            return ToolResult(source=self.source, status='fixture', source_url=fallback_url, **fixture)
         try:
             token = self._get_bearer_token()
             if not token:
@@ -30,12 +39,13 @@ class FranklinTool(FixtureBackedTool):
                     request_identity=fixture['request_identity'],
                     summary=fixture['summary'],
                     warnings=['franklin_auth_unavailable'],
+                    source_url=self._FRANKLIN_HOME,
                     raw=None,
                 )
             return self._fetch_live(token, variant)
         except Exception as exc:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status='fallback', warnings=[f'live_fetch_failed:{type(exc).__name__}'], **fixture)
+            return ToolResult(source=self.source, status='fallback', warnings=[f'live_fetch_failed:{type(exc).__name__}'], source_url=self._FRANKLIN_HOME, **fixture)
 
     def _get_bearer_token(self) -> str | None:
         if self.settings.franklin_api_token:
@@ -111,4 +121,9 @@ class FranklinTool(FixtureBackedTool):
             request_identity={'search_text': search_text},
             summary=summary,
             raw={'parse_payload': parse_payload, 'search_payload': search_payload},
+            source_url=(
+                f"https://franklin.genoox.com/clinical-db/variant/snp/{gene}-{cdna}"
+                if gene and cdna
+                else self._FRANKLIN_HOME
+            ),
         )

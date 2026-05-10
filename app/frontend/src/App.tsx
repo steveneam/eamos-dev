@@ -113,6 +113,7 @@ type EvidenceCard = {
   subLabel?: string;
   progress?: number;
   warnings: string[];
+  sourceUrl?: string | null;
 };
 
 const EDITOR_FIELDS: Array<{
@@ -1044,20 +1045,29 @@ export default function App() {
                       </section>
 
                       {(rp.acmg_classification || rp.expanded_evidence) && (
-                        <ReportSection label="Classification & Evidence">
+                        <ReportSection
+                          label="Classification & Evidence"
+                          aiGenerated={rp.ai_generated_sections?.includes("expanded_evidence")}
+                        >
                           {rp.acmg_classification && <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">{rp.acmg_classification}</p>}
                           {rp.expanded_evidence && <p className={`text-[15px] leading-7 text-[color:var(--muted-ink)]${rp.acmg_classification ? " mt-4" : ""}`}>{rp.expanded_evidence}</p>}
                         </ReportSection>
                       )}
 
                       {rp.clinical_integration && (
-                        <ReportSection label="Genomic Interpretation">
+                        <ReportSection
+                          label="Genomic Interpretation"
+                          aiGenerated={rp.ai_generated_sections?.includes("clinical_integration")}
+                        >
                           <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">{rp.clinical_integration}</p>
                         </ReportSection>
                       )}
 
                       {rp.recommendations && (
-                        <ReportSection label="Recommended Next Steps">
+                        <ReportSection
+                          label="Recommended Next Steps"
+                          aiGenerated={rp.ai_generated_sections?.includes("recommendations")}
+                        >
                           <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">{rp.recommendations}</p>
                         </ReportSection>
                       )}
@@ -1088,6 +1098,17 @@ export default function App() {
                           <div key={card.id} className="py-5">
                             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">{card.title}</p>
                             {card.body && <p className="mt-4 text-[15px] leading-7 text-[color:var(--ink)]">{card.body}</p>}
+                            {card.sourceUrl && (
+                              <a
+                                href={card.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-block text-[12px] text-[color:var(--muted-ink)] hover:text-[color:var(--ink)]"
+                                style={{ textDecoration: "underline dotted" }}
+                              >
+                                ↗ Source
+                              </a>
+                            )}
                             {card.badge && (
                               <div className="mt-3">
                                 <Badge variant={card.badgeVariant}>{card.badge}</Badge>
@@ -1239,6 +1260,11 @@ export default function App() {
                         <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[color:var(--muted-ink)]">
                           Executive summary
                         </p>
+                        {activeSession.run.report_payload.ai_generated_sections?.includes("ai_clinical_summary") && (
+                          <span className="mt-2 inline-block rounded-sm border border-[color:var(--line)] bg-[color:var(--teal-ghost)] px-2 py-0.5 text-[10px] leading-none text-[color:var(--muted-ink)]">
+                            AI-generated — subject to clinician review
+                          </span>
+                        )}
                       </div>
                       <AnimatePresence mode="wait">
                         <motion.p
@@ -1356,7 +1382,10 @@ export default function App() {
                     </section>
 
                     {(activeSession.run.report_payload.acmg_classification || activeSession.run.report_payload.expanded_evidence) && (
-                      <ReportSection label="Classification & Evidence">
+                      <ReportSection
+                        label="Classification & Evidence"
+                        aiGenerated={activeSession.run.report_payload.ai_generated_sections?.includes("expanded_evidence")}
+                      >
                         {activeSession.run.report_payload.acmg_classification && (
                           <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">
                             {activeSession.run.report_payload.acmg_classification}
@@ -1394,7 +1423,10 @@ export default function App() {
                     )}
 
                     {activeSession.run.report_payload.clinical_integration && (
-                      <ReportSection label="Genomic Interpretation">
+                      <ReportSection
+                        label="Genomic Interpretation"
+                        aiGenerated={activeSession.run.report_payload.ai_generated_sections?.includes("clinical_integration")}
+                      >
                         <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">
                           {activeSession.run.report_payload.clinical_integration}
                         </p>
@@ -1402,7 +1434,10 @@ export default function App() {
                     )}
 
                     {activeSession.run.report_payload.recommendations && (
-                      <ReportSection label="Recommended Next Steps">
+                      <ReportSection
+                        label="Recommended Next Steps"
+                        aiGenerated={activeSession.run.report_payload.ai_generated_sections?.includes("recommendations")}
+                      >
                         <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">
                           {activeSession.run.report_payload.recommendations}
                         </p>
@@ -1562,6 +1597,18 @@ export default function App() {
                                   <p className="mt-4 max-w-sm text-[16px] leading-8 text-[color:var(--ink)]">
                                     {card.body}
                                   </p>
+                                ) : null}
+                                {card.sourceUrl ? (
+                                  <a
+                                    href={card.sourceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="mt-2 inline-block text-[12px] text-[color:var(--muted-ink)] hover:text-[color:var(--ink)]"
+                                    style={{ textDecoration: "underline dotted" }}
+                                  >
+                                    ↗ Source
+                                  </a>
                                 ) : null}
                                 {card.warnings.length ? (
                                   <div className="mt-3 flex flex-wrap gap-2">
@@ -2229,12 +2276,19 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ReportSection({ label, children }: { label: string; children: React.ReactNode }) {
+function ReportSection({ label, children, aiGenerated }: { label: string; children: React.ReactNode; aiGenerated?: boolean }) {
   return (
     <section className="mt-10 border-t border-[color:var(--line)]/90 pt-8">
-      <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.22em] text-[color:var(--teal)]">
-        {label}
-      </p>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[color:var(--teal)]">
+          {label}
+        </p>
+        {aiGenerated && (
+          <span className="rounded-sm border border-[color:var(--line)] bg-[color:var(--teal-ghost)] px-2 py-0.5 text-[10px] leading-none text-[color:var(--muted-ink)]">
+            AI-generated — subject to clinician review
+          </span>
+        )}
+      </div>
       {children}
     </section>
   );
@@ -2428,6 +2482,7 @@ function buildEvidenceCards(evidence: EvidenceSourceSummary[]): EvidenceCard[] {
         badge: item.status,
         badgeVariant,
         warnings: item.warnings,
+        sourceUrl: item.source_url,
       };
     }
 
@@ -2450,6 +2505,7 @@ function buildEvidenceCards(evidence: EvidenceSourceSummary[]): EvidenceCard[] {
         subLabel: `${String(item.summary.biotype || "protein coding")} transcript`,
         progress: highestValue,
         warnings: item.warnings,
+        sourceUrl: item.source_url,
       };
     }
 
@@ -2473,6 +2529,7 @@ function buildEvidenceCards(evidence: EvidenceSourceSummary[]): EvidenceCard[] {
             ? `Potential splice effect detected with delta scores up to ${strongestScore.toFixed(2)}.`
             : "No significant splice site alterations detected for the demo variant.",
         warnings: item.warnings,
+        sourceUrl: item.source_url,
       };
     }
 
@@ -2493,6 +2550,7 @@ function buildEvidenceCards(evidence: EvidenceSourceSummary[]): EvidenceCard[] {
         badge: item.status,
         badgeVariant,
         warnings: item.warnings,
+        sourceUrl: item.source_url,
       };
     }
 
@@ -2503,6 +2561,7 @@ function buildEvidenceCards(evidence: EvidenceSourceSummary[]): EvidenceCard[] {
       badge: item.status,
       badgeVariant,
       warnings: item.warnings,
+      sourceUrl: item.source_url,
     };
   });
 }
