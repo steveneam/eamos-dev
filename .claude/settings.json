@@ -1,5 +1,7 @@
 {
+  "model": "claude-opus-4-7",
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(Get-ChildItem *)"
     ]

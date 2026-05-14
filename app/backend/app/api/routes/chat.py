@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+
+from app.schemas.chat import ChatRequest, ChatResponse
+
+router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+
+
+@router.post("", response_model=ChatResponse)
+def chat(payload: ChatRequest, request: Request) -> ChatResponse:
+    service = getattr(request.app.state, "chat_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Chat service is unavailable.",
+        )
+    return service.respond(payload)
+
+
+@router.post("/stream")
+def chat_stream(payload: ChatRequest, request: Request) -> StreamingResponse:
+    service = getattr(request.app.state, "chat_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Chat service is unavailable.",
+        )
+    return StreamingResponse(service.respond_stream(payload), media_type="text/plain")

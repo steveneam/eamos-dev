@@ -8,7 +8,6 @@ class ClinicRules:
         clinvar = payload.evidence.get('clinvar', {})
         vep = payload.evidence.get('vep', {})
         spliceai = payload.evidence.get('spliceai', {})
-        franklin = payload.evidence.get('franklin', {})
         gnomad = payload.evidence.get('gnomad', {})
 
         subject = 'The patient'
@@ -49,7 +48,6 @@ class ClinicRules:
             f"ClinVar classification: {clinvar.get('classification', 'Unavailable')} ({clinvar.get('review_status', 'review status unavailable')}).",
             f"Predicted molecular consequence: {vep.get('most_severe_consequence', 'effect unavailable')} in a {vep.get('biotype', 'unknown biotype')} transcript.",
             f"SpliceAI: AL {spliceai.get('acceptor_loss', 0.0):.2f}, DL {spliceai.get('donor_loss', 0.0):.2f}, AG {spliceai.get('acceptor_gain', 0.0):.2f}, DG {spliceai.get('donor_gain', 0.0):.2f}; {splice_interpretation}",
-            f"Franklin signals: functional {franklin.get('functional_data', 'Unavailable')}, population {franklin.get('population_data', 'Unavailable')}, in silico {franklin.get('in_silico_prediction', 'Unavailable')}.",
             gnomad_line,
         ]
 

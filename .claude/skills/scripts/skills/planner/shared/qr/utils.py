@@ -31,7 +31,7 @@ def load_qr_state(state_dir: str, phase: str) -> dict | None:
         return None
 
     try:
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
         return None

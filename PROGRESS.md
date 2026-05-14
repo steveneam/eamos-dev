@@ -111,6 +111,116 @@ app/frontend/src/App.tsx — "What this variant means" callout block rendered
 2. Wire frontend to real backend (replace mock data with live API responses)
 3. Rotate GitHub PAT — current token was shared in chat session
 
+## Session 13 — 15 May 2026
+
+### v2 rebuild implementation (frontend FE-0..FE-3, backend BE-1..BE-5)
+
+Parallel execution: Claude Code on `app/frontend/`, Codex (via `openai/codex-plugin-cc` plugin, `/codex:rescue` route, `--write` flag) on `app/backend/`. Same git working tree, same filesystem, same ChatGPT auth. Codex completed BE-1..BE-5 in 22m 6s.
+
+#### Frontend (Claude Code)
+
+| ID | What landed |
+| -- | ----------- |
+| FE-0 | `index.css` gained `--bg-canvas`, sequence palette (`--base-A/T/C/G`), AA biochem palette (`--aa-hydro/polar/acid/basic/aroma/cys/stop`), width helpers (`--maxw-report/nav/landing/workbench`), `.hairline` + `.hairline-{b,t,l,r}` utilities. `ModePill` component created (Report ⇄ Workbench segmented pill, `?query` preserved). Wired into ReportPage TopNav. **Also fixed pre-existing tsconfig gap:** `tsconfig.app.json` was missing `"paths": { "@/*": ["./src/*"] }`, so every `@/`-aliased import was failing under `tsc -b`. Build was broken before this fix; clean now. |
+| FE-1 | Franklin removed from active frontend surfaces: `sources.ts`, `sample-report.ts`, `FeaturesGrid`, `HowItWorks`, `LandingPage`. Replaced with AlphaMissense where a 6th database was named. `LegacyRunsApp.tsx` (frozen `/runs` surface) deliberately untouched. |
+| FE-2 | Six new report v2 components in `src/components/report/`: `LocusContext`, `InSilicoGrid`, `AcmgCriteriaFold`, `CuratedVariantsGrid`, `AssociatedConditions`, `PublicationsCallout`. ~180 lines of v2 module CSS appended to `index.css` (`.locus-*`, `.pred-*`, `.fold`, `.acmg-*`, `.vardist-*`, `.cond*`, `.pubs-*`). Wired into 3 outer Cards in `ReportPage.tsx` (Card 2 Locus context, Card 3 Evidence by source with InSilicoGrid + EvidenceTable + AcmgCriteriaFold, Card 4 Gene context with DiseaseSection + CuratedVariantsGrid + AssociatedConditions + PublicationsCallout). `EvidenceTable` and `DiseaseSection` gained an `embedded` prop so they don't double-wrap. Each new module carries hard-coded `SAMPLE` blocks until FE-3.5 swaps to payload data. |
+| FE-3 | `VariantHeader.tsx` rewritten with the v2 utility row: cross-DB chip strip (ClinVar / gnomAD / UCSC / Ensembl / OMIM / AlphaFold — **no Franklin, no "Compare elsewhere ↗" chip**), URLs constructed from `OMIM_BY_GENE` / `UNIPROT_BY_GENE` / `ENSEMBL_BY_GENE` tables. Tools row (Follow toggles state, Export PDF calls `window.print()`, Share copies URL to clipboard). 4-stat row (ClinVar / gnomAD AF / REVEL / AlphaMissense) — sample values until payload provides them. v2 variant-header CSS appended to `index.css`. |
+
+Build verified clean at the end of each milestone: `tsc -b && vite build` → final state 573KB JS / 58KB CSS, 2.25s.
+
+#### Backend (Codex)
+
+| ID | What landed |
+| -- | ----------- |
+| BE-1 | Franklin archived to `archive/franklin/`. Removed from `app/tools/registry.py`, `app/services/workflow.py`, `app/services/lookup_service.py`, `app/rules/clinic_rules.py`, `app/core/config.py`, `.env.example`, and the relevant tests. Verification: `rg -n franklin app` (and `Franklin`) under `app/backend/` returns no matches. |
+| BE-2 | `ReportPayload` extended with six new optional fields: `locus_context`, `in_silico_predictions`, `acmg_criteria_scaffold`, `curated_variants_distribution`, `associated_conditions`, `publications_callout`. New Pydantic models: `NearbyVariant`, `CodonCell`, `LocusContext`, `PredictorCard`, `InSilicoPredictions`, `AcmgCriterion`, `AcmgCriteriaScaffold`, `CuratedVariantsDistribution`, `AssociatedCondition`, `PublicationsCallout`. RPE65 fixture at `app/backend/app/fixtures/lookup_v2_modules.json` (5 nearby variants, 11 codon cells, 4 predictor cards, 28 ACMG criteria, 3×4 distribution matrix, 2 conditions, 816 publications). Lookup service wired to attach the fixture entry by `(gene, cdna)` key. |
+| BE-3 | `POST /api/v1/chat` + `POST /api/v1/chat/stream`. Mock-mode returns variant-aware response mentioning the gene from `variant_context.variant_summary_rows[0]`. Live-mode wrapped via `ChatService` in `app/services/chat_service.py`. Run-scoped `POST /api/v1/runs/{run_id}/chat/stream` left unchanged. |
+| BE-4 | `POST /api/v1/primer | /crispr | /align` returning fixture responses keyed by variant. 3 primer pairs (pair 1 ★ recommended), 3 gRNAs + ssODN block, alignment with 4 trace channels × 80 samples. Real engines (Primer3, CRISPOR, Needleman–Wunsch, biopython AB1) deferred to M-002. |
+| BE-5 | New `tests/test_franklin_removed.py` enforces no `franklin` imports remain. `test_frontend_contract.py` extended to cover all new schemas. Final pytest: **36 passed, 4 skipped**. One known failure: `test_frontend_contract.py` itself — waiting on frontend (FE-3.5) to add the matching TypeScript interfaces. That's the planned sync point. |
+
+Codex session id `019e26bf-c0db-7b03-aff3-a5303bac4eed` is resumable for follow-ups.
+
+#### Open: FE-3.5 contract sync (next session)
+
+Full plan section in `plans/v2-frontend.md` under "FE-3.5 — Contract sync". Summary: add ~25 TypeScript interfaces to `app/frontend/src/lib/backend.ts` matching the new Pydantic models, populate `sample-report.ts` from `lookup_v2_modules.json`, swap the 6 report v2 components from hard-coded `SAMPLE` blocks to payload-driven props. Estimated ~45 minutes. Closes the loop on `test_frontend_contract.py`.
+
+---
+
+## Session 12 — 14 May 2026
+
+### v2 rebuild planned; Franklin archived from product
+
+**Context:** Three new Claude Design mocks (`Eamos Landing Page.html`, `Eamos Report Page v2.html`, `Eamos Workbench v1.html`) iterate Eamos into two surfaces. The variant report v2 folds in Franklin-derived modules (cross-DB strip, locus context / region viewer, in-silico predictions deep-dive, ACMG criteria scaffolding, curated variants distribution, structured associated conditions, publications callout). The new Workbench surface adds sequence viewing with click-to-edit consequence prediction, Primer / CRISPR / Alignment (with AB1 chromatogram) / Comparator tools, and a tool-aware AskEamos floating pill.
+
+Franklin (Genoox) is a competitor and is being removed from the active product surface.
+
+### Plans written
+
+- `plans/README.md` — parallel-work coordination doc explaining how Claude Code (frontend) and Codex (backend) run on the same branch against a shared TypeScript ↔ Pydantic contract.
+- `plans/v2-frontend.md` — 9 milestones (FE-0 foundation through FE-8 AskEamos pill). Built on existing Phase 0–2 scaffolding; React/Vite preserved.
+- `plans/v2-backend.md` — Codex-consumable brief, 5 milestones (BE-1 Franklin archive through BE-5 test sweep). Self-contained — every path, schema, and verification step included.
+
+### Doc updates this session
+
+- `CHANGELOG.md` — new entry summarising the rebuild plan and locked decisions.
+- `DESIGN.md` — full rewrite around v2 tokens (Syne/Plus Jakarta Sans/JetBrains Mono, ink scale, sequence palette, AA biochem palette, 920/1180/1440 widths, Workbench layout chrome). Legacy `/runs` surface preserved as frozen appendix.
+- `README.md` — Franklin dropped from Database Stack. Report Structure refreshed to v2 sections. Workbench surface added to Architecture.
+- `ROADMAP.md` — Layer 1 v1 marked done. Layer 1 v2 + Workbench added as active phases. Layer 2 marked frozen at `/runs`.
+
+### Decisions locked in
+
+1. Stack: keep React + Vite. Next.js migration deferred.
+2. Layer 2 patient report at `/runs` stays frozen (no design changes, no new features).
+3. Workbench delivered all-at-once with sample data; real engines deferred to M-002.
+4. Franklin: archive to `archive/franklin/` (preserve history, remove from active code).
+5. v2 mock's `franklin.genoox.com` "Compare elsewhere ↗" chip dropped — we don't link to competitors.
+
+### What's next
+
+- Claude Code starts FE-0 (token additions, hairline utility, Workbench/canvas/AA palette additions).
+- Codex picks up `plans/v2-backend.md` starting with BE-1 (Franklin archive).
+- Sync point after each milestone: `cd app/backend && python -m pytest tests/ -q` clean + `cd app/frontend && npm run build` clean.
+
+---
+
+## Session 11 — 14 May 2026
+
+### Environment update
+- Node.js now has outbound network access (IT blocker resolved). Dev server and npm installs work without restriction.
+- Python network access: re-verify `USE_REAL_APIS=true` pipeline with a real variant (next session).
+
+### AlphaMissense — removed from product
+- Decided against building AlphaMissense tool. Removed from ROADMAP and deleted `plans/alphamissense-tool.md`.
+
+### Code quality pass (codebase analysis → refactor)
+Ran 4-agent parallel codebase analysis. Issues found and fixed:
+
+1. **Naming/branding** — `app_name = "hsil-demo-backend"` → `"eamos-backend"` in `config.py`; log message in `main.py` updated to `"Eamos backend ready"`.
+2. **Unused config fields removed** — `search_default_limit`, `langchain_api_key`, `langchain_tracing_v2` deleted from `Settings` class.
+3. **gnomad.py late import** — `import httpx` moved from inside `_fetch_live()` to module level, consistent with all other tools.
+4. **franklin.py fallback URL** — Exception fallback now builds the specific variant URL (`gene-hgvs` form) the same way the fixture branch does, instead of falling back to bare homepage.
+5. **workflow.py dead wire** — `_build_source_filenames()` output was collected but hardcoded to `[]` in the ReportPayload. Now passed through and stored correctly. Also removed redundant second call to the helper inside `_build_report_payload`.
+6. **npm prune** — Extraneous transitive packages cleaned from `app/frontend/node_modules`.
+
+### Issues noted but not changed (intentional)
+- Duplication between `lookup_service.py` and `workflow.py` (therapy, clinical integration, evidence snapshot) — pre-existing intentional design.
+- `case_label`, `expected_symptoms` in ReportPayload always `None` — future fields, not dead code.
+- `_extract_cdna()` duplicated across 5 tool files — simple 4-liner, no shared utility added (surgical changes rule).
+- `ai_generated_sections` inconsistency between services — Layer 2 concern only.
+
+---
+
+## Session 10 task list (10 May 2026)
+
+1. [x] Solatis workflow dry run — validated explore → deepthink → plan pipeline end-to-end
+2. [x] Discovered: ClinicalTrials.gov + Therapeutic Landscape already fully implemented
+3. [x] Codebase analysis mapped tool/service/schema architecture across 4 parallel agents
+
+### What's next
+- Code quality pass: codebase analysis → refactor for consistency (session 11)
+
+---
+
 ## Session 5 task list (09 May 2026)
 1. [x] JWT secret hardening — `config.py` `jwt_secret` now required, no default
 2. [x] `franklin.py` dead-code typo removed (`canonical_tanscript`)

@@ -191,3 +191,10 @@ export interface RunChatResponse {
   grounded: boolean
   citations: RunChatCitation[]
 }
+
+export interface HealthzResponse {
+  status: string
+  database: string
+  llm_provider: string
+  use_real_apis: boolean
+}

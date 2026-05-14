@@ -4,12 +4,13 @@ Each public function with 'ctx' as first param is auto-discovered as RPC method.
 """
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from . import _filelock as fcntl  # Windows-compatible flock(fd, LOCK_EX) shim
 
 
 VALID_STATUSES = frozenset({"PASS", "FAIL"})

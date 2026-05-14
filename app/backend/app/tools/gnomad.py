@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import httpx
+
 from app.tools.base import FixtureBackedTool, ToolResult
 
 GNOMAD_GRAPHQL_URL = "https://gnomad.broadinstitute.org/api"
@@ -71,8 +73,6 @@ class GnomadTool(FixtureBackedTool):
         The variant object must carry a populated genomic_hg38 field from VEP;
         without it the live query cannot be constructed and a stub is returned.
         """
-        import httpx
-
         gene = variant.gene
         cdna = _extract_cdna(variant.transcript_hgvs)
         variant_id = getattr(variant, "genomic_hg38", None)

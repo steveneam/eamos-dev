@@ -1,0 +1,99 @@
+{
+  "RPE65": {
+    "c.260A>G": {
+      "locus_context": {
+        "gene": "RPE65",
+        "centre_cdna": "c.260A>G",
+        "nearby_variants": [
+          { "cds_pos": -30, "classification": "likely_pathogenic", "hgvs": "c.230T>C", "clinvar_id": "1234" },
+          { "cds_pos": -12, "classification": "vus", "hgvs": "c.248G>A", "clinvar_id": "5678" },
+          { "cds_pos": 0, "classification": "likely_pathogenic", "hgvs": "c.260A>G", "clinvar_id": "1421454" },
+          { "cds_pos": 8, "classification": "benign", "hgvs": "c.268C>T", "clinvar_id": "9101" },
+          { "cds_pos": 23, "classification": "pathogenic", "hgvs": "c.283G>A", "clinvar_id": "1121" }
+        ],
+        "codon_strip": [
+          { "codon_number": 82, "aa_ref": "L", "is_query": false },
+          { "codon_number": 83, "aa_ref": "V", "is_query": false },
+          { "codon_number": 84, "aa_ref": "G", "is_query": false },
+          { "codon_number": 85, "aa_ref": "K", "is_query": false },
+          { "codon_number": 86, "aa_ref": "Y", "is_query": false },
+          { "codon_number": 87, "aa_ref": "D", "is_query": true },
+          { "codon_number": 88, "aa_ref": "L", "is_query": false },
+          { "codon_number": 89, "aa_ref": "H", "is_query": false },
+          { "codon_number": 90, "aa_ref": "P", "is_query": false },
+          { "codon_number": 91, "aa_ref": "I", "is_query": false },
+          { "codon_number": 92, "aa_ref": "T", "is_query": false }
+        ]
+      },
+      "in_silico_predictions": {
+        "cards": [
+          { "name": "REVEL", "score": 0.78, "threshold": 0.50, "verdict": "damaging", "source_url": "https://sites.google.com/site/revelgenomics" },
+          { "name": "AlphaMissense", "score": 0.71, "threshold": 0.564, "verdict": "damaging", "source_url": "https://alphamissense.hegelab.org" },
+          { "name": "MetaLR", "score": 0.62, "threshold": 0.50, "verdict": "damaging", "source_url": null },
+          { "name": "SpliceAI", "score": 0.12, "threshold": 0.20, "verdict": "tolerated", "source_url": "https://spliceailookup.broadinstitute.org" }
+        ],
+        "consensus_note": "Three of four predictors converge on damaging; SpliceAI shows no splice impact."
+      },
+      "acmg_criteria_scaffold": {
+        "criteria": [
+          { "code": "PVS1", "verdict": "not_met", "note": null },
+          { "code": "PS1", "verdict": "not_met", "note": null },
+          { "code": "PS2", "verdict": "not_assessed", "note": null },
+          { "code": "PS3", "verdict": "not_assessed", "note": null },
+          { "code": "PS4", "verdict": "not_assessed", "note": null },
+          { "code": "PM1", "verdict": "not_met", "note": null },
+          { "code": "PM2", "verdict": "met", "note": "Absent from gnomAD v4 (>250k alleles)." },
+          { "code": "PM3", "verdict": "not_assessed", "note": null },
+          { "code": "PM4", "verdict": "not_met", "note": null },
+          { "code": "PM5", "verdict": "met", "note": "Different missense at same codon previously classified pathogenic." },
+          { "code": "PM6", "verdict": "not_assessed", "note": null },
+          { "code": "PP1", "verdict": "not_assessed", "note": null },
+          { "code": "PP2", "verdict": "not_met", "note": null },
+          { "code": "PP3", "verdict": "met", "note": "Multiple in-silico predictors agree on damaging." },
+          { "code": "PP4", "verdict": "met", "note": "Phenotype highly specific for RPE65-related disease." },
+          { "code": "PP5", "verdict": "not_assessed", "note": null },
+          { "code": "BA1", "verdict": "not_met", "note": null },
+          { "code": "BS1", "verdict": "not_met", "note": null },
+          { "code": "BS2", "verdict": "not_assessed", "note": null },
+          { "code": "BS3", "verdict": "not_assessed", "note": null },
+          { "code": "BS4", "verdict": "not_assessed", "note": null },
+          { "code": "BP1", "verdict": "not_met", "note": null },
+          { "code": "BP2", "verdict": "not_assessed", "note": null },
+          { "code": "BP3", "verdict": "not_met", "note": null },
+          { "code": "BP4", "verdict": "not_met", "note": null },
+          { "code": "BP5", "verdict": "not_assessed", "note": null },
+          { "code": "BP6", "verdict": "not_assessed", "note": null },
+          { "code": "BP7", "verdict": "not_met", "note": null }
+        ],
+        "disclaimer": "Supporting evidence, not classification."
+      },
+      "curated_variants_distribution": {
+        "cells": {
+          "pathogenic_lof": 42,
+          "pathogenic_missense": 28,
+          "pathogenic_noncoding": 9,
+          "pathogenic_synonymous": 0,
+          "vus_lof": 3,
+          "vus_missense": 51,
+          "vus_noncoding": 18,
+          "vus_synonymous": 12,
+          "benign_lof": 0,
+          "benign_missense": 7,
+          "benign_noncoding": 31,
+          "benign_synonymous": 24
+        },
+        "total": 225,
+        "reading": "Most pathogenic RPE65 variants are loss-of-function or missense in the catalytic domain."
+      },
+      "associated_conditions": [
+        { "name": "Leber congenital amaurosis 2", "case_count": 187, "evidence_level": "definitive", "inheritance": "AR", "source": "OMIM #204100" },
+        { "name": "Retinitis pigmentosa 20", "case_count": 62, "evidence_level": "strong", "inheritance": "AR", "source": "OMIM #613794" }
+      ],
+      "publications_callout": {
+        "total_count": 816,
+        "scholar_url": "https://scholar.google.com/scholar?q=RPE65+c.260A%3EG",
+        "ai_summary_prompt": "Summarise the key publications on RPE65 c.260A>G in plain language for a clinician."
+      }
+    }
+  }
+}

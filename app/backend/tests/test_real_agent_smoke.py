@@ -28,14 +28,13 @@ def build_pdf_bytes() -> bytes:
     return buffer.getvalue()
 
 
-def test_live_evidence_run_uses_real_apis_except_franklin() -> None:
+def test_live_evidence_run_uses_real_apis() -> None:
     settings = Settings(
         upload_dir=Path("/tmp") / "hsil_live_uploads",
         final_report_dir=Path("/tmp") / "hsil_live_final_reports",
         database_url="sqlite+pysqlite:////tmp/hsil_live_api_smoke.db",
         llm_provider="mock",
         use_real_apis=True,
-        franklin_api_token=None,
         max_upload_mb=20,
         debug=True,
     )
@@ -60,5 +59,3 @@ def test_live_evidence_run_uses_real_apis_except_franklin() -> None:
         assert evidence["vep"]["status"] == "live"
         assert evidence["spliceai"]["status"] == "live"
         assert evidence["clinvar"]["status"] == "live"
-        assert evidence["franklin"]["status"] == "fallback"
-        assert "franklin_auth_unavailable" in evidence["franklin"]["warnings"]

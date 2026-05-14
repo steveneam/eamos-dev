@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Iterator
+
 from fastapi import HTTPException, status
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
@@ -15,6 +17,19 @@ class RunChatService:
         self.reports_repo = reports_repo
         self.answer_chain = answer_chain
         self.embeddings = embeddings
+
+    def stream(self, run_id: str, payload: RunChatRequest) -> Iterator[str]:
+        # Streaming is text/plain word-chunks of the full answer. Token-level streaming
+        # would require switching the underlying answer_chain to .stream(); for now we
+        # split the resolved answer into ~12-char windows so the UI shows progressive text.
+        result = self.answer(run_id, payload)
+        text = result.answer
+        if not text:
+            yield ''
+            return
+        window = 12
+        for i in range(0, len(text), window):
+            yield text[i : i + window]
 
     def answer(self, run_id: str, payload: RunChatRequest) -> RunChatResponse:
         run = self.run_repo.get_run(run_id)

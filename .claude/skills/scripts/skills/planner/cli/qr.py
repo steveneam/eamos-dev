@@ -30,12 +30,13 @@ Invariants:
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import sys
 import tempfile
 from pathlib import Path
+
+from . import _filelock as fcntl  # Windows-compatible flock(fd, LOCK_EX) shim
 
 from .output import EntityResult, print_entity_result
 from . import qr_commands

@@ -11,7 +11,6 @@ Data-fetch tools — one file per external database. Each tool returns fixture J
 | `clinvar.py` | ClinVar NCBI eutils — two-step esearch + esummary flow | Changing or debugging ClinVar fetches |
 | `ensembl_vep.py` | Ensembl VEP REST — consequence, genomic coords, canonical transcript | Changing or debugging VEP fetches |
 | `spliceai.py` | SpliceAI REST — splice delta scores | Changing or debugging SpliceAI fetches |
-| `franklin.py` | Franklin (Genoox) API — functional evidence, variant curation | Changing or debugging Franklin fetches |
 | `gnomad.py` | gnomAD population frequency | Changing or debugging gnomAD fetches |
 | `pubmed.py` | PubMed NCBI eutils — publication search, abstract excerpts | Changing or debugging PubMed fetches |
 | `clinical_trials.py` | ClinicalTrials.gov REST API v2 — recruiting/active trials by gene | Changing or debugging clinical trials fetches |

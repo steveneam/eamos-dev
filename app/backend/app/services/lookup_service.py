@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -36,6 +39,16 @@ GENE_THERAPY_MAP: dict[str, str] = {
         "Check ClinicalTrials.gov for current recruitment status."
     ),
 }
+
+
+@lru_cache(maxsize=1)
+def _lookup_v2_modules_fixture() -> dict:
+    fixture_path = Path(__file__).resolve().parents[1] / "fixtures" / "lookup_v2_modules.json"
+    return json.loads(fixture_path.read_text(encoding="utf-8"))
+
+
+def _lookup_v2_modules(gene: str, cdna: str) -> dict:
+    return _lookup_v2_modules_fixture().get(gene, {}).get(cdna, {})
 
 
 class LookupService:
@@ -94,7 +107,7 @@ class LookupService:
         evidence_statuses: dict[str, str] = {}
         warnings: list[str] = []
 
-        for name in ('vep', 'spliceai', 'clinvar', 'franklin', 'gnomad', 'pubmed'):
+        for name in ('vep', 'spliceai', 'clinvar', 'gnomad', 'pubmed'):
             tool = self.tool_registry[name]
             result = tool.get_evidence(variant=variant)
             evidence.append(EvidenceSourceSummary(
@@ -203,6 +216,7 @@ class LookupService:
             variant_decoder=variant_decoder_text,
             therapeutic_landscape=therapeutic_landscape,
             pubmed_articles=pubmed_articles,
+            **_lookup_v2_modules(gene, cdna),
         )
 
         if self.draft_render_service is not None:

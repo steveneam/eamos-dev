@@ -15,11 +15,10 @@ class Settings(BaseSettings):
     )
 
     env: str = "dev"
-    app_name: str = "hsil-demo-backend"
+    app_name: str = "eamos-backend"
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True
-    search_default_limit: int = 10
     search_answer_enabled: bool = False
     search_answer_top_k: int = 5
     api_prefix: str = "/api/v1"
@@ -37,18 +36,10 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     openai_embeddings_model: str = "text-embedding-3-small"
     run_chat_top_k: int = 4
-    langchain_api_key: str | None = None
-    langchain_tracing_v2: bool = False
-
     use_real_apis: bool = False
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-    franklin_base_url: str = "https://api.genoox.com"
-    franklin_parse_base_url: str = "https://franklin.genoox.com"
-    franklin_api_token: str | None = None
-    franklin_email: str | None = None
-    franklin_password: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:

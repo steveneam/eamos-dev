@@ -3,7 +3,23 @@
     "allow": [
       "PowerShell(fsutil volume diskfree C: 2>&1)",
       "PowerShell(fsutil volume diskfree D: 2>&1)",
-      "PowerShell(fsutil volume diskfree E: 2>&1)"
+      "PowerShell(fsutil volume diskfree E: 2>&1)",
+      "Bash(py *)",
+      "Bash(python3 -m skills.codebase_analysis.subagent --step 2)",
+      "Bash(npm list *)",
+      "Bash(cat)",
+      "Bash(python /tmp/contract_check.py)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Select-Object FullName)",
+      "Bash(python)",
+      "Bash(findstr /r \"case_label\" app\\\\backend\\\\app\\\\services\\\\*.py app\\\\backend\\\\app\\\\schemas\\\\*.py)",
+      "Bash(npx tsc *)",
+      "Bash(npm ls *)",
+      "Bash(python3)",
+      "Read(//tmp/**)",
+      "PowerShell(npm prune *)",
+      "Bash(powershell *)",
+      "PowerShell($env:PATH = 'C:\\\\temp\\\\node\\\\node-v22.15.0-win-x64;' + $env:PATH; cd \"E:\\\\eamos\\\\app\\\\frontend\"; npx tsc --noEmit 2>&1 | Select-Object -First 60)"
     ]
   }
 }

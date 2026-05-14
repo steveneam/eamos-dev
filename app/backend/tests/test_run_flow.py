@@ -35,7 +35,7 @@ def test_create_run_with_multiple_reports(client: TestClient, pdf_bytes: bytes) 
     assert body['report_payload']['patient_id'] == 'RP-001'
     assert body['report_payload']['case_label'] is None
     assert body['report_payload']['report_title'] == 'RPE65 variant review demo case'
-    assert body['report_payload']['source_filenames'] == []
+    assert body['report_payload']['source_filenames'] == ['ravi-report.pdf']
     assert 'Ravi' not in body['report_payload']['patient_context']
     assert 'patient ID RP-001' in body['report_payload']['patient_context']
     assert 'The patient attended Ophthalmology clinic' in body['report_payload']['patient_context']
@@ -59,14 +59,14 @@ def test_run_includes_evidence_without_nulls(client: TestClient, pdf_bytes: byte
     assert response.status_code == 200
     body = response.json()
     sources = {item['source'] for item in body['evidence']}
-    assert sources == {'vep', 'spliceai', 'clinvar', 'franklin'}
+    assert sources == {'vep', 'spliceai', 'clinvar', 'gnomad', 'pubmed'}
 
 
 
 def test_run_surface_degraded_evidence_when_tool_falls_back(client: TestClient, app, pdf_bytes: bytes, monkeypatch) -> None:
     report_id = _upload_report(client, pdf_bytes)
 
-    def fake_fallback_result() -> ToolResult:
+    def fake_fallback_result(**_kwargs) -> ToolResult:
         return ToolResult(
             source='clinvar',
             status='fallback',

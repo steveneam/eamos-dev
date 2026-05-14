@@ -58,7 +58,6 @@ def test_search_endpoint_returns_created_runs(_tmp_dir=None) -> None:  # noqa: A
         assert evidence["vep"]["status"] == "live"
         assert evidence["spliceai"]["status"] == "live"
         assert evidence["clinvar"]["status"] == "live"
-        assert evidence["franklin"]["status"] == "fallback"
 
         search = client.get(
             "/api/v1/search",

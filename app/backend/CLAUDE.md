@@ -40,7 +40,7 @@ FastAPI + Python. Genomic variant pipeline: intake → tools → rules engine �
 ```powershell
 cd app/backend
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:create_app --factory --reload
 # API:  http://localhost:8000/api/v1
 # Docs: http://localhost:8000/docs
 ```

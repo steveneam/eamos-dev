@@ -24,7 +24,7 @@ React + TypeScript + Vite + Tailwind. Variant lookup landing page (primary produ
 ## Development
 
 ```powershell
-$env:PATH = 'C:\temp\node\node-v22.15.0-win-x64;' + $env:PATH
+# Node is the IT-managed install at C:\Program Files\nodejs\node.exe, already on PATH.
 npm run dev      # → http://localhost:5173
 npm run build    # type-check (tsc -b) + Vite bundle
 ```

@@ -15,13 +15,12 @@ Full-stack application: React/Vite frontend + FastAPI/Python backend + shared AP
 ```powershell
 # Frontend dev server → http://localhost:5173
 cd app/frontend
-$env:PATH = 'C:\temp\node\node-v22.15.0-win-x64;' + $env:PATH
-npm run dev
+npm run dev      # node lives at C:\Program Files\nodejs\node.exe (system install, on PATH)
 
 # Backend → http://localhost:8000
 cd app/backend
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:create_app --factory --reload
 ```
 
 API base URL (frontend → backend): `http://localhost:8000/api/v1`
-Node.js portable: `C:\temp\node\node-v22.15.0-win-x64`
+Node.js: `C:\Program Files\nodejs\node.exe` (IT-managed system install, on PATH)

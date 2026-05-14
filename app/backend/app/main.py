@@ -20,6 +20,7 @@ from app.repos.run_repo import RunRepo
 from app.repos.users_repo import UsersRepo
 from app.rules.clinic_rules import ClinicRules
 from app.services.auth import AuthService
+from app.services.chat_service import ChatService
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
 from app.services.intake import IntakeService
@@ -44,7 +45,7 @@ def create_app(settings=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         initialize_database(db_session_factory)
-        logger.info('HSIL demo backend ready at %s:%s', settings.host, settings.port)
+        logger.info('Eamos backend ready at %s:%s', settings.host, settings.port)
         yield
 
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
@@ -89,6 +90,7 @@ def create_app(settings=None) -> FastAPI:
         answer_chain=run_chat_chain,
         embeddings=embeddings_model,
     )
+    app.state.chat_service = ChatService(settings=settings, llm_client=draft_chain)
     app.state.final_report_service = FinalReportService(settings, run_repo)
     app.state.lookup_service = LookupService(
         tool_registry=tool_registry,
@@ -98,6 +100,3 @@ def create_app(settings=None) -> FastAPI:
 
     app.include_router(build_api_router())
     return app
-
-
-app = create_app()

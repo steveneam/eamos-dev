@@ -45,7 +45,14 @@ class FranklinTool(FixtureBackedTool):
             return self._fetch_live(token, variant)
         except Exception as exc:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status='fallback', warnings=[f'live_fetch_failed:{type(exc).__name__}'], source_url=self._FRANKLIN_HOME, **fixture)
+            gene = (variant.gene if variant is not None else None) or ""
+            hgvs = _extract_cdna(variant.transcript_hgvs if variant is not None else None) or ""
+            fallback_url = (
+                f"https://franklin.genoox.com/clinical-db/variant/snp/{gene}-{hgvs}"
+                if gene and hgvs
+                else self._FRANKLIN_HOME
+            )
+            return ToolResult(source=self.source, status='fallback', warnings=[f'live_fetch_failed:{type(exc).__name__}'], source_url=fallback_url, **fixture)
 
     def _get_bearer_token(self) -> str | None:
         if self.settings.franklin_api_token:

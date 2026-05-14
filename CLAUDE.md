@@ -1,25 +1,26 @@
 # Eamos — Genomic Intelligence Platform
 
-Variant intelligence web tool: a researcher or clinician types a gene and variant (HGVS notation) and gets an aggregated evidence report from ClinVar, VEP, SpliceAI, gnomAD, AlphaMissense, and more — in one place. Full product spec, database stack, and architecture in `README.md`.
+Variant intelligence platform. Two active surfaces: `/report` (variant evidence report v2) and `/workbench` (sequence viewer + Primer/CRISPR/Align/Compare tools). Legacy patient report at `/runs` is frozen on the v1 design system. Full spec in `README.md`.
 
 ## Files
 
 | File | What | When to read |
 | ---- | ---- | ------------ |
-| `README.md` | Full project spec: layers, database stack, report structure, HGVS table, design reference, invariants | Onboarding, spec questions, product vision, invariants |
+| `README.md` | Full project spec: surfaces, database stack, report structure, HGVS table, invariants | Onboarding, spec questions, product vision, invariants |
 | `PROGRESS.md` | Session-by-session build log | Checking what has been built |
 | `CHANGELOG.md` | Feature changelog | Reviewing recent changes |
-| `DESIGN.md` | Design system, styling items 2–16 | Frontend styling work |
-| `ROADMAP.md` | Planned feature phases | Understanding build sequence |
+| `DESIGN.md` | Design system v2 — tokens, components, Workbench layout chrome | Any frontend styling work |
+| `ROADMAP.md` | Active phases (Layer 1 v2 + Workbench) and future cycles | Understanding build sequence |
 
 ## Subdirectories
 
 | Directory | What | When to read |
 | --------- | ---- | ------------ |
 | `app/` | Frontend (React/Vite/Tailwind) + Backend (FastAPI/Python) + shared contracts | All code work |
+| `plans/` | Active and historical work plans — start at `plans/README.md` for the parallel Claude Code (frontend) ↔ Codex (backend) workflow | Planning, picking up active milestones |
 | `docs/` | Architecture guides, API research, design brief, design system | Database API details, architecture decisions, design |
 | `pitch/` | Pitch deck outline and speaking notes | Presentation work |
-| `archive/` | Retired drafts and historical session notes | Historical context only |
+| `archive/` | Retired drafts and historical session notes (includes `archive/franklin/` once BE-1 lands) | Historical context only |
 | `.claude/` | Agent roles, conventions, output styles, skills | Workflow, agent config, conventions |
 
 ## Development
@@ -29,7 +30,7 @@ Variant intelligence web tool: a researcher or clinician types a gene and varian
 cd app/frontend && npm run dev
 # → http://localhost:5173
 
-# Node.js portable (Windows): C:\temp\node\node-v22.15.0-win-x64
+# Node.js (Windows): IT-managed system install at C:\Program Files\nodejs\node.exe (already on PATH)
 # Backend root: app/backend/
 # LLM default: provider=mock (offline dev) — never assume use_real_apis=True
 ```

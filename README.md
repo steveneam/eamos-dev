@@ -2,7 +2,16 @@
 
 ## Overview
 
-Eamos is a genomic intelligence platform that aggregates evidence from multiple public databases and presents it in a single structured report. A researcher or clinician types a gene and variant in HGVS notation and gets classification, population frequency, splice prediction, protein impact, and clinical trial data — without opening six browser tabs. The platform is built in three layers: Layer 1 (variant lookup web tool), Layer 2 (clinical report generation), and Layer 3 (internal — not discussed publicly). Layer 1 is the active build target.
+Eamos is a genomic intelligence platform that aggregates evidence from multiple public databases and presents it in a single structured report. A researcher or clinician types a gene and variant in HGVS notation and gets classification, population frequency, splice prediction, protein impact, and clinical trial data — without opening six browser tabs.
+
+Two surfaces:
+
+- **Variant report** (`/report`) — the v2 evidence report with locus context, in-silico predictions deep-dive, ACMG criteria scaffolding, curated variants distribution, structured associated conditions, and a publications callout.
+- **Workbench** (`/workbench`) — sequence viewer with click-to-edit consequence prediction, Primer designer, CRISPR designer (gRNA + HDR ssODN), Sequence alignment (with AB1 chromatogram), Variant comparator, and a tool-aware AskEamos floating pill.
+
+Both surfaces share the same variant context via the URL (`?q=GENE:c.cdna`) and a top-nav Report ⇄ Workbench mode toggle.
+
+Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2 (clinical patient report at `/runs` — currently frozen on the v1 design system), Layer 3 (internal — not discussed publicly).
 
 ---
 
@@ -36,7 +45,7 @@ Eamos is a genomic intelligence platform that aggregates evidence from multiple 
 # Backend
 $env:PATH = "C:\Program Files\Python310\;C:\Program Files\Python310\Scripts\;$env:PATH"
 cd app/backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
 
 # Frontend
 $env:PATH = "C:\temp\node\node-v22.15.0-win-x64;$env:PATH"
@@ -59,12 +68,13 @@ User types: RPE65:c.260A>G
 POST /api/v1/lookup
   { gene, cdna, transcript?, protein_change?, species }
         ↓
-Evidence pipeline (5 tools in parallel):
-  ClinVar    → pathogenicity classification
-  Ensembl VEP → molecular consequence, genomic coords
-  SpliceAI   → splice impact score
-  Franklin   → functional evidence (auth required)
-  PubMed     → relevant publications
+Evidence pipeline (tools in parallel):
+  ClinVar       → pathogenicity classification
+  Ensembl VEP   → molecular consequence, genomic coords
+  SpliceAI      → splice impact score
+  gnomAD        → population allele frequency
+  AlphaMissense → protein impact score
+  PubMed        → relevant publications
         ↓
 Rules engine (clinic_rules.py)
         ↓
@@ -121,7 +131,6 @@ Layer 1 lookup = landing page. Layer 2 patient report = secondary, accessed via 
 | Ensembl VEP | Molecular consequence, genomic coords, canonical transcript | `TRANSCRIPT:c.cdna` | rest.ensembl.org (free) |
 | SpliceAI | Splice impact score (delta score, position) | `GENE:c.cdna` | spliceailookup.broadinstitute.org |
 | gnomAD | Population allele frequency (v4) | Gene page via Ensembl ID | gnomad.broadinstitute.org |
-| Franklin | Functional evidence, variant curation | `GENE:c.cdna` | api.genoox.com (auth required) |
 | AlphaMissense _(planned)_ | Protein impact score + domain map | UniProt ID | hegelab.org |
 | AlphaFold | 3D protein structure | UniProt ID | alphafold.ebi.ac.uk |
 | OMIM | Gene–disease associations | Gene entry ID | omim.org |
@@ -145,7 +154,7 @@ Layer 1 lookup = landing page. Layer 2 patient report = secondary, accessed via 
 Every tool accepts the same format — no coordinate conversion or dependency ordering needed:
 
 ```python
-search_text = f"{variant.gene}:{variant.cdna}"    # ClinVar, SpliceAI, Franklin
+search_text = f"{variant.gene}:{variant.cdna}"    # ClinVar, SpliceAI
 vep_input   = f"{variant.transcript}:{variant.cdna}"  # Ensembl VEP
 ```
 
@@ -167,40 +176,35 @@ Never hardcode database URLs. Always construct dynamically from `GENE_META` + va
 
 ## Report Structure
 
-### Layer 1 — Variant Lookup Report (human)
+### Variant Report v2 (`/report`)
 
-1. Variant header — `GENE c.cdna (p.protein)` — DNA notation leads
-2. Plain language decoder — what the notation means in plain English
-3. AI evidence summary — what databases collectively say about pathogenicity
-4. Classification snapshot — all scores with source hyperlinks
-5. Clinical integration — gene → protein → function → phenotype (3 bullets with numeric values)
-6. Gene/disease phenotype — OMIM table + gene function
-7. Gene therapy flag — auto-surfaced where applicable (e.g. Luxturna for RPE65)
-8. Clinical trials — ClinicalTrials.gov (recruiting/active only)
-9. Publications — PubMed (3 shown default, expand toggle, abstract excerpts, PubMed gene-search link)
+1. **Breadcrumb**
+2. **Variant header** — gene + cDNA notation (primary), protein change (mono), classification badges, cross-DB jump strip (ClinVar / gnomAD / UCSC / Ensembl / OMIM / AlphaFold), tools row (Follow / Export PDF / Share), 4-stat row
+3. **AIStack** — composite evidence summary + inline AskEamos chat (ink-dark panel, no visible seam between halves)
+4. **Locus context** — region viewer: 5 lanes (P/LP/VUS/LB/B) of nearby ClinVar dots, vertical marker drops into 11-codon strip. "Open full sequence in Workbench ↗" handoff link
+5. **Evidence by source** — `<InSilicoGrid />` (REVEL / AlphaMissense / MetaLR / SpliceAI Δ) + evidence table + verify-at-source chips + `<AcmgCriteriaFold />` (collapsible PVS1 → BP7 grid, met cells highlighted)
+6. **Gene context & associated conditions** — gene function callout + curated variants distribution (3×4 heat matrix) + structured conditions list (case count, evidence level, inheritance pill, source) + publications callout
+7. **Active trials & approved therapies** — ClinicalTrials.gov recruiting/active
+8. **Limitations & caveats**
 
-### Layer 1 — Variant Lookup Report (mouse) _(planned — not yet implemented)_
+### Workbench (`/workbench`)
 
-1. Variant header
-2. Plain language decoder
-3. AI evidence summary
-4. Classification snapshot — MGI, VEP, REVEL, CADD, SpliceAI, AlphaMissense
-5. Gene function and variant mechanism
-6. IMPC knockout phenotype
-7. Gene/disease association — MGI + human ortholog OMIM
-8. Publications — PubMed
+| Tool | What |
+| ---- | ---- |
+| **Sequence Viewer** (always visible, the spine) | Multi-track view (ruler / annotations / domain / ClinVar dots / DNA / translation / conservation / restriction) with vertical pin at the queried position. Click any DNA base → popover with live consequence preview using the real codon table |
+| **Primer designer** | Sanger / qPCR / ARMS modes; output table with ★ recommended pair highlighted |
+| **CRISPR designer** | gRNA scoring table + HDR ssODN repair block |
+| **Sequence alignment** | Pairwise alignment + Canvas-rendered AB1 chromatogram |
+| **Variant comparator** | 2–3 variant side-by-side property grid with predictor bars |
+| **AskEamos pill** | Floating bottom-right, tool-aware. Suggested questions change per active tool |
 
-### Layer 2 — Patient Report (human, IRD scope)
+### Variant Report — mouse mm39 _(planned, not yet implemented)_
 
-Same 9 sections as Layer 1 human, plus:
+Same section structure as human, with the database stack swapped: MGI for variant annotation, IMPC for knockout phenotype, VEP-mouse for consequence, mouse-specific PubMed query. Hidden from the v2 UI until the mouse pipeline ships.
 
-- **Section 2:** Clinical context — ERG (waveform SVG), OCT, fundoscopy, pedigree (4-generation SVG). Expandable images inline.
-- **Section 3:** AI clinical summary — patient-grounded; references specific investigation values with units
-- **Section 9:** Recommendations — tiered HIGH / MODERATE / ROUTINE with ACMG criteria noted
-- **Section 10:** Limitations — checkbox list
-- **Section 11:** Clinician sign-off — name, date, status dropdown, version stamp
+### Layer 2 — Patient Report (`/runs`) — FROZEN
 
-Differences from Layer 1: no "View all on PubMed" shortcut (replaced by curated evidence); clinical trials section includes eligibility pre-assessment note.
+The Layer 2 patient report flow (PDF intake → 11-section clinical report with ERG, OCT, fundoscopy, pedigree, recommendations, clinician sign-off) remains live at `/runs` but is frozen on the v1 design system. No new features or design changes. A Layer 2 v2 redesign is on the roadmap as a future cycle.
 
 ---
 
@@ -249,7 +253,7 @@ Sequencing labs report in coding notation (`c.260A>G`). Databases are indexed by
 
 ### Source link on every data point — non-negotiable
 
-Clinicians and researchers will not trust a number they cannot verify. Every score, classification, or frequency shown must be a hyperlink to its source database. Dotted underline style (`text-decoration-style: dotted`). Opens in new tab. Where the database does not support URL pre-filling (Franklin, SpliceAI web UI), show `GENE:c.cdna` as copy-paste text.
+Clinicians and researchers will not trust a number they cannot verify. Every score, classification, or frequency shown must be a hyperlink to its source database. Dotted underline style (`text-decoration-style: dotted`). Opens in new tab. Where the database does not support URL pre-filling (SpliceAI web UI), show `GENE:c.cdna` as copy-paste text.
 
 ### All tools are gene-agnostic — no hardcoding
 
@@ -288,22 +292,24 @@ This platform has a separate internal business context involving pet genetics. D
 
 | Directory / File | What |
 | ---------------- | ---- |
-| `app/frontend/` | React + Vite frontend — `src/App.tsx` is the main file |
+| `app/frontend/` | React + Vite frontend — `/`, `/report`, `/workbench`, `/runs` (legacy) |
 | `app/backend/` | FastAPI backend — `app/` contains tools, services, schemas, routes |
 | `app/shared/contracts/` | Shared API contract (backend-api.json) |
-| `docs/architecture/` | API research, backend workflow, database-specific guides (ClinVar, VEP, SpliceAI, Franklin) |
+| `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the parallel Claude Code (frontend) ↔ Codex (backend) workflow — uses the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin so Codex shares the same filesystem, auth, and config as Claude Code. |
+| `docs/architecture/` | API research, backend workflow, database-specific guides (ClinVar, VEP, SpliceAI) |
 | `docs/design/` | Design brief, design system, Stitch design files |
 | `docs/research/` | Problem scope, narrowing research |
 | `docs/sources/` | Source index |
 | `pitch/` | Pitch deck outline and speaking notes |
-| `archive/` | Retired drafts, session handoffs, historical notes |
+| `archive/` | Retired drafts, session handoffs, historical notes — includes `archive/franklin/` (the archived Genoox tool) |
 | `.claude/agents/` | Custom subagent role definitions (architect, developer, debugger, quality-reviewer, technical-writer, ui-ux-consultant) |
 | `.claude/conventions/` | Universal coding and documentation standards |
 | `.claude/skills/` | Agent workflow scripts (planner, deepthink, codebase-analysis, refactor, etc.) |
 | `CLAUDE.md` | Navigation index — files, subdirectories, dev commands |
-| `DESIGN.md` | Full design system — typography, colour, spacing, component specs |
+| `DESIGN.md` | Full design system — v2 tokens, components, Workbench layout chrome |
 | `PROGRESS.md` | Session-by-session build log |
 | `CHANGELOG.md` | Feature changelog |
+| `ROADMAP.md` | Active phases and future cycles |
 
 ---
 

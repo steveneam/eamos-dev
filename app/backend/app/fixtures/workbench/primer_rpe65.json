@@ -1,0 +1,44 @@
+{
+  "mode": "sanger",
+  "pairs": [
+    {
+      "index": 1,
+      "forward": "GTGGACAAGACAGTCGCCATT",
+      "reverse": "GCAACATGCCCTACGCCCACG",
+      "tm_forward": 60.2,
+      "tm_reverse": 60.6,
+      "gc_forward": 52,
+      "gc_reverse": 65,
+      "product_size": 487,
+      "specificity_hits": 1,
+      "notes": "Optimal Tm balance; single specific hit; flanks c.260 by 178/309 bp.",
+      "recommended": true
+    },
+    {
+      "index": 2,
+      "forward": "TATCGGGAACCTGTGGACAAG",
+      "reverse": "GTCCAGGGCAACATGCCCTAC",
+      "tm_forward": 58.8,
+      "tm_reverse": 61.4,
+      "gc_forward": 52,
+      "gc_reverse": 62,
+      "product_size": 412,
+      "specificity_hits": 1,
+      "notes": "Slightly wider Tm spread; useful if pair #1 fails.",
+      "recommended": false
+    },
+    {
+      "index": 3,
+      "forward": "CCCTGTGGACAAGACAGTCGC",
+      "reverse": "GTCCTACGCCCACGCAACATG",
+      "tm_forward": 62.1,
+      "tm_reverse": 62.5,
+      "gc_forward": 62,
+      "gc_reverse": 62,
+      "product_size": 524,
+      "specificity_hits": 2,
+      "notes": "Tighter Tm but two BLAST hits; review cross-reactivity before ordering.",
+      "recommended": false
+    }
+  ]
+}

@@ -94,7 +94,7 @@ def test_run_chat_returns_404_for_unknown_run(client: TestClient, app) -> None:
 def test_run_chat_handles_degraded_runs(client: TestClient, app, pdf_bytes: bytes, monkeypatch) -> None:
     report_id = _upload_report(client, pdf_bytes)
 
-    def fake_fallback_result() -> ToolResult:
+    def fake_fallback_result(**_kwargs) -> ToolResult:
         return ToolResult(
             source='clinvar',
             status='fallback',

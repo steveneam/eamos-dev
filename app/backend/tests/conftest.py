@@ -26,6 +26,7 @@ def app(tmp_path: Path):
         use_real_apis=False,
         max_upload_mb=5,
         debug=True,
+        jwt_secret="test-secret",
     )
     return create_app(settings)
 

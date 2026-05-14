@@ -64,7 +64,7 @@ class WorkflowService:
         evidence_map = {}
         evidence_statuses = {}
         warnings: list[str] = []
-        for name in ('vep', 'spliceai', 'clinvar', 'franklin', 'gnomad', 'pubmed'):
+        for name in ('vep', 'spliceai', 'clinvar', 'gnomad', 'pubmed'):
             tool = self.tool_registry[name]
             result = tool.get_evidence(variant=primary_variant)
             summary = EvidenceSourceSummary(
@@ -111,6 +111,7 @@ class WorkflowService:
             reports=reports,
             case_title=case_title,
             case_label=case_label,
+            source_filenames=source_filenames,
             patient_context=patient_context,
             clinical_findings=clinical_findings,
             variant_rows=variant_rows,
@@ -401,6 +402,7 @@ class WorkflowService:
         reports,
         case_title: str,
         case_label: str | None,
+        source_filenames: list[str],
         patient_context: str | None,
         clinical_findings: str | None,
         variant_rows: list[VariantSummaryRow],
@@ -414,7 +416,7 @@ class WorkflowService:
         safe_report_title = self._sanitize_report_text(
             case_title,
             case_label=case_label,
-            source_filenames=self._build_source_filenames(reports),
+            source_filenames=source_filenames,
         ) or case_title
 
         primary_row = variant_rows[0] if variant_rows else None
@@ -452,7 +454,7 @@ class WorkflowService:
             patient_id=patient_id,
             case_label=None,
             report_title=safe_report_title,
-            source_filenames=[],
+            source_filenames=source_filenames,
             patient_context=patient_context,
             clinical_phenotype=clinical_findings,
             ai_clinical_summary=decision.recommendation,

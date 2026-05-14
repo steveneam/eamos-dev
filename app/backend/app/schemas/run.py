@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -53,6 +53,89 @@ class PubMedArticle(BaseModel):
     abstract: str | None = None
 
 
+ClassificationTier = Literal["pathogenic", "likely_pathogenic", "vus", "likely_benign", "benign"]
+AcmgVerdict = Literal["met", "not_met", "not_assessed"]
+PredictorVerdict = Literal["damaging", "tolerated", "uncertain"]
+
+
+class NearbyVariant(BaseModel):
+    cds_pos: int
+    classification: ClassificationTier
+    hgvs: str
+    clinvar_id: str | None = None
+
+
+class CodonCell(BaseModel):
+    codon_number: int
+    aa_ref: str
+    is_query: bool = False
+
+
+class LocusContext(BaseModel):
+    """Region viewer payload for the report."""
+
+    gene: str
+    centre_cdna: str
+    nearby_variants: list[NearbyVariant] = Field(default_factory=list)
+    codon_strip: list[CodonCell] = Field(default_factory=list)
+
+
+class PredictorCard(BaseModel):
+    """One card in the in-silico prediction grid."""
+
+    name: Literal["REVEL", "AlphaMissense", "MetaLR", "SpliceAI"]
+    score: float
+    threshold: float
+    verdict: PredictorVerdict
+    source_url: str | None = None
+
+
+class InSilicoPredictions(BaseModel):
+    cards: list[PredictorCard] = Field(default_factory=list)
+    consensus_note: str
+
+
+class AcmgCriterion(BaseModel):
+    code: Literal[
+        "PVS1",
+        "PS1", "PS2", "PS3", "PS4",
+        "PM1", "PM2", "PM3", "PM4", "PM5", "PM6",
+        "PP1", "PP2", "PP3", "PP4", "PP5",
+        "BA1",
+        "BS1", "BS2", "BS3", "BS4",
+        "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7",
+    ]
+    verdict: AcmgVerdict
+    note: str | None = None
+
+
+class AcmgCriteriaScaffold(BaseModel):
+    criteria: list[AcmgCriterion] = Field(default_factory=list)
+    disclaimer: str = "Supporting evidence, not classification."
+
+
+class CuratedVariantsDistribution(BaseModel):
+    """3 by 4 heat matrix, flattened into keyed cells."""
+
+    cells: dict[str, int] = Field(default_factory=dict)
+    total: int
+    reading: str
+
+
+class AssociatedCondition(BaseModel):
+    name: str
+    case_count: int
+    evidence_level: Literal["definitive", "strong", "moderate", "limited"]
+    inheritance: Literal["AR", "AD", "XL", "MT"]
+    source: str
+
+
+class PublicationsCallout(BaseModel):
+    total_count: int
+    scholar_url: str
+    ai_summary_prompt: str
+
+
 class ReportPayload(BaseModel):
     patient_id: str
     case_label: str | None = None
@@ -72,6 +155,12 @@ class ReportPayload(BaseModel):
     therapeutic_landscape: str | None = None
     pubmed_articles: list[PubMedArticle] = Field(default_factory=list)
     ai_generated_sections: list[str] = Field(default_factory=list)
+    locus_context: LocusContext | None = None
+    in_silico_predictions: InSilicoPredictions | None = None
+    acmg_criteria_scaffold: AcmgCriteriaScaffold | None = None
+    curated_variants_distribution: CuratedVariantsDistribution | None = None
+    associated_conditions: list[AssociatedCondition] = Field(default_factory=list)
+    publications_callout: PublicationsCallout | None = None
 
 
 class RunResponse(BaseModel):

@@ -1,0 +1,51 @@
+import { type ReactNode } from 'react'
+import { EamosLogo } from '@/components/brand/EamosLogo'
+import { cn } from '@/lib/utils'
+
+interface TopNavProps {
+  children?: ReactNode
+  right?: ReactNode
+  className?: string
+}
+
+export function TopNav({ children, right, className }: TopNavProps) {
+  return (
+    <div
+      className={cn('sticky top-0 z-50 backdrop-blur', className)}
+      style={{
+        background: 'rgba(255,255,255,0.85)',
+        borderBottom: '0.5px solid var(--line)',
+      }}
+    >
+      <div
+        className="mx-auto flex items-center gap-6 px-8"
+        style={{ maxWidth: 1180, height: 56 }}
+      >
+        <a
+          href="/"
+          aria-label="Eamos home"
+          className="flex shrink-0 items-center"
+          style={{ textDecoration: 'none' }}
+        >
+          <EamosLogo size={18} />
+        </a>
+        {children && <div className="min-w-0 flex-1">{children}</div>}
+        <div className="flex shrink-0 items-center gap-2">
+          {right ?? (
+            <a
+              href="/runs"
+              className="inline-flex items-center rounded-[10px] px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors"
+              style={{
+                color: 'var(--ink-2)',
+                background: 'var(--bg)',
+                border: '0.5px solid var(--line-2)',
+              }}
+            >
+              Patient reports
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

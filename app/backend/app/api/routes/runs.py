@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.schemas.chat import RunChatRequest, RunChatResponse
 from app.schemas.draft import ApproveResult, ClinicianReviewPayload, DropResult, ReportDraftUpdatePayload, ReviewResult, RunDropPayload
@@ -31,6 +31,12 @@ def update_run_report_payload(run_id: str, payload: ReportDraftUpdatePayload, re
 @router.post('/runs/{run_id}/chat', response_model=RunChatResponse)
 def chat_on_run(run_id: str, payload: RunChatRequest, request: Request) -> RunChatResponse:
     return request.app.state.run_chat_service.answer(run_id, payload)
+
+
+@router.post('/runs/{run_id}/chat/stream')
+def chat_on_run_stream(run_id: str, payload: RunChatRequest, request: Request) -> StreamingResponse:
+    iterator = request.app.state.run_chat_service.stream(run_id, payload)
+    return StreamingResponse(iterator, media_type='text/plain')
 
 
 @router.post('/runs/{run_id}/approve', response_model=ApproveResult)

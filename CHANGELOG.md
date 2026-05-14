@@ -1,5 +1,102 @@
 # Eamos — Change Log
 
+## Session 13 — 15 May 2026
+
+### v2 rebuild — frontend FE-0..FE-3 + backend BE-1..BE-5 landed in parallel
+
+**Why:** First parallel-execution cycle using the `openai/codex-plugin-cc` plugin. Claude Code drove the React/Vite work; Codex executed `plans/v2-backend.md` against `app/backend/` end-to-end in 22m. Same git working tree, same auth, same filesystem — no format mismatch (the plugin delegates to the local Codex CLI).
+
+**What changed:**
+
+- **Frontend (FE-0..FE-3):** Foundation tokens + hairline utility + ModePill (FE-0); Franklin removed from active surfaces and replaced with AlphaMissense (FE-1); six new report v2 modules — LocusContext, InSilicoGrid, AcmgCriteriaFold, CuratedVariantsGrid, AssociatedConditions, PublicationsCallout — with ~180 lines of v2 module CSS appended to `index.css` (FE-2); VariantHeader rewritten with cross-DB chip strip, tools row, and 4-stat row (FE-3). Also fixed a pre-existing TypeScript path-alias gap in `tsconfig.app.json` (`@/*` mapping was missing — the build had been broken before this session).
+- **Backend (BE-1..BE-5):** Franklin tool archived to `archive/franklin/` (BE-1); six new optional fields on `ReportPayload` with RPE65 fixture at `app/backend/app/fixtures/lookup_v2_modules.json` (BE-2); `POST /api/v1/chat` + `/chat/stream` (BE-3); `POST /api/v1/primer | /crispr | /align` returning fixture responses (BE-4); `test_franklin_removed.py` + extended `test_frontend_contract.py` (BE-5).
+- **Plans:** `plans/v2-frontend.md` and `plans/v2-backend.md` updated with status tables. New "FE-3.5 — Contract sync" section in `plans/v2-frontend.md` defines the next milestone: add the matching TypeScript interfaces to `app/frontend/src/lib/backend.ts` so `test_frontend_contract.py` passes and the FE-2 components can swap from hard-coded SAMPLE blocks to payload-driven props.
+
+**Known sync point:** `test_frontend_contract.py` is the only failing backend test — it's waiting on the FE-3.5 TypeScript interfaces. By design.
+
+**Codex session id (resumable):** `019e26bf-c0db-7b03-aff3-a5303bac4eed`.
+
+---
+
+## Session 12 — 14 May 2026
+
+### v2 rebuild plan written, Franklin archived from product
+
+**Why:** Three Claude Design mocks (`Eamos Landing Page.html`, `Eamos Report Page v2.html`, `Eamos Workbench v1.html`) iterate Eamos into two surfaces — variant report v2 with new modules folded in, and a new Workbench (sequence viewer + Primer/CRISPR/Align/Compare tools + tool-aware AI pill). Franklin (Genoox) is the main competitor and is being removed from the product surface.
+
+**What changed this session:**
+
+- `plans/README.md` — parallel-work coordination doc (Claude Code frontend ↔ Codex backend, shared contract on `backend.ts` ↔ Pydantic).
+- `plans/v2-frontend.md` — frontend port plan, 9 milestones (FE-0 foundation through FE-8 AskEamos pill). Built on existing Phase 0–2 scaffolding; React/Vite preserved (no Next.js migration).
+- `plans/v2-backend.md` — Codex-consumable backend brief, 5 milestones (BE-1 Franklin archive through BE-5 test sweep). Self-contained — every path, schema, and verification step in the doc.
+- `DESIGN.md` — full rewrite around v2 tokens (Syne/Plus Jakarta Sans/JBM, ink scale, sequence palette, AA biochem palette, 920/1180/1440 widths). Legacy `/runs` surface kept as a frozen appendix.
+- `README.md` — Franklin dropped from Database Stack. Report Structure refreshed to v2 sections (locus context, in-silico grid, ACMG fold, curated variants distribution, structured conditions, publications callout). Workbench surface added.
+- `ROADMAP.md` — Layer 1 v1 marked done. Two new active phases: Layer 1 v2 + Workbench. Layer 2 marked frozen at `/runs`.
+- `PROGRESS.md` — Session 12 entry summarising the rebuild.
+
+**Decisions locked in (the five conflicts surfaced):**
+
+1. Stack: keep React + Vite. Next.js migration deferred — re-evaluate if file-based API routing becomes load-bearing.
+2. Layer 2 patient report at `/runs` frozen — no design changes, no new features.
+3. Workbench delivered all-at-once with sample data; real engines (Primer3, CRISPOR, Needleman–Wunsch, AB1 parser) deferred to M-002.
+4. Franklin: archive to `archive/franklin/` (preserve history, remove from active code).
+5. v2 mock includes a `franklin.genoox.com` "Compare elsewhere ↗" chip — dropped in implementation. We don't link to competitors.
+
+**Not yet implemented:** plans are written; Claude Code starts FE-0, Codex picks up `plans/v2-backend.md`.
+
+---
+
+## Session 10 — 10 May 2026
+
+### Changes made this session
+
+#### 15. AlphaMissense tool implementation plan
+
+**Why:** The Solatis workflow (explore → deepthink → plan → execute) needed a first
+real test case. The original candidate (ClinicalTrials.gov integration) turned out to
+be already fully implemented — `clinical_trials.py`, `GENE_THERAPY_MAP`, and the
+`therapeutic_landscape` field wiring in both service layers were complete but undocumented.
+AlphaMissense was chosen instead: it is listed as `_(planned)_` in README.md, has no
+implementation file, and exercises all five layers the workflow is designed for
+(tool file, fixture JSON, registry, service payload, frontend card).
+
+**What changed:**
+- `plans/alphamissense-tool.md` — full implementation plan: 3 milestones (M-001 tool
+  foundation, M-002 pipeline wiring, M-003 frontend + docs), 7 architectural decisions
+  (DL-001–DL-007), 5 rejected alternatives, 3 risks. Ready to execute.
+- `plans/` directory created (commit 32a185c).
+
+**Key decisions recorded in the plan:**
+- Data shape = Point lookup only: `summary = {uniprot_id, residue, score, pathogenicity_category}`
+  (user confirmed; may revisit later)
+- Wire into existing `acmg_classification` string field — no new schema field
+- Thresholds from Cheng et al., Science 2023 (doi:10.1126/science.adg7842, Table S5):
+  `<0.34` likely_benign, `0.34–0.564` ambiguous, `>0.564` likely_pathogenic
+- `alphamissense` inserted between `spliceai` and `clinvar` in the evidence tuple
+  in both `lookup_service.py` and `workflow.py`
+
+**Not yet implemented** — plan is written and QR-validated; execution is the next session task.
+
+#### 16. Therapeutic Landscape + ClinicalTrials.gov — discovered as already complete
+
+**Why documented:** ROADMAP listed this as a future task, but exploration revealed the
+full implementation was already in place from a prior session with no changelog entry.
+
+**What exists (undocumented until now):**
+- `app/tools/clinical_trials.py` — `ClinicalTrialsTool` fetching recruiting/active trials
+  from ClinicalTrials.gov REST API v2; fixture map for 4 genes (RPE65, RPGR, ABCA4, CNGA3)
+- `GENE_THERAPY_MAP` in `app/services/lookup_service.py` — gene → approved therapy text
+- `therapeutic_landscape` field wired in both `lookup_service.py` and `workflow.py` —
+  combines `GENE_THERAPY_MAP` entry + `ClinicalTrialsTool.get_trials_summary(gene)`
+
+#### 17. Karpathy coding guidelines added to CLAUDE.md
+
+**Why:** Solatis optimization pass (commit 903d295) identified missing behavioral constraints.
+Karpathy-style guidelines added to reduce common LLM coding mistakes: simplicity-first,
+surgical changes, goal-driven execution, think-before-coding. Commit 32a185c.
+
+---
+
 ## Session 5 — 09 May 2026
 
 ### Changes made this session
