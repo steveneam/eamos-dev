@@ -94,6 +94,18 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
 }
 
 
+BE6_REPORT_V2_FIELDS: dict[type[BaseModel], set[str]] = {
+    CodonCell: {"aa_alt", "dna_ref", "dna_alt"},
+    NearbyVariant: {"protein_change"},
+    LocusContext: {"coords"},
+    PredictorCard: {"verdict_label"},
+    AcmgCriteriaScaffold: {"intro", "note"},
+    CuratedVariantsDistribution: {"row_totals", "subtitle"},
+    AssociatedCondition: {"db_tag", "db_tag_bold", "source_list"},
+    PublicationsCallout: {"blurb"},
+}
+
+
 def _backend_ts_path() -> Path:
     # tests/ -> backend/ -> app/ -> frontend/src/lib/backend.ts
     return (
@@ -144,3 +156,12 @@ def test_pydantic_field_names_present_in_typescript(model, ts_name):
         f"{ts_name} (TS) is missing fields present on {model.__name__} "
         f"(Pydantic): {sorted(missing)}"
     )
+
+
+@pytest.mark.parametrize(
+    "model,fields",
+    list(BE6_REPORT_V2_FIELDS.items()),
+    ids=lambda v: v.__name__ if isinstance(v, type) else ",".join(sorted(v)),
+)
+def test_be6_report_v2_fields_are_declared_on_pydantic_models(model, fields):
+    assert fields <= set(model.model_fields.keys())

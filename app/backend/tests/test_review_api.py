@@ -23,9 +23,9 @@ def _prepare_run(client: TestClient, pdf_bytes: bytes) -> str:
 
 
 
-def test_review_only_stores_note_and_timestamp(client: TestClient, pdf_bytes: bytes) -> None:
-    run_id = _prepare_run(client, pdf_bytes)
-    response = client.post(
+def test_review_only_stores_note_and_timestamp(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    run_id = _prepare_run(auth_client, pdf_bytes)
+    response = auth_client.post(
         f'/api/v1/runs/{run_id}/review',
         json={'reviewer_name': 'Leo', 'review_note': 'Looks good, minor wording tweak needed.'},
     )
@@ -37,27 +37,27 @@ def test_review_only_stores_note_and_timestamp(client: TestClient, pdf_bytes: by
 
 
 
-def test_review_requires_note_text(client: TestClient, pdf_bytes: bytes) -> None:
-    run_id = _prepare_run(client, pdf_bytes)
-    response = client.post(f'/api/v1/runs/{run_id}/review', json={'reviewer_name': 'Leo', 'review_note': ''})
+def test_review_requires_note_text(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    run_id = _prepare_run(auth_client, pdf_bytes)
+    response = auth_client.post(f'/api/v1/runs/{run_id}/review', json={'reviewer_name': 'Leo', 'review_note': ''})
     assert response.status_code == 400
 
 
 
-def test_approve_generates_frozen_pdf(client: TestClient, pdf_bytes: bytes) -> None:
-    run_id = _prepare_run(client, pdf_bytes)
-    client.post(
+def test_approve_generates_frozen_pdf(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    run_id = _prepare_run(auth_client, pdf_bytes)
+    auth_client.post(
         f'/api/v1/runs/{run_id}/review',
         json={'reviewer_name': 'Leo', 'review_note': 'Approved with note.'},
     )
 
-    response = client.post(f'/api/v1/runs/{run_id}/approve')
+    response = auth_client.post(f'/api/v1/runs/{run_id}/approve')
     assert response.status_code == 200
     body = response.json()
     assert body['run_id'] == run_id
     assert body['download_path'].endswith('/pdf')
 
-    pdf = client.get(f'/api/v1/runs/{run_id}/pdf')
+    pdf = auth_client.get(f'/api/v1/runs/{run_id}/pdf')
     assert pdf.status_code == 200
     assert pdf.headers['content-type'].startswith('application/pdf')
     assert pdf.content.startswith(b'%PDF')
@@ -71,10 +71,10 @@ def test_approve_generates_frozen_pdf(client: TestClient, pdf_bytes: bytes) -> N
 
 
 
-def test_patch_report_payload_updates_preview_pdf_and_preserves_locked_fields(client: TestClient, pdf_bytes: bytes) -> None:
-    run_id = _prepare_run(client, pdf_bytes)
+def test_patch_report_payload_updates_preview_pdf_and_preserves_locked_fields(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    run_id = _prepare_run(auth_client, pdf_bytes)
 
-    response = client.patch(
+    response = auth_client.patch(
         f'/api/v1/runs/{run_id}/report-payload',
         json={
             'patient_context': 'Edited patient context for preview.',
@@ -93,7 +93,7 @@ def test_patch_report_payload_updates_preview_pdf_and_preserves_locked_fields(cl
     assert body['report_payload']['ai_clinical_summary'] == 'Edited summary for preview.'
     assert body['review_note'] == 'Draft review note.'
 
-    pdf = client.get(f'/api/v1/runs/{run_id}/pdf')
+    pdf = auth_client.get(f'/api/v1/runs/{run_id}/pdf')
     assert pdf.status_code == 200
     reader = PdfReader(BytesIO(pdf.content))
     text = '\n'.join((page.extract_text() or '') for page in reader.pages)
@@ -105,12 +105,12 @@ def test_patch_report_payload_updates_preview_pdf_and_preserves_locked_fields(cl
 
 
 
-def test_patch_report_payload_is_blocked_after_approve(client: TestClient, pdf_bytes: bytes) -> None:
-    run_id = _prepare_run(client, pdf_bytes)
-    approve = client.post(f'/api/v1/runs/{run_id}/approve')
+def test_patch_report_payload_is_blocked_after_approve(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    run_id = _prepare_run(auth_client, pdf_bytes)
+    approve = auth_client.post(f'/api/v1/runs/{run_id}/approve')
     assert approve.status_code == 200
 
-    patch = client.patch(
+    patch = auth_client.patch(
         f'/api/v1/runs/{run_id}/report-payload',
         json={'ai_clinical_summary': 'Should not persist.'},
     )
@@ -118,16 +118,16 @@ def test_patch_report_payload_is_blocked_after_approve(client: TestClient, pdf_b
 
 
 
-def test_drop_marks_run_dropped_and_blocks_pdf(client: TestClient, pdf_bytes: bytes) -> None:
-    run_id = _prepare_run(client, pdf_bytes)
-    drop = client.post(f'/api/v1/runs/{run_id}/drop', json={'review_note': 'Noisy extraction.'})
+def test_drop_marks_run_dropped_and_blocks_pdf(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    run_id = _prepare_run(auth_client, pdf_bytes)
+    drop = auth_client.post(f'/api/v1/runs/{run_id}/drop', json={'review_note': 'Noisy extraction.'})
     assert drop.status_code == 200
     assert drop.json()['review_status'] == 'dropped'
 
-    pdf = client.get(f'/api/v1/runs/{run_id}/pdf')
+    pdf = auth_client.get(f'/api/v1/runs/{run_id}/pdf')
     assert pdf.status_code == 409
 
-    patch = client.patch(
+    patch = auth_client.patch(
         f'/api/v1/runs/{run_id}/report-payload',
         json={'ai_clinical_summary': 'Should not persist.'},
     )

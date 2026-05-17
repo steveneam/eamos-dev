@@ -26,7 +26,7 @@ Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2
 | Plain language decoder | Pure regex/template — no LLM, fully offline |
 | Database | SQLite in-memory (dev) / PostgreSQL (Docker) |
 | Auth | JWT (secret required at startup — no default) |
-| Node.js (Windows) | Portable at `C:\temp\node\node-v22.15.0-win-x64` |
+| Node.js (Windows) | IT-managed system install at `C:\Program Files\nodejs\` (already on PATH) |
 | Python (Windows) | `C:\Program Files\Python310\` |
 
 **Key paths:**
@@ -48,10 +48,10 @@ cd app/backend
 python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
 
 # Frontend
-$env:PATH = "C:\temp\node\node-v22.15.0-win-x64;$env:PATH"
 cd app/frontend
 npm run dev
 # → http://localhost:5173
+# Node.js: IT-managed system install at C:\Program Files\nodejs\ (already on PATH).
 ```
 
 ---
@@ -117,7 +117,7 @@ Layer 1 lookup = landing page. Layer 2 patient report = secondary, accessed via 
 
 ### Default operating mode
 
-`USE_REAL_APIS=false` — all tools return fixture JSON. `LLM_PROVIDER=mock` — no OpenAI calls. Live mode requires IT network clearance (outbound HTTPS for Python blocked by corporate policy as of session 9).
+`USE_REAL_APIS=false` — all tools return fixture JSON. `LLM_PROVIDER=mock` — no OpenAI calls. Live mode needs outbound HTTPS for Python — verified working against real APIs 2026-05-16 (the earlier session-9 corporate-policy block no longer applies).
 
 ---
 
@@ -295,7 +295,7 @@ This platform has a separate internal business context involving pet genetics. D
 | `app/frontend/` | React + Vite frontend — `/`, `/report`, `/workbench`, `/runs` (legacy) |
 | `app/backend/` | FastAPI backend — `app/` contains tools, services, schemas, routes |
 | `app/shared/contracts/` | Shared API contract (backend-api.json) |
-| `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the parallel Claude Code (frontend) ↔ Codex (backend) workflow — uses the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin so Codex shares the same filesystem, auth, and config as Claude Code. |
+| `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the Claude Code (frontend) ↔ Codex (backend) workflow. Direct Codex app sessions have verified full workspace + outbound-network access (2026-05-17); live cross-agent coordination is in `agent_handoff/`. The plugin-mediated path ([openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)) is historical. |
 | `docs/architecture/` | API research, backend workflow, database-specific guides (ClinVar, VEP, SpliceAI) |
 | `docs/design/` | Design brief, design system, Stitch design files |
 | `docs/research/` | Problem scope, narrowing research |

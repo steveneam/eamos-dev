@@ -63,11 +63,15 @@ class NearbyVariant(BaseModel):
     classification: ClassificationTier
     hgvs: str
     clinvar_id: str | None = None
+    protein_change: str | None = None
 
 
 class CodonCell(BaseModel):
     codon_number: int
     aa_ref: str
+    aa_alt: str | None = None
+    dna_ref: str = ""
+    dna_alt: str | None = None
     is_query: bool = False
 
 
@@ -76,6 +80,7 @@ class LocusContext(BaseModel):
 
     gene: str
     centre_cdna: str
+    coords: str = ""
     nearby_variants: list[NearbyVariant] = Field(default_factory=list)
     codon_strip: list[CodonCell] = Field(default_factory=list)
 
@@ -87,6 +92,7 @@ class PredictorCard(BaseModel):
     score: float
     threshold: float
     verdict: PredictorVerdict
+    verdict_label: str = ""
     source_url: str | None = None
 
 
@@ -111,6 +117,8 @@ class AcmgCriterion(BaseModel):
 
 class AcmgCriteriaScaffold(BaseModel):
     criteria: list[AcmgCriterion] = Field(default_factory=list)
+    intro: str = ""
+    note: str = ""
     disclaimer: str = "Supporting evidence, not classification."
 
 
@@ -118,7 +126,9 @@ class CuratedVariantsDistribution(BaseModel):
     """3 by 4 heat matrix, flattened into keyed cells."""
 
     cells: dict[str, int] = Field(default_factory=dict)
+    row_totals: dict[str, int] = Field(default_factory=dict)
     total: int
+    subtitle: str = ""
     reading: str
 
 
@@ -128,11 +138,15 @@ class AssociatedCondition(BaseModel):
     evidence_level: Literal["definitive", "strong", "moderate", "limited"]
     inheritance: Literal["AR", "AD", "XL", "MT"]
     source: str
+    db_tag: str = ""
+    db_tag_bold: str | None = None
+    source_list: str = ""
 
 
 class PublicationsCallout(BaseModel):
     total_count: int
     scholar_url: str
+    blurb: str = ""
     ai_summary_prompt: str
 
 

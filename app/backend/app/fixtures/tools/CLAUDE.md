@@ -9,5 +9,7 @@ Fixture JSON files — one per external data source. Returned verbatim by tools 
 | `clinvar_fixtures.json` | ClinVar fixture response | Debugging ClinVar tool in fixture mode |
 | `gnomad_fixtures.json` | gnomAD fixture response | Debugging gnomAD tool in fixture mode |
 | `pubmed_fixtures.json` | PubMed fixture response | Debugging PubMed tool in fixture mode |
+| `litvar2_fixtures.json` | LitVar2 fixture response | Debugging LitVar2 tool in fixture mode |
+| `variant_validator_fixtures.json` | VariantValidator fixture response | Debugging coordinate resolver in fixture mode |
 | `spliceai_fixtures.json` | SpliceAI fixture response | Debugging SpliceAI tool in fixture mode |
 | `vep_fixtures.json` | Ensembl VEP fixture response | Debugging VEP tool in fixture mode |

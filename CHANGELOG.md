@@ -1,5 +1,247 @@
 # Eamos — Change Log
 
+## Session 18 — 16 May 2026 — FE-5.5: Sequence Viewer v2 (Benchling-grade) + chrome relayout
+
+At the post-Session-2 backend-first checkpoint the user redirected to the
+Workbench sequence viewer: review the refreshed `Eamos Workbench v2.html` +
+`Workbench v2/*` mock and the Benchling/SnapGene competition shots, form a
+UI/UX opinion, and integrate 4 requested changes into the plan. Confirmed
+(augment zoom; full v2 port), then executed as new milestone **FE-5.5**.
+
+- **Plan** — `plans/v2-frontend.md`: FE-5.5 milestone added ahead of FE-6;
+  FE-5 marked superseded; stale "Source mocks" pointer fixed (v1 → v2).
+- **Data model** — `lib/workbench/gene-window.ts` (pure `buildFlatWindow` /
+  `buildCodons` / `consequenceAt`, intron/splice-aware), `sample-rpe65-v2.ts`
+  (full 14-exon/intron structure, density counts, protein features; carries
+  forward the FE-5 codon-87 coherence fix), `edit-state.ts` (undo/redo
+  reducer), `gene-window.test.ts` (8 tests).
+- **Viewer** — React port: `SequenceViewerV2` + `ViewerToolbar`, `GeneMinimap`,
+  `ExonStrip`, `CodonDetail` (wrapped 60-bp blocks), `SelectionBar`,
+  `HistoryTimeline`, `EditPopoverV2`, `ZoomSlider`; new horizontal `ToolBar`;
+  `CanvasHeader`/`SidePanel`/`WorkbenchShell` rewritten.
+- **4 modifications** — (1) ClinVar density toggle (Tracks dropdown, grouped
+  with pins); (2) collapsible side-panel exon disclosure; (3) tool selector →
+  horizontal segmented control top-right, left rail removed (`.wb` 2-col);
+  (4) Benchling −/+ density slider + retained Gene/Exon/Codon chips +
+  minimap/exon-strip collapse + restriction-as-top-ticks / beige-band pass.
+- **Cleanup** — 14 superseded FE-5 files deleted.
+- **Verified** — `npx vitest run` 24/24, `npm run build` clean (tsc -b +
+  vite), `test_frontend_contract.py` 40/40 (untouched — pure FE, no contract
+  drift). Browser pixel-check pending a dev-server session.
+- **Codex adversarial hardening pass** (`task-mp8d61ip-1zyj8k`,
+  `codex:rescue --background --fresh --write`): 0 CRITICAL · 2 HIGH (drag
+  listeners surviving unmount; edit popover not portalled/clamped) · 2 MED
+  (history-jump cursor bounds; hard-coded intronic ClinVar pin mapping →
+  data-driven) · 3 LOW (icon-button a11y; stable list keys; stale CSS rail
+  comment) — **all FIXED**. Claude re-ran the authoritative verify post-Codex
+  (Codex's sandbox can't run vitest/vite): vitest 24/24, build clean, contract
+  40/40. **Nothing committed.**
+
+## Session 17 — 16 May 2026 — Whole-project review → deepthink → hardening Session 1
+
+### Inputs
+
+- **Codex whole-project adversarial-review** (`task-mp834g2g-uochuz`): 2 CRITICAL
+  (unauthenticated `/runs,/reports,/reviews,/search` — patient data + PDFs
+  readable/editable/downloadable; `/reports/upload` open), 3 HIGH (`/report?q=`
+  demo leak; SpliceAI strict-genomic violation; VariantValidator fabricates
+  consequence), 4 MEDIUM (cache race, pubmed `raw=None`, unsafe `load_fixture`,
+  dead AI button), 4 LOW, + a 7-item ranked recommendation list.
+- **deepthink skill** (quick mode, confidence CERTAIN): produced the risk-ordered,
+  lane-split, sessionized plan (security → correctness → invariants → features →
+  docs); verified the auth-change blast radius against the actual codebase (7
+  test files + no authed conftest fixture) before planning.
+
+### Session 1 — landed this session
+
+- **Frontend (Claude) — done, verified:**
+  - **H1** `ReportPage.tsx` — `/report?q=…` (Workbench/AI fallback) no longer
+    silently renders the RPE65 sample; unstructured search → `malformed` state.
+    Demo now only on explicit `?demo` or a truly empty entry.
+  - **M4** `PublicationsCallout.tsx` — the AI-summary button renders only when an
+    `onAskSummary` handler is supplied (was an always-on dead control).
+  - **L1** `ReportPage.tsx` — "Gene context" card meta derived from
+    `variant_summary_rows[0]` (`geneContextMeta`) instead of hardcoded
+    `RPE65 · NM_000329.3`.
+  - **L2** `ToolRail.tsx` — removed the inert (no-onClick, unlabeled) settings button.
+  - **L4** `plans/v2-frontend.md` — obsolete FE-3.6 "remaining" block marked historical.
+  - `ROADMAP.md` fully rewritten (true state + sessionized hardening plan);
+    handoff at `~/.claude/plans/next-session-eamos-hardening.md`.
+  - Verified: `npx vitest run` **21/21**, `npm run build` clean.
+- **Backend (Codex, golden rule) — ✅ done & Claude-verified** (`task-mp83i0eg-v76i3k`):
+  C1/C2 authentication on `routes/{runs,reports,reviews,search}.py` via a new
+  `require_authenticated_user` dep in `core/deps.py` (HTTPBearer →
+  `auth_service.get_current_user`, 401 on missing/invalid, `# TODO` object-authz);
+  public lookup/health/auth/primer/crispr/align/chat stay open; authed `auth_client`
+  fixture added to `tests/conftest.py` + 7 test files migrated + new
+  `tests/test_auth_guard.py` 401 test. **Verified independently:** offline pytest
+  **81 passed / 4 skipped**, `test_frontend_contract.py` **40/40**; live smoke —
+  public `/api/v1/lookup`+`/api/v1/primer` → 200 (no auth), protected
+  `/api/v1/runs`+`/api/v1/reports/upload` → 401. C1/C2 patient-data exposure closed.
+
+### Codex runtime fix (carried from Session 16)
+
+Diagnosed + fixed the "phantom running / 3rd dispatch silently fails" class:
+stale `state.json` zombie job records (dead pids from non-graceful exits) block
+the single shared Codex runtime; the companion `cancel` is broken under
+Git-bash (`/PID` MSYS-mangle) so they never reap. Reconciled the records;
+verified dispatch round-trips. Durable fix (run `cancel` from PowerShell) +
+reap procedure saved to memory.
+
+### Session 2 — backend hardening (✅ done & Claude-verified, Codex `task-mp848are-gq0blv`)
+
+Re-sequenced backend-first per user decision (frontend consumes the API; stub
+contracts already frozen so FE is never blocked; building FE once against final
+backend avoids rework). H2 (spliceai → `live_stub` when no coords, mirrors
+gnomad), H3 (`variant_validator._mutate_variant` no longer fabricates
+`single nucleotide variant`/`missense variant` without a `variant_id`), M1
+(`variant_cache_repo.upsert` → atomic `INSERT … ON CONFLICT DO UPDATE`), M2
+(`pubmed.py` miss path `raw={}`), M3 (`base.py load_fixture` guarded →
+`{}` on missing/corrupt fixture), L3 (`plans/v2-backend.md` coherent). New
+`tests/test_tool_invariants.py`. Verified: offline pytest **86 passed / 4
+skipped**, contract 40/40; live smoke — all evidence `live`,
+`genomic_hg38=1-68444869-T-C`, spliceai stays `live` on resolved path, 10
+publications.
+
+### Remaining (see ROADMAP.md / handoff)
+
+Backend hardening complete. **Checkpoint:** M-002 real engines (Primer3 /
+CRISPOR / NW+AB1 / live chat) — feasibility-gated, large; FE-6/7/8 contracts
+already frozen so frontend isn't blocked. Awaiting user decision before FE
+work. **Nothing committed.**
+
+---
+
+## Session 16 — 16 May 2026 — Variant-search-engine: cross-check + live fixes
+
+### Phase A — Bidirectional full-project cross-check
+
+**Why:** BE-8…BE-13 + FE-14 were offline-green but the prior session's
+Claude-run live smoke found the backend was not live-functional. Before fixing,
+a whole-project audit (not just the diff): Claude reviewed all `app/backend/**`
++ ran the live smoke; Codex (`task-mp81134n-3fm2ge`, read-only adversarial)
+reviewed all `app/frontend/**`. Findings consolidated, severity-ranked, and
+**approved by the user before any code edit**.
+
+**Key audit outcomes:**
+
+- **Plan diagnostics were partly stale (verified empirically):** BE-9 was
+  *already fixed* in the working tree (`normalize_variant_query` +
+  `CANONICAL_TRANSCRIPTS` → VariantValidator queries `NM_000329.3:c.260A>G`);
+  BE-12 worked live; VEP/SpliceAI live succeeded (plan's "out of scope, broken"
+  was outdated). BE-11 + BE-13 were the real remaining bugs.
+- **Cross-check caught a Codex false positive:** Codex flagged
+  `cleanQuery()` not stripping `_`; the regex at `variant-format.ts:30`
+  (`[A-Za-z0-9_.]`) *does* include `_` and its test passes — rejected.
+
+### Phase B — Approved fixes (HIGH + all MEDIUM)
+
+**Backend (Codex, golden rule — 2 dispatched rounds + 1 Claude-applied):**
+
+- **BE-11 / HIGH-1 — PubMed query too narrow.** `pubmed.py` term was
+  `{gene}[Gene Name] AND "{cdna}"[Title/Abstract]` → live count **0** for
+  RPE65 c.260A>G. Now gene + OR-group(cdna, protein, rsID) with gene-only
+  fallback → **10 live articles**. (Verified real esearch: strict=0,
+  broadened=121.)
+- **BE-11 / MEDIUM-1 — LitVar2 query form + parser.** Free-text
+  `"GENE c.xxx"` never matched LitVar2 autocomplete; now queries the
+  **ClinVar-derived dbSNP rsID** (`_extract_dbsnp_rsid` from clinvar raw
+  `variation_set[].variation_xrefs`), parses real `pmids`/`pmids_count`
+  shape. Graceful zero return kept (rs1645931040 genuinely not in LitVar2).
+- **BE-13 / MEDIUM-2 — cache poisoning.** `lookup_service` upsert guard now
+  requires truthy `variant.genomic_hg38` (failed resolutions no longer
+  cached/served). Regression test added.
+- **BE-11 follow-up (Claude-applied — Codex 3rd dispatch failed to enqueue;
+  user-approved golden-rule exception).** `publications_callout.total_count`
+  collapsed to 0 when LitVar2 legitimately returned 0 even with 10 PubMed
+  articles; now falls back to merged-article count when LitVar2=0. Offline
+  fixture (litvar=816) unchanged.
+
+**Frontend (Claude):**
+
+- **HIGH-2 — client guard blocked backend-valid genomic input.**
+  `variant-format.ts` `coord` regex widened to accept VCF-quad forms
+  (`1-68444869-T-C`, `chr1:68444869:T:C`) the backend `normalize_variant_query`
+  already accepts; 8 regression assertions added.
+- **MEDIUM-3 — Workbench context/data mismatch.** `WorkbenchPage` context
+  strip now reflects the rendered RPE65 fixture instead of echoing arbitrary
+  URL params.
+- **MEDIUM-4 — scratchpad drift.** `WorkbenchShell` per-base reset /
+  revert-to-ref now drop the scratch row; re-edit replaces instead of
+  duplicating.
+- **MEDIUM-5 — base editor a11y.** `BaseRow` bases are now keyboard-operable
+  (`role="button"`, `tabIndex`, `aria-label`, Enter/Space).
+
+(Deferred per approved scope: LOW-1 ToolRail aria-label, LOW-2 generalised
+transcript resolution, LOW-3 short dev JWT secret.)
+
+### Phase C — Verification
+
+**Verified:**
+
+- Offline: `python -m pytest tests/ -q` → **80 passed, 4 skipped**;
+  `test_frontend_contract.py` **40/40**; integration 816-assertion intact.
+- Frontend: `npm run build` clean (tsc + vite); `npx vitest run` **21/21**.
+- Claude-run live smoke (`USE_REAL_APIS=true`, `?refresh=true` bypass) — all
+  Phase-C assertions PASS: `genomic_hg38==1-68444869-T-C`, gnomAD/VariantValidator
+  `live`, `publications_callout.total_count==10` (was 0), 10 conforming
+  `pubmed.ncbi.nlm.nih.gov/{pmid}/` URLs, 2nd call → evidence `cache`
+  (not poisoned), `?refresh=true` → all `live`.
+
+**Known / out of scope:** `tests/test_real_agent_smoke.py` (env-gated, normally
+skipped) is flaky — it hard-asserts `spliceai status == "live"`, which fails on
+transient SpliceAI endpoint timeouts (pre-existing brittleness; SpliceAI live
+instability is explicitly out-of-scope per the plan). The pipeline itself
+degrades correctly (never raises; `fallback` + `live_fetch_failed:` warning).
+
+**Tooling note:** Codex's 3rd `codex:rescue` dispatch echoed a job ID but never
+enqueued a real `task-*` job (no state file/log; broker healthy). The two
+earlier apparent "hangs" were a Claude-side poll-loop JSON-shape bug, not Codex.
+
+**Nothing committed** (per instruction). Plan rows flipped to ✅ in
+`plans/v2-backend.md` (BE-8…BE-13) + `plans/v2-frontend.md` (FE-14).
+
+---
+
+## Session 15 — 15 May 2026 (continued)
+
+### FE-5 — Workbench Sequence Viewer + click-to-edit
+
+**Why:** First Workbench tool surface. Ports the sequence-viewer slice of the Claude Design mock (`Workbench/{data.js,sequence-viewer.js,side.js}`) to declarative React/TS. No backend-contract dependency — all-new frontend files.
+
+**What changed:**
+
+- **Testable core:** `src/lib/workbench/codon-table.ts` (codon table, `translate`, parameterised pure `consequenceOf`) + `src/lib/workbench/sample-rpe65.ts` (typed RPE65 window).
+- **Viewer:** 11 components under `src/components/workbench/viewer/` — orchestrating `SequenceViewer` + ruler/track rows + portalled `EditPopover` with live hover-preview of the edit consequence and an apply→scratchpad flow.
+- **Wiring:** `WorkbenchShell` lifted `edits`/`scratch`/`tracksOn` state; `CanvasHeader` made controlled (track toggles now drive the viewer); `SidePanel` gained the viewer branch (active-variant facts + scratchpad + reading guide).
+- **Tests:** `vitest@^3` devDep + `npm run test` script; `codon-table.test.ts` (5/5) asserting missense `p.Asp87Gly`, frameshift on del, synonymous wobble + a data-coherence guard.
+
+**Verified:** `npm run build` green; `npm run test` 5/5; `test_frontend_contract.py` 40/40 (unchanged — no contract touch).
+
+**Deviations logged (PROGRESS.md Session 15):** (1) 1-char sample-sequence coherence fix so codon 87 = GAC/Asp → spec `p.Asp87Gly` (source mock's literal sequence contradicted its own annotations + the rest of Eamos); (2) hover-preview added to EditPopover per plan/acceptance (source JS previewed on click only).
+
+---
+
+## Session 14 — 15 May 2026 (continued)
+
+### Parallel cycle 2 — FE-3.5 closed; BE-6/BE-7 + FE-4 + FE-3.6 landed
+
+**Why:** Session 13 left FE-3.5 (contract sync) open and the report v2 modules rendering from hard-coded SAMPLE blocks richer than the backend fixture. This cycle closes the loop: backend payload made mock-faithful (BE-6), Workbench surface scaffolded (FE-4), and the frontend reconciled to the enriched contract with the divergent SAMPLE datasets removed (FE-3.6). Second use of the parallel Codex (`--background`) workflow.
+
+**What changed:**
+
+- **Frontend:** FE-3.5 closed (6 components wired to `payload.*`). FE-4 — new `/workbench` route + shell chrome (`src/components/workbench/*`, `src/pages/WorkbenchPage.tsx`, scoped `src/styles/workbench.css` ported from the mock with global resets dropped, width vars remapped to FE-0 tokens, `.badge`→`.ctx-badge`). FE-3.6 — `backend.ts` + `sample-report.ts` synced to the BE-6 contract; all 6 report components rewritten to consume the enriched payload and the divergent SAMPLE datasets deleted (empty-state fallback when data absent).
+- **Backend (Codex):** BE-6 — additive schema fields + full rewrite of `lookup_v2_modules.json` to mirror the frontend SAMPLE constants; `test_frontend_contract.py` extended. BE-7 — `primer/crispr/align` workbench fixtures tightened to mock-JS fidelity.
+- **Plans:** `plans/v2-frontend.md` (FE-4, FE-3.6 → done) and `plans/v2-backend.md` (BE-6, BE-7 → done) status tables updated.
+
+**Sync point closed:** `test_frontend_contract.py` now **40/40 PASS** — the Session 13 known failure is resolved. `npm run build` green.
+
+**Decision/deviation logged:** no-param `/workbench` defaults to the RPE65 sample rather than redirecting to `/` (v2 only serves RPE65; consistent with ReportPage demo). Three Codex fixture ambiguities recorded in `PROGRESS.md` Session 14 for review (CRISPR guide count, HDR efficiency range→midpoint, alignment mismatch index).
+
+**Codex session:** background rescue agent `a862070de2d41f104` (this Claude session `2b842353-8473-468d-88e5-05e66d4acbf4`).
+
+---
+
 ## Session 13 — 15 May 2026
 
 ### v2 rebuild — frontend FE-0..FE-3 + backend BE-1..BE-5 landed in parallel

@@ -1,76 +1,41 @@
-type EvLevel = 'def' | 'strong' | 'mod' | 'lim'
-type Inheritance = 'AR' | 'AD' | 'XL' | 'MT'
+import type {
+  AssociatedCondition as AssociatedConditionData,
+  EvidenceLevel,
+} from '@/lib/backend'
 
-interface Condition {
-  name: string
-  cases: number
-  evidence: EvLevel
-  evidenceLabel: string
-  inheritance: Inheritance
-  metaTag: string         // e.g. "OMIM #204100" — the b tag inside is parsed simply
-  metaTagBold?: string    // e.g. "OMIM"
-  src: string             // sources list
-}
+type EvLevel = 'def' | 'strong' | 'mod' | 'lim'
 
 interface AssociatedConditionsProps {
-  conditions?: Condition[]
-  sub?: string
+  data?: AssociatedConditionData[] | null
 }
 
-const SAMPLE: Condition[] = [
-  {
-    name: 'Leber Congenital Amaurosis 2 (LCA2)',
-    cases: 412,
-    evidence: 'def',
-    evidenceLabel: 'Definitive',
-    inheritance: 'AR',
-    metaTagBold: 'OMIM',
-    metaTag: '#204100',
-    src: 'OMIM · Monarch · DECIPHER · GenCC · ClinGen',
-  },
-  {
-    name: 'Retinitis Pigmentosa 20 (RP20)',
-    cases: 218,
-    evidence: 'def',
-    evidenceLabel: 'Definitive',
-    inheritance: 'AR',
-    metaTagBold: 'OMIM',
-    metaTag: '#613794',
-    src: 'OMIM · Monarch · GenCC',
-  },
-  {
-    name: 'RPE65-Related Dominant Retinopathy',
-    cases: 14,
-    evidence: 'mod',
-    evidenceLabel: 'Moderate',
-    inheritance: 'AD',
-    metaTag: 'No OMIM entry',
-    src: 'OMIM · GenCC · ClinGen · MONDO',
-  },
-  {
-    name: 'Severe Early-Childhood-Onset Retinal Dystrophy',
-    cases: 9,
-    evidence: 'mod',
-    evidenceLabel: 'Moderate',
-    inheritance: 'AR',
-    metaTag: 'Orphanet ORPHA:71862',
-    src: 'Orphanet · GenCC',
-  },
-  {
-    name: 'RPE65-Related Recessive Retinopathy (umbrella)',
-    cases: 5,
-    evidence: 'def',
-    evidenceLabel: 'Definitive',
-    inheritance: 'AR',
-    metaTag: 'MONDO:0019200',
-    src: 'PubMed · GenCC · MONDO · DECIPHER · OMIM · ClinGen',
-  },
-]
+const EV_ABBREV: Record<EvidenceLevel, EvLevel> = {
+  definitive: 'def',
+  strong: 'strong',
+  moderate: 'mod',
+  limited: 'lim',
+}
 
-export function AssociatedConditions({
-  conditions = SAMPLE,
-  sub = '5 conditions · OMIM + GenCC + ClinGen + MONDO',
-}: AssociatedConditionsProps) {
+const EV_LABEL: Record<EvidenceLevel, string> = {
+  definitive: 'Definitive',
+  strong: 'Strong',
+  moderate: 'Moderate',
+  limited: 'Limited',
+}
+
+export function AssociatedConditions({ data }: AssociatedConditionsProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ marginTop: 22 }}>
+        <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
+          No associated conditions recorded for this gene.
+        </p>
+      </div>
+    )
+  }
+
+  const sub = `${data.length} conditions · OMIM + GenCC + ClinGen + MONDO`
+
   return (
     <div style={{ marginTop: 22 }}>
       <div className="vardist-title" style={{ marginBottom: 4 }}>
@@ -78,26 +43,26 @@ export function AssociatedConditions({
         <span className="vardist-sub">{sub}</span>
       </div>
       <div className="conds">
-        {conditions.map((c, i) => (
+        {data.map((c, i) => (
           <div key={i} className="cond">
             <div className="cond-cases">
-              <span className="n">{c.cases}</span>
+              <span className="n">{c.case_count}</span>
               <span className="l">cases</span>
             </div>
             <div className="cond-main">
               <div className="name">{c.name}</div>
               <div className="meta">
                 <span className="meta-tag">
-                  {c.metaTagBold && <b>{c.metaTagBold}</b>}
-                  {c.metaTagBold ? ` ${c.metaTag}` : c.metaTag}
+                  {c.db_tag_bold && <b>{c.db_tag_bold}</b>}
+                  {c.db_tag_bold ? ` ${c.db_tag}` : c.db_tag || c.source}
                 </span>
                 <span className="ev-level">
-                  <span className={`ev-bars ${c.evidence}`}>
+                  <span className={`ev-bars ${EV_ABBREV[c.evidence_level]}`}>
                     <span /><span /><span />
                   </span>
-                  {c.evidenceLabel}
+                  {EV_LABEL[c.evidence_level]}
                 </span>
-                <span className="src">{c.src}</span>
+                <span className="src">{c.source_list}</span>
               </div>
             </div>
             <div className="cond-inherit">{c.inheritance}</div>

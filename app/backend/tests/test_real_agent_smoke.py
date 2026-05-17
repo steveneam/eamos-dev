@@ -37,10 +37,17 @@ def test_live_evidence_run_uses_real_apis() -> None:
         use_real_apis=True,
         max_upload_mb=20,
         debug=True,
+        jwt_secret="test-secret",
     )
     app = create_app(settings)
 
     with TestClient(app) as client:
+        auth = client.post(
+            "/api/v1/auth/register",
+            json={"username": "test-user", "password": "test-password"},
+        )
+        assert auth.status_code == 201
+        client.headers.update({"Authorization": f"Bearer {auth.json()['access_token']}"})
         upload = client.post(
             "/api/v1/reports/upload",
             files={"file": ("ravi-live-api.pdf", build_pdf_bytes(), "application/pdf")},

@@ -38,6 +38,19 @@ def client(app):
 
 
 @pytest.fixture()
+def auth_client(app):
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/api/v1/auth/register",
+            json={"username": "test-user", "password": "test-password"},
+        )
+        assert response.status_code == 201
+        token = response.json()["access_token"]
+        test_client.headers.update({"Authorization": f"Bearer {token}"})
+        yield test_client
+
+
+@pytest.fixture()
 def pdf_bytes() -> bytes:
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer)

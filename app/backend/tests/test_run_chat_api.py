@@ -54,12 +54,12 @@ class UnknownAnswerChain:
         }
 
 
-def test_run_chat_returns_grounded_answer_with_citations(client: TestClient, app, pdf_bytes: bytes) -> None:
-    run_id = _create_run(client, pdf_bytes, patient_id='RP-CHAT-002')
+def test_run_chat_returns_grounded_answer_with_citations(auth_client: TestClient, app, pdf_bytes: bytes) -> None:
+    run_id = _create_run(auth_client, pdf_bytes, patient_id='RP-CHAT-002')
     app.state.run_chat_service.embeddings = FakeEmbeddings()
     app.state.run_chat_service.answer_chain = GroundedAnswerChain()
 
-    response = client.post(f'/api/v1/runs/{run_id}/chat', json={'question': 'What does ClinVar say?'})
+    response = auth_client.post(f'/api/v1/runs/{run_id}/chat', json={'question': 'What does ClinVar say?'})
     assert response.status_code == 200
     body = response.json()
 
@@ -69,12 +69,12 @@ def test_run_chat_returns_grounded_answer_with_citations(client: TestClient, app
     assert body['citations'][0]['source_type'] in {'run_section', 'report_extract', 'evidence'}
 
 
-def test_run_chat_returns_unknown_for_unsupported_question(client: TestClient, app, pdf_bytes: bytes) -> None:
-    run_id = _create_run(client, pdf_bytes, patient_id='RP-CHAT-003')
+def test_run_chat_returns_unknown_for_unsupported_question(auth_client: TestClient, app, pdf_bytes: bytes) -> None:
+    run_id = _create_run(auth_client, pdf_bytes, patient_id='RP-CHAT-003')
     app.state.run_chat_service.embeddings = FakeEmbeddings()
     app.state.run_chat_service.answer_chain = UnknownAnswerChain()
 
-    response = client.post(f'/api/v1/runs/{run_id}/chat', json={'question': 'What medication should be started?'})
+    response = auth_client.post(f'/api/v1/runs/{run_id}/chat', json={'question': 'What medication should be started?'})
     assert response.status_code == 200
     body = response.json()
 
@@ -83,16 +83,16 @@ def test_run_chat_returns_unknown_for_unsupported_question(client: TestClient, a
     assert 'cannot confirm' in body['answer'].lower()
 
 
-def test_run_chat_returns_404_for_unknown_run(client: TestClient, app) -> None:
+def test_run_chat_returns_404_for_unknown_run(auth_client: TestClient, app) -> None:
     app.state.run_chat_service.embeddings = FakeEmbeddings()
     app.state.run_chat_service.answer_chain = GroundedAnswerChain()
 
-    response = client.post('/api/v1/runs/run_missing/chat', json={'question': 'What does ClinVar say?'})
+    response = auth_client.post('/api/v1/runs/run_missing/chat', json={'question': 'What does ClinVar say?'})
     assert response.status_code == 404
 
 
-def test_run_chat_handles_degraded_runs(client: TestClient, app, pdf_bytes: bytes, monkeypatch) -> None:
-    report_id = _upload_report(client, pdf_bytes)
+def test_run_chat_handles_degraded_runs(auth_client: TestClient, app, pdf_bytes: bytes, monkeypatch) -> None:
+    report_id = _upload_report(auth_client, pdf_bytes)
 
     def fake_fallback_result(**_kwargs) -> ToolResult:
         return ToolResult(
@@ -108,13 +108,13 @@ def test_run_chat_handles_degraded_runs(client: TestClient, app, pdf_bytes: byte
         )
 
     monkeypatch.setattr(app.state.workflow_service.tool_registry['clinvar'], 'get_evidence', fake_fallback_result)
-    run_response = client.post('/api/v1/runs', json={'patient_id': 'RP-CHAT-004', 'report_ids': [report_id]})
+    run_response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-CHAT-004', 'report_ids': [report_id]})
     assert run_response.status_code == 200
     run_id = run_response.json()['run_id']
 
     app.state.run_chat_service.embeddings = FakeEmbeddings()
     app.state.run_chat_service.answer_chain = GroundedAnswerChain()
 
-    response = client.post(f'/api/v1/runs/{run_id}/chat', json={'question': 'What does the evidence show?'})
+    response = auth_client.post(f'/api/v1/runs/{run_id}/chat', json={'question': 'What does the evidence show?'})
     assert response.status_code == 200
     assert response.json()['answer']

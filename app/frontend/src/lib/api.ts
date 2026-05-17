@@ -107,12 +107,32 @@ export async function askRunChat(runId: string, payload: RunChatRequest): Promis
 }
 
 export async function variantLookup(payload: LookupRequest): Promise<LookupResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/lookup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  return parseResponse<LookupResponse>(response)
+  // One retry with backoff on transient failure only: network errors
+  // (fetch throws TypeError) and 5xx. 4xx is a terminal client error — never
+  // retried (it would just fail identically).
+  let lastError: unknown
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 600))
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (response.status >= 500 && attempt === 0) {
+        lastError = new Error(`Request failed with status ${response.status}`)
+        continue
+      }
+      return parseResponse<LookupResponse>(response)
+    } catch (err) {
+      if (err instanceof TypeError && attempt === 0) {
+        lastError = err
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastError
 }
 
 export async function downloadRunPdf(runId: string): Promise<Blob> {

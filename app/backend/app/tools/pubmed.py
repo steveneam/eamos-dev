@@ -14,6 +14,21 @@ def _extract_cdna(transcript_hgvs: str | None) -> str | None:
     return parts[-1] if len(parts) > 1 else transcript_hgvs
 
 
+def _protein_identifier(protein_change: str | None) -> str | None:
+    if not protein_change:
+        return None
+    protein = protein_change.strip()
+    if protein.startswith("p."):
+        protein = protein[2:]
+    if protein.startswith("(") and protein.endswith(")") and len(protein) > 2:
+        protein = protein[1:-1]
+    return protein or None
+
+
+def _identifier_term(identifier: str) -> str:
+    return f'"{identifier}"[Title/Abstract]'
+
+
 class PubmedTool(FixtureBackedTool):
     source = "pubmed"
     fixture_name = "pubmed_fixtures.json"
@@ -46,11 +61,15 @@ class PubmedTool(FixtureBackedTool):
     def _fetch_live(self, variant) -> ToolResult:
         gene = variant.gene
         cdna = _extract_cdna(variant.transcript_hgvs)
+        protein = _protein_identifier(getattr(variant, "protein_change", None))
+        rsid = getattr(variant, "dbsnp_rsid", None)
 
-        if cdna:
-            term = f'{gene}[Gene Name] AND "{cdna}"[Title/Abstract]'
+        identifiers = [item for item in (cdna, protein, rsid) if item]
+        if identifiers:
+            or_group = " OR ".join(_identifier_term(item) for item in identifiers)
+            term = f"{gene}[Gene Name] AND ({or_group})"
         else:
-            term = f'{gene}[Gene Name]'
+            term = f"{gene}[Gene Name]"
 
         search_response = httpx.get(
             f"{self.settings.clinvar_base_url}/esearch.fcgi",
@@ -67,14 +86,30 @@ class PubmedTool(FixtureBackedTool):
         id_list = search_response.json().get("esearchresult", {}).get("idlist", [])
 
         if not id_list:
-            return ToolResult(
-                source=self.source,
-                status="live",
-                request_identity={"term": term},
-                summary={"articles": [], "total": 0},
-                raw=None,
-                source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]",
+            term = f"{gene}[Gene Name]"
+            search_response = httpx.get(
+                f"{self.settings.clinvar_base_url}/esearch.fcgi",
+                params={
+                    "db": "pubmed",
+                    "term": term,
+                    "retmax": self.FETCH_COUNT,
+                    "retmode": "json",
+                    "sort": "relevance",
+                },
+                timeout=10.0,
             )
+            search_response.raise_for_status()
+            id_list = search_response.json().get("esearchresult", {}).get("idlist", [])
+
+            if not id_list:
+                return ToolResult(
+                    source=self.source,
+                    status="live",
+                    request_identity={"term": term},
+                    summary={"articles": [], "total": 0},
+                    raw={},
+                    source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]",
+                )
 
         pmid_str = ",".join(id_list)
         with httpx.Client(timeout=12.0) as client:

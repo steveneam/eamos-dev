@@ -37,7 +37,7 @@
       "gc_reverse": 62,
       "product_size": 524,
       "specificity_hits": 2,
-      "notes": "Tighter Tm but two BLAST hits; review cross-reactivity before ordering.",
+      "notes": "Tighter Tm but two BLAST hits \u2014 risk of pseudogene cross-reactivity.",
       "recommended": false
     }
   ]

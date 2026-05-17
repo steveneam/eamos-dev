@@ -19,6 +19,7 @@ import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PublicationsCallout } from '@/components/report/PublicationsCallout'
 import { Card } from '@/components/ui/Card'
 import { variantLookup } from '@/lib/api'
+import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
 import { RPE65_SAMPLE } from '@/lib/sample-report'
 import { SOURCES } from '@/lib/sources'
 import type { LookupResponse } from '@/lib/backend'
@@ -27,6 +28,8 @@ type LoadState =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'ready'; data: LookupResponse }
+  | { kind: 'malformed'; query: string; detail?: string }
+  | { kind: 'unresolved'; query: string }
   | { kind: 'error'; message: string }
   | { kind: 'offline' }
 
@@ -35,6 +38,7 @@ export function ReportPage() {
   const navigate = useNavigate()
   const gene = params.get('gene')?.trim() ?? ''
   const cdna = params.get('cdna')?.trim() ?? ''
+  const q = params.get('q')?.trim() ?? ''
   const demo = params.get('demo') !== null
 
   const [state, setState] = useState<LoadState>({ kind: 'idle' })
@@ -43,8 +47,16 @@ export function ReportPage() {
   useEffect(() => {
     let cancelled = false
 
-    if (demo || (!gene && !cdna)) {
+    if (demo || (!gene && !cdna && !q)) {
       setState({ kind: 'ready', data: RPE65_SAMPLE })
+      return
+    }
+
+    if (!gene && !cdna && q) {
+      // An unstructured / AI search ("?q=…", e.g. Workbench's fallback) is not
+      // a structured variant lookup. Never silently render the RPE65 sample as
+      // if it matched the query — surface it as unparsed input instead.
+      setState({ kind: 'malformed', query: q })
       return
     }
 
@@ -56,16 +68,45 @@ export function ReportPage() {
       return
     }
 
+    // BE-8 mirror: clean before building the request (never lowercases HGVS).
+    const cleanedCdna = cleanQuery(cdna)
+    const probe = `${gene.toUpperCase()} ${cleanedCdna}`.trim()
+
+    // Client-side malformed guard — only short-circuit on input that's
+    // unparseable every way (a lone rs…/p.…/coord is valid backend input and
+    // must NOT be blocked here). The backend is authoritative and emits
+    // `input_unparseable:<kind>` for the cases this guard lets through.
+    if (isLikelyUnparseable(gene, cdna)) {
+      setState({ kind: 'malformed', query: probe })
+      return
+    }
+
     setState({ kind: 'loading' })
-    variantLookup({ gene, cdna, species: 'human' })
+    variantLookup({ gene, cdna: cleanedCdna, species: 'human' })
       .then((data) => {
-        if (!cancelled) setState({ kind: 'ready', data })
+        if (cancelled) return
+        // BE-12 frozen warning codes — see plans/v2-backend.md.
+        const warnings = data.warnings ?? []
+        if (warnings.some((c) => c.startsWith('input_unparseable:'))) {
+          setState({
+            kind: 'malformed',
+            query: probe,
+            detail: data.report_payload.limitations ?? undefined,
+          })
+          return
+        }
+        if (warnings.includes('no_genomic_resolution')) {
+          setState({ kind: 'unresolved', query: probe })
+          return
+        }
+        setState({ kind: 'ready', data })
       })
       .catch((err: Error) => {
         if (cancelled) return
         // fetch() throws TypeError for connection-refused / DNS / CORS — i.e.
         // the dev backend isn't running. 4xx/5xx responses come through
         // parseResponse as a plain Error and route to the generic branch.
+        // (variantLookup already retried once with backoff for network/5xx.)
         if (err instanceof TypeError) {
           setState({ kind: 'offline' })
         } else {
@@ -76,7 +117,7 @@ export function ReportPage() {
     return () => {
       cancelled = true
     }
-  }, [gene, cdna, demo, attempt])
+  }, [gene, cdna, q, demo, attempt])
 
   const handleSearch = (payload: SearchSubmit) => {
     if (payload.mode === 'lookup') {
@@ -123,6 +164,17 @@ export function ReportPage() {
             onRetry={() => setAttempt((n) => n + 1)}
           />
         )}
+        {state.kind === 'malformed' && (
+          <MalformedBlock query={state.query} detail={state.detail} />
+        )}
+        {state.kind === 'unresolved' && (
+          <ErrorBlock
+            variant="unresolved"
+            query={state.query}
+            canRetry
+            onRetry={() => setAttempt((n) => n + 1)}
+          />
+        )}
         {state.kind === 'ready' && (
           <ReportBody data={state.data} query={`${gene} ${cdna}`.trim() || state.data.query} />
         )}
@@ -138,31 +190,56 @@ interface ReportBodyProps {
 
 function ReportBody({ data, query }: ReportBodyProps) {
   const payload = data.report_payload
+  const row0 = payload.variant_summary_rows[0]
   const contextLabel =
-    payload.variant_summary_rows[0]?.gene && payload.variant_summary_rows[0]?.protein_change
-      ? `${payload.variant_summary_rows[0].gene} ${payload.variant_summary_rows[0].protein_change}`
+    row0?.gene && row0?.protein_change
+      ? `${row0.gene} ${row0.protein_change}`
       : query
+  const geneContextMeta = row0?.gene
+    ? [row0.gene, row0.transcript_hgvs].filter(Boolean).join(' · ')
+    : query || 'Gene context'
+
+  // BE-12 frozen code: any `live_fetch_failed:<ExceptionName>` means a source
+  // fell back to cached data. Key on the prefix only — the suffix is the
+  // exception class, not the tool name (incoherence finding #6). Non-blocking.
+  const degraded = (data.warnings ?? []).some((c) => c.startsWith('live_fetch_failed:'))
 
   return (
     <div className="flex flex-col gap-3.5">
+      {degraded && (
+        <div
+          role="status"
+          style={{
+            background: 'var(--bg-soft)',
+            border: '0.5px solid var(--line)',
+            borderRadius: 10,
+            padding: '8px 14px',
+            fontSize: 12,
+            color: 'var(--ink-3)',
+          }}
+        >
+          Some sources were temporarily unavailable and are showing the most
+          recent cached data.
+        </div>
+      )}
       <VariantHeader payload={payload} query={query} />
       <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
 
       <Card number={2} title="Locus context" meta="ClinVar · ±40bp window">
-        <LocusContext />
+        <LocusContext data={payload.locus_context} />
       </Card>
 
       <Card number={3} title="Evidence by source" meta="live · last refreshed 2 min ago">
-        <InSilicoGrid />
+        <InSilicoGrid data={payload.in_silico_predictions} />
         <EvidenceTable evidence={data.evidence} embedded />
-        <AcmgCriteriaFold />
+        <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
       </Card>
 
-      <Card number={4} title="Gene context & associated conditions" meta="RPE65 · NM_000329.3">
+      <Card number={4} title="Gene context & associated conditions" meta={geneContextMeta}>
         <DiseaseSection payload={payload} embedded />
-        <CuratedVariantsGrid />
-        <AssociatedConditions />
-        <PublicationsCallout />
+        <CuratedVariantsGrid data={payload.curated_variants_distribution} />
+        <AssociatedConditions data={payload.associated_conditions} />
+        <PublicationsCallout data={payload.publications_callout} />
       </Card>
 
       <VariantDecoder decoder={payload.variant_decoder} number={5} />
@@ -273,7 +350,7 @@ function LoadingBlock({ query }: { query: string }) {
 }
 
 interface ErrorBlockProps {
-  variant: 'generic' | 'offline'
+  variant: 'generic' | 'offline' | 'unresolved'
   message?: string
   query: string
   canRetry: boolean
@@ -282,7 +359,12 @@ interface ErrorBlockProps {
 
 function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockProps) {
   const isOffline = variant === 'offline'
-  const title = isOffline ? 'Backend offline' : 'Lookup failed'
+  const isUnresolved = variant === 'unresolved'
+  const title = isOffline
+    ? 'Backend offline'
+    : isUnresolved
+      ? 'Couldn’t resolve this variant'
+      : 'Lookup failed'
 
   return (
     <section
@@ -399,6 +481,22 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
               </code>
               .
             </p>
+          ) : isUnresolved ? (
+            <p
+              className="mt-2.5"
+              style={{
+                fontSize: 13.5,
+                lineHeight: 1.6,
+                color: 'var(--ink-2)',
+                margin: '10px 0 0',
+              }}
+            >
+              We reached the databases, but none could resolve this query to
+              genomic coordinates — Ensembl VEP and VariantValidator didn’t
+              recognise the gene/HGVS pair. This isn’t a network failure.
+              Double-check the transcript and cDNA (or try the rsID), then
+              retry.
+            </p>
           ) : (
             <p
               className="mt-2.5"
@@ -465,6 +563,117 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
             )}
           </div>
         </div>
+      </div>
+    </section>
+  )
+}
+
+// Input-format problem (client-detected, or server `input_unparseable:`).
+// Deliberately NOT styled like ErrorBlock's amber failure panel — this is a
+// neutral, user-actionable hint, and there is no retry (re-sending identical
+// malformed input would fail identically).
+function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
+  return (
+    <section
+      role="alert"
+      style={{
+        background: 'var(--bg)',
+        border: '0.5px solid var(--line)',
+        borderRadius: 14,
+        padding: '24px 28px',
+        color: 'var(--ink)',
+      }}
+    >
+      <h2
+        style={{
+          fontFamily: 'var(--display)',
+          fontWeight: 600,
+          fontSize: 16,
+          letterSpacing: '-0.01em',
+          margin: 0,
+        }}
+      >
+        Not a recognised variant
+      </h2>
+      {query && (
+        <div
+          className="mt-1"
+          style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-3)' }}
+        >
+          {query}
+        </div>
+      )}
+      <p
+        style={{
+          fontSize: 13.5,
+          lineHeight: 1.6,
+          color: 'var(--ink-2)',
+          margin: '10px 0 0',
+        }}
+      >
+        {detail ??
+          'Eamos couldn’t parse this as a variant. Try one of these formats:'}
+      </p>
+      <ul
+        style={{
+          margin: '10px 0 0',
+          padding: 0,
+          listStyle: 'none',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        {[
+          ['Gene + cDNA', 'RPE65 c.260A>G'],
+          ['Transcript HGVS', 'NM_000329.3:c.260A>G'],
+          ['Protein', 'RPE65 p.Asp87Gly'],
+          ['dbSNP', 'rs61752871'],
+        ].map(([label, example]) => (
+          <li
+            key={label}
+            style={{
+              padding: '6px 10px',
+              background: 'var(--bg-soft)',
+              border: '0.5px solid var(--line)',
+              borderRadius: 8,
+              fontSize: 12,
+              color: 'var(--ink-3)',
+            }}
+          >
+            <span style={{ color: 'var(--ink-4)' }}>{label}: </span>
+            <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-2)' }}>{example}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Link
+          to="/"
+          style={{
+            padding: '7px 14px',
+            borderRadius: 10,
+            border: '0.5px solid var(--ink-2)',
+            background: 'var(--ink-2)',
+            color: '#fff',
+            fontSize: 12.5,
+            fontWeight: 600,
+            textDecoration: 'none',
+          }}
+        >
+          Back to search
+        </Link>
+        <Link
+          to="/report?demo=1"
+          style={{
+            fontSize: 12,
+            color: 'var(--ink-3)',
+            textDecoration: 'underline',
+            textUnderlineOffset: 3,
+            marginLeft: 4,
+          }}
+        >
+          View the RPE65 sample report instead
+        </Link>
       </div>
     </section>
   )

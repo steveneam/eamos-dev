@@ -42,6 +42,16 @@ When a backend payload field changes, both files update. The pre-existing `app/b
 
 ## Where Codex picks up
 
+> **Workflow note (2026-05-17).** The plugin-mediated `/codex:rescue` flow
+> described below is the **historical** delegation path. Direct Codex app
+> sessions now have verified full `E:\eamos` workspace (read/write/delete) +
+> outbound network access and can own substantive backend/API/pipeline/tool/
+> test work directly — not only grunt work. Live cross-agent coordination is in
+> `agent_handoff/` (read `agent_handoff/CURRENT.md` + `RISKS.md` before
+> editing; update `CURRENT.md` before stopping; one agent at a time until both
+> reliably use the folder). The plugin commands below remain accurate for the
+> plugin path.
+
 The Codex CLI runs alongside Claude Code via the [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) plugin. **No format mismatch** — per the plugin README, *"this plugin delegates through your local Codex CLI and Codex app server on the same machine"* and *"uses the same Codex install you would use directly"*. Codex writes to the same files Claude Code reads. Auth, config (`config.toml`), and the working tree are shared.
 
 ### How to hand the backend plan to Codex

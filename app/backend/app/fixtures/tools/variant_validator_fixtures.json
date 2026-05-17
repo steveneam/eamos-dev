@@ -1,0 +1,139 @@
+{
+  "request_identity": {
+    "query": "RPE65:c.260A>G"
+  },
+  "summary": {
+    "gene": "RPE65",
+    "submitted_variant": "NM_000329.3:c.260A>G",
+    "hgvs_transcript_variant": "NM_000329.3:c.260A>G",
+    "hgvs_genomic_description": "NC_000001.11:g.68444869T>C",
+    "vcf": {
+      "chr": "1",
+      "pos": "68444869",
+      "ref": "T",
+      "alt": "C"
+    },
+    "variant_id": "1-68444869-T-C",
+    "selected_assembly": "GRCh38"
+  },
+  "raw": {
+    "NM_000329.3:c.260A>G": {
+      "alt_genomic_loci": [],
+      "annotations": {
+        "chromosome": "1",
+        "db_xref": {
+          "CCDS": "CCDS643.1",
+          "ensemblgene": null,
+          "hgnc": "HGNC:10294",
+          "ncbigene": "6121",
+          "select": "MANE"
+        },
+        "ensembl_select": false,
+        "mane_plus_clinical": false,
+        "mane_select": true,
+        "map": "1p31.3",
+        "note": "retinoid isomerohydrolase RPE65",
+        "refseq_select": true,
+        "variant": "1"
+      },
+      "gene_ids": {
+        "ccds_ids": [
+          "CCDS643"
+        ],
+        "ensembl_gene_id": "ENSG00000116745",
+        "entrez_gene_id": "6121",
+        "hgnc_id": "HGNC:10294",
+        "omim_id": [
+          "180069"
+        ],
+        "ucsc_id": "uc001dei.2"
+      },
+      "gene_symbol": "RPE65",
+      "genome_context_intronic_sequence": "",
+      "hgvs_lrg_transcript_variant": "",
+      "hgvs_lrg_variant": "",
+      "hgvs_predicted_protein_consequence": {
+        "lrg_slr": "",
+        "lrg_tlr": "",
+        "slr": "NP_000320.1:p.(D87G)",
+        "tlr": "NP_000320.1:p.(Asp87Gly)"
+      },
+      "hgvs_refseqgene_variant": "NG_008472.2:g.10091A>G",
+      "hgvs_transcript_variant": "NM_000329.3:c.260A>G",
+      "lovd_corrections": null,
+      "lovd_messages": null,
+      "primary_assembly_loci": {
+        "grch37": {
+          "hgvs_genomic_description": "NC_000001.10:g.68910552T>C",
+          "vcf": {
+            "alt": "C",
+            "chr": "1",
+            "pos": "68910552",
+            "ref": "T"
+          }
+        },
+        "grch38": {
+          "hgvs_genomic_description": "NC_000001.11:g.68444869T>C",
+          "vcf": {
+            "alt": "C",
+            "chr": "1",
+            "pos": "68444869",
+            "ref": "T"
+          }
+        },
+        "hg19": {
+          "hgvs_genomic_description": "NC_000001.10:g.68910552T>C",
+          "vcf": {
+            "alt": "C",
+            "chr": "chr1",
+            "pos": "68910552",
+            "ref": "T"
+          }
+        },
+        "hg38": {
+          "hgvs_genomic_description": "NC_000001.11:g.68444869T>C",
+          "vcf": {
+            "alt": "C",
+            "chr": "chr1",
+            "pos": "68444869",
+            "ref": "T"
+          }
+        }
+      },
+      "reference_sequence_records": {
+        "protein": "https://www.ncbi.nlm.nih.gov/nuccore/NP_000320.1",
+        "refseqgene": "https://www.ncbi.nlm.nih.gov/nuccore/NG_008472.2",
+        "transcript": "https://www.ncbi.nlm.nih.gov/nuccore/NM_000329.3"
+      },
+      "refseqgene_context_intronic_sequence": "",
+      "rna_variant_descriptions": null,
+      "selected_assembly": "GRCh38",
+      "submitted_variant": "NM_000329.3:c.260A>G",
+      "transcript_description": "Homo sapiens retinoid isomerohydrolase RPE65 (RPE65), transcript variant 1, mRNA",
+      "validation_warnings": [],
+      "variant_exonic_positions": {
+        "NC_000001.10": {
+          "end_exon": "4",
+          "start_exon": "4"
+        },
+        "NC_000001.11": {
+          "end_exon": "4",
+          "start_exon": "4"
+        },
+        "NG_008472.2": {
+          "end_exon": "4",
+          "start_exon": "4"
+        }
+      }
+    },
+    "flag": "gene_variant",
+    "metadata": {
+      "variantvalidator_hgvs_version": "2.2.1.dev22+gebef587af",
+      "variantvalidator_version": "3.0.2.dev280+gb64f3e1fb",
+      "vvdb_version": "vvdb_2025_3",
+      "vvseqrepo_db": "VV_SR_2025_02/master",
+      "vvta_version": "vvta_2025_02"
+    }
+  },
+  "source_url": "https://rest.variantvalidator.org/VariantValidator/variantvalidator/GRCh38/RPE65:c.260A>G/all"
+}

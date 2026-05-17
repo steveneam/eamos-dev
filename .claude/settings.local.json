@@ -19,7 +19,7 @@
       "Read(//tmp/**)",
       "PowerShell(npm prune *)",
       "Bash(powershell *)",
-      "PowerShell($env:PATH = 'C:\\\\temp\\\\node\\\\node-v22.15.0-win-x64;' + $env:PATH; cd \"E:\\\\eamos\\\\app\\\\frontend\"; npx tsc --noEmit 2>&1 | Select-Object -First 60)"
+      "PowerShell(cd \"E:\\\\eamos\\\\app\\\\frontend\"; npx tsc --noEmit 2>&1 | Select-Object -First 60)"
     ]
   }
 }

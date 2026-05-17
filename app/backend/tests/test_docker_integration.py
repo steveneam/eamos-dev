@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from io import BytesIO
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -26,12 +27,22 @@ def build_pdf_bytes() -> bytes:
 PDF_BYTES = build_pdf_bytes()
 
 
+def _authenticate(client: httpx.Client) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"username": f"docker-{uuid4().hex}", "password": "test-password"},
+    )
+    assert response.status_code == 201
+    client.headers.update({"Authorization": f"Bearer {response.json()['access_token']}"})
+
+
 def test_docker_stack_upload_run_review_approve_preview_pdf() -> None:
     assert BASE_URL is not None
     with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
         health = client.get("/healthz")
         assert health.status_code == 200
         assert health.json()["database"] == "ok"
+        _authenticate(client)
 
         upload_1 = client.post(
             "/api/v1/reports/upload",

@@ -18,13 +18,13 @@ def _upload_report(client: TestClient, pdf_bytes: bytes, report_kind: str = 'tes
 
 
 
-def test_create_run_with_multiple_reports(client: TestClient, pdf_bytes: bytes) -> None:
+def test_create_run_with_multiple_reports(auth_client: TestClient, pdf_bytes: bytes) -> None:
     report_ids = [
-        _upload_report(client, pdf_bytes, report_kind='test'),
-        _upload_report(client, pdf_bytes, report_kind='test'),
+        _upload_report(auth_client, pdf_bytes, report_kind='test'),
+        _upload_report(auth_client, pdf_bytes, report_kind='test'),
     ]
 
-    response = client.post('/api/v1/runs', json={'patient_id': 'RP-001', 'report_ids': report_ids})
+    response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-001', 'report_ids': report_ids})
     assert response.status_code == 200
     body = response.json()
     assert body['run_id'].startswith('run_')
@@ -45,17 +45,17 @@ def test_create_run_with_multiple_reports(client: TestClient, pdf_bytes: bytes) 
 
 
 
-def test_patient_blocked_run_status_is_marked_blocked(client: TestClient, pdf_bytes: bytes) -> None:
-    report_ids = [_upload_report(client, pdf_bytes, report_kind='patient')]
-    response = client.post('/api/v1/runs', json={'patient_id': 'RP-002', 'report_ids': report_ids})
+def test_patient_blocked_run_status_is_marked_blocked(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    report_ids = [_upload_report(auth_client, pdf_bytes, report_kind='patient')]
+    response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-002', 'report_ids': report_ids})
     assert response.status_code == 200
     assert response.json()['run_status'] == 'blocked'
 
 
 
-def test_run_includes_evidence_without_nulls(client: TestClient, pdf_bytes: bytes) -> None:
-    report_id = _upload_report(client, pdf_bytes)
-    response = client.post('/api/v1/runs', json={'patient_id': 'RP-003', 'report_ids': [report_id]})
+def test_run_includes_evidence_without_nulls(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    report_id = _upload_report(auth_client, pdf_bytes)
+    response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-003', 'report_ids': [report_id]})
     assert response.status_code == 200
     body = response.json()
     sources = {item['source'] for item in body['evidence']}
@@ -63,8 +63,8 @@ def test_run_includes_evidence_without_nulls(client: TestClient, pdf_bytes: byte
 
 
 
-def test_run_surface_degraded_evidence_when_tool_falls_back(client: TestClient, app, pdf_bytes: bytes, monkeypatch) -> None:
-    report_id = _upload_report(client, pdf_bytes)
+def test_run_surface_degraded_evidence_when_tool_falls_back(auth_client: TestClient, app, pdf_bytes: bytes, monkeypatch) -> None:
+    report_id = _upload_report(auth_client, pdf_bytes)
 
     def fake_fallback_result(**_kwargs) -> ToolResult:
         return ToolResult(
@@ -81,7 +81,7 @@ def test_run_surface_degraded_evidence_when_tool_falls_back(client: TestClient, 
 
     monkeypatch.setattr(app.state.workflow_service.tool_registry['clinvar'], 'get_evidence', fake_fallback_result)
 
-    response = client.post('/api/v1/runs', json={'patient_id': 'RP-004', 'report_ids': [report_id]})
+    response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-004', 'report_ids': [report_id]})
     assert response.status_code == 200
     body = response.json()
     assert body['run_status'] == 'degraded'
@@ -89,8 +89,8 @@ def test_run_surface_degraded_evidence_when_tool_falls_back(client: TestClient, 
 
 
 
-def test_run_applies_llm_rewrite_only_to_narrative_fields(client: TestClient, app, pdf_bytes: bytes) -> None:
-    report_id = _upload_report(client, pdf_bytes)
+def test_run_applies_llm_rewrite_only_to_narrative_fields(auth_client: TestClient, app, pdf_bytes: bytes) -> None:
+    report_id = _upload_report(auth_client, pdf_bytes)
 
     class RewritingDraftChain:
         def invoke(self, payload: dict[str, str]) -> dict[str, str]:
@@ -104,7 +104,7 @@ def test_run_applies_llm_rewrite_only_to_narrative_fields(client: TestClient, ap
 
     app.state.workflow_service.draft_render_service = DraftRenderService(RewritingDraftChain())
 
-    response = client.post('/api/v1/runs', json={'patient_id': 'RP-005', 'report_ids': [report_id]})
+    response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-005', 'report_ids': [report_id]})
     assert response.status_code == 200
     body = response.json()
 
@@ -116,8 +116,8 @@ def test_run_applies_llm_rewrite_only_to_narrative_fields(client: TestClient, ap
 
 
 
-def test_run_falls_back_cleanly_when_llm_draft_fails(client: TestClient, app, pdf_bytes: bytes) -> None:
-    report_id = _upload_report(client, pdf_bytes)
+def test_run_falls_back_cleanly_when_llm_draft_fails(auth_client: TestClient, app, pdf_bytes: bytes) -> None:
+    report_id = _upload_report(auth_client, pdf_bytes)
 
     class BrokenDraftChain:
         def invoke(self, payload: dict[str, str]) -> dict[str, str]:
@@ -125,7 +125,7 @@ def test_run_falls_back_cleanly_when_llm_draft_fails(client: TestClient, app, pd
 
     app.state.workflow_service.draft_render_service = DraftRenderService(BrokenDraftChain())
 
-    response = client.post('/api/v1/runs', json={'patient_id': 'RP-006', 'report_ids': [report_id]})
+    response = auth_client.post('/api/v1/runs', json={'patient_id': 'RP-006', 'report_ids': [report_id]})
     assert response.status_code == 200
     body = response.json()
 

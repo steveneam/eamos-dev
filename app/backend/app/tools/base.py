@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from json import JSONDecodeError
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -34,4 +35,7 @@ class FixtureBackedTool:
         return self.settings.fixtures_root / "tools" / self.fixture_name
 
     def load_fixture(self) -> dict[str, Any]:
-        return json.loads(self.fixture_path().read_text())
+        try:
+            return json.loads(self.fixture_path().read_text())
+        except (FileNotFoundError, JSONDecodeError):
+            return {}

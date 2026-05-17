@@ -9,9 +9,9 @@ from app.main import create_app
 
 
 def test_upload_test_report_returns_report_id_and_extraction_summary(
-    client: TestClient, pdf_bytes: bytes
+    auth_client: TestClient, pdf_bytes: bytes
 ) -> None:
-    response = client.post(
+    response = auth_client.post(
         "/api/v1/reports/upload",
         files={"file": ("ravi-report.pdf", pdf_bytes, "application/pdf")},
         data={"report_kind": "test"},
@@ -24,8 +24,8 @@ def test_upload_test_report_returns_report_id_and_extraction_summary(
     assert body["report"]["extracted_case"]["variants"][0]["gene"] == "RPE65"
 
 
-def test_upload_patient_report_is_blocked_without_ai(client: TestClient, pdf_bytes: bytes) -> None:
-    response = client.post(
+def test_upload_patient_report_is_blocked_without_ai(auth_client: TestClient, pdf_bytes: bytes) -> None:
+    response = auth_client.post(
         "/api/v1/reports/upload",
         files={"file": ("patient.pdf", pdf_bytes, "application/pdf")},
         data={"report_kind": "patient"},
@@ -37,8 +37,8 @@ def test_upload_patient_report_is_blocked_without_ai(client: TestClient, pdf_byt
     assert body["report"]["extracted_case"]["issues"][0]["code"] == "patient_extraction_unavailable"
 
 
-def test_upload_rejects_invalid_file_type(client: TestClient) -> None:
-    response = client.post(
+def test_upload_rejects_invalid_file_type(auth_client: TestClient) -> None:
+    response = auth_client.post(
         "/api/v1/reports/upload",
         files={"file": ("notes.txt", b"not a pdf", "text/plain")},
     )
@@ -54,9 +54,16 @@ def test_upload_rejects_oversize_payload(tmp_path: Path, pdf_bytes: bytes) -> No
         use_real_apis=False,
         max_upload_mb=0,
         debug=True,
+        jwt_secret="test-secret",
     )
     app = create_app(settings)
     with TestClient(app) as local_client:
+        auth = local_client.post(
+            "/api/v1/auth/register",
+            json={"username": "test-user", "password": "test-password"},
+        )
+        assert auth.status_code == 201
+        local_client.headers.update({"Authorization": f"Bearer {auth.json()['access_token']}"})
         response = local_client.post(
             "/api/v1/reports/upload",
             files={"file": ("too-big.pdf", pdf_bytes, "application/pdf")},

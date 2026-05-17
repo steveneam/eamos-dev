@@ -18,6 +18,7 @@ from app.core.logging import configure_logging, get_logger
 from app.repos.reports_repo import ReportsRepo
 from app.repos.run_repo import RunRepo
 from app.repos.users_repo import UsersRepo
+from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
 from app.services.auth import AuthService
 from app.services.chat_service import ChatService
@@ -60,6 +61,7 @@ def create_app(settings=None) -> FastAPI:
     reports_repo = ReportsRepo(db_session_factory)
     run_repo = RunRepo(db_session_factory)
     users_repo = UsersRepo(db_session_factory)
+    variant_cache_repo = VariantCacheRepo(db_session_factory)
     report_pdf_tool = ReportPdfTool()
     extraction_chain = build_extraction_chain(settings)
     draft_chain = build_draft_chain(settings)
@@ -72,6 +74,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.reports_repo = reports_repo
     app.state.run_repo = run_repo
     app.state.users_repo = users_repo
+    app.state.variant_cache_repo = variant_cache_repo
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.intake_service = IntakeService(settings, reports_repo, report_pdf_tool, extraction_chain)
     app.state.workflow_service = WorkflowService(
@@ -96,6 +99,8 @@ def create_app(settings=None) -> FastAPI:
         tool_registry=tool_registry,
         rule_engine=ClinicRules(),
         draft_render_service=DraftRenderService(draft_chain),
+        variant_cache_repo=variant_cache_repo,
+        settings=settings,
     )
 
     app.include_router(build_api_router())

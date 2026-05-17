@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LandingPage } from '@/pages/LandingPage'
 import { ReportPage } from '@/pages/ReportPage'
+import { WorkbenchPage } from '@/pages/WorkbenchPage'
 import LegacyRunsApp from '@/pages/LegacyRunsApp'
 
 export default function App() {
@@ -9,6 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/report" element={<ReportPage />} />
+        <Route path="/workbench" element={<WorkbenchPage />} />
         <Route path="/runs" element={<LegacyRunsApp />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+    variant_validator_base_url: str = "https://rest.variantvalidator.org"
+    litvar2_base_url: str = "https://www.ncbi.nlm.nih.gov/research/litvar2-api"
+    cache_ttl_days: int = 30
 
     @property
     def allowed_origins(self) -> list[str]:

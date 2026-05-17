@@ -40,13 +40,26 @@ class SpliceAiTool(FixtureBackedTool):
     def _fetch_live(self, variant) -> ToolResult:
         gene = variant.gene
         cdna = _extract_cdna(variant.transcript_hgvs)
-        variant_str = f"{gene}:{cdna}" if cdna else gene
+        genomic_hg38 = getattr(variant, "genomic_hg38", None)
+
+        if not genomic_hg38:
+            return ToolResult(
+                source=self.source,
+                status="live_stub",
+                request_identity={"gene": gene, "cdna": cdna},
+                summary={},
+                warnings=[
+                    "SpliceAI live query requires genomic coordinates (chr-pos-ref-alt) "
+                    "from VEP; populate variant.genomic_hg38 before calling live mode."
+                ],
+                source_url=self._TOOL_URL,
+            )
 
         response = httpx.get(
             self.settings.spliceai_base_url,
             params={
                 "hg": self.HG,
-                "variant": variant_str,
+                "variant": genomic_hg38,
                 "distance": self.DISTANCE,
                 "mask": self.MASK,
             },
@@ -70,7 +83,7 @@ class SpliceAiTool(FixtureBackedTool):
             status="live",
             request_identity={
                 "hg": self.HG,
-                "variant": variant_str,
+                "variant": genomic_hg38,
                 "distance": self.DISTANCE,
                 "mask": self.MASK,
             },

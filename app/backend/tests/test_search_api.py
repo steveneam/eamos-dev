@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 import os
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -25,10 +26,20 @@ def _build_pdf_bytes() -> bytes:
     return stream.getvalue()
 
 
+def _authenticate(client: httpx.Client) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"username": f"search-{uuid4().hex}", "password": "test-password"},
+    )
+    assert response.status_code == 201
+    client.headers.update({"Authorization": f"Bearer {response.json()['access_token']}"})
+
+
 def test_search_endpoint_returns_created_runs(_tmp_dir=None) -> None:  # noqa: ARG001
     assert BASE_URL is not None
     client = httpx.Client(base_url=BASE_URL, timeout=120)
     try:
+        _authenticate(client)
         upload = client.post(
             "/api/v1/reports/upload",
             files={
@@ -89,6 +100,7 @@ def test_search_answer_endpoint_with_real_api() -> None:
 
     client = httpx.Client(base_url=BASE_URL, timeout=120)
     try:
+        _authenticate(client)
         # This endpoint should be available when USE_REAL_APIS/search enabled in compose env
         payload = {"query": "RPE65 run_id", "limit": 5}
         answer = client.post("/api/v1/search/answer", json=payload)

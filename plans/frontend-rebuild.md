@@ -195,4 +195,4 @@ Border radius: 2xl (16px) for cards, full for pills/badges
 - **Tailwind v4**: No `tailwind.config.ts`. Tokens go in `@theme inline {}` in `index.css`. Already done.
 - **Stack**: React/Vite — do NOT migrate to Next.js despite the handoff spec saying so.
 - **Backend mock mode**: `USE_REAL_APIS=false` (default). Use `sample-report.ts` for UI development without hitting real APIs.
-- **Node.js path**: `C:\temp\node\node-v22.15.0-win-x64` — prepend to PATH when running npm commands.
+- **Node.js path**: `C:\Program Files\nodejs\` — IT-managed system install, already on PATH. No PATH prepend needed.

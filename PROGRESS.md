@@ -1,5 +1,70 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 19 — 17 May 2026 — FE-5.5 pixel-check → FE-5.6 plan; direct-Codex workflow sync
+
+Browser pixel-checked FE-5.5 (first non-headless look). 8 refinements captured
+as new milestone **FE-5.6** in `plans/v2-frontend.md`, design decisions locked
+with the user (dynamic reflow; unified edit-hub redesign; variant-render
+small-now/defer-cascade). **No app code changed.** Separately: direct Codex app
+access verified (full `E:\eamos` workspace read/write/delete + outbound
+network); `agent_handoff/` created (Codex) as the live cross-agent coordination
+folder, superseding the "Codex = grunt-work-only / plugin-limited / can't run
+vitest" assumption — now historical, a property of the old plugin-mediated
+path, not direct Codex. Stable-doc workflow sync applied: `CLAUDE.md`
+(new "Direct Codex vs. plugin delegation" subsection), `plans/README.md`,
+`README.md`, `ROADMAP.md` blockers row, this note; the two related memory
+notes corrected. **Nothing committed.** Next: FE-5.6 (Claude) or a scoped
+backend task (direct Codex). Detail: `agent_handoff/CURRENT.md`,
+`plans/v2-frontend.md` "FE-5.6", `~/.claude/plans/next-session-eamos.md`.
+
+## Session 18 — 16 May 2026 — FE-5.5 Sequence Viewer v2 (Benchling-grade) + chrome relayout
+
+At the backend-first checkpoint the user redirected to the Workbench sequence
+viewer. Reviewed the refreshed `Eamos Workbench v2.html` mock + Benchling/
+SnapGene competition shots, gave a UI/UX opinion, and integrated 4 requested
+changes as new milestone FE-5.5 (confirmed: augment-zoom + full v2 port).
+Ported the v2 viewer to React (data model + 9 viewer components + chrome
+relayout): gene minimap, exon strip, find/jump toolbar, ClinVar chevrons,
+undo/redo + history, strand pill, export, wrapped 60-bp codon detail. 4 mods
+landed: ClinVar density toggle, collapsible exon disclosure, horizontal
+top-right tool selector (left rail removed), Benchling −/+ zoom slider
+alongside semantic chips. 14 superseded FE-5 files deleted. Verified: vitest
+24/24, build clean, contract 40/40 (pure FE, untouched). Then a Codex
+adversarial hardening pass (`task-mp8d61ip-1zyj8k`) fixed 2 HIGH / 2 MED / 3
+LOW (drag-unmount leak, popover portal/clamp, history-jump bounds, data-driven
+intronic ClinVar mapping, a11y, keys, stale CSS comment); Claude re-verified
+post-Codex (24/24, clean, 40/40). **Nothing committed.** Next: FE-6
+(Primer/CRISPR) builds on the new chrome, or resume the backend-first M-002
+track. Full detail: CHANGELOG.md Session 18.
+
+## Session 17 — 16 May 2026 — Whole-project review → deepthink → hardening Session 1
+
+Codex ran a whole-project adversarial-review (2 CRITICAL auth gaps, 3 HIGH, 4
+MED, 4 LOW + ranked recs). deepthink (confidence CERTAIN) produced a
+risk-ordered, Claude/Codex-lane-split, sessionized hardening plan. Session 1
+executed: Claude fixed H1 (/report?q demo leak), M4 (dead AI button), L1
+(hardcoded card meta), L2 (inert settings button), L4 (stale plan doc) —
+vitest 21/21, build clean; Codex dispatched in parallel for C1/C2 auth on the
+unauthenticated patient routes (+ authed test fixture + 7 test migrations +
+401 test). ROADMAP.md rewritten to true state + the session plan. Resumable
+handoff: `~/.claude/plans/next-session-eamos-hardening.md`. **Nothing
+committed.** Remaining: Session 2 backend correctness batch → FE-6/7/8 →
+M-002. Full detail: CHANGELOG.md Session 17.
+
+## Session 16 — 16 May 2026 — Variant-search-engine: full-project cross-check + live fixes
+
+BE-8…BE-13 + FE-14 **live-verified** (not just offline). Bidirectional
+full-project audit (Claude→backend, Codex→frontend); consolidated findings
+approved before any edits. Fixed: PubMed query too narrow (0→10 live articles),
+LitVar2 query-by-rsID + `pmids`/`pmids_count` parse, cache-poison guard
+(upsert only on resolved coords), `publications_callout.total_count` fallback
+when LitVar2=0, and the frontend `coord` guard wrongly blocking VCF-quad
+genomic input. Also fixed 3 workbench items (URL/data mismatch, scratchpad
+drift, base-editor a11y). **Offline 80 passed / 4 skipped, contract 40/40;
+vitest 21/21; Claude-run live smoke all Phase-C assertions green.** Nothing
+committed. Full detail in CHANGELOG.md Session 16. Plan rows flipped to ✅ in
+`plans/v2-backend.md` (BE-8…13) and `plans/v2-frontend.md` (FE-14).
+
 ## Status: Prototype v1 complete (widget demo)
 
 ## What's been built
@@ -110,6 +175,66 @@ app/frontend/src/App.tsx — "What this variant means" callout block rendered
 1. Set use_real_apis = True and run a live test (needs IT network clearance for Node.js/Python)
 2. Wire frontend to real backend (replace mock data with live API responses)
 3. Rotate GitHub PAT — current token was shared in chat session
+
+## Session 15 — 15 May 2026 (continued)
+
+### FE-5 — Sequence Viewer + click-to-edit
+
+All-new frontend, zero backend-contract surface. Ported `e:\Web tool\Claude Design\Workbench\{data.js,sequence-viewer.js,side.js}` (viewer slice) to declarative React/TS.
+
+**What landed:**
+
+| Area | Files |
+| ---- | ----- |
+| Testable core | `src/lib/workbench/codon-table.ts` (`codonTable`/`aaThree`/`aaClass`/`translate`/`consequenceOf` — `consequenceOf` parameterised, not `this`-bound, for purity) + `src/lib/workbench/sample-rpe65.ts` (typed `WorkbenchSample`). |
+| Viewer components | `src/components/workbench/viewer/`: `SequenceViewer`, `Track`, `BaseRow`, `CodonRow`, `AnnotationRow`, `DomainRow`, `VariantRow`, `ConservationRow`, `RestrictionRow`, `VariantMarker`, `EditPopover` (portalled to `<body>`, hover-preview + click-select). |
+| Wiring | `WorkbenchShell` now owns `edits`/`scratch`/`tracksOn` + `applyEdit`/`resetEdit`/`resetAll`; `CanvasHeader` converted from uncontrolled `defaultChecked` to controlled (exports `TrackKey`/`DEFAULT_TRACKS_ON`); `SidePanel` gained the viewer branch (active-variant kv-list + scratchpad with count/Reset + reading guide), other tools keep the FE-4 placeholder for FE-6/7. |
+| Tests | `vitest@^3` added as devDep + `"test": "vitest run"` script; `src/lib/workbench/codon-table.test.ts` (5 tests: GAC invariant guard, translate, missense p.Asp87Gly, frameshift on del, synonymous wobble). |
+
+**Verified:** `cd app/frontend && npm run build` green (tsc -b + vite); `npm run test` → **5/5 PASS**; `cd app/backend && python -m pytest tests/test_frontend_contract.py -q` → **40/40 PASS** (no contract change). Browser pixel-fidelity check not possible in this environment — worth a visual pass next session (all CSS already present from FE-4's `workbench.css`).
+
+**Deviations / flags for review:**
+
+1. **Sample-data coherence fix (1 char).** The source `data.js` `sequence` had window index 28 = `C`, making codon 87 = `GCC` (Ala) — a verbatim `consequenceOf` would yield `p.Ala87Gly`, contradicting the plan's acceptance criterion *and* every other surface in Eamos (ContextStrip, report fixtures use `p.Asp87Gly`). The mock's own comments show the author was unsure about the indexing. Resolution: index 28 `C`→`A` so codon 87 = `GAC` (Asp); the verbatim algorithm then yields the spec-mandated `p.Asp87Gly`. No other base altered. Guarded by a Vitest assertion. Other ClinVar tooltip `hgvsP` labels in the mock have similar internal mismatches (e.g. c.257 p.Ala86Gly vs codon 86 = GTC) — left as-is (display-only, out of FE-5 scope, not computed by `consequenceOf`).
+2. **Hover preview added to EditPopover.** Plan FE-5 UX + acceptance say "hover each button → live consequence preview"; the source `sequence-viewer.js` only previews on click. Implemented both: hover previews (non-committing), click selects, Apply commits. Faithful to source behavior + satisfies the stated acceptance.
+3. **Marker rendering.** Source adds a `.sv-marker` to every `.sv-track-body` (stacked segments read as one line) with the flag on the first body — replicated faithfully via `<VariantMarker>` inside each `<Track>` rather than a single overlay (avoids the 110px label-column offset problem).
+
+### What's next
+
+FE-6 (Primer + CRISPR panels — BE-7 fixtures exist) → FE-7 (Alignment + Comparator) → FE-8 (AskEamos pill). Resume pointer in `plans/v2-frontend.md`.
+
+---
+
+## Session 14 — 15 May 2026 (continued)
+
+### Parallel cycle 2: FE-3.5 closed, BE-6/BE-7 (Codex), FE-4 Workbench shell, FE-3.6 fidelity reconcile
+
+Second parallel-execution cycle. Codex (`/codex:rescue --background`, agent `a862070de2d41f104`) ran `app/backend/` BE-6→BE-7 while Claude Code ran `app/frontend/` FE-4 then FE-3.6. No file overlap; `test_frontend_contract.py` was the sync canary.
+
+#### Frontend (Claude Code)
+
+| ID | What landed |
+| -- | ----------- |
+| FE-3.5 | Closed (was open from Session 13). The 6 report v2 components wired to `payload.*` with internal display interfaces renamed to avoid `backend.ts` name collisions. Surfaced that the backend fixture carried less than the mock → motivated BE-6/FE-3.6. |
+| FE-4 | Workbench shell. New `/workbench` route in `App.tsx`. New components under `src/components/workbench/`: `tools.tsx` (TOOL_ORDER/TOOL_META/ToolIcon), `ToolRail`, `CanvasHeader`, `SidePanel`, `ContextStrip`, `WorkbenchShell`; new `src/pages/WorkbenchPage.tsx` (nav + ctx strip + shell, tool state, query-param seed). Mock CSS ported to `src/styles/workbench.css` via transform script: global resets + duplicate `:root` dropped, width vars remapped to FE-0 `--maxw-workbench*`, `.badge`→`.ctx-badge` (the one collision with `index.css`), 8 missing tokens added (`--line-3,--err,--err-tint,--r-sm/md/lg,--nav-h,--ctx-h`). Tool switching changes rail/header/side; viewer collapses for align/compare; responsive handled by ported media queries. **Plan deviation:** no-param `/workbench` defaults to the RPE65 sample instead of redirecting to `/` (v2 only serves RPE65; matches ReportPage demo behavior). |
+| FE-3.6 | Report payload fidelity reconcile. `backend.ts` gained the 8 BE-6 field groups (all optional): `NearbyVariant.protein_change`; `CodonCell.{aa_alt,dna_ref,dna_alt}`; `LocusContext.coords`; `PredictorCard.verdict_label`; `AcmgCriteriaScaffold.{intro,note}`; `CuratedVariantsDistribution.{row_totals,subtitle}`; `AssociatedCondition.{db_tag,db_tag_bold,source_list}`; `PublicationsCallout.blurb`. `sample-report.ts` `RPE65_SAMPLE` v2 modules rewritten to mirror the new fixture. All 6 report components rewritten to consume the enriched payload and **the divergent SAMPLE datasets deleted** (replaced with compact empty-state lines when `data` is absent). |
+
+Verified: `cd app/frontend && npm run build` green (tsc -b + vite, ~3.8s, 589KB JS); `cd app/backend && python -m pytest tests/test_frontend_contract.py -q` → **40/40 PASS** (BE-6 ↔ FE-3.6 drift resolved — the Session 13 known failure is now closed). Browser pixel-fidelity check not possible in this environment.
+
+#### Backend (Codex — BE-6, BE-7)
+
+| ID | What landed |
+| -- | ----------- |
+| BE-6 | Additive schema fields on `run.py` (no renames/drops): `LocusContext.coords`, `NearbyVariant.protein_change`, `CodonCell.{dna_ref,dna_alt,aa_alt}`, `PredictorCard.verdict_label`, `AcmgCriteriaScaffold.{intro,note}`, `CuratedVariantsDistribution.{row_totals,subtitle}`, `AssociatedCondition.{db_tag,db_tag_bold,source_list}`, `PublicationsCallout.blurb`. `lookup_v2_modules.json` fully rewritten to mirror the 6 frontend SAMPLE constants (11 nearby variants, 11 codon cells with DNA + Asp→Gly, descriptive predictor verdicts, ACMG intro/note, per-row distribution totals, 5 conditions, blurb). `test_frontend_contract.py` extended for all 8 field groups. |
+| BE-7 | Workbench fixtures tightened to mock-JS values: `primer_rpe65.json` note text, `crispr_rpe65.json` guide cut positions/scores, `align_rpe65.json` match line + mismatch position + Q-scores. |
+
+**Codex ambiguities surfaced (open for your review):** (1) CRISPR mock shows 6 guides with per-guide `recommended`/`cas`; kept to 3 guides, schema-less fields not added. (2) CRISPR HDR efficiency `12–18%` range → stored midpoint `0.15`. (3) Alignment mock highlights mismatch at index 13 but strings diverge at 14 → fixture uses consistent position 14.
+
+#### What's next
+
+FE-5 (Sequence Viewer + click-to-edit + `codon-table.ts` Vitest) → FE-6 (Primer + CRISPR panels) → FE-7 (Alignment + Comparator) → FE-8 (AskEamos pill). All are all-new frontend files with no backend contract dependency (BE-7 fixtures already exist). Resume pointers in `plans/v2-frontend.md`.
+
+---
 
 ## Session 13 — 15 May 2026
 

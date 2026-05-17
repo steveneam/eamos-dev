@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
+from app.core.deps import require_authenticated_user
+from app.schemas.auth import AuthUser
 from app.schemas.search import SearchAnswerRequest, SearchAnswerResponse, SearchResponse
 
 router = APIRouter(prefix="/api/v1/search", tags=["search"])
@@ -13,6 +15,7 @@ def search(
     doc_type: str | None = None,
     run_status: str | None = None,
     review_status: str | None = None,
+    _current_user: AuthUser = Depends(require_authenticated_user),
 ) -> SearchResponse:
     service = getattr(request.app.state, "search_service", None)
     if service is None:
@@ -33,6 +36,7 @@ def search(
 def search_answer(
     payload: SearchAnswerRequest,
     request: Request,
+    _current_user: AuthUser = Depends(require_authenticated_user),
 ) -> SearchAnswerResponse:
     service = getattr(request.app.state, "search_answer_service", None)
     if service is None:

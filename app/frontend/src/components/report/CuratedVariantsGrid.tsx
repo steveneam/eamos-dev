@@ -1,3 +1,5 @@
+import type { CuratedVariantsDistribution } from '@/lib/backend'
+
 type RowKind = 'p' | 'vus' | 'b'
 
 interface DistRow {
@@ -8,55 +10,60 @@ interface DistRow {
 }
 
 interface CuratedVariantsGridProps {
-  rows?: DistRow[]
-  sub?: string
-  reading?: string
+  data?: CuratedVariantsDistribution | null
 }
 
-const SAMPLE_ROWS: DistRow[] = [
-  {
-    kind: 'p',
-    label: 'Pathogenic',
-    cells: [
-      { value: 210, heat: 'heat-3' },
-      { value: 187, heat: 'heat-3' },
-      { value: 6,   heat: 'heat-1' },
-      { value: 3,   heat: 'heat-1' },
-    ],
-    total: 406,
-  },
-  {
-    kind: 'vus',
-    label: 'VUS',
-    cells: [
-      { value: 1,   heat: 'heat-v-1' },
-      { value: 342, heat: 'heat-v-2' },
-      { value: 51,  heat: 'heat-v-1' },
-      { value: 32,  heat: 'heat-v-1' },
-    ],
-    total: 426,
-  },
-  {
-    kind: 'b',
-    label: 'Benign',
-    cells: [
-      { value: 0 },
-      { value: 11,  heat: 'heat-b-1' },
-      { value: 198, heat: 'heat-b-2' },
-      { value: 245, heat: 'heat-b-3' },
-    ],
-    total: 454,
-  },
+const ROW_DEFS: Array<{
+  kind: RowKind
+  label: string
+  prefix: string
+  heatPrefix: string
+  levels: number
+}> = [
+  { kind: 'p',   label: 'Pathogenic', prefix: 'pathogenic', heatPrefix: 'heat',   levels: 3 },
+  { kind: 'vus', label: 'VUS',        prefix: 'vus',        heatPrefix: 'heat-v', levels: 2 },
+  { kind: 'b',   label: 'Benign',     prefix: 'benign',     heatPrefix: 'heat-b', levels: 3 },
 ]
 
-const SAMPLE_READING =
-  'LOF and missense both contribute substantially to pathogenicity in RPE65 — LOF is a well-established disease mechanism. The 342 missense VUS reflect the deep interpretation tail typical of recessive disease genes.'
+const COL_SUFFIXES = ['lof', 'missense', 'noncoding', 'synonymous']
 
-export function CuratedVariantsGrid({
-  rows = SAMPLE_ROWS,
-  sub = '1,286 classified variants · ClinVar + UniProt',
-  reading = SAMPLE_READING,
-}: CuratedVariantsGridProps) {
+function heatClass(value: number, max: number, heatPrefix: string, levels: number): string | undefined {
+  if (value <= 0 || max <= 0) return undefined
+  const ratio = value / max
+  const tier = Math.min(levels, Math.max(1, Math.ceil(ratio * levels)))
+  return `${heatPrefix}-${tier}`
+}
+
+function mapRows(
+  cells: Record<string, number>,
+  rowTotals: Record<string, number>,
+): DistRow[] {
+  return ROW_DEFS.map(({ kind, label, prefix, heatPrefix, levels }) => {
+    const values = COL_SUFFIXES.map((suffix) => cells[`${prefix}_${suffix}`] ?? 0)
+    const max = Math.max(...values)
+    const total = rowTotals[prefix] ?? values.reduce((a, b) => a + b, 0)
+    return {
+      kind,
+      label,
+      cells: values.map((value) => ({ value, heat: heatClass(value, max, heatPrefix, levels) })),
+      total,
+    }
+  })
+}
+
+export function CuratedVariantsGrid({ data }: CuratedVariantsGridProps) {
+  if (!data) {
+    return (
+      <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
+        No curated variants distribution available for this gene.
+      </p>
+    )
+  }
+
+  const rows = mapRows(data.cells, data.row_totals ?? {})
+  const sub = data.subtitle || `${data.total.toLocaleString()} classified variants`
+  const reading = data.reading
+
   return (
     <div className="vardist-wrap">
       <div className="vardist-title">

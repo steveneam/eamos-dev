@@ -1,70 +1,82 @@
-type AcmgCode =
-  | 'PVS1'
-  | 'PS1' | 'PS2' | 'PS3' | 'PS4'
-  | 'PM1' | 'PM2' | 'PM3' | 'PM4' | 'PM5' | 'PM6'
-  | 'PP1' | 'PP2' | 'PP3' | 'PP4' | 'PP5'
-  | 'BA1'
-  | 'BS1' | 'BS2' | 'BS3' | 'BS4'
-  | 'BP1' | 'BP2' | 'BP3' | 'BP4' | 'BP5' | 'BP6' | 'BP7'
+import type {
+  AcmgCode,
+  AcmgCriteriaScaffold,
+  AcmgCriterion as AcmgCriterionData,
+} from '@/lib/backend'
 
-type Verdict = 'met' | 'met-benign' | 'unmet'
+type DisplayVerdict = 'met' | 'met-benign' | 'unmet'
 
 interface Criterion {
   code: AcmgCode
   label: string
-  verdict: Verdict
+  verdict: DisplayVerdict
 }
 
 interface AcmgCriteriaFoldProps {
-  criteria?: Criterion[]
-  intro?: string
-  note?: string
+  data?: AcmgCriteriaScaffold | null
 }
 
-const SAMPLE: Criterion[] = [
-  { code: 'PM2',  label: 'Absent / extremely rare in controls',         verdict: 'met' },
-  { code: 'PM5',  label: 'Different missense at known path. residue',   verdict: 'met' },
-  { code: 'PP3',  label: 'Multiple in-silico predictors converge',      verdict: 'met' },
-  { code: 'PP4',  label: 'Phenotype highly specific for gene',          verdict: 'met' },
+const ACMG_LABELS: Record<AcmgCode, string> = {
+  PVS1: 'LOF in a LOF mechanism gene',
+  PS1:  'Same AA change as known pathogenic',
+  PS2:  'De novo (confirmed maternity/paternity)',
+  PS3:  'Functional studies support damage',
+  PS4:  'Significantly enriched in cases',
+  PM1:  'Mutational hot spot / critical domain',
+  PM2:  'Absent / extremely rare in controls',
+  PM3:  'In trans with path. variant (recessive)',
+  PM4:  'Protein length changes',
+  PM5:  'Different missense at known path. residue',
+  PM6:  'Assumed de novo',
+  PP1:  'Co-segregation with disease',
+  PP2:  'Missense in low-tolerance gene',
+  PP3:  'Multiple in-silico predictors converge',
+  PP4:  'Phenotype highly specific for gene',
+  PP5:  'Reputable source reports as path. (retired)',
+  BA1:  'AF > 5% in any pop',
+  BS1:  'AF > expected for disorder',
+  BS2:  'Observed in healthy individual',
+  BS3:  'Functional studies support no impact',
+  BS4:  'Lack of segregation',
+  BP1:  'Missense in LOF-only gene',
+  BP2:  'In trans with path. in dominant',
+  BP3:  'In-frame indel in repetitive region',
+  BP4:  'In-silico predicts no impact',
+  BP5:  'Alternate molecular cause',
+  BP6:  'Reputable benign (retired)',
+  BP7:  'Silent / non-splice with no impact',
+}
 
-  { code: 'PVS1', label: 'LOF in a LOF mechanism gene',                 verdict: 'unmet' },
-  { code: 'PS1',  label: 'Same AA change as known pathogenic',          verdict: 'unmet' },
-  { code: 'PS2',  label: 'De novo (confirmed maternity/paternity)',     verdict: 'unmet' },
-  { code: 'PS3',  label: 'Functional studies support damage',           verdict: 'unmet' },
-  { code: 'PS4',  label: 'Significantly enriched in cases',             verdict: 'unmet' },
-  { code: 'PM1',  label: 'Mutational hot spot / critical domain',       verdict: 'unmet' },
-  { code: 'PM3',  label: 'In trans with path. variant (recessive)',     verdict: 'unmet' },
-  { code: 'PM4',  label: 'Protein length changes',                      verdict: 'unmet' },
-  { code: 'PM6',  label: 'Assumed de novo',                             verdict: 'unmet' },
-  { code: 'PP1',  label: 'Co-segregation with disease',                 verdict: 'unmet' },
-  { code: 'PP2',  label: 'Missense in low-tolerance gene',              verdict: 'unmet' },
-  { code: 'PP5',  label: 'Reputable source reports as path. (retired)', verdict: 'unmet' },
+function isBenignCode(code: AcmgCode): boolean {
+  return code.startsWith('B')
+}
 
-  { code: 'BA1',  label: 'AF > 5% in any pop',                          verdict: 'unmet' },
-  { code: 'BS1',  label: 'AF > expected for disorder',                  verdict: 'unmet' },
-  { code: 'BS2',  label: 'Observed in healthy individual',              verdict: 'unmet' },
-  { code: 'BS3',  label: 'Functional studies support no impact',        verdict: 'unmet' },
-  { code: 'BS4',  label: 'Lack of segregation',                         verdict: 'unmet' },
-  { code: 'BP1',  label: 'Missense in LOF-only gene',                   verdict: 'unmet' },
-  { code: 'BP2',  label: 'In trans with path. in dominant',             verdict: 'unmet' },
-  { code: 'BP3',  label: 'In-frame indel in repetitive region',         verdict: 'unmet' },
-  { code: 'BP4',  label: 'In-silico predicts no impact',                verdict: 'unmet' },
-  { code: 'BP5',  label: 'Alternate molecular cause',                   verdict: 'unmet' },
-  { code: 'BP6',  label: 'Reputable benign (retired)',                  verdict: 'unmet' },
-  { code: 'BP7',  label: 'Silent / non-splice with no impact',          verdict: 'unmet' },
-]
+function mapCriteria(items: AcmgCriterionData[]): Criterion[] {
+  return items.map((c) => ({
+    code: c.code,
+    label: ACMG_LABELS[c.code],
+    verdict:
+      c.verdict === 'met'
+        ? isBenignCode(c.code)
+          ? 'met-benign'
+          : 'met'
+        : 'unmet',
+  }))
+}
 
-const SAMPLE_INTRO =
-  'An automated read of the standard ACMG/AMP criteria for this variant. This is supporting evidence, not a classification. Eamos does not issue ACMG classifications — clinical judgement, segregation, and functional data are required before a final call.'
+export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {
+  if (!data) {
+    return (
+      <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
+        No ACMG criteria scaffold available for this variant.
+      </p>
+    )
+  }
 
-const SAMPLE_NOTE =
-  'Met criteria above provide moderate-to-supporting evidence consistent with the Likely Pathogenic ClinVar classification. The unmet criteria reflect evidence types that haven’t been observed for this variant (e.g. functional studies, de novo observation) — they do not contradict pathogenicity.'
+  const criteria = mapCriteria(data.criteria)
+  const intro = data.intro
+  const note = data.note
 
-export function AcmgCriteriaFold({
-  criteria = SAMPLE,
-  intro = SAMPLE_INTRO,
-  note = SAMPLE_NOTE,
-}: AcmgCriteriaFoldProps) {
   const met = criteria.filter((c) => c.verdict === 'met' || c.verdict === 'met-benign').length
   const unmet = criteria.length - met
 
@@ -78,15 +90,17 @@ export function AcmgCriteriaFold({
         <span className="count">{met} met · {unmet} unmet · ACMG 2015 + 2022 PP3/BP4</span>
       </summary>
       <div className="fold-body">
-        <p className="intro">
-          {intro.split(/\b(This is supporting evidence, not a classification\.)\b/).map((part, i) =>
-            part === 'This is supporting evidence, not a classification.' ? (
-              <strong key={i}>{part}</strong>
-            ) : (
-              part
-            ),
-          )}
-        </p>
+        {intro && (
+          <p className="intro">
+            {intro.split(/\b(This is supporting evidence, not a classification\.)\b/).map((part, i) =>
+              part === 'This is supporting evidence, not a classification.' ? (
+                <strong key={i}>{part}</strong>
+              ) : (
+                part
+              ),
+            )}
+          </p>
+        )}
 
         <div className="acmg-grid">
           {criteria.map((c) => {
@@ -105,9 +119,11 @@ export function AcmgCriteriaFold({
           })}
         </div>
 
-        <div className="acmg-note">
-          <strong>Note:</strong> {note}
-        </div>
+        {note && (
+          <div className="acmg-note">
+            <strong>Note:</strong> {note}
+          </div>
+        )}
       </div>
     </details>
   )

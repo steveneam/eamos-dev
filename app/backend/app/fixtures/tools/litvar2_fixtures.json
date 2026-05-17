@@ -1,0 +1,32 @@
+{
+  "request_identity": {
+    "query": "RPE65 c.260A>G",
+    "litvar_id": "litvar-rpe65-c260ag"
+  },
+  "summary": {
+    "litvar_id": "litvar-rpe65-c260ag",
+    "total_publications": 816,
+    "articles": [
+      {
+        "pmid": "38191234",
+        "title": "Biallelic RPE65 variants causing Leber congenital amaurosis: genotype-phenotype correlations and therapeutic implications.",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/38191234/"
+      },
+      {
+        "pmid": "37042101",
+        "title": "Long-term outcomes of voretigene neparvovec gene therapy for RPE65-associated inherited retinal dystrophy.",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/37042101/"
+      },
+      {
+        "pmid": "35901234",
+        "title": "Functional classification of RPE65 missense variants using a retinal pigment epithelium cell model.",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/35901234/"
+      }
+    ],
+    "scholar_url": "https://scholar.google.com/scholar?q=RPE65+c.260A%3EG"
+  },
+  "raw": {
+    "fixture": true
+  },
+  "source_url": "https://www.ncbi.nlm.nih.gov/research/litvar2-api"
+}

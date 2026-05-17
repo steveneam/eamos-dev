@@ -4,35 +4,42 @@
       "locus_context": {
         "gene": "RPE65",
         "centre_cdna": "c.260A>G",
+        "coords": "chr1 : 68,444,849 \u2014 68,444,889  \u00b7  RPE65 exon 4  \u00b7  (+) strand",
         "nearby_variants": [
-          { "cds_pos": -30, "classification": "likely_pathogenic", "hgvs": "c.230T>C", "clinvar_id": "1234" },
-          { "cds_pos": -12, "classification": "vus", "hgvs": "c.248G>A", "clinvar_id": "5678" },
-          { "cds_pos": 0, "classification": "likely_pathogenic", "hgvs": "c.260A>G", "clinvar_id": "1421454" },
-          { "cds_pos": 8, "classification": "benign", "hgvs": "c.268C>T", "clinvar_id": "9101" },
-          { "cds_pos": 23, "classification": "pathogenic", "hgvs": "c.283G>A", "clinvar_id": "1121" }
+          { "cds_pos": -42, "classification": "pathogenic", "hgvs": "c.236A>G", "clinvar_id": null, "protein_change": "p.Asp79Gly" },
+          { "cds_pos": -32, "classification": "likely_pathogenic", "hgvs": "c.241C>T", "clinvar_id": null, "protein_change": "p.Arg81Cys" },
+          { "cds_pos": -24, "classification": "pathogenic", "hgvs": "c.247G>A", "clinvar_id": null, "protein_change": "p.Ala83Thr" },
+          { "cds_pos": -16, "classification": "vus", "hgvs": "c.253T>C", "clinvar_id": null, "protein_change": null },
+          { "cds_pos": -8, "classification": "likely_pathogenic", "hgvs": "c.257C>G", "clinvar_id": null, "protein_change": null },
+          { "cds_pos": 0, "classification": "likely_pathogenic", "hgvs": "c.260A>G", "clinvar_id": "1421454", "protein_change": "p.Asp87Gly" },
+          { "cds_pos": 8, "classification": "vus", "hgvs": "c.268A>G", "clinvar_id": null, "protein_change": null },
+          { "cds_pos": 16, "classification": "likely_benign", "hgvs": "c.271G>A", "clinvar_id": null, "protein_change": null },
+          { "cds_pos": 24, "classification": "pathogenic", "hgvs": "c.277C>T", "clinvar_id": null, "protein_change": "p.Arg93Cys" },
+          { "cds_pos": 32, "classification": "vus", "hgvs": "c.283G>C", "clinvar_id": null, "protein_change": null },
+          { "cds_pos": 40, "classification": "likely_pathogenic", "hgvs": "c.289G>A", "clinvar_id": null, "protein_change": "p.Glu97Lys" }
         ],
         "codon_strip": [
-          { "codon_number": 82, "aa_ref": "L", "is_query": false },
-          { "codon_number": 83, "aa_ref": "V", "is_query": false },
-          { "codon_number": 84, "aa_ref": "G", "is_query": false },
-          { "codon_number": 85, "aa_ref": "K", "is_query": false },
-          { "codon_number": 86, "aa_ref": "Y", "is_query": false },
-          { "codon_number": 87, "aa_ref": "D", "is_query": true },
-          { "codon_number": 88, "aa_ref": "L", "is_query": false },
-          { "codon_number": 89, "aa_ref": "H", "is_query": false },
-          { "codon_number": 90, "aa_ref": "P", "is_query": false },
-          { "codon_number": 91, "aa_ref": "I", "is_query": false },
-          { "codon_number": 92, "aa_ref": "T", "is_query": false }
+          { "codon_number": 82, "aa_ref": "Y", "aa_alt": null, "dna_ref": "TAT", "dna_alt": null, "is_query": false },
+          { "codon_number": 83, "aa_ref": "R", "aa_alt": null, "dna_ref": "CGG", "dna_alt": null, "is_query": false },
+          { "codon_number": 84, "aa_ref": "E", "aa_alt": null, "dna_ref": "GAA", "dna_alt": null, "is_query": false },
+          { "codon_number": 85, "aa_ref": "P", "aa_alt": null, "dna_ref": "CCT", "dna_alt": null, "is_query": false },
+          { "codon_number": 86, "aa_ref": "V", "aa_alt": null, "dna_ref": "GTG", "dna_alt": null, "is_query": false },
+          { "codon_number": 87, "aa_ref": "D", "aa_alt": "G", "dna_ref": "GAC", "dna_alt": "GGC", "is_query": true },
+          { "codon_number": 88, "aa_ref": "K", "aa_alt": null, "dna_ref": "AAG", "dna_alt": null, "is_query": false },
+          { "codon_number": 89, "aa_ref": "T", "aa_alt": null, "dna_ref": "ACA", "dna_alt": null, "is_query": false },
+          { "codon_number": 90, "aa_ref": "V", "aa_alt": null, "dna_ref": "GTC", "dna_alt": null, "is_query": false },
+          { "codon_number": 91, "aa_ref": "A", "aa_alt": null, "dna_ref": "GCC", "dna_alt": null, "is_query": false },
+          { "codon_number": 92, "aa_ref": "I", "aa_alt": null, "dna_ref": "ATT", "dna_alt": null, "is_query": false }
         ]
       },
       "in_silico_predictions": {
         "cards": [
-          { "name": "REVEL", "score": 0.78, "threshold": 0.50, "verdict": "damaging", "source_url": "https://sites.google.com/site/revelgenomics" },
-          { "name": "AlphaMissense", "score": 0.71, "threshold": 0.564, "verdict": "damaging", "source_url": "https://alphamissense.hegelab.org" },
-          { "name": "MetaLR", "score": 0.62, "threshold": 0.50, "verdict": "damaging", "source_url": null },
-          { "name": "SpliceAI", "score": 0.12, "threshold": 0.20, "verdict": "tolerated", "source_url": "https://spliceailookup.broadinstitute.org" }
+          { "name": "REVEL", "score": 0.82, "threshold": 0.75, "verdict": "damaging", "verdict_label": "Pathogenic supporting", "source_url": "https://sites.google.com/site/revelgenomics" },
+          { "name": "AlphaMissense", "score": 0.91, "threshold": 0.56, "verdict": "damaging", "verdict_label": "Likely pathogenic", "source_url": "https://alphamissense.hegelab.org" },
+          { "name": "MetaLR", "score": 0.78, "threshold": 0.50, "verdict": "damaging", "verdict_label": "Deleterious", "source_url": null },
+          { "name": "SpliceAI", "score": 0.05, "threshold": 0.20, "verdict": "tolerated", "verdict_label": "No splice impact", "source_url": "https://spliceailookup.broadinstitute.org" }
         ],
-        "consensus_note": "Three of four predictors converge on damaging; SpliceAI shows no splice impact."
+        "consensus_note": "Predictors converge: three protein-effect predictors all cross their pathogenic thresholds (REVEL, AlphaMissense, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag \u2014 the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call."
       },
       "acmg_criteria_scaffold": {
         "criteria": [
@@ -65,33 +72,90 @@
           { "code": "BP6", "verdict": "not_assessed", "note": null },
           { "code": "BP7", "verdict": "not_met", "note": null }
         ],
+        "intro": "An automated read of the standard ACMG/AMP criteria for this variant. This is supporting evidence, not a classification. Eamos does not issue ACMG classifications \u2014 clinical judgement, segregation, and functional data are required before a final call.",
+        "note": "Met criteria above provide moderate-to-supporting evidence consistent with the Likely Pathogenic ClinVar classification. The unmet criteria reflect evidence types that haven\u2019t been observed for this variant (e.g. functional studies, de novo observation) \u2014 they do not contradict pathogenicity.",
         "disclaimer": "Supporting evidence, not classification."
       },
       "curated_variants_distribution": {
         "cells": {
-          "pathogenic_lof": 42,
-          "pathogenic_missense": 28,
-          "pathogenic_noncoding": 9,
-          "pathogenic_synonymous": 0,
-          "vus_lof": 3,
-          "vus_missense": 51,
-          "vus_noncoding": 18,
-          "vus_synonymous": 12,
+          "pathogenic_lof": 210,
+          "pathogenic_missense": 187,
+          "pathogenic_noncoding": 6,
+          "pathogenic_synonymous": 3,
+          "vus_lof": 1,
+          "vus_missense": 342,
+          "vus_noncoding": 51,
+          "vus_synonymous": 32,
           "benign_lof": 0,
-          "benign_missense": 7,
-          "benign_noncoding": 31,
-          "benign_synonymous": 24
+          "benign_missense": 11,
+          "benign_noncoding": 198,
+          "benign_synonymous": 245
         },
-        "total": 225,
-        "reading": "Most pathogenic RPE65 variants are loss-of-function or missense in the catalytic domain."
+        "row_totals": {
+          "pathogenic": 406,
+          "vus": 426,
+          "benign": 454
+        },
+        "total": 1286,
+        "subtitle": "1,286 classified variants \u00b7 ClinVar + UniProt",
+        "reading": "LOF and missense both contribute substantially to pathogenicity in RPE65 \u2014 LOF is a well-established disease mechanism. The 342 missense VUS reflect the deep interpretation tail typical of recessive disease genes."
       },
       "associated_conditions": [
-        { "name": "Leber congenital amaurosis 2", "case_count": 187, "evidence_level": "definitive", "inheritance": "AR", "source": "OMIM #204100" },
-        { "name": "Retinitis pigmentosa 20", "case_count": 62, "evidence_level": "strong", "inheritance": "AR", "source": "OMIM #613794" }
+        {
+          "name": "Leber Congenital Amaurosis 2 (LCA2)",
+          "case_count": 412,
+          "evidence_level": "definitive",
+          "inheritance": "AR",
+          "source": "OMIM #204100",
+          "db_tag": "#204100",
+          "db_tag_bold": "OMIM",
+          "source_list": "OMIM \u00b7 Monarch \u00b7 DECIPHER \u00b7 GenCC \u00b7 ClinGen"
+        },
+        {
+          "name": "Retinitis Pigmentosa 20 (RP20)",
+          "case_count": 218,
+          "evidence_level": "definitive",
+          "inheritance": "AR",
+          "source": "OMIM #613794",
+          "db_tag": "#613794",
+          "db_tag_bold": "OMIM",
+          "source_list": "OMIM \u00b7 Monarch \u00b7 GenCC"
+        },
+        {
+          "name": "RPE65-Related Dominant Retinopathy",
+          "case_count": 14,
+          "evidence_level": "moderate",
+          "inheritance": "AD",
+          "source": "No OMIM entry",
+          "db_tag": "No OMIM entry",
+          "db_tag_bold": null,
+          "source_list": "OMIM \u00b7 GenCC \u00b7 ClinGen \u00b7 MONDO"
+        },
+        {
+          "name": "Severe Early-Childhood-Onset Retinal Dystrophy",
+          "case_count": 9,
+          "evidence_level": "moderate",
+          "inheritance": "AR",
+          "source": "Orphanet ORPHA:71862",
+          "db_tag": "Orphanet ORPHA:71862",
+          "db_tag_bold": null,
+          "source_list": "Orphanet \u00b7 GenCC"
+        },
+        {
+          "name": "RPE65-Related Recessive Retinopathy (umbrella)",
+          "case_count": 5,
+          "evidence_level": "definitive",
+          "inheritance": "AR",
+          "source": "MONDO:0019200",
+          "db_tag": "MONDO:0019200",
+          "db_tag_bold": null,
+          "source_list": "PubMed \u00b7 GenCC \u00b7 MONDO \u00b7 DECIPHER \u00b7 OMIM \u00b7 ClinGen"
+        }
       ],
       "publications_callout": {
         "total_count": 816,
-        "scholar_url": "https://scholar.google.com/scholar?q=RPE65+c.260A%3EG",
+        "scholar_url": "https://scholar.google.com/scholar?q=RPE65+Asp87Gly",
+        "blurb": "Across PubMed and Google Scholar for RPE65 + p.Asp87Gly. Ask Eamos for a synthesis of the top 5, or browse externally.",
         "ai_summary_prompt": "Summarise the key publications on RPE65 c.260A>G in plain language for a clinician."
       }
     }

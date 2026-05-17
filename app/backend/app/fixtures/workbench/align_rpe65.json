@@ -1,9 +1,9 @@
 {
   "reference": "CGCCATTCGGTGCGACATTCAAGAGAACAA",
   "sanger_read": "CGCCATTCGGTGCGGCATTCAAGAGAACAA",
-  "match_line": "||||||||||||| ||||||||||||||||||",
-  "mismatch_positions": [13],
-  "target_position": 13,
+  "match_line": "|||||||||||||| |||||||||||||||",
+  "mismatch_positions": [14],
+  "target_position": 14,
   "trace_channels": [
     {
       "base": "A",
@@ -23,5 +23,5 @@
     }
   ],
   "base_calls": ["C", "G", "C", "C", "A", "T", "T", "C", "G", "G", "T", "G", "C", "G", "G", "C", "A", "T", "T", "C", "A", "A", "G", "A", "G", "A", "A", "C", "A", "A"],
-  "q_scores": [36, 39, 40, 38, 36, 34, 37, 40, 39, 36, 35, 38, 41, 42, 40, 37, 35, 36, 39, 40, 38, 35, 36, 39, 41, 38, 35, 36, 39, 40]
+  "q_scores": [37, 40, 39, 35, 34, 38, 40, 38, 35, 35, 38, 40, 37, 42, 35, 39, 40, 37, 34, 36, 39, 39, 36, 34, 36, 40, 39, 35, 34, 37]
 }

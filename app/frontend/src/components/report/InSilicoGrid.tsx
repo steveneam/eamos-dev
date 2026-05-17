@@ -1,33 +1,55 @@
+import type {
+  InSilicoPredictions,
+  PredictorCard as PredictorCardData,
+  PredictorVerdict,
+} from '@/lib/backend'
+
 type PredictorTone = 'warn' | 'ok' | 'neutral'
 
-interface PredictorCard {
+interface PredictorCardDisplay {
   name: string
-  score: number      // 0..1, formatted to 2 dp
-  threshold: number  // 0..1
+  score: number
+  threshold: number
   verdict: string
   tone: PredictorTone
-  metaMax?: string   // override "1.00"
 }
 
 interface InSilicoGridProps {
-  cards?: PredictorCard[]
-  consensus?: string
+  data?: InSilicoPredictions | null
 }
 
-const SAMPLE_CARDS: PredictorCard[] = [
-  { name: 'REVEL',         score: 0.82, threshold: 0.75, verdict: 'Pathogenic supporting', tone: 'warn' },
-  { name: 'AlphaMissense', score: 0.91, threshold: 0.56, verdict: 'Likely pathogenic',     tone: 'warn' },
-  { name: 'MetaLR',        score: 0.78, threshold: 0.50, verdict: 'Deleterious',           tone: 'warn' },
-  { name: 'SpliceAI Δ',    score: 0.05, threshold: 0.20, verdict: 'No splice impact',      tone: 'ok'   },
-]
+const VERDICT_TONE: Record<PredictorVerdict, PredictorTone> = {
+  damaging: 'warn',
+  tolerated: 'ok',
+  uncertain: 'neutral',
+}
 
-const SAMPLE_CONSENSUS =
-  'Predictors converge: three protein-effect predictors all cross their pathogenic thresholds (REVEL, AlphaMissense, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag — the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call.'
+function displayName(name: PredictorCardData['name']): string {
+  return name === 'SpliceAI' ? 'SpliceAI Δ' : name
+}
 
-export function InSilicoGrid({
-  cards = SAMPLE_CARDS,
-  consensus = SAMPLE_CONSENSUS,
-}: InSilicoGridProps) {
+function mapCards(items: PredictorCardData[]): PredictorCardDisplay[] {
+  return items.map((c) => ({
+    name: displayName(c.name),
+    score: c.score,
+    threshold: c.threshold,
+    verdict: c.verdict_label || c.verdict,
+    tone: VERDICT_TONE[c.verdict],
+  }))
+}
+
+export function InSilicoGrid({ data }: InSilicoGridProps) {
+  if (!data) {
+    return (
+      <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '0 0 18px' }}>
+        No in-silico predictions available for this variant.
+      </p>
+    )
+  }
+
+  const cards = mapCards(data.cards)
+  const consensus = data.consensus_note
+
   return (
     <div style={{ marginBottom: 18 }}>
       <div
@@ -64,7 +86,7 @@ export function InSilicoGrid({
               <div className="pred-meta">
                 <span>0.00</span>
                 <span>{card.threshold.toFixed(2)} ↦</span>
-                <span>{card.metaMax ?? '1.00'}</span>
+                <span>1.00</span>
               </div>
               <span className={`pred-verdict ${tone}`}>{card.verdict}</span>
             </div>

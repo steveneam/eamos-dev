@@ -10,12 +10,18 @@ Port three Claude Design mocks to the React/Vite frontend without migrating to N
 | FE-1 | Landing v2 | ✅ Done — Franklin removed from `sources.ts`, `sample-report.ts`, FeaturesGrid, HowItWorks, LandingPage; replaced with AlphaMissense where a 6th source was named. LegacyRunsApp untouched (frozen). |
 | FE-2 | Report v2 new modules | ✅ Done — 6 components (LocusContext, InSilicoGrid, AcmgCriteriaFold, CuratedVariantsGrid, AssociatedConditions, PublicationsCallout). ~180 lines of v2 module CSS appended to `index.css`. Wired into 3 outer Cards in ReportPage. EvidenceTable + DiseaseSection gained an `embedded` prop. |
 | FE-3 | Variant header v2 | ✅ Done — cross-DB chip strip (6 chips, no Franklin), tools row (Follow toggle, Export = window.print, Share = copy URL), 4-stat row (sample data). v2 header CSS appended. |
-| **FE-3.5** | **Contract sync** | **Next — see section below.** |
-| FE-4 | Workbench shell | Pending |
-| FE-5 | Sequence Viewer + click-to-edit | Pending |
-| FE-6 | Primer + CRISPR panels | Pending |
-| FE-7 | Alignment + Comparator | Pending |
-| FE-8 | AskEamos pill (tool-aware) | Pending |
+| FE-3.5 | Contract sync | ✅ Done (2026-05-15) — `backend.ts` interfaces added, `RPE65_SAMPLE` populated, 6 components wired to `payload.*` with renamed internal display interfaces. `tsc --noEmit` clean. Exposed a mock-fidelity gap → see FE-3.6. |
+| FE-4 | Workbench shell | ✅ Done (2026-05-15). `/workbench` route + chrome (`src/components/workbench/*`, `WorkbenchPage`, scoped `styles/workbench.css`). tsc/build clean; all modules transform. Plan deviation: no-param `/workbench` defaults to RPE65 sample (not redirect to `/`). |
+| FE-5 | Sequence Viewer + click-to-edit | ✅ Done (2026-05-15) — **superseded by FE-5.5** (built against the older Workbench v1 mock; the v2 mock is a substantial evolution). `src/lib/workbench/{codon-table,sample-rpe65}.ts` + 11 viewer components under `src/components/workbench/viewer/`; wired into `WorkbenchShell` (lifted `edits`/`scratch`/`tracksOn`, controlled `CanvasHeader`, viewer-mode `SidePanel`). Vitest added (`npm run test`, 5/5). `npm run build` green; `test_frontend_contract.py` 40/40 (unchanged — no contract touch). Deviations: (1) 1-char sample-data coherence fix so codon 87 = GAC/Asp → spec `p.Asp87Gly`; (2) hover-preview added to EditPopover (plan/acceptance say hover; source JS only previewed on click). |
+| FE-3.6 | Report payload fidelity reconcile | ✅ Done (2026-05-15). `backend.ts` + `sample-report.ts` synced to BE-6; all 6 report components rewritten to consume the enriched payload; divergent SAMPLE datasets deleted (empty-state when no data). `npm run build` green; `test_frontend_contract.py` 40/40 PASS. |
+| FE-5.5 | Sequence Viewer v2 (Benchling-grade) + chrome relayout | ✅ Done (2026-05-16). Ported `Eamos Workbench v2.html` + `Workbench v2/*` to React: `lib/workbench/{gene-window,sample-rpe65-v2,edit-state}.ts` + `gene-window.test.ts`; `viewer/{SequenceViewerV2,ViewerToolbar,GeneMinimap,ExonStrip,CodonDetail,SelectionBar,HistoryTimeline,EditPopoverV2,ZoomSlider,viewer-types}.tsx` + new `ToolBar.tsx`; rewrote `CanvasHeader`/`SidePanel`/`WorkbenchShell`. 4 mods all in: (1) ClinVar density toggle (Tracks dropdown, grouped w/ pins); (2) collapsible side-panel exon disclosure; (3) horizontal segmented tool selector top-right, left rail removed (`.wb` → 2-col); (4) Benchling −/+ density slider + retained Gene/Exon/Codon chips + minimap/exon-strip collapse + restriction-as-top-ticks/beige-band aesthetics. 14 superseded FE-5 files deleted. Verified: `npx vitest run` 24/24, `npm run build` clean, `test_frontend_contract.py` 40/40 (untouched). Then Codex adversarial hardening pass (`task-mp8d61ip-1zyj8k`) fixed 2 HIGH / 2 MED / 3 LOW (drag-unmount leak, popover portal+viewport clamp, history-jump bounds, data-driven intronic ClinVar mapping, a11y/keys/stale-CSS); Claude re-verified post-Codex (24/24, clean, 40/40). Browser pixel-check pending a dev-server session. |
+| FE-5.6 | Workbench viewer refinement pass (8 pixel-check fixes) | **Planned (2026-05-17)** — browser pixel-check of FE-5.5 surfaced 8 changes. Decisions locked with user (see "FE-5.6"): dynamic reflow, unified edit-hub redesign, variant-render small-now/defer-cascade. Execute before FE-6 (shares the chrome). |
+| FE-6 | Primer + CRISPR panels | Pending — builds on FE-5.5/FE-5.6 chrome (BE-7 stub data exists). |
+| FE-7 | Alignment + Comparator | Pending (BE-7 stub data exists). |
+| FE-8 | AskEamos pill (tool-aware) | Pending. No contract dependency. |
+| FE-14 | Search robustness + `cleanQuery()` | ✅ Done (2026-05-16). `cleanQuery()`/`isLikelyUnparseable()` + 1-retry/backoff + malformed/unresolved/offline/degraded states. Cross-check HIGH-2: `coord` regex widened to accept VCF-quad genomic input (`1-68444869-T-C`, `chr1:68444869:T:C`) the backend already accepts. No `backend.ts`/contract change. vitest 21/21, build clean. |
+
+**Parallel run model (2026-05-15):** Claude Code runs FE-4 → FE-5 (all-new Workbench files, zero overlap with `app/backend/`) while Codex runs BE-6 → BE-7. When BE-6 lands the enriched schema+fixture, Claude Code picks up FE-3.6, then continues FE-6 → FE-7 → FE-8. `test_frontend_contract.py` is the BE-6 ↔ FE-3.6 drift canary.
 
 Build last verified clean at end of FE-3: `tsc -b && vite build` → 573KB JS / 58KB CSS, 2.25s.
 
@@ -297,12 +303,48 @@ export interface AlignResponse {
 
 Estimated effort: ~45 minutes of mostly mechanical interface entry + minor component wiring.
 
+> **FE-3.5 status: ✅ Done (2026-05-15).** Wiring complete. Discovered the backend fixture carries less than the mock; the 6 components still embed richer `SAMPLE` blocks as fallbacks. FE-3.6 (below) reconciles this once BE-6 enriches the payload.
+
+---
+
+## FE-3.6 — Report payload fidelity reconcile (✅ DONE 2026-05-15)
+
+**Goal:** payload-driven rendering equals the Report Page v2 mock; lossy `SAMPLE`-fallback mappings deleted. **Achieved** — all 6 components consume the enriched payload; divergent SAMPLE datasets removed; `npm run build` green; `test_frontend_contract.py` 40/40. (Browser pixel check pending a session with a working dev server.)
+
+**Done (2026-05-15):** Codex BE-6 verified (schema additive, fixture mirrors the SAMPLE constants). Frontend contract + component reconcile complete:
+- `src/lib/backend.ts` — all 8 BE-6 field groups added (optional): `NearbyVariant.protein_change`; `CodonCell.{aa_alt,dna_ref,dna_alt}`; `LocusContext.coords`; `PredictorCard.verdict_label`; `AcmgCriteriaScaffold.{intro,note}`; `CuratedVariantsDistribution.{row_totals,subtitle}`; `AssociatedCondition.{db_tag,db_tag_bold,source_list}`; `PublicationsCallout.blurb`.
+- `src/lib/sample-report.ts` — `RPE65_SAMPLE` v2 modules rewritten to mirror `lookup_v2_modules.json` exactly.
+- Verified: `cd app/frontend && npm run build` green; `cd app/backend && python -m pytest tests/test_frontend_contract.py -q` → 40/40 PASS (BE-6 ↔ FE-3.6 drift resolved).
+
+**Historical — completed.** The "remaining" component-reconcile work below was finished in FE-3.6 (✅ 2026-05-15): all 6 components consume the new fields and the divergent `SAMPLE`/default constants were removed. The file table that follows is retained as a record of what changed, not as outstanding work.
+
+### Files to touch
+
+| File | Change |
+| ---- | ------ |
+| `src/lib/backend.ts` | Add the BE-6 fields to the TS interfaces: `CodonCell.{aa_alt,dna_ref,dna_alt}`, `NearbyVariant.protein_change`, `LocusContext.coords`, `PredictorCard.verdict_label`, `AcmgCriteriaScaffold.{intro,note}`, `CuratedVariantsDistribution.{row_totals,subtitle}`, `AssociatedCondition.{db_tag,db_tag_bold,source_list}` (replacing `source`), `PublicationsCallout.blurb`. |
+| `src/lib/sample-report.ts` | Repopulate `RPE65_SAMPLE` from the rewritten fixture so the offline demo matches the mock. |
+| `LocusContext.tsx` | Use `dna_ref`/`dna_alt` to render the codon DNA + highlighted variant base; `aa_alt` for `Asp → Gly`; `coords` from payload; map all 11 `nearby_variants`. Delete `SAMPLE_NEARBY`/`SAMPLE_CODONS` (or keep only as a typed empty-state default, not a divergent dataset). |
+| `InSilicoGrid.tsx` | Use `verdict_label` for the verdict text (drop the generic `VERDICT_LABEL` enum map). |
+| `AcmgCriteriaFold.tsx` | Use payload `intro`/`note`; drop `SAMPLE_INTRO`/`SAMPLE_NOTE`. |
+| `CuratedVariantsGrid.tsx` | Use `row_totals` + `subtitle`; recompute heat from real counts. |
+| `AssociatedConditions.tsx` | Use `db_tag`/`db_tag_bold`/`source_list` directly; drop the `splitSource` heuristic. |
+| `PublicationsCallout.tsx` | Use payload `blurb`. |
+| `ReportPage.tsx` | No structural change — props already wired in FE-3.5. |
+
+### Acceptance
+
+- `npm run build` clean.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q` passes (BE-6 ↔ FE-3.6 sync complete).
+- `/report?demo=1` renders pixel-equivalent to the Report Page v2 mock — codon strip shows DNA + `Asp → Gly`, 11 locus dots, descriptive predictor verdicts, ACMG intro/note prose, per-row distribution totals, 5 associated conditions with split source attribution.
+- No remaining divergent `SAMPLE` dataset constants in the 6 component files.
+
 ---
 
 **Source mocks** (in `e:\Web tool\Claude Design\`):
 - `Eamos Landing Page.html` — public landing
 - `Eamos Report Page v2.html` — variant report v2 (replaces v1 mock)
-- `Eamos Workbench v1.html` + `Workbench/*.{js,css}` — new sequence-tools surface
+- `Eamos Workbench v2.html` + `Workbench v2/*.{js,css}` — sequence-tools surface (v2 supersedes the retired `Eamos Workbench v1.html` + `Workbench/*`; FE-5.5 ports v2)
 
 **Stack** — React 18 + TypeScript + Vite + Tailwind v4. **Do not migrate to Next.js.** Re-evaluate later if file-based API routing / RSC becomes load-bearing.
 
@@ -479,6 +521,282 @@ Side panel content (driven by `WorkbenchPage` state):
 
 **Acceptance** — clicking base 28 (the c.260 position) opens popover; hovering G shows "Missense p.Asp87Gly"; Apply commits, scratchpad logs the edit.
 
+### FE-5.5 — Sequence Viewer v2 (Benchling-grade) + chrome relayout
+
+**Why this milestone exists.** The design was revved: `Eamos Workbench v2.html`
++ `Workbench v2/*` (2026-05-16) supersedes the v1 mock FE-5 was built against.
+The v2 viewer is a substantial evolution (gene minimap with ClinVar density,
+exon strip, find/jump toolbar, ClinVar variant chevrons, undo/redo + edit
+history, 3-way strand pill, export, wrapped 60 bp Benchling/SnapGene block
+layout, intron/splice context). The user also requested 4 modifications and a
+Benchling-style zoom slider. Doing this *before* FE-6/7/8 is required: those
+panels share the canvas chrome and sit below the viewer — relaying the rail and
+viewer after them means reworking their layout twice. Pure frontend; the
+contract is untouched, so no Codex/backend dependency and the backend-first
+checkpoint is undisturbed.
+
+**Files**
+
+```
+src/lib/workbench/
+  gene-window.ts            # port of data.js builders: buildFlatWindow / buildCodons /
+                            #   consequenceAt (pure, testable); intron flanks + GT/AG splice
+  sample-rpe65-v2.ts        # full 14-exon/intron structure, windowSegments, exonVariantCount
+                            #   (density), proteinFeatures, genomicCoords, restriction flatPos
+  gene-window.test.ts       # vitest: consequenceAt sub/del/splice/intronic; buildCodons frame
+src/components/workbench/viewer/
+  SequenceViewerV2.tsx      # orchestrator: toolbar → minimap → exon strip → codon detail →
+                            #   selection bar → history timeline
+  ViewerToolbar.tsx         # find/jump box, ClinVar ‹ count › chevrons, undo/redo/history toggle
+  GeneMinimap.tsx           # proportional exon/intron band, ClinVar density bubbles (TOGGLEABLE),
+                            #   active-window flag, 5′/3′ bookends, click-exon-to-jump
+  ExonStrip.tsx             # current-exon header + ClinVar pins + ruler
+  CodonDetail.tsx           # wrapped ROW_BP-base blocks; rows: annotation / domain / clinvar /
+                            #   translation / ruler / sequence / complement / conservation /
+                            #   restriction; intron-gap separators
+  SelectionBar.tsx          # single-base / range selection summary + delete/replace/clear
+  HistoryTimeline.tsx       # edit-history drawer (toggle; hidden by default)
+  EditPopoverV2.tsx         # sub (A/T/C/G) / del / insert + live consequence preview
+src/components/workbench/
+  ToolBar.tsx               # NEW horizontal segmented tool selector (replaces left ToolRail)
+  ZoomSlider.tsx            # Benchling −/+ density slider (BASE_W) + retained Gene/Exon/Codon chips
+```
+
+**State** (lift into `WorkbenchShell`, `useReducer` for edit/history):
+`edits: Map<flatIdx, {kind:'sub'|'del'|'ins', alt}>`, `history[]`,
+`historyCursor`, `selection`, `strandMode: 'top'|'both'|'rev'`,
+`trackOn` (annotations/domains/clinvar/clinvarDensity/conservation/restriction),
+`searchQuery`, `showHistory`, `baseW` (zoom density), `navCollapsed`
+(minimap+exon-strip), `exonTableOpen` (side panel).
+
+**The 4 modifications (the user's asks):**
+
+1. **ClinVar density-bubble toggle.** Split the single ClinVar concern into two
+   toggles in the Tracks dropdown: `ClinVar pins` (in-window dots, existing) and
+   `ClinVar density` (the per-exon minimap bubbles — currently unconditional in
+   `sv-minimap.js`). `GeneMinimap` renders bubbles only when
+   `trackOn.clinvarDensity`.
+2. **Collapsible exon table.** The side-panel Transcript section's
+   `Exons (click to view)` table becomes a disclosure (`<details>`-style),
+   default collapsed, state in `exonTableOpen`. Active-exon summary line stays
+   visible when collapsed.
+3. **Tool selector → horizontal, top-right.** Delete the left `.rail` column;
+   `.wb` grid becomes `1fr / var(--side-w)`. New `ToolBar.tsx` is a horizontal
+   segmented control (icon + label, 5 items) placed in `canvas-head-right`.
+   Reclaims 64 px of viewer width permanently. Responsive: wraps under the title
+   at < 900 px.
+4. **Benchling zoom slider (augment).** `ZoomSlider.tsx` top-left of the viewer:
+   a `−  ⎯⎯●⎯⎯  +` range input bound to `baseW` (≈ 8–22 px/base; `CodonDetail`
+   reads it instead of the const), **plus** the existing Gene/Exon/Codon chips
+   retained for semantic jumps (Gene → minimap-only fit; Exon → exon-strip
+   focus; Codon → full base detail). Aesthetic pass while here: restriction
+   sites as top-edge vertical ticks with bold labels (SnapGene style) and a
+   beige feature arrow band for the gene/exon span. Keep the muted ~25%-chroma
+   palette (DESIGN.md "never Benchling rainbow").
+
+**CSS** — port the relevant `Workbench v2/workbench.css` rules into
+`src/styles/workbench.css` (scoped, no global token collisions): `.sv-toolbar`,
+`.sv-minimap*`, `.sv-exonstrip*`, `.sv-block*`, `.sv-codon/.sv-aa`, `.sv-base`,
+`.sv-cv`, `.sv-selbar*`, `.sv-history*`, `.sv-edit-pop*`, `.sv-dropdown`,
+`.sv-strand-pill`, plus new `.toolbar-seg` (horizontal selector) and
+`.zoom-slider`. Remove now-dead `.rail*` rules. Domains default OFF-canvas
+(side panel) per the v2 mock to save vertical space.
+
+**Superseded by this milestone** (FE-5 files; replace, don't extend):
+`viewer/{SequenceViewer,Track,BaseRow,CodonRow,AnnotationRow,DomainRow,VariantRow,ConservationRow,RestrictionRow,VariantMarker,EditPopover}.tsx`,
+`ToolRail.tsx`. Keep `codon-table.ts` (still the shared codon/aa core).
+`sample-rpe65.ts` retained only if still referenced; otherwise removed with its
+FE-5 consumers.
+
+**Verify**
+
+```
+cd app/frontend && npx vitest run        # green (gene-window.test.ts added)
+cd app/frontend && npm run build         # tsc -b + vite, clean
+cd app/backend  && python -m pytest tests/test_frontend_contract.py -q   # 40/40 (untouched)
+```
+
+Browser spot-check at `/workbench`: minimap renders 14-exon band; density
+bubbles toggle; exon table collapses; tool selector is horizontal top-right and
+the viewer spans full width; zoom slider changes base density live; click-edit
+popover previews consequence; undo/redo works.
+
+**Acceptance** — the 4 modifications are visibly present and correct; the
+viewer matches the v2 mock's information hierarchy (minimap → exon strip →
+codon detail); contract test still 40/40; build + vitest green.
+
+### FE-5.6 — Workbench viewer refinement pass (8 pixel-check fixes)
+
+**Why this milestone exists.** The 2026-05-17 browser pixel-check of FE-5.5
+(first time the viewer was eyeballed, not just headless-verified) surfaced 8
+changes. Several reshape FE-5.5 decisions; doing them *before* FE-6 is required
+because FE-6's Primer/CRISPR panels share the canvas chrome and the side panel
+this pass restructures — building FE-6 first means reworking it twice.
+
+**Pre-flight (read before touching code).** Pure frontend; contract untouched
+→ `test_frontend_contract.py` stays 40/40, no Codex/backend dependency.
+**Nothing is committed** — the working tree is the only copy of the
+variant-search + hardening + FE-5.5 batches. Work in small, independently
+verifiable units; the dynamic-reflow item (item 6) is the highest risk —
+isolate and verify it on its own.
+
+**Locked decisions (user, 2026-05-17):**
+- Item 6 → **dynamic reflow** (bases-per-row from live container width), not
+  cosmetic.
+- Items 4 + 7 → **unified edit-hub redesign** (canvas selects; all edits move
+  off-canvas to a right-click context menu + the Scratchpad side panel).
+- Item 8 → **small now, defer the cascade** (seed the queried variant as an
+  applied baseline overlay; defer indel-aware downstream re-translation to
+  M-002).
+
+#### Work items (suggested order — lowest risk first)
+
+**A. Mechanical / low-risk (one commit unit)**
+
+**Item 2 — Remove the ExonStrip (the section between Gene View and Sequence
+View).**
+- `viewer/SequenceViewerV2.tsx`: drop the `ExonStrip` import and its render in
+  the `!navCollapsed` block; keep `<GeneMinimap>`. `jumpToCdsPos` is still used
+  by the imperative handle — keep it; only ExonStrip's `onPinClick` goes.
+- Delete `viewer/ExonStrip.tsx`. Remove `.sv-exonstrip*` / `.sv-es-*` rules
+  from `styles/workbench.css`.
+- Copy sync: `viewer/ZoomSlider.tsx` nav-toggle `title`/label say "gene map +
+  exon strip" — change to "gene map" (the toggle now controls only the
+  minimap). Note in code/comment that `navCollapsed` now = minimap only.
+
+**Item 3 — Merge ClinVar pins + density into one toggle** (reverses FE-5.5
+mod #1 — conscious reversal per user: ClinVar everywhere or nowhere).
+- `viewer/viewer-types.ts`: drop `clinvarDensity` from `TrackState` +
+  `DEFAULT_TRACKS`.
+- `CanvasHeader.tsx` `TRACKS`: remove the `clinvarDensity` row; relabel
+  `clinvar` → `"ClinVar (gene map + in-window pins)"`.
+- `viewer/GeneMinimap.tsx`: density bubbles render on `trackOn.clinvar`
+  (rename the `showDensity` prop or pass `trackOn.clinvar` from
+  `SequenceViewerV2`).
+- Grep `clinvarDensity` repo-wide → zero remaining refs.
+
+**Item 5 — Sticky collapse-context-panel button.**
+- Root cause: `.side` is `position:sticky; overflow-y:auto`; the collapse
+  button sits at the top of its *scrolling content*. Fix in
+  `styles/workbench.css`: `.side-collapse-row { position: sticky; top: 0;
+  z-index: 5; background: var(--bg); }` (+ a hairline-b and small padding so
+  scrolled content doesn't bleed under). It's already the first child of the
+  `.side` scroll container. Keep the `.wb.side-collapsed .side-collapse-row`
+  override sticky too.
+
+**B. Chrome relayout (one commit unit)**
+
+**Item 1 — ContextStrip → tool selector; fold ClinVar/gnomAD into Active
+variant.**
+- `ContextStrip.tsx`: remove the right cluster (classification `ctx-badge` +
+  `ctx-link`s). Add `tool` + `onSelectTool` props; render `<ToolBar>` in
+  `.ctx-right`.
+- `pages/WorkbenchPage.tsx`: pass `tool`/`setTool` into `<ContextStrip>` (state
+  already lives here). Drop `RPE65_CTX.classification`/`links` from the strip
+  call (keep the two URLs — they move to the side panel, below).
+- `CanvasHeader.tsx`: remove the `<ToolBar>` render + `onSelectTool` prop; keep
+  `tool` (still used for `TOOL_META` title/sub + `meta.tracks`) and the
+  Tracks/strand/Export cluster. `WorkbenchShell.tsx`: stop threading
+  `onSelectTool` into `CanvasHeader`.
+- `SidePanel.tsx` `ViewerSide` "Active variant" section: add a compact
+  external-links row (ClinVar + gnomAD — the two URLs from `RPE65_CTX.links`;
+  keep as a fixture-level constant, consistent with the rest of the panel).
+- **Layout sub-task / flag:** `--ctx-h` is `48px`; the segmented `ToolBar`
+  (icon+label ×5) may not fit at that height. Either bump `--ctx-h` (it feeds
+  `.wb` min-height + `.side` sticky offset — change in one place, both follow)
+  or add a compact ToolBar variant. Decide visually during execution; verify
+  the `.side` sticky `top:` math still lines up.
+
+**C. Unified edit-hub redesign — items 4 + 7 (one commit unit; the
+architectural one)**
+
+Model: canvas = view/select only; **all editing moves off-canvas.**
+
+- **Canvas (`CodonDetail.tsx`):** keep `onBaseMouseDown` drag-select
+  (single + range + shift-extend already work). Left-click no longer opens the
+  editor — remove the `onBaseClick`→popover path; click just selects. Add
+  `onContextMenu` on base cells → `e.preventDefault()` → open the edit menu at
+  the cursor.
+- **Edit menu (`viewer/EditPopoverV2.tsx`):** repurpose as a cursor-anchored
+  context menu (it already portals + viewport-clamps; switch the anchor from
+  the base's `DOMRect` to the mouse point). Keeps sub/del/ins + live
+  consequence preview. Optionally rename → `EditContextMenu.tsx`.
+- **Scratchpad becomes the edit hub (`SidePanel.tsx` `ViewerSide`):** absorb
+  the selection summary + range actions (delete N / replace / clear) from the
+  now-deleted `SelectionBar`, above the existing edit-log list.
+- **Architectural decision (central to this item):** selection state + the
+  edit reducer currently live *inside* `SequenceViewerV2`; the side panel is a
+  sibling rendered by `WorkbenchShell`. Do **not** lift the whole reducer.
+  Instead extend the existing callback/handle seam (mirrors
+  `onScratchChange`/`onActiveExonChange`): add an `onSelectionChange`
+  callback + extend `SequenceViewerHandle` with `delSelection`/
+  `replaceSelection`/`clearSelection`. `WorkbenchShell` holds the mirrored
+  selection summary and passes it + the handle actions to `SidePanel`. The
+  reducer stays in the viewer (least churn, preserves undo/redo + history).
+- Delete `viewer/SelectionBar.tsx`; remove `.sv-selbar*` CSS; add
+  Scratchpad selection/action CSS in the side-panel scope. Keyboard shortcuts
+  (letter=sub, ⌫=del, arrows, Esc) already in `SequenceViewerV2` — keep; they
+  fit "select then act."
+
+**D. Dynamic reflow — item 6 (its own commit unit; highest risk)**
+
+Honest framing for the executor: this is **not** a tweak and **not** something
+the live test would have fixed. `CodonDetail` is fixed-pixel — every row is
+`ROW_BP (60) × baseW`. Side-panel collapse only adds dead right-margin; zoom
+changes `baseW` but never bases-per-row, so it never reflows. Both halves of
+the user's comment 6 share this root cause.
+
+- `viewer/CodonDetail.tsx`: make `ROW_BP` dynamic. `ResizeObserver` on
+  `.sv-detail` (or `.sv-root`) → measure usable width → `rowBp =
+  max(MIN_BP, floor((measuredW − RIGHT_MARGIN − padding) / baseW))`. Thread
+  `rowBp` into `buildLayout(flat, rowBp)` (currently keys off the `ROW_BP`
+  constant). Recompute on `baseW` change too, so **zoom also reflows**.
+- Codon/translation/ruler/clinvar absolute positioning all derive from each
+  row's `indices`, so they follow automatically; partial codons across a row
+  boundary already render (`!allHere` path) — preserve that.
+- Risks: `useMemo` deps, `ResizeObserver` lifecycle (clean up on unmount —
+  remember the FE-5.5 drag-unmount leak Codex caught), and the intron-gap
+  split interacting with a variable `rowBp`.
+- Tests: extend `lib/workbench/gene-window.test.ts` (or a sibling) — extract
+  `buildLayout` so it's pure and unit-test it across several `rowBp` values
+  **including** intron-gap interaction (vitest can't measure DOM width; test
+  the pure layout fn, not the observer).
+
+**E. Variant-render small-now — item 8 (fold into D's unit or its own)**
+
+- Seed the queried variant as an **applied baseline overlay** so its codon
+  visibly shows the change (e.g. Asp→Gly), distinct from user edits: it must
+  **not** appear in the Scratchpad edit log, **not** be on the undo stack, and
+  survive "Reset all". Simplest: a separate baseline edit map merged with the
+  user `edits` only at render time in `CodonDetail`'s translation/bases
+  (don't push it through the reducer). Confirm the existing `.variant` CSS on
+  the ref base still reads correctly once the codon also shows `changed`.
+- **Defer (now an M-002 entry, added to "Tasks deferred to M-002"):**
+  indel-aware spliced-CDS downstream re-translation — frameshift re-frames
+  every downstream codon, recomputes the new premature/late stop, renders the
+  truncated/extended protein. The current per-codon-independent recompute is
+  not this; it is a new engine + viewer rework.
+
+#### Verify (run after each commit unit; all green before reporting done)
+
+```
+cd app/frontend && npx vitest run        # green; +buildLayout cases for item 6
+cd app/frontend && npm run build         # tsc -b + vite, clean
+cd app/backend  && python -m pytest tests/test_frontend_contract.py -q   # 40/40 (untouched)
+```
+Then a browser pixel-check at `/workbench` (the gate that found these — don't
+report done on headless alone): items 1–8 visibly correct; side-panel collapse
++ zoom both reflow the sequence; right-click edits, left-click selects; sticky
+collapse button stays put while the side panel scrolls.
+
+#### Acceptance
+
+All 8 comments resolved with the locked decisions; vitest + build green;
+contract still 40/40; FE-5.5's Codex-hardened fixes (drag-unmount, popover
+portal/clamp, history bounds) not regressed by the redesign. Then the standard
+clear-safe handoff + (post-verify) a scoped Codex grunt-work pass for
+doc-sync/CHANGELOG/PROGRESS.
+
 ### FE-6 — Primer + CRISPR panels
 
 ```
@@ -561,12 +879,61 @@ For `/report` (not Workbench), use the same `<AskEamos />` component as today, a
 
 **Acceptance** — pill renders on `/workbench`, label tracks active tool, sending a question hits `/api/v1/chat` and streams response into the panel.
 
+### FE-14 — Search robustness states + `cleanQuery()`
+
+The frontend half of the variant-search-engine integration (source plan:
+`C:\Users\seamegdool\.claude\plans\before-you-beging-the-groovy-swan.md`). Pairs
+with Codex's BE-8 (input normalization) and BE-12 (error contract). **No
+`backend.ts` interface or contract change** — the schema is unchanged by design,
+so `test_frontend_contract.py` stays 40/40. This milestone runs in parallel with
+Codex BE-8…BE-13; file ownership is disjoint (`app/frontend/**` only).
+
+**`cleanQuery()` (BE-8 frontend mirror, UX-only)** — add `cleanQuery()` to
+`src/lib/variant-format.ts`, reusing the existing `classify()` / `FORMAT_HINTS`.
+Call it before building the `LookupRequest`. Same intent as the backend
+`normalize_variant_query`: strip a leading `GENE:`/`NM_`/`ENST` accession+colon,
+collapse whitespace, **never lowercase HGVS** (`A>G`/`p.Asp87Gly` are
+case-significant). This is a client-side affordance only — the backend
+normalizes authoritatively; the mirror just gives instant feedback.
+
+**Robustness states (BE-12 frontend half)** — in `src/pages/ReportPage.tsx` and
+the lookup call site (the `variantLookup` function — confirm whether it lives in
+`src/lib/api.ts` or `src/lib/backend.ts` at execution; the gitStatus shows
+`backend.ts` is the live module). Three distinct states keyed off the **frozen
+`warnings` codes** (see `plans/v2-backend.md` → "Frozen `warnings` codes" — the
+canonical contract):
+
+| Trigger | State | UI |
+| ------- | ----- | -- |
+| Client `classify() == 'unknown'` | malformed — no request sent | inline hint near the search box (reuse `FORMAT_HINTS`); never fires a request |
+| `warnings` contains `input_unparseable:<kind>` | server-confirmed malformed | inline hint; surface `report_payload.limitations` |
+| `warnings` contains `no_genomic_resolution` | resolved-but-no-data | "We couldn't resolve this variant" panel — visually **distinct** from a generic network failure; no auto-retry |
+| network error / 5xx | transient | retry affordance; add **1 retry with backoff** in `variantLookup` (network/5xx only — **never** retry 4xx) |
+| `warnings` contains `live_fetch_failed:` (prefix) | partial degradation | non-blocking "some sources used cached data" note; key on the **prefix only**, never parse the suffix (it's the exception class name, not the tool name — incoherence finding #6) |
+
+**Verify**:
+
+```bash
+cd app/frontend && npm run build      # tsc -b + vite, clean
+cd app/backend && python -m pytest tests/test_frontend_contract.py -q   # 40/40 (no contract touch)
+```
+
+Manual walkthrough: (1) paste `???not-a-variant???` → inline hint, no network
+request; (2) paste `RPE65:c.260A>G` → cleaned to `c.260A>G` before the request;
+(3) offline / kill backend → retry affordance, exactly one auto-retry with
+backoff on the network failure, no retry on a 4xx.
+
+**Acceptance** — the three states are visually distinct (malformed ≠
+no-resolution ≠ network); `cleanQuery()` strips the `GENE:` prefix without
+lowercasing HGVS; `npm run build` clean; contract test still 40/40.
+
 ---
 
 ## Tasks deferred to M-002 (post-v2)
 
 - Real engine calls (Primer3 / CRISPOR / Needleman–Wunsch / AB1 parser). Sample data for v2.
 - Multi-variant editing in the sequence viewer (one edit at a time tracked; multiple edits land sequentially).
+- Dynamic downstream consequence rendering (FE-5.6 item 8, deferred half): indel-aware spliced-CDS re-translation — frameshift re-frames all downstream codons, recomputes the new premature/late stop, renders the truncated/extended protein. Distinct from the current per-codon-independent recompute; needs a new pure translation/frame-propagation module + viewer rework.
 - Persist Workbench sessions (no persistence layer in v2; reload = reset).
 - Real PhyloP + UniProt domain ingestion (currently sample-rpe65.ts hardcoded).
 - Mouse mm39 support in Workbench (Sequence Viewer + tools assume human; mouse comes later).

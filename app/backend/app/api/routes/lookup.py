@@ -11,6 +11,7 @@ router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
 def variant_lookup(
     payload: LookupRequest,
     request: Request,
+    refresh: bool = False,
 ) -> LookupResponse:
     service = getattr(request.app.state, "lookup_service", None)
     if service is None:
@@ -18,4 +19,4 @@ def variant_lookup(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Lookup service is unavailable.",
         )
-    return service.lookup(payload)
+    return service.lookup(payload, refresh=refresh)
