@@ -9,7 +9,8 @@ import {
   type ScratchEntry,
   type SequenceViewerHandle,
 } from './viewer/SequenceViewerV2'
-import { ZoomSlider, ZOOM_PRESETS } from './viewer/ZoomSlider'
+import { ZoomSlider } from './viewer/ZoomSlider'
+import { ZOOM_PRESETS } from './viewer/zoom-config'
 import {
   DEFAULT_TRACKS,
   type StrandMode,

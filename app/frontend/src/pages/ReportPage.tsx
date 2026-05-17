@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- ReportPage intentionally syncs URL-derived states with its async lookup lifecycle. */
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { TopNav } from '@/components/layout/TopNav'

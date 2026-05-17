@@ -21,6 +21,7 @@ import {
   type Edit,
   type EditMap,
 } from '@/lib/workbench/edit-state'
+import type { Base } from '@/lib/workbench/codon-table'
 import type { StrandMode, TrackState } from './viewer-types'
 import { GeneMinimap } from './GeneMinimap'
 import { ExonStrip } from './ExonStrip'
@@ -103,7 +104,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       [],
     )
     const applySub = useCallback(
-      (idx: number, base: string) => {
+      (idx: number, base: Base) => {
         const reff = flat[idx].base.toUpperCase()
         if (base === reff)
           commit(`Reset ${posDisplay(data, flat[idx])}`, (m) => m.delete(idx))
@@ -177,7 +178,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             cdsPos: b.cdsPos,
             ref: b.base.toUpperCase(),
             alt: e.alt,
-            conseq: consequenceAt(flat, k, e.alt as never),
+            conseq: consequenceAt(flat, k, e.alt as Base),
           })
         }
       })
@@ -380,7 +381,8 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           selection.start === selection.end &&
           /^[atcgATCG]$/.test(e.key)
         ) {
-          applySub(selection.start, e.key.toUpperCase())
+          const base = e.key.toUpperCase()
+          if (isBase(base)) applySub(selection.start, base)
           e.preventDefault()
         } else if (e.key === 'Escape') {
           setSelection(null)
@@ -504,3 +506,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     )
   },
 )
+
+function isBase(value: string): value is Base {
+  return value === 'A' || value === 'T' || value === 'C' || value === 'G'
+}

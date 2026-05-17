@@ -2,7 +2,7 @@ export type VariantFormat = 'rsid' | 'coord' | 'hgvs' | 'gene-p' | 'gene' | 'unk
 
 const PATTERNS: [VariantFormat, RegExp][] = [
   ['rsid',   /^rs\d+$/i],
-  ['coord',  /^(?:chr)?(?:\d{1,2}|[xyXYmM])(?::[gGcC]\.\d|\s*[:\-]\s*\d+\s*[:\-]\s*[acgtACGT]+\s*(?:>|[:\-])\s*[acgtACGT]+)/],
+  ['coord',  /^(?:chr)?(?:\d{1,2}|[xyXYmM])(?::[gGcC]\.\d|\s*[:-]\s*\d+\s*[:-]\s*[acgtACGT]+\s*(?:>|[:-])\s*[acgtACGT]+)/],
   ['hgvs',   /^[A-Z][A-Z0-9_]+\.\d+:[cnmrCNMRgG]\./],
   ['gene-p', /\bp\.[A-Z][a-z]{2}\d+/],
   ['gene',   /^[A-Z][A-Z0-9]+\s+[cnmrCNMRgG]\.\d+/],

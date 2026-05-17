@@ -17,8 +17,10 @@ Each task should name:
 
 | Task | Suggested owner | Status | Notes |
 | ---- | --------------- | ------ | ----- |
-| Direct-Codex workflow doc sync | Claude Code | Recommended first task tomorrow | Update stable docs so future Claude sessions understand direct Codex has verified access and can own substantive backend work. Scope: `CLAUDE.md`, `plans/README.md`, `README.md`, `PROGRESS.md`, `ROADMAP.md`; avoid `CHANGELOG.md` and active implementation plans unless necessary. |
-| FE-5.6 Workbench viewer refinement | Claude Code | Waiting for user direction | Based on browser pixel-check findings. Should run before FE-6 because it shares Workbench chrome. |
+| Direct-Codex workflow doc sync | Claude Code | DONE 2026-05-17 | Stable docs corrected; memory synced. |
+| Checkpoint commit + push | Claude Code | DONE 2026-05-17 | `9a27ef0` on `checkpoint/v2-batches-2026-05-17` (pushed); `origin/main` preserved. |
+| Review + refactor Claude's folders | Direct Codex | DONE 2026-05-17 | Behavior-preserving lint/type/refactor pass on FE-5.5 frontend surface. Verified: vitest 24/24, frontend build clean, frontend contract 40/40, eslint clean. Committed separately as `Refactor Workbench frontend surface`, not pushed at handoff time. |
+| FE-5.6 Workbench viewer refinement | Claude Code | Ready after Codex review | Decisions locked in `plans/v2-frontend.md` "FE-5.6". Runs before FE-6 (shares chrome). |
 | FE-6 Primer + CRISPR panels | Claude Code | Gated | Build against frozen stub contracts only after user chooses to proceed. |
 | FE-7 Alignment + Comparator | Claude Code | Gated | Stub data exists; wait for user direction. |
 | FE-8 AskEamos pill | Claude Code, possible small Codex backend review | Gated | Can ship against mock `/api/v1/chat`; live chat is M-002. |
@@ -36,3 +38,6 @@ Examples:
   `app/backend/app/tools/**` and backend tests.
 - Risky: both agents editing `app/frontend/src/lib/backend.ts`,
   `plans/v2-frontend.md`, or shared docs at the same time.
+
+
+

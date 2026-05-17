@@ -7,6 +7,7 @@ import {
   type GeneWindowData,
 } from '@/lib/workbench/gene-window'
 import type { Edit } from '@/lib/workbench/edit-state'
+import type { Base } from '@/lib/workbench/codon-table'
 
 interface EditPopoverV2Props {
   data: GeneWindowData
@@ -14,7 +15,7 @@ interface EditPopoverV2Props {
   idx: number
   current: Edit | undefined
   anchorRect: DOMRect
-  onSub: (base: string) => void
+  onSub: (base: Base) => void
   onDel: () => void
   onIns: (seq: string) => void
   onReset: () => void
@@ -58,7 +59,7 @@ export function EditPopoverV2({
   const base = flat[idx]
   const refBase = base?.base.toUpperCase() ?? ''
   const [ins, setIns] = useState(current?.kind === 'ins' ? current.alt : '')
-  const [preview, setPreview] = useState<{
+  const [hoverPreview, setHoverPreview] = useState<{
     kind: string
     label: string
     detail: string
@@ -66,7 +67,7 @@ export function EditPopoverV2({
   const [position, setPosition] = useState(() => clampPopover(anchorRect, null))
 
   function describe(kind: 'sub' | 'del' | 'ins' | null, alt?: string) {
-    if (kind === 'sub' && alt && alt !== refBase) return consequenceAt(flat, idx, alt as never)
+    if (kind === 'sub' && isBase(alt) && alt !== refBase) return consequenceAt(flat, idx, alt)
     if (kind === 'del') return consequenceAt(flat, idx, '-')
     if (kind === 'ins' && alt)
       return {
@@ -80,13 +81,11 @@ export function EditPopoverV2({
     return null
   }
 
-  // Initial preview reflects the current pending edit (if any).
-  useEffect(() => {
-    if (current?.kind === 'sub') setPreview(describe('sub', current.alt))
-    else if (current?.kind === 'del') setPreview(describe('del'))
-    else if (current?.kind === 'ins') setPreview(describe('ins', current.alt))
-    else setPreview(null)
-  }, [current, flat, idx, refBase])
+  const currentPreview = describe(
+    current?.kind ?? null,
+    current?.kind === 'sub' || current?.kind === 'ins' ? current.alt : undefined,
+  )
+  const preview = hoverPreview ?? currentPreview
 
   useLayoutEffect(() => {
     const update = () => setPosition(clampPopover(anchorRect, popRef.current))
@@ -141,15 +140,8 @@ export function EditPopoverV2({
             key={b}
             type="button"
             className={subActive(b) ? 'active' : undefined}
-            onMouseEnter={() => setPreview(describe('sub', b))}
-            onMouseLeave={() =>
-              setPreview(
-                describe(
-                  current?.kind ?? null,
-                  current?.kind === 'sub' || current?.kind === 'ins' ? current.alt : undefined,
-                ),
-              )
-            }
+            onMouseEnter={() => setHoverPreview(describe('sub', b))}
+            onMouseLeave={() => setHoverPreview(null)}
             onClick={() => onSub(b)}
           >
             {b}
@@ -158,15 +150,8 @@ export function EditPopoverV2({
         <button
           type="button"
           className={`del${current?.kind === 'del' ? ' active' : ''}`}
-          onMouseEnter={() => setPreview(describe('del'))}
-          onMouseLeave={() =>
-            setPreview(
-              describe(
-                current?.kind ?? null,
-                current?.kind === 'sub' || current?.kind === 'ins' ? current.alt : undefined,
-              ),
-            )
-          }
+          onMouseEnter={() => setHoverPreview(describe('del'))}
+          onMouseLeave={() => setHoverPreview(null)}
           onClick={onDel}
         >
           del
@@ -184,7 +169,7 @@ export function EditPopoverV2({
           onChange={(e) => {
             const v = e.target.value.toUpperCase().replace(SANITISE, '')
             setIns(v)
-            setPreview(describe('ins', v))
+            setHoverPreview(describe('ins', v))
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && ins) {
@@ -223,4 +208,8 @@ export function EditPopoverV2({
     </div>,
     document.body,
   )
+}
+
+function isBase(value: string | undefined): value is Base {
+  return value === 'A' || value === 'T' || value === 'C' || value === 'G'
 }

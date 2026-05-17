@@ -1,16 +1,9 @@
 import type { ZoomLevel } from './viewer-types'
+import { BASE_W_MAX, BASE_W_MIN } from './zoom-config'
 
-export const BASE_W_MIN = 8
-export const BASE_W_MAX = 22
 /** Preset → base width (px/base). Chips are semantic jumps; the slider is
  *  continuous density. Modification #4 (augment, not replace). */
-export const ZOOM_PRESETS: Record<ZoomLevel, number> = {
-  gene: 9,
-  exon: 14,
-  codon: 20,
-}
-
-export function presetForBaseW(w: number): ZoomLevel {
+function presetForBaseW(w: number): ZoomLevel {
   if (w <= 11) return 'gene'
   if (w >= 18) return 'codon'
   return 'exon'

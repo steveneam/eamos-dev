@@ -1,5 +1,6 @@
 import type { WorkbenchTool } from '@/lib/backend'
-import { TOOL_ORDER, TOOL_META, ToolIcon } from './tools'
+import { TOOL_ORDER, TOOL_META } from './tools'
+import { ToolIcon } from './ToolIcon'
 
 interface ToolBarProps {
   active: WorkbenchTool

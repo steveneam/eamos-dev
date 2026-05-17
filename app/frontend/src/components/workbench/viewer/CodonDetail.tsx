@@ -3,7 +3,6 @@ import { aaClass } from '@/lib/workbench/codon-table'
 import {
   COMPLEMENT,
   classLabel,
-  posDisplay,
   translateTriplet,
   type Codon,
   type FlatBase,
@@ -12,7 +11,7 @@ import {
 import type { EditMap } from '@/lib/workbench/edit-state'
 import type { StrandMode, TrackState } from './viewer-types'
 
-export const ROW_BP = 60
+const ROW_BP = 60
 const RIGHT_MARGIN = 64
 
 interface CodonDetailProps {
@@ -341,7 +340,6 @@ function Block(props: BlockProps) {
     if (!/^[ATCG]{3,}$/.test(q)) return false
     const s = flat.map((b) => (b.kind === 'intron-gap' ? '_' : b.base.toUpperCase())).join('')
     let pos = -1
-    // eslint-disable-next-line no-cond-assign
     while ((pos = s.indexOf(q, pos + 1)) >= 0) {
       if (i >= pos && i < pos + q.length) return true
     }
@@ -574,5 +572,3 @@ function Block(props: BlockProps) {
     </div>
   )
 }
-
-export { posDisplay }
