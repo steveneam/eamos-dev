@@ -1,12 +1,19 @@
+import type { WorkbenchTool } from '@/lib/backend'
+import { ToolBar } from './ToolBar'
+
 interface ContextStripProps {
   gene: string
   variant: string
   sub: string
-  classification: string
-  links?: Array<{ label: string; href: string }>
+  tool: WorkbenchTool
+  onSelectTool: (tool: WorkbenchTool) => void
 }
 
-export function ContextStrip({ gene, variant, sub, classification, links = [] }: ContextStripProps) {
+/** FE-5.6 item 1: the strip's right cluster (classification badge + external
+ *  links) is gone — classification lives in the side panel's Active variant
+ *  card, the ClinVar/gnomAD links moved there too, and this slot now hosts the
+ *  tool selector (moved out of the canvas header so it sits above the fold). */
+export function ContextStrip({ gene, variant, sub, tool, onSelectTool }: ContextStripProps) {
   return (
     <div className="ctx-wrap">
       <div className="wrap-wide ctx">
@@ -17,21 +24,7 @@ export function ContextStrip({ gene, variant, sub, classification, links = [] }:
           <span className="ctx-sub">{sub}</span>
         </div>
         <div className="ctx-right">
-          <span className="ctx-badge lp">
-            <span className="bdot" />
-            {classification}
-          </span>
-          {links.map((l) => (
-            <a
-              key={l.label}
-              className="ctx-link"
-              href={l.href}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {l.label} ↗
-            </a>
-          ))}
+          <ToolBar active={tool} onSelect={onSelectTool} />
         </div>
       </div>
     </div>

@@ -80,7 +80,7 @@ const SAMPLE_STATS: StatCell[] = [
   { label: 'ClinVar',       value: 'Likely Path.', hint: '2 stars · 4 submitters' },
   { label: 'gnomAD AF',     value: '0.000082',     hint: '5 / 60,940 alleles' },
   { label: 'REVEL',         value: '0.82', tone: 'warn', hint: 'High support · pathogenic' },
-  { label: 'AlphaMissense', value: '0.91', tone: 'warn', hint: 'Likely pathogenic' },
+  // AlphaMissense stat on hold per user decision (2026-05-19) — see agent_handoff DECISIONS.
 ]
 
 function deriveClassificationLabel(acmg: string | null | undefined): string | null {

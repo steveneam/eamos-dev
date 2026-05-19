@@ -16,8 +16,8 @@ const STEPS: Step[] = [
   },
   {
     num: 2,
-    title: 'Eamos queries six databases',
-    description: 'In parallel: ClinVar, gnomAD, VEP, SpliceAI, AlphaMissense, PubMed. ACMG rules engine runs on top.',
+    title: 'Eamos queries five databases',
+    description: 'In parallel: ClinVar, gnomAD, VEP, SpliceAI, PubMed. ACMG rules engine runs on top.',
     visual: {
       lines: ['ClinVar … ok', 'gnomAD … ok', 'SpliceAI … ok', 'VEP … ok'],
     },

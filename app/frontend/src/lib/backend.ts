@@ -442,3 +442,228 @@ export interface AlignResponse {
   base_calls: string[]
   q_scores: number[]
 }
+
+// ─── Gene viewer (POST /api/v1/viewer) ──────────────────────────────────
+// Mirror of app/backend/app/schemas/gene_viewer.py (Codex-authored = the
+// backend-led contract source; this file only mirrors it, never reshapes it).
+// snake_case fields match the Pydantic models; lib/workbench/gene-viewer-
+// adapter.ts maps this into the camelCase GeneWindowData renderer shape.
+// Contract canary: app/backend/tests/test_frontend_contract.py (Codex extends).
+
+export type AlleleMode = 'reference' | 'variant'
+export type GenomeStrand = '+' | '-' | 'unknown'
+export type ViewerTrack =
+  | 'sequence'
+  | 'exons'
+  | 'clinvar'
+  | 'protein_features'
+  | 'restriction'
+  | 'conservation'
+export type ViewerWindowKind = 'around_variant' | 'cds_range'
+export type ViewerSegmentKind = 'exon' | 'intron'
+export type VariantClassification =
+  | 'pathogenic'
+  | 'likely_pathogenic'
+  | 'vus'
+  | 'likely_benign'
+  | 'benign'
+  | 'unknown'
+
+export interface ViewerWindowRequest {
+  kind?: ViewerWindowKind
+  cds_start?: number | null
+  cds_end?: number | null
+  cds_flank_bp?: number
+  intron_flank_bp?: number
+}
+
+export interface GeneViewerRequest {
+  gene: string
+  cdna: string
+  transcript?: string | null
+  species?: string
+  genome_build?: string
+  allele_mode?: AlleleMode
+  window?: ViewerWindowRequest
+  tracks?: ViewerTrack[]
+}
+
+export interface ViewerIdentity {
+  gene: string
+  ensembl_gene_id?: string | null
+  requested_transcript?: string | null
+  resolved_transcript: string
+  transcript_aliases: string[]
+  species: string
+  genome_build: string
+}
+
+export interface ViewerLocus {
+  chrom: string
+  gene_start?: number | null
+  gene_end?: number | null
+  strand: GenomeStrand
+}
+
+export interface ViewerSummary {
+  gene_length?: number | null
+  total_exons: number
+  cds_length?: number | null
+  protein_length?: number | null
+  utr5_length?: number | null
+  utr3_length?: number | null
+  mrna_length?: number | null
+}
+
+export interface ViewerWindow {
+  kind: ViewerWindowKind
+  cds_start?: number | null
+  cds_end?: number | null
+  cds_flank_bp: number
+  intron_flank_bp: number
+  display_cds_start: number
+  display_cds_end: number
+  total_display_bases: number
+}
+
+export interface ViewerSegment {
+  id: string
+  kind: ViewerSegmentKind
+  label: string
+  exon_number?: number | null
+  intron_number?: number | null
+  cds_start?: number | null
+  cds_end?: number | null
+  genomic_start?: number | null
+  genomic_end?: number | null
+  strand: GenomeStrand
+  sequence: string
+  five_prime_sequence: string
+  three_prime_sequence: string
+  omitted_bp: number
+}
+
+export interface QueriedVariant {
+  hgvs_c: string
+  hgvs_p?: string | null
+  cds_pos: number
+  genomic_hg38?: string | null
+  ref: string
+  alt: string
+  codon_number?: number | null
+  codon_offset?: number | null
+  aa_ref?: string | null
+  aa_alt?: string | null
+  classification: VariantClassification
+}
+
+export interface AppliedVariant {
+  hgvs_c: string
+  cds_pos: number
+  segment_id: string
+  sequence_offset: number
+  ref: string
+  alt: string
+}
+
+export interface ViewerSequences {
+  allele_mode: AlleleMode
+  reference_window_sequence: string
+  display_window_sequence: string
+  applied_variant?: AppliedVariant | null
+}
+
+export interface ClinvarVariant {
+  cds_pos: number | string
+  hgvs_c: string
+  hgvs_p?: string | null
+  classification: VariantClassification
+  clinvar_id?: string | null
+  queried: boolean
+  splice: boolean
+}
+
+export interface ExonVariantDensity {
+  exon_number: number
+  variant_count: number
+}
+
+export interface ProteinDomain {
+  aa_start: number
+  aa_end: number
+  label: string
+  short_label?: string | null
+}
+
+export interface ProteinActiveSite {
+  aa: number
+  residue: string
+  label: string
+}
+
+export interface ProteinRangeFeature {
+  aa_start: number
+  aa_end: number
+  label: string
+}
+
+export interface ProteinPointFeature {
+  aa: number
+  residue: string
+  label: string
+}
+
+export interface ProteinFeatures {
+  signal_peptide?: ProteinRangeFeature | null
+  transmembrane: ProteinRangeFeature[]
+  domains: ProteinDomain[]
+  active_sites: ProteinActiveSite[]
+  membrane_binding: ProteinRangeFeature[]
+  palmitoylation: ProteinPointFeature[]
+}
+
+export interface RestrictionSite {
+  name: string
+  site: string
+  flat_pos: number
+}
+
+export interface ViewerFeature {
+  type: string
+  cds_start: number
+  cds_end: number
+  label: string
+}
+
+export interface ViewerTracks {
+  clinvar_variants: ClinvarVariant[]
+  exon_density: ExonVariantDensity[]
+  protein_features: ProteinFeatures
+  conservation_values: number[]
+  restriction_sites: RestrictionSite[]
+  features: ViewerFeature[]
+}
+
+export interface ViewerProvenanceSource {
+  name: string
+  identifier?: string | null
+  url?: string | null
+  version?: string | null
+}
+
+export interface ViewerProvenance {
+  sources: ViewerProvenanceSource[]
+  warnings: string[]
+}
+
+export interface GeneViewerResponse {
+  identity: ViewerIdentity
+  locus: ViewerLocus
+  summary: ViewerSummary
+  window: ViewerWindow
+  segments: ViewerSegment[]
+  queried_variant: QueriedVariant
+  sequences: ViewerSequences
+  tracks: ViewerTracks
+  provenance: ViewerProvenance
+}

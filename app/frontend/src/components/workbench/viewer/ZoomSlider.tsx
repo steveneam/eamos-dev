@@ -20,7 +20,7 @@ interface ZoomSliderProps {
 const LEVELS: ZoomLevel[] = ['gene', 'exon', 'codon']
 
 /** Benchling-style − ⎯⎯●⎯⎯ + density slider with retained semantic
- *  Gene/Exon/Codon chips, plus a minimap/exon-strip collapse toggle.
+ *  Gene/Exon/Codon chips, plus a gene-map collapse toggle.
  *  Sits top-left of the viewer. */
 export function ZoomSlider({
   baseW,
@@ -76,7 +76,7 @@ export function ZoomSlider({
       <button
         type="button"
         className={`sv-navtoggle${navCollapsed ? ' on' : ''}`}
-        title={navCollapsed ? 'Show gene map + exon strip' : 'Hide gene map + exon strip'}
+        title={navCollapsed ? 'Show gene map' : 'Hide gene map'}
         aria-pressed={navCollapsed}
         onClick={onToggleNav}
       >

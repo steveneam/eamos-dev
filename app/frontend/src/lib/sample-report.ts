@@ -86,7 +86,7 @@ export const RPE65_SAMPLE: LookupResponse = {
         { name: 'SpliceAI',      score: 0.05, threshold: 0.20, verdict: 'tolerated', verdict_label: 'No splice impact',      source_url: 'https://spliceailookup.broadinstitute.org' },
       ],
       consensus_note:
-        'Predictors converge: three protein-effect predictors all cross their pathogenic thresholds (REVEL, AlphaMissense, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag — the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call.',
+        'Predictors converge: the protein-effect predictors all cross their pathogenic thresholds, while SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag — the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call.',
     },
     acmg_criteria_scaffold: {
       criteria: [

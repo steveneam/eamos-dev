@@ -1,13 +1,25 @@
+import { useState } from 'react'
 import type { WorkbenchTool } from '@/lib/backend'
 import { aaThree } from '@/lib/workbench/codon-table'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
 import { TOOL_META } from './tools'
 import type { ScratchEntry } from './viewer/SequenceViewerV2'
+import type { SelectionSummary } from './viewer/viewer-types'
+
+// FE-5.6 item 1: the ClinVar/gnomAD links moved out of the context strip into
+// the Active variant card. Fixture-level constant (RPE65 c.260A>G), same
+// pattern as `RPE65_CTX` in WorkbenchPage — per-variant wiring lands with the
+// report payload in a later milestone.
+const VARIANT_LINKS = [
+  { label: 'ClinVar', href: 'https://www.ncbi.nlm.nih.gov/clinvar/variation/99473/' },
+  { label: 'gnomAD', href: 'https://gnomad.broadinstitute.org' },
+]
 
 interface SidePanelProps {
   tool: WorkbenchTool
   data: GeneWindowData
   scratch: ScratchEntry[]
+  selection: SelectionSummary | null
   collapsed: boolean
   exonTableOpen: boolean
   activeExon: number
@@ -15,6 +27,9 @@ interface SidePanelProps {
   onToggleExonTable: () => void
   onResetAll: () => void
   onJumpToExon: (n: number) => void
+  onDelSelection: () => void
+  onReplaceSelection: (seq: string) => void
+  onClearSelection: () => void
 }
 
 function Kv({ k, v, tone }: { k: string; v: string; tone?: 'warn' | 'ok' }) {
@@ -56,14 +71,105 @@ function FeatRow({ rg, lb, rt }: { rg: string; lb: string; rt: string }) {
   )
 }
 
+/** Selection summary + range actions — the edit hub absorbed from the
+ *  removed canvas SelectionBar (FE-5.6 Unit C). Single base: shows the
+ *  reference + edit-key hints; range: delete / replace / clear. */
+function SelectionBlock({
+  selection,
+  onDel,
+  onReplace,
+  onClear,
+}: {
+  selection: SelectionSummary
+  onDel: () => void
+  onReplace: (seq: string) => void
+  onClear: () => void
+}) {
+  const [replace, setReplace] = useState('')
+  const submitReplace = () => {
+    const v = replace.toUpperCase().replace(/[^ATCG]/g, '')
+    if (v) {
+      onReplace(v)
+      setReplace('')
+    }
+  }
+
+  if (selection.len === 1) {
+    return (
+      <div className="scratch-sel">
+        <div className="scratch-sel-head">
+          <span className="lbl">Selection</span>
+          <span className="pos">{selection.loPos}</span>
+        </div>
+        <div className="scratch-sel-meta">
+          ref <b>{selection.refBase}</b>
+          {selection.hasEdit ? ' · edited' : ''}
+        </div>
+        <div className="scratch-sel-hint">
+          Right-click this base in the canvas to edit it. With it selected,
+          press <b>A/T/C/G</b> to substitute or <b>⌫</b> to delete.
+        </div>
+        <div className="scratch-sel-actions">
+          <button type="button" className="scratch-sel-btn ghost" onClick={onClear}>
+            Clear
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="scratch-sel">
+      <div className="scratch-sel-head">
+        <span className="lbl">Range · {selection.len} bp</span>
+        <span className="pos">
+          {selection.loPos} → {selection.hiPos}
+        </span>
+      </div>
+      <div className="scratch-sel-meta">{selection.span}</div>
+      <div className="scratch-sel-actions">
+        <button type="button" className="scratch-sel-btn del" onClick={onDel}>
+          Delete {selection.len} bases
+        </button>
+        <button type="button" className="scratch-sel-btn ghost" onClick={onClear}>
+          Clear
+        </button>
+      </div>
+      <div className="scratch-sel-replace">
+        <input
+          className="scratch-sel-input"
+          placeholder={`Replace with… (max ${selection.len * 2} bp)`}
+          aria-label="Replacement sequence"
+          spellCheck={false}
+          value={replace}
+          onChange={(e) => setReplace(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              submitReplace()
+            }
+          }}
+        />
+        <button type="button" className="scratch-sel-btn ins" onClick={submitReplace}>
+          Replace →
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ViewerSide({
   data,
   scratch,
+  selection,
   exonTableOpen,
   activeExon,
   onToggleExonTable,
   onResetAll,
   onJumpToExon,
+  onDelSelection,
+  onReplaceSelection,
+  onClearSelection,
 }: Omit<SidePanelProps, 'tool' | 'collapsed' | 'onToggleCollapsed'>) {
   const qv = data.queriedVariant
   const g = data.genomicCoords
@@ -81,6 +187,19 @@ function ViewerSide({
           />
           <Kv k="Class" v="Likely Pathogenic" tone="warn" />
           <Kv k="PhyloP" v="0.96" tone="ok" />
+        </div>
+        <div className="side-links">
+          {VARIANT_LINKS.map((l) => (
+            <a
+              key={l.label}
+              className="side-link"
+              href={l.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {l.label} ↗
+            </a>
+          ))}
         </div>
       </Section>
 
@@ -231,11 +350,20 @@ function ViewerSide({
           ) : undefined
         }
       >
+        {selection && (
+          <SelectionBlock
+            selection={selection}
+            onDel={onDelSelection}
+            onReplace={onReplaceSelection}
+            onClear={onClearSelection}
+          />
+        )}
         <div className="scratch-list">
           {scratch.length === 0 ? (
             <div className="scratch-empty">
-              Click any base in the viewer to edit it. Drag across bases for a
-              range. Predicted consequences land here.
+              Left-click or drag in the canvas to select bases. Right-click a
+              base to edit it (substitute / delete / insert). Predicted
+              consequences land here.
             </div>
           ) : (
             scratch.map((e) => (
@@ -267,6 +395,109 @@ function ViewerSide({
   )
 }
 
+/** Tool context for the CRISPR designer — editing strategy, target window,
+ *  and the (gated) AI-assist scaffolds. Mirrors the ViewerSide vocabulary. */
+function CrisprSide({ data }: { data: GeneWindowData }) {
+  const qv = data.queriedVariant
+  const ex = data.exons.find(
+    (e) => qv.cdsPos >= e.cdsStart && qv.cdsPos <= e.cdsEnd,
+  )
+  return (
+    <>
+      <Section title="Editing strategy">
+        <div className="kv-list">
+          <Kv k="Approach" v="HDR knock-in (ssODN)" />
+          <Kv k="Nuclease" v="SpCas9 · NGG PAM" />
+          <Kv k="Target" v={`${qv.hgvsC} (${qv.hgvsP})`} tone="warn" />
+          <Kv k="Repair" v="ssODN · ±60 nt homology arms" />
+        </div>
+        <div className="side-info">
+          <b>Goal.</b> Revert the pathogenic {qv.refBase}&gt;{qv.altBase} at{' '}
+          {qv.hgvsC} with a silent PAM-blocking edit to prevent re-cutting of
+          the corrected allele.
+        </div>
+      </Section>
+
+      <Section title="Target window">
+        <div className="kv-list">
+          <Kv
+            k="Region"
+            v={ex ? `exon ${ex.num} · c.${ex.cdsStart}–${ex.cdsEnd}` : '—'}
+          />
+          <Kv k="PAM scan" v="both strands" />
+          <Kv k="Search ± bp" v="10 (default)" />
+        </div>
+        <div className="side-source">
+          Guides are scored against the design template returned with the
+          result; whole-genome off-target lands with the engine (M-002D).
+        </div>
+      </Section>
+
+      <Section title="AI assist">
+        <div className="side-info">
+          Guided design help arrives with the CRISPR engine (FE-6 / M-002D).
+        </div>
+        <div className="side-chips">
+          <span className="side-chip">Pick the safest guide</span>
+          <span className="side-chip">Explain off-target risk</span>
+          <span className="side-chip">HDR design rationale</span>
+        </div>
+      </Section>
+    </>
+  )
+}
+
+/** Tool context for the Primer designer — assay strategy, target window,
+ *  and the (gated) AI-assist scaffolds. Mirrors the CrisprSide vocabulary. */
+function PrimerSide({ data }: { data: GeneWindowData }) {
+  const qv = data.queriedVariant
+  const ex = data.exons.find(
+    (e) => qv.cdsPos >= e.cdsStart && qv.cdsPos <= e.cdsEnd,
+  )
+  return (
+    <>
+      <Section title="Assay strategy">
+        <div className="kv-list">
+          <Kv k="Approach" v="Sanger / qPCR amplicon" />
+          <Kv k="Engine" v="Primer3 · local" />
+          <Kv k="Target" v={`${qv.hgvsC} (${qv.hgvsP})`} tone="warn" />
+          <Kv k="Specificity" v="in-template (UCSC isPcr opt-in)" />
+        </div>
+        <div className="side-info">
+          <b>Goal.</b> Design a balanced primer pair whose amplicon spans{' '}
+          {qv.hgvsC}, with matched Tm and a single specific product.
+        </div>
+      </Section>
+
+      <Section title="Target window">
+        <div className="kv-list">
+          <Kv
+            k="Region"
+            v={ex ? `exon ${ex.num} · c.${ex.cdsStart}–${ex.cdsEnd}` : '—'}
+          />
+          <Kv k="Tm band" v="58–62 °C (default)" />
+          <Kv k="Product" v="300–700 bp (default)" />
+        </div>
+        <div className="side-source">
+          Pairs are screened against the resolved design template; whole-genome
+          specificity needs the local UCSC isPcr provider (M-002C, gated).
+        </div>
+      </Section>
+
+      <Section title="AI assist">
+        <div className="side-info">
+          Guided primer help arrives with the design engine (FE-6 / M-002C).
+        </div>
+        <div className="side-chips">
+          <span className="side-chip">Pick the safest pair</span>
+          <span className="side-chip">Explain specificity</span>
+          <span className="side-chip">Redesign for qPCR</span>
+        </div>
+      </Section>
+    </>
+  )
+}
+
 export function SidePanel(props: SidePanelProps) {
   const { tool, collapsed, onToggleCollapsed } = props
   const meta = TOOL_META[tool]
@@ -292,6 +523,10 @@ export function SidePanel(props: SidePanelProps) {
         </div>
       ) : tool === 'viewer' ? (
         <ViewerSide {...props} />
+      ) : tool === 'primer' ? (
+        <PrimerSide data={props.data} />
+      ) : tool === 'crispr' ? (
+        <CrisprSide data={props.data} />
       ) : (
         <Section title={meta.rail} meta={<span className="count">context</span>}>
           <div className="side-info">

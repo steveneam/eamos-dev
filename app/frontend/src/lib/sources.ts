@@ -31,12 +31,6 @@ export const SOURCES: SourceMeta[] = [
     description: 'Population allele frequencies',
   },
   {
-    key: 'alphamissense',
-    label: 'AlphaMissense',
-    href: 'https://alphamissense.hegelab.org/',
-    description: 'Protein-impact scores from AlphaMissense',
-  },
-  {
     key: 'pubmed',
     label: 'PubMed',
     href: 'https://pubmed.ncbi.nlm.nih.gov/',

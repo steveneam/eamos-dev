@@ -15,37 +15,56 @@ const STATUS_DOT: Record<string, string> = {
   blocked: '#dc2626',
 }
 
+// Flatten a summary value to a readable string. Recurses one structural
+// level so nested objects render their `k=v` pairs instead of the previous
+// `[object Object]`; arrays of objects (e.g. PubMed / litvar2 `articles`)
+// are too deep to inline usefully and collapse to a count, while arrays of
+// scalars join.
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (Array.isArray(value)) {
+    const allScalar = value.every((v) => typeof v !== 'object' || v === null)
+    return allScalar
+      ? value.filter((v) => v !== null && v !== undefined).join(', ')
+      : `${value.length} item${value.length === 1 ? '' : 's'}`
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined)
+      .map(([k, v]) => `${k}=${formatValue(v)}`)
+      .join(', ')
+  }
+  return String(value)
+}
+
 function renderSummaryValue(summary: Record<string, unknown>): string {
   const parts: string[] = []
   for (const [key, raw] of Object.entries(summary)) {
     if (raw === null || raw === undefined) continue
-    if (typeof raw === 'object') {
-      const flat = Object.entries(raw as Record<string, unknown>)
-        .filter(([, v]) => v !== null && v !== undefined)
-        .map(([k, v]) => `${k}=${v}`)
-        .join(', ')
-      if (flat) parts.push(`${key}: ${flat}`)
-    } else {
-      parts.push(`${key}: ${raw}`)
-    }
+    const formatted = formatValue(raw)
+    if (formatted) parts.push(`${key}: ${formatted}`)
   }
   return parts.join(' · ')
 }
 
 export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps) {
-  if (evidence.length === 0) return null
+  // AlphaMissense is on hold per user decision (2026-05-19) — filtered from the
+  // evidence table; the source row stays in the payload/sample assets so this
+  // is a one-line revert once re-approved. See agent_handoff DECISIONS.
+  const rows = evidence.filter((ev) => ev.source?.toLowerCase() !== 'alphamissense')
+  if (rows.length === 0) return null
 
   const table = (
     <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: 13 }}>
         <tbody>
-          {evidence.map((ev, i) => {
+          {rows.map((ev, i) => {
             const meta = getSourceMeta(ev.source)
             const dot = STATUS_DOT[ev.status] ?? 'var(--ink-4)'
             return (
               <tr
                 key={i}
                 style={{
-                  borderBottom: i < evidence.length - 1 ? '0.5px solid var(--line)' : 'none',
+                  borderBottom: i < rows.length - 1 ? '0.5px solid var(--line)' : 'none',
                 }}
               >
                 <td
@@ -124,7 +143,7 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
 
   if (embedded) return table
   return (
-    <Card number={number} title="Evidence by source" meta={`${evidence.length} sources`}>
+    <Card number={number} title="Evidence by source" meta={`${rows.length} sources`}>
       {table}
     </Card>
   )

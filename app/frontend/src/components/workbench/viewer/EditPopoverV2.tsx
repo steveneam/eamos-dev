@@ -14,7 +14,8 @@ interface EditPopoverV2Props {
   flat: FlatBase[]
   idx: number
   current: Edit | undefined
-  anchorRect: DOMRect
+  /** Cursor point (right-click) the menu is anchored to. */
+  anchor: { x: number; y: number }
   onSub: (base: Base) => void
   onDel: () => void
   onIns: (seq: string) => void
@@ -25,15 +26,18 @@ interface EditPopoverV2Props {
 const SANITISE = /[^ATCG]/g
 const VIEWPORT_PAD = 8
 
-function clampPopover(anchorRect: DOMRect, pop: HTMLDivElement | null) {
+function clampToCursor(anchor: { x: number; y: number }, pop: HTMLDivElement | null) {
   const width = pop?.offsetWidth ?? 220
   const height = pop?.offsetHeight ?? 0
   const maxLeft = Math.max(VIEWPORT_PAD, window.innerWidth - width - VIEWPORT_PAD)
-  const left = Math.min(Math.max(VIEWPORT_PAD, anchorRect.left - 80), maxLeft)
-  const below = anchorRect.bottom + 6
-  const above = anchorRect.top - height - 6
   const maxTop = Math.max(VIEWPORT_PAD, window.innerHeight - height - VIEWPORT_PAD)
-  const top = below + height + VIEWPORT_PAD > window.innerHeight ? above : below
+  const left = Math.min(Math.max(VIEWPORT_PAD, anchor.x), maxLeft)
+  const below = anchor.y + 6
+  // Flip above the cursor if opening below would overflow the viewport.
+  const top =
+    below + height + VIEWPORT_PAD > window.innerHeight
+      ? Math.max(VIEWPORT_PAD, anchor.y - height - 6)
+      : below
 
   return {
     top: Math.min(Math.max(VIEWPORT_PAD, top), maxTop),
@@ -42,13 +46,14 @@ function clampPopover(anchorRect: DOMRect, pop: HTMLDivElement | null) {
 }
 
 /** Base editor: substitute / delete / insert with a live consequence
- *  preview. Port of `openEdit()`. */
+ *  preview. Repurposed (FE-5.6 Unit C) as a cursor-anchored context menu —
+ *  the canvas now only selects; editing happens here on right-click. */
 export function EditPopoverV2({
   data,
   flat,
   idx,
   current,
-  anchorRect,
+  anchor,
   onSub,
   onDel,
   onIns,
@@ -64,7 +69,7 @@ export function EditPopoverV2({
     label: string
     detail: string
   } | null>(null)
-  const [position, setPosition] = useState(() => clampPopover(anchorRect, null))
+  const [position, setPosition] = useState(() => clampToCursor(anchor, null))
 
   function describe(kind: 'sub' | 'del' | 'ins' | null, alt?: string) {
     if (kind === 'sub' && isBase(alt) && alt !== refBase) return consequenceAt(flat, idx, alt)
@@ -88,7 +93,7 @@ export function EditPopoverV2({
   const preview = hoverPreview ?? currentPreview
 
   useLayoutEffect(() => {
-    const update = () => setPosition(clampPopover(anchorRect, popRef.current))
+    const update = () => setPosition(clampToCursor(anchor, popRef.current))
     update()
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)
@@ -96,7 +101,7 @@ export function EditPopoverV2({
       window.removeEventListener('resize', update)
       window.removeEventListener('scroll', update, true)
     }
-  }, [anchorRect])
+  }, [anchor.x, anchor.y])
 
   // Outside-click / Escape close.
   useEffect(() => {

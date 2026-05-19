@@ -23,9 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   askRunChat,
   approveRun,
-  buildRunPdfUrl,
   createRun,
   downloadRunPdf,
+  fetchRunPdfBlob,
   dropRun,
   reviewRun,
   updateRunReportPayload,
@@ -155,6 +155,7 @@ export default function LegacyRunsApp() {
   const [reportDraft, setReportDraft] =
     useState<ReportDraftUpdatePayload | null>(null);
   const [previewVersion, setPreviewVersion] = useState<number>(0);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessagesByRun, setChatMessagesByRun] = useState<
@@ -308,9 +309,32 @@ export default function LegacyRunsApp() {
   });
   const isApproved = activeSession?.run.review_status === "approved";
   const isDropped = activeSession?.run.review_status === "dropped";
-  const previewPdfUrl = activeSession
-    ? buildRunPdfUrl(activeSession.run.run_id, previewVersion)
-    : null;
+  // The run PDF is auth-gated, so it must be fetched with the demo bearer
+  // session and shown via an object URL (a bare `<object data>` can't send
+  // the header). Re-fetch on run change or an explicit refresh; revoke the
+  // previous object URL so blobs don't leak.
+  const activeRunId = activeSession?.run.run_id ?? null;
+  useEffect(() => {
+    if (!activeRunId) {
+      setPreviewPdfUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    fetchRunPdfBlob(activeRunId)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewPdfUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewPdfUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [activeRunId, previewVersion]);
 
   async function handleRunPipeline() {
     if (!pendingFile) {
@@ -875,7 +899,7 @@ export default function LegacyRunsApp() {
                       Type a gene and variant to get a full evidence report
                     </h2>
                     <p className="max-w-2xl text-[16px] leading-7 text-[color:var(--muted-ink)]">
-                      Aggregates ClinVar, Ensembl VEP, SpliceAI, gnomAD, Franklin, and PubMed in one place. No login required.
+                      Aggregates ClinVar, Ensembl VEP, SpliceAI, gnomAD, and PubMed in one place.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-3">
                       {["RPE65:c.260A>G", "USH2A:c.2299delG", "ABCA4:c.5461-10T>C", "RPGR:c.2405+1G>A"].map((ex) => (
@@ -976,7 +1000,6 @@ export default function LegacyRunsApp() {
                             {[
                               { label: 'ClinVar', url: `https://www.ncbi.nlm.nih.gov/clinvar/?term=${enc}[gene]` },
                               { label: 'gnomAD', url: `https://gnomad.broadinstitute.org/gene/${enc}?dataset=gnomad_r4` },
-                              { label: 'Franklin', url: `https://franklin.genoox.com/clinical-db/variant/snp/${enc}` },
                               { label: 'OMIM', url: `https://www.omim.org/search?index=entry&search=${enc}` },
                             ].map(({ label, url }) => (
                               <a

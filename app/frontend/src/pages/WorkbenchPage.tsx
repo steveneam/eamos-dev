@@ -11,13 +11,11 @@ const DEFAULT_CDNA = 'c.260A>G'
 // FE-4 ships the shell against the RPE65 fixture (the only variant v2 serves,
 // and the mock's subject). Per-variant context metadata is wired in a later
 // milestone — same pattern as ReportPage defaulting to the demo payload.
+// FE-5.6 item 1: classification + external links moved to the side panel's
+// Active variant card (see SidePanel `VARIANT_LINKS`); only the sub-line
+// stays in the strip.
 const RPE65_CTX = {
   sub: 'p.Asp87Gly · NM_000329.3 · chr1:68,444,869 T>C · GRCh38 · 21,138 bp gene',
-  classification: 'Likely Pathogenic',
-  links: [
-    { label: 'ClinVar', href: 'https://www.ncbi.nlm.nih.gov/clinvar/variation/99473/' },
-    { label: 'gnomAD', href: 'https://gnomad.broadinstitute.org' },
-  ],
 }
 
 /** Parse "GENE c.123A>G" / "GENE:c.123A>G" → {gene, cdna}, else null. */
@@ -156,11 +154,11 @@ export function WorkbenchPage() {
         gene={gene}
         variant={cdna}
         sub={RPE65_CTX.sub}
-        classification={RPE65_CTX.classification}
-        links={RPE65_CTX.links}
+        tool={tool}
+        onSelectTool={setTool}
       />
 
-      <WorkbenchShell tool={tool} onSelectTool={setTool} />
+      <WorkbenchShell tool={tool} />
     </div>
   )
 }

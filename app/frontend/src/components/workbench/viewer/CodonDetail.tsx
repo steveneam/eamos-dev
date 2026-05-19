@@ -1,4 +1,11 @@
-import { Fragment, useMemo, type CSSProperties } from 'react'
+import {
+  Fragment,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { aaClass } from '@/lib/workbench/codon-table'
 import {
   COMPLEMENT,
@@ -9,10 +16,13 @@ import {
   type GeneWindowData,
 } from '@/lib/workbench/gene-window'
 import type { EditMap } from '@/lib/workbench/edit-state'
+import { buildLayout, MIN_BP, type LayoutItem } from '@/lib/workbench/codon-layout'
+import type { AlleleMode } from '@/lib/backend'
 import type { StrandMode, TrackState } from './viewer-types'
 
-const ROW_BP = 60
 const RIGHT_MARGIN = 64
+/** Sub-pixel cushion so the widest row never forces a horizontal scrollbar. */
+const REFLOW_PAD = 2
 
 interface CodonDetailProps {
   data: GeneWindowData
@@ -21,46 +31,59 @@ interface CodonDetailProps {
   baseW: number
   trackOn: TrackState
   strandMode: StrandMode
+  /** Reference/control vs variant-applied. The adapter already applied the
+   *  SNV to `data` in `variant` mode; the queried codon then shows its
+   *  ref→alt AA change (the old FE-5.6 always-on synthetic baseline is
+   *  superseded — the displayed allele is now adapter-driven, GV-006). */
+  alleleMode: AlleleMode
   edits: EditMap
   selection: { start: number; end: number } | null
   searchQuery: string
   restrictionHover: string | null
   onBaseMouseDown: (idx: number, shiftKey: boolean) => void
-  onBaseClick: (idx: number, rect: DOMRect, shiftKey: boolean) => void
+  onBaseContextMenu: (idx: number, x: number, y: number) => void
   onClinvarClick: (idx: number) => void
   onRestrictionHover: (name: string | null) => void
   onRestrictionSelect: (start: number, end: number) => void
 }
 
-type LayoutItem =
-  | { kind: 'row'; indices: number[] }
-  | { kind: 'gap'; intronNum: number; omitted: number }
-
-function buildLayout(flat: FlatBase[]): LayoutItem[] {
-  const items: LayoutItem[] = []
-  let cur: number[] = []
-  flat.forEach((b, i) => {
-    if (b.kind === 'intron-gap') {
-      if (cur.length) {
-        items.push({ kind: 'row', indices: cur })
-        cur = []
-      }
-      items.push({ kind: 'gap', intronNum: b.intronNum, omitted: b.intronOmitted })
-      return
-    }
-    cur.push(i)
-    if (cur.length >= ROW_BP) {
-      items.push({ kind: 'row', indices: cur })
-      cur = []
-    }
-  })
-  if (cur.length) items.push({ kind: 'row', indices: cur })
-  return items
-}
-
 export function CodonDetail(props: CodonDetailProps) {
-  const { flat } = props
-  const layout = useMemo(() => buildLayout(flat), [flat])
+  const { flat, baseW } = props
+  const detailRef = useRef<HTMLDivElement>(null)
+  const [containerW, setContainerW] = useState(0)
+
+  // Live container width → bases-per-row. The ResizeObserver covers
+  // side-panel collapse (the content box widens with no zoom change); the
+  // rowBp memo also keys off baseW so zoom reflows even though zoom does not
+  // change the container width. Observer is disconnected on unmount.
+  useLayoutEffect(() => {
+    const el = detailRef.current
+    if (!el) return
+    const measure = () => {
+      const cs = getComputedStyle(el)
+      setContainerW(
+        el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+      )
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const rowBp = useMemo(
+    () => Math.max(MIN_BP, Math.floor((containerW - RIGHT_MARGIN - REFLOW_PAD) / baseW)),
+    [containerW, baseW],
+  )
+  const layout = useMemo<LayoutItem[]>(() => buildLayout(flat, rowBp), [flat, rowBp])
+
+  // GV-006: the displayed allele basis is now adapter-driven — in `variant`
+  // mode the queried SNV is already applied to `data` (and thus `flat`), so
+  // the translation follows the sequence honestly per mode. The FE-5.6
+  // always-on synthetic baseline overlay is superseded; the queried codon's
+  // ref→alt badge is reconstructed from `data.queriedVariant` in
+  // `Block.translation()` so it survives the variant-applied `flat`.
+
   const baseFlatIndex = useMemo(() => {
     const m = new Map<number, number>()
     let n = 0
@@ -71,7 +94,7 @@ export function CodonDetail(props: CodonDetailProps) {
   }, [flat])
 
   return (
-    <div className="sv-detail">
+    <div className="sv-detail" ref={detailRef}>
       {layout.map((item, k) =>
         item.kind === 'gap' ? (
           <div className="sv-gap-sep" key={`gap${k}`}>
@@ -107,6 +130,7 @@ function Block(props: BlockProps) {
     baseW,
     trackOn,
     strandMode,
+    alleleMode,
     edits,
     selection,
     searchQuery,
@@ -114,7 +138,7 @@ function Block(props: BlockProps) {
     indices,
     baseFlatIndex,
     onBaseMouseDown,
-    onBaseClick,
+    onBaseContextMenu,
     onClinvarClick,
     onRestrictionHover,
     onRestrictionSelect,
@@ -290,8 +314,18 @@ function Block(props: BlockProps) {
         .toUpperCase()
       const refAA = translateTriplet(refTriplet)
       const editAA = editTriplet.includes('-') ? '-' : translateTriplet(editTriplet)
-      const changed = editAA !== refAA
       const queried = c.codonNum === data.queriedVariant.codonNumber
+
+      // In `variant` mode the SNV is already applied to `flat` (adapter), so
+      // refTriplet == editTriplet for the queried codon. Reconstruct the
+      // ref→alt badge from the authoritative queried-variant metadata so the
+      // change still reads (e.g. Asp→Gly). A user edit on that codon takes
+      // precedence and falls through to the normal edit-derived display.
+      const userEditedCodon = c.bases.some((i) => edits.has(i))
+      const useQv = queried && alleleMode === 'variant' && !userEditedCodon
+      const dRefAA = useQv ? data.queriedVariant.aaRef || refAA : refAA
+      const dEditAA = useQv ? data.queriedVariant.aaAlt || editAA : editAA
+      const changed = dEditAA !== dRefAA
       const insAnywhere = c.bases.some((i) => edits.get(i)?.kind === 'ins')
       const cls = [
         'sv-codon',
@@ -307,9 +341,9 @@ function Block(props: BlockProps) {
         c.codonNum % 5 === 0 || c.codonNum === data.queriedVariant.codonNumber
       return (
         <div key={`c${c.codonNum}`} className={cls} style={{ left, width }}>
-          <div className={`sv-aa ${aaClass[editAA] || 'hydro'}`}>
-            {editTriplet.includes('-') ? '•' : editAA}
-            {changed && allHere && <span className="sv-aa-old">{refAA}</span>}
+          <div className={`sv-aa ${aaClass[dEditAA] || 'hydro'}`}>
+            {editTriplet.includes('-') ? '•' : dEditAA}
+            {changed && allHere && <span className="sv-aa-old">{dRefAA}</span>}
           </div>
           {showNum && allHere && <div className="sv-aa-num">{c.codonNum}</div>}
         </div>
@@ -425,15 +459,13 @@ function Block(props: BlockProps) {
                     if (e.button === 0) onBaseMouseDown(i, e.shiftKey)
                   }
             }
-            onClick={
+            onContextMenu={
               isComp
                 ? undefined
-                : (e) =>
-                    onBaseClick(
-                      i,
-                      (e.currentTarget as HTMLElement).getBoundingClientRect(),
-                      e.shiftKey,
-                    )
+                : (e) => {
+                    e.preventDefault()
+                    onBaseContextMenu(i, e.clientX, e.clientY)
+                  }
             }
           >
             {text}

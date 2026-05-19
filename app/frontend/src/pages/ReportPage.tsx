@@ -230,7 +230,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
         <LocusContext data={payload.locus_context} />
       </Card>
 
-      <Card number={3} title="Evidence by source" meta="live · last refreshed 2 min ago">
+      <Card number={3} title="Evidence by source" meta="in-silico · per-source detail · ACMG">
         <InSilicoGrid data={payload.in_silico_predictions} />
         <EvidenceTable evidence={data.evidence} embedded />
         <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />

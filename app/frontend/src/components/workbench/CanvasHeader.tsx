@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import type { WorkbenchTool } from '@/lib/backend'
+import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { TOOL_META } from './tools'
-import { ToolBar } from './ToolBar'
 import type { StrandMode, TrackState } from './viewer/viewer-types'
 
 const TRACKS: Array<{ key: keyof TrackState; label: string }> = [
   { key: 'annotations', label: 'Features (exon / intron / oligo)' },
   { key: 'domains', label: 'Protein domain bar' },
-  { key: 'clinvar', label: 'ClinVar pins' },
-  { key: 'clinvarDensity', label: 'ClinVar density (gene map)' },
+  { key: 'clinvar', label: 'ClinVar (gene map + in-window pins)' },
   { key: 'conservation', label: 'Conservation (PhyloP)' },
   { key: 'restriction', label: 'Restriction sites' },
+]
+
+const ALLELES: Array<{ m: AlleleMode; label: string; title: string }> = [
+  { m: 'reference', label: 'Reference', title: 'Reference / control sequence' },
+  {
+    m: 'variant',
+    label: 'Variant',
+    title: 'Variant-applied: the queried SNV overlaid on the window',
+  },
 ]
 
 const STRANDS: Array<{ s: StrandMode; label: string; title: string }> = [
@@ -21,20 +28,22 @@ const STRANDS: Array<{ s: StrandMode; label: string; title: string }> = [
 
 interface CanvasHeaderProps {
   tool: WorkbenchTool
-  onSelectTool: (tool: WorkbenchTool) => void
   trackOn: TrackState
   onToggleTrack: (key: keyof TrackState) => void
   strandMode: StrandMode
   onStrand: (s: StrandMode) => void
+  alleleMode: AlleleMode
+  onAlleleMode: (m: AlleleMode) => void
 }
 
 export function CanvasHeader({
   tool,
-  onSelectTool,
   trackOn,
   onToggleTrack,
   strandMode,
   onStrand,
+  alleleMode,
+  onAlleleMode,
 }: CanvasHeaderProps) {
   const meta = TOOL_META[tool]
   const [tracksOpen, setTracksOpen] = useState(false)
@@ -60,8 +69,25 @@ export function CanvasHeader({
       </div>
 
       <div className="canvas-head-right">
-        <ToolBar active={tool} onSelect={onSelectTool} />
-
+        {tool === 'viewer' && (
+          <div
+            className="sv-strand-pill sv-allele-pill"
+            role="group"
+            aria-label="Sequence basis"
+          >
+            {ALLELES.map((al) => (
+              <button
+                key={al.m}
+                type="button"
+                className={alleleMode === al.m ? 'active' : undefined}
+                title={al.title}
+                onClick={() => onAlleleMode(al.m)}
+              >
+                {al.label}
+              </button>
+            ))}
+          </div>
+        )}
         {meta.tracks && (
           <>
             <div className="sv-dropdown" ref={tracksRef}>

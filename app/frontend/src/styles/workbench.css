@@ -156,30 +156,10 @@
   font-size: 11.5px;
   color: var(--ink-4);
 }
+/* FE-5.6 item 1: the strip's right side now holds only the tool selector
+   (<ToolBar>); the classification badge + external-link pills moved to the
+   side panel (see `.side-links`). */
 .ctx-right { display: flex; gap: 8px; align-items: center; }
-.ctx-link {
-  font-size: 11.5px;
-  color: var(--ink-3);
-  padding: 3px 8px;
-  border: 0.5px solid var(--line);
-  border-radius: 100px;
-  background: var(--bg);
-  transition: all .15s;
-}
-.ctx-link:hover { color: var(--teal-deep); border-color: var(--teal); background: var(--teal-tint); }
-
-.ctx-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 9px;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 0.5px solid;
-}
-.ctx-badge.lp { background: var(--warn-tint); color: #633806; border-color: var(--warn-bdr); }
-.ctx-badge.lp .bdot { width: 5px; height: 5px; border-radius: 50%; background: var(--warn); }
 
 /* ─────────────────── MAIN LAYOUT (canvas / side) ─────────────────── */
 /* FE-5.5 modification #3: the left tool rail is gone — tools moved to a
@@ -581,68 +561,6 @@
 }
 .sv-mm-bookends .bp { color: var(--ink-3); }
 
-/* ─────────────── EXON STRIP (exon level) ─────────────── */
-.sv-exonstrip {
-  padding: 14px 22px 16px;
-  border-bottom: 0.5px solid var(--line);
-  background: var(--bg);
-}
-.sv-exonstrip-head {
-  display: flex; align-items: baseline; gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-.sv-es-title {
-  font-family: var(--display);
-  font-weight: 600; font-size: 13px;
-  color: var(--ink);
-}
-.sv-es-meta {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--ink-3);
-}
-.sv-es-meta.dim { color: var(--ink-4); }
-.sv-exonstrip-bar {
-  position: relative;
-  height: 24px;
-  background: var(--teal-tint);
-  border: 0.5px solid #cbe3d8;
-  border-radius: 4px;
-}
-.sv-es-pin {
-  position: absolute;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  border: 1px solid #fff;
-  top: 50%; margin-top: -4px;
-  transform: translateX(-50%);
-  cursor: pointer;
-  transition: transform .12s;
-}
-.sv-es-pin:hover { transform: translateX(-50%) scale(1.3); }
-.sv-es-pin.p   { background: #B82B2B; }
-.sv-es-pin.lp  { background: #BA7517; }
-.sv-es-pin.vus { background: #94a3b8; }
-.sv-es-pin.lb  { background: #6FA88F; }
-.sv-es-pin.b   { background: #1D9E75; }
-.sv-es-pin.queried {
-  box-shadow: 0 0 0 3px rgba(186,117,23,0.25);
-  width: 10px; height: 10px; margin-top: -5px;
-}
-.sv-es-ruler {
-  position: relative;
-  height: 14px;
-  margin-top: 2px;
-}
-.sv-es-tick {
-  position: absolute; top: 0;
-  transform: translateX(-50%);
-}
-.sv-es-tick span {
-  font-family: var(--mono); font-size: 10px;
-  color: var(--ink-4);
-}
-
 /* ─────────────── CODON DETAIL (wrapped block layout v2.1) ─────────────── */
 .sv-detail {
   background: var(--bg-canvas);
@@ -945,106 +863,6 @@
   pointer-events: none;
   z-index: 4;
 }
-
-/* ─────────────── SELECTION BAR (below codon detail) ─────────────── */
-.sv-selbar {
-  border-top: 0.5px solid var(--line);
-  background: var(--bg);
-  padding: 14px 22px;
-}
-.sv-selbar-inner {
-  display: flex; flex-direction: column; gap: 10px;
-}
-.sv-selbar-empty {
-  font-size: 12px; color: var(--ink-4);
-  font-family: var(--mono);
-}
-.sv-selbar-left {
-  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
-}
-.sv-selbar-label {
-  font-size: 10px; font-weight: 600;
-  color: var(--ink-4);
-  text-transform: uppercase; letter-spacing: 0.08em;
-}
-.sv-selbar-pos {
-  font-family: var(--mono); font-size: 13px;
-  color: var(--ink); font-weight: 600;
-}
-.sv-selbar-base {
-  font-family: var(--mono); font-size: 11.5px;
-  color: var(--ink-3);
-}
-.sv-selbar-base b { color: var(--ink); }
-.sv-selbar-actions {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-}
-.sv-selbar-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  background: var(--bg);
-  border: 0.5px solid var(--line);
-  padding: 6px 12px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  min-width: 36px;
-  justify-content: center;
-  transition: all .12s;
-}
-.sv-selbar-btn:hover { border-color: var(--ink-3); background: var(--bg-soft); }
-.sv-selbar-btn.current { background: var(--teal-tint); border-color: var(--teal); color: var(--teal-deep); }
-.sv-selbar-btn.del { color: var(--err); border-color: #f3c2c2; }
-.sv-selbar-btn.del:hover { background: var(--err-tint); }
-.sv-selbar-btn.ins {
-  background: var(--ink-2); color: #fff; border-color: var(--ink-2);
-}
-.sv-selbar-btn.ins:hover { background: var(--ink); }
-.sv-selbar-btn.ghost { background: transparent; color: var(--ink-3); border-color: transparent; }
-.sv-selbar-btn.ghost:hover { background: var(--bg-soft); color: var(--ink); }
-.sv-selbar-input {
-  font-family: var(--mono);
-  font-size: 12px;
-  border: 0.5px solid var(--line);
-  background: var(--bg);
-  border-radius: var(--r-sm);
-  padding: 6px 10px;
-  width: 160px;
-  outline: none;
-  color: var(--ink);
-  letter-spacing: 0.3px;
-}
-.sv-selbar-input.wide { width: 280px; }
-.sv-selbar-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
-.sv-selbar-conseq {
-  display: flex; align-items: baseline; gap: 8px;
-  font-size: 12px;
-  color: var(--ink-2);
-  padding: 8px 10px;
-  background: var(--bg-soft);
-  border-radius: var(--r-sm);
-  border-left: 2px solid var(--line-2);
-  font-family: var(--mono);
-}
-.sv-selbar-conseq .cs {
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-family: var(--body);
-}
-.sv-selbar-conseq .cs.missense   { background: var(--warn-tint); color: #633806; }
-.sv-selbar-conseq .cs.synonymous { background: var(--teal-tint); color: var(--teal-deep); }
-.sv-selbar-conseq .cs.stop       { background: #1a1a1a; color: #fff; }
-.sv-selbar-conseq .cs.frameshift { background: var(--err-tint); color: var(--err); }
-.sv-selbar-conseq .cs.splice     { background: #e8eaf2; color: #3b4877; }
-.sv-selbar-conseq .cs.intronic   { background: var(--bg-soft); color: var(--ink-3); }
-.sv-selbar-conseq .cs.none       { background: var(--bg-soft); color: var(--ink-4); }
-.sv-selbar-conseq .dt { color: var(--ink-3); font-family: var(--body); font-size: 12px; }
 
 /* ─────────────── EDIT HISTORY TIMELINE ─────────────── */
 .sv-history {
@@ -1350,7 +1168,11 @@
 /* Side panel — collapse mechanism */
 .side-collapse-row {
   display: flex; justify-content: flex-end;
-  margin: -6px 0 12px;
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg);
+  margin: 0 0 12px;
+  padding: 2px 0 8px;
+  border-bottom: 0.5px solid var(--line);
 }
 .side-collapse-btn {
   background: var(--bg);
@@ -1421,6 +1243,20 @@
   font-style: italic;
 }
 
+/* FE-5.6 item 1: external-reference pills, relocated from the context strip
+   into the Active variant card. */
+.side-links { display: flex; gap: 6px; margin-top: 10px; }
+.side-link {
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 3px 9px;
+  border: 0.5px solid var(--line);
+  border-radius: 100px;
+  background: var(--bg);
+  transition: all .15s;
+}
+.side-link:hover { color: var(--teal-deep); border-color: var(--teal); background: var(--teal-tint); }
+
 /* ─────────────────── SIDE PANEL (scratchpad / tool IO) ─────────────────── */
 .side {
   background: var(--bg);
@@ -1489,6 +1325,58 @@
   text-align: center;
   line-height: 1.5;
 }
+
+/* Selection summary + range actions — the edit hub absorbed from the
+   removed canvas selection bar (FE-5.6 Unit C). */
+.scratch-sel {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.scratch-sel-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.scratch-sel-head .lbl {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.scratch-sel-head .pos {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink);
+}
+.scratch-sel-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.scratch-sel-meta b { color: var(--ink); }
+.scratch-sel-hint { font-size: 10.5px; color: var(--ink-4); line-height: 1.5; }
+.scratch-sel-hint b { color: var(--ink-3); }
+.scratch-sel-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.scratch-sel-replace { display: flex; gap: 6px; }
+.scratch-sel-input {
+  flex: 1; min-width: 0;
+  font-family: var(--mono); font-size: 11px;
+  border: 0.5px solid var(--line); background: var(--bg);
+  border-radius: var(--r-sm); padding: 5px 8px;
+  outline: none; color: var(--ink); letter-spacing: 0.3px;
+}
+.scratch-sel-input:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+}
+.scratch-sel-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg); border: 0.5px solid var(--line);
+  padding: 5px 10px;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--ink); border-radius: var(--r-sm);
+  cursor: pointer; transition: all .12s;
+}
+.scratch-sel-btn:hover { border-color: var(--ink-3); background: var(--bg-soft); }
+.scratch-sel-btn.del { color: var(--err); border-color: #f3c2c2; }
+.scratch-sel-btn.del:hover { background: var(--err-tint); }
+.scratch-sel-btn.ins { background: var(--ink-2); color: #fff; border-color: var(--ink-2); }
+.scratch-sel-btn.ins:hover { background: var(--ink); }
+.scratch-sel-btn.ghost { background: transparent; color: var(--ink-3); border-color: transparent; }
+.scratch-sel-btn.ghost:hover { background: var(--bg-soft); color: var(--ink); }
 
 .side-info {
   font-size: 12px;
@@ -2092,3 +1980,486 @@
   cursor: pointer; padding: 2px 6px;
 }
 .side-h-action:hover { color: var(--ink); text-decoration: underline; }
+
+/* ═══════════════════ CRISPR designer (FE-6 · Blueprints 1 & 2) ═══════════════════
+   Reuses .tool-panel-head / .tool-form / .field / .btn-teal / .seg /
+   .tool-table / .ssodn-vis / .help-note. Only CRISPR-specific accents,
+   the hand-rolled guide ribbon, and the hand-rolled indel chart added. */
+
+.crispr-design, .crispr-outcomes { display: block; }
+
+/* gRNA table: spacer teal / PAM amber, same accent vocabulary as ssODN */
+.tool-table td.seq .g-spacer { color: var(--teal-deep); font-weight: 600; }
+.tool-table td.seq .g-pam {
+  color: #633806; background: var(--warn-tint);
+  padding: 1px 3px; border-radius: 3px; margin-left: 2px; font-weight: 600;
+}
+.tool-table tbody tr { outline: none; }
+.tool-table tbody tr:focus-visible { box-shadow: inset 0 0 0 1.5px var(--teal); }
+
+.crispr-table-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin: 16px 0 6px;
+}
+.crispr-minfilter { display: flex; flex-direction: column; gap: 4px; min-width: 180px; }
+.crispr-minfilter input[type="range"] { accent-color: var(--teal); }
+.crispr-empty, .crispr-error { color: var(--ink-4); font-size: 12px; padding: 14px 12px; text-align: center; }
+.crispr-error {
+  color: var(--err); background: var(--err-tint);
+  border-radius: var(--r-sm); text-align: left; margin-top: 12px;
+}
+.crispr-track-h {
+  font-size: 10.5px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 18px 0 8px;
+}
+
+/* Row-hover guide ribbon (hand-rolled, no track dependency) */
+.guide-track {
+  background: var(--bg-canvas);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.gt-strip {
+  display: flex; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 13px; line-height: 1.9;
+  color: var(--ink-3);
+}
+.gt-base { position: relative; padding: 1px 0.5px; }
+.gt-base.spacer { background: var(--teal-tint); color: var(--teal-deep); font-weight: 600; }
+.gt-base.pam { background: var(--warn-tint); color: #633806; font-weight: 600; }
+.gt-cut {
+  position: absolute; left: -1px; top: -3px; bottom: -3px;
+  width: 2px; background: var(--err); border-radius: 1px;
+}
+.gt-legend, .ic-legend, .ssodn-meta {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin-top: 10px;
+  font-size: 11px; color: var(--ink-4);
+}
+.gt-legend span, .ic-legend span, .ssodn-meta span {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.gt-note, .ic-note { color: var(--ink-4); font-style: italic; }
+.ssodn-meta-num { margin-left: auto; font-family: var(--mono); color: var(--ink-3); }
+
+/* Shared 9px swatch chip for the inline legends */
+.sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.sw.spacer, .sw.observed { background: var(--teal); }
+.sw.pam, .sw.target { background: var(--warn-bdr); }
+.sw.cut { background: var(--err); }
+.sw.correct { background: var(--teal); }
+.sw.silent, .sw.predicted { background: #3b4877; }
+
+.crispr-file { padding: 5px 8px; font-family: var(--body); font-size: 11.5px; }
+
+/* Hand-rolled indel-spectrum chart (same approach as the PhyloP track) */
+.indel-chart {
+  background: var(--bg-canvas);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+.indel-chart svg { display: block; width: 100%; height: auto; }
+.ic-grid { stroke: var(--line); stroke-width: 0.5; }
+.ic-axis { stroke: var(--ink-4); stroke-width: 0.75; }
+.ic-ytick { fill: var(--ink-4); font-size: 9px; text-anchor: end; font-family: var(--mono); }
+.ic-xtick { fill: var(--ink-4); font-size: 9px; text-anchor: middle; font-family: var(--mono); }
+.ic-bar.observed { fill: var(--teal); }
+.ic-bar.observed.wt { fill: var(--teal-soft); }
+.ic-bar.predicted { fill: #3b4877; }
+.ic-callouts {
+  display: flex; flex-wrap: wrap; gap: 22px;
+  margin: 16px 0 4px;
+}
+.ic-stat { display: flex; flex-direction: column; gap: 3px; }
+.ic-stat .label {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ic-stat .value { font-family: var(--mono); font-size: 17px; color: var(--ink); }
+
+/* CRISPR side-panel AI-assist scaffold chips */
+.side-chips { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.side-chip {
+  font-size: 11px; color: var(--ink-3);
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+  border-radius: 100px; padding: 5px 11px; align-self: flex-start;
+}
+
+/* ═══════════════════ Primer designer (FE-6 · Primer panel) ═══════════════════
+   First reference implementation of the DESIGN.md "Dashboard Interaction
+   Language" (global --elev-* elevation + --dur-* / --ease-* motion + the
+   3-layer progressive-disclosure card). Reuses .tool-panel-head / .tool-form /
+   .field / .btn-teal / .seg / .help-note. Depth ONLY via --elev-*, motion
+   ONLY via --dur-* / --ease-* (no ad-hoc box-shadow / transition); the global
+   prefers-reduced-motion guard in index.css collapses all of it. Light
+   tokens only — no dark canvas. No emoji (★ is a text glyph). */
+
+.primer-panel { display: block; }
+
+/* The primary action is the heaviest element in the form region (principle #2). */
+.primer-go { padding: 10px 18px; font-size: 12.5px; }
+
+/* Reusable interactive-card primitive (DESIGN.md "Affordance clarity"):
+   rests --elev-1, lifts to --elev-2 on hover/focus-within. Static cards
+   never get this class. */
+.card--interactive {
+  box-shadow: var(--elev-1);
+  transition: box-shadow var(--dur-2) var(--ease-standard),
+    border-color var(--dur-2) var(--ease-standard);
+}
+.card--interactive:hover,
+.card--interactive:focus-within {
+  box-shadow: var(--elev-2);
+  border-color: var(--ink-5);
+}
+
+/* Honest single-pending loading: a static labelled phase list, no fake
+   per-stage timers (principle #4 / plan §4.3). */
+.primer-phases {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 14px;
+}
+.primer-phase {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--ink-3);
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+  border-radius: 100px; padding: 5px 12px;
+}
+.primer-phase-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px solid var(--teal); flex-shrink: 0;
+}
+
+.primer-error {
+  color: var(--err); background: var(--err-tint);
+  border-radius: var(--r-sm); margin-top: 12px;
+  padding: 14px 12px; font-size: 12px; text-align: left;
+}
+.primer-empty,
+.primer-prompt {
+  color: var(--ink-4); font-size: 12px;
+  padding: 16px 14px; text-align: center;
+  margin-top: 14px;
+  border: 0.5px dashed var(--line-2); border-radius: var(--r-md);
+}
+.primer-prompt b { color: var(--ink-2); }
+.primer-mock-note {
+  font-size: 11.5px; color: var(--ink-3);
+  background: var(--bg-soft); border-radius: var(--r-sm);
+  border-left: 2px solid var(--warn-bdr);
+  padding: 10px 12px; margin: 14px 0 4px; line-height: 1.55;
+}
+
+.primer-feed {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-top: 16px;
+}
+/* Staggered entrance, capped at 240ms total (items 5+ share the cap). */
+.primer-feed-item {
+  animation: primerEnter var(--dur-2) var(--ease-standard) both;
+}
+.primer-feed-item:nth-child(2) { animation-delay: 60ms; }
+.primer-feed-item:nth-child(3) { animation-delay: 120ms; }
+.primer-feed-item:nth-child(4) { animation-delay: 180ms; }
+.primer-feed-item:nth-child(n + 5) { animation-delay: 240ms; }
+@keyframes primerEnter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── The 3-layer progressive-disclosure card ─── */
+.primer-card {
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+}
+.primer-card.rec { background: var(--teal-tint); border-color: #cbe3d8; }
+
+/* Layer 1 — decision surface */
+.primer-l1 {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap;
+}
+.primer-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 4px;
+  font-size: 11px; font-weight: 600;
+  border: 0.5px solid;
+}
+.primer-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+.primer-badge.tone-teal {
+  background: var(--teal-tint); color: var(--teal-deep); border-color: #cbe3d8;
+}
+.primer-badge.tone-teal .primer-badge-dot { background: var(--teal); }
+.primer-badge.tone-warn {
+  background: var(--warn-tint); color: #633806; border-color: var(--warn-bdr);
+}
+.primer-badge.tone-warn .primer-badge-dot { background: var(--warn); }
+.primer-badge.tone-err {
+  background: var(--err-tint); color: var(--err); border-color: #e8c6c6;
+}
+.primer-badge.tone-err .primer-badge-dot { background: var(--err); }
+.primer-l1-id {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.primer-star { color: var(--teal); font-size: 13px; }
+.primer-copy {
+  margin-left: auto;
+  background: var(--bg); color: var(--ink-2);
+  border: 0.5px solid var(--line-2); border-radius: var(--r-sm);
+  padding: 5px 11px; font-size: 11.5px; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-standard),
+    color var(--dur-1) var(--ease-standard);
+}
+.primer-copy:hover { border-color: var(--ink-2); color: var(--ink); }
+
+/* Layer 2 — primary detail */
+.primer-l2 {
+  margin-top: 12px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.primer-strand {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
+}
+.primer-strand-tag {
+  width: 18px; height: 18px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+  color: var(--ink-3);
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+  border-radius: 4px;
+}
+.primer-seq {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.3px;
+  color: var(--ink); cursor: text;
+  user-select: all; -webkit-user-select: all;
+  word-break: break-all;
+}
+.primer-strand-m {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-4);
+  margin-left: auto;
+}
+.primer-strand-m b { color: var(--ink-2); font-weight: 600; }
+.primer-l2-foot {
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 7px; border-top: 0.5px solid var(--line-3);
+}
+.primer-product { font-size: 11.5px; color: var(--ink-3); }
+.primer-product b { font-family: var(--mono); color: var(--ink); font-weight: 600; }
+.primer-dtm {
+  font-family: var(--mono); font-size: 11.5px;
+  color: var(--ink-4);
+}
+.primer-dtm.warn { color: var(--warn); font-weight: 600; }
+
+/* Layer 3 — deep dive (hidden by default; the summary IS the affordance) */
+.primer-l3-summary {
+  margin-top: 12px;
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: transparent; border: none;
+  border-top: 0.5px solid var(--line);
+  padding: 10px 0 2px;
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.primer-l3-summary:hover { color: var(--ink); }
+.primer-chev {
+  width: 12px; height: 12px; color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+.primer-chev.open { transform: rotate(90deg); }
+.primer-l3-hint {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  color: var(--ink-4); text-transform: none; letter-spacing: 0;
+}
+/* Sanctioned size transition: grid-template-rows 0fr→1fr (DESIGN.md). */
+.primer-l3-wrap {
+  display: grid; grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-2) var(--ease-emphasized),
+    opacity var(--dur-2) var(--ease-standard);
+}
+.primer-l3-wrap.open { grid-template-rows: 1fr; opacity: 1; }
+.primer-l3-inner { min-height: 0; overflow: hidden; }
+.primer-l3-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  padding: 12px 0 4px;
+}
+.primer-l3-h {
+  margin: 0 0 8px;
+  font-size: 10.5px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.primer-kv {
+  margin: 0;
+  display: grid; grid-template-columns: 1fr; gap: 4px;
+}
+.primer-kv > div {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 11.5px;
+}
+.primer-kv dt { color: var(--ink-4); margin: 0; }
+.primer-kv dd {
+  margin: 0; font-family: var(--mono); color: var(--ink-2); font-weight: 600;
+}
+.primer-kv dd.warn { color: var(--warn); }
+.primer-notes-raw {
+  margin: 10px 0 0; font-size: 11.5px; color: var(--ink-3);
+  line-height: 1.55;
+}
+.primer-caveat {
+  margin: 8px 0 0; font-size: 11px; color: var(--ink-4);
+  font-style: italic; line-height: 1.5;
+}
+
+/* Hand-rolled explainer tooltip — no JS lib (plan §5.2 / §4.5). The trigger
+   is keyboard-reachable; its aria-label carries the full text for SR. */
+.primer-tip { position: relative; display: inline-flex; align-items: center; gap: 5px; }
+.primer-tip-q {
+  width: 14px; height: 14px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; line-height: 1;
+  color: var(--ink-4);
+  background: var(--bg-soft); border: 0.5px solid var(--line-2);
+  border-radius: 50%; cursor: help; font-family: var(--body);
+  transition: color var(--dur-1) var(--ease-standard),
+    border-color var(--dur-1) var(--ease-standard);
+}
+.primer-tip-q:hover { color: var(--ink-2); border-color: var(--ink-4); }
+.primer-tip-pop {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 5;
+  width: 230px;
+  background: var(--bg); color: var(--ink-2);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  box-shadow: var(--elev-3);
+  padding: 9px 11px;
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+  text-transform: none; letter-spacing: 0;
+  opacity: 0; visibility: hidden;
+  transform: translateY(2px);
+  transition: opacity var(--dur-1) var(--ease-standard),
+    transform var(--dur-1) var(--ease-standard),
+    visibility var(--dur-1);
+}
+.primer-tip:hover .primer-tip-pop,
+.primer-tip:focus-within .primer-tip-pop {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+
+@media (max-width: 760px) {
+  .primer-l3-grid { grid-template-columns: 1fr; gap: 14px; }
+}
+
+/* ─────────────── GV-006 allele toggle + protein view ─────────────── */
+/* The allele pill and the detail-mode switch reuse the proven
+   .sv-strand-pill segmented-control idiom (class composed in JSX). */
+.sv-detailmode-row { padding: 12px 22px 0; }
+
+.sv-protein {
+  background: var(--bg-canvas);
+  padding: 20px 34px 16px;
+}
+.sv-pv-head-row {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 14px;
+}
+.sv-pv-title {
+  font: 600 12px var(--mono); color: var(--ink);
+}
+.sv-pv-meta {
+  font: 400 11px var(--mono); color: var(--ink-3);
+}
+
+.sv-pv-stage { position: relative; }
+
+.sv-pv-lollipops { position: relative; height: 108px; }
+.sv-pv-pop { position: absolute; bottom: 0; width: 11px; }
+.sv-pv-stem {
+  position: absolute; left: 50%; bottom: 0;
+  width: 1.5px; background: var(--line);
+  transform: translateX(-50%);
+}
+.sv-pv-headdot {
+  position: absolute; top: 0; left: 50%;
+  width: 11px; height: 11px; margin-left: -5.5px;
+  border-radius: 50%; border: 1.5px solid var(--bg);
+}
+.sv-pv-headdot.queried {
+  width: 15px; height: 15px; margin-left: -7.5px; top: -2px;
+  box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.20);
+}
+.sv-pv-headdot.p   { background: #B82B2B; }
+.sv-pv-headdot.lp  { background: #BA7517; }
+.sv-pv-headdot.vus { background: #94a3b8; }
+.sv-pv-headdot.lb  { background: #6FA88F; }
+.sv-pv-headdot.b   { background: #1D9E75; }
+.sv-pv-poplabel {
+  position: absolute; top: -16px; left: 50%;
+  transform: translateX(-50%); white-space: nowrap;
+  font: 600 10.5px var(--mono); color: var(--ink);
+}
+
+.sv-pv-backbone {
+  position: relative; height: 22px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: 4px;
+}
+.sv-pv-domain {
+  position: absolute; top: 2px; height: 18px;
+  background: rgba(74, 157, 143, 0.18);
+  border: 0.5px solid var(--teal);
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font: 600 10px var(--mono); color: var(--ink);
+  overflow: hidden; padding: 0 4px; white-space: nowrap;
+}
+.sv-pv-region { position: absolute; top: 6px; height: 10px; border-radius: 2px; }
+.sv-pv-region.membrane { background: rgba(80, 129, 185, 0.22); }
+.sv-pv-region.signal { background: rgba(183, 90, 90, 0.22); }
+.sv-pv-term {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font: 700 10px var(--mono); color: var(--ink-3);
+}
+.sv-pv-term.n { left: -16px; }
+.sv-pv-term.c { right: -16px; }
+
+.sv-pv-points { position: relative; height: 16px; margin-top: 4px; }
+.sv-pv-pt {
+  position: absolute; top: 2px;
+  width: 8px; height: 8px; margin-left: -4px;
+  transform: rotate(45deg);
+}
+.sv-pv-pt.active { background: #BA7517; }
+.sv-pv-pt.palmitoyl { background: var(--base-C, #4a9d8f); }
+.sv-pv-pt.query {
+  width: 10px; height: 10px; margin-left: -5px;
+  background: var(--ink);
+}
+
+.sv-pv-scale { position: relative; height: 14px; margin-top: 2px; }
+.sv-pv-tick {
+  position: absolute; transform: translateX(-50%);
+  font: 500 9.5px var(--mono); color: var(--ink-3);
+}
+
+.sv-pv-legend {
+  padding-top: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  font: 400 11px var(--mono); color: var(--ink-3);
+}
+.sv-pv-splice-note { color: var(--ink-3); }

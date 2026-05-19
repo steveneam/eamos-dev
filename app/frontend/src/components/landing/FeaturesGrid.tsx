@@ -11,10 +11,10 @@ const FEATURES: Feature[] = [
   {
     name: 'aggregate',
     type: 'core',
-    title: 'One search, six databases',
-    description: 'Aggregates ClinVar, gnomAD, VEP, SpliceAI, AlphaMissense, and PubMed in a single structured report.',
+    title: 'One search, five databases',
+    description: 'Aggregates ClinVar, gnomAD, VEP, SpliceAI, and PubMed in a single structured report.',
     metaKey: 'Sources',
-    metaValue: '6 live',
+    metaValue: '5 live',
   },
   {
     name: 'classify',
@@ -79,7 +79,7 @@ export function FeaturesGrid() {
             className="text-[17px] leading-[1.55]"
             style={{ color: 'var(--ink-3)', maxWidth: 620 }}
           >
-            Eamos folds the six databases you already open into one structured, cited, ACMG-aware report.
+            Eamos folds the five databases you already open into one structured, cited, ACMG-aware report.
           </p>
         </header>
 

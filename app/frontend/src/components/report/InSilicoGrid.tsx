@@ -47,7 +47,10 @@ export function InSilicoGrid({ data }: InSilicoGridProps) {
     )
   }
 
-  const cards = mapCards(data.cards)
+  // AlphaMissense is on hold per user decision (2026-05-19) — hidden from the
+  // report UI; the predictor stays in the contract/payload assets so this is
+  // a one-line revert once it is re-approved. See agent_handoff DECISIONS.
+  const cards = mapCards(data.cards.filter((c) => c.name !== 'AlphaMissense'))
   const consensus = data.consensus_note
 
   return (

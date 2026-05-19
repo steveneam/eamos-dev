@@ -5,7 +5,8 @@ interface GeneMinimapProps {
   data: GeneWindowData
   /** Currently-viewed exon (gets the active highlight + flag). */
   activeExon: number
-  /** Modification #1: ClinVar density bubbles render only when true. */
+  /** ClinVar density bubbles render only when true (driven by the unified
+   *  ClinVar track toggle). */
   showDensity: boolean
   onExonClick: (exonNum: number) => void
 }

@@ -13,6 +13,7 @@ import {
   buildFlatWindow,
   consequenceAt,
   posDisplay,
+  type FlatBase,
   type GeneWindowData,
 } from '@/lib/workbench/gene-window'
 import {
@@ -22,14 +23,19 @@ import {
   type EditMap,
 } from '@/lib/workbench/edit-state'
 import type { Base } from '@/lib/workbench/codon-table'
-import type { StrandMode, TrackState } from './viewer-types'
+import type { AlleleMode } from '@/lib/backend'
+import type { SelectionSummary, StrandMode, TrackState } from './viewer-types'
 import { GeneMinimap } from './GeneMinimap'
-import { ExonStrip } from './ExonStrip'
 import { CodonDetail } from './CodonDetail'
-import { SelectionBar } from './SelectionBar'
+import { ProteinView } from './ProteinView'
 import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
 import { EditPopoverV2 } from './EditPopoverV2'
+
+/** Detail-pane mode: the codon/base sequence view or the protein-coordinate
+ *  domain + ClinVar lollipop view (GV-006; replaces the removed exon-only
+ *  third view). The gene minimap stays as the genomic overview in both. */
+type DetailMode = 'sequence' | 'protein'
 
 export interface ScratchEntry {
   idx: number
@@ -43,6 +49,12 @@ export interface SequenceViewerHandle {
   jumpToExon: (n: number) => void
   jumpToCdsPos: (p: number) => void
   resetEdits: () => void
+  /** Range actions driven from the side-panel edit hub (FE-5.6 Unit C).
+   *  The reducer + selection state stay in the viewer; the side panel only
+   *  invokes these via the ref. */
+  delSelection: () => void
+  replaceSelection: (seq: string) => void
+  clearSelection: () => void
 }
 
 interface SequenceViewerV2Props {
@@ -50,9 +62,14 @@ interface SequenceViewerV2Props {
   trackOn: TrackState
   strandMode: StrandMode
   baseW: number
-  /** Hide the minimap + exon strip (modification #2: collapsible nav). */
+  /** Reference/control vs variant-applied sequence basis (GV-006). The
+   *  adapter already applied the SNV to `data` in `variant` mode; this is
+   *  passed through so the queried codon shows its ref→alt change. */
+  alleleMode: AlleleMode
+  /** Hide the gene minimap (collapsible nav; minimap only). */
   navCollapsed: boolean
   onScratchChange: (entries: ScratchEntry[]) => void
+  onSelectionChange: (selection: SelectionSummary | null) => void
   onEditCountChange?: (count: number) => void
   onActiveExonChange?: (n: number) => void
 }
@@ -64,8 +81,10 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       trackOn,
       strandMode,
       baseW,
+      alleleMode,
       navCollapsed,
       onScratchChange,
+      onSelectionChange,
       onEditCountChange,
       onActiveExonChange,
     },
@@ -85,7 +104,10 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const [jumpError, setJumpError] = useState<string | null>(null)
     const [showHistory, setShowHistory] = useState(false)
     const [restrictionHover, setRestrictionHover] = useState<string | null>(null)
-    const [popover, setPopover] = useState<{ idx: number; rect: DOMRect } | null>(null)
+    const [popover, setPopover] = useState<{ idx: number; x: number; y: number } | null>(
+      null,
+    )
+    const [detailMode, setDetailMode] = useState<DetailMode>('sequence')
 
     const exonOf = useCallback(
       (cds: number) =>
@@ -167,6 +189,31 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       commit('Reset all edits', (m) => m.clear())
     }, [commit, edits.size])
 
+    // ── Range actions exposed to the side-panel edit hub via the handle.
+    //    Declared before useImperativeHandle so its dep array is in scope. ──
+    const selectionRange = useCallback(
+      () =>
+        selection
+          ? ([
+              Math.min(selection.start, selection.end),
+              Math.max(selection.start, selection.end),
+            ] as const)
+          : null,
+      [selection],
+    )
+    const delSelection = useCallback(() => {
+      const r = selectionRange()
+      if (r) applyDel(r[0], r[1])
+    }, [applyDel, selectionRange])
+    const replaceSelection = useCallback(
+      (seq: string) => {
+        const r = selectionRange()
+        if (r) applyReplace(r[0], r[1], seq)
+      },
+      [applyReplace, selectionRange],
+    )
+    const clearSelection = useCallback(() => setSelection(null), [])
+
     // ── Scratchpad: exon substitutions, mirrored to the side panel ──
     useEffect(() => {
       const entries: ScratchEntry[] = []
@@ -186,6 +233,17 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       onScratchChange(entries)
       onEditCountChange?.(edits.size)
     }, [edits, flat, onScratchChange, onEditCountChange])
+
+    // ── Selection summary, mirrored to the side-panel edit hub (Unit C) ──
+    useEffect(() => {
+      if (!selection) {
+        onSelectionChange(null)
+        return
+      }
+      const lo = Math.min(selection.start, selection.end)
+      const hi = Math.max(selection.start, selection.end)
+      onSelectionChange(buildSelectionSummary(data, flat, edits, lo, hi))
+    }, [selection, data, flat, edits, onSelectionChange])
 
     // ── Jump / navigation ──
     const scrollToIdx = useCallback((i: number) => {
@@ -224,11 +282,25 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       },
       [flat, jumpToFlatIdx],
     )
-    useImperativeHandle(ref, () => ({ jumpToExon, jumpToCdsPos, resetEdits }), [
-      jumpToExon,
-      jumpToCdsPos,
-      resetEdits,
-    ])
+    useImperativeHandle(
+      ref,
+      () => ({
+        jumpToExon,
+        jumpToCdsPos,
+        resetEdits,
+        delSelection,
+        replaceSelection,
+        clearSelection,
+      }),
+      [
+        jumpToExon,
+        jumpToCdsPos,
+        resetEdits,
+        delSelection,
+        replaceSelection,
+        clearSelection,
+      ],
+    )
 
     useEffect(() => {
       onActiveExonChange?.(activeExon)
@@ -338,17 +410,12 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       },
       [cleanupSelectionDrag],
     )
-    const onBaseClick = useCallback(
-      (idx: number, rect: DOMRect, shift: boolean) => {
-        if (shift && selection) {
-          setSelection({ start: selection.start, end: idx })
-          return
-        }
-        setSelection({ start: idx, end: idx })
-        setPopover({ idx, rect })
-      },
-      [selection],
-    )
+    // Right-click opens the cursor-anchored edit menu for that base. It does
+    // not disturb the selection — selecting (left-click/drag) and editing
+    // (right-click / Scratchpad) are now independent flows.
+    const onBaseContextMenu = useCallback((idx: number, x: number, y: number) => {
+      setPopover({ idx, x, y })
+    }, [])
 
     // ── Keyboard ──
     useEffect(() => {
@@ -427,44 +494,61 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         />
 
         {!navCollapsed && (
-          <>
-            <GeneMinimap
-              data={data}
-              activeExon={activeExon}
-              showDensity={trackOn.clinvarDensity}
-              onExonClick={jumpToExon}
-            />
-            <ExonStrip data={data} activeExon={activeExon} onPinClick={jumpToCdsPos} />
-          </>
+          <GeneMinimap
+            data={data}
+            activeExon={activeExon}
+            showDensity={trackOn.clinvar}
+            onExonClick={jumpToExon}
+          />
         )}
 
-        <CodonDetail
-          data={data}
-          flat={flat}
-          codons={codons}
-          baseW={baseW}
-          trackOn={trackOn}
-          strandMode={strandMode}
-          edits={edits}
-          selection={selection}
-          searchQuery={searchQuery}
-          restrictionHover={restrictionHover}
-          onBaseMouseDown={onBaseMouseDown}
-          onBaseClick={onBaseClick}
-          onClinvarClick={jumpToFlatIdx}
-          onRestrictionHover={setRestrictionHover}
-          onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
-        />
+        <div className="sv-detailmode-row">
+          <div
+            className="sv-strand-pill sv-detailmode"
+            role="group"
+            aria-label="Detail view"
+          >
+            <button
+              type="button"
+              className={detailMode === 'sequence' ? 'active' : undefined}
+              title="Codon / base sequence detail"
+              onClick={() => setDetailMode('sequence')}
+            >
+              Sequence
+            </button>
+            <button
+              type="button"
+              className={detailMode === 'protein' ? 'active' : undefined}
+              title="Protein domains + ClinVar lollipop (amino-acid coordinates)"
+              onClick={() => setDetailMode('protein')}
+            >
+              Protein
+            </button>
+          </div>
+        </div>
 
-        <SelectionBar
-          data={data}
-          flat={flat}
-          selection={selection}
-          hasEdit={(i) => edits.has(i)}
-          onDelRange={applyDel}
-          onReplace={applyReplace}
-          onClear={() => setSelection(null)}
-        />
+        {detailMode === 'sequence' ? (
+          <CodonDetail
+            data={data}
+            flat={flat}
+            codons={codons}
+            baseW={baseW}
+            trackOn={trackOn}
+            strandMode={strandMode}
+            alleleMode={alleleMode}
+            edits={edits}
+            selection={selection}
+            searchQuery={searchQuery}
+            restrictionHover={restrictionHover}
+            onBaseMouseDown={onBaseMouseDown}
+            onBaseContextMenu={onBaseContextMenu}
+            onClinvarClick={jumpToFlatIdx}
+            onRestrictionHover={setRestrictionHover}
+            onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
+          />
+        ) : (
+          <ProteinView data={data} alleleMode={alleleMode} />
+        )}
 
         {showHistory && history.length > 0 && (
           <HistoryTimeline
@@ -480,7 +564,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             flat={flat}
             idx={popover.idx}
             current={edits.get(popover.idx) as Edit | undefined}
-            anchorRect={popover.rect}
+            anchor={{ x: popover.x, y: popover.y }}
             onSub={(b) => {
               applySub(popover.idx, b)
               setPopover(null)
@@ -509,4 +593,48 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
 
 function isBase(value: string): value is Base {
   return value === 'A' || value === 'T' || value === 'C' || value === 'G'
+}
+
+// Selection digest for the side-panel edit hub. Ported verbatim from the
+// removed SelectionBar so the Scratchpad reads the same wording.
+function spanSummary(flat: FlatBase[], lo: number, hi: number): string {
+  const slice = flat.slice(lo, hi + 1)
+  const exonic = slice.filter((b) => b.kind === 'exon').length
+  const intronic = slice.filter((b) => b.kind === 'intron').length
+  if (exonic && intronic) return `${exonic} exonic + ${intronic} intronic bp`
+  if (exonic)
+    return `${exonic} exonic bp · ${Math.floor(exonic / 3)} codon${
+      Math.floor(exonic / 3) === 1 ? '' : 's'
+    }${exonic % 3 ? ` + ${exonic % 3} bp` : ''}`
+  if (intronic) return `${intronic} intronic bp`
+  return ''
+}
+
+function buildSelectionSummary(
+  data: GeneWindowData,
+  flat: FlatBase[],
+  edits: EditMap,
+  lo: number,
+  hi: number,
+): SelectionSummary {
+  const loB = flat[lo]
+  const len = hi - lo + 1
+  if (len === 1) {
+    return {
+      len: 1,
+      loPos: posDisplay(data, loB),
+      hiPos: posDisplay(data, loB),
+      refBase: loB.kind === 'intron-gap' ? '—' : loB.base.toUpperCase(),
+      hasEdit: edits.has(lo),
+      span: '',
+    }
+  }
+  return {
+    len,
+    loPos: posDisplay(data, loB),
+    hiPos: posDisplay(data, flat[hi]),
+    refBase: '',
+    hasEdit: false,
+    span: spanSummary(flat, lo, hi),
+  }
 }

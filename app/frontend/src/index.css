@@ -89,6 +89,23 @@
   --maxw-workbench-rail: 64px;
   --maxw-workbench-side: 360px;
 
+  /* === Dashboard Interaction Language — elevation + motion ===
+     DESIGN.md "Dashboard Interaction Language". Depth tied to --ink
+     (#0b1a2b = rgb(11,26,43)), low-opacity/low-spread for clinical-premium.
+     No raw box-shadow anywhere; never stack beyond --elev-3. */
+  --elev-0: none;                                                       /* flat — rests on the canvas */
+  --elev-1: 0 1px 2px rgba(11,26,43,.04), 0 1px 3px rgba(11,26,43,.06);  /* resting card / panel */
+  --elev-2: 0 2px 6px rgba(11,26,43,.06), 0 6px 16px rgba(11,26,43,.08); /* hover / raised / focused-within */
+  --elev-3: 0 8px 28px rgba(11,26,43,.12), 0 2px 8px rgba(11,26,43,.06); /* overlay — popover, dialog, menu */
+
+  --dur-1: 120ms;  /* micro — hover, press, colour/border */
+  --dur-2: 200ms;  /* standard — elevation, disclosure, enter/leave */
+  --dur-3: 320ms;  /* expressive — a panel/region revealing */
+
+  --ease-standard:   cubic-bezier(.2, 0, 0, 1);   /* decelerate — enters, most transitions */
+  --ease-emphasized: cubic-bezier(.3, 0, 0, 1);   /* disclosure / focal reveals */
+  --ease-exit:       cubic-bezier(.4, 0, 1, 1);   /* accelerate — exits */
+
   --display: 'Syne', system-ui, sans-serif;
   --body:    'Plus Jakarta Sans', system-ui, sans-serif;
   --mono:    'JetBrains Mono', ui-monospace, monospace;
@@ -162,6 +179,17 @@ textarea {
 @media (forced-colors: active) {
   :focus-visible {
     outline: 3px solid ButtonText;
+  }
+}
+
+/* DESIGN.md Dashboard Interaction Language — global reduced-motion guard.
+   Motion only ever reflects real state; users who ask for less get none. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

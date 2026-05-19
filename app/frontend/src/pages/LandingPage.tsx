@@ -110,8 +110,8 @@ export function LandingPage() {
                   margin: '0 0 36px',
                 }}
               >
-                Eamos aggregates ClinVar, gnomAD, SpliceAI, VEP, AlphaMissense, and PubMed into a single
-                clinician-readable report. Stop opening six tabs per variant.
+                Eamos aggregates ClinVar, gnomAD, SpliceAI, VEP, and PubMed into a single
+                clinician-readable report. Stop opening five tabs per variant.
               </p>
               <SearchShell variant="hero" onSubmit={handleSubmit} />
             </div>
