@@ -1050,3 +1050,1202 @@ curl -X POST http://localhost:8000/api/v1/lookup -H "Content-Type: application/j
 - Don't add backward-compatibility shims for Franklin (the user explicitly wants it removed).
 - Stop after each milestone for a sync check. Report what you changed + the test command output.
 - If you hit ambiguity, surface it — don't pick silently. The frontend plan and shared contract are the tie-breakers.
+
+---
+
+## Review Packet: Post-v2 Backend/API/Pipeline Planning
+
+Section edited: 2026-05-17 18:19 +1000 · Codex
+
+Status: M-002A implementation complete after user approval. Do not start
+M-002B, FE-6/FE-7/FE-8, or any later M-002 execution until the user explicitly
+approves the next backend task.
+
+This packet applies the Blueprint flow in one reviewable place:
+
+1. Design doc: choose the backend architecture and tradeoffs.
+2. Spec: pin requirements, invariants, error behavior, and tests.
+3. Plan: split the future implementation into independently reviewable tasks.
+
+### Design Doc: M-002 Candidate Backend Real-Mode Layer
+
+**Summary.** The v2 backend now exposes lookup, lookup-scoped chat, Workbench
+stub endpoints, real API lookup enrichment, frozen warning codes, and a guarded
+variant cache. The next backend phase should turn selected fixture-backed paths
+into explicit real-mode providers without changing default demo behavior:
+`USE_REAL_APIS=false` and `LLM_PROVIDER=mock` must stay deterministic, fast,
+and safe.
+
+**Context and Scope.** Current real-mode lookup already uses the existing tool
+registry pattern for VEP, VariantValidator, gnomAD, SpliceAI, ClinVar, PubMed,
+LitVar2, ClinicalTrials, and `variant_cache_repo.py`. The Workbench routes
+`POST /api/v1/primer`, `/crispr`, and `/align` still return static fixture JSON
+from `app/backend/app/api/routes/workbench.py`. Lookup-scoped chat exists at
+`POST /api/v1/chat` but the live path is not production-shaped yet: the service
+currently calls `self.llm.complete(...)`, while the existing LangChain wrappers
+under `app/backend/app/agents/client.py` expose `invoke(...)` style adapters.
+The six report v2 modules are loaded from
+`app/backend/app/fixtures/lookup_v2_modules.json`; live hydration for those
+modules remains future work.
+
+This planning packet covers backend architecture for:
+
+- real Workbench engine providers for primer, CRISPR, and alignment;
+- a shared sequence-context provider needed by those engines;
+- live lookup-module hydration where current public evidence can support it;
+- live lookup/Workbench chat through a grounded LLM adapter;
+- verification and safety gates.
+
+**Goals.**
+
+- Preserve the current public API contracts unless a later reviewed task
+  explicitly makes an additive schema change and updates
+  `test_frontend_contract.py`.
+- Keep mock/fixture behavior as the default and as the offline test oracle.
+- Introduce real providers behind service boundaries, not directly in route
+  handlers.
+- Never fabricate genomic, publication, ACMG, or design-tool results when a
+  live source cannot support them; return fixture/mocked output only when the
+  mode explicitly calls for fixture behavior.
+- Keep clinical language guarded: supporting information only, no diagnosis or
+  formal classification assignment.
+- Make each future implementation task small enough to verify and roll back.
+
+**Non-Goals.**
+
+- No implementation in this session.
+- No frontend FE-6/FE-7/FE-8 work.
+- No broad schema migration, UI contract rewrite, or non-additive response
+  changes.
+- No production clinical validation claim.
+- No attempt to fully solve off-target scoring, ACMG classification, OMIM/
+  Monarch/DECIPHER licensing, or transcript/build coverage in one task.
+
+**Constraints.**
+
+- Default runtime remains `USE_REAL_APIS=false` / `LLM_PROVIDER=mock`.
+- Current contract canary remains
+  `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`.
+- Shared warning strings from BE-12 are frozen unless both backend and frontend
+  plans are updated in the same reviewed change.
+- The existing `FixtureBackedTool` and `ToolResult` shape is the preferred
+  pattern for live-data tools.
+- Workbench real engines need sequence context that the current routes do not
+  compute. A sequence-context layer is therefore a prerequisite, not optional
+  plumbing.
+- Any new third-party dependency or hosted service must be reviewed against
+  license, offline-test strategy, failure mode, and Windows local-dev support
+  before it is added.
+
+**Proposed Design.**
+
+Add a backend-only real-mode layer in four boundaries:
+
+1. `SequenceContextService`: resolves `gene` + `cdna` + optional transcript/
+   species into a validated sequence window, transcript HGVS, GRCh38 coordinate,
+   reference/alternate base, codon context, strand, and source metadata. Fixture
+   mode serves the known RPE65 context. Real mode reuses the existing
+   normalization and resolver chain before fetching sequence context from an
+   approved provider. If sequence context cannot be resolved, fixture mode may
+   serve the known RPE65 fixture, but real mode returns the explicit Workbench
+   HTTP error contract below; it does not silently fall back to fixtures or
+   invent sequence.
+2. `WorkbenchDesignService`: route handlers delegate primer, CRISPR, and
+   alignment requests to provider interfaces. The current JSON fixtures become
+   the fixture provider. Real providers are plugged in one at a time. The
+   service owns an internal provider-status/result type; routes translate
+   real-mode failures into structured HTTP errors until a reviewed additive
+   response metadata field exists.
+3. `LookupModuleHydrator`: replaces the all-or-nothing fixture merge for the
+   six report v2 modules with per-module builders. Each builder may use existing
+   evidence (`clinvar`, `spliceai`, `gnomad`, `pubmed`, `litvar2`) plus sequence
+   context; unsupported fields stay omitted or fixture-backed by explicit mode.
+4. `LookupChatService`: use a provider adapter that matches the existing
+   LangChain `invoke(...)` pattern, passes bounded grounded context, cites
+   evidence sources, and preserves the mock answer path.
+
+Suggested runtime flow:
+
+```text
+Workbench request
+  -> normalize gene/cdna
+  -> SequenceContextService
+  -> WorkbenchDesignService
+  -> fixture provider OR real provider
+  -> existing Primer/Crispr/Align response models
+
+Lookup request
+  -> existing resolver/tool phases
+  -> LookupModuleHydrator
+  -> ReportPayload with module fields from live evidence where supported
+
+Chat request
+  -> bounded ReportPayload/evidence/workbench context
+  -> mock response OR grounded LLM adapter
+  -> ChatResponse / streaming text
+```
+
+**Interfaces and Data.**
+
+- Keep `PrimerRequest`, `CrisprRequest`, `AlignRequest`, `PrimerResponse`,
+  `CrisprResponse`, and `AlignResponse` stable for the first real-provider
+  pass. If real engines need species/build/transcript knobs, add fields only
+  after a reviewed contract update.
+- Internal sequence-context data should be a Pydantic or dataclass model, but
+  it should not become public API until frontend needs it.
+- Do not add top-level `warnings` or `status` fields to `PrimerResponse`,
+  `CrisprResponse`, or `AlignResponse` in M-002C/D/E. Those models currently
+  have no metadata channel, and keeping them stable is the first-pass decision.
+  Real-mode Workbench failures therefore use HTTP errors with a structured JSON
+  `detail` object until a later reviewed frontend/backend contract adds
+  response metadata.
+- Freeze these Workbench error/warning codes before any frontend consumption:
+  `workbench_sequence_context_unavailable`,
+  `workbench_unsupported_input:<kind>`, `workbench_provider_unavailable`,
+  `workbench_provider_failed:<ExceptionName>`, and
+  `workbench_provider_malformed`. These live in HTTP error `detail.warnings`
+  for the first real-provider pass, not in the success response schema.
+- Cache only data that is source-backed and keyed by normalized query/build/
+  transcript/provider version. Do not cache fixture outputs as live evidence.
+
+**Alternatives Considered.**
+
+- Put engine logic directly in `api/routes/workbench.py`: rejected because the
+  current route handlers are intentionally thin and direct engine calls would
+  mix HTTP, provider failure modes, and design logic.
+- Add broad schema fields now for all future engine outputs: rejected because
+  it creates frontend contract churn before real providers prove their output
+  shape.
+- Replace all fixture modules with live builders in one milestone: rejected
+  because module data quality varies by source and some fields need licensed or
+  curated datasets.
+- Make live chat use the draft-render chain directly: rejected because
+  chat needs a bounded Q&A adapter, not report-section rewriting.
+
+**Tradeoffs.**
+
+- Keeping public schemas stable slows some provider work but protects the
+  concurrent frontend lane.
+- A sequence-context prerequisite adds one task up front, but it prevents three
+  separate engines from resolving coordinates and transcripts differently.
+- Per-module lookup hydration is slower than a single fixture merge, but it
+  makes provenance and missing-data behavior reviewable.
+- Optional real providers keep demo mode reliable, but they require explicit
+  live smoke tests and clear degraded behavior before user-facing trust.
+
+**Cross-Cutting Concerns.**
+
+- Reliability: every live provider must have fixture-mode tests plus live-smoke
+  tests gated by environment variables.
+- Safety: never present generated prose or tool outputs as final diagnosis or
+  formal clinical classification.
+- Privacy: lookup/Workbench chat should send only the minimum bounded context
+  needed for the answer; patient-upload run chat remains separate.
+- Observability: lookup provider status should stay visible through warnings/
+  evidence summaries. Workbench provider failure status should be visible
+  through structured HTTP error details until Workbench success responses gain
+  an approved metadata channel. Cache hits must be distinguishable from live
+  responses.
+- Performance: sequence context and lookup-module hydration should reuse
+  existing resolver/cache outputs where possible.
+- Operations: new dependencies or external services need documented install
+  steps, env vars, and offline fallbacks before merge.
+
+**Rollout and Migration.**
+
+Roll out as backend-only vertical slices. Each slice keeps fixture mode green,
+adds or preserves targeted tests, and stops for review before the next slice.
+Frontend integration should happen only after backend contracts are stable and
+the user chooses the corresponding FE milestone.
+
+**Open Questions for User Review.**
+
+- Should M-002 prioritize real primer design first, or sequence-context plus
+  alignment first to reduce engine risk?
+- For CRISPR, is an external CRISPOR-backed workflow required, or is a local
+  deterministic guide-enumeration/scoring provider acceptable as the first
+  real-mode step?
+- For sequence retrieval, should Eamos prefer hosted API lookup in dev or a
+  local reference FASTA/index for repeatability?
+- Should live lookup-module hydration stay limited to publicly source-backed
+  fields until licensed/curated datasets are chosen?
+- Should lookup/Workbench chat support OpenAI only for now via existing config,
+  or should provider-neutral Anthropic/OpenAI support be designed before code?
+
+**Decision.** Recommended direction: approve a backend-only M-002 planning
+sequence, beginning with the sequence-context/provider boundary, then landing
+real providers one at a time. Do not approve broad contract changes until an
+individual provider needs them and the frontend owner is ready to sync.
+
+### Spec: Backend Real-Mode Provider Layer
+
+**What.** Build an optional real-mode backend layer that can replace selected
+fixtures with source-backed results while preserving current offline behavior
+and public contracts. The first implementation sequence should establish
+shared sequence context, then move primer, CRISPR, alignment, lookup modules,
+and lookup/Workbench chat behind explicit provider adapters.
+
+**Requirements.**
+
+- `USE_REAL_APIS=false` must continue to return the current fixture/mock
+  outputs for lookup, Workbench engines, and chat.
+- Workbench route handlers must delegate to services; they should not contain
+  engine or provider logic.
+- Real engine providers must depend on a shared sequence-context result rather
+  than each resolving `gene`/`cdna` independently.
+- Workbench provider failures in M-002C/D/E must use the explicit HTTP error
+  contract in this spec because the current success response models have no
+  top-level warning/status channel. They must not silently fabricate live
+  results or hide behind fixture fallback when real mode is requested.
+- Any public schema change must be additive, reflected in TypeScript, and
+  verified by `test_frontend_contract.py`.
+- Live chat must use a bounded prompt/context adapter and must keep the same
+  safety posture as report drafting: grounded, cautious, source-aware, and no
+  diagnosis.
+- New dependencies or services must be reviewed and documented before merge;
+  this planning pass does not pin new versions.
+
+**Design.**
+
+- Add `app/backend/app/services/sequence_context.py` in the future to own
+  sequence-window resolution.
+- Add `app/backend/app/services/workbench_design.py` in the future to own
+  primer/CRISPR/alignment orchestration.
+- Add provider modules under `app/backend/app/tools/` or
+  `app/backend/app/services/` based on whether they behave like external
+  evidence tools (`ToolResult`) or local deterministic engines.
+- Refactor `app/backend/app/api/routes/workbench.py` to obtain the service from
+  `request.app.state`, mirroring lookup/chat route style.
+- Add a small Workbench service exception/result boundary so route handlers can
+  map real-mode provider failures to `HTTPException` with structured `detail`
+  fields while returning the existing response models on success.
+- Add `LookupModuleHydrator` as a small service called after existing lookup
+  evidence is collected and before `ReportPayload` is returned.
+- Replace the lookup chat live path with an adapter compatible with the
+  existing LangChain `invoke(...)` wrappers; keep the mock path unchanged and
+  wire the adapter through `app/backend/app/main.py:create_app`, not only
+  isolated service tests.
+
+**Decisions.**
+
+- Decision: keep public Workbench response models stable for the first real
+  provider pass. Alternative: add rich provider metadata now. Rationale:
+  protects frontend parallel work and lets real providers prove their output.
+  Reversible: yes, via additive fields later.
+- Decision: use structured HTTP errors for real-mode Workbench provider
+  failures until response metadata is approved. Alternative: add additive
+  `warnings`/`status` fields now. Rationale: closes failure visibility without
+  changing the success contract mid-frontend work. Reversible: yes; later
+  metadata can move the same codes into success responses.
+- Decision: make sequence context the first implementation slice. Alternative:
+  wire Primer3 directly from route input. Rationale: primer, CRISPR, alignment,
+  and module hydration all need consistent transcript/build/sequence context.
+  Reversible: partially; skipping it would create duplicated resolver logic.
+- Decision: default all live providers off unless `USE_REAL_APIS=true` or a
+  provider-specific future flag enables them. Alternative: auto-enable if
+  dependency exists. Rationale: deterministic local/dev behavior matters more.
+  Reversible: yes.
+- Decision: do not cache fixture results as live data. Alternative: cache all
+  endpoint output. Rationale: fixture caching can hide fixture corrections and
+  provenance errors. Reversible: yes.
+
+**Invariants.**
+
+- `python -m pytest tests/test_frontend_contract.py -q` stays green after every
+  schema-touching change.
+- `python -m pytest tests/ -q` stays green after each backend slice.
+- `USE_REAL_APIS=false` snapshot behavior stays deterministic.
+- `warnings` codes already frozen in BE-12 are not renamed in backend-only work.
+- A real-mode Workbench provider call either returns source-backed data in the
+  existing success response model or returns the structured HTTP error contract;
+  it never returns fixture data while claiming live/provider output.
+- Run-scoped chat remains separate from lookup-scoped chat.
+
+**Error Behavior.**
+
+- Missing sequence context in fixture mode: return the known RPE65 fixture when
+  the fixture key matches; otherwise keep existing fixture/default behavior.
+- Missing sequence context in real Workbench mode: return `422
+  Unprocessable Entity` with `detail.code =
+  "workbench_sequence_context_unavailable"` and `detail.warnings` containing
+  the same code.
+- Unsupported input/species/build in real Workbench mode: return `422
+  Unprocessable Entity` with `workbench_unsupported_input:<kind>` and avoid
+  provider calls that would imply unsupported coverage.
+- Provider dependency/configuration unavailable in real Workbench mode: return
+  `503 Service Unavailable` with `workbench_provider_unavailable`.
+- Provider timeout/network error in real Workbench mode: return `503 Service
+  Unavailable` with `workbench_provider_failed:<ExceptionName>`.
+- Provider malformed/unmappable output in real Workbench mode: return `502 Bad
+  Gateway` with `workbench_provider_malformed`.
+- Provider completes successfully with zero designs: return HTTP 200 using the
+  existing response model with an empty result collection only when the provider
+  explicitly reports a valid no-design result, not when the provider failed.
+- LLM unavailable: chat returns 503 only if the service is genuinely
+  unavailable; otherwise mock mode and fixture tests remain unaffected.
+
+**Testing Strategy.**
+
+- Unit tests for sequence-context normalization and unsupported inputs.
+- Route tests proving Workbench endpoints still return current fixtures in
+  fixture mode.
+- Provider tests using fake adapters for success, timeout, malformed output,
+  and missing sequence.
+- Workbench route tests for the structured `422`, `502`, and `503` error
+  mapping, plus success tests proving the current response schemas are
+  unchanged.
+- Contract canary for any additive schema fields.
+- Live smoke tests gated behind explicit environment variables for each real
+  provider, never required for default CI.
+
+**Out of Scope.**
+
+- Frontend tool UX, pixel QA, and FE milestones.
+- Clinical validation of any generated design or classification.
+- Licensed/curated datasets that require business approval.
+- Commit, push, stash, reset, or branch surgery.
+
+### Plan: Reviewable Backend Task Split
+
+**Task M-002A - Sequence context boundary.**
+
+Status: DONE 2026-05-17 18:19 +1000 · Codex. Implemented backend-internal
+sequence context boundary with no public schema change.
+
+Goal: create the internal service contract that all real Workbench engines can
+share.
+
+Context: current lookup can resolve GRCh38 coordinates and transcript HGVS;
+Workbench routes still load static fixtures.
+
+Relevant files: `app/backend/app/services/sequence_context.py`,
+`app/backend/app/services/lookup_service.py`, `app/backend/app/core/config.py`,
+`app/backend/app/fixtures/workbench/sequence_contexts.json`,
+`app/backend/tests/test_sequence_context.py`.
+
+Proposed approach: define an internal sequence-context model, fixture provider,
+and resolver hook that reuses normalized query data and existing coordinate
+resolution. Keep it backend-internal.
+
+Acceptance criteria: fixture mode returns the RPE65 context; unsupported inputs
+return explicit warnings; no public schema changes.
+
+Verification completed:
+`cd app/backend && python -m pytest tests/test_lookup_normalize.py tests/test_tool_invariants.py tests/test_sequence_context.py -q`
+→ 15 passed. Full backend suite also passed:
+`cd app/backend && python -m pytest tests/ -q` → 92 passed / 4 skipped.
+
+Out of scope: real Primer3/CRISPR/alignment invocation.
+
+**Task M-002B - Workbench service extraction with fixture parity.**
+
+Status: DONE 2026-05-17 18:30 +1000 · Codex. Implemented backend-only
+Workbench service extraction with fixture parity and structured service error
+translation. No public schema change.
+
+Goal: move `/primer`, `/crispr`, and `/align` route behavior behind a service
+without changing responses.
+
+Context: route handlers currently read fixture files directly.
+
+Relevant files: `app/backend/app/api/routes/workbench.py`,
+`app/backend/app/main.py`, future `app/backend/app/services/workbench_design.py`,
+`app/backend/tests/`.
+
+Proposed approach: inject `WorkbenchDesignService` through `app.state`; keep
+fixture provider output byte-for-byte equivalent at the model level. Define the
+internal service error/result boundary and route-level HTTP error translation
+now, so M-002C/D/E providers inherit one failure contract.
+
+Acceptance criteria: existing endpoint JSON shapes are unchanged; route tests
+cover all three endpoints; fake service failures map to the structured
+Workbench HTTP error detail; no frontend contract drift.
+
+Verification completed:
+`cd app/backend && python -m pytest tests/test_workbench_api.py -q` → 7 passed.
+`cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_frontend_contract.py tests/test_sequence_context.py -q` → 53 passed.
+`cd app/backend && python -m pytest tests/test_lookup_normalize.py tests/test_tool_invariants.py -q` → 9 passed.
+`cd app/backend && python -m pytest tests/ --disable-warnings` → 99 passed / 4 skipped.
+
+Out of scope: new engine dependencies.
+
+**Task M-002C - Real primer provider + specificity screens.**
+
+Status: DONE 2026-05-17 23:07 +1000 · Codex. Implemented backend-only real
+primer design plus exact resolved-template amplicon specificity screening and
+an opt-in local UCSC `isPcr` whole-genome specificity provider behind the
+Workbench service boundary. Follow-up installed/configured the local UCSC
+assets under ignored backend storage and captured the remaining native-Windows
+runtime blocker. No public response schema change and no frontend files
+touched.
+
+Goal: add the first real Workbench provider behind the service boundary.
+
+Context: primer design is the lowest-risk engine because the existing schema
+already models primer pairs, Tm, GC, product size, specificity hit count, notes,
+and recommendation.
+
+Provider/dependency decision: use local Primer3 through
+`primer3-py>=2.3,<3` for backend design. Do not make browser-only or
+vendor/account-gated tools from the primer tool list direct runtime
+dependencies. NCBI Primer-BLAST remains a later validation class. The online
+UCSC `hgPcr` endpoint returned a bot-protection page when tested from this
+environment, so the backend path is now an optional local UCSC/Kent `isPcr`
+provider selected by `PRIMER_SPECIFICITY_PROVIDER=ucsc_ispcr` with explicit
+local binary/genome paths. IDT OligoAnalyzer, NEB Tm Calculator, Thermo Fisher
+OligoPerfect, VectorBuilder, Primer3 Input, and Primer3Plus are useful
+manual/reference tools but are not stable backend provider APIs for this slice.
+
+Relevant files:
+`app/backend/app/services/workbench_design.py`,
+`app/backend/app/services/sequence_context.py`, `app/backend/app/main.py`,
+`app/backend/requirements.txt`, `app/backend/tests/test_workbench_api.py`,
+`app/backend/tests/test_sequence_context.py`.
+
+Implementation completed:
+- Added `EnsemblVariantSequenceResolver`, which resolves transcript HGVS through
+  VariantValidator and fetches a GRCh38 sequence window from Ensembl REST.
+- Wired `app.state.sequence_context_service` and passed it into
+  `WorkbenchDesignService`.
+- Added lazy `Primer3PrimerProvider`, mapping Primer3 output into the existing
+  `PrimerResponse` / `PrimerPair` schema.
+- Added `TemplateAmpliconSpecificityProvider`, which exact-matches each
+  Primer3 pair against the resolved design template by pairing the forward
+  primer with the reverse primer's reverse complement, counts products inside
+  the requested product-size range, and marks target-spanning products.
+- Added `LocalIsPcrSpecificityProvider`, which invokes standalone UCSC `isPcr`
+  with a stdin 3-column query, parses FASTA products, maps product coordinates
+  to the resolved target locus, and sets `specificity_hits` to the local
+  whole-genome product count when explicitly configured.
+- Added opt-in settings/env keys for the local `isPcr` provider:
+  `PRIMER_SPECIFICITY_PROVIDER`, `UCSC_ISPCR_BINARY_PATH`,
+  `UCSC_ISPCR_HG38_PATH`, `UCSC_ISPCR_TIMEOUT_SECONDS`,
+  `UCSC_ISPCR_MIN_PERFECT`, and `UCSC_ISPCR_MIN_GOOD`.
+- Real-mode `specificity_hits` now reflects exact resolved-template amplicons,
+  and recommendation prefers the first pair with one product spanning the
+  queried base. Pair notes explicitly state this is not genome-wide
+  Primer-BLAST/UCSC specificity unless the local `ucsc_ispcr` provider is
+  explicitly configured.
+- Preserved fixture mode exactly when `USE_REAL_APIS=false`.
+- In real primer mode, mapped unsupported/missing sequence context to `422`,
+  missing Primer3 dependency to `503`, provider failure to
+  `workbench_provider_failed:<ExceptionName>`, and malformed provider output to
+  `502`.
+
+Known limitations for this slice:
+- Default `PRIMER_SPECIFICITY_PROVIDER=template` keeps `specificity_hits`
+  source-backed only for exact products found inside the resolved sequence
+  template. It must not be read as whole-genome specificity.
+- `PRIMER_SPECIFICITY_PROVIDER=ucsc_ispcr` requires local UCSC `isPcr` and
+  `hg38.2bit` assets. These are now installed under ignored
+  `app/backend/data/bio_assets/**`, and `app/backend/.env` points to them
+  while keeping the default provider as `template`. A live local `isPcr` smoke
+  is still blocked on this native Windows host because the official UCSC
+  executable is a Linux ELF and no WSL distribution is installed
+  (`WinError 193` / structured `503 workbench_provider_unavailable`).
+- NCBI Primer-BLAST checks, SNP masking, dimer/hairpin analysis, and
+  ARMS-specific mismatch placement are not implemented yet.
+- UCSC/Kent BLAT-family command-line executable licensing must be confirmed
+  before bundling or commercial deployment.
+
+Acceptance criteria completed:
+real mode returns source-backed primer pairs for RPE65; fixture mode matches
+current samples; provider errors return the documented `422`/`502`/`503`
+detail codes; valid no-design output remains HTTP 200 with an empty pair list.
+
+Verification completed:
+`cd app/backend && python -m pytest tests/test_workbench_api.py -q`
+→ 13 passed.
+`cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_sequence_context.py -q`
+→ 20 passed.
+`cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_frontend_contract.py tests/test_sequence_context.py -q`
+→ 60 passed.
+`cd app/backend && python -m pytest tests/test_lookup_normalize.py tests/test_tool_invariants.py -q`
+→ 9 passed.
+`cd app/backend && python -m pytest tests/ --disable-warnings`
+→ 109 passed / 4 skipped.
+Opt-in live/engine smoke after `python -m pip install "primer3-py>=2.3,<3"`:
+real `/api/v1/primer` route with `USE_REAL_APIS=true`, VariantValidator,
+Ensembl REST, local Primer3, and the exact template specificity screen returned
+HTTP 200 with 3 RPE65 primer pairs for a 500-1000 bp Sanger range. All 3 pairs
+had `specificity_hits = 1`; first pair
+`CTAGCACTGTGTCCCACCTG` / `AGCACACCATGTCCGGAATT`, product size 792.
+Follow-up verification for the local `isPcr` provider path:
+`cd app/backend && python -m pytest tests/test_workbench_api.py -q`
+→ 16 passed.
+`cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_sequence_context.py tests/test_frontend_contract.py -q`
+→ 63 passed.
+`cd app/backend && python -m pytest tests/test_lookup_normalize.py tests/test_tool_invariants.py -q`
+→ 9 passed.
+Asset-install follow-up verification:
+downloaded official UCSC Linux `isPcr` and `hg38.2bit` into ignored
+`app/backend/data/bio_assets/**`; verified `hg38.2bit` MD5
+`dcc3ea27079aa6dc3f9deccd7275e0f8`; attempted provider-level opt-in smoke with
+an RPE65 exon 4 primer pair. The provider found the configured assets but failed
+before screening with native Windows `WinError 193` because the official UCSC
+binary is a Linux ELF and this host has no installed WSL distribution.
+Post-install tests:
+`cd app/backend && python -m pytest tests/test_workbench_api.py -q`
+→ 16 passed.
+`cd app/backend && python -m pytest tests/ --disable-warnings`
+→ 109 passed / 4 skipped.
+
+Out of scope: frontend primer UX changes, broad schema expansion, automatic
+NCBI Primer-BLAST verification, WSL/native runtime installation, and CRISPR/
+alignment real engines.
+
+**Task M-002D - Real CRISPR provider decision and slice.**
+
+Status: DONE 2026-05-17 23:42 +1000 · Codex. First backend-only local
+deterministic SpCas9 provider implemented and verified; M-002I/post-edit
+analytics and broader CRISPR provider extensions remain follow-up approvals.
+
+Goal: implement the first reviewed real-mode CRISPR guide-design provider
+after user approval, while keeping fixture mode and the current frontend
+contract stable.
+
+Source references: the supplied `# Blueprint for an Automated CRISPR 1.txt`
+for sequence ingestion, PAM discovery, Hsu scoring, and DeepHF context; the
+supplied `Backend FASTAPI integration.txt` for AB1/Biopython style integration
+patterns; the supplied Docker notes for dependency expectations; the
+Claude-authored `plans/crispr-integration.md` as read-only frontend
+coordination context; current backend files
+`app/backend/app/schemas/workbench.py`,
+`app/backend/app/services/sequence_context.py`, and
+`app/backend/app/services/workbench_design.py`.
+
+Context: `/api/v1/crispr` currently returns the fixture
+`crispr_rpe65.json` through `WorkbenchDesignService.design_guides`. M-002A
+already provides a reusable sequence-context boundary for `gene` + `cdna`.
+The CRISPR blueprint asks for raw target-sequence and genomic-coordinate input,
+PAM scanning on both strands, 21-nt DeepHF context extraction, Hsu et al.
+off-target scoring, local reference FASTA access, and candidate-guide
+persistence. The first backend slice should not silently expand all of those
+surfaces at once while frontend work is active.
+
+Provider decision: use a local deterministic SpCas9 provider first. Do not use
+an external CRISPOR workflow as the first runtime dependency. Do not ship
+DeepHF neural-network inference until trained weights and model provenance are
+available; the supplied PyTorch class is architecture scaffolding only.
+Genome-wide off-target enumeration through Bowtie/BWA is a later opt-in asset
+slice, not part of the first deterministic provider.
+
+Contract decision: preserve the existing `CrisprGuide.off_target_score`
+semantics as lower-is-better risk in the first slice by mapping
+`off_target_score = 100 - hsu_specificity_score`. Keep the true Hsu specificity
+score internally named `hsu_specificity_score` for tests, logs, and future
+persistence. If the frontend needs to display both values, add an optional
+`specificity_score` field only after explicit contract approval and a paired
+`backend.ts` update.
+
+Implementation completed:
+- Added backend-internal `app/backend/app/services/crispr_design.py` and a
+  `CrisprDesignProvider` protocol in `workbench_design.py`.
+- Added `CRISPR_PROVIDER=local_deterministic`; `USE_REAL_APIS=false` fixture
+  behavior remains unchanged and byte-equivalent.
+- Real-mode `/api/v1/crispr` resolves `gene` + `cdna` through
+  `SequenceContextService`, then runs local deterministic SpCas9 `NGG` guide
+  design. No raw-sequence or genomic-region request fields were added.
+- PAM discovery scans both forward and reverse-complement strands, preserves
+  spacer/PAM/strand/cut offsets, and retains the 21-nt `spacer + first PAM
+  base` context internally for tests and future DeepHF integration.
+- Hsu/MIT off-target scoring uses the position, mismatch-count, and distance
+  penalties with distance constant `4.0`; local first-pass off-target
+  candidates are enumerated only inside the resolved context/window.
+- `CrisprGuide.off_target_score` remains lower-is-better by mapping
+  `100 - hsu_specificity_score`; no `specificity_score` contract field was
+  added.
+- On-target score is a labelled heuristic (GC band, poly-T, PAM-proximal base,
+  5' G preference), not DeepHF.
+- ssODN generation uses only available context/ref/alt SNV data and otherwise
+  returns `ssodn = null`; no repair template is fabricated without source
+  context.
+- Unsupported real-mode `cas` values return structured
+  `422 workbench_unsupported_input:cas`; too-short context returns
+  `422 workbench_unsupported_input:sequence_too_short`.
+- Candidate persistence, PostgreSQL schema, raw sequence/genomic-coordinate
+  inputs, genome-wide Bowtie/BWA off-target enumeration, CRISPOR integration,
+  and DeepHF trained inference remain out of scope.
+
+Acceptance criteria:
+- Fixture mode remains byte-equivalent for `/api/v1/crispr`.
+- Real mode supports SpCas9 `NGG` only; unsupported `cas` values return a
+  structured `422` rather than fixture or fabricated real output.
+- PAM discovery tests cover forward strand, reverse-complement strand,
+  overlapping PAMs, strand filtering, cut-position mapping, and too-short
+  DeepHF-context windows.
+- Hsu scoring tests cover zero, one, and multiple mismatches, including
+  mismatch-count and distance penalties.
+- Real mode returns source-backed guides, a valid empty-guide result when no
+  eligible PAM exists, or the documented `422`/`502`/`503` Workbench error
+  detail.
+- No frontend files are touched unless the user separately approves a paired
+  contract update.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_sequence_context.py -q`
+  → 27 passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  → 40 passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  → 120 passed / 4 skipped.
+- `git diff --check -- app/backend/.env.example app/backend/app/core/config.py app/backend/app/services/workbench_design.py app/backend/app/services/crispr_design.py app/backend/tests/test_workbench_api.py app/backend/tests/test_crispr_design.py`
+  → no whitespace errors; PowerShell reported existing LF-to-CRLF git warnings
+  for tracked files only.
+
+Out of scope: clinical-editability claims, genome-wide off-target completeness,
+DeepHF trained inference, CRISPOR integration, Bowtie/BWA index installation,
+PostgreSQL persistence, frontend CRISPR UX, and Post-CRISPR outcome analytics.
+
+**Task M-002E - Real alignment and AB1 parsing.**
+
+Goal: replace the alignment fixture path with an optional real alignment path
+for provided sequence/AB1 input.
+
+Context: `AlignRequest` already accepts `user_sequence` and `ab1_blob_base64`;
+`AlignResponse` already models reference, read, match line, mismatches, trace
+channels, base calls, Q scores, and target position.
+
+Relevant files: future alignment provider module, `workbench_design.py`,
+`schemas/workbench.py` only if additive fields are approved, tests.
+
+Proposed approach: parse supported inputs, align against sequence context, and
+map the result to the existing response model; keep fixture behavior for empty
+input/demo mode. Malformed input and provider failures use the structured
+Workbench HTTP error contract unless a later review approves additive response
+metadata.
+
+Acceptance criteria: plain sequence input has deterministic tests; malformed
+base64/unsupported AB1 data has explicit `422` behavior; provider failures use
+`502`/`503`; fixture mode unchanged.
+
+Verify: default backend tests plus alignment-specific unit tests.
+
+Out of scope: frontend file-upload UX.
+
+**Task M-002F - Live lookup-module hydration.**
+
+Goal: replace fixture-only report v2 module values where current live evidence
+can support them.
+
+Context: `lookup_service.py` currently spreads `_lookup_v2_modules(gene, cdna)`
+into `ReportPayload` and then overrides publications from LitVar2/PubMed.
+
+Relevant files: future `app/backend/app/services/lookup_modules.py`,
+`lookup_service.py`, `schemas/run.py`, `fixtures/lookup_v2_modules.json`, tests.
+
+Proposed approach: introduce per-module builders. Start with fields that can be
+truthfully derived from existing evidence and sequence context; leave
+unsupported fields omitted or fixture-backed by explicit mode.
+
+Acceptance criteria: no fabricated module data; publications behavior remains
+accurate; contract canary stays green; unsupported live fields are clearly
+absent or limited.
+
+Verify: `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`.
+
+Out of scope: licensed disease/condition datasets unless separately approved.
+
+**Task M-002G - Live lookup/Workbench chat adapter.**
+
+Goal: make `/api/v1/chat` live mode work through a bounded grounded adapter.
+
+Context: `ChatService` mock mode works; live mode needs an adapter compatible
+with existing LangChain `invoke(...)` style wrappers and source-grounding
+rules. `app/backend/app/main.py:create_app` currently wires
+`ChatService(settings=settings, llm_client=draft_chain)`, so this slice must
+change app wiring as well as service internals.
+
+Relevant files: `app/backend/app/services/chat_service.py`,
+`app/backend/app/agents/client.py`, `app/backend/app/agents/prompts.py`,
+`app/backend/app/main.py`, `app/backend/tests/`.
+
+Proposed approach: add a dedicated lookup-chat chain or adapter, likely
+`build_lookup_chat_chain(settings)`, and wire it in `create_app` instead of
+passing `draft_chain` into `ChatService`. `ChatService` should call
+`invoke(...)` or a narrow adapter method shared by fake and live chains; it
+should not call `.complete(...)`. Pass bounded variant/evidence/workbench
+context and preserve streaming behavior by chunking the final grounded answer.
+
+Acceptance criteria: mock mode unchanged; live adapter is testable with a fake
+chain through both service tests and app/route wiring tests; unsupported or
+unsafe questions get cautious bounded answers; no diagnostic claims; no
+regression to run-scoped chat wiring.
+
+Verify: route/service tests with fake chain; opt-in live smoke only when the
+user provides provider credentials and approves the model/provider choice.
+
+Out of scope: run-scoped chat behavior.
+
+**Task M-002H - End-to-end backend verification and docs sync.**
+
+Goal: verify real-mode slices together and update only the agreed docs.
+
+Context: backend docs currently describe tool registry and fixture defaults;
+future provider changes need accurate setup and guardrails.
+
+Relevant files: backend README/docs selected by the implementation owner,
+`plans/v2-backend.md`, tests.
+
+Proposed approach: run full backend tests, contract canary, targeted live smoke
+with opt-in flags, and update docs after the code is verified.
+
+Acceptance criteria: test output recorded in handoff; docs list new env vars
+and provider limitations; no frontend files touched unless explicitly approved.
+
+Verify: `cd app/backend && python -m pytest tests/ -q` plus approved live-smoke
+commands.
+
+Out of scope: commits or pushes unless the user asks.
+
+**Task M-002I - Post-CRISPR TIDE/outcome analytics plan.**
+
+Status: PLANNED 2026-05-17 23:18 +1000 · Codex. Source materials ingested;
+implementation has not started and remains user-gated.
+
+Goal: add a later backend endpoint for post-edit Sanger deconvolution without
+mixing it into M-002D guide design.
+
+Source references: the supplied `# Blueprint for a Post-CRISPR Genome Editing
+Analytics Engine 2.txt`, `Prompts for building 2.txt`, and `Backend FASTAPI
+integration.txt`.
+
+Context: this is a different workflow from guide design. It consumes control
+and edited sequencing traces, computes an indel spectrum with a TIDE-like
+non-negative least squares model, and can later compare observed outcomes with
+SPROUT/inDelphi-style predictors. It overlaps M-002E because both need AB1
+parsing.
+
+Proposed approach after approval:
+- Add a new endpoint such as `POST /api/v1/crispr/tide` with request/response
+  schemas owned by the backend contract.
+- Share one AB1 parser with M-002E alignment work, based on Biopython
+  `SeqIO.read(..., "abi")`, so trace-channel handling is not duplicated.
+- Implement deterministic NNLS deconvolution with SciPy for numeric arrays and
+  AB1-derived signal vectors. Validate length, finite numeric values, cut-site
+  bounds, and max insertion/deletion settings before solving.
+- Return observed indel frequencies, overall editing efficiency, residual
+  error, and provenance. Leave predicted repair outcomes absent/null until
+  trained SPROUT/inDelphi weights are sourced and reviewed.
+
+Acceptance criteria:
+- Synthetic numeric-array tests produce a known indel spectrum.
+- Mismatched, empty, non-finite, malformed file, and out-of-range cut-site
+  inputs return structured `422` errors.
+- Fixture/demo behavior remains deterministic if the frontend needs mock-first
+  development before the endpoint ships.
+- Contract canary stays green for any additive frontend-facing schema.
+
+Verify: backend unit/route tests for the new endpoint, contract canary, and
+full backend test suite. Live AB1 smoke only when the user provides test trace
+files and approves using them.
+
+Out of scope: CRISPResso2 NGS processing, SPROUT/inDelphi trained prediction,
+frontend chart/pixel work, and clinical interpretation of editing outcomes.
+
+**Task GV-001/GV-002 - Gene viewer backend contract and coordinate core.**
+
+Status: DONE 2026-05-18 14:38 +1000 · Codex. Implemented the first
+backend-only gene viewer slices from `plans/gene-viewer/plan.md`: typed
+Pydantic viewer request/response schemas, RPE65 offline fixture, validating
+fixture provider/service shell, pure transcript window builder, reference vs
+variant SNV overlay, plus-strand tests, reverse-strand transcript-order tests,
+and reference-mismatch fail-closed tests.
+
+Files added:
+- `app/backend/app/schemas/gene_viewer.py`
+- `app/backend/app/services/gene_viewer.py`
+- `app/backend/app/fixtures/workbench/viewer_rpe65.json`
+- `app/backend/tests/test_gene_viewer.py`
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_sequence_context.py -q`
+  -> 12 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/test_workbench_api.py -q`
+  -> 20 passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  -> 40 passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 125 passed / 4 skipped.
+
+Out of scope: viewer API route/wiring, live Ensembl/ClinVar/UniProt provider,
+frontend TypeScript mirror/adapter, and tool sequence-basis changes. Next
+approved backend step is GV-003 source-backed viewer provider or GV-004 route
+wiring, depending on whether the user wants live provider depth before the API
+surface.
+
+**Task GV-003/GV-004 - Gene viewer source provider seam and API route.**
+
+Status: DONE 2026-05-18 14:56 +1000 - Codex. Implemented the backend-only
+source-backed provider boundary and exposed `POST /api/v1/viewer`.
+
+Files added:
+- `app/backend/app/api/routes/gene_viewer.py`
+
+Files updated:
+- `app/backend/app/api/routes/__init__.py`
+- `app/backend/app/main.py`
+- `app/backend/app/services/gene_viewer.py`
+- `app/backend/tests/test_gene_viewer.py`
+
+Implementation completed:
+- Added `SourceBackedGeneViewerProvider`, source transcript/exon/intron records,
+  and a `GeneViewerSourceClient` protocol for VariantValidator, Ensembl
+  transcript/sequence, protein features, and provenance.
+- Added a default HTTP source-client skeleton that resolves VariantValidator
+  and Ensembl sequence windows while leaving full transcript-structure
+  hydration behind the source-client seam until GV-008 live-smoke hardening.
+- Added source-backed provider tests using mocked official-source responses for
+  reverse-strand RPE65 `c.260A>G`, including intron flank sequence calls,
+  source provenance, protein features, and variant-applied display sequence.
+- Added fixture-mode validation for the canonical RPE65 sample and made
+  fixture variant mode apply the c.260A>G SNV at display offset 103.
+- Added `GeneViewerService` real-mode dispatch, app-state wiring, and
+  `POST /api/v1/viewer` with structured `422`/`502`/`503` error mapping.
+- Existing `/primer`, `/crispr`, and `/align` route behavior is unchanged.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_workbench_api.py -q`
+  -> 35 passed.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_sequence_context.py -q`
+  -> 22 passed.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_sequence_context.py tests/test_workbench_api.py tests/test_frontend_contract.py -q`
+  -> 83 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 136 passed / 4 skipped.
+
+Out of scope: frontend TypeScript mirror/adapter, visible Workbench data switch,
+tool sequence-basis changes, and live RPE65 HTTP smoke. Next backend step is
+GV-005 only with frontend coordination, or GV-008 live smoke/doc hardening if
+the user wants to validate external provider behavior before frontend wiring.
+
+**Task GV-008 - Gene viewer live RPE65 smoke and documentation hardening.**
+
+Status: DONE 2026-05-18 15:18 +1000 - Codex. Implemented the live HTTP source
+client hardening that GV-003 intentionally left behind the seam, then verified
+RPE65 `c.260A>G` in both reference and variant modes.
+
+Files updated:
+- `app/backend/app/services/gene_viewer.py`
+- `app/backend/tests/test_gene_viewer.py`
+- `plans/gene-viewer/design.md`
+- `plans/gene-viewer/spec.md`
+- `plans/gene-viewer/plan.md`
+
+Implementation completed:
+- Ensembl symbol lookup now hydrates the selected MANE/RefSeq transcript,
+  coding exon/CDS coordinates, intron intervals, UTR lengths, transcript
+  aliases, total coding length, protein length, and translation id.
+- Ensembl sequence/region fetches are window-limited to the requested viewer
+  window instead of hydrating the whole coding transcript.
+- VariantValidator live responses now enrich the queried variant with
+  `p.Asp87Gly`, codon 87, one-letter amino-acid ref/alt, and GRCh38 VCF
+  projection.
+- Ensembl translation overlap now populates protein-domain features such as
+  RPE65 carotenoid oxygenase Pfam/PANTHER ranges.
+- GV docs now record the user decision that the frontend's third viewer mode
+  should be a protein view, not the removed exon-only view, with a
+  domain-aware ClinVar lollipop track.
+
+Live route smoke:
+- `POST /api/v1/viewer` with `USE_REAL_APIS=true` semantics returned HTTP 200
+  for RPE65 `NM_000329.3:c.260A>G` in reference and variant modes.
+- Confirmed reverse strand, 14 total exons, rendered window `c.140-c.380`,
+  segment `exon-4:246-353`, reference base `A`, variant-applied base `G`, and
+  protein domains `Carotenoid oxygenase` from Ensembl translation overlap.
+- Current live warnings are intentional:
+  `live_source_transcript_from_ensembl`,
+  `clinvar_track_not_live_hydrated`,
+  `protein_features_from_ensembl_overlap`, and
+  `ensembl_transcript:ENST00000262340`.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py -q`
+  -> 18 passed.
+- Live `POST /api/v1/viewer` route smoke with `USE_REAL_APIS=true` semantics
+  -> HTTP 200 in reference and variant modes.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_workbench_api.py tests/test_frontend_contract.py -q`
+  -> 78 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 138 passed / 4 skipped.
+
+Out of scope: frontend TypeScript mirror/adapter, visible protein/lollipop UI,
+live ClinVar gene-wide hydration, and downstream tool sequence-basis changes.
+
+**Task RP-001 - Report backend hardening audit slice.**
+
+Status: DONE 2026-05-18 17:35 +1000 - Codex. Backend-only hardening completed
+after auditing the landing/report surface.
+
+Files updated:
+- `app/backend/app/services/intake.py`
+- `app/backend/app/schemas/lookup.py`
+- `app/backend/tests/test_report_api.py`
+- `app/backend/tests/test_variant_search_integration.py`
+
+Implementation completed:
+- Report upload now rejects non-PDF media types, empty bodies, and spoofed
+  `.pdf` payloads before storing or extracting the file.
+- Live extraction-chain failures now produce a structured blocked report with
+  an extraction issue/warning instead of a 500.
+- Lookup request fields are trimmed and bounded; blank `gene`/`cdna` inputs
+  now fail at the Pydantic boundary with `422`.
+- Route-level auth coverage now locks `POST /api/v1/reports/upload` as
+  authenticated.
+
+Audit notes:
+- `/report` is live for structured variant queries through
+  `POST /api/v1/lookup`; no-query and `demo=1` states intentionally render the
+  bundled RPE65 sample.
+- The legacy `/runs` report-upload frontend path is not end-to-end wired after
+  auth hardening because `app/frontend/src/lib/api.ts` does not send bearer
+  tokens. Coordinate before touching this frontend file because Claude is
+  active in nearby frontend work.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_report_api.py tests/test_variant_search_integration.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> 55 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q`
+  -> 143 passed / 4 skipped.
+
+Out of scope: frontend auth/session UX, landing-page redesign, report-page
+visual iteration, and edits to Claude-owned primer/GV frontend files.
+
+**Task RP-002 - Variant Evidence Report AlphaMissense hold fixture alignment.**
+
+Status: DONE 2026-05-19 14:22 +1000 - Codex. Backend side of the
+AlphaMissense hold decision completed for the live Variant Evidence Report
+payload.
+
+Files updated:
+- `app/backend/app/fixtures/lookup_v2_modules.json`
+
+Implementation completed:
+- Removed the `AlphaMissense` predictor card from the live
+  `in_silico_predictions.cards` fixture returned through
+  `POST /api/v1/lookup`.
+- Updated the fixture `consensus_note` to remove the
+  `(REVEL, AlphaMissense, MetaLR)` enumeration and any live report prose naming
+  AlphaMissense.
+- Preserved the `'AlphaMissense'` contract literal in backend/frontend schema
+  mirrors and did not touch `sample-report.ts`, frontend render filters, or
+  patient report pipeline (`/runs`) code.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m json.tool app/backend/app/fixtures/lookup_v2_modules.json`
+  -> passed.
+- `rg -n "AlphaMissense|REVEL, AlphaMissense|three protein-effect" app/backend/app/fixtures/lookup_v2_modules.json app/backend/app/schemas/run.py app/frontend/src/lib/backend.ts app/frontend/src/lib/sample-report.ts app/frontend/src/components/report`
+  -> no backend fixture hits; remaining hits are intentional contract/sample/frontend hold references.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 143 passed / 4 skipped.
+
+Out of scope: re-enabling AlphaMissense, deleting AlphaMissense contract/tool
+assets, frontend UI work, and any patient report pipeline (`/runs`) work.
+
+**Task RP-003 - Variant literature extraction design/spec/plan.**
+
+Status: PLANNED 2026-05-19 19:30 +1000 - Codex. Planning-only artifacts were
+created for a future Variant Evidence Report Publication/Literature section
+upgrade. Implementation has not started.
+
+Artifacts:
+- `plans/variant-literature-extraction/design.md`
+- `plans/variant-literature-extraction/spec.md`
+- `plans/variant-literature-extraction/plan.md`
+
+Recommended algorithm name:
+- **Eamos Proprietary Variant Literature Extractor (EP-VLEx)**
+
+Planned behavior:
+- Build a deduplicated variant-specific PMID set from LitVar2, PubMed, ClinVar,
+  and future local ClinGen evidence.
+- Keep `publications_callout.total_count` as the authoritative visible count.
+- Show the five most recent publication rows in the initial Variant Evidence
+  Report payload.
+- Expose a paginated expansion endpoint for the full publication set.
+- Add LitVar2-style variant-mention snippets from PubMed EFetch, PubTator BioC,
+  and PMC BioC where available.
+- Keep every article title/PMID link pointed to
+  `https://pubmed.ncbi.nlm.nih.gov/{pmid}/`.
+
+Planning validation:
+- Local functional-literature reference docs and the supplied LitVar2 screenshot
+  were reviewed.
+- Official NCBI E-utilities, PubTator, LitVar2, and PMC developer API sources
+  were checked.
+- Live planning probe confirmed LitVar2 currently resolves `RPE65 p.R118K` /
+  `rs1381010953` to 3 PMIDs and PubTator returns variant annotations for PMID
+  `36142423`.
+- `git diff --check -- plans\variant-literature-extraction` passed.
+
+Out of scope: implementation, frontend rendering, Patient Report Pipeline
+(`/runs`), AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task RP-004 - EP-VLEx backend implementation.**
+
+Status: DONE 2026-05-19 19:56 +1000 - Codex. Implemented the backend
+Variant Evidence Report publication/literature slice from
+`plans/variant-literature-extraction/plan.md`.
+
+Files added:
+- `app/backend/app/services/publication_literature.py`
+- `app/backend/tests/test_publication_literature.py`
+
+Files updated:
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/schemas/lookup.py`
+- `app/backend/app/api/routes/lookup.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/tools/litvar2.py`
+- `app/backend/app/fixtures/tools/litvar2_fixtures.json`
+- `app/backend/app/fixtures/lookup_v2_modules.json`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_variant_cache.py`
+- `app/backend/tests/test_tool_invariants.py`
+- `app/backend/tests/test_frontend_contract.py`
+- `plans/variant-literature-extraction/plan.md`
+
+Implementation completed:
+- Added additive EP-VLEx schemas:
+  `PublicationSnippet`, `PublicationSourceBreakdown`,
+  `PublicationLiterature`, enriched optional `PubMedArticle` fields, and
+  optional `ReportPayload.publications_literature`.
+- Added `EamosProprietaryVariantLiteratureExtractor` with HGVS/protein
+  one-letter/three-letter/rsID/genomic term building, PMID dedupe across
+  PubMed/LitVar2/ClinVar citation-like PMIDs, recent-first sorting, PubMed URL
+  invariants, and PubMed title/abstract snippet extraction.
+- Added fallback-source guard so failed live sources do not count unrelated
+  fixture rows as variant-specific publication evidence.
+- Wired `POST /api/v1/lookup` to return at most five EP-VLEx rows and mirror
+  them into `pubmed_articles`; `publications_callout.total_count` now equals
+  `publications_literature.total_count`.
+- Added `POST /api/v1/lookup/publications` with bounded pagination
+  (`limit <= 50`).
+- Extended fresh resolved-variant cache records with PubMed summary and EP-VLEx
+  first-page data so PubMed/LitVar2 publication discovery is replayed from
+  cache on cache hits.
+- Fixed LitVar2 live publication URL construction by percent-encoding variant
+  IDs containing reserved characters such as `@` and `#`.
+- Adjusted deterministic fixture publication count for RPE65 `c.260A>G` to the
+  deduped variant-specific PMID set (3 rows).
+
+Coordination:
+- Codex did not edit `app/frontend/src/lib/backend.ts` or any frontend render
+  files. The backend contract canary explicitly allows the new EP-VLEx fields
+  as pending frontend mirror fields until Claude mirrors/renders them.
+- Cross-agent request filed for Claude to add the TypeScript mirror and render
+  the Publication/Literature section.
+- User clarification 2026-05-19: EP-VLEx is the general variant-publication
+  inventory/count with an initial five-row display and expansion for more.
+  The functional card is a separate future extractor/count for studies that did
+  functional work on the variant, using ClinGen/ClinVar/PubMed functional
+  screening tags/signals. Do not use `PublicationLiterature.total_count` as the
+  functional-study count.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_publication_literature.py tests/test_variant_search_integration.py tests/test_variant_cache.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q`
+  -> passed (160 collected; 4 skipped by collection inventory).
+- Live publications-only smoke for user-supplied
+  `USH2A c.2276G>T, p.Cys759Phe`:
+  `POST /api/v1/lookup/publications` -> HTTP 200, `total_count=13`,
+  `shown_count=5`, `variant_terms` include `rs752238803`, source breakdown
+  `pubmed=10`, `litvar2=3`, `clinvar=0`, no warnings.
+
+Out of scope: frontend TypeScript mirror/rendering, PubTator/PMC full-text
+snippet expansion, the separate functional-card functional-study count,
+automatic ACMG PS3/BS3 assignment, Patient Report Pipeline (`/runs`),
+AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task RP-005 - Functional evidence study count backend.**
+
+Status: DONE 2026-05-19 20:59 +1000 - Codex. Implemented the backend-only
+functional-card study counting slice for the Variant Evidence Report.
+
+Files added:
+- `app/backend/app/services/functional_evidence.py`
+- `app/backend/tests/test_functional_evidence.py`
+
+Files updated:
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/services/sequence_context.py`
+- `app/backend/app/core/config.py`
+- `app/backend/.env.example`
+- `app/backend/tests/test_frontend_contract.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_variant_cache.py`
+- `app/backend/tests/test_lookup_normalize.py`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added additive `ReportPayload.functional_evidence` with
+  `FunctionalEvidenceSummary`, `FunctionalStudy`, and source-breakdown models.
+- Added a `FunctionalEvidenceExtractor` that counts functional-study rows from
+  ClinGen Evidence Repository classification summaries, ClinVar VCV XML
+  comments, and PubMed title/abstract hits.
+- Kept this count separate from EP-VLEx publication inventory. It counts
+  source-supported functional studies only and does not use
+  `PublicationLiterature.total_count`.
+- Preserved ClinGen source-native citation-only evidence when no PMID exists,
+  e.g. RPE65 `NM_000329.3:c.11+5G>A` `PS3_Supporting` from
+  `Guan et al., 2024`.
+- Counted and deduped PMID-backed functional evidence across ClinGen and
+  ClinVar, e.g. RPE65 `c.1301C>T (p.Ala434Val)` `BS3_Supporting` PMIDs
+  `16150724` and `19431183`.
+- Added a conservative two-tier functional term policy:
+  source-native/high-confidence terms include functional study/evidence/assay,
+  assay, minigene, splicing assay, transcript/RNA analysis, RT-PCR,
+  cDNA analysis, enzyme/enzymatic/protein activity, retinoid isomerase,
+  rescue/complementation, cell/animal model, in vitro/in vivo, reporter/
+  luciferase assay, electrophysiology/patch clamp/channel/transport activity;
+  softer terms such as expression, mRNA, protein function, localization,
+  trafficking, stability, folding, Western/immunoblot, immunofluorescence, and
+  binding require variant/citation context.
+- Tightened PMID parsing so ClinVar variation IDs are not counted as PMIDs.
+- Added `CLINGEN_EREPO_BASE_URL` and URL construction that preserves `>` in
+  ClinGen ERepo queries.
+- Extended query normalization for transcript-with-gene annotation plus
+  trailing protein text, e.g.
+  `NM_000329.3(RPE65):c.1301C>T (p.Ala434Val)`.
+- Cached `functional_evidence` on fresh resolved live lookup records.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/test_functional_evidence.py tests/test_variant_search_integration.py tests/test_variant_cache.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q`
+  -> passed (172 collected; 4 skipped).
+- Live route smoke with `USE_REAL_APIS=true`:
+  - `POST /api/v1/lookup?refresh=true` for
+    `RPE65 NM_000329.3(RPE65):c.11+5G>A` -> HTTP 200,
+    `functional_evidence.total_count=1`, `evidence_codes=["PS3"]`, study
+    `Guan et al., 2024` with no PMID.
+  - `POST /api/v1/lookup?refresh=true` for
+    `RPE65 NM_000329.3(RPE65):c.1301C>T (p.Ala434Val)` -> HTTP 200,
+    `functional_evidence.total_count=2`, `evidence_codes=["BS3"]`, PMIDs
+    `16150724` and `19431183` with ClinGen+ClinVar source tags.
+
+Out of scope: frontend TypeScript mirror/rendering, final ACMG PS3/BS3
+assignment, PubTator/PMC full-text functional classification, AlphaMissense,
+Patient Report Pipeline (`/runs`), commits, pushes, stashes, resets, and
+cleans.

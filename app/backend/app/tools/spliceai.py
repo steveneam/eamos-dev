@@ -24,7 +24,9 @@ class SpliceAiTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            return ToolResult(source=self.source, status="fixture", source_url=self._TOOL_URL, **fixture)
+            return ToolResult(
+                source=self.source, status="fixture", source_url=self._TOOL_URL, **fixture
+            )
         try:
             return self._fetch_live(variant)
         except Exception as exc:

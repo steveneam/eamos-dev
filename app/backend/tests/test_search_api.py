@@ -8,7 +8,6 @@ import httpx
 import pytest
 from reportlab.pdfgen import canvas
 
-
 BASE_URL = os.getenv("HSIL_DOCKER_BASE_URL")
 pytestmark = pytest.mark.skipif(
     not BASE_URL,

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
-from app.schemas.search import SearchDocType, SearchHit, SearchMatchType, SearchRequestFilters, SearchResponse
-
+from app.schemas.search import (
+    SearchDocType,
+    SearchHit,
+    SearchMatchType,
+    SearchRequestFilters,
+    SearchResponse,
+)
 
 QueryMode = Literal["id", "variant", "text", "mixed"]
 
@@ -154,7 +159,12 @@ class SearchService:
         lowered = query.lower()
         if lowered.startswith("p.") or ":c." in lowered or lowered.startswith("nm_"):
             return "variant"
-        if query.isascii() and query.upper() == query and 1 <= len(query) <= 10 and " " not in query:
+        if (
+            query.isascii()
+            and query.upper() == query
+            and 1 <= len(query) <= 10
+            and " " not in query
+        ):
             return "mixed"
         return "text"
 
@@ -165,7 +175,12 @@ class SearchService:
 
     def _coerce_gene_symbol(self, query: str) -> str:
         compact = query.strip()
-        if compact.isascii() and compact.upper() == compact and " " not in compact and len(compact) <= 16:
+        if (
+            compact.isascii()
+            and compact.upper() == compact
+            and " " not in compact
+            and len(compact) <= 16
+        ):
             return compact
         return ""
 

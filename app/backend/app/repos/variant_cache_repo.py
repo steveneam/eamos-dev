@@ -21,7 +21,9 @@ class VariantCacheRepo:
     def get_fresh(self, query_string: str, ttl_days: int) -> dict[str, Any] | None:
         cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
         with session_scope(self.session_factory) as session:
-            session.execute(delete(VariantCacheRecord).where(VariantCacheRecord.created_at < cutoff))
+            session.execute(
+                delete(VariantCacheRecord).where(VariantCacheRecord.created_at < cutoff)
+            )
             record = session.execute(
                 select(VariantCacheRecord).where(VariantCacheRecord.query_string == query_string)
             ).scalar_one_or_none()

@@ -19,20 +19,20 @@ class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=8, max_length=255)
 
-    @field_validator('username')
+    @field_validator("username")
     @classmethod
     def normalize_username(cls, value: str) -> str:
         value = value.strip()
         if len(value) < 3:
-            raise ValueError('Username must be at least 3 characters long.')
+            raise ValueError("Username must be at least 3 characters long.")
         return value
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def normalize_password(cls, value: str) -> str:
         value = value.strip()
         if len(value) < 8:
-            raise ValueError('Password must be at least 8 characters long.')
+            raise ValueError("Password must be at least 8 characters long.")
         return value
 
 
@@ -40,26 +40,26 @@ class LoginRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=8, max_length=255)
 
-    @field_validator('username')
+    @field_validator("username")
     @classmethod
     def normalize_username(cls, value: str) -> str:
         value = value.strip()
         if len(value) < 3:
-            raise ValueError('Username must be at least 3 characters long.')
+            raise ValueError("Username must be at least 3 characters long.")
         return value
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def normalize_password(cls, value: str) -> str:
         value = value.strip()
         if len(value) < 8:
-            raise ValueError('Password must be at least 8 characters long.')
+            raise ValueError("Password must be at least 8 characters long.")
         return value
 
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = 'bearer'
+    token_type: str = "bearer"
     expires_at: datetime
     ttl_seconds: int
     user: AuthUser

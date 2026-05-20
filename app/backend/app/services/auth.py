@@ -23,11 +23,11 @@ class AuthService:
         if existing_user is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='Username already exists.',
+                detail="Username already exists.",
             )
 
         user = self.users_repo.create_user(
-            user_id=f'user_{uuid4().hex}',
+            user_id=f"user_{uuid4().hex}",
             username=payload.username,
             hashed_password=self.password_hasher.hash(payload.password),
         )
@@ -37,11 +37,11 @@ class AuthService:
     def login(self, payload: LoginRequest) -> TokenResponse:
         user = self.users_repo.get_by_username(payload.username)
         if user is None or not self._verify_password(payload.password, user.hashed_password):
-            raise self._auth_error('Invalid username or password.')
+            raise self._auth_error("Invalid username or password.")
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail='User account is inactive.',
+                detail="User account is inactive.",
             )
 
         user = self.users_repo.record_login(user.user_id)
@@ -49,31 +49,31 @@ class AuthService:
 
     def get_current_user(self, token: str) -> AuthUser:
         claims = self._decode_token(token)
-        user_id = claims.get('sub')
-        token_version = claims.get('ver')
+        user_id = claims.get("sub")
+        token_version = claims.get("ver")
         if not isinstance(user_id, str) or not isinstance(token_version, int):
-            raise self._auth_error('Invalid access token.')
+            raise self._auth_error("Invalid access token.")
 
         user = self.users_repo.get_by_user_id(user_id)
         if user is None or not user.is_active:
-            raise self._auth_error('Invalid access token.')
+            raise self._auth_error("Invalid access token.")
         if user.token_version != token_version:
-            raise self._auth_error('Access token has been revoked.')
+            raise self._auth_error("Access token has been revoked.")
 
         return self._to_auth_user(user)
 
     def logout(self, token: str) -> None:
         claims = self._decode_token(token)
-        user_id = claims.get('sub')
-        token_version = claims.get('ver')
+        user_id = claims.get("sub")
+        token_version = claims.get("ver")
         if not isinstance(user_id, str) or not isinstance(token_version, int):
-            raise self._auth_error('Invalid access token.')
+            raise self._auth_error("Invalid access token.")
 
         user = self.users_repo.get_by_user_id(user_id)
         if user is None:
-            raise self._auth_error('Invalid access token.')
+            raise self._auth_error("Invalid access token.")
         if user.token_version != token_version:
-            raise self._auth_error('Access token has been revoked.')
+            raise self._auth_error("Access token has been revoked.")
 
         self.users_repo.bump_token_version(user_id)
 
@@ -82,12 +82,12 @@ class AuthService:
         expires_at = issued_at + timedelta(days=self.settings.jwt_ttl_days)
         token = jwt.encode(
             {
-                'sub': user.user_id,
-                'username': user.username,
-                'ver': user.token_version,
-                'typ': 'access',
-                'iat': issued_at,
-                'exp': expires_at,
+                "sub": user.user_id,
+                "username": user.username,
+                "ver": user.token_version,
+                "typ": "access",
+                "iat": issued_at,
+                "exp": expires_at,
             },
             self.settings.jwt_secret,
             algorithm=self.settings.jwt_algorithm,
@@ -108,9 +108,9 @@ class AuthService:
                 algorithms=[self.settings.jwt_algorithm],
             )
         except InvalidTokenError as exc:
-            raise self._auth_error('Invalid or expired access token.') from exc
-        if not isinstance(payload, dict) or payload.get('typ') != 'access':
-            raise self._auth_error('Invalid access token.')
+            raise self._auth_error("Invalid or expired access token.") from exc
+        if not isinstance(payload, dict) or payload.get("typ") != "access":
+            raise self._auth_error("Invalid access token.")
         return payload
 
     def _verify_password(self, password: str, hashed_password: str) -> bool:
@@ -134,5 +134,5 @@ class AuthService:
         return HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
-            headers={'WWW-Authenticate': 'Bearer'},
+            headers={"WWW-Authenticate": "Bearer"},
         )

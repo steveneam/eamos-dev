@@ -24,15 +24,17 @@ from app.services.auth import AuthService
 from app.services.chat_service import ChatService
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
+from app.services.gene_viewer import GeneViewerService
 from app.services.intake import IntakeService
 from app.services.lookup_service import LookupService
 from app.services.recommendation import RecommendationService
 from app.services.report_draft import ReportDraftService
 from app.services.run_chat import RunChatService
+from app.services.sequence_context import EnsemblVariantSequenceResolver, SequenceContextService
+from app.services.workbench_design import WorkbenchDesignService
 from app.services.workflow import WorkflowService
 from app.tools.registry import build_tool_registry
 from app.tools.report_pdf import ReportPdfTool
-
 
 logger = get_logger(__name__)
 
@@ -46,7 +48,7 @@ def create_app(settings=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         initialize_database(db_session_factory)
-        logger.info('Eamos backend ready at %s:%s', settings.host, settings.port)
+        logger.info("Eamos backend ready at %s:%s", settings.host, settings.port)
         yield
 
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
@@ -54,8 +56,8 @@ def create_app(settings=None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*'],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     reports_repo = ReportsRepo(db_session_factory)
@@ -68,6 +70,10 @@ def create_app(settings=None) -> FastAPI:
     run_chat_chain = build_run_chat_chain(settings)
     embeddings_model = build_embeddings_model(settings)
     tool_registry = build_tool_registry(settings)
+    sequence_context_service = SequenceContextService(
+        settings=settings,
+        resolver=EnsemblVariantSequenceResolver(settings),
+    )
 
     app.state.settings = settings
     app.state.db_session_factory = db_session_factory
@@ -76,7 +82,9 @@ def create_app(settings=None) -> FastAPI:
     app.state.users_repo = users_repo
     app.state.variant_cache_repo = variant_cache_repo
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
-    app.state.intake_service = IntakeService(settings, reports_repo, report_pdf_tool, extraction_chain)
+    app.state.intake_service = IntakeService(
+        settings, reports_repo, report_pdf_tool, extraction_chain
+    )
     app.state.workflow_service = WorkflowService(
         reports_repo=reports_repo,
         run_repo=run_repo,
@@ -95,6 +103,12 @@ def create_app(settings=None) -> FastAPI:
     )
     app.state.chat_service = ChatService(settings=settings, llm_client=draft_chain)
     app.state.final_report_service = FinalReportService(settings, run_repo)
+    app.state.sequence_context_service = sequence_context_service
+    app.state.gene_viewer_service = GeneViewerService(settings=settings)
+    app.state.workbench_design_service = WorkbenchDesignService(
+        settings=settings,
+        sequence_context_service=sequence_context_service,
+    )
     app.state.lookup_service = LookupService(
         tool_registry=tool_registry,
         rule_engine=ClinicRules(),

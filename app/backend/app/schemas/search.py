@@ -5,7 +5,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 SearchDocType = Literal["report", "run"]
 SearchMatchType = Literal[
     "exact_run_id",

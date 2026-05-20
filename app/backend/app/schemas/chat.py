@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 
 from app.schemas.run import ReportPayload
 
-
 WorkbenchTool = Literal["viewer", "primer", "crispr", "align", "compare"]
 
 

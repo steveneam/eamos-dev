@@ -43,6 +43,40 @@ class VariantSummaryRow(BaseModel):
     consequence: str | None = None
 
 
+PublicationTextSection = Literal[
+    "title",
+    "abstract",
+    "body",
+    "table",
+    "supplement",
+    "unknown",
+]
+PublicationSnippetSource = Literal[
+    "pubmed_efetch",
+    "pubtator",
+    "pmc_bioc",
+    "litvar2",
+]
+PublicationSnippetConfidence = Literal[
+    "exact_variant",
+    "variant_alias",
+    "rsid",
+    "gene_variant_context",
+    "reported_no_text",
+]
+PublicationSourceTag = Literal["litvar2", "pubmed", "clinvar", "clingen"]
+FunctionalEvidenceSourceTag = Literal["clingen", "clinvar", "pubmed"]
+FunctionalEvidenceCode = Literal["PS3", "BS3"]
+
+
+class PublicationSnippet(BaseModel):
+    section: PublicationTextSection
+    text: str
+    matched_terms: list[str] = Field(default_factory=list)
+    source: PublicationSnippetSource
+    confidence: PublicationSnippetConfidence
+
+
 class PubMedArticle(BaseModel):
     pmid: str
     title: str
@@ -51,6 +85,57 @@ class PubMedArticle(BaseModel):
     year: str
     url: str
     abstract: str | None = None
+    pmcid: str | None = None
+    doi: str | None = None
+    publication_date: str | None = None
+    snippets: list[PublicationSnippet] = Field(default_factory=list)
+    source_tags: list[PublicationSourceTag] = Field(default_factory=list)
+    snippet_status: str | None = None
+
+
+class PublicationSourceBreakdown(BaseModel):
+    litvar2: int = 0
+    pubmed: int = 0
+    clinvar: int = 0
+    clingen: int = 0
+
+
+class PublicationLiterature(BaseModel):
+    total_count: int
+    shown_count: int
+    offset: int = 0
+    limit: int = 5
+    sort: Literal["publication_date_desc"] = "publication_date_desc"
+    variant_terms: list[str] = Field(default_factory=list)
+    source_breakdown: PublicationSourceBreakdown = Field(default_factory=PublicationSourceBreakdown)
+    articles: list[PubMedArticle] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class FunctionalEvidenceSourceBreakdown(BaseModel):
+    clingen: int = 0
+    clinvar: int = 0
+    pubmed: int = 0
+
+
+class FunctionalStudy(BaseModel):
+    id: str
+    pmid: str | None = None
+    url: str | None = None
+    citation: str | None = None
+    source_tags: list[FunctionalEvidenceSourceTag] = Field(default_factory=list)
+    evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
+    snippet: str | None = None
+
+
+class FunctionalEvidenceSummary(BaseModel):
+    total_count: int
+    source_breakdown: FunctionalEvidenceSourceBreakdown = Field(
+        default_factory=FunctionalEvidenceSourceBreakdown
+    )
+    evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
+    studies: list[FunctionalStudy] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 ClassificationTier = Literal["pathogenic", "likely_pathogenic", "vus", "likely_benign", "benign"]
@@ -104,12 +189,33 @@ class InSilicoPredictions(BaseModel):
 class AcmgCriterion(BaseModel):
     code: Literal[
         "PVS1",
-        "PS1", "PS2", "PS3", "PS4",
-        "PM1", "PM2", "PM3", "PM4", "PM5", "PM6",
-        "PP1", "PP2", "PP3", "PP4", "PP5",
+        "PS1",
+        "PS2",
+        "PS3",
+        "PS4",
+        "PM1",
+        "PM2",
+        "PM3",
+        "PM4",
+        "PM5",
+        "PM6",
+        "PP1",
+        "PP2",
+        "PP3",
+        "PP4",
+        "PP5",
         "BA1",
-        "BS1", "BS2", "BS3", "BS4",
-        "BP1", "BP2", "BP3", "BP4", "BP5", "BP6", "BP7",
+        "BS1",
+        "BS2",
+        "BS3",
+        "BS4",
+        "BP1",
+        "BP2",
+        "BP3",
+        "BP4",
+        "BP5",
+        "BP6",
+        "BP7",
     ]
     verdict: AcmgVerdict
     note: str | None = None
@@ -175,6 +281,8 @@ class ReportPayload(BaseModel):
     curated_variants_distribution: CuratedVariantsDistribution | None = None
     associated_conditions: list[AssociatedCondition] = Field(default_factory=list)
     publications_callout: PublicationsCallout | None = None
+    publications_literature: PublicationLiterature | None = None
+    functional_evidence: FunctionalEvidenceSummary | None = None
 
 
 class RunResponse(BaseModel):

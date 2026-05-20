@@ -7,8 +7,14 @@ def _decode_cdna(gene: str, cdna: str) -> str | None:
     # Splice site: c.2405+1G>A or c.2405-3C>T
     m = re.match(r"c\.(\d+)([+-])(\d+)([A-Z])>([A-Z])", cdna)
     if m:
-        pos, direction, offset, ref, alt = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
-        side = f"into the intron after" if direction == "+" else "before the start of"
+        pos, direction, offset, ref, alt = (
+            m.group(1),
+            m.group(2),
+            m.group(3),
+            m.group(4),
+            m.group(5),
+        )
+        side = "into the intron after" if direction == "+" else "before the start of"
         n = int(offset)
         return (
             f"In the {gene} gene, a DNA letter changed at a splice site — the signal that tells "
@@ -68,8 +74,8 @@ def _decode_cdna(gene: str, cdna: str) -> str | None:
         count = len(inserted)
         if count % 3 != 0:
             frame_note = (
-                f"This insertion is not a multiple of three, so it shifts the reading frame — "
-                f"the protein is built incorrectly from that point onward."
+                "This insertion is not a multiple of three, so it shifts the reading frame — "
+                "the protein is built incorrectly from that point onward."
             )
         else:
             frame_note = (

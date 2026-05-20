@@ -573,3 +573,323 @@ different database stack depending on species.
 right and validated by clinicians first. The animal extension is then
 just a database stack swap — same architecture, same concept.
 
+## 2026-05-18 14:38 +1000 - Codex - Gene viewer GV-001/GV-002 backend core
+
+Implemented the approved backend-only gene viewer foundation:
+
+- Added `app/backend/app/schemas/gene_viewer.py` with typed viewer request and
+  response models for identity, locus, summary, window, segments, queried
+  variant, reference/display sequences, tracks, and provenance.
+- Added `app/backend/app/fixtures/workbench/viewer_rpe65.json`, transcribing
+  the current RPE65 viewer sample into the new snake_case backend fixture
+  shape with reference/control allele mode.
+- Added `app/backend/app/services/gene_viewer.py` with a validating fixture
+  provider, service shell, pure transcript/window dataclasses, transcript-order
+  window builder, SNV overlay, and reference-mismatch fail-closed errors.
+- Added `app/backend/tests/test_gene_viewer.py` covering fixture validation,
+  reference mode, variant mode, reverse-strand transcript-order rendering, and
+  reference mismatch handling.
+
+No frontend files, primer/CRISPR/alignment contracts, commits, pushes, stashes,
+resets, or cleans were touched.
+
+Verification:
+
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_sequence_context.py -q`
+  -> 12 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/test_workbench_api.py -q`
+  -> 20 passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  -> 40 passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 125 passed / 4 skipped.
+
+## 2026-05-18 14:56 +1000 - Codex - Gene viewer GV-003/GV-004 provider + API
+
+Implemented the next backend-only gene viewer slices:
+
+- Added `SourceBackedGeneViewerProvider` and a `GeneViewerSourceClient`
+  protocol for source-backed transcript records, exon/intron sequence fetches,
+  protein features, and provenance.
+- Added a default HTTP source-client skeleton for VariantValidator plus Ensembl
+  sequence windows. Full live transcript-structure hydration is intentionally
+  still behind the source-client seam until GV-008 live-smoke hardening.
+- Added mocked official-source tests for reverse-strand RPE65 `c.260A>G`,
+  covering variant coordinates, intron flanks, protein feature hydration,
+  provenance, and variant-applied display sequence.
+- Added `POST /api/v1/viewer` in `app/backend/app/api/routes/gene_viewer.py`
+  and wired `app.state.gene_viewer_service`.
+- Fixture mode now validates the canonical RPE65 request and supports
+  `allele_mode="variant"` by applying c.260A>G at display offset 103.
+
+Verification:
+
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_workbench_api.py -q`
+  -> 35 passed.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_sequence_context.py -q`
+  -> 22 passed.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_sequence_context.py tests/test_workbench_api.py tests/test_frontend_contract.py -q`
+  -> 83 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 136 passed / 4 skipped.
+
+No frontend files, commits, pushes, stashes, resets, or cleans.
+
+## 2026-05-18 15:18 +1000 - Codex - Gene viewer GV-008 live smoke + protein-view direction
+
+Implemented and verified the GV-008 live RPE65 hardening slice:
+
+- `HttpGeneViewerSourceClient` now hydrates Ensembl symbol/transcript data into
+  coding exon/CDS intervals, introns, aliases, UTR/CDS/protein summary lengths,
+  and translation id.
+- Live Ensembl sequence fetches are limited to the requested viewer window
+  instead of pulling every coding exon/intron flank.
+- VariantValidator enrichment now carries `p.Asp87Gly`, codon 87, one-letter
+  amino-acid ref/alt, and GRCh38 projection for RPE65 `c.260A>G`.
+- Ensembl translation overlap now populates protein-domain tracks; the RPE65
+  live smoke returned carotenoid oxygenase Pfam/PANTHER ranges.
+- Updated gene-viewer docs to record the user decision: keep frontend genomic
+  and sequence views, replace the removed exon-only third view with a protein
+  view, and use a domain-aware lollipop track for ClinVar variants. ClinVar
+  lollipop size must not imply patient frequency unless backed by a real count
+  source.
+
+Live smoke:
+
+- `POST /api/v1/viewer` with `USE_REAL_APIS=true` semantics returned HTTP 200
+  for RPE65 `NM_000329.3:c.260A>G` in reference and variant modes.
+- Confirmed reverse strand, 14 total exons, rendered window `c.140-c.380`,
+  segment `exon-4:246-353`, reference base `A`, variant-applied base `G`, and
+  source protein domains.
+- Current intentional warning: ClinVar gene-wide/lollipop hydration is not live
+  yet (`clinvar_track_not_live_hydrated`).
+
+Verification:
+
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py -q`
+  -> 18 passed.
+- Live `POST /api/v1/viewer` route smoke with `USE_REAL_APIS=true` semantics
+  -> HTTP 200 in reference and variant modes.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_workbench_api.py tests/test_frontend_contract.py -q`
+  -> 78 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 138 passed / 4 skipped.
+
+No frontend files, commits, pushes, stashes, resets, or cleans.
+
+## 2026-05-18 17:35 +1000 - Codex - Report backend hardening audit slice
+
+Implemented a backend-only report/lookup hardening slice after auditing the
+landing/report routes:
+
+- Confirmed `/report` is live through `POST /api/v1/lookup` for structured
+  `gene` + `cdna` queries, with `demo=1` and no-query cases using the bundled
+  RPE65 sample.
+- Confirmed `/api/v1/reports/upload` is live and authenticated, but the legacy
+  `/runs` frontend API client still does not send bearer tokens; leave that
+  frontend wiring for a coordinated UI/auth pass.
+- Hardened report intake so uploads reject non-PDF media types, empty files,
+  and spoofed `.pdf` payloads before storing/extracting.
+- Hardened live extraction failure handling: a failing extraction chain now
+  returns a structured blocked report with an extraction issue/warning instead
+  of surfacing a 500.
+- Hardened lookup request validation so blank report-page query fields return
+  `422` at the schema boundary.
+
+Verification:
+
+- `cd app/backend && python -m pytest tests/test_report_api.py tests/test_variant_search_integration.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> 55 passed.
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q`
+  -> 143 passed / 4 skipped.
+
+No frontend files, commits, pushes, stashes, resets, or cleans.
+
+## 2026-05-19 14:22 +1000 - Codex - Variant Evidence Report AlphaMissense hold fixture alignment
+
+Implemented the backend side of the AlphaMissense hold decision for the
+Variant Evidence Report:
+
+- Removed the `AlphaMissense` predictor card from
+  `app/backend/app/fixtures/lookup_v2_modules.json`
+  `in_silico_predictions.cards`.
+- Updated the same fixture's `consensus_note` so the live `/report` payload no
+  longer names AlphaMissense or enumerates `(REVEL, AlphaMissense, MetaLR)`.
+- Left the backend and frontend contract literals untouched, and did not edit
+  the patient report pipeline (`/runs`) or any frontend files.
+
+Verification:
+
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m json.tool app/backend/app/fixtures/lookup_v2_modules.json`
+  -> passed.
+- `rg -n "AlphaMissense|REVEL, AlphaMissense|three protein-effect" app/backend/app/fixtures/lookup_v2_modules.json app/backend/app/schemas/run.py app/frontend/src/lib/backend.ts app/frontend/src/lib/sample-report.ts app/frontend/src/components/report`
+  -> no backend fixture hits; remaining hits are intentional contract/sample/frontend hold references.
+- `cd app/backend && python -m pytest tests/ --disable-warnings`
+  -> 143 passed / 4 skipped.
+
+No frontend files, commits, pushes, stashes, resets, cleans, or patient report
+pipeline (`/runs`) work.
+
+## 2026-05-19 19:30 +1000 - Codex - Variant literature extraction design/spec/plan
+
+Completed a planning-only Variant Evidence Report exploration for the
+Publication/Literature section. Named the proposed backend algorithm **Eamos
+Proprietary Variant Literature Extractor (EP-VLEx)**.
+
+Artifacts written:
+- `plans/variant-literature-extraction/design.md`
+- `plans/variant-literature-extraction/spec.md`
+- `plans/variant-literature-extraction/plan.md`
+
+Scope covered:
+- Deduplicated variant-specific PMID aggregation across LitVar2, PubMed,
+  ClinVar, and future local ClinGen evidence.
+- Five most recent publications in the initial report payload.
+- Paginated expansion route for the full publication set.
+- PubMed source-of-truth links for every paper.
+- LitVar2-style snippets from PubMed/PubTator/PMC text with labelled
+  table/supplement no-text states when needed.
+
+Validation:
+- Read local functional-literature reference docs and the supplied LitVar2
+  screenshot.
+- Checked official NCBI E-utilities, PubTator, LitVar2, and PMC developer API
+  sources.
+- Live planning probe: LitVar2 resolves `RPE65 p.R118K` / `rs1381010953` to
+  3 PMIDs, and PubTator returns variant annotations for PMID `36142423`.
+- `git diff --check -- plans\variant-literature-extraction` -> pass.
+
+No implementation, frontend edits, commits, pushes, stashes, resets, cleans,
+AlphaMissense work, or patient report pipeline (`/runs`) work.
+
+## 2026-05-19 19:56 +1000 - Codex - EP-VLEx backend implementation
+
+Implemented the backend Variant Evidence Report Publication/Literature slice
+from `plans/variant-literature-extraction/plan.md`.
+
+Completed:
+- Added additive EP-VLEx schemas on the backend:
+  `PublicationSnippet`, `PublicationSourceBreakdown`,
+  `PublicationLiterature`, enriched optional `PubMedArticle` fields, and
+  optional `ReportPayload.publications_literature`.
+- Added `app/backend/app/services/publication_literature.py` with
+  **Eamos Proprietary Variant Literature Extractor (EP-VLEx)** term building,
+  PMID dedupe, recent-first sorting, source breakdown, PubMed URL invariants,
+  title/abstract snippet extraction, and no-text statuses for PMID-only rows.
+- Wired `POST /api/v1/lookup` to return at most five EP-VLEx rows and mirror
+  them into `pubmed_articles`; `publications_callout.total_count` now equals
+  the EP-VLEx deduped count.
+- Added `POST /api/v1/lookup/publications` with bounded pagination
+  (`limit <= 50`).
+- Extended resolved-variant cache records with PubMed summary and EP-VLEx
+  first-page data so PubMed/LitVar2 publication discovery replays from cache
+  on fresh cache hits.
+- Fixed LitVar2 live publication fetches for variant IDs containing reserved
+  path characters (`@`, `#`) by percent-encoding the ID path segment.
+- Updated the RPE65 `c.260A>G` deterministic publication fixture count to 3
+  deduped variant-specific PMIDs.
+
+Coordination:
+- Did not edit `app/frontend/src/lib/backend.ts` or any frontend render files.
+- Updated the backend contract canary with explicitly pending EP-VLEx frontend
+  mirror fields and filed a cross-agent request for Claude to mirror/render the
+  new contract.
+- Recorded user clarification: EP-VLEx is the general publication inventory
+  (show five initially, expand for more/all identified variant publications).
+  The functional card is a separate future extractor/count for studies that did
+  functional work on the variant using functional screening tags/signals; do
+  not reuse `PublicationLiterature.total_count` as the functional-study count.
+- Did not touch AlphaMissense behavior or the Patient Report Pipeline
+  (`/runs`).
+
+Verification:
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_publication_literature.py tests/test_variant_search_integration.py tests/test_variant_cache.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q`
+  -> passed (160 collected; 4 skipped by collection inventory).
+- Live publications-only smoke for user-supplied
+  `USH2A c.2276G>T, p.Cys759Phe`: `/api/v1/lookup/publications` returned HTTP
+  200, `total_count=13`, `shown_count=5`, source breakdown `pubmed=10` and
+  `litvar2=3`, `variant_terms` include `rs752238803`, and warnings were empty.
+
+No frontend edits, commits, pushes, stashes, resets, cleans, AlphaMissense
+work, or patient report pipeline (`/runs`) work.
+
+## 2026-05-19 20:59 +1000 - Codex - Functional evidence backend count
+
+Implemented the backend-only functional-study counting slice for the Variant
+Evidence Report. This is separate from EP-VLEx publication inventory: it counts
+functional-study evidence rows from ClinGen/ClinVar/PubMed signals and does
+not reuse `PublicationLiterature.total_count`.
+
+Completed:
+- Added additive backend schemas:
+  `FunctionalEvidenceSourceBreakdown`, `FunctionalStudy`,
+  `FunctionalEvidenceSummary`, and optional
+  `ReportPayload.functional_evidence`.
+- Added `app/backend/app/services/functional_evidence.py` to harvest
+  functional-study rows from ClinGen Evidence Repository classifications,
+  ClinVar VCV XML comments, and PubMed title/abstract hits.
+- Preserved source-native ClinGen functional evidence when no PMID is present,
+  e.g. `Guan et al., 2024` for RPE65 `NM_000329.3:c.11+5G>A`
+  `PS3_Supporting`.
+- Dedupe uses PMID when present and citation text otherwise; PubMed links are
+  emitted only for PMID-backed rows.
+- Tightened PMID parsing so ClinVar variation IDs are not misread as PMIDs.
+- Added `CLINGEN_EREPO_BASE_URL` and fixed ClinGen ERepo query encoding so
+  `>` is not decoded by the query parser.
+- Extended lookup normalization for
+  `NM_000329.3(RPE65):c.1301C>T (p.Ala434Val)` style input by stripping the
+  transcript gene annotation and trailing protein parenthetical.
+- Cached `functional_evidence` alongside EP-VLEx publication data on resolved
+  live lookup cache records.
+
+Functional signal policy:
+- Strong/source-native terms include functional study/evidence/assay, assay,
+  minigene/mini-gene, splicing assay, transcript/RNA analysis, RT-PCR, cDNA
+  analysis, enzyme/enzymatic activity, retinoid isomerase, protein activity,
+  rescue, complementation, knock-in/knockout, zebrafish, mouse/animal/cell
+  model, in vitro/in vivo, reporter/luciferase assay, electrophysiology,
+  patch clamp, channel activity, and transport activity.
+- Softer terms such as expression, mRNA, protein function, localization,
+  trafficking, stability, folding, Western blot/immunoblot,
+  immunofluorescence, and binding are only counted in variant/citation context.
+
+Verification:
+- `cd app/backend && python -m ruff check app tests` -> pass.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> pass.
+- `cd app/backend && python -m pytest tests/test_functional_evidence.py tests/test_variant_search_integration.py tests/test_variant_cache.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q` -> passed
+  (172 collected; 4 skipped by collection inventory).
+- Live route smoke (`USE_REAL_APIS=true`, `POST /api/v1/lookup?refresh=true`):
+  - RPE65 `NM_000329.3(RPE65):c.11+5G>A` -> HTTP 200,
+    `functional_evidence.total_count=1`, `evidence_codes=["PS3"]`,
+    one ClinGen citation-only study `Guan et al., 2024`.
+  - RPE65 `NM_000329.3(RPE65):c.1301C>T (p.Ala434Val)` -> HTTP 200,
+    `functional_evidence.total_count=2`, `evidence_codes=["BS3"]`,
+    PMIDs `16150724` and `19431183`, source tags `clingen + clinvar`.
+
+Coordination:
+- Did not edit frontend files. `app/frontend/src/lib/backend.ts` still needs a
+  Claude mirror for `functional_evidence` plus the existing EP-VLEx fields.
+- No automatic ACMG PS3/BS3 assignment was added; this is evidence counting
+  only.
+- No commits, pushes, stashes, resets, cleans, AlphaMissense work, or Patient
+  Report Pipeline (`/runs`) work.

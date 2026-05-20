@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 import httpx
 
@@ -84,8 +84,9 @@ class LitVar2Tool(FixtureBackedTool):
                     raw=matches,
                     source_url=self.settings.litvar2_base_url,
                 )
+            litvar_id_path = quote(str(litvar_id), safe="")
             publications = client.get(
-                f"{self.settings.litvar2_base_url}/variant/get/{litvar_id}/publications"
+                f"{self.settings.litvar2_base_url}/variant/get/{litvar_id_path}/publications"
             )
             publications.raise_for_status()
             payload = publications.json()
@@ -120,5 +121,8 @@ class LitVar2Tool(FixtureBackedTool):
             request_identity={"query": query, "litvar_id": litvar_id},
             summary=summary,
             raw=payload,
-            source_url=f"{self.settings.litvar2_base_url}/variant/get/{litvar_id}/publications",
+            source_url=(
+                f"{self.settings.litvar2_base_url}/variant/get/"
+                f"{quote(str(litvar_id), safe='')}/publications"
+            ),
         )

@@ -4,7 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 PrimerMode = Literal["sanger", "qpcr", "arms"]
 
 

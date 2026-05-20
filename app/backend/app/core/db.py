@@ -3,7 +3,19 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, JSON, DateTime, ForeignKey, Index, Integer, String, Text, create_engine, func, text
+from sqlalchemy import (
+    Boolean,
+    JSON,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    func,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 
@@ -12,7 +24,7 @@ class Base(DeclarativeBase):
 
 
 class UserRecord(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
@@ -142,7 +154,9 @@ def _build_search_documents_fts_expression(search_documents_table):
     )
     expression = expression.op("||")(
         func.setweight(
-            func.to_tsvector(english_cfg, func.coalesce(search_documents_table.c.evidence_text, "")),
+            func.to_tsvector(
+                english_cfg, func.coalesce(search_documents_table.c.evidence_text, "")
+            ),
             weight_c,
         )
     )

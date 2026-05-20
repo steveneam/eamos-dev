@@ -29,7 +29,9 @@ class SearchIndexService:
         self.search_repo.upsert_document(document)
 
     def refresh_run(self, run_id: str) -> None:
-        run = self._run_loader(run_id) if self._run_loader is not None else self.run_repo.get(run_id)
+        run = (
+            self._run_loader(run_id) if self._run_loader is not None else self.run_repo.get(run_id)
+        )
         if run is None:
             return
         self.index_run(run)
@@ -50,15 +52,15 @@ class SearchIndexService:
             report.extracted_case.report_title,
         ]
         for variant in report.extracted_case.variants:
-            identifier_parts.extend(
-                [variant.gene, variant.transcript_hgvs, variant.protein_change]
-            )
+            identifier_parts.extend([variant.gene, variant.transcript_hgvs, variant.protein_change])
 
-        summary_text = self._join_text([
-            report.extracted_case.patient_context,
-            report.extracted_case.clinical_findings,
-            report.extracted_case.summary,
-        ])
+        summary_text = self._join_text(
+            [
+                report.extracted_case.patient_context,
+                report.extracted_case.clinical_findings,
+                report.extracted_case.summary,
+            ]
+        )
         raw_extracted_text = (report.raw_extracted_text or "").strip()
 
         return SearchDocumentWrite(
@@ -91,8 +93,16 @@ class SearchIndexService:
         reports: list[UploadedReport],
     ) -> SearchDocumentWrite:
         variants = self._collect_variants(reports)
-        titles = [report.extracted_case.report_title for report in reports if report.extracted_case.report_title]
-        case_labels = [report.extracted_case.case_label for report in reports if report.extracted_case.case_label]
+        titles = [
+            report.extracted_case.report_title
+            for report in reports
+            if report.extracted_case.report_title
+        ]
+        case_labels = [
+            report.extracted_case.case_label
+            for report in reports
+            if report.extracted_case.case_label
+        ]
         raw_extracted_text = "\n\n".join(
             report.raw_extracted_text.strip()
             for report in reports
@@ -119,9 +129,7 @@ class SearchIndexService:
                             item.source,
                             item.status,
                             *item.warnings,
-                            *(
-                                item.summary.values() if getattr(item, "summary", None) else []
-                            ),
+                            *(item.summary.values() if getattr(item, "summary", None) else []),
                         ]
                     )
                     for item in run.evidence

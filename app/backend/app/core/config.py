@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     max_upload_mb: int = 20
     database_url: str = "sqlite+pysqlite:///./data/app.db"
     jwt_secret: str
-    jwt_algorithm: str = 'HS256'
+    jwt_algorithm: str = "HS256"
     jwt_ttl_days: int = 7
 
     llm_provider: str = "mock"
@@ -37,11 +37,19 @@ class Settings(BaseSettings):
     openai_embeddings_model: str = "text-embedding-3-small"
     run_chat_top_k: int = 4
     use_real_apis: bool = False
+    crispr_provider: str = "local_deterministic"
+    primer_specificity_provider: str = "template"
+    ucsc_ispcr_binary_path: Path = Path("./bio_assets/bin/isPcr")
+    ucsc_ispcr_hg38_path: Path = Path("./bio_assets/genomes/hg38.2bit")
+    ucsc_ispcr_timeout_seconds: float = 30.0
+    ucsc_ispcr_min_perfect: int = 15
+    ucsc_ispcr_min_good: int = 15
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
     variant_validator_base_url: str = "https://rest.variantvalidator.org"
     litvar2_base_url: str = "https://www.ncbi.nlm.nih.gov/research/litvar2-api"
+    clingen_erepo_base_url: str = "https://erepo.clinicalgenome.org/evrepo"
     cache_ttl_days: int = 30
 
     @property

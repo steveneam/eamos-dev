@@ -14,6 +14,14 @@ from app.schemas.report import (
     UploadedReport,
 )
 
+_PDF_MAGIC = b"%PDF-"
+_ALLOWED_PDF_CONTENT_TYPES = {
+    "",
+    "application/pdf",
+    "application/x-pdf",
+    "application/octet-stream",
+}
+
 
 class IntakeService:
     def __init__(
@@ -41,13 +49,29 @@ class IntakeService:
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail="Only PDF uploads are supported.",
             )
+        content_type = (upload.content_type or "").split(";", 1)[0].strip().lower()
+        if content_type not in _ALLOWED_PDF_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Only PDF uploads are supported.",
+            )
 
         content = await upload.read()
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file is empty.",
+            )
         size_limit = self.settings.max_upload_mb * 1024 * 1024
         if len(content) > size_limit:
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="Uploaded file exceeds configured size limit.",
+            )
+        if not content.startswith(_PDF_MAGIC):
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Uploaded file is not a valid PDF.",
             )
 
         report_id = f"report_{uuid4().hex[:12]}"
@@ -113,11 +137,34 @@ class IntakeService:
             )
             return extracted_case, ("degraded" if warnings else "completed"), warnings
 
-        extracted_payload = self.extraction_chain.invoke(
-            {
-                "filename": filename,
-                "report_text": report_text,
-            }
-        )
-        extracted_case = ExtractedCase.model_validate(extracted_payload)
+        try:
+            extracted_payload = self.extraction_chain.invoke(
+                {
+                    "filename": filename,
+                    "report_text": report_text,
+                }
+            )
+            extracted_case = ExtractedCase.model_validate(extracted_payload)
+        except Exception:
+            code = f"{report_kind}_extraction_failed"
+            issue_message = (
+                "Uploaded report extraction failed before structured fields could be produced."
+            )
+            warnings.append(code)
+            return (
+                ExtractedCase(
+                    case_label=f"{report_kind}-upload",
+                    report_title=filename,
+                    summary=issue_message,
+                    issues=[
+                        ExtractionIssue(
+                            code=code,
+                            message=issue_message,
+                            severity="error",
+                        )
+                    ],
+                ),
+                "blocked",
+                warnings,
+            )
         return extracted_case, ("degraded" if warnings else "completed"), warnings

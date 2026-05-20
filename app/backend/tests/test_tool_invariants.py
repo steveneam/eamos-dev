@@ -7,6 +7,7 @@ import pytest
 
 from app.core.config import Settings
 from app.tools.base import FixtureBackedTool
+from app.tools.litvar2 import LitVar2Tool
 from app.tools.pubmed import PubmedTool
 from app.tools.spliceai import SpliceAiTool
 from app.tools.variant_validator import _mutate_variant
@@ -84,6 +85,53 @@ def test_pubmed_no_hit_miss_uses_empty_raw(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.summary == {"articles": [], "total": 0}
     assert result.raw == {}
     assert result.raw is not None
+
+
+def test_litvar2_quotes_variant_id_path_segments(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class Response:
+        def __init__(self, payload) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self.payload
+
+    class Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def get(self, url, params=None):
+            calls.append(url)
+            if url.endswith("/variant/autocomplete/"):
+                return Response([{"litvar_id": "litvar@rs752238803##"}])
+            assert "litvar%40rs752238803%23%23" in url
+            return Response({"pmids": ["41234567"], "pmids_count": 1})
+
+    monkeypatch.setattr("app.tools.litvar2.httpx.Client", Client)
+    variant = SimpleNamespace(
+        gene="USH2A",
+        transcript_hgvs="c.2276G>T",
+        protein_change="p.Cys759Phe",
+        dbsnp_rsid="rs752238803",
+    )
+
+    result = LitVar2Tool(_settings(use_real_apis=True)).get_evidence(variant)
+
+    assert result.status == "live"
+    assert result.summary["total_publications"] == 1
+    assert result.summary["articles"][0]["pmid"] == "41234567"
+    assert "litvar%40rs752238803%23%23" in result.source_url
+    assert len(calls) == 2
 
 
 def test_load_fixture_missing_or_corrupt_degrades_to_empty_dict(tmp_path: Path) -> None:

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,14 +9,19 @@ from urllib.parse import quote_plus
 from uuid import uuid4
 
 from app.rules.base import DecisionInput
-from app.schemas.lookup import LookupRequest, LookupResponse
+from app.schemas.lookup import LookupRequest, LookupResponse, PublicationPageRequest
 from app.schemas.run import (
     EvidenceSourceSummary,
+    FunctionalEvidenceSummary,
+    PublicationLiterature,
     PublicationsCallout,
     PubMedArticle,
     ReportPayload,
     VariantSummaryRow,
 )
+from app.services.functional_evidence import FunctionalEvidenceExtractor
+from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
+from app.services.sequence_context import CANONICAL_TRANSCRIPTS, normalize_variant_query
 from app.services.variant_decoder import decode_variant
 from app.tools.base import ToolResult
 from app.tools.registry import STRICT_GENOMIC_PLUGINS
@@ -44,10 +48,6 @@ GENE_THERAPY_MAP: dict[str, str] = {
         "No approved gene therapy. Phase I/II trial active (4D-150, subretinal AAV delivery) for Stargardt disease. "
         "Check ClinicalTrials.gov for current recruitment status."
     ),
-}
-
-CANONICAL_TRANSCRIPTS: dict[str, str] = {
-    "RPE65": "NM_000329.3",
 }
 
 
@@ -135,40 +135,6 @@ def _extract_dbsnp_rsid(clinvar_raw: Any) -> str | None:
     return None
 
 
-def normalize_variant_query(
-    gene: str,
-    cdna: str,
-    transcript: str | None,
-) -> tuple[str, str, str | None, str]:
-    normalized_gene = gene.strip().upper()
-    hgvs = re.sub(r"\s+", "", cdna.strip())
-    normalized_transcript = transcript.strip() if transcript else None
-
-    if ":" in hgvs:
-        prefix, remainder = hgvs.split(":", 1)
-        prefix_upper = prefix.upper()
-        if prefix_upper == normalized_gene:
-            hgvs = remainder
-        elif prefix_upper.startswith(("NM_", "ENST")):
-            normalized_transcript = prefix
-            hgvs = remainder
-
-    if re.match(r"^c\.", hgvs):
-        kind = "cdna"
-    elif re.match(r"^rs\d+$", hgvs, flags=re.IGNORECASE):
-        kind = "rsid"
-    elif re.match(r"^p\.", hgvs):
-        kind = "protein"
-    elif re.match(r"^(chr)?[\dXYM]+[:\-]", hgvs, flags=re.IGNORECASE) or re.match(
-        r"^NC_\d+\.\d+:", hgvs
-    ):
-        kind = "genomic"
-    else:
-        kind = "unknown"
-
-    return normalized_gene, hgvs, normalized_transcript, kind
-
-
 class LookupService:
     def __init__(
         self,
@@ -177,12 +143,17 @@ class LookupService:
         draft_render_service=None,
         variant_cache_repo=None,
         settings=None,
+        functional_evidence_extractor=None,
     ) -> None:
         self.tool_registry = tool_registry
         self.rule_engine = rule_engine
         self.draft_render_service = draft_render_service
         self.variant_cache_repo = variant_cache_repo
         self.settings = settings
+        self.publication_literature = EamosProprietaryVariantLiteratureExtractor()
+        self.functional_evidence = functional_evidence_extractor or FunctionalEvidenceExtractor(
+            settings=settings
+        )
 
     def lookup(self, request: LookupRequest, refresh: bool = False) -> LookupResponse:
         gene, cdna, transcript, query_kind = normalize_variant_query(
@@ -241,6 +212,7 @@ class LookupService:
         # Run evidence tools
         evidence: list[EvidenceSourceSummary] = []
         evidence_map: dict[str, dict] = {}
+        evidence_raw: dict[str, Any] = {}
         evidence_statuses: dict[str, str] = {}
         warnings: list[str] = []
         if query_kind == "unknown":
@@ -255,16 +227,22 @@ class LookupService:
             and not refresh
         ):
             cache_hit = self.variant_cache_repo.get_fresh(cache_key, self.settings.cache_ttl_days)
+        publication_cache = (
+            cache_hit.get("publication_data", {}) if isinstance(cache_hit, dict) else {}
+        )
 
         def record_result(name: str, result: ToolResult) -> None:
             evidence.append(_result_to_evidence(result))
             evidence_map[name] = result.summary or {}
+            evidence_raw[name] = result.raw
             evidence_statuses[name] = result.status
             warnings.extend(result.warnings)
 
         # Phase 1 resolves coordinates. VEP and VariantValidator may mutate the shared variant.
         cached_strict = (cache_hit or {}).get("strict_genomic_cache", {})
-        cached_evidence = cached_strict.get("evidence", {}) if isinstance(cached_strict, dict) else {}
+        cached_evidence = (
+            cached_strict.get("evidence", {}) if isinstance(cached_strict, dict) else {}
+        )
         if cached_evidence:
             variant_cache = cached_strict.get("variant", {})
             variant.genomic_hg38 = variant_cache.get("genomic_hg38") or variant.genomic_hg38
@@ -295,22 +273,37 @@ class LookupService:
 
         # Phase 3 annotates with non-coordinate sources.
         for name in ("clinvar", "pubmed"):
-            tool = self.tool_registry[name]
-            result = tool.get_evidence(variant=variant)
+            if (
+                name == "pubmed"
+                and isinstance(publication_cache, dict)
+                and isinstance(publication_cache.get("pubmed_summary"), dict)
+            ):
+                result = ToolResult(
+                    source="pubmed",
+                    status="cache",
+                    request_identity=publication_cache.get("pubmed_request_identity", {}),
+                    summary=publication_cache.get("pubmed_summary", {}),
+                    warnings=[],
+                    raw=publication_cache.get("pubmed_raw"),
+                    source_url=publication_cache.get("pubmed_source_url"),
+                )
+            else:
+                tool = self.tool_registry[name]
+                result = tool.get_evidence(variant=variant)
             record_result(name, result)
             if name == "clinvar":
                 variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
 
-        if cache_hit and isinstance(cache_hit.get("publication_data"), dict):
-            litvar_summary = cache_hit["publication_data"].get("summary", {})
+        if isinstance(publication_cache, dict) and publication_cache:
+            litvar_summary = publication_cache.get("summary", {})
             litvar_result = ToolResult(
                 source="litvar2",
                 status="cache",
-                request_identity=cache_hit["publication_data"].get("request_identity", {}),
+                request_identity=publication_cache.get("request_identity", {}),
                 summary=litvar_summary,
                 warnings=[],
-                raw=cache_hit["publication_data"].get("raw"),
-                source_url=cache_hit["publication_data"].get("source_url"),
+                raw=publication_cache.get("raw"),
+                source_url=publication_cache.get("source_url"),
             )
         else:
             litvar_result = self.tool_registry["litvar2"].get_evidence(variant=variant)
@@ -321,15 +314,17 @@ class LookupService:
         variant_row.consequence = variant.consequence or None
 
         # Rules engine
-        decision = self.rule_engine.evaluate(DecisionInput(
-            case_title=f'{gene}:{cdna}',
-            evidence=evidence_map,
-            evidence_statuses=evidence_statuses,
-            case_label=None,
-            patient_context=None,
-            clinical_findings=None,
-            variant_summary=[variant_label],
-        ))
+        decision = self.rule_engine.evaluate(
+            DecisionInput(
+                case_title=f"{gene}:{cdna}",
+                evidence=evidence_map,
+                evidence_statuses=evidence_statuses,
+                case_label=None,
+                patient_context=None,
+                clinical_findings=None,
+                variant_summary=[variant_label],
+            )
+        )
 
         # Variant decoder
         variant_decoder_text = decode_variant(
@@ -343,7 +338,7 @@ class LookupService:
             f"No approved gene therapy identified for {gene}. "
             "Check ClinicalTrials.gov for active trials."
         )
-        trials_tool = self.tool_registry.get('clinical_trials')
+        trials_tool = self.tool_registry.get("clinical_trials")
         if trials_tool is not None:
             trials_text = trials_tool.get_trials_summary(gene)
             therapeutic_landscape = f"{therapy_text}\n\n{trials_text}"
@@ -351,7 +346,7 @@ class LookupService:
             therapeutic_landscape = therapy_text
 
         # PubMed articles
-        pubmed_raw = evidence_map.get('pubmed', {}).get('articles', [])
+        pubmed_raw = evidence_map.get("pubmed", {}).get("articles", [])
         pubmed_articles: list[PubMedArticle] = []
         for a in (pubmed_raw if isinstance(pubmed_raw, list) else []):
             if isinstance(a, dict):
@@ -361,41 +356,45 @@ class LookupService:
                     pass
 
         # Classification snapshot
-        clinvar = evidence_map.get('clinvar', {})
-        classification = clinvar.get('classification', 'Unavailable')
-        review_status_text = clinvar.get('review_status', 'review status unavailable')
+        clinvar = evidence_map.get("clinvar", {})
+        classification = clinvar.get("classification", "Unavailable")
+        review_status_text = clinvar.get("review_status", "review status unavailable")
         acmg_classification = (
-            f'ClinVar currently lists {gene} {cdna} as {classification} ({review_status_text}). '
-            'This is a source snapshot only and should not be read as formal ACMG evidence-code '
-            'assignment or a final laboratory classification.'
+            f"ClinVar currently lists {gene} {cdna} as {classification} ({review_status_text}). "
+            "This is a source snapshot only and should not be read as formal ACMG evidence-code "
+            "assignment or a final laboratory classification."
         )
 
         # Evidence snapshot
         lines = list(decision.evidence_lines)
-        degraded = sorted(n.upper() for n, s in evidence_statuses.items() if s in {'fallback', 'degraded', 'error', 'failed'})
+        degraded = sorted(
+            n.upper()
+            for n, s in evidence_statuses.items()
+            if s in {"fallback", "degraded", "error", "failed"}
+        )
         if degraded:
             lines.append(f"Source quality note: {', '.join(degraded)} evidence was not fully live.")
-        expanded_evidence = '\n'.join(line for line in lines if line).strip() or None
+        expanded_evidence = "\n".join(line for line in lines if line).strip() or None
 
         # Clinical integration (variant-level, no patient context for Layer 1)
-        vep_data = evidence_map.get('vep', {})
-        consequence = vep_data.get('most_severe_consequence', '')
+        vep_data = evidence_map.get("vep", {})
+        consequence = vep_data.get("most_severe_consequence", "")
         clinical_integration = (
             f'{variant_label}: {consequence or "consequence pending VEP annotation"}. '
-            f'External classification: {classification}. '
-            'Interpret in the context of the clinical phenotype and family history before drawing conclusions.'
+            f"External classification: {classification}. "
+            "Interpret in the context of the clinical phenotype and family history before drawing conclusions."
         )
 
         recommendations = (
-            f'Confirm the reported variant {gene} {cdna} against the original sequencing data. '
-            f'{decision.next_step} '
-            'Seek specialist review before drawing clinical conclusions.'
+            f"Confirm the reported variant {gene} {cdna} against the original sequencing data. "
+            f"{decision.next_step} "
+            "Seek specialist review before drawing clinical conclusions."
         )
 
         base_payload = ReportPayload(
-            patient_id=f'lookup_{uuid4().hex[:8]}',
+            patient_id=f"lookup_{uuid4().hex[:8]}",
             case_label=None,
-            report_title=f'{gene} {cdna}',
+            report_title=f"{gene} {cdna}",
             source_filenames=[],
             patient_context=None,
             clinical_phenotype=None,
@@ -407,9 +406,9 @@ class LookupService:
             expected_symptoms=None,
             recommendations=recommendations,
             limitations=(
-                'Variant lookup report presenting publicly available database information. '
-                'No clinical recommendations are made. '
-                'All data should be independently verified before clinical use.'
+                "Variant lookup report presenting publicly available database information. "
+                "No clinical recommendations are made. "
+                "All data should be independently verified before clinical use."
             ),
             variant_decoder=variant_decoder_text,
             therapeutic_landscape=therapeutic_landscape,
@@ -418,23 +417,55 @@ class LookupService:
         )
 
         litvar_summary = evidence_map.get("litvar2", {})
-        base_payload.pubmed_articles = _merge_litvar_articles(pubmed_articles, litvar_summary)
-        litvar_count = litvar_summary.get("total_publications")
-        litvar_int = (
-            int(litvar_count)
-            if isinstance(litvar_count, int | float | str) and str(litvar_count).isdigit()
-            else 0
+        try:
+            publication_literature = self.publication_literature.build_for_lookup(
+                variant,
+                evidence_map,
+                evidence_raw=evidence_raw,
+                source_statuses=evidence_statuses,
+                limit=5,
+            )
+            base_payload.publications_literature = publication_literature
+            base_payload.pubmed_articles = publication_literature.articles
+            warnings.extend(publication_literature.warnings)
+        except Exception as exc:
+            warnings.append(f"publication_literature_failed:{type(exc).__name__}")
+            base_payload.pubmed_articles = _merge_litvar_articles(pubmed_articles, litvar_summary)
+
+        cached_functional_evidence = (
+            publication_cache.get("functional_evidence")
+            if isinstance(publication_cache, dict)
+            else None
         )
-        # Prefer LitVar2's authoritative total when it has data; when LitVar2 has
-        # no entry for the variant (legitimately 0) fall back to the merged
-        # article count so the callout never contradicts the articles shown.
-        total_count = litvar_int if litvar_int > 0 else len(base_payload.pubmed_articles)
+        try:
+            if isinstance(cached_functional_evidence, dict):
+                functional_evidence = FunctionalEvidenceSummary.model_validate(
+                    cached_functional_evidence
+                )
+            else:
+                functional_evidence = self.functional_evidence.build_for_lookup(
+                    variant,
+                    evidence_map,
+                    evidence_raw=evidence_raw,
+                    source_statuses=evidence_statuses,
+                    allow_live=bool(self.settings is not None and self.settings.use_real_apis),
+                )
+            base_payload.functional_evidence = functional_evidence
+            warnings.extend(functional_evidence.warnings)
+        except Exception as exc:
+            warnings.append(f"functional_evidence_failed:{type(exc).__name__}")
+
+        total_count = (
+            base_payload.publications_literature.total_count
+            if base_payload.publications_literature is not None
+            else len(base_payload.pubmed_articles)
+        )
         scholar_url = litvar_summary.get("scholar_url") or _scholar_url(gene, cdna)
         existing_callout = base_payload.publications_callout
         blurb = (
             existing_callout.blurb
             if existing_callout is not None and existing_callout.blurb
-            else f"Publications linked to {gene} {cdna} from LitVar2 and PubMed."
+            else f"Variant-specific publications linked to {gene} {cdna} from LitVar2 and PubMed."
         )
         ai_summary_prompt = (
             existing_callout.ai_summary_prompt
@@ -462,6 +493,11 @@ class LookupService:
         ):
             cached_names = ("vep", "variant_validator", *STRICT_GENOMIC_PLUGINS)
             evidence_by_source = {item.source: item.model_dump() for item in evidence}
+            ep_vlex_cache = (
+                base_payload.publications_literature.model_dump(mode="json")
+                if base_payload.publications_literature is not None
+                else None
+            )
             self.variant_cache_repo.upsert(
                 cache_key,
                 litvar_id=litvar_summary.get("litvar_id"),
@@ -471,6 +507,18 @@ class LookupService:
                     "summary": litvar_result.summary,
                     "raw": litvar_result.raw,
                     "source_url": litvar_result.source_url,
+                    "pubmed_request_identity": evidence_by_source.get("pubmed", {}).get(
+                        "request_identity", {}
+                    ),
+                    "pubmed_summary": evidence_map.get("pubmed", {}),
+                    "pubmed_raw": evidence_raw.get("pubmed"),
+                    "pubmed_source_url": evidence_by_source.get("pubmed", {}).get("source_url"),
+                    "ep_vlex": ep_vlex_cache,
+                    "functional_evidence": (
+                        base_payload.functional_evidence.model_dump(mode="json")
+                        if base_payload.functional_evidence is not None
+                        else None
+                    ),
                 },
                 strict_genomic_cache={
                     "variant": {
@@ -488,7 +536,7 @@ class LookupService:
 
         if self.draft_render_service is not None:
             draft_payload, draft_warnings = self.draft_render_service.render(
-                case_title=f'{gene}:{cdna}',
+                case_title=f"{gene}:{cdna}",
                 patient_context=None,
                 clinical_phenotype=None,
                 variant_summary=variant_label,
@@ -505,9 +553,68 @@ class LookupService:
             warnings = [*warnings, *draft_warnings]
 
         return LookupResponse(
-            query=f'{gene}:{cdna}',
+            query=f"{gene}:{cdna}",
             species=request.species,
             report_payload=base_payload,
             evidence=evidence,
             warnings=[*warnings, *decision.warnings],
         )
+
+    def page_publications(self, request: PublicationPageRequest) -> PublicationLiterature:
+        gene, cdna, transcript, query_kind = normalize_variant_query(
+            request.gene,
+            request.cdna,
+            request.transcript,
+        )
+        if request.species == "mouse":
+            raise ValueError(
+                "Mouse (mm39) publication lookup is not yet implemented. Human (hg38) is supported."
+            )
+
+        transcript_hgvs = f"{transcript}:{cdna}" if transcript else cdna
+        resolver_transcript = transcript
+        if resolver_transcript is None and query_kind == "cdna":
+            resolver_transcript = CANONICAL_TRANSCRIPTS.get(gene)
+        resolver_transcript_hgvs = (
+            f"{resolver_transcript}:{cdna}" if resolver_transcript else transcript_hgvs
+        )
+        variant = SimpleNamespace(
+            gene=gene,
+            transcript_hgvs=resolver_transcript_hgvs,
+            protein_change=request.protein_change or "",
+            genomic_hg38="",
+            variation_type="",
+            consequence="",
+            query_kind=query_kind,
+            dbsnp_rsid=None,
+        )
+        evidence_map: dict[str, dict[str, Any]] = {}
+        evidence_raw: dict[str, Any] = {}
+        evidence_statuses: dict[str, str] = {}
+        warnings: list[str] = []
+
+        for name in ("clinvar", "pubmed", "litvar2"):
+            try:
+                result = self.tool_registry[name].get_evidence(variant=variant)
+            except Exception as exc:
+                warnings.append(f"publication_{name}_failed:{type(exc).__name__}")
+                continue
+            evidence_map[name] = result.summary or {}
+            evidence_raw[name] = result.raw
+            evidence_statuses[name] = result.status
+            warnings.extend(result.warnings)
+            if name == "clinvar":
+                variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
+                if not variant.protein_change:
+                    variant.protein_change = str(result.summary.get("protein_change") or "")
+
+        literature = self.publication_literature.build_for_lookup(
+            variant,
+            evidence_map,
+            evidence_raw=evidence_raw,
+            source_statuses=evidence_statuses,
+            limit=request.limit,
+            offset=request.offset,
+        )
+        literature.warnings.extend(warnings)
+        return literature

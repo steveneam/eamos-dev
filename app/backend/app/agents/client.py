@@ -26,7 +26,7 @@ class MockDraftChain:
 
 
 def build_tool_enabled_llm(settings: Settings):
-    if settings.llm_provider == 'mock' or not settings.openai_api_key:
+    if settings.llm_provider == "mock" or not settings.openai_api_key:
         return None
     from langchain_openai import ChatOpenAI
 
@@ -43,21 +43,23 @@ def build_extraction_chain(settings: Settings):
         def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
             from langchain_core.prompts import ChatPromptTemplate
 
-            prompt = ChatPromptTemplate.from_messages([
-                ('system', extraction_prompt()),
-                ('human', 'Filename: {filename}\nReport text:\n{report_text}'),
-            ])
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", extraction_prompt()),
+                    ("human", "Filename: {filename}\nReport text:\n{report_text}"),
+                ]
+            )
             chain = prompt | model.with_structured_output(ExtractedCase)
             result = chain.invoke(payload)
             if isinstance(result, ExtractedCase):
-                return result.model_dump(mode='json')
+                return result.model_dump(mode="json")
             return dict(result)
 
     return LiveExtractionChain()
 
 
 def build_draft_chain(settings: Settings):
-    if settings.llm_provider == 'mock' or not settings.openai_api_key:
+    if settings.llm_provider == "mock" or not settings.openai_api_key:
         return None
     from langchain_openai import ChatOpenAI
 
@@ -71,45 +73,47 @@ def build_draft_chain(settings: Settings):
         def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
             from langchain_core.prompts import ChatPromptTemplate
 
-            prompt = ChatPromptTemplate.from_messages([
-                ('system', draft_prompt()),
-                (
-                    'human',
-                    'Case title: {case_title}\n'
-                    'Patient context: {patient_context}\n'
-                    'Clinical phenotype: {clinical_phenotype}\n'
-                    'Variant summary: {variant_summary}\n'
-                    'Deterministic recommendation: {recommendation}\n'
-                    'Evidence lines: {evidence_lines}\n'
-                    'Uncertainty: {uncertainty}\n'
-                    'Next step: {next_step}\n'
-                    'Confidence label: {confidence_label}\n'
-                    'Evidence statuses: {evidence_statuses}\n'
-                    'Warnings: {warnings}\n'
-                    'Compose these into distinct report narrative sections only.',
-                ),
-                (
-                    'human',
-                    'Current deterministic base text:\n'
-                    'AI clinical summary: {ai_clinical_summary}\n'
-                    'Expanded evidence: {expanded_evidence}\n'
-                    'Clinical integration: {clinical_integration}\n'
-                    'Recommendations: {recommendations}\n'
-                    'Limitations: {limitations}\n'
-                    'Improve the writing quality while staying grounded in this material.',
-                ),
-            ])
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", draft_prompt()),
+                    (
+                        "human",
+                        "Case title: {case_title}\n"
+                        "Patient context: {patient_context}\n"
+                        "Clinical phenotype: {clinical_phenotype}\n"
+                        "Variant summary: {variant_summary}\n"
+                        "Deterministic recommendation: {recommendation}\n"
+                        "Evidence lines: {evidence_lines}\n"
+                        "Uncertainty: {uncertainty}\n"
+                        "Next step: {next_step}\n"
+                        "Confidence label: {confidence_label}\n"
+                        "Evidence statuses: {evidence_statuses}\n"
+                        "Warnings: {warnings}\n"
+                        "Compose these into distinct report narrative sections only.",
+                    ),
+                    (
+                        "human",
+                        "Current deterministic base text:\n"
+                        "AI clinical summary: {ai_clinical_summary}\n"
+                        "Expanded evidence: {expanded_evidence}\n"
+                        "Clinical integration: {clinical_integration}\n"
+                        "Recommendations: {recommendations}\n"
+                        "Limitations: {limitations}\n"
+                        "Improve the writing quality while staying grounded in this material.",
+                    ),
+                ]
+            )
             chain = prompt | model.with_structured_output(DraftPayload)
             result = chain.invoke(payload)
             if isinstance(result, DraftPayload):
-                return result.model_dump(mode='json')
+                return result.model_dump(mode="json")
             return dict(result)
 
     return LiveDraftChain()
 
 
 def build_embeddings_model(settings: Settings):
-    if settings.llm_provider == 'mock' or not settings.openai_api_key:
+    if settings.llm_provider == "mock" or not settings.openai_api_key:
         return None
     from langchain_openai import OpenAIEmbeddings
 
@@ -120,7 +124,7 @@ def build_embeddings_model(settings: Settings):
 
 
 def build_run_chat_chain(settings: Settings):
-    if settings.llm_provider == 'mock' or not settings.openai_api_key:
+    if settings.llm_provider == "mock" or not settings.openai_api_key:
         return None
     from langchain_openai import ChatOpenAI
 
@@ -134,19 +138,21 @@ def build_run_chat_chain(settings: Settings):
         def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
             from langchain_core.prompts import ChatPromptTemplate
 
-            prompt = ChatPromptTemplate.from_messages([
-                ('system', current_run_chat_prompt()),
-                (
-                    'human',
-                    'Question: {question}\n\n'
-                    'Retrieved context:\n{retrieved_context}\n\n'
-                    'Use only this material when answering.',
-                ),
-            ])
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", current_run_chat_prompt()),
+                    (
+                        "human",
+                        "Question: {question}\n\n"
+                        "Retrieved context:\n{retrieved_context}\n\n"
+                        "Use only this material when answering.",
+                    ),
+                ]
+            )
             chain = prompt | model.with_structured_output(RunChatAnswerDraft)
             result = chain.invoke(payload)
             if isinstance(result, RunChatAnswerDraft):
-                return result.model_dump(mode='json')
+                return result.model_dump(mode="json")
             return dict(result)
 
     return LiveRunChatChain()

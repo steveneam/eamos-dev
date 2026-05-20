@@ -11,9 +11,13 @@ from app.core.db import (
     _build_search_documents_fts_expression,
     session_scope,
 )
-from app.schemas.search import SearchDocumentWrite, SearchRequestFilters, SearchVariantWrite
+from app.schemas.search import SearchDocumentWrite, SearchRequestFilters
 
-SearchRepoMatch = tuple[SearchDocumentRecord, float, Literal["exact_run_id", "exact_report_id", "exact_patient_id", "exact_variant", "full_text"]]
+SearchRepoMatch = tuple[
+    SearchDocumentRecord,
+    float,
+    Literal["exact_run_id", "exact_report_id", "exact_patient_id", "exact_variant", "full_text"],
+]
 
 
 class SearchRepo:
@@ -126,7 +130,9 @@ class SearchRepo:
             stmt = (
                 stmt.where(or_(*clauses))
                 .distinct()
-                .order_by(SearchDocumentRecord.updated_at.desc(), SearchDocumentRecord.doc_type.asc())
+                .order_by(
+                    SearchDocumentRecord.updated_at.desc(), SearchDocumentRecord.doc_type.asc()
+                )
                 .limit(limit)
             )
             records = session.execute(stmt).scalars().all()
@@ -139,7 +145,9 @@ class SearchRepo:
             stmt = self._apply_filters(select(SearchDocumentRecord), filters)
             dialect_name = session.bind.dialect.name if session.bind is not None else "sqlite"
             if dialect_name == "postgresql":
-                fts_expression = _build_search_documents_fts_expression(SearchDocumentRecord.__table__)
+                fts_expression = _build_search_documents_fts_expression(
+                    SearchDocumentRecord.__table__
+                )
                 ts_query = func.websearch_to_tsquery("english", query)
                 rank = func.ts_rank(fts_expression, ts_query).label("score")
                 stmt = (
@@ -150,10 +158,7 @@ class SearchRepo:
                 )
                 stmt = self._apply_filters(stmt, filters)
                 rows = session.execute(stmt).all()
-                return [
-                    (record, float(score or 0.0), "full_text")
-                    for record, score in rows
-                ]
+                return [(record, float(score or 0.0), "full_text") for record, score in rows]
 
             pattern = f"%{query.strip()}%"
             score = literal(0.1).label("score")

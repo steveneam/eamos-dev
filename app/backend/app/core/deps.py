@@ -24,11 +24,11 @@ def require_authenticated_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> AuthUser:
-    if credentials is None or credentials.scheme.lower() != 'bearer' or not credentials.credentials:
+    if credentials is None or credentials.scheme.lower() != "bearer" or not credentials.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Not authenticated',
-            headers={'WWW-Authenticate': 'Bearer'},
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     try:
@@ -37,8 +37,8 @@ def require_authenticated_user(
         if exc.status_code == status.HTTP_401_UNAUTHORIZED:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Not authenticated',
-                headers={'WWW-Authenticate': 'Bearer'},
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
             ) from exc
         raise
 

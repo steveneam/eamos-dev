@@ -23,7 +23,9 @@ class ClinvarTool(FixtureBackedTool):
             fallback_url = (
                 f"https://www.ncbi.nlm.nih.gov/clinvar/?term={gene}[gene]" if gene else None
             )
-            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
+            return ToolResult(
+                source=self.source, status="fixture", source_url=fallback_url, **fixture
+            )
         try:
             return self._fetch_live(variant)
         except Exception as exc:

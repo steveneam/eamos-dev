@@ -18,3 +18,4 @@ psycopg[binary]>=3.2,<4
 reportlab>=4.2,<5
 PyJWT>=2.9,<3
 argon2-cffi>=23.1,<24
+primer3-py>=2.3,<3

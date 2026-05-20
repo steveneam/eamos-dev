@@ -38,18 +38,16 @@ class PubmedTool(FixtureBackedTool):
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
             gene = (variant.gene if variant is not None else None) or ""
-            fallback_url = (
-                f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            fallback_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            return ToolResult(
+                source=self.source, status="fixture", source_url=fallback_url, **fixture
             )
-            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
             gene = variant.gene or ""
-            fallback_url = (
-                f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
-            )
+            fallback_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
             return ToolResult(
                 source=self.source,
                 status="fallback",
@@ -139,15 +137,17 @@ class PubmedTool(FixtureBackedTool):
                 author_str = authors[0].get("name", "Unknown")
             else:
                 author_str = f"{authors[0].get('name', '')} et al."
-            articles.append({
-                "pmid": pmid,
-                "title": entry.get("title", "Untitled"),
-                "authors": author_str,
-                "journal": entry.get("source", ""),
-                "year": (entry.get("pubdate", "") or "")[:4],
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-                "abstract": abstracts.get(pmid),
-            })
+            articles.append(
+                {
+                    "pmid": pmid,
+                    "title": entry.get("title", "Untitled"),
+                    "authors": author_str,
+                    "journal": entry.get("source", ""),
+                    "year": (entry.get("pubdate", "") or "")[:4],
+                    "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+                    "abstract": abstracts.get(pmid),
+                }
+            )
 
         return ToolResult(
             source=self.source,

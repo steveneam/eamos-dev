@@ -35,11 +35,10 @@
       "in_silico_predictions": {
         "cards": [
           { "name": "REVEL", "score": 0.82, "threshold": 0.75, "verdict": "damaging", "verdict_label": "Pathogenic supporting", "source_url": "https://sites.google.com/site/revelgenomics" },
-          { "name": "AlphaMissense", "score": 0.91, "threshold": 0.56, "verdict": "damaging", "verdict_label": "Likely pathogenic", "source_url": "https://alphamissense.hegelab.org" },
           { "name": "MetaLR", "score": 0.78, "threshold": 0.50, "verdict": "damaging", "verdict_label": "Deleterious", "source_url": null },
           { "name": "SpliceAI", "score": 0.05, "threshold": 0.20, "verdict": "tolerated", "verdict_label": "No splice impact", "source_url": "https://spliceailookup.broadinstitute.org" }
         ],
-        "consensus_note": "Predictors converge: three protein-effect predictors all cross their pathogenic thresholds (REVEL, AlphaMissense, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag \u2014 the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call."
+        "consensus_note": "Predictors converge: protein-effect predictors cross their pathogenic thresholds (REVEL, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag \u2014 the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call."
       },
       "acmg_criteria_scaffold": {
         "criteria": [
@@ -153,7 +152,7 @@
         }
       ],
       "publications_callout": {
-        "total_count": 816,
+        "total_count": 3,
         "scholar_url": "https://scholar.google.com/scholar?q=RPE65+Asp87Gly",
         "blurb": "Across PubMed and Google Scholar for RPE65 + p.Asp87Gly. Ask Eamos for a synthesis of the top 5, or browse externally.",
         "ai_summary_prompt": "Summarise the key publications on RPE65 c.260A>G in plain language for a clinician."

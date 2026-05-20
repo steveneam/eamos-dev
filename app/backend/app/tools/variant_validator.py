@@ -28,7 +28,11 @@ def _vcf_to_variant_id(vcf: dict[str, Any] | None) -> str | None:
 
 def _summary_from_response(payload: dict[str, Any]) -> dict[str, Any]:
     variant_payload = next(
-        (value for key, value in payload.items() if key not in {"flag", "metadata"} and isinstance(value, dict)),
+        (
+            value
+            for key, value in payload.items()
+            if key not in {"flag", "metadata"} and isinstance(value, dict)
+        ),
         {},
     )
     loci = variant_payload.get("primary_assembly_loci", {})
@@ -90,7 +94,9 @@ def _mutate_variant(variant, summary: dict[str, Any]) -> None:
 
 def _fixture_matches_variant(variant, summary: dict[str, Any]) -> bool:
     hgvs = _extract_hgvs(getattr(variant, "transcript_hgvs", None))
-    submitted = str(summary.get("submitted_variant") or summary.get("hgvs_transcript_variant") or "")
+    submitted = str(
+        summary.get("submitted_variant") or summary.get("hgvs_transcript_variant") or ""
+    )
     return summary.get("gene") == getattr(variant, "gene", None) and bool(
         hgvs and submitted.endswith(hgvs)
     )
@@ -103,7 +109,9 @@ class VariantValidatorTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            if variant is not None and _fixture_matches_variant(variant, fixture.get("summary", {})):
+            if variant is not None and _fixture_matches_variant(
+                variant, fixture.get("summary", {})
+            ):
                 _mutate_variant(variant, fixture.get("summary", {}))
             return ToolResult(source=self.source, status="fixture", **fixture)
         try:

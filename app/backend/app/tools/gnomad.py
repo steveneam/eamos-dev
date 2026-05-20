@@ -47,16 +47,22 @@ class GnomadTool(FixtureBackedTool):
             fixture = self.load_fixture()
             gene = (variant.gene if variant is not None else None) or ""
             fallback_url = (
-                f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}" if gene else None
+                f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}"
+                if gene
+                else None
             )
-            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
+            return ToolResult(
+                source=self.source, status="fixture", source_url=fallback_url, **fixture
+            )
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
             gene = variant.gene or ""
             fallback_url = (
-                f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}" if gene else None
+                f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}"
+                if gene
+                else None
             )
             return ToolResult(
                 source=self.source,
@@ -89,7 +95,8 @@ class GnomadTool(FixtureBackedTool):
                 ],
                 source_url=(
                     f"https://gnomad.broadinstitute.org/gene/{gene}?dataset={self.DATASET}"
-                    if gene else None
+                    if gene
+                    else None
                 ),
             )
 
@@ -123,8 +130,7 @@ class GnomadTool(FixtureBackedTool):
             "popmax_population": faf.get("popmax_population"),
             "flags": data.get("flags", []),
             "url": (
-                f"https://gnomad.broadinstitute.org/variant/{variant_id}"
-                f"?dataset={self.DATASET}"
+                f"https://gnomad.broadinstitute.org/variant/{variant_id}" f"?dataset={self.DATASET}"
             ),
         }
         return ToolResult(

@@ -9,7 +9,6 @@ from app.tools.pubmed import PubmedTool
 from app.tools.spliceai import SpliceAiTool
 from app.tools.variant_validator import VariantValidatorTool
 
-
 STRICT_GENOMIC_PLUGINS = ("gnomad", "spliceai")
 """FixtureBackedTool names whose get_evidence reads variant.genomic_hg38.
 

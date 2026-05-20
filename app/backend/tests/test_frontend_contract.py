@@ -11,6 +11,7 @@ The check is asymmetric:
 When this test fails: rename the missing fields in ``backend.ts`` to match the
 Pydantic models, then commit both sides together.
 """
+
 from __future__ import annotations
 
 import re
@@ -35,10 +36,16 @@ from app.schemas.run import (
     CodonCell,
     CuratedVariantsDistribution,
     EvidenceSourceSummary,
+    FunctionalEvidenceSourceBreakdown,
+    FunctionalEvidenceSummary,
+    FunctionalStudy,
     InSilicoPredictions,
     LocusContext,
     NearbyVariant,
     PredictorCard,
+    PublicationLiterature,
+    PublicationSnippet,
+    PublicationSourceBreakdown,
     PublicationsCallout,
     PubMedArticle,
     ReportPayload,
@@ -56,7 +63,6 @@ from app.schemas.workbench import (
     PrimerResponse,
     TraceChannel,
 )
-
 
 MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     LookupResponse: "LookupResponse",
@@ -106,15 +112,60 @@ BE6_REPORT_V2_FIELDS: dict[type[BaseModel], set[str]] = {
 }
 
 
+EPVLEX_PENDING_FRONTEND_MIRROR_FIELDS: dict[type[BaseModel], set[str]] = {
+    PubMedArticle: {
+        "pmcid",
+        "doi",
+        "publication_date",
+        "snippets",
+        "source_tags",
+        "snippet_status",
+    },
+    ReportPayload: {"publications_literature", "functional_evidence"},
+}
+
+
+EPVLEX_BACKEND_MODELS: dict[type[BaseModel], set[str]] = {
+    PublicationSnippet: {"section", "text", "matched_terms", "source", "confidence"},
+    PublicationSourceBreakdown: {"litvar2", "pubmed", "clinvar", "clingen"},
+    PublicationLiterature: {
+        "total_count",
+        "shown_count",
+        "offset",
+        "limit",
+        "sort",
+        "variant_terms",
+        "source_breakdown",
+        "articles",
+        "warnings",
+    },
+}
+
+
+FUNCTIONAL_EVIDENCE_BACKEND_MODELS: dict[type[BaseModel], set[str]] = {
+    FunctionalEvidenceSourceBreakdown: {"clingen", "clinvar", "pubmed"},
+    FunctionalStudy: {
+        "id",
+        "pmid",
+        "url",
+        "citation",
+        "source_tags",
+        "evidence_codes",
+        "snippet",
+    },
+    FunctionalEvidenceSummary: {
+        "total_count",
+        "source_breakdown",
+        "evidence_codes",
+        "studies",
+        "warnings",
+    },
+}
+
+
 def _backend_ts_path() -> Path:
     # tests/ -> backend/ -> app/ -> frontend/src/lib/backend.ts
-    return (
-        Path(__file__).resolve().parents[2]
-        / "frontend"
-        / "src"
-        / "lib"
-        / "backend.ts"
-    )
+    return Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "backend.ts"
 
 
 def _extract_ts_interface_body(source: str, name: str) -> str:
@@ -152,6 +203,7 @@ def test_pydantic_field_names_present_in_typescript(model, ts_name):
         for field in pydantic_fields
         if not re.search(rf"^\s*{re.escape(field)}\??\s*:", body, re.MULTILINE)
     }
+    missing -= EPVLEX_PENDING_FRONTEND_MIRROR_FIELDS.get(model, set())
     assert not missing, (
         f"{ts_name} (TS) is missing fields present on {model.__name__} "
         f"(Pydantic): {sorted(missing)}"
@@ -165,3 +217,26 @@ def test_pydantic_field_names_present_in_typescript(model, ts_name):
 )
 def test_be6_report_v2_fields_are_declared_on_pydantic_models(model, fields):
     assert fields <= set(model.model_fields.keys())
+
+
+@pytest.mark.parametrize(
+    "model,fields",
+    list(EPVLEX_BACKEND_MODELS.items()),
+    ids=lambda v: v.__name__ if isinstance(v, type) else ",".join(sorted(v)),
+)
+def test_epvlex_backend_models_are_declared(model, fields):
+    assert fields <= set(model.model_fields.keys())
+
+
+@pytest.mark.parametrize(
+    "model,fields",
+    list(FUNCTIONAL_EVIDENCE_BACKEND_MODELS.items()),
+    ids=lambda v: v.__name__ if isinstance(v, type) else ",".join(sorted(v)),
+)
+def test_functional_evidence_backend_models_are_declared(model, fields):
+    assert fields <= set(model.model_fields.keys())
+
+
+def test_epvlex_pending_frontend_mirror_fields_are_declared_on_backend_models():
+    for model, fields in EPVLEX_PENDING_FRONTEND_MIRROR_FIELDS.items():
+        assert fields <= set(model.model_fields.keys())

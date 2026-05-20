@@ -1,0 +1,22 @@
+{
+  "human": {
+    "RPE65": {
+      "c.260A>G": {
+        "genome_build": "GRCh38",
+        "genomic_hg38": "1-68444869-T-C",
+        "strand": "-",
+        "window_sequence": "TGGACAAGACAGTCGCCATTCGGTGCCTACATTCAAGAGAACAACGAA",
+        "target_offset": 28,
+        "reference_base": "A",
+        "alternate_base": "G",
+        "codon_number": 87,
+        "codon_ref": "GAC",
+        "codon_alt": "GGC",
+        "source_metadata": {
+          "fixture": "workbench_rpe65",
+          "coordinate_source": "variant_validator_fixture"
+        }
+      }
+    }
+  }
+}

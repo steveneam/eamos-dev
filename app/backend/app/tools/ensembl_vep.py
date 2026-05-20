@@ -18,7 +18,9 @@ class EnsemblVepTool(FixtureBackedTool):
             fallback_url = (
                 f"https://www.ensembl.org/Homo_sapiens/Variation/Explore?v={hgvs}" if hgvs else None
             )
-            return ToolResult(source=self.source, status="fixture", source_url=fallback_url, **fixture)
+            return ToolResult(
+                source=self.source, status="fixture", source_url=fallback_url, **fixture
+            )
         try:
             return self._fetch_live(variant)
         except Exception as exc:

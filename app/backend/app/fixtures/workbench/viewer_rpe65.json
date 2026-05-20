@@ -1,0 +1,219 @@
+{
+  "identity": {
+    "gene": "RPE65",
+    "ensembl_gene_id": "ENSG00000116745",
+    "requested_transcript": "NM_000329.3",
+    "resolved_transcript": "NM_000329.3",
+    "transcript_aliases": ["ENST00000262340", "MANE Select"],
+    "species": "human",
+    "genome_build": "GRCh38"
+  },
+  "locus": {
+    "chrom": "chr1",
+    "gene_start": 68428820,
+    "gene_end": 68449958,
+    "strand": "-"
+  },
+  "summary": {
+    "gene_length": 21138,
+    "total_exons": 14,
+    "cds_length": 1602,
+    "protein_length": 533,
+    "utr5_length": 89,
+    "utr3_length": 1216,
+    "mrna_length": 2907
+  },
+  "window": {
+    "kind": "cds_range",
+    "cds_start": 217,
+    "cds_end": 339,
+    "cds_flank_bp": 0,
+    "intron_flank_bp": 30,
+    "display_cds_start": 217,
+    "display_cds_end": 339,
+    "total_display_bases": 243
+  },
+  "segments": [
+    {
+      "id": "rpe65-exon-3-tail",
+      "kind": "exon",
+      "label": "Exon 3",
+      "exon_number": 3,
+      "cds_start": 217,
+      "cds_end": 231,
+      "strand": "-",
+      "sequence": "CCATCCCAACCAATC"
+    },
+    {
+      "id": "rpe65-intron-3",
+      "kind": "intron",
+      "label": "Intron 3",
+      "intron_number": 3,
+      "strand": "-",
+      "five_prime_sequence": "gtaagtgcatcgttagctcgtaaggtgact",
+      "three_prime_sequence": "tttcttgctctttccccgcttgttccacag",
+      "omitted_bp": 1180
+    },
+    {
+      "id": "rpe65-exon-4",
+      "kind": "exon",
+      "label": "Exon 4",
+      "exon_number": 4,
+      "cds_start": 232,
+      "cds_end": 324,
+      "strand": "-",
+      "sequence": "TATCGGGAACCTGTGGACAAGACAGTCGACATTCGGTGCTACATTCAAGAGAACAACGAACGGGGGCAGCTTATCAGTGTGGCCTACGATGCC"
+    },
+    {
+      "id": "rpe65-intron-4",
+      "kind": "intron",
+      "label": "Intron 4",
+      "intron_number": 4,
+      "strand": "-",
+      "five_prime_sequence": "gtaagcttcgcctaaggtacgttctcaaag",
+      "three_prime_sequence": "ttgtcttttcccgctcttcttttgccccag",
+      "omitted_bp": 922
+    },
+    {
+      "id": "rpe65-exon-5-head",
+      "kind": "exon",
+      "label": "Exon 5",
+      "exon_number": 5,
+      "cds_start": 325,
+      "cds_end": 339,
+      "strand": "-",
+      "sequence": "ATGGCCTTCAGTGAA"
+    }
+  ],
+  "queried_variant": {
+    "hgvs_c": "c.260A>G",
+    "hgvs_p": "p.Asp87Gly",
+    "cds_pos": 260,
+    "genomic_hg38": "1-68444869-T-C",
+    "ref": "A",
+    "alt": "G",
+    "codon_number": 87,
+    "codon_offset": 1,
+    "aa_ref": "D",
+    "aa_alt": "G",
+    "classification": "likely_pathogenic"
+  },
+  "sequences": {
+    "allele_mode": "reference",
+    "reference_window_sequence": "CCATCCCAACCAATCgtaagtgcatcgttagctcgtaaggtgacttttcttgctctttccccgcttgttccacagTATCGGGAACCTGTGGACAAGACAGTCGACATTCGGTGCTACATTCAAGAGAACAACGAACGGGGGCAGCTTATCAGTGTGGCCTACGATGCCgtaagcttcgcctaaggtacgttctcaaagttgtcttttcccgctcttcttttgccccagATGGCCTTCAGTGAA",
+    "display_window_sequence": "CCATCCCAACCAATCgtaagtgcatcgttagctcgtaaggtgacttttcttgctctttccccgcttgttccacagTATCGGGAACCTGTGGACAAGACAGTCGACATTCGGTGCTACATTCAAGAGAACAACGAACGGGGGCAGCTTATCAGTGTGGCCTACGATGCCgtaagcttcgcctaaggtacgttctcaaagttgtcttttcccgctcttcttttgccccagATGGCCTTCAGTGAA",
+    "applied_variant": null
+  },
+  "tracks": {
+    "clinvar_variants": [
+      {
+        "cds_pos": 220,
+        "hgvs_c": "c.220C>T",
+        "hgvs_p": "p.Pro74Ser",
+        "classification": "likely_benign",
+        "clinvar_id": "VCV000099177"
+      },
+      {
+        "cds_pos": 236,
+        "hgvs_c": "c.236A>G",
+        "hgvs_p": "p.Asn79Ser",
+        "classification": "pathogenic",
+        "clinvar_id": "VCV000099201"
+      },
+      {
+        "cds_pos": 260,
+        "hgvs_c": "c.260A>G",
+        "hgvs_p": "p.Asp87Gly",
+        "classification": "likely_pathogenic",
+        "clinvar_id": "VCV000099473",
+        "queried": true
+      },
+      {
+        "cds_pos": 277,
+        "hgvs_c": "c.277C>T",
+        "hgvs_p": "p.Arg93Cys",
+        "classification": "pathogenic",
+        "clinvar_id": "VCV000099544"
+      },
+      {
+        "cds_pos": "325-2",
+        "hgvs_c": "c.325-2A>G",
+        "hgvs_p": "p.(?)",
+        "classification": "pathogenic",
+        "clinvar_id": "VCV000099405",
+        "splice": true
+      }
+    ],
+    "exon_density": [
+      { "exon_number": 1, "variant_count": 2 },
+      { "exon_number": 2, "variant_count": 8 },
+      { "exon_number": 3, "variant_count": 31 },
+      { "exon_number": 4, "variant_count": 46 },
+      { "exon_number": 5, "variant_count": 38 },
+      { "exon_number": 6, "variant_count": 24 },
+      { "exon_number": 7, "variant_count": 29 },
+      { "exon_number": 8, "variant_count": 33 },
+      { "exon_number": 9, "variant_count": 17 },
+      { "exon_number": 10, "variant_count": 22 },
+      { "exon_number": 11, "variant_count": 41 },
+      { "exon_number": 12, "variant_count": 36 },
+      { "exon_number": 13, "variant_count": 28 },
+      { "exon_number": 14, "variant_count": 11 }
+    ],
+    "protein_features": {
+      "signal_peptide": null,
+      "transmembrane": [],
+      "domains": [
+        {
+          "aa_start": 51,
+          "aa_end": 468,
+          "label": "Carotenoid oxygenase (RPE65 catalytic)",
+          "short_label": "Carotenoid oxygenase"
+        }
+      ],
+      "active_sites": [
+        { "aa": 180, "residue": "H", "label": "Fe2+ coordination" },
+        { "aa": 241, "residue": "H", "label": "Fe2+ coordination" },
+        { "aa": 313, "residue": "H", "label": "Fe2+ coordination" },
+        { "aa": 527, "residue": "H", "label": "Fe2+ coordination" }
+      ],
+      "membrane_binding": [
+        { "aa_start": 110, "aa_end": 127, "label": "Amphipathic helix (membrane contact)" },
+        { "aa_start": 200, "aa_end": 215, "label": "Amphipathic helix (membrane contact)" }
+      ],
+      "palmitoylation": [
+        { "aa": 231, "residue": "C", "label": "S-palmitoyl cysteine (membrane anchor)" },
+        { "aa": 329, "residue": "C", "label": "S-palmitoyl cysteine (membrane anchor)" }
+      ]
+    },
+    "conservation_values": [],
+    "restriction_sites": [
+      { "name": "BsrBI", "site": "CCGCTC", "flat_pos": 23 },
+      { "name": "BamHI", "site": "GGATCC", "flat_pos": 108 },
+      { "name": "EcoRI", "site": "GAATTC", "flat_pos": 146 },
+      { "name": "PmlI", "site": "CACGTG", "flat_pos": 137 }
+    ],
+    "features": [
+      {
+        "type": "oligo",
+        "cds_start": 248,
+        "cds_end": 272,
+        "label": "ss oligo for c.260A>G correction"
+      }
+    ]
+  },
+  "provenance": {
+    "sources": [
+      {
+        "name": "eamos_rpe65_frontend_sample",
+        "identifier": "RPE65_V2",
+        "url": null,
+        "version": "2026-05-18"
+      }
+    ],
+    "warnings": [
+      "offline_fixture_not_live_source_backed",
+      "clinvar_track_is_sample_bounded"
+    ]
+  }
+}

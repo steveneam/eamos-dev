@@ -8,6 +8,11 @@ from app.core.config import Settings
 from app.main import create_app
 
 
+class FailingExtractionChain:
+    def invoke(self, _payload):
+        raise RuntimeError("parser unavailable")
+
+
 def test_upload_test_report_returns_report_id_and_extraction_summary(
     auth_client: TestClient, pdf_bytes: bytes
 ) -> None:
@@ -24,7 +29,20 @@ def test_upload_test_report_returns_report_id_and_extraction_summary(
     assert body["report"]["extracted_case"]["variants"][0]["gene"] == "RPE65"
 
 
-def test_upload_patient_report_is_blocked_without_ai(auth_client: TestClient, pdf_bytes: bytes) -> None:
+def test_upload_requires_authentication(client: TestClient, pdf_bytes: bytes) -> None:
+    response = client.post(
+        "/api/v1/reports/upload",
+        files={"file": ("ravi-report.pdf", pdf_bytes, "application/pdf")},
+        data={"report_kind": "test"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
+
+
+def test_upload_patient_report_is_blocked_without_ai(
+    auth_client: TestClient, pdf_bytes: bytes
+) -> None:
     response = auth_client.post(
         "/api/v1/reports/upload",
         files={"file": ("patient.pdf", pdf_bytes, "application/pdf")},
@@ -37,12 +55,48 @@ def test_upload_patient_report_is_blocked_without_ai(auth_client: TestClient, pd
     assert body["report"]["extracted_case"]["issues"][0]["code"] == "patient_extraction_unavailable"
 
 
+def test_upload_blocks_when_live_extraction_fails(
+    auth_client: TestClient, pdf_bytes: bytes
+) -> None:
+    auth_client.app.state.intake_service.extraction_chain = FailingExtractionChain()
+
+    response = auth_client.post(
+        "/api/v1/reports/upload",
+        files={"file": ("patient.pdf", pdf_bytes, "application/pdf")},
+        data={"report_kind": "patient"},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["report"]["extraction_status"] == "blocked"
+    assert body["report"]["extracted_case"]["issues"][0]["code"] == "patient_extraction_failed"
+    assert "patient_extraction_failed" in body["report"]["extraction_warnings"]
+
+
 def test_upload_rejects_invalid_file_type(auth_client: TestClient) -> None:
     response = auth_client.post(
         "/api/v1/reports/upload",
         files={"file": ("notes.txt", b"not a pdf", "text/plain")},
     )
     assert response.status_code == 415
+
+
+def test_upload_rejects_spoofed_pdf_payload(auth_client: TestClient) -> None:
+    response = auth_client.post(
+        "/api/v1/reports/upload",
+        files={"file": ("spoofed.pdf", b"not a real pdf", "application/pdf")},
+    )
+    assert response.status_code == 415
+    assert response.json()["detail"] == "Uploaded file is not a valid PDF."
+
+
+def test_upload_rejects_empty_pdf(auth_client: TestClient) -> None:
+    response = auth_client.post(
+        "/api/v1/reports/upload",
+        files={"file": ("empty.pdf", b"", "application/pdf")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Uploaded file is empty."
 
 
 def test_upload_rejects_oversize_payload(tmp_path: Path, pdf_bytes: bytes) -> None:
