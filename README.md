@@ -37,7 +37,6 @@ Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2
 | Backend source | `app/backend/app/` |
 | Backend config | `app/backend/.env` (from `.env.example`; gitignored) |
 | Design system | `DESIGN.md` |
-| Prototype | `docs/design/` |
 
 **Start dev servers:**
 
@@ -296,11 +295,7 @@ This platform has a separate internal business context involving pet genetics. D
 | `app/backend/` | FastAPI backend — `app/` contains tools, services, schemas, routes |
 | `app/shared/contracts/` | Shared API contract (backend-api.json) |
 | `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the Claude Code (frontend) ↔ Codex (backend) workflow. Direct Codex app sessions have verified full workspace + outbound-network access (2026-05-17); live cross-agent coordination is in `agent_handoff/`. The plugin-mediated path ([openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)) is historical. |
-| `docs/architecture/` | API research, backend workflow, database-specific guides (ClinVar, VEP, SpliceAI) |
-| `docs/design/` | Design brief, design system, Stitch design files |
-| `docs/research/` | Problem scope, narrowing research |
-| `docs/sources/` | Source index |
-| `pitch/` | Pitch deck outline and speaking notes |
+| `docs/proprietary/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (EP-VLEx, search input resolution) |
 | `archive/` | Retired drafts, session handoffs, historical notes — includes `archive/franklin/` (the archived Genoox tool) |
 | `.claude/agents/` | Custom subagent role definitions (architect, developer, debugger, quality-reviewer, technical-writer, ui-ux-consultant) |
 | `.claude/conventions/` | Universal coding and documentation standards |

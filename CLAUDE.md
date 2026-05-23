@@ -7,49 +7,36 @@ Variant intelligence platform. Two active surfaces: `/report` (variant evidence 
 **Claude for UI, Codex for Code.** Default division of labour:
 
 - **Claude Code** owns the frontend: UI design, React/component work,
-  copywriting, and the frontend plan (`plans/v2-frontend.md`,
-  `app/frontend/**`).
-- **Codex** owns the backend: API, pipeline, data plumbing, and the backend
-  plan (`plans/v2-backend.md`, `app/backend/**`).
+  copywriting, the frontend plan (`plans/v2-frontend.md`, `app/frontend/**`).
+- **Codex** owns the backend: API, pipeline, data plumbing, the backend plan
+  (`plans/v2-backend.md`, `app/backend/**`).
 
-This is the default, not a hard wall. The user may swap roles or ask one to
-review/check the other's work — follow explicit per-task instructions when
-given; otherwise apply the golden rule. Ownership is a default, not a technical
-limit — see "Direct Codex vs. plugin delegation" below; live cross-agent
-coordination state lives in `agent_handoff/`.
+The default, not a hard wall — the user may swap roles or ask one to
+review the other's work; follow explicit per-task instructions when given.
+Direct Codex app sessions (verified 2026-05-17) have full workspace
+read/write + network and can own substantive backend/test work with their own
+verification — the old "Codex = grunt work only / can't run vitest/server"
+framing was a *plugin-era* limitation, historical only.
 
-### Direct Codex vs. plugin delegation
+### Coordination protocol — single home
 
-**Direct Codex app sessions** (verified 2026-05-17) have full read/write
-access to the `E:\eamos` workspace and outbound network connectivity. Direct
-Codex can own substantive backend/API/pipeline/tool/test work and run its own
-backend verification (`pytest`, live smoke) when a task is scoped to it — it is
-**not** limited to grunt work. The earlier "Codex = grunt work only / Claude
-must run all verification / Codex sandbox can't run a server or vitest/vite"
-model was a constraint of the **historical plugin-mediated** `codex:rescue`
-flow, not a property of direct Codex; treat that framing in older docs/memory
-as historical.
+The full cross-agent protocol — hard rules (no-delete/append+archive,
+own-section-only, parallel-mode lanes, shared-file + log-edit locks,
+backend-led contracts, no-idle, explicit role swaps), the
+**CURRENT.md-only-at-major-boundaries + replace-never-stack rule** (Hard Rule
+9), the Idle/Usage-Exhaustion Protocol, Integration Checkpoint, Stop/Break
+semantics, and the Resume-Prompt format — lives in **one place**:
+**`agent_handoff/README.md`**. Read it every session; do not re-state its
+rules here or elsewhere (change a rule once, there).
 
-Coordination is via `agent_handoff/` (live operational source of truth — read
-`agent_handoff/CURRENT.md` + `agent_handoff/RISKS.md` before editing, update
-`CURRENT.md` before stopping). Run one agent at a time until both reliably use
-`agent_handoff/`; then parallel terminals are fine with explicit disjoint file
-scopes (backend/schema lands before frontend contract consumers; no
-simultaneous edits to shared docs). Either agent still makes a deliberate,
-scoped handoff at a **verified task boundary** — never mid-task, never on
-trivial turns. Routine `CHANGELOG`/`PROGRESS`/`README`/`ROADMAP` prose and
-cleanup/lint/dead-code/doc-sync sweeps remain natural Codex work; the
-substantive design/code stays with its owning agent.
-
-### Every task ends clear-safe
-
-The user `/clear`s and starts a fresh session between tasks. A task is not
-"done" until it is **clear-safe**: (1) a paste-able resume prompt, (2) a
-self-contained handoff doc at `~/.claude/plans/next-session-eamos.md` (state ·
-done & verified · next · gotchas · resume prompt; readable cold in ~3 min),
-(3) `agent_handoff/CURRENT.md` plus `CHANGELOG`/`PROGRESS`/active
-`plans/*`/memory all synced and mutually consistent. Do not report a task
-complete until these exist.
+Operational summary: live state is `agent_handoff/CURRENT.md` (state only —
+update your own section at *major* boundaries, replace don't stack; the
+`## Active Status` heartbeat + `## Log Edit-Lock` release happen every
+session). Risks → `agent_handoff/RISKS.md`. Per-task history → `PROGRESS.md`
++ Claude's own `~/.claude/plans/next-session-eamos.md` (Claude's rolling log;
+keep incremental detail there, not in CURRENT.md). Every task/break still ends
+**clear-safe**: final chat message ends with a labeled `Safe to clear: yes|no`
+line + a fenced stamped resume `Prompt:` (format in README.md).
 
 ## Files
 
@@ -67,8 +54,7 @@ complete until these exist.
 | --------- | ---- | ------------ |
 | `app/` | Frontend (React/Vite/Tailwind) + Backend (FastAPI/Python) + shared contracts | All code work |
 | `plans/` | Active and historical work plans — start at `plans/README.md` for the parallel Claude Code (frontend) ↔ Codex (backend) workflow | Planning, picking up active milestones |
-| `docs/` | Architecture guides, API research, design brief, design system | Database API details, architecture decisions, design |
-| `pitch/` | Pitch deck outline and speaking notes | Presentation work |
+| `docs/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (`proprietary/`) | Finding custom project-generated systems (EP-VLEx, search input resolution) |
 | `archive/` | Retired drafts and historical session notes (includes `archive/franklin/` once BE-1 lands) | Historical context only |
 | `.claude/` | Agent roles, conventions, output styles, skills | Workflow, agent config, conventions |
 
