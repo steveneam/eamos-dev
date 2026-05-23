@@ -46,9 +46,9 @@ This app should stay **demo-first**:
 ## Build rule
 
 Start from:
-1. `shared/contracts/`
-2. `shared/demo-data/`
-3. `backend/` contract-compatible endpoints
-4. `frontend/` screens wired to those contracts
+1. `backend/app/schemas/` — Pydantic models, the contract source of truth
+2. `backend/` contract-compatible endpoints
+3. `frontend/` screens wired to those contracts (TS mirror in
+   `frontend/src/lib/backend.ts`, guarded by `backend/tests/test_frontend_contract.py`)
 
 That keeps both sides aligned while disease/referral narrowing continues.

@@ -30,4 +30,6 @@ npm run dev
 - pages live in `features/cases/`
 - API/client-facing shared types in `types/`
 
-This keeps frontend work aligned with backend-driven contracts in `shared/contracts`.
+This keeps frontend work aligned with the backend contract types in
+`src/lib/backend.ts` (mirrored from `app/backend/app/schemas/`, guarded by
+`app/backend/tests/test_frontend_contract.py`).

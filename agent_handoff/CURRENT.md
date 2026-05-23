@@ -25,8 +25,8 @@
   session: `d277263` removed the unused doc-only `app/shared/` OpenAPI folder +
   local `.trash/`. All-lanes integration committed+pushed (`7703cec` + `a8554ad`). **F1/F2 canary hardening DONE:** Codex promoted the report-profile subtree into the real parity map over BOTH `backend.ts` mirrors + a byte-identical guard; Claude verified (215 canary cases pass) + committed `b552865`. Branch 0/0, worktree clean.
   Remaining: F3 (sections don't consume `section_targets` for gating — later
-  contract slice; Codex confirmed valid), F4/F5 (LOW BE nits), and the
-  `app/shared` doc orphans (root README.md, app/README.md, app/frontend/README.md,
+  contract slice; Codex confirmed valid) and F4/F5 (LOW BE nits). app/shared doc
+  orphans now DONE (root README.md, app/README.md, app/frontend/README.md,
   app/CLAUDE.md). Untouched: `/runs`, AlphaMissense, parked Workbench. Full
   detail: `~/.claude/plans/next-session-eamos.md`.
 - **Codex:** IDLE @ 2026-05-24 01:03 +1000 - **BE↔FE cross-check
@@ -48,13 +48,16 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 01:36 +1000 · Claude (marked F1/F2 canary hardening DONE b552865; F3/F4/F5 + app/shared doc orphans remain)
+UNLOCKED · 2026-05-24 01:42 +1000 · Claude (app/shared doc-orphan cleanup done across 4 docs incl. app/CLAUDE.md; Rule-4 lock released)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
+- **`app/CLAUDE.md` Rule-4 lock released** (Claude, 2026-05-24 01:42 +1000) —
+  `app/shared` doc-orphan cleanup DONE (root README.md, app/README.md,
+  app/frontend/README.md, app/CLAUDE.md). Codex had explicitly ceded this file.
 - None held by Codex as of 2026-05-24 01:03 +1000. Released raw-search report
   integration/provenance locks for `app/frontend/src/lib/backend.ts`,
   `app/web/lib/backend.ts`, `app/frontend/src/pages/ReportPage.tsx`,
@@ -292,7 +295,7 @@ DONE entries older than the last major boundary into the relevant plan/log.
   Codex/BE lane — **DONE in `b552865`**: the canary now guards the report-profile
   subtree across BOTH `backend.ts` mirrors + a byte-identical guard (215 cases
   pass). F3 stays open (sections don't consume `section_targets` for gating);
-  F4/F5 (LOW) + `app/shared` doc orphans remain.
+  F4/F5 (LOW) remain; `app/shared` doc orphans DONE 2026-05-24 (4 docs).
 
 ## Current State
 
@@ -398,16 +401,16 @@ all-lanes commit (user pre-authorized).
 
 **Remaining:** F3 (sections don't consume `section_targets` for gating — Codex
 confirmed valid; later contract slice); F4/F5 (LOW BE nits); gene-viewer
-enrichment / Primer §6-B / §7 TIDE (gated backend); the `app/shared` doc orphans
-(root `README.md`, `app/README.md`, `app/frontend/README.md`, `app/CLAUDE.md`) —
-pending a tidy pass. **F1/F2 canary hardening DONE — `b552865`.**
+enrichment / Primer §6-B / §7 TIDE (gated backend). **DONE this session:** F1/F2
+canary hardening (`b552865`) + the `app/shared` doc-orphan cleanup across 4 docs
+(root `README.md`, `app/README.md`, `app/frontend/README.md`, `app/CLAUDE.md`).
 
 **Next (gated — user direction):** emerald "Lifestream" report-side redesign on
 the app/web skeleton; F1/F2 follow-up with Codex; strict-TS/app-web cutover —
 later. `/runs`, AlphaMissense, Workbench: do not touch (on hold).
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-24 01:18 +1000 · Claude (BE↔FE cross-check + integration DONE — break)
+`# Resume prompt · 2026-05-24 01:42 +1000 · Claude (BE↔FE cross-check + integration + doc-orphan cleanup DONE — break)
 Eamos. Read ~/.claude/plans/next-session-eamos.md (full state), then
 agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status +
 Locks + Cross-Agent Requests), agent_handoff/2026-05-24-be-fe-cross-check.md
@@ -420,9 +423,9 @@ Checkpoint and committed+pushed ALL lanes (7703cec integration, a8554ad planner
 chore, b552865 F1/F2 canary hardening — canary now guards the report-profile
 subtree across BOTH backend.ts mirrors + byte-identical guard, 215 cases; earlier
 d277263 removed app/shared + .trash). Worktree clean, branch 0/0. Next (no
-auto-start): F3 gating decision (sections don't consume section_targets), F4/F5
-(LOW BE nits), tidy the app/shared doc orphans (root README.md, app/README.md,
-app/frontend/README.md, app/CLAUDE.md).
+auto-start): F3 gating decision (sections don't consume section_targets) + F4/F5
+(LOW BE nits) when the BE/FE contract lane reopens. F1/F2 canary hardening and the
+app/shared doc-orphan cleanup are DONE this session.
 Do NOT touch /runs, AlphaMissense, parked Workbench. FE Vite checkpoint = 205eaae;
 landing v2 = fe08a0a; app/shared removal = d277263. End clear-safe.`
 

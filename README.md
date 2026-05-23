@@ -293,7 +293,6 @@ This platform has a separate internal business context involving pet genetics. D
 | ---------------- | ---- |
 | `app/frontend/` | React + Vite frontend — `/`, `/report`, `/workbench`, `/runs` (legacy) |
 | `app/backend/` | FastAPI backend — `app/` contains tools, services, schemas, routes |
-| `app/shared/contracts/` | Shared API contract (backend-api.json) |
 | `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the Claude Code (frontend) ↔ Codex (backend) workflow. Direct Codex app sessions have verified full workspace + outbound-network access (2026-05-17); live cross-agent coordination is in `agent_handoff/`. The plugin-mediated path ([openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)) is historical. |
 | `docs/proprietary/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (EP-VLEx, search input resolution) |
 | `archive/` | Retired drafts, session handoffs, historical notes — includes `archive/franklin/` (the archived Genoox tool) |

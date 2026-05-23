@@ -1,6 +1,6 @@
 # app/
 
-Full-stack application: React/Vite frontend + FastAPI/Python backend + shared API contract.
+Full-stack application: React/Vite frontend + FastAPI/Python backend.
 
 ## Subdirectories
 
@@ -8,7 +8,6 @@ Full-stack application: React/Vite frontend + FastAPI/Python backend + shared AP
 | --------- | ---- | ------------ |
 | `frontend/` | React + TypeScript + Vite + Tailwind — variant lookup UI and patient report flow | Any frontend or UI work |
 | `backend/` | FastAPI + Python — genomic pipeline, tools, rules engine, API routes | Any backend, API, or pipeline work |
-| `shared/` | OpenAPI contract JSON, demo data fixtures | Changing API contract, checking type definitions |
 
 ## Development
 
