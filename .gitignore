@@ -1,6 +1,8 @@
 # Local environment / editor
 .env
 .env.local
+.env.*.local
+.vercel
 .vscode/
 .idea/
 *.pyc

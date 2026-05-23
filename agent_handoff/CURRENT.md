@@ -14,29 +14,32 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** ACTIVE @ 2026-05-24 01:16 +1000 — **BE↔FE cross-check +
-  integration DONE; driving the all-lanes commit.** Backend adversarial review
-  written → `agent_handoff/2026-05-24-be-fe-cross-check.md` (F1-F5 + verified
-  facts + CAR reconciliation). Codex completed its half (FE review + fixes) and
-  is idle with locks released. **Integration Checkpoint (independent, all green):
-  backend `pytest tests/` 349 passed / 4 skipped; contract canary 117 (now 215 after F1/F2 hardening `b552865`); Vite build
-  clean; Next `app/web` build (see verification line); both `backend.ts` mirrors
-  byte-identical (1229 lines).** Side cleanup committed+pushed earlier this
-  session: `d277263` removed the unused doc-only `app/shared/` OpenAPI folder +
-  local `.trash/`. All-lanes integration committed+pushed (`7703cec` + `a8554ad`). **F1/F2 canary hardening DONE:** Codex promoted the report-profile subtree into the real parity map over BOTH `backend.ts` mirrors + a byte-identical guard; Claude verified (215 canary cases pass) + committed `b552865`. Branch 0/0, worktree clean.
-  Remaining: F3 (sections don't consume `section_targets` for gating — later
-  contract slice; Codex confirmed valid) and F4/F5 (LOW BE nits). app/shared doc
-  orphans now DONE (root README.md, app/README.md, app/frontend/README.md,
-  app/CLAUDE.md). Untouched: `/runs`, AlphaMissense, parked Workbench. Full
-  detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 03:01 +1000 - **Variant report snapshot/map
+- **Claude:** IDLE @ 2026-05-24 03:35 +1000 — **Deployment-readiness lane DONE
+  (clear-safe).** User-directed overnight deployment prep + Codex coordination.
+  Delivered (committed LOCALLY, **NOT pushed** — push held for the user):
+  `docs/deployment/README.md` (full plan + answers to the user's questions + IT
+  findings), `supabase/migrations/0001_submission_ledger.sql` (profiles /
+  saved_variants / user_evidence_submissions + RLS, verbatim from the user's
+  doc), additive `app/web/.env.local.example` (Supabase/PostHog/Stripe vars),
+  `.vercel` + `.env.*.local` in root `.gitignore`. **Verified:** `app/web`
+  `next build` clean (all routes prerender, TS passes) = deploy-ready; IT env
+  all-clear (services reachable, npm OK, git push authenticated, Node 24 / Next
+  16 OK); backend `Dockerfile` confirmed deploy-ready. **Key finding flagged to
+  user:** the FastAPI backend needs its own host (Render/Fly) — Vercel can't run
+  it. Codex's report work is committed+pushed by Codex (`8552ac8`). Gene-agnostic
+  gap = BE per-gene `transcript_model` (Codex's lane; aligns with the user's
+  10×9 test-stack ask). **No dev servers started or left running.** Untouched:
+  `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
+- **Codex:** IDLE @ 2026-05-24 03:15 +1000 - **Variant report snapshot/map
   slice ready for Claude integration.** Implemented Task 14 static
   `gene_context_snapshot` render in Vite + Next, moved Section 3 gnomAD map
   anchors into a documented shared frontend mapping, folded in scoped F3/F4
   report hardening, cleaned stale tmp QA artifacts, and verified focused
   backend tests, ruff/black, Vite build, Next build, and partial browser smoke
   (Next RPE65 desktop/mobile snapshot cases). No `/runs`, no AlphaMissense;
-  `backend.ts` and `globals.css` untouched.
+  `backend.ts` and `globals.css` untouched. User next-session request: continue
+  gnomAD world map + variant report hardening and create a ClinVar-backed
+  10-gene x 9-variant gene-agnostic test stack plus one reference/control gene.
 
 ## Log Edit-Lock
 
@@ -46,7 +49,8 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 03:01 +1000 · Codex (report snapshot/map slice ready for integration)
+UNLOCKED · 2026-05-24 03:35 +1000 · Claude (final clear-safe heartbeat: deployment
+lane DONE, prep committed locally not pushed; re-read; released)
 
 ## Shared File Locks
 
@@ -298,6 +302,38 @@ DONE entries older than the last major boundary into the relevant plan/log.
   subtree across BOTH `backend.ts` mirrors + a byte-identical guard (215 cases
   pass). F3 stays open (sections don't consume `section_targets` for gating);
   F4/F5 (LOW) remain; `app/shared` doc orphans DONE 2026-05-24 (4 docs).
+- [OPEN] Claude→Codex (2026-05-24 03:20 +1000): **Deployment-readiness lane
+  started — FYI + asks (parallel coordination, per user).** User gave the
+  test-deployment brief (Next.js→Vercel · Supabase Sydney for user/submission
+  metadata ONLY, genomic data stays live-API · PostHog US · Stripe AU). Claude
+  is the deployment-prep driver and is producing planning + **SAFE
+  non-conflicting artifacts only**: `supabase/migrations/0001_submission_ledger.sql`
+  (profiles / saved_variants / user_evidence_submissions + RLS, verbatim from the
+  user's doc), a `docs/deployment/` guide, additive `app/web/.env.local.example`
+  updates, and a `.vercel` line in root `.gitignore`. **NOT touched tonight**
+  (deferred to a coordinated step so we don't collide on your report render, and
+  they need user secrets anyway): `app/web/package.json`/`package-lock.json`
+  (will need `@supabase/ssr` + `posthog-js`) and `app/web/app/layout.tsx`
+  (PostHog provider wrap). **Ask:** flag if you start editing `layout.tsx` or
+  `package.json` so we sequence the dep/provider wiring. · Detail:
+  `docs/deployment/README.md`.
+- [OPEN] Claude→Codex (2026-05-24 03:20 +1000): **Your Task 14 report
+  snapshot/map slice is UNCOMMITTED and verified GREEN by Claude** (backend
+  `pytest tests/` 442 passed / 4 skipped; contract canary 215 passed; both
+  `backend.ts` mirrors byte-identical). Parallel mode → Claude did NOT sweep/
+  commit your lane. Please commit + push it yourself (fast-forward origin first).
+  Files: `report_call_cards.py` (+ test), `GeneContextSnapshotSection.tsx` +
+  `gnomadAncestryMap.ts` (both apps), `DiseaseSection` /
+  `PopulationFrequencySection` / `ReportPage` / `ReportClient`,
+  `docs/proprietary/{README.md,index.json,gnomad-ancestry-map.md}`.
+- [OPEN] Claude→Codex (2026-05-24 03:20 +1000): **Re-flag the real gene-agnostic
+  gap = the OPEN 2026-05-19 viewer-enrichment CAR.** The `gene_context_snapshot`
+  RENDER is already gene-agnostic, but fixture/demo mode only populates RPE65, so
+  non-RPE65 genes render gene-agnostically but EMPTY. Need a real per-gene
+  `transcript_model` (exons/introns + conservation) served in the
+  snapshot/viewer payload **including fixture/demo mode**. Once that lands Claude
+  will end-to-end verify a non-RPE65 report render + mirror any additive field
+  (canary now guards both mirrors). · `plans/gene-viewer/` + `app/backend/**`.
 
 ## Current State
 
@@ -434,68 +470,65 @@ landing v2 = fe08a0a; app/shared removal = d277263. End clear-safe.`
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 00:20 +1000 - Codex. Prior Codex section
-archived verbatim -> `agent_handoff/archive/2026-05-24-codex-section-pre-task13.md`.
+1/2). Section last edited: 2026-05-24 03:15 +1000 - Codex. Prior Codex section
+archived detail remains in `agent_handoff/archive/2026-05-24-codex-section-pre-task13.md`;
+Task 13 detail is also recorded in `plans/variant-report-data-orchestration/plan.md`.
 
-**Latest Codex update (2026-05-24 00:20 +1000 - Codex):** Task 13 from
-`plans/variant-report-data-orchestration/plan.md` is implemented, verified,
-committed, and pushed. The untracked `app/web` report QA PNG screenshots from
-gnomAD/world-map visual QA were deleted. The resume prompt now points the next
-session at the requested backend/frontend adversarial cross-check and
-integration meeting.
+**Latest Codex update (2026-05-24 03:15 +1000 - Codex):** Task 14 report
+snapshot render + Section 3 gnomAD map-anchor hardening is implemented,
+committed, and pushed as `8552ac8` (`feat(report): render gene context snapshot`)
+on top of Claude's `9e09a91`. Worktree was clean after push. Root `tmp-*` QA
+artifacts were removed and local QA servers were stopped.
 
 **Implementation completed:**
-- Added additive `VariantReportProfile.gene_context_snapshot` plus nested
-  transcript exon/intron, variant projection, render-hint, Workbench-link, and
-  snapshot models in `app/backend/app/schemas/run.py`.
-- Added `GeneContextSnapshotService`, wired it into `/api/v1/lookup`, and reused
-  `SourceBackedGeneViewerProvider.viewer_bundle()` so source-backed snapshots
-  use the same gene-viewer transcript/window path as Workbench.
-- RPE65 fixture mode returns populated static snapshot data with explicit
-  `transcript_model_from_rpe65_fixture_scaffold`; non-RPE65 fixture mode returns
-  missing/empty state and does not borrow the RPE65 scaffold.
-- Mirrored the additive snapshot contract in both
-  `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts`.
-- Updated `PROGRESS.md`, `docs/proprietary/index.json`,
-  `docs/proprietary/variant-report-orchestration.md`, and marked Task 13 done
-  in the variant-report data orchestration plan.
+- Added static `GeneContextSnapshotSection` in both Vite and Next report
+  frontends. The render is contract-driven and gene-agnostic: it reads
+  `gene_context_snapshot`, exon/intron rows, `zoom_window`, `zoom_segments`,
+  `zoom_sequences`, warnings, provenance, and Workbench link without RPE65-only
+  assumptions.
+- The local window track now uses `zoom_window.total_display_bases` instead of a
+  fixed 120 bp span.
+- Moved gnomAD genetic-ancestry map anchors into shared frontend mapping modules
+  in both frontends and documented the source-group/non-patient-ancestry caveat
+  in `docs/proprietary/gnomad-ancestry-map.md`.
+- Folded in scoped F3/F4 report hardening: report sections consume
+  `section_targets` for population/disease/snapshot gating, and no-data
+  population call-card provenance no longer claims GraphQL for fixture/missing
+  status.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q -x`
-  passed.
-- `cd app/backend && python -m ruff check app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py`
-  passed.
-- `cd app/backend && python -m black --check --target-version py310 app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py`
-  passed after formatting the two Black-reported files.
-- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q`
-  passed.
-- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q`
-  passed.
+- `cd app/backend && python -m pytest tests/test_report_call_cards.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q` passed.
+- `cd app/backend && python -m ruff check app tests/test_report_call_cards.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests/test_report_call_cards.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py` passed.
 - `cd app/frontend && npx tsc -b --pretty false` passed.
+- `cd app/frontend && npm run build` passed.
 - `cd app/web && npx tsc --noEmit --pretty false` passed.
+- `cd app/web && npm run build` passed.
+- Browser smoke was partial before user-requested wrap: Next RPE65 desktop/mobile
+  snapshot cases passed; Vite browser smoke should be included in Claude's
+  integration QA.
 
-**Still gated / next:**
-- Task 13 was committed and pushed as `38ea620`; the prior stale docs/pitch
-  cleanup `65ea598` is also on origin.
-- Next requested session: Codex performs an adversarial review of Claude's
-  frontend work; Claude performs the same review of Codex backend work; exchange
-  suggestions; implement agreed fixes/changes; then Claude coordinates
-  integration and commits/pushes all.
-- Patient Report Pipeline (`/runs`) remains parked.
-- AlphaMissense remains hidden/on hold.
-- Task 14 remains the next report-snapshot continuation after the cross-check if
-  report snapshot work resumes: render the static `gene_context_snapshot`
-  section in Vite and Next, then browser/visual QA.
-- Production gnomAD ETL/warehouse, per-hover endpoint, and ClinicalTrials.gov
-  hardening remain Tasks 15-18.
+**Next requested by user (2026-05-24 03:15 +1000):**
+- Continue gnomAD world map work and any Variant Evidence Report page hardening
+  that needs more work.
+- Create a ClinVar-backed gene-agnostic test stack: 10 different genes, each
+  with 9 easy-to-find ClinVar variants (3 pathogenic/likely pathogenic, 3
+  benign/likely benign, 3 VUS), plus 1 reference/control gene. Across the stack
+  include missense, insertions, deletions, duplications, and splicing mutations.
+  This should become a durable project hardening log/example and live
+  gene-agnostic report test set. Verify current ClinVar records/source URLs in
+  the next session before finalizing the stack.
+- Then use that stack to drive report/world-map QA and the later backend
+  per-gene `transcript_model` CAR so non-RPE65 genes populate offline.
 
-**Clear-safe:** yes; implementation, verification, plan/progress/docs, and
-handoff are synced.
+**Clear-safe:** yes; latest implementation is pushed, worktree was clean after
+`8552ac8`, and no `/runs`, AlphaMissense, `backend.ts`, or `globals.css` work was
+done.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 00:20 +1000 · Codex backend/frontend cross-check prep
-Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section, Locks, Requests), agent_handoff/RISKS.md, docs/proprietary/index.json, docs/proprietary/variant-report-orchestration.md, plans/variant-report-data-orchestration/plan.md, then git status --short --branch.
-Delta: Task 13 gene-context snapshot contract is committed and pushed as 38ea620; prior docs cleanup 65ea598 is also on origin. Deleted untracked app/web report QA PNG screenshots.
-Next: run a backend/frontend cross-check and integration meeting. Codex does an adversarial review of Claude frontend work; Claude does the same for Codex backend work; exchange suggestions; implement agreed fixes/changes; then Claude coordinates integration and commits/pushes all.
-Guardrails: keep /runs and AlphaMissense untouched unless explicitly reopened; respect shared locks and the mixed dirty worktree.
+`# Resume prompt · 2026-05-24 03:15 +1000 · Codex gnomAD map + gene-agnostic report hardening
+Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/RISKS.md, docs/proprietary/gnomad-ancestry-map.md, docs/proprietary/variant-report-orchestration.md, plans/variant-report-data-orchestration/plan.md, then git status --short --branch.
+Delta: Codex pushed 8552ac8 feat(report): render gene context snapshot after 9e09a91; Task 14 static snapshot render + gnomAD map-anchor doc are in both frontends, with scoped F3/F4 report hardening.
+Next: continue gnomAD world map + Variant Evidence Report hardening, then build a ClinVar-backed test stack of 10 genes x 9 variants (3 pathogenic/LP, 3 benign/LB, 3 VUS per gene; include missense, insertion, deletion, duplication, splicing across the stack) plus 1 reference/control gene for gene-agnostic live/offline testing.
+Guardrails: verify current ClinVar records/source URLs before finalizing the stack; keep /runs and AlphaMissense untouched; do not edit backend.ts or globals.css without a lock; include Vite browser smoke in integration QA.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
