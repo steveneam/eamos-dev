@@ -137,3 +137,31 @@ def test_ep_vlex_skips_failed_live_source_fallback_fixture_rows() -> None:
     assert literature.total_count == 1
     assert [article.pmid for article in literature.articles] == ["41234567"]
     assert literature.source_breakdown.pubmed == 0
+
+
+def test_ep_vlex_skips_failed_clinvar_citation_rows() -> None:
+    literature = EamosProprietaryVariantLiteratureExtractor().build_for_lookup(
+        _variant(),
+        {"clinvar": {"citations": [{"pmid": "12345678"}]}},
+        source_statuses={"clinvar": "error"},
+    )
+
+    assert literature.total_count == 0
+    assert literature.source_breakdown.clinvar == 0
+
+
+def test_ep_vlex_clinvar_pmid_extraction_ignores_reference_allele_numbers() -> None:
+    literature = EamosProprietaryVariantLiteratureExtractor().build_for_lookup(
+        _variant(),
+        {"clinvar": {"citations": [{"pmid": "12345678"}]}},
+        evidence_raw={
+            "clinvar": {
+                "reference_allele": {"position": 68444869},
+                "references": [{"pubmed_id": "23456789"}],
+            }
+        },
+    )
+
+    assert literature.total_count == 2
+    assert {article.pmid for article in literature.articles} == {"12345678", "23456789"}
+    assert "68444869" not in {article.pmid for article in literature.articles}

@@ -29,6 +29,42 @@ def _identifier_term(identifier: str) -> str:
     return f'"{identifier}"[Title/Abstract]'
 
 
+def _fixture_matches_variant(variant, fixture: dict) -> bool:
+    if variant is None:
+        return True
+    request_gene = str(getattr(variant, "gene", "") or "").upper()
+    if request_gene != "RPE65":
+        return False
+    cdna = (_extract_cdna(getattr(variant, "transcript_hgvs", None)) or "").lower()
+    protein = (_protein_identifier(getattr(variant, "protein_change", None)) or "").lower()
+    genomic_hg38 = str(getattr(variant, "genomic_hg38", "") or "").lower()
+    return any(
+        token
+        for token in (
+            cdna == "c.260a>g",
+            protein in {"asp87gly", "d87g"},
+            genomic_hg38 == "1-68444869-t-c",
+        )
+    )
+
+
+def _empty_result(variant, *, status: str, warnings: list[str]) -> ToolResult:
+    gene = str(getattr(variant, "gene", "") or "")
+    cdna = _extract_cdna(getattr(variant, "transcript_hgvs", None))
+    term = f"{gene}[Gene Name]"
+    if cdna:
+        term = f"{gene}[Gene Name] AND {_identifier_term(cdna)}"
+    return ToolResult(
+        source=PubmedTool.source,
+        status=status,
+        request_identity={"term": term},
+        summary={"articles": [], "total": 0},
+        warnings=warnings,
+        raw={},
+        source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None,
+    )
+
+
 class PubmedTool(FixtureBackedTool):
     source = "pubmed"
     fixture_name = "pubmed_fixtures.json"
@@ -39,6 +75,12 @@ class PubmedTool(FixtureBackedTool):
             fixture = self.load_fixture()
             gene = (variant.gene if variant is not None else None) or ""
             fallback_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            if variant is not None and not _fixture_matches_variant(variant, fixture):
+                return _empty_result(
+                    variant,
+                    status="missing",
+                    warnings=["pubmed_fixture_variant_mismatch"],
+                )
             return ToolResult(
                 source=self.source, status="fixture", source_url=fallback_url, **fixture
             )
@@ -48,6 +90,15 @@ class PubmedTool(FixtureBackedTool):
             fixture = self.load_fixture()
             gene = variant.gene or ""
             fallback_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            if not _fixture_matches_variant(variant, fixture):
+                return _empty_result(
+                    variant,
+                    status="fallback",
+                    warnings=[
+                        f"live_fetch_failed:{type(exc).__name__}",
+                        "pubmed_fallback_fixture_variant_mismatch",
+                    ],
+                )
             return ToolResult(
                 source=self.source,
                 status="fallback",

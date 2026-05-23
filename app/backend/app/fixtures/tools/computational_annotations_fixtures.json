@@ -1,0 +1,150 @@
+{
+  "variants": [
+    {
+      "gene": "RPE65",
+      "aliases": [
+        "c.260A>G",
+        "NM_000329.3:c.260A>G",
+        "1-68444869-T-C",
+        "NC_000001.11:g.68444869T>C"
+      ],
+      "predictors": [
+        {
+          "name": "REVEL",
+          "score": 0.78,
+          "threshold": 0.5,
+          "interpretation": "Damaging protein-effect support.",
+          "source": "dbNSFP",
+          "version": "dbNSFP v5.3.1 / REVEL v1.3",
+          "source_url": "https://www.dbnsfp.org/home",
+          "warnings": []
+        },
+        {
+          "name": "CADD PHRED",
+          "score": 23.4,
+          "threshold": 20.0,
+          "interpretation": "Above commonly used deleteriousness screen.",
+          "source": "CADD",
+          "version": "CADD v1.7 GRCh38",
+          "source_url": "https://cadd.gs.washington.edu/",
+          "warnings": []
+        },
+        {
+          "name": "PrimateAI-3D",
+          "score": 0.61,
+          "threshold": 0.5,
+          "interpretation": "Deleterious-supporting model output.",
+          "source": "dbNSFP",
+          "version": "dbNSFP v5.3.1 / PrimateAI-3D",
+          "source_url": "https://www.dbnsfp.org/home",
+          "warnings": [
+            "licensed_dataset_snapshot"
+          ]
+        },
+        {
+          "name": "MetaLR",
+          "score": 0.62,
+          "threshold": 0.5,
+          "interpretation": "Legacy ensemble predictor: damaging.",
+          "source": "dbNSFP",
+          "version": "dbNSFP v5.3.1 / MetaLR",
+          "source_url": "https://www.dbnsfp.org/home",
+          "warnings": [
+            "legacy_predictor"
+          ]
+        }
+      ],
+      "spliceai": {
+        "max_delta": 0.12,
+        "consequence": "acceptor_loss",
+        "threshold": 0.2,
+        "component_scores": {
+          "DS_AL": 0.12,
+          "DS_DL": 0.04,
+          "DS_AG": 0.0,
+          "DS_DG": 0.0
+        },
+        "component_positions": {
+          "DP_AL": -16,
+          "DP_DL": 6,
+          "DP_AG": 0,
+          "DP_DG": 0
+        },
+        "source": "SpliceAI",
+        "version": "Illumina SpliceAI v1.3 style fields; hg38 distance 500 mask 0",
+        "source_url": "https://spliceailookup.broadinstitute.org/",
+        "warnings": [
+          "spliceai_public_lookup_demo_fallback"
+        ]
+      },
+      "conservation": [
+        {
+          "name": "phyloP100way",
+          "score": 2.48,
+          "threshold": null,
+          "interpretation": "Conserved mammalian site.",
+          "source": "dbNSFP",
+          "version": "dbNSFP v5.3.1 / phyloP100way",
+          "source_url": "https://www.dbnsfp.org/home",
+          "warnings": []
+        },
+        {
+          "name": "GERP++ RS",
+          "score": 4.12,
+          "threshold": null,
+          "interpretation": "Evolutionary constraint support.",
+          "source": "dbNSFP",
+          "version": "dbNSFP v5.3.1 / GERP++",
+          "source_url": "https://www.dbnsfp.org/home",
+          "warnings": []
+        }
+      ],
+      "excluded_predictors": [
+        "AlphaMissense"
+      ],
+      "provenance": [
+        {
+          "source": "dbNSFP",
+          "status": "fixture",
+          "query": {
+            "gene": "RPE65",
+            "variant": "1-68444869-T-C"
+          },
+          "source_url": "https://www.dbnsfp.org/home",
+          "version": "dbNSFP v5.3.1 snapshot",
+          "warnings": [
+            "license_review_required_before_distribution"
+          ]
+        },
+        {
+          "source": "CADD",
+          "status": "fixture",
+          "query": {
+            "genomic_hg38": "1-68444869-T-C"
+          },
+          "source_url": "https://cadd.gs.washington.edu/",
+          "version": "CADD v1.7 GRCh38",
+          "warnings": []
+        },
+        {
+          "source": "SpliceAI",
+          "status": "fixture",
+          "query": {
+            "genomic_hg38": "1-68444869-T-C",
+            "distance": "500",
+            "mask": "0"
+          },
+          "source_url": "https://spliceailookup.broadinstitute.org/",
+          "version": "Illumina SpliceAI v1.3 style fields; hg38 distance 500 mask 0",
+          "warnings": [
+            "target_path_local_precomputed_scores"
+          ]
+        }
+      ],
+      "warnings": [
+        "alphamissense_on_hold",
+        "computational_annotations_fixture_snapshot"
+      ]
+    }
+  ]
+}

@@ -11,13 +11,13 @@ import { EvidenceTable } from '@/components/report/EvidenceTable'
 import { DiseaseSection } from '@/components/report/DiseaseSection'
 import { TrialsSection } from '@/components/report/TrialsSection'
 import { PubMedSection } from '@/components/report/PubMedSection'
-import { LimitationsSection } from '@/components/report/LimitationsSection'
 import { LocusContext } from '@/components/report/LocusContext'
 import { InSilicoGrid } from '@/components/report/InSilicoGrid'
 import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
 import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
 import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PublicationsCallout } from '@/components/report/PublicationsCallout'
+import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { Card } from '@/components/ui/Card'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
@@ -230,23 +230,32 @@ function ReportBody({ data, query }: ReportBodyProps) {
         <LocusContext data={payload.locus_context} />
       </Card>
 
-      <Card number={3} title="Evidence by source" meta="in-silico · per-source detail · ACMG">
+      {payload.report_profile?.population_frequency && (
+        <Card
+          number={3}
+          title="gnomAD population frequency"
+          meta="genetic ancestry groups | source age distribution"
+        >
+          <PopulationFrequencySection section={payload.report_profile.population_frequency} />
+        </Card>
+      )}
+
+      <Card number={4} title="Evidence by source" meta="in-silico · per-source detail · ACMG">
         <InSilicoGrid data={payload.in_silico_predictions} />
         <EvidenceTable evidence={data.evidence} embedded />
         <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
       </Card>
 
-      <Card number={4} title="Gene context & associated conditions" meta={geneContextMeta}>
+      <Card number={5} title="Gene context & associated conditions" meta={geneContextMeta}>
         <DiseaseSection payload={payload} embedded />
         <CuratedVariantsGrid data={payload.curated_variants_distribution} />
         <AssociatedConditions data={payload.associated_conditions} />
         <PublicationsCallout data={payload.publications_callout} />
       </Card>
 
-      <VariantDecoder decoder={payload.variant_decoder} number={5} />
-      <TrialsSection payload={payload} number={6} />
-      <PubMedSection articles={payload.pubmed_articles} number={7} />
-      <LimitationsSection text={payload.limitations} number={8} />
+      <VariantDecoder decoder={payload.variant_decoder} number={6} />
+      <TrialsSection payload={payload} number={7} />
+      <PubMedSection articles={payload.pubmed_articles} number={8} />
     </div>
   )
 }

@@ -1,0 +1,103 @@
+{
+  "genes": {
+    "RPE65": {
+      "gene": "RPE65",
+      "approved_symbol": "RPE65",
+      "hgnc_id": "HGNC:10294",
+      "gene_name": "retinoid isomerohydrolase RPE65",
+      "primary_condition": "Leber congenital amaurosis 2",
+      "inheritance": "AR",
+      "penetrance": null,
+      "gene_disease_validity": "definitive",
+      "mechanism": "Biallelic RPE65 variants disrupt retinoid isomerohydrolase function in the retinal pigment epithelium visual cycle, causing autosomal recessive inherited retinal degeneration.",
+      "disease_ids": [
+        "OMIM:204100",
+        "MedGen:C1859844",
+        "MONDO:0008765",
+        "ORPHA:65"
+      ],
+      "conditions": [
+        {
+          "name": "Leber congenital amaurosis 2",
+          "disease_ids": [
+            "OMIM:204100",
+            "MedGen:C1859844",
+            "MedGenUID:348473",
+            "MONDO:0008765",
+            "ORPHA:65"
+          ],
+          "inheritance": "AR",
+          "validity": "definitive",
+          "mechanism": "Autosomal recessive RPE65-related retinal degeneration.",
+          "source_urls": [
+            "https://www.ncbi.nlm.nih.gov/medgen/348473",
+            "https://search.thegencc.org/submissions/GENCC_000112-HGNC_10294-OMIM_204100-HP_0000007-GENCC_100001"
+          ]
+        },
+        {
+          "name": "Retinitis pigmentosa 20",
+          "disease_ids": [
+            "OMIM:613794",
+            "MedGen:C3151086",
+            "MedGenUID:462436",
+            "MONDO:0013425"
+          ],
+          "inheritance": "AR",
+          "validity": "definitive",
+          "mechanism": "Retinitis pigmentosa caused by pathogenic RPE65 variants.",
+          "source_urls": [
+            "https://www.ncbi.nlm.nih.gov/medgen/462436"
+          ]
+        }
+      ],
+      "provenance": [
+        {
+          "source": "HGNC",
+          "status": "fixture",
+          "query": {
+            "symbol": "RPE65"
+          },
+          "source_url": "https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:10294",
+          "version": "curated_fixture_2026-05-23",
+          "warnings": []
+        },
+        {
+          "source": "ClinGen Gene-Disease Validity",
+          "status": "fixture",
+          "query": {
+            "gene": "RPE65",
+            "disease": "Leber congenital amaurosis 2"
+          },
+          "source_url": "https://search.thegencc.org/submissions/GENCC_000112-HGNC_10294-OMIM_204100-HP_0000007-GENCC_100001",
+          "version": "curated_fixture_2026-05-23",
+          "warnings": []
+        },
+        {
+          "source": "NCBI MedGen",
+          "status": "fixture",
+          "query": {
+            "gene": "RPE65",
+            "concept": "C1859844"
+          },
+          "source_url": "https://www.ncbi.nlm.nih.gov/medgen/348473",
+          "version": "curated_fixture_2026-05-23",
+          "warnings": []
+        },
+        {
+          "source": "Orphadata",
+          "status": "fixture",
+          "query": {
+            "gene": "RPE65",
+            "orpha": "65"
+          },
+          "source_url": "https://www.orphadata.com/",
+          "version": "curated_fixture_2026-05-23",
+          "warnings": []
+        }
+      ],
+      "warnings": [
+        "penetrance_not_source_backed"
+      ]
+    }
+  }
+}

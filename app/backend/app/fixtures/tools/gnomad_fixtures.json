@@ -6,12 +6,51 @@
   "summary": {
     "gene": "RPE65",
     "variant_id": "1-68444869-T-C",
+    "dataset": "gnomad_r4",
+    "sequencing_type": "joint",
     "allele_frequency": 0.0000159,
     "allele_count": 2,
     "allele_number": 125748,
     "homozygote_count": 0,
     "popmax_frequency": 0.0000486,
     "popmax_population": "NFE",
+    "genetic_ancestry_groups": [
+      {
+        "id": "nfe",
+        "allele_count": 2,
+        "allele_number": 41152,
+        "allele_frequency": 0.0000486,
+        "homozygote_count": 0
+      },
+      {
+        "id": "afr",
+        "allele_count": 0,
+        "allele_number": 31240,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "amr",
+        "allele_count": 0,
+        "allele_number": 18330,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      }
+    ],
+    "age_distribution": {
+      "het": {
+        "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+        "bin_freq": [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+        "n_smaller": 0,
+        "n_larger": 0
+      },
+      "hom": {
+        "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+        "bin_freq": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "n_smaller": 0,
+        "n_larger": 0
+      }
+    },
     "flags": [],
     "url": "https://gnomad.broadinstitute.org/variant/1-68444869-T-C?dataset=gnomad_r4"
   }

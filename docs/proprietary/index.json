@@ -1,0 +1,152 @@
+{
+  "updated": "2026-05-23 19:51 +1000 - Codex",
+  "purpose": "Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic.",
+  "entries": [
+    {
+      "id": "ep-vlex",
+      "name": "Eamos Proprietary Variant Literature Extractor",
+      "short_name": "EP-VLEx",
+      "type": "backend_algorithm_service",
+      "status": "active_backend_prototype",
+      "added_at": "2026-05-19 19:56 +1000 - Codex",
+      "last_updated_at": "2026-05-23 18:22 +1000 - Codex",
+      "doc": "docs/proprietary/ep-vlex.md",
+      "source_files": [
+        "app/backend/app/services/publication_literature.py",
+        "app/backend/app/services/lookup_service.py",
+        "app/backend/app/schemas/run.py"
+      ],
+      "entry_points": [
+        "POST /api/v1/lookup",
+        "POST /api/v1/lookup/publications"
+      ],
+      "tests": [
+        "app/backend/tests/test_publication_literature.py",
+        "app/backend/tests/test_variant_search_integration.py",
+        "app/backend/tests/test_variant_cache.py",
+        "app/backend/tests/test_frontend_contract.py"
+      ]
+    },
+    {
+      "id": "eamos-search-input",
+      "name": "Eamos Search Input Resolver And CLI",
+      "type": "parser_resolver_cli",
+      "status": "active_backend_prototype",
+      "added_at": "2026-05-21 17:54 +1000 - Codex",
+      "last_updated_at": "2026-05-23 18:00 +1000 - Codex",
+      "doc": "docs/proprietary/eamos-search-input.md",
+      "source_files": [
+        "app/backend/app/services/search_input_resolver.py",
+        "app/backend/app/cli/eamos_search_input.py",
+        "app/backend/app/services/sequence_context.py"
+      ],
+      "entry_points": [
+        "python -m app.cli.eamos_search_input"
+      ],
+      "tests": [
+        "app/backend/tests/test_search_input_resolver.py",
+        "app/backend/tests/test_lookup_normalize.py",
+        "app/backend/tests/test_eamos_search_input_cli.py"
+      ]
+    },
+    {
+      "id": "source-backed-candidate-resolution",
+      "name": "Source-Backed Candidate Resolution",
+      "type": "backend_interpreter_resolver",
+      "status": "first_slice_backend_prototype",
+      "added_at": "2026-05-21 19:07 +1000 - Codex",
+      "last_updated_at": "2026-05-23 18:00 +1000 - Codex",
+      "doc": "docs/proprietary/candidate-resolution.md",
+      "source_files": [
+        "app/backend/app/services/search_input_interpreter.py",
+        "app/backend/app/services/search_candidate_resolver.py",
+        "app/backend/app/fixtures/search_candidate_records.json",
+        "app/backend/app/schemas/lookup.py",
+        "app/backend/app/api/routes/lookup.py"
+      ],
+      "entry_points": [
+        "POST /api/v1/lookup/parse",
+        "POST /api/v1/lookup"
+      ],
+      "tests": [
+        "app/backend/tests/test_variant_search_integration.py",
+        "app/backend/tests/test_frontend_contract.py",
+        "app/backend/tests/test_search_input_resolver.py",
+        "app/backend/tests/test_lookup_normalize.py"
+      ]
+    },
+    {
+      "id": "search-input-ai-extractor",
+      "name": "Search Input AI Extractor And Lexicon",
+      "type": "mock_first_ai_extraction_service",
+      "status": "mock_first_backend_prototype",
+      "added_at": "2026-05-21 23:09 +1000 - Codex",
+      "last_updated_at": "2026-05-23 18:00 +1000 - Codex",
+      "doc": "docs/proprietary/search-input-ai.md",
+      "source_files": [
+        "app/backend/app/services/search_input_ai.py",
+        "app/backend/app/services/search_input_reference.py",
+        "app/backend/app/fixtures/search_input_lexicon.json",
+        "app/backend/app/cli/search_input_ai_smoke.py",
+        "app/backend/app/agents/prompts.py",
+        "app/backend/app/agents/client.py",
+        "app/backend/app/services/search_input_interpreter.py"
+      ],
+      "entry_points": [
+        "python -m app.cli.search_input_ai_smoke",
+        "POST /api/v1/lookup/parse",
+        "POST /api/v1/lookup"
+      ],
+      "tests": [
+        "app/backend/tests/test_variant_search_integration.py",
+        "app/backend/tests/test_search_input_reference.py",
+        "app/backend/tests/test_search_input_ai_smoke_cli.py",
+        "app/backend/tests/test_frontend_contract.py"
+      ]
+    },
+    {
+      "id": "variant-report-data-orchestrator",
+      "name": "Variant Report Data Orchestrator",
+      "type": "backend_orchestration_layer",
+      "status": "active_first_slice_backend_prototype",
+      "added_at": "2026-05-23 12:10 +1000 - Codex",
+      "last_updated_at": "2026-05-23 19:51 +1000 - Codex",
+      "doc": "docs/proprietary/variant-report-orchestration.md",
+      "source_files": [
+        "app/backend/app/services/report_extraction_plan.py",
+        "app/backend/app/services/report_provenance.py",
+        "app/backend/app/services/population_frequency_section.py",
+        "app/backend/app/services/variant_report_orchestrator.py",
+        "app/backend/app/services/clinical_consensus.py",
+        "app/backend/app/services/lookup_service.py",
+        "app/backend/app/tools/clingen.py",
+        "app/backend/app/tools/clinvar.py",
+        "app/backend/app/tools/ensembl_vep.py",
+        "app/backend/app/tools/gene_disease.py",
+        "app/backend/app/tools/gnomad.py",
+        "app/backend/app/tools/litvar2.py",
+        "app/backend/app/tools/molecular_context.py",
+        "app/backend/app/tools/pubmed.py",
+        "app/backend/app/tools/spliceai.py",
+        "app/backend/app/tools/variant_validator.py",
+        "app/backend/app/tools/computational_annotations.py",
+        "app/backend/app/schemas/run.py"
+      ],
+      "entry_points": [
+        "POST /api/v1/lookup"
+      ],
+      "tests": [
+        "app/backend/tests/test_clinical_consensus.py",
+        "app/backend/tests/test_clinical_trials_tool.py",
+        "app/backend/tests/test_gnomad_tool.py",
+        "app/backend/tests/test_report_call_cards.py",
+        "app/backend/tests/test_search_input_resolver.py",
+        "app/backend/tests/test_tool_invariants.py",
+        "app/backend/tests/test_variant_report_orchestration.py",
+        "app/backend/tests/test_variant_report_publication_functional_integration.py",
+        "app/backend/tests/test_variant_search_integration.py",
+        "app/backend/tests/test_frontend_contract.py"
+      ]
+    }
+  ]
+}

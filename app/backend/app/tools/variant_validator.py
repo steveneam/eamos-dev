@@ -50,6 +50,7 @@ def _summary_from_response(payload: dict[str, Any]) -> dict[str, Any]:
             "alt": str(vcf.get("alt") or ""),
         },
         "variant_id": _vcf_to_variant_id(vcf),
+        "exon": _exon_from_response(variant_payload),
         "selected_assembly": variant_payload.get("selected_assembly"),
     }
 
@@ -78,18 +79,83 @@ def _summary_from_vep_raw(raw: Any) -> dict[str, Any] | None:
     }
 
 
+def _source_query(variant) -> str:
+    source_inputs = getattr(
+        getattr(variant, "search_input_resolution", None), "source_inputs", None
+    )
+    source_query = (
+        getattr(source_inputs, "variant_validator", None) if source_inputs is not None else None
+    )
+    transcript_hgvs = getattr(variant, "transcript_hgvs", "") or ""
+    hgvs = _extract_hgvs(transcript_hgvs)
+    return source_query or (
+        transcript_hgvs
+        if ":" in transcript_hgvs
+        else f"{variant.gene}:{hgvs}" if hgvs else variant.gene
+    )
+
+
+def _exon_from_response(variant_payload: dict[str, Any]) -> str | None:
+    positions = variant_payload.get("variant_exonic_positions")
+    if not isinstance(positions, dict):
+        return None
+    for accession in ("NC_000001.11", "GRCh38", "grch38", "hg38", "NG_008472.2"):
+        exon = _format_exon(positions.get(accession))
+        if exon:
+            return exon
+    for value in positions.values():
+        exon = _format_exon(value)
+        if exon:
+            return exon
+    return None
+
+
+def _format_exon(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    start = str(value.get("start_exon") or "").strip()
+    end = str(value.get("end_exon") or "").strip()
+    if not start and not end:
+        return None
+    if start and end and start != end:
+        return f"{start}-{end}"
+    return start or end
+
+
+def _variant_type_from_variant_id(variant_id: str | None) -> str:
+    if not variant_id:
+        return ""
+    parts = variant_id.split("-")
+    if len(parts) != 4:
+        return ""
+    ref = parts[2]
+    alt = parts[3]
+    if len(ref) == 1 and len(alt) == 1:
+        return "single nucleotide variant"
+    if len(ref) < len(alt):
+        return "insertion"
+    if len(ref) > len(alt):
+        return "deletion"
+    return "indel"
+
+
 def _mutate_variant(variant, summary: dict[str, Any]) -> None:
     variant_id = summary.get("variant_id")
     if variant_id:
         variant.genomic_hg38 = variant_id
+    genomic_hgvs = summary.get("hgvs_genomic_description")
+    if genomic_hgvs:
+        variant.genomic_hgvs = genomic_hgvs
 
     explicit_variation_type = summary.get("variation_type") or summary.get("variant_type")
     explicit_consequence = summary.get("consequence") or summary.get("most_severe_consequence")
 
     if not getattr(variant, "variation_type", "") and (variant_id or explicit_variation_type):
-        variant.variation_type = explicit_variation_type or "single nucleotide variant"
-    if not getattr(variant, "consequence", "") and (variant_id or explicit_consequence):
-        variant.consequence = explicit_consequence or "missense variant"
+        variant.variation_type = explicit_variation_type or _variant_type_from_variant_id(
+            variant_id
+        )
+    if not getattr(variant, "consequence", "") and explicit_consequence:
+        variant.consequence = explicit_consequence
 
 
 def _fixture_matches_variant(variant, summary: dict[str, Any]) -> bool:
@@ -109,45 +175,73 @@ class VariantValidatorTool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
-            if variant is not None and _fixture_matches_variant(
-                variant, fixture.get("summary", {})
-            ):
-                _mutate_variant(variant, fixture.get("summary", {}))
-            return ToolResult(source=self.source, status="fixture", **fixture)
+            summary = fixture.get("summary", {})
+            if variant is None or _fixture_matches_variant(variant, summary):
+                if variant is not None:
+                    _mutate_variant(variant, summary)
+                return ToolResult(source=self.source, status="fixture", **fixture)
+            return ToolResult(
+                source=self.source,
+                status="missing",
+                request_identity={"query": _source_query(variant)},
+                summary={},
+                warnings=["variant_validator_fixture_variant_mismatch"],
+                raw=None,
+                source_url=None,
+            )
+        seeded_resolution = getattr(variant, "search_input_resolution", None)
+        seeded_summary = getattr(seeded_resolution, "variant_validator_summary", None)
+        if isinstance(seeded_summary, dict) and seeded_summary.get("variant_id"):
+            _mutate_variant(variant, seeded_summary)
+            return ToolResult(
+                source=self.source,
+                status="live",
+                request_identity={
+                    "query": getattr(seeded_resolution, "resolver_transcript_hgvs", "")
+                },
+                summary=seeded_summary,
+                raw=getattr(seeded_resolution, "variant_validator_raw", None),
+                source_url=getattr(seeded_resolution, "variant_validator_url", None),
+            )
+        source_inputs = getattr(seeded_resolution, "source_inputs", None)
+        if source_inputs is not None and not getattr(source_inputs, "variant_validator", None):
+            return ToolResult(
+                source=self.source,
+                status="live_stub",
+                request_identity={"submitted": getattr(variant, "transcript_hgvs", None)},
+                summary={},
+                warnings=[
+                    "VariantValidator live query requires transcript HGVS or RefSeq genomic HGVS; "
+                    "no source-specific VariantValidator identifier was resolved."
+                ],
+                source_url=None,
+            )
         try:
             return self._fetch_live(variant)
         except Exception as exc:
-            vep_summary = _summary_from_vep_raw(getattr(variant, "vep_raw", None))
-            if vep_summary is not None:
-                _mutate_variant(variant, vep_summary)
-                return ToolResult(
-                    source=self.source,
-                    status="fallback",
-                    request_identity={"hgvs": variant.transcript_hgvs},
-                    summary=vep_summary,
-                    warnings=[f"live_fetch_failed:{type(exc).__name__}"],
-                    raw=getattr(variant, "vep_raw", None),
-                    source_url=None,
-                )
             fixture = self.load_fixture()
             if _fixture_matches_variant(variant, fixture.get("summary", {})):
                 _mutate_variant(variant, fixture.get("summary", {}))
+                return ToolResult(
+                    source=self.source,
+                    status="fallback",
+                    warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                    **fixture,
+                )
             return ToolResult(
                 source=self.source,
                 status="fallback",
+                request_identity={"query": _source_query(variant)},
+                summary={},
                 warnings=[f"live_fetch_failed:{type(exc).__name__}"],
-                **fixture,
+                raw=None,
+                source_url=None,
             )
 
     def _fetch_live(self, variant) -> ToolResult:
-        hgvs = _extract_hgvs(variant.transcript_hgvs)
-        query = (
-            variant.transcript_hgvs
-            if ":" in variant.transcript_hgvs
-            else f"{variant.gene}:{hgvs}" if hgvs else variant.gene
-        )
+        query = _source_query(variant)
         url = f"{self.settings.variant_validator_base_url}/VariantValidator/variantvalidator/GRCh38/{query}/all"
-        response = httpx.get(url, timeout=15.0)
+        response = httpx.get(url, timeout=30.0)
         response.raise_for_status()
         payload = response.json()
         summary = _summary_from_response(payload)

@@ -15,7 +15,12 @@ from app.core.db import (
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
 from app.schemas.lookup import LookupRequest
-from app.schemas.run import FunctionalEvidenceSummary
+from app.schemas.run import (
+    FunctionalEvidenceDisplayMetrics,
+    FunctionalEvidenceSourceBreakdown,
+    FunctionalEvidenceSummary,
+    FunctionalStudy,
+)
 from app.services.lookup_service import LookupService
 from app.tools.base import ToolResult
 
@@ -83,12 +88,13 @@ class _ClinicalTrialsTool:
 
 
 class _NoopFunctionalEvidenceExtractor:
-    def __init__(self) -> None:
+    def __init__(self, summary: FunctionalEvidenceSummary | None = None) -> None:
         self.calls = 0
+        self.summary = summary or FunctionalEvidenceSummary(total_count=0)
 
     def build_for_lookup(self, *args, **kwargs) -> FunctionalEvidenceSummary:
         self.calls += 1
-        return FunctionalEvidenceSummary(total_count=0)
+        return self.summary
 
 
 def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path) -> None:
@@ -227,7 +233,29 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
         "litvar2": litvar_tool,
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    functional_evidence = _NoopFunctionalEvidenceExtractor()
+    functional_evidence = _NoopFunctionalEvidenceExtractor(
+        FunctionalEvidenceSummary(
+            total_count=1,
+            source_breakdown=FunctionalEvidenceSourceBreakdown(clingen=1),
+            evidence_codes=["PS3"],
+            source_asserted_codes=["PS3_Supporting"],
+            display_metrics=FunctionalEvidenceDisplayMetrics(
+                primary_label="Functional Deficit",
+                acmg_badge_text="PS3_Supporting",
+                study_count_badge_text="1 Unique",
+                ui_color_theme="danger_red_state",
+            ),
+            studies=[
+                FunctionalStudy(
+                    id="functional-study-1",
+                    citation="Guan et al., 2024",
+                    source_tags=["clingen"],
+                    evidence_codes=["PS3"],
+                    asserted_codes=["PS3_Supporting"],
+                )
+            ],
+        )
+    )
     service = LookupService(
         tools,
         ClinicRules(),
@@ -243,6 +271,15 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
     assert first.report_payload.publications_literature is not None
     assert second.report_payload.publications_literature is not None
     assert second.report_payload.publications_literature.total_count == 1
+    assert second.report_payload.functional_evidence is not None
+    assert second.report_payload.functional_evidence.total_count == 1
+    assert second.report_payload.functional_evidence.display_metrics.primary_label == (
+        "Functional Deficit"
+    )
+    assert second.report_payload.functional_evidence.display_metrics.acmg_badge_text == (
+        "PS3_Supporting"
+    )
+    assert second.report_payload.functional_evidence.studies[0].citation == "Guan et al., 2024"
     assert pubmed_tool.calls == 1
     assert litvar_tool.calls == 1
     assert functional_evidence.calls == 1
@@ -251,4 +288,4 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
     hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
     assert hit is not None
     assert hit["publication_data"]["ep_vlex"]["total_count"] == 1
-    assert hit["publication_data"]["functional_evidence"]["total_count"] == 0
+    assert hit["publication_data"]["functional_evidence"]["total_count"] == 1

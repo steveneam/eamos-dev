@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_embeddings_model: str = "text-embedding-3-small"
+    search_input_ai_enabled: bool = False
+    search_input_ai_timeout_seconds: float = 8.0
     run_chat_top_k: int = 4
     use_real_apis: bool = False
     crispr_provider: str = "local_deterministic"
@@ -50,6 +52,7 @@ class Settings(BaseSettings):
     variant_validator_base_url: str = "https://rest.variantvalidator.org"
     litvar2_base_url: str = "https://www.ncbi.nlm.nih.gov/research/litvar2-api"
     clingen_erepo_base_url: str = "https://erepo.clinicalgenome.org/evrepo"
+    hgnc_rest_base_url: str = "https://rest.genenames.org"
     cache_ttl_days: int = 30
 
     @property

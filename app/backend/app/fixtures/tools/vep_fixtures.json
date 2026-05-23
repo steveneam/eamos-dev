@@ -6,9 +6,12 @@
     "gene": "RPE65",
     "transcript_id": "ENST00000262340",
     "biotype": "protein_coding",
+    "exon": "4/14",
+    "codons": "GAC/GGC",
     "protein_change": "D/G",
     "cds_position": 260,
     "protein_position": 87,
+    "strand": "-",
     "most_severe_consequence": "missense_variant",
     "consequence_distribution": {
       "missense_variant": 44.4,

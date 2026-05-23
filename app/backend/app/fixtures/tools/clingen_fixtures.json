@@ -1,0 +1,40 @@
+{
+  "records": [
+    {
+      "uuid": "clingen-rpe65-nm0003293-c260ag",
+      "gene": "RPE65",
+      "hgvs": "NM_000329.3:c.260A>G",
+      "classification": "Likely pathogenic",
+      "reviewStatus": "ClinGen RPE65 VCEP source assertion",
+      "assertionMethod": "ClinGen RPE65 VCEP",
+      "conditions": [
+        "Leber congenital amaurosis 2",
+        "Retinitis pigmentosa 20"
+      ],
+      "metCodes": [
+        "PM2_Moderate",
+        "PM5_Supporting",
+        "PP3_Supporting"
+      ],
+      "summaryDesc": "ClinGen RPE65 VCEP fixture assertion for RPE65 NM_000329.3:c.260A>G records PM2_Moderate, PM5_Supporting, and PP3_Supporting as source-asserted criteria for report orchestration tests.",
+      "sourceUrl": "https://erepo.clinicalgenome.org/evrepo/"
+    },
+    {
+      "uuid": "clingen-rpe65-nm0003293-c11plus5ga",
+      "gene": "RPE65",
+      "hgvs": "NM_000329.3:c.11+5G>A",
+      "classification": "Likely pathogenic",
+      "reviewStatus": "ClinGen RPE65 VCEP source assertion",
+      "assertionMethod": "ClinGen RPE65 VCEP",
+      "conditions": [
+        "Leber congenital amaurosis 2",
+        "Retinitis pigmentosa 20"
+      ],
+      "metCodes": [
+        "PS3_Supporting"
+      ],
+      "summaryDesc": "VCEP-member provided data from a mini-gene assay show that RPE65 NM_000329.3:c.11+5G>A reduces normal splicing relative to wild-type control (PS3_Supporting, Guan et al., 2024).",
+      "sourceUrl": "https://erepo.clinicalgenome.org/evrepo/"
+    }
+  ]
+}

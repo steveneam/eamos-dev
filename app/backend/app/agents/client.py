@@ -4,10 +4,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.agents.prompts import current_run_chat_prompt, draft_prompt, extraction_prompt
+from app.agents.prompts import (
+    current_run_chat_prompt,
+    draft_prompt,
+    extraction_prompt,
+    search_input_extraction_prompt,
+)
 from app.core.config import Settings
 from app.schemas.chat import RunChatAnswerDraft
 from app.schemas.draft import DraftPayload
+from app.schemas.lookup import SearchInputAiExtraction
 from app.schemas.report import ExtractedCase
 from pydantic import SecretStr
 
@@ -156,3 +162,42 @@ def build_run_chat_chain(settings: Settings):
             return dict(result)
 
     return LiveRunChatChain()
+
+
+def build_search_input_ai_chain(settings: Settings):
+    if (
+        not settings.search_input_ai_enabled
+        or settings.llm_provider == "mock"
+        or not settings.openai_api_key
+    ):
+        return None
+    from langchain_openai import ChatOpenAI
+
+    model = ChatOpenAI(
+        model=settings.openai_model,
+        api_key=SecretStr(settings.openai_api_key),
+        temperature=0,
+        timeout=settings.search_input_ai_timeout_seconds,
+    )
+
+    class LiveSearchInputAiChain:
+        def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
+            from langchain_core.prompts import ChatPromptTemplate
+
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", search_input_extraction_prompt()),
+                    (
+                        "human",
+                        "Submitted search text:\n{search_text}\n\n"
+                        "Curated Eamos reference context:\n{reference_context}",
+                    ),
+                ]
+            )
+            chain = prompt | model.with_structured_output(SearchInputAiExtraction)
+            result = chain.invoke(payload)
+            if isinstance(result, SearchInputAiExtraction):
+                return result.model_dump(mode="json")
+            return dict(result)
+
+    return LiveSearchInputAiChain()

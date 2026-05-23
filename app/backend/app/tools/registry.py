@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from app.tools.clinical_trials import ClinicalTrialsTool
+from app.tools.clingen import ClingenTool
 from app.tools.clinvar import ClinvarTool
+from app.tools.computational_annotations import ComputationalAnnotationsTool
 from app.tools.ensembl_vep import EnsemblVepTool
+from app.tools.gene_disease import GeneDiseaseTool
 from app.tools.gnomad import GnomadTool
 from app.tools.litvar2 import LitVar2Tool
+from app.tools.molecular_context import MolecularContextTool
 from app.tools.pubmed import PubmedTool
 from app.tools.spliceai import SpliceAiTool
 from app.tools.variant_validator import VariantValidatorTool
@@ -27,4 +31,8 @@ def build_tool_registry(settings):
         "pubmed": PubmedTool(settings),
         "litvar2": LitVar2Tool(settings),
         "clinical_trials": ClinicalTrialsTool(settings),
+        "clingen": ClingenTool(settings),
+        "gene_disease": GeneDiseaseTool(settings),
+        "molecular_context": MolecularContextTool(settings),
+        "computational_annotations": ComputationalAnnotationsTool(settings),
     }

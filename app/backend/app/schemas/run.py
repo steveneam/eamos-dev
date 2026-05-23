@@ -67,6 +67,14 @@ PublicationSnippetConfidence = Literal[
 PublicationSourceTag = Literal["litvar2", "pubmed", "clinvar", "clingen"]
 FunctionalEvidenceSourceTag = Literal["clingen", "clinvar", "pubmed"]
 FunctionalEvidenceCode = Literal["PS3", "BS3"]
+ReportCallCardId = Literal[
+    "population_frequency",
+    "computational",
+    "lab_functional",
+    "clinical_consensus",
+]
+ReportCallBadgeKind = Literal["acmg", "metric", "source", "warning", "neutral"]
+PopulationSequencingType = Literal["joint", "exome", "genome", "unknown"]
 
 
 class PublicationSnippet(BaseModel):
@@ -118,6 +126,13 @@ class FunctionalEvidenceSourceBreakdown(BaseModel):
     pubmed: int = 0
 
 
+class FunctionalEvidenceDisplayMetrics(BaseModel):
+    primary_label: str = "No Functional Data Available"
+    acmg_badge_text: str = "None"
+    study_count_badge_text: str = "0 Unique"
+    ui_color_theme: str = "neutral_slate_state"
+
+
 class FunctionalStudy(BaseModel):
     id: str
     pmid: str | None = None
@@ -125,6 +140,7 @@ class FunctionalStudy(BaseModel):
     citation: str | None = None
     source_tags: list[FunctionalEvidenceSourceTag] = Field(default_factory=list)
     evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
+    asserted_codes: list[str] = Field(default_factory=list)
     snippet: str | None = None
 
 
@@ -134,8 +150,77 @@ class FunctionalEvidenceSummary(BaseModel):
         default_factory=FunctionalEvidenceSourceBreakdown
     )
     evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
+    source_asserted_codes: list[str] = Field(default_factory=list)
+    display_metrics: FunctionalEvidenceDisplayMetrics = Field(
+        default_factory=FunctionalEvidenceDisplayMetrics
+    )
     studies: list[FunctionalStudy] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class ReportCallBadge(BaseModel):
+    text: str
+    kind: ReportCallBadgeKind
+
+
+class ReportCallInteraction(BaseModel):
+    action: Literal["none", "scroll", "scroll_and_expand"] = "none"
+    target_section_id: str | None = None
+    target_panel_id: str | None = None
+
+
+class ReportCallCard(BaseModel):
+    card_id: ReportCallCardId
+    title: str
+    primary_label: str
+    support_badges: list[ReportCallBadge] = Field(default_factory=list)
+    ui_color_theme: str
+    source_status: str
+    provenance: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    interaction: ReportCallInteraction | None = None
+
+
+class VariantReportCallCards(BaseModel):
+    cards: list[ReportCallCard] = Field(default_factory=list)
+
+
+class PopulationFrequencyAncestryGroup(BaseModel):
+    id: str
+    allele_count: int | None = None
+    allele_number: int | None = None
+    allele_frequency: float | None = None
+    homozygote_count: int | None = None
+
+
+class PopulationAgeHistogram(BaseModel):
+    bin_edges: list[float] = Field(default_factory=list)
+    bin_freq: list[int] = Field(default_factory=list)
+    n_smaller: int | None = None
+    n_larger: int | None = None
+
+
+class PopulationAgeDistribution(BaseModel):
+    het: PopulationAgeHistogram | None = None
+    hom: PopulationAgeHistogram | None = None
+
+
+class PopulationFrequencyDetail(BaseModel):
+    source: str = "gnomAD"
+    dataset: str = ""
+    variant_id: str = ""
+    sequencing_type: PopulationSequencingType = "unknown"
+    allele_frequency: float | None = None
+    allele_count: int | None = None
+    allele_number: int | None = None
+    homozygote_count: int | None = None
+    popmax_frequency: float | None = None
+    popmax_population: str | None = None
+    genetic_ancestry_groups: list[PopulationFrequencyAncestryGroup] = Field(default_factory=list)
+    age_distribution: PopulationAgeDistribution | None = None
+    flags: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    source_url: str | None = None
 
 
 ClassificationTier = Literal["pathogenic", "likely_pathogenic", "vus", "likely_benign", "benign"]
@@ -256,6 +341,240 @@ class PublicationsCallout(BaseModel):
     ai_summary_prompt: str
 
 
+SourceStatus = Literal["live", "cache", "fixture", "fallback", "missing", "error"]
+ReportMatchLevel = Literal["variant_level", "gene_level", "disease_level", "unavailable"]
+EvidenceAssertionLevel = Literal["source_asserted", "eamos_hint", "not_assessed"]
+
+
+class SourceProvenance(BaseModel):
+    source: str
+    status: SourceStatus
+    query: dict[str, str] = Field(default_factory=dict)
+    source_url: str | None = None
+    retrieved_at: datetime | None = None
+    version: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ReportExtractionSectionTarget(BaseModel):
+    section_id: Literal[
+        "header",
+        "population_frequency",
+        "rna_splicing",
+        "lab_functional",
+        "clinical_consensus",
+        "interpretation_summary",
+        "disease_mechanism",
+        "molecular_context",
+        "computational_deep_dive",
+        "acmg_worksheet",
+        "publications",
+        "therapies_trials",
+        "provenance",
+    ]
+    match_level: ReportMatchLevel
+    required_sources: list[str] = Field(default_factory=list)
+    query_terms: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ReportExtractionPlan(BaseModel):
+    submitted_text: str
+    mode: str
+    canonical_identity: dict[str, str] = Field(default_factory=dict)
+    source_query_bundle: dict[str, str | list[str] | None] = Field(default_factory=dict)
+    section_targets: list[ReportExtractionSectionTarget] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    provenance: list[str] = Field(default_factory=list)
+
+
+class VariantReportHeader(BaseModel):
+    display_name: str
+    gene: str
+    transcript: str | None = None
+    cdna: str | None = None
+    protein_change: str | None = None
+    genomic_hg38: str | None = None
+    classification: str | None = None
+    classification_source: str | None = None
+    verification_badges: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
+
+
+class InterpretationSummary(BaseModel):
+    mode: Literal["deterministic", "llm_rewrite", "unavailable"] = "deterministic"
+    text: str
+    fact_refs: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DiseaseMechanismSection(BaseModel):
+    primary_condition: str | None = None
+    disease_ids: list[str] = Field(default_factory=list)
+    inheritance: str | None = None
+    penetrance: str | None = None
+    gene_disease_validity: str | None = None
+    mechanism: str | None = None
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class MolecularContextSection(BaseModel):
+    chromosome: str | None = None
+    strand: str | None = None
+    exon: str | None = None
+    codon_change: str | None = None
+    protein_position: str | None = None
+    domain: str | None = None
+    hotspot_flag: bool | None = None
+    loeuf: float | None = None
+    clingen_haploinsufficiency: str | None = None
+    overlapping_cnvs: list[str] = Field(default_factory=list)
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ComputationalPredictorRow(BaseModel):
+    name: str
+    score: str | float | None = None
+    threshold: str | float | None = None
+    interpretation: str | None = None
+    source: str
+    version: str | None = None
+    source_url: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ComputationalDeepDiveSection(BaseModel):
+    predictors: list[ComputationalPredictorRow] = Field(default_factory=list)
+    spliceai_max_delta: float | None = None
+    spliceai_consequence: str | None = None
+    conservation: list[ComputationalPredictorRow] = Field(default_factory=list)
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AcmgWorksheetCriterion(BaseModel):
+    code: str
+    state: Literal["met", "not_met", "not_assessed", "conflicting"]
+    strength: str | None = None
+    assertion_level: EvidenceAssertionLevel
+    rationale: str | None = None
+    source: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AcmgWorksheetLedger(BaseModel):
+    classification: str | None = None
+    classification_source: str | None = None
+    criteria: list[AcmgWorksheetCriterion] = Field(default_factory=list)
+    synthesis: str | None = None
+    disclaimer: str = "Supporting evidence, not a clinical classification."
+
+
+class TrialMatch(BaseModel):
+    nct_id: str
+    title: str
+    status: str | None = None
+    phase: str | None = None
+    conditions: list[str] = Field(default_factory=list)
+    interventions: list[str] = Field(default_factory=list)
+    locations: list[str] = Field(default_factory=list)
+    match_level: ReportMatchLevel
+    matched_terms: list[str] = Field(default_factory=list)
+    source_url: str
+    warnings: list[str] = Field(default_factory=list)
+
+
+class TherapiesTrialsSection(BaseModel):
+    trial_rows: list[TrialMatch] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+
+
+class PopulationFrequencyVisualScale(BaseModel):
+    basis: Literal["allele_frequency", "popmax_frequency"] = "allele_frequency"
+    min_value: float = 0.0
+    max_value: float | None = None
+    max_group_id: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PopulationFrequencyVisualGroup(BaseModel):
+    id: str
+    label: str
+    allele_frequency: float | None = None
+    allele_count: int | None = None
+    allele_number: int | None = None
+    homozygote_count: int | None = None
+    is_popmax: bool = False
+    data_state: Literal["observed", "zero_observed", "not_reported", "filtered"] = "observed"
+    sort_order: int | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PopulationAgeBin(BaseModel):
+    label: str
+    lower_bound: float | None = None
+    upper_bound: float | None = None
+    count: int
+
+
+class PopulationAgeHistogramView(BaseModel):
+    genotype: Literal["heterozygous_alternate", "homozygous_alternate"]
+    scope: Literal["overall_release_samples", "genetic_ancestry_group"] = "overall_release_samples"
+    group_id: str | None = None
+    bins: list[PopulationAgeBin] = Field(default_factory=list)
+    n_smaller: int | None = None
+    n_larger: int | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PopulationFrequencySourceRow(BaseModel):
+    group_id: str
+    label: str
+    allele_frequency: float | None = None
+    allele_count: int | None = None
+    allele_number: int | None = None
+    homozygote_count: int | None = None
+    is_popmax: bool = False
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PopulationFrequencyReportSection(BaseModel):
+    section_number: int = 3
+    section_id: str = "section-3-population-frequency"
+    panel_id: str = "gnomad-expansion"
+    title: str = "gnomAD Population Frequency Detail"
+    detail_ref: Literal["population_frequency_detail"] = "population_frequency_detail"
+    source_status: str = "missing"
+    dataset: str = ""
+    genome_build: str = "GRCh38"
+    variant_id: str = ""
+    sequencing_type: PopulationSequencingType = "unknown"
+    visual_scale: PopulationFrequencyVisualScale | None = None
+    visual_groups: list[PopulationFrequencyVisualGroup] = Field(default_factory=list)
+    age_histograms: list[PopulationAgeHistogramView] = Field(default_factory=list)
+    source_rows: list[PopulationFrequencySourceRow] = Field(default_factory=list)
+    source_url: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+
+
+class VariantReportProfile(BaseModel):
+    extraction_plan: ReportExtractionPlan | None = None
+    header: VariantReportHeader | None = None
+    interpretation_summary: InterpretationSummary | None = None
+    disease_mechanism: DiseaseMechanismSection | None = None
+    population_frequency: PopulationFrequencyReportSection | None = None
+    molecular_context: MolecularContextSection | None = None
+    computational_deep_dive: ComputationalDeepDiveSection | None = None
+    acmg_worksheet: AcmgWorksheetLedger | None = None
+    therapies_trials: TherapiesTrialsSection | None = None
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+
+
 class ReportPayload(BaseModel):
     patient_id: str
     case_label: str | None = None
@@ -283,6 +602,9 @@ class ReportPayload(BaseModel):
     publications_callout: PublicationsCallout | None = None
     publications_literature: PublicationLiterature | None = None
     functional_evidence: FunctionalEvidenceSummary | None = None
+    population_frequency_detail: PopulationFrequencyDetail | None = None
+    call_cards: VariantReportCallCards | None = None
+    report_profile: VariantReportProfile | None = None
 
 
 class RunResponse(BaseModel):

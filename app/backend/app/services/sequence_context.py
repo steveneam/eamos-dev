@@ -15,6 +15,36 @@ from app.core.config import Settings
 CANONICAL_TRANSCRIPTS: dict[str, str] = {
     "RPE65": "NM_000329.3",
 }
+NC_CHROMOSOME_ACCESSIONS: dict[str, str] = {
+    "NC_000001.11": "1",
+    "NC_000002.12": "2",
+    "NC_000003.12": "3",
+    "NC_000004.12": "4",
+    "NC_000005.10": "5",
+    "NC_000006.12": "6",
+    "NC_000007.14": "7",
+    "NC_000008.11": "8",
+    "NC_000009.12": "9",
+    "NC_000010.11": "10",
+    "NC_000011.10": "11",
+    "NC_000012.12": "12",
+    "NC_000013.11": "13",
+    "NC_000014.9": "14",
+    "NC_000015.10": "15",
+    "NC_000016.10": "16",
+    "NC_000017.11": "17",
+    "NC_000018.10": "18",
+    "NC_000019.10": "19",
+    "NC_000020.11": "20",
+    "NC_000021.9": "21",
+    "NC_000022.11": "22",
+    "NC_000023.11": "X",
+    "NC_000024.10": "Y",
+    "NC_012920.1": "M",
+}
+CHROMOSOME_NC_ACCESSIONS: dict[str, str] = {
+    chrom: accession for accession, chrom in NC_CHROMOSOME_ACCESSIONS.items()
+}
 
 WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE = "workbench_sequence_context_unavailable"
 WORKBENCH_UNSUPPORTED_INPUT_PREFIX = "workbench_unsupported_input"
@@ -24,13 +54,63 @@ SequenceContextSource = Literal["fixture", "resolver"]
 Strand = Literal["+", "-", "unknown"]
 
 
+def _normalize_variant_text(value: str) -> str:
+    text = re.sub(r"\s+", " ", value.strip())
+
+    spaced_vcf = re.fullmatch(
+        r"(?:chr)?(?P<chrom>\d+|X|Y|M|MT)\s+" r"(?P<pos>\d+)\s+(?P<ref>[ACGT]+)\s+(?P<alt>[ACGT]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if spaced_vcf is not None:
+        chrom = spaced_vcf.group("chrom").upper()
+        if chrom == "MT":
+            chrom = "M"
+        return (
+            f"{chrom}-{spaced_vcf.group('pos')}-"
+            f"{spaced_vcf.group('ref').upper()}-{spaced_vcf.group('alt').upper()}"
+        )
+
+    colon_substitution = re.fullmatch(
+        r"(?:chr)?(?P<chrom>\d+|X|Y|M|MT):" r"(?P<pos>\d+)\s+(?P<ref>[ACGT]+)>(?P<alt>[ACGT]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if colon_substitution is not None:
+        chrom = colon_substitution.group("chrom").upper()
+        if chrom == "MT":
+            chrom = "M"
+        return (
+            f"{chrom}-{colon_substitution.group('pos')}-"
+            f"{colon_substitution.group('ref').upper()}-"
+            f"{colon_substitution.group('alt').upper()}"
+        )
+
+    delimited_vcf = re.fullmatch(
+        r"(?:chr)?(?P<chrom>\d+|X|Y|M|MT)[:-]"
+        r"(?P<pos>\d+)[:-](?P<ref>[ACGT]+)[:-](?P<alt>[ACGT]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if delimited_vcf is not None:
+        chrom = delimited_vcf.group("chrom").upper()
+        if chrom == "MT":
+            chrom = "M"
+        return (
+            f"{chrom}-{delimited_vcf.group('pos')}-"
+            f"{delimited_vcf.group('ref').upper()}-{delimited_vcf.group('alt').upper()}"
+        )
+
+    return re.sub(r"\s+", "", text)
+
+
 def normalize_variant_query(
     gene: str,
     cdna: str,
     transcript: str | None,
 ) -> tuple[str, str, str | None, QueryKind]:
     normalized_gene = gene.strip().upper()
-    hgvs = re.sub(r"\s+", "", cdna.strip())
+    hgvs = _normalize_variant_text(cdna)
     normalized_transcript = transcript.strip() if transcript else None
 
     if ":" in hgvs:
@@ -58,6 +138,92 @@ def normalize_variant_query(
         kind = "unknown"
 
     return normalized_gene, hgvs, normalized_transcript, kind
+
+
+def parse_genomic_variant_id(hgvs: str) -> str | None:
+    """Return gnomAD-style chr-pos-ref-alt for simple genomic SNV/indel input."""
+    compact = _normalize_variant_text(hgvs)
+    gnomad_match = re.fullmatch(
+        r"(?:chr)?(?P<chrom>\d+|X|Y|M|MT)[:-](?P<pos>\d+)[:-](?P<ref>[ACGT]+)[:-](?P<alt>[ACGT]+)",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    if gnomad_match is not None:
+        chrom = gnomad_match.group("chrom").upper()
+        if chrom == "MT":
+            chrom = "M"
+        return (
+            f"{chrom}-{gnomad_match.group('pos')}-"
+            f"{gnomad_match.group('ref').upper()}-{gnomad_match.group('alt').upper()}"
+        )
+
+    colon_substitution_match = re.fullmatch(
+        r"(?:chr)?(?P<chrom>\d+|X|Y|M|MT):" r"(?P<pos>\d+)(?P<ref>[ACGT]+)>(?P<alt>[ACGT]+)",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    if colon_substitution_match is not None:
+        chrom = colon_substitution_match.group("chrom").upper()
+        if chrom == "MT":
+            chrom = "M"
+        return (
+            f"{chrom}-{colon_substitution_match.group('pos')}-"
+            f"{colon_substitution_match.group('ref').upper()}-"
+            f"{colon_substitution_match.group('alt').upper()}"
+        )
+
+    nc_match = re.fullmatch(
+        r"(?P<accession>NC_\d{6}\.\d+):g\.(?P<pos>\d+)(?P<ref>[ACGT]+)>(?P<alt>[ACGT]+)",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    if nc_match is None:
+        return None
+    accession = nc_match.group("accession").upper()
+    chrom = NC_CHROMOSOME_ACCESSIONS.get(accession)
+    if chrom is None:
+        return None
+    return (
+        f"{chrom}-{nc_match.group('pos')}-"
+        f"{nc_match.group('ref').upper()}-{nc_match.group('alt').upper()}"
+    )
+
+
+def genomic_variant_id_to_refseq_hgvs(variant_id: str) -> str | None:
+    """Return simple RefSeq genomic HGVS for chr-pos-ref-alt variants on GRCh38."""
+    parsed = parse_genomic_variant_id(variant_id)
+    if parsed is None:
+        return None
+    chrom, pos, ref, alt = parsed.split("-", 3)
+    accession = CHROMOSOME_NC_ACCESSIONS.get(chrom)
+    if accession is None:
+        return None
+
+    pos_int = int(pos)
+    if len(ref) == 1 and len(alt) == 1:
+        return f"{accession}:g.{pos}{ref}>{alt}"
+
+    if len(alt) > len(ref) and alt.startswith(ref):
+        inserted = alt[len(ref) :]
+        if not inserted:
+            return None
+        return f"{accession}:g.{pos_int}_{pos_int + 1}ins{inserted}"
+
+    if len(ref) > len(alt) and ref.startswith(alt):
+        deleted = ref[len(alt) :]
+        if not deleted:
+            return None
+        start = pos_int + len(alt)
+        end = start + len(deleted) - 1
+        if start == end:
+            return f"{accession}:g.{start}del{deleted}"
+        return f"{accession}:g.{start}_{end}del{deleted}"
+
+    if len(ref) == len(alt) and len(ref) > 1:
+        end = pos_int + len(ref) - 1
+        return f"{accession}:g.{pos_int}_{end}delins{alt}"
+
+    return None
 
 
 def unsupported_input_warning(kind: str) -> str:

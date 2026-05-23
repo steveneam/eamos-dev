@@ -11,6 +11,7 @@ import httpx
 from app.core.config import Settings
 from app.schemas.run import (
     FunctionalEvidenceCode,
+    FunctionalEvidenceDisplayMetrics,
     FunctionalEvidenceSourceBreakdown,
     FunctionalEvidenceSourceTag,
     FunctionalEvidenceSummary,
@@ -19,6 +20,7 @@ from app.schemas.run import (
 from app.services.publication_literature import VariantLiteratureTerms
 
 _FUNCTIONAL_CODES = ("PS3", "BS3")
+_FUNCTIONAL_CODE_ORDER = {"PS3": 0, "BS3": 1}
 _SOURCE_ORDER = {"clingen": 0, "clinvar": 1, "pubmed": 2}
 _SOURCE_FAILED_STATUSES = {"fallback", "error", "failed"}
 _FUNCTIONAL_SIGNAL_RE = re.compile(
@@ -63,6 +65,7 @@ class _FunctionalHit:
     citation: str | None = None
     source_tags: set[FunctionalEvidenceSourceTag] = field(default_factory=set)
     evidence_codes: set[FunctionalEvidenceCode] = field(default_factory=set)
+    asserted_codes: set[str] = field(default_factory=set)
     snippets: list[str] = field(default_factory=list)
 
 
@@ -83,6 +86,7 @@ class _FunctionalEvidenceCollector:
         citation: str | None = None,
         fallback_id: str | None = None,
         evidence_codes: list[FunctionalEvidenceCode] | None = None,
+        asserted_codes: list[str] | None = None,
         snippet: str | None = None,
     ) -> None:
         pmid = pmid.strip() if pmid else None
@@ -99,6 +103,8 @@ class _FunctionalEvidenceCollector:
         self.per_source[source].add(hit_id)
         for code in evidence_codes or []:
             hit.evidence_codes.add(code)
+        for code in asserted_codes or []:
+            hit.asserted_codes.add(code)
         if snippet:
             normalized = _normalize_space(snippet)
             if normalized and normalized not in hit.snippets:
@@ -113,6 +119,7 @@ class _FunctionalEvidenceCollector:
                 citation=hit.citation,
                 source_tags=sorted(hit.source_tags, key=lambda source: _SOURCE_ORDER[source]),
                 evidence_codes=sorted(hit.evidence_codes),
+                asserted_codes=sorted(hit.asserted_codes, key=_asserted_code_sort_key),
                 snippet=hit.snippets[0] if hit.snippets else None,
             )
             for hit in self.by_pmid.values()
@@ -124,7 +131,12 @@ class _FunctionalEvidenceCollector:
             )
         )
         evidence_codes = sorted(
-            {code for hit in self.by_pmid.values() for code in hit.evidence_codes}
+            {code for hit in self.by_pmid.values() for code in hit.evidence_codes},
+            key=lambda code: _FUNCTIONAL_CODE_ORDER[code],
+        )
+        source_asserted_codes = sorted(
+            {code for hit in self.by_pmid.values() for code in hit.asserted_codes},
+            key=_asserted_code_sort_key,
         )
         return FunctionalEvidenceSummary(
             total_count=len(studies),
@@ -134,6 +146,12 @@ class _FunctionalEvidenceCollector:
                 pubmed=len(self.per_source["pubmed"]),
             ),
             evidence_codes=evidence_codes,
+            source_asserted_codes=source_asserted_codes,
+            display_metrics=_display_metrics(
+                total_count=len(studies),
+                evidence_codes=evidence_codes,
+                asserted_codes=source_asserted_codes,
+            ),
             studies=studies,
             warnings=warnings,
         )
@@ -293,19 +311,23 @@ class FunctionalEvidenceExtractor:
                 continue
             seen_records.add(record_id)
             record_codes = _functional_codes_from_values(record.get("metCodes"))
+            record_asserted_codes = _asserted_functional_codes_from_values(record.get("metCodes"))
             summary = str(record.get("summaryDesc") or "")
             for sentence in _split_sentences(summary):
                 explicit_codes = _functional_codes_from_text(sentence)
+                explicit_asserted_codes = _asserted_functional_codes_from_text(sentence)
                 has_functional_evidence_sentence = _has_strong_functional_signal(sentence)
                 if not explicit_codes and not has_functional_evidence_sentence:
                     continue
                 sentence_codes = explicit_codes or record_codes
+                sentence_asserted_codes = explicit_asserted_codes or record_asserted_codes
                 pmids = _pmids_in_sentence(sentence)
                 for pmid in pmids:
                     collector.add(
                         source="clingen",
                         pmid=pmid,
                         evidence_codes=sentence_codes,
+                        asserted_codes=sentence_asserted_codes,
                         snippet=sentence,
                     )
                 if not pmids and sentence_codes and _has_strong_functional_signal(sentence):
@@ -314,6 +336,7 @@ class FunctionalEvidenceExtractor:
                         citation=_citation_from_sentence(sentence),
                         fallback_id=f"{record_id}:{','.join(sentence_codes)}:{sentence[:80]}",
                         evidence_codes=sentence_codes,
+                        asserted_codes=sentence_asserted_codes,
                         snippet=sentence,
                     )
 
@@ -372,11 +395,13 @@ class FunctionalEvidenceExtractor:
             text = "".join(elem.itertext())
             for sentence in _functional_sentences_with_pmids(text):
                 codes = _functional_codes_from_text(sentence)
+                asserted_codes = _asserted_functional_codes_from_text(sentence)
                 for pmid in _pmids_in_sentence(sentence):
                     collector.add(
                         source="clinvar",
                         pmid=pmid,
                         evidence_codes=codes,
+                        asserted_codes=asserted_codes,
                         snippet=sentence,
                     )
 
@@ -426,6 +451,14 @@ def _functional_codes_from_values(value: Any) -> list[FunctionalEvidenceCode]:
     return _unique(found)
 
 
+def _asserted_functional_codes_from_values(value: Any) -> list[str]:
+    values = value if isinstance(value, list) else []
+    found: list[str] = []
+    for item in values:
+        found.extend(_asserted_functional_codes_from_text(str(item)))
+    return _unique(found)
+
+
 def _functional_codes_from_text(text: str) -> list[FunctionalEvidenceCode]:
     found = [
         cast(FunctionalEvidenceCode, code)
@@ -433,6 +466,67 @@ def _functional_codes_from_text(text: str) -> list[FunctionalEvidenceCode]:
         if re.search(rf"\b{code}(?:\b|_)", text, flags=re.IGNORECASE)
     ]
     return _unique(found)
+
+
+def _asserted_functional_codes_from_text(text: str) -> list[str]:
+    found: list[str] = []
+    pattern = re.compile(r"\b(PS3|BS3)(?:_([A-Za-z][A-Za-z0-9]*))?\b", flags=re.IGNORECASE)
+    for match in pattern.finditer(text):
+        base = match.group(1).upper()
+        suffix = match.group(2)
+        found.append(f"{base}_{suffix}" if suffix else base)
+    return _unique(found)
+
+
+def _display_metrics(
+    *,
+    total_count: int,
+    evidence_codes: list[FunctionalEvidenceCode],
+    asserted_codes: list[str],
+) -> FunctionalEvidenceDisplayMetrics:
+    study_count_badge_text = f"{total_count} Unique"
+    code_set = set(evidence_codes)
+    if total_count == 0:
+        return FunctionalEvidenceDisplayMetrics(study_count_badge_text=study_count_badge_text)
+    if {"PS3", "BS3"} <= code_set:
+        return FunctionalEvidenceDisplayMetrics(
+            primary_label="Conflicting Functional Data",
+            acmg_badge_text="Review Required",
+            study_count_badge_text=study_count_badge_text,
+            ui_color_theme="caution_orange_state",
+        )
+    if "PS3" in code_set:
+        return FunctionalEvidenceDisplayMetrics(
+            primary_label="Functional Deficit",
+            acmg_badge_text=_preferred_asserted_code("PS3", asserted_codes),
+            study_count_badge_text=study_count_badge_text,
+            ui_color_theme="danger_red_state",
+        )
+    if "BS3" in code_set:
+        return FunctionalEvidenceDisplayMetrics(
+            primary_label="Normal Function",
+            acmg_badge_text=_preferred_asserted_code("BS3", asserted_codes),
+            study_count_badge_text=study_count_badge_text,
+            ui_color_theme="safe_green_state",
+        )
+    return FunctionalEvidenceDisplayMetrics(
+        primary_label="Functional Evidence Found",
+        acmg_badge_text="Review Required",
+        study_count_badge_text=study_count_badge_text,
+        ui_color_theme="caution_orange_state",
+    )
+
+
+def _preferred_asserted_code(base_code: FunctionalEvidenceCode, asserted_codes: list[str]) -> str:
+    for code in asserted_codes:
+        if code.upper().startswith(base_code):
+            return code
+    return base_code
+
+
+def _asserted_code_sort_key(code: str) -> tuple[int, str]:
+    base = code.split("_", 1)[0].upper()
+    return (_FUNCTIONAL_CODE_ORDER.get(base, 99), code)
 
 
 def _functional_sentences_with_pmids(text: str) -> list[str]:

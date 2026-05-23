@@ -9,7 +9,14 @@ from urllib.parse import quote_plus
 from uuid import uuid4
 
 from app.rules.base import DecisionInput
-from app.schemas.lookup import LookupRequest, LookupResponse, PublicationPageRequest
+from app.schemas.lookup import (
+    LookupRequest,
+    LookupResponse,
+    PublicationPageRequest,
+    SearchInputInterpretation,
+    SearchInputParseRequest,
+    SearchInputParseResponse,
+)
 from app.schemas.run import (
     EvidenceSourceSummary,
     FunctionalEvidenceSummary,
@@ -19,9 +26,17 @@ from app.schemas.run import (
     ReportPayload,
     VariantSummaryRow,
 )
+from app.services.clinical_consensus import ClinicalConsensusBuilder
 from app.services.functional_evidence import FunctionalEvidenceExtractor
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
-from app.services.sequence_context import CANONICAL_TRANSCRIPTS, normalize_variant_query
+from app.services.report_call_cards import (
+    build_population_frequency_detail,
+    build_variant_report_call_cards,
+)
+from app.services.sequence_context import SequenceContextService
+from app.services.search_input_interpreter import SearchInputInterpreter
+from app.services.search_input_resolver import EamosSearchInputResolver
+from app.services.variant_report_orchestrator import VariantReportDataOrchestrator
 from app.services.variant_decoder import decode_variant
 from app.tools.base import ToolResult
 from app.tools.registry import STRICT_GENOMIC_PLUGINS
@@ -49,6 +64,17 @@ GENE_THERAPY_MAP: dict[str, str] = {
         "Check ClinicalTrials.gov for current recruitment status."
     ),
 }
+
+
+def _format_clinical_trials_summary(gene: str, rows: list[dict[str, Any]]) -> str:
+    lines = [f"{len(rows)} active/not-yet ClinicalTrials.gov record(s) found for {gene}:"]
+    for row in rows:
+        nct_id = str(row.get("nct_id") or "NCT unavailable")
+        phase = str(row.get("phase") or "Phase N/A")
+        status = str(row.get("status") or "Unknown")
+        title = str(row.get("title") or "Untitled clinical trial")
+        lines.append(f"- {nct_id} - {phase} - {status} - {title}")
+    return "\n".join(lines)
 
 
 @lru_cache(maxsize=1)
@@ -135,6 +161,55 @@ def _extract_dbsnp_rsid(clinvar_raw: Any) -> str | None:
     return None
 
 
+def _interpretation_can_run(interpretation: SearchInputInterpretation) -> bool:
+    return (
+        interpretation.mode in {"deterministic", "ai_assisted", "auto_resolved"}
+        and bool(interpretation.cdna)
+        and not interpretation.requires_confirmation
+    )
+
+
+def _lookup_request_from_interpretation(
+    request: LookupRequest,
+    interpretation: SearchInputInterpretation,
+) -> LookupRequest:
+    return request.model_copy(
+        update={
+            "search_text": None,
+            "query": None,
+            "selected_candidate_id": None,
+            "gene": interpretation.gene or "",
+            "cdna": interpretation.cdna
+            or interpretation.genomic_hgvs
+            or interpretation.genomic_hg38,
+            "transcript": interpretation.transcript,
+            "protein_change": interpretation.protein_change,
+        }
+    )
+
+
+def _interpretation_only_response(
+    interpretation: SearchInputInterpretation,
+    species: str,
+) -> LookupResponse:
+    title = "Variant search recommendations"
+    if interpretation.mode == "needs_selection":
+        title = "Variant search candidate selection"
+    prompt = interpretation.ui_prompt or "Review the ranked interpretation options to continue."
+    return LookupResponse(
+        query=interpretation.normalized_query or interpretation.submitted_text,
+        species=species,
+        report_payload=ReportPayload(
+            patient_id=f"lookup_search_{uuid4().hex[:8]}",
+            report_title=title,
+            limitations=prompt,
+        ),
+        evidence=[],
+        warnings=list(interpretation.warnings),
+        search_interpretation=interpretation,
+    )
+
+
 class LookupService:
     def __init__(
         self,
@@ -144,6 +219,7 @@ class LookupService:
         variant_cache_repo=None,
         settings=None,
         functional_evidence_extractor=None,
+        clinical_consensus_builder=None,
     ) -> None:
         self.tool_registry = tool_registry
         self.rule_engine = rule_engine
@@ -154,13 +230,54 @@ class LookupService:
         self.functional_evidence = functional_evidence_extractor or FunctionalEvidenceExtractor(
             settings=settings
         )
+        self.clinical_consensus = clinical_consensus_builder or ClinicalConsensusBuilder(
+            settings=settings
+        )
+        self.search_input_resolver = EamosSearchInputResolver(settings=settings)
+        self.search_input_interpreter = SearchInputInterpreter(settings=settings)
+        self.sequence_context = SequenceContextService(settings=settings)
+        self.report_orchestrator = VariantReportDataOrchestrator()
+
+    def parse_search_input(self, request: SearchInputParseRequest) -> SearchInputParseResponse:
+        return SearchInputParseResponse(
+            interpretation=self.search_input_interpreter.interpret(
+                request.search_text,
+                species=request.species,
+                allow_ai=request.allow_ai,
+                resolve_coordinates=request.resolve_coordinates,
+            )
+        )
 
     def lookup(self, request: LookupRequest, refresh: bool = False) -> LookupResponse:
-        gene, cdna, transcript, query_kind = normalize_variant_query(
-            request.gene,
-            request.cdna,
-            request.transcript,
+        search_interpretation: SearchInputInterpretation | None = None
+        if request.selected_candidate_id:
+            search_interpretation = self.search_input_interpreter.from_selected_candidate(
+                request.selected_candidate_id
+            )
+            if not _interpretation_can_run(search_interpretation):
+                return _interpretation_only_response(search_interpretation, request.species)
+            request = _lookup_request_from_interpretation(request, search_interpretation)
+        elif request.raw_search_text:
+            search_interpretation = self.search_input_interpreter.interpret(
+                request.raw_search_text,
+                species=request.species,
+                allow_ai=True,
+            )
+            if not _interpretation_can_run(search_interpretation):
+                return _interpretation_only_response(search_interpretation, request.species)
+            request = _lookup_request_from_interpretation(request, search_interpretation)
+
+        gene_input = request.gene or ""
+        cdna_input = request.cdna or ""
+        input_resolution = self.search_input_resolver.resolve(
+            gene=gene_input,
+            cdna=cdna_input,
+            transcript=request.transcript,
+            protein_change=request.protein_change,
         )
+        gene = input_resolution.gene
+        cdna = input_resolution.hgvs
+        query_kind = input_resolution.kind
 
         if request.species == "mouse":
             msg = "Mouse (mm39) variant lookup is not yet implemented. Human (hg38) is fully supported."
@@ -176,24 +293,21 @@ class LookupService:
                 warnings=[msg],
             )
 
-        transcript_hgvs = f"{transcript}:{cdna}" if transcript else cdna
-        resolver_transcript = transcript
-        if resolver_transcript is None and query_kind == "cdna":
-            resolver_transcript = CANONICAL_TRANSCRIPTS.get(gene)
-        resolver_transcript_hgvs = (
-            f"{resolver_transcript}:{cdna}" if resolver_transcript else transcript_hgvs
-        )
+        transcript_hgvs = input_resolution.transcript_hgvs
+        resolver_transcript_hgvs = input_resolution.resolver_transcript_hgvs
 
         # Synthetic variant object matching what tools expect
         variant = SimpleNamespace(
             gene=gene,
             transcript_hgvs=resolver_transcript_hgvs,
             protein_change=request.protein_change or "",
-            genomic_hg38="",
+            genomic_hg38=input_resolution.genomic_hg38 or "",
+            genomic_hgvs=input_resolution.genomic_hgvs or "",
             variation_type="",
             consequence="",
             query_kind=query_kind,
             dbsnp_rsid=None,
+            search_input_resolution=input_resolution,
         )
 
         variant_row = VariantSummaryRow(
@@ -217,6 +331,7 @@ class LookupService:
         warnings: list[str] = []
         if query_kind == "unknown":
             warnings.append("input_unparseable:unknown")
+        warnings.extend(input_resolution.warnings)
 
         cache_key = f"{gene}:{cdna}"
         cache_hit = None
@@ -246,6 +361,7 @@ class LookupService:
         if cached_evidence:
             variant_cache = cached_strict.get("variant", {})
             variant.genomic_hg38 = variant_cache.get("genomic_hg38") or variant.genomic_hg38
+            variant.genomic_hgvs = variant_cache.get("genomic_hgvs") or variant.genomic_hgvs
             variant.variation_type = variant_cache.get("variation_type") or variant.variation_type
             variant.consequence = variant_cache.get("consequence") or variant.consequence
             for name in ("vep", "variant_validator", *STRICT_GENOMIC_PLUGINS):
@@ -260,6 +376,9 @@ class LookupService:
                 result = tool.get_evidence(variant=variant)
                 if name == "vep":
                     variant.vep_raw = result.raw
+                    consequence = (result.summary or {}).get("most_severe_consequence")
+                    if consequence and not variant.consequence:
+                        variant.consequence = consequence
                 record_result(name, result)
 
             if not variant.genomic_hg38:
@@ -272,7 +391,17 @@ class LookupService:
                 record_result(name, result)
 
         # Phase 3 annotates with non-coordinate sources.
-        for name in ("clinvar", "pubmed"):
+        for name in (
+            "clinvar",
+            "clingen",
+            "gene_disease",
+            "molecular_context",
+            "computational_annotations",
+            "pubmed",
+        ):
+            tool = self.tool_registry.get(name)
+            if tool is None:
+                continue
             if (
                 name == "pubmed"
                 and isinstance(publication_cache, dict)
@@ -288,7 +417,6 @@ class LookupService:
                     source_url=publication_cache.get("pubmed_source_url"),
                 )
             else:
-                tool = self.tool_registry[name]
                 result = tool.get_evidence(variant=variant)
             record_result(name, result)
             if name == "clinvar":
@@ -340,7 +468,20 @@ class LookupService:
         )
         trials_tool = self.tool_registry.get("clinical_trials")
         if trials_tool is not None:
-            trials_text = trials_tool.get_trials_summary(gene)
+            trial_rows: list[dict[str, Any]] = []
+            if hasattr(trials_tool, "get_trial_matches"):
+                trials_result = trials_tool.get_trial_matches(variant=variant, gene=gene, limit=15)
+                record_result("clinical_trials", trials_result)
+                trial_rows_raw = (
+                    trials_result.summary.get("trial_rows", [])
+                    if isinstance(trials_result.summary, dict)
+                    else []
+                )
+                trial_rows = [row for row in trial_rows_raw if isinstance(row, dict)]
+            if trial_rows:
+                trials_text = _format_clinical_trials_summary(gene, trial_rows)
+            else:
+                trials_text = trials_tool.get_trials_summary(gene)
             therapeutic_landscape = f"{therapy_text}\n\n{trials_text}"
         else:
             therapeutic_landscape = therapy_text
@@ -455,6 +596,21 @@ class LookupService:
         except Exception as exc:
             warnings.append(f"functional_evidence_failed:{type(exc).__name__}")
 
+        try:
+            clinical_consensus = self.clinical_consensus.build_for_lookup(
+                variant,
+                base_payload,
+                evidence_map,
+                evidence_raw=evidence_raw,
+                source_statuses=evidence_statuses,
+                allow_live=bool(self.settings is not None and self.settings.use_real_apis),
+            )
+            evidence_map["clinical_consensus"] = clinical_consensus.summary
+            evidence_statuses["clinical_consensus"] = clinical_consensus.status
+            warnings.extend(clinical_consensus.warnings)
+        except Exception as exc:
+            warnings.append(f"clinical_consensus_failed:{type(exc).__name__}")
+
         total_count = (
             base_payload.publications_literature.total_count
             if base_payload.publications_literature is not None
@@ -478,6 +634,32 @@ class LookupService:
             blurb=blurb,
             ai_summary_prompt=ai_summary_prompt,
         )
+        gnomad_evidence = next((item for item in evidence if item.source == "gnomad"), None)
+        base_payload.population_frequency_detail = build_population_frequency_detail(
+            evidence_map.get("gnomad", {}),
+            source_status=evidence_statuses.get("gnomad", ""),
+            source_url=gnomad_evidence.source_url if gnomad_evidence is not None else None,
+            source_warnings=gnomad_evidence.warnings if gnomad_evidence is not None else None,
+        )
+        base_payload.call_cards = build_variant_report_call_cards(
+            base_payload,
+            evidence_map,
+            evidence_statuses,
+        )
+        sequence_context_result = self.sequence_context.resolve(
+            gene=gene,
+            cdna=cdna,
+            transcript=input_resolution.resolver_transcript,
+            species=request.species,
+        )
+        if sequence_context_result.context is not None:
+            evidence_map["sequence_context"] = sequence_context_result.context.model_dump(
+                mode="json"
+            )
+            evidence_statuses["sequence_context"] = sequence_context_result.context.source
+        elif sequence_context_result.warnings:
+            evidence_map["sequence_context"] = {"warnings": list(sequence_context_result.warnings)}
+            evidence_statuses["sequence_context"] = "missing"
         if query_kind == "unknown":
             base_payload.limitations = (
                 f"We could not parse '{cdna}' as cDNA, rsID, protein, or genomic HGVS. "
@@ -523,6 +705,7 @@ class LookupService:
                 strict_genomic_cache={
                     "variant": {
                         "genomic_hg38": variant.genomic_hg38,
+                        "genomic_hgvs": variant.genomic_hgvs,
                         "variation_type": variant.variation_type,
                         "consequence": variant.consequence,
                     },
@@ -552,46 +735,54 @@ class LookupService:
             base_payload.limitations = draft_payload.limitations
             warnings = [*warnings, *draft_warnings]
 
+        base_payload.report_profile = self.report_orchestrator.build_profile(
+            resolution=input_resolution,
+            interpretation=search_interpretation,
+            payload=base_payload,
+            evidence=evidence,
+            evidence_map=evidence_map,
+            evidence_statuses=evidence_statuses,
+        )
+
         return LookupResponse(
             query=f"{gene}:{cdna}",
             species=request.species,
             report_payload=base_payload,
             evidence=evidence,
             warnings=[*warnings, *decision.warnings],
+            search_interpretation=search_interpretation,
         )
 
     def page_publications(self, request: PublicationPageRequest) -> PublicationLiterature:
-        gene, cdna, transcript, query_kind = normalize_variant_query(
-            request.gene,
-            request.cdna,
-            request.transcript,
+        input_resolution = self.search_input_resolver.resolve(
+            gene=request.gene,
+            cdna=request.cdna,
+            transcript=request.transcript,
+            protein_change=request.protein_change,
         )
+        gene = input_resolution.gene
+        query_kind = input_resolution.kind
         if request.species == "mouse":
             raise ValueError(
                 "Mouse (mm39) publication lookup is not yet implemented. Human (hg38) is supported."
             )
 
-        transcript_hgvs = f"{transcript}:{cdna}" if transcript else cdna
-        resolver_transcript = transcript
-        if resolver_transcript is None and query_kind == "cdna":
-            resolver_transcript = CANONICAL_TRANSCRIPTS.get(gene)
-        resolver_transcript_hgvs = (
-            f"{resolver_transcript}:{cdna}" if resolver_transcript else transcript_hgvs
-        )
         variant = SimpleNamespace(
             gene=gene,
-            transcript_hgvs=resolver_transcript_hgvs,
+            transcript_hgvs=input_resolution.resolver_transcript_hgvs,
             protein_change=request.protein_change or "",
-            genomic_hg38="",
+            genomic_hg38=input_resolution.genomic_hg38 or "",
+            genomic_hgvs=input_resolution.genomic_hgvs or "",
             variation_type="",
             consequence="",
             query_kind=query_kind,
             dbsnp_rsid=None,
+            search_input_resolution=input_resolution,
         )
         evidence_map: dict[str, dict[str, Any]] = {}
         evidence_raw: dict[str, Any] = {}
         evidence_statuses: dict[str, str] = {}
-        warnings: list[str] = []
+        warnings: list[str] = list(input_resolution.warnings)
 
         for name in ("clinvar", "pubmed", "litvar2"):
             try:

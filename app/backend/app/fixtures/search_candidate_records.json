@@ -1,0 +1,50 @@
+[
+  {
+    "candidate_id": "clinvar:VCV001421454",
+    "display_label": "RPE65 NM_000329.3:c.260A>G (p.Asp87Gly)",
+    "gene": "RPE65",
+    "cdna": "c.260A>G",
+    "transcript": "NM_000329.3",
+    "protein_change": "p.Asp87Gly",
+    "genomic_hg38": "1-68444869-T-C",
+    "genomic_hgvs": "NC_000001.11:g.68444869T>C",
+    "source_support": ["ClinVar VCV001421454", "VariantValidator fixture"],
+    "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/1421454/"
+  },
+  {
+    "candidate_id": "source:CFTR_c.1321_1323del",
+    "display_label": "CFTR c.1321_1323del (p.Leu441del)",
+    "gene": "CFTR",
+    "cdna": "c.1321_1323del",
+    "transcript": null,
+    "protein_change": "p.Leu441del",
+    "genomic_hg38": null,
+    "genomic_hgvs": null,
+    "source_support": ["User-supplied source correction"],
+    "source_url": null
+  },
+  {
+    "candidate_id": "clinvar:VCV000997173",
+    "display_label": "PKD2 NM_000297.4:c.1322dup (p.Leu441fs)",
+    "gene": "PKD2",
+    "cdna": "c.1322dup",
+    "transcript": "NM_000297.4",
+    "protein_change": "p.Leu441fs",
+    "genomic_hg38": "4-88046642-T-TT",
+    "genomic_hgvs": "NC_000004.12:g.88046644dup",
+    "source_support": ["ClinVar VCV000997173"],
+    "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/997173/"
+  },
+  {
+    "candidate_id": "clinvar:VCV001702902",
+    "display_label": "RNASEL NM_021133.4:c.1322del (p.Leu441fs)",
+    "gene": "RNASEL",
+    "cdna": "c.1322del",
+    "transcript": "NM_021133.4",
+    "protein_change": "p.Leu441fs",
+    "genomic_hg38": "1-182585485-A-",
+    "genomic_hgvs": "NC_000001.11:g.182585485del",
+    "source_support": ["ClinVar VCV001702902"],
+    "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/1702902/"
+  }
+]

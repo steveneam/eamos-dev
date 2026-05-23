@@ -365,3 +365,52 @@ textarea {
 .hairline-t { border-top:    0.5px solid var(--line); }
 .hairline-l { border-left:   0.5px solid var(--line); }
 .hairline-r { border-right:  0.5px solid var(--line); }
+
+@media (max-width: 640px) {
+  .v-stat-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .v-stat {
+    border-left: none;
+    border-bottom: 0.5px solid var(--line);
+    padding: 0 0 10px;
+  }
+
+  .v-stat:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .locus-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .locus-track,
+  .vardist-wrap {
+    overflow-x: auto;
+  }
+
+  .locus-row.variants,
+  .locus-row.codons,
+  .locus-legend {
+    min-width: 520px;
+  }
+
+  .pubs-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pubs-strip .pubs-actions {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .cond {
+    grid-template-columns: 1fr;
+  }
+}

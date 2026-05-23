@@ -146,14 +146,19 @@ def _merge_article_data(existing: dict[str, Any], incoming: dict[str, Any]) -> d
     return merged
 
 
+def _is_pmid_context_key(key: str) -> bool:
+    key_lower = key.lower()
+    tokens = {token for token in re.split(r"[^a-z0-9]+", key_lower) if token}
+    return any(
+        token.startswith(("pmid", "pubmed", "citation")) for token in tokens
+    ) or key_lower in {"reference", "references"}
+
+
 def _extract_pmids(value: Any, *, pmid_context: bool = False) -> set[str]:
     pmids: set[str] = set()
     if isinstance(value, dict):
         for key, item in value.items():
-            key_lower = str(key).lower()
-            is_pmid_key = any(
-                token in key_lower for token in ("pmid", "pubmed", "citation", "reference")
-            )
+            is_pmid_key = _is_pmid_context_key(str(key))
             pmids.update(_extract_pmids(item, pmid_context=pmid_context or is_pmid_key))
     elif isinstance(value, (list, tuple, set)):
         for item in value:

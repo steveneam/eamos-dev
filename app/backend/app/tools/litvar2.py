@@ -19,6 +19,37 @@ def _scholar_url(gene: str, hgvs: str | None) -> str:
     return f"https://scholar.google.com/scholar?q={quote_plus(query)}"
 
 
+def _fixture_matches_variant(variant, fixture: dict) -> bool:
+    if variant is None:
+        return True
+    request_gene = str(getattr(variant, "gene", "") or "").upper()
+    if request_gene != "RPE65":
+        return False
+    hgvs = (_extract_hgvs(getattr(variant, "transcript_hgvs", None)) or "").lower()
+    genomic_hg38 = str(getattr(variant, "genomic_hg38", "") or "").lower()
+    return hgvs == "c.260a>g" or genomic_hg38 == "1-68444869-t-c"
+
+
+def _empty_result(variant, *, status: str, warnings: list[str]) -> ToolResult:
+    gene = str(getattr(variant, "gene", "") or "")
+    hgvs = _extract_hgvs(getattr(variant, "transcript_hgvs", None))
+    summary = {
+        "litvar_id": None,
+        "total_publications": 0,
+        "articles": [],
+        "scholar_url": _scholar_url(gene, hgvs),
+    }
+    return ToolResult(
+        source=LitVar2Tool.source,
+        status=status,
+        request_identity={"query": f"{gene} {hgvs}".strip() if hgvs else gene},
+        summary=summary,
+        warnings=warnings,
+        raw={},
+        source_url="https://www.ncbi.nlm.nih.gov/research/litvar2-api",
+    )
+
+
 class LitVar2Tool(FixtureBackedTool):
     source = "litvar2"
     fixture_name = "litvar2_fixtures.json"
@@ -26,11 +57,26 @@ class LitVar2Tool(FixtureBackedTool):
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
+            if variant is not None and not _fixture_matches_variant(variant, fixture):
+                return _empty_result(
+                    variant,
+                    status="missing",
+                    warnings=["litvar2_fixture_variant_mismatch"],
+                )
             return ToolResult(source=self.source, status="fixture", **fixture)
         try:
             return self._fetch_live(variant)
         except Exception as exc:
             fixture = self.load_fixture()
+            if not _fixture_matches_variant(variant, fixture):
+                return _empty_result(
+                    variant,
+                    status="fallback",
+                    warnings=[
+                        f"live_fetch_failed:{type(exc).__name__}",
+                        "litvar2_fallback_fixture_variant_mismatch",
+                    ],
+                )
             return ToolResult(
                 source=self.source,
                 status="fallback",

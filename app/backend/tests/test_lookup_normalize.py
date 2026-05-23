@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from app.services.lookup_service import normalize_variant_query
+from app.services.sequence_context import (
+    genomic_variant_id_to_refseq_hgvs,
+    normalize_variant_query,
+    parse_genomic_variant_id,
+)
 
 
 def test_normalize_strips_gene_prefix_without_lowercasing_hgvs() -> None:
@@ -47,6 +51,33 @@ def test_normalize_collapses_internal_whitespace() -> None:
 
     assert hgvs == "c.260A>G"
     assert kind == "cdna"
+
+
+def test_normalize_accepts_spaced_genomic_vcf_input() -> None:
+    _, hgvs, _, kind = normalize_variant_query("", "6 31740453 G T", None)
+
+    assert hgvs == "6-31740453-G-T"
+    assert kind == "genomic"
+    assert parse_genomic_variant_id(hgvs) == "6-31740453-G-T"
+
+
+def test_normalize_accepts_colon_genomic_substitution_input() -> None:
+    _, hgvs, _, kind = normalize_variant_query("", "8:140300616 T>G", None)
+
+    assert hgvs == "8-140300616-T-G"
+    assert kind == "genomic"
+    assert parse_genomic_variant_id(hgvs) == "8-140300616-T-G"
+
+
+def test_genomic_variant_id_to_refseq_hgvs_handles_simple_indels() -> None:
+    assert (
+        genomic_variant_id_to_refseq_hgvs("1-1042601-A-AGAGAG")
+        == "NC_000001.11:g.1042601_1042602insGAGAG"
+    )
+    assert (
+        genomic_variant_id_to_refseq_hgvs("1-1042466-GGGC-G")
+        == "NC_000001.11:g.1042467_1042469delGGC"
+    )
 
 
 def test_lookup_gene_prefixed_and_plain_cdna_have_same_transcript_hgvs(client) -> None:

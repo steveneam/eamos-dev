@@ -1,0 +1,54 @@
+{
+  "genes": {
+    "RPE65": {
+      "gene": "RPE65",
+      "gnomad_constraint": {
+        "gene": "RPE65",
+        "ensembl_gene_id": "ENSG00000116745",
+        "loeuf": 1.0,
+        "pli": 0.0,
+        "source_url": "https://gnomad.broadinstitute.org/gene/ENSG00000116745?dataset=gnomad_r4",
+        "version": "gnomAD v4.1.1 gene constraint; ClinGen gene facts snapshot 2025-02-27"
+      },
+      "clingen_dosage": {
+        "haploinsufficiency": "Gene Associated with Autosomal Recessive Phenotype (30)",
+        "haploinsufficiency_score": "30",
+        "triplosensitivity": "No Evidence for Triplosensitivity (0)",
+        "triplosensitivity_score": "0",
+        "last_evaluated": "2025-02-27",
+        "source_url": "https://search.clinicalgenome.org/kb/gene-dosage/HGNC%3A10294",
+        "version": "ClinGen Dosage Sensitivity curation 2025-02-27"
+      },
+      "overlapping_cnvs": [],
+      "provenance": [
+        {
+          "source": "gnomAD Gene Constraint",
+          "status": "fixture",
+          "query": {
+            "gene": "RPE65",
+            "ensembl_gene_id": "ENSG00000116745"
+          },
+          "source_url": "https://gnomad.broadinstitute.org/gene/ENSG00000116745?dataset=gnomad_r4",
+          "version": "gnomAD v4.1.1 gene constraint; ClinGen gene facts snapshot 2025-02-27",
+          "warnings": []
+        },
+        {
+          "source": "ClinGen Dosage Sensitivity",
+          "status": "fixture",
+          "query": {
+            "gene": "RPE65",
+            "hgnc_id": "HGNC:10294"
+          },
+          "source_url": "https://search.clinicalgenome.org/kb/gene-dosage/HGNC%3A10294",
+          "version": "ClinGen Dosage Sensitivity curation 2025-02-27",
+          "warnings": []
+        }
+      ],
+      "warnings": [
+        "protein_domain_source_not_hydrated",
+        "hotspot_source_not_hydrated",
+        "structural_cnv_overlap_source_not_hydrated"
+      ]
+    }
+  }
+}

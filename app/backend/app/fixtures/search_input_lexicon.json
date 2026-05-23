@@ -1,0 +1,254 @@
+{
+  "version": "2026-05-21-task5-broader-reference",
+  "purpose": "Curated search-input hints for mock-first and live AI extraction. This lexicon supplies aliases, display vocabulary, and nomenclature only; it must not assign final cDNA or genomic alleles.",
+  "gene_aliases": [
+    {
+      "phrase": "cystic fibrosis gene",
+      "gene": "CFTR",
+      "confidence": "high",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "cf gene",
+      "gene": "CFTR",
+      "confidence": "medium",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "rpe65 gene",
+      "gene": "RPE65",
+      "confidence": "high",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "rpe65-related lca gene",
+      "gene": "RPE65",
+      "confidence": "high",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "stargardt gene",
+      "gene": "ABCA4",
+      "confidence": "medium",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "stargardt disease gene",
+      "gene": "ABCA4",
+      "confidence": "medium",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "breast cancer gene 1",
+      "gene": "BRCA1",
+      "confidence": "high",
+      "source": "curated_eamos_search_input_lexicon"
+    }
+  ],
+  "disease_gene_hints": [
+    {
+      "phrase": "retinal dystrophy gene",
+      "genes": ["ABCA4", "RPE65", "RPGRIP1", "USH2A"],
+      "confidence": "low",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "inherited retinal disease gene",
+      "genes": ["ABCA4", "RPE65", "RPGRIP1", "USH2A"],
+      "confidence": "low",
+      "source": "curated_eamos_search_input_lexicon"
+    },
+    {
+      "phrase": "leber congenital amaurosis gene",
+      "genes": ["RPE65", "RPGRIP1"],
+      "confidence": "low",
+      "source": "curated_eamos_search_input_lexicon"
+    }
+  ],
+  "known_gene_symbols": [
+    "ABCA4",
+    "BRCA1",
+    "CFTR",
+    "PKD2",
+    "RNASEL",
+    "RPE65",
+    "RPGRIP1",
+    "USH2A"
+  ],
+  "transcript_aliases": {
+    "ABCA4": [
+      {
+        "phrases": ["abca4 mane transcript", "stargardt mane transcript"],
+        "transcript": "NM_000350.3",
+        "source": "curated_eamos_search_input_lexicon"
+      }
+    ],
+    "BRCA1": [
+      {
+        "phrases": ["brca1 mane transcript", "breast cancer gene 1 mane transcript"],
+        "transcript": "NM_007294.4",
+        "source": "curated_eamos_search_input_lexicon"
+      }
+    ],
+    "CFTR": [
+      {
+        "phrases": ["cftr mane transcript", "cystic fibrosis gene mane transcript"],
+        "transcript": "NM_000492.4",
+        "source": "curated_eamos_search_input_lexicon"
+      }
+    ],
+    "RPE65": [
+      {
+        "phrases": ["rpe65 mane transcript"],
+        "transcript": "NM_000329.3",
+        "source": "curated_eamos_search_input_lexicon"
+      }
+    ],
+    "RPGRIP1": [
+      {
+        "phrases": ["rpgrip1 mane transcript"],
+        "transcript": "NM_020366.4",
+        "source": "curated_eamos_search_input_lexicon"
+      }
+    ],
+    "USH2A": [
+      {
+        "phrases": ["ush2a mane transcript"],
+        "transcript": "NM_206933.4",
+        "source": "curated_eamos_search_input_lexicon"
+      }
+    ]
+  },
+  "chromosome_aliases": {
+    "1": "1",
+    "chr1": "1",
+    "chromosome 1": "1",
+    "17": "17",
+    "chr17": "17",
+    "chromosome 17": "17",
+    "x": "X",
+    "chrx": "X",
+    "chromosome x": "X",
+    "y": "Y",
+    "chry": "Y",
+    "chromosome y": "Y",
+    "m": "M",
+    "mt": "M",
+    "chrm": "M",
+    "chrmt": "M",
+    "mitochondrial": "M",
+    "mitochondrial chromosome": "M"
+  },
+  "amino_acids": {
+    "alanine": { "three_letter": "Ala", "one_letter": "A" },
+    "arginine": { "three_letter": "Arg", "one_letter": "R" },
+    "asparagine": { "three_letter": "Asn", "one_letter": "N" },
+    "aspartate": { "three_letter": "Asp", "one_letter": "D" },
+    "aspartic acid": { "three_letter": "Asp", "one_letter": "D" },
+    "cysteine": { "three_letter": "Cys", "one_letter": "C" },
+    "glutamate": { "three_letter": "Glu", "one_letter": "E" },
+    "glutamic acid": { "three_letter": "Glu", "one_letter": "E" },
+    "glutamine": { "three_letter": "Gln", "one_letter": "Q" },
+    "glycine": { "three_letter": "Gly", "one_letter": "G" },
+    "histidine": { "three_letter": "His", "one_letter": "H" },
+    "isoleucine": { "three_letter": "Ile", "one_letter": "I" },
+    "leucine": { "three_letter": "Leu", "one_letter": "L" },
+    "lysine": { "three_letter": "Lys", "one_letter": "K" },
+    "methionine": { "three_letter": "Met", "one_letter": "M" },
+    "phenylalanine": { "three_letter": "Phe", "one_letter": "F" },
+    "proline": { "three_letter": "Pro", "one_letter": "P" },
+    "serine": { "three_letter": "Ser", "one_letter": "S" },
+    "threonine": { "three_letter": "Thr", "one_letter": "T" },
+    "tryptophan": { "three_letter": "Trp", "one_letter": "W" },
+    "tyrosine": { "three_letter": "Tyr", "one_letter": "Y" },
+    "valine": { "three_letter": "Val", "one_letter": "V" },
+    "stop": { "three_letter": "Ter", "one_letter": "*" }
+  },
+  "consequence_terms": {
+    "frameshift": { "suffix": "fs", "variant_class": "frameshift" },
+    "frame shift": { "suffix": "fs", "variant_class": "frameshift" },
+    "deletion": { "suffix": "del", "variant_class": "deletion" },
+    "deleted": { "suffix": "del", "variant_class": "deletion" },
+    "insertion": { "suffix": "ins", "variant_class": "insertion" },
+    "inserted": { "suffix": "ins", "variant_class": "insertion" },
+    "duplication": { "suffix": "dup", "variant_class": "duplication" },
+    "duplicated": { "suffix": "dup", "variant_class": "duplication" },
+    "delins": { "suffix": "delins", "variant_class": "delins" },
+    "splice donor": { "suffix": "", "variant_class": "splice" },
+    "splice acceptor": { "suffix": "", "variant_class": "splice" },
+    "splice": { "suffix": "", "variant_class": "splice" },
+    "missense": { "suffix": "", "variant_class": "missense" },
+    "nonsense": { "suffix": "Ter", "variant_class": "nonsense" },
+    "stop gained": { "suffix": "Ter", "variant_class": "nonsense" },
+    "stop-gained": { "suffix": "Ter", "variant_class": "nonsense" }
+  },
+  "clinical_significance_terms": {
+    "pathogenic": {
+      "display": "Pathogenic",
+      "group": "clinvar_significance",
+      "description": "ClinVar-style pathogenic clinical significance label."
+    },
+    "likely pathogenic": {
+      "display": "Likely pathogenic",
+      "group": "clinvar_significance",
+      "description": "ClinVar-style likely pathogenic clinical significance label."
+    },
+    "uncertain significance": {
+      "display": "Uncertain significance",
+      "group": "clinvar_significance",
+      "description": "ClinVar-style VUS clinical significance label."
+    },
+    "vus": {
+      "display": "Uncertain significance",
+      "group": "clinvar_significance",
+      "description": "Common shorthand for a variant of uncertain significance."
+    },
+    "likely benign": {
+      "display": "Likely benign",
+      "group": "clinvar_significance",
+      "description": "ClinVar-style likely benign clinical significance label."
+    },
+    "benign": {
+      "display": "Benign",
+      "group": "clinvar_significance",
+      "description": "ClinVar-style benign clinical significance label."
+    }
+  },
+  "acmg_criteria": {
+    "PVS1": {
+      "display": "PVS1",
+      "group": "pathogenic_very_strong",
+      "description": "Predicted null variant in a gene where loss of function is a known disease mechanism."
+    },
+    "PS3": {
+      "display": "PS3",
+      "group": "pathogenic_strong",
+      "description": "Well-established functional studies supportive of a damaging effect."
+    },
+    "PM2": {
+      "display": "PM2",
+      "group": "pathogenic_moderate",
+      "description": "Absent or very rare in population databases."
+    },
+    "PP3": {
+      "display": "PP3",
+      "group": "pathogenic_supporting",
+      "description": "Multiple lines of computational evidence support a deleterious effect."
+    },
+    "BA1": {
+      "display": "BA1",
+      "group": "benign_stand_alone",
+      "description": "Allele frequency is too high for the disorder."
+    },
+    "BS3": {
+      "display": "BS3",
+      "group": "benign_strong",
+      "description": "Well-established functional studies show no damaging effect."
+    },
+    "BP4": {
+      "display": "BP4",
+      "group": "benign_supporting",
+      "description": "Multiple lines of computational evidence suggest no impact."
+    }
+  }
+}
