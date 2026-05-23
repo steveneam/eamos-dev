@@ -1,11 +1,12 @@
 import { Card } from '@/components/ui/Card'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
-import type { DiseaseMechanismSection, ReportPayload } from '@/lib/backend'
+import type { DiseaseMechanismSection, ReportExtractionSectionTarget, ReportPayload } from '@/lib/backend'
 
 interface DiseaseSectionProps {
   payload: ReportPayload
   number?: number
   embedded?: boolean
+  sectionTarget?: ReportExtractionSectionTarget | null
 }
 
 interface Field {
@@ -39,7 +40,7 @@ function typedFields(section: DiseaseMechanismSection): Field[] {
   ]
 }
 
-export function DiseaseSection({ payload, number, embedded }: DiseaseSectionProps) {
+export function DiseaseSection({ payload, number, embedded, sectionTarget }: DiseaseSectionProps) {
   const typedDisease = payload.report_profile?.disease_mechanism ?? null
   const fields: Field[] = typedDisease
     ? typedFields(typedDisease)
@@ -93,6 +94,40 @@ export function DiseaseSection({ payload, number, embedded }: DiseaseSectionProp
               {rawClassificationText}
             </span>
           )}
+        </div>
+      )}
+
+      {sectionTarget?.match_level && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <span
+            style={{
+              border: '0.5px solid var(--line)',
+              borderRadius: 999,
+              background: 'var(--bg-soft)',
+              color: 'var(--ink-3)',
+              padding: '3px 8px',
+              fontSize: 10.5,
+              fontWeight: 700,
+            }}
+          >
+            {formatWarning(sectionTarget.match_level)}
+          </span>
+          {sectionTarget.warnings.slice(0, 2).map((warning) => (
+            <span
+              key={warning}
+              style={{
+                border: '0.5px solid var(--warn-bdr)',
+                background: 'var(--warn-tint)',
+                color: '#633806',
+                borderRadius: 999,
+                padding: '3px 8px',
+                fontSize: 10.5,
+                fontWeight: 700,
+              }}
+            >
+              {formatWarning(warning)}
+            </span>
+          ))}
         </div>
       )}
 

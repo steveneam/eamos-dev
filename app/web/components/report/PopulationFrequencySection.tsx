@@ -6,42 +6,16 @@ import type {
   PopulationFrequencyReportSection,
   PopulationFrequencyVisualGroup,
 } from '@/lib/backend'
+import {
+  GNOMAD_ANCESTRY_MAP_VERSION,
+  gnomadMapAnchor,
+} from './gnomadAncestryMap'
 
 interface PopulationFrequencySectionProps {
   section?: PopulationFrequencyReportSection | null
 }
 
 type PopulationTab = 'ancestry' | 'age'
-
-// EAMOS proprietary visual anchor layer: gnomAD groups are genetic-similarity
-// labels, not exact geography. Keep exact AF/AN/AC in the cards as source truth.
-const REGION_ANCHORS: Record<string, { x: number; y: number }> = {
-  afr: { x: 1040, y: 510 },
-  ami: { x: 505, y: 300 },
-  amr: { x: 575, y: 500 },
-  asj: { x: 1135, y: 285 },
-  eas: { x: 1530, y: 315 },
-  fin: { x: 1105, y: 160 },
-  mid: { x: 1270, y: 335 },
-  nfe: { x: 1045, y: 235 },
-  remaining: { x: 1010, y: 410 },
-  rmi: { x: 1010, y: 410 },
-  sas: { x: 1375, y: 400 },
-}
-
-const REGION_CONTEXTS: Record<string, string> = {
-  afr: 'gnomAD AFR: African / African American; oriented over Africa for map context',
-  ami: 'gnomAD AMI: Amish founder population; oriented over North America for map context',
-  amr: 'gnomAD AMR: Admixed American; oriented over the Americas for map context',
-  asj: 'gnomAD ASJ: Ashkenazi Jewish; diaspora group, oriented near Europe / Middle East for map context',
-  eas: 'gnomAD EAS: East Asian; oriented over East Asia for map context',
-  fin: 'gnomAD FIN: Finnish; oriented over Finland / northern Europe for map context',
-  mid: 'gnomAD MID: Middle Eastern; oriented over the Middle East for map context',
-  nfe: 'gnomAD NFE: European, non-Finnish; oriented over Europe for map context',
-  remaining: 'gnomAD RMI: Remaining individuals not assigned to current gnomAD labels',
-  rmi: 'gnomAD RMI: Remaining individuals not assigned to current gnomAD labels',
-  sas: 'gnomAD SAS: South Asian; oriented over South Asia for map context',
-}
 
 function formatInteger(value: number | null | undefined): string {
   return value == null ? 'Not reported' : new Intl.NumberFormat('en-US').format(value)
@@ -65,7 +39,7 @@ function formatWarning(warning: string): string {
 }
 
 function groupContext(group: PopulationFrequencyVisualGroup): string {
-  return REGION_CONTEXTS[group.id.toLowerCase()] ?? 'gnomAD genetic ancestry group'
+  return gnomadMapAnchor(group.id).context
 }
 
 function heatRatio(value: number | null | undefined, maxFrequency: number): number {
@@ -428,7 +402,7 @@ function WorldFrequencyMap({
           <image href="/world.svg" x="0" y="0" width="2000" height="857" opacity="0.78" />
           <rect x="0" y="0" width="2000" height="857" fill="#ffffff" opacity="0.12" />
           {groups.map((group) => {
-            const anchor = REGION_ANCHORS[group.id.toLowerCase()] ?? REGION_ANCHORS.remaining
+            const anchor = gnomadMapAnchor(group.id)
             const normalized = heatRatio(group.allele_frequency, maxFrequency)
             const fill = heatColor(group.allele_frequency, maxFrequency, group.data_state)
             const radius = group.data_state === 'zero_observed' ? 21 : 28 + Math.sqrt(normalized) * 34
@@ -492,7 +466,7 @@ function WorldFrequencyMap({
           <span style={{ flex: '1 1 260px' }}>
             Basemap from SimpleMaps. Regional anchors orient gnomAD genetic ancestry groups;
             frequency values come from inferred source-group data, not race, ethnicity, patient
-            ancestry, or exact geography.
+            ancestry, or exact geography. Algorithm {GNOMAD_ANCESTRY_MAP_VERSION}.
           </span>
           <span className="flex items-center gap-2" style={{ flex: '0 0 auto', fontSize: 10.5 }}>
             <span>Lower AF</span>

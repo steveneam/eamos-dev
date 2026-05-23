@@ -29,16 +29,14 @@
   orphans now DONE (root README.md, app/README.md, app/frontend/README.md,
   app/CLAUDE.md). Untouched: `/runs`, AlphaMissense, parked Workbench. Full
   detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 01:03 +1000 - **BE↔FE cross-check
-  complete.** Implemented Codex-side raw `/report?q=` lookup wiring in Vite +
-  Next report clients/types/panel, and fixed Claude-reviewed backend provenance
-  issues: computational card fallback status no longer upgrades to live via VEP,
-  and gnomAD fixture top-level `source_url` no longer duplicates the ToolResult
-  kwarg. Focused backend suite, Vite/Next type checks/builds, ruff/black, and
-  Next browser smoke passed; stale raw-search comments were cleaned after the
-  final smoke pass. Tmp smoke artifacts removed; local smoke servers stopped. No
-  `/runs`, no AlphaMissense. Changes remain uncommitted for Claude's integration
-  commit/push.
+- **Codex:** IDLE @ 2026-05-24 03:01 +1000 - **Variant report snapshot/map
+  slice ready for Claude integration.** Implemented Task 14 static
+  `gene_context_snapshot` render in Vite + Next, moved Section 3 gnomAD map
+  anchors into a documented shared frontend mapping, folded in scoped F3/F4
+  report hardening, cleaned stale tmp QA artifacts, and verified focused
+  backend tests, ruff/black, Vite build, Next build, and partial browser smoke
+  (Next RPE65 desktop/mobile snapshot cases). No `/runs`, no AlphaMissense;
+  `backend.ts` and `globals.css` untouched.
 
 ## Log Edit-Lock
 
@@ -48,7 +46,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 01:42 +1000 · Claude (app/shared doc-orphan cleanup done across 4 docs incl. app/CLAUDE.md; Rule-4 lock released)
+UNLOCKED · 2026-05-24 03:01 +1000 · Codex (report snapshot/map slice ready for integration)
 
 ## Shared File Locks
 
@@ -58,6 +56,10 @@ Rule 4); release when done.
 - **`app/CLAUDE.md` Rule-4 lock released** (Claude, 2026-05-24 01:42 +1000) —
   `app/shared` doc-orphan cleanup DONE (root README.md, app/README.md,
   app/frontend/README.md, app/CLAUDE.md). Codex had explicitly ceded this file.
+- **Codex lock released @ 2026-05-24 03:01 +1000:** Task 14 report
+  snapshot/map slice in both report frontends plus scoped backend polish is
+  ready for integration. No `backend.ts`, no `globals.css`, no `/runs`, no
+  AlphaMissense.
 - None held by Codex as of 2026-05-24 01:03 +1000. Released raw-search report
   integration/provenance locks for `app/frontend/src/lib/backend.ts`,
   `app/web/lib/backend.ts`, `app/frontend/src/pages/ReportPage.tsx`,

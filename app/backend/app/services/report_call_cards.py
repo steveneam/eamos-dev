@@ -111,7 +111,7 @@ def _population_frequency_card(
             support_badges=[ReportCallBadge(text="gnomAD unavailable", kind="warning")],
             ui_color_theme="neutral_slate_state",
             source_status=status,
-            provenance=["gnomAD GraphQL"],
+            provenance=[_gnomad_provenance_label(status)],
             warnings=[] if detail is None else detail.warnings,
             interaction=POPULATION_FREQUENCY_INTERACTION,
         )
@@ -125,7 +125,7 @@ def _population_frequency_card(
         primary_label = "Absent"
         theme = "support_green_state"
     elif max_af >= FREQUENCY_BA1_AF_THRESHOLD:
-        primary_label = f"Common ({_format_percent(max_af)} max AF)"
+        primary_label = f"Very Common ({_format_percent(max_af)} max AF)"
         theme = "benign_green_state"
     elif max_af >= FREQUENCY_BS1_AF_THRESHOLD:
         primary_label = f"Common ({_format_percent(max_af)} max AF)"
@@ -375,6 +375,18 @@ def _displayed_annotation_status(evidence_statuses: dict[str, str]) -> str:
     if status:
         return status
     return _combined_status(evidence_statuses, ("spliceai", "vep"))
+
+
+def _gnomad_provenance_label(status: str) -> str:
+    if status in {"live", "cache"}:
+        return "gnomAD GraphQL"
+    if status == "fixture":
+        return "gnomAD fixture"
+    if status in {"fallback", "degraded"}:
+        return "gnomAD fallback"
+    if status in {"error", "failed"}:
+        return "gnomAD source error"
+    return "gnomAD unavailable"
 
 
 def _annotation_predictor_row(item: dict[str, Any]) -> dict[str, Any] | None:

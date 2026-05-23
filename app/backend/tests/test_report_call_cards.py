@@ -49,6 +49,45 @@ def test_population_card_does_not_infer_acmg_badge_from_raw_frequency_only() -> 
     assert {badge["text"] for badge in card["support_badges"]} >= {"None", "AC 120"}
     assert "BA1" not in {badge["text"] for badge in card["support_badges"]}
     assert "BS1" not in {badge["text"] for badge in card["support_badges"]}
+    assert card["primary_label"] == "Very Common (7.00% max AF)"
+
+
+def test_population_card_distinguishes_bs1_frequency_label() -> None:
+    payload = ReportPayload(
+        patient_id="lookup_test",
+        population_frequency_detail=PopulationFrequencyDetail(
+            dataset="gnomad_r4",
+            variant_id="1-123-A-G",
+            allele_frequency=0.02,
+            allele_count=40,
+            allele_number=2000,
+            popmax_frequency=0.02,
+            popmax_population="nfe",
+        ),
+    )
+
+    card = _population_card(payload)
+
+    assert card["primary_label"] == "Common (2.00% max AF)"
+
+
+def test_population_card_no_data_provenance_reflects_source_status() -> None:
+    payload = ReportPayload(patient_id="lookup_test")
+
+    fixture_card = _call_card(
+        payload,
+        "population_frequency",
+        evidence_statuses={"gnomad": "fixture"},
+    )
+    missing_card = _call_card(
+        payload,
+        "population_frequency",
+        evidence_statuses={"gnomad": "missing"},
+    )
+
+    assert fixture_card["provenance"] == ["gnomAD fixture"]
+    assert missing_card["provenance"] == ["gnomAD unavailable"]
+    assert fixture_card["provenance"] != ["gnomAD GraphQL"]
 
 
 def test_population_card_can_show_explicit_eamos_frequency_hint_badge() -> None:

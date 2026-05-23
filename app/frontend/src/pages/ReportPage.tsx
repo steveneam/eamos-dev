@@ -20,6 +20,7 @@ import { PublicationsCallout } from '@/components/report/PublicationsCallout'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
+import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnapshotSection'
 import { Card } from '@/components/ui/Card'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
@@ -280,6 +281,15 @@ function ReportBody({ data, query }: ReportBodyProps) {
   // fell back to cached data. Key on the prefix only — the suffix is the
   // exception class, not the tool name (incoherence finding #6). Non-blocking.
   const degraded = (data.warnings ?? []).some((c) => c.startsWith('live_fetch_failed:'))
+  const targetFor = (sectionId: string) =>
+    payload.report_profile?.extraction_plan?.section_targets.find(
+      (target) => target.section_id === sectionId,
+    ) ?? null
+  const populationTarget = targetFor('population_frequency')
+  const populationSection =
+    populationTarget?.match_level === 'unavailable'
+      ? null
+      : payload.report_profile?.population_frequency
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -307,13 +317,18 @@ function ReportBody({ data, query }: ReportBodyProps) {
         <LocusContext data={payload.locus_context} />
       </Card>
 
-      {payload.report_profile?.population_frequency && (
+      <GeneContextSnapshotSection
+        snapshot={payload.report_profile?.gene_context_snapshot}
+        sectionTarget={targetFor('gene_context_snapshot')}
+      />
+
+      {populationSection && (
         <Card
           number={3}
           title="gnomAD population frequency"
           meta="genetic ancestry groups | source age distribution"
         >
-          <PopulationFrequencySection section={payload.report_profile.population_frequency} />
+          <PopulationFrequencySection section={populationSection} />
         </Card>
       )}
 
@@ -324,7 +339,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
       </Card>
 
       <Card number={5} title="Gene context & associated conditions" meta={geneContextMeta}>
-        <DiseaseSection payload={payload} embedded />
+        <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
         <CuratedVariantsGrid data={payload.curated_variants_distribution} />
         <AssociatedConditions data={payload.associated_conditions} />
         {!payload.publications_literature && (

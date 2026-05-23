@@ -149,6 +149,29 @@
         "app/backend/tests/test_variant_search_integration.py",
         "app/backend/tests/test_frontend_contract.py"
       ]
+    },
+    {
+      "id": "gnomad-ancestry-map",
+      "name": "gnomAD Genetic Ancestry Map Anchors",
+      "type": "ui_mapping_algorithm",
+      "status": "active_frontend_prototype",
+      "added_at": "2026-05-24 01:56 +1000 - Codex",
+      "last_updated_at": "2026-05-24 01:56 +1000 - Codex",
+      "doc": "docs/proprietary/gnomad-ancestry-map.md",
+      "source_files": [
+        "app/frontend/src/components/report/gnomadAncestryMap.ts",
+        "app/web/components/report/gnomadAncestryMap.ts",
+        "app/frontend/src/components/report/PopulationFrequencySection.tsx",
+        "app/web/components/report/PopulationFrequencySection.tsx"
+      ],
+      "entry_points": [
+        "Variant Evidence Report Section 3"
+      ],
+      "tests": [
+        "app/frontend build/typecheck",
+        "app/web build/typecheck",
+        "browser visual QA"
+      ]
     }
   ]
 }
