@@ -14,33 +14,41 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** idle (awaiting user) @ 2026-05-23 18:52 +1000 — **Vite→Next.js
-  migration STARTED + COMPLETED + verified** (landing + Variant Evidence Report
-  only). Built a NEW Next.js (App Router) app at `app/web/` — a PARALLEL dir, so
-  the Vite `app/frontend/` stays intact for the parked Workbench + frozen
-  `/runs`. Ported `/` + `/report` pixel-faithful and **design-agnostic** (the
-  emerald "Lifestream" redesign + landing mock are a separate later effort).
-  **On Next 16, not 15 — user-ratified 2026-05-23** (Next 15.5 won't build on the
-  IT-managed Node 24; App Router identical, ported code byte-identical).
-  Verified: `cd app/web && npm run build` clean (compile + TS + prerender
-  `/`,`/report`,`/_not-found`) + browser (`next start`) `/` and `/report?demo=1`
-  render identical to Vite (server stopped — no orphan). `strict:false` matches
-  the Vite app's actual TS. **Untouched:** `app/frontend/**`, the contract canary
-  `backend.ts`, `/runs`, AlphaMissense, Codex's lane; `app/web/lib/backend.ts` is
-  a hand-kept MIRROR (see Cross-Agent Requests). Design-doc:
-  `plans/v2-nextjs-migration/design.md`; full state:
-  `~/.claude/plans/next-session-eamos.md`. Next (gated): await landing mock +
-  brand/scope/content-realism decisions → emerald redesign on the app/web
-  skeleton; mirror Codex's new report contracts into app/web. `/runs` +
-  AlphaMissense + parked Workbench remain ON HOLD, untouched.
-- **Codex:** idle @ 2026-05-23 21:53 +1000 - **gnomAD ancestry map + age tab
-  + ClinicalTrials.gov report slice DONE+verified.** Mirrored the additive
-  report contract into both Vite and Next 16, rendered Section 3 with
-  SimpleMaps-backed genetic-ancestry AF heat overlays/sidebar + age
-  histograms, removed the visible Limitations card, added structured
-  ClinicalTrials.gov rows to the trials card, and kept `/runs`/AlphaMissense
-  untouched. Full backend pytest, ruff, black, Vite build, Next build, and
-  browser verification passed; Next server running on `http://localhost:3000`.
+- **Claude:** active @ 2026-05-24 00:10 +1000 — **Landing redesign v2
+  (whole-page dark + single-bar search + GSAP) built; strict tsc clean +
+  dev-verified; final production build running.** User-directed iteration:
+  (1) dark theme extended to the WHOLE landing (not just hero) — added
+  `--d-bg/--d-bg-2/--d-card/--d-line` tokens to `app/globals.css` (additive),
+  restyled all sections dark; (2) nav links Features/Pricing/FAQ added; (3) the
+  hero search is now ONE continuous freeform bar (no Lookup/AI toggle) — new
+  `components/landing/EamosSearch.tsx` (paperclip attach + emerald send, minimal
+  AI style, sends raw query), used in hero + pinned nav; shared
+  `search/SearchShell.tsx` REVERTED to canonical (so `/report` keeps the original
+  light search untouched); (4) buttery scroll transition via **GSAP +
+  ScrollTrigger** (added deps `gsap`+`@gsap/react`) — `LandingNav` rebuilt with
+  one scrubbed timeline (trigger = `#hero` via global query; bg solidifies, links
+  fade out, back-to-top + compact search fade in); focus still expands the search
+  full-width replacing logo/up/links/auth. **Verified:** `npx tsc --noEmit`
+  exit 0; dev server (`next dev` :3000, STOPPED): `/` dark end-to-end, GSAP
+  dock smooth, focus-expand works, **console clean** (the earlier `#hero`
+  ScrollTrigger warning fixed). Final `npm run build` in progress for the
+  shippable artifact; will browser-verify `/`+`/report` then stop the server.
+  Routing note: freeform queries route to `/report?q=` pending the Codex
+  search-input resolver wiring in ReportClient/`api.ts` (existing open CAR).
+  Untouched: `app/frontend/**`, `/runs`, AlphaMissense, parked Workbench,
+  Codex's report/backend files. Uncommitted (mixed worktree w/ Codex). Full
+  detail: `~/.claude/plans/next-session-eamos.md`.
+- **Codex:** idle @ 2026-05-24 00:04 +1000 - **Task 13 gene-context
+  snapshot contract DONE + verified.** Added additive report snapshot contract,
+  source-backed/fixture service wiring, frontend TS mirrors, focused tests, and
+  plan/proprietary docs. No commit/push, no `/runs`, no AlphaMissense.
+  Previous Codex boundary @ 2026-05-23 23:27 +1000: **Next-session report/
+  gene-viewer plan updated.** Added Tasks 13-19 to
+  `plans/variant-report-data-orchestration/plan.md`: static gene-context
+  snapshot data contract + UI, gnomAD ancestry mapping, gnomAD local
+  DuckDB/parquet-style data prototype, gnomAD source-detail endpoint,
+  ClinicalTrials.gov hardening, and final report UI QA. No implementation,
+  no `/runs`, no AlphaMissense.
 
 ## Log Edit-Lock
 
@@ -50,14 +58,16 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-23 21:53 +1000 · Codex (gnomAD ancestry map + trials report slice synced)
+LOCKED: Claude · 2026-05-24 00:10 +1000 · Active Status heartbeat sync (landing v2 — dark + GSAP)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
-- none.
+- none. Codex Task 13 shared contract locks released 2026-05-24 00:04 +1000
+  after focused backend tests, lint/format, variant-search integration, and
+  both frontend TypeScript checks passed.
 
 ## Cross-Agent Requests
 
@@ -403,74 +413,57 @@ parked Workbench. FE Vite checkpoint = 205eaae. End clear-safe.`
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-23 21:53 +1000 - Codex.
+1/2). Section last edited: 2026-05-24 00:04 +1000 - Codex. Prior Codex section
+archived verbatim -> `agent_handoff/archive/2026-05-24-codex-section-pre-task13.md`.
 
-**Latest Codex update (2026-05-23 21:53 +1000 - Codex):** implemented and
-verified the user-directed Variant Evidence Report frontend/backend slice for
-gnomAD ancestry visualization, age distribution disclosure, ClinicalTrials.gov
-rows, and removal of the visible limitations section. This was an explicit
-role redirect from the earlier backend-only handoff.
+**Latest Codex update (2026-05-24 00:04 +1000 - Codex):** Task 13 from
+`plans/variant-report-data-orchestration/plan.md` is implemented and verified.
 
 **Implementation completed:**
-- Mirrored the additive report contract in both `app/frontend/src/lib/backend.ts`
-  and `app/web/lib/backend.ts`, including `TrialMatch`,
-  `TherapiesTrialsSection`, report profile sections, call-card interactions,
-  and `population_frequency`.
-- Added `PopulationFrequencySection` in both Vite and Next 16 report mirrors:
-  SimpleMaps `/world.svg` basemap, proprietary EAMOS genetic-ancestry anchor
-  layer, relative AF heat scale, hover/focus sidebar rows with exact AF/AN/AC,
-  and a tabbed age-distribution view using source age histograms.
-- Kept gnomAD wording aligned with the 2023 genetic-ancestry guidance: source
-  groups are inferred genetic-similarity groups, not race/ethnicity, patient
-  ancestry, or exact geography.
-- Removed the visible `LimitationsSection` card from both report mirrors while
-  preserving `limitations` as backend/API data for malformed/unresolved flows.
-- Reworked the trials card in both mirrors to show structured
-  ClinicalTrials.gov rows from `report_profile.therapies_trials.trial_rows`.
-- Updated `ClinicalTrialsTool` / lookup orchestration so live lookups can carry
-  up to 15 active/not-yet ClinicalTrials.gov rows into the report evidence and
-  typed profile; fixture mode keeps a representative RPE65 text summary without
-  fabricating structured eligibility rows.
-- Refreshed the RPE65 demo data: ClinicalTrials.gov RPE65 sample now shows 13
-  active/not-yet rows and 29 total search records; gnomAD sample wording now
-  matches AC 2 / AN 125,748 / AF 0.0000159 rather than the older absent wording.
-- Fixed stale report UI risks found by subagents: no static RPE65 header stats
-  for non-RPE65 variants, no unavailable ClinVar badge, zero AF/age bins render
-  as zero rather than fake minimum bars, and mobile report shell no longer
-  compresses the nav search.
+- Added additive `VariantReportProfile.gene_context_snapshot` plus nested
+  transcript exon/intron, variant projection, render-hint, Workbench-link, and
+  snapshot models in `app/backend/app/schemas/run.py`.
+- Added `GeneContextSnapshotService`, wired it into `/api/v1/lookup`, and reused
+  `SourceBackedGeneViewerProvider.viewer_bundle()` so source-backed snapshots
+  use the same gene-viewer transcript/window path as Workbench.
+- RPE65 fixture mode returns populated static snapshot data with explicit
+  `transcript_model_from_rpe65_fixture_scaffold`; non-RPE65 fixture mode returns
+  missing/empty state and does not borrow the RPE65 scaffold.
+- Mirrored the additive snapshot contract in both
+  `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts`.
+- Updated `PROGRESS.md`, `docs/proprietary/index.json`,
+  `docs/proprietary/variant-report-orchestration.md`, and marked Task 13 done
+  in the variant-report data orchestration plan.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_variant_report_orchestration.py tests/test_clinical_trials_tool.py tests/test_variant_cache.py -q`
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q -x`
   passed.
-- `cd app/backend && python -m pytest tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_variant_report_orchestration.py tests/test_clinical_trials_tool.py -q`
+- `cd app/backend && python -m ruff check app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py`
   passed.
-- `cd app/backend && python -m ruff check .` passed.
-- `cd app/backend && python -m black --check --target-version py310 .` passed.
-- `cd app/backend && python -m pytest -q` passed (4 skipped; existing JWT
-  short-key warnings only).
+- `cd app/backend && python -m black --check --target-version py310 app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py`
+  passed after formatting the two Black-reported files.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q`
+  passed.
 - `cd app/frontend && npx tsc -b --pretty false` passed.
 - `cd app/web && npx tsc --noEmit --pretty false` passed.
-- `cd app/frontend && npm run build` passed (existing Vite chunk-size warning).
-- `cd app/web && npm run build` passed on Next.js 16.2.6.
-- Browser verification against `http://localhost:3000/report?demo=1` passed on
-  desktop and mobile: map SVG present, AF heat legend present, age tab works,
-  13 ClinicalTrials.gov links render, limitations text not visible, no page
-  overflow, and no uncanceled network/runtime failures.
 
 **Still gated / next:**
+- No commit/push was done.
 - Patient Report Pipeline (`/runs`) remains parked.
-- AlphaMissense remains hidden/on hold; no surfacing work was done.
-- Future backend/data work remains gated: production gnomAD ETL/warehouse,
-  per-hover endpoint, local DuckDB/parquet prototype, and richer exome/genome
-  age-distribution source hydration.
-- Next server is running on `http://localhost:3000` for user review.
+- AlphaMissense remains hidden/on hold.
+- Task 14 is the next report-snapshot continuation: render the static
+  `gene_context_snapshot` section in Vite and Next, then browser/visual QA.
+- Production gnomAD ETL/warehouse, per-hover endpoint, and ClinicalTrials.gov
+  hardening remain Tasks 15-18.
 
-**Clear-safe:** yes; implementation, verification, and handoff are synced.
+**Clear-safe:** yes; implementation, verification, plan/progress/docs, and
+handoff are synced.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-23 21:53 +1000 · Codex gnomAD ancestry map + trials report slice complete
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section, Locks, Requests), agent_handoff/on_hold/register.md, agent_handoff/RISKS.md, agent_handoff/DECISIONS.md, docs/proprietary/README.md, docs/proprietary/index.json, docs/proprietary/variant-report-orchestration.md, plans/variant-report-layout/{design.md,spec.md,plan.md}, plans/variant-report-data-orchestration/{design.md,spec.md,plan.md}, then git status --short --branch.
-Delta: Codex implemented the user-directed report slice across Vite + Next 16: SimpleMaps-backed gnomAD genetic-ancestry AF heat map/sidebar, age-distribution tab, visible limitations card removed, structured ClinicalTrials.gov rows added, RPE65 demo/trials/gnomAD wording refreshed, and mobile report shell fixed.
-Verification: full backend pytest passed; ruff passed; black --check --target-version py310 passed; Vite tsc/build passed; Next tsc/build passed; browser verification passed on desktop/mobile at /report?demo=1. Next server is running at http://localhost:3000.
-Next: commit/push status should be checked if resuming immediately; future work remains gated for /runs, AlphaMissense, production gnomAD ETL/warehouse, per-hover endpoint, DuckDB/parquet prototype, and richer exome/genome age source hydration.
-End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
+`# Resume prompt · 2026-05-24 00:04 +1000 · Codex Task 13 gene-context snapshot contract complete
+Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section, Locks, Requests), agent_handoff/RISKS.md, docs/proprietary/index.json, docs/proprietary/variant-report-orchestration.md, plans/variant-report-data-orchestration/plan.md, then git status --short --branch.
+Delta: Task 13 implemented. Added additive report_profile.gene_context_snapshot contract, GeneContextSnapshotService source-backed/fixture wiring, both TS mirrors, tests, and plan/proprietary/progress docs. RPE65 fixture snapshot is warning-labelled; non-RPE65 fixture lookups stay empty/missing without RPE65 scaffold bleed.
+Verification: focused gene-viewer/report/contract pytest passed, variant-search integration passed, ruff passed, black --check passed after formatting, Vite tsc passed, Next tsc passed.
+Next: implement Task 14 static report GeneContextSnapshot UI in both frontends if continuing; do not commit/push un

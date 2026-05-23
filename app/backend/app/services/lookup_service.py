@@ -28,6 +28,7 @@ from app.schemas.run import (
 )
 from app.services.clinical_consensus import ClinicalConsensusBuilder
 from app.services.functional_evidence import FunctionalEvidenceExtractor
+from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
 from app.services.report_call_cards import (
     build_population_frequency_detail,
@@ -236,6 +237,7 @@ class LookupService:
         self.search_input_resolver = EamosSearchInputResolver(settings=settings)
         self.search_input_interpreter = SearchInputInterpreter(settings=settings)
         self.sequence_context = SequenceContextService(settings=settings)
+        self.gene_context_snapshot = GeneContextSnapshotService(settings=settings)
         self.report_orchestrator = VariantReportDataOrchestrator()
 
     def parse_search_input(self, request: SearchInputParseRequest) -> SearchInputParseResponse:
@@ -660,6 +662,17 @@ class LookupService:
         elif sequence_context_result.warnings:
             evidence_map["sequence_context"] = {"warnings": list(sequence_context_result.warnings)}
             evidence_statuses["sequence_context"] = "missing"
+        try:
+            gene_context_snapshot = self.gene_context_snapshot.build(
+                gene=gene,
+                cdna=cdna,
+                transcript=input_resolution.resolver_transcript,
+                species=request.species,
+            )
+            evidence_map["gene_context_snapshot"] = gene_context_snapshot.model_dump(mode="json")
+            evidence_statuses["gene_context_snapshot"] = gene_context_snapshot.source_status
+        except Exception as exc:
+            warnings.append(f"gene_context_snapshot_failed:{type(exc).__name__}")
         if query_kind == "unknown":
             base_payload.limitations = (
                 f"We could not parse '{cdna}' as cDNA, rsID, protein, or genomic HGVS. "

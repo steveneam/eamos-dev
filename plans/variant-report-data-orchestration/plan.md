@@ -2,8 +2,8 @@
 
 Source: `plans/variant-report-data-orchestration/spec.md`
 
-Status: In progress - Tasks 1-8 implemented and verified; Task 9 parser/helper slice complete; Task 11A gene-agnostic hardening + Task 12 Section 3 gnomAD expansion implemented and verified
-Last updated: 2026-05-23 19:51 +1000 - Codex
+Status: In progress - Tasks 1-8 implemented and verified; Task 9 parser/helper slice complete; Task 11A gene-agnostic hardening + Task 12 Section 3 gnomAD expansion implemented and verified; Task 13 gene-context snapshot contract implemented and verified; Tasks 14-19 remain planned for snapshot UI, production gnomAD, ClinicalTrials.gov hardening, and final UI QA
+Last updated: 2026-05-24 00:00 +1000 - Codex
 
 Shared decisions:
 
@@ -26,6 +26,18 @@ Shared decisions:
   receive RPE65 fixture facts.
 - Population Frequency card links to Section 3 and expands the gnomAD panel.
 - Section 2 remains disease mechanism/inheritance only.
+- Add a Section 2-adjacent expandable gene-context snapshot, but keep disease
+  mechanism/inheritance fields semantically separate from locus/sequence
+  visuals.
+- The gene-context snapshot should reuse the Workbench gene-viewer data model,
+  but render as a static report snapshot: no scrolling, zooming, editing, or
+  manipulation.
+- The gene-context snapshot has two stacked static views: a full transcript
+  exon/intron overview with the variant pinned, then a zoomed variant
+  neighborhood view in the exon/window style used by Workbench.
+- The report snapshot should include an `Open in Workbench` deep link carrying
+  `gene`, `cdna`, and `transcript`, so it acts as a product teaser without
+  making the report itself interactive.
 - Raw gnomAD metrics live in `population_frequency_detail` and Section 3, not
   in the ACMG ledger.
 - No Patient Report Pipeline (`/runs`) or AlphaMissense work.
@@ -936,3 +948,542 @@ python -m ruff check app tests
 python -m black --check --target-version py310 app tests
 python -m pytest -q
 ```
+
+## Task 13 - Gene Context Snapshot Data Contract - DONE 2026-05-24 00:00 +1000 - Codex
+
+**Goal**
+
+Add the backend/report contract data needed for a static Section 2-adjacent
+gene-context snapshot that is accurate for any supported gene and transcript.
+
+**Context**
+
+The report should show where the variant sits in the gene before the user
+opens Workbench. The snapshot is intentionally static and report-safe, but it
+must use the same source-backed gene-viewer architecture as Workbench. Do not
+borrow the RPE65 sample scaffold for other genes.
+
+The current Workbench live path can resolve coding cDNA SNVs through
+VariantValidator and Ensembl sequence/region. The missing report-safe contract
+piece is the full transcript exon/intron model needed for an all-exons overview
+and a deterministic zoomed variant-neighborhood snapshot.
+
+**Relevant Files Or References**
+
+- `app/backend/app/schemas/gene_viewer.py`
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/services/gene_viewer.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/tests/test_gene_viewer.py`
+- `app/backend/tests/test_frontend_contract.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/frontend/src/lib/workbench/gene-viewer-adapter.ts`
+- `plans/gene-viewer/{design.md,spec.md,plan.md}`
+- `c:\Users\seamegdool\Desktop\Claude code and website tips\EAMOS Web Tool\variant-search-engine\Variant Report Page\Layout - VARIANT REPORT 2.txt`
+
+**Proposed Approach**
+
+Add an additive `gene_context_snapshot` model, either inside
+`VariantReportProfile` or as a referenced report payload group. It should carry:
+
+- canonical gene, transcript, genome build, chromosome, strand, and source
+  provenance;
+- full transcript exon/intron rows from Ensembl, with transcript-relative and
+  genomic coordinates;
+- variant projection on the transcript, including exon/intron membership,
+  transcript offset, local sequence window, ref/alt, codon/protein fields when
+  available, and warnings when any field is unavailable;
+- render hints for a compressed full-transcript overview so very large genes do
+  not make exons unreadable;
+- a Workbench deep-link target with `gene`, `cdna`, and resolved transcript.
+
+Use the existing `SourceBackedGeneViewerProvider` as the source path. If the
+lookup is gene-only, ambiguous, or lacks a validated allele identity, return a
+warning-labelled unavailable snapshot rather than a misleading picture.
+
+**Acceptance Criteria**
+
+- RPE65 fixture/current happy path returns a populated static snapshot contract.
+- A non-RPE65 live/source-backed gene can return the full transcript model
+  without importing the RPE65 scaffold.
+- Large or many-exon genes use compressed intron rendering metadata and remain
+  mappable.
+- Ambiguous or unconfirmed inputs do not populate variant-specific snapshot
+  coordinates.
+- The contract includes enough data to render the two required static views:
+  full transcript overview and zoomed variant neighborhood.
+- Frontend contract canary records/mirrors the additive fields.
+- `/runs` and AlphaMissense remain untouched.
+
+**Source Reference**
+
+User direction on 2026-05-23: add an expandable report image based on the
+Workbench gene viewer, with a full gene/exon-intron context first and a zoomed
+variant-in-exon image underneath; static only, and usable as a Workbench teaser.
+
+**Verify**
+
+```bash
+cd app/backend
+python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q
+python -m ruff check app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
+python -m black --check --target-version py310 app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
+```
+
+**Out Of Scope**
+
+Interactive report viewer controls, Workbench editing/scrolling behavior,
+PDF-specific rendering, gnomAD ETL, ClinicalTrials.gov hardening, `/runs`, and
+AlphaMissense.
+
+**Implementation note:** Added additive `VariantReportProfile.gene_context_snapshot`
+and nested snapshot models in `app/backend/app/schemas/run.py`, mirrored them
+in both TypeScript contract files, and added `GeneContextSnapshotService` to
+assemble the report-safe static snapshot through the existing gene-viewer source
+path. The contract carries full transcript exon/intron rows, variant projection,
+the reused Workbench zoom window/segments/sequences, compressed-render hints,
+Workbench deep link, provenance, and warning-labelled unavailable states.
+Fixture mode returns a populated RPE65 snapshot from the existing Workbench
+fixture plus an explicit `transcript_model_from_rpe65_fixture_scaffold` warning;
+non-RPE65 fixture lookups return missing/empty state rather than borrowing the
+RPE65 scaffold. Source-backed tests prove a generic non-RPE65 transcript returns
+its own exon/intron coordinates.
+
+**Verified 2026-05-24 00:00 +1000 - Codex:**
+
+```bash
+cd app/backend
+python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q -x
+python -m ruff check app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
+python -m black --check --target-version py310 app tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
+python -m pytest tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q
+python -m pytest tests/test_variant_search_integration.py -q
+
+cd ../frontend
+npx tsc -b --pretty false
+
+cd ../web
+npx tsc --noEmit --pretty false
+```
+
+## Task 14 - Static Report Gene Context Snapshot UI - PLANNED 2026-05-23 23:27 +1000 - Codex
+
+**Goal**
+
+Render the report gene-context snapshot as an expandable static section in
+Vite and Next, with two stacked images and a Workbench deep link.
+
+**Context**
+
+The report should stay readable and deterministic. The snapshot should feel
+visually related to Workbench, but it must not embed a disabled interactive
+canvas. Treat it as a report figure generated from the same data model.
+
+**Relevant Files Or References**
+
+- `app/frontend/src/pages/ReportPage.tsx`
+- `app/frontend/src/components/report/*`
+- `app/frontend/src/components/workbench/*`
+- `app/frontend/src/lib/backend.ts`
+- `app/frontend/src/lib/workbench/gene-viewer-adapter.ts`
+- `app/web/components/report/*`
+- `app/web/lib/backend.ts`
+- `app/web/components/report/ReportClient.tsx`
+- `plans/gene-viewer/{design.md,spec.md,plan.md}`
+- `Layout - VARIANT REPORT 2.txt`
+
+**Proposed Approach**
+
+Add a `GeneContextSnapshotSection` in both report frontends. Place it as a
+Section 2-adjacent expandable panel after disease mechanism/inheritance and
+before the population-frequency Section 3. The panel should render:
+
+1. A full transcript overview with exons, compressed introns, strand, transcript
+   label, and a variant pin.
+2. A zoomed static sequence/window image using the Workbench visual grammar:
+   local exon/window, variant base, ref/alt, codon/protein labels when present,
+   and source warnings.
+
+Use SVG or structured HTML/CSS generated from the contract rather than a
+pre-rendered raster asset so the result is responsive and future PDF/export
+friendly. Add an `Open in Workbench` link to `/workbench?gene=...&cdna=...`
+with `transcript` when available.
+
+**Acceptance Criteria**
+
+- The section is collapsed/expandable by default in the report flow without
+  disrupting the existing Section 2 disease copy.
+- The first snapshot shows the variant in all-exons/introns transcript context.
+- The second snapshot shows a zoomed local variant neighborhood.
+- The component has a useful empty/warning state for unsupported or ambiguous
+  inputs.
+- It uses stable dimensions so labels, pins, and sequence text do not resize or
+  overlap on mobile or desktop.
+- It does not add scrolling, dragging, editing, or zoom controls.
+- The Workbench link preserves `gene`, `cdna`, and `transcript`.
+- Vite and Next stay visually consistent.
+
+**Source Reference**
+
+User direction on 2026-05-23 and the existing Workbench gene viewer UI.
+
+**Verify**
+
+```bash
+cd app/frontend
+npx tsc -b --pretty false
+npm run build
+
+cd ../web
+npx tsc --noEmit --pretty false
+npm run build
+```
+
+Run browser verification on desktop and mobile for at least RPE65 and one
+non-RPE65 source-backed example when the browser MCP or Playwright fallback is
+available.
+
+**Out Of Scope**
+
+Backend contract shape decisions, Workbench interaction changes, live gnomAD
+warehouse work, `/runs`, and AlphaMissense.
+
+## Task 15 - gnomAD Ancestry Region Mapping Algorithm - PLANNED 2026-05-23 23:27 +1000 - Codex
+
+**Goal**
+
+Turn the current proprietary ancestry-to-map rendering logic into a documented,
+testable algorithm that maps gnomAD genetic ancestry groups to report map
+regions without implying patient ancestry or geographic certainty.
+
+**Context**
+
+Section 3 currently renders a first-slice gnomAD map/card from source genetic
+ancestry groups. The next production step is to harden the group-to-region
+mapping so it is auditable, deterministic, and safe for clinical/research
+language.
+
+**Relevant Files Or References**
+
+- `app/backend/app/services/population_frequency_section.py`
+- `app/backend/app/services/report_call_cards.py`
+- `app/backend/app/tools/gnomad.py`
+- `app/frontend/src/components/report/PopulationFrequencySection.tsx`
+- `app/web/components/report/PopulationFrequencySection.tsx`
+- `app/backend/tests/test_gnomad_tool.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `docs/proprietary/index.json`
+- recommended new doc: `docs/proprietary/gnomad-ancestry-map.md`
+
+**Proposed Approach**
+
+Create a small, explicit mapping table for gnomAD group IDs (`afr`, `amr`,
+`asj`, `eas`, `fin`, `mid`, `nfe`, `sas`, `ami`, `remaining`) to visual map
+regions and labels. Document that this is source genetic-ancestry group
+visualization, not patient ancestry inference. Keep unmapped or future gnomAD
+groups visible as table rows with a neutral/unmapped map state rather than
+dropped.
+
+**Acceptance Criteria**
+
+- Every current gnomAD fixture group maps to a deterministic visual state or a
+  documented neutral fallback.
+- Labels consistently use "genetic ancestry group" language.
+- Tests prove unmapped groups do not crash the report and are not silently
+  omitted.
+- The proprietary index points to the algorithm doc.
+- No patient ancestry/age inference is introduced.
+
+**Source Reference**
+
+Task 12 Section 3 gnomAD expansion and the user request to harden proprietary
+ancestry-to-region mapping into a documented, testable algorithm.
+
+**Verify**
+
+```bash
+cd app/backend
+python -m pytest tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py -q
+python -m ruff check app tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py
+python -m black --check --target-version py310 app tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py
+```
+
+**Out Of Scope**
+
+Local gnomAD warehouse, per-hover detail endpoint, and frontend visual redesign
+beyond labels/states needed by the algorithm.
+
+## Task 16 - gnomAD Local Data Access Prototype - PLANNED 2026-05-23 23:27 +1000 - Codex
+
+**Goal**
+
+Prototype production-grade gnomAD data access using a local DuckDB/parquet or
+warehouse-shaped adapter so hover/source-detail queries do not depend on
+fixtures or broad live GraphQL calls.
+
+**Context**
+
+The current report can render gnomAD fixture/live summaries, but a production
+experience needs reliable variant-level detail, source metadata, and fast
+lookup for per-group hover/details. The prototype should validate data shape
+and query patterns before a final infrastructure choice.
+
+**Relevant Files Or References**
+
+- `app/backend/app/tools/gnomad.py`
+- `app/backend/app/services/population_frequency_section.py`
+- `app/backend/app/schemas/run.py`
+- `app/backend/tests/test_gnomad_tool.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- recommended prototype path: `app/backend/app/services/gnomad_local_store.py`
+- recommended prototype tests: `app/backend/tests/test_gnomad_local_store.py`
+
+**Proposed Approach**
+
+Define an adapter interface that can be backed by DuckDB/parquet locally and by
+a warehouse later. First slice should use a tiny checked-in or generated test
+parquet/CSV fixture to prove:
+
+- lookup by normalized GRCh38 variant ID;
+- allele frequency/count/number by genetic ancestry group;
+- popmax, homozygotes, quality flags, dataset/build, and source version;
+- age histogram availability and scope;
+- missing variant behavior.
+
+Keep `GnomadTool` responsible for returning the same normalized summary shape
+so existing report builders remain stable.
+
+**Acceptance Criteria**
+
+- Local adapter returns the same normalized summary shape as the current tool.
+- Missing variants return a no-hit state without borrowing fixture data.
+- Source version, dataset, and build are preserved in provenance.
+- Tests cover at least one hit and one no-hit.
+- The prototype can be swapped out for a warehouse without changing frontend
+  contracts.
+
+**Source Reference**
+
+User next-step direction: productionize gnomAD data access via ETL/warehouse or
+local DuckDB/parquet prototype, then per-hover/source-detail endpoint.
+
+**Verify**
+
+```bash
+cd app/backend
+python -m pytest tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py tests/test_gnomad_local_store.py -q
+python -m ruff check app tests
+python -m black --check --target-version py310 app tests
+```
+
+**Out Of Scope**
+
+Full public gnomAD ETL download, cloud warehouse deployment, frontend hover UI,
+patient ancestry inference, `/runs`, and AlphaMissense.
+
+## Task 17 - gnomAD Per-Hover Source Detail Endpoint - PLANNED 2026-05-23 23:27 +1000 - Codex
+
+**Goal**
+
+Add a lightweight endpoint and frontend data path for source-detail disclosure
+when the user hovers/selects a gnomAD ancestry group or source row.
+
+**Context**
+
+Section 3 already has a visual map/card. The next UX step is progressive
+disclosure: the top-level report stays compact, while hover/select exposes the
+exact source values, dataset/build, warnings, and provenance for the selected
+group.
+
+**Relevant Files Or References**
+
+- `app/backend/app/api/routes/lookup.py`
+- `app/backend/app/tools/gnomad.py`
+- `app/backend/app/services/population_frequency_section.py`
+- `app/backend/app/schemas/run.py`
+- `app/frontend/src/components/report/PopulationFrequencySection.tsx`
+- `app/web/components/report/PopulationFrequencySection.tsx`
+- `app/frontend/src/lib/backend.ts`
+- `app/web/lib/backend.ts`
+
+**Proposed Approach**
+
+Add a small source-detail endpoint keyed by canonical variant identity and
+gnomAD group ID, or embed enough detail in the existing payload if endpoint
+latency/provenance does not justify a round trip. Use the local adapter from
+Task 16 when available; otherwise fixture mode can return deterministic detail
+for the current RPE65 example.
+
+**Acceptance Criteria**
+
+- Hover/select detail can show AF, AC, AN, homozygotes, data state, source URL,
+  dataset/build, and warnings for one gnomAD group.
+- Unknown group IDs return a structured 404/empty state, not a crash.
+- Detail remains keyed to the current variant and cannot return RPE65 data for
+  another variant.
+- Frontend keeps keyboard/touch fallback for non-hover devices.
+- Existing Section 3 render works without this endpoint if detail is
+  unavailable.
+
+**Source Reference**
+
+Task 12 Section 3 gnomAD expansion and the production gnomAD data-access plan.
+
+**Verify**
+
+```bash
+cd app/backend
+python -m pytest tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py -q
+
+cd ../frontend
+npx tsc -b --pretty false
+npm run build
+
+cd ../web
+npx tsc --noEmit --pretty false
+npm run build
+```
+
+**Out Of Scope**
+
+Full gnomAD ETL, broad map redesign, patient ancestry inference, `/runs`, and
+AlphaMissense.
+
+## Task 18 - ClinicalTrials.gov Live Filtering And Provenance Hardening - PLANNED 2026-05-23 23:27 +1000 - Codex
+
+**Goal**
+
+Extend ClinicalTrials.gov from demo/report rows into robust live filtering,
+match-level labeling, and provenance.
+
+**Context**
+
+Structured ClinicalTrials.gov rows now flow into the report profile in
+controlled tests, but production behavior needs stronger live filtering and
+source transparency. Trials may be variant-, gene-, disease-, therapy-, or
+condition-level; the report must label that honestly.
+
+**Relevant Files Or References**
+
+- `app/backend/app/tools/clinical_trials.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/app/schemas/run.py`
+- `app/backend/tests/test_clinical_trials_tool.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/frontend/src/components/report/TrialsSection.tsx`
+- `app/web/components/report/TrialsSection.tsx`
+
+**Proposed Approach**
+
+Harden query construction, status filtering, deduplication, and match-level
+classification. Capture query terms, source URL, API status, filters applied,
+trial status, phase, conditions, interventions, locations, and warnings. Keep
+gene-level and disease-level rows visible only when labelled as not
+variant-specific.
+
+**Acceptance Criteria**
+
+- Live/filter tests cover recruiting/active status, completed status exclusion
+  or labeling, gene-level fallback, and no-hit behavior.
+- Every row has an NCT ID, source URL, status, match level, and matched terms.
+- The report never implies a gene-level trial is variant-specific.
+- Source failures degrade the trials section without failing the whole report.
+- Frontend shows structured empty and warning states without relying on legacy
+  paragraph copy.
+
+**Source Reference**
+
+Task 9 structured therapies/trials and the user request to extend
+ClinicalTrials.gov from demo/report rows into robust live filtering and
+provenance.
+
+**Verify**
+
+```bash
+cd app/backend
+python -m pytest tests/test_clinical_trials_tool.py tests/test_variant_report_orchestration.py -q
+python -m ruff check app tests/test_clinical_trials_tool.py tests/test_variant_report_orchestration.py
+python -m black --check --target-version py310 app tests/test_clinical_trials_tool.py tests/test_variant_report_orchestration.py
+```
+
+**Out Of Scope**
+
+Approved-therapy database integration, eligibility parsing, patient matching,
+`/runs`, and AlphaMissense.
+
+## Task 19 - Report UI Review, Visual QA, And Continuation Checkpoint - PLANNED 2026-05-23 23:27 +1000 - Codex
+
+**Goal**
+
+Run a full report UI review after the gene-context snapshot and gnomAD/Trials
+hardening land, then tune layout, responsive behavior, and source-state copy.
+
+**Context**
+
+The report now has the major data surfaces: header, call cards, deterministic
+summary, disease mechanism, gnomAD Section 3, molecular/computational/ACMG,
+publication rows, and ClinicalTrials.gov rows. The next session should treat
+the page as a product surface and verify it visually across variants, not only
+through unit tests.
+
+**Relevant Files Or References**
+
+- `app/frontend/src/pages/ReportPage.tsx`
+- `app/frontend/src/components/report/*`
+- `app/web/components/report/*`
+- `app/web/components/report/ReportClient.tsx`
+- `app/backend/tests/test_frontend_contract.py`
+- `Layout - VARIANT REPORT 2.txt`
+
+**Proposed Approach**
+
+Use at least three report scenarios:
+
+- RPE65 rich fixture happy path;
+- non-RPE65 sparse/no-hit path;
+- ambiguous/confirmation-required path.
+
+Review desktop and mobile screenshots for text overlap, section order,
+expand/collapse states, map/card readability, publication/trials empty states,
+and Workbench teaser link behavior. Prefer small layout fixes over new feature
+scope.
+
+**Acceptance Criteria**
+
+- Section order matches the report layout direction or an explicitly recorded
+  deviation.
+- Report cards and expansion panels do not overlap or resize unexpectedly on
+  mobile or desktop.
+- Empty/unavailable states are clear and do not imply missing data is benign.
+- Workbench teaser link opens the right gene/cDNA/transcript when present.
+- `/report` remains unaffected by landing-page-only styling changes.
+- Browser verification artifacts or screenshots are captured when tooling is
+  available.
+
+**Source Reference**
+
+User direction to visually review/tune the report UI and the 2026-05-23
+layout reference document.
+
+**Verify**
+
+```bash
+cd app/backend
+python -m pytest tests/test_frontend_contract.py tests/test_variant_report_orchestration.py -q
+
+cd ../frontend
+npx tsc -b --pretty false
+npm run build
+
+cd ../web
+npx tsc --noEmit --pretty false
+npm run build
+```
+
+Then run browser verification on desktop and mobile using the in-app browser
+MCP if available, or a Playwright fallback if the user approves that tool path.
+
+**Out Of Scope**
+
+New `/runs` work, AlphaMissense, unrelated landing redesign, broad color-system
+changes, commit, push, stash, reset, or clean.

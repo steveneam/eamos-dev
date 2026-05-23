@@ -32,6 +32,7 @@ from app.services.gene_viewer import (
     TranscriptWindowBuilder,
     VariantProjection,
 )
+from app.services.gene_context_snapshot import GeneContextSnapshotService
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
 
@@ -180,6 +181,89 @@ class MockOfficialGeneViewerSourceClient:
         ]
 
 
+class MockGenericGeneViewerSourceClient:
+    def __init__(self) -> None:
+        self.transcript_queries: list[object] = []
+        self.variant_queries: list[object] = []
+
+    def resolve_variant(self, *, query, genome_build: str) -> VariantProjection:
+        self.variant_queries.append(query)
+        assert query.resolver_transcript == "NM_GENERIC.1"
+        variant = VariantProjection.from_hgvs_c(query.hgvs)
+        return VariantProjection(
+            hgvs_c=variant.hgvs_c,
+            cds_pos=variant.cds_pos,
+            ref=variant.ref,
+            alt=variant.alt,
+            genomic_hg38="7-200-G-A",
+            codon_number=3,
+            codon_offset=1,
+        )
+
+    def fetch_transcript(self, *, query, variant, genome_build: str) -> SourceTranscriptModel:
+        self.transcript_queries.append(query)
+        assert query.resolver_transcript is None
+        return SourceTranscriptModel(
+            gene=query.gene,
+            transcript="ENSTGENERIC.1",
+            chrom="7",
+            strand="+",
+            exons=(
+                SourceTranscriptExon(
+                    number=1,
+                    cds_start=1,
+                    cds_end=6,
+                    genomic_start=100,
+                    genomic_end=105,
+                ),
+                SourceTranscriptExon(
+                    number=2,
+                    cds_start=7,
+                    cds_end=12,
+                    genomic_start=200,
+                    genomic_end=205,
+                ),
+            ),
+            introns=(SourceTranscriptIntron(number=1, genomic_start=106, genomic_end=199),),
+            ensembl_gene_id="ENSGGENERIC",
+            transcript_aliases=("ENSTGENERIC.1", "NM_GENERIC.1", "MANE Select"),
+            gene_start=90,
+            gene_end=210,
+            gene_length=121,
+            cds_length=12,
+            protein_length=4,
+            mrna_length=12,
+            translation_id="ENSPGENERIC",
+            warnings=("mocked_generic_source",),
+        )
+
+    def fetch_sequence(self, *, chrom: str, start: int, end: int, strand: str) -> str:
+        sequences = {
+            ("7", 100, 105, "+"): "AAACCC",
+            ("7", 106, 135, "+"): "gtacgtacgtacgtacgtacgtacgtacgt",
+            ("7", 170, 199, "+"): "agctagctagctagctagctagctagctag",
+            ("7", 200, 205, "+"): "GGGTTT",
+        }
+        return sequences[(chrom, start, end, strand)]
+
+    def fetch_protein_features(self, *, transcript: SourceTranscriptModel) -> ProteinFeatures:
+        return ProteinFeatures()
+
+    def provenance_sources(self, *, query, transcript, variant) -> list[ViewerProvenanceSource]:
+        return [
+            ViewerProvenanceSource(
+                name="variant_validator",
+                identifier=query.resolver_transcript_hgvs,
+                url="https://rest.variantvalidator.org/generic",
+            ),
+            ViewerProvenanceSource(
+                name="ensembl_rest",
+                identifier=transcript.transcript,
+                url="https://rest.ensembl.org/generic",
+            ),
+        ]
+
+
 class ExplodingGeneViewerSourceClient(MockOfficialGeneViewerSourceClient):
     def resolve_variant(self, *, query, genome_build: str) -> VariantProjection:
         raise RuntimeError("boom")
@@ -323,6 +407,74 @@ def test_fixture_provider_applies_variant_mode_to_offline_rpe65_fixture() -> Non
     assert response.sequences.applied_variant.sequence_offset == 103
 
 
+def test_gene_context_snapshot_fixture_returns_static_report_contract() -> None:
+    snapshot = GeneContextSnapshotService().build(
+        gene="RPE65",
+        cdna="c.260A>G",
+        transcript="NM_000329.3",
+    )
+
+    assert snapshot.source_status == "fixture"
+    assert snapshot.section_id == "section-2-gene-context"
+    assert snapshot.gene == "RPE65"
+    assert snapshot.transcript == "NM_000329.3"
+    assert len(snapshot.exons) == 14
+    assert len(snapshot.introns) == 13
+    assert snapshot.exons[3].number == 4
+    assert snapshot.exons[3].cds_start == 232
+    assert snapshot.exons[3].cds_end == 324
+    assert snapshot.variant is not None
+    assert snapshot.variant.membership == "exon"
+    assert snapshot.variant.exon_number == 4
+    assert snapshot.variant.transcript_offset == 4062
+    assert snapshot.zoom_window is not None
+    assert snapshot.zoom_window.display_cds_start == 217
+    assert snapshot.zoom_segments[2].exon_number == 4
+    assert snapshot.workbench_link is not None
+    assert snapshot.workbench_link.url == (
+        "/workbench?gene=RPE65&cdna=c.260A%3EG&transcript=NM_000329.3"
+    )
+    assert "transcript_model_from_rpe65_fixture_scaffold" in snapshot.warnings
+
+
+def test_gene_context_snapshot_source_backed_generic_gene_uses_source_transcript() -> None:
+    service = GeneContextSnapshotService(
+        source_provider=SourceBackedGeneViewerProvider(
+            source_client=MockGenericGeneViewerSourceClient()
+        )
+    )
+
+    snapshot = service.build(gene="GENE", cdna="c.8G>A")
+
+    assert snapshot.source_status == "live"
+    assert snapshot.gene == "GENE"
+    assert snapshot.transcript == "ENSTGENERIC.1"
+    assert snapshot.ensembl_gene_id == "ENSGGENERIC"
+    assert [(exon.number, exon.genomic_start, exon.genomic_end) for exon in snapshot.exons] == [
+        (1, 100, 105),
+        (2, 200, 205),
+    ]
+    assert [(intron.number, intron.length_bp) for intron in snapshot.introns] == [(1, 94)]
+    assert snapshot.variant is not None
+    assert snapshot.variant.exon_number == 2
+    assert snapshot.variant.transcript_offset == 102
+    assert snapshot.zoom_segments[1].intron_number == 1
+    assert "transcript_model_from_rpe65_fixture_scaffold" not in snapshot.warnings
+
+
+def test_gene_context_snapshot_fixture_missing_does_not_import_rpe65_scaffold() -> None:
+    snapshot = GeneContextSnapshotService().build(gene="CFTR", cdna="c.1521_1523delCTT")
+
+    assert snapshot.source_status == "missing"
+    assert snapshot.gene == "CFTR"
+    assert snapshot.exons == []
+    assert snapshot.introns == []
+    assert snapshot.variant is not None
+    assert snapshot.variant.hgvs_c == "c.1521_1523delCTT"
+    assert snapshot.variant.membership == "unknown"
+    assert "gene_context_snapshot_fixture_unavailable" in snapshot.warnings
+
+
 def test_http_source_client_builds_transcript_model_from_ensembl_symbol_lookup() -> None:
     source_client = StaticHttpGeneViewerSourceClient(
         {"lookup/symbol": _ensembl_rpe65_lookup_payload()}
@@ -444,6 +596,37 @@ def test_source_backed_provider_builds_rpe65_viewer_from_mocked_official_sources
     assert {"chrom": "chr1", "start": 970, "end": 999, "strand": "-"} in (
         source_client.sequence_calls
     )
+
+
+def test_source_backed_provider_uses_ensembl_transcript_for_non_rpe65_request() -> None:
+    source_client = MockGenericGeneViewerSourceClient()
+    provider = SourceBackedGeneViewerProvider(source_client=source_client)
+
+    response = provider.viewer(
+        GeneViewerRequest(
+            gene="CFTR",
+            cdna="c.8G>A",
+            allele_mode="variant",
+            window=ViewerWindowRequest(
+                kind="cds_range",
+                cds_start=1,
+                cds_end=12,
+                intron_flank_bp=0,
+            ),
+        )
+    )
+
+    assert response.identity.gene == "CFTR"
+    assert response.identity.resolved_transcript == "ENSTGENERIC.1"
+    assert "NM_GENERIC.1" in response.identity.transcript_aliases
+    assert response.sequences.reference_window_sequence == "AAACCCGGGTTT"
+    assert response.sequences.display_window_sequence == "AAACCCGAGTTT"
+    assert response.sequences.applied_variant is not None
+    assert response.sequences.applied_variant.sequence_offset == 7
+    assert source_client.transcript_queries[0].resolver_transcript is None
+    assert source_client.variant_queries[0].resolver_transcript == "NM_GENERIC.1"
+    assert response.provenance.sources[0].identifier == "NM_GENERIC.1:c.8G>A"
+    assert response.provenance.warnings == ["mocked_generic_source"]
 
 
 @pytest.mark.parametrize(

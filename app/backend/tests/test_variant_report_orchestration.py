@@ -87,6 +87,7 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert targets["computational_deep_dive"]["match_level"] == "variant_level"
     assert targets["acmg_worksheet"]["match_level"] == "variant_level"
     assert targets["publications"]["match_level"] == "variant_level"
+    assert targets["gene_context_snapshot"]["match_level"] == "variant_level"
     assert targets["therapies_trials"]["match_level"] == "gene_level"
     assert "clinical_trials_gene_level_fallback" in targets["therapies_trials"]["warnings"]
 
@@ -128,6 +129,24 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
         "NCBI MedGen",
         "Orphadata",
     }
+
+    gene_context = profile["gene_context_snapshot"]
+    assert gene_context["section_id"] == "section-2-gene-context"
+    assert gene_context["panel_id"] == "gene-context-snapshot"
+    assert gene_context["source_status"] == "fixture"
+    assert gene_context["gene"] == "RPE65"
+    assert gene_context["transcript"] == "NM_000329.3"
+    assert len(gene_context["exons"]) == 14
+    assert len(gene_context["introns"]) == 13
+    assert gene_context["variant"]["membership"] == "exon"
+    assert gene_context["variant"]["exon_number"] == 4
+    assert gene_context["variant"]["genomic_hg38"] == "1-68444869-T-C"
+    assert gene_context["zoom_window"]["display_cds_start"] == 217
+    assert gene_context["zoom_segments"][2]["exon_number"] == 4
+    assert gene_context["workbench_link"]["url"] == (
+        "/workbench?gene=RPE65&cdna=c.260A%3EG&transcript=NM_000329.3"
+    )
+    assert "transcript_model_from_rpe65_fixture_scaffold" in gene_context["warnings"]
 
     molecular = profile["molecular_context"]
     assert molecular["chromosome"] == "1"
@@ -247,6 +266,12 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None
     assert profile["population_frequency"]["visual_groups"] == []
     assert "genetic_ancestry_groups_unavailable" in profile["population_frequency"]["warnings"]
+    assert profile["gene_context_snapshot"]["source_status"] == "missing"
+    assert profile["gene_context_snapshot"]["gene"] == gene
+    assert profile["gene_context_snapshot"]["exons"] == []
+    assert (
+        "gene_context_snapshot_fixture_unavailable" in profile["gene_context_snapshot"]["warnings"]
+    )
 
     serialized = json.dumps(report_payload)
     for forbidden in (
@@ -295,6 +320,7 @@ def test_report_extraction_plan_blocks_variant_level_sections_for_gene_only_inpu
         "acmg_worksheet",
         "publications",
         "population_frequency",
+        "gene_context_snapshot",
     ):
         assert targets[section_id].match_level == "unavailable"
 

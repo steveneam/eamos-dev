@@ -1,5 +1,20 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 20 - 24 May 2026 - Variant report gene-context snapshot contract
+
+Codex implemented Task 13 from `plans/variant-report-data-orchestration/plan.md`.
+Added additive `VariantReportProfile.gene_context_snapshot` models and mirrored
+them in both TypeScript contract files. New `GeneContextSnapshotService` builds
+the report-safe static snapshot from the existing source-backed gene-viewer path
+and returns RPE65 fixture data only with explicit fixture/scaffold warnings;
+non-RPE65 fixture lookups degrade to empty/missing state instead of borrowing
+RPE65 structure. The contract carries full transcript exon/intron rows, variant
+projection, reused Workbench zoom window/segments/sequences, render hints,
+Workbench deep link, provenance, and unavailable warnings. Verified focused
+backend report/gene-viewer/contract tests, variant search integration, ruff,
+black, and both Vite/Next TypeScript checks. No commit/push, no `/runs`, no
+AlphaMissense.
+
 ## Session 19 — 17 May 2026 — FE-5.5 pixel-check → FE-5.6 plan; direct-Codex workflow sync
 
 Browser pixel-checked FE-5.5 (first non-headless look). 8 refinements captured

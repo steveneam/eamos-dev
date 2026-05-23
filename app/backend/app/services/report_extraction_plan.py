@@ -14,6 +14,7 @@ VARIANT_LEVEL_SECTIONS = (
     "rna_splicing",
     "clinical_consensus",
     "interpretation_summary",
+    "gene_context_snapshot",
     "molecular_context",
     "computational_deep_dive",
     "acmg_worksheet",
@@ -113,6 +114,13 @@ class ReportExtractionPlanBuilder:
                 required_sources=["clingen_gene_disease", "medgen", "orphadata"],
                 query_terms=[resolution.gene] if resolution.gene else [],
                 warnings=[] if resolution.gene else ["disease_mechanism_requires_gene"],
+            ),
+            ReportExtractionSectionTarget(
+                section_id="gene_context_snapshot",
+                match_level=match_level,
+                required_sources=["gene_viewer"],
+                query_terms=_identity_terms(resolution),
+                warnings=[] if has_variant_identity else ["gene_context_requires_variant_identity"],
             ),
             ReportExtractionSectionTarget(
                 section_id="molecular_context",

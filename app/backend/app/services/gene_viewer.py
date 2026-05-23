@@ -206,6 +206,14 @@ class SourceTranscriptModel:
     warnings: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class SourceBackedViewerBundle:
+    query: NormalizedVariantQuery
+    variant: VariantProjection
+    transcript_source: SourceTranscriptModel
+    response: GeneViewerResponse
+
+
 class GeneViewerSourceClient(Protocol):
     def resolve_variant(
         self,
@@ -696,18 +704,34 @@ class SourceBackedGeneViewerProvider:
         self.builder = builder or TranscriptWindowBuilder()
 
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
+        return self.viewer_bundle(payload).response
+
+    def viewer_bundle(self, payload: GeneViewerRequest) -> SourceBackedViewerBundle:
         query = normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
         self._validate_query(payload=payload, query=query)
         try:
-            variant = self.source_client.resolve_variant(
-                query=query,
-                genome_build=payload.genome_build,
-            )
-            transcript_source = self.source_client.fetch_transcript(
-                query=query,
-                variant=variant,
-                genome_build=payload.genome_build,
-            )
+            variant_seed = VariantProjection.from_hgvs_c(query.hgvs)
+            if query.resolver_transcript:
+                variant = self.source_client.resolve_variant(
+                    query=query,
+                    genome_build=payload.genome_build,
+                )
+                transcript_source = self.source_client.fetch_transcript(
+                    query=query,
+                    variant=variant,
+                    genome_build=payload.genome_build,
+                )
+            else:
+                transcript_source = self.source_client.fetch_transcript(
+                    query=query,
+                    variant=variant_seed,
+                    genome_build=payload.genome_build,
+                )
+                query = _query_with_source_transcript(query, transcript_source)
+                variant = self.source_client.resolve_variant(
+                    query=query,
+                    genome_build=payload.genome_build,
+                )
             transcript = self._transcript_model(
                 source=transcript_source,
                 window=payload.window,
@@ -741,7 +765,12 @@ class SourceBackedGeneViewerProvider:
             ),
             warnings=list(transcript_source.warnings),
         )
-        return response
+        return SourceBackedViewerBundle(
+            query=query,
+            variant=variant,
+            transcript_source=transcript_source,
+            response=response,
+        )
 
     def _validate_query(
         self,
@@ -760,11 +789,6 @@ class SourceBackedGeneViewerProvider:
             _raise_unsupported(
                 query.kind,
                 "Gene viewer source-backed mode currently supports coding cDNA HGVS only.",
-            )
-        if not query.resolver_transcript:
-            _raise_unsupported(
-                "transcript",
-                "Gene viewer source-backed mode requires a transcript or canonical mapping.",
             )
 
     def _transcript_model(
@@ -932,6 +956,35 @@ class SourceBackedGeneViewerProvider:
                 status_code=status.HTTP_502_BAD_GATEWAY,
             )
         return sequence
+
+
+def _query_with_source_transcript(
+    query: NormalizedVariantQuery,
+    source: SourceTranscriptModel,
+) -> NormalizedVariantQuery:
+    resolver_transcript = _source_resolver_transcript(source)
+    return query.model_copy(
+        update={
+            "resolver_transcript": resolver_transcript,
+            "resolver_transcript_hgvs": f"{resolver_transcript}:{query.hgvs}",
+        }
+    )
+
+
+def _source_resolver_transcript(source: SourceTranscriptModel) -> str:
+    candidates = [*source.transcript_aliases, source.transcript]
+    for candidate in candidates:
+        if candidate.startswith(("NM_", "NR_")):
+            return candidate
+    for candidate in candidates:
+        if candidate.startswith("ENST"):
+            return candidate
+    if source.transcript:
+        return source.transcript
+    _raise_unsupported(
+        "transcript",
+        f"Could not choose a source-backed transcript for {source.gene}.",
+    )
 
 
 @dataclass(frozen=True)

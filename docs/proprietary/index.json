@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-23 19:51 +1000 - Codex",
+  "updated": "2026-05-24 00:00 +1000 - Codex",
   "purpose": "Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic.",
   "entries": [
     {
@@ -110,11 +110,12 @@
       "type": "backend_orchestration_layer",
       "status": "active_first_slice_backend_prototype",
       "added_at": "2026-05-23 12:10 +1000 - Codex",
-      "last_updated_at": "2026-05-23 19:51 +1000 - Codex",
+      "last_updated_at": "2026-05-24 00:00 +1000 - Codex",
       "doc": "docs/proprietary/variant-report-orchestration.md",
       "source_files": [
         "app/backend/app/services/report_extraction_plan.py",
         "app/backend/app/services/report_provenance.py",
+        "app/backend/app/services/gene_context_snapshot.py",
         "app/backend/app/services/population_frequency_section.py",
         "app/backend/app/services/variant_report_orchestrator.py",
         "app/backend/app/services/clinical_consensus.py",
@@ -138,6 +139,7 @@
       "tests": [
         "app/backend/tests/test_clinical_consensus.py",
         "app/backend/tests/test_clinical_trials_tool.py",
+        "app/backend/tests/test_gene_viewer.py",
         "app/backend/tests/test_gnomad_tool.py",
         "app/backend/tests/test_report_call_cards.py",
         "app/backend/tests/test_search_input_resolver.py",

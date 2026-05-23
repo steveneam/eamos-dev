@@ -4,7 +4,7 @@ Status: Active first-slice backend prototype
 Type: Orchestration layer
 Owner: Codex
 Added: 2026-05-23 12:10 +1000 - Codex
-Last updated: 2026-05-23 19:51 +1000 - Codex
+Last updated: 2026-05-24 00:00 +1000 - Codex
 
 ## What It Does
 
@@ -13,7 +13,8 @@ Report. It turns the interpreted search input and normalized source identities
 into a section-aware extraction plan, consistent provenance records, and typed
 layout sections for the header, interpretation summary, disease mechanism,
 molecular context, population frequency, computational deep dive, ACMG
-worksheet, therapies/trials, and provenance.
+worksheet, therapies/trials, Section 2-adjacent gene-context snapshot, and
+provenance.
 
 ## Why It Is Eamos-Original
 
@@ -27,6 +28,7 @@ making the frontend infer clinical or source hierarchy from raw tool summaries.
 
 - `app/backend/app/services/report_extraction_plan.py`
 - `app/backend/app/services/report_provenance.py`
+- `app/backend/app/services/gene_context_snapshot.py`
 - `app/backend/app/services/population_frequency_section.py`
 - `app/backend/app/services/variant_report_orchestrator.py`
 - `app/backend/app/services/clinical_consensus.py`
@@ -45,6 +47,7 @@ making the frontend infer clinical or source hierarchy from raw tool summaries.
 - `app/backend/app/schemas/run.py`
 - `app/backend/tests/test_clinical_consensus.py`
 - `app/backend/tests/test_clinical_trials_tool.py`
+- `app/backend/tests/test_gene_viewer.py`
 - `app/backend/tests/test_gnomad_tool.py`
 - `app/backend/tests/test_report_call_cards.py`
 - `app/backend/tests/test_search_input_resolver.py`
@@ -77,6 +80,13 @@ making the frontend infer clinical or source hierarchy from raw tool summaries.
   canonical `population_frequency_detail` group. It adds card navigation
   metadata and labels current gnomAD age histograms as overall release-sample
   scope, not per-genetic-ancestry or patient-age inference.
+- Section 2-adjacent gene context is now represented by
+  `VariantReportProfile.gene_context_snapshot`. It reuses the source-backed
+  gene-viewer zoom window/segments/sequences and adds full transcript
+  exon/intron rows, variant projection, render hints, provenance, and Workbench
+  deep-link data. RPE65 fixture mode is explicitly warning-labelled; non-RPE65
+  fixture lookups return unavailable state rather than importing the RPE65
+  scaffold.
 - Fixture/fallback adapters now guard their outputs by variant or gene identity
   so non-RPE65 lookups degrade to unavailable/empty sections instead of
   inheriting the single RPE65 source snapshot.

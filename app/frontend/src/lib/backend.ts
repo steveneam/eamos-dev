@@ -662,11 +662,98 @@ export interface PopulationFrequencyReportSection {
   provenance: SourceProvenance[]
 }
 
+export type GeneContextVariantMembership = 'exon' | 'intron' | 'outside_transcript' | 'unknown'
+export type GeneContextOverviewMode = 'compressed_introns' | 'linear'
+
+export interface GeneContextTranscriptExon {
+  number: number
+  cds_start?: number | null
+  cds_end?: number | null
+  genomic_start?: number | null
+  genomic_end?: number | null
+  genomic_length?: number | null
+  transcript_start?: number | null
+  transcript_end?: number | null
+}
+
+export interface GeneContextTranscriptIntron {
+  number: number
+  genomic_start?: number | null
+  genomic_end?: number | null
+  length_bp?: number | null
+  transcript_start?: number | null
+  transcript_end?: number | null
+}
+
+export interface GeneContextVariantProjection {
+  hgvs_c?: string | null
+  hgvs_p?: string | null
+  cds_pos?: number | null
+  genomic_hg38?: string | null
+  ref?: string | null
+  alt?: string | null
+  exon_number?: number | null
+  intron_number?: number | null
+  membership: GeneContextVariantMembership
+  transcript_offset?: number | null
+  codon_number?: number | null
+  codon_offset?: number | null
+  aa_ref?: string | null
+  aa_alt?: string | null
+  warnings: string[]
+}
+
+export interface GeneContextRenderHints {
+  overview_mode: GeneContextOverviewMode
+  min_exon_width_px: number
+  max_intron_width_px: number
+  zoom_flank_bp: number
+  large_gene_compression_applied: boolean
+  warnings: string[]
+}
+
+export interface GeneContextWorkbenchLink {
+  url: string
+  gene: string
+  cdna: string
+  transcript?: string | null
+}
+
+export interface GeneContextSnapshot {
+  section_number: number
+  section_id: string
+  panel_id: string
+  title: string
+  source_status: SourceStatus
+  gene: string
+  transcript?: string | null
+  genome_build: string
+  chromosome?: string | null
+  strand: GenomeStrand
+  ensembl_gene_id?: string | null
+  gene_start?: number | null
+  gene_end?: number | null
+  gene_length?: number | null
+  cds_length?: number | null
+  protein_length?: number | null
+  exons: GeneContextTranscriptExon[]
+  introns: GeneContextTranscriptIntron[]
+  variant?: GeneContextVariantProjection | null
+  zoom_window?: ViewerWindow | null
+  zoom_segments: ViewerSegment[]
+  zoom_sequences?: ViewerSequences | null
+  render_hints: GeneContextRenderHints
+  workbench_link?: GeneContextWorkbenchLink | null
+  provenance: SourceProvenance[]
+  warnings: string[]
+}
+
 export interface VariantReportProfile {
   extraction_plan?: ReportExtractionPlan | null
   header?: VariantReportHeader | null
   interpretation_summary?: InterpretationSummary | null
   disease_mechanism?: DiseaseMechanismSection | null
+  gene_context_snapshot?: GeneContextSnapshot | null
   population_frequency?: PopulationFrequencyReportSection | null
   molecular_context?: MolecularContextSection | null
   computational_deep_dive?: ComputationalDeepDiveSection | null

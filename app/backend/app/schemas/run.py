@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.gene_viewer import ViewerSegment, ViewerSequences, ViewerWindow
+
 
 class RunStatus(str, Enum):
     completed = "completed"
@@ -365,6 +367,7 @@ class ReportExtractionSectionTarget(BaseModel):
         "clinical_consensus",
         "interpretation_summary",
         "disease_mechanism",
+        "gene_context_snapshot",
         "molecular_context",
         "computational_deep_dive",
         "acmg_worksheet",
@@ -562,11 +565,99 @@ class PopulationFrequencyReportSection(BaseModel):
     provenance: list[SourceProvenance] = Field(default_factory=list)
 
 
+GeneContextVariantMembership = Literal["exon", "intron", "outside_transcript", "unknown"]
+GeneContextOverviewMode = Literal["compressed_introns", "linear"]
+
+
+class GeneContextTranscriptExon(BaseModel):
+    number: int
+    cds_start: int | None = None
+    cds_end: int | None = None
+    genomic_start: int | None = None
+    genomic_end: int | None = None
+    genomic_length: int | None = None
+    transcript_start: int | None = None
+    transcript_end: int | None = None
+
+
+class GeneContextTranscriptIntron(BaseModel):
+    number: int
+    genomic_start: int | None = None
+    genomic_end: int | None = None
+    length_bp: int | None = None
+    transcript_start: int | None = None
+    transcript_end: int | None = None
+
+
+class GeneContextVariantProjection(BaseModel):
+    hgvs_c: str | None = None
+    hgvs_p: str | None = None
+    cds_pos: int | None = None
+    genomic_hg38: str | None = None
+    ref: str | None = None
+    alt: str | None = None
+    exon_number: int | None = None
+    intron_number: int | None = None
+    membership: GeneContextVariantMembership = "unknown"
+    transcript_offset: int | None = None
+    codon_number: int | None = None
+    codon_offset: int | None = None
+    aa_ref: str | None = None
+    aa_alt: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class GeneContextRenderHints(BaseModel):
+    overview_mode: GeneContextOverviewMode = "compressed_introns"
+    min_exon_width_px: int = 8
+    max_intron_width_px: int = 72
+    zoom_flank_bp: int = 120
+    large_gene_compression_applied: bool = False
+    warnings: list[str] = Field(default_factory=list)
+
+
+class GeneContextWorkbenchLink(BaseModel):
+    url: str
+    gene: str
+    cdna: str
+    transcript: str | None = None
+
+
+class GeneContextSnapshot(BaseModel):
+    section_number: int = 2
+    section_id: str = "section-2-gene-context"
+    panel_id: str = "gene-context-snapshot"
+    title: str = "Gene Context Snapshot"
+    source_status: SourceStatus = "missing"
+    gene: str
+    transcript: str | None = None
+    genome_build: str = "GRCh38"
+    chromosome: str | None = None
+    strand: Literal["+", "-", "unknown"] = "unknown"
+    ensembl_gene_id: str | None = None
+    gene_start: int | None = None
+    gene_end: int | None = None
+    gene_length: int | None = None
+    cds_length: int | None = None
+    protein_length: int | None = None
+    exons: list[GeneContextTranscriptExon] = Field(default_factory=list)
+    introns: list[GeneContextTranscriptIntron] = Field(default_factory=list)
+    variant: GeneContextVariantProjection | None = None
+    zoom_window: ViewerWindow | None = None
+    zoom_segments: list[ViewerSegment] = Field(default_factory=list)
+    zoom_sequences: ViewerSequences | None = None
+    render_hints: GeneContextRenderHints = Field(default_factory=GeneContextRenderHints)
+    workbench_link: GeneContextWorkbenchLink | None = None
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class VariantReportProfile(BaseModel):
     extraction_plan: ReportExtractionPlan | None = None
     header: VariantReportHeader | None = None
     interpretation_summary: InterpretationSummary | None = None
     disease_mechanism: DiseaseMechanismSection | None = None
+    gene_context_snapshot: GeneContextSnapshot | None = None
     population_frequency: PopulationFrequencyReportSection | None = None
     molecular_context: MolecularContextSection | None = None
     computational_deep_dive: ComputationalDeepDiveSection | None = None

@@ -12,6 +12,7 @@ from app.schemas.run import (
     ComputationalPredictorRow,
     DiseaseMechanismSection,
     EvidenceSourceSummary,
+    GeneContextSnapshot,
     InterpretationSummary,
     MolecularContextSection,
     ReportPayload,
@@ -64,6 +65,7 @@ class VariantReportDataOrchestrator:
                 evidence_map=evidence_map,
                 evidence_statuses=evidence_statuses,
             ),
+            gene_context_snapshot=_build_gene_context_snapshot(evidence_map),
             population_frequency=build_population_frequency_section(
                 payload.population_frequency_detail,
                 source_status=evidence_statuses.get("gnomad", "missing"),
@@ -241,6 +243,15 @@ def _build_disease_mechanism(
             "mechanism_source_not_hydrated",
         ],
     )
+
+
+def _build_gene_context_snapshot(
+    evidence_map: dict[str, dict[str, Any]],
+) -> GeneContextSnapshot | None:
+    raw_snapshot = evidence_map.get("gene_context_snapshot")
+    if not raw_snapshot:
+        return None
+    return GeneContextSnapshot.model_validate(raw_snapshot)
 
 
 def _build_molecular_context(
