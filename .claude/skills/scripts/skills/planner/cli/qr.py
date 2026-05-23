@@ -85,7 +85,8 @@ def save_qr_state_atomic(state_dir: str, phase: str, qr_state: dict):
     """Write QR state atomically via tempfile + rename.
 
     tempfile in same directory ensures same filesystem (rename can't cross mounts).
-    os.rename() is atomic on POSIX filesystems.
+    os.replace() is atomic and overwrites an existing destination on both POSIX
+    and Windows (os.rename() raises FileExistsError on Windows when dest exists).
     """
     qr_path = get_qr_path(state_dir, phase)
 
@@ -98,13 +99,30 @@ def save_qr_state_atomic(state_dir: str, phase: str, qr_state: dict):
     try:
         with os.fdopen(fd, 'w') as f:
             json.dump(qr_state, f, indent=2)
-        # Atomic rename
-        os.rename(tmp_path, qr_path)
+        # Atomic replace (overwrites existing dest on POSIX and Windows)
+        os.replace(tmp_path, qr_path)
     except Exception:
         # Clean up on failure
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise
+
+
+def save_qr_state_locked(f, qr_state: dict):
+    """Persist QR state through an already-open, exclusively-locked handle.
+
+    Callers hold an fcntl.LOCK_EX on `f`, so exclusivity is already guaranteed
+    and an in-place rewrite is safe. This avoids the tempfile+os.replace path,
+    which fails on Windows (os.replace cannot replace a file that still has an
+    open handle -- the held lock handle -- raising PermissionError WinError 5).
+    POSIX behaviour is equivalent: the exclusive lock serialises writers and
+    readers re-open + lock the same path.
+    """
+    f.seek(0)
+    f.truncate()
+    json.dump(qr_state, f, indent=2)
+    f.flush()
+    os.fsync(f.fileno())
 
 
 def find_item(qr_state: dict, item_id: str) -> tuple[int, dict | None]:
@@ -208,8 +226,8 @@ def cmd_update_item(state_dir: str, phase: str, args: list[str]):
 
         qr_state["items"][idx] = item
 
-        # Atomic write
-        save_qr_state_atomic(state_dir, phase, qr_state)
+        # Write through the locked handle (Windows-safe; lock guarantees exclusivity)
+        save_qr_state_locked(f, qr_state)
 
         # Lock released when f closes
 
@@ -333,7 +351,7 @@ def cmd_assign_group(state_dir: str, phase: str, args: list[str]):
 
         item["group_id"] = group_id
         qr_state["items"][idx] = item
-        save_qr_state_atomic(state_dir, phase, qr_state)
+        save_qr_state_locked(f, qr_state)
 
     print_entity_result(EntityResult(
         id=item_id,

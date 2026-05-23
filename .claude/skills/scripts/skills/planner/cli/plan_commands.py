@@ -44,15 +44,15 @@ class PlanContext:
         path = self.plan_path()
         if not path.exists():
             raise FileNotFoundError(f"plan.json not found at {path}")
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         return schema['Plan'].model_validate(data)
 
     def save_plan(self, plan: "Plan") -> None:
         schema = _get_schema()
         path = self.plan_path()
         tmp_path = path.with_suffix(".tmp")
-        tmp_path.write_text(plan.model_dump_json(indent=2))
-        tmp_path.rename(path)
+        tmp_path.write_text(plan.model_dump_json(indent=2), encoding="utf-8")
+        tmp_path.replace(path)
         schema['validate_state'](str(self.state_dir))
 
 

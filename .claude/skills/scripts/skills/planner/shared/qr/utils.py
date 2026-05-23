@@ -326,16 +326,18 @@ def increment_qr_iteration(state_dir: str, phase: str) -> int | None:
     if not path.exists():
         return None
 
-    qr_state = json.loads(path.read_text())
+    qr_state = json.loads(path.read_text(encoding="utf-8"))
     iteration = qr_state.get("iteration", 1) + 1
     qr_state["iteration"] = iteration
 
     # Atomic write via temp file
     fd, tmp_path = tempfile.mkstemp(dir=state_dir, suffix=".tmp")
     try:
-        with os.fdopen(fd, 'w') as tmp:
+        with os.fdopen(fd, 'w', encoding="utf-8") as tmp:
             json.dump(qr_state, tmp, indent=2)
-        os.rename(tmp_path, str(path))
+        # os.replace (not os.rename): cross-platform atomic overwrite.
+        # On Windows os.rename raises WinError 183 when the target exists.
+        os.replace(tmp_path, str(path))
     except Exception:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
