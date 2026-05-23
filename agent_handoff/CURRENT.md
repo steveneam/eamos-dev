@@ -19,15 +19,16 @@
   written → `agent_handoff/2026-05-24-be-fe-cross-check.md` (F1-F5 + verified
   facts + CAR reconciliation). Codex completed its half (FE review + fixes) and
   is idle with locks released. **Integration Checkpoint (independent, all green):
-  backend `pytest tests/` 349 passed / 4 skipped; contract canary 117; Vite build
+  backend `pytest tests/` 349 passed / 4 skipped; contract canary 117 (now 215 after F1/F2 hardening `b552865`); Vite build
   clean; Next `app/web` build (see verification line); both `backend.ts` mirrors
   byte-identical (1229 lines).** Side cleanup committed+pushed earlier this
   session: `d277263` removed the unused doc-only `app/shared/` OpenAPI folder +
-  local `.trash/`. Now committing+pushing ALL lanes (user pre-authorized).
-  Remaining recommendation (NOT in this commit): F1/F2 canary hardening — the
-  canary still doesn't guard the v2 report contract / app/web mirror; logged as a
-  follow-up in the review doc. Untouched: `/runs`, AlphaMissense, parked
-  Workbench. Full detail: `~/.claude/plans/next-session-eamos.md`.
+  local `.trash/`. All-lanes integration committed+pushed (`7703cec` + `a8554ad`). **F1/F2 canary hardening DONE:** Codex promoted the report-profile subtree into the real parity map over BOTH `backend.ts` mirrors + a byte-identical guard; Claude verified (215 canary cases pass) + committed `b552865`. Branch 0/0, worktree clean.
+  Remaining: F3 (sections don't consume `section_targets` for gating — later
+  contract slice; Codex confirmed valid), F4/F5 (LOW BE nits), and the
+  `app/shared` doc orphans (root README.md, app/README.md, app/frontend/README.md,
+  app/CLAUDE.md). Untouched: `/runs`, AlphaMissense, parked Workbench. Full
+  detail: `~/.claude/plans/next-session-eamos.md`.
 - **Codex:** IDLE @ 2026-05-24 01:03 +1000 - **BE↔FE cross-check
   complete.** Implemented Codex-side raw `/report?q=` lookup wiring in Vite +
   Next report clients/types/panel, and fixed Claude-reviewed backend provenance
@@ -47,7 +48,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 01:18 +1000 · Claude (integration sync done: heartbeat + CAR reconciliation + Current State + Claude section; about to commit+push all lanes)
+UNLOCKED · 2026-05-24 01:36 +1000 · Claude (marked F1/F2 canary hardening DONE b552865; F3/F4/F5 + app/shared doc orphans remain)
 
 ## Shared File Locks
 
@@ -288,7 +289,10 @@ DONE entries older than the last major boundary into the relevant plan/log.
   backend follow-ups), and the **F1/F2 canary-hardening recommendation** from
   `agent_handoff/2026-05-24-be-fe-cross-check.md` (the contract canary still
   does not actually guard the report-profile subtree or the app/web mirror) —
-  Codex/BE lane, not yet implemented.
+  Codex/BE lane — **DONE in `b552865`**: the canary now guards the report-profile
+  subtree across BOTH `backend.ts` mirrors + a byte-identical guard (215 cases
+  pass). F3 stays open (sections don't consume `section_targets` for gating);
+  F4/F5 (LOW) + `app/shared` doc orphans remain.
 
 ## Current State
 
@@ -348,7 +352,7 @@ DONE entries older than the last major boundary into the relevant plan/log.
   and `agent_handoff/CURRENT.md`.
 - Verification last green: **Integration Checkpoint 2026-05-24 01:15 +1000
   (Claude, independent, pre-all-lanes-commit): backend `python -m pytest tests/`
-  349 passed / 4 skipped (JWT short-key warnings only); contract canary 117;
+  349 passed / 4 skipped (JWT short-key warnings only); contract canary 117 (now 215 after F1/F2 hardening `b552865`);
   `app/frontend` Vite build clean; `app/web` Next build clean; both `backend.ts`
   mirrors byte-identical (1229 lines).** Codex also verified its cross-check slice
   (focused backend suite + ruff/black + Vite/Next type checks/builds + Next
@@ -387,14 +391,16 @@ all-lanes commit (user pre-authorized).
   `pytest tests/` 349 passed / 4 skipped; canary 117; Vite build clean; Next
   `app/web` build clean; both `backend.ts` byte-identical (1229 lines).
 - **Committed + pushed:** (1) `d277263` earlier — removed unused doc-only
-  `app/shared/` OpenAPI folder + local `.trash/`; (2) the all-lanes integration
-  commit this session (both lanes' cross-check work + handoff docs + plans).
+  `app/shared/` OpenAPI folder + local `.trash/`; (2) `7703cec` + `a8554ad`
+  (all-lanes integration: both lanes' cross-check work + handoff docs + plans);
+  (3) `b552865` F1/F2 canary hardening (canary now guards the report-profile
+  subtree across both `backend.ts` mirrors + a byte-identical guard; 215 cases).
 
-**Remaining (NOT in this commit):** F1/F2 canary hardening (promote report models
-into the real parity check + guard the app/web mirror) — Codex/BE lane;
-gene-viewer enrichment / Primer §6-B / §7 TIDE (gated backend); the doc orphans
-from the `app/shared` removal (root `README.md`, `app/README.md`,
-`app/frontend/README.md`, `app/CLAUDE.md`) — pending a tidy pass.
+**Remaining:** F3 (sections don't consume `section_targets` for gating — Codex
+confirmed valid; later contract slice); F4/F5 (LOW BE nits); gene-viewer
+enrichment / Primer §6-B / §7 TIDE (gated backend); the `app/shared` doc orphans
+(root `README.md`, `app/README.md`, `app/frontend/README.md`, `app/CLAUDE.md`) —
+pending a tidy pass. **F1/F2 canary hardening DONE — `b552865`.**
 
 **Next (gated — user direction):** emerald "Lifestream" report-side redesign on
 the app/web skeleton; F1/F2 follow-up with Codex; strict-TS/app-web cutover —
@@ -410,11 +416,13 @@ then git status --short --branch.
 Delta: BE↔FE cross-check + integration COMPLETE. Codex wired raw /report?q=
 search_text + SearchInterpretationPanel in both frontends and fixed two backend
 provenance items; Claude reviewed the backend (F1-F5), ran a green Integration
-Checkpoint (backend 349 passed, canary 117, Vite+Next builds clean, backend.ts
-mirrors identical), and committed+pushed ALL lanes. Also pushed d277263 (removed
-app/shared + .trash). Next: F1/F2 canary hardening (Codex/BE — canary doesn't yet
-guard the report-profile subtree or app/web mirror); tidy the app/shared doc
-orphans (root README.md, app/README.md, app/frontend/README.md, app/CLAUDE.md).
+Checkpoint and committed+pushed ALL lanes (7703cec integration, a8554ad planner
+chore, b552865 F1/F2 canary hardening — canary now guards the report-profile
+subtree across BOTH backend.ts mirrors + byte-identical guard, 215 cases; earlier
+d277263 removed app/shared + .trash). Worktree clean, branch 0/0. Next (no
+auto-start): F3 gating decision (sections don't consume section_targets), F4/F5
+(LOW BE nits), tidy the app/shared doc orphans (root README.md, app/README.md,
+app/frontend/README.md, app/CLAUDE.md).
 Do NOT touch /runs, AlphaMissense, parked Workbench. FE Vite checkpoint = 205eaae;
 landing v2 = fe08a0a; app/shared removal = d277263. End clear-safe.`
 
