@@ -142,6 +142,50 @@
   background: var(--bg-soft);
 }
 
+/* ════════════════════════════════════════════════════════════════════ */
+/* === Landing redesign — emerald "Lifestream" tier (ADDITIVE) ===
+   Used ONLY by the landing route (/). Never alters the report content
+   palette above; dark hero chrome + a richer emerald accent scale. */
+/* ════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Emerald accent scale — richer cousin of brand --teal, for the landing. */
+  --em:        #10b981;
+  --em-deep:   #059669;
+  --em-bright: #34d399;
+  --em-glow:   #6ee7b7;
+  --em-tint:   #ecfdf5;
+
+  /* Deep "Lifestream" hero surface (dark emerald to ink). */
+  --hero-top:    #04241a;
+  --hero-mid:    #052c20;
+  --hero-bot:    #02110c;
+  --hero-ink:    #eafff6;
+  --hero-ink-2:  rgba(234, 255, 246, 0.66);
+  --hero-ink-3:  rgba(234, 255, 246, 0.42);
+  --hero-line:   rgba(110, 231, 183, 0.16);
+  --hero-glass:  rgba(255, 255, 255, 0.055);
+  --hero-glass2: rgba(255, 255, 255, 0.10);
+
+  /* Dark content surfaces (whole-page dark landing, below the hero). */
+  --d-bg:    #03130d;
+  --d-bg-2:  #061711;
+  --d-card:  rgba(255, 255, 255, 0.035);
+  --d-line:  rgba(255, 255, 255, 0.09);
+}
+
+@keyframes ls-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes ls-shimmer {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.9; }
+}
+
+/* Dark-tone search inputs (landing hero) need a lighter placeholder. */
+[data-tone="dark"] input::placeholder { color: var(--hero-ink-3); opacity: 1; }
+
 * {
   box-sizing: border-box;
 }

@@ -2,25 +2,18 @@ import { SOURCES } from '@/lib/sources'
 
 export function SourceStrip() {
   return (
-    <section
-      className="py-12"
-      style={{
-        background: 'var(--bg-soft)',
-        borderTop: '0.5px solid var(--line)',
-        borderBottom: '0.5px solid var(--line)',
-      }}
-    >
+    <section className="py-9" style={{ background: 'var(--hero-bot)' }}>
       <div
-        className="mx-auto flex flex-wrap items-center justify-between gap-10 px-8"
+        className="mx-auto flex flex-col items-center gap-5 px-8 sm:flex-row sm:justify-between sm:gap-10"
         style={{ maxWidth: 1180 }}
       >
         <span
-          className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em]"
-          style={{ color: 'var(--ink-4)' }}
+          className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.16em]"
+          style={{ color: 'var(--hero-ink-3)' }}
         >
           Powered by
         </span>
-        <div className="flex flex-1 flex-wrap justify-end gap-2.5">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
           {SOURCES.map((src) => (
             <a
               key={src.key}
@@ -29,20 +22,20 @@ export function SourceStrip() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 transition-all hover:-translate-y-px"
               style={{
-                padding: '8px 14px',
-                background: 'var(--bg)',
-                border: '0.5px solid var(--line)',
+                padding: '6px 13px',
+                background: 'var(--d-card)',
+                border: '0.5px solid var(--d-line)',
                 borderRadius: 999,
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: 500,
-                color: 'var(--ink-2)',
+                color: 'var(--hero-ink-2)',
                 textDecoration: 'none',
               }}
               title={src.description}
             >
               <span
                 aria-hidden
-                style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--teal)' }}
+                style={{ width: 5, height: 5, borderRadius: 999, background: 'var(--em-bright)' }}
               />
               {src.label}
             </a>

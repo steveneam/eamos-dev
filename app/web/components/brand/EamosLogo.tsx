@@ -4,6 +4,7 @@ interface EamosLogoProps {
   size?: number
   showWordmark?: boolean
   className?: string
+  tone?: 'light' | 'dark'
 }
 
 function SparkMark({ size = 16 }: { size?: number }) {
@@ -24,13 +25,15 @@ function SparkMark({ size = 16 }: { size?: number }) {
   )
 }
 
-export function EamosLogo({ size = 16, showWordmark = true, className }: EamosLogoProps) {
+export function EamosLogo({ size = 16, showWordmark = true, className, tone = 'light' }: EamosLogoProps) {
+  const isDark = tone === 'dark'
+  const mark = isDark ? 'var(--em-bright)' : 'var(--teal)'
   return (
     <span
       className={cn('inline-flex items-center gap-1.5', className)}
-      style={{ color: 'var(--ink)', fontFamily: 'var(--display)' }}
+      style={{ color: isDark ? 'var(--hero-ink)' : 'var(--ink)', fontFamily: 'var(--display)' }}
     >
-      <span style={{ color: 'var(--teal)' }}>
+      <span style={{ color: mark }}>
         <SparkMark size={size} />
       </span>
       {showWordmark && (
@@ -38,7 +41,7 @@ export function EamosLogo({ size = 16, showWordmark = true, className }: EamosLo
           className="font-semibold tracking-[-0.01em]"
           style={{ fontSize: size, lineHeight: 1 }}
         >
-          <span style={{ color: 'var(--teal)' }}>e</span>amos
+          <span style={{ color: mark }}>e</span>amos
         </span>
       )}
     </span>
