@@ -134,6 +134,59 @@ def test_gnomad_live_summary_keeps_ancestry_and_age_distribution(monkeypatch, tm
     assert result.summary["age_distribution"]["het"]["bin_freq"] == [58, 79]
 
 
+def test_gnomad_fixture_uses_variant_source_url(tmp_path: Path):
+    settings = Settings(
+        jwt_secret="test-secret",
+        use_real_apis=False,
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+    )
+    tool = GnomadTool(settings)
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        genomic_hg38="1-68444869-T-C",
+    )
+
+    result = tool.get_evidence(variant=variant)
+
+    assert result.status == "fixture"
+    assert (
+        result.source_url
+        == "https://gnomad.broadinstitute.org/variant/1-68444869-T-C?dataset=gnomad_r4"
+    )
+
+
+def test_gnomad_fixture_top_level_source_url_does_not_duplicate(tmp_path: Path):
+    settings = Settings(
+        jwt_secret="test-secret",
+        use_real_apis=False,
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+    )
+    tool = GnomadTool(settings)
+    tool.load_fixture = lambda: {
+        "request_identity": {"variant_id": "1-68444869-T-C"},
+        "summary": {"variant_id": "1-68444869-T-C", "dataset": "gnomad_r4"},
+        "warnings": [],
+        "raw": None,
+        "source_url": "https://gnomad.example/source",
+    }
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        genomic_hg38="1-68444869-T-C",
+    )
+
+    result = tool.get_evidence(variant=variant)
+
+    assert result.status == "fixture"
+    assert result.source_url == "https://gnomad.example/source"
+    assert "source_url" not in result.summary
+
+
 def test_gnomad_live_fallback_does_not_attach_mismatched_fixture_detail(
     monkeypatch, tmp_path: Path
 ):

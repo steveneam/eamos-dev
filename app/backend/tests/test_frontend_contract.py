@@ -29,6 +29,7 @@ from app.schemas.chat import (
     WorkbenchEdit,
 )
 from app.schemas.lookup import (
+    LookupRequest,
     LookupResponse,
     SearchInputAiExtraction,
     SearchInputCandidate,
@@ -134,6 +135,13 @@ from app.schemas.workbench import (
 
 MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     LookupResponse: "LookupResponse",
+    LookupRequest: "LookupRequest",
+    SearchInputAiExtraction: "SearchInputAiExtraction",
+    SearchInputCandidate: "SearchInputCandidate",
+    SearchInputInterpretation: "SearchInputInterpretation",
+    SearchInputParseRequest: "SearchInputParseRequest",
+    SearchInputParseResponse: "SearchInputParseResponse",
+    SearchInputSourceInputs: "SearchInputSourceInputs",
     RunChatRequest: "RunChatRequest",
     RunChatResponse: "RunChatResponse",
     ReportPayload: "ReportPayload",
@@ -225,7 +233,6 @@ EPVLEX_PENDING_FRONTEND_MIRROR_FIELDS: dict[type[BaseModel], set[str]] = {
         "call_cards",
         "report_profile",
     },
-    LookupResponse: {"search_interpretation"},
 }
 
 

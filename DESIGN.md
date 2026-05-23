@@ -10,12 +10,147 @@ Source-of-truth HTML mocks: `e:\Web tool\Claude Design\` — `Eamos Landing Page
 
 ## Design Philosophy
 
-Clean, professional, clinical — not consumer, not corporate. Dense but scannable. Every element earns its place.
+Clean, professional, clinical — not consumer, not corporate. Dense but scannable. Every element earns its place. **Premium, not decorated** — the polish comes from hierarchy, restraint, and motion, never ornament.
 
-- **0.5px hairlines** are load-bearing — they're what makes the surface feel clinical. Keep them as raw CSS via `.hairline` utility.
-- **No shadows, no gradients.** Subtle borders only.
+- **0.5px hairlines** are still load-bearing — they're what makes the surface feel clinical. Hairlines and elevation work *together*; elevation never replaces a hairline.
+- **Depth via the tokenized elevation scale** (`--elev-*`) — see "Elevation". No ad-hoc `box-shadow`. **No decorative gradients** (a gradient may only ever be a ≤4%-contrast functional surface wash, never colour-on-colour ornament).
 - **Active voice typography.** Display weights 500–700; body 400–500. Never above 700.
-- **Tokens, not magic numbers.** Every colour and radius comes from `:root` CSS variables in `src/index.css`.
+- **Tokens, not magic numbers.** Every colour, radius, shadow, duration, and easing comes from `:root` CSS variables in `src/index.css`.
+
+---
+
+## Dashboard Interaction Language
+
+The standard for every v2 **tool and data surface** (`/report` modules, all
+`/workbench` tool panels). The goal: a modern, interactive, *self-explaining*
+surface — the user's eye is guided to the next decision, and what is
+interactive vs. static is obvious without instruction. Reference touchstones:
+Apple / Tesla / Linear / Vercel — premium through restraint and motion, not
+ornament.
+
+`/runs` (legacy v1) is **excluded** — it stays frozen (see appendix).
+
+**Adoption order:** Primer panel is the first reference implementation.
+CRISPR, Align, Compare, and the Report v2 modules migrate to it incrementally
+(each its own gated pass — do not retro-restyle shipped panels without an
+explicit milestone). New surfaces adopt it from day one.
+
+### The five principles
+
+1. **Progressive disclosure (the 3-layer pattern).** Never expose everything
+   at once. Every result/data object resolves into three conceptual layers:
+   - **Layer 1 — Decision surface.** Always visible. The one-glance verdict:
+     a status badge, the identity, the primary action. Answers "is this good?
+     what do I do?" in < 200 ms.
+   - **Layer 2 — Primary detail.** Always visible. The core numbers/sequences
+     that justify Layer 1.
+   - **Layer 3 — Deep dive.** Hidden by default behind a disclosure
+     (`<details>`/summary semantics). Audit-grade detail; opened only when
+     interrogating.
+   The summary row IS the affordance — it must look pressable (see #3).
+2. **Hierarchy guides the eye and the workflow.** Size, weight, elevation,
+   and spacing encode importance and read order. The primary action is the
+   visually heaviest element in its region; secondary actions recede to ghost.
+   One — and only one — focal point per region.
+3. **Affordance clarity — clickable looks clickable.** Interactive surfaces
+   are visually distinct from static ones and *respond*: cursor changes,
+   one elevation step up on hover (`--elev` +1), a ≤120 ms colour/border
+   shift, a visible focus ring. Static surfaces never lift, never change on
+   hover. A user must never have to guess or hover-hunt to find what is
+   actionable.
+4. **Feedback is immediate and honest.** Every state change is animated
+   through the motion tokens so the UI feels alive — but motion only ever
+   reflects *real* state. Never simulate progress or fabricate a staged
+   reveal for events that did not happen (e.g. a single synchronous request
+   shows one honest pending state, not a fake multi-stage ticker).
+5. **Restraint.** Elevation is subtle; motion is short; one accent. If an
+   effect draws attention to itself rather than to the content, it is wrong.
+   The clinical core (hairlines, muted palette, semantic classification
+   colours, no weight > 700) is never traded away for "feel".
+
+### Elevation
+
+Depth is a tokenized scale, tied to `--ink` (never pure black), low-opacity
+and low-spread for a clinical-but-premium read. Elevation encodes
+interactivity and layering — it is meaningful, not decorative.
+
+```css
+--elev-0: none;                                                       /* flat — rests on the canvas */
+--elev-1: 0 1px 2px rgba(11,26,43,.04), 0 1px 3px rgba(11,26,43,.06); /* resting card / panel */
+--elev-2: 0 2px 6px rgba(11,26,43,.06), 0 6px 16px rgba(11,26,43,.08);/* hover / raised / focused-within */
+--elev-3: 0 8px 28px rgba(11,26,43,.12), 0 2px 8px rgba(11,26,43,.06);/* overlay — popover, dialog, menu */
+```
+
+Rules:
+
+- An interactive card rests at `--elev-1` and rises to `--elev-2` on
+  hover/focus-within (transition via the motion tokens). Static cards rest at
+  `--elev-1` and **do not** change.
+- Overlays (popovers, the click-to-edit menu, dialogs, the AskEamos panel)
+  use `--elev-3`.
+- Elevation **augments** the 0.5px hairline; it does not replace it. Every
+  elevated surface still carries its border.
+- Never write a raw `box-shadow`. Never stack elevation beyond `--elev-3`.
+
+### Motion
+
+DESIGN.md was previously silent on motion; it is now first-class. Motion makes
+the surface feel responsive and guides attention through state changes — it is
+always **tasteful, short, and `prefers-reduced-motion`-safe**.
+
+```css
+/* Durations */
+--dur-1: 120ms;  /* micro — hover, press, colour/border */
+--dur-2: 200ms;  /* standard — elevation, disclosure, enter/leave */
+--dur-3: 320ms;  /* expressive — a panel/region revealing */
+
+/* Easing */
+--ease-standard:   cubic-bezier(.2, 0, 0, 1);   /* decelerate — enters, most transitions */
+--ease-emphasized: cubic-bezier(.3, 0, 0, 1);   /* disclosure / focal reveals */
+--ease-exit:       cubic-bezier(.4, 0, 1, 1);   /* accelerate — exits */
+```
+
+Defined transitions:
+
+| Interaction | Properties | Token |
+| ----------- | ---------- | ----- |
+| Hover / press (buttons, chips, rows) | `background`, `border-color`, `color` | `--dur-1` · `--ease-standard` |
+| Interactive-card lift | `box-shadow`, `border-color` | `--dur-2` · `--ease-standard` |
+| Disclosure (Layer 3 open/close) | `height`/`grid-rows`, `opacity`; chevron `transform: rotate` | `--dur-2` · `--ease-emphasized` |
+| Element enter (result cards, list items) | `opacity` 0→1, `transform: translateY(4px)→0` | `--dur-2` · `--ease-standard`, ≤ 60 ms stagger, cap the stagger total at ~240 ms |
+| Overlay enter | `opacity`, `transform: scale(.98)→1` | `--dur-2` · `--ease-standard` |
+
+Rules:
+
+- Animate **`transform`, `opacity`, `box-shadow`, and colour** only. Avoid
+  animating layout (`width`/`top`/`margin`) — use `transform`. Disclosure
+  height is the one sanctioned size transition (prefer a grid-rows/`max-height`
+  technique, not animating `display`).
+- Motion reflects real state only (principle #4) — no decorative loops, no
+  fabricated multi-step progress.
+- **Always** ship the global guard:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+```
+
+### Affordance cheat-sheet
+
+| State | Signal |
+| ----- | ------ |
+| Interactive, idle | `cursor: pointer`, `--elev-1`, hairline border |
+| Interactive, hover | `--elev-2`, border → `--ink-5`, colour shift, `--dur-1/2` |
+| Interactive, focus | the focus ring (`box-shadow: 0 0 0 3px rgba(29,158,117,.12)`, the existing search-shell glow generalised), keyboard-reachable |
+| Pressed | brief `transform: translateY(1px)` or `scale(.98)`, `--dur-1` |
+| Static / display only | flat within its card, no hover response, default cursor |
+| Disabled | `opacity: .5`, `cursor: not-allowed`, no hover/motion |
 
 ---
 
@@ -161,10 +296,23 @@ Below 1200px the Workbench side panel collapses; below 760px the rail collapses 
   border: 0.5px solid var(--line);
   border-radius: var(--r-lg);
   padding: 24px 28px;
+  box-shadow: var(--elev-1);
 }
 ```
 
-Section spacing: `gap: 18px` between cards. No shadows.
+Section spacing: `gap: 18px` between cards. A **static** card rests at
+`--elev-1` and never changes. An **interactive** card (`.card--interactive`,
+e.g. a Primer result card, a selectable list row) adds:
+
+```css
+.card--interactive {
+  cursor: pointer;
+  transition: box-shadow var(--dur-2) var(--ease-standard),
+              border-color var(--dur-2) var(--ease-standard);
+}
+.card--interactive:hover,
+.card--interactive:focus-within { box-shadow: var(--elev-2); border-color: var(--ink-5); }
+```
 
 ### Hairline utility
 
@@ -342,7 +490,8 @@ Landing (/)  ─┬─→ Report (/report?q=GENE:c.cdna)  ⇄  Workbench (/workb
 
 - No font weights above 700.
 - No emojis or icons except external-link ↗, the Eamos logo mark, and the rail tool icons.
-- No shadows. No gradients.
+- No ad-hoc `box-shadow` — depth only via `--elev-*`. No decorative gradients (a ≤4% functional surface wash is the only exception).
+- No motion outside the `--dur-*`/`--ease-*` tokens. No looping/decorative animation. No fabricated multi-step progress (motion reflects real state only). Always ship the `prefers-reduced-motion` guard.
 - No border radius > 14px (cards) or 100px (pills).
 - No colours outside the palette above.
 - No heavy borders — always 0.5px or 1px max.
@@ -359,6 +508,12 @@ Page bg:         var(--bg-soft) for body, var(--bg) for cards
 Card border:     0.5px solid var(--line)
 Card radius:     var(--r-lg) (14px)
 Card padding:    24px 28px
+Card rest:       box-shadow var(--elev-1)   (interactive → var(--elev-2) on hover)
+Overlay:         box-shadow var(--elev-3)
+
+Hover/press:     var(--dur-1) var(--ease-standard)
+Disclosure:      var(--dur-2) var(--ease-emphasized)
+Reduced motion:  always ship the prefers-reduced-motion guard
 
 Primary brand:   var(--teal) (#1D9E75)
 Secondary brand: var(--ink-2) (#1e3a5f)

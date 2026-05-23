@@ -3,6 +3,7 @@ import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
+import type { GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader } from './CanvasHeader'
 import { CrisprPanel } from './crispr/CrisprPanel'
 import { PrimerPanel } from './primer/PrimerPanel'
@@ -27,17 +28,20 @@ export type { ScratchEntry }
 
 interface WorkbenchShellProps {
   tool: WorkbenchTool
+  gene: string
+  cdna: string
+  transcript?: string
 }
 
 const PANEL_TOOLS: WorkbenchTool[] = ['primer', 'crispr', 'align', 'compare']
 
-// Workbench is RPE65-sample-scoped in this milestone (FE-4: no-param
-// /workbench defaults to the RPE65 sample). The viewer query is the
-// variant carried by the offline viewer sample; getGeneViewer() is
-// mock-first (transport failure → GENE_VIEWER_SAMPLE; the adapter fills
-// the whole-gene scaffold the payload does not carry yet).
-const VIEWER_GENE = GENE_VIEWER_SAMPLE.identity.gene
-const QUERY_CDNA = GENE_VIEWER_SAMPLE.queried_variant.hgvs_c
+function isDefaultViewerRequest(gene: string, cdna: string, transcript?: string): boolean {
+  return (
+    gene.trim().toUpperCase() === GENE_VIEWER_SAMPLE.identity.gene &&
+    cdna.replace(/\s+/g, '') === GENE_VIEWER_SAMPLE.queried_variant.hgvs_c &&
+    (!transcript || transcript === GENE_VIEWER_SAMPLE.identity.resolved_transcript)
+  )
+}
 
 function readSideCollapsed(): boolean {
   try {
@@ -47,7 +51,7 @@ function readSideCollapsed(): boolean {
   }
 }
 
-export function WorkbenchShell({ tool }: WorkbenchShellProps) {
+export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellProps) {
   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)
   const [strandMode, setStrandMode] = useState<StrandMode>('both')
   const [baseW, setBaseW] = useState<number>(ZOOM_PRESETS.exon)
@@ -64,30 +68,40 @@ export function WorkbenchShell({ tool }: WorkbenchShellProps) {
   // backend viewer endpoint (mock-first) and adapted for the active mode;
   // the adapter overlays the queried SNV onto the window in `variant` mode.
   const [alleleMode, setAlleleMode] = useState<AlleleMode>('reference')
-  const [data, setData] = useState(() =>
-    adaptGeneViewer(GENE_VIEWER_SAMPLE, 'reference'),
+  const [data, setData] = useState<GeneWindowData | null>(() =>
+    isDefaultViewerRequest(gene, cdna, transcript)
+      ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'reference')
+      : null,
   )
+  const [viewerError, setViewerError] = useState<string | null>(null)
 
   useEffect(() => {
     let stale = false
+    const defaultRequest = isDefaultViewerRequest(gene, cdna, transcript)
+    setViewerError(null)
+    if (!defaultRequest) setData(null)
     getGeneViewer({
-      gene: VIEWER_GENE,
-      cdna: QUERY_CDNA,
+      gene,
+      cdna,
+      transcript,
       allele_mode: alleleMode,
     })
       .then((resp) => {
         if (!stale) setData(adaptGeneViewer(resp, alleleMode))
       })
       .catch(() => {
-        // A reachable backend error keeps the last good (sample) render
-        // rather than masking it with a blank canvas. Transport failure is
-        // already handled inside getGeneViewer() (→ GENE_VIEWER_SAMPLE).
-        if (!stale) setData(adaptGeneViewer(GENE_VIEWER_SAMPLE, alleleMode))
+        if (stale) return
+        if (defaultRequest) {
+          setData(adaptGeneViewer(GENE_VIEWER_SAMPLE, alleleMode))
+          return
+        }
+        setViewerError(`Sequence unavailable for ${gene} ${cdna}`)
+        setData(null)
       })
     return () => {
       stale = true
     }
-  }, [alleleMode])
+  }, [alleleMode, cdna, gene, transcript])
 
   const viewerRef = useRef<SequenceViewerHandle>(null)
   const collapsed = viewerCollapsed(tool)
@@ -110,7 +124,7 @@ export function WorkbenchShell({ tool }: WorkbenchShellProps) {
   const onPreset = useCallback((level: ZoomLevel) => setBaseW(ZOOM_PRESETS[level]), [])
 
   return (
-    <div className={`wb${sideCollapsed ? ' side-collapsed' : ''}`}>
+    <div className={`wb${sideCollapsed && data ? ' side-collapsed' : ''}`}>
       <main className="canvas">
         <CanvasHeader
           tool={tool}
@@ -130,51 +144,82 @@ export function WorkbenchShell({ tool }: WorkbenchShellProps) {
             onPreset={onPreset}
             onToggleNav={() => setNavCollapsed((c) => !c)}
           />
-          <SequenceViewerV2
-            ref={viewerRef}
-            data={data}
-            trackOn={trackOn}
-            strandMode={strandMode}
-            baseW={baseW}
-            navCollapsed={navCollapsed}
-            alleleMode={alleleMode}
-            onScratchChange={setScratch}
-            onSelectionChange={setSelSummary}
-            onActiveExonChange={setActiveExon}
-          />
+          {data ? (
+            <SequenceViewerV2
+              ref={viewerRef}
+              data={data}
+              trackOn={trackOn}
+              strandMode={strandMode}
+              baseW={baseW}
+              navCollapsed={navCollapsed}
+              alleleMode={alleleMode}
+              onScratchChange={setScratch}
+              onSelectionChange={setSelSummary}
+              onActiveExonChange={setActiveExon}
+            />
+          ) : (
+            <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>
+              {viewerError ?? 'Loading sequence...'}
+            </div>
+          )}
         </section>
 
         <section className="tool-panels">
-          {PANEL_TOOLS.map((p) => (
-            <div
-              key={p}
-              className={p === tool ? 'tool-panel active' : 'tool-panel'}
-              data-panel={p}
-            >
-              {p === 'primer' && <PrimerPanel gene={data.gene} cdna={QUERY_CDNA} />}
-              {p === 'crispr' && <CrisprPanel gene={data.gene} cdna={QUERY_CDNA} />}
-              {/* FE-7 (align/compare) fills the rest. */}
+          {data ? (
+            PANEL_TOOLS.map((p) => (
+              <div
+                key={p}
+                className={p === tool ? 'tool-panel active' : 'tool-panel'}
+                data-panel={p}
+              >
+                {p === 'primer' && <PrimerPanel gene={data.gene} cdna={cdna} />}
+                {p === 'crispr' && <CrisprPanel gene={data.gene} cdna={cdna} />}
+                {/* FE-7 (align/compare) fills the rest. */}
+              </div>
+            ))
+          ) : (
+            <div className="tool-panel active" data-panel={tool}>
+              <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>
             </div>
-          ))}
+          )}
         </section>
       </main>
 
-      <SidePanel
-        tool={tool}
-        data={data}
-        scratch={scratch}
-        selection={selSummary}
-        collapsed={sideCollapsed}
-        exonTableOpen={exonTableOpen}
-        activeExon={activeExon}
-        onToggleCollapsed={toggleSide}
-        onToggleExonTable={() => setExonTableOpen((o) => !o)}
-        onResetAll={() => viewerRef.current?.resetEdits()}
-        onJumpToExon={(n) => viewerRef.current?.jumpToExon(n)}
-        onDelSelection={() => viewerRef.current?.delSelection()}
-        onReplaceSelection={(seq) => viewerRef.current?.replaceSelection(seq)}
-        onClearSelection={() => viewerRef.current?.clearSelection()}
-      />
+      {data ? (
+        <SidePanel
+          tool={tool}
+          data={data}
+          scratch={scratch}
+          selection={selSummary}
+          collapsed={sideCollapsed}
+          exonTableOpen={exonTableOpen}
+          activeExon={activeExon}
+          onToggleCollapsed={toggleSide}
+          onToggleExonTable={() => setExonTableOpen((o) => !o)}
+          onResetAll={() => viewerRef.current?.resetEdits()}
+          onJumpToExon={(n) => viewerRef.current?.jumpToExon(n)}
+          onDelSelection={() => viewerRef.current?.delSelection()}
+          onReplaceSelection={(seq) => viewerRef.current?.replaceSelection(seq)}
+          onClearSelection={() => viewerRef.current?.clearSelection()}
+        />
+      ) : (
+        <aside className="side">
+          <div className="side-section">
+            <div className="side-h">Viewer request</div>
+            <div className="side-info">
+              <b>{gene}</b>
+              <br />
+              {cdna}
+              {transcript ? (
+                <>
+                  <br />
+                  {transcript}
+                </>
+              ) : null}
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
   )
 }

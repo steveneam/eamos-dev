@@ -15,8 +15,8 @@ Port three Claude Design mocks to the React/Vite frontend without migrating to N
 | FE-5 | Sequence Viewer + click-to-edit | ✅ Done (2026-05-15) — **superseded by FE-5.5** (built against the older Workbench v1 mock; the v2 mock is a substantial evolution). `src/lib/workbench/{codon-table,sample-rpe65}.ts` + 11 viewer components under `src/components/workbench/viewer/`; wired into `WorkbenchShell` (lifted `edits`/`scratch`/`tracksOn`, controlled `CanvasHeader`, viewer-mode `SidePanel`). Vitest added (`npm run test`, 5/5). `npm run build` green; `test_frontend_contract.py` 40/40 (unchanged — no contract touch). Deviations: (1) 1-char sample-data coherence fix so codon 87 = GAC/Asp → spec `p.Asp87Gly`; (2) hover-preview added to EditPopover (plan/acceptance say hover; source JS only previewed on click). |
 | FE-3.6 | Report payload fidelity reconcile | ✅ Done (2026-05-15). `backend.ts` + `sample-report.ts` synced to BE-6; all 6 report components rewritten to consume the enriched payload; divergent SAMPLE datasets deleted (empty-state when no data). `npm run build` green; `test_frontend_contract.py` 40/40 PASS. |
 | FE-5.5 | Sequence Viewer v2 (Benchling-grade) + chrome relayout | ✅ Done (2026-05-16). Ported `Eamos Workbench v2.html` + `Workbench v2/*` to React: `lib/workbench/{gene-window,sample-rpe65-v2,edit-state}.ts` + `gene-window.test.ts`; `viewer/{SequenceViewerV2,ViewerToolbar,GeneMinimap,ExonStrip,CodonDetail,SelectionBar,HistoryTimeline,EditPopoverV2,ZoomSlider,viewer-types}.tsx` + new `ToolBar.tsx`; rewrote `CanvasHeader`/`SidePanel`/`WorkbenchShell`. 4 mods all in: (1) ClinVar density toggle (Tracks dropdown, grouped w/ pins); (2) collapsible side-panel exon disclosure; (3) horizontal segmented tool selector top-right, left rail removed (`.wb` → 2-col); (4) Benchling −/+ density slider + retained Gene/Exon/Codon chips + minimap/exon-strip collapse + restriction-as-top-ticks/beige-band aesthetics. 14 superseded FE-5 files deleted. Verified: `npx vitest run` 24/24, `npm run build` clean, `test_frontend_contract.py` 40/40 (untouched). Then Codex adversarial hardening pass (`task-mp8d61ip-1zyj8k`) fixed 2 HIGH / 2 MED / 3 LOW (drag-unmount leak, popover portal+viewport clamp, history-jump bounds, data-driven intronic ClinVar mapping, a11y/keys/stale-CSS); Claude re-verified post-Codex (24/24, clean, 40/40). Browser pixel-check pending a dev-server session. |
-| FE-5.6 | Workbench viewer refinement pass (8 pixel-check fixes) | **Planned (2026-05-17)** — browser pixel-check of FE-5.5 surfaced 8 changes. Decisions locked with user (see "FE-5.6"): dynamic reflow, unified edit-hub redesign, variant-render small-now/defer-cascade. Execute before FE-6 (shares the chrome). |
-| FE-6 | Primer + CRISPR panels | Pending — builds on FE-5.5/FE-5.6 chrome (BE-7 stub data exists). |
+| FE-5.6 | Workbench viewer refinement pass (8 pixel-check fixes) | **In progress (2026-05-17)** — Unit A (items 2,3,5) DONE + user-accepted; Unit B (item 1) DONE + verified; **Unit C (items 4,7 — unified edit-hub redesign) DONE + verified** (vitest 24/24, build clean, contract 40/40 + browser pixel-check: canvas selects, right-click cursor edit menu, Scratchpad hub, `SelectionBar` deleted, reducer kept in viewer). **Uncommitted.** Units D (item 6 dynamic reflow, highest risk) + E (item 8 variant-render) remain. Decisions locked (see "FE-5.6"). Execute before FE-6 (shares the chrome). |
+| FE-6 | Primer + CRISPR panels | **CRISPR slice ✅ DONE + verified (2026-05-17 · Claude S26)** — `plans/crispr-integration.md` §5; mock-first on `CrisprResponse`. **Primer slice ✅ DONE + verified (2026-05-18 · Claude)** — `plans/primer-integration.md` §5 Phase A, mock-first on the frozen `POST /api/v1/primer` contract; the 3-layer progressive-disclosure card is the first reference implementation of DESIGN.md's Dashboard Interaction Language (`--elev-*`/`--dur-*`/`--ease-*` tokens + reduced-motion guard added to `index.css`). vitest 53/53, build clean, contract 40/40 untouched, DESIGN.md-conformance grep, browser pixel-check. Presentation is 3-layer cards, not the older "output table" wording (superseded — see `plans/primer-integration.md §4.4`). §6 Phase-B additive `specificity_detail` is a gated Codex brief (filed in `agent_handoff/CURRENT.md` Cross-Agent Requests). Builds on FE-5.5/FE-5.6 chrome. |
 | FE-7 | Alignment + Comparator | Pending (BE-7 stub data exists). |
 | FE-8 | AskEamos pill (tool-aware) | Pending. No contract dependency. |
 | FE-14 | Search robustness + `cleanQuery()` | ✅ Done (2026-05-16). `cleanQuery()`/`isLikelyUnparseable()` + 1-retry/backoff + malformed/unresolved/offline/degraded states. Cross-check HIGH-2: `coord` regex widened to accept VCF-quad genomic input (`1-68444869-T-C`, `chr1:68444869:T:C`) the backend already accepts. No `backend.ts`/contract change. vitest 21/21, build clean. |
@@ -627,6 +627,30 @@ codon detail); contract test still 40/40; build + vitest green.
 
 ### FE-5.6 — Workbench viewer refinement pass (8 pixel-check fixes)
 
+> **Progress (2026-05-17) — FE-5.6 COMPLETE: all 8 items resolved.** Units A
+> (items 2,3,5, S21, user-accepted), B (item 1, S23), C (items 4+7, S24) and
+> **D + E (items 6 + 8, S25) DONE + verified**. Unit C — unified edit-hub
+> redesign (canvas selects only; right-click cursor edit menu; Scratchpad
+> absorbs the selection summary + range actions; `SelectionBar` deleted;
+> reducer kept in viewer via the extended `onSelectionChange` /
+> `SequenceViewerHandle` seam). **Unit D — dynamic reflow:** `buildLayout`
+> extracted pure to `lib/workbench/codon-layout.ts` (`buildLayout(flat,
+> rowBp)` + `LayoutItem` + `MIN_BP=12`); `CodonDetail` drives `rowBp` from a
+> `useLayoutEffect` `ResizeObserver` on `.sv-detail` (`disconnect()` on
+> unmount), memo keyed on `[containerW, baseW]` so width-resize, side-panel
+> collapse **and zoom** all reflow. **Unit E — variant overlay:** a render-only
+> baseline `sub` merged with user `edits` into the translation triplet only
+> (`transEdits`) — never the reducer/Scratchpad/undo, survives "Reset all";
+> `bases()` keeps `edits` so the queried ref base keeps `.variant` (the §E
+> "`.variant` still reads correctly / distinct from user edits" constraint
+> ruled out merging into `bases()`). Verified: vitest **35/35** (24 + 11 new
+> pure layout cases) · build clean · contract **40/40** (untouched) · browser
+> pixel-check (reflow on width/zoom/side-panel-collapse, **no h-scroll**;
+> queried codon shows Gly + old Asp badge; Unit C left-select/right-edit not
+> regressed). **Uncommitted** (working tree). Built on Codex's `88a3739`
+> (ex-`f2de719`, Claude-reviewed). Next is user-gated (FE-6/7/8 / M-002) + the
+> post-FE-5.6 Codex doc-sync pass. See `agent_handoff/CURRENT.md`.
+
 **Why this milestone exists.** The 2026-05-17 browser pixel-check of FE-5.5
 (first time the viewer was eyeballed, not just headless-verified) surfaced 8
 changes. Several reshape FE-5.5 decisions; doing them *before* FE-6 is required
@@ -815,6 +839,44 @@ Side panel content updates: primer mode info + target context + AI assist chips;
 Engine calls — POST to `/api/v1/primer` and `/api/v1/crispr` (BE-4). Until BE-4 ships, use canned response shapes from sample data.
 
 **Acceptance** — switching to Primer keeps Sequence Viewer visible above; tables render with sample data; ★ row highlights.
+
+> **FE-6 CRISPR slice — ✅ DONE + verified 2026-05-17 23:47 +1000 · Claude Session 26.**
+> The CRISPR half of FE-6 shipped per `plans/crispr-integration.md` **§5 Phase A**
+> (Blueprint-1 gRNA design) **+ §8 Phase C-fe** (Blueprint-2 Outcomes scaffold),
+> mock-first on the existing `CrisprResponse` contract. New
+> `components/workbench/crispr/{CrisprPanel,DesignTab,GuideTrack,OutcomesTab,IndelSpectrum}.tsx`
+> + `lib/workbench/{crispr-guide-map(+test),crispr-sample,crispr-tide-sample}.ts`;
+> `api.ts` `designGuides`/`analyzeTide` (mock-first); `WorkbenchShell`/`SidePanel`
+> (`CrisprSide`)/`workbench.css` wiring. Sub-tabs Design|Outcomes (rail stays 5
+> tools). Verified: vitest **42/42** (+7 guide-map), build clean, contract
+> **40/40** untouched, browser pixel-check at `/workbench`.
+> **Codex-request compliance:** built **only** on the existing
+> `CrisprResponse`/`CrisprGuide`/`HdrSsodn` fields — no additive fields
+> (`specificity_score`/`target_sequence`/`genomic_region`), no `backend.ts`/
+> schema change; TIDE shape kept FE-local (`crispr-tide-sample.ts`, Rule 5)
+> until Codex ships §7. This satisfies the open Codex→Claude mock-first ask.
+> Backend §6 (gRNA design engine) = Codex **M-002D**, done in parallel. §7
+> (TIDE endpoint) brief filed in `agent_handoff/CURRENT.md` →
+> `## Cross-Agent Requests` (pointer to `plans/crispr-integration.md §7`); FE
+> stays mock-first, not blocked. FE-6 Primer panel **DONE+verified
+> 2026-05-18** (Phase A). **Still open in FE-6:** further CRISPR polish —
+> user-gated.
+
+> **GV-005 + GV-006 — ✅ DONE + verified 2026-05-19 · Claude (user-directed).**
+> Gene-viewer frontend per `plans/gene-viewer/{spec,plan}.md`, user-chosen
+> hybrid adapter + Option-B layout (minimap = genomic; detail-pane
+> Sequence|Protein switch; reference/variant allele toggle). New
+> `lib/backend.ts` viewer mirror, `lib/api.ts` `getGeneViewer` (mock-first),
+> `lib/workbench/{gene-viewer-sample,gene-viewer-adapter(+test)}.ts`,
+> `components/workbench/viewer/ProteinView.tsx`; edited `WorkbenchShell`,
+> `CanvasHeader`, `SequenceViewerV2`, `CodonDetail` (FE-5.6 Unit-E synthetic
+> overlay superseded → adapter-driven allele basis), `styles/workbench.css`.
+> ClinVar lollipops are **uniform size** (no frequency implication).
+> Verified: vitest **73/73** (+20 adapter), build clean, contract **40/40**
+> (viewer canary = Codex lane, filed in `agent_handoff/CURRENT.md` →
+> Cross-Agent Requests, with the viewer-payload enrichment ask). Browser
+> pixel-check passed (allele toggle flips c.260 A↔G / codon 87 Asp↔Gly;
+> protein domain + lollipop @ aa87; minimap preserved; Primer below viewer).
 
 ### FE-7 — Alignment + Comparator
 

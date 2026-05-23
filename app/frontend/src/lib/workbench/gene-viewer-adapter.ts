@@ -87,6 +87,9 @@ export function adaptGeneViewer(
   const { identity, locus, summary, queried_variant: qv, tracks } = resp
   const reverse = locus.strand === '-'
   const qvCds = qv.cds_pos
+  const canUseSampleScaffold =
+    identity.gene === scaffold.gene &&
+    identity.resolved_transcript === scaffold.transcript
 
   const windowSegments: WindowSegment[] = resp.segments.map((seg) => {
     if (seg.kind === 'exon') {
@@ -126,6 +129,24 @@ export function adaptGeneViewer(
   })
 
   const pf = tracks.protein_features
+  const exons = canUseSampleScaffold
+    ? scaffold.exons
+    : windowSegments
+        .filter((seg): seg is Extract<WindowSegment, { kind: 'exon' }> => seg.kind === 'exon')
+        .map((seg) => ({
+          num: seg.exonNum,
+          cdsStart: seg.cdsStart,
+          cdsEnd: seg.cdsEnd,
+          genomicLen: seg.cdsEnd - seg.cdsStart + 1,
+        }))
+  const introns = canUseSampleScaffold
+    ? scaffold.introns
+    : windowSegments
+        .filter((seg): seg is Extract<WindowSegment, { kind: 'intron' }> => seg.kind === 'intron')
+        .map((seg) => ({
+          num: seg.intronNum,
+          lenBp: seg.totalLen,
+        }))
 
   return {
     gene: identity.gene,
@@ -134,17 +155,16 @@ export function adaptGeneViewer(
     chrom: locus.chrom,
     nativeStrand: reverse ? 'reverse' : 'forward',
 
-    geneLength: summary.gene_length ?? scaffold.geneLength,
+    geneLength: summary.gene_length ?? (canUseSampleScaffold ? scaffold.geneLength : 0),
     totalExons: summary.total_exons,
-    cdsLength: summary.cds_length ?? scaffold.cdsLength,
-    proteinLength: summary.protein_length ?? scaffold.proteinLength,
-    utr5Length: summary.utr5_length ?? scaffold.utr5Length,
-    utr3Length: summary.utr3_length ?? scaffold.utr3Length,
-    mrnaLength: summary.mrna_length ?? scaffold.mrnaLength,
+    cdsLength: summary.cds_length ?? (canUseSampleScaffold ? scaffold.cdsLength : 0),
+    proteinLength: summary.protein_length ?? (canUseSampleScaffold ? scaffold.proteinLength : 0),
+    utr5Length: summary.utr5_length ?? (canUseSampleScaffold ? scaffold.utr5Length : 0),
+    utr3Length: summary.utr3_length ?? (canUseSampleScaffold ? scaffold.utr3Length : 0),
+    mrnaLength: summary.mrna_length ?? (canUseSampleScaffold ? scaffold.mrnaLength : 0),
 
-    // Whole-gene structure is not in the contract yet → sample scaffold.
-    exons: scaffold.exons,
-    introns: scaffold.introns,
+    exons,
+    introns,
 
     windowSegments,
 
@@ -214,7 +234,9 @@ export function adaptGeneViewer(
     conservation:
       tracks.conservation_values.length > 0
         ? tracks.conservation_values
-        : scaffold.conservation,
+        : canUseSampleScaffold
+          ? scaffold.conservation
+          : [],
 
     restriction: tracks.restriction_sites.map((r) => ({
       name: r.name,
@@ -243,12 +265,18 @@ export function geneViewerScaffoldWarnings(
   resp: GeneViewerResponse,
 ): string[] {
   const warnings = [...resp.provenance.warnings]
-  // The contract carries no whole-gene exon/intron table today; the gene
-  // minimap + side-panel exon table are always sample-scaffolded until the
-  // viewer-payload enrichment ask lands.
-  warnings.push('exon_intron_table_from_sample_scaffold')
+  const usesSampleScaffold =
+    resp.identity.gene === RPE65_V2.gene &&
+    resp.identity.resolved_transcript === RPE65_V2.transcript
+  warnings.push(
+    usesSampleScaffold
+      ? 'exon_intron_table_from_sample_scaffold'
+      : 'exon_intron_table_window_only',
+  )
   if (resp.tracks.conservation_values.length === 0) {
-    warnings.push('conservation_from_sample_scaffold')
+    warnings.push(
+      usesSampleScaffold ? 'conservation_from_sample_scaffold' : 'conservation_unavailable',
+    )
   }
   return warnings
 }

@@ -2249,3 +2249,1103 @@ Out of scope: frontend TypeScript mirror/rendering, final ACMG PS3/BS3
 assignment, PubTator/PMC full-text functional classification, AlphaMissense,
 Patient Report Pipeline (`/runs`), commits, pushes, stashes, resets, and
 cleans.
+
+**Task GV-005/RP hardening follow-up - Contract canary and false-positive guards.**
+
+Status: DONE 2026-05-20 18:10 +1000 - Codex. Completed after the user approved
+a checkpoint commit/push and asked Codex to proceed with GV-005 first, then
+RP-004/RP-005 backend hardening.
+
+Files updated:
+- `app/backend/tests/test_frontend_contract.py`
+- `app/backend/app/services/publication_literature.py`
+- `app/backend/tests/test_publication_literature.py`
+- `app/backend/tests/test_functional_evidence.py`
+- `app/backend/tests/test_variant_cache.py`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Extended the frontend contract canary to cover `GeneViewerRequest`,
+  `GeneViewerResponse`, and all nested Gene Viewer Pydantic models against the
+  existing TypeScript mirror in `app/frontend/src/lib/backend.ts`.
+- Tightened EP-VLEx ClinVar PMID extraction so keys such as
+  `reference_allele` do not create PMID context for genomic coordinate numbers.
+  True citation/reference keys still count PMID-like values.
+- Added EP-VLEx regression tests for failed ClinVar source skips and
+  reference-allele false-positive PMIDs.
+- Added functional-evidence regression tests for ClinGen live failure warnings
+  that preserve PubMed hits and ClinVar failed-source statuses that skip VCV
+  fetching.
+- Extended variant-cache coverage so cached functional-evidence summaries,
+  including studies and evidence codes, replay without recomputing.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py tests/test_publication_literature.py tests/test_functional_evidence.py tests/test_variant_cache.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed after formatting `app/services/publication_literature.py`.
+- `cd app/backend && python -m pytest tests/ --disable-warnings -q`
+  -> passed.
+
+Checkpoint:
+- Pre-task backend checkpoint `c40bf52` was committed and pushed to
+  `origin/checkpoint/v2-batches-2026-05-17` before this follow-up work.
+
+Out of scope: frontend rendering, `backend.ts` EP-VLEx/functional mirror work,
+final ACMG PS3/BS3 assignment, Patient Report Pipeline (`/runs`),
+AlphaMissense, FE-7/FE-8, M-002 follow-ups, and destructive git operations.
+
+**Task RP layout planning - Functional display metrics and MVP source strategy.**
+
+Status: DONE 2026-05-20 18:52 +1000 - Codex. Completed after the user clarified
+that the Lab & Functional call card should display source-reported functional
+categorization and unique functional-study count as separate facts.
+
+Files updated:
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/services/functional_evidence.py`
+- `app/backend/tests/test_functional_evidence.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_variant_cache.py`
+- `app/backend/tests/test_frontend_contract.py`
+- `plans/variant-report-layout/design.md`
+- `plans/variant-report-layout/spec.md`
+- `plans/variant-report-layout/plan.md`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added backend functional display metrics:
+  `primary_label`, `acmg_badge_text`, `study_count_badge_text`, and
+  `ui_color_theme`.
+- Added `source_asserted_codes` and per-study `asserted_codes` so PS3/BS3-style
+  source assertions can be displayed independently from study count.
+- Added display mapping for source-reported PS3, source-reported BS3,
+  conflicting source reports, PubMed-only functional evidence, and no evidence.
+- Added/updated backend tests and the frontend contract canary for the new
+  additive fields.
+- Authored the Variant Evidence Report layout data design/spec/plan, including
+  the four-card grid and the requested Precision Therapies & Active Clinical
+  Trials section.
+- Captured MVP source strategy: MyVariant.info is an annotation
+  aggregator/fallback only; direct/source-native APIs remain required for
+  evidence and provenance; SpliceAI target architecture is local/precomputed
+  scoring in our own service/database, with public lookup only as cached demo
+  fallback.
+
+Verification completed:
+- `cd app/backend && python -m ruff check .` -> passed.
+- `cd app/backend && python -m black --check .` -> passed after formatting
+  `app/services/functional_evidence.py`.
+- `cd app/backend && python -m pytest tests/test_functional_evidence.py tests/test_variant_search_integration.py tests/test_variant_cache.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed.
+
+Out of scope: frontend rendering, generic four-call-card backend builder,
+MyVariant adapter implementation, ClinicalTrials.gov implementation,
+local SpliceAI service implementation, Patient Report Pipeline (`/runs`),
+AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task RP call cards / gnomAD population source - Backend contract and first source slice.**
+
+Status: DONE 2026-05-20 19:25 +1000 - Codex. Completed after the user
+confirmed gnomAD Browser as the source for population data and reiterated that
+each Variant Evidence Report call card/section must be live and gene agnostic.
+
+Files added:
+- `app/backend/app/services/report_call_cards.py`
+- `app/backend/tests/test_gnomad_tool.py`
+
+Files updated:
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/tools/gnomad.py`
+- `app/backend/app/fixtures/tools/gnomad_fixtures.json`
+- `app/backend/tests/test_frontend_contract.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `plans/variant-report-layout/design.md`
+- `plans/variant-report-layout/spec.md`
+- `plans/variant-report-layout/plan.md`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added the additive generic call-card contract:
+  `ReportCallBadge`, `ReportCallCard`, `VariantReportCallCards`, and optional
+  `ReportPayload.call_cards`.
+- Added additive source gnomAD population detail:
+  `PopulationFrequencyDetail`, `PopulationFrequencyAncestryGroup`,
+  `PopulationAgeDistribution`, `PopulationAgeHistogram`, and optional
+  `ReportPayload.population_frequency_detail`.
+- Added a call-card builder that produces Population Frequency, Computational,
+  Lab & Functional, and Clinical Consensus cards from the current lookup
+  payload/evidence maps.
+- Extended the gnomAD real-mode GraphQL query to hydrate joint/exome/genome
+  AC/AN/homozygotes, `faf95` popmax, genetic ancestry group rows, and available
+  age histograms.
+- Population Frequency now uses source gnomAD detail and preserves source URL,
+  dataset, sequencing type, warnings, ancestry rows, and age histograms for
+  section rendering.
+- Lab & Functional maps `functional_evidence.display_metrics` into the generic
+  card, preserving the invariant that source-reported PS3/BS3 category and
+  `X Unique` study count are independent.
+- Updated layout docs to state that gnomAD GraphQL is appropriate for cached
+  interactive single-variant population data, while production-scale batch work
+  should use local indexed gnomAD release data or the official toolbox path.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed after formatting the new/edited backend files.
+- `cd app/backend && python -m pytest tests/test_gnomad_tool.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed.
+
+Out of scope: frontend TypeScript mirror/rendering, MyVariant adapter
+implementation, local/precomputed SpliceAI service implementation, ClinGen
+expert-panel clinical-consensus precedence, ClinicalTrials.gov implementation,
+Patient Report Pipeline (`/runs`), AlphaMissense, commits, pushes, stashes,
+resets, and cleans.
+
+**Task RP call cards / gnomAD population source - Live route smoke and fallback guard.**
+
+Status: DONE 2026-05-20 23:15 +1000 - Codex. Completed after resuming from the
+call-card/population-detail handoff and live-smoking the current lookup path
+for the prior PS3/BS3 variants.
+
+Files updated:
+- `app/backend/app/tools/gnomad.py`
+- `app/backend/tests/test_gnomad_tool.py`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Live-smoked `POST /api/v1/lookup?refresh=true` for:
+  - RPE65 `NM_000329.3(RPE65):c.11+5G>A`
+  - RPE65 `NM_000329.3(RPE65):c.1301C>T (p.Ala434Val)`
+  - USH2A `c.2276G>T (p.Cys759Phe)` as the prior publication variant
+- Confirmed the RPE65 responses return `call_cards`,
+  `population_frequency_detail`, and `functional_evidence` together.
+- Fixed gnomAD live fallback so a timeout for one normalized variant cannot
+  attach the generic c.260A>G fixture population metrics to a different
+  variant. Mismatched fallback now keeps requested variant ID/dataset/source URL
+  and warnings but omits frequency/ancestry/age metrics.
+- Added regression coverage for the mismatched gnomAD fallback case.
+
+Verification completed:
+- Live route smoke:
+  - `c.11+5G>A` -> HTTP 200, gnomAD live, population variant ID
+    `1-68449890-C-T`, 10 genetic ancestry groups, age distribution present,
+    Lab & Functional `PS3_Supporting` / `1 Unique`.
+  - `c.1301C>T (p.Ala434Val)` -> HTTP 200, gnomAD live, population variant ID
+    `1-68431319-G-A`, 10 genetic ancestry groups, age distribution present,
+    Lab & Functional `BS3_Supporting` / `2 Unique`.
+  - USH2A `c.2276G>T (p.Cys759Phe)` -> HTTP 200, 13 EP-VLEx publications,
+    one PubMed-backed functional-evidence study, and no gnomAD detail because
+    the cDNA-only VEP path did not resolve genomic coordinates.
+- `cd app/backend && python -m ruff check app/tools/gnomad.py tests/test_gnomad_tool.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/tools/gnomad.py tests/test_gnomad_tool.py`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_gnomad_tool.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_gnomad_tool.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+
+Out of scope: frontend TypeScript mirror/rendering, Patient Report Pipeline
+(`/runs`), AlphaMissense, MyVariant/dbNSFP, local/precomputed SpliceAI,
+ClinicalTrials.gov implementation, commits, pushes, stashes, resets, and
+cleans.
+
+**Task Variant Evidence Report Task 11A + Task 12 backend implementation.**
+
+Status: DONE 2026-05-23 19:51 +1000 - Codex. Completed after user approved the
+combined backend-only session for gene-agnostic report-profile hardening and
+Section 3 gnomAD expansion.
+
+Files added:
+- `app/backend/app/services/population_frequency_section.py`
+- `app/backend/tests/test_report_call_cards.py`
+
+Files updated:
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/services/report_call_cards.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/app/services/clinical_consensus.py`
+- `app/backend/app/tools/variant_validator.py`
+- `app/backend/app/tools/ensembl_vep.py`
+- `app/backend/app/tools/spliceai.py`
+- `app/backend/app/tools/gnomad.py`
+- `app/backend/app/tools/clinvar.py`
+- `app/backend/app/tools/pubmed.py`
+- `app/backend/app/tools/litvar2.py`
+- `app/backend/app/fixtures/tools/clingen_fixtures.json`
+- `app/backend/tests/test_frontend_contract.py`
+- `app/backend/tests/test_gnomad_tool.py`
+- `app/backend/tests/test_clinical_consensus.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_search_input_resolver.py`
+- `plans/variant-report-data-orchestration/plan.md`
+- `plans/variant-report-data-orchestration/spec.md`
+- `docs/proprietary/README.md`
+- `docs/proprietary/index.json`
+- `docs/proprietary/variant-report-orchestration.md`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added fixture/fallback identity guards for VariantValidator, VEP, SpliceAI,
+  gnomAD, ClinVar, PubMed, and LitVar2 so mismatched non-RPE65 lookups return
+  empty/unavailable data instead of the RPE65 fixture snapshot.
+- Added the six-variant Task 11A regression matrix: RPE65 `c.260A>G`, RPE65
+  `c.11+5G>A`, USH2A `c.2276G>T`, BRCA1 `c.5266dup`, RPGRIP1 `c.1997C>T`,
+  and CFTR Leu441 ambiguity.
+- Added source-scoped ClinGen fixture coverage for RPE65 `c.11+5G>A` so the
+  functional-prior/PS3 path is proven without borrowing `c.260A>G` facts.
+- Added additive `ReportCallInteraction`, `ReportCallCard.interaction`, and
+  `VariantReportProfile.population_frequency` schemas.
+- Added the Section 3 population-frequency builder, projecting the existing
+  canonical `population_frequency_detail` into a render-ready section with
+  genetic ancestry groups, overall release-sample age bins, source/QC rows,
+  warnings, source URL, and provenance.
+- Population Frequency call cards now carry `scroll_and_expand` metadata to
+  `section-3-population-frequency` and `gnomad-expansion`.
+- Sanitized ACMG rationale text for raw population metric leakage and stopped
+  PM2/BA1/BS1 call-card badges from being derived directly from raw AF/AC/popmax
+  thresholds.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_variant_report_orchestration.py tests/test_report_call_cards.py tests/test_gnomad_tool.py tests/test_clinical_consensus.py tests/test_variant_search_integration.py tests/test_search_input_resolver.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py tests/test_tool_invariants.py tests/test_publication_literature.py tests/test_functional_evidence.py tests/test_clinical_trials_tool.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed, 4 skipped, existing JWT
+  short-key warnings only.
+
+Out of scope: frontend edits/rendering, browser verification, Patient Report
+Pipeline (`/runs`), AlphaMissense, production gnomAD ETL/warehouse, commit,
+push, stash, reset, or clean.
+
+**Task Variant Evidence Report Section 3 gnomAD expansion planning.**
+
+Status: PLANNED 2026-05-23 19:14 +1000 - Codex. Completed after the user
+supplied gnomAD expansion briefs and redirected the population-frequency
+detail into Section 3.
+
+Files updated:
+- `plans/variant-report-data-orchestration/design.md`
+- `plans/variant-report-data-orchestration/spec.md`
+- `plans/variant-report-data-orchestration/plan.md`
+- `plans/v2-backend.md`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Plan captured:
+- Population Frequency card remains compact and should emit navigation
+  metadata for `scroll_and_expand` to Section 3 (`section-3-population-frequency`
+  / `gnomad-expansion`).
+- Section 3 owns the expanded gnomAD panel: source header, metric strip,
+  genetic ancestry heatmap/bar rows, overall age histogram views, source/QC
+  table rows, warnings, and provenance.
+- `population_frequency_detail` stays the canonical raw/source detail group;
+  any `report_profile.population_frequency` section is a render-ready
+  projection with a clear reference back to that detail group.
+- Section 2 remains disease mechanism/inheritance only.
+- ACMG ledger stays clean: PM2/BA1/BS1 may appear as source-asserted criteria
+  or Eamos hints, but no raw gnomAD AF/AC/AN/popmax, homozygote, genetic
+  ancestry, or age-bin metrics should be repeated in ledger rationale.
+- Current gnomAD GraphQL/fixture data has overall het/hom age distribution, not
+  per-genetic-ancestry histograms. Do not fabricate per-group age arrays.
+
+Planned implementation/test follow-up:
+- Add `ReportCallInteraction`, `ReportCallCard.interaction`, and
+  `VariantReportProfile.population_frequency`.
+- Add a Section 3 population-frequency builder, likely
+  `app/backend/app/services/population_frequency_section.py`.
+- Add `app/backend/tests/test_population_frequency_expansion.py` and extend
+  gnomAD/orchestration/contract/clinical-consensus tests for navigation,
+  Section 2 cleanliness, no fixture bleed, no per-group age fabrication, and no
+  raw gnomAD metrics in ACMG.
+
+Verification for this planning slice:
+- Not run; documentation/planning-only update. Use `git diff --check` before
+  final handoff.
+
+Out of scope: frontend edits/rendering, browser verification, Patient Report
+Pipeline (`/runs`), AlphaMissense, production gnomAD ETL/warehouse, commit,
+push, stash, reset, or clean.
+
+**Task Variant Evidence Report Task 11A + Task 12 parallel next-session plan.**
+
+Status: PLANNED 2026-05-23 19:24 +1000 - Codex. Added after the user asked
+whether the sections before Task 12 need more hardening and testing with other
+genes to prove gene-agnostic search/output behavior.
+
+Plan update:
+- Add `plans/variant-report-data-orchestration/plan.md` Task 11A:
+  Gene-Agnostic Report Profile Regression Gate.
+- Run Task 11A and Task 12 in the same next session, but keep shared
+  schema/contract integration local to Codex.
+- Use subagents in parallel for disjoint work:
+  - Fixture Bleed Audit Agent.
+  - Multi-Gene Test Matrix Agent.
+  - Clinical/ACMG Semantics Agent.
+  - Section 3 gnomAD Worker after Codex controls the shared schema shape.
+
+Task 11A target matrix:
+- RPE65 `c.260A>G` rich fixture happy path.
+- RPE65 `c.11+5G>A` splice/functional-prior path.
+- USH2A `c.2276G>T` different-gene path.
+- BRCA1 `c.5266dup` indel normalization path.
+- RPGRIP1 `c.1997C>T` sparse/no-hit path.
+- CFTR Leu441 ambiguity path, which should require confirmation rather than
+  building a report-runnable payload.
+
+Task 11A acceptance:
+- Non-RPE65 lookups must not inherit RPE65 disease, molecular,
+  computational, ACMG, gnomAD, publication, functional, or trial facts.
+- Gene-only/disease-only/ambiguous inputs keep variant-level sections
+  unavailable or confirmation-gated.
+- Interpretation summaries cite only current-lookup facts.
+- Publication inventory and functional-study counts stay separate.
+- gnomAD no-hit and fallback mismatch never attach fixture metrics.
+
+Verification for this planning update:
+- Planning/docs only; run `git diff --check` before handoff.
+
+Out of scope: frontend edits/rendering, browser verification, Patient Report
+Pipeline (`/runs`), AlphaMissense, commit, push, stash, reset, or clean.
+
+**Task Variant Report Data Orchestration Task 7 - Computational annotation stack.**
+
+Status: DONE 2026-05-23 18:44 +1000 - Codex. Completed after user approved
+continuing backend-only with Task 7 and requested parallel subagents for ACMG
+ledger, publications, clinical trials, and support work.
+
+Files added:
+- `app/backend/app/tools/computational_annotations.py`
+- `app/backend/app/fixtures/tools/computational_annotations_fixtures.json`
+- `app/backend/tests/test_clinical_trials_tool.py`
+- `app/backend/tests/test_variant_report_publication_functional_integration.py`
+
+Files updated:
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/app/tools/registry.py`
+- `app/backend/app/tools/clinical_trials.py`
+- `app/backend/app/tools/CLAUDE.md`
+- `app/backend/app/fixtures/tools/CLAUDE.md`
+- `app/backend/tests/test_tool_invariants.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_clinical_consensus.py`
+- `plans/variant-report-data-orchestration/plan.md`
+- `docs/proprietary/variant-report-orchestration.md`
+- `docs/proprietary/index.json`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added a source-backed fixture-first `ComputationalAnnotationsTool` that
+  matches by gene plus variant identifiers and returns empty/missing state for
+  non-matching variants instead of bleeding RPE65 fixture rows.
+- Added the RPE65 first-slice computational annotation fixture with SpliceAI
+  DS/DP component scores, max delta/consequence, REVEL, CADD PHRED,
+  PrimateAI-3D, MetaLR, phyloP100way, GERP++ RS, source URLs, and version
+  labels.
+- Wired `LookupService` to run `computational_annotations` during Variant
+  Evidence Report lookup and updated `VariantReportDataOrchestrator` so
+  `report_profile.computational_deep_dive` prefers these source-labeled rows
+  over the legacy in-silico cards.
+- Kept AlphaMissense filtered/on hold; no AlphaMissense value is surfaced.
+- Integrated parallel sidecar hardening:
+  - ACMG ledger regression proving source-asserted criteria stay separate from
+    Eamos hints and hints do not overwrite final classification.
+  - Publication/functional integration regression proving EP-VLEx publication
+    inventory and functional-study count remain distinct.
+  - ClinicalTrials.gov v2 structured parser/helper first slice with NCT
+    discovery links, match-level labels, fallback query ordering, and
+    no-eligibility warnings. `report_profile.therapies_trials.trial_rows`
+    integration remains a later Task 9 step.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_variant_report_orchestration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_clinical_consensus.py tests/test_clinical_trials_tool.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_report_publication_functional_integration.py tests/test_publication_literature.py tests/test_functional_evidence.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py tests/test_clinical_consensus.py tests/test_clinical_trials_tool.py tests/test_variant_report_publication_functional_integration.py tests/test_publication_literature.py tests/test_functional_evidence.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing short test-JWT
+  warnings only).
+
+Out of scope: frontend TypeScript mirror/rendering, live MyVariant/dbNSFP/CADD
+API integration, local/precomputed SpliceAI service implementation,
+PrimateAI-3D licensed data ingestion, `report_profile.therapies_trials`
+integration, Patient Report Pipeline (`/runs`), AlphaMissense, commits,
+pushes, stashes, resets, and cleans.
+
+**Task Variant Report Data Orchestration Task 6 - Molecular context + structural overlap.**
+
+Status: DONE 2026-05-23 18:22 +1000 - Codex. Completed after user approved
+continuing backend-only with the next report-profile section.
+
+Files added:
+- `app/backend/app/tools/molecular_context.py`
+- `app/backend/app/fixtures/tools/molecular_context_fixtures.json`
+
+Files updated:
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/app/services/report_provenance.py`
+- `app/backend/app/services/search_input_resolver.py`
+- `app/backend/app/tools/ensembl_vep.py`
+- `app/backend/app/tools/variant_validator.py`
+- `app/backend/app/tools/registry.py`
+- `app/backend/app/tools/CLAUDE.md`
+- `app/backend/app/fixtures/tools/CLAUDE.md`
+- `app/backend/app/fixtures/tools/vep_fixtures.json`
+- `app/backend/app/fixtures/tools/variant_validator_fixtures.json`
+- `app/backend/tests/test_tool_invariants.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `plans/variant-report-data-orchestration/plan.md`
+- `docs/proprietary/variant-report-orchestration.md`
+- `docs/proprietary/index.json`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added a source-backed fixture-first `MolecularContextTool` for gnomAD gene
+  constraint, ClinGen dosage sensitivity, and molecular-context provenance.
+- Added the RPE65 first-slice fixture with LOEUF `1.0`, pLI `0.0`, ClinGen
+  haploinsufficiency `Gene Associated with Autosomal Recessive Phenotype (30)`,
+  triplosensitivity `No Evidence for Triplosensitivity (0)`, source URLs, and
+  source release/version labels.
+- Extended VEP and VariantValidator summaries/fixtures with molecular-context
+  fields (`exon`, `codons`, `strand`) so the section can prefer source-backed
+  coordinates over legacy display prose.
+- Wired `LookupService` to run `molecular_context` during Variant Evidence
+  Report lookup and internally resolve the existing sequence-context fixture
+  for reverse-strand codon detail.
+- Updated `VariantReportDataOrchestrator` so
+  `report_profile.molecular_context` now returns chromosome 1, reverse strand,
+  exon 4, codon change `GAC>GGC`, protein position 87, LOEUF 1.0, and ClinGen
+  haploinsufficiency with provenance versions.
+- Left domain, hotspot, and structural CNV overlap empty with explicit
+  not-hydrated warnings; no unsupported structural claim is surfaced.
+- Preserved the existing additive `report_profile` contract shape; no frontend
+  TypeScript fields were added in this slice.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_variant_report_orchestration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_variant_search_integration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed after formatting `lookup_service.py` and
+  `variant_report_orchestrator.py`.
+- `cd app/backend && python -m pytest -q` -> passed (existing short test-JWT
+  warnings only).
+
+Out of scope: frontend TypeScript mirror/rendering, UniProt/AlphaFold/PDB
+domain mapping, full structural CNV overlap adapter, Patient Report Pipeline
+(`/runs`), AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task Variant Report Data Orchestration Task 5 - Disease mechanism + inheritance.**
+
+Status: DONE 2026-05-23 17:52 +1000 - Codex. Completed after user approved
+continuing backend-only with the next report-profile section.
+
+Files added:
+- `app/backend/app/tools/gene_disease.py`
+- `app/backend/app/fixtures/tools/gene_disease_fixtures.json`
+
+Files updated:
+- `app/backend/app/core/config.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/app/tools/registry.py`
+- `app/backend/app/tools/CLAUDE.md`
+- `app/backend/app/fixtures/tools/CLAUDE.md`
+- `app/backend/tests/test_tool_invariants.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `plans/variant-report-data-orchestration/plan.md`
+- `docs/proprietary/variant-report-orchestration.md`
+- `docs/proprietary/index.json`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added a source-backed `GeneDiseaseTool` for disease mechanism,
+  inheritance, disease identifiers, gene-disease validity, and per-source
+  provenance.
+- Added the RPE65 first-slice fixture with HGNC, ClinGen Gene-Disease
+  Validity, NCBI MedGen, and Orphadata provenance. Disease IDs include OMIM,
+  MedGen, MONDO, and ORPHA-style identifiers when available.
+- Wired `LookupService` to run `gene_disease` evidence during Variant Evidence
+  Report lookup.
+- Updated `VariantReportDataOrchestrator` so
+  `report_profile.disease_mechanism` prefers `gene_disease` evidence and only
+  falls back to legacy `associated_conditions` when the new source is absent.
+- Preserved the existing additive `report_profile` contract shape; no frontend
+  TypeScript fields were added in this slice.
+- Kept missing penetrance as `null` with `penetrance_not_source_backed` rather
+  than fabricating a value.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_report_orchestration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing short test-JWT
+  warnings only).
+
+Out of scope: frontend TypeScript mirror/rendering, OMIM licensed API work,
+bulk disease ontology ingestion, Patient Report Pipeline (`/runs`),
+AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task Variant Report Data Orchestration Task 4 - ClinGen/ClinVar clinical consensus + ACMG ledger.**
+
+Status: DONE 2026-05-23 13:16 +1000 - Codex. Completed after user approved
+continuing backend-first before the frontend mirror/render.
+
+Files added:
+- `app/backend/app/services/clinical_consensus.py`
+- `app/backend/app/tools/clingen.py`
+- `app/backend/app/fixtures/tools/clingen_fixtures.json`
+- `app/backend/tests/test_clinical_consensus.py`
+
+Files updated:
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/services/report_call_cards.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/app/tools/registry.py`
+- `app/backend/app/tools/CLAUDE.md`
+- `app/backend/app/fixtures/tools/CLAUDE.md`
+- `app/backend/tests/test_tool_invariants.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `plans/variant-report-data-orchestration/plan.md`
+- `docs/proprietary/variant-report-orchestration.md`
+- `docs/proprietary/index.json`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added a ClinGen ERepo adapter with fixture-backed and live summary
+  classification lookup.
+- Added clinical consensus assembly that prefers ClinGen/VCEP classifications
+  over ClinVar, falls back to ClinVar when ClinGen has no variant record, and
+  keeps source-asserted ACMG criteria separate from Eamos worksheet hints.
+- Added ClinVar VCV XML comment/attribute parsing for source-asserted ACMG
+  criteria and PMID refs when VCV XML is available.
+- Wired Card 4, `report_profile.header`, deterministic interpretation summary,
+  and `report_profile.acmg_worksheet` to the source-priority consensus result.
+- Preserved the existing additive `report_profile` contract shape; no frontend
+  TypeScript fields were added in this slice.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_clinical_consensus.py tests/test_tool_invariants.py tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_functional_evidence.py tests/test_tool_invariants.py tests/test_frontend_contract.py tests/test_variant_report_orchestration.py tests/test_clinical_consensus.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing short test-JWT
+  warnings only).
+
+Out of scope: full ACMG classification engine, frontend mirror/rendering,
+Patient Report Pipeline (`/runs`), AlphaMissense, live ClinGen/ClinVar VCV
+smoke, commits, pushes, stashes, resets, and cleans.
+
+**Task Variant Report Data Orchestration Tasks 1-3 - Report profile spine.**
+
+Status: DONE 2026-05-23 12:10 +1000 - Codex. Completed after the user
+approved `plans/variant-report-data-orchestration/plan.md` Tasks 1-3.
+
+Files added:
+- `app/backend/app/services/report_extraction_plan.py`
+- `app/backend/app/services/report_provenance.py`
+- `app/backend/app/services/variant_report_orchestrator.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+- `docs/proprietary/variant-report-orchestration.md`
+
+Files updated:
+- `app/backend/app/schemas/run.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/tests/test_frontend_contract.py`
+- `docs/proprietary/README.md`
+- `docs/proprietary/index.json`
+- `plans/variant-report-data-orchestration/plan.md`
+- `plans/v2-backend.md`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added additive `ReportPayload.report_profile` with typed header,
+  deterministic interpretation summary, disease mechanism, molecular context,
+  computational deep dive, ACMG worksheet, therapies/trials, and provenance.
+- Added a section-aware `ReportExtractionPlan` that keeps canonical identity,
+  source query bundles, section match levels, and warnings auditable.
+- Added match-level gates so gene/disease-only or confirmation-required inputs
+  cannot silently populate variant-level computational, ACMG, publication,
+  population, or splicing claims.
+- Kept publication variant aliases separate from gene fallback terms.
+- Added `VariantReportDataOrchestrator` and `report_provenance` helpers so
+  `LookupService` delegates profile assembly after existing call-card,
+  population, EP-VLEx, and functional-evidence groups are built.
+- Omitted `therapy_rows` in the first slice; `TherapiesTrialsSection` exposes
+  empty structured `trial_rows` with explicit first-slice/gene-level fallback
+  warnings until Task 9 lands a structured trials source.
+- Kept AlphaMissense hidden in the computational deep dive while the hold is
+  active.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py tests/test_search_input_resolver.py tests/test_frontend_contract.py tests/test_publication_literature.py tests/test_functional_evidence.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_cache.py tests/test_tool_invariants.py tests/test_gnomad_tool.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing short test-JWT
+  warnings only).
+
+Out of scope: frontend TypeScript mirror/rendering, new live source adapters,
+structured ClinicalTrials.gov rows, ClinGen/VCEP adapter work, Patient Report
+Pipeline (`/runs`), AlphaMissense, commits, pushes, stashes, resets, and
+cleans.
+
+**Task Variant Report Data Orchestration - design/spec/plan.**
+
+Status: PLANNED 2026-05-22 00:09 +1000 - Codex. Completed a backend
+architecture planning pass after the user supplied the final Variant Evidence
+Report layout documents and clarified that the supercharged search bar should
+accurately extract relevant data for the right report sections.
+
+Files added:
+- `plans/variant-report-data-orchestration/design.md`
+- `plans/variant-report-data-orchestration/spec.md`
+- `plans/variant-report-data-orchestration/plan.md`
+
+Planning outcome:
+- Treat the search bar as a section-aware evidence planner, not just an input
+  parser.
+- Add a planned `ReportExtractionPlan` concept that maps interpreted user input
+  to canonical identity, source-specific query bundles, report section targets,
+  and match levels (`variant_level`, `gene_level`, `disease_level`,
+  `unavailable`).
+- Keep existing `call_cards`, `population_frequency_detail`,
+  `functional_evidence`, and `publications_literature` as canonical detailed
+  groups where they already work.
+- Add a planned optional `ReportPayload.report_profile` for the remaining
+  typed layout sections: header, interpretation summary, disease mechanism,
+  molecular context, computational deep dive, ACMG worksheet, therapies/trials,
+  and provenance.
+- Source strategy recorded: ClinGen/VCEP first for curated clinical consensus
+  and source-asserted ACMG criteria, ClinVar next, Eamos criteria only as
+  worksheet hints; PubMed/EP-VLEx for all variant-related publications; gene-
+  level ClinicalTrials.gov results allowed when variant-level trials are absent
+  and clearly labeled.
+- Additional source needs identified: HGNC, MedGen/Orphadata, optional OMIM
+  with license/API approval, gnomAD constraint/ClinGen dosage, dbNSFP/CADD/
+  PrimateAI-3D, optional CIViC for oncology, optional ClinPGx/PharmGKB/openFDA
+  for therapy/drug-label context.
+
+Verification:
+- `git diff --check -- plans\variant-report-data-orchestration\design.md plans\variant-report-data-orchestration\spec.md plans\variant-report-data-orchestration\plan.md`
+  -> passed.
+
+Out of scope: implementation, frontend TypeScript mirror/rendering, Patient
+Report Pipeline (`/runs`), AlphaMissense, live-provider AI smoke, commits,
+pushes, stashes, resets, and cleans.
+
+**Task Search Bar AI Input Tasks 1-3 - Web contract and candidate resolution.**
+
+Status: DONE 2026-05-21 19:07 +1000 - Codex. Completed after the user approved
+implementing `plans/search-bar-ai-input/plan.md` Tasks 1-3.
+
+Files added:
+- `app/backend/app/services/search_input_interpreter.py`
+- `app/backend/app/services/search_candidate_resolver.py`
+- `app/backend/app/fixtures/search_candidate_records.json`
+
+Files updated:
+- `app/backend/app/schemas/lookup.py`
+- `app/backend/app/api/routes/lookup.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/services/search_input_resolver.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_frontend_contract.py`
+- `plans/search-bar-ai-input/plan.md`
+- `plans/v2-backend.md`
+- `PROGRESS.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added additive search-input schemas and `POST /api/v1/lookup/parse` for
+  deterministic parse preview without running the full evidence stack.
+- Added canonical raw `LookupRequest.search_text`, alias `query`, mixed-mode
+  validation, and optional `LookupResponse.search_interpretation`.
+- Wired raw exact inputs through the backend interpreter and then the existing
+  Variant Evidence Report lookup path.
+- Added first-slice source-labeled candidate resolution for exact
+  source-backed matches, protein/codon-level ambiguity, and near-miss cDNA or
+  protein input.
+- Captured the corrected CFTR proof-of-concept as a recommendation:
+  `CFTR:p.Leu441fs` returns a ranked suggestion toward
+  `CFTR c.1321_1323del (p.Leu441del)` and does not auto-select the
+  non-existent frameshift.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_search_input_resolver.py tests/test_lookup_normalize.py tests/test_frontend_contract.py tests/test_tool_invariants.py tests/test_gnomad_tool.py tests/test_variant_cache.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (rerun 2026-05-21
+  19:07 +1000; existing JWT test-key
+  warnings only).
+
+Out of scope: frontend TypeScript mirror/rendering, AI extraction (Task 4),
+Patient Report Pipeline (`/runs`), AlphaMissense, live AI smoke, commits,
+pushes, stashes, resets, and cleans.
+
+**Task Search Bar AI Input Task 4 - Mock-first AI plain-language extractor.**
+
+Status: DONE 2026-05-21 23:09 +1000 - Codex. Completed after the user approved
+the next backend task and supplied AI chatbot/dictionary notes to consider.
+
+Files added:
+- `app/backend/app/services/search_input_ai.py`
+- `app/backend/app/fixtures/search_input_lexicon.json`
+
+Files updated:
+- `app/backend/app/schemas/lookup.py`
+- `app/backend/app/core/config.py`
+- `app/backend/app/agents/client.py`
+- `app/backend/app/agents/prompts.py`
+- `app/backend/app/agents/__init__.py`
+- `app/backend/app/services/search_input_interpreter.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `app/backend/tests/test_frontend_contract.py`
+- `plans/search-bar-ai-input/plan.md`
+- `docs/proprietary/`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added opt-in `SEARCH_INPUT_AI_ENABLED=false` default gating plus an
+  8-second live-provider timeout setting.
+- Added `SearchInputAiExtraction` and a guarded live structured-output chain
+  that uses server-side API keys only when explicitly enabled.
+- Added a mock-first `SearchInputAiExtractor` with a small curated
+  search-input lexicon for gene aliases, amino-acid terms, and consequence
+  terms. This is the first backend dictionary slice; broader reference coverage
+  remains Task 5.
+- Wired AI extraction only after deterministic parsing is unknown or
+  gene-missing. Exact deterministic HGVS/genomic inputs do not call AI.
+- Preserved the invariant that AI proposes intent only: protein-only plain
+  language goes through deterministic validation and source-backed candidate
+  resolution before any report can run.
+- Covered CFTR Leu441 examples: frameshift text returns a source-backed
+  recommendation toward the corrected deletion candidate; deletion text
+  auto-selects the one source-backed CFTR Leu441 deletion candidate.
+- Added prompt-injection phrase handling in mock mode and hardened the live
+  prompt to treat submitted text/reference context as data, not instructions.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_search_input_resolver.py tests/test_lookup_normalize.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing JWT test-key
+  warnings only).
+
+Out of scope: frontend TypeScript mirror/rendering, live AI smoke, vector RAG,
+bulk disease ontology ingestion, Patient Report Pipeline (`/runs`),
+AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task Search Bar AI Input Task 5 first slice - Curated dictionary helper.**
+
+Status: DONE 2026-05-21 23:26 +1000 - Codex. Completed after the user clarified
+that the dictionary should assist agents/backend code and add to the existing
+resolver/scripts, not replace them.
+
+Files added:
+- `app/backend/app/services/search_input_reference.py`
+- `app/backend/tests/test_search_input_reference.py`
+
+Files updated:
+- `app/backend/app/services/search_input_ai.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `plans/search-bar-ai-input/plan.md`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `docs/proprietary/search-input-ai.md`
+- `docs/proprietary/index.json`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added `SearchInputReference`, a reusable helper over the curated
+  search-input lexicon for gene aliases, amino-acid names/codes, consequence
+  terms, and live-prompt reference context.
+- Rewired the mock AI extractor through the helper while keeping the existing
+  deterministic resolver and source-backed candidate resolver as the authority.
+- Added the exact hamburger prompt guardrail regression from the user's AI
+  notes. The prompt stays low-confidence, records
+  `prompt_injection_phrase_ignored`, and produces no variant extraction or
+  recipe-like response.
+- Added helper tests for CFTR alias mapping, amino-acid nomenclature, and
+  frameshift term normalization.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_search_input_reference.py tests/test_variant_search_integration.py tests/test_search_input_resolver.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing JWT test-key
+  warnings only).
+
+Out of scope: frontend edits, live AI smoke, vector RAG, bulk disease ontology
+ingestion, HGNC API integration, Patient Report Pipeline (`/runs`),
+AlphaMissense, commits, pushes, stashes, resets, and cleans.
+
+**Task Search Bar AI Input Task 5 broader dictionary + Task 7 smoke hardening.**
+
+Status: DONE 2026-05-21 23:44 +1000 - Codex. Completed after the user approved
+starting the broader curated dictionary work and live AI smoke/hardening. Task
+6 frontend UX remains Claude-owned and is not a backend dependency.
+
+Files added:
+- `app/backend/app/cli/search_input_ai_smoke.py`
+- `app/backend/tests/test_search_input_ai_smoke_cli.py`
+
+Files updated:
+- `app/backend/app/fixtures/search_input_lexicon.json`
+- `app/backend/app/services/search_input_reference.py`
+- `app/backend/app/services/search_input_ai.py`
+- `app/backend/tests/test_search_input_reference.py`
+- `app/backend/tests/test_variant_search_integration.py`
+- `plans/search-bar-ai-input/plan.md`
+- `docs/proprietary/search-input-ai.md`
+- `docs/proprietary/index.json`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Broadened the curated search-input lexicon with gene aliases, ambiguous
+  disease/gene hints, MANE transcript hints, chromosome UI aliases, amino-acid
+  terms, consequence terms, ClinVar-style display vocabulary, and ACMG display
+  vocabulary.
+- Extended `SearchInputReference` with helper methods for ambiguous disease
+  hints, chromosome normalization, transcript hints, and display-only
+  ClinVar/ACMG labels. These remain helper facts only; they do not assign
+  final cDNA/genomic alleles.
+- Hardened the AI extractor so prompt-injection text with no variant signal is
+  blocked before a live provider call. Variant-bearing prompt-injection text
+  preserves `prompt_injection_phrase_ignored`.
+- Added `python -m app.cli.search_input_ai_smoke`, an opt-in mock/live smoke
+  harness that reports interpretation, candidates, expectation failures, and
+  whether a report would be allowed. Low-confidence or confirmation-required
+  outputs are not report-runnable.
+- Added regression coverage for ambiguous disease hints such as
+  `retinal dystrophy gene variant`, which now returns low-confidence
+  suggestions and `ambiguous_gene_hint:retinal dystrophy gene` instead of a
+  guessed gene.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_search_input_reference.py tests/test_search_input_ai_smoke_cli.py tests/test_variant_search_integration.py -q`
+  -> passed (33 tests).
+- `cd app/backend && python -m app.cli.search_input_ai_smoke --mock --expect-gene CFTR --expect-protein p.Leu441fs --expect-mode suggestions --expect-candidate-id source:CFTR_c.1321_1323del --compact`
+  -> passed.
+- `cd app/backend && python -m app.cli.search_input_ai_smoke --skip-if-unconfigured --compact`
+  -> skipped cleanly because this environment is not configured/enabled for
+  live AI (`SEARCH_INPUT_AI_ENABLED=false`, `LLM_PROVIDER=mock`, no
+  `OPENAI_API_KEY`).
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (existing JWT test-key
+  warnings only).
+
+Out of scope: frontend edits, actual live-provider call without configured
+provider settings, vector RAG, bulk ontology/HGNC ingestion, Patient Report
+Pipeline (`/runs`), AlphaMissense, commits, pushes, stashes, resets, and
+cleans.
+
+**Task RP source-input CLI - Developer Eamos Search Input stack.**
+
+Status: DONE 2026-05-21 17:54 +1000 - Codex. Completed after the user supplied
+additional search examples and identified the search input path as the lynchpin
+for the web tool.
+
+Files added:
+- `app/backend/app/cli/__init__.py`
+- `app/backend/app/cli/eamos_search_input.py`
+- `app/backend/tests/test_eamos_search_input_cli.py`
+
+Files updated:
+- `app/backend/app/services/search_input_resolver.py`
+- `app/backend/app/services/sequence_context.py`
+- `app/backend/tests/test_search_input_resolver.py`
+- `app/backend/tests/test_lookup_normalize.py`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added `python -m app.cli.eamos_search_input` as a developer CLI that prints
+  parsed, normalized, and per-source inputs from `EamosSearchInputResolver`.
+- Added CLI support for a single query or an input file. File mode consumes the
+  first tab-separated column, so annotated test stacks can be run directly.
+- Added `parse_search_text()` / `resolve_text()` to the resolver layer so the
+  future web search bar can reuse the same backend parser.
+- Accepted the supplied loose formats:
+  `GENE:c.`, transcript-with-gene HGVS plus protein alias,
+  `chr-pos-ref-alt`, `chrom pos ref alt`, `chrom:pos ref>alt`, and
+  `chrom:pos:ref:alt`.
+- Normalized chromosome aliases for source calls (`chr8` -> `8`, `MT` -> `M`).
+- Extended gnomAD-style non-SNV conversion to NC genomic HGVS for simple VCF
+  anchored insertions, deletions, and delins forms, so ClinVar,
+  VariantValidator, and VEP can receive RefSeq genomic HGVS where possible.
+
+Verification completed:
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_lookup_normalize.py tests/test_eamos_search_input_cli.py -q`
+  -> passed (22 tests).
+- `cd app/backend && python -m ruff check app/services/search_input_resolver.py app/services/sequence_context.py app/cli/eamos_search_input.py tests/test_search_input_resolver.py tests/test_lookup_normalize.py tests/test_eamos_search_input_cli.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/search_input_resolver.py app/services/sequence_context.py app/cli/eamos_search_input.py tests/test_search_input_resolver.py tests/test_lookup_normalize.py tests/test_eamos_search_input_cli.py`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_tool_invariants.py tests/test_gnomad_tool.py tests/test_lookup_normalize.py tests/test_eamos_search_input_cli.py -q`
+  -> passed (35 tests).
+- Direct fixture-mode CLI run against the user-supplied
+  `Variant test stack.txt` parsed all 10 nonblank examples and emitted
+  source-specific query bundles.
+
+Out of scope: frontend search bar contract changes, Patient Report Pipeline
+(`/runs`), AlphaMissense, MyVariant/dbNSFP, local/precomputed SpliceAI,
+ClinicalTrials.gov implementation, commits, pushes, stashes, resets, and
+cleans.
+
+**Task RP source-input resolver - Eamos Search Input stack.**
+
+Status: DONE 2026-05-21 00:14 +1000 - Codex. Completed after the user
+clarified that Variant Evidence Report source calls must resolve all relevant
+identifiers and choose source-appropriate inputs rather than assuming gene and
+codon strings are sufficient.
+
+Files added:
+- `app/backend/app/services/search_input_resolver.py`
+- `app/backend/tests/test_search_input_resolver.py`
+
+Files updated:
+- `app/backend/app/services/sequence_context.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/tools/variant_validator.py`
+- `app/backend/app/tools/ensembl_vep.py`
+- `app/backend/app/tools/clinvar.py`
+- `app/backend/app/tools/gnomad.py`
+- `app/backend/app/tools/spliceai.py`
+- `app/backend/tests/test_tool_invariants.py`
+- `app/backend/tests/test_gnomad_tool.py`
+- `app/backend/tests/test_lookup_normalize.py`
+- `PROGRESS.md`
+- `plans/v2-backend.md`
+- `agent_handoff/CURRENT.md`
+
+Implementation completed:
+- Added `EamosSearchInputResolver`, which normalizes user-submitted variant
+  text, resolves missing MANE/RefSeq transcript accessions in live mode, and
+  produces source-specific inputs for VariantValidator, Ensembl VEP, gnomAD,
+  SpliceAI, ClinVar, and literature term building.
+- Added parsing for gnomAD-style genomic IDs (`chr-pos-ref-alt`) and RefSeq
+  genomic HGVS SNVs, using the correct GRCh38 NC accession versions.
+- Wired lookup and publication lookup variant objects with
+  `search_input_resolution`, `genomic_hg38`, and `genomic_hgvs` so downstream
+  tools can use the right identifier for each source.
+- Updated VariantValidator and VEP to use source-specific identifiers and to
+  return stubs instead of firing invalid source calls when no usable identifier
+  exists.
+- Updated ClinVar to prefer resolved NC genomic HGVS after coordinate
+  resolution, including indels/duplications, because transcript-only ClinVar
+  search can return unrelated top hits.
+- Changed ClinVar live no-hit behavior to return `Unavailable` / `not found`
+  instead of unrelated fixture evidence.
+- Removed unsafe VariantValidator fallback mutation from VEP raw data after
+  live timeouts; this avoided wrong allele-orientation coordinates on
+  transcript queries.
+- Increased gnomAD and VariantValidator live timeouts from 15s to 30s.
+- Added current source-input test-stack coverage for USH2A genomic input,
+  RPGRIP1 `c.1997C>T`, and BRCA1 `c.5266dupC`.
+
+Live source mappings verified:
+- RPE65 `NM_000329.3(RPE65):c.11+5G>A` -> `NC_000001.11:g.68449890C>T` ->
+  gnomAD `1-68449890-C-T`.
+- RPE65 `NM_000329.3(RPE65):c.1301C>T (p.Ala434Val)` ->
+  `NC_000001.11:g.68431319G>A` -> gnomAD `1-68431319-G-A`.
+- USH2A `c.2276G>T (p.Cys759Phe)` -> MANE `NM_206933.4` ->
+  `NC_000001.11:g.216247118C>A` -> gnomAD `1-216247118-C-A` -> ClinVar
+  `VCV000002356`.
+- RPGRIP1 `c.1997C>T` -> MANE `NM_020366.4` ->
+  `NC_000014.9:g.21324852C>T` -> gnomAD `14-21324852-C-T`; gnomAD and
+  ClinVar both return live no-hit.
+- BRCA1 `c.5266dupC` -> MANE `NM_007294.4`, normalized transcript
+  `NM_007294.4:c.5266dup` -> `NC_000017.11:g.43057065dup` -> gnomAD
+  `17-43057062-T-TG` -> ClinVar `VCV000017677`.
+
+Verification completed:
+- `cd app/backend && python -m ruff check app/tools/clinvar.py app/tools/variant_validator.py app/tools/gnomad.py app/services/lookup_service.py app/services/search_input_resolver.py app/services/sequence_context.py tests/test_search_input_resolver.py tests/test_tool_invariants.py tests/test_gnomad_tool.py tests/test_lookup_normalize.py`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_tool_invariants.py tests/test_gnomad_tool.py tests/test_lookup_normalize.py -q`
+  -> passed (25 tests).
+- Live route smoke with `USE_REAL_APIS=true` and `?refresh=true` passed for
+  RPE65 `c.11+5G>A`, RPE65 `c.1301C>T`, USH2A `c.2276G>T`, RPGRIP1
+  `c.1997C>T`, and BRCA1 `c.5266dupC`. Each response returned the report
+  `call_cards`, `population_frequency_detail`, and `functional_evidence`
+  groups together; RPGRIP1 correctly returned no-hit source warnings instead
+  of fallback fixture metrics.
+
+Out of scope: frontend TypeScript mirror/rendering, Patient Report Pipeline
+(`/runs`), AlphaMissense, MyVariant/dbNSFP, local/precomputed SpliceAI,
+ClinicalTrials.gov implementation, commits, pushes, stashes, resets, and
+cleans.

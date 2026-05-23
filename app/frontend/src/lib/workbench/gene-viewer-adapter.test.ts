@@ -10,6 +10,132 @@ import { RPE65_V2 } from './sample-rpe65-v2'
 /** c.260 sits in the exon-4 segment (cds 232–324) at offset 28. */
 const EXON4_OFFSET_260 = 260 - 232
 
+const GENERIC_VIEWER_RESPONSE: GeneViewerResponse = {
+  ...GENE_VIEWER_SAMPLE,
+  identity: {
+    gene: 'CFTR',
+    ensembl_gene_id: 'ENSG00000001626',
+    requested_transcript: null,
+    resolved_transcript: 'ENSTGENERIC.1',
+    transcript_aliases: ['ENSTGENERIC.1', 'NM_GENERIC.1'],
+    species: 'human',
+    genome_build: 'GRCh38',
+  },
+  locus: {
+    chrom: 'chr7',
+    gene_start: 90,
+    gene_end: 210,
+    strand: '+',
+  },
+  summary: {
+    gene_length: 121,
+    total_exons: 2,
+    cds_length: 12,
+    protein_length: 4,
+    utr5_length: null,
+    utr3_length: null,
+    mrna_length: 12,
+  },
+  window: {
+    kind: 'cds_range',
+    cds_start: 1,
+    cds_end: 12,
+    cds_flank_bp: 0,
+    intron_flank_bp: 0,
+    display_cds_start: 1,
+    display_cds_end: 12,
+    total_display_bases: 12,
+  },
+  segments: [
+    {
+      id: 'exon-1:1-6',
+      kind: 'exon',
+      label: 'Exon 1',
+      exon_number: 1,
+      intron_number: null,
+      cds_start: 1,
+      cds_end: 6,
+      genomic_start: 100,
+      genomic_end: 105,
+      strand: '+',
+      sequence: 'AAACCC',
+      five_prime_sequence: '',
+      three_prime_sequence: '',
+      omitted_bp: 0,
+    },
+    {
+      id: 'intron-1',
+      kind: 'intron',
+      label: 'Intron 1',
+      exon_number: null,
+      intron_number: 1,
+      cds_start: null,
+      cds_end: null,
+      genomic_start: 106,
+      genomic_end: 199,
+      strand: '+',
+      sequence: '',
+      five_prime_sequence: '',
+      three_prime_sequence: '',
+      omitted_bp: 94,
+    },
+    {
+      id: 'exon-2:7-12',
+      kind: 'exon',
+      label: 'Exon 2',
+      exon_number: 2,
+      intron_number: null,
+      cds_start: 7,
+      cds_end: 12,
+      genomic_start: 200,
+      genomic_end: 205,
+      strand: '+',
+      sequence: 'GGGTTT',
+      five_prime_sequence: '',
+      three_prime_sequence: '',
+      omitted_bp: 0,
+    },
+  ],
+  queried_variant: {
+    hgvs_c: 'c.8G>A',
+    hgvs_p: null,
+    cds_pos: 8,
+    genomic_hg38: '7-200-G-A',
+    ref: 'G',
+    alt: 'A',
+    codon_number: 3,
+    codon_offset: 1,
+    aa_ref: null,
+    aa_alt: null,
+    classification: 'unknown',
+  },
+  sequences: {
+    allele_mode: 'reference',
+    reference_window_sequence: 'AAACCCGGGTTT',
+    display_window_sequence: 'AAACCCGGGTTT',
+    applied_variant: null,
+  },
+  tracks: {
+    clinvar_variants: [],
+    exon_density: [],
+    protein_features: {
+      signal_peptide: null,
+      transmembrane: [],
+      domains: [],
+      active_sites: [],
+      membrane_binding: [],
+      palmitoylation: [],
+    },
+    conservation_values: [],
+    restriction_sites: [],
+    features: [],
+  },
+  provenance: {
+    sources: [{ name: 'ensembl_rest', identifier: 'ENSTGENERIC.1' }],
+    warnings: ['mocked_generic_source'],
+  },
+}
+
 function exon4(data: ReturnType<typeof adaptGeneViewer>) {
   const seg = data.windowSegments.find(
     (s) => s.kind === 'exon' && s.exonNum === 4,
@@ -127,6 +253,27 @@ describe('adaptGeneViewer — allele mode overlay', () => {
   })
 })
 
+describe('adaptGeneViewer — non-RPE65 live payloads', () => {
+  it('uses backend window segments without importing the RPE65 scaffold', () => {
+    const data = adaptGeneViewer(GENERIC_VIEWER_RESPONSE, 'variant')
+
+    expect(data.gene).toBe('CFTR')
+    expect(data.transcript).toBe('ENSTGENERIC.1')
+    expect(data.nativeStrand).toBe('forward')
+    expect(data.exons).toEqual([
+      { num: 1, cdsStart: 1, cdsEnd: 6, genomicLen: 6 },
+      { num: 2, cdsStart: 7, cdsEnd: 12, genomicLen: 6 },
+    ])
+    expect(data.introns).toEqual([{ num: 1, lenBp: 94 }])
+    expect(data.conservation).toEqual([])
+    expect(data.windowSegments).toEqual([
+      { kind: 'exon', exonNum: 1, cdsStart: 1, cdsEnd: 6, seq: 'AAACCC' },
+      { kind: 'intron', intronNum: 1, totalLen: 94, fiveSeq: '', threeSeq: '' },
+      { kind: 'exon', exonNum: 2, cdsStart: 7, cdsEnd: 12, seq: 'GAGTTT' },
+    ])
+  })
+})
+
 describe('adaptGeneViewer — classification mapping', () => {
   const cases: Array<[VariantClassification, string]> = [
     ['pathogenic', 'p'],
@@ -165,5 +312,14 @@ describe('geneViewerScaffoldWarnings', () => {
     const w = geneViewerScaffoldWarnings(resp)
     expect(w).not.toContain('conservation_from_sample_scaffold')
     expect(w).toContain('exon_intron_table_from_sample_scaffold')
+  })
+
+  it('does not report sample-scaffolded fields for non-RPE65 payloads', () => {
+    const w = geneViewerScaffoldWarnings(GENERIC_VIEWER_RESPONSE)
+    expect(w).toContain('mocked_generic_source')
+    expect(w).toContain('exon_intron_table_window_only')
+    expect(w).toContain('conservation_unavailable')
+    expect(w).not.toContain('exon_intron_table_from_sample_scaffold')
+    expect(w).not.toContain('conservation_from_sample_scaffold')
   })
 })

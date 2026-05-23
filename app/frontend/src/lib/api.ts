@@ -330,9 +330,22 @@ export async function getGeneViewer(
     })
     return await parseResponse<GeneViewerResponse>(response)
   } catch (err) {
-    if (err instanceof TypeError) return GENE_VIEWER_SAMPLE // backend down → mock
+    if (err instanceof TypeError && isDefaultGeneViewerPayload(payload)) {
+      return GENE_VIEWER_SAMPLE // backend down -> default mock
+    }
     throw err
   }
+}
+
+function isDefaultGeneViewerPayload(payload: GeneViewerRequest): boolean {
+  const gene = payload.gene.trim().toUpperCase()
+  const cdna = payload.cdna.replace(/\s+/g, '')
+  const transcript = payload.transcript?.trim()
+  return (
+    gene === GENE_VIEWER_SAMPLE.identity.gene &&
+    cdna === GENE_VIEWER_SAMPLE.queried_variant.hgvs_c &&
+    (!transcript || transcript === GENE_VIEWER_SAMPLE.identity.resolved_transcript)
+  )
 }
 
 // The run PDF endpoint is auth-gated, so it can't be loaded via a bare

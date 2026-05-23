@@ -175,12 +175,112 @@ export interface DropResult {
   reviewed_at: string | null
 }
 
-export interface LookupRequest {
+export type SearchInputMode =
+  | 'structured'
+  | 'deterministic'
+  | 'ai_assisted'
+  | 'auto_resolved'
+  | 'needs_selection'
+  | 'suggestions'
+
+export type SearchInputConfidence = 'high' | 'medium' | 'low'
+
+export type SearchInputVariantClass =
+  | 'snv'
+  | 'missense'
+  | 'nonsense'
+  | 'frameshift'
+  | 'splice'
+  | 'deletion'
+  | 'insertion'
+  | 'duplication'
+  | 'delins'
+  | 'unknown'
+
+export interface SearchInputAiExtraction {
+  gene?: string | null
+  gene_alias?: string | null
+  cdna?: string | null
+  transcript?: string | null
+  protein_change?: string | null
+  genomic_hint?: string | null
+  variant_class: SearchInputVariantClass
+  disease_context?: string | null
+  confidence: SearchInputConfidence
+  assumptions: string[]
+  warnings: string[]
+}
+
+export interface SearchInputSourceInputs {
+  variant_validator?: string | null
+  ensembl_vep?: string | null
+  gnomad?: string | null
+  spliceai?: string | null
+  clinvar?: string | null
+  literature_terms: string[]
+}
+
+export interface SearchInputCandidate {
+  candidate_id: string
+  display_label: string
   gene: string
-  cdna: string
+  cdna?: string | null
+  transcript?: string | null
+  protein_change?: string | null
+  genomic_hg38?: string | null
+  genomic_hgvs?: string | null
+  match_reason: string
+  source_support: string[]
+  source_count: number
+  distance?: string | null
+  confidence: SearchInputConfidence
+  warnings: string[]
+}
+
+export interface SearchInputInterpretation {
+  submitted_text: string
+  mode: SearchInputMode
+  confidence: SearchInputConfidence
+  gene?: string | null
+  cdna?: string | null
+  transcript?: string | null
+  protein_change?: string | null
+  normalized_query?: string | null
+  query_kind?: string | null
+  genomic_hg38?: string | null
+  genomic_hgvs?: string | null
+  source_inputs?: SearchInputSourceInputs | null
+  requires_confirmation: boolean
+  exact_variant_available: boolean
+  auto_selected_candidate_id?: string | null
+  candidates: SearchInputCandidate[]
+  ui_prompt?: string | null
+  assumptions: string[]
+  warnings: string[]
+  provenance: string[]
+}
+
+export interface SearchInputParseRequest {
+  search_text: string
+  species: 'human' | 'mouse'
+  allow_ai?: boolean
+  resolve_coordinates?: boolean
+}
+
+export interface SearchInputParseResponse {
+  interpretation: SearchInputInterpretation
+}
+
+export interface LookupRequest {
+  search_text?: string | null
+  query?: string | null
+  gene?: string | null
+  cdna?: string | null
   transcript?: string | null
   protein_change?: string | null
   species: 'human' | 'mouse'
+  confirmed_interpretation?: boolean
+  selected_candidate_id?: string | null
 }
 
 export interface LookupResponse {
@@ -189,6 +289,7 @@ export interface LookupResponse {
   report_payload: ReportPayload
   evidence: EvidenceSourceSummary[]
   warnings: string[]
+  search_interpretation?: SearchInputInterpretation | null
 }
 
 export interface RunChatRequest {
@@ -321,13 +422,19 @@ export interface PublicationsCallout {
 }
 
 export type PublicationSourceTag = 'litvar2' | 'pubmed' | 'clinvar' | 'clingen'
+export type PublicationSnippetConfidence =
+  | 'exact_variant'
+  | 'variant_alias'
+  | 'rsid'
+  | 'gene_variant_context'
+  | 'reported_no_text'
 
 export interface PublicationSnippet {
   section: string
   text: string
   matched_terms: string[]
   source: string
-  confidence: number
+  confidence: PublicationSnippetConfidence
 }
 
 export interface PublicationSourceBreakdown {

@@ -15,6 +15,8 @@ Each task should name:
 
 ## Current Candidate Tasks
 
+Section edited: 2026-05-18 12:06 +1000 · Codex.
+
 | Task | Suggested owner | Status | Notes |
 | ---- | --------------- | ------ | ----- |
 | Direct-Codex workflow doc sync | Claude Code | DONE 2026-05-17 | Stable docs corrected; memory synced. |
@@ -24,7 +26,8 @@ Each task should name:
 | FE-6 Primer + CRISPR panels | Claude Code | Gated | Build against frozen stub contracts only after user chooses to proceed. |
 | FE-7 Alignment + Comparator | Claude Code | Gated | Stub data exists; wait for user direction. |
 | FE-8 AskEamos pill | Claude Code, possible small Codex backend review | Gated | Can ship against mock `/api/v1/chat`; live chat is M-002. |
-| M-002 real engines | Direct Codex | Gated | Feasibility-gated backend work; do not start without user approval. |
+| M-002 real engines | Direct Codex | M-002A/B/C + optional local isPcr specificity + M-002D local deterministic CRISPR DONE 2026-05-17; M-002I planned/gated | Sequence context boundary, Workbench service extraction, real Primer3 primer provider, exact resolved-template specificity screen, opt-in local UCSC `isPcr` whole-genome specificity provider, and backend-only local deterministic SpCas9 CRISPR provider are implemented and backend-verified. M-002I post-CRISPR TIDE analytics, DeepHF weights, genome-wide Bowtie/BWA off-targets, raw sequence/genomic-region fields, and persistence remain separate approvals. |
+| Gene viewer real-data contract | Direct Codex first, Claude for frontend integration | Planned/gated | Draft design/spec/plan live in `plans/gene-viewer/`. Goal: backend-owned, gene-agnostic viewer payload with reference/control vs variant-applied mode; RPE65 is the first live acceptance example, not a hard-coded service assumption. Implementation waits for user approval. |
 | Backend/API/pipeline task | Direct Codex | Available when scoped | Direct Codex now has verified access and can own meaningful backend work. |
 | Cross-agent review | Opposite of implementer | Available when useful | One agent implements; the other reviews for regressions, missing tests, and contract drift. |
 

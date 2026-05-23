@@ -77,7 +77,7 @@ def build_population_frequency_detail(
             str(item) for item in gnomad_summary.get("flags", []) if isinstance(item, str) and item
         ],
         warnings=warnings,
-        source_url=source_url or _as_optional_str(gnomad_summary.get("url")),
+        source_url=_as_optional_str(gnomad_summary.get("url")) or source_url,
     )
 
 
@@ -89,7 +89,7 @@ def build_variant_report_call_cards(
     return VariantReportCallCards(
         cards=[
             _population_frequency_card(payload, evidence_map, evidence_statuses),
-            _computational_card(payload, evidence_statuses),
+            _computational_card(payload, evidence_map, evidence_statuses),
             _lab_functional_card(payload, evidence_statuses),
             _clinical_consensus_card(payload, evidence_map, evidence_statuses),
         ]
@@ -172,8 +172,19 @@ def _population_frequency_card(
 
 def _computational_card(
     payload: ReportPayload,
+    evidence_map: dict[str, dict[str, Any]],
     evidence_statuses: dict[str, str],
 ) -> ReportCallCard:
+    annotations = evidence_map.get("computational_annotations", {})
+    annotation_card = _computational_card_from_annotations(
+        annotations,
+        payload,
+        evidence_map,
+        evidence_statuses,
+    )
+    if annotation_card is not None:
+        return annotation_card
+
     predictions = payload.in_silico_predictions
     if predictions is None or not predictions.cards:
         return ReportCallCard(
@@ -257,10 +268,124 @@ def _lab_functional_card(
         primary_label=metrics.primary_label,
         support_badges=badges,
         ui_color_theme=metrics.ui_color_theme,
-        source_status=_combined_status(evidence_statuses, ("clinvar", "pubmed")),
+        source_status=_combined_status(evidence_statuses, ("clingen", "clinvar", "pubmed")),
         provenance=["ClinGen Evidence Repository", "ClinVar VCV", "PubMed"],
         warnings=functional.warnings,
     )
+
+
+def _computational_card_from_annotations(
+    annotations: dict[str, Any],
+    payload: ReportPayload,
+    evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
+) -> ReportCallCard | None:
+    if not annotations:
+        return None
+
+    excluded = {str(item) for item in annotations.get("excluded_predictors", [])}
+    excluded.add("AlphaMissense")
+    rows = [
+        row
+        for row in (
+            _annotation_predictor_row(item)
+            for item in annotations.get("predictors", [])
+            if isinstance(item, dict)
+        )
+        if row is not None and row["name"] not in excluded
+    ]
+    spliceai = annotations.get("spliceai") if isinstance(annotations.get("spliceai"), dict) else {}
+    spliceai_score = _as_float(spliceai.get("max_delta")) if spliceai else None
+    if spliceai_score is not None and "SpliceAI" not in {row["name"] for row in rows}:
+        rows.append(
+            {
+                "name": "SpliceAI",
+                "score": spliceai_score,
+                "threshold": _as_float(spliceai.get("threshold")),
+            }
+        )
+
+    if not rows and spliceai_score is None:
+        return None
+
+    damaging_rows = [
+        row
+        for row in rows
+        if row["score"] is not None
+        and row["threshold"] is not None
+        and row["score"] >= row["threshold"]
+    ]
+    if any(row["name"] == "SpliceAI" for row in damaging_rows):
+        primary_label = "Splicing Defect"
+        theme = "risk_red_state"
+    elif damaging_rows:
+        primary_label = "Damaging"
+        theme = "risk_red_state"
+    else:
+        primary_label = "Uncertain"
+        theme = "caution_orange_state"
+
+    preferred_names = ("REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI")
+    ranked_rows = sorted(
+        rows,
+        key=lambda row: (
+            (
+                preferred_names.index(row["name"])
+                if row["name"] in preferred_names
+                else len(preferred_names)
+            ),
+            row["name"],
+        ),
+    )
+    support_badges = [
+        ReportCallBadge(text=f"{row['name']}: {_format_score(row['score'])}", kind="metric")
+        for row in (row for row in ranked_rows if row["score"] is not None)
+    ][:2]
+
+    acmg_badge = _first_acmg_badge_from_consensus(evidence_map, ("PP3", "BP4"))
+    if acmg_badge is None:
+        acmg_badge = _first_met_acmg_badge(payload, ("PP3", "BP4"))
+    if acmg_badge is not None:
+        support_badges.append(acmg_badge)
+
+    provenance = ["Computational annotation payload"]
+    source_urls = [
+        str(row.get("source_url"))
+        for row in annotations.get("predictors", [])
+        if isinstance(row, dict) and row.get("source_url")
+    ]
+    if spliceai and spliceai.get("source_url"):
+        source_urls.append(str(spliceai["source_url"]))
+    provenance.extend(_dedupe_strings(source_urls))
+
+    return ReportCallCard(
+        card_id="computational",
+        title="Computational",
+        primary_label=primary_label,
+        support_badges=support_badges or [ReportCallBadge(text="None", kind="neutral")],
+        ui_color_theme=theme,
+        source_status=_displayed_annotation_status(evidence_statuses),
+        provenance=provenance,
+        warnings=[str(item) for item in annotations.get("warnings", []) if isinstance(item, str)],
+    )
+
+
+def _displayed_annotation_status(evidence_statuses: dict[str, str]) -> str:
+    status = evidence_statuses.get("computational_annotations")
+    if status:
+        return status
+    return _combined_status(evidence_statuses, ("spliceai", "vep"))
+
+
+def _annotation_predictor_row(item: dict[str, Any]) -> dict[str, Any] | None:
+    name = _as_optional_str(item.get("name"))
+    if not name:
+        return None
+    return {
+        "name": name,
+        "score": _as_float(item.get("score")),
+        "threshold": _as_float(item.get("threshold")),
+    }
 
 
 def _clinical_consensus_card(
@@ -448,6 +573,24 @@ def _format_percent(value: float | None) -> str:
     if percent < 1:
         return f"{percent:.3f}%"
     return f"{percent:.2f}%"
+
+
+def _format_score(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    if value == 0:
+        return "0"
+    if abs(value) < 1:
+        return f"{value:.3g}"
+    return f"{value:g}"
+
+
+def _dedupe_strings(items: list[str]) -> list[str]:
+    result: list[str] = []
+    for item in items:
+        if item and item not in result:
+            result.append(item)
+    return result
 
 
 def _as_optional_str(value: Any) -> str | None:

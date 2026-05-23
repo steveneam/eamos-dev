@@ -19,12 +19,18 @@ import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
 import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PublicationsCallout } from '@/components/report/PublicationsCallout'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
+import { CallCardsGrid } from '@/components/report/CallCardsGrid'
+import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { Card } from '@/components/ui/Card'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
 import { RPE65_SAMPLE } from '@/lib/sample-report'
 import { SOURCES } from '@/lib/sources'
-import type { LookupResponse } from '@/lib/backend'
+import type {
+  LookupResponse,
+  SearchInputCandidate,
+  SearchInputInterpretation,
+} from '@/lib/backend'
 
 type LoadState =
   | { kind: 'idle' }
@@ -32,6 +38,7 @@ type LoadState =
   | { kind: 'ready'; data: LookupResponse }
   | { kind: 'malformed'; query: string; detail?: string }
   | { kind: 'unresolved'; query: string }
+  | { kind: 'interpretation'; query: string; interpretation: SearchInputInterpretation; detail?: string | null }
   | { kind: 'error'; message: string }
   | { kind: 'offline' }
 
@@ -40,6 +47,8 @@ export function ReportClient() {
   const router = useRouter()
   const gene = params.get('gene')?.trim() ?? ''
   const cdna = params.get('cdna')?.trim() ?? ''
+  const transcript = params.get('transcript')?.trim() ?? ''
+  const proteinChange = params.get('protein_change')?.trim() ?? ''
   const q = params.get('q')?.trim() ?? ''
   const demo = params.get('demo') !== null
 
@@ -55,11 +64,45 @@ export function ReportClient() {
     }
 
     if (!gene && !cdna && q) {
-      // An unstructured / AI search ("?q=…", e.g. Workbench's fallback) is not
-      // a structured variant lookup. Never silently render the RPE65 sample as
-      // if it matched the query — surface it as unparsed input instead.
-      setState({ kind: 'malformed', query: q })
-      return
+      // Raw searches resolve through the backend parser/candidate gate before
+      // any report payload is rendered.
+      setState({ kind: 'loading' })
+      variantLookup({ search_text: q, species: 'human' })
+        .then((data) => {
+          if (cancelled) return
+          const interpretation = data.search_interpretation ?? null
+          const responseGene =
+            data.report_payload.report_profile?.header?.gene ??
+            data.report_payload.variant_summary_rows[0]?.gene
+          if (interpretation && !responseGene) {
+            setState({
+              kind: 'interpretation',
+              query: q,
+              interpretation,
+              detail: data.report_payload.limitations,
+            })
+            return
+          }
+          if (responseGene && interpretation?.gene && responseGene.toUpperCase() !== interpretation.gene.toUpperCase()) {
+            setState({
+              kind: 'error',
+              message: `Lookup returned data for ${responseGene}, but the search resolved to ${interpretation.gene}. The report was not rendered to avoid showing stale variant facts.`,
+            })
+            return
+          }
+          setState({ kind: 'ready', data })
+        })
+        .catch((err: Error) => {
+          if (cancelled) return
+          if (err instanceof TypeError) {
+            setState({ kind: 'offline' })
+          } else {
+            setState({ kind: 'error', message: err.message })
+          }
+        })
+      return () => {
+        cancelled = true
+      }
     }
 
     if (!gene || !cdna) {
@@ -84,7 +127,13 @@ export function ReportClient() {
     }
 
     setState({ kind: 'loading' })
-    variantLookup({ gene, cdna: cleanedCdna, species: 'human' })
+    variantLookup({
+      gene,
+      cdna: cleanedCdna,
+      transcript: transcript || null,
+      protein_change: proteinChange || null,
+      species: 'human',
+    })
       .then((data) => {
         if (cancelled) return
         // BE-12 frozen warning codes — see plans/v2-backend.md.
@@ -99,6 +148,16 @@ export function ReportClient() {
         }
         if (warnings.includes('no_genomic_resolution')) {
           setState({ kind: 'unresolved', query: probe })
+          return
+        }
+        const responseGene =
+          data.report_payload.report_profile?.header?.gene ??
+          data.report_payload.variant_summary_rows[0]?.gene
+        if (responseGene && responseGene.toUpperCase() !== gene.toUpperCase()) {
+          setState({
+            kind: 'error',
+            message: `Lookup returned data for ${responseGene}, but the URL requested ${gene}. The report was not rendered to avoid showing stale variant facts.`,
+          })
           return
         }
         setState({ kind: 'ready', data })
@@ -119,7 +178,7 @@ export function ReportClient() {
     return () => {
       cancelled = true
     }
-  }, [gene, cdna, q, demo, attempt])
+  }, [gene, cdna, transcript, proteinChange, q, demo, attempt])
 
   const handleSearch = (payload: SearchSubmit) => {
     if (payload.mode === 'lookup') {
@@ -131,8 +190,17 @@ export function ReportClient() {
     }
   }
 
+  const handleSelectCandidate = (candidate: SearchInputCandidate) => {
+    if (!candidate.gene || !candidate.cdna) return
+    const p = new URLSearchParams({ gene: candidate.gene, cdna: candidate.cdna })
+    if (candidate.transcript) p.set('transcript', candidate.transcript)
+    if (candidate.protein_change) p.set('protein_change', candidate.protein_change)
+    router.push(`/report?${p.toString()}`)
+  }
+
   const initialGene = gene
   const initialVariant = cdna
+  const queryLabel = `${gene} ${cdna}`.trim() || q
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
@@ -148,21 +216,21 @@ export function ReportClient() {
       </TopNav>
 
       <main className="mx-auto px-8" style={{ maxWidth: 920, padding: '32px 32px 80px' }}>
-        {state.kind === 'loading' && <LoadingBlock query={`${gene} ${cdna}`.trim()} />}
+        {state.kind === 'loading' && <LoadingBlock query={queryLabel} />}
         {state.kind === 'error' && (
           <ErrorBlock
             variant="generic"
             message={state.message}
-            query={`${gene} ${cdna}`.trim()}
-            canRetry={Boolean(gene && cdna)}
+            query={queryLabel}
+            canRetry={Boolean((gene && cdna) || q)}
             onRetry={() => setAttempt((n) => n + 1)}
           />
         )}
         {state.kind === 'offline' && (
           <ErrorBlock
             variant="offline"
-            query={`${gene} ${cdna}`.trim()}
-            canRetry={Boolean(gene && cdna)}
+            query={queryLabel}
+            canRetry={Boolean((gene && cdna) || q)}
             onRetry={() => setAttempt((n) => n + 1)}
           />
         )}
@@ -175,6 +243,14 @@ export function ReportClient() {
             query={state.query}
             canRetry
             onRetry={() => setAttempt((n) => n + 1)}
+          />
+        )}
+        {state.kind === 'interpretation' && (
+          <SearchInterpretationPanel
+            query={state.query}
+            interpretation={state.interpretation}
+            limitations={state.detail}
+            onSelectCandidate={handleSelectCandidate}
           />
         )}
         {state.kind === 'ready' && (
@@ -225,6 +301,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
         </div>
       )}
       <VariantHeader payload={payload} query={query} />
+      <CallCardsGrid payload={payload} />
       <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
 
       <Card number={2} title="Locus context" meta="ClinVar · ±40bp window">
@@ -251,12 +328,14 @@ function ReportBody({ data, query }: ReportBodyProps) {
         <DiseaseSection payload={payload} embedded />
         <CuratedVariantsGrid data={payload.curated_variants_distribution} />
         <AssociatedConditions data={payload.associated_conditions} />
-        <PublicationsCallout data={payload.publications_callout} />
+        {!payload.publications_literature && (
+          <PublicationsCallout data={payload.publications_callout} />
+        )}
       </Card>
 
       <VariantDecoder decoder={payload.variant_decoder} number={6} />
       <TrialsSection payload={payload} number={7} />
-      <PubMedSection articles={payload.pubmed_articles} number={8} />
+      <PubMedSection payload={payload} number={8} />
     </div>
   )
 }

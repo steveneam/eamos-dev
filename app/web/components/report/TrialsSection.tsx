@@ -7,14 +7,16 @@ interface TrialsSectionProps {
 }
 
 export function TrialsSection({ payload, number }: TrialsSectionProps) {
+  const typedTrials = payload.report_profile?.therapies_trials ?? null
+  const trials = typedTrials?.trial_rows ?? []
+  const warnings = typedTrials?.warnings ?? []
   const text = payload.therapeutic_landscape?.trim()
-  const trials = payload.report_profile?.therapies_trials?.trial_rows ?? []
-  const warnings = payload.report_profile?.therapies_trials?.warnings ?? []
-  if (!text && trials.length === 0) return null
+  const showLegacyText = Boolean(text && (!typedTrials || trials.length > 0))
+  if (!showLegacyText && trials.length === 0 && warnings.length === 0) return null
 
   return (
     <Card number={number} title="Active trials & approved therapies" meta="ClinicalTrials.gov">
-      {text && (
+      {showLegacyText && (
         <p
           style={{
             margin: 0,
@@ -28,6 +30,18 @@ export function TrialsSection({ payload, number }: TrialsSectionProps) {
         </p>
       )}
       {trials.length > 0 && <TrialRows rows={trials} />}
+      {typedTrials && trials.length === 0 && (
+        <p
+          style={{
+            margin: showLegacyText ? '12px 0 0' : 0,
+            fontSize: 12.5,
+            lineHeight: 1.6,
+            color: 'var(--ink-4)',
+          }}
+        >
+          No structured ClinicalTrials.gov rows are available for this lookup.
+        </p>
+      )}
       {warnings.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {warnings.slice(0, 2).map((warning) => (
@@ -77,9 +91,9 @@ function TrialRow({ row }: { row: TrialMatch }) {
     row.phase,
     row.match_level ? formatWarning(row.match_level) : null,
   ].filter((item): item is string => Boolean(item))
-  const condition = row.conditions[0]
-  const intervention = row.interventions[0]
-  const location = row.locations[0]
+  const condition = row.conditions?.[0]
+  const intervention = row.interventions?.[0]
+  const location = row.locations?.[0]
 
   return (
     <a

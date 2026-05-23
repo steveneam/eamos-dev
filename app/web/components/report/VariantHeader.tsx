@@ -169,7 +169,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
       </nav>
 
       <section
-        className="relative mb-4 overflow-hidden"
+        className="variant-header-card relative mb-4 overflow-hidden"
         style={{
           background: 'var(--bg)',
           border: '0.5px solid var(--line)',
@@ -187,7 +187,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
               'radial-gradient(ellipse at top right, rgba(29,158,117,0.05), transparent 70%)',
           }}
         />
-        <div className="relative flex flex-wrap items-start justify-between gap-5">
+        <div className="variant-header-layout relative flex flex-wrap items-start justify-between gap-5">
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               className="mb-2 inline-flex items-center gap-1.5 uppercase"
@@ -204,7 +204,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
               Variant report · normalised from your query
             </div>
             <h1
-              className="mb-1.5"
+              className="variant-title mb-1.5"
               style={{
                 fontFamily: 'var(--display)',
                 fontWeight: 600,
@@ -219,6 +219,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
               {proteinChange ? ` ${proteinChange}` : ''}
             </h1>
             <p
+              className="variant-meta"
               style={{
                 fontFamily: 'var(--mono)',
                 fontSize: 12.5,
@@ -253,7 +254,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
+          <div className="variant-header-actions flex flex-col items-end gap-2">
             <div className="flex flex-wrap justify-end gap-2">
               {classificationLabel && <ClassificationBadge classification={classificationLabel} />}
               {payload.clinical_phenotype && (
@@ -314,6 +315,40 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
             ))}
           </div>
         )}
+        <style>{`
+          @media (max-width: 640px) {
+            .variant-header-card {
+              padding: 22px 16px !important;
+            }
+            .variant-header-layout {
+              display: block !important;
+            }
+            .variant-title {
+              font-size: 30px !important;
+              line-height: 1.08 !important;
+            }
+            .variant-meta {
+              font-size: 11.5px !important;
+              overflow-wrap: anywhere !important;
+              word-break: normal !important;
+            }
+            .variant-header-actions {
+              align-items: flex-start !important;
+              margin-top: 16px;
+              width: 100%;
+            }
+            .variant-header-actions > div {
+              justify-content: flex-start !important;
+            }
+            .variant-header-actions .v-tools {
+              width: 100%;
+              justify-content: flex-start;
+            }
+            .variant-header-actions .v-tool {
+              min-width: 0;
+            }
+          }
+        `}</style>
       </section>
     </header>
   )

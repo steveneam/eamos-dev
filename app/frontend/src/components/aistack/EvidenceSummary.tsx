@@ -4,9 +4,26 @@ interface EvidenceSummaryProps {
   payload: ReportPayload
 }
 
+function formatWarning(value: string): string {
+  return value.replace(/_/g, ' ').replace(/:/g, ': ')
+}
+
 export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
-  const summary = payload.ai_clinical_summary?.trim()
-  if (!summary) return null
+  const typedSummary = payload.report_profile?.interpretation_summary
+  const hasTypedSummary = typedSummary != null
+  const summary = hasTypedSummary
+    ? typedSummary.text?.trim()
+    : payload.ai_clinical_summary?.trim()
+  const warnings = typedSummary?.warnings ?? []
+  if (!summary && warnings.length === 0) return null
+  const modeLabel =
+    typedSummary?.mode === 'deterministic'
+      ? 'deterministic'
+      : typedSummary?.mode === 'llm_rewrite'
+        ? 'AI rewrite'
+        : hasTypedSummary
+          ? 'unavailable'
+          : 'synthesised'
 
   return (
     <div
@@ -57,7 +74,7 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
             fontFamily: 'var(--mono)',
           }}
         >
-          synthesised · cited
+          {modeLabel} | cited
         </span>
       </header>
 
@@ -74,8 +91,8 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
       >
         <InfoIcon />
         <span>
-          Synthesised from the source databases below. Every claim is anchored to a numbered
-          source row.
+          Synthesised from the source databases below. Every claim is anchored
+          to a numbered source row.
         </span>
       </div>
 
@@ -86,12 +103,40 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
           color: 'var(--ink-2)',
         }}
       >
-        {summary.split(/\n+/).map((para, i) => (
-          <p key={i} style={{ margin: i === 0 ? 0 : '12px 0 0' }}>
-            {para}
+        {summary ? (
+          summary.split(/\n+/).map((para, i) => (
+            <p key={i} style={{ margin: i === 0 ? 0 : '12px 0 0' }}>
+              {para}
+            </p>
+          ))
+        ) : (
+          <p style={{ margin: 0, color: 'var(--ink-4)' }}>
+            Interpretation summary unavailable for this lookup.
           </p>
-        ))}
+        )}
       </div>
+
+      {warnings.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {warnings.slice(0, 3).map((warning) => (
+            <span
+              key={warning}
+              style={{
+                border: '0.5px solid var(--warn-bdr)',
+                background: 'var(--warn-tint)',
+                color: '#633806',
+                borderRadius: 7,
+                padding: '5px 8px',
+                fontSize: 10.5,
+                fontWeight: 600,
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {formatWarning(warning)}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

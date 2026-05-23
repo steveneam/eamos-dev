@@ -88,6 +88,7 @@ function maxGroupFrequency(groups: PopulationFrequencyVisualGroup[]): number {
 
 export function PopulationFrequencySection({ section }: PopulationFrequencySectionProps) {
   const [activeTab, setActiveTab] = useState<PopulationTab>('ancestry')
+  const warnings = section?.warnings ?? []
   const groups = useMemo(
     () => [...(section?.visual_groups ?? [])].sort((a, b) => (a.sort_order ?? 99) - (b.sort_order ?? 99)),
     [section?.visual_groups],
@@ -164,15 +165,15 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
               onActiveGroup={setActiveGroupId}
             />
           ) : (
-            <AgeDistributionTab histograms={section.age_histograms} />
+            <AgeDistributionTab histograms={section.age_histograms ?? []} />
           )}
 
-          {section.warnings.length > 0 && (
+          {warnings.length > 0 && (
             <div
               className="mt-4 flex flex-wrap gap-2"
               aria-label="gnomAD section warnings"
             >
-              {section.warnings.slice(0, 3).map((warning) => (
+              {warnings.slice(0, 3).map((warning) => (
                 <span
                   key={warning}
                   title={warning}

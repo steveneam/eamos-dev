@@ -14,41 +14,30 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** active @ 2026-05-24 00:10 +1000 — **Landing redesign v2
-  (whole-page dark + single-bar search + GSAP) built; strict tsc clean +
-  dev-verified; final production build running.** User-directed iteration:
-  (1) dark theme extended to the WHOLE landing (not just hero) — added
-  `--d-bg/--d-bg-2/--d-card/--d-line` tokens to `app/globals.css` (additive),
-  restyled all sections dark; (2) nav links Features/Pricing/FAQ added; (3) the
-  hero search is now ONE continuous freeform bar (no Lookup/AI toggle) — new
-  `components/landing/EamosSearch.tsx` (paperclip attach + emerald send, minimal
-  AI style, sends raw query), used in hero + pinned nav; shared
-  `search/SearchShell.tsx` REVERTED to canonical (so `/report` keeps the original
-  light search untouched); (4) buttery scroll transition via **GSAP +
-  ScrollTrigger** (added deps `gsap`+`@gsap/react`) — `LandingNav` rebuilt with
-  one scrubbed timeline (trigger = `#hero` via global query; bg solidifies, links
-  fade out, back-to-top + compact search fade in); focus still expands the search
-  full-width replacing logo/up/links/auth. **Verified:** `npx tsc --noEmit`
-  exit 0; dev server (`next dev` :3000, STOPPED): `/` dark end-to-end, GSAP
-  dock smooth, focus-expand works, **console clean** (the earlier `#hero`
-  ScrollTrigger warning fixed). Final `npm run build` in progress for the
-  shippable artifact; will browser-verify `/`+`/report` then stop the server.
-  Routing note: freeform queries route to `/report?q=` pending the Codex
-  search-input resolver wiring in ReportClient/`api.ts` (existing open CAR).
-  Untouched: `app/frontend/**`, `/runs`, AlphaMissense, parked Workbench,
-  Codex's report/backend files. Uncommitted (mixed worktree w/ Codex). Full
-  detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** idle @ 2026-05-24 00:04 +1000 - **Task 13 gene-context
-  snapshot contract DONE + verified.** Added additive report snapshot contract,
-  source-backed/fixture service wiring, frontend TS mirrors, focused tests, and
-  plan/proprietary docs. No commit/push, no `/runs`, no AlphaMissense.
-  Previous Codex boundary @ 2026-05-23 23:27 +1000: **Next-session report/
-  gene-viewer plan updated.** Added Tasks 13-19 to
-  `plans/variant-report-data-orchestration/plan.md`: static gene-context
-  snapshot data contract + UI, gnomAD ancestry mapping, gnomAD local
-  DuckDB/parquet-style data prototype, gnomAD source-detail endpoint,
-  ClinicalTrials.gov hardening, and final report UI QA. No implementation,
-  no `/runs`, no AlphaMissense.
+- **Claude:** ACTIVE @ 2026-05-24 01:16 +1000 — **BE↔FE cross-check +
+  integration DONE; driving the all-lanes commit.** Backend adversarial review
+  written → `agent_handoff/2026-05-24-be-fe-cross-check.md` (F1-F5 + verified
+  facts + CAR reconciliation). Codex completed its half (FE review + fixes) and
+  is idle with locks released. **Integration Checkpoint (independent, all green):
+  backend `pytest tests/` 349 passed / 4 skipped; contract canary 117; Vite build
+  clean; Next `app/web` build (see verification line); both `backend.ts` mirrors
+  byte-identical (1229 lines).** Side cleanup committed+pushed earlier this
+  session: `d277263` removed the unused doc-only `app/shared/` OpenAPI folder +
+  local `.trash/`. Now committing+pushing ALL lanes (user pre-authorized).
+  Remaining recommendation (NOT in this commit): F1/F2 canary hardening — the
+  canary still doesn't guard the v2 report contract / app/web mirror; logged as a
+  follow-up in the review doc. Untouched: `/runs`, AlphaMissense, parked
+  Workbench. Full detail: `~/.claude/plans/next-session-eamos.md`.
+- **Codex:** IDLE @ 2026-05-24 01:03 +1000 - **BE↔FE cross-check
+  complete.** Implemented Codex-side raw `/report?q=` lookup wiring in Vite +
+  Next report clients/types/panel, and fixed Claude-reviewed backend provenance
+  issues: computational card fallback status no longer upgrades to live via VEP,
+  and gnomAD fixture top-level `source_url` no longer duplicates the ToolResult
+  kwarg. Focused backend suite, Vite/Next type checks/builds, ruff/black, and
+  Next browser smoke passed; stale raw-search comments were cleaned after the
+  final smoke pass. Tmp smoke artifacts removed; local smoke servers stopped. No
+  `/runs`, no AlphaMissense. Changes remain uncommitted for Claude's integration
+  commit/push.
 
 ## Log Edit-Lock
 
@@ -58,16 +47,24 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-LOCKED: Claude · 2026-05-24 00:10 +1000 · Active Status heartbeat sync (landing v2 — dark + GSAP)
+UNLOCKED · 2026-05-24 01:18 +1000 · Claude (integration sync done: heartbeat + CAR reconciliation + Current State + Claude section; about to commit+push all lanes)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
-- none. Codex Task 13 shared contract locks released 2026-05-24 00:04 +1000
-  after focused backend tests, lint/format, variant-search integration, and
-  both frontend TypeScript checks passed.
+- None held by Codex as of 2026-05-24 01:03 +1000. Released raw-search report
+  integration/provenance locks for `app/frontend/src/lib/backend.ts`,
+  `app/web/lib/backend.ts`, `app/frontend/src/pages/ReportPage.tsx`,
+  `app/web/components/report/ReportClient.tsx`,
+  `app/frontend/src/components/report/SearchInterpretationPanel.tsx`,
+  `app/web/components/report/SearchInterpretationPanel.tsx`,
+  `app/backend/tests/test_frontend_contract.py`,
+  `app/backend/app/services/report_call_cards.py`,
+  `app/backend/app/tools/gnomad.py`,
+  `app/backend/tests/test_report_call_cards.py`, and
+  `app/backend/tests/test_gnomad_tool.py`. No `/runs`, no AlphaMissense.
 
 ## Cross-Agent Requests
 
@@ -276,6 +273,22 @@ DONE entries older than the last major boundary into the relevant plan/log.
   this slice, keep Section 2 disease mechanism free of gnomAD raw metrics, and
   keep AlphaMissense hidden/on hold. No Patient Report Pipeline (`/runs`) work.
   · Deliver via Claude-owned report components.
+- [DONE] Cross-check reconciliation (2026-05-24 01:16 +1000 · Claude): the v2
+  Variant-Evidence-Report mirror/render CARs above are **satisfied in code** and
+  landed in this integration commit — `report_profile` (Codex 2026-05-23 12:13),
+  call cards + gnomAD `population_frequency_detail` (2026-05-20 19:18), Task 11A
+  `ReportCallCard.interaction` + Task 12 §3 `population_frequency` (2026-05-23
+  19:51), functional evidence (2026-05-19 21:00), EP-VLEx publications
+  (2026-05-19 19:57). Both `backend.ts` mirrors carry the full report-profile
+  contract (verified byte-identical, 1229 lines) and the Vite + Next report
+  components render the sections. **Search-input AI input** (2026-05-21 19:01 /
+  23:12) is now **wired by Codex** in both frontends (raw `/report?q=` →
+  `search_text` → `SearchInterpretationPanel`). Remaining (NOT closed by this
+  commit): the gene-viewer enrichment + Primer §6-B + §7 TIDE CARs (gated
+  backend follow-ups), and the **F1/F2 canary-hardening recommendation** from
+  `agent_handoff/2026-05-24-be-fe-cross-check.md` (the contract canary still
+  does not actually guard the report-profile subtree or the app/web mirror) —
+  Codex/BE lane, not yet implemented.
 
 ## Current State
 
@@ -333,14 +346,13 @@ DONE entries older than the last major boundary into the relevant plan/log.
   `plans/v2-backend.md`, `plans/variant-report-layout/`,
   `plans/search-bar-ai-input/`, `plans/variant-report-data-orchestration/`,
   and `agent_handoff/CURRENT.md`.
-- Verification last green: frontend **vitest 73/73**, **build clean**,
-  **contract canary passed with Gene Viewer + functional display metrics +
-  call-card/search-input/report-profile pending-field coverage**; latest
-  backend **passed 2026-05-23 19:51 +1000** for Task 11A + Task 12
-  (`ruff check app tests`, `black --check --target-version py310 app tests`,
-  focused report-profile/gnomAD/ACMG/search/contract/tool suites, and full
-  `python -m pytest -q`; 4 skipped; existing JWT short-key warnings only;
-  details in Codex section / `PROGRESS.md`).
+- Verification last green: **Integration Checkpoint 2026-05-24 01:15 +1000
+  (Claude, independent, pre-all-lanes-commit): backend `python -m pytest tests/`
+  349 passed / 4 skipped (JWT short-key warnings only); contract canary 117;
+  `app/frontend` Vite build clean; `app/web` Next build clean; both `backend.ts`
+  mirrors byte-identical (1229 lines).** Codex also verified its cross-check slice
+  (focused backend suite + ruff/black + Vite/Next type checks/builds + Next
+  browser smoke `/report?q=CFTR%3Ap.Leu441fs`).
 - Gated (no auto-start): FE-7/8, M-002 follow-ups, destructive git ops.
   **FE-6 Primer Phase A and GV-005/GV-006 are DONE+verified.** Claude commits
   un-gated (a mixed-worktree checkpoint commit still warrants an explicit
@@ -349,75 +361,75 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 2).
-Section last edited: 2026-05-23 18:51 +1000 · Claude. Prior 2026-05-19 section
-(/runs auth + AlphaMissense removal + /report audit fixes) archived verbatim →
-`agent_handoff/archive/2026-05-23-claude-section-pre-nextjs.md` (Rule 1/9).
-Full incremental detail + gotchas in `~/.claude/plans/next-session-eamos.md`;
-migration design-doc in `plans/v2-nextjs-migration/design.md`.
+Section last edited: 2026-05-24 01:16 +1000 · Claude. Prior section (Vite→Next.js
+migration, 2026-05-23 18:51) archived verbatim →
+`agent_handoff/archive/2026-05-24-claude-section-pre-integration.md` (Rule 1/9).
+Full incremental detail in `~/.claude/plans/next-session-eamos.md`.
 
-**Session 2026-05-23 — Vite→Next.js migration STARTED + COMPLETED + verified
-(landing + Variant Evidence Report only).**
+**Session 2026-05-24 — BE↔FE cross-check + integration meeting (all-lanes commit).**
 
-Per user "proceed". Built a NEW Next.js (App Router) app at **`app/web/`** — a
-**parallel** dir so the Vite `app/frontend/` stays intact for the parked
-Workbench + frozen `/runs`. Ported landing (`/`) and the Variant Evidence
-Report (`/report`) **pixel-faithful and design-agnostic** (the emerald
-"Lifestream" redesign + landing mock are a separate later effort).
+User-directed full backend↔frontend cross-check, then Claude-driven integration +
+all-lanes commit (user pre-authorized).
 
-- **What:** scaffold (next.config.mjs `/api/*`→:8000 rewrite, tsconfig,
-  postcss/Tailwind v4, layout, globals.css ported verbatim, icon.svg) + 28
-  in-scope files copied verbatim + 6 App-Router edits (`lib/api.ts` lookup
-  subset, `ModePill`/`LandingClient`/`ReportClient` on `next/link`+
-  `next/navigation`, two route files with `<Suspense>` around `useSearchParams`).
-- **Next 16, NOT 15 — user-ratified 2026-05-23.** Next 15.5 won't build on the
-  IT Node 24 (`SyntaxError` on a trivial app); Next 16.2.6 builds clean, App
-  Router identical, ported code byte-identical.
-- **Verified:** `cd app/web && npm run build` clean (compile + TS + prerender
-  `/`,`/report`,`/_not-found`); browser (`next start`) — `/` and
-  `/report?demo=1` render identical to Vite. Server stopped, no orphan.
-- **`strict: false`** in app/web/tsconfig.json to match the Vite app's actual
-  non-strict TS (verbatim code compiles identically); flip to strict later.
-- **Untouched:** `app/frontend/**`, the contract canary's `backend.ts`, `/runs`,
-  AlphaMissense, Codex's backend lane. `app/web/lib/backend.ts` is a hand-kept
-  mirror (see the Cross-Agent Request above).
+- **Backend adversarial review (Claude, read-only) →
+  `agent_handoff/2026-05-24-be-fe-cross-check.md`.** F1/F2 (HIGH): the contract
+  canary does not actually guard the v2 report contract — only
+  `MODEL_TO_TS_INTERFACE` is checked vs `backend.ts` and it omits the
+  report-profile subtree except Task-13 GeneContext*; the `*_BACKEND_MODELS`
+  suites only self-check Pydantic; and only the Vite `backend.ts` is read (app/web
+  unguarded). F3 (MED): sections don't self-tag `match_level`. F4/F5 (LOW). Plus
+  verified-green honesty facts (gnomAD/gene-context/functional fixture-vs-live).
+- **Codex completed its half:** wired raw `/report?q=` → `search_text` +
+  `SearchInterpretationPanel` in BOTH frontends; fixed two provenance/bug items
+  (computational fallback no longer upgraded to live; gnomAD fixture `source_url`
+  double-kwarg). Idle, locks released.
+- **Integration Checkpoint (Claude, independent, all green):** backend
+  `pytest tests/` 349 passed / 4 skipped; canary 117; Vite build clean; Next
+  `app/web` build clean; both `backend.ts` byte-identical (1229 lines).
+- **Committed + pushed:** (1) `d277263` earlier — removed unused doc-only
+  `app/shared/` OpenAPI folder + local `.trash/`; (2) the all-lanes integration
+  commit this session (both lanes' cross-check work + handoff docs + plans).
 
-**Carry-forward (uncommitted, Claude lane):** all prior verified work (GV-005/6,
-FE-6 Primer/CRISPR, FE-5.6, /runs-auth, AlphaMissense removal, /report audit
-fixes — see archive) PLUS this session's `app/web/**` Next.js app +
-`plans/v2-nextjs-migration/design.md` (both untracked). Nothing committed.
+**Remaining (NOT in this commit):** F1/F2 canary hardening (promote report models
+into the real parity check + guard the app/web mirror) — Codex/BE lane;
+gene-viewer enrichment / Primer §6-B / §7 TIDE (gated backend); the doc orphans
+from the `app/shared` removal (root `README.md`, `app/README.md`,
+`app/frontend/README.md`, `app/CLAUDE.md`) — pending a tidy pass.
 
-**Next (all gated — user direction):** await landing mock + brand/scope/
-content-realism decisions → emerald redesign on the app/web skeleton · mirror
-Codex's additive report contracts into app/web/lib/backend.ts + render new
-sections (mind the dual backend.ts) · strict-TS hardening pass · cutover
-(make app/web canonical) — later. `/runs`, AlphaMissense, Workbench: do not
-touch (on hold).
+**Next (gated — user direction):** emerald "Lifestream" report-side redesign on
+the app/web skeleton; F1/F2 follow-up with Codex; strict-TS/app-web cutover —
+later. `/runs`, AlphaMissense, Workbench: do not touch (on hold).
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-23 18:52 +1000 · Claude (Vite→Next.js migration DONE+verified — break)
+`# Resume prompt · 2026-05-24 01:18 +1000 · Claude (BE↔FE cross-check + integration DONE — break)
 Eamos. Read ~/.claude/plans/next-session-eamos.md (full state), then
 agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status +
-Locks + Cross-Agent Requests), agent_handoff/DECISIONS.md, agent_handoff/RISKS.md,
-agent_handoff/on_hold/register.md, plans/v2-nextjs-migration/design.md, then
-git status --short --branch.
-Delta: STARTED+COMPLETED the Vite→Next.js migration. NEW parallel app app/web/
-(App Router) — landing + Variant Evidence Report ported pixel-faithful,
-design-agnostic; Vite app/frontend untouched (Workbench+/runs still there).
-Build clean + browser-verified. On Next 16 (user-ratified; 15.5 won't build on
-IT Node 24). app/web has its OWN backend.ts mirror (canary guards only the Vite
-copy). CURRENT.md synced this session. Next: await landing mock + brand/scope
-decisions → emerald "Lifestream" redesign on the app/web skeleton; mirror
-Codex's new report contracts into app/web. Do NOT touch /runs, AlphaMissense,
-parked Workbench. FE Vite checkpoint = 205eaae. End clear-safe.`
+Locks + Cross-Agent Requests), agent_handoff/2026-05-24-be-fe-cross-check.md
+(backend findings F1-F5), agent_handoff/RISKS.md, agent_handoff/on_hold/register.md,
+then git status --short --branch.
+Delta: BE↔FE cross-check + integration COMPLETE. Codex wired raw /report?q=
+search_text + SearchInterpretationPanel in both frontends and fixed two backend
+provenance items; Claude reviewed the backend (F1-F5), ran a green Integration
+Checkpoint (backend 349 passed, canary 117, Vite+Next builds clean, backend.ts
+mirrors identical), and committed+pushed ALL lanes. Also pushed d277263 (removed
+app/shared + .trash). Next: F1/F2 canary hardening (Codex/BE — canary doesn't yet
+guard the report-profile subtree or app/web mirror); tidy the app/shared doc
+orphans (root README.md, app/README.md, app/frontend/README.md, app/CLAUDE.md).
+Do NOT touch /runs, AlphaMissense, parked Workbench. FE Vite checkpoint = 205eaae;
+landing v2 = fe08a0a; app/shared removal = d277263. End clear-safe.`
 
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 00:04 +1000 - Codex. Prior Codex section
+1/2). Section last edited: 2026-05-24 00:20 +1000 - Codex. Prior Codex section
 archived verbatim -> `agent_handoff/archive/2026-05-24-codex-section-pre-task13.md`.
 
-**Latest Codex update (2026-05-24 00:04 +1000 - Codex):** Task 13 from
-`plans/variant-report-data-orchestration/plan.md` is implemented and verified.
+**Latest Codex update (2026-05-24 00:20 +1000 - Codex):** Task 13 from
+`plans/variant-report-data-orchestration/plan.md` is implemented, verified,
+committed, and pushed. The untracked `app/web` report QA PNG screenshots from
+gnomAD/world-map visual QA were deleted. The resume prompt now points the next
+session at the requested backend/frontend adversarial cross-check and
+integration meeting.
 
 **Implementation completed:**
 - Added additive `VariantReportProfile.gene_context_snapshot` plus nested
@@ -450,11 +462,17 @@ archived verbatim -> `agent_handoff/archive/2026-05-24-codex-section-pre-task13.
 - `cd app/web && npx tsc --noEmit --pretty false` passed.
 
 **Still gated / next:**
-- No commit/push was done.
+- Task 13 was committed and pushed as `38ea620`; the prior stale docs/pitch
+  cleanup `65ea598` is also on origin.
+- Next requested session: Codex performs an adversarial review of Claude's
+  frontend work; Claude performs the same review of Codex backend work; exchange
+  suggestions; implement agreed fixes/changes; then Claude coordinates
+  integration and commits/pushes all.
 - Patient Report Pipeline (`/runs`) remains parked.
 - AlphaMissense remains hidden/on hold.
-- Task 14 is the next report-snapshot continuation: render the static
-  `gene_context_snapshot` section in Vite and Next, then browser/visual QA.
+- Task 14 remains the next report-snapshot continuation after the cross-check if
+  report snapshot work resumes: render the static `gene_context_snapshot`
+  section in Vite and Next, then browser/visual QA.
 - Production gnomAD ETL/warehouse, per-hover endpoint, and ClinicalTrials.gov
   hardening remain Tasks 15-18.
 
@@ -462,8 +480,9 @@ archived verbatim -> `agent_handoff/archive/2026-05-24-codex-section-pre-task13.
 handoff are synced.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 00:04 +1000 · Codex Task 13 gene-context snapshot contract complete
+`# Resume prompt · 2026-05-24 00:20 +1000 · Codex backend/frontend cross-check prep
 Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section, Locks, Requests), agent_handoff/RISKS.md, docs/proprietary/index.json, docs/proprietary/variant-report-orchestration.md, plans/variant-report-data-orchestration/plan.md, then git status --short --branch.
-Delta: Task 13 implemented. Added additive report_profile.gene_context_snapshot contract, GeneContextSnapshotService source-backed/fixture wiring, both TS mirrors, tests, and plan/proprietary/progress docs. RPE65 fixture snapshot is warning-labelled; non-RPE65 fixture lookups stay empty/missing without RPE65 scaffold bleed.
-Verification: focused gene-viewer/report/contract pytest passed, variant-search integration passed, ruff passed, black --check passed after formatting, Vite tsc passed, Next tsc passed.
-Next: implement Task 14 static report GeneContextSnapshot UI in both frontends if continuing; do not commit/push un
+Delta: Task 13 gene-context snapshot contract is committed and pushed as 38ea620; prior docs cleanup 65ea598 is also on origin. Deleted untracked app/web report QA PNG screenshots.
+Next: run a backend/frontend cross-check and integration meeting. Codex does an adversarial review of Claude frontend work; Claude does the same for Codex backend work; exchange suggestions; implement agreed fixes/changes; then Claude coordinates integration and commits/pushes all.
+Guardrails: keep /runs and AlphaMissense untouched unless explicitly reopened; respect shared locks and the mixed dirty worktree.
+End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`

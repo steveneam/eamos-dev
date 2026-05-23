@@ -197,9 +197,16 @@ class GnomadTool(FixtureBackedTool):
                     warnings=["gnomad_fixture_variant_mismatch"],
                 )
             gene = (variant.gene if variant is not None else None) or ""
-            fallback_url = _gene_source_url(gene)
+            fixture_url = fixture.get("source_url") or (
+                fixture.get("summary", {}) if isinstance(fixture, dict) else {}
+            ).get("url")
+            fallback_url = fixture_url or _gene_source_url(gene)
+            fixture_payload = {key: value for key, value in fixture.items() if key != "source_url"}
             return ToolResult(
-                source=self.source, status="fixture", source_url=fallback_url, **fixture
+                source=self.source,
+                status="fixture",
+                source_url=fallback_url,
+                **fixture_payload,
             )
         try:
             return self._fetch_live(variant)
@@ -212,12 +219,13 @@ class GnomadTool(FixtureBackedTool):
             if not _fixture_matches_variant(variant, fixture):
                 warnings.append("gnomad_fallback_fixture_variant_mismatch")
                 return _unavailable_result(variant, status="fallback", warnings=warnings)
+            fixture_payload = {key: value for key, value in fixture.items() if key != "source_url"}
             return ToolResult(
                 source=self.source,
                 status="fallback",
                 warnings=warnings,
                 source_url=fallback_url,
-                **fixture,
+                **fixture_payload,
             )
 
     def _fetch_live(self, variant) -> ToolResult:

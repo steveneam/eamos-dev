@@ -1,0 +1,247 @@
+{
+  "phase": "plan-code",
+  "iteration": 1,
+  "items": [
+    {
+      "id": "qa-001",
+      "scope": "*",
+      "check": "UMBRELLA: every var(--chrome-*) referenced by any code_change resolves to a token CC-M-001-002 (index.css) actually defines.",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-001",
+      "version": 2,
+      "finding": "var(--chrome-fg) and var(--chrome-accent) referenced in CC-M-001-005/006 and CC-M-002-005 but NOT defined in CC-M-001-002; browser will silently inherit/transparent fallback breaking TopNav, ModePill, SiteFooter text color"
+    },
+    {
+      "id": "qa-001a",
+      "parent_id": "qa-001",
+      "scope": "CC-M-001-005",
+      "check": "TopNav.tsx navy branch uses var(--chrome-fg); index.css CC-M-001-002 defines --chrome-ink (not --chrome-fg). Unresolved var() -> broken navy chrome.",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-001",
+      "version": 2,
+      "finding": "CC-M-001-005 (TopNav.tsx) uses var(--chrome-fg) in isNavy branch color, but CC-M-001-002 defines --chrome-ink not --chrome-fg; unresolved CSS variable -> transparent/initial fallback breaks navy TopNav text"
+    },
+    {
+      "id": "qa-001b",
+      "parent_id": "qa-001",
+      "scope": "CC-M-001-006",
+      "check": "ModePill.tsx navy branch uses var(--chrome-fg) and var(--chrome-accent); neither defined (defs are --chrome-ink, --chrome-teal).",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-001",
+      "version": 2,
+      "finding": "CC-M-001-006 (ModePill.tsx) uses var(--chrome-fg) for inactive text and var(--chrome-accent) for active background; CC-M-001-002 defines --chrome-ink and --chrome-teal instead; both tokens unresolved -> broken pill colors in navy mode"
+    },
+    {
+      "id": "qa-001c",
+      "parent_id": "qa-001",
+      "scope": "CC-M-001-003,CC-M-001-004",
+      "check": "SearchShell.tsx navy branch uses --chrome-border/--chrome-ink/--chrome-ink-4/--chrome-teal; verify all four are in CC-M-001-002 (these match defs; included for outlier coverage).",
+      "status": "PASS",
+      "severity": "MUST",
+      "group_id": "parent-qa-001",
+      "version": 2
+    },
+    {
+      "id": "qa-001d",
+      "parent_id": "qa-001",
+      "scope": "CC-M-002-005",
+      "check": "SiteFooter.tsx uses var(--chrome-fg) (undefined; def is --chrome-ink).",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-001",
+      "version": 2,
+      "finding": "CC-M-002-005 (SiteFooter.tsx) replaces var(--ink-4) with var(--chrome-fg), which is not defined in CC-M-001-002; --chrome-ink is the defined equivalent; unresolved var -> footer text goes invisible"
+    },
+    {
+      "id": "qa-002",
+      "scope": "*",
+      "check": "UMBRELLA: no code_change '+' line carries U+FFFD/mojibake or a stray '*/' inside a CSS comment (Tailwind v4 Lightning CSS strict).",
+      "status": "PASS",
+      "severity": "SHOULD",
+      "group_id": "umbrella",
+      "version": 2
+    },
+    {
+      "id": "qa-003",
+      "scope": "*",
+      "check": "UMBRELLA: every motion-adding code_change ships a prefers-reduced-motion guard per constraint C-005.",
+      "status": "FAIL",
+      "severity": "SHOULD",
+      "group_id": "umbrella",
+      "version": 2,
+      "finding": "5 code_changes add CSS transitions (transition-all/transition-colors/var(--dur-2)) without prefers-reduced-motion guard: CC-M-002-002 SourceStrip hover:-translate-y-px, CC-M-003-003 VariantTabStrip, CC-M-003-005 ExportMenu, CC-M-003-008 AcmgCriteriaFold, CC-M-003-011 EvidenceTable"
+    },
+    {
+      "id": "qa-004",
+      "scope": "*",
+      "check": "UMBRELLA: all EamosLogo tone-prop usages compile against EamosLogo's actual prop interface.",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-004",
+      "version": 2,
+      "finding": "EamosLogo.tsx (brand component) has no tone prop in its interface {size?,showWordmark?,className?}; plan never adds tone to EamosLogo.tsx, but M-001 TopNav diff passes tone={isNavy?'navy':'light'} and M-002 SiteFooter diff passes tone=\"navy\" \u2014 both will silently discard the unknown prop and the logo will render without navy colour variant, breaking the chrome-tier design intent."
+    },
+    {
+      "id": "qa-004a",
+      "parent_id": "qa-004",
+      "scope": "CC-M-001-005",
+      "check": "TopNav passes <EamosLogo tone=...> but EamosLogo.tsx has no tone prop and no M-001 change adds it -> tsc -b error.",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-004",
+      "version": 2,
+      "finding": "CC-M-001-005 TopNav diff passes tone={isNavy?'navy':'light'} to EamosLogo; EamosLogo.tsx interface is {size?,showWordmark?,className?} \u2014 no tone prop; no M-001 (or any milestone) change adds tone to EamosLogo.tsx; tsc -b will error on the unknown prop."
+    },
+    {
+      "id": "qa-004b",
+      "parent_id": "qa-004",
+      "scope": "CC-M-002-005",
+      "check": "SiteFooter passes <EamosLogo size={16} tone=\"navy\" />; tone prop nonexistent -> tsc -b error.",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-004",
+      "version": 2,
+      "finding": "CC-M-002-005 SiteFooter diff passes tone=\"navy\" to EamosLogo; EamosLogo.tsx has no tone prop ({size?,showWordmark?,className?} only); no plan change adds tone to EamosLogo.tsx; tsc -b will error."
+    },
+    {
+      "id": "qa-004c",
+      "parent_id": "qa-004",
+      "scope": "CC-M-004-001",
+      "check": "WorkbenchPage mounts shared TopNav (tone=navy) which forwards tone to EamosLogo; same nonexistent-prop break.",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "parent-qa-004",
+      "version": 2,
+      "finding": "CC-M-004-001 WorkbenchPage mounts <TopNav tone=\"navy\">; TopNav (M-001, CC-M-001-005) internally passes tone to EamosLogo as <EamosLogo tone={isNavy?'navy':'light'}>; EamosLogo.tsx has no tone prop; same tsc-b break via transitive call chain."
+    },
+    {
+      "id": "qa-005",
+      "scope": "CC-M-001-001",
+      "check": "DESIGN.md hunk inserts '## Navy Chrome Tier' between the '## Color Tokens' heading and its fenced :root block, orphaning the heading from its content.",
+      "status": "FAIL",
+      "severity": "SHOULD",
+      "group_id": "component-m001-chrome-tokens",
+      "version": 2,
+      "finding": "Hunk inserts ## Navy Chrome Tier between ## Color Tokens (L157) and its :root fenced block (L159), orphaning the heading from its content block"
+    },
+    {
+      "id": "qa-006",
+      "scope": "CC-M-003-005",
+      "check": "ExportMenu style object contains invalid React style key 'border_bottom: undefined'.",
+      "status": "FAIL",
+      "severity": "COULD",
+      "group_id": "component-m003-report-shells",
+      "version": 2,
+      "finding": "CC-M-003-005 ExportMenu.tsx style object contains invalid snake_case key 'border_bottom: undefined' \u2014 React silently ignores it; should be removed (borderBottom already set above)"
+    },
+    {
+      "id": "qa-007",
+      "scope": "CC-M-003-008",
+      "check": "AcmgCriteriaFold sets transition:'var(--dur-2)' \u00e2\u20ac\u201d a duration token used as a full transition shorthand (no property/easing); ineffective.",
+      "status": "FAIL",
+      "severity": "COULD",
+      "group_id": "affinity-motion-intent-fidelity",
+      "version": 2,
+      "finding": "transition:'var(--dur-2)' is a bare duration token used as the full transition shorthand; missing property name and easing \u2014 browser silently discards or applies no animation"
+    },
+    {
+      "id": "qa-008",
+      "scope": "CC-M-004-002,CC-M-004-003",
+      "check": "workbench.css --nav-h and WorkbenchShell rely on var(--chrome-h) but no M-001 code_change defines --chrome-h (missing artifact).",
+      "status": "FAIL",
+      "severity": "MUST",
+      "group_id": "component-m001-chrome-tokens",
+      "version": 2,
+      "finding": "--chrome-h is never defined in any code_change; CC-M-004-002 uses var(--chrome-h, 56px) fallback silently; CC-M-004-003 comment references an undefined token"
+    },
+    {
+      "id": "qa-009",
+      "scope": "CI-M-001-003",
+      "check": "Intent specifies an opt-in scrollTransition shrink-to-sticky behavior; CC-M-001-003/004 only add a tone prop. Code_change does not implement the stated intent.",
+      "status": "FAIL",
+      "severity": "SHOULD",
+      "group_id": "affinity-motion-intent-fidelity",
+      "version": 2,
+      "finding": "CI-M-001-003 requires scrollTransition prop + scroll listener + sticky shrink + prefers-reduced-motion guard; CC-M-001-003/004 only add a tone prop \u2014 intent entirely unimplemented"
+    },
+    {
+      "id": "qa-010",
+      "scope": "CC-M-002-001",
+      "check": "LandingPage removes PreviewCard/PreviewRow; verify the PreviewCard import/usage is fully removed (no orphan -> tsc noUnusedLocals).",
+      "status": "PASS",
+      "severity": "COULD",
+      "group_id": "concern-orphan-after-removal",
+      "version": 2
+    },
+    {
+      "id": "qa-011",
+      "scope": "CC-M-004-001",
+      "check": "WorkbenchPage drops bespoke nav: verify removed Link import + qs/parseQuery orphans cleaned and SearchSubmit union type access is sound.",
+      "status": "FAIL",
+      "severity": "COULD",
+      "group_id": "concern-orphan-after-removal",
+      "version": 2,
+      "finding": "CC-M-004-001 diff leaves two orphans: (1) qs useMemo decl (lines 39-42) unused after nav-wrap removal; (2) type FormEvent import unused after onSearch removal - both fail tsc noUnusedLocals"
+    },
+    {
+      "id": "qa-012",
+      "scope": "CC-M-003-003",
+      "check": "VariantTabStrip hard-codes sticky top:56 while header height is intended to be tokenized (--chrome-h); magic-number desync risk.",
+      "status": "FAIL",
+      "severity": "COULD",
+      "group_id": "component-m003-report-shells",
+      "version": 2,
+      "finding": "CC-M-003-003 VariantTabStrip hard-codes top:56; --chrome-h token is never defined in plan CSS (workbench.css uses var(--chrome-h,56px) as fallback but :root definition absent); magic number desync risk when TopNav height changes"
+    },
+    {
+      "id": "qa-013",
+      "scope": "CC-M-001-002",
+      "check": "index.css hunk context (@@ -84,6 ...) matches the real file (--maxw-report/--maxw-nav adjacency) so the patch applies.",
+      "status": "PASS",
+      "severity": "SHOULD",
+      "group_id": "component-m001-chrome-tokens",
+      "version": 2
+    },
+    {
+      "id": "qa-014",
+      "scope": "*",
+      "check": "UMBRELLA: DESIGN.md documented token names vs DESIGN.md design-rules prose vs index.css definitions are internally consistent.",
+      "status": "FAIL",
+      "severity": "SHOULD",
+      "group_id": "umbrella",
+      "version": 2,
+      "finding": "--chrome-fg and --chrome-accent used in CC-M-001-005 (TopNav), CC-M-001-006 (ModePill), CC-M-002-005 (SiteFooter) but absent from DESIGN.md Navy Chrome Tier token block and index.css :root additions; DESIGN.md only documents --chrome-bg/bg-hover/border/ink/ink-2/ink-4/teal"
+    },
+    {
+      "id": "qa-015",
+      "scope": "*",
+      "check": "UMBRELLA: every modified-file code_change's @@ context (unchanged + '-' lines) exactly matches the current codebase so the patch applies (covers all restyle-only diffs).",
+      "status": "FAIL",
+      "severity": "SHOULD",
+      "group_id": "umbrella",
+      "version": 2,
+      "finding": "20 of 32 code_changes have context lines that do not match current codebase: CC-M-001-001 DESIGN.md (3 mismatches), CC-M-001-002 index.css (4), CC-M-001-003/004 SearchShell.tsx (23/32), CC-M-001-006 ModePill.tsx (36), CC-M-002-001/002/003/005, CC-M-003-006/007/009/010/011/013, CC-M-004-001/002/003/006/007; diffs were generated against a stale snapshot and will not apply cleanly"
+    },
+    {
+      "id": "qa-016",
+      "scope": "CC-M-003-001,CC-M-003-002,CC-M-003-003,CC-M-003-004,CC-M-003-005",
+      "check": "New-file changes use valid '--- /dev/null' add format and the TS/TSX compiles (exports, types, imports resolve).",
+      "status": "PASS",
+      "severity": "SHOULD",
+      "group_id": "component-m003-report-shells",
+      "version": 2
+    },
+    {
+      "id": "qa-017",
+      "scope": "CC-M-003-006",
+      "check": "ReportPage diff: added imports resolve to created files; both hunks' context (TopNav line, CuratedVariantsGrid/PublicationsCallout block) match the real file.",
+      "status": "PASS",
+      "severity": "SHOULD",
+      "group_id": "component-m003-report-shells",
+      "version": 2
+    }
+  ]
+}

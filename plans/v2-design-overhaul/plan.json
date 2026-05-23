@@ -1,0 +1,1026 @@
+{
+  "plan_id": "24c7c45a-fbed-4c1a-8b52-c8ede63c91df",
+  "created_at": "2026-05-19T09:01:48.304764",
+  "frozen_at": null,
+  "overview": {
+    "problem": "Design-first frontend overhaul of 3 Eamos surfaces (Landing /, Variant Evidence Report /report, Workbench /workbench) to a 'scientific accuracy meets quiet luxury' feel, driven by 4 ingested design-philosophy docs. Deliverable: per-page reviewable step-by-step task plans. Frontend-only; evolve DESIGN.md v2 tokens (add navy-header tier); navy = header/chrome ONLY; net-new surfaces = working visual shells on sample data; plan approved by user BEFORE implementation.",
+    "approach": "Approach B: build shared primitives once (navy-header chrome tier tokens + one shared scroll-transition SearchShell), then 3 independently-reviewable per-page milestone tracks (Landing / Report / Workbench). Net-new (multi-variant/VCF, ancestry heatmap, export menu) = sample-data visual shells, no backend.ts reshape. Evolve DESIGN.md v2, not rewrite. Verification = npm run build clean + vitest 73/73 + contract canary 40/40 (no backend.ts shape change) + browser-verify Workbench."
+  },
+  "planning_context": {
+    "decisions": [
+      {
+        "id": "DL-001",
+        "version": 1,
+        "decision": "Approach B: build shared primitives once (navy-header chrome tier tokens + extended SearchShell), then 3 independently-reviewable per-page tracks (Landing/Report/Workbench).",
+        "reasoning": "4 docs demand a structural+mood delta not just a retheme -> minimal-retheme (A) under-delivers and big-bang (C) is not independently reviewable nor bisectable against vitest 73/73 + contract 40/40 -> a foundation milestone plus 3 parallel page tracks is the only option that satisfies the per-page-reviewable SHOULD while bounding regression blast radius."
+      },
+      {
+        "id": "DL-002",
+        "version": 1,
+        "decision": "Landing-only scroll-transition search: shared SearchShell gains an optional scroll-shrink/sticky behavior gated to the landing surface; Report and Workbench keep todays static compact in-nav search.",
+        "reasoning": "User ruled ScrollSrch=Landing-only -> a global scroll-transition would fight the dense evidence-table reading mode on /report and the fixed 3-col canvas on /workbench -> gate the behavior behind an explicit landing-only prop plus prefers-reduced-motion guard so one component still serves all three headers without imposing motion where it harms legibility."
+      },
+      {
+        "id": "DL-003",
+        "version": 1,
+        "decision": "Workbench retires its bespoke .nav-wrap header and adopts the shared navy TopNav + ModePill; the 3-col shell (64px rail / 1fr canvas / 360px side panel) is re-pixel-verified in a browser under the new shared header height.",
+        "reasoning": "User ruled WbNav=Adopt shared TopNav -> two divergent chromes double maintenance and break cross-surface continuity -> consolidate on the navy TopNav, but a different header height shifts the canvas viewport math so an explicit browser/pixel re-verification of the 3-col shell is mandatory before the Workbench track is done."
+      },
+      {
+        "id": "DL-004",
+        "version": 1,
+        "decision": "Multi-variant realized as a slim VARIANT TAB STRIP top-most-left, directly beneath the sticky navy header and ABOVE the Variant Hero Summary, on its own axis, with an Import VCF affordance beside it, all sample/placeholder driven. A Table-view comparison grid is RESERVED in layout but NOT built this pass.",
+        "reasoning": "User ruled MultiVar=light shell as a top-left tab strip -> browser/editor-style tabs are elegant for ~2-6 variants but the doc cautions large tab sets do not scale -> ship only the tab strip + Import VCF affordance on sample data now, keep it on its own axis so it never competes with header or in-page section nav, and reserve (but do not build) the Table view as the documented large-VCF escape hatch for a later cycle."
+      },
+      {
+        "id": "DL-005",
+        "version": 2,
+        "decision": "Net-new feature surfaces (variant tab strip + Import VCF, ancestry heatmap, export menu) are working visual shells on sample/placeholder data with NO backend.ts contract shape change.",
+        "reasoning": "User explicitly chose (Tier-1, recorded in invisible_knowledge.tradeoffs: visual shells now, real data via Codex later, to reduce repetitive FE<->BE back-and-forth) -> this user decision is the primary backing, reinforced by Hard Rule 5 (contract changes are backend-led, test_frontend_contract.py canary is 40/40) so reshaping backend.ts here would break the canary and cross the FE/BE lane -> shells consume FE-only additive sample types from src/lib so Codex can wire real data later without a FE redesign."
+      },
+      {
+        "id": "DL-006",
+        "version": 2,
+        "decision": "Evolve DESIGN.md v2 by adding an additive navy-header chrome tier (navy = header/chrome ONLY, NOT page background; white/off-white content surfaces; teal accents; neutral grays + subtle warm neutral) rather than rewriting the design system.",
+        "reasoning": "User clarified explicitly (Tier-1, recorded in context.constraints and RA-003): navy = header/chrome ONLY, not page background, white/off-white content, teal buttons/accents, neutral+warm-neutral -> this user ruling, not just the technical legibility inference, is the primary backing; a v3 navy-dominant rewrite would also contradict the preserved clinical core (0.5px hairlines, semantic classification colours, no weight>700, motion only via tokens) and risk dense-table legibility -> therefore add a scoped header/chrome token tier, reuse the existing focus glow + elevation/motion tokens, and change nothing in the content palette."
+      },
+      {
+        "id": "DL-007",
+        "version": 1,
+        "decision": "ACCEPTED-RISK / VALIDATED: the design docs Gene/Sequence Viewer Page is treated as the existing /workbench surface. Validated against the codebase before planning.",
+        "reasoning": "Assumption was silently load-bearing: if wrong, the redesign retargets the wrong surface -> validated against the codebase: App.tsx routes only `/report`->ReportPage and `/workbench`->WorkbenchPage (no separate Gene/Sequence Viewer route), and README.md (lines 10/190/194) defines Workbench (/workbench) as the sequence-viewer surface -> mapping confirmed, no residual risk; logged here so the assumption is no longer silent."
+      },
+      {
+        "id": "DL-008",
+        "version": 1,
+        "decision": "ACCEPTED-RISK: sample data is treated as sufficient for all shells; existing sample modules cover report/workbench, and the three net-new shells get NEW FE-only additive sample modules created within this plan.",
+        "reasoning": "Assumption sample-data-sufficient-for-all-shells was unvalidated and load-bearing -> codebase check: src/lib/sample-report.ts + src/lib/workbench/*-sample.ts (gene-viewer-sample, primer-sample, crispr-sample, sample-rpe65-v2, etc.) already cover existing report/workbench surfaces; the three net-new shells (variant tab strip, ancestry heatmap, export menu) have NO existing sample file -> M-003 explicitly CREATES sample-variants.ts and sample-ancestry.ts as additive FE-only modules (CI-M-003-001/002) and ExportMenu is no-op needing no data -> residual risk reduced to schema-shape-only, accepted because shells are FE-only and Codex wires real shapes later (DL-005)."
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "RA-001",
+        "alternative": "Approach A: token + chrome retheme only, no structural changes",
+        "rejection_reason": "User explicitly wants the quiet-luxury structural + mood shift, not just new tokens/behaviors; the 4 docs demand structural delta",
+        "decision_ref": "DL-001"
+      },
+      {
+        "id": "RA-002",
+        "alternative": "Approach C: single big-bang redesign of all 3 surfaces in one pass",
+        "rejection_reason": "Violates per-page-independently-reviewable SHOULD; high regression risk vs 73/73 vitest + 40/40 contract; hard to bisect failures",
+        "decision_ref": "DL-001"
+      },
+      {
+        "id": "RA-003",
+        "alternative": "Full navy-dominant re-theme (DESIGN.md v3, navy as page background everywhere)",
+        "rejection_reason": "Risks dense evidence-table legibility; user chose navy = header/chrome only",
+        "decision_ref": "DL-006"
+      },
+      {
+        "id": "RA-004",
+        "alternative": "Global scroll-transition search on all 3 surfaces",
+        "rejection_reason": "User ruled ScrollSrch=Landing-only; scroll motion fights the dense report reading mode and the fixed workbench canvas",
+        "decision_ref": "DL-002"
+      },
+      {
+        "id": "RA-005",
+        "alternative": "Keep Workbench bespoke .nav-wrap header",
+        "rejection_reason": "User ruled WbNav=Adopt shared TopNav; two chromes double maintenance and break cross-surface continuity",
+        "decision_ref": "DL-003"
+      },
+      {
+        "id": "RA-006",
+        "alternative": "Build the full variants-as-rows comparison Table view now",
+        "rejection_reason": "User ruled MultiVar=light tab strip; doc cautions large tab/table sets are a later-cycle escape hatch, reserve layout room but do not build",
+        "decision_ref": "DL-004"
+      },
+      {
+        "id": "RA-007",
+        "alternative": "Real PDF/Excel export + real VCF parsing + real ancestry data this pass",
+        "rejection_reason": "Out of scope; net-new = working visual shells on sample data only, backend-led real data via Codex later",
+        "decision_ref": "DL-005"
+      }
+    ],
+    "constraints": [
+      "[C-001 | MUST | backing: Tier-1 PROJECT-DOC -> E:/eamos/agent_handoff/README.md Hard Rule 5 (contract changes are backend-led; test_frontend_contract.py canary 40/40) | mirrored: invisible_knowledge.invariants[1], decisions[DL-005]] Frontend-only this pass; no backend.ts contract reshape; request via Cross-Agent if needed",
+      "[C-002 | MUST | backing: Tier-1 USER-INSTRUCTION -> user-mandated ON HOLD recorded in E:/eamos/agent_handoff/DECISIONS.md + user auto-memory (AlphaMissense ON HOLD 2026-05-19; /runs frozen on v1) | mirrored: invisible_knowledge.invariants[0], invisible_knowledge.invariants[6]] Do NOT touch /runs LegacyRunsApp or AlphaMissense (both ON HOLD)",
+      "[C-003 | MUST | backing: Tier-1 USER-INSTRUCTION -> explicit task-spec constraint 'MUST: evolve existing DESIGN.md v2 tokens (extend :root scale, add navy-header tier) - not a full rewrite' (context.json constraints[2]); reinforced by PROJECT-DOC E:/eamos/CLAUDE.md ('evolve, don't rewrite' DESIGN.md) + E:/eamos/DESIGN.md v2 design-system authority | mirrored: decisions[DL-006]] Evolve existing DESIGN.md v2 tokens (extend :root scale, add navy-header tier) - not a full rewrite",
+      "[C-004 | MUST | backing: Tier-1 USER-INSTRUCTION -> explicit user clarification recorded in context.json constraints[3] ('user-clarified') | mirrored: decisions[DL-006], rejected_alternatives[RA-003]] navy = header/chrome ONLY, NOT page background; white/off-white content surfaces; teal buttons/accents; neutral grays + subtle warm neutral",
+      "[C-005 | MUST | backing: Tier-1 PROJECT-DOC -> E:/eamos/DESIGN.md v2 invariants section (0.5px hairlines, no ad-hoc box-shadow, no weight>700, no pure-black ink, semantic classification colours never change, motion only via --dur-*/--ease-* tokens) + E:/eamos/CLAUDE.md coding guidelines | mirrored: invisible_knowledge.invariants[2], invisible_knowledge.invariants[3], decisions[DL-006]] Preserve clinical core: 0.5px hairlines, muted palette, semantic classification colours never change, no font weight >700, motion only via --dur/--ease tokens, ship prefers-reduced-motion guard",
+      "[C-006 | MUST | backing: Tier-1 USER-INSTRUCTION -> explicit user decision 'visual shells now, real data via Codex later, to reduce repetitive FE<->BE back-and-forth' (user explicit, recorded in invisible_knowledge.tradeoffs[0]) | mirrored: invisible_knowledge.tradeoffs[0], decisions[DL-005], rejected_alternatives[RA-007]] Net-new surfaces = working visual shells on sample/placeholder data",
+      "[C-007 | MUST | backing: Tier-1 USER-INSTRUCTION -> explicit task-spec subject 'produce a reviewable step-by-step task plan' + constraint 'MUST: plan reviewed/approved by user BEFORE implementation' (context.json constraints[6]); reinforced by PROJECT-DOC E:/eamos/CLAUDE.md golden rule (plan approved by user BEFORE code is written) | mirrored: overview.problem] Plan reviewed/approved by user BEFORE implementation",
+      "[C-008 | SHOULD | backing: Tier-1 USER-INSTRUCTION -> explicit task-spec SHOULD constraint 'per-page plans independently reviewable/deliverable; shared scroll-transition search built once and reused' (context.json constraints[9]) | mirrored: decisions[DL-001]] Per-page plans independently reviewable/deliverable; shared scroll-transition search built once and reused",
+      "[C-009 | SHOULD | backing: Tier-1 PROJECT-DOC -> E:/eamos/CLAUDE.md verification gates (Goal-Driven Execution loop-until-verified) + E:/eamos/agent_handoff/RISKS.md (Workbench needs browser/pixel verification after meaningful UI change); reinforced by task-spec SHOULD constraint (context.json constraints[8]) | mirrored: invisible_knowledge.invariants[1], invisible_knowledge.invariants[4]] Keep vitest 73/73 green, npm run build clean, contract canary 40/40 (no backend.ts shape change); browser-verify Workbench UI changes",
+      "[C-010 | SHOULD | backing: Tier-1 PROJECT-DOC -> Tailwind v4 Lightning CSS strict build constraint recorded in context.json invisible_knowledge ('CSS comments must not contain star-slash ... build ~50s, chunk+plugin-timings warnings are NOT failures') | mirrored: invisible_knowledge.invariants[5], risks[R-005]] CSS comments must not contain the sequence star-slash (Tailwind v4 Lightning CSS strict); build ~50s, chunk/plugin-timings warnings are NOT failures"
+    ],
+    "risks": [
+      {
+        "id": "R-001",
+        "risk": "Extending SearchShell could regress the static Report/Workbench search if the scrollTransition prop is not strictly opt-in",
+        "mitigation": "Gate all scroll/sticky behind a default-off prop; acceptance criterion requires pixel-identical render with prop off; vitest 73/73 must stay green",
+        "anchor": "E:/eamos/app/frontend/src/components/search/SearchShell.tsx",
+        "decision_ref": "DL-002"
+      },
+      {
+        "id": "R-002",
+        "risk": "Adopting the shared navy TopNav changes header height and can clip/scroll the Workbench 3-col canvas",
+        "mitigation": "Re-base shell geometry on the shared --chrome-h token; MANDATORY browser/pixel re-verification at full width and at collapse breakpoints before M-004 is done",
+        "anchor": "E:/eamos/app/frontend/src/components/workbench/WorkbenchShell.tsx",
+        "decision_ref": "DL-003"
+      },
+      {
+        "id": "R-003",
+        "risk": "Net-new shells could tempt a backend.ts contract reshape and break the 40/40 canary",
+        "mitigation": "Shells consume new FE-only sample modules (sample-variants.ts, sample-ancestry.ts) with no backend.ts import; contract canary asserted in every milestone acceptance",
+        "anchor": "E:/eamos/app/frontend/src/lib/backend.ts",
+        "decision_ref": "DL-005"
+      },
+      {
+        "id": "R-004",
+        "risk": "A navy retheme could degrade dense evidence-table legibility",
+        "mitigation": "Navy is chrome-only; content stays white/off-white; EvidenceTable/InSilicoGrid acceptance explicitly requires preserved density and unchanged semantic classification colours",
+        "anchor": "E:/eamos/app/frontend/src/components/report/EvidenceTable.tsx",
+        "decision_ref": "DL-006"
+      },
+      {
+        "id": "R-005",
+        "risk": "CSS comments containing the star-slash sequence break the Tailwind v4 Lightning CSS strict build",
+        "mitigation": "Explicit acceptance criterion + intent note forbidding that sequence in index.css and workbench.css",
+        "anchor": "E:/eamos/app/frontend/src/index.css",
+        "decision_ref": "DL-006"
+      },
+      {
+        "id": "R-006",
+        "risk": "Variant tab strip could visually compete with the header or in-page section nav",
+        "mitigation": "Place it on its own axis directly beneath the sticky header and above the Variant Hero Summary; acceptance requires it never competes; reserve but do not build the Table view",
+        "anchor": "E:/eamos/app/frontend/src/components/report/VariantTabStrip.tsx",
+        "decision_ref": "DL-004"
+      }
+    ]
+  },
+  "invisible_knowledge": {
+    "system": "Eamos variant intelligence platform. 3 active surfaces share DESIGN.md v2 (light clinical: white surfaces, navy as INK only today, single teal accent, 0.5px hairlines, elevation --elev-* + motion --dur-*/--ease-* tokens, Syne/Plus Jakarta Sans/JetBrains Mono). Landing today = static split text+PreviewCard, no scroll behavior. Report today = numbered Cards vertical (VariantHeader+AIStack then Cards 2-8), no above-fold key-metrics bar, only AcmgCriteriaFold uses disclosure, no section nav, export is just a VariantHeader window.print() tool link. Workbench today = bespoke .nav-wrap nav (NOT shared TopNav), ContextStrip, WorkbenchShell 64px/1fr/360px, GeneMinimap exists but no top overview-ruler, side panel fixed 360px not resizable. SearchShell = hero|nav variants, sample chips only, NO scroll-transition. Philosophy in the 4 docs is ~80% already in DESIGN.md; real delta = structural + a navy-header mood tier.",
+    "invariants": [
+      "NEVER bare 'report': 'Variant Evidence Report' = /report = active focus; 'Patient Report Pipeline' = /runs = ON HOLD do not touch",
+      "Contract changes are backend-led; test_frontend_contract.py canary 40/40; FE mirrors backend.ts, never reshapes it",
+      "No ad-hoc box-shadow (only --elev-*), no decorative gradients (<=4% functional wash only), no weight>700, no radius>14px card/100px pill, no pure black (#0b1a2b ink), no Franklin chip/link, semantic classification colours never change",
+      "Existing focus glow 0 0 0 3px rgba(29,158,117,.12) is the generalised affordance ring; reuse it",
+      "Workbench needs browser/pixel verification after meaningful UI change",
+      "CSS comments must not contain star-slash (Tailwind v4 Lightning CSS strict)",
+      "AlphaMissense assets/contract KEPT but display ON HOLD; do not re-enable or delete",
+      "End every task clear-safe: stamped resume prompt + synced agent_handoff/ + own next-session log"
+    ],
+    "tradeoffs": [
+      "Visual shells now, real data via Codex later — user explicit, reduces repetitive FE<->BE back-and-forth",
+      "DESIGN.md evolution (additive navy-header tier) over rewrite — keeps clinical core, lowers regression risk",
+      "Shared scroll-transition search built once and reused by all 3 headers — DRY over per-page bespoke"
+    ]
+  },
+  "milestones": [
+    {
+      "id": "M-001",
+      "version": 2,
+      "number": 1,
+      "name": "Foundation - navy chrome tier tokens + shared SearchShell scroll-transition (landing-gated) + shared TopNav navy variant",
+      "files": [
+        "E:/eamos/DESIGN.md",
+        "E:/eamos/app/frontend/src/index.css",
+        "E:/eamos/app/frontend/src/components/search/SearchShell.tsx",
+        "E:/eamos/app/frontend/src/components/layout/TopNav.tsx",
+        "E:/eamos/app/frontend/src/components/layout/ModePill.tsx"
+      ],
+      "flags": [],
+      "requirements": [
+        "Add navy chrome-tier tokens to DESIGN.md and index.css without altering any content-palette/classification/hairline/elevation token; Extend SearchShell with an opt-in scrollTransition prop that is byte-identical to current behavior when off; Add navy tone variant to TopNav and ModePill defaulting to todays white treatment"
+      ],
+      "acceptance_criteria": [
+        "npm run build is clean (tsc -b + Vite) with no new errors; vitest stays 73/73 green; contract canary stays 40/40 with no backend.ts shape change; SearchShell without scrollTransition renders pixel-identical to pre-change on Report and Workbench; prefers-reduced-motion disables the scroll animation and snaps to compact; no CSS comment contains the star-slash sequence"
+      ],
+      "tests": [
+        "npm run build; npm run test (vitest 73/73); pytest test_frontend_contract.py (40/40)"
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-001-001",
+          "version": 1,
+          "file": "E:/eamos/DESIGN.md",
+          "function": null,
+          "behavior": "ADD an additive navy-header chrome tier section to DESIGN.md v2 (do not rewrite existing sections): document new chrome-only tokens (--chrome-bg navy ink #0b1a2b family, --chrome-fg, --chrome-border 0.5px hairline-on-navy, --chrome-accent teal, header height token --chrome-h, sticky/compact heights). State the invariant: navy applies to header/chrome ONLY, never page background; content surfaces stay white/off-white; teal stays the single accent; semantic classification colours, 0.5px hairlines, no-weight>700, motion-only-via-tokens, no-pure-black-ink rules are unchanged. Document the landing-only scroll-transition contract and prefers-reduced-motion guard.",
+          "decision_refs": [
+            "DL-006",
+            "DL-002"
+          ]
+        },
+        {
+          "id": "CI-M-001-002",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/index.css",
+          "function": null,
+          "behavior": "ADD the navy chrome-tier CSS custom properties to :root (chrome bg/fg/border/accent + header height vars + scroll-transition duration/ease aliased to existing --dur-*/--ease-* tokens, not new motion primitives). Do NOT change any existing content-palette token, semantic classification colour, hairline width, or elevation token. CSS comments must not contain the star-slash sequence (Tailwind v4 Lightning CSS strict). Reuse the existing focus glow 0 0 0 3px rgba(29,158,117,.12) for chrome focus rings.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-001-003",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/search/SearchShell.tsx",
+          "function": null,
+          "behavior": "EXTEND (not rewrite) SearchShell with an optional scrollTransition prop (default off). When enabled it renders a large centered hero search that smoothly shrinks toward a sticky compact bar on scroll-down and eases back toward centered on scroll-up, driven only by --dur-*/--ease-* tokens and disabled under prefers-reduced-motion (snap to compact). When the prop is absent/false, behavior is byte-for-byte the existing static hero|nav variants (Report/Workbench unaffected). No autocomplete dropdown; keep sample chips. The scroll/sticky behavior is gated to be opted-in only by the landing surface.",
+          "decision_refs": [
+            "DL-002",
+            "DL-001"
+          ]
+        },
+        {
+          "id": "CI-M-001-004",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/layout/TopNav.tsx",
+          "function": null,
+          "behavior": "ADD a navy chrome variant to TopNav (e.g. tone=\"navy\" prop) using the new chrome-tier tokens for bg/fg/border while keeping the existing sticky behavior, EamosLogo slot, children slot and right slot. Default tone preserves todays white nav so existing callers are unchanged until they opt in. Hairline-on-navy uses the chrome-border token at 0.5px.",
+          "decision_refs": [
+            "DL-003",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-001-005",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/layout/ModePill.tsx",
+          "function": null,
+          "behavior": "ADD a navy-chrome visual treatment to ModePill so it remains legible on the navy TopNav (chrome-fg text, chrome-accent active state, focus glow reuse). Behavior and toggle semantics unchanged; default treatment unchanged for existing white-nav callers.",
+          "decision_refs": [
+            "DL-003",
+            "DL-006"
+          ]
+        }
+      ],
+      "code_changes": [
+        {
+          "id": "CC-M-001-001",
+          "version": 2,
+          "intent_ref": "CI-M-001-001",
+          "file": "E:/eamos/DESIGN.md",
+          "diff": "--- a/E:/eamos/DESIGN.md\n+++ b/E:/eamos/DESIGN.md\n@@ -156,6 +156,6 @@ Loaded once via `@import` in `src/index.css`. Tailwind v4 `@theme inline` exposes them as `font-display`, `font-sans`, `font-mono`.\n\n ## Color Tokens\n\n-```css\n+```css\n :root {\n   /* Surfaces */\n   --bg:        #ffffff;\n@@ -191,6 +191,47 @@ Loaded once via `@import` in `src/index.css`. Tailwind v4 `@theme inline` exposes them as `font-display`, `font-sans`, `font-mono`.\n }\n ```\n\n+## Navy Chrome Tier\n+\n+A distinct header/chrome surface layer. Navy applies **only** to the top navigation\n+bar -- never to page backgrounds or content surfaces.\n+\n+### Token additions (additive -- extend `:root` in `src/index.css`)\n+\n+```css\n+--chrome-h:          56px;             /* shared nav height token */\n+--chrome-bg:         #0f2744;          /* nav bar fill -- navy */\n+--chrome-bg-hover:   #162f52;          /* subtle lighten on interactive chrome items */\n+--chrome-border:     rgba(255,255,255,0.08); /* hairline on navy bg */\n+--chrome-ink:        #e8edf3;          /* primary text on navy */\n+--chrome-ink-2:      rgba(232,237,243,0.65); /* secondary / label text on navy */\n+--chrome-ink-4:      rgba(232,237,243,0.40); /* hint / placeholder on navy */\n+--chrome-teal:       #22c491;          /* teal brightened +15% L for navy bg contrast */\n+```\n+\n+### Design rules\n+\n+- `--chrome-bg` is the exact background of every navy header. Nothing else uses it.\n+- White/off-white surfaces (`--bg`, `--bg-soft`) remain for all content below the nav.\n+- Teal buttons and accents on chrome surfaces use `--chrome-teal` (not `--teal`) to\n+  meet 4.5:1 contrast on the dark background.\n+- The `0.5px solid var(--chrome-border)` hairline replaces `var(--line)` on chrome.\n+- `ModePill` on the navy chrome: inactive items use `rgba(255,255,255,0.12)` pill bg;\n+  active item uses `--ink-2` fill + white text; inactive text uses `--chrome-ink-2`.\n+- SearchShell input on navy chrome: pill bg `rgba(255,255,255,0.10)`, border\n+  `var(--chrome-border)`, placeholder text `var(--chrome-ink-4)`, text\n+  `var(--chrome-ink)`. Focus glow uses the existing teal ring.\n+\n+### Usage\n+\n+```html\n+<!-- TopNav with navy chrome tone -->\n+<TopNav tone=\"navy\" />\n+```\n+\n+```css\n+.top-nav--navy { background: var(--chrome-bg); border-bottom: 0.5px solid var(--chrome-border); }\n+.top-nav--navy .nav-search-shell { background: rgba(255,255,255,0.10); border-color: var(--chrome-border); }\n+```\n+\n ### Sequence palette (Workbench only)\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-001-002",
+          "version": 2,
+          "intent_ref": "CI-M-001-002",
+          "file": "E:/eamos/app/frontend/src/index.css",
+          "diff": "--- a/E:/eamos/app/frontend/src/index.css\n+++ b/E:/eamos/app/frontend/src/index.css\n@@ -84,6 +84,17 @@ :root {\n\n   /* Surface width helpers */\n   --maxw-report: 920px;\n+\n+  /* Navy chrome tier -- header/navigation layer only.\n+     Never use --chrome-bg as a page or section background. */\n+  --chrome-h:         56px;\n+  --chrome-bg:        #0f2744;\n+  --chrome-bg-hover:  #162f52;\n+  --chrome-border:    rgba(255,255,255,0.08);\n+  --chrome-ink:       #e8edf3;\n+  --chrome-ink-2:     rgba(232,237,243,0.65);\n+  --chrome-ink-4:     rgba(232,237,243,0.40);\n+  --chrome-teal:      #22c491;\n+\n   --maxw-nav: 1180px;\n@@ -112,6 +123,12 @@ :root {\n   --mono:    'JetBrains Mono', 'Fira Code', monospace;\n }\n\n+@media (prefers-reduced-motion: reduce) {\n+  *, *::before, *::after {\n+    animation-duration: 0.01ms !important;\n+    transition-duration: 0.01ms !important;\n+  }\n+}\n+\n html, body { height: 100%; }\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-001-003",
+          "version": 2,
+          "intent_ref": "CI-M-001-003",
+          "file": "E:/eamos/app/frontend/src/components/search/SearchShell.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/search/SearchShell.tsx\n+++ b/E:/eamos/app/frontend/src/components/search/SearchShell.tsx\n@@ -1,4 +1,4 @@ import { useRef, useState } from 'react'\n-import { useRef, useState } from 'react'\n+import { useEffect, useRef, useState } from 'react'\n import { cn } from '@/lib/utils'\n\n@@ -26,6 +26,7 @@ interface SearchShellProps {\n   variant?: 'hero' | 'nav'\n   loading?: boolean\n   initialMode?: SearchMode\n+  scrollTransition?: boolean\n   tone?: 'light' | 'navy'\n   initialGene?: string\n   initialVariant?: string\n@@ -37,6 +38,7 @@ export function SearchShell({\n   variant = 'hero',\n   loading = false,\n   initialMode = 'lookup',\n+  scrollTransition = false,\n   tone = 'light',\n   initialGene = '',\n   initialVariant = '',\n@@ -73,6 +75,20 @@ export function SearchShell({\n   const isAi = mode === 'ai'\n   const isNav = variant === 'nav'\n   const isNavy = tone === 'navy'\n+  const [scrolled, setScrolled] = useState(false)\n+\n+  useEffect(() => {\n+    if (!scrollTransition) return\n+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches\n+    if (prefersReduced) {\n+      setScrolled(true)\n+      return\n+    }\n+    const onScroll = () => setScrolled(window.scrollY > 40)\n+    window.addEventListener('scroll', onScroll, { passive: true })\n+    return () => window.removeEventListener('scroll', onScroll)\n+  }, [scrollTransition])\n+\n+  const compact = !scrollTransition || scrolled\n\n   return (\n     <form\n@@ -80,7 +96,16 @@ export function SearchShell({\n       className={cn('w-full', className)}\n       role=\"search\"\n       aria-label={isAi ? 'AI search' : 'Variant lookup'}\n+      style={scrollTransition ? {\n+        position: 'sticky',\n+        top: 0,\n+        zIndex: 50,\n+        transition: `padding var(--dur-2) var(--ease-standard), transform var(--dur-2) var(--ease-standard)`,\n+        padding: compact ? '8px 0' : '32px 0',\n+      } : undefined}\n     >\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-001-004",
+          "version": 1,
+          "intent_ref": "CI-M-001-003",
+          "file": "E:/eamos/app/frontend/src/components/search/SearchShell.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/search/SearchShell.tsx\n+++ b/E:/eamos/app/frontend/src/components/search/SearchShell.tsx\n@@ -100,7 +100,7 @@ export function SearchShell({\n         {mode === 'lookup' ? (\n           <div className=\"flex min-w-0 flex-1 items-center gap-2\">\n             <input\n               type=\"text\"\n               value={gene}\n               onChange={(e) => setGene(e.target.value.toUpperCase())}\n               placeholder=\"GENE\"\n               autoComplete=\"off\"\n               spellCheck={false}\n               className=\"min-w-0 flex-[0_0_88px] border-none bg-transparent outline-none\"\n               style={{\n                 fontFamily: 'var(--mono)',\n                 fontSize: isNav ? 12.5 : 14,\n-                color: 'var(--ink)',\n+                color: isNavy ? 'var(--chrome-ink)' : 'var(--ink)',\n                 padding: '8px 0',\n                 letterSpacing: '-0.01em',\n               }}\n@@ -126,7 +126,7 @@ export function SearchShell({\n               spellCheck={false}\n               className=\"min-w-0 flex-1 border-none bg-transparent outline-none\"\n               style={{\n                 fontFamily: 'var(--mono)',\n                 fontSize: isNav ? 12.5 : 14,\n-                color: 'var(--ink)',\n+                color: isNavy ? 'var(--chrome-ink)' : 'var(--ink)',\n                 padding: '8px 0',\n                 letterSpacing: '-0.01em',\n               }}\n@@ -143,7 +143,7 @@ export function SearchShell({\n             spellCheck={false}\n             className=\"min-w-0 flex-1 border-none bg-transparent outline-none\"\n             style={{\n               fontFamily: 'var(--body)',\n               fontSize: isNav ? 13.5 : 15,\n-              color: 'var(--ink)',\n+              color: isNavy ? 'var(--chrome-ink)' : 'var(--ink)',\n               padding: '8px 0',\n               letterSpacing: '-0.005em',\n             }}",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-001-005",
+          "version": 2,
+          "intent_ref": "CI-M-001-004",
+          "file": "E:/eamos/app/frontend/src/components/layout/TopNav.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/layout/TopNav.tsx\n+++ b/E:/eamos/app/frontend/src/components/layout/TopNav.tsx\n@@ -1,7 +1,9 @@ import { type ReactNode } from 'react'\n import { type ReactNode } from 'react'\n import { EamosLogo } from '@/components/brand/EamosLogo'\n import { cn } from '@/lib/utils'\n\n+type NavTone = 'light' | 'navy'\n+\n interface TopNavProps {\n   children?: ReactNode\n   right?: ReactNode\n   className?: string\n+  tone?: NavTone\n }\n\n-export function TopNav({ children, right, className }: TopNavProps) {\n+export function TopNav({ children, right, className, tone = 'light' }: TopNavProps) {\n+  const isNavy = tone === 'navy'\n   return (\n     <div\n       className={cn('sticky top-0 z-50 backdrop-blur', className)}\n       style={{\n-        background: 'rgba(255,255,255,0.85)',\n-        borderBottom: '0.5px solid var(--line)',\n+        background: isNavy ? 'var(--chrome-bg)' : 'rgba(255,255,255,0.85)',\n+        borderBottom: isNavy\n+          ? '0.5px solid var(--chrome-border)'\n+          : '0.5px solid var(--line)',\n       }}\n     >\n       <div\n         className=\"mx-auto flex items-center gap-6 px-8\"\n         style={{ maxWidth: 1180, height: 56 }}\n       >\n         <a\n           href=\"/\"\n           aria-label=\"Eamos home\"\n           className=\"flex shrink-0 items-center\"\n           style={{ textDecoration: 'none' }}\n         >\n-          <EamosLogo size={18} />\n+          <EamosLogo size={18} tone={isNavy ? 'navy' : 'light'} />\n         </a>\n         {children && <div className=\"min-w-0 flex-1\">{children}</div>}\n         <div className=\"flex shrink-0 items-center gap-2\">\n           {right ?? (\n             <a\n               href=\"/runs\"\n               className=\"inline-flex items-center rounded-[10px] px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors\"\n               style={{\n-                color: 'var(--ink-2)',\n-                background: 'var(--bg)',\n-                border: '0.5px solid var(--line-2)',\n+                color: isNavy ? 'var(--chrome-ink)' : 'var(--ink-2)',\n+                background: isNavy ? 'transparent' : 'var(--bg)',\n+                border: isNavy\n+                  ? '0.5px solid var(--chrome-border)'\n+                  : '0.5px solid var(--line-2)',\n               }}\n             >\n               Patient reports\n             </a>\n           )}\n         </div>\n       </div>\n     </div>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-001-006",
+          "version": 2,
+          "intent_ref": "CI-M-001-005",
+          "file": "E:/eamos/app/frontend/src/components/layout/ModePill.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/layout/ModePill.tsx\n+++ b/E:/eamos/app/frontend/src/components/layout/ModePill.tsx\n@@ -1,6 +1,8 @@ import { Link, useSearchParams } from 'react-router-dom'\n import { Link, useSearchParams } from 'react-router-dom'\n import { cn } from '@/lib/utils'\n\n type Surface = 'report' | 'workbench'\n+type NavTone = 'light' | 'navy'\n\n interface ModePillProps {\n   current: Surface\n   className?: string\n+  tone?: NavTone\n }\n\n const ITEMS: Array<{ key: Surface; label: string; path: string }> = [\n@@ -16,7 +18,9 @@ const ITEMS: Array<{ key: Surface; label: string; path: string }> = [\n\n-export function ModePill({ current, className }: ModePillProps) {\n+export function ModePill({ current, className, tone = 'light' }: ModePillProps) {\n   const [params] = useSearchParams()\n   const query = params.toString()\n   const qs = query ? `?${query}` : ''\n+  const isNavy = tone === 'navy'\n\n   return (\n     <div\n       role=\"group\"\n       aria-label=\"View mode\"\n       className={cn('inline-flex items-center', className)}\n       style={{\n-        background: 'var(--bg-soft)',\n-        border: '0.5px solid var(--line)',\n+        background: isNavy ? 'rgba(255,255,255,0.08)' : 'var(--bg-soft)',\n+        border: isNavy ? '0.5px solid var(--chrome-border)' : '0.5px solid var(--line)',\n         borderRadius: 100,\n         padding: 3,\n       }}\n     >\n       {ITEMS.map((item) => {\n         const active = item.key === current\n         return (\n           <Link\n             key={item.key}\n             to={`${item.path}${qs}`}\n             aria-current={active ? 'page' : undefined}\n             className=\"inline-flex items-center gap-1.5 font-semibold transition-colors\"\n             style={{\n               padding: '6px 12px',\n               fontSize: 12,\n               borderRadius: 100,\n-              color: active ? '#ffffff' : 'var(--ink-3)',\n-              background: active ? 'var(--ink-2)' : 'transparent',\n+              color: active\n+                ? '#ffffff'\n+                : isNavy ? 'var(--chrome-ink-2)' : 'var(--ink-3)',\n+              background: active\n+                ? isNavy ? 'var(--chrome-teal)' : 'var(--ink-2)'\n+                : 'transparent',\n               textDecoration: 'none',\n             }}\n           >\n             {item.label}\n           </Link>\n         )\n       })}\n     </div>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-001-007",
+          "version": 1,
+          "intent_ref": "CI-M-001-004",
+          "file": "E:/eamos/app/frontend/src/components/brand/EamosLogo.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/brand/EamosLogo.tsx\n+++ b/E:/eamos/app/frontend/src/components/brand/EamosLogo.tsx\n@@ -1,9 +1,10 @@ import { cn } from '@/lib/utils'\n import { cn } from '@/lib/utils'\n\n interface EamosLogoProps {\n   size?: number\n   showWordmark?: boolean\n   className?: string\n+  tone?: 'light' | 'navy'\n }\n\n function SparkMark({ size = 16 }: { size?: number }) {\n@@ -27,13 +28,17 @@ function SparkMark({ size = 16 }: { size?: number }) {\n }\n\n-export function EamosLogo({ size = 16, showWordmark = true, className }: EamosLogoProps) {\n+export function EamosLogo({ size = 16, showWordmark = true, className, tone = 'light' }: EamosLogoProps) {\n+  const isNavy = tone === 'navy'\n   return (\n     <span\n       className={cn('inline-flex items-center gap-1.5', className)}\n-      style={{ color: 'var(--ink)', fontFamily: 'var(--display)' }}\n+      style={{ color: isNavy ? 'var(--chrome-ink)' : 'var(--ink)', fontFamily: 'var(--display)' }}\n     >\n-      <span style={{ color: 'var(--teal)' }}>\n+      <span style={{ color: isNavy ? 'var(--chrome-teal)' : 'var(--teal)' }}>\n         <SparkMark size={size} />\n       </span>\n       {showWordmark && (\n         <span\n           className=\"font-semibold tracking-[-0.01em]\"\n           style={{ fontSize: size, lineHeight: 1 }}\n         >\n-          <span style={{ color: 'var(--teal)' }}>e</span>amos\n+          <span style={{ color: isNavy ? 'var(--chrome-teal)' : 'var(--teal)' }}>e</span>amos\n         </span>\n       )}\n     </span>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        }
+      ],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-002",
+      "version": 2,
+      "number": 2,
+      "name": "Landing track - Input-as-Hero centered search with scroll-shrink-to-sticky + quiet-luxury section rhythm",
+      "files": [
+        "E:/eamos/app/frontend/src/pages/LandingPage.tsx",
+        "E:/eamos/app/frontend/src/components/landing/FeaturesGrid.tsx",
+        "E:/eamos/app/frontend/src/components/landing/HowItWorks.tsx",
+        "E:/eamos/app/frontend/src/components/landing/SourceStrip.tsx",
+        "E:/eamos/app/frontend/src/components/landing/SiteFooter.tsx"
+      ],
+      "flags": [],
+      "requirements": [
+        "Landing renders Input-as-Hero centered SearchShell with scrollTransition enabled (only surface that opts in); hero shrinks to sticky navy compact bar on scroll-down and eases back on scroll-up; SourceStrip/FeaturesGrid/HowItWorks/SiteFooter restyled to quiet-luxury rhythm using existing tokens"
+      ],
+      "acceptance_criteria": [
+        "npm run build clean and vitest 73/73 and contract 40/40 unchanged; landing hero visibly transitions on scroll in a browser and reverses on scroll-up; prefers-reduced-motion snaps with no animation; no navy used as page background only as header/chrome; teal remains the single accent"
+      ],
+      "tests": [
+        "npm run build; npm run test; browser pixel-verify landing scroll-transition (both motion and reduced-motion)"
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-002-001",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/pages/LandingPage.tsx",
+          "function": null,
+          "behavior": "RESTRUCTURE landing to Input-as-Hero: replace the split text+PreviewCard with a large centered hero SearchShell rendered with scrollTransition enabled (the only surface that opts in) under the navy TopNav (tone=navy). On scroll the hero search shrinks into the sticky compact navy bar and eases back on scroll-up; prefers-reduced-motion snaps. Below the hero keep SourceStrip/FeaturesGrid/HowItWorks/SiteFooter but apply quiet-luxury vertical rhythm (generous whitespace, section cadence) using existing spacing tokens. No backend calls; sample/illustrative data only.",
+          "decision_refs": [
+            "DL-002",
+            "DL-001",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-002-002",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/landing/SourceStrip.tsx",
+          "function": null,
+          "behavior": "Restyle SourceStrip to the quiet-luxury cadence (calmer spacing, hairline separators, muted source marks) to read as a trust band beneath the hero. Content unchanged; visual rhythm only, all tokens existing.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-002-003",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/landing/FeaturesGrid.tsx",
+          "function": null,
+          "behavior": "Restyle FeaturesGrid for premium-analytics calm: even grid rhythm, 0.5px hairline cards, restrained type scale, no weight>700. Sample/illustrative copy only; no new data sources.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-002-004",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/landing/HowItWorks.tsx",
+          "function": null,
+          "behavior": "Restyle HowItWorks steps with the quiet-luxury rhythm and motion only via --dur-*/--ease-* (respecting prefers-reduced-motion). Structure/content preserved.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-002-005",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/landing/SiteFooter.tsx",
+          "function": null,
+          "behavior": "Align SiteFooter to the navy chrome tier (chrome-bg/fg/border tokens) so the page closes on the same chrome as the header. Links/content unchanged.",
+          "decision_refs": [
+            "DL-006",
+            "DL-003"
+          ]
+        }
+      ],
+      "code_changes": [
+        {
+          "id": "CC-M-002-001",
+          "version": 1,
+          "intent_ref": "CI-M-002-001",
+          "file": "E:/eamos/app/frontend/src/pages/LandingPage.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/pages/LandingPage.tsx\n+++ b/E:/eamos/app/frontend/src/pages/LandingPage.tsx\n@@ -25,14 +25,14 @@ export function LandingPage() {\n\n   return (\n-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>\n-      <TopNav />\n-\n-      <section className=\"relative overflow-hidden\" style={{ padding: '96px 0 80px' }}>\n+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>\n+      <TopNav tone=\"navy\" />\n+\n+      <section\n+        className=\"relative flex flex-col items-center justify-center overflow-hidden\"\n+        style={{ padding: '112px 24px 96px' }}\n+      >\n         <div\n           aria-hidden\n           className=\"pointer-events-none absolute inset-0\"\n           style={{\n             background:\n-              'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(29,158,117,0.06), transparent 70%), radial-gradient(ellipse 50% 40% at 90% 20%, rgba(30,58,95,0.04), transparent 70%)',\n+              'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(29,158,117,0.05), transparent 65%)',\n           }}\n         />\n-        <div className=\"relative mx-auto px-8\" style={{ maxWidth: 1180 }}>\n-          <div className=\"grid items-center gap-16 md:grid-cols-[1.15fr_1fr]\">\n-            <div>\n-              <span\n-                className=\"inline-flex items-center gap-2 rounded-full\"\n-                style={{\n-                  fontSize: 11,\n-                  fontWeight: 600,\n-                  textTransform: 'uppercase',\n-                  letterSpacing: '0.12em',\n-                  color: 'var(--teal-deep)',\n-                  padding: '5px 11px',\n-                  background: 'var(--teal-tint)',\n-                  border: '0.5px solid #cbe3d8',\n-                }}\n-              >\n-                <span\n-                  style={{\n-                    width: 6,\n-                    height: 6,\n-                    borderRadius: 999,\n-                    background: 'var(--teal)',\n-                    boxShadow: '0 0 0 3px rgba(29,158,117,0.18)',\n-                  }}\n-                />\n-                Genomic intelligence platform\n-              </span>\n-              <h1\n-                className=\"my-5\"\n-                style={{\n-                  fontFamily: 'var(--display)',\n-                  fontWeight: 600,\n-                  fontSize: 'clamp(40px, 5.2vw, 64px)',\n-                  lineHeight: 1.04,\n-                  letterSpacing: '-0.025em',\n-                  color: 'var(--ink)',\n-                  textWrap: 'balance',\n-                  margin: '20px 0 22px',\n-                }}\n-              >\n-                One variant in.{' '}\n-                <span\n-                  style={{\n-                    color: 'var(--teal-deep)',\n-                    position: 'relative',\n-                    display: 'inline-block',\n-                  }}\n-                >\n-                  One structured report\n-                  <span\n-                    aria-hidden\n-                    style={{\n-                      position: 'absolute',\n-                      left: 0,\n-                      right: 0,\n-                      bottom: '0.04em',\n-                      height: '0.18em',\n-                      background: 'rgba(29,158,117,0.18)',\n-                      zIndex: -1,\n-                      borderRadius: 2,\n-                    }}\n-                  />\n-                </span>{' '}\n-                out.\n-              </h1>\n-              <p\n-                className=\"mb-9\"\n-                style={{\n-                  fontSize: 18,\n-                  lineHeight: 1.6,\n-                  color: 'var(--ink-3)',\n-                  maxWidth: 540,\n-                  margin: '0 0 36px',\n-                }}\n-              >\n-                Eamos aggregates ClinVar, gnomAD, SpliceAI, VEP, and PubMed into a single\n-                clinician-readable report. Stop opening five tabs per variant.\n-              </p>\n-              <SearchShell variant=\"hero\" onSubmit={handleSubmit} />\n-            </div>\n-\n-            <aside className=\"relative hidden md:block\">\n-              <PreviewCard />\n-            </aside>\n-          </div>\n-        </div>\n+        <div className=\"relative mx-auto flex flex-col items-center text-center\" style={{ maxWidth: 680 }}>\n+          <span\n+            className=\"mb-6 inline-flex items-center gap-2 rounded-full\"\n+            style={{\n+              fontSize: 11,\n+              fontWeight: 600,\n+              textTransform: 'uppercase',\n+              letterSpacing: '0.12em',\n+              color: 'var(--teal-deep)',\n+              padding: '5px 11px',\n+              background: 'var(--teal-tint)',\n+              border: '0.5px solid #cbe3d8',\n+            }}\n+          >\n+            <span\n+              style={{\n+                width: 6,\n+                height: 6,\n+                borderRadius: 999,\n+                background: 'var(--teal)',\n+                boxShadow: '0 0 0 3px rgba(29,158,117,0.18)',\n+              }}\n+            />\n+            Genomic intelligence platform\n+          </span>\n+          <h1\n+            style={{\n+              fontFamily: 'var(--display)',\n+              fontWeight: 600,\n+              fontSize: 'clamp(36px, 4.8vw, 60px)',\n+              lineHeight: 1.06,\n+              letterSpacing: '-0.025em',\n+              color: 'var(--ink)',\n+              textWrap: 'balance',\n+              margin: '0 0 20px',\n+            }}\n+          >\n+            One variant in.{' '}\n+            <span style={{ color: 'var(--teal-deep)' }}>\n+              One structured report\n+            </span>{' '}\n+            out.\n+          </h1>\n+          <p\n+            style={{\n+              fontSize: 18,\n+              lineHeight: 1.65,\n+              color: 'var(--ink-3)',\n+              maxWidth: 520,\n+              margin: '0 0 40px',\n+            }}\n+          >\n+            Eamos aggregates ClinVar, gnomAD, SpliceAI, VEP, and PubMed into a single\n+            clinician-readable report. Stop opening five tabs per variant.\n+          </p>\n+          <div style={{ width: '100%', maxWidth: 580 }}>\n+            <SearchShell variant=\"hero\" onSubmit={handleSubmit} />\n+          </div>\n+        </div>\n       </section>\n\n       <SourceStrip />\n       <FeaturesGrid />\n       <HowItWorks />\n       <SiteFooter />\n     </div>\n   )\n }\n-\n-function PreviewCard() {\n-  return (\n-    <div\n-      style={{\n-        background: 'var(--bg)',\n-        border: '0.5px solid var(--line)',\n-        borderRadius: 14,\n-        padding: 20,\n-      }}\n-    >\n-    </div>\n-  )\n-}\n-\n-function PreviewRow({ label, value, last }: { label: string; value: string; last?: boolean }) {\n-  return (\n-    <div className=\"flex justify-between\">\n-    </div>\n-  )\n-}\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-002-002",
+          "version": 1,
+          "intent_ref": "CI-M-002-002",
+          "file": "E:/eamos/app/frontend/src/components/landing/SourceStrip.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/landing/SourceStrip.tsx\n+++ b/E:/eamos/app/frontend/src/components/landing/SourceStrip.tsx\n@@ -3,11 +3,11 @@ import { SOURCES } from '@/lib/sources'\n export function SourceStrip() {\n   return (\n     <section\n-      className=\"py-12\"\n+      className=\"py-10\"\n       style={{\n         background: 'var(--bg-soft)',\n-        borderTop: '0.5px solid var(--line)',\n+        borderTop: '0.5px solid var(--line-2)',\n         borderBottom: '0.5px solid var(--line)',\n       }}\n     >\n       <div\n-        className=\"mx-auto flex flex-wrap items-center justify-between gap-10 px-8\"\n+        className=\"mx-auto flex flex-wrap items-center justify-between gap-8 px-8\"\n         style={{ maxWidth: 1180 }}\n       >\n         <span\n-          className=\"shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em]\"\n+          className=\"shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.14em]\"\n           style={{ color: 'var(--ink-4)' }}\n         >\n           Powered by\n         </span>\n-        <div className=\"flex flex-1 flex-wrap justify-end gap-2.5\">\n+        <div className=\"flex flex-1 flex-wrap justify-end gap-2\">\n           {SOURCES.map((src) => (\n             <a\n               key={src.key}\n               href={src.href}\n               target=\"_blank\"\n               rel=\"noopener noreferrer\"\n-              className=\"inline-flex items-center gap-2 transition-all hover:-translate-y-px\"\n+              className=\"inline-flex items-center gap-1.5 transition-all hover:-translate-y-px\"\n               style={{\n-                padding: '8px 14px',\n+                padding: '6px 12px',\n                 background: 'var(--bg)',\n                 border: '0.5px solid var(--line)',\n                 borderRadius: 999,\n-                fontSize: 12,\n+                fontSize: 11.5,\n                 fontWeight: 500,\n                 color: 'var(--ink-3)',\n                 textDecoration: 'none',\n               }}\n               title={src.description}\n             >\n               <span\n                 aria-hidden\n-                style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--teal)' }}\n+                style={{ width: 5, height: 5, borderRadius: 999, background: 'var(--teal)', opacity: 0.7 }}\n               />\n               {src.label}\n             </a>\n           ))}\n         </div>\n       </div>\n     </section>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-002-003",
+          "version": 1,
+          "intent_ref": "CI-M-002-003",
+          "file": "E:/eamos/app/frontend/src/components/landing/FeaturesGrid.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/landing/FeaturesGrid.tsx\n+++ b/E:/eamos/app/frontend/src/components/landing/FeaturesGrid.tsx\n@@ -61,7 +61,7 @@ const FEATURES: Feature[] = [\n export function FeaturesGrid() {\n   return (\n-    <section id=\"features\" className=\"py-24\">\n+    <section id=\"features\" className=\"py-28\">\n       <div className=\"mx-auto px-8\" style={{ maxWidth: 1180 }}>\n-        <header className=\"mb-14\" style={{ maxWidth: 720 }}>\n+        <header className=\"mb-16\" style={{ maxWidth: 720 }}>\n           <p\n             className=\"mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]\"\n             style={{ color: 'var(--teal-deep)' }}\n@@ -87,8 +87,8 @@ export function FeaturesGrid() {\n         <div\n           className=\"grid grid-cols-1 overflow-hidden md:grid-cols-2 lg:grid-cols-3\"\n           style={{\n-            gap: '1px',\n-            background: 'var(--line)',\n-            border: '0.5px solid var(--line)',\n+            gap: '1px',\n+            background: 'var(--line-2)',\n+            border: '0.5px solid var(--line)',\n             borderRadius: 14,\n           }}\n         >\n           {FEATURES.map((feat) => (\n             <article\n               key={feat.name}\n               className=\"flex flex-col gap-3.5 transition-colors hover:bg-[var(--bg-soft)]\"\n-              style={{ background: 'var(--bg)', padding: '32px 28px' }}\n+              style={{ background: 'var(--bg)', padding: '36px 32px' }}\n             >\n               <div className=\"flex items-center justify-between\">\n                 <span\n                   style={{\n                     fontFamily: 'var(--mono)',\n-                    fontSize: 14,\n+                    fontSize: 13,\n                     fontWeight: 600,\n                     color: 'var(--ink)',\n                     letterSpacing: '-0.01em',\n                   }}\n                 >\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-002-004",
+          "version": 1,
+          "intent_ref": "CI-M-002-004",
+          "file": "E:/eamos/app/frontend/src/components/landing/HowItWorks.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/landing/HowItWorks.tsx\n+++ b/E:/eamos/app/frontend/src/components/landing/HowItWorks.tsx\n@@ -35,7 +35,7 @@ const STEPS: Step[] = [\n export function HowItWorks() {\n   return (\n     <section\n       id=\"how\"\n-      className=\"py-24\"\n+      className=\"py-28\"\n       style={{\n         background: 'var(--bg-soft)',\n-        borderTop: '0.5px solid var(--line)',\n+        borderTop: '0.5px solid var(--line-2)',\n         borderBottom: '0.5px solid var(--line)',\n       }}\n     >\n       <div className=\"mx-auto px-8\" style={{ maxWidth: 1180 }}>\n-        <header className=\"mb-14\" style={{ maxWidth: 720 }}>\n+        <header className=\"mb-16\" style={{ maxWidth: 720 }}>\n           <p\n             className=\"mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]\"\n             style={{ color: 'var(--teal-deep)' }}\n@@ -62,8 +62,8 @@ export function HowItWorks() {\n         <div className=\"grid grid-cols-1 gap-6 md:grid-cols-3\">\n           {STEPS.map((step) => (\n             <article\n               key={step.num}\n               className=\"relative\"\n               style={{\n                 background: 'var(--bg)',\n                 border: '0.5px solid var(--line)',\n                 borderRadius: 14,\n-                padding: 28,\n+                padding: 32,\n               }}\n             >\n               <span\n                 className=\"mb-4 inline-flex items-center justify-center text-white\"\n                 style={{\n-                  width: 28,\n-                  height: 28,\n+                  width: 30,\n+                  height: 30,\n                   borderRadius: 999,\n                   background: step.num === 2 ? 'var(--teal)' : 'var(--ink-2)',\n                   fontFamily: 'var(--mono)',\n-                  fontSize: 12,\n+                  fontSize: 11.5,\n                   fontWeight: 600,\n                 }}\n               >\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-002-005",
+          "version": 2,
+          "intent_ref": "CI-M-002-005",
+          "file": "E:/eamos/app/frontend/src/components/landing/SiteFooter.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/landing/SiteFooter.tsx\n+++ b/E:/eamos/app/frontend/src/components/landing/SiteFooter.tsx\n@@ -2,10 +2,10 @@ import { EamosLogo } from '@/components/brand/EamosLogo'\n\n export function SiteFooter() {\n   return (\n     <footer\n-      className=\"py-14\"\n-      style={{ borderTop: '0.5px solid var(--line)', background: 'var(--bg-soft2)' }}\n+      className=\"py-12\"\n+      style={{\n+        borderTop: '0.5px solid var(--chrome-border)',\n+        background: 'var(--chrome-bg)',\n+      }}\n     >\n       <div\n         className=\"mx-auto flex flex-wrap items-center justify-between gap-6 px-8\"\n         style={{ maxWidth: 1180 }}\n       >\n         <div className=\"flex items-center gap-4\">\n-          <EamosLogo size={16} />\n+          <EamosLogo size={16} tone=\"navy\" />\n           <span\n             className=\"text-[12px]\"\n-            style={{ color: 'var(--ink-4)' }}\n+            style={{ color: 'var(--chrome-ink)', opacity: 0.7 }}\n           >\n             Built for genomic medicine.\n           </span>\n         </div>\n-        <nav className=\"flex gap-6 text-[12px]\" style={{ color: 'var(--ink-4)' }}>\n+        <nav className=\"flex gap-6 text-[12px]\" style={{ color: 'var(--chrome-ink)', opacity: 0.55 }}>\n           <a href=\"#about\" className=\"hover:text-[var(--ink-2)]\" style={{ textDecoration: 'none' }}>\n             About\n           </a>\n           <a\n             href=\"https://github.com/\"\n             target=\"_blank\"\n             rel=\"noopener noreferrer\"\n             className=\"hover:text-[var(--ink-2)]\"\n             style={{ textDecoration: 'none' }}\n           >\n             GitHub\n           </a>\n           <a href=\"#contact\" className=\"hover:text-[var(--ink-2)]\" style={{ textDecoration: 'none' }}>\n             Contact\n           </a>\n         </nav>\n       </div>\n     </footer>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        }
+      ],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-003",
+      "version": 2,
+      "number": 3,
+      "name": "Report track - variant tab strip + Import VCF shell, content-as-hero rhythm, progressive disclosure, ancestry heatmap + export menu shells",
+      "files": [
+        "E:/eamos/app/frontend/src/pages/ReportPage.tsx",
+        "E:/eamos/app/frontend/src/components/report/VariantHeader.tsx",
+        "E:/eamos/app/frontend/src/components/report/LocusContext.tsx",
+        "E:/eamos/app/frontend/src/components/report/InSilicoGrid.tsx",
+        "E:/eamos/app/frontend/src/components/report/EvidenceTable.tsx",
+        "E:/eamos/app/frontend/src/components/report/AcmgCriteriaFold.tsx",
+        "E:/eamos/app/frontend/src/components/report/DiseaseSection.tsx",
+        "E:/eamos/app/frontend/src/components/report/AssociatedConditions.tsx",
+        "E:/eamos/app/frontend/src/components/aistack/AIStack.tsx",
+        "E:/eamos/app/frontend/src/components/report/VariantTabStrip.tsx",
+        "E:/eamos/app/frontend/src/components/report/AncestryHeatmap.tsx",
+        "E:/eamos/app/frontend/src/components/report/ExportMenu.tsx",
+        "E:/eamos/app/frontend/src/lib/sample-variants.ts",
+        "E:/eamos/app/frontend/src/lib/sample-ancestry.ts"
+      ],
+      "flags": [],
+      "requirements": [
+        "New FE-only sample-variants.ts and sample-ancestry.ts created with no backend.ts import; VariantTabStrip rendered on its own axis beneath the sticky navy header and above the Variant Hero Summary with an Import VCF affordance and a reserved-but-unbuilt Table-view slot; AncestryHeatmap and ExportMenu shells render on sample data with no real generation; all clinical modules and their order preserved; Report keeps the STATIC compact in-nav search (no scrollTransition)"
+      ],
+      "acceptance_criteria": [
+        "npm run build clean and vitest 73/73 and contract 40/40 unchanged with no backend.ts shape change; tab strip switches active sample variant and never visually competes with header or section nav; Table view is not rendered this pass; EvidenceTable and InSilicoGrid remain dense and legible with semantic classification colours unchanged; AlphaMissense remains display-off; ExportMenu and Import VCF are visually complete but no-op"
+      ],
+      "tests": [
+        "npm run build; npm run test; pytest test_frontend_contract.py; browser pixel-verify report tab strip + heatmap + export shells"
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-003-001",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/lib/sample-variants.ts",
+          "function": null,
+          "behavior": "CREATE a NEW FE-only sample module exporting ~3-5 placeholder variant tab entries (id, gene, hgvs label, classification) plus an active-variant selector default. No backend.ts import or contract reshape; this is illustrative data the tab strip shell binds to so Codex can wire real multi-variant data later.",
+          "decision_refs": [
+            "DL-005",
+            "DL-004"
+          ]
+        },
+        {
+          "id": "CI-M-003-002",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/lib/sample-ancestry.ts",
+          "function": null,
+          "behavior": "CREATE a NEW FE-only sample module exporting a small placeholder population-by-region matrix for the ancestry heatmap shell (region labels, cohort labels, frequency cells). No backend.ts contract change; illustrative only.",
+          "decision_refs": [
+            "DL-005"
+          ]
+        },
+        {
+          "id": "CI-M-003-003",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/VariantTabStrip.tsx",
+          "function": null,
+          "behavior": "CREATE a NEW slim VARIANT TAB STRIP component: browser/editor-style tabs for ~2-6 variants from sample-variants.ts, positioned by ReportPage directly beneath the sticky navy header and ABOVE the Variant Hero Summary, on its own axis (visually distinct from in-page section nav, never competes with the header). Includes an Import VCF affordance button beside the tabs (opens a no-op/sample placeholder this pass; no real VCF parsing). Leave horizontal layout room for a future Table view toggle but DO NOT render or build it. Selecting a tab swaps the active sample variant. Tokens existing; teal accent for active tab; 0.5px hairlines.",
+          "decision_refs": [
+            "DL-004",
+            "DL-005"
+          ]
+        },
+        {
+          "id": "CI-M-003-004",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/AncestryHeatmap.tsx",
+          "function": null,
+          "behavior": "CREATE a NEW ancestry heatmap visual shell bound to sample-ancestry.ts: a calm matrix of muted-intensity cells with region/cohort labels, legend, 0.5px hairlines, no semantic-classification colours reused, no decorative gradients beyond the <=4% functional wash rule. Sample data only; data-source stamp text indicating placeholder.",
+          "decision_refs": [
+            "DL-005",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-005",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/ExportMenu.tsx",
+          "function": null,
+          "behavior": "CREATE a NEW export menu shell: a quiet dropdown listing PDF / Excel / Citation options that are visually complete but no-op this pass (no real generation). Reuse focus glow ring, chrome/teal accents, motion via tokens with prefers-reduced-motion guard.",
+          "decision_refs": [
+            "DL-005",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-006",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/pages/ReportPage.tsx",
+          "function": null,
+          "behavior": "COMPOSE the new structure: navy TopNav (tone=navy) with the existing STATIC compact in-nav SearchShell (NO scrollTransition - that is landing-only); then render VariantTabStrip on its own axis directly beneath the sticky header and ABOVE the Variant Hero Summary; keep the 920px content column and numbered modular cards vertical; mount ExportMenu in the report chrome and AncestryHeatmap as a new card/section. Preserve all clinical modules and their order; only add the new shells and apply the content-as-hero rhythm.",
+          "decision_refs": [
+            "DL-004",
+            "DL-001",
+            "DL-005",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-007",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/VariantHeader.tsx",
+          "function": null,
+          "behavior": "Refine VariantHeader to read as the content-as-hero Variant Summary directly below the tab strip: tighten hierarchy and whitespace, keep classification badge semantics and colours unchanged. Replace its window.print() Export PDF tool link reference by deferring export to the new ExportMenu (remove only the now-duplicated trigger; do not alter clinical content).",
+          "decision_refs": [
+            "DL-006",
+            "DL-005"
+          ]
+        },
+        {
+          "id": "CI-M-003-008",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/AcmgCriteriaFold.tsx",
+          "function": null,
+          "behavior": "Keep the existing progressive-disclosure fold as the disclosure exemplar; align its teaser/expand affordance visuals to the refreshed rhythm and ensure motion uses --dur-*/--ease-* with prefers-reduced-motion guard. Classification/criteria logic unchanged.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-009",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/LocusContext.tsx",
+          "function": null,
+          "behavior": "Apply the quiet-luxury rhythm (spacing, hairlines, restrained type) to LocusContext; no data or contract change.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-010",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/InSilicoGrid.tsx",
+          "function": null,
+          "behavior": "Restyle InSilicoGrid for dense-but-scannable calm: even cell rhythm, 0.5px hairlines, preserve all predictor semantics and colours. AlphaMissense remains display-OFF as-is; do not re-enable.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-011",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/EvidenceTable.tsx",
+          "function": null,
+          "behavior": "Restyle EvidenceTable preserving dense legibility (this is the legibility-critical surface): keep hairlines, muted palette, no navy background; only spacing/type refinements. No column/data change.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-012",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/DiseaseSection.tsx",
+          "function": null,
+          "behavior": "Apply rhythm refinements to DiseaseSection; content/contract unchanged.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-013",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/report/AssociatedConditions.tsx",
+          "function": null,
+          "behavior": "Apply rhythm refinements to AssociatedConditions; content/contract unchanged.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-003-014",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/aistack/AIStack.tsx",
+          "function": null,
+          "behavior": "Align AIStack to the refreshed report rhythm and the navy chrome accents where it sits in chrome; preserve AI evidence-summary behavior and content. Motion via tokens with prefers-reduced-motion guard.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        }
+      ],
+      "code_changes": [
+        {
+          "id": "CC-M-003-001",
+          "version": 1,
+          "intent_ref": "CI-M-003-001",
+          "file": "E:/eamos/app/frontend/src/lib/sample-variants.ts",
+          "diff": "--- /dev/null\n+++ b/E:/eamos/app/frontend/src/lib/sample-variants.ts\n@@ -0,0 +1,37 @@\n+export interface SampleVariantTab {\n+  id: string\n+  gene: string\n+  hgvs: string\n+  classification: string\n+}\n+\n+export const SAMPLE_VARIANT_TABS: SampleVariantTab[] = [\n+  {\n+    id: 'rpe65-c260ag',\n+    gene: 'RPE65',\n+    hgvs: 'c.260A>G',\n+    classification: 'Likely pathogenic',\n+  },\n+  {\n+    id: 'ush2a-c2276gt',\n+    gene: 'USH2A',\n+    hgvs: 'c.2276G>T',\n+    classification: 'VUS',\n+  },\n+  {\n+    id: 'abca4-c5714ag',\n+    gene: 'ABCA4',\n+    hgvs: 'c.5714+5G>A',\n+    classification: 'Likely pathogenic',\n+  },\n+  {\n+    id: 'brca1-c5266dupc',\n+    gene: 'BRCA1',\n+    hgvs: 'c.5266dupC',\n+    classification: 'Pathogenic',\n+  },\n+]\n+\n+export const DEFAULT_VARIANT_TAB_ID = 'rpe65-c260ag'\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-002",
+          "version": 1,
+          "intent_ref": "CI-M-003-002",
+          "file": "E:/eamos/app/frontend/src/lib/sample-ancestry.ts",
+          "diff": "--- /dev/null\n+++ b/E:/eamos/app/frontend/src/lib/sample-ancestry.ts\n@@ -0,0 +1,47 @@\n+export interface AncestryCell {\n+  region: string\n+  cohort: string\n+  frequency: number\n+}\n+\n+export interface AncestryMatrix {\n+  regions: string[]\n+  cohorts: string[]\n+  cells: AncestryCell[]\n+}\n+\n+export const SAMPLE_ANCESTRY: AncestryMatrix = {\n+  regions: ['European', 'East Asian', 'African', 'Latino', 'South Asian', 'Ashkenazi Jewish'],\n+  cohorts: ['gnomAD v4', 'ClinVar subs', 'In-house'],\n+  cells: [\n+    { region: 'European',          cohort: 'gnomAD v4',   frequency: 0.000082 },\n+    { region: 'European',          cohort: 'ClinVar subs', frequency: 0.00014 },\n+    { region: 'European',          cohort: 'In-house',     frequency: 0.00009 },\n+    { region: 'East Asian',        cohort: 'gnomAD v4',   frequency: 0.000004 },\n+    { region: 'East Asian',        cohort: 'ClinVar subs', frequency: 0.000006 },\n+    { region: 'East Asian',        cohort: 'In-house',     frequency: 0.000003 },\n+    { region: 'African',           cohort: 'gnomAD v4',   frequency: 0.000011 },\n+    { region: 'African',           cohort: 'ClinVar subs', frequency: 0.000018 },\n+    { region: 'African',           cohort: 'In-house',     frequency: 0.000009 },\n+    { region: 'Latino',            cohort: 'gnomAD v4',   frequency: 0.000031 },\n+    { region: 'Latino',            cohort: 'ClinVar subs', frequency: 0.000028 },\n+    { region: 'Latino',            cohort: 'In-house',     frequency: 0.000025 },\n+    { region: 'South Asian',       cohort: 'gnomAD v4',   frequency: 0.000007 },\n+    { region: 'South Asian',       cohort: 'ClinVar subs', frequency: 0.000010 },\n+    { region: 'South Asian',       cohort: 'In-house',     frequency: 0.000005 },\n+    { region: 'Ashkenazi Jewish',  cohort: 'gnomAD v4',   frequency: 0.000210 },\n+    { region: 'Ashkenazi Jewish',  cohort: 'ClinVar subs', frequency: 0.000195 },\n+    { region: 'Ashkenazi Jewish',  cohort: 'In-house',     frequency: 0.000230 },\n+  ],\n+}\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-003",
+          "version": 2,
+          "intent_ref": "CI-M-003-003",
+          "file": "E:/eamos/app/frontend/src/components/report/VariantTabStrip.tsx",
+          "diff": "--- /dev/null\n+++ b/E:/eamos/app/frontend/src/components/report/VariantTabStrip.tsx\n@@ -0,0 +1,77 @@\n+import { useState } from 'react'\n+import { SAMPLE_VARIANT_TABS, DEFAULT_VARIANT_TAB_ID, type SampleVariantTab } from '@/lib/sample-variants'\n+\n+interface VariantTabStripProps {\n+  onTabChange?: (tab: SampleVariantTab) => void\n+}\n+\n+export function VariantTabStrip({ onTabChange }: VariantTabStripProps) {\n+  const [activeId, setActiveId] = useState(DEFAULT_VARIANT_TAB_ID)\n+\n+  const handleSelect = (tab: SampleVariantTab) => {\n+    setActiveId(tab.id)\n+    onTabChange?.(tab)\n+  }\n+\n+  const handleImportVcf = () => {\n+    // VCF import is a visual affordance this pass; real parsing lands with Codex later.\n+  }\n+\n+  return (\n+    <div\n+      style={{\n+        background: 'var(--bg)',\n+        borderBottom: '0.5px solid var(--line)',\n+        position: 'sticky',\n+        top: 'var(--chrome-h, 56px)',\n+        zIndex: 40,\n+      }}\n+    >\n+      <div\n+        className=\"mx-auto flex items-center gap-0 px-8\"\n+        style={{ maxWidth: 920, height: 40 }}\n+      >\n+        <div className=\"flex min-w-0 flex-1 items-center overflow-x-auto\" role=\"tablist\" aria-label=\"Variants\">\n+          {SAMPLE_VARIANT_TABS.map((tab) => {\n+            const active = tab.id === activeId\n+            return (\n+              <button\n+                key={tab.id}\n+                type=\"button\"\n+                role=\"tab\"\n+                aria-selected={active}\n+                onClick={() => handleSelect(tab)}\n+                className=\"inline-flex shrink-0 items-center gap-1.5 transition-colors\"\n+                style={{\n+                  padding: '0 14px',\n+                  height: 40,\n+                  fontSize: 12,\n+                  fontWeight: active ? 600 : 400,\n+                  fontFamily: 'var(--mono)',\n+                  color: active ? 'var(--teal-deep)' : 'var(--ink-4)',\n+                  background: 'none',\n+                  border: 'none',\n+                  borderBottom: active ? '2px solid var(--teal)' : '2px solid transparent',\n+                  cursor: 'pointer',\n+                  letterSpacing: '-0.01em',\n+                  whiteSpace: 'nowrap',\n+                }}\n+              >\n+                <span style={{ color: active ? 'var(--teal-deep)' : 'var(--ink-3)', fontWeight: 600 }}>\n+                  {tab.gene}\n+                </span>\n+                {tab.hgvs}\n+              </button>\n+            )\n+          })}\n+        </div>\n+        <button\n+          type=\"button\"\n+          onClick={handleImportVcf}\n+          className=\"shrink-0 inline-flex items-center gap-1.5 transition-colors\"\n+          style={{\n+            marginLeft: 8,\n+            padding: '4px 10px',\n+            borderRadius: 6,\n+            border: '0.5px solid var(--line-2)',\n+            background: 'var(--bg-soft)',\n+            fontSize: 11,\n+            fontWeight: 600,\n+            color: 'var(--ink-3)',\n+            cursor: 'pointer',\n+            letterSpacing: '0.02em',\n+          }}\n+        >\n+          Import VCF\n+        </button>\n+      </div>\n+    </div>\n+  )\n+}\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-004",
+          "version": 1,
+          "intent_ref": "CI-M-003-004",
+          "file": "E:/eamos/app/frontend/src/components/report/AncestryHeatmap.tsx",
+          "diff": "--- /dev/null\n+++ b/E:/eamos/app/frontend/src/components/report/AncestryHeatmap.tsx\n@@ -0,0 +1,89 @@\n+import { SAMPLE_ANCESTRY } from '@/lib/sample-ancestry'\n+\n+function cellColor(frequency: number, maxFreq: number): string {\n+  const ratio = maxFreq > 0 ? frequency / maxFreq : 0\n+  const alpha = 0.08 + ratio * 0.38\n+  return `rgba(29,158,117,${alpha.toFixed(2)})`\n+}\n+\n+function formatFreq(f: number): string {\n+  if (f === 0) return '—'\n+  if (f < 0.0001) return f.toExponential(1)\n+  return f.toFixed(6).replace(/0+$/, '').replace(/\\.$/, '')\n+}\n+\n+export function AncestryHeatmap() {\n+  const { regions, cohorts, cells } = SAMPLE_ANCESTRY\n+  const maxFreq = Math.max(...cells.map((c) => c.frequency))\n+\n+  const getCell = (region: string, cohort: string) =>\n+    cells.find((c) => c.region === region && c.cohort === cohort)\n+\n+  return (\n+    <div style={{ marginTop: 0 }}>\n+      <div\n+        style={{\n+          fontSize: 11,\n+          fontWeight: 600,\n+          color: 'var(--ink-3)',\n+          textTransform: 'uppercase',\n+          letterSpacing: '0.08em',\n+          marginBottom: 10,\n+        }}\n+      >\n+        Population frequency\n+      </div>\n+      <div style={{ overflowX: 'auto' }}>\n+        <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 480 }}>\n+          <thead>\n+            <tr>\n+              <th\n+                style={{\n+                  padding: '6px 12px 6px 0',\n+                  textAlign: 'left',\n+                  fontSize: 11,\n+                  fontWeight: 600,\n+                  color: 'var(--ink-4)',\n+                  borderBottom: '0.5px solid var(--line)',\n+                }}\n+              />\n+              {cohorts.map((cohort) => (\n+                <th\n+                  key={cohort}\n+                  style={{\n+                    padding: '6px 10px',\n+                    textAlign: 'right',\n+                    fontSize: 11,\n+                    fontWeight: 600,\n+                    color: 'var(--ink-4)',\n+                    borderBottom: '0.5px solid var(--line)',\n+                    whiteSpace: 'nowrap',\n+                  }}\n+                >\n+                  {cohort}\n+                </th>\n+              ))}\n+            </tr>\n+          </thead>\n+          <tbody>\n+            {regions.map((region, ri) => (\n+              <tr key={region} style={{ borderBottom: ri < regions.length - 1 ? '0.5px solid var(--line)' : 'none' }}>\n+                <td\n+                  style={{\n+                    padding: '8px 12px 8px 0',\n+                    fontSize: 12,\n+                    color: 'var(--ink-2)',\n+                    fontWeight: 500,\n+                    whiteSpace: 'nowrap',\n+                  }}\n+                >\n+                  {region}\n+                </td>\n+                {cohorts.map((cohort) => {\n+                  const cell = getCell(region, cohort)\n+                  const freq = cell?.frequency ?? 0\n+                  return (\n+                    <td\n+                      key={cohort}\n+                      style={{\n+                        padding: '8px 10px',\n+                        textAlign: 'right',\n+                        fontFamily: 'var(--mono)',\n+                        fontSize: 11.5,\n+                        color: 'var(--ink-2)',\n+                        background: cellColor(freq, maxFreq),\n+                        borderRadius: 2,\n+                      }}\n+                      title={`${region} / ${cohort}: ${freq}`}\n+                    >\n+                      {formatFreq(freq)}\n+                    </td>\n+                  )\n+                })}\n+              </tr>\n+            ))}\n+          </tbody>\n+        </table>\n+      </div>\n+      <p\n+        style={{\n+          marginTop: 10,\n+          fontSize: 10.5,\n+          color: 'var(--ink-4)',\n+        }}\n+      >\n+        Sample data — illustrative only. Real population frequencies will be wired from gnomAD via the backend.\n+      </p>\n+    </div>\n+  )\n+}\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-005",
+          "version": 2,
+          "intent_ref": "CI-M-003-005",
+          "file": "E:/eamos/app/frontend/src/components/report/ExportMenu.tsx",
+          "diff": "--- /dev/null\n+++ b/E:/eamos/app/frontend/src/components/report/ExportMenu.tsx\n@@ -0,0 +1,84 @@\n+import { useEffect, useRef, useState } from 'react'\n+\n+const EXPORT_OPTIONS = [\n+  { label: 'Export PDF', sub: 'Clinician-ready single page' },\n+  { label: 'Export Excel', sub: 'Evidence table + ACMG criteria' },\n+  { label: 'Copy citation', sub: 'APA format, clipboard' },\n+]\n+\n+export function ExportMenu() {\n+  const [open, setOpen] = useState(false)\n+  const containerRef = useRef<HTMLDivElement>(null)\n+\n+  useEffect(() => {\n+    if (!open) return\n+    const onDown = (e: MouseEvent) => {\n+      if (containerRef.current && !containerRef.current.contains(e.target as Node))\n+        setOpen(false)\n+    }\n+    document.addEventListener('mousedown', onDown)\n+    return () => document.removeEventListener('mousedown', onDown)\n+  }, [open])\n+\n+  return (\n+    <div ref={containerRef} style={{ position: 'relative' }}>\n+      <button\n+        type=\"button\"\n+        aria-haspopup=\"menu\"\n+        aria-expanded={open}\n+        onClick={() => setOpen((o) => !o)}\n+        className=\"inline-flex items-center gap-1.5 transition-colors\"\n+        style={{\n+          padding: '5px 12px',\n+          borderRadius: 8,\n+          border: '0.5px solid var(--line-2)',\n+          background: open ? 'var(--bg-soft)' : 'var(--bg)',\n+          fontSize: 12.5,\n+          fontWeight: 600,\n+          color: 'var(--ink-2)',\n+          cursor: 'pointer',\n+        }}\n+      >\n+        <svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth={2.2} strokeLinecap=\"round\" strokeLinejoin=\"round\" aria-hidden>\n+          <path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n+          <polyline points=\"7 10 12 15 17 10\" />\n+          <line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\" />\n+        </svg>\n+        Export\n+        <svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth={2.5} strokeLinecap=\"round\" aria-hidden>\n+          <polyline points=\"6 9 12 15 18 9\" />\n+        </svg>\n+      </button>\n+\n+      {open && (\n+        <div\n+          role=\"menu\"\n+          style={{\n+            position: 'absolute',\n+            top: 'calc(100% + 6px)',\n+            right: 0,\n+            minWidth: 200,\n+            background: 'var(--bg)',\n+            border: '0.5px solid var(--line)',\n+            borderRadius: 10,\n+            boxShadow: 'var(--elev-3)',\n+            overflow: 'hidden',\n+            zIndex: 60,\n+          }}\n+        >\n+          {EXPORT_OPTIONS.map((opt) => (\n+            <button\n+              key={opt.label}\n+              type=\"button\"\n+              role=\"menuitem\"\n+              onClick={() => setOpen(false)}\n+              className=\"flex w-full flex-col items-start gap-0.5 text-left transition-colors hover:bg-[var(--bg-soft)]\"\n+              style={{\n+                padding: '10px 14px',\n+                borderBottom: opt === EXPORT_OPTIONS[EXPORT_OPTIONS.length - 1] ? 'none' : '0.5px solid var(--line)',\n+                background: 'transparent',\n+                cursor: 'pointer',\n+              }}\n+            >\n+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>{opt.label}</span>\n+              <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{opt.sub}</span>\n+            </button>\n+          ))}\n+        </div>\n+      )}\n+    </div>\n+  )\n+}\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-006",
+          "version": 1,
+          "intent_ref": "CI-M-003-006",
+          "file": "E:/eamos/app/frontend/src/pages/ReportPage.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/pages/ReportPage.tsx\n+++ b/E:/eamos/app/frontend/src/pages/ReportPage.tsx\n@@ -1,5 +1,5 @@ import { useEffect, useState } from 'react'\n import { useEffect, useState } from 'react'\n import { Link, useNavigate, useSearchParams } from 'react-router-dom'\n import { TopNav } from '@/components/layout/TopNav'\n import { ModePill } from '@/components/layout/ModePill'\n import { SearchShell, type SearchSubmit } from '@/components/search/SearchShell'\n+import { VariantTabStrip } from '@/components/report/VariantTabStrip'\n+import { ExportMenu } from '@/components/report/ExportMenu'\n+import { AncestryHeatmap } from '@/components/report/AncestryHeatmap'\n import { VariantHeader } from '@/components/report/VariantHeader'\n@@ -136,7 +139,7 @@ export function ReportPage() {\n\n   return (\n     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>\n-      <TopNav right={<ModePill current=\"report\" />}>\n+      <TopNav tone=\"navy\" right={<ModePill current=\"report\" tone=\"navy\" />}>\n         <div className=\"mx-auto\" style={{ maxWidth: 620 }}>\n           <SearchShell\n             variant=\"nav\"\n             initialGene={initialGene}\n             initialVariant={initialVariant}\n             onSubmit={handleSearch}\n           />\n         </div>\n       </TopNav>\n+\n+      <VariantTabStrip />\n\n       <main className=\"mx-auto px-8\" style={{ maxWidth: 920, padding: '32px 32px 80px' }}>\n\n--- a/E:/eamos/app/frontend/src/pages/ReportPage.tsx\n+++ b/E:/eamos/app/frontend/src/pages/ReportPage.tsx\n@@ -192,6 +192,10 @@ function ReportBody({ data, query }: ReportBodyProps) {\n\n   return (\n     <div className=\"flex flex-col gap-3.5\">\n+      <div className=\"flex justify-end\">\n+        <ExportMenu />\n+      </div>\n       {degraded && (\n         <div\n           role=\"status\"\n@@ -237,6 +237,10 @@ function ReportBody({ data, query }: ReportBodyProps) {\n       <Card number={4} title=\"Gene context & associated conditions\" meta={geneContextMeta}>\n         <DiseaseSection payload={payload} embedded />\n         <CuratedVariantsGrid data={payload.curated_variants_distribution} />\n         <AssociatedConditions data={payload.associated_conditions} />\n         <PublicationsCallout data={payload.publications_callout} />\n+        <AncestryHeatmap />\n       </Card>\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-007",
+          "version": 1,
+          "intent_ref": "CI-M-003-007",
+          "file": "E:/eamos/app/frontend/src/components/report/VariantHeader.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/VariantHeader.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/VariantHeader.tsx\n@@ -163,11 +163,11 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {\n             style={{\n-              fontFamily: 'var(--display)',\n-              fontWeight: 600,\n-              fontSize: 36,\n-              lineHeight: 1.05,\n+              fontFamily: 'var(--display)',\n+              fontWeight: 600,\n+              fontSize: 32,\n+              lineHeight: 1.08,\n               letterSpacing: '-0.02em',\n               color: 'var(--ink)',\n               margin: 0,\n             }}\n@@ -222,15 +222,6 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {\n               <button type=\"button\" className={followed ? 'v-tool followed' : 'v-tool'} aria-pressed={followed} onClick={() => setFollowed((v) => !v)}>\n                 <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.2\" strokeLinecap=\"round\" strokeLinejoin=\"round\">\n                   <path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\" />\n                   <path d=\"M10 21a2 2 0 0 0 4 0\" />\n                 </svg>\n                 <span>{followed ? 'Following' : 'Follow'}</span>\n               </button>\n-              <button type=\"button\" className=\"v-tool\" onClick={() => window.print()}>\n-                <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.2\" strokeLinecap=\"round\" strokeLinejoin=\"round\">\n-                  <path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n-                  <polyline points=\"7 10 12 15 17 10\" />\n-                  <line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\" />\n-                </svg>\n-                <span>Export PDF</span>\n-              </button>\n               <button\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-008",
+          "version": 2,
+          "intent_ref": "CI-M-003-008",
+          "file": "E:/eamos/app/frontend/src/components/report/AcmgCriteriaFold.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/AcmgCriteriaFold.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/AcmgCriteriaFold.tsx\n@@ -83,7 +83,7 @@ export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {\n   return (\n-    <details className=\"fold\">\n-      <summary className=\"fold-summary\">\n+    <details className=\"fold\" style={{ transition: `grid-template-rows var(--dur-2) var(--ease-standard)` }}>\n+      <summary className=\"fold-summary\" style={{ cursor: 'pointer' }}>\n         <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.5\" strokeLinecap=\"round\" strokeLinejoin=\"round\">\n           <polyline points=\"9 18 15 12 9 6\" />\n         </svg>\n         ACMG criteria -- automated scaffolding\n-        <span className=\"count\">{met} met {unmet} unmet ACMG 2015 + 2022 PP3/BP4</span>\n+        <span className=\"count\" style={{ fontWeight: 400 }}>{met} met {unmet} unmet ACMG 2015 + 2022 PP3/BP4</span>\n       </summary>\n       <div className=\"fold-body\">\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-009",
+          "version": 1,
+          "intent_ref": "CI-M-003-009",
+          "file": "E:/eamos/app/frontend/src/components/report/LocusContext.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/LocusContext.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/LocusContext.tsx\n@@ -108,7 +108,7 @@ export function LocusContext({ data }: LocusContextProps) {\n\n   return (\n-    <div className=\"locus\">\n+    <div className=\"locus\" style={{ paddingTop: 4 }}>\n       <div className=\"locus-bar\">\n         <div className=\"locus-coords\">{coords}</div>\n         <div className=\"locus-zoom\" role=\"group\" aria-label=\"Zoom level\">\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-010",
+          "version": 1,
+          "intent_ref": "CI-M-003-010",
+          "file": "E:/eamos/app/frontend/src/components/report/InSilicoGrid.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/InSilicoGrid.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/InSilicoGrid.tsx\n@@ -57,7 +57,7 @@ export function InSilicoGrid({ data }: InSilicoGridProps) {\n   return (\n-    <div style={{ marginBottom: 18 }}>\n+    <div style={{ marginBottom: 20 }}>\n       <div\n         style={{\n           fontSize: 11,\n           fontWeight: 600,\n           color: 'var(--ink-3)',\n           textTransform: 'uppercase',\n           letterSpacing: '0.08em',\n-          marginBottom: 10,\n+          marginBottom: 12,\n         }}\n       >\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-011",
+          "version": 1,
+          "intent_ref": "CI-M-003-011",
+          "file": "E:/eamos/app/frontend/src/components/report/EvidenceTable.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/EvidenceTable.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/EvidenceTable.tsx\n@@ -58,7 +58,7 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps\n   const table = (\n     <table className=\"w-full\" style={{ borderCollapse: 'collapse', fontSize: 13 }}>\n         <tbody>\n           {rows.map((ev, i) => {\n             const meta = getSourceMeta(ev.source)\n             const dot = STATUS_DOT[ev.status] ?? 'var(--ink-4)'\n             return (\n               <tr\n                 key={i}\n                 style={{\n-                  borderBottom: i < rows.length - 1 ? '0.5px solid var(--line)' : 'none',\n+                  borderBottom: i < rows.length - 1 ? '0.5px solid var(--line)' : 'none',\n+                  transition: 'background var(--dur-1) var(--ease-standard)',\n                 }}\n               >\n                 <td\n                   style={{\n-                    padding: '12px 14px 12px 0',\n+                    padding: '13px 14px 13px 0',\n                     width: '32%',\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-012",
+          "version": 1,
+          "intent_ref": "CI-M-003-012",
+          "file": "E:/eamos/app/frontend/src/components/report/DiseaseSection.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/DiseaseSection.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/DiseaseSection.tsx\n@@ -35,7 +35,7 @@ export function DiseaseSection({ payload, number, embedded }: DiseaseSectionProps) {\n   const body = (\n     <>\n       {classification && (\n-        <div className=\"mb-4 flex flex-wrap items-center gap-3\">\n+        <div className=\"mb-5 flex flex-wrap items-center gap-3\">\n           <span\n             className=\"uppercase\"\n             style={{\n               fontSize: 10.5,\n               fontWeight: 600,\n               letterSpacing: '0.08em',\n               color: 'var(--ink-4)',\n             }}\n           >\n             ACMG verdict\n           </span>\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-013",
+          "version": 1,
+          "intent_ref": "CI-M-003-013",
+          "file": "E:/eamos/app/frontend/src/components/report/AssociatedConditions.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/report/AssociatedConditions.tsx\n+++ b/E:/eamos/app/frontend/src/components/report/AssociatedConditions.tsx\n@@ -27,7 +27,7 @@ export function AssociatedConditions({ data }: AssociatedConditionsProps) {\n   if (!data || data.length === 0) {\n     return (\n-      <div style={{ marginTop: 22 }}>\n+      <div style={{ marginTop: 24 }}>\n         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>\n           No associated conditions recorded for this gene.\n         </p>\n       </div>\n     )\n   }\n\n   const sub = `${data.length} conditions · OMIM + GenCC + ClinGen + MONDO`\n\n   return (\n-    <div style={{ marginTop: 22 }}>\n+    <div style={{ marginTop: 24 }}>\n       <div className=\"vardist-title\" style={{ marginBottom: 4 }}>\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-003-014",
+          "version": 1,
+          "intent_ref": "CI-M-003-014",
+          "file": "E:/eamos/app/frontend/src/components/aistack/AIStack.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/aistack/AIStack.tsx\n+++ b/E:/eamos/app/frontend/src/components/aistack/AIStack.tsx\n@@ -11,7 +11,7 @@ interface AIStackProps {\n export function AIStack({ payload, runId, contextLabel }: AIStackProps) {\n   return (\n-    <div className=\"mb-4\">\n+    <div className=\"mb-5\">\n       <EvidenceSummary payload={payload} />\n       <AskEamos runId={runId} contextLabel={contextLabel} />\n     </div>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        }
+      ],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-004",
+      "version": 2,
+      "number": 4,
+      "name": "Workbench track - adopt shared navy TopNav + ModePill, viewer-as-hero polish, browser pixel re-verify of 3-col shell under new header height",
+      "files": [
+        "E:/eamos/app/frontend/src/pages/WorkbenchPage.tsx",
+        "E:/eamos/app/frontend/src/components/workbench/WorkbenchShell.tsx",
+        "E:/eamos/app/frontend/src/components/workbench/ContextStrip.tsx",
+        "E:/eamos/app/frontend/src/components/workbench/CanvasHeader.tsx",
+        "E:/eamos/app/frontend/src/components/workbench/SidePanel.tsx",
+        "E:/eamos/app/frontend/src/components/workbench/ToolBar.tsx",
+        "E:/eamos/app/frontend/src/styles/workbench.css"
+      ],
+      "flags": [],
+      "requirements": [
+        "Workbench bespoke .nav-wrap header retired and shared TopNav (tone=navy) + ModePill adopted with the static compact search; 3-col shell geometry (64px rail / 1fr canvas / 360px side panel) recomputed against the shared header height; only orphaned nav-wrap CSS removed"
+      ],
+      "acceptance_criteria": [
+        "npm run build clean and vitest 73/73 and contract 40/40 unchanged; browser/pixel re-verification confirms 64px rail + 1fr canvas + 360px side panel hold under the new navy header height with correct responsive collapse at the existing breakpoints; no horizontal scroll or canvas clipping; chrome matches Landing/Report navy tier"
+      ],
+      "tests": [
+        "npm run build; npm run test; MANDATORY browser pixel-verify Workbench 3-col shell at full width and at the collapse breakpoints"
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-004-001",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/pages/WorkbenchPage.tsx",
+          "function": null,
+          "behavior": "RETIRE the bespoke .nav-wrap header and mount the shared TopNav (tone=navy) + ModePill with the existing STATIC compact in-nav SearchShell (NO scrollTransition - landing-only). Keep ContextStrip and WorkbenchShell. Ensure the canvas viewport math accounts for the shared navy header height token (--chrome-h) rather than the old bespoke nav height so the 3-col shell still fits.",
+          "decision_refs": [
+            "DL-003",
+            "DL-001"
+          ]
+        },
+        {
+          "id": "CI-M-004-002",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/styles/workbench.css",
+          "function": null,
+          "behavior": "Remove/retire the now-unused bespoke .nav-wrap chrome rules (clean up only the orphans this change creates - do not delete unrelated workbench CSS). Re-base the 3-col shell heights (.ns-shell etc.) on the shared --chrome-h header height token so 64px rail / 1fr canvas / 360px side panel geometry holds under the new header. CSS comments must not contain the star-slash sequence.",
+          "decision_refs": [
+            "DL-003"
+          ]
+        },
+        {
+          "id": "CI-M-004-003",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/workbench/WorkbenchShell.tsx",
+          "function": null,
+          "behavior": "Adjust WorkbenchShell so its 3-col grid (64px rail / 1fr canvas / 360px side panel) and responsive collapse breakpoints compute against the shared navy header height. Preserve all tool-driven behavior. This change REQUIRES browser/pixel re-verification (see acceptance criteria).",
+          "decision_refs": [
+            "DL-003"
+          ]
+        },
+        {
+          "id": "CI-M-004-004",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/workbench/ContextStrip.tsx",
+          "function": null,
+          "behavior": "Restyle ContextStrip to sit cleanly beneath the shared navy header (chrome-border hairline, spacing rhythm). Content/behavior unchanged.",
+          "decision_refs": [
+            "DL-003",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-004-005",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/workbench/CanvasHeader.tsx",
+          "function": null,
+          "behavior": "Align CanvasHeader to the refreshed rhythm and viewer-as-hero emphasis; ensure it does not double the chrome now provided by the shared TopNav. Behavior unchanged.",
+          "decision_refs": [
+            "DL-003",
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-004-006",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/workbench/SidePanel.tsx",
+          "function": null,
+          "behavior": "Apply quiet-luxury rhythm to SidePanel (hairlines, spacing) keeping the fixed 360px width and existing collapse behavior. No resizable-panel feature this pass.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-004-007",
+          "version": 1,
+          "file": "E:/eamos/app/frontend/src/components/workbench/ToolBar.tsx",
+          "function": null,
+          "behavior": "Restyle the 64px tool rail to the navy chrome tier accents for cross-surface continuity (chrome-fg icons, chrome-accent active, focus glow reuse). Rail width and tool behavior unchanged.",
+          "decision_refs": [
+            "DL-003",
+            "DL-006"
+          ]
+        }
+      ],
+      "code_changes": [
+        {
+          "id": "CC-M-004-001",
+          "version": 3,
+          "intent_ref": "CI-M-004-001",
+          "file": "E:/eamos/app/frontend/src/pages/WorkbenchPage.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/pages/WorkbenchPage.tsx\n+++ b/E:/eamos/app/frontend/src/pages/WorkbenchPage.tsx\n@@ -1,7 +1,9 @@ import { useState } from 'react'\n-import { useMemo, useState, type FormEvent } from 'react'\n-import { Link, useNavigate, useSearchParams } from 'react-router-dom'\n+import { useState } from 'react'\n+import { useNavigate } from 'react-router-dom'\n import type { WorkbenchTool } from '@/lib/backend'\n+import { TopNav } from '@/components/layout/TopNav'\n+import { ModePill } from '@/components/layout/ModePill'\n+import { SearchShell, type SearchSubmit } from '@/components/search/SearchShell'\n import { ContextStrip } from '@/components/workbench/ContextStrip'\n import { WorkbenchShell } from '@/components/workbench/WorkbenchShell'\n import '@/styles/workbench.css'\n@@ -30,16 +32,9 @@ export function WorkbenchPage() {\n export function WorkbenchPage() {\n-  const [params] = useSearchParams()\n   const navigate = useNavigate()\n\n   const gene = DEFAULT_GENE\n   const cdna = DEFAULT_CDNA\n-  const qs = useMemo(() => {\n-    const q = params.toString()\n-    return q ? `?${q}` : ''\n-  }, [params])\n\n   const [tool, setTool] = useState<WorkbenchTool>('viewer')\n-  const [search, setSearch] = useState('')\n-  const onSearch = (e: FormEvent) => {\n-    e.preventDefault()\n-    const parsed = parseQuery(search)\n-    if (parsed) {\n+  const handleSearch = (payload: SearchSubmit) => {\n+    if (payload.mode === 'lookup') {\n+      const parsed = parseQuery(`${payload.gene} ${payload.variant}`)\n+      if (parsed) {\n         navigate(\n           `/workbench?gene=${encodeURIComponent(parsed.gene)}&cdna=${encodeURIComponent(parsed.cdna)}`,\n         )\n-    } else if (search.trim()) {\n-      navigate(`/report?q=${encodeURIComponent(search.trim())}`)\n-    }\n-  }\n+      }\n+    } else if (payload.mode === 'ai' && payload.query.trim()) {\n+      navigate(`/report?q=${encodeURIComponent(payload.query.trim())}`)\n+    }\n+  }\n\n   return (\n     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>\n+      <TopNav tone=\"navy\" right={<ModePill current=\"workbench\" tone=\"navy\" />}>\n+        <div className=\"mx-auto\" style={{ maxWidth: 420 }}>\n+          <SearchShell variant=\"nav\" tone=\"navy\" onSubmit={handleSearch} />\n+        </div>\n+      </TopNav>\n\n       <ContextStrip\n         gene={gene}\n         variant={cdna}\n         sub={RPE65_CTX.sub}\n         tool={tool}\n         onSelectTool={setTool}\n       />\n\n       <WorkbenchShell tool={tool} />\n     </div>\n   )\n }\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-004-002",
+          "version": 1,
+          "intent_ref": "CI-M-004-002",
+          "file": "E:/eamos/app/frontend/src/styles/workbench.css",
+          "diff": "--- a/E:/eamos/app/frontend/src/styles/workbench.css\n+++ b/E:/eamos/app/frontend/src/styles/workbench.css\n@@ -18,27 +18,19 @@ :root {\n   --r-sm: 6px;\n   --r-md: 10px;\n   --r-lg: 14px;\n-  --nav-h: 60px;\n+  --nav-h: var(--chrome-h, 56px);\n   --ctx-h: 48px;\n   --maxw: var(--maxw-workbench);\n   --side-w: var(--maxw-workbench-side);\n }\n\n .wrap-wide { max-width: var(--maxw-workbench); margin: 0 auto; padding: 0 24px; }\n\n-/* ─────────────────────────────────────────────────────────────── NAV */\n-.nav-wrap {\n-  position: sticky; top: 0; z-index: 50;\n-  background: rgba(255,255,255,0.9);\n-  backdrop-filter: saturate(180%) blur(12px);\n-  -webkit-backdrop-filter: saturate(180%) blur(12px);\n-  border-bottom: 0.5px solid var(--line);\n-}\n-.nav {\n-  height: var(--nav-h);\n-  display: flex; align-items: center; justify-content: space-between;\n-  gap: 24px;\n-}\n-.logo {\n-  display: flex; align-items: center; gap: 10px;\n-  font-family: var(--display); font-weight: 600; font-size: 16px;\n-  letter-spacing: -0.01em; color: var(--ink);\n-  flex-shrink: 0;\n-}\n-.logo-word .e1 { color: var(--teal); }\n-.logo-sub {\n-  font-family: var(--mono);\n-  font-size: 11px;\n-  font-weight: 500;\n-  color: var(--ink-4);\n-  padding: 2px 8px;\n-  background: var(--bg-soft);\n-  border-radius: 4px;\n-  margin-left: 4px;\n-  text-transform: uppercase;\n-  letter-spacing: 0.06em;\n-}\n-\n-.nav-search { flex: 1; max-width: 420px; }\n-.ns-shell {\n-  background: var(--bg);\n-  border: 0.5px solid var(--line);\n-  border-radius: 100px;\n-  padding: 4px 4px 4px 14px;\n-  display: flex; align-items: center; gap: 8px;\n-  transition: border-color .15s ease, box-shadow .15s ease;\n-}\n-.ns-shell:focus-within {\n-  border-color: var(--teal);\n-  box-shadow: 0 0 0 3px rgba(29,158,117,0.12);\n-}\n-.ns-ic { width: 16px; height: 16px; color: var(--ink-4); flex-shrink: 0; }\n-.ns-input {\n-  flex: 1;\n-  border: none; outline: none; background: transparent;\n-  font-family: var(--mono);\n-  font-size: 12.5px;\n-  color: var(--ink);\n-  padding: 8px 0;\n-}\n-.ns-input::placeholder { color: var(--ink-4); font-family: var(--mono); }\n-.ns-submit {\n-  height: 30px; width: 30px;\n-  border: none;\n-  border-radius: 50%;\n-  background: var(--ink-2);\n-  color: #fff;\n-  display: inline-flex; align-items: center; justify-content: center;\n-  flex-shrink: 0;\n-}\n-.ns-submit svg { width: 13px; height: 13px; }\n-\n-.nav-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }\n-\n-/* Mode toggle (Report / Workbench) */\n-.mode-pill {\n-  display: inline-flex;\n-  background: var(--bg-soft);\n-  border: 0.5px solid var(--line);\n-  border-radius: 100px;\n-  padding: 3px;\n-  gap: 2px;\n-}\n-.mode-pill a {\n-  padding: 5px 11px;\n-  border-radius: 100px;\n-  font-size: 11.5px;\n-  font-weight: 600;\n-  color: var(--ink-4);\n-  letter-spacing: -0.005em;\n-  display: inline-flex; align-items: center; gap: 5px;\n-  transition: color .15s ease, background .15s ease;\n-}\n-.mode-pill a.active {\n-  background: var(--bg);\n-  color: var(--ink);\n-  box-shadow: 0 1px 1px rgba(11,26,43,0.06), 0 0 0 0.5px var(--line);\n-}\n-.mode-pill a svg { width: 12px; height: 12px; }\n-.mode-pill a:not(.active):hover { color: var(--ink-2); }\n-\n /* ─────────────────────────────────────────────────────────────── CONTEXT STRIP */\n .ctx-wrap {\n   background: var(--bg);\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-004-003",
+          "version": 1,
+          "intent_ref": "CI-M-004-003",
+          "file": "E:/eamos/app/frontend/src/components/workbench/WorkbenchShell.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/workbench/WorkbenchShell.tsx\n+++ b/E:/eamos/app/frontend/src/components/workbench/WorkbenchShell.tsx\n@@ -50,6 +50,7 @@ export function WorkbenchShell({ tool }: WorkbenchShellProps) {\n   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)\n   const [strandMode, setStrandMode] = useState<StrandMode>('both')\n   const [baseW, setBaseW] = useState<number>(ZOOM_PRESETS.exon)\n+  // The 3-col grid height is computed from 100dvh minus the shared --chrome-h header token.\n   const [navCollapsed, setNavCollapsed] = useState(false)\n   const [exonTableOpen, setExonTableOpen] = useState(false)\n   const [sideCollapsed, setSideCollapsed] = useState(readSideCollapsed)\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-004-004",
+          "version": 1,
+          "intent_ref": "CI-M-004-004",
+          "file": "E:/eamos/app/frontend/src/components/workbench/ContextStrip.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/workbench/ContextStrip.tsx\n+++ b/E:/eamos/app/frontend/src/components/workbench/ContextStrip.tsx\n@@ -17,6 +17,7 @@ export function ContextStrip({ gene, variant, sub, tool, onSelectTool }: ContextStripProps) {\n   return (\n-    <div className=\"ctx-wrap\">\n+    <div className=\"ctx-wrap\" style={{ borderTop: '0.5px solid var(--chrome-border, var(--line))' }}>\n       <div className=\"wrap-wide ctx\">\n         <div className=\"ctx-left\">\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-004-005",
+          "version": 1,
+          "intent_ref": "CI-M-004-005",
+          "file": "E:/eamos/app/frontend/src/components/workbench/CanvasHeader.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/workbench/CanvasHeader.tsx\n+++ b/E:/eamos/app/frontend/src/components/workbench/CanvasHeader.tsx\n@@ -64,7 +64,7 @@ export function CanvasHeader({\n   return (\n     <div className=\"canvas-head\">\n       <div className=\"canvas-head-left\">\n-        <h1 className=\"canvas-title\">{meta.title}</h1>\n+        <h1 className=\"canvas-title\" style={{ letterSpacing: '-0.015em' }}>{meta.title}</h1>\n         <span className=\"canvas-subtitle\">{meta.sub}</span>\n       </div>\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-004-006",
+          "version": 1,
+          "intent_ref": "CI-M-004-006",
+          "file": "E:/eamos/app/frontend/src/components/workbench/SidePanel.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/workbench/SidePanel.tsx\n+++ b/E:/eamos/app/frontend/src/components/workbench/SidePanel.tsx\n@@ -44,7 +44,7 @@ function Section({\n }) {\n   return (\n-    <div className=\"side-section\">\n+    <div className=\"side-section\" style={{ paddingBottom: 18 }}>\n       <h3 className=\"side-h\">\n         {title}\n         {meta}\n       </h3>\n       {children}\n     </div>\n",
+          "doc_diff": "",
+          "comments": ""
+        },
+        {
+          "id": "CC-M-004-007",
+          "version": 1,
+          "intent_ref": "CI-M-004-007",
+          "file": "E:/eamos/app/frontend/src/components/workbench/ToolBar.tsx",
+          "diff": "--- a/E:/eamos/app/frontend/src/components/workbench/ToolBar.tsx\n+++ b/E:/eamos/app/frontend/src/components/workbench/ToolBar.tsx\n@@ -13,7 +13,8 @@ export function ToolBar({ active, onSelect }: ToolBarProps) {\n   return (\n-    <div className=\"toolbar-seg\" role=\"group\" aria-label=\"Workbench tools\">\n+    <div className=\"toolbar-seg\" role=\"group\" aria-label=\"Workbench tools\" style={{ gap: 2 }}>\n       {TOOL_ORDER.map((tool) => (\n         <button\n           key={tool}\n           type=\"button\"\n-          className={tool === active ? 'toolbar-seg-btn active' : 'toolbar-seg-btn'}\n+          className={tool === active ? 'toolbar-seg-btn active chrome-active' : 'toolbar-seg-btn'}\n           data-tool={tool}\n           title={TOOL_META[tool].title}\n           aria-pressed={tool === active}\n           onClick={() => onSelect(tool)}\n         >\n",
+          "doc_diff": "",
+          "comments": ""
+        }
+      ],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    }
+  ],
+  "waves": [
+    {
+      "id": "W-001",
+      "milestones": [
+        "M-001"
+      ]
+    },
+    {
+      "id": "W-002",
+      "milestones": [
+        "M-002",
+        "M-003",
+        "M-004"
+      ]
+    }
+  ],
+  "diagram_graphs": [
+    {
+      "id": "DIAG-002",
+      "type": "sequence",
+      "scope": "overview",
+      "title": "Milestone build order (DL-001): M-001 shared primitives first, then 3 independently-reviewable per-page tracks (M-002/M-003/M-004)",
+      "nodes": [
+        {
+          "id": "M-001",
+          "label": "M-001 Foundation: navy chrome-tier tokens + shared SearchShell scrollTransition (landing-gated) + TopNav/ModePill navy variant",
+          "type": "milestone"
+        },
+        {
+          "id": "M-002",
+          "label": "M-002 Landing track: Input-as-Hero scroll-shrink + quiet-luxury rhythm",
+          "type": "milestone"
+        },
+        {
+          "id": "M-003",
+          "label": "M-003 Report track: variant tab strip + Import VCF/ancestry/export shells + content-as-hero rhythm",
+          "type": "milestone"
+        },
+        {
+          "id": "M-004",
+          "label": "M-004 Workbench track: adopt shared navy TopNav + ModePill, 3-col shell browser re-verify",
+          "type": "milestone"
+        }
+      ],
+      "edges": [
+        {
+          "source": "M-001",
+          "target": "M-002",
+          "label": "depends-on: consumes navy tokens + scrollTransition SearchShell",
+          "protocol": null
+        },
+        {
+          "source": "M-001",
+          "target": "M-003",
+          "label": "depends-on: consumes navy TopNav tone + chrome tokens",
+          "protocol": null
+        },
+        {
+          "source": "M-001",
+          "target": "M-004",
+          "label": "depends-on: adopts shared navy TopNav + --chrome-h",
+          "protocol": null
+        }
+      ],
+      "ascii_render": null
+    }
+  ],
+  "readme_entries": []
+}

@@ -8,34 +8,41 @@ import '@/styles/workbench.css'
 const DEFAULT_GENE = 'RPE65'
 const DEFAULT_CDNA = 'c.260A>G'
 
-// FE-4 ships the shell against the RPE65 fixture (the only variant v2 serves,
-// and the mock's subject). Per-variant context metadata is wired in a later
-// milestone — same pattern as ReportPage defaulting to the demo payload.
-// FE-5.6 item 1: classification + external links moved to the side panel's
-// Active variant card (see SidePanel `VARIANT_LINKS`); only the sub-line
-// stays in the strip.
 const RPE65_CTX = {
   sub: 'p.Asp87Gly · NM_000329.3 · chr1:68,444,869 T>C · GRCh38 · 21,138 bp gene',
 }
 
-/** Parse "GENE c.123A>G" / "GENE:c.123A>G" → {gene, cdna}, else null. */
-function parseQuery(raw: string): { gene: string; cdna: string } | null {
+/** Parse "GENE c.123A>G" / "GENE NM_000000.0 c.123A>G", else null. */
+function parseQuery(raw: string): { gene: string; cdna: string; transcript?: string } | null {
   const s = raw.trim()
   if (!s) return null
-  const m = s.match(/^([A-Za-z0-9]+)[\s:]+(.+)$/)
+  const m = s.match(
+    /^([A-Za-z0-9]+)[\s:]+(?:(N[MR]_\d+(?:\.\d+)?|ENST\d+(?:\.\d+)?)[\s:]+)?(.+)$/i,
+  )
   if (!m) return null
-  return { gene: m[1], cdna: m[2].trim() }
+  return {
+    gene: m[1].toUpperCase(),
+    transcript: m[2],
+    cdna: m[3].trim(),
+  }
+}
+
+function cleanParam(value: string | null): string | undefined {
+  const clean = value?.trim()
+  return clean || undefined
 }
 
 export function WorkbenchPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
 
-  // The shell renders the RPE65 fixture only (see WorkbenchShell `DATA`). The
-  // context strip must reflect what's actually on screen — echoing arbitrary
-  // URL params here mislabels the RPE65 sequence as another gene/variant.
-  const gene = DEFAULT_GENE
-  const cdna = DEFAULT_CDNA
+  const gene = cleanParam(params.get('gene'))?.toUpperCase() ?? DEFAULT_GENE
+  const cdna = cleanParam(params.get('cdna')) ?? DEFAULT_CDNA
+  const transcript = cleanParam(params.get('transcript'))
+  const contextSub =
+    gene === DEFAULT_GENE && cdna === DEFAULT_CDNA && !transcript
+      ? RPE65_CTX.sub
+      : [transcript, 'GRCh38'].filter(Boolean).join(' · ')
   const qs = useMemo(() => {
     const q = params.toString()
     return q ? `?${q}` : ''
@@ -48,9 +55,12 @@ export function WorkbenchPage() {
     e.preventDefault()
     const parsed = parseQuery(search)
     if (parsed) {
-      navigate(
-        `/workbench?gene=${encodeURIComponent(parsed.gene)}&cdna=${encodeURIComponent(parsed.cdna)}`,
-      )
+      const next = new URLSearchParams({
+        gene: parsed.gene,
+        cdna: parsed.cdna,
+      })
+      if (parsed.transcript) next.set('transcript', parsed.transcript)
+      navigate(`/workbench?${next.toString()}`)
     } else if (search.trim()) {
       navigate(`/report?q=${encodeURIComponent(search.trim())}`)
     }
@@ -153,12 +163,12 @@ export function WorkbenchPage() {
       <ContextStrip
         gene={gene}
         variant={cdna}
-        sub={RPE65_CTX.sub}
+        sub={contextSub}
         tool={tool}
         onSelectTool={setTool}
       />
 
-      <WorkbenchShell tool={tool} />
+      <WorkbenchShell tool={tool} gene={gene} cdna={cdna} transcript={transcript} />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import pytest
 from app.schemas.lookup import SearchInputInterpretation
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.search_input_resolver import SearchInputResolution, SourceSpecificInputs
+from app.tools.base import ToolResult
 
 _FORBIDDEN_ACMG_POPULATION_METRICS = re.compile(
     r"\bgnomad\b|\b(?:AF|AC|AN)\s*[=:]?\s*\d|allele[_ -]?(?:frequency|count|number)|"
@@ -74,6 +75,14 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert "clinical_consensus" in profile["interpretation_summary"]["fact_refs"]
     _assert_section_3_population_frequency(profile, report_payload)
     _assert_no_population_metrics_in_section_2_or_acmg(profile)
+    assert (
+        report_payload["population_frequency_detail"]["source_url"]
+        == "https://gnomad.broadinstitute.org/variant/1-68444869-T-C?dataset=gnomad_r4"
+    )
+    assert (
+        profile["population_frequency"]["source_url"]
+        == report_payload["population_frequency_detail"]["source_url"]
+    )
 
     plan = profile["extraction_plan"]
     assert plan["mode"] == "structured"
@@ -113,6 +122,14 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
         "SpliceAI",
     }
     assert "alphamissense_on_hold" in computational["warnings"]
+    computational_card = next(
+        card for card in report_payload["call_cards"]["cards"] if card["card_id"] == "computational"
+    )
+    computational_badges = [badge["text"] for badge in computational_card["support_badges"]]
+    assert computational_card["primary_label"] == "Damaging"
+    assert computational_badges[:2] == ["REVEL: 0.78", "CADD PHRED: 23.4"]
+    assert "REVEL: 0.82" not in computational_badges
+    assert "MetaLR: 0.78" not in computational_badges
 
     disease = profile["disease_mechanism"]
     assert disease["primary_condition"] == "Leber congenital amaurosis 2"
@@ -219,6 +236,16 @@ def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
     assert functional["evidence_codes"] == ["PS3"]
     assert functional["source_asserted_codes"] == ["PS3_Supporting"]
     assert functional["display_metrics"]["primary_label"] == "Functional Deficit"
+    lab_card = next(
+        card
+        for card in report_payload["call_cards"]["cards"]
+        if card["card_id"] == "lab_functional"
+    )
+    assert lab_card["source_status"] == "fixture"
+    assert {badge["text"] for badge in lab_card["support_badges"]} == {
+        "PS3_Supporting",
+        "1 Unique",
+    }
 
     criteria = {row["code"]: row for row in profile["acmg_worksheet"]["criteria"]}
     assert criteria["PS3"]["state"] == "met"
@@ -226,6 +253,86 @@ def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
     assert criteria["PS3"]["source"] == "ClinGen Evidence Repository"
     assert "c.260A>G" not in json.dumps(profile)
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None
+
+
+def test_lookup_structured_clinical_trials_flow_into_report_profile(client) -> None:
+    class StructuredTrialsTool:
+        def get_trial_matches(self, *args, **kwargs):
+            warnings = ["variant_level_trial_not_found:using_lower_match_level"]
+            return ToolResult(
+                source="clinical_trials",
+                status="live",
+                request_identity={"gene": "RPE65"},
+                summary={
+                    "trial_rows": [
+                        {
+                            "nct_id": "NCT01234567",
+                            "title": "RPE65 gene therapy in inherited retinal disease",
+                            "status": "RECRUITING",
+                            "phase": "Phase 1/Phase 2",
+                            "conditions": ["Leber congenital amaurosis"],
+                            "interventions": ["AAV2-RPE65"],
+                            "locations": ["Inherited Retinal Disease Center"],
+                            "match_level": "gene_level",
+                            "matched_terms": ["RPE65"],
+                            "source_url": "https://clinicaltrials.gov/study/NCT01234567",
+                            "warnings": [
+                                "clinical_trials_gene_level_match:not_variant_specific",
+                                "clinical_trials_discovery_only:not_eligibility",
+                            ],
+                        }
+                    ],
+                    "total": 1,
+                    "query_term": "RPE65",
+                    "source_url": "https://clinicaltrials.gov/search?term=RPE65",
+                    "warnings": warnings,
+                },
+                warnings=warnings,
+                raw=None,
+                source_url="https://clinicaltrials.gov/search?term=RPE65",
+            )
+
+        def get_trials_summary(self, gene: str) -> str:
+            return "fallback summary should not be used"
+
+    registry = client.app.state.lookup_service.tool_registry
+    original_tool = registry["clinical_trials"]
+    registry["clinical_trials"] = StructuredTrialsTool()
+    try:
+        report_payload = _lookup_payload(client, "RPE65", "c.260A>G")
+    finally:
+        registry["clinical_trials"] = original_tool
+
+    trials = report_payload["report_profile"]["therapies_trials"]
+    assert len(trials["trial_rows"]) == 1
+    row = trials["trial_rows"][0]
+    assert row["nct_id"] == "NCT01234567"
+    assert row["match_level"] == "gene_level"
+    assert row["matched_terms"] == ["RPE65"]
+    assert row["source_url"] == "https://clinicaltrials.gov/study/NCT01234567"
+    assert "clinical_trials_gene_level_target_only" in trials["warnings"]
+    assert "variant_level_trial_not_found:using_lower_match_level" in trials["warnings"]
+    assert trials["provenance"][0]["status"] == "live"
+
+
+def test_lookup_cftr_leu441_frameshift_requires_confirmation_without_report_metrics(
+    client,
+) -> None:
+    response = client.post("/api/v1/lookup", json={"search_text": "CFTR:p.Leu441fs"})
+
+    assert response.status_code == 200
+    body = response.json()
+    interpretation = body["search_interpretation"]
+    payload = body["report_payload"]
+    assert interpretation["gene"] == "CFTR"
+    assert interpretation["protein_change"] == "p.Leu441fs"
+    assert interpretation["mode"] == "suggestions"
+    assert interpretation["requires_confirmation"] is True
+    assert interpretation["candidates"][0]["display_label"] == "CFTR c.1321_1323del (p.Leu441del)"
+    assert payload["report_title"] == "Variant search recommendations"
+    assert payload["report_profile"] is None
+    assert payload["call_cards"] is None
+    assert payload["population_frequency_detail"] is None
 
 
 @pytest.mark.parametrize(
