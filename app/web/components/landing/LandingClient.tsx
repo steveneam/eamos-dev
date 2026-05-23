@@ -47,6 +47,31 @@ export function LandingClient() {
           padding: '96px 24px 132px',
         }}
       >
+        {/* Generated 8K emerald "lifestream tree" backdrop */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <img
+            src="/hero-tree.webp"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: '50% 30%', opacity: 0.95 }}
+          />
+          {/* darken the centre for headline legibility + blend edges into the page */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(74% 60% at 50% 38%, rgba(3,19,13,0.62) 0%, rgba(3,19,13,0.24) 58%, rgba(3,19,13,0) 82%)',
+            }}
+          />
+          <div
+            className="absolute inset-x-0 top-0"
+            style={{ height: 130, background: 'linear-gradient(to bottom, var(--hero-top), rgba(2,17,12,0))' }}
+          />
+          <div
+            className="absolute inset-x-0 bottom-0"
+            style={{ height: 220, background: 'linear-gradient(to bottom, rgba(2,17,12,0), var(--hero-bot))' }}
+          />
+        </div>
         <Lifestream />
         <div className="relative z-10 mx-auto flex flex-col items-center text-center" style={{ maxWidth: 760 }}>
           <span
