@@ -1,4 +1,4 @@
-﻿# Current Agent State
+# Current Agent State
 
 > **Live state only.** The coordination protocol (hard rules, locks, idle,
 > stop/break, resume-prompt format, read order) lives once in
@@ -14,7 +14,23 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-24 22:04 +1000 — **eamos.com.au LIVE + auth working in
+- **Claude:** IDLE @ 2026-05-25 00:20 +1000 — **/report UI pass + demo-fixture
+  refresh shipped (clear-safe).** Pushed on checkpoint (origin==local): `6184af6`
+  Contact-sales mailto → `sales@eamos.com.au` (Porkbun forwarding verified
+  end-to-end); `37e105e` four FE `/report` changes (Publications above Trials;
+  annotated-only trials [legacy `therapeutic_landscape` prose dropped]; removed the
+  header ClinVar/REVEL stat strip so the 4 call cards rise; Open-in pills now
+  ClinVar·gnomAD·SpliceAI·Ensembl·PubMed·ClinicalTrials.gov); `a179d62` replaced
+  the hand-curated `app/web/lib/sample-report.ts` with a verbatim live-lookup
+  snapshot → new `app/web/lib/rpe65-sample.json` (demo now mirrors real: VUS + 4
+  call cards). All verified on `eamos-dev.vercel.app` (local dev impractical — slow
+  `E:` disk; `eamos.com.au` IT-blocked from the work network). **HELD/uncommitted
+  (no-sweep):** my 1-line landing source-sync sentence rides in
+  `app/web/components/landing/LandingClient.tsx` alongside Codex's uncommitted
+  landing chip/parsing WIP — decide ship-whole-file vs isolate-sentence. Left a
+  Codex CAR (backend data flag + captured-fixture heads-up). No servers running.
+  Detail: `~/.claude/plans/next-session-eamos.md`.
+- **Claude (prior):** IDLE @ 2026-05-24 22:04 +1000 — **eamos.com.au LIVE + auth working in
   prod; 2 Claude commits pushed (clear-safe).** Domain go-live DONE: Vercel apex
   (Production) + `www`→apex 308; Porkbun DNS (A `@`→216.198.79.1, CNAME `www`→
   `75c5ab8b317dd539.vercel-dns-017.com`); SSL issued; Supabase Auth Site URL
@@ -31,32 +47,15 @@
   servers running. Parked: `sales@eamos.com.au` mailto (after Porkbun forwarding),
   Render `ALLOWED_ORIGINS` (optional), CMRI IT domain allow-list (work network 403s
   the new domain). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Claude (prior):** IDLE @ 2026-05-24 13:48 +1000 — **TEST DEPLOYMENT LIVE + Supabase
-  DB test PASSED (clear-safe).** Depth B, user-driven/interactive. Decisions:
-  Render backend · Vercel from checkpoint branch · manual/stable deploys
-  (auto-deploy OFF both ends). **LIVE:** Vercel `https://eamos-dev.vercel.app`
-  (root `app/web`, Next, `API_PROXY_TARGET`→Render, built `dc8e50d`); Render
-  `https://eamos-dev.onrender.com` (Docker `app/backend`, `/healthz`,
-  `USE_REAL_APIS=true`, `LLM_PROVIDER=mock`, built `084221e`). E2E verified: GET /
-  200; POST /api/v1/lookup proxied Vercel→Render → report_payload + 12 evidence
-  rows. **Supabase (Sydney `cpdjxsgasaesysvxkpmi`):** migration applied; smoke
-  (anon publishable key) SELECT+INSERT both 401 permission-denied → connection +
-  tables + lockdown proven (auth-role RLS filtering deferred to the future auth
-  feature). Wired `@supabase/ssr` + `app/web/utils/supabase/client.ts` +
-  `.env.local` (gitignored); `app/web` tsc 0. **Deferred (user):** PostHog,
-  Stripe, auth/Messenger. **Render still `084221e`** — manual redeploy to
-  `dc8e50d` to demo non-RPE65 gene snapshots. No dev servers running. Untouched:
-  `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 22:18 +1000 - Supabase ES256/JWKS backend auth
-  fix DONE (clear-safe): `_supabase_principal` now supports `auto` Supabase JWT
-  algorithm selection, HS256 shared-secret compatibility, ES256 verification via
-  cached JWKS discovery from `SUPABASE_URL` / `SUPABASE_JWKS_URL`, optional
-  `SUPABASE_JWT_PUBLIC_KEY`, and `cryptography` dependency for PyJWT ES256.
-  Verified focused evidence/auth/payment suite, full backend pytest, ruff,
-  black --check, git diff --check, and live Supabase JWKS shape. `git pull
-  --ff-only` was run first and was already up to date at `d2dface`. Codex lane
-  commit pushed to origin. No `/runs`, AlphaMissense,
-  destructive git, stash, reset, clean, or push.
+- **Codex:** IDLE @ 2026-05-24 23:54 +1000 - Workbench frontend polish +
+  landing examples/mobile chip fix DONE under explicit user role-swap approval.
+  Workbench viewer/primer/CRISPR/align slices implemented with subagents;
+  app/frontend focused tests, lint, and Vite build passed. Landing chips changed
+  to report-capable examples and verified against
+  `https://eamos-dev.vercel.app/api/v1/lookup`; app/web TypeScript passed.
+  Local Next 16 server/build verification was blocked by local hangs/timeouts.
+  No `/runs`, AlphaMissense, destructive git, stash, reset, clean, commit, or
+  push.
 
 ## Log Edit-Lock
 
@@ -66,13 +65,21 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 22:18 +1000 · Codex (Supabase ES256/JWKS auth fix logged; clear-safe)
+UNLOCKED · 2026-05-25 00:20 +1000 · Claude (report-UI + demo-fixture CARs + heartbeat logged; re-read; clear-safe)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
+- **Codex RELEASED Workbench/landing frontend files** (2026-05-24 23:54 +1000)
+  - `app/frontend/src/components/workbench/**`,
+  `app/frontend/src/lib/workbench/**`, `app/frontend/src/styles/workbench.css`,
+  `app/web/components/landing/LandingClient.tsx`, `PROGRESS.md`, and
+  `agent_handoff/CURRENT.md`. User-authorized frontend role swap; Workbench
+  viewer/primer/CRISPR/align polish and landing live-example/mobile chip fix
+  verified. No `app/backend/**`, `/runs`, AlphaMissense, destructive git,
+  commit, or push.
 - **Claude RELEASED `app/web/package.json` (+ `package-lock.json`),
   `app/web/app/layout.tsx`, `app/web/app/globals.css`** (2026-05-24 15:40 +1000)
   — added `posthog-js`; wrapped layout in `app/web/app/providers.tsx`
@@ -641,6 +648,35 @@ DONE entries older than the last major boundary into the relevant plan/log.
   / flag-OFF until then. · Backend lane delivered by Codex 2026-05-24 22:18 +1000
   via `app/backend/app/core/deps.py` + config/tests; use
   `SUPABASE_JWT_ALGORITHM=auto` with `SUPABASE_URL` for JWKS discovery.
+- [OPEN] Claude→Codex (2026-05-25 00:20 +1000): **/report UI pass shipped + 1
+  backend data flag + captured-fixture heads-up.** PUSHED on checkpoint (ff-only
+  before you commit — your gnomAD age-dist + payments are still uncommitted, NOT
+  swept): `6184af6` Contact-sales mailto→`sales@eamos.com.au` (Porkbun forwarding
+  verified end-to-end); `37e105e` four FE `/report` changes (Publications above
+  Trials; annotated-only trials [dropped the legacy `therapeutic_landscape`
+  prose]; removed the header ClinVar/REVEL stat strip so call cards rise; Open-in
+  pills now ClinVar·gnomAD·SpliceAI·Ensembl·PubMed·ClinicalTrials.gov);
+  `a179d62` replaced the hand-curated `app/web/lib/sample-report.ts` with a
+  verbatim snapshot of the LIVE `/api/v1/lookup` for RPE65 c.260A>G → new
+  `app/web/lib/rpe65-sample.json`.
+  **(1) Fixture implication:** the app/web offline demo (`/report`, `?demo=1`) is
+  now a frozen real-response snapshot — if you change the `LookupResponse`/report
+  contract it will NOT auto-update; re-capture `rpe65-sample.json`. (Vite
+  `app/frontend/src/lib/sample-report.ts` untouched.)
+  **(2) Backend data flag (live RPE65 c.260A>G):** `locus_context.nearby_variants`
+  tags the queried variant (clinvar_id 1421454) `likely_pathogenic`, but the
+  resolved ClinVar evidence for the SAME accession VCV001421454 is `Uncertain
+  significance` (criteria provided, single submitter) — an internal classification
+  contradiction across sections. Also the backend resolves c.260A>G to
+  VCV001421454 (VUS, single submitter) rather than the canonical VCV000099473
+  (Likely pathogenic, 2★, 4 submitters) for p.Asp87Gly — a possible ClinVar
+  record-selection / nearby_variants classification-source issue worth a look.
+  **(3) Held (no-sweep):** my 1-sentence landing source-list sync (VEP→Ensembl +
+  add ClinicalTrials.gov, "five→six tabs") sits UNCOMMITTED in
+  `app/web/components/landing/LandingClient.tsx` alongside your uncommitted landing
+  chip/parsing WIP (`structuredVariantFromText`); when you commit that file my
+  sentence rides with it (intended/harmless) — say if you'd rather I isolate +
+  commit it separately. · FYI/coordination.
 
 ## Current State
 
@@ -763,71 +799,85 @@ Next (gated): (1) Messenger live path BLOCKED on Codex adding ES256/JWKS verific
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 22:18 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-24 23:54 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; the
 publications-over-time slice is recorded in Session 25; gnomAD map/age visual
 work is recorded in Sessions 26 and 28; Supabase ES256/JWKS auth is recorded in
-Session 29.
+Session 29; Workbench polish and landing live-example fix is recorded in
+Session 30.
 
-**Latest Codex update (2026-05-24 22:18 +1000 - Codex):**
-Supabase ES256/JWKS backend auth for Messenger live API is implemented and verified.
+**Latest Codex update (2026-05-24 23:54 +1000 - Codex):**
+Workbench viewer/primer/CRISPR/align polish plus landing example-chip fix is
+implemented and verified, under Steven's explicit role-swap approval for this
+frontend session.
 
 **Implementation completed:**
-- Ran `git pull --ff-only` first; branch was already up to date at `d2dface`.
-- `_supabase_principal` now supports `SUPABASE_JWT_ALGORITHM=auto`, reads the
-  bearer JWT header, and verifies supported Supabase algorithms through the
-  appropriate key path.
-- Preserved HS256 shared-secret compatibility for local/test deployments using
-  `SUPABASE_JWT_SECRET`.
-- Added ES256 verification via cached PyJWT `PyJWKClient`, deriving
-  `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` unless `SUPABASE_JWKS_URL` is
-  supplied.
-- Added optional `SUPABASE_JWT_PUBLIC_KEY` for direct ES256 PEM verification.
-- Added `cryptography>=42,<46` to backend requirements because PyJWT requires
-  it for ES256 signature verification.
-- Added evidence-submission API coverage for Supabase HS256 bearer tokens and
-  real ES256 signature verification through the JWKS path.
+- Spawned subagents for Workbench gene viewer, primer design, CRISPR
+  design/analysis, alignment, and read-only QA; integrated their disjoint
+  changes and fixed hook-lint integration issues.
+- Landing examples now show only report-capable structured examples:
+  `RPE65 c.260A>G`, `RPE65 c.11+5G>A`, `USH2A c.2276G>T`, and
+  `BRCA1 c.5266dupC`.
+- Landing submit parsing now normalizes bare cDNA-style text such as
+  `BRCA1 5266dupC` to `gene=BRCA1&cdna=c.5266dupC` instead of raw `q=`.
+- Gene viewer fixes covered codon-frame translation, intron/domain guards,
+  minimap segment indexing, protein coordinate clamping, empty ClinVar controls,
+  edit-popover viewport bounds, and out-of-range/gap edit guards.
+- Primer fixes covered constraint validation, stale result/error clearing,
+  pending-state disabling, readable FastAPI JSON errors, ARMS unsupported
+  detection, and specificity-note parsing.
+- CRISPR fixes aligned copy/caveats with Bioconductor `crisprScore` 1.16.0,
+  removed unsupported model implications, fixed recommended-guide ranking for
+  sparse guide indexes, disabled the unsent target-window control, scoped Cas9
+  cut markers to SpCas9, and made outcomes observed-only.
+- Alignment tool is now usable with FASTA/paste parsing, positional comparison,
+  Smith-Waterman local alignment, and target mismatch/gap highlighting.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py -q` passed.
-- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_frontend_contract.py tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_payments_api.py -q` passed.
-- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_auth_api.py -q` passed.
-- `cd app/backend && python -m pytest -q` passed (full backend suite; 5 skips,
-  existing short-test-JWT warnings only).
-- `cd app/backend && python -m ruff check app/core/deps.py app/core/config.py tests/test_evidence_submissions_api.py` passed.
-- `cd app/backend && python -m black --check --target-version py310 app/core/deps.py app/core/config.py tests/test_evidence_submissions_api.py` passed.
-- `git diff --check -- <touched auth/handoff files>` passed with CRLF warnings only.
-- Live Supabase JWKS endpoint returned EC/P-256 `ES256` signing key metadata.
+- `cd app/frontend && npm run test -- src/lib/workbench/gene-window.test.ts src/lib/workbench/codon-layout.test.ts src/lib/workbench/gene-viewer-adapter.test.ts src/lib/workbench/primer-metrics.test.ts src/lib/workbench/primer-form.test.ts src/lib/workbench/crispr-guide-map.test.ts src/lib/workbench/crispr-tide-sample.test.ts src/lib/workbench/alignment-pairwise.test.ts` passed (84 tests).
+- Post-integration focused rerun passed: `alignment-pairwise`, `gene-window`,
+  `primer-form`, and `crispr-guide-map` tests (36 tests).
+- `cd app/frontend && npx eslint src/components/workbench ...` passed.
+- `cd app/frontend && npm run build` passed; existing Vite large-chunk/plugin
+  timing warnings only.
+- `cd app/web && npx tsc --noEmit` passed.
+- `https://eamos-dev.vercel.app/api/v1/lookup` POST smoke passed for all four
+  landing examples; each returned full report payload groups.
+- `git diff --check` passed with CRLF working-copy warnings only.
 
-**Coordination:**
-- Local Python user env now has `cryptography-45.0.7` installed for verification;
-  backend deploys get it from `requirements.txt`.
-- Messenger FE should remain flag-off until Render has this backend code plus
-  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and Supabase migration `0003`.
-- For the live Supabase project, Render can use `SUPABASE_JWT_ALGORITHM=auto`
-  and `SUPABASE_URL=https://cpdjxsgasaesysvxkpmi.supabase.co`; explicit
-  `SUPABASE_JWKS_URL` is optional.
-- Codex did not touch `/runs`, AlphaMissense, destructive git, stash, reset,
-  clean, or push.
+**Coordination / caveats:**
+- Direct `https://eamos.com.au/api/v1/lookup` POSTs returned 403 from this shell;
+  Steven suggested `eamos-dev.vercel.app`, which verified the proxy/backend.
+- `eamos-dev.vercel.app` still shows the old chip set until these changes are
+  committed/pushed/deployed. No commit or push was performed.
+- Local Next 16 dev/start accepted ports but hung on HTTP responses in this
+  environment, and `app/web` `npm run build` timed out locally; app/web
+  TypeScript and live proxy/backend POST smoke passed instead.
+- Concurrent app/web report changes not made by Codex are present in
+  `app/web/components/report/{ReportClient,TrialsSection,VariantHeader}.tsx`;
+  Codex left them untouched.
+- No `/runs`, AlphaMissense, destructive git, stash, reset, clean, commit, or
+  push.
 
 **Next-session pickup queue:**
-1. Stripe live checkout remains gated until Steven creates Stripe products and
-   supplies `STRIPE_PRICE_PRO_MONTHLY` / `STRIPE_PRICE_MAX_MONTHLY`.
-2. Messenger live POST backend auth is code-ready; remaining gates are Render
-   env (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), Supabase migration `0003`,
-   manual Render deploy, then frontend flag flip.
-3. Otherwise, ask Steven to scope the next gene-viewer/report-depth backend
-   slice before implementing conservation hydration, fuller ClinVar enrichment,
-   or other payload depth.
+1. If Steven wants the landing fix live, commit/push the intended frontend paths
+   only and let Vercel auto-deploy the branch.
+2. Run browser verification after deploy on `eamos-dev.vercel.app` or
+   `eamos.com.au`: mobile chip tap should reach `/report?gene=BRCA1&cdna=c.5266dupC`
+   and the nav search should remain reusable.
+3. Workbench compare remains a placeholder; alignment is now implemented.
+4. Messenger live POST remains gated on Render env, Supabase migration `0003`,
+   manual Render deploy, then frontend flag flip. Stripe live checkout remains
+   gated on real Stripe price ids.
 
-**Clear-safe:** yes; verified Supabase ES256/JWKS auth boundary reached, no Codex
-dev server left running, Codex lane commit pushed to origin, and coordination
-locks released after re-read.
+**Clear-safe:** yes; verified Workbench and landing-example boundary reached, no
+Codex dev server left running, no commit/push performed, and coordination locks
+released after re-read.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 22:18 +1000 · Codex Supabase ES256/JWKS backend auth
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 27-29, plans/auth-pricing/backend-contracts.md, then git status --short --branch.
-Delta: Codex added backend Supabase ES256/JWKS verification for Messenger live API: `_supabase_principal` supports `SUPABASE_JWT_ALGORITHM=auto`, HS256 secret compatibility, ES256 via cached JWKS derived from `SUPABASE_URL` or explicit `SUPABASE_JWKS_URL`, optional `SUPABASE_JWT_PUBLIC_KEY`, and `cryptography>=42,<46`. `git pull --ff-only` was already up to date at `d2dface`; Codex lane commit pushed to origin. Full backend pytest + focused auth/evidence/payment tests + ruff + black --check + git diff --check passed; live Supabase JWKS shape checked.
-Next: Messenger live POST backend auth is code-ready but still gated on Render env, Supabase 0003, manual Render deploy, and frontend flag flip. Stripe live checkout remains gated on real products/price ids; otherwise Steven should scope next gene-viewer/report-depth backend slice.
+`# Resume prompt · 2026-05-24 23:54 +1000 · Codex Workbench polish + landing examples
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 30, then git status --short --branch.
+Delta: Codex handled Steven's explicit frontend role-swap request: Workbench viewer/primer/CRISPR/align polish integrated from subagents; landing chips now use report-capable examples only (RPE65 c.260A>G, RPE65 c.11+5G>A, USH2A c.2276G>T, BRCA1 c.5266dupC) and BRCA1 bare-dup text normalizes to structured report params. Focused Workbench tests, eslint, Vite build, app/web tsc, eamos-dev lookup POST smoke, and git diff --check passed. No commit/push.
+Next: If Steven wants this live, commit/push intended frontend paths only and verify mobile chip tap after Vercel deploy. Compare tool remains placeholder; Messenger/Stripe live gates unchanged.
 Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, or commit unless explicitly requested.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
