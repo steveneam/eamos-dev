@@ -93,7 +93,8 @@ export function EditPopoverV2({
   const preview = hoverPreview ?? currentPreview
 
   useLayoutEffect(() => {
-    const update = () => setPosition(clampToCursor(anchor, popRef.current))
+    const currentAnchor = { x: anchor.x, y: anchor.y }
+    const update = () => setPosition(clampToCursor(currentAnchor, popRef.current))
     update()
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)

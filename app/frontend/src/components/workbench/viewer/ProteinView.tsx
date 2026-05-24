@@ -44,8 +44,23 @@ const LANE_GAP_PCT = 3.4
 const MAX_LANES = 4
 
 export function ProteinView({ data, alleleMode }: ProteinViewProps) {
-  const protLen = data.proteinLength || 1
-  const pct = (aa: number) => ((aa - 1) / Math.max(1, protLen - 1)) * 100
+  const protLen = Math.max(1, data.proteinLength || 0)
+  const clampAa = (aa: number) => Math.min(Math.max(aa, 1), protLen)
+  const pct = (aa: number) => ((clampAa(aa) - 1) / Math.max(1, protLen - 1)) * 100
+  const spanStyle = (aaStart: number, aaEnd: number) => {
+    const left = pct(aaStart)
+    return { left: `${left}%`, width: `${Math.max(0, pct(aaEnd) - left)}%` }
+  }
+  const scaleTicks = useMemo(() => {
+    const ticks = [
+      1,
+      Math.round(protLen / 4),
+      Math.round(protLen / 2),
+      Math.round((3 * protLen) / 4),
+      protLen,
+    ].map((aa) => Math.min(Math.max(aa, 1), protLen))
+    return Array.from(new Set(ticks)).sort((a, b) => a - b)
+  }, [protLen])
 
   const { lollipops, splices } = useMemo(() => {
     const splices: GeneWindowData['clinvar'] = []
@@ -107,7 +122,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
     data.proteinFeatures
 
   const qv = data.queriedVariant
-  const queriedAa = qv.codonNumber
+  const queriedAa = qv.codonNumber || Math.ceil(qv.cdsPos / 3) || 1
 
   return (
     <div className="sv-protein">
@@ -125,11 +140,13 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
       <div className="sv-pv-stage">
         {/* Lollipop track (above the backbone) */}
         <div className="sv-pv-lollipops">
-          {lollipops.map((p) => {
+          {lollipops.map((p, i) => {
             const h = 20 + p.lane * 16
+            const labelEdge =
+              p.xPct < 18 ? ' edge-left' : p.xPct > 82 ? ' edge-right' : ''
             return (
               <div
-                key={p.cv}
+                key={`${p.cv || p.hgvsC}-${p.hgvsP}-${p.aa}-${i}`}
                 className="sv-pv-pop"
                 style={{ left: `${p.xPct}%`, height: h }}
                 title={`${p.hgvsC} · ${p.hgvsP} · ${classLabel(p.cls)}${
@@ -143,7 +160,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
                   }`}
                 />
                 {p.queried && (
-                  <span className="sv-pv-poplabel">
+                  <span className={`sv-pv-poplabel${labelEdge}`}>
                     {p.hgvsC} · {p.hgvsP} (aa {p.aa})
                   </span>
                 )}
@@ -157,10 +174,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
           {signalPeptide && (
             <div
               className="sv-pv-region signal"
-              style={{
-                left: `${pct(signalPeptide.aaStart)}%`,
-                width: `${pct(signalPeptide.aaEnd) - pct(signalPeptide.aaStart)}%`,
-              }}
+              style={spanStyle(signalPeptide.aaStart, signalPeptide.aaEnd)}
               title={`Signal peptide · aa ${signalPeptide.aaStart}–${signalPeptide.aaEnd}`}
             />
           )}
@@ -168,16 +182,13 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
             <div
               key={`mb${i}`}
               className="sv-pv-region membrane"
-              style={{
-                left: `${pct(r.aaStart)}%`,
-                width: `${pct(r.aaEnd) - pct(r.aaStart)}%`,
-              }}
+              style={spanStyle(r.aaStart, r.aaEnd)}
               title={`${r.label} · aa ${r.aaStart}–${r.aaEnd}`}
             />
           ))}
           {domainBars.map((d, i) => {
             const left = pct(d.aaStart)
-            const width = pct(d.aaEnd) - left
+            const width = Math.max(0, pct(d.aaEnd) - left)
             const label = d.short || d.label
             return (
               <div
@@ -220,13 +231,11 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
         </div>
 
         <div className="sv-pv-scale">
-          {[1, Math.round(protLen / 4), Math.round(protLen / 2), Math.round((3 * protLen) / 4), protLen].map(
-            (aa, i) => (
-              <span key={i} className="sv-pv-tick" style={{ left: `${pct(aa)}%` }}>
-                {aa}
-              </span>
-            ),
-          )}
+          {scaleTicks.map((aa) => (
+            <span key={aa} className="sv-pv-tick" style={{ left: `${pct(aa)}%` }}>
+              {aa}
+            </span>
+          ))}
         </div>
       </div>
 

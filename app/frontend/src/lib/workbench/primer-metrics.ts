@@ -60,7 +60,7 @@ export function classifyPair(pair: PrimerPair): PairClassification {
   if (pair.specificity_hits > 1) {
     // Off-target risk — more than one product (§5.1).
     badge = { key: 'offtarget', label: 'Off-target risk', tone: 'err' }
-  } else if (pair.specificity_hits === 0) {
+  } else if (pair.specificity_hits <= 0) {
     // hgPcr-quirk: 0 hits ⇒ validate orientation, not silently "not specific".
     badge = { key: 'orientation', label: 'Check orientation', tone: 'warn' }
   } else if (thermoFlag) {
@@ -78,9 +78,12 @@ export function classifyPair(pair: PrimerPair): PairClassification {
   return { badge, deltaTm, deltaTmWarn, gcOutOfBand, thermoFlag, spansTarget }
 }
 
-const PROVIDER_RE = /\b(template|ucsc[_ -]?ispcr|ispcr|primer-?blast)\b/i
-const PRODUCT_RE = /\b(?:products?|amplicons?)\b[^.;]*?(\d[\d,\s/]*\s*bp)/i
-const SPAN_NEG_RE = /\bdoes(?:\s+not|n['’]t)\s+(?:span|flank)/i
+const PROVIDER_RE =
+  /\b(?:provider|screen(?:ed)?\s+by|using)\s*[:=]?\s*(template|ucsc[_ -]?ispcr|ispcr|primer-?blast)\b/i
+const PRODUCT_RE =
+  /\b(?:products?|amplicons?)\b[^.;]*?(\d[\d,\s/]*(?:\s*bp)?(?:\s*[,/]\s*\d[\d,\s/]*\s*bp)*)/i
+const SPAN_NEG_RE =
+  /\b(?:does(?:\s+not|n['’]t)\s+(?:span|flank)|not\s+(?:spanning|flanking)|fails?\s+to\s+(?:span|flank))/i
 const SPAN_POS_RE = /\b(?:span|spans|spanning|flank|flanks|flanking)\b/i
 const PRIMER_BLAST_RE =
   /[^.;]*\bnot\b[^.;]*\bprimer-?blast\b[^.;]*/i

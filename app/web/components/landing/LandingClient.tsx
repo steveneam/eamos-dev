@@ -13,6 +13,36 @@ import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
 
 const VARIANT_LIKE = /^(c\.|p\.|g\.|m\.|n\.|rs\d|chr|\d+[-:])/i
+const BARE_CDNA_LIKE = /^\d+(?:[+-]\d+)?(?:[ACGT]>[ACGT]|del(?:[ACGT]+)?|dup(?:[ACGT]+)?|ins[ACGT]+|delins[ACGT]+)$/i
+const GENE_LIKE = /^[A-Za-z][A-Za-z0-9-]{1,15}$/
+
+function cleanToken(token: string) {
+  return token.trim().replace(/^[("'`]+|[)"'`,.;!?]+$/g, '')
+}
+
+function normaliseVariantToken(token: string) {
+  const cleaned = cleanToken(token)
+  if (!cleaned) return null
+  if (VARIANT_LIKE.test(cleaned)) return cleaned
+  if (BARE_CDNA_LIKE.test(cleaned)) return `c.${cleaned}`
+  return null
+}
+
+function structuredVariantFromText(text: string) {
+  const direct = text.match(/^([A-Za-z][A-Za-z0-9-]+)\s+(.+)$/)
+  if (direct) {
+    const variant = normaliseVariantToken(direct[2])
+    if (variant) return { gene: direct[1].toUpperCase(), variant }
+  }
+
+  const tokens = text.split(/\s+/).map(cleanToken).filter(Boolean)
+  for (let i = 1; i < tokens.length; i += 1) {
+    const gene = tokens[i - 1]
+    const variant = normaliseVariantToken(tokens[i])
+    if (variant && GENE_LIKE.test(gene)) return { gene: gene.toUpperCase(), variant }
+  }
+  return null
+}
 
 export function LandingClient() {
   const router = useRouter()
@@ -23,9 +53,9 @@ export function LandingClient() {
   const handleSubmit = (raw: string) => {
     const text = raw.trim()
     if (!text) return
-    const m = text.match(/^([A-Za-z][A-Za-z0-9-]+)\s+(.+)$/)
-    if (m && VARIANT_LIKE.test(m[2].trim())) {
-      const params = new URLSearchParams({ gene: m[1].toUpperCase(), cdna: m[2].trim() })
+    const structured = structuredVariantFromText(text)
+    if (structured) {
+      const params = new URLSearchParams({ gene: structured.gene, cdna: structured.variant })
       router.push(`/report?${params.toString()}`)
     } else {
       const params = new URLSearchParams({ q: text })
@@ -126,8 +156,8 @@ export function LandingClient() {
             }}
           >
             One variant in, one structured report out. Eamos aggregates ClinVar, gnomAD, SpliceAI,
-            VEP, and PubMed into a single clinician-readable report — so you stop opening five tabs per
-            variant.
+            Ensembl, PubMed, and ClinicalTrials.gov into a single clinician-readable report — so you
+            stop opening six tabs per variant.
           </p>
 
           <div style={{ width: '100%', maxWidth: 620 }}>
@@ -138,7 +168,12 @@ export function LandingClient() {
             <span className="mr-1 text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--hero-ink-3)' }}>
               Try
             </span>
-            {['RPE65 c.260A>G', 'BRAF p.V600E', 'rs6025', 'Is BRCA1 5266dupC pathogenic?'].map((chip) => (
+            {[
+              'RPE65 c.260A>G',
+              'RPE65 c.11+5G>A',
+              'USH2A c.2276G>T',
+              'BRCA1 c.5266dupC',
+            ].map((chip) => (
               <button
                 key={chip}
                 type="button"

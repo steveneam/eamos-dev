@@ -4,6 +4,7 @@ import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
+import { AlignPanel } from './align/AlignPanel'
 import { CanvasHeader } from './CanvasHeader'
 import { CrisprPanel } from './crispr/CrisprPanel'
 import { PrimerPanel } from './primer/PrimerPanel'
@@ -78,8 +79,11 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   useEffect(() => {
     let stale = false
     const defaultRequest = isDefaultViewerRequest(gene, cdna, transcript)
-    setViewerError(null)
-    if (!defaultRequest) setData(null)
+    queueMicrotask(() => {
+      if (stale) return
+      setViewerError(null)
+      if (!defaultRequest) setData(null)
+    })
     getGeneViewer({
       gene,
       cdna,
@@ -174,7 +178,8 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
               >
                 {p === 'primer' && <PrimerPanel gene={data.gene} cdna={cdna} />}
                 {p === 'crispr' && <CrisprPanel gene={data.gene} cdna={cdna} />}
-                {/* FE-7 (align/compare) fills the rest. */}
+                {p === 'align' && <AlignPanel data={data} cdna={cdna} />}
+                {/* FE-7 compare fills the rest. */}
               </div>
             ))
           ) : (

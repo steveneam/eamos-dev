@@ -53,6 +53,12 @@ describe('classifyPair — synthetic edges', () => {
     expect(c.badge.tone).toBe('warn')
   })
 
+  it('negative specificity hits are treated as an orientation concern', () => {
+    const c = classifyPair({ ...base, specificity_hits: -1 })
+    expect(c.badge.key).toBe('orientation')
+    expect(c.badge.tone).toBe('warn')
+  })
+
   it('synthetic ΔTm > 2 → Thermo warning + amber gauge flag', () => {
     const c = classifyPair({ ...base, tm_forward: 58, tm_reverse: 62.5 })
     expect(c.deltaTm).toBeCloseTo(4.5, 5)
@@ -93,6 +99,17 @@ describe('parseNotes — defensive, never throws', () => {
     expect(n.productSizes).toBe('487/512 bp')
     expect(n.spansTarget).toBe(true)
     expect(n.primerBlastCaveat).toMatch(/not an NCBI Primer-BLAST/i)
+  })
+
+  it('does not treat a Primer-BLAST caveat as the specificity provider', () => {
+    const n = parseNotes('This is not an NCBI Primer-BLAST validation.')
+    expect(n.provider).toBeUndefined()
+    expect(n.primerBlastCaveat).toMatch(/not an NCBI Primer-BLAST/i)
+  })
+
+  it('keeps negative span wording from being classified as spanning', () => {
+    expect(parseNotes('Single product, not spanning the queried base.').spansTarget).toBe(false)
+    expect(parseNotes('Single product fails to flank the queried base.').spansTarget).toBe(false)
   })
 
   it('degrades to raw on unmatched prose without throwing', () => {

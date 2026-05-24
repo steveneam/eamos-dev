@@ -3,7 +3,7 @@ import type { IndelBin } from '@/lib/workbench/crispr-tide-sample'
 
 interface IndelSpectrumProps {
   spectrum: IndelBin[]
-  /** Render the AI-predicted series alongside observed (Blueprint 2). */
+  /** Render an optional predicted series alongside observed values. */
   showPredicted: boolean
 }
 
@@ -14,10 +14,8 @@ const H = 200
 const GROUP_W = 34
 
 /**
- * Hand-rolled SVG grouped bar chart (Observed vs AI-Predicted indel
- * frequencies), same zero-dependency approach as the Workbench PhyloP
- * conservation track. Falls back to a single observed series when no
- * repair-outcome model is available (real backend until §7 ships weights).
+ * Hand-rolled SVG grouped bar chart for observed indel frequencies, with an
+ * optional predicted series only when the result explicitly provides one.
  */
 export function IndelSpectrum({ spectrum, showPredicted }: IndelSpectrumProps) {
   const { w, max, ticks } = useMemo(() => {
@@ -42,7 +40,11 @@ export function IndelSpectrum({ spectrum, showPredicted }: IndelSpectrumProps) {
       <svg
         viewBox={`0 0 ${w} ${H}`}
         role="img"
-        aria-label="Indel frequency spectrum, observed versus AI-predicted"
+        aria-label={
+          showPredicted
+            ? 'Indel frequency spectrum, observed versus predicted'
+            : 'Indel frequency spectrum, observed only'
+        }
         preserveAspectRatio="xMinYMid meet"
       >
         {ticks.map((t) => (
@@ -108,10 +110,10 @@ export function IndelSpectrum({ spectrum, showPredicted }: IndelSpectrumProps) {
         </span>
         {showPredicted && (
           <span>
-            <i className="sw predicted" /> AI-predicted
+            <i className="sw predicted" /> Predicted
           </span>
         )}
-        <span className="ic-note">0 = unmodified · − deletion · + insertion</span>
+        <span className="ic-note">0 = unmodified; - deletion; + insertion</span>
       </div>
     </div>
   )

@@ -181,13 +181,16 @@ export function buildFlatWindow(data: GeneWindowData): FlatBase[] {
           isSplice: k === 0 || k === 1,
         })
       })
-      bases.push({
-        flatPos: i++,
-        base: '…',
-        kind: 'intron-gap',
-        intronNum: seg.intronNum,
-        intronOmitted: seg.totalLen - seg.fiveSeq.length - seg.threeSeq.length,
-      })
+      const omitted = seg.totalLen - seg.fiveSeq.length - seg.threeSeq.length
+      if (omitted > 0) {
+        bases.push({
+          flatPos: i++,
+          base: '…',
+          kind: 'intron-gap',
+          intronNum: seg.intronNum,
+          intronOmitted: omitted,
+        })
+      }
       const three = seg.threeSeq.split('')
       three.forEach((ch, k) => {
         const offsetFromAcceptor = three.length - k
@@ -218,13 +221,15 @@ export function buildCodons(flat: FlatBase[]): Codon[] {
   const exonOnly = flat.filter(
     (b): b is Extract<FlatBase, { kind: 'exon' }> => b.kind === 'exon',
   )
+  const exonByCds = new Map(exonOnly.map((b) => [b.cdsPos, b]))
   const codons: Codon[] = []
-  for (let i = 0; i + 2 < exonOnly.length; i += 3) {
-    const a = exonOnly[i]
-    const b = exonOnly[i + 1]
-    const c = exonOnly[i + 2]
+  for (const a of exonOnly) {
+    if ((a.cdsPos - 1) % 3 !== 0) continue
+    const b = exonByCds.get(a.cdsPos + 1)
+    const c = exonByCds.get(a.cdsPos + 2)
+    if (!b || !c) continue
     codons.push({
-      codonNum: Math.ceil(a.cdsPos / 3),
+      codonNum: Math.floor((a.cdsPos - 1) / 3) + 1,
       bases: [a.flatPos, b.flatPos, c.flatPos],
       cdsPositions: [a.cdsPos, b.cdsPos, c.cdsPos],
       spansSplice: !(a.exonNum === b.exonNum && b.exonNum === c.exonNum),
@@ -320,19 +325,21 @@ export function consequenceAt(
   const flatExons = flat.filter(
     (b): b is Extract<FlatBase, { kind: 'exon' }> => b.kind === 'exon',
   )
-  const idxInCds = flatExons.findIndex((b) => b.flatPos === flatIdx)
-  if (idxInCds < 0) return { kind: 'unknown', label: 'Unknown', detail: '' }
-  const codonStart = idxInCds - (idxInCds % 3)
-  const refTriplet = flatExons
-    .slice(codonStart, codonStart + 3)
-    .map((b) => b.base)
-    .join('')
-  const offset = idxInCds - codonStart
+  const exonByCds = new Map(flatExons.map((b) => [b.cdsPos, b]))
+  const codonStartCds = pos.cdsPos - ((pos.cdsPos - 1) % 3)
+  const a = exonByCds.get(codonStartCds)
+  const b = exonByCds.get(codonStartCds + 1)
+  const c = exonByCds.get(codonStartCds + 2)
+  if (!a || !b || !c) return { kind: 'unknown', label: 'Unknown', detail: '' }
+  const codonBases = [a, b, c]
+  const refTriplet = codonBases.map((b) => b.base).join('').toUpperCase()
+  const offset = pos.cdsPos - codonStartCds
   const altTriplet =
     refTriplet.substr(0, offset) + newBase + refTriplet.substr(offset + 1)
   const refAA = codonTable[refTriplet]
   const altAA = codonTable[altTriplet]
-  const codonNum = Math.ceil(flatExons[codonStart].cdsPos / 3)
+  if (!refAA || !altAA) return { kind: 'unknown', label: 'Unknown', detail: '' }
+  const codonNum = Math.floor((codonStartCds - 1) / 3) + 1
 
   if (refAA === altAA)
     return {

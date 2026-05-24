@@ -1,5 +1,65 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 30 - 24 May 2026 - Workbench polish and landing live examples
+
+Codex handled Steven's explicit frontend role-swap request for the Workbench
+page, using parallel subagents for gene viewer, primer design, CRISPR
+design/analysis, alignment, and read-only QA. This stayed out of `/runs`,
+AlphaMissense, destructive git, stash, reset, and clean; Steven later approved
+committing and pushing the intended Workbench, landing, progress, and handoff
+paths.
+
+Completed:
+- Fixed the landing-page example chips so they are all structured
+  report-capable examples: `RPE65 c.260A>G`, `RPE65 c.11+5G>A`,
+  `USH2A c.2276G>T`, and `BRCA1 c.5266dupC`. Removed the old natural-language
+  BRCA1 chip that routed mobile users to a sticky malformed-query page.
+- Hardened landing submit parsing so text such as `BRCA1 5266dupC` normalizes
+  to `gene=BRCA1&cdna=c.5266dupC` instead of a raw `q=` search.
+- Gene viewer: fixed codon-frame translation for windows starting mid-codon,
+  guarded intron/domain/window-only data, tightened minimap segment indexing,
+  clamped protein-view coordinates, fixed empty-ClinVar navigation controls, and
+  kept edit popovers in narrow viewports.
+- Primer design: added pure form validation helpers, blocked empty/non-numeric
+  or inverted constraints from reaching the API, cleared stale results/errors on
+  edits, disabled controls during pending requests, formatted FastAPI JSON
+  errors, and corrected specificity-note parsing.
+- CRISPR: aligned UI caveats with Bioconductor `crisprScore` 1.16.0 instead of
+  implying unavailable models already run; used a tested recommended-guide
+  ranking helper so guide `index` is not treated as an array offset; disabled
+  the unsent target-window control; limited Cas9 cut markers to SpCas9 results;
+  and changed outcomes wording/data to observed-only TIDE-style analysis.
+- Alignment: added a usable Workbench align panel with paste/FASTA parsing,
+  positional comparison, Smith-Waterman local alignment, target mismatch/gap
+  highlighting, and focused pure tests.
+
+Verification:
+- `cd app/frontend && npm run test -- src/lib/workbench/gene-window.test.ts src/lib/workbench/codon-layout.test.ts src/lib/workbench/gene-viewer-adapter.test.ts src/lib/workbench/primer-metrics.test.ts src/lib/workbench/primer-form.test.ts src/lib/workbench/crispr-guide-map.test.ts src/lib/workbench/crispr-tide-sample.test.ts src/lib/workbench/alignment-pairwise.test.ts`
+  -> passed (84 tests).
+- `cd app/frontend && npm run test -- src/lib/workbench/alignment-pairwise.test.ts src/lib/workbench/gene-window.test.ts src/lib/workbench/primer-form.test.ts src/lib/workbench/crispr-guide-map.test.ts`
+  -> passed after integration hook-lint fixes (36 tests).
+- `cd app/frontend && npx eslint src/components/workbench ...` -> passed.
+- `cd app/frontend && npm run build` -> passed; existing large chunk/plugin
+  timing warnings only.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- `https://eamos-dev.vercel.app/api/v1/lookup` POST smoke passed for all four
+  landing chips; each returned a full report payload with matching title/header,
+  call cards, population frequency, and functional evidence.
+- `git diff --check` passed with CRLF working-copy warnings only.
+
+Notes:
+- Direct `https://eamos.com.au/api/v1/lookup` POSTs returned 403 from this shell
+  environment; Steven suggested using `eamos-dev.vercel.app`, which verified
+  the frontend proxy/backend route.
+- Before the authorized push, `eamos-dev.vercel.app` still showed the old chip
+  set because these changes were local. Local Next 16 dev/start accepted ports
+  but hung on HTTP responses in this environment, and `npm run build` for
+  `app/web` timed out locally; app/web TypeScript and live backend/proxy smoke
+  were used instead.
+- Concurrent worktree changes not made by Codex are present in
+  `app/web/components/report/{ReportClient,TrialsSection,VariantHeader}.tsx`;
+  Codex left them untouched.
+
 ## Session 29 - 24 May 2026 - Supabase ES256/JWKS auth for Messenger API
 
 Codex implemented the backend auth fix from Claude's 22:04 handoff so the

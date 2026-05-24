@@ -192,9 +192,11 @@ function Block(props: BlockProps) {
           </div>
         )
       }
+      const intron = data.introns.find((intron) => intron.num === g.intronNum)
       return (
         <div key={`g${gi}`} className="sv-feat-bar intron" style={{ left, width }}>
-          Intron {g.intronNum} ({data.introns[(g.intronNum ?? 1) - 1].lenBp.toLocaleString()} bp)
+          Intron {g.intronNum}
+          {intron ? ` (${intron.lenBp.toLocaleString()} bp)` : ''}
         </div>
       )
     })
@@ -574,16 +576,23 @@ function Block(props: BlockProps) {
     </div>
   )
   const blockStyle: CSSProperties = { width: w + RIGHT_MARGIN }
+  const domainTrack = data.domains[0] ?? data.proteinFeatures.domains[0]
+  const domainLabel =
+    domainTrack &&
+    ('shortLabel' in domainTrack && domainTrack.shortLabel
+      ? domainTrack.shortLabel
+      : domainTrack.label)
 
   return (
     <div className="sv-block" style={blockStyle}>
       {trackOn.annotations && row('annotations', 22, annotations())}
       {trackOn.domains &&
+        domainTrack &&
         row(
           'domain',
           18,
           <div className="sv-feat-bar domain" style={{ left: 0, width: w }}>
-            {data.domains[0].shortLabel} (aa {data.domains[0].aaStart}–{data.domains[0].aaEnd})
+            {domainLabel} (aa {domainTrack.aaStart}–{domainTrack.aaEnd})
           </div>,
         )}
       {trackOn.clinvar && row('clinvar', 12, clinvar())}

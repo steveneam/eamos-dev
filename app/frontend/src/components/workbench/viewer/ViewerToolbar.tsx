@@ -75,7 +75,11 @@ export function ViewerToolbar({
             ×
           </button>
         )}
-        {jumpError && <div className="sv-find-msg">{jumpError}</div>}
+        {jumpError && (
+          <div className="sv-find-msg" role="alert">
+            {jumpError}
+          </div>
+        )}
       </div>
 
       <div className="sv-vnav">
@@ -85,6 +89,7 @@ export function ViewerToolbar({
           className="sv-vnav-btn"
           title="Previous variant"
           aria-label="Previous ClinVar variant"
+          disabled={variantCount === 0}
           onClick={() => onStepVariant('prev')}
         >
           ‹
@@ -95,6 +100,7 @@ export function ViewerToolbar({
           className="sv-vnav-btn"
           title="Next variant"
           aria-label="Next ClinVar variant"
+          disabled={variantCount === 0}
           onClick={() => onStepVariant('next')}
         >
           ›

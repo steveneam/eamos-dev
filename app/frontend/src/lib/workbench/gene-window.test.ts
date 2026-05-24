@@ -32,6 +32,26 @@ describe('buildFlatWindow', () => {
     expect(donor[0].base).toBe('g')
     expect(donor[1].base).toBe('t')
   })
+
+  it('does not add a gap cell when the full intron sequence is displayed', () => {
+    const fullIntron = buildFlatWindow({
+      ...RPE65_V2,
+      windowSegments: [
+        { kind: 'exon', exonNum: 1, cdsStart: 1, cdsEnd: 3, seq: 'ATG' },
+        {
+          kind: 'intron',
+          intronNum: 1,
+          totalLen: 4,
+          fiveSeq: 'gt',
+          threeSeq: 'ag',
+        },
+        { kind: 'exon', exonNum: 2, cdsStart: 4, cdsEnd: 6, seq: 'GAA' },
+      ],
+    })
+
+    expect(fullIntron.some((b) => b.kind === 'intron-gap')).toBe(false)
+    expect(fullIntron.map((b) => b.base).join('')).toBe('ATGgtagGAA')
+  })
 })
 
 describe('buildCodons', () => {
@@ -42,6 +62,17 @@ describe('buildCodons', () => {
     const triplet = c87!.bases.map((i) => flat[i].base).join('')
     expect(triplet).toBe('GAC')
     expect(translateTriplet(triplet)).toBe('D')
+  })
+
+  it('uses absolute CDS frame when the visible window starts mid-codon', () => {
+    expect(buildCodons(midCodonFlat())).toEqual([
+      {
+        codonNum: 2,
+        bases: [2, 3, 4],
+        cdsPositions: [4, 5, 6],
+        spansSplice: false,
+      },
+    ])
   })
 })
 
@@ -81,4 +112,25 @@ describe('consequenceAt', () => {
     )
     expect(consequenceAt(flat, deep, 'A').kind).toBe('intronic')
   })
+
+  it('predicts consequences from absolute CDS frame when the window starts mid-codon', () => {
+    const c = consequenceAt(midCodonFlat(), 2, 'T')
+
+    expect(c.kind).toBe('stop')
+    expect(c.detail).toContain('GAA→TAA')
+  })
+
+  it('returns unknown when the full codon is not visible', () => {
+    expect(consequenceAt(midCodonFlat(), 0, 'T').kind).toBe('unknown')
+  })
 })
+
+function midCodonFlat(): FlatBase[] {
+  return [
+    { flatPos: 0, base: 'A', kind: 'exon', exonNum: 1, cdsPos: 2 },
+    { flatPos: 1, base: 'C', kind: 'exon', exonNum: 1, cdsPos: 3 },
+    { flatPos: 2, base: 'G', kind: 'exon', exonNum: 1, cdsPos: 4 },
+    { flatPos: 3, base: 'A', kind: 'exon', exonNum: 1, cdsPos: 5 },
+    { flatPos: 4, base: 'A', kind: 'exon', exonNum: 1, cdsPos: 6 },
+  ]
+}

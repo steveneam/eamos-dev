@@ -4,13 +4,9 @@ import type { CrisprTideResult } from '@/lib/workbench/crispr-tide-sample'
 import { IndelSpectrum } from './IndelSpectrum'
 
 /**
- * Blueprint-2 post-CRISPR editing-outcome scaffold. Two Sanger trace
- * inputs (control + edited) and the Cas9 cleavage base index drive a TIDE
- * deconvolution. Mock-first against `CRISPR_TIDE_SAMPLE` — the real
- * `POST /api/v1/crispr/tide` + AB1 parsing are a gated Codex milestone
- * (plans/crispr-integration.md §7). When the real backend returns
- * `predicted_available: false` (no repair-model weights) the chart
- * renders observed-only.
+ * Post-CRISPR editing-outcome scaffold. Two Sanger trace inputs and a Cas9
+ * cleavage base index drive the TIDE-shaped result. This tab remains
+ * mock-first until the backend endpoint and AB1 parsing land.
  */
 export function OutcomesTab() {
   const [control, setControl] = useState<File | null>(null)
@@ -20,13 +16,26 @@ export function OutcomesTab() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const clearComputed = () => {
+    setRes(null)
+    setError(null)
+  }
+
   const run = async () => {
     if (!control || !edited) {
       setError('Upload both a control and an edited Sanger trace (.ab1 / JSON).')
+      setRes(null)
       return
     }
+    if (!Number.isFinite(cutIndex) || cutIndex < 1) {
+      setError('Cut index must be a positive base index.')
+      setRes(null)
+      return
+    }
+
     setLoading(true)
     setError(null)
+    setRes(null)
     try {
       setRes(await analyzeTide(control, edited, cutIndex))
     } catch (e) {
@@ -45,7 +54,11 @@ export function OutcomesTab() {
             className="field-input crispr-file"
             type="file"
             accept=".ab1,.json"
-            onChange={(e) => setControl(e.target.files?.[0] ?? null)}
+            disabled={loading}
+            onChange={(e) => {
+              setControl(e.target.files?.[0] ?? null)
+              clearComputed()
+            }}
           />
         </label>
         <label className="field">
@@ -54,7 +67,11 @@ export function OutcomesTab() {
             className="field-input crispr-file"
             type="file"
             accept=".ab1,.json"
-            onChange={(e) => setEdited(e.target.files?.[0] ?? null)}
+            disabled={loading}
+            onChange={(e) => {
+              setEdited(e.target.files?.[0] ?? null)
+              clearComputed()
+            }}
           />
         </label>
         <label className="field">
@@ -64,7 +81,12 @@ export function OutcomesTab() {
             type="number"
             min={1}
             value={cutIndex}
-            onChange={(e) => setCutIndex(Number(e.target.value))}
+            disabled={loading}
+            onChange={(e) => {
+              const parsed = Number(e.target.value)
+              setCutIndex(Number.isFinite(parsed) ? Math.max(1, parsed) : 1)
+              clearComputed()
+            }}
           />
         </label>
       </div>
@@ -76,19 +98,23 @@ export function OutcomesTab() {
           onClick={run}
           disabled={loading}
         >
-          {loading ? 'Analysing…' : 'Run TIDE analysis'}
+          {loading ? 'Analyzing...' : 'Run TIDE analysis'}
         </button>
         <span className="tool-panel-sub">
-          {control?.name ?? 'no control'} · {edited?.name ?? 'no edited'}
+          {control?.name ?? 'no control'} / {edited?.name ?? 'no edited'}
         </span>
       </div>
 
-      <div className="help-note">
-        Sanger TIDE (Brinkman 2014) deconvolution. AB1 parsing, the NNLS
-        solver, and the endpoint are a gated backend milestone (§7); this
-        scaffold is mock-first. CRISPResso2 NGS and the SPROUT/inDelphi
-        repair predictor are deferred — production runs are observed-only
-        until repair-model weights are sourced.
+      <div className="crispr-caveats">
+        <div className="help-note">
+          Current output is an observed-only TIDE scaffold backed by the
+          frontend sample when the gated endpoint is absent. AB1 parsing and
+          the numerical solver are backend planning items.
+        </div>
+        <div className="help-note">
+          crisprScore is not a TIDE provider. A later Cas9 integration can add
+          its Lindel-derived frameshift probability as a separate score.
+        </div>
       </div>
 
       {error && <div className="crispr-error">{error}</div>}
@@ -103,7 +129,7 @@ export function OutcomesTab() {
               </span>
             </div>
             <div className="ic-stat">
-              <span className="label">Fit R²</span>
+              <span className="label">Fit R2</span>
               <span className="value">{res.r_squared.toFixed(2)}</span>
             </div>
             <div className="ic-stat">
@@ -111,9 +137,9 @@ export function OutcomesTab() {
               <span className="value">{res.cut_site_index}</span>
             </div>
             <div className="ic-stat">
-              <span className="label">Predictor</span>
+              <span className="label">Series</span>
               <span className="value">
-                {res.predicted_available ? 'AI + observed' : 'observed-only'}
+                {res.predicted_available ? 'observed + predicted' : 'observed-only'}
               </span>
             </div>
           </div>

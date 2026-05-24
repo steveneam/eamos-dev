@@ -112,12 +112,39 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const exonOf = useCallback(
       (cds: number) =>
         data.exons.find((e) => cds >= e.cdsStart && cds <= e.cdsEnd)?.num ??
-        data.queriedVariant.cdsPos,
+        data.exons[0]?.num ??
+        0,
       [data],
     )
-    const [activeExon, setActiveExon] = useState(() =>
-      exonOf(data.queriedVariant.cdsPos),
+    const activeExonKey = `${data.gene}:${data.transcript}:${data.queriedVariant.hgvsC}`
+    const defaultActiveExon = useMemo(
+      () => exonOf(data.queriedVariant.cdsPos),
+      [data.queriedVariant.cdsPos, exonOf],
     )
+    const [activeExonOverride, setActiveExonOverride] = useState<{
+      key: string
+      exon: number
+    } | null>(null)
+    const activeExon =
+      activeExonOverride?.key === activeExonKey
+        ? activeExonOverride.exon
+        : defaultActiveExon
+    const setActiveExon = useCallback(
+      (exon: number) => setActiveExonOverride({ key: activeExonKey, exon }),
+      [activeExonKey],
+    )
+    const visibleExons = useMemo(
+      () =>
+        Array.from(
+          new Set(
+            flat
+              .filter((b): b is Extract<FlatBase, { kind: 'exon' }> => b.kind === 'exon')
+              .map((b) => b.exonNum),
+          ),
+        ).sort((a, b) => a - b),
+      [flat],
+    )
+    const visibleExonLabel = useMemo(() => formatExonList(visibleExons), [visibleExons])
 
     // ── Edit operations (mirror sequence-viewer.js) ──
     const commit = useCallback(
@@ -127,11 +154,13 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     )
     const applySub = useCallback(
       (idx: number, base: Base) => {
-        const reff = flat[idx].base.toUpperCase()
+        const target = flat[idx]
+        if (!target || target.kind === 'intron-gap') return
+        const reff = target.base.toUpperCase()
         if (base === reff)
-          commit(`Reset ${posDisplay(data, flat[idx])}`, (m) => m.delete(idx))
+          commit(`Reset ${posDisplay(data, target)}`, (m) => m.delete(idx))
         else
-          commit(`Substitute ${posDisplay(data, flat[idx])} ${reff}>${base}`, (m) =>
+          commit(`Substitute ${posDisplay(data, target)} ${reff}>${base}`, (m) =>
             m.set(idx, { kind: 'sub', alt: base }),
           )
       },
@@ -139,15 +168,18 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     )
     const applyDel = useCallback(
       (lo: number, hi: number) => {
+        const start = Math.max(0, lo)
+        const end = Math.min(flat.length - 1, hi)
+        if (start > end) return
         const label =
-          lo === hi
-            ? `Delete ${posDisplay(data, flat[lo])}`
-            : `Delete ${hi - lo + 1} bases ${posDisplay(data, flat[lo])} → ${posDisplay(
+          start === end
+            ? `Delete ${posDisplay(data, flat[start])}`
+            : `Delete ${end - start + 1} bases ${posDisplay(data, flat[start])} → ${posDisplay(
                 data,
-                flat[hi],
+                flat[end],
               )}`
         commit(label, (m) => {
-          for (let i = lo; i <= hi; i++) {
+          for (let i = start; i <= end; i++) {
             if (flat[i].kind === 'intron-gap') continue
             m.set(i, { kind: 'del', alt: '-' })
           }
@@ -156,27 +188,33 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       [commit, data, flat],
     )
     const applyIns = useCallback(
-      (idx: number, seq: string) =>
-        commit(`Insert ${seq} after ${posDisplay(data, flat[idx])}`, (m) =>
+      (idx: number, seq: string) => {
+        const target = flat[idx]
+        if (!target || target.kind === 'intron-gap') return
+        commit(`Insert ${seq} after ${posDisplay(data, target)}`, (m) =>
           m.set(idx, { kind: 'ins', alt: seq }),
-        ),
+        )
+      },
       [commit, data, flat],
     )
     const applyReplace = useCallback(
       (lo: number, hi: number, seq: string) => {
-        commit(`Replace ${hi - lo + 1} bases with ${seq}`, (m) => {
-          for (let i = lo; i <= hi; i++) m.delete(i)
-          const usable = Math.min(seq.length, hi - lo + 1)
+        const start = Math.max(0, lo)
+        const end = Math.min(flat.length - 1, hi)
+        if (start > end) return
+        commit(`Replace ${end - start + 1} bases with ${seq}`, (m) => {
+          for (let i = start; i <= end; i++) m.delete(i)
+          const usable = Math.min(seq.length, end - start + 1)
           for (let k = 0; k < usable; k++) {
-            const idx = lo + k
+            const idx = start + k
             if (flat[idx].kind === 'intron-gap') continue
             if (seq[k] !== flat[idx].base.toUpperCase())
               m.set(idx, { kind: 'sub', alt: seq[k] })
           }
-          if (seq.length > usable) m.set(hi, { kind: 'ins', alt: seq.substr(usable) })
-          else if (seq.length < hi - lo + 1)
-            for (let k = seq.length; k < hi - lo + 1; k++) {
-              const idx = lo + k
+          if (seq.length > usable) m.set(end, { kind: 'ins', alt: seq.substr(usable) })
+          else if (seq.length < end - start + 1)
+            for (let k = seq.length; k < end - start + 1; k++) {
+              const idx = start + k
               if (flat[idx].kind !== 'intron-gap') m.set(idx, { kind: 'del', alt: '-' })
             }
         })
@@ -256,13 +294,13 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     }, [])
     const jumpToFlatIdx = useCallback(
       (i: number) => {
-        if (i < 0) return
+        if (i < 0 || i >= flat.length) return
         setSelection({ start: i, end: i })
         const b = flat[i]
         if (b?.kind === 'exon') setActiveExon(b.exonNum)
         scrollToIdx(i)
       },
-      [flat, scrollToIdx],
+      [flat, scrollToIdx, setActiveExon],
     )
     const jumpToCdsPos = useCallback(
       (p: number) => {
@@ -277,10 +315,14 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         if (i >= 0) jumpToFlatIdx(i)
         else {
           setActiveExon(n)
-          setJumpError(`Exon ${n} not in current window (window covers exons 3–5).`)
+          setJumpError(
+            `Exon ${n} not in current window${
+              visibleExonLabel ? ` (window covers ${visibleExonLabel}).` : '.'
+            }`,
+          )
         }
       },
-      [flat, jumpToFlatIdx],
+      [flat, jumpToFlatIdx, setActiveExon, visibleExonLabel],
     )
     useImperativeHandle(
       ref,
@@ -590,6 +632,14 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     )
   },
 )
+
+function formatExonList(nums: number[]): string {
+  if (nums.length === 0) return ''
+  const consecutive = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1)
+  if (nums.length > 2 && consecutive) return `exons ${nums[0]}-${nums[nums.length - 1]}`
+  if (nums.length === 1) return `exon ${nums[0]}`
+  return `exons ${nums.join(', ')}`
+}
 
 function isBase(value: string): value is Base {
   return value === 'A' || value === 'T' || value === 'C' || value === 'G'

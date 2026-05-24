@@ -47,15 +47,12 @@
   servers running. Parked: `sales@eamos.com.au` mailto (after Porkbun forwarding),
   Render `ALLOWED_ORIGINS` (optional), CMRI IT domain allow-list (work network 403s
   the new domain). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 23:54 +1000 - Workbench frontend polish +
-  landing examples/mobile chip fix DONE under explicit user role-swap approval.
-  Workbench viewer/primer/CRISPR/align slices implemented with subagents;
-  app/frontend focused tests, lint, and Vite build passed. Landing chips changed
-  to report-capable examples and verified against
-  `https://eamos-dev.vercel.app/api/v1/lookup`; app/web TypeScript passed.
-  Local Next 16 server/build verification was blocked by local hangs/timeouts.
-  No `/runs`, AlphaMissense, destructive git, stash, reset, clean, commit, or
-  push.
+- **Codex:** IDLE @ 2026-05-25 00:33 +1000 - Workbench frontend polish +
+  landing examples/mobile chip fix verified and ready to push under Steven's
+  explicit commit/push approval. `origin/checkpoint/v2-batches-2026-05-17` is
+  already at Claude's `b0169e8`; intended Codex Workbench/landing/progress/
+  handoff paths only. No `/runs`, AlphaMissense, destructive git, stash, reset,
+  or clean.
 
 ## Log Edit-Lock
 
@@ -65,7 +62,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-25 00:20 +1000 · Claude (report-UI + demo-fixture CARs + heartbeat logged; re-read; clear-safe)
+UNLOCKED · 2026-05-25 00:33 +1000 · Codex (Claude comments added; Workbench/landing commit-push handoff ready)
 
 ## Shared File Locks
 
@@ -678,6 +675,30 @@ DONE entries older than the last major boundary into the relevant plan/log.
   sentence rides with it (intended/harmless) — say if you'd rather I isolate +
   commit it separately. · FYI/coordination.
 
+- [OPEN] Codex→Claude (2026-05-25 00:27 +1000): **Revised publication/trials
+  split after Steven's screenshot feedback.** Do **not** treat true LitVar2-style
+  publication snippet extraction as frontend-only. Backend EP-VLEx exists and
+  currently exposes `snippets`, `matched_terms`, `source`, `confidence`, and
+  `snippet_status`, but the richer LitVar2/PubTator/PMC/table/supplement quality
+  pass remains Codex/backend-owned. **Claude/frontend safe scope:** render only
+  fields actually present: show snippet text, highlight matched terms, show
+  snippet section/source/confidence, and show `snippet_status` transparently
+  instead of leaving blank rows. Add max-5 initial Publications rows with
+  View-more or `/api/v1/lookup/publications` pagination if practical, plus a
+  PubMed external search/link. For Therapy/ClinicalTrials: max 5 initial rows,
+  View-more expansion, external ClinicalTrials.gov link, and status chip colors:
+  `RECRUITING` green, `NOT_YET_RECRUITING` yellow, `ACTIVE_NOT_RECRUITING` red,
+  unknown/other neutral; keep phase neutral. **Codex/backend next:** improve
+  EP-VLEx exact variant mention snippets/statuses and investigate Claude's
+  RPE65 ClinVar contradiction (`c.260A>G` resolving to VCV001421454/VUS vs
+  canonical VCV000099473/likely pathogenic; nearby-variant classification
+  mismatch). If report contract changes, refresh `app/web/lib/rpe65-sample.json`.
+  Claude's one-sentence `LandingClient.tsx` source-list sync is safe to ride with
+  Codex's landing chip/parser commit. ·
+  `app/web/components/report/{PubMedSection,TrialsSection}.tsx`;
+  `app/backend/app/services/publication_literature.py`;
+  `app/backend/app/tools/clinvar.py`.
+
 ## Current State
 
 - Branch `checkpoint/v2-batches-2026-05-17` pushed to origin at `c40bf52`
@@ -799,14 +820,14 @@ Next (gated): (1) Messenger live path BLOCKED on Codex adding ES256/JWKS verific
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 23:54 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-25 00:33 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; the
 publications-over-time slice is recorded in Session 25; gnomAD map/age visual
 work is recorded in Sessions 26 and 28; Supabase ES256/JWKS auth is recorded in
 Session 29; Workbench polish and landing live-example fix is recorded in
 Session 30.
 
-**Latest Codex update (2026-05-24 23:54 +1000 - Codex):**
+**Latest Codex update (2026-05-25 00:33 +1000 - Codex):**
 Workbench viewer/primer/CRISPR/align polish plus landing example-chip fix is
 implemented and verified, under Steven's explicit role-swap approval for this
 frontend session.
@@ -848,8 +869,9 @@ frontend session.
 **Coordination / caveats:**
 - Direct `https://eamos.com.au/api/v1/lookup` POSTs returned 403 from this shell;
   Steven suggested `eamos-dev.vercel.app`, which verified the proxy/backend.
-- `eamos-dev.vercel.app` still shows the old chip set until these changes are
-  committed/pushed/deployed. No commit or push was performed.
+- `eamos-dev.vercel.app` still showed the old chip set before this push because
+  these changes were local; verify the mobile chip tap again after Vercel
+  deploys the pushed branch.
 - Local Next 16 dev/start accepted ports but hung on HTTP responses in this
   environment, and `app/web` `npm run build` timed out locally; app/web
   TypeScript and live proxy/backend POST smoke passed instead.
@@ -860,24 +882,24 @@ frontend session.
   push.
 
 **Next-session pickup queue:**
-1. If Steven wants the landing fix live, commit/push the intended frontend paths
-   only and let Vercel auto-deploy the branch.
-2. Run browser verification after deploy on `eamos-dev.vercel.app` or
+1. Run browser verification after deploy on `eamos-dev.vercel.app` or
    `eamos.com.au`: mobile chip tap should reach `/report?gene=BRCA1&cdna=c.5266dupC`
    and the nav search should remain reusable.
-3. Workbench compare remains a placeholder; alignment is now implemented.
+2. Workbench compare remains a placeholder; alignment is now implemented.
+3. Codex/backend should follow up on EP-VLEx LitVar2/PubTator/PMC/table snippet
+   quality and the RPE65 ClinVar record-selection contradiction flagged by Claude.
 4. Messenger live POST remains gated on Render env, Supabase migration `0003`,
    manual Render deploy, then frontend flag flip. Stripe live checkout remains
    gated on real Stripe price ids.
 
 **Clear-safe:** yes; verified Workbench and landing-example boundary reached, no
-Codex dev server left running, no commit/push performed, and coordination locks
-released after re-read.
+Codex dev server left running, commit/push authorized by Steven, and coordination
+locks released after re-read.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 23:54 +1000 · Codex Workbench polish + landing examples
+`# Resume prompt · 2026-05-25 00:33 +1000 · Codex Workbench polish + landing examples
 Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 30, then git status --short --branch.
-Delta: Codex handled Steven's explicit frontend role-swap request: Workbench viewer/primer/CRISPR/align polish integrated from subagents; landing chips now use report-capable examples only (RPE65 c.260A>G, RPE65 c.11+5G>A, USH2A c.2276G>T, BRCA1 c.5266dupC) and BRCA1 bare-dup text normalizes to structured report params. Focused Workbench tests, eslint, Vite build, app/web tsc, eamos-dev lookup POST smoke, and git diff --check passed. No commit/push.
-Next: If Steven wants this live, commit/push intended frontend paths only and verify mobile chip tap after Vercel deploy. Compare tool remains placeholder; Messenger/Stripe live gates unchanged.
+Delta: Codex handled Steven's explicit frontend role-swap request: Workbench viewer/primer/CRISPR/align polish integrated from subagents; landing chips now use report-capable examples only (RPE65 c.260A>G, RPE65 c.11+5G>A, USH2A c.2276G>T, BRCA1 c.5266dupC) and BRCA1 bare-dup text normalizes to structured report params. Focused Workbench tests, eslint, Vite build, app/web tsc, eamos-dev lookup POST smoke, and git diff --check passed. Steven authorized commit/push.
+Next: verify mobile chip tap after Vercel deploy. Compare tool remains placeholder. Codex/backend owns EP-VLEx LitVar2/PubTator/PMC/table snippet quality and Claude's RPE65 ClinVar contradiction follow-up. Messenger/Stripe live gates unchanged.
 Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, or commit unless explicitly requested.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`

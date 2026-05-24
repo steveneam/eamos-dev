@@ -20,10 +20,12 @@ export function GeneMinimap({
   showDensity,
   onExonClick,
 }: GeneMinimapProps) {
-  const { segments, totalBp } = useMemo(() => {
+  const { segments, totalBp, exonStarts } = useMemo(() => {
     const total =
       data.exons.reduce((s, e) => s + (e.cdsEnd - e.cdsStart + 1), 0) +
       data.introns.reduce((s, i) => s + i.lenBp, 0)
+    const pct = (bp: number) => (total > 0 ? (bp / total) * 100 : 0)
+    const starts = new Map<number, number>()
     const segs: Array<
       | { kind: 'exon'; num: number; startPct: number; widthPct: number; cdsStart: number; cdsEnd: number; bp: number }
       | { kind: 'intron'; num: number; startPct: number; widthPct: number; bp: number }
@@ -31,11 +33,12 @@ export function GeneMinimap({
     let cursor = 0
     data.exons.forEach((ex, idx) => {
       const exBp = ex.cdsEnd - ex.cdsStart + 1
+      starts.set(ex.num, cursor)
       segs.push({
         kind: 'exon',
         num: ex.num,
-        startPct: (cursor / total) * 100,
-        widthPct: (exBp / total) * 100,
+        startPct: pct(cursor),
+        widthPct: pct(exBp),
         cdsStart: ex.cdsStart,
         cdsEnd: ex.cdsEnd,
         bp: exBp,
@@ -46,26 +49,26 @@ export function GeneMinimap({
         segs.push({
           kind: 'intron',
           num: data.introns[idx].num,
-          startPct: (cursor / total) * 100,
-          widthPct: (inLen / total) * 100,
+          startPct: pct(cursor),
+          widthPct: pct(inLen),
           bp: inLen,
         })
         cursor += inLen
       }
     })
-    return { segments: segs, totalBp: total }
+    return { segments: segs, totalBp: total, exonStarts: starts }
   }, [data])
 
-  const segStartBp = (exonNum: number) =>
-    data.exons.slice(0, exonNum - 1).reduce((s, e) => s + (e.cdsEnd - e.cdsStart + 1), 0) +
-    data.introns.slice(0, exonNum - 1).reduce((s, i) => s + i.lenBp, 0)
+  const pctOf = (bp: number) => (totalBp > 0 ? (bp / totalBp) * 100 : 0)
 
   const activeMidPct = useMemo(() => {
     const ex = data.exons.find((e) => e.num === activeExon)
-    if (!ex) return 0
-    return ((segStartBp(activeExon) + (ex.cdsEnd - ex.cdsStart + 1) / 2) / totalBp) * 100
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, activeExon, totalBp])
+    const start = exonStarts.get(activeExon)
+    if (!ex || start == null) return null
+    return totalBp > 0
+      ? ((start + (ex.cdsEnd - ex.cdsStart + 1) / 2) / totalBp) * 100
+      : 0
+  }, [activeExon, data.exons, exonStarts, totalBp])
 
   return (
     <div className="sv-minimap">
@@ -83,7 +86,9 @@ export function GeneMinimap({
             const count = data.exonVariantCount[ex.num] || 0
             if (count === 0) return null
             const exBp = ex.cdsEnd - ex.cdsStart + 1
-            const midPct = ((segStartBp(ex.num) + exBp / 2) / totalBp) * 100
+            const start = exonStarts.get(ex.num)
+            if (start == null) return null
+            const midPct = pctOf(start + exBp / 2)
             const r = Math.min(11, 3 + Math.sqrt(count) * 1.2)
             return (
               <div
@@ -128,9 +133,11 @@ export function GeneMinimap({
         )}
       </div>
 
-      <div className="sv-mm-flag" style={{ left: `${activeMidPct}%` }}>
-        <span>{data.queriedVariant.hgvsC.replace(/^c\./, 'c.')}</span>
-      </div>
+      {activeMidPct != null && (
+        <div className="sv-mm-flag" style={{ left: `${activeMidPct}%` }}>
+          <span>{data.queriedVariant.hgvsC.replace(/^c\./, 'c.')}</span>
+        </div>
+      )}
 
       <div className="sv-mm-bookends">
         <span className="five">5′</span>

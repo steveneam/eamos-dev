@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import type { PrimerMode, PrimerRequest, PrimerResponse } from '@/lib/backend'
 import { designPrimers } from '@/lib/api'
+import {
+  isArmsUnsupportedError,
+  parsePrimerConstraints,
+  primerErrorMessage,
+} from '@/lib/workbench/primer-form'
 import { PrimerResultCard } from './PrimerResultCard'
 
 interface PrimerPanelProps {
@@ -19,8 +24,6 @@ const MODES: Array<{ v: PrimerMode; label: string }> = [
  *  ticker (DESIGN.md principle #4 / plans/primer-integration.md §4.3). */
 const PHASES = ['Constraints', 'Primer3 thermodynamics', 'Specificity screen']
 
-const ARMS_MARKERS = ['primer_mode_arms', 'arms']
-
 /**
  * Primer tool panel — the first reference implementation of the DESIGN.md
  * Dashboard Interaction Language (plans/primer-integration.md §5). Mock-first
@@ -29,10 +32,10 @@ const ARMS_MARKERS = ['primer_mode_arms', 'arms']
  */
 export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
   const [mode, setMode] = useState<PrimerMode>('sanger')
-  const [tmMin, setTmMin] = useState(58)
-  const [tmMax, setTmMax] = useState(62)
-  const [prodMin, setProdMin] = useState(300)
-  const [prodMax, setProdMax] = useState(700)
+  const [tmMin, setTmMin] = useState('58')
+  const [tmMax, setTmMax] = useState('62')
+  const [prodMin, setProdMin] = useState('300')
+  const [prodMax, setProdMax] = useState('700')
   const [avoidSnps, setAvoidSnps] = useState(true)
 
   const [res, setRes] = useState<PrimerResponse | null>(null)
@@ -40,26 +43,63 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
   const [error, setError] = useState<string | null>(null)
   const [armsUnsupported, setArmsUnsupported] = useState(false)
 
-  const run = async () => {
-    setLoading(true)
+  const clearRunState = () => {
+    setRes(null)
     setError(null)
     setArmsUnsupported(false)
+  }
+
+  const chooseMode = (nextMode: PrimerMode) => {
+    if (loading) return
+    setMode(nextMode)
+    clearRunState()
+  }
+
+  const updateConstraint = (
+    setter: (nextValue: string) => void,
+    nextValue: string,
+  ) => {
+    setter(nextValue)
+    clearRunState()
+  }
+
+  const run = async () => {
+    if (loading) return
+
+    setError(null)
+    setArmsUnsupported(false)
+    setRes(null)
+
+    const parsedConstraints = parsePrimerConstraints({
+      tmMin,
+      tmMax,
+      productMin: prodMin,
+      productMax: prodMax,
+    })
+    if (!parsedConstraints.ok) {
+      setError(parsedConstraints.error)
+      return
+    }
+
+    setLoading(true)
     try {
+      const constraints = parsedConstraints.values
       const payload: PrimerRequest = {
         gene,
         cdna,
         mode,
-        tm_min: tmMin,
-        tm_max: tmMax,
-        product_size_min: prodMin,
-        product_size_max: prodMax,
+        tm_min: constraints.tmMin,
+        tm_max: constraints.tmMax,
+        product_size_min: constraints.productMin,
+        product_size_max: constraints.productMax,
         avoid_snps: avoidSnps,
       }
       const r = await designPrimers(payload)
       setRes(r)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Primer design failed'
-      if (mode === 'arms' && ARMS_MARKERS.some((m) => msg.toLowerCase().includes(m))) {
+      const msg = primerErrorMessage(e)
+      setRes(null)
+      if (mode === 'arms' && isArmsUnsupportedError(msg)) {
         setArmsUnsupported(true)
       } else {
         setError(msg)
@@ -89,7 +129,8 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
               role="tab"
               aria-selected={mode === m.v}
               className={mode === m.v ? 'active' : ''}
-              onClick={() => setMode(m.v)}
+              onClick={() => chooseMode(m.v)}
+              disabled={loading}
             >
               {m.label}
             </button>
@@ -105,8 +146,10 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             type="number"
             min={45}
             max={75}
+            step={0.1}
             value={tmMin}
-            onChange={(e) => setTmMin(Number(e.target.value))}
+            onChange={(e) => updateConstraint(setTmMin, e.currentTarget.value)}
+            disabled={loading}
           />
         </label>
         <label className="field">
@@ -116,8 +159,10 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             type="number"
             min={45}
             max={75}
+            step={0.1}
             value={tmMax}
-            onChange={(e) => setTmMax(Number(e.target.value))}
+            onChange={(e) => updateConstraint(setTmMax, e.currentTarget.value)}
+            disabled={loading}
           />
         </label>
         <label className="field">
@@ -129,7 +174,8 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             max={2000}
             step={10}
             value={prodMin}
-            onChange={(e) => setProdMin(Number(e.target.value))}
+            onChange={(e) => updateConstraint(setProdMin, e.currentTarget.value)}
+            disabled={loading}
           />
         </label>
         <label className="field">
@@ -141,7 +187,8 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             max={2000}
             step={10}
             value={prodMax}
-            onChange={(e) => setProdMax(Number(e.target.value))}
+            onChange={(e) => updateConstraint(setProdMax, e.currentTarget.value)}
+            disabled={loading}
           />
         </label>
         <label className="field">
@@ -149,7 +196,11 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
           <select
             className="field-select"
             value={avoidSnps ? 'yes' : 'no'}
-            onChange={(e) => setAvoidSnps(e.target.value === 'yes')}
+            onChange={(e) => {
+              setAvoidSnps(e.currentTarget.value === 'yes')
+              clearRunState()
+            }}
+            disabled={loading}
           >
             <option value="yes">Yes</option>
             <option value="no">No</option>

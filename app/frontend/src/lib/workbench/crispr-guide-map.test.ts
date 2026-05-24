@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mapGuide, revComp } from './crispr-guide-map'
+import { recommendedGuideIndex } from './crispr-guide-ranking'
 import { CRISPR_SAMPLE } from './crispr-sample'
 import type { CrisprGuide } from '@/lib/backend'
 
@@ -63,5 +64,41 @@ describe('mapGuide — RPE65 fixture guides on the ssODN reference arm', () => {
     expect(m.spacerEnd).toBe(tpl.length)
     expect(m.pamStart).toBeNull()
     expect(m.cutIndex).toBe(tpl.length - 3)
+  })
+})
+
+describe('recommendedGuideIndex', () => {
+  const base: CrisprGuide = {
+    index: 10,
+    cut_position: 26,
+    strand: '+',
+    guide: 'GGACAAGACAGTCGCCATTC',
+    pam: 'GGT',
+    on_target_score: 70,
+    off_target_score: 20,
+    gc_percent: 60,
+  }
+
+  it('returns the guide index with the lowest off-target score', () => {
+    expect(
+      recommendedGuideIndex([
+        { ...base, index: 10, off_target_score: 22 },
+        { ...base, index: 42, off_target_score: 12 },
+        { ...base, index: 99, off_target_score: 18 },
+      ]),
+    ).toBe(42)
+  })
+
+  it('does not treat guide indexes as array offsets', () => {
+    expect(
+      recommendedGuideIndex([
+        { ...base, index: 7, off_target_score: 30 },
+        { ...base, index: 11, off_target_score: 10 },
+      ]),
+    ).toBe(11)
+  })
+
+  it('returns -1 when no guides are available', () => {
+    expect(recommendedGuideIndex([])).toBe(-1)
   })
 })

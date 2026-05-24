@@ -10,11 +10,8 @@ interface CrisprPanelProps {
 type SubTab = 'design' | 'outcomes'
 
 /**
- * CRISPR tool panel. Two sub-tabs inside the single CRISPR rail entry
- * (locked decision, plans/crispr-integration.md §2.4): `Design` =
- * Blueprint-1 gRNA design (live now, mock-first against /api/v1/crispr);
- * `Outcomes` = Blueprint-2 post-edit TIDE analytics scaffold (mock-first
- * until the Codex §7 backend lands). The rail stays at 5 tools.
+ * CRISPR tool panel. Design is the current gRNA/HDR fixture workflow;
+ * Outcomes is the post-edit TIDE-shaped scaffold.
  */
 export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
   const [tab, setTab] = useState<SubTab>('design')
@@ -28,8 +25,8 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
           </h2>
           <span className="tool-panel-sub">
             {tab === 'design'
-              ? 'PAM scan · Hsu off-target · ssODN HDR template'
-              : 'TIDE Sanger deconvolution · indel spectrum'}
+              ? 'Fixture scores / crisprScore plan / ssODN HDR template'
+              : 'TIDE scaffold / observed indel spectrum'}
           </span>
         </div>
         <div className="seg" role="tablist" aria-label="CRISPR sub-tool">
