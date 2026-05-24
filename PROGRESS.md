@@ -1,5 +1,189 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 26 - 24 May 2026 - gnomAD map region heat fills and linked hover
+
+Codex implemented the user-requested gnomAD Section 3 map update in both report
+frontends. This was a frontend visual/interaction slice only; no backend
+contract, `/runs`, AlphaMissense, destructive git, push, stash, reset, or clean
+work was done.
+
+Completed:
+- Replaced the prior circle-marker heat map with approximate whole-region SVG
+  paths per gnomAD group. Region fill color still derives from source-backed
+  allele-frequency values.
+- Added dark region borders and a yellow/black glow on active regions so
+  adjacent similar-intensity regions remain visually distinct.
+- Linked hover/focus state both directions: hovering/focusing a region
+  highlights the corresponding ancestry row, and hovering/focusing a row
+  highlights the corresponding map region.
+- Kept the existing caveat that gnomAD labels are source genetic-ancestry
+  groups, not patient ancestry or exact geography.
+- Installed `@playwright/test` in `app/frontend` with browser download skipped,
+  added `app/frontend/playwright.config.ts` using the installed Chrome channel,
+  and added `tests/e2e/gnomad-map-hover.spec.ts`.
+- Updated the proprietary catalogue entry from anchor markers to region mapping
+  and linked hover behavior.
+
+Verification:
+- `cd app/frontend && npm run test -- src/components/report/gnomadAncestryMap.test.ts --reporter=dot`
+  -> passed.
+- `cd app/frontend && npm run test:e2e -- tests/e2e/gnomad-map-hover.spec.ts --reporter=line`
+  -> passed in Chrome.
+- `cd app/frontend && npm run build` -> passed; existing large chunk warning
+  remains.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- Browser screenshots captured via Chrome channel at
+  `agent_handoff/verify/2026-05-24-gnomad-region-map-desktop.png` and
+  `agent_handoff/verify/2026-05-24-gnomad-region-map-mobile.png`.
+
+Note:
+- `cd app/web && npm run build` still timed out/hung in this working tree before
+  completion. Supabase does not address this build-time issue; it is more
+  likely local Next/webpack worker, cache, AV/disk, or static build/prerender
+  behavior. No stale build/dev server processes were left running.
+
+## Session 25 - 24 May 2026 - Publications-over-time backend contract
+
+Codex implemented the backend-led report-depth slice requested in Claude's
+2026-05-24 16:36 cross-agent request: EP-VLEx now exposes a publication
+timeline for the full deduplicated variant-specific publication inventory.
+This stayed additive and did not touch `/runs`, AlphaMissense, destructive git,
+or frontend render files.
+
+Completed:
+- Added `PublicationYearCount` and `PublicationTimeline` schemas, exposed as
+  `PublicationLiterature.publication_timeline`.
+- Aggregated deduplicated publications by parsed publication year, ascending,
+  across the full EP-VLEx article set before pagination. Publications without
+  a usable year are counted in `total_without_year` instead of being assigned a
+  fake year.
+- Added fixture `publication_date` values for the RPE65 PubMed publication
+  fixture so fixture-mode lookup returns a deterministic 2022/2023/2024
+  timeline.
+- Mirrored the additive timeline contract in both backend TypeScript mirrors:
+  `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts`.
+- Extended `test_frontend_contract.py`, EP-VLEx unit tests, and lookup
+  integration coverage for the new timeline.
+- Updated the proprietary EP-VLEx catalogue docs to record the timeline
+  aggregation as Eamos-original algorithm behavior.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_publication_literature.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ -q` -> passed (existing short
+  test-JWT warnings only).
+
+Coordination:
+- Claude can render the Publications expansion line graph from
+  `report_payload.publications_literature.publication_timeline`.
+- The second queue item from the 2026-05-24 16:36 request remains user-scoped:
+  gene-viewer/report-depth conservation + fuller ClinVar enrichment should be
+  confirmed with Steven before implementation.
+
+## Session 24 - 24 May 2026 - Supabase evidence submission write-through
+
+Codex unified the backend evidence-submission ledger on Supabase for
+`POST /api/v1/evidence-submissions` while staying out of `app/web/*`, both
+`backend.ts` mirrors, `/runs`, and AlphaMissense.
+
+Completed:
+- Added `supabase/migrations/0003_evidence_submission_payload.sql`, an additive
+  `submission_payload jsonb` column on `public.user_evidence_submissions` so the
+  backend can store PubMed validation, ClinVar draft payload, payload status,
+  submitted functional fields, evidence codes, and warnings without breaking the
+  frontend's existing ledger reads.
+- Added backend env settings for Supabase write-through:
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `SUPABASE_REST_TIMEOUT_SECONDS`, plus the existing Supabase JWT settings in
+  `.env.example`.
+- Added a Supabase PostgREST evidence-submission repository. When Supabase env
+  is configured, accepted rows are inserted into
+  `public.user_evidence_submissions`; when env is absent, the existing local
+  repository remains as the offline/dev fallback.
+- Changed evidence submission IDs to UUID strings so they are compatible with
+  the Supabase `uuid` primary key while preserving the `EAMOS-EVS-...`
+  ClinVar tracking id.
+- Added a local SQLite schema backfill for the additive `submission_payload`
+  column so previously created dev DBs do not fail on the fallback path.
+- Added fake-based tests for the Supabase REST boundary and service payload
+  shape; no live Supabase keys were required.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_frontend_contract.py tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_payments_api.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ -q` -> passed (existing short
+  test-JWT warnings only).
+
+Coordination:
+- Apply `supabase/migrations/0003_evidence_submission_payload.sql` to the live
+  Supabase project before wiring the Messenger UI to the backend endpoint.
+- Render needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+  `SUPABASE_JWT_SECRET`/algorithm configured for live write-through.
+- Stripe price-id/webhook live smoke remains deferred until test products,
+  secrets, and canonical `plan_key` values are available.
+
+## Session 23 - 24 May 2026 - Evidence submission and payments backend contracts
+
+Codex implemented the backend-only contract slice requested in the 2026-05-24
+14:10 Claude→Codex CAR, while Claude worked in `app/web`. No frontend files,
+`backend.ts` mirrors, `/runs`, or AlphaMissense code were edited by Codex.
+
+Evidence submission:
+- Added `POST /api/v1/evidence-submissions`, requiring a bearer-authenticated
+  principal. Existing Eamos local JWTs still work for backend tests; Supabase
+  Auth JWTs can be accepted when `SUPABASE_JWT_SECRET` is configured.
+- Added `EvidenceSubmissionRequest` / `EvidenceSubmissionResponse` schemas for
+  accession-qualified HGVS, PMID validation, curator notes, optional ClinVar
+  functional-data fields, and evidence codes.
+- Added PubMed validation plumbing. In `USE_REAL_APIS=false`, structurally valid
+  PMIDs are recorded as `unchecked` with an explicit warning; in real mode the
+  backend calls NCBI E-utilities.
+- Built an NCBI ClinVar `noClassificationSubmission` draft payload with an
+  internal `EAMOS-EVS-...` tracking id. Payloads are marked
+  `ready_for_clinvar_dry_run` only when required curator fields are present;
+  otherwise they remain `draft_needs_curator_fields`.
+- Added a local `user_evidence_submissions` repository/table so accepted
+  submissions are recorded by the backend contract.
+
+Payments:
+- Added `plans/auth-pricing/backend-contracts.md` with the host decision:
+  keep Stripe Checkout creation, webhook verification, and plan-state writes in
+  the existing FastAPI backend on Render rather than splitting webhooks into a
+  serverless surface.
+- Added `POST /api/v1/payments/checkout-session`, returning `mode: "mock"` when
+  Stripe env is not configured and creating hosted Stripe Checkout sessions when
+  `STRIPE_SECRET_KEY` plus the matching `STRIPE_PRICE_*` setting exist.
+- Added `GET /api/v1/payments/plan`, defaulting missing subscription state to
+  Free.
+- Added `POST /api/v1/payments/stripe/webhook`, verifying `Stripe-Signature`
+  with `STRIPE_WEBHOOK_SECRET` and recording plan state from
+  `checkout.session.completed`, `customer.subscription.*`, `invoice.paid`, and
+  `invoice.payment_failed`.
+
+Verification:
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app tests`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_frontend_contract.py tests/test_evidence_submissions_api.py tests/test_payments_api.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/ -q` -> passed (existing JWT
+  short-test-key warnings only).
+
+Coordination:
+- Frontend TypeScript mirrors were intentionally not touched. Claude should
+  mirror the new contract types/routes when wiring the Messenger and checkout
+  UI.
+- The worktree also contains concurrent Claude `app/web` changes and an
+  untracked Supabase grant migration; Codex did not edit those files.
+
 ## Session 22 - 24 May 2026 - Per-gene transcript model fixture hydration
 
 Codex first verified `HEAD` and `origin/checkpoint/v2-batches-2026-05-17`

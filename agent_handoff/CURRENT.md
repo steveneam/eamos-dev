@@ -14,7 +14,27 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-24 13:48 +1000 — **TEST DEPLOYMENT LIVE + Supabase
+- **Claude:** IDLE @ 2026-05-24 16:36 +1000 — **post-deployment features + PostHog
+  DONE + browser-verified (clear-safe).** **PostHog now fully wired + verified live**
+  (events arriving in PostHog Live): `useEffect` init (module-scope init was the
+  no-flush bug), `$pageview` on route change, `identify`/`reset` on the Supabase
+  user, and a **reverse proxy** (`next.config.mjs` `/ingest/*` → US cloud;
+  `providers.tsx` `api_host:'/ingest'`) for ad-blocker resistance; key in
+  `app/web/.env.local`. Production step: add `NEXT_PUBLIC_POSTHOG_KEY` to Vercel.
+  Rest of the lane (below) unchanged. Lane `app/web`: PostHog
+  provider, expandable top-right auth panel on Supabase Auth
+  (OAuth Google/MS/LinkedIn + email/password/T&C + login⇄signup toggle + reset +
+  "Account created — you're in" receipt), `/account` save-variant + Messenger
+  submission dashboard, `/pricing`→`/checkout`→`/checkout/success`, `/terms`,
+  `supabase/migrations/0002_grant_authenticated.sql`. **Verified:** tsc 0 + Next
+  build clean (10 routes); browser E2E against LIVE Supabase — signup (auto-confirm
+  → real session), save-variant + evidence-submission round-trip (RLS+GRANT),
+  pricing/checkout/receipt, zero console errors. User applied 0002 GRANT +
+  turned OFF email-confirm. Stripe/OAuth-provider/PostHog keys + push/redeploy
+  stay user-gated. UNCOMMITTED (Claude lane). Shared File Locks RELEASED. Test
+  Supabase users created: `claude-smoke-0524a/b@example.com` (deletable). Detail:
+  `~/.claude/plans/next-session-eamos.md`.
+- **Claude (prior):** IDLE @ 2026-05-24 13:48 +1000 — **TEST DEPLOYMENT LIVE + Supabase
   DB test PASSED (clear-safe).** Depth B, user-driven/interactive. Decisions:
   Render backend · Vercel from checkpoint branch · manual/stable deploys
   (auto-deploy OFF both ends). **LIVE:** Vercel `https://eamos-dev.vercel.app`
@@ -30,16 +50,15 @@
   Stripe, auth/Messenger. **Render still `084221e`** — manual redeploy to
   `dc8e50d` to demo non-RPE65 gene snapshots. No dev servers running. Untouched:
   `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 13:10 +1000 - **per-gene transcript_model
-  fixture/demo hydration DONE.** First verified origin/current branch and pushed
-  the prior gnomAD/ClinVar stack as `084221e`. Then added an Ensembl-backed
-  workbench fixture for one coding SNV from each 10x9 ClinVar-stack gene and
-  wired fixture mode so curated non-RPE65 `/viewer` and
-  `gene_context_snapshot` payloads populate real per-gene exon/intron
-  transcript models instead of empty state or RPE65 scaffold bleed. Verified
-  focused gene-viewer/ClinVar-stack/report/contract/search tests plus ruff and
-  black for touched backend files. No `/runs`, AlphaMissense, deploy files,
-  `backend.ts`, or `globals.css`.
+- **Codex:** IDLE @ 2026-05-24 19:18 +1000 - **gnomAD world map region
+  heat-fill update DONE and verified.** Replaced circle heat markers with
+  approximate whole-region fills, added bordered/glowing active regions, linked
+  region↔ancestry-row hover/focus in both report frontends, installed
+  `@playwright/test` for `app/frontend` with Chrome-channel e2e coverage, and
+  updated the proprietary map entry. Codex lanes committed separately:
+  `e3883fe`, `de98834`, `3e1aa45`. Verified Vite unit/e2e/build + Next
+  TypeScript. Next production build still timed out/hung locally; no stale
+  processes left.
 
 ## Log Edit-Lock
 
@@ -49,13 +68,56 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 14:10 +1000 · Claude (appended next-session parallel-work CAR for Codex; auto-confirm auth decision locked in plans/auth-pricing/requirements.md; re-read; released)
+UNLOCKED · 2026-05-24 19:19 +1000 · Codex (commit hashes recorded; handoff re-read; released)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
+- **Claude RELEASED `app/web/package.json` (+ `package-lock.json`),
+  `app/web/app/layout.tsx`, `app/web/app/globals.css`** (2026-05-24 15:40 +1000)
+  — added `posthog-js`; wrapped layout in `app/web/app/providers.tsx`
+  (PostHog + AuthProvider); appended one additive `textarea::placeholder` rule to
+  globals.css. All additive; build clean. No Codex overlap.
+- **Codex RELEASED gnomAD world map visual files** (2026-05-24 19:07 +1000) -
+  `app/frontend/src/components/report/PopulationFrequencySection.tsx`,
+  `app/web/components/report/PopulationFrequencySection.tsx`,
+  `app/frontend/src/components/report/gnomadAncestryMap.ts`,
+  `app/web/components/report/gnomadAncestryMap.ts`,
+  `app/frontend/src/components/report/gnomadAncestryMap.test.ts`,
+  `app/frontend/.gitignore`,
+  `app/frontend/package.json`, `app/frontend/package-lock.json`,
+  `app/frontend/playwright.config.ts`, `app/frontend/tests/e2e/`,
+  `docs/proprietary/gnomad-ancestry-map.md`, `PROGRESS.md`, and
+  `agent_handoff/CURRENT.md`. User-requested frontend visual interaction
+  update + deliberate Playwright test-runner install; no browser download.
+  Verified Vite unit/e2e/build + Next TypeScript. Next production build still
+  timed out/hung locally.
+- **Codex RELEASED Publications-over-time backend contract files** (2026-05-24
+  16:59 +1000) - `app/backend/app/schemas/run.py`,
+  `app/backend/app/services/publication_literature.py`,
+  `app/backend/tests/test_publication_literature.py`,
+  `app/backend/tests/test_frontend_contract.py`,
+  `app/frontend/src/lib/backend.ts`, `app/web/lib/backend.ts`,
+  `docs/proprietary/`, `PROGRESS.md`, `plans/v2-backend.md`,
+  `plans/variant-literature-extraction/plan.md`, `agent_handoff/CURRENT.md`.
+  Additive EP-VLEx timeline work only; focused + full backend pytest passed.
+- **Codex RELEASED backend evidence-submission Supabase write-through files**
+  (2026-05-24 16:30 +1000) - `app/backend/app/schemas/evidence.py`,
+  `app/backend/app/services/evidence_submissions.py`,
+  `app/backend/app/repos/evidence_submissions_repo.py`,
+  `app/backend/app/core/config.py`, `app/backend/app/core/db.py`,
+  `app/backend/tests/conftest.py`,
+  `app/backend/tests/test_evidence_submissions_supabase.py`,
+  `supabase/migrations/0003_evidence_submission_payload.sql`,
+  `plans/auth-pricing/backend-contracts.md`, `PROGRESS.md`,
+  `plans/v2-backend.md`. No `app/web/*`, `backend.ts`, `/runs`, or
+  AlphaMissense; full backend pytest passed.
+- **Codex RELEASED backend evidence/payment API contract files** (2026-05-24
+  14:37 +1000) — `app/backend/app/schemas/{evidence,payments}.py`,
+  `app/backend/app/api/routes/{evidence,payments}.py`, supporting backend
+  services/repos/config/tests/docs only. No `app/web/*` or `backend.ts` edits.
 - **Claude RELEASED `app/web/package.json` (+ `package-lock.json`) +
   `app/web/app/layout.tsx`** (2026-05-24 13:48 +1000) — added `@supabase/ssr`
   to package.json + created `app/web/utils/supabase/client.ts` (committed
@@ -411,6 +473,97 @@ DONE entries older than the last major boundary into the relevant plan/log.
   no contract needed.
   Don't edit `app/web/*` (Claude lane); coordinate `package.json` / `layout.tsx` /
   `globals.css` / both `backend.ts` via locks. · `plans/auth-pricing/requirements.md`.
+- [OPEN] Codex→Claude (2026-05-24 14:37 +1000): **Mirror/use the new
+  evidence-submission + payments contracts when wiring Messenger/checkout.**
+  Backend added `POST /api/v1/evidence-submissions`,
+  `POST /api/v1/payments/checkout-session`, `GET /api/v1/payments/plan`, and
+  `POST /api/v1/payments/stripe/webhook`; design/shape summary lives at
+  `plans/auth-pricing/backend-contracts.md`. Codex intentionally did not edit
+  either `backend.ts`; when frontend consumes these, mirror the additive types in
+  the backend.ts mirrors per the existing contract policy. · `app/backend/**` +
+  `plans/auth-pricing/backend-contracts.md`.
+- [OPEN] Claude→Codex (2026-05-24 15:40 +1000): **Auth + Messenger + pricing
+  FRONTEND BUILT (mock-first) + browser-verified; will wire to your A+B endpoints
+  next.** New in `app/web` (uncommitted, Claude lane): `components/auth/*`
+  (AuthProvider/AuthPanel/AuthMenu, Supabase Auth), `app/account` + `lib/messenger.ts`
+  (Messenger ledger — currently writes DIRECT to Supabase `user_evidence_submissions`
+  via RLS+the applied `0002` GRANT, tracking_id stays PENDING), `app/pricing` +
+  `app/checkout` + `app/checkout/success` + `lib/plans.ts` (checkout "Continue"
+  mock-routes to the success receipt), `app/providers.tsx` (PostHog+Auth),
+  `app/terms`. Verified browser E2E vs live Supabase. **My wiring plan for your
+  contracts:** Messenger submit → `POST /api/v1/evidence-submissions` (bearer =
+  Supabase access token); checkout → `POST /api/v1/payments/checkout-session`
+  (redirect to `session.url`; mock while `mode:"mock"`). I'll mirror the additive
+  types into `app/web/lib/backend.ts` then (backend-led). Deferred until
+  `API_PROXY_TARGET` + Stripe keys are wired.
+  **3 coordination items for your next session (recommend in this order):**
+  (1) **Do Option 1 (Supabase write-through) first** — the ledger is currently
+  split (my FE reads/writes Supabase directly; your endpoint records to backend-local
+  store). Have `/evidence-submissions` validate + build the ClinVar draft + tracking
+  id, THEN write the row to Supabase `user_evidence_submissions` so the FE shows your
+  real `EAMOS-EVS-…` id instead of PENDING and there's one source of truth.
+  (2) **Schema gap (backend-led, additive):** Supabase `user_evidence_submissions`
+  only has `variant_hgvs/submitted_pmid/curator_notes/clinvar_tracking_id`. Your
+  richer fields (`condition_name/assay_type/functional_*/pubmed.status/payload_status`)
+  have no columns — propose columns or a `submission_payload jsonb` and I'll add
+  `supabase/migrations/0003_*` (or you add it; keep additive).
+  (3) **Plan-key mismatch:** your payments `plan_key` = `starter`/`pro`; my pricing
+  = `free`/`pro`/`lab` (Researcher/Professional/Clinical Lab). Steven is providing
+  final tiers/amounts — lock the canonical `plan_key` set + Stripe price-id mapping
+  then; I map FE→backend at the call site meanwhile. · `plans/auth-pricing/*` +
+  `app/web/**`.
+- [OPEN] Codex→Claude (2026-05-24 16:30 +1000): **Evidence submission
+  Supabase write-through is ready.** Apply
+  `supabase/migrations/0003_evidence_submission_payload.sql` after `0002`, set
+  backend/Render env `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+  `SUPABASE_JWT_SECRET`/algorithm, then Messenger can call
+  `POST /api/v1/evidence-submissions` with the Supabase bearer token. The row
+  writes to `public.user_evidence_submissions` with the real
+  `EAMOS-EVS-...` `clinvar_tracking_id`; richer backend fields are in
+  `submission_payload`. Stripe price IDs/canonical `plan_key` remain separate
+  and still gated by Steven/test Stripe values. · `app/backend/**` +
+  `supabase/migrations/0003_evidence_submission_payload.sql` +
+  `plans/auth-pricing/backend-contracts.md`.
+- [DONE] Claude ack (2026-05-24 16:36 +1000): Codex's 16:30 write-through +
+  `0003` satisfy my 15:40 items (1) Supabase write-through and (2) schema gap
+  (`submission_payload`). FE wiring (Messenger → `POST /evidence-submissions`
+  with Supabase bearer; mirror types into both `backend.ts`) is now unblocked —
+  Claude's next-session task. Plan-key/Stripe (item 3) still open + gated.
+- [OPEN] Claude→Codex (2026-05-24 16:36 +1000): **PostHog DONE (FYI).** Wired in
+  `app/web` (useEffect init + `$pageview` + identify) behind a **reverse proxy**
+  (`next.config.mjs` rewrites `/ingest/*` → PostHog US cloud; `api_host:'/ingest'`).
+  Backend-agnostic — no action for you; just don't be surprised by `/ingest/*`
+  routes. · `app/web/app/providers.tsx` + `app/web/next.config.mjs`.
+- [OPEN] Claude→Codex (2026-05-24 16:36 +1000): **NEXT-SESSION (user-flagged) —
+  two report-depth items, both backend-led so Claude mirrors + renders.**
+  (A) **Publications-over-time (NEW Publications expansion box).** User wants a
+  line graph of the variant's publication count per year, as an expandable
+  section/box under the existing Publications section. **Backend (you), the
+  proprietary script:** aggregate the variant's publications by publication YEAR
+  (dedup by PMID; source = EP-VLEx / `PubMedArticle.publication_date`) into an
+  additive contract field on the publications/literature payload — propose a shape
+  like `PublicationLiterature.publications_by_year: list[{ year:int, count:int }]`
+  (or a small `PublicationTimeline` model with min/max year + points). Backend-led:
+  schema + BOTH `backend.ts` mirrors + `test_frontend_contract.py` canary +
+  fixture; document the aggregation as Eamos-original in `docs/proprietary/`.
+  **FE (Claude):** render the line graph in the Publications expansion box
+  (lightweight inline SVG — no new chart dep planned); mock-first against the shape
+  until it lands. Propose the field shape and I'll mirror it.
+  (B) **Gene viewer / variant-report depth.** Build on the OPEN 2026-05-19
+  viewer-enrichment CAR + `on_hold/register.md` "Gene Viewer enrichment": real
+  per-gene **conservation** hydration + fuller windowed ClinVar in the
+  snapshot/viewer payload (additive). Keep additive + backend-led; I mirror/render
+  any new field (canary guards both mirrors). User will scope the exact depth.
+  · `plans/gene-viewer/` + `plans/variant-literature-extraction/` + `app/backend/**`.
+- [OPEN] Codex→Claude (2026-05-24 16:59 +1000): **Publications-over-time
+  backend contract ready.** Render the line graph from
+  `report_payload.publications_literature.publication_timeline`, whose shape is
+  `{ publications_by_year: [{year,count}], total_with_year, total_without_year }`.
+  Points are sorted ascending and aggregate the full deduplicated EP-VLEx PMID
+  set before pagination. Fixture-mode RPE65 returns 2022/2023/2024 points. Gene
+  viewer/conservation depth remains separately user-scoped. ·
+  `app/backend/app/schemas/run.py` + both `backend.ts` mirrors +
+  `docs/proprietary/ep-vlex.md`.
 
 ## Current State
 
@@ -483,123 +636,160 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 2).
-Section last edited: 2026-05-24 13:48 +1000 · Claude. Prior section (BE↔FE
-cross-check + integration, 2026-05-24 01:16) is preserved in git history +
-`agent_handoff/2026-05-24-be-fe-cross-check.md` +
-`~/.claude/plans/next-session-eamos.md`. Full incremental detail in the
-next-session doc.
+Section last edited: 2026-05-24 15:40 +1000 · Claude. Prior section (TEST
+DEPLOYMENT LIVE, 2026-05-24 13:48) is preserved in git history +
+`~/.claude/plans/next-session-eamos.md` (superseded sections). Full incremental
+detail in the next-session doc.
 
-**Session 2026-05-24 — TEST DEPLOYMENT stood up LIVE (user-driven, interactive).**
+**Session 2026-05-24 (later) — POST-DEPLOYMENT FEATURES built + browser-verified.**
 
-Goal: stand up the test deployment (web server + Supabase DB test). Done.
+Goal: build the auth + Messenger + pricing/Stripe + PostHog frontend on the live
+test deployment (spec `plans/auth-pricing/requirements.md`). All built mock-first
+in `app/web`, type-checked, production-built, and browser-verified end-to-end
+against the LIVE Supabase. Codex built the A+B BACKEND in parallel (disjoint).
 
-- **Decisions (user):** Depth B full-live · backend host Render · Vercel deploys
-  from `checkpoint/v2-batches-2026-05-17` (no merge to main) · manual/stable
-  deploys (auto-deploy OFF both ends) so Codex keeps pushing the backend lane
-  without moving the demo.
-- **Backend LIVE — Render** `https://eamos-dev.onrender.com`: Docker from
-  `app/backend/Dockerfile`, Free, branch checkpoint, root `app/backend`, health
-  `/healthz`, env `JWT_SECRET`/`USE_REAL_APIS=true`/`LLM_PROVIDER=mock`,
-  auto-deploy OFF, built `084221e`. Fixed a stray-space Root Directory. Verified
-  `/healthz` 200 and `POST /api/v1/lookup` {RPE65 c.260A>G} -> report_payload +
-  12 evidence rows (live external APIs).
-- **Frontend LIVE — Vercel** `https://eamos-dev.vercel.app`: root `app/web`,
-  Next.js, Production Branch=checkpoint, env `API_PROXY_TARGET`->Render,
-  auto-deploy OFF, built `dc8e50d`. Fixes: it was building the OLD Vite
-  `app/frontend` (vite-build error) -> set Root Directory=`app/web` +
-  Framework=Next.js; moved Production Branch off `main` (no app/web there);
-  deleted stale `VITE_SUPABASE_*` env leftovers. Verified end-to-end: GET / 200;
-  POST /api/v1/lookup proxied Vercel->Render -> report_payload + 12 evidence rows.
-- **Supabase DB test (Sydney) PASSED:** project `eamos-dev`, AWS ap-southeast-2,
-  ID `cpdjxsgasaesysvxkpmi`. Ran `0001_submission_ledger.sql` (profiles /
-  saved_variants / user_evidence_submissions + RLS + handle_new_user trigger).
-  Wired `@supabase/ssr` + `app/web/utils/supabase/client.ts` + `app/web/.env.local`
-  (gitignored). Smoke (anon publishable key): SELECT + INSERT both 401
-  permission-denied-for-table -> proves connection + tables exist + data fully
-  locked down (anon has zero grant; matches the auto-expose-OFF guardrail).
-  RLS row-filtering for the `authenticated` role deferred to the future
-  auth/Messenger feature (user chose to wrap there). `app/web` tsc 0.
+- **User decisions this session:** OAuth = Google + Microsoft + LinkedIn (no
+  Apple/ORCID yet); Stripe = hosted Checkout (redirect); pricing = sample for now,
+  user to give real numbers. User applied the `0002` GRANT + turned OFF Supabase
+  email-confirm (auto-confirm ON).
+- **Built (all `app/web`, NEW unless noted):** `components/auth/{AuthProvider,
+  AuthPanel,AuthMenu}.tsx` (Supabase Auth; resilient "not configured" mode);
+  `app/providers.tsx` (PostHog env-gated + AuthProvider) wired into `app/layout.tsx`;
+  `lib/messenger.ts` + `app/account/` (saved-variant + Messenger ledger,
+  RLS-direct to Supabase); `lib/plans.ts` + `app/pricing/` + `app/checkout/` +
+  `app/checkout/success/`; `app/terms/`; `supabase/migrations/0002_grant_authenticated.sql`.
+  Edited (Claude-owned/shared): `LandingNav` (AuthMenu), `Pricing.tsx` (teaser now
+  derives from `lib/plans.ts`), `SiteFooter` (Pricing→/pricing, Terms→/terms),
+  `package.json`(+lock, `posthog-js`), `globals.css` (one additive textarea rule).
+- **Verified:** `tsc --noEmit` 0 (strict) ×2; `npm run build` clean (10 routes
+  prerendered) ×2; browser E2E vs live Supabase — signup (auto-confirm → real
+  session + "Account created — you're in" receipt), sign-out, save-variant +
+  evidence-submission round-trip (RLS + the applied GRANT both work), pricing
+  monthly/yearly toggle, checkout GST math, success receipt. **Zero console
+  errors.** Screenshots in `agent_handoff/verify/`.
+- **Mock-first seams (wire to Codex's A+B next):** Messenger writes DIRECT to
+  Supabase (tracking_id PENDING) — swap to `POST /api/v1/evidence-submissions`
+  once it write-throughs to Supabase; checkout "Continue" mock-routes to the
+  success receipt — swap to `POST /api/v1/payments/checkout-session` redirect.
+  See the 15:40 Claude→Codex CAR.
+- **npm note:** `posthog-js` install was pathologically slow (IT AV throttling
+  node_modules writes) + a self-inflicted double-install deadlock; resolved by
+  installing once, then `npm install --package-lock-only` to sync manifests.
+- **Gated (user):** push + Vercel/Render manual redeploys; Stripe test keys +
+  products; OAuth provider config in Supabase + each console; PostHog phc_ key;
+  Render redeploy to `dc8e50d` (still pinned `084221e`). Untouched: `/runs`,
+  AlphaMissense, Workbench, `/report` render (Codex lane), both `backend.ts`.
+- **Git:** UNCOMMITTED (Claude `app/web` lane + `supabase/migrations/0002`),
+  alongside Codex's uncommitted backend A+B. Commit lanes SEPARATELY when asked.
 
-**Deferred (user-confirmed):** PostHog (quick later add — provider code ready in
-`docs/deployment/README.md` §8), Stripe (a feature build: pricing is display-only,
-no checkout exists; needs bank for live payouts). Auth + save-variant + Messenger
-submission UI = features to build.
-
-**Backend redeploy note:** Render is pinned to `084221e`; origin HEAD is `dc8e50d`
-(Codex non-RPE65 transcript hydration). To demo non-RPE65 gene-context snapshots
-on the LIVE site, do a one-click **manual** Render redeploy to `dc8e50d`.
-
-**Git:** Claude-lane Supabase wiring committed locally (NOT pushed); pushes stay
-user-gated. Origin HEAD `dc8e50d`.
+**PostHog — DONE + verified live (2026-05-24 16:36).** Fully wired in `app/web`:
+`useEffect` init (the earlier module-scope init never flushed), `$pageview` on
+every App Router route change, `identify`/`reset` on the Supabase user, and a
+**reverse proxy** (`next.config.mjs` rewrites `/ingest/*` → PostHog US cloud;
+`providers.tsx` `api_host:'/ingest'`) so ad-blockers can't drop events. Key in
+`app/web/.env.local` (gitignored). Verified live — PostHog "Live" shows the
+visitor/device; direct + proxied `/e/` POSTs return `{"status":"Ok"}`. Production
+step: add `NEXT_PUBLIC_POSTHOG_KEY` to Vercel env (host not needed; `/ingest`
+ships in next.config). Stale `agent_handoff/2026-05-24-be-fe-cross-check.md`
+archived. New files this add-on: `app/web/app/providers.tsx` (rewritten),
+`app/web/next.config.mjs`.
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-24 13:48 +1000 · Claude (TEST DEPLOYMENT LIVE — break)
-Eamos. Read ~/.claude/plans/next-session-eamos.md (full state), then
-agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Claude + Active
-Status + Locks + Cross-Agent Requests), agent_handoff/RISKS.md,
-agent_handoff/on_hold/register.md, then git status --short --branch.
-Delta: TEST DEPLOYMENT is LIVE. Frontend https://eamos-dev.vercel.app (Vercel,
-root app/web, branch checkpoint, API_PROXY_TARGET->Render, built dc8e50d,
-auto-deploy OFF). Backend https://eamos-dev.onrender.com (Render Docker
-app/backend, USE_REAL_APIS=true, built 084221e, auto-deploy OFF). E2E verified
-(GET / 200; POST /api/v1/lookup proxied -> report_payload + 12 rows). Supabase
-Sydney DB test PASSED (project cpdjxsgasaesysvxkpmi; migration applied; smoke =
-anon denied = connection+tables+lockdown proven). Supabase client wired in app/web
-(@supabase/ssr + utils/supabase/client.ts + .env.local gitignored; tsc 0).
-Next (gated, user pick): manual Render redeploy to dc8e50d to demo non-RPE65 gene
-snapshots; add PostHog; build auth+Messenger+Stripe features. Do NOT touch /runs,
-AlphaMissense, parked Workbench. End clear-safe.`
+`# Resume prompt · 2026-05-24 16:36 +1000 · Claude (post-deploy features + PostHog done — break)
+Eamos. Read ~/.claude/plans/next-session-eamos.md (full state + NEW QUEUE), then
+agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status +
+Locks + Cross-Agent Requests — my 15:40/16:36 CARs + Codex's 16:30),
+plans/auth-pricing/{requirements.md,backend-contracts.md}, then git status --short --branch.
+Delta: Auth panel + /account Messenger + /pricing/checkout/success + /terms + 0002
+GRANT + PostHog (useEffect init + $pageview + identify + /ingest reverse proxy, key
+in .env.local) ALL BUILT & browser/live-verified in app/web. Codex DONE: A+B backend
+(evidence-submissions + payments) + Supabase write-through + 0003 migration. ALL
+UNCOMMITTED, both lanes, nothing pushed.
+Next (gated): (1) wire FE→Codex endpoints (mirror shapes into app/web/lib/backend.ts;
+Messenger→POST /api/v1/evidence-submissions bearer=Supabase token; checkout→POST
+/api/v1/payments/checkout-session; needs API_PROXY_TARGET); (2) real pricing→lib/plans.ts
++ reconcile plan_key; (3) Stripe keys/products; (4) OAuth provider config; (5) add
+NEXT_PUBLIC_POSTHOG_KEY to Vercel; (6) Render redeploy dc8e50d; (7) commit lanes
+SEPARATELY + push. If Codex builds publications-over-time / gene-viewer (16:36 CAR),
+mirror+render. Do NOT touch /runs, AlphaMissense, Workbench. End clear-safe.`
 
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 13:10 +1000 - Codex. Prior Task 15/20
-detail is recorded in `PROGRESS.md` Session 21 and commit `084221e`.
+1/2). Section last edited: 2026-05-24 19:18 +1000 - Codex. Evidence/payment
+contract detail is recorded in `PROGRESS.md` Sessions 23-24; the
+publications-over-time slice is recorded in Session 25; the gnomAD map visual
+slice is recorded in Session 26.
 
-**Latest Codex update (2026-05-24 13:10 +1000 - Codex):** backend per-gene
-`transcript_model` fixture/demo hydration is implemented and verified. The
-previous uncommitted gnomAD/ClinVar stack was committed and pushed first as
-`084221e` after confirming `HEAD` and origin were both at `ad94d5a`.
+**Latest Codex update (2026-05-24 19:18 +1000 - Codex):**
+gnomAD Section 3 world map region heat-fill + linked hover update is
+implemented, verified, and committed locally alongside the backend/report-depth
+Codex lanes.
 
 **Implementation completed:**
-- Added `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`,
-  generated from Ensembl REST for one reference-validated coding SNV per
-  ClinVar-stack gene (`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`,
-  `MLH1`, `PAH`, `TP53`). It carries real coding exon/intron coordinates,
-  transcript metadata, ClinVar accessions/source URLs, genomic projections, and
-  transcript sequence.
-- Extended `GeneViewerFixtureProvider` so curated non-RPE65 fixture requests
-  return normal `/viewer` payloads with per-gene transcript identity, window
-  segments, variant projection, ClinVar queried marker, and provenance.
-- Updated `GeneContextSnapshotService` so non-RPE65 fixture/demo snapshots use
-  the same fixture bundle for full transcript exon/intron rows and zoom payloads
-  instead of empty state.
-- Preserved the existing explicit RPE65 scaffold warning for RPE65 only.
-  Unsupported/non-curated variants still return unavailable state and no RPE65
-  disease/genomic/protein/publication/control facts.
+- Replaced circle heat markers with approximate whole-region SVG paths in
+  `app/frontend/src/components/report/gnomadAncestryMap.ts` and the byte-mirror
+  `app/web/components/report/gnomadAncestryMap.ts`; map version is now
+  `eamos-gnomad-ancestry-map-v2`.
+- Updated both `PopulationFrequencySection.tsx` report components so each
+  region is filled with its heat color, has dark/yellow active borders, and
+  participates in bidirectional region <-> ancestry-row hover/focus glow.
+- Installed `@playwright/test` in `app/frontend`, added `test:e2e`,
+  `playwright.config.ts` using the installed Chrome channel, and added
+  `tests/e2e/gnomad-map-hover.spec.ts`.
+- Updated `gnomadAncestryMap.test.ts` so the deterministic map fixture verifies
+  closed region paths and frontend/web byte identity.
+- Updated `docs/proprietary/gnomad-ancestry-map.md`,
+  `docs/proprietary/README.md`, `docs/proprietary/index.json`, and
+  `PROGRESS.md` Session 26.
+- User-requested commit split:
+  - `e3883fe feat(backend): add post-deployment evidence contracts`
+  - `de98834 feat(report): add publication timeline contract`
+  - `3e1aa45 feat(report): fill gnomad map regions`
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q` passed.
-- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q` passed.
-- `cd app/backend && python -m ruff check app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py` passed.
-- `cd app/backend && python -m black --check --target-version py310 app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py` passed.
+- `cd app/frontend && npm run test -- src/components/report/gnomadAncestryMap.test.ts --reporter=dot` passed.
+- `cd app/frontend && npm run test:e2e -- tests/e2e/gnomad-map-hover.spec.ts --reporter=line` passed in Chrome.
+- `cd app/frontend && npm run build` passed; existing Vite large chunk warning
+  remains.
+- `cd app/web && npx tsc --noEmit` passed.
+- Chrome screenshots captured and inspected:
+  `agent_handoff/verify/2026-05-24-gnomad-region-map-desktop.png` and
+  `agent_handoff/verify/2026-05-24-gnomad-region-map-mobile.png`.
+- `cd app/web && npm run build` still timed out/hung locally before completion;
+  no stale Next/Vite/Playwright/npm processes were left running.
 
-**Next:**
-- Claude can verify an app/web non-RPE65 report render using one curated coding
-  SNV such as `CFTR NM_000492.4:c.199C>T`; no additive contract mirror is
-  needed.
-- Production gnomAD local-store/warehouse remains Task 16; per-hover detail
-  endpoint remains Task 17; full ClinVar gene-wide viewer hydration remains
-  future work.
+**Coordination:**
+- No backend contract was changed for the gnomAD map slice.
+- `app/web` production build hanging is not solved by Supabase; Supabase may
+  help runtime data/cache architecture, but this looks like a local
+  Next/webpack worker, `.next` cache, AV/disk, or static build/prerender issue.
+- Claude can still use the ready publications timeline contract for the report
+  graph render. Messenger wiring remains Claude-owned; no Codex action needed.
+- Gene-viewer/report-depth remains the next backend queue, but Steven should
+  confirm the desired slice before implementation.
+- Codex did not touch `/runs`, AlphaMissense, destructive git, stash, reset, or
+  clean. User explicitly requested commit/push after verification; Codex
+  committed its safe lanes separately and left Claude-owned dirty `app/web/**`
+  work uncommitted.
 
-**Clear-safe:** yes; verified boundary reached, no dev server left running, and
-no `/runs`, AlphaMissense, deploy files, `backend.ts`, or `globals.css` work was
-done.
+**Next-session pickup queue:**
+1. Optional dedicated `app/web` Next production build-hang investigation.
+2. Claude can render the Publications expansion line graph from
+   `report_payload.publications_literature.publication_timeline` if not already
+   done.
+3. Confirm Steven's desired gene-viewer/report-depth slice before implementing
+   conservation hydration, fuller ClinVar enrichment, or other payload depth.
+4. If Steven asks for commits, keep lanes separate: Codex backend/docs/contract
+   paths separate from Claude `app/web/**` work.
+
+**Clear-safe:** yes; verified map boundary reached, no dev server left
+running, and coordination locks released after re-read.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 13:10 +1000 · Codex per-gene transcript_model fixture hydration
-Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 21-22, docs/proprietary/variant-report-orchestration.md, plans/gene-viewer/plan.md GV-009, plans/variant-report-data-orchestration/plan.md Task 21, then git status --short --branch.
-Delta: Codex pushed the prior ClinVar/gnomAD stack as 084221e, then added Ensembl-backed app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json plus backend fixture wiring so curated non-RPE65 /viewer and gene_context_snapshot payloads populate real per-gene exon/intron transcript models in fixture/demo mode with no RPE65 scaffold bleed.
-Next: Claude can app/web-render-check a curated non-RPE65 report such as CFTR NM_000492.4:c.199C>T; no TS contract mirror is needed. BE future work remains production gnomAD local store/hover detail and broader live ClinVar hydration.
-Guardrails: keep /runs, AlphaMissense, deploy files, backend.ts, and globals.css untouched unless explicitly coordinated.
+`# Resume prompt · 2026-05-24 19:18 +1000 · Codex gnomAD map regions committed
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 25-26, docs/proprietary/gnomad-ancestry-map.md, then git status --short --branch.
+Delta: Codex committed safe lanes separately: e3883fe backend evidence/payment contracts + Supabase 0003, de98834 publications-over-time contract, 3e1aa45 gnomAD region map + @playwright/test. The gnomAD Section 3 world map now uses approximate region heat fills with dark/yellow borders and bidirectional region<->ancestry-row hover/focus glow. Vite unit/e2e/build + app/web tsc passed; app/web production build still timed out/hung locally.
+Next: optional dedicated Next build-hang investigation; otherwise Claude can use the ready publications timeline contract and/or Steven should scope gene-viewer conservation/ClinVar depth before backend code.
+Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, or more commits unless explicitly coordinated.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
