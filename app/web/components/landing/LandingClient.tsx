@@ -11,56 +11,17 @@ import { Testimonials } from '@/components/landing/Testimonials'
 import { Pricing } from '@/components/landing/Pricing'
 import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
-
-const VARIANT_LIKE = /^(c\.|p\.|g\.|m\.|n\.|rs\d|chr|\d+[-:])/i
-const BARE_CDNA_LIKE = /^\d+(?:[+-]\d+)?(?:[ACGT]>[ACGT]|del(?:[ACGT]+)?|dup(?:[ACGT]+)?|ins[ACGT]+|delins[ACGT]+)$/i
-const GENE_LIKE = /^[A-Za-z][A-Za-z0-9-]{1,15}$/
-
-function cleanToken(token: string) {
-  return token.trim().replace(/^[("'`]+|[)"'`,.;!?]+$/g, '')
-}
-
-function normaliseVariantToken(token: string) {
-  const cleaned = cleanToken(token)
-  if (!cleaned) return null
-  if (VARIANT_LIKE.test(cleaned)) return cleaned
-  if (BARE_CDNA_LIKE.test(cleaned)) return `c.${cleaned}`
-  return null
-}
-
-function structuredVariantFromText(text: string) {
-  const direct = text.match(/^([A-Za-z][A-Za-z0-9-]+)\s+(.+)$/)
-  if (direct) {
-    const variant = normaliseVariantToken(direct[2])
-    if (variant) return { gene: direct[1].toUpperCase(), variant }
-  }
-
-  const tokens = text.split(/\s+/).map(cleanToken).filter(Boolean)
-  for (let i = 1; i < tokens.length; i += 1) {
-    const gene = tokens[i - 1]
-    const variant = normaliseVariantToken(tokens[i])
-    if (variant && GENE_LIKE.test(gene)) return { gene: gene.toUpperCase(), variant }
-  }
-  return null
-}
+import { reportHrefForQuery } from '@/lib/variant-search'
 
 export function LandingClient() {
   const router = useRouter()
 
   // One bar, freeform. Structured "GENE c.…/p.…/rs…" routes straight to the
   // lookup; anything else is sent as a raw query for the backend search-input
-  // resolver to interpret (gene vs plain language).
+  // resolver to interpret (gene vs plain language). Shared with the report search.
   const handleSubmit = (raw: string) => {
-    const text = raw.trim()
-    if (!text) return
-    const structured = structuredVariantFromText(text)
-    if (structured) {
-      const params = new URLSearchParams({ gene: structured.gene, cdna: structured.variant })
-      router.push(`/report?${params.toString()}`)
-    } else {
-      const params = new URLSearchParams({ q: text })
-      router.push(`/report?${params.toString()}`)
-    }
+    const href = reportHrefForQuery(raw)
+    if (href) router.push(href)
   }
 
   return (

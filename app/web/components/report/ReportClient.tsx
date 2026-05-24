@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
-import { SearchShell, type SearchSubmit } from '@/components/search/SearchShell'
+import { EamosSearch } from '@/components/landing/EamosSearch'
 import { VariantHeader } from '@/components/report/VariantHeader'
 import { VariantDecoder } from '@/components/report/VariantDecoder'
 import { AIStack } from '@/components/aistack/AIStack'
@@ -25,6 +25,7 @@ import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnaps
 import { Card } from '@/components/ui/Card'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
+import { reportHrefForQuery } from '@/lib/variant-search'
 import { RPE65_SAMPLE } from '@/lib/sample-report'
 import { SOURCES } from '@/lib/sources'
 import type {
@@ -181,14 +182,11 @@ export function ReportClient() {
     }
   }, [gene, cdna, transcript, proteinChange, q, demo, attempt])
 
-  const handleSearch = (payload: SearchSubmit) => {
-    if (payload.mode === 'lookup') {
-      const p = new URLSearchParams({ gene: payload.gene, cdna: payload.variant })
-      router.push(`/report?${p.toString()}`)
-    } else {
-      const p = new URLSearchParams({ q: payload.query, mode: 'ai' })
-      router.push(`/report?${p.toString()}`)
-    }
+  // Same freeform behaviour as the landing hero search (shared util): structured
+  // "GENE c.…/p.…/rs…" → lookup; anything else → raw query for the resolver.
+  const handleSearch = (raw: string) => {
+    const href = reportHrefForQuery(raw)
+    if (href) router.push(href)
   }
 
   const handleSelectCandidate = (candidate: SearchInputCandidate) => {
@@ -199,20 +197,13 @@ export function ReportClient() {
     router.push(`/report?${p.toString()}`)
   }
 
-  const initialGene = gene
-  const initialVariant = cdna
   const queryLabel = `${gene} ${cdna}`.trim() || q
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
       <TopNav right={<ModePill current="report" />}>
         <div className="mx-auto" style={{ maxWidth: 620 }}>
-          <SearchShell
-            variant="nav"
-            initialGene={initialGene}
-            initialVariant={initialVariant}
-            onSubmit={handleSearch}
-          />
+          <EamosSearch size="compact" tone="light" onSubmit={handleSearch} />
         </div>
       </TopNav>
 

@@ -4,20 +4,53 @@ import { cn } from '@/lib/utils'
 
 interface EamosSearchProps {
   size?: 'hero' | 'compact'
+  tone?: 'dark' | 'light'
   onSubmit: (query: string) => void
   className?: string
 }
+
+// Per-theme styling. Dark = the landing (dark end-to-end); light = the report
+// page's white nav. Same shape/behaviour either way.
+const TONES = {
+  dark: {
+    bg: 'var(--hero-glass2)',
+    border: 'var(--hero-line)',
+    borderFocus: 'var(--em-bright)',
+    text: 'var(--hero-ink)',
+    icon: 'var(--hero-ink-3)',
+    send: 'var(--em)',
+    sendIcon: '#04140e',
+    glowFocus:
+      '0 24px 70px -28px rgba(0,0,0,0.7), 0 0 0 4px rgba(52,211,153,0.14), 0 0 70px -16px rgba(16,185,129,0.55)',
+    glowHero: '0 24px 70px -30px rgba(0,0,0,0.7), 0 0 60px -20px rgba(16,185,129,0.38)',
+    backdrop: 'blur(10px)',
+  },
+  light: {
+    bg: 'var(--bg)',
+    border: 'var(--line-2)',
+    borderFocus: 'var(--teal)',
+    text: 'var(--ink)',
+    icon: 'var(--ink-4)',
+    send: 'var(--teal)',
+    sendIcon: '#ffffff',
+    glowFocus: '0 1px 2px rgba(15,23,42,0.04), 0 0 0 4px rgba(29,158,117,0.13)',
+    glowHero: '0 12px 36px -22px rgba(15,23,42,0.22)',
+    backdrop: 'none',
+  },
+} as const
 
 /**
  * The single continuous search bar — one freeform input that doubles as a
  * structured lookup and a plain-language AI query (the backend search-input
  * resolver decides which). Minimal AI-assistant styling: attach left, send
- * right. Dark tone only (the landing is dark end-to-end).
+ * right. The placeholder softly *suggests* the gene + variant format without
+ * forcing two strict fields. Shared by the landing (dark) and the report (light).
  */
-export function EamosSearch({ size = 'hero', onSubmit, className }: EamosSearchProps) {
+export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className }: EamosSearchProps) {
   const [value, setValue] = useState('')
   const [focused, setFocused] = useState(false)
   const isHero = size === 'hero'
+  const t = TONES[tone]
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -28,23 +61,20 @@ export function EamosSearch({ size = 'hero', onSubmit, className }: EamosSearchP
   return (
     <form
       onSubmit={submit}
-      data-tone="dark"
+      data-tone={tone}
       role="search"
       aria-label="Search Eamos"
       className={cn('flex items-center', className)}
       style={{
         gap: isHero ? 8 : 6,
-        background: 'var(--hero-glass2)',
-        border: `0.5px solid ${focused ? 'var(--em-bright)' : 'var(--hero-line)'}`,
+        background: t.bg,
+        border: `0.5px solid ${focused ? t.borderFocus : t.border}`,
         borderRadius: isHero ? 18 : 999,
         padding: isHero ? '8px 8px 8px 12px' : '5px 5px 5px 12px',
-        boxShadow: focused
-          ? '0 24px 70px -28px rgba(0,0,0,0.7), 0 0 0 4px rgba(52,211,153,0.14), 0 0 70px -16px rgba(16,185,129,0.55)'
-          : isHero
-            ? '0 24px 70px -30px rgba(0,0,0,0.7), 0 0 60px -20px rgba(16,185,129,0.38)'
-            : 'none',
-        backdropFilter: 'blur(10px)',
-        transition: 'border-color var(--dur-2) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard)',
+        boxShadow: focused ? t.glowFocus : isHero ? t.glowHero : 'none',
+        backdropFilter: t.backdrop,
+        transition:
+          'border-color var(--dur-2) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard)',
       }}
     >
       <button
@@ -58,7 +88,7 @@ export function EamosSearch({ size = 'hero', onSubmit, className }: EamosSearchP
           borderRadius: 999,
           background: 'transparent',
           border: 'none',
-          color: 'var(--hero-ink-3)',
+          color: t.icon,
           cursor: 'pointer',
         }}
       >
@@ -71,15 +101,17 @@ export function EamosSearch({ size = 'hero', onSubmit, className }: EamosSearchP
         onChange={(e) => setValue(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        placeholder="Search a gene or variant — or just ask…"
+        placeholder={
+          isHero ? 'Gene + variant — e.g. RPE65 c.260A>G, or just ask…' : 'Gene + variant — e.g. RPE65 c.260A>G'
+        }
         autoComplete="off"
         spellCheck={false}
-        aria-label="Search a gene, variant, or ask a question"
+        aria-label="Search a gene and variant, or ask a question"
         className="min-w-0 flex-1 border-none bg-transparent outline-none"
         style={{
           fontFamily: 'var(--body)',
           fontSize: isHero ? 16 : 13.5,
-          color: 'var(--hero-ink)',
+          color: t.text,
           padding: isHero ? '8px 0' : '6px 0',
           letterSpacing: '-0.005em',
         }}
@@ -94,8 +126,8 @@ export function EamosSearch({ size = 'hero', onSubmit, className }: EamosSearchP
           height: isHero ? 40 : 32,
           borderRadius: 999,
           border: 'none',
-          background: 'var(--em)',
-          color: '#04140e',
+          background: t.send,
+          color: t.sendIcon,
           cursor: 'pointer',
         }}
       >
