@@ -42,13 +42,9 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
 
   return (
     <section aria-label="Variant evidence call cards" className="mb-4">
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 12,
-        }}
-      >
+      {/* Mobile: horizontal swipe carousel (peek next card). sm: 2-up grid.
+          lg+: all four across. */}
+      <div className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
         {cards.map((card) => {
           const navigates = cardCanNavigate(card)
           const badges = card.support_badges ?? []
@@ -132,6 +128,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
             return (
               <article
                 key={card.card_id}
+                className="w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
                 style={{
                   minHeight: 158,
                   border: '0.5px solid var(--line)',
@@ -150,6 +147,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
               key={card.card_id}
               type="button"
               onClick={() => scrollToInteraction(card)}
+              className="w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
               style={{
                 minHeight: 158,
                 border: '0.5px solid var(--line)',
@@ -171,6 +169,12 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
           )
         })}
       </div>
+      <p
+        className="mt-2 text-center sm:hidden"
+        style={{ fontSize: 10.5, color: 'var(--ink-4)' }}
+      >
+        Swipe for more →
+      </p>
     </section>
   )
 }
