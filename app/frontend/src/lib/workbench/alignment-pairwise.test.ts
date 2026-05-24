@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   alignSequences,
   compareSequences,
+  normalizeAlignResponse,
   parseSequenceInput,
 } from './alignment-pairwise'
 
@@ -79,5 +80,59 @@ describe('compareSequences', () => {
     expect(comparison.alignment).toBeNull()
     expect(comparison.issues).toHaveLength(1)
     expect(comparison.issues[0].field).toBe('edited')
+  })
+})
+
+describe('normalizeAlignResponse', () => {
+  it('prepares trace channels, base calls, Q scores, and target annotation', () => {
+    const trace = normalizeAlignResponse({
+      reference: 'ACGTA',
+      sanger_read: 'ACGGA',
+      match_line: '||| |',
+      mismatch_positions: [3],
+      target_position: 3,
+      trace_channels: [
+        { base: 'G', values: [0, 0.5, 1] },
+        { base: 'A', values: [1, 0.5, 0] },
+      ],
+      base_calls: ['A', 'C', 'G', 'G', 'A'],
+      q_scores: [38, 39, 40, 24, 37],
+    })
+
+    expect(trace.reference).toBe('ACGTA')
+    expect(trace.read).toBe('ACGGA')
+    expect(trace.hasTrace).toBe(true)
+    expect(trace.traceChannels.map((channel) => channel.base)).toEqual(['A', 'G'])
+    expect(trace.baseCalls[3]).toEqual({
+      index: 3,
+      base: 'G',
+      referenceBase: 'T',
+      qScore: 24,
+      isMismatch: true,
+      isTarget: true,
+    })
+    expect(trace.warnings).toEqual([])
+  })
+
+  it('reports response gaps while keeping a displayable read fallback', () => {
+    const trace = normalizeAlignResponse({
+      reference: 'ACGT',
+      sanger_read: 'ACGA',
+      target_position: 9,
+      q_scores: [30],
+    })
+
+    expect(trace.baseCalls.map((call) => call.base).join('')).toBe('ACGA')
+    expect(trace.hasTrace).toBe(false)
+    expect(trace.warnings).toContain(
+      'Alignment response target_position is outside the returned read.',
+    )
+    expect(trace.warnings).toContain('Alignment response did not include trace channel values.')
+    expect(trace.warnings).toContain(
+      'Alignment response omitted base_calls; using sanger_read for display.',
+    )
+    expect(trace.warnings).toContain(
+      'Alignment response q_scores length does not match base_calls length.',
+    )
   })
 })

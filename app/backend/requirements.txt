@@ -20,3 +20,4 @@ PyJWT>=2.9,<3
 cryptography>=42,<46
 argon2-cffi>=23.1,<24
 primer3-py>=2.3,<3
+biopython>=1.84,<2

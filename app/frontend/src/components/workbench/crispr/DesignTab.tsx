@@ -6,6 +6,7 @@ import type {
   HdrSsodn,
 } from '@/lib/backend'
 import { designGuides } from '@/lib/api'
+import { designProviderDisclosure } from '@/lib/workbench/crispr-disclosure'
 import { recommendedGuideIndex } from '@/lib/workbench/crispr-guide-ranking'
 import { GuideTrack } from './GuideTrack'
 
@@ -18,24 +19,27 @@ const CAS_OPTIONS: Array<{
   value: CasEnzyme
   label: string
   caveat: string
+  disabled?: boolean
 }> = [
   {
     value: 'SpCas9',
-    label: 'SpCas9',
+    label: 'SpCas9 NGG',
     caveat:
-      'SpCas9 is on the crisprScore supported-nuclease list; Cas9 Lindel frameshift scoring is a backend planning item.',
+      'Current real-mode CRISPR design supports local deterministic SpCas9 only.',
   },
   {
     value: 'SaCas9',
-    label: 'SaCas9 (current backend only)',
+    label: 'SaCas9 (unavailable)',
     caveat:
-      'SaCas9 is accepted by the current Eamos contract, but it is not listed by crisprScore 1.16.0.',
+      'SaCas9 remains a schema value only; the real-mode backend rejects it until a provider is added.',
+    disabled: true,
   },
   {
     value: 'Cas12a',
-    label: 'Cas12a (current backend)',
+    label: 'Cas12a (unavailable)',
     caveat:
-      'crisprScore supports AsCas12a and enAsCas12a specifically; the current Eamos contract has a generic Cas12a option.',
+      'Generic Cas12a is not a source-backed DeepCpf1/enCas12a provider in the current backend.',
+    disabled: true,
   },
 ]
 
@@ -122,6 +126,8 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
   const [hovered, setHovered] = useState<number | null>(null)
 
   const selectedCas = CAS_OPTIONS.find((option) => option.value === cas)
+  const unavailableCas = CAS_OPTIONS.filter((option) => option.disabled)
+  const providerDisclosure = designProviderDisclosure(res)
 
   const clearComputed = () => {
     setRes(null)
@@ -190,12 +196,14 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
             value={cas}
             disabled={loading}
             onChange={(e) => {
-              setCas(e.target.value as CasEnzyme)
+              const nextCas = e.target.value as CasEnzyme
+              if (nextCas !== 'SpCas9') return
+              setCas(nextCas)
               clearComputed()
             }}
           >
             {CAS_OPTIONS.map((c) => (
-              <option key={c.value} value={c.value}>
+              <option key={c.value} value={c.value} disabled={c.disabled}>
                 {c.label}
               </option>
             ))}
@@ -239,7 +247,7 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
           <input
             className="field-input"
             type="text"
-            value="planned; not sent"
+            value="server-resolved"
             disabled
             readOnly
           />
@@ -253,25 +261,26 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
           onClick={run}
           disabled={loading}
         >
-          {loading ? 'Designing...' : 'Design guides'}
+          {loading ? 'Designing...' : 'Design SpCas9 guides'}
         </button>
         <span className="tool-panel-sub">
-          {gene} / {cdna} / {cas}
+          {gene} / {cdna} / {providerDisclosure.providerLabel}
         </span>
       </div>
 
       <div className="crispr-caveats">
         <div className="help-note">
-          Current scores are fixture/backend values from the Eamos CRISPR
-          endpoint. This frontend does not run Bioconductor crisprScore models.
+          Provider: {providerDisclosure.providerLabel}.{' '}
+          {providerDisclosure.statusLine}
         </div>
-        <div className="help-note">
-          crisprScore 1.16.0 planning: SpCas9, AsCas12a, enAsCas12a, and
-          CasRx; RuleSet1, RuleSet3, DeepHF, enPAM+GB, CRISPRscan, CFD, MIT,
-          and Cas9 Lindel-derived frameshift probability. DeepHF and enPAM+GB
-          need non-Windows execution.
-        </div>
+        <div className="help-note">{providerDisclosure.scoreLine}</div>
+        <div className="help-note">{providerDisclosure.platformLine}</div>
         {selectedCas && <div className="help-note">{selectedCas.caveat}</div>}
+        {unavailableCas.map((option) => (
+          <div className="help-note" key={option.value}>
+            {option.caveat}
+          </div>
+        ))}
       </div>
 
       {error && <div className="crispr-error">{error}</div>}

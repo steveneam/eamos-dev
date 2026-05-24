@@ -21,6 +21,10 @@ export interface IndelBin {
 }
 
 export interface CrisprTideResult {
+  /** Optional additive backend metadata; absent means frontend sample/fallback. */
+  source_backed?: boolean
+  analysis_kind?: 'sample' | 'tide' | 'lindel'
+  provider_label?: string
   /** Cas9 cleavage base index used for the deconvolution. */
   cut_site_index: number
   /** Overall editing efficiency = 1 - wild-type fraction (0..1). */
@@ -35,12 +39,15 @@ export interface CrisprTideResult {
 }
 
 export const CRISPR_TIDE_SAMPLE: CrisprTideResult = {
+  source_backed: false,
+  analysis_kind: 'sample',
+  provider_label: 'Frontend sample/fallback',
   cut_site_index: 100,
   editing_efficiency: 0.69,
   r_squared: 0.93,
   predicted_available: false,
   notes:
-    'Sample observed-only TIDE spectrum. No repair predictor is run; a later Cas9 integration may add crisprScore Lindel-derived frameshift probability as a separate score.',
+    'Frontend sample/fallback observed-only spectrum. Uploaded traces are not parsed here; a later Cas9 integration may add Lindel-derived frameshift probability as a separate backend score.',
   spectrum: [
     { size: -10, observed: 0.004, predicted: null },
     { size: -9, observed: 0.006, predicted: null },

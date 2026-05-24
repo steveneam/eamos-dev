@@ -79,6 +79,45 @@ export interface AlignmentSeed {
   targetLabel: string
 }
 
+export type TraceBase = 'A' | 'C' | 'G' | 'T'
+
+export interface AlignApiTraceChannel {
+  base: TraceBase
+  values: number[]
+}
+
+export interface AlignApiResponseShape {
+  reference?: string | null
+  sanger_read?: string | null
+  match_line?: string | null
+  mismatch_positions?: number[] | null
+  target_position?: number | null
+  trace_channels?: AlignApiTraceChannel[] | null
+  base_calls?: string[] | null
+  q_scores?: number[] | null
+}
+
+export interface TraceBaseCall {
+  index: number
+  base: string
+  referenceBase: string | null
+  qScore: number | null
+  isMismatch: boolean
+  isTarget: boolean
+}
+
+export interface AlignTraceView {
+  reference: string
+  read: string
+  matchLine: string
+  mismatchPositions: number[]
+  targetPosition: number | null
+  traceChannels: AlignApiTraceChannel[]
+  baseCalls: TraceBaseCall[]
+  warnings: string[]
+  hasTrace: boolean
+}
+
 export function parseSequenceInput(raw: string, label: string): SequenceParseResult {
   const bases: string[] = []
   const invalid = new Set<string>()
@@ -117,6 +156,68 @@ export function parseSequenceInput(raw: string, label: string): SequenceParseRes
   }
 
   return { sequence, invalidCharacters, errors }
+}
+
+export function normalizeAlignResponse(response: AlignApiResponseShape): AlignTraceView {
+  const referenceParsed = parseSequenceInput(response.reference ?? '', 'Alignment reference')
+  const readParsed = parseSequenceInput(response.sanger_read ?? '', 'Sanger read')
+  const reference = referenceParsed.sequence
+  const read = readParsed.sequence
+  const warnings = [...referenceParsed.errors, ...readParsed.errors]
+  const targetPosition = normalizeTargetPosition(response.target_position)
+  const mismatchPositions = normalizeIndexList(response.mismatch_positions)
+  const traceChannels = normalizeTraceChannels(response.trace_channels)
+  const responseBaseCalls = response.base_calls ?? []
+  const baseCallStrings =
+    responseBaseCalls.length > 0 ? responseBaseCalls.map(normalizeBaseCall) : read.split('')
+  const qScores = normalizeQScores(response.q_scores)
+  const coordinateLength = Math.max(reference.length, read.length, baseCallStrings.length)
+
+  if (targetPosition === null) {
+    warnings.push('Alignment response did not include target_position.')
+  } else if (targetPosition >= coordinateLength) {
+    warnings.push('Alignment response target_position is outside the returned read.')
+  }
+  if (traceChannels.length === 0) {
+    warnings.push('Alignment response did not include trace channel values.')
+  }
+  if (responseBaseCalls.length === 0 && read.length > 0) {
+    warnings.push('Alignment response omitted base_calls; using sanger_read for display.')
+  }
+  if (baseCallStrings.length === 0) {
+    warnings.push('Alignment response did not include base calls.')
+  }
+  if (qScores.length > 0 && qScores.length !== baseCallStrings.length) {
+    warnings.push('Alignment response q_scores length does not match base_calls length.')
+  }
+
+  const mismatchSet = new Set(mismatchPositions)
+  const baseCalls = baseCallStrings.map((base, index) => {
+    const referenceBase = reference[index] ?? null
+    const differsFromReference =
+      referenceBase !== null && base !== 'N' && referenceBase !== 'N' && base !== referenceBase
+
+    return {
+      index,
+      base,
+      referenceBase,
+      qScore: qScores[index] ?? null,
+      isMismatch: mismatchSet.has(index) || differsFromReference,
+      isTarget: targetPosition === index,
+    }
+  })
+
+  return {
+    reference,
+    read,
+    matchLine: response.match_line ?? '',
+    mismatchPositions,
+    targetPosition,
+    traceChannels,
+    baseCalls,
+    warnings: Array.from(new Set(warnings)),
+    hasTrace: traceChannels.some((channel) => channel.values.length > 0),
+  }
 }
 
 export function compareSequences(
@@ -213,6 +314,51 @@ function targetIndexFromWindow(data: GeneWindowData): number | null {
 function replaceBase(sequence: string, index: number | null, base: string): string {
   if (index === null || index < 0 || index >= sequence.length) return sequence
   return `${sequence.slice(0, index)}${base.toUpperCase()}${sequence.slice(index + 1)}`
+}
+
+const TRACE_BASE_ORDER: TraceBase[] = ['A', 'C', 'G', 'T']
+
+function normalizeTargetPosition(value: number | null | undefined): number | null {
+  return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : null
+}
+
+function normalizeIndexList(values: number[] | null | undefined): number[] {
+  const seen = new Set<number>()
+  const indexes: number[] = []
+
+  for (const value of values ?? []) {
+    if (!Number.isInteger(value) || value < 0 || seen.has(value)) continue
+    seen.add(value)
+    indexes.push(value)
+  }
+
+  return indexes
+}
+
+function normalizeTraceChannels(
+  channels: AlignApiTraceChannel[] | null | undefined,
+): AlignApiTraceChannel[] {
+  return (channels ?? [])
+    .filter((channel) => TRACE_BASE_ORDER.includes(channel.base))
+    .map((channel) => ({
+      base: channel.base,
+      values: channel.values.filter(Number.isFinite),
+    }))
+    .sort(
+      (left, right) =>
+        TRACE_BASE_ORDER.indexOf(left.base) - TRACE_BASE_ORDER.indexOf(right.base),
+    )
+}
+
+function normalizeBaseCall(base: string): string {
+  const first = base.trim().toUpperCase().charAt(0)
+  return first === 'A' || first === 'C' || first === 'G' || first === 'T' || first === 'N'
+    ? first
+    : 'N'
+}
+
+function normalizeQScores(values: number[] | null | undefined): number[] {
+  return (values ?? []).filter(Number.isFinite).map((value) => Math.max(0, Math.round(value)))
 }
 
 function smithWaterman(

@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     run_chat_top_k: int = 4
     use_real_apis: bool = False
     crispr_provider: str = "local_deterministic"
+    crispr_rscript_path: Path = Path("Rscript")
+    crispr_ruleset3_conda_env: Path | None = None
+    crispr_lindel_conda_env: Path | None = None
     primer_specificity_provider: str = "template"
     ucsc_ispcr_binary_path: Path = Path("./bio_assets/bin/isPcr")
     ucsc_ispcr_hg38_path: Path = Path("./bio_assets/genomes/hg38.2bit")

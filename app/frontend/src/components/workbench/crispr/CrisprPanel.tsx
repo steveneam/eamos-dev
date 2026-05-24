@@ -10,8 +10,8 @@ interface CrisprPanelProps {
 type SubTab = 'design' | 'outcomes'
 
 /**
- * CRISPR tool panel. Design is the current gRNA/HDR fixture workflow;
- * Outcomes is the post-edit TIDE-shaped scaffold.
+ * CRISPR tool panel. Design is the local SpCas9 gRNA/HDR surface; Outcomes
+ * stays observed-only until backend metadata proves real TIDE/Lindel data.
  */
 export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
   const [tab, setTab] = useState<SubTab>('design')
@@ -25,8 +25,8 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
           </h2>
           <span className="tool-panel-sub">
             {tab === 'design'
-              ? 'Fixture scores / crisprScore plan / ssODN HDR template'
-              : 'TIDE scaffold / observed indel spectrum'}
+              ? 'Local SpCas9 design surface / ssODN HDR template'
+              : 'Observed-only spectrum unless backend provides TIDE/Lindel data'}
           </span>
         </div>
         <div className="seg" role="tablist" aria-label="CRISPR sub-tool">

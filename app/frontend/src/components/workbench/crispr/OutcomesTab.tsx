@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { analyzeTide } from '@/lib/api'
+import { outcomeDisclosure } from '@/lib/workbench/crispr-disclosure'
 import type { CrisprTideResult } from '@/lib/workbench/crispr-tide-sample'
 import { IndelSpectrum } from './IndelSpectrum'
 
 /**
- * Post-CRISPR editing-outcome scaffold. Two Sanger trace inputs and a Cas9
- * cleavage base index drive the TIDE-shaped result. This tab remains
- * mock-first until the backend endpoint and AB1 parsing land.
+ * Post-CRISPR editing-outcome scaffold. Until backend metadata says otherwise,
+ * this is an observed-only sample/fallback surface, not a repair predictor.
  */
 export function OutcomesTab() {
   const [control, setControl] = useState<File | null>(null)
@@ -15,6 +15,7 @@ export function OutcomesTab() {
   const [res, setRes] = useState<CrisprTideResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const outcomeInfo = outcomeDisclosure(res)
 
   const clearComputed = () => {
     setRes(null)
@@ -98,22 +99,26 @@ export function OutcomesTab() {
           onClick={run}
           disabled={loading}
         >
-          {loading ? 'Analyzing...' : 'Run TIDE analysis'}
+          {loading ? 'Analyzing...' : 'Analyze outcomes'}
         </button>
         <span className="tool-panel-sub">
-          {control?.name ?? 'no control'} / {edited?.name ?? 'no edited'}
+          {control?.name ?? 'no control'} / {edited?.name ?? 'no edited'} /{' '}
+          {outcomeInfo.sourceLabel}
         </span>
       </div>
 
       <div className="crispr-caveats">
         <div className="help-note">
-          Current output is an observed-only TIDE scaffold backed by the
-          frontend sample when the gated endpoint is absent. AB1 parsing and
-          the numerical solver are backend planning items.
+          Outcomes stay observed-only unless the backend returns source-backed
+          TIDE or Lindel details with numeric predicted bins.
         </div>
         <div className="help-note">
-          crisprScore is not a TIDE provider. A later Cas9 integration can add
-          its Lindel-derived frameshift probability as a separate score.
+          Without that contract, this tab uses the frontend sample/fallback;
+          uploaded traces are not evidence of a completed TIDE solve.
+        </div>
+        <div className="help-note">
+          Lindel-derived frameshift probability should be shown as a separate
+          backend score, not blended into observed indel frequencies.
         </div>
       </div>
 
@@ -129,7 +134,7 @@ export function OutcomesTab() {
               </span>
             </div>
             <div className="ic-stat">
-              <span className="label">Fit R2</span>
+              <span className="label">{outcomeInfo.fitLabel}</span>
               <span className="value">{res.r_squared.toFixed(2)}</span>
             </div>
             <div className="ic-stat">
@@ -138,15 +143,15 @@ export function OutcomesTab() {
             </div>
             <div className="ic-stat">
               <span className="label">Series</span>
-              <span className="value">
-                {res.predicted_available ? 'observed + predicted' : 'observed-only'}
-              </span>
+              <span className="value">{outcomeInfo.seriesLabel}</span>
             </div>
           </div>
           <IndelSpectrum
             spectrum={res.spectrum}
-            showPredicted={res.predicted_available}
+            showPredicted={outcomeInfo.showPredicted}
+            observedLabel={outcomeInfo.observedLegendLabel}
           />
+          <div className="help-note">{outcomeInfo.predictionLine}</div>
           <div className="help-note">{res.notes}</div>
         </>
       )}

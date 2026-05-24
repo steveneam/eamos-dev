@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import json
+import subprocess
+
 import pytest
 
 from app.schemas.workbench import CrisprRequest
 from app.services.crispr_design import (
     HSU_DISTANCE_PENALTY_CONSTANT,
     HSU_MISMATCH_PENALTIES,
+    CrisprScoreRAdapter,
+    CrisprScoreRBackedCrisprProvider,
     CrisprDesignInputError,
     LocalDeterministicCrisprProvider,
     discover_spcas9_pam_sites,
@@ -105,6 +110,13 @@ def test_local_deterministic_provider_returns_guides_and_source_backed_ssodn() -
     assert all(len(guide.pam) == 3 for guide in response.guides)
     assert all(0.0 <= guide.on_target_score <= 100.0 for guide in response.guides)
     assert all(0.0 <= guide.off_target_score <= 100.0 for guide in response.guides)
+    assert "RuleSet1=unavailable" in response.guides[0].notes
+    assert "RuleSet3=unavailable" in response.guides[0].notes
+    assert "CRISPRscan=unavailable" in response.guides[0].notes
+    assert "CRISPRater=unavailable" in response.guides[0].notes
+    assert "MIT/CFD off-target" in response.guides[0].notes
+    assert "Lindel frameshift=unavailable" in response.guides[0].notes
+    assert "DeepHF/DeepCpf1/enPAM+GB=platform-gated Windows-unavailable" in response.guides[0].notes
     assert "not DeepHF" in response.guides[0].notes
     assert "not a genome-wide Bowtie/BWA" in response.guides[0].notes
     assert response.ssodn is not None
@@ -132,3 +144,80 @@ def test_local_deterministic_provider_rejects_too_short_sequence_context() -> No
         )
 
     assert error.value.code == unsupported_input_warning("sequence_too_short")
+
+
+def test_crisprscore_r_backed_provider_falls_back_when_rscript_is_unavailable(tmp_path) -> None:
+    sequence = "TGGACAAGACAGTCGCCATTCGGTGCCTACATTCAAGAGAACAACGAA"
+    payload = CrisprRequest(gene="RPE65", cdna="c.260A>G")
+    provider = CrisprScoreRBackedCrisprProvider(
+        scoring_adapter=CrisprScoreRAdapter(rscript_path=tmp_path / "missing-Rscript")
+    )
+
+    response = provider.design(payload, _context(sequence))
+    fallback_response = LocalDeterministicCrisprProvider().design(payload, _context(sequence))
+
+    assert response.guides
+    assert response.guides[0].on_target_score == fallback_response.guides[0].on_target_score
+    assert response.guides[0].off_target_score == fallback_response.guides[0].off_target_score
+    assert "crisprScore R/Rscript provider unavailable" in response.guides[0].notes
+    assert "Using local deterministic fallback" in response.guides[0].notes
+    assert "RuleSet1=unavailable" in response.guides[0].notes
+    assert "CFD=unavailable" in response.guides[0].notes
+    assert "Lindel frameshift=unavailable" in response.guides[0].notes
+
+
+def test_crisprscore_r_backed_provider_applies_source_score_payload() -> None:
+    sequence = "TGGACAAGACAGTCGCCATTCGGTGCCTACATTCAAGAGAACAACGAA"
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        payload = json.loads(kwargs["input"])
+        assert len(payload["rows"][0]["spacer"]) == 20
+        assert len(payload["rows"][0]["pam"]) == 3
+        stdout = json.dumps(
+            {
+                "scores": [
+                    {
+                        "id": "0",
+                        "ruleset1": 0.71,
+                        "ruleset3": None,
+                        "crisprscan": 0.63,
+                        "crisprater": 0.52,
+                        "mit_specificity": 0.91,
+                        "cfd_specificity": 0.88,
+                        "lindel_frameshift": None,
+                        "warnings": ["RuleSet3 unavailable: conda environment is not configured"],
+                    }
+                ],
+                "warnings": ["Lindel frameshift unavailable: conda environment is not configured"],
+            }
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    provider = CrisprScoreRBackedCrisprProvider(
+        scoring_adapter=CrisprScoreRAdapter(
+            rscript_path=__file__,
+            runner=runner,
+        )
+    )
+
+    response = provider.design(
+        CrisprRequest(gene="RPE65", cdna="c.260A>G"),
+        _context(sequence),
+    )
+
+    assert calls
+    assert calls[0][0][1] == "--vanilla"
+    guide = response.guides[0]
+    assert guide.on_target_score == 71.0
+    assert guide.off_target_score == 12.0
+    assert "crisprScore R/Rscript source scores" in guide.notes
+    assert "RuleSet1=71.0" in guide.notes
+    assert "RuleSet3=unavailable" in guide.notes
+    assert "CRISPRscan=63.0" in guide.notes
+    assert "CRISPRater=52.0" in guide.notes
+    assert "MIT=91.0 specificity" in guide.notes
+    assert "CFD=88.0 specificity" in guide.notes
+    assert "Primary on-target provider: RuleSet1" in guide.notes
+    assert "primary off-target provider: CFD" in guide.notes

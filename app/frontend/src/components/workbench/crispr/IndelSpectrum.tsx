@@ -5,6 +5,7 @@ interface IndelSpectrumProps {
   spectrum: IndelBin[]
   /** Render an optional predicted series alongside observed values. */
   showPredicted: boolean
+  observedLabel?: string
 }
 
 const PAD_L = 38
@@ -17,11 +18,17 @@ const GROUP_W = 34
  * Hand-rolled SVG grouped bar chart for observed indel frequencies, with an
  * optional predicted series only when the result explicitly provides one.
  */
-export function IndelSpectrum({ spectrum, showPredicted }: IndelSpectrumProps) {
+export function IndelSpectrum({
+  spectrum,
+  showPredicted,
+  observedLabel = 'Observed',
+}: IndelSpectrumProps) {
   const { w, max, ticks } = useMemo(() => {
     const max = Math.max(
       0.05,
-      ...spectrum.flatMap((b) => [b.observed, b.predicted ?? 0]),
+      ...spectrum.flatMap((b) =>
+        showPredicted ? [b.observed, b.predicted ?? 0] : [b.observed],
+      ),
     )
     const niceMax = Math.ceil(max * 10) / 10
     return {
@@ -29,7 +36,7 @@ export function IndelSpectrum({ spectrum, showPredicted }: IndelSpectrumProps) {
       max: niceMax,
       ticks: [0, 0.25, 0.5, 0.75, 1].map((f) => f * niceMax),
     }
-  }, [spectrum])
+  }, [showPredicted, spectrum])
 
   const plotH = H - PAD_T - PAD_B
   const y = (v: number) => PAD_T + plotH * (1 - v / max)
@@ -106,7 +113,7 @@ export function IndelSpectrum({ spectrum, showPredicted }: IndelSpectrumProps) {
 
       <div className="ic-legend">
         <span>
-          <i className="sw observed" /> Observed (TIDE)
+          <i className="sw observed" /> {observedLabel}
         </span>
         {showPredicted && (
           <span>

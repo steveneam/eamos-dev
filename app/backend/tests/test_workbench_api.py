@@ -1,16 +1,28 @@
 from __future__ import annotations
 
+import base64
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import status
 
 from app.core.config import Settings
-from app.schemas.workbench import CrisprRequest, CrisprResponse, PrimerRequest, PrimerResponse
+from app.schemas.workbench import (
+    AlignRequest,
+    AlignResponse,
+    CrisprRequest,
+    CrisprResponse,
+    PrimerRequest,
+    PrimerResponse,
+)
 from app.services.crispr_design import (
+    CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
+    CrisprScoreRAdapter,
+    CrisprScoreRBackedCrisprProvider,
     LocalDeterministicCrisprProvider,
 )
 from app.services.sequence_context import (
@@ -29,6 +41,12 @@ from app.services.workbench_design import (
     TemplateAmpliconSpecificityProvider,
     WorkbenchDesignError,
     WorkbenchDesignService,
+)
+from app.services.trace_parser import (
+    TRACE_PARSER_UNAVAILABLE,
+    TRACE_UNSUPPORTED_FORMAT,
+    TraceParseError,
+    parse_ab1_bytes,
 )
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
@@ -74,6 +92,24 @@ class FakeCrisprProvider:
     def design(self, payload, context) -> CrisprResponse:
         self.calls.append((payload, context))
         return CrisprResponse(cas=payload.cas, guides=[], ssodn=None)
+
+
+class FakeAlignProvider:
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+
+    def align(self, payload, context) -> AlignResponse:
+        self.calls.append((payload, context))
+        return AlignResponse(
+            reference="ACGT",
+            sanger_read="ACGT",
+            match_line="||||",
+            mismatch_positions=[],
+            target_position=1,
+            trace_channels=[],
+            base_calls=list("ACGT"),
+            q_scores=[],
+        )
 
 
 class QueuedSpecificityProvider:
@@ -222,6 +258,36 @@ def test_real_mode_crispr_service_uses_sequence_context_and_provider() -> None:
     assert crispr_provider.calls[0][1].genomic_hg38 == "1-68444869-T-C"
 
 
+def test_real_mode_align_service_uses_sequence_context_and_provider() -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    sequence_service = StaticSequenceContextService(
+        SequenceContextResult(query=query, context=_context())
+    )
+    align_provider = FakeAlignProvider()
+    service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=sequence_service,
+        primer_provider=FakePrimerProvider(),
+        align_provider=align_provider,
+    )
+
+    payload = AlignRequest(gene="RPE65", cdna="c.260A>G", user_sequence="ACGT")
+    response = service.align(payload)
+
+    assert response == AlignResponse(
+        reference="ACGT",
+        sanger_read="ACGT",
+        match_line="||||",
+        mismatch_positions=[],
+        target_position=1,
+        trace_channels=[],
+        base_calls=list("ACGT"),
+        q_scores=[],
+    )
+    assert sequence_service.calls == [{"gene": "RPE65", "cdna": "c.260A>G"}]
+    assert align_provider.calls == [(payload, _context())]
+
+
 def test_real_mode_missing_sequence_context_maps_to_422(client) -> None:
     query = normalize_sequence_query("RPE65", "rs1645931040")
     warning = unsupported_input_warning("rsid")
@@ -302,6 +368,178 @@ def test_real_mode_crispr_route_returns_local_deterministic_guides(client) -> No
     assert body["guides"]
     assert body["guides"][0]["notes"].startswith("Local deterministic SpCas9")
     assert body["ssodn"]["edits_encoded"] == ["c.260A>G"]
+
+
+def test_real_mode_align_route_aligns_user_sequence_to_sequence_context(client) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    context = _context()
+    context.window_sequence = "TTTAAACCCGGGTTT"
+    context.target_offset = 9
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=context)
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "user_sequence": "AAACCCAGG",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reference"] == "AAACCCGGG"
+    assert body["sanger_read"] == "AAACCCAGG"
+    assert body["match_line"] == "|||||| ||"
+    assert body["mismatch_positions"] == [6]
+    assert body["target_position"] == 6
+    assert body["base_calls"] == list("AAACCCAGG")
+    assert body["q_scores"] == []
+    assert body["trace_channels"] == []
+
+
+def test_real_mode_align_requires_read_input_maps_to_422(client) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=_context())
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align",
+        json={"gene": "RPE65", "cdna": "c.260A>G"},
+    )
+
+    warning = unsupported_input_warning("alignment_read")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": "Real-mode alignment requires user_sequence or ab1_blob_base64.",
+        "warnings": [warning],
+    }
+
+
+def test_real_mode_align_ab1_unsupported_file_maps_to_422(client, monkeypatch) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+
+    def unsupported_trace(_blob):
+        raise TraceParseError(
+            code=TRACE_UNSUPPORTED_FORMAT,
+            message="AB1 trace payload could not be parsed.",
+        )
+
+    monkeypatch.setattr(
+        "app.services.workbench_design.parse_ab1_base64",
+        unsupported_trace,
+    )
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=_context())
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "ab1_blob_base64": base64.b64encode(b"not-an-ab1").decode("ascii"),
+        },
+    )
+
+    warning = unsupported_input_warning("ab1")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": "AB1 trace payload could not be parsed.",
+        "warnings": [warning, TRACE_UNSUPPORTED_FORMAT],
+    }
+
+
+def test_real_mode_align_ab1_parser_unavailable_maps_to_503(client, monkeypatch) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+
+    def missing_parser(_blob):
+        raise TraceParseError(
+            code=TRACE_PARSER_UNAVAILABLE,
+            message="Biopython is required to parse AB1 trace files.",
+        )
+
+    monkeypatch.setattr(
+        "app.services.workbench_design.parse_ab1_base64",
+        missing_parser,
+    )
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=_context())
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "ab1_blob_base64": base64.b64encode(b"synthetic-ab1").decode("ascii"),
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": WORKBENCH_PROVIDER_UNAVAILABLE,
+        "message": "Biopython is required to parse AB1 trace files.",
+        "warnings": [WORKBENCH_PROVIDER_UNAVAILABLE, TRACE_PARSER_UNAVAILABLE],
+    }
+
+
+def test_trace_parser_extracts_synthetic_ab1_record() -> None:
+    class FakeSeqIO:
+        @staticmethod
+        def read(handle, file_format):
+            assert handle.read() == b"synthetic-ab1"
+            assert file_format == "abi"
+            return SimpleNamespace(
+                seq="ACGT",
+                annotations={
+                    "abif_raw": {
+                        "FWO_1": b"GATC",
+                        "DATA9": [0, 10],
+                        "DATA10": [0, 5],
+                        "DATA11": [4, 8],
+                        "DATA12": [2, 2],
+                        "PBAS2": b"ACGT",
+                        "PCON2": [40, 39, 38, 37],
+                        "PLOC2": [3, 6, 9, 12],
+                    }
+                },
+                letter_annotations={"phred_quality": [41, 40, 39, 38]},
+            )
+
+    trace = parse_ab1_bytes(b"synthetic-ab1", seqio_module=FakeSeqIO)
+
+    assert trace.sequence == "ACGT"
+    assert trace.base_calls == tuple("ACGT")
+    assert trace.q_scores == (41, 40, 39, 38)
+    assert trace.peak_locations == (3, 6, 9, 12)
+    assert [(channel.base, channel.values) for channel in trace.trace_channels] == [
+        ("A", (0.0, 1.0)),
+        ("T", (0.5, 1.0)),
+        ("C", (1.0, 1.0)),
+        ("G", (0.0, 1.0)),
+    ]
 
 
 def test_primer3_provider_maps_engine_output() -> None:
@@ -540,3 +778,23 @@ def test_workbench_service_uses_local_deterministic_crispr_provider_by_default()
     )
 
     assert isinstance(service.crispr_provider, LocalDeterministicCrisprProvider)
+
+
+def test_workbench_service_can_opt_into_crisprscore_r_provider() -> None:
+    service = WorkbenchDesignService(
+        settings=_settings(
+            crispr_provider=CRISPR_PROVIDER_CRISPRSCORE_R,
+            crispr_rscript_path=Path("C:/R/bin/Rscript.exe"),
+            crispr_ruleset3_conda_env=Path("C:/conda/envs/ruleset3"),
+            crispr_lindel_conda_env=Path("C:/conda/envs/lindel"),
+        )
+    )
+
+    assert isinstance(service.crispr_provider, CrisprScoreRBackedCrisprProvider)
+    fallback = service.crispr_provider.fallback_provider
+    assert isinstance(fallback.scoring_adapter, CrisprScoreRAdapter)
+    assert fallback.scoring_adapter.rscript_path == Path("C:/R/bin/Rscript.exe")
+    assert Path(fallback.scoring_adapter.rule_set3_conda_env or "") == Path(
+        "C:/conda/envs/ruleset3"
+    )
+    assert Path(fallback.scoring_adapter.lindel_conda_env or "") == Path("C:/conda/envs/lindel")
