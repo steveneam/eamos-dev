@@ -108,6 +108,85 @@ def test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets() -> N
     assert literature.articles[0].source_tags == ["litvar2", "pubmed"]
     assert literature.articles[0].snippets[0].matched_terms
     assert "c.260A>G" in literature.articles[0].snippets[0].matched_terms
+    assert literature.articles[0].snippet_status == "exact_variant_snippet"
+    assert literature.articles[1].snippet_status == "exact_variant_snippet"
+
+
+def test_ep_vlex_marks_pubmed_gene_only_rows_without_fabricating_snippets() -> None:
+    literature = EamosProprietaryVariantLiteratureExtractor().build_for_lookup(
+        _variant(),
+        {
+            "pubmed": {
+                "articles": [
+                    {
+                        "pmid": "37042101",
+                        "title": "Long-term outcomes of RPE65 gene therapy.",
+                        "authors": "Maguire AM et al.",
+                        "journal": "N Engl J Med",
+                        "year": "2023",
+                        "abstract": (
+                            "We report 5-year follow-up data from a phase 3 trial "
+                            "in patients with biallelic RPE65-associated retinal dystrophy."
+                        ),
+                    }
+                ]
+            },
+            "litvar2": {"articles": [{"pmid": "37042101", "title": ""}]},
+        },
+    )
+
+    article = literature.articles[0]
+    assert article.snippets == []
+    assert article.snippet_status == "gene_only_no_variant"
+
+
+def test_ep_vlex_marks_abstract_text_without_variant_or_gene() -> None:
+    literature = EamosProprietaryVariantLiteratureExtractor().build_for_lookup(
+        _variant(),
+        {
+            "pubmed": {
+                "articles": [
+                    {
+                        "pmid": "37042102",
+                        "title": "Long-term gene therapy outcomes.",
+                        "year": "2023",
+                        "abstract": (
+                            "The primary endpoint was multi-luminance mobility testing "
+                            "after bilateral subretinal injection."
+                        ),
+                    }
+                ]
+            }
+        },
+    )
+
+    article = literature.articles[0]
+    assert article.snippets == []
+    assert article.snippet_status == "abstract_only_no_variant"
+
+
+def test_ep_vlex_extracts_exact_variant_snippet_from_table_text() -> None:
+    literature = EamosProprietaryVariantLiteratureExtractor().build_for_lookup(
+        _variant(),
+        {
+            "pubmed": {
+                "articles": [
+                    {
+                        "pmid": "37042103",
+                        "title": "Functional variant table.",
+                        "year": "2023",
+                        "table_text": "Variant c.260A>G retained 12% of wild-type activity.",
+                    }
+                ]
+            }
+        },
+    )
+
+    snippet = literature.articles[0].snippets[0]
+    assert snippet.section == "table"
+    assert snippet.source == "pmc_bioc"
+    assert snippet.matched_terms == ["c.260A>G"]
+    assert literature.articles[0].snippet_status == "exact_variant_snippet"
 
 
 def test_ep_vlex_marks_litvar_only_rows_without_fabricating_snippets() -> None:

@@ -359,6 +359,12 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
         "total_without_year": 0,
     }
     assert payload["report_payload"]["publications_callout"]["total_count"] == 3
+    locus_context = payload["report_payload"]["locus_context"]
+    query_nearby_variant = next(
+        item for item in locus_context["nearby_variants"] if item["hgvs"] == "c.260A>G"
+    )
+    assert query_nearby_variant["clinvar_id"] == "1421454"
+    assert query_nearby_variant["classification"] == "vus"
     functional = payload["report_payload"]["functional_evidence"]
     assert functional["total_count"] == 1
     assert functional["source_breakdown"] == {"clingen": 0, "clinvar": 0, "pubmed": 1}
@@ -388,8 +394,7 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     assert section3["visual_groups"][0]["label"] == "Non-Finnish European genetic ancestry"
     assert section3["age_histograms"][0]["scope"] == "overall_release_samples"
     histograms_by_key = {
-        (hist["sequencing_type"], hist["series_kind"]): hist
-        for hist in section3["age_histograms"]
+        (hist["sequencing_type"], hist["series_kind"]): hist for hist in section3["age_histograms"]
     }
     assert set(histograms_by_key) == {
         ("exome", "variant_carriers"),
@@ -438,6 +443,13 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
         "35901234",
     ]
     assert payload["report_payload"]["pubmed_articles"][0]["snippets"][0]["matched_terms"]
+    assert [
+        article["snippet_status"] for article in payload["report_payload"]["pubmed_articles"]
+    ] == [
+        "exact_variant_snippet",
+        "gene_only_no_variant",
+        "exact_variant_snippet",
+    ]
     disease = payload["report_payload"]["report_profile"]["disease_mechanism"]
     assert disease["primary_condition"] == "Leber congenital amaurosis 2"
     assert disease["inheritance"] == "AR"
@@ -513,6 +525,10 @@ def test_lookup_publications_endpoint_pages_deduped_ep_vlex_rows(client) -> None
     assert payload["offset"] == 1
     assert payload["limit"] == 2
     assert [article["pmid"] for article in payload["articles"]] == ["37042101", "35901234"]
+    assert [article["snippet_status"] for article in payload["articles"]] == [
+        "gene_only_no_variant",
+        "exact_variant_snippet",
+    ]
     assert all(
         article["url"] == f"https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/"
         for article in payload["articles"]

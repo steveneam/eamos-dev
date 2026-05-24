@@ -124,6 +124,13 @@ class VariantLiteratureTerms:
         return cls(gene=gene, terms=tuple(terms), snippet_terms=tuple(snippet_terms))
 
 
+@dataclass(frozen=True)
+class _SnippetTextCandidate:
+    section: str
+    text: str
+    source: str
+
+
 @dataclass
 class _AggregatedArticle:
     pmid: str
@@ -234,16 +241,27 @@ def _normalize_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _term_pattern(term: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"(?<![A-Za-z0-9]){re.escape(term)}(?![A-Za-z0-9])",
+        flags=re.IGNORECASE,
+    )
+
+
+def _matched_terms(text: str, terms: list[str]) -> list[str]:
+    return [term for term in terms if _term_pattern(term).search(text)]
+
+
 def _sentence_with_term(text: str, terms: list[str]) -> tuple[str, list[str]] | None:
     normalized = _normalize_space(text)
     if not normalized:
         return None
     sentences = re.split(r"(?<=[.!?])\s+", normalized)
     for sentence in sentences:
-        found = [term for term in terms if term.lower() in sentence.lower()]
+        found = _matched_terms(sentence, terms)
         if found:
             return sentence[:320], found
-    found = [term for term in terms if term.lower() in normalized.lower()]
+    found = _matched_terms(normalized, terms)
     if found:
         return normalized[:320], found
     return None
@@ -258,6 +276,65 @@ def _snippet_confidence(term: str) -> str:
     return "variant_alias"
 
 
+def _text_values(value: Any) -> list[str]:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+    if isinstance(value, dict):
+        values: list[str] = []
+        for item in value.values():
+            values.extend(_text_values(item))
+        return values
+    if isinstance(value, (list, tuple, set)):
+        values = []
+        for item in value:
+            values.extend(_text_values(item))
+        return values
+    return []
+
+
+def _snippet_text_candidates(article: dict[str, Any]) -> list[_SnippetTextCandidate]:
+    candidates: list[_SnippetTextCandidate] = []
+    candidate_fields = (
+        ("title", "title", "pubmed_efetch"),
+        ("abstract", "abstract", "pubmed_efetch"),
+        ("pubtator", "abstract", "pubtator"),
+        ("pubtator_text", "abstract", "pubtator"),
+        ("pubtator_abstract", "abstract", "pubtator"),
+        ("body", "body", "pmc_bioc"),
+        ("full_text", "body", "pmc_bioc"),
+        ("pmc_text", "body", "pmc_bioc"),
+        ("table", "table", "pmc_bioc"),
+        ("tables", "table", "pmc_bioc"),
+        ("table_text", "table", "pmc_bioc"),
+        ("supplement", "supplement", "pmc_bioc"),
+        ("supplementary", "supplement", "pmc_bioc"),
+        ("supplementary_text", "supplement", "pmc_bioc"),
+        ("litvar2_snippet", "unknown", "litvar2"),
+        ("litvar_snippet", "unknown", "litvar2"),
+    )
+    seen: set[tuple[str, str, str]] = set()
+    for key, section, source in candidate_fields:
+        for text in _text_values(article.get(key)):
+            normalized = _normalize_space(text)
+            if not normalized:
+                continue
+            candidate_key = (section, source, normalized)
+            if candidate_key in seen:
+                continue
+            seen.add(candidate_key)
+            candidates.append(
+                _SnippetTextCandidate(section=section, source=source, text=normalized)
+            )
+    return candidates
+
+
+def _has_gene_context(candidates: list[_SnippetTextCandidate], gene: str) -> bool:
+    if not gene:
+        return False
+    return any(_term_pattern(gene).search(candidate.text) for candidate in candidates)
+
+
 class VariantMentionSnippetter:
     def extract(
         self,
@@ -265,28 +342,34 @@ class VariantMentionSnippetter:
         terms: VariantLiteratureTerms,
     ) -> tuple[list[PublicationSnippet], str | None]:
         searchable_terms = sorted(terms.snippet_terms, key=len, reverse=True)
-        for section in ("title", "abstract"):
-            text = str(article.get(section) or "")
-            match = _sentence_with_term(text, searchable_terms)
+        candidates = _snippet_text_candidates(article)
+        for candidate in candidates:
+            match = _sentence_with_term(candidate.text, searchable_terms)
             if match is None:
                 continue
             snippet, matched_terms = match
             confidence = _snippet_confidence(matched_terms[0])
             return [
                 PublicationSnippet(
-                    section=section,
+                    section=candidate.section,  # type: ignore[arg-type]
                     text=snippet,
                     matched_terms=matched_terms,
-                    source="pubmed_efetch",
+                    source=candidate.source,  # type: ignore[arg-type]
                     confidence=confidence,  # type: ignore[arg-type]
                 )
-            ], None
+            ], "exact_variant_snippet"
 
+        if _has_gene_context(candidates, terms.gene):
+            return [], "gene_only_no_variant"
+        if any(candidate.section == "abstract" for candidate in candidates):
+            return [], "abstract_only_no_variant"
         if "litvar2" in set(article.get("source_tags") or []):
             return [], "reported_in_litvar2_no_text"
         if "clinvar" in set(article.get("source_tags") or []):
             return [], "reported_in_clinvar_no_text"
-        return [], "no_variant_snippet"
+        if "pubmed" in set(article.get("source_tags") or []):
+            return [], "pubmed_no_text"
+        return [], "no_text_available"
 
 
 def _date_sort_key(article: PubMedArticle) -> tuple[int, int, int, str]:

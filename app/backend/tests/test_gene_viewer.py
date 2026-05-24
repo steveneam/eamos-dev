@@ -381,12 +381,16 @@ def test_fixture_provider_returns_valid_rpe65_reference_viewer_response() -> Non
     assert response.queried_variant.hgvs_c == "c.260A>G"
     assert response.queried_variant.ref == "A"
     assert response.queried_variant.alt == "G"
+    assert response.queried_variant.classification == "vus"
     assert response.sequences.allele_mode == "reference"
     assert (
         response.sequences.reference_window_sequence == response.sequences.display_window_sequence
     )
     assert response.sequences.reference_window_sequence[103] == "A"
     assert response.segments[2].exon_number == 4
+    query_track_variant = next(item for item in response.tracks.clinvar_variants if item.queried)
+    assert query_track_variant.clinvar_id == "VCV001421454"
+    assert query_track_variant.classification == "vus"
     assert response.tracks.protein_features.domains[0].label.startswith("Carotenoid oxygenase")
 
 

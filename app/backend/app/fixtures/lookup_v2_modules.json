@@ -11,7 +11,7 @@
           { "cds_pos": -24, "classification": "pathogenic", "hgvs": "c.247G>A", "clinvar_id": null, "protein_change": "p.Ala83Thr" },
           { "cds_pos": -16, "classification": "vus", "hgvs": "c.253T>C", "clinvar_id": null, "protein_change": null },
           { "cds_pos": -8, "classification": "likely_pathogenic", "hgvs": "c.257C>G", "clinvar_id": null, "protein_change": null },
-          { "cds_pos": 0, "classification": "likely_pathogenic", "hgvs": "c.260A>G", "clinvar_id": "1421454", "protein_change": "p.Asp87Gly" },
+          { "cds_pos": 0, "classification": "vus", "hgvs": "c.260A>G", "clinvar_id": "1421454", "protein_change": "p.Asp87Gly" },
           { "cds_pos": 8, "classification": "vus", "hgvs": "c.268A>G", "clinvar_id": null, "protein_change": null },
           { "cds_pos": 16, "classification": "likely_benign", "hgvs": "c.271G>A", "clinvar_id": null, "protein_change": null },
           { "cds_pos": 24, "classification": "pathogenic", "hgvs": "c.277C>T", "clinvar_id": null, "protein_change": "p.Arg93Cys" },
@@ -38,7 +38,7 @@
           { "name": "MetaLR", "score": 0.78, "threshold": 0.50, "verdict": "damaging", "verdict_label": "Deleterious", "source_url": null },
           { "name": "SpliceAI", "score": 0.05, "threshold": 0.20, "verdict": "tolerated", "verdict_label": "No splice impact", "source_url": "https://spliceailookup.broadinstitute.org" }
         ],
-        "consensus_note": "Predictors converge: protein-effect predictors cross their pathogenic thresholds (REVEL, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag \u2014 the in-silico signal is internally consistent with the ClinVar Likely Pathogenic call."
+        "consensus_note": "Predictors converge: protein-effect predictors cross their pathogenic thresholds (REVEL, MetaLR); SpliceAI sits well below the 0.20 splice-altering cutoff. No disagreement to flag \u2014 the in-silico signal is compatible with the ClinGen/VCEP Likely Pathogenic consensus while the ClinVar aggregate remains VUS."
       },
       "acmg_criteria_scaffold": {
         "criteria": [
@@ -72,7 +72,7 @@
           { "code": "BP7", "verdict": "not_met", "note": null }
         ],
         "intro": "An automated read of the standard ACMG/AMP criteria for this variant. This is supporting evidence, not a classification. Eamos does not issue ACMG classifications \u2014 clinical judgement, segregation, and functional data are required before a final call.",
-        "note": "Met criteria above provide moderate-to-supporting evidence consistent with the Likely Pathogenic ClinVar classification. The unmet criteria reflect evidence types that haven\u2019t been observed for this variant (e.g. functional studies, de novo observation) \u2014 they do not contradict pathogenicity.",
+        "note": "Met criteria above provide moderate-to-supporting evidence consistent with the ClinGen/VCEP Likely Pathogenic source assertion. ClinVar currently aggregates this variant as VUS; the unmet criteria reflect evidence types that have not been observed for this variant (e.g. functional studies, de novo observation) and do not themselves contradict the ClinGen consensus.",
         "disclaimer": "Supporting evidence, not classification."
       },
       "curated_variants_distribution": {

@@ -96,7 +96,7 @@
     "codon_offset": 1,
     "aa_ref": "D",
     "aa_alt": "G",
-    "classification": "likely_pathogenic"
+    "classification": "vus"
   },
   "sequences": {
     "allele_mode": "reference",
@@ -124,8 +124,8 @@
         "cds_pos": 260,
         "hgvs_c": "c.260A>G",
         "hgvs_p": "p.Asp87Gly",
-        "classification": "likely_pathogenic",
-        "clinvar_id": "VCV000099473",
+        "classification": "vus",
+        "clinvar_id": "VCV001421454",
         "queried": true
       },
       {
