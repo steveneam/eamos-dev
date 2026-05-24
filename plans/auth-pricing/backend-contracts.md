@@ -83,11 +83,12 @@ backend creates a hosted Stripe Checkout session:
 - `STRIPE_PRICE_PRO_MONTHLY`
 - `STRIPE_PRICE_MAX_MONTHLY`
 
-The old `starter` id and `yearly` billing interval are retired. Backend defaults
-success/cancel URLs to the primary domain:
+The old `starter` id and `yearly` billing interval are retired. While Eamos is
+in stealth mode, backend defaults use the Vercel dev frontend; `eamos.com.au` is
+parked and should not be treated as the live browser origin:
 
-- `https://eamos.com.au/checkout/success?session_id={CHECKOUT_SESSION_ID}`
-- `https://eamos.com.au/pricing`
+- `https://eamos-dev.vercel.app/checkout/success?session_id={CHECKOUT_SESSION_ID}`
+- `https://eamos-dev.vercel.app/checkout`
 
 `GET /api/v1/payments/plan`
 

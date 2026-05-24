@@ -68,9 +68,9 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = None
     stripe_webhook_tolerance_seconds: int = 300
     stripe_checkout_success_url: str = (
-        "https://eamos.com.au/checkout/success?session_id={CHECKOUT_SESSION_ID}"
+        "https://eamos-dev.vercel.app/checkout/success?session_id={CHECKOUT_SESSION_ID}"
     )
-    stripe_checkout_cancel_url: str = "https://eamos.com.au/pricing"
+    stripe_checkout_cancel_url: str = "https://eamos-dev.vercel.app/checkout"
     stripe_price_pro_monthly: str | None = None
     stripe_price_max_monthly: str | None = None
 

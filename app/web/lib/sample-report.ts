@@ -3,7 +3,7 @@ import rpe65Sample from './rpe65-sample.json'
 
 // Offline demo fixture for `/report` (bare) and `?demo=1`.
 //
-// Captured verbatim from a live RPE65 c.260A>G lookup on eamos-dev (2026-05-24)
+// Captured verbatim from a live RPE65 c.260A>G lookup on eamos-dev (2026-05-25)
 // so the offline demo mirrors real backend output exactly — same VUS call,
 // gnomAD "variant not found" state, call cards, and section ordering. The old
 // hand-curated sample drifted from reality (it showed Likely Pathogenic with
