@@ -1,5 +1,80 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 31 - 25 May 2026 - Publications quality, Workbench source-backed engines, and source-cache architecture
+
+Codex resumed the backend lane with Steven's guardrails: no `/runs`,
+AlphaMissense, destructive git, stash, reset, clean, push, or commit. The main
+lane was Publications backend quality; Workbench CRISPR/alignment work was
+delegated to focused subagents after the publications scope was understood.
+
+Completed:
+- EP-VLEx publication snippets now require exact variant-term matches before
+  emitting a variant snippet. Rows with no exact mention receive honest
+  statuses such as `gene_only_no_variant`, `abstract_only_no_variant`,
+  `reported_in_litvar2_no_text`, `reported_in_clinvar_no_text`,
+  `pubmed_no_text`, or `no_text_available` instead of frontend-invented text.
+- Publication extraction now scans title/abstract plus future PubTator/PMC,
+  full-text, table, and supplement-like fields when present. Lookup integration
+  tests assert the RPE65 status sequence and paginated status behavior.
+- Investigated the RPE65 ClinVar contradiction through NCBI E-utilities:
+  `RPE65 NM_000329.3:c.260A>G`, `p.Asp87Gly`, `D87G`,
+  `NC_000001.11:g.68444869T>C`, and `rs1645931040` resolve to variation
+  `1421454` / `VCV001421454` with VUS aggregate classification. `VCV000099473`
+  resolves to an ABCA4 nonsense variant, not RPE65. Backend RPE65 fixtures were
+  corrected to ClinVar VUS while preserving ClinGen/VCEP likely-pathogenic
+  source-assertion wording where applicable.
+- Added backend alignment/AB1 support behind the Workbench real-mode alignment
+  path: Biopython `SeqIO` ABI parsing in a shared `trace_parser.py`, trace
+  channels/Q-scores/base calls, and Biopython `PairwiseAligner` first with the
+  existing deterministic fallback. Added `biopython>=1.84,<2` to requirements.
+- Verified the user-provided AB1 folder by parsing
+  `SE01_1RPE65_BEN1_1_D04.ab1`: 604 base calls/Q-scores, four trace channels,
+  and 16,301 points per channel. The local aligner also consumed the AB1 trace
+  against the RPE65 fixture context.
+- Installed and verified the existing local R stack without needing RStudio:
+  `Rscript.exe` at `C:\Users\seamegdool\AppData\Local\Programs\R\R-4.3.1`.
+  `BiocManager`, `shiny` binary, `crisprScore` 1.6.0, and
+  `crisprScoreData` 1.6.0 now load under R 4.3.1 / Bioconductor 3.18.
+- Wired CRISPR provider config for explicit `CRISPR_RSCRIPT_PATH`,
+  `CRISPR_RULESET3_CONDA_ENV`, and `CRISPR_LINDEL_CONDA_ENV`. Local adapter
+  smoke against the RPE65 fixture returned source-backed CRISPRater plus MIT/CFD
+  where supported, with RuleSet3/Lindel correctly labeled unavailable without
+  conda envs.
+- Added `plans/source-cache-architecture.md` for the local database/webserver
+  architecture. It now includes stale-on-failure, backend-only Supabase RLS
+  posture for global `source_cache`, canonical source statuses, and future
+  additive freshness fields (`fetched_at`, `source_version`, `cache_status`).
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_publication_literature.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_variant_search_integration.py::test_lookup_publications_endpoint_pages_deduped_ep_vlex_rows tests/test_gene_viewer.py::test_fixture_provider_returns_valid_rpe65_reference_viewer_response tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_crispr_design.py tests/test_workbench_api.py -q`
+  -> passed (36 tests).
+- `cd app/backend && python -m pytest tests/test_health_api.py tests/test_variant_cache.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/core/config.py app/services/publication_literature.py app/services/crispr_design.py app/services/workbench_design.py app/services/trace_parser.py tests/test_publication_literature.py tests/test_variant_search_integration.py tests/test_gene_viewer.py tests/test_crispr_design.py tests/test_workbench_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/config.py app/services/publication_literature.py app/services/crispr_design.py app/services/workbench_design.py app/services/trace_parser.py tests/test_publication_literature.py tests/test_variant_search_integration.py tests/test_gene_viewer.py tests/test_crispr_design.py tests/test_workbench_api.py`
+  -> passed.
+- `cd app/frontend && npm run test -- src/lib/workbench/alignment-pairwise.test.ts src/lib/workbench/crispr-disclosure.test.ts src/lib/workbench/crispr-guide-map.test.ts src/lib/workbench/crispr-tide-sample.test.ts -- --run`
+  -> passed (26 tests).
+- Local FastAPI baseline boot passed on `http://127.0.0.1:8000`: `/healthz`
+  returned database ok, mock LLM, fixture APIs; fixture lookup returned
+  `RPE65:c.260A>G`.
+- `git diff --check` passed with CRLF working-copy warnings only.
+
+Notes:
+- No report contract shape changed in this session, so both `backend.ts` files
+  and `app/web/lib/rpe65-sample.json` did not need recapture for the publication
+  snippet/status work.
+- RStudio remains irrelevant to backend execution. If Steven installs a newer
+  R/RStudio for personal use, point `CRISPR_RSCRIPT_PATH` at that newer
+  `Rscript.exe` and install `crisprScore` in that R library.
+- Temporary local backend and Vite dev server processes were stopped before
+  handoff.
+- `app/web/lib/variant-search.ts` is untracked and appears to be pre-existing
+  web-lane/landing helper work; Codex left it untouched.
+
 ## Session 30 - 24 May 2026 - Workbench polish and landing live examples
 
 Codex handled Steven's explicit frontend role-swap request for the Workbench

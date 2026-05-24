@@ -23,6 +23,21 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
+Recent backend status notes (2026-05-25, Codex):
+- RP-PUB-2 EP-VLEx exact snippet/status quality is done. Exact variant snippets
+  now require exact variant-term text; non-exact rows expose honest
+  `snippet_status` values. RPE65 ClinVar fixture contradiction corrected to
+  VCV001421454/VUS; VCV000099473 is ABCA4, not RPE65.
+- WB-ENG-1 CRISPR/AB1 source-backed Workbench engines are in progress.
+  R/Bioconductor `crisprScore` adapter boundary plus configurable
+  `CRISPR_RSCRIPT_PATH`; Biopython AB1 parser + PairwiseAligner-first alignment
+  path verified against a real user AB1 file. RuleSet3/Lindel remain
+  conda-gated; deterministic fallback preserved.
+- DATA-1 source-cache/local evidence architecture is planned in
+  `plans/source-cache-architecture.md`: source-cache rows, stale-on-failure,
+  backend-only Supabase RLS posture, status vocabulary, freshness fields,
+  CRISPR score cache, and local gnomAD mini-store path.
+
 Codex session id (resumable): `019e26bf-c0db-7b03-aff3-a5303bac4eed`. Resume with `codex resume 019e26bf-c0db-7b03-aff3-a5303bac4eed`.
 
 ---

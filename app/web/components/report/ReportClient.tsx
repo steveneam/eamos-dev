@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
@@ -56,14 +56,10 @@ export function ReportClient() {
 
   const [state, setState] = useState<LoadState>({ kind: 'idle' })
   const [attempt, setAttempt] = useState(0)
-  // Focus-expand: grow the compact search to the EXACT available bar width (no
-  // overshoot, so the whole transition is visible → smooth), collapse on blur.
-  const navSearchRef = useRef<HTMLDivElement>(null)
-  const SEARCH_REST_WIDTH = 620
-  const [searchMaxW, setSearchMaxW] = useState(SEARCH_REST_WIDTH)
-  const expandNavSearch = () =>
-    setSearchMaxW(navSearchRef.current?.parentElement?.clientWidth ?? SEARCH_REST_WIDTH)
-  const collapseNavSearch = () => setSearchMaxW(SEARCH_REST_WIDTH)
+  // Focus-expand: the compact search grows from a narrower resting width to fill
+  // the bar when focused — on desktop AND mobile. Percentage width gives a smooth
+  // %→% transition (no px overshoot/snap) at any viewport.
+  const [searchFocused, setSearchFocused] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -213,16 +209,14 @@ export function ReportClient() {
         {/* Sticky nav (via TopNav). The compact search expands to fill the bar
             when focused and collapses back on blur — mirrors the landing nav. */}
         <div
-          ref={navSearchRef}
           className="mx-auto"
-          onFocus={expandNavSearch}
+          onFocus={() => setSearchFocused(true)}
           onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) collapseNavSearch()
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSearchFocused(false)
           }}
           style={{
-            width: '100%',
-            maxWidth: searchMaxW,
-            transition: 'max-width 460ms var(--ease-emphasized)',
+            width: searchFocused ? '100%' : '78%',
+            transition: 'width 460ms var(--ease-emphasized)',
           }}
         >
           <EamosSearch size="compact" tone="light" onSubmit={handleSearch} />
