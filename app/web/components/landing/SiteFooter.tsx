@@ -31,7 +31,7 @@ export function SiteFooter() {
             <FooterCol title="Product">
               <FooterLink href="#how">How it works</FooterLink>
               <FooterLink href="#features">Features</FooterLink>
-              <FooterLink href="/pricing">Pricing</FooterLink>
+              <FooterLink href="/#pricing">Pricing</FooterLink>
               <FooterLink href="#faq">FAQ</FooterLink>
             </FooterCol>
             <FooterCol title="More">

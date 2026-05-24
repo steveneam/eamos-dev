@@ -34,7 +34,7 @@ export function CheckoutClient() {
           <p className="mt-3 text-[14px]" style={{ color: 'var(--hero-ink-2)' }}>
             Pick a plan and we’ll bring you to checkout.
           </p>
-          <Link href="/pricing" className="mt-6 inline-flex" style={primaryLink}>
+          <Link href="/#pricing" className="mt-6 inline-flex" style={primaryLink}>
             View pricing
           </Link>
         </main>
@@ -62,7 +62,7 @@ export function CheckoutClient() {
       <PageHeader />
 
       <main className="mx-auto px-6 pb-28 pt-12" style={{ maxWidth: 1000 }}>
-        <Link href="/pricing" className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--hero-ink-2)', textDecoration: 'none' }}>
+        <Link href="/#pricing" className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--hero-ink-2)', textDecoration: 'none' }}>
           ← Back to plans
         </Link>
 

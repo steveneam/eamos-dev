@@ -16,7 +16,7 @@ export function PageHeader() {
         </Link>
         <div className="flex items-center gap-5">
           <Link href="/#features" style={navLink}>Features</Link>
-          <Link href="/pricing" style={navLink}>Pricing</Link>
+          <Link href="/#pricing" style={navLink}>Pricing</Link>
           <Link href="/#faq" style={navLink}>FAQ</Link>
           <AuthMenu tone="dark" />
         </div>

@@ -1,6 +1,7 @@
-// Pricing model for /pricing + /checkout. Amounts are AUD and GST-inclusive
-// (Australian consumer convention). SAMPLE pricing for the test deployment —
-// final tiers/amounts are a user decision (see plans/auth-pricing/requirements.md).
+// Pricing model for the landing #pricing section + /checkout. Amounts are AUD
+// and GST-inclusive (Australian consumer convention). SAMPLE pricing for the
+// test deployment — final tiers/amounts are a user decision (see
+// plans/auth-pricing/requirements.md).
 
 export type BillingCycle = 'monthly' | 'yearly'
 export type PlanId = 'free' | 'pro' | 'max'
@@ -69,7 +70,7 @@ export const PLANS: Plan[] = [
 ]
 
 // "Lab / Enterprise" is a contact-sales tier (no self-serve price/checkout), so
-// it lives outside PLANS and renders as a strip under the 3 cards.
+// it lives outside PLANS and renders in the "Team & Enterprise" toggle view.
 export const ENTERPRISE = {
   name: 'Lab / Enterprise',
   blurb: 'For diagnostic labs, teams and groups — per-seat licensing. Contact us for a quote.',
