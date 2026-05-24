@@ -370,3 +370,28 @@ after the fix.
 **Functional-card note:** not implemented in this task. It should be a separate
 functional-evidence extractor/count using functional tags/signals, not
 `PublicationLiterature.total_count`.
+
+## Task 7 - Publications-Over-Time Timeline - DONE 2026-05-24
+
+**Goal**
+
+Expose publication-count-per-year data for a frontend line graph in the
+Publication/Literature expansion box.
+
+**Implementation note:** added an additive
+`PublicationLiterature.publication_timeline` group with
+`publications_by_year: [{year, count}]` sorted ascending, `total_with_year`,
+and `total_without_year`. The aggregation runs over the full deduplicated
+EP-VLEx publication set before pagination, so the timeline is not limited to
+the initially shown rows. Fixture-mode RPE65 PubMed rows now carry
+deterministic `publication_date` values for 2022, 2023, and 2024. Both
+`backend.ts` mirrors and `test_frontend_contract.py` were updated together.
+
+**Verify**
+
+`cd app/backend && python -m pytest tests/test_publication_literature.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+
+`cd app/backend && python -m pytest tests/ -q`
+
+**Out of scope:** frontend line-graph rendering, gene-viewer conservation or
+ClinVar enrichment, `/runs`, and AlphaMissense.

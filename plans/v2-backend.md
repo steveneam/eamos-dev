@@ -17,6 +17,9 @@
 | BE-11 | LitVar2 + Publications accuracy | ✅ Done & live-verified (2026-05-16). PubMed broadened to gene + OR(cdna/protein/rsID) with gene-only fallback → **10 live articles**; LitVar2 queries the ClinVar-derived rsID + parses `pmids`/`pmids_count`; `publications_callout.total_count` falls back to merged-article count when LitVar2 legitimately returns 0. **Zero schema change** (40/40 holds). |
 | BE-12 | Search robustness / error contract | ✅ Done & live-verified (2026-05-16). Frozen `warnings` codes; never-raise graceful fallback (`live_fetch_failed:<Exc>`) confirmed live on transient gnomAD/SpliceAI timeouts. |
 | BE-13 | Persistent variant cache | ✅ Done & live-verified (2026-05-16). `variant_cache_repo.py`; **upsert guarded on successful genomic resolution** (no cache poisoning); cache-hit + `?refresh=true` bypass confirmed live. |
+| DEP-1 | Post-deployment backend contracts | ✅ Done (2026-05-24). Backend-only evidence-submission endpoint and Stripe payment/session/webhook contracts implemented with local persistence and focused/full backend verification. Contract details: `plans/auth-pricing/backend-contracts.md`. |
+| DEP-2 | Evidence submission Supabase write-through | ✅ Done (2026-05-24). Added additive `submission_payload jsonb` migration, env-configured Supabase PostgREST write-through for accepted evidence submissions, offline local fallback, and fake-based tests. |
+| RP-DEPTH-1 | Publications-over-time timeline | ✅ Done (2026-05-24). Added additive `PublicationLiterature.publication_timeline` with ascending per-year counts plus `total_with_year` / `total_without_year`, fixture dates, both `backend.ts` mirrors, contract canary coverage, and proprietary EP-VLEx docs. |
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 

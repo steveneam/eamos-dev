@@ -444,6 +444,17 @@ export interface PublicationSourceBreakdown {
   clingen: number
 }
 
+export interface PublicationYearCount {
+  year: number
+  count: number
+}
+
+export interface PublicationTimeline {
+  publications_by_year: PublicationYearCount[]
+  total_with_year: number
+  total_without_year: number
+}
+
 export interface PublicationLiterature {
   total_count: number
   shown_count: number
@@ -452,6 +463,7 @@ export interface PublicationLiterature {
   sort: string
   variant_terms: string[]
   source_breakdown: PublicationSourceBreakdown
+  publication_timeline: PublicationTimeline
   articles: PubMedArticle[]
   warnings: string[]
 }

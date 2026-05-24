@@ -349,6 +349,15 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     literature = payload["report_payload"]["publications_literature"]
     assert literature["total_count"] == 3
     assert literature["shown_count"] == 3
+    assert literature["publication_timeline"] == {
+        "publications_by_year": [
+            {"year": 2022, "count": 1},
+            {"year": 2023, "count": 1},
+            {"year": 2024, "count": 1},
+        ],
+        "total_with_year": 3,
+        "total_without_year": 0,
+    }
     assert payload["report_payload"]["publications_callout"]["total_count"] == 3
     functional = payload["report_payload"]["functional_evidence"]
     assert functional["total_count"] == 1

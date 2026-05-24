@@ -98,6 +98,12 @@ def test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets() -> N
     assert literature.source_breakdown.pubmed == 2
     assert literature.source_breakdown.litvar2 == 2
     assert literature.source_breakdown.clinvar == 1
+    assert [item.model_dump() for item in literature.publication_timeline.publications_by_year] == [
+        {"year": 2023, "count": 1},
+        {"year": 2024, "count": 1},
+    ]
+    assert literature.publication_timeline.total_with_year == 2
+    assert literature.publication_timeline.total_without_year == 1
     assert literature.articles[0].url == "https://pubmed.ncbi.nlm.nih.gov/38191234/"
     assert literature.articles[0].source_tags == ["litvar2", "pubmed"]
     assert literature.articles[0].snippets[0].matched_terms
@@ -114,6 +120,9 @@ def test_ep_vlex_marks_litvar_only_rows_without_fabricating_snippets() -> None:
     assert article.snippets == []
     assert article.snippet_status == "reported_in_litvar2_no_text"
     assert article.url == "https://pubmed.ncbi.nlm.nih.gov/12345678/"
+    assert literature.publication_timeline.publications_by_year == []
+    assert literature.publication_timeline.total_with_year == 0
+    assert literature.publication_timeline.total_without_year == 1
 
 
 def test_ep_vlex_skips_failed_live_source_fallback_fixture_rows() -> None:

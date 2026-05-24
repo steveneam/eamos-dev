@@ -110,6 +110,17 @@ class PublicationSourceBreakdown(BaseModel):
     clingen: int = 0
 
 
+class PublicationYearCount(BaseModel):
+    year: int
+    count: int
+
+
+class PublicationTimeline(BaseModel):
+    publications_by_year: list[PublicationYearCount] = Field(default_factory=list)
+    total_with_year: int = 0
+    total_without_year: int = 0
+
+
 class PublicationLiterature(BaseModel):
     total_count: int
     shown_count: int
@@ -118,6 +129,7 @@ class PublicationLiterature(BaseModel):
     sort: Literal["publication_date_desc"] = "publication_date_desc"
     variant_terms: list[str] = Field(default_factory=list)
     source_breakdown: PublicationSourceBreakdown = Field(default_factory=PublicationSourceBreakdown)
+    publication_timeline: PublicationTimeline = Field(default_factory=PublicationTimeline)
     articles: list[PubMedArticle] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 

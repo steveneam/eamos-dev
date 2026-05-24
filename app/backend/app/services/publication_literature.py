@@ -9,6 +9,8 @@ from app.schemas.run import (
     PublicationSnippet,
     PublicationSourceBreakdown,
     PublicationSourceTag,
+    PublicationTimeline,
+    PublicationYearCount,
     PubMedArticle,
 )
 
@@ -298,6 +300,33 @@ def _date_sort_key(article: PubMedArticle) -> tuple[int, int, int, str]:
     return (year, month, day, article.pmid)
 
 
+def _publication_year(article: PubMedArticle) -> int | None:
+    date_text = article.publication_date or article.year or ""
+    match = re.search(r"(\d{4})", date_text)
+    return int(match.group(1)) if match else None
+
+
+def _build_publication_timeline(articles: list[PubMedArticle]) -> PublicationTimeline:
+    counts_by_year: dict[int, int] = {}
+    total_without_year = 0
+    for article in articles:
+        year = _publication_year(article)
+        if year is None:
+            total_without_year += 1
+            continue
+        counts_by_year[year] = counts_by_year.get(year, 0) + 1
+
+    publications_by_year = [
+        PublicationYearCount(year=year, count=counts_by_year[year])
+        for year in sorted(counts_by_year)
+    ]
+    return PublicationTimeline(
+        publications_by_year=publications_by_year,
+        total_with_year=sum(counts_by_year.values()),
+        total_without_year=total_without_year,
+    )
+
+
 class EamosProprietaryVariantLiteratureExtractor:
     def __init__(
         self,
@@ -327,6 +356,7 @@ class EamosProprietaryVariantLiteratureExtractor:
         )
         articles = [self._article_from_aggregated(item, terms) for item in aggregated]
         articles.sort(key=_date_sort_key, reverse=True)
+        publication_timeline = _build_publication_timeline(articles)
         page = articles[bounded_offset : bounded_offset + bounded_limit]
         return PublicationLiterature(
             total_count=len(articles),
@@ -335,6 +365,7 @@ class EamosProprietaryVariantLiteratureExtractor:
             limit=bounded_limit,
             variant_terms=list(terms.terms),
             source_breakdown=breakdown,
+            publication_timeline=publication_timeline,
             articles=page,
             warnings=[],
         )

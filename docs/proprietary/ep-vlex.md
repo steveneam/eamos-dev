@@ -4,7 +4,7 @@ Status: Active backend prototype
 Type: Algorithm/service
 Owner: Codex backend
 Added: 2026-05-19 19:56 +1000 - Codex
-Last updated: 2026-05-23 18:00 +1000 - Codex
+Last updated: 2026-05-24 16:48 +1000 - Codex
 
 ## What It Does
 
@@ -12,7 +12,9 @@ EP-VLEx, the Eamos Proprietary Variant Literature Extractor, builds a
 variant-specific publication inventory for the Variant Evidence Report. It
 generates variant aliases, aggregates PMID candidates across sources,
 deduplicates publications, attaches source tags/snippets where available, and
-supports paginated expansion beyond the initial report rows.
+supports paginated expansion beyond the initial report rows. It also derives a
+publication timeline for the full deduplicated set so the report can show
+variant-publication volume over time without re-querying the source APIs.
 
 ## Why It Is Eamos-Original
 
@@ -25,6 +27,10 @@ The custom part is the orchestration and ranking layer:
 - Deduplicates PMIDs while preserving source breakdown.
 - Labels snippet provenance/status instead of fabricating text when only
   table, supplemental, or citation-only evidence is available.
+- Aggregates deduplicated publications by publication year into
+  `PublicationLiterature.publication_timeline.publications_by_year`, sorted
+  ascending and paired with `total_with_year` / `total_without_year` so missing
+  dates stay explicit.
 - Separates general publication inventory from functional-study counting.
 
 ## Source Of Truth
