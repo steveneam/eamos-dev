@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/Card'
+import { PublicationTimelineChart } from '@/components/report/PublicationTimelineChart'
 import type { PublicationSnippet, PubMedArticle, ReportPayload } from '@/lib/backend'
 
 interface PubMedSectionProps {
@@ -34,8 +35,12 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
     ? `Showing ${shownCount} of ${totalCount} publications`
     : `${articles.length} ${articles.length === 1 ? 'article' : 'articles'}`
 
+  const timeline = literature?.publication_timeline ?? null
+  const hasTimeline = timeline != null && (timeline.publications_by_year?.length ?? 0) > 0
+
   return (
     <Card number={number} title="Publication literature" meta={meta}>
+      {hasTimeline && timeline && <PublicationTimelineChart timeline={timeline} />}
       {articles.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
           No publication rows available for this lookup.
