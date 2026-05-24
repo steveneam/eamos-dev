@@ -73,7 +73,7 @@ export const PLANS: Plan[] = [
 export const ENTERPRISE = {
   name: 'Lab / Enterprise',
   blurb: 'For diagnostic labs, teams and groups — per-seat licensing. Contact us for a quote.',
-  contact: 'mailto:eamos.scientific@gmail.com',
+  contact: 'mailto:sales@eamos.com.au',
   features: [
     'Shared collaborative workspace',
     'Team-wide submission ledger',
