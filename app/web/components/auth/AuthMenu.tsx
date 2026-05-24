@@ -86,10 +86,16 @@ export function AuthMenu({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
             transition={{ duration: 0.18, ease: [0.3, 0, 0, 1] }}
             role="dialog"
             aria-label={open === 'account' ? 'Account menu' : 'Sign in or register'}
-            className="absolute right-0 z-[60] mt-2 origin-top-right"
+            // The auth panel anchors to the Register button, which on mobile sits
+            // left of the hamburger — so a button-anchored popover gets pushed
+            // off-centre. On mobile it becomes a viewport-centred sheet (12px
+            // gutters, below the 56px header); from sm+ it's the anchored popover.
+            className={
+              open === 'account'
+                ? 'absolute right-0 z-[60] mt-2 w-[220px] max-w-[calc(100vw-24px)] origin-top-right'
+                : 'fixed inset-x-3 top-16 z-[60] origin-top max-w-[calc(100vw-24px)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[360px] sm:origin-top-right'
+            }
             style={{
-              width: open === 'account' ? 220 : 360,
-              maxWidth: 'calc(100vw - 24px)',
               borderRadius: 16,
               background: 'rgba(5,26,19,0.92)',
               border: '0.5px solid var(--hero-line)',
