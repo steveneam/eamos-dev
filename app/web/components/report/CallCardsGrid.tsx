@@ -1,3 +1,4 @@
+import { CarouselDots } from '@/components/ui/CarouselDots'
 import type { ReportCallBadgeKind, ReportCallCard, ReportPayload } from '@/lib/backend'
 
 interface CallCardsGridProps {
@@ -44,7 +45,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
     <section aria-label="Variant evidence call cards" className="mb-4">
       {/* Mobile: horizontal swipe carousel (peek next card). sm: 2-up grid.
           lg+: all four across. */}
-      <div className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
+      <div id="call-cards-scroller" className="flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto pb-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:pb-0 lg:grid-cols-4">
         {cards.map((card) => {
           const navigates = cardCanNavigate(card)
           const badges = card.support_badges ?? []
@@ -169,12 +170,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
           )
         })}
       </div>
-      <p
-        className="mt-2 text-center sm:hidden"
-        style={{ fontSize: 10.5, color: 'var(--ink-4)' }}
-      >
-        Swipe for more →
-      </p>
+      <CarouselDots containerId="call-cards-scroller" tone="light" className="mt-3 sm:hidden" />
     </section>
   )
 }

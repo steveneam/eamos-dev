@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Reveal } from '@/components/landing/Reveal'
+import { CarouselDots } from '@/components/ui/CarouselDots'
 import { PLANS, ENTERPRISE, formatAud, type Plan } from '@/lib/plans'
 
 type Audience = 'individual' | 'team'
@@ -39,7 +40,7 @@ export function Pricing() {
           <>
             {/* Mobile: edge-to-edge horizontal swipe carousel (peek next card).
                 md+: 3-column grid. */}
-            <div className="mt-12 -mx-8 flex snap-x snap-mandatory items-stretch gap-4 overflow-x-auto px-8 pb-4 md:mx-0 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
+            <div id="pricing-scroller" className="mt-12 -mx-8 flex snap-x snap-mandatory items-stretch gap-4 overflow-x-auto px-8 pb-4 md:mx-0 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
               {PLANS.map((tier, i) => (
                 <Reveal
                   key={tier.id}
@@ -50,9 +51,7 @@ export function Pricing() {
                 </Reveal>
               ))}
             </div>
-            <p className="mt-4 text-center text-[11px] md:hidden" style={{ color: 'var(--hero-ink-3)' }}>
-              Swipe to compare plans →
-            </p>
+            <CarouselDots containerId="pricing-scroller" tone="dark" className="mt-5 md:hidden" />
           </>
         ) : (
           <Reveal className="mt-12 block">
