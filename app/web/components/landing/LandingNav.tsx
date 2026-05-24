@@ -73,7 +73,7 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     })
 
-  const sideTransition = 'max-width var(--dur-3) var(--ease-emphasized), opacity var(--dur-2) var(--ease-standard)'
+  const sideTransition = 'max-width 460ms var(--ease-emphasized), opacity 300ms var(--ease-standard)'
 
   return (
     <div ref={root} className="sticky top-0 z-50">
@@ -178,7 +178,7 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
               maxWidth: expanded ? 1180 : 400,
               marginLeft: 'auto',
               marginRight: 'auto',
-              transition: 'max-width var(--dur-3) var(--ease-emphasized)',
+              transition: 'max-width 460ms var(--ease-emphasized)',
             }}
           >
             <EamosSearch size="compact" onSubmit={onSubmit} />
