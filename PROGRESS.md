@@ -1,5 +1,45 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 22 - 24 May 2026 - Per-gene transcript model fixture hydration
+
+Codex first verified `HEAD` and `origin/checkpoint/v2-batches-2026-05-17`
+were both at Claude's deploy-prep commit `ad94d5a`, then committed and pushed
+the prior gnomAD/ClinVar stack as `084221e` (`test(report): add gene-agnostic
+ClinVar stack`).
+
+Codex then implemented the backend fixture/demo hydration follow-up for
+gene-context snapshots and the gene viewer. Added
+`app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`, a
+source-backed offline transcript-model fixture generated from Ensembl REST for
+one reference-validated coding SNV from each ClinVar stack gene (`ABCA4`, `APC`,
+`BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`, `MLH1`, `PAH`, `TP53`). The fixture
+carries real per-gene coding exon/intron coordinates, transcript metadata,
+ClinVar accession/source URLs, genomic projections, and Ensembl sequence for
+the selected transcripts.
+
+`GeneViewerFixtureProvider` now returns curated non-RPE65 viewer payloads in
+fixture mode for those records, including window segments, variant projection,
+ClinVar queried marker, and provenance. `GeneContextSnapshotService` now uses
+the same fixture bundle to populate non-RPE65 `gene_context_snapshot` exon and
+intron rows instead of returning empty snapshots. RPE65 keeps its existing
+explicit fixture-scaffold warning; unsupported/non-curated variants still
+return missing/unavailable state rather than borrowing RPE65 facts.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py`
+  -> passed.
+
+Coordination:
+- No `/runs`, AlphaMissense, deploy files, `backend.ts`, or `globals.css` work.
+- The previous ClinVar stack was test/data only; this session is the first
+  fixture/demo path that actually populates non-RPE65 transcript models.
+
 ## Session 21 - 24 May 2026 - gnomAD map guardrails and ClinVar gene-agnostic stack
 
 Codex completed the follow-up hardening requested after `8552ac8`. The gnomAD

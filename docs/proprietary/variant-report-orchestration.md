@@ -4,7 +4,7 @@ Status: Active first-slice backend prototype
 Type: Orchestration layer
 Owner: Codex
 Added: 2026-05-23 12:10 +1000 - Codex
-Last updated: 2026-05-24 00:00 +1000 - Codex
+Last updated: 2026-05-24 13:08 +1000 - Codex
 
 ## What It Does
 
@@ -84,12 +84,13 @@ making the frontend infer clinical or source hierarchy from raw tool summaries.
   `VariantReportProfile.gene_context_snapshot`. It reuses the source-backed
   gene-viewer zoom window/segments/sequences and adds full transcript
   exon/intron rows, variant projection, render hints, provenance, and Workbench
-  deep-link data. RPE65 fixture mode is explicitly warning-labelled; non-RPE65
-  fixture lookups return unavailable state rather than importing the RPE65
-  scaffold.
+  deep-link data. RPE65 fixture mode is explicitly warning-labelled; curated
+  non-RPE65 ClinVar-stack fixture/demo cases now populate Ensembl-derived
+  per-gene transcript models.
 - Fixture/fallback adapters now guard their outputs by variant or gene identity
   so non-RPE65 lookups degrade to unavailable/empty sections instead of
-  inheriting the single RPE65 source snapshot.
+  inheriting the single RPE65 source snapshot. Unsupported or non-curated
+  non-RPE65 viewer/snapshot cases still degrade to unavailable state.
 - ACMG worksheet rationales are sanitized for raw population-frequency metrics,
   and call-card PM2/BA1/BS1 badges come only from source-asserted or explicit
   Eamos-hint rows, not direct AF/AC/popmax threshold derivation.

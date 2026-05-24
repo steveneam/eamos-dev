@@ -16,6 +16,13 @@ STACK_PATH = (
     / "tools"
     / "clinvar_gene_agnostic_report_stack.json"
 )
+TRANSCRIPT_MODEL_FIXTURE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "fixtures"
+    / "workbench"
+    / "gene_viewer_transcript_models.json"
+)
 
 CATEGORY_SIGNIFICANCE = {
     "pathogenic_lp": {
@@ -46,6 +53,10 @@ def _stack() -> dict:
 
 def _variants(stack: dict) -> list[dict]:
     return [variant for gene_entry in stack["stack_genes"] for variant in gene_entry["variants"]]
+
+
+def _transcript_model_records() -> list[dict]:
+    return json.loads(TRANSCRIPT_MODEL_FIXTURE_PATH.read_text(encoding="utf-8"))["records"]
 
 
 def test_clinvar_gene_agnostic_stack_has_requested_shape() -> None:
@@ -135,6 +146,55 @@ def test_clinvar_stack_report_queries_degrade_without_rpe65_bleed(
     profile = payload["report_profile"]
     assert profile["header"]["gene"] == variant["gene"]
     assert profile["header"]["cdna"] == variant["cdna"]
+
+    serialized = json.dumps(payload)
+    for forbidden in (
+        "Leber congenital amaurosis 2",
+        "1-68444869-T-C",
+        "VCV001421454",
+        "p.Asp87Gly",
+    ):
+        assert forbidden not in serialized
+
+
+@pytest.mark.parametrize(
+    "record",
+    _transcript_model_records(),
+    ids=[record["gene"] for record in _transcript_model_records()],
+)
+def test_clinvar_stack_representatives_hydrate_transcript_model_snapshots(
+    client,
+    record: dict,
+) -> None:
+    response = client.post(
+        "/api/v1/lookup",
+        json={
+            "gene": record["gene"],
+            "cdna": record["cdna"],
+            "transcript": record["transcript"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["report_payload"]
+    profile = payload["report_profile"]
+    snapshot = profile["gene_context_snapshot"]
+
+    assert profile["header"]["gene"] == record["gene"]
+    assert profile["header"]["cdna"] == record["cdna"]
+    assert snapshot["source_status"] == "fixture"
+    assert snapshot["gene"] == record["gene"]
+    assert snapshot["transcript"] == record["transcript"]
+    assert len(snapshot["exons"]) == len(record["exons"])
+    assert len(snapshot["introns"]) == len(record["introns"])
+    assert snapshot["variant"]["hgvs_c"] == record["cdna"]
+    assert snapshot["variant"]["membership"] == "exon"
+    assert snapshot["variant"]["genomic_hg38"] == record["variant"]["genomic_hg38"]
+    assert snapshot["zoom_segments"]
+    assert snapshot["zoom_sequences"]["reference_window_sequence"]
+    assert snapshot["workbench_link"]["url"].startswith(f"/workbench?gene={record['gene']}&")
+    assert "transcript_model_from_ensembl_rest_fixture" in snapshot["warnings"]
+    assert "transcript_model_from_rpe65_fixture_scaffold" not in snapshot["warnings"]
 
     serialized = json.dumps(payload)
     for forbidden in (

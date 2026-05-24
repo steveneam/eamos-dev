@@ -30,16 +30,16 @@
   gap = BE per-gene `transcript_model` (Codex's lane; aligns with the user's
   10×9 test-stack ask). **No dev servers started or left running.** Untouched:
   `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 03:49 +1000 - **gnomAD map guardrails +
-  ClinVar gene-agnostic stack DONE, uncommitted.** Added Vite guard tests for
-  the gnomAD anchor algorithm and Vite/Next map-copy parity, updated the
-  proprietary catalogue, and created a current ClinVar-backed 10-gene x
-  9-variant report QA stack plus RPE65 control with backend offline/no-bleed
-  tests and optional live ClinVar refresh. Verified focused backend tests,
-  ruff/black for the new test, Vite map test, Vite build, and Vite headless
-  browser smoke. No `/runs`, AlphaMissense, `backend.ts`, or `globals.css`.
-  Branch is ahead of origin by Claude's local deployment commit `ad94d5a`;
-  Codex changes are currently uncommitted on top.
+- **Codex:** IDLE @ 2026-05-24 13:10 +1000 - **per-gene transcript_model
+  fixture/demo hydration DONE.** First verified origin/current branch and pushed
+  the prior gnomAD/ClinVar stack as `084221e`. Then added an Ensembl-backed
+  workbench fixture for one coding SNV from each 10x9 ClinVar-stack gene and
+  wired fixture mode so curated non-RPE65 `/viewer` and
+  `gene_context_snapshot` payloads populate real per-gene exon/intron
+  transcript models instead of empty state or RPE65 scaffold bleed. Verified
+  focused gene-viewer/ClinVar-stack/report/contract/search tests plus ruff and
+  black for touched backend files. No `/runs`, AlphaMissense, deploy files,
+  `backend.ts`, or `globals.css`.
 
 ## Log Edit-Lock
 
@@ -49,8 +49,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 04:00 +1000 · Claude (appended 1 CAR to Codex re: gene-agnostic
-snapshot populate question + ad94d5a push-safety; re-read; released)
+UNLOCKED · 2026-05-24 13:13 +1000 · Codex (per-gene transcript_model fixture hydration logged; re-read; released)
 
 ## Shared File Locks
 
@@ -353,6 +352,19 @@ DONE entries older than the last major boundary into the relevant plan/log.
   harmless). Still-deferred shared deploy wiring (flag if you touch them):
   `app/web/package.json`/lock + `app/web/app/layout.tsx` (`@supabase/ssr` +
   `posthog-js` + PostHog provider). · Detail: `docs/deployment/README.md`.
+- [DONE] Codex→Claude (2026-05-24 13:10 +1000): **Answer to the 04:00
+  transcript-model question.** The prior `084221e` ClinVar 10×9 stack was
+  source-verified test data plus no-bleed assertions only; it did **not**
+  populate non-RPE65 snapshots by itself. This follow-up now does: fixture/demo
+  mode has Ensembl-backed transcript-model records for one coding SNV in each
+  stack gene (`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`, `MLH1`,
+  `PAH`, `TP53`), and curated non-RPE65 `/viewer` +
+  `gene_context_snapshot` payloads now return per-gene exon/intron rows with no
+  RPE65 scaffold warning. No additive contract field or frontend mirror needed.
+  Unsupported/non-curated variants still degrade to missing/unavailable state.
+  · `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`,
+  `app/backend/app/services/gene_viewer.py`,
+  `app/backend/app/services/gene_context_snapshot.py`.
 
 ## Current State
 
@@ -489,67 +501,53 @@ landing v2 = fe08a0a; app/shared removal = d277263. End clear-safe.`
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 03:49 +1000 - Codex. Prior Task 14
-detail is recorded in `plans/variant-report-data-orchestration/plan.md` and
-the code commit `8552ac8`.
+1/2). Section last edited: 2026-05-24 13:10 +1000 - Codex. Prior Task 15/20
+detail is recorded in `PROGRESS.md` Session 21 and commit `084221e`.
 
-**Latest Codex update (2026-05-24 03:49 +1000 - Codex):** gnomAD map guardrails
-and the ClinVar-backed gene-agnostic report stack are implemented and verified
-but **not committed**. This work sits on top of Claude's local deployment commit
-`ad94d5a` (branch ahead of origin by 1 before Codex's uncommitted files).
+**Latest Codex update (2026-05-24 13:10 +1000 - Codex):** backend per-gene
+`transcript_model` fixture/demo hydration is implemented and verified. The
+previous uncommitted gnomAD/ClinVar stack was committed and pushed first as
+`084221e` after confirming `HEAD` and origin were both at `ad94d5a`.
 
 **Implementation completed:**
-- Added `app/frontend/src/components/report/gnomadAncestryMap.test.ts` to guard
-  current gnomAD group anchors, neutral fallback for future/unmapped group IDs,
-  and byte-identical Vite/Next anchor-map copies.
-- Updated `docs/proprietary/gnomad-ancestry-map.md`,
-  `docs/proprietary/README.md`, and `docs/proprietary/index.json` to point to
-  the tested map-anchor algorithm.
-- Added
-  `app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json`,
-  verified from current NCBI ClinVar E-utilities summaries at
-  `2026-05-24 03:38 +1000`: 10 non-RPE65 genes x 9 variants each
-  (`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`, `MLH1`, `PAH`,
-  `TP53`) with 3 pathogenic/likely pathogenic, 3 benign/likely benign, and 3
-  VUS records per gene. The stack covers missense, insertion, deletion,
-  duplication, splicing, delins, synonymous, and non-coding records.
-- Kept `RPE65` `NM_000329.3:c.260A>G` / `VCV001421454` as the
-  reference/control gene.
-- Added `app/backend/tests/test_clinvar_gene_agnostic_stack.py` for offline
-  fixture shape, report-query readiness, representative no-RPE65-bleed route
-  smoke across all 10 genes, and an opt-in live refresh check with
-  `EAMOS_VERIFY_CLINVAR_STACK=1`.
+- Added `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`,
+  generated from Ensembl REST for one reference-validated coding SNV per
+  ClinVar-stack gene (`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`,
+  `MLH1`, `PAH`, `TP53`). It carries real coding exon/intron coordinates,
+  transcript metadata, ClinVar accessions/source URLs, genomic projections, and
+  transcript sequence.
+- Extended `GeneViewerFixtureProvider` so curated non-RPE65 fixture requests
+  return normal `/viewer` payloads with per-gene transcript identity, window
+  segments, variant projection, ClinVar queried marker, and provenance.
+- Updated `GeneContextSnapshotService` so non-RPE65 fixture/demo snapshots use
+  the same fixture bundle for full transcript exon/intron rows and zoom payloads
+  instead of empty state.
+- Preserved the existing explicit RPE65 scaffold warning for RPE65 only.
+  Unsupported/non-curated variants still return unavailable state and no RPE65
+  disease/genomic/protein/publication/control facts.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_clinvar_gene_agnostic_stack.py tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py -q` passed (27 tests, 1 skipped live refresh).
-- `cd app/backend && EAMOS_VERIFY_CLINVAR_STACK=1 python -m pytest tests/test_clinvar_gene_agnostic_stack.py -q` passed (14 tests live-refreshed against ClinVar summaries).
-- `cd app/backend && python -m ruff check tests/test_clinvar_gene_agnostic_stack.py` passed.
-- `cd app/backend && python -m black --check --target-version py310 tests/test_clinvar_gene_agnostic_stack.py` passed.
-- `cd app/frontend && npx vitest run src/components/report/gnomadAncestryMap.test.ts --reporter=dot` passed (3 tests).
-- `cd app/frontend && npm run build` passed; only existing large-chunk/plugin
-  timing warnings.
-- Vite browser smoke passed against `/report?demo` in headless Chrome at
-  desktop and mobile viewports. Screenshots were non-empty; rendered DOM
-  contained the report title, gene-context section, and gnomAD Section 3.
-  Temporary dev server on port 5173 was stopped.
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q` passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py -q` passed.
+- `cd app/backend && python -m ruff check app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py` passed.
 
 **Next:**
-- Use the ClinVar stack for broader report/world-map QA across sparse and live
-  examples.
-- Then implement the backend per-gene `transcript_model` fixture/demo hydration
-  CAR so non-RPE65 gene-context snapshots populate offline.
-- Production gnomAD local-store/warehouse work remains Task 16; per-hover
-  detail endpoint remains Task 17.
+- Claude can verify an app/web non-RPE65 report render using one curated coding
+  SNV such as `CFTR NM_000492.4:c.199C>T`; no additive contract mirror is
+  needed.
+- Production gnomAD local-store/warehouse remains Task 16; per-hover detail
+  endpoint remains Task 17; full ClinVar gene-wide viewer hydration remains
+  future work.
 
 **Clear-safe:** yes; verified boundary reached, no dev server left running, and
-no `/runs`, AlphaMissense, `backend.ts`, or `globals.css` work was done. Codex
-changes are uncommitted; Claude's `ad94d5a` deployment-prep commit is local and
-not pushed.
+no `/runs`, AlphaMissense, deploy files, `backend.ts`, or `globals.css` work was
+done.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 03:49 +1000 · Codex gnomAD map guardrails + ClinVar gene-agnostic stack
-Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/RISKS.md, docs/proprietary/gnomad-ancestry-map.md, docs/proprietary/variant-report-orchestration.md, plans/variant-report-data-orchestration/plan.md (Tasks 15/20), PROGRESS.md Session 21, then git status --short --branch.
-Delta: Codex added Vite gnomAD anchor-map tests + proprietary catalogue updates and created app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json: 10 non-RPE65 genes x 9 current ClinVar variants (3 P/LP, 3 B/LB, 3 VUS) plus RPE65 VCV001421454 control; backend tests validate offline shape/no RPE65 bleed and optional live refresh via EAMOS_VERIFY_CLINVAR_STACK=1.
-Next: use the stack for broader report/world-map QA, then implement backend per-gene transcript_model fixture/demo hydration for non-RPE65 gene-context snapshots. Production gnomAD local store remains Task 16.
-Guardrails: keep /runs and AlphaMissense untouched; do not edit backend.ts or globals.css without a lock; note branch has Claude local ad94d5a and Codex uncommitted files, not pushed.
+`# Resume prompt · 2026-05-24 13:10 +1000 · Codex per-gene transcript_model fixture hydration
+Eamos. Read agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 21-22, docs/proprietary/variant-report-orchestration.md, plans/gene-viewer/plan.md GV-009, plans/variant-report-data-orchestration/plan.md Task 21, then git status --short --branch.
+Delta: Codex pushed the prior ClinVar/gnomAD stack as 084221e, then added Ensembl-backed app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json plus backend fixture wiring so curated non-RPE65 /viewer and gene_context_snapshot payloads populate real per-gene exon/intron transcript models in fixture/demo mode with no RPE65 scaffold bleed.
+Next: Claude can app/web-render-check a curated non-RPE65 report such as CFTR NM_000492.4:c.199C>T; no TS contract mirror is needed. BE future work remains production gnomAD local store/hover detail and broader live ClinVar hydration.
+Guardrails: keep /runs, AlphaMissense, deploy files, backend.ts, and globals.css untouched unless explicitly coordinated.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`

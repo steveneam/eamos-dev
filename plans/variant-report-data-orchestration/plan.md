@@ -2,8 +2,8 @@
 
 Source: `plans/variant-report-data-orchestration/spec.md`
 
-Status: In progress - Tasks 1-8 implemented and verified; Task 9 parser/helper slice complete; Task 11A gene-agnostic hardening + Task 12 Section 3 gnomAD expansion implemented and verified; Task 13 gene-context snapshot contract implemented and verified; Task 14 static snapshot UI, Task 15 gnomAD map guardrails, and Task 20 ClinVar gene-agnostic stack implemented and verified; Tasks 16-19 remain planned for production gnomAD, ClinicalTrials.gov hardening, and final UI QA
-Last updated: 2026-05-24 03:48 +1000 - Codex
+Status: In progress - Tasks 1-8 implemented and verified; Task 9 parser/helper slice complete; Task 11A gene-agnostic hardening + Task 12 Section 3 gnomAD expansion implemented and verified; Task 13 gene-context snapshot contract implemented and verified; Task 14 static snapshot UI, Task 15 gnomAD map guardrails, Task 20 ClinVar gene-agnostic stack, and Task 21 per-gene transcript-model fixture hydration implemented and verified; Tasks 16-19 remain planned for production gnomAD, ClinicalTrials.gov hardening, and final UI QA
+Last updated: 2026-05-24 13:08 +1000 - Codex
 
 Shared decisions:
 
@@ -1312,6 +1312,69 @@ EAMOS_VERIFY_CLINVAR_STACK=1 python -m pytest tests/test_clinvar_gene_agnostic_s
 
 Per-gene transcript-model hydration, local gnomAD warehouse, `/runs`,
 AlphaMissense, and frontend contract changes.
+
+## Task 21 - Per-Gene Transcript Model Fixture Hydration - DONE 2026-05-24 13:08 +1000 - Codex
+
+**Goal**
+
+Populate non-RPE65 `gene_context_snapshot` and gene viewer payloads with real
+per-gene exon/intron transcript models in fixture/demo mode.
+
+**Context**
+
+Task 20 created the ClinVar-backed 10x9 test stack, but it did not make
+non-RPE65 report snapshots populate transcript structure. The frontend render
+was already gene-agnostic and guarded against RPE65 bleed; the backend fixture
+path needed curated per-gene transcript models so demo/offline reports render
+actual exons/introns instead of empty state.
+
+**Relevant Files Or References**
+
+- `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
+- `app/backend/app/services/gene_viewer.py`
+- `app/backend/app/services/gene_context_snapshot.py`
+- `app/backend/tests/test_gene_viewer.py`
+- `app/backend/tests/test_clinvar_gene_agnostic_stack.py`
+- `app/backend/tests/test_variant_report_orchestration.py`
+
+**Implementation note:** Added an Ensembl-backed workbench fixture with one
+reference-validated coding SNV from each ClinVar stack gene (`ABCA4`, `APC`,
+`BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`, `MLH1`, `PAH`, `TP53`). The fixture
+carries real coding exon/intron coordinates, source transcript metadata,
+ClinVar accessions/source URLs, genomic projections, and transcript sequence.
+`GeneViewerFixtureProvider` now builds curated non-RPE65 viewer responses from
+that fixture; `GeneContextSnapshotService` reuses the same bundle to populate
+static report snapshots with per-gene exon/intron rows. RPE65 keeps its
+existing explicit scaffold warning, and unsupported/non-curated variants still
+return unavailable state rather than borrowing RPE65 data.
+
+**Acceptance Criteria**
+
+- Curated non-RPE65 fixture viewer requests return source-labelled per-gene
+  transcript identity, window segments, and variant projection.
+- Curated non-RPE65 report lookups populate `gene_context_snapshot.exons` and
+  `introns` from the matching gene/transcript.
+- RPE65 scaffold warnings never appear on non-RPE65 curated fixtures.
+- Non-curated or unsupported inputs still degrade to missing/unavailable state
+  without RPE65 disease, genomic, protein, publication, or ClinVar-control
+  facts.
+- `/runs`, AlphaMissense, deploy files, `backend.ts`, and `globals.css` remain
+  untouched.
+
+**Verified 2026-05-24 13:08 +1000 - Codex:**
+
+```bash
+cd app/backend
+python -m pytest tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q
+python -m pytest tests/test_variant_search_integration.py -q
+python -m ruff check app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py
+python -m black --check --target-version py310 app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py
+```
+
+**Out Of Scope**
+
+Full ClinVar gene-wide hydration, protein-domain enrichment for all curated
+fixtures, local gnomAD warehouse, `/runs`, AlphaMissense, and frontend changes.
 
 ## Task 16 - gnomAD Local Data Access Prototype - PLANNED 2026-05-23 23:27 +1000 - Codex
 

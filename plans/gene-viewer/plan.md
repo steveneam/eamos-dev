@@ -1,6 +1,6 @@
 # Gene Viewer Implementation Plan
 
-Section edited: 2026-05-18 15:18 +1000 - Codex.
+Section edited: 2026-05-24 13:08 +1000 - Codex.
 
 ## Shared Decisions Before Work Starts
 
@@ -444,3 +444,55 @@ Verification completed:
 Out of scope: frontend protein-view/lollipop implementation, live ClinVar
 gene-wide variant hydration, cohort/frequency-sized lollipops, UniProt/Pfam/CDD
 cross-source reconciliation, and downstream tool sequence-basis changes.
+
+## Task GV-009 - Curated Non-RPE65 Fixture Transcript Models
+
+Status: DONE 2026-05-24 13:08 +1000 - Codex. Fixture/demo mode now hydrates
+curated non-RPE65 gene viewer and report snapshot payloads from real Ensembl
+transcript models instead of returning empty snapshots or borrowing RPE65.
+
+Goal: make offline/demo gene viewer and `gene_context_snapshot` payloads
+populate per-gene exon/intron transcript models for representative non-RPE65
+variants.
+
+Context: Task GV-008 proved the live RPE65 source-backed path. The report
+snapshot contract later guarded against RPE65 bleed by returning missing state
+for non-RPE65 fixture lookups, but the frontend needed populated non-RPE65
+transcript models in fixture/demo mode to render the static full-transcript and
+zoomed-neighborhood views.
+
+Relevant files:
+
+- `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
+- `app/backend/app/services/gene_viewer.py`
+- `app/backend/app/services/gene_context_snapshot.py`
+- `app/backend/tests/test_gene_viewer.py`
+- `app/backend/tests/test_clinvar_gene_agnostic_stack.py`
+
+Implementation:
+
+- Added a curated workbench fixture generated from Ensembl REST transcript
+  lookup/sequence data for one reference-validated coding SNV from each
+  ClinVar-stack gene (`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`,
+  `MLH1`, `PAH`, `TP53`).
+- Extended `GeneViewerFixtureProvider` to build normal viewer payloads for
+  those curated non-RPE65 records, including transcript identity, exon/intron
+  window segments, variant projection, ClinVar queried marker, and provenance.
+- Updated `GeneContextSnapshotService` so non-RPE65 fixture snapshots use the
+  same source bundle for full transcript exon/intron rows and zoom payloads.
+- Preserved the existing explicit RPE65 scaffold warning for RPE65 only;
+  unsupported/non-curated variants still return unavailable state.
+
+Verify:
+
+```powershell
+cd app/backend
+python -m pytest tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q
+python -m pytest tests/test_variant_search_integration.py -q
+python -m ruff check app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py
+python -m black --check --target-version py310 app/services/gene_viewer.py app/services/gene_context_snapshot.py tests/test_gene_viewer.py tests/test_clinvar_gene_agnostic_stack.py
+```
+
+Out of scope: full ClinVar gene-wide hydration, per-protein domain enrichment
+for every curated fixture, and downstream primer/CRISPR/alignment sequence-basis
+changes.

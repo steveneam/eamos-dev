@@ -407,6 +407,34 @@ def test_fixture_provider_applies_variant_mode_to_offline_rpe65_fixture() -> Non
     assert response.sequences.applied_variant.sequence_offset == 103
 
 
+def test_fixture_provider_returns_curated_non_rpe65_transcript_viewer_response() -> None:
+    response = GeneViewerFixtureProvider().viewer(
+        GeneViewerRequest(
+            gene="CFTR",
+            cdna="c.199C>T",
+            transcript="NM_000492.4",
+            allele_mode="variant",
+        )
+    )
+
+    assert response.identity.gene == "CFTR"
+    assert response.identity.resolved_transcript == "NM_000492.4"
+    assert response.summary.total_exons == 27
+    assert response.locus.chrom == "7"
+    assert response.queried_variant.hgvs_p == "p.Pro67Ser"
+    assert response.queried_variant.genomic_hg38 == "7-117509068-C-T"
+    assert response.sequences.applied_variant is not None
+    assert response.sequences.applied_variant.ref == "C"
+    assert response.sequences.applied_variant.alt == "T"
+    assert {segment.exon_number for segment in response.segments if segment.exon_number} == {
+        2,
+        3,
+        4,
+    }
+    assert response.tracks.clinvar_variants[0].clinvar_id.startswith("VCV")
+    assert "transcript_model_from_ensembl_rest_fixture" in response.provenance.warnings
+
+
 def test_gene_context_snapshot_fixture_returns_static_report_contract() -> None:
     snapshot = GeneContextSnapshotService().build(
         gene="RPE65",
@@ -435,6 +463,38 @@ def test_gene_context_snapshot_fixture_returns_static_report_contract() -> None:
         "/workbench?gene=RPE65&cdna=c.260A%3EG&transcript=NM_000329.3"
     )
     assert "transcript_model_from_rpe65_fixture_scaffold" in snapshot.warnings
+
+
+def test_gene_context_snapshot_fixture_populates_curated_non_rpe65_transcript() -> None:
+    snapshot = GeneContextSnapshotService().build(
+        gene="CFTR",
+        cdna="c.199C>T",
+        transcript="NM_000492.4",
+    )
+
+    assert snapshot.source_status == "fixture"
+    assert snapshot.gene == "CFTR"
+    assert snapshot.transcript == "NM_000492.4"
+    assert snapshot.chromosome == "7"
+    assert len(snapshot.exons) == 27
+    assert len(snapshot.introns) == 26
+    assert snapshot.variant is not None
+    assert snapshot.variant.membership == "exon"
+    assert snapshot.variant.exon_number == 3
+    assert snapshot.variant.genomic_hg38 == "7-117509068-C-T"
+    assert snapshot.zoom_window is not None
+    assert snapshot.zoom_window.display_cds_start == 79
+    assert {segment.exon_number for segment in snapshot.zoom_segments if segment.exon_number} == {
+        2,
+        3,
+        4,
+    }
+    assert snapshot.workbench_link is not None
+    assert snapshot.workbench_link.url == (
+        "/workbench?gene=CFTR&cdna=c.199C%3ET&transcript=NM_000492.4"
+    )
+    assert "transcript_model_from_ensembl_rest_fixture" in snapshot.warnings
+    assert "transcript_model_from_rpe65_fixture_scaffold" not in snapshot.warnings
 
 
 def test_gene_context_snapshot_source_backed_generic_gene_uses_source_transcript() -> None:
@@ -711,6 +771,27 @@ def test_viewer_endpoint_applies_variant_mode_to_fixture_response(client) -> Non
     assert body["sequences"]["reference_window_sequence"][103] == "A"
     assert body["sequences"]["display_window_sequence"][103] == "G"
     assert body["sequences"]["applied_variant"]["sequence_offset"] == 103
+
+
+def test_viewer_endpoint_returns_curated_non_rpe65_fixture_response(client) -> None:
+    response = client.post(
+        "/api/v1/viewer",
+        json={
+            "gene": "CFTR",
+            "cdna": "c.199C>T",
+            "transcript": "NM_000492.4",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["identity"]["gene"] == "CFTR"
+    assert body["identity"]["resolved_transcript"] == "NM_000492.4"
+    assert body["summary"]["total_exons"] == 27
+    assert body["queried_variant"]["genomic_hg38"] == "7-117509068-C-T"
+    assert body["segments"][2]["exon_number"] == 3
+    assert "transcript_model_from_ensembl_rest_fixture" in body["provenance"]["warnings"]
+    assert "transcript_model_from_rpe65_fixture_scaffold" not in body["provenance"]["warnings"]
 
 
 def test_viewer_endpoint_service_failures_map_to_structured_http_errors(client) -> None:

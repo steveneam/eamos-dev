@@ -1,0 +1,3726 @@
+{
+  "version": "2026-05-24-gene-viewer-transcript-models-v1",
+  "generated_at": "2026-05-24 13:02 +1000",
+  "sources": {
+    "clinvar_stack": "app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json",
+    "ensembl_lookup": "https://rest.ensembl.org/lookup/symbol/homo_sapiens/{gene}?expand=1;mane=1;utr=1",
+    "ensembl_sequence": "https://rest.ensembl.org/sequence/region/human/{chrom}:{start}..{end}:{strand}"
+  },
+  "selection_policy": {
+    "record_count": 10,
+    "genes": [
+      "ABCA4",
+      "APC",
+      "BRCA1",
+      "BRCA2",
+      "CFTR",
+      "HBB",
+      "LDLR",
+      "MLH1",
+      "PAH",
+      "TP53"
+    ],
+    "variant_rule": "one reference-validated coding SNV per ClinVar stack gene, preferring missense pathogenic/LP or VUS rows when available",
+    "fixture_scope": "offline/demo transcript-model hydration for gene viewer and report gene-context snapshots"
+  },
+  "records": [
+    {
+      "gene": "ABCA4",
+      "cdna": "c.5435T>A",
+      "transcript": "NM_000350.3",
+      "requested_transcript": "NM_000350.3",
+      "transcript_aliases": [
+        "NM_000350.3",
+        "ENST00000370225.4",
+        "ABCA4-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "4536993",
+      "accession": "VCV004536993",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4536993/",
+      "chrom": "1",
+      "strand": "-",
+      "ensembl_gene_id": "ENSG00000198691",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 93992834,
+      "gene_end": 94121148,
+      "gene_length": 128315,
+      "cds_length": 6822,
+      "protein_length": 2273,
+      "utr5_length": 103,
+      "utr3_length": 403,
+      "mrna_length": 7328,
+      "translation_id": "ENSP00000359245",
+      "variant": {
+        "hgvs_c": "c.5435T>A",
+        "hgvs_p": "p.Ile1812Asn",
+        "cds_pos": 5435,
+        "ref": "T",
+        "alt": "A",
+        "genomic_hg38": "1-94014568-A-T",
+        "codon_number": 1812,
+        "codon_offset": 1,
+        "aa_ref": "I",
+        "aa_alt": "N",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 66,
+          "genomic_start": 94120980,
+          "genomic_end": 94121045,
+          "sequence": "ATGGGCTTCGTGAGACAGATACAGCTTTTGCTCTGGAAGAACTGGACCCTGCGGAAAAGGCAAAAG"
+        },
+        {
+          "number": 2,
+          "cds_start": 67,
+          "cds_end": 160,
+          "genomic_start": 94112973,
+          "genomic_end": 94113066,
+          "sequence": "ATTCGCTTTGTGGTGGAACTCGTGTGGCCTTTATCTTTATTTCTGGTCTTGATCTGGTTAAGGAATGCCAACCCACTCTACAGCCATCATGAAT"
+        },
+        {
+          "number": 3,
+          "cds_start": 161,
+          "cds_end": 302,
+          "genomic_start": 94111438,
+          "genomic_end": 94111579,
+          "sequence": "GCCATTTCCCCAACAAGGCGATGCCCTCAGCAGGAATGCTGCCGTGGCTCCAGGGGATCTTCTGCAATGTGAACAATCCCTGTTTTCAAAGCCCCACCCCAGGAGAATCTCCTGGAATTGTGTCAAACTATAACAACTCCAT"
+        },
+        {
+          "number": 4,
+          "cds_start": 303,
+          "cds_end": 442,
+          "genomic_start": 94108577,
+          "genomic_end": 94108716,
+          "sequence": "CTTGGCAAGGGTATATCGAGATTTTCAAGAACTCCTCATGAATGCACCAGAGAGCCAGCACCTTGGCCGTATTTGGACAGAGCTACACATCTTGTCCCAATTCATGGACACCCTCCGGACTCACCCGGAGAGAATTGCAG"
+        },
+        {
+          "number": 5,
+          "cds_start": 443,
+          "cds_end": 570,
+          "genomic_start": 94103015,
+          "genomic_end": 94103142,
+          "sequence": "GAAGAGGAATACGAATAAGGGATATCTTGAAAGATGAAGAAACACTGACACTATTTCTCATTAAAAACATCGGCCTGTCTGACTCAGTGGTCTACCTTCTGATCAACTCTCAAGTCCGTCCAGAGCAG"
+        },
+        {
+          "number": 6,
+          "cds_start": 571,
+          "cds_end": 768,
+          "genomic_start": 94098794,
+          "genomic_end": 94098991,
+          "sequence": "TTCGCTCATGGAGTCCCGGACCTGGCGCTGAAGGACATCGCCTGCAGCGAGGCCCTCCTGGAGCGCTTCATCATCTTCAGCCAGAGACGCGGGGCAAAGACGGTGCGCTATGCCCTGTGCTCCCTCTCCCAGGGCACCCTACAGTGGATAGAAGACACTCTGTATGCCAACGTGGACTTCTTCAAGCTCTTCCGTGTG"
+        },
+        {
+          "number": 7,
+          "cds_start": 769,
+          "cds_end": 858,
+          "genomic_start": 94083352,
+          "genomic_end": 94083441,
+          "sequence": "CTTCCCACACTCCTAGACAGCCGTTCTCAAGGTATCAATCTGAGATCTTGGGGAGGAATATTATCTGATATGTCACCAAGAATTCAAGAG"
+        },
+        {
+          "number": 8,
+          "cds_start": 859,
+          "cds_end": 1099,
+          "genomic_start": 94080478,
+          "genomic_end": 94080718,
+          "sequence": "TTTATCCATCGGCCGAGTATGCAGGACTTGCTGTGGGTGACCAGGCCCCTCATGCAGAATGGTGGTCCAGAGACCTTTACAAAGCTGATGGGCATCCTGTCTGACCTCCTGTGTGGCTACCCCGAGGGAGGTGGCTCTCGGGTGCTCTCCTTCAACTGGTATGAAGACAATAACTATAAGGCCTTTCTGGGGATTGACTCCACAAGGAAGGATCCTATCTATTCTTATGACAGAAGAACAA"
+        },
+        {
+          "number": 9,
+          "cds_start": 1100,
+          "cds_end": 1239,
+          "genomic_start": 94079322,
+          "genomic_end": 94079461,
+          "sequence": "CATCCTTTTGTAATGCATTGATCCAGAGCCTGGAGTCAAATCCTTTAACCAAAATCGCTTGGAGGGCGGCAAAGCCTTTGCTGATGGGAAAAATCCTGTACACTCCTGATTCACCTGCAGCACGAAGGATACTGAAGAAT"
+        },
+        {
+          "number": 10,
+          "cds_start": 1240,
+          "cds_end": 1356,
+          "genomic_start": 94078590,
+          "genomic_end": 94078706,
+          "sequence": "GCCAACTCAACTTTTGAAGAACTGGAACACGTTAGGAAGTTGGTCAAAGCCTGGGAAGAAGTAGGGCCCCAGATCTGGTACTTCTTTGACAACAGCACACAGATGAACATGATCAGA"
+        },
+        {
+          "number": 11,
+          "cds_start": 1357,
+          "cds_end": 1554,
+          "genomic_start": 94077690,
+          "genomic_end": 94077887,
+          "sequence": "GATACCCTGGGGAACCCAACAGTAAAAGACTTTTTGAATAGGCAGCTTGGTGAAGAAGGTATTACTGCTGAAGCCATCCTAAACTTCCTCTACAAGGGCCCTCGGGAAAGCCAGGCTGACGACATGGCCAACTTCGACTGGAGGGACATATTTAACATCACTGATCGCACCCTCCGCCTGGTCAATCAATACCTGGAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 1555,
+          "cds_end": 1760,
+          "genomic_start": 94063112,
+          "genomic_end": 94063317,
+          "sequence": "TGCTTGGTCCTGGATAAGTTTGAAAGCTACAATGATGAAACTCAGCTCACCCAACGTGCCCTCTCTCTACTGGAGGAAAACATGTTCTGGGCCGGAGTGGTATTCCCTGACATGTATCCCTGGACCAGCTCTCTACCACCCCACGTGAAGTATAAGATCCGAATGGACATAGACGTGGTGGAGAAAACCAATAAGATTAAAGACAG"
+        },
+        {
+          "number": 13,
+          "cds_start": 1761,
+          "cds_end": 1937,
+          "genomic_start": 94062577,
+          "genomic_end": 94062753,
+          "sequence": "GTATTGGGATTCTGGTCCCAGAGCTGATCCCGTGGAAGATTTCCGGTACATCTGGGGCGGGTTTGCCTATCTGCAGGACATGGTTGAACAGGGGATCACAAGGAGCCAGGTGCAGGCGGAGGCTCCAGTTGGAATCTACCTCCAGCAGATGCCCTACCCCTGCTTCGTGGACGATTC"
+        },
+        {
+          "number": 14,
+          "cds_start": 1938,
+          "cds_end": 2160,
+          "genomic_start": 94060537,
+          "genomic_end": 94060759,
+          "sequence": "TTTCATGATCATCCTGAACCGCTGTTTCCCTATCTTCATGGTGCTGGCATGGATCTACTCTGTCTCCATGACTGTGAAGAGCATCGTCTTGGAGAAGGAGTTGCGACTGAAGGAGACCTTGAAAAATCAGGGTGTCTCCAATGCAGTGATTTGGTGTACCTGGTTCCTGGACAGCTTCTCCATCATGTCGATGAGCATCTTCCTCCTGACGATATTCATCATG"
+        },
+        {
+          "number": 15,
+          "cds_start": 2161,
+          "cds_end": 2382,
+          "genomic_start": 94056601,
+          "genomic_end": 94056822,
+          "sequence": "CATGGAAGAATCCTACATTACAGCGACCCATTCATCCTCTTCCTGTTCTTGTTGGCTTTCTCCACTGCCACCATCATGCTGTGCTTTCTGCTCAGCACCTTCTTCTCCAAGGCCAGTCTGGCAGCAGCCTGTAGTGGTGTCATCTATTTCACCCTCTACCTGCCACACATCCTGTGCTTCGCCTGGCAGGACCGCATGACCGCTGAGCTGAAGAAGGCTGTG"
+        },
+        {
+          "number": 16,
+          "cds_start": 2383,
+          "cds_end": 2587,
+          "genomic_start": 94055111,
+          "genomic_end": 94055315,
+          "sequence": "AGCTTACTGTCTCCGGTGGCATTTGGATTTGGCACTGAGTACCTGGTTCGCTTTGAAGAGCAAGGCCTGGGGCTGCAGTGGAGCAACATCGGGAACAGTCCCACGGAAGGGGACGAATTCAGCTTCCTGCTGTCCATGCAGATGATGCTCCTTGATGCTGCTGTCTATGGCTTACTCGCTTGGTACCTTGATCAGGTGTTTCCAG"
+        },
+        {
+          "number": 17,
+          "cds_start": 2588,
+          "cds_end": 2653,
+          "genomic_start": 94051633,
+          "genomic_end": 94051698,
+          "sequence": "GAGACTATGGAACCCCACTTCCTTGGTACTTTCTTCTACAAGAGTCGTATTGGCTTGGCGGTGAAG"
+        },
+        {
+          "number": 18,
+          "cds_start": 2654,
+          "cds_end": 2743,
+          "genomic_start": 94048868,
+          "genomic_end": 94048957,
+          "sequence": "GGTGTTCAACCAGAGAAGAAAGAGCCCTGGAAAAGACCGAGCCCCTAACAGAGGAAACGGAGGATCCAGAGCACCCAGAAGGAATACACG"
+        },
+        {
+          "number": 19,
+          "cds_start": 2744,
+          "cds_end": 2918,
+          "genomic_start": 94046919,
+          "genomic_end": 94047093,
+          "sequence": "ACTCCTTCTTTGAACGTGAGCATCCAGGGTGGGTTCCTGGGGTATGCGTGAAGAATCTGGTAAAGATTTTTGAGCCCTGTGGCCGGCCAGCTGTGGACCGTCTGAACATCACCTTCTACGAGAACCAGATCACCGCATTCCTGGGCCACAATGGAGCTGGGAAAACCACCACCTT"
+        },
+        {
+          "number": 20,
+          "cds_start": 2919,
+          "cds_end": 3050,
+          "genomic_start": 94044613,
+          "genomic_end": 94044744,
+          "sequence": "GTCCATCCTGACGGGTCTGTTGCCACCAACCTCTGGGACTGTGCTCGTTGGGGGAAGGGACATTGAAACCAGCCTGGATGCAGTCCGGCAGAGCCTTGGCATGTGTCCACAGCACAACATCCTGTTCCACCA"
+        },
+        {
+          "number": 21,
+          "cds_start": 3051,
+          "cds_end": 3190,
+          "genomic_start": 94043336,
+          "genomic_end": 94043475,
+          "sequence": "CCTCACGGTGGCTGAGCACATGCTGTTCTATGCCCAGCTGAAAGGAAAGTCCCAGGAGGAGGCCCAGCTGGAGATGGAAGCCATGTTGGAGGACACAGGCCTCCACCACAAGCGGAATGAAGAGGCTCAGGACCTATCAG"
+        },
+        {
+          "number": 22,
+          "cds_start": 3191,
+          "cds_end": 3328,
+          "genomic_start": 94042761,
+          "genomic_end": 94042898,
+          "sequence": "GTGGCATGCAGAGAAAGCTGTCGGTTGCCATTGCCTTTGTGGGAGATGCCAAGGTGGTGATTCTGGACGAACCCACCTCTGGGGTGGACCCTTACTCGAGACGCTCAATCTGGGATCTGCTCCTGAAGTATCGCTCAG"
+        },
+        {
+          "number": 23,
+          "cds_start": 3329,
+          "cds_end": 3522,
+          "genomic_start": 94041209,
+          "genomic_end": 94041402,
+          "sequence": "GCAGAACCATCATCATGTCCACTCACCACATGGACGAGGCCGACCTCCTTGGGGACCGCATTGCCATCATTGCCCAGGGAAGGCTCTACTGCTCAGGCACCCCACTCTTCCTGAAGAACTGCTTTGGCACAGGCTTGTACTTAACCTTGGTGCGCAAGATGAAAAACATCCAGAGCCAAAGGAAAGGCAGTGAG"
+        },
+        {
+          "number": 24,
+          "cds_start": 3523,
+          "cds_end": 3607,
+          "genomic_start": 94040043,
+          "genomic_end": 94040127,
+          "sequence": "GGGACCTGCAGCTGCTCGTCTAAGGGTTTCTCCACCACGTGTCCAGCCCACGTCGATGACCTAACTCCAGAACAAGTCCTGGATG"
+        },
+        {
+          "number": 25,
+          "cds_start": 3608,
+          "cds_end": 3813,
+          "genomic_start": 94037145,
+          "genomic_end": 94037350,
+          "sequence": "GGGATGTAAATGAGCTGATGGATGTAGTTCTCCACCATGTTCCAGAGGCAAAGCTGGTGGAGTGCATTGGTCAAGAACTTATCTTCCTTCTTCCAAATAAGAACTTCAAGCACAGAGCATATGCCAGCCTTTTCAGAGAGCTGGAGGAGACGCTGGCTGACCTTGGTCTCAGCAGTTTTGGAATTTCTGACACTCCCCTGGAAGAG"
+        },
+        {
+          "number": 26,
+          "cds_start": 3814,
+          "cds_end": 3862,
+          "genomic_start": 94036740,
+          "genomic_end": 94036788,
+          "sequence": "ATTTTTCTGAAGGTCACGGAGGATTCTGATTCAGGACCTCTGTTTGCGG"
+        },
+        {
+          "number": 27,
+          "cds_start": 3863,
+          "cds_end": 4128,
+          "genomic_start": 94031778,
+          "genomic_end": 94032043,
+          "sequence": "GTGGCGCTCAGCAGAAAAGAGAAAACGTCAACCCCCGACACCCCTGCTTGGGTCCCAGAGAGAAGGCTGGACAGACACCCCAGGACTCCAATGTCTGCTCCCCAGGGGCGCCGGCTGCTCACCCAGAGGGCCAGCCTCCCCCAGAGCCAGAGTGCCCAGGCCCGCAGCTCAACACGGGGACACAGCTGGTCCTCCAGCATGTGCAGGCGCTGCTGGTCAAGAGATTCCAACACACCATCCGCAGCCACAAGGACTTCCTGGCGCAG"
+        },
+        {
+          "number": 28,
+          "cds_start": 4129,
+          "cds_end": 4253,
+          "genomic_start": 94030996,
+          "genomic_end": 94031120,
+          "sequence": "ATCGTGCTCCCGGCTACCTTTGTGTTTTTGGCTCTGATGCTTTCTATTGTTATCCCTCCTTTTGGCGAATACCCCGCTTTGACCCTTCACCCCTGGATATATGGGCAGCAGTACACCTTCTTCAG"
+        },
+        {
+          "number": 29,
+          "cds_start": 4254,
+          "cds_end": 4352,
+          "genomic_start": 94030428,
+          "genomic_end": 94030526,
+          "sequence": "CATGGATGAACCAGGCAGTGAGCAGTTCACGGTACTTGCAGACGTCCTCCTGAATAAGCCAGGCTTTGGCAACCGCTGCCTGAAGGAAGGGTGGCTTCC"
+        },
+        {
+          "number": 30,
+          "cds_start": 4353,
+          "cds_end": 4539,
+          "genomic_start": 94029445,
+          "genomic_end": 94029631,
+          "sequence": "GGAGTACCCCTGTGGCAACTCAACACCCTGGAAGACTCCTTCTGTGTCCCCAAACATCACCCAGCTGTTCCAGAAGCAGAAATGGACACAGGTCAACCCTTCACCATCCTGCAGGTGCAGCACCAGGGAGAAGCTCACCATGCTGCCAGAGTGCCCCGAGGGTGCCGGGGGCCTCCCGCCCCCCCAG"
+        },
+        {
+          "number": 31,
+          "cds_start": 4540,
+          "cds_end": 4634,
+          "genomic_start": 94024954,
+          "genomic_end": 94025048,
+          "sequence": "AGAACACAGCGCAGCACGGAAATTCTACAAGACCTGACGGACAGGAACATCTCCGACTTCTTGGTAAAAACGTATCCTGCTCTTATAAGAAGCAG"
+        },
+        {
+          "number": 32,
+          "cds_start": 4635,
+          "cds_end": 4667,
+          "genomic_start": 94023386,
+          "genomic_end": 94023418,
+          "sequence": "CTTAAAGAGCAAATTCTGGGTCAATGAACAGAG"
+        },
+        {
+          "number": 33,
+          "cds_start": 4668,
+          "cds_end": 4773,
+          "genomic_start": 94021846,
+          "genomic_end": 94021951,
+          "sequence": "GTATGGAGGAATTTCCATTGGAGGAAAGCTCCCAGTCGTCCCCATCACGGGGGAAGCACTTGTTGGGTTTTTAAGCGACCTTGGCCGGATCATGAATGTGAGCGGG"
+        },
+        {
+          "number": 34,
+          "cds_start": 4774,
+          "cds_end": 4848,
+          "genomic_start": 94021640,
+          "genomic_end": 94021714,
+          "sequence": "GGCCCTATCACTAGAGAGGCCTCTAAAGAAATACCTGATTTCCTTAAACATCTAGAAACTGAAGACAACATTAAG"
+        },
+        {
+          "number": 35,
+          "cds_start": 4849,
+          "cds_end": 5018,
+          "genomic_start": 94021240,
+          "genomic_end": 94021409,
+          "sequence": "GTGTGGTTTAATAACAAAGGCTGGCATGCCCTGGTCAGCTTTCTCAATGTGGCCCACAACGCCATCTTACGGGCCAGCCTGCCTAAGGACAGGAGCCCCGAGGAGTATGGAATCACCGTCATTAGCCAACCCCTGAACCTGACCAAGGAGCAGCTCTCAGAGATTACAGT"
+        },
+        {
+          "number": 36,
+          "cds_start": 5019,
+          "cds_end": 5196,
+          "genomic_start": 94019582,
+          "genomic_end": 94019759,
+          "sequence": "GCTGACCACTTCAGTGGATGCTGTGGTTGCCATCTGCGTGATTTTCTCCATGTCCTTCGTCCCAGCCAGCTTTGTCCTTTATTTGATCCAGGAGCGGGTGAACAAATCCAAGCACCTCCAGTTTATCAGTGGAGTGAGCCCCACCACCTACTGGGTGACCAACTTCCTCTGGGACATC"
+        },
+        {
+          "number": 37,
+          "cds_start": 5197,
+          "cds_end": 5312,
+          "genomic_start": 94015739,
+          "genomic_end": 94015854,
+          "sequence": "ATGAATTATTCCGTGAGTGCTGGGCTGGTGGTGGGCATCTTCATCGGGTTTCAGAAGAAAGCCTACACTTCTCCAGAAAACCTTCCTGCCCTTGTGGCACTGCTCCTGCTGTATGG"
+        },
+        {
+          "number": 38,
+          "cds_start": 5313,
+          "cds_end": 5460,
+          "genomic_start": 94014543,
+          "genomic_end": 94014690,
+          "sequence": "ATGGGCGGTCATTCCCATGATGTACCCAGCATCCTTCCTGTTTGATGTCCCCAGCACAGCCTATGTGGCTTTATCTTGTGCTAATCTGTTCATCGGCATCAACAGCAGTGCTATTACCTTCATCTTGGAATTATTTGAGAATAACCGG"
+        },
+        {
+          "number": 39,
+          "cds_start": 5461,
+          "cds_end": 5584,
+          "genomic_start": 94011262,
+          "genomic_end": 94011385,
+          "sequence": "ACGCTGCTCAGGTTCAACGCCGTGCTGAGGAAGCTGCTCATTGTCTTCCCCCACTTCTGCCTGGGCCGGGGCCTCATTGACCTTGCACTGAGCCAGGCTGTGACAGATGTCTATGCCCGGTTTG"
+        },
+        {
+          "number": 40,
+          "cds_start": 5585,
+          "cds_end": 5714,
+          "genomic_start": 94010800,
+          "genomic_end": 94010929,
+          "sequence": "GTGAGGAGCACTCTGCAAATCCGTTCCACTGGGACCTGATTGGGAAGAACCTGTTTGCCATGGTGGTGGAAGGGGTGGTGTACTTCCTCCTGACCCTGCTGGTCCAGCGCCACTTCTTCCTCTCCCAATG"
+        },
+        {
+          "number": 41,
+          "cds_start": 5715,
+          "cds_end": 5835,
+          "genomic_start": 94008751,
+          "genomic_end": 94008871,
+          "sequence": "GATTGCCGAGCCCACTAAGGAGCCCATTGTTGATGAAGATGATGATGTGGCTGAAGAAAGACAAAGAATTATTACTGGTGGAAATAAAACTGACATCTTAAGGCTACATGAACTAACCAAG"
+        },
+        {
+          "number": 42,
+          "cds_start": 5836,
+          "cds_end": 5898,
+          "genomic_start": 94008235,
+          "genomic_end": 94008297,
+          "sequence": "ATTTATCCAGGCACCTCCAGCCCAGCAGTGGACAGGCTGTGTGTCGGAGTTCGCCCTGGAGAG"
+        },
+        {
+          "number": 43,
+          "cds_start": 5899,
+          "cds_end": 6005,
+          "genomic_start": 94007634,
+          "genomic_end": 94007740,
+          "sequence": "TGCTTTGGCCTCCTGGGAGTGAATGGTGCCGGCAAAACAACCACATTCAAGATGCTCACTGGGGACACCACAGTGACCTCAGGGGATGCCACCGTAGCAGGCAAGAG"
+        },
+        {
+          "number": 44,
+          "cds_start": 6006,
+          "cds_end": 6147,
+          "genomic_start": 94005441,
+          "genomic_end": 94005582,
+          "sequence": "TATTTTAACCAATATTTCTGAAGTCCATCAAAATATGGGCTACTGTCCTCAGTTTGATGCAATTGATGAGCTGCTCACAGGACGAGAACATCTTTACCTTTATGCCCGGCTTCGAGGTGTACCAGCAGAAGAAATCGAAAAG"
+        },
+        {
+          "number": 45,
+          "cds_start": 6148,
+          "cds_end": 6282,
+          "genomic_start": 94001858,
+          "genomic_end": 94001992,
+          "sequence": "GTTGCAAACTGGAGTATTAAGAGCCTGGGCCTGACTGTCTACGCCGACTGCCTGGCTGGCACGTACAGTGGGGGCAACAAGCGGAAACTCTCCACAGCCATCGCACTCATTGGCTGCCCACCGCTGGTGCTGCTG"
+        },
+        {
+          "number": 46,
+          "cds_start": 6283,
+          "cds_end": 6386,
+          "genomic_start": 94001002,
+          "genomic_end": 94001105,
+          "sequence": "GATGAGCCCACCACAGGGATGGACCCCCAGGCACGCCGCATGCTGTGGAACGTCATCGTGAGCATCATCAGAGAAGGGAGGGCTGTGGTCCTCACATCCCACAG"
+        },
+        {
+          "number": 47,
+          "cds_start": 6387,
+          "cds_end": 6479,
+          "genomic_start": 94000836,
+          "genomic_end": 94000928,
+          "sequence": "CATGGAAGAATGTGAGGCACTGTGTACCCGGCTGGCCATCATGGTAAAGGGCGCCTTTCGATGTATGGGCACCATTCAGCATCTCAAGTCCAA"
+        },
+        {
+          "number": 48,
+          "cds_start": 6480,
+          "cds_end": 6729,
+          "genomic_start": 93997861,
+          "genomic_end": 93998110,
+          "sequence": "ATTTGGAGATGGCTATATCGTCACAATGAAGATCAAATCCCCGAAGGACGACCTGCTTCCTGACCTGAACCCTGTGGAGCAGTTCTTCCAGGGGAACTTCCCAGGCAGTGTGCAGAGGGAGAGGCACTACAACATGCTCCAGTTCCAGGTCTCCTCCTCCTCCCTGGCGAGGATCTTCCAGCTCCTCCTCTCCCACAAGGACAGCCTGCTCATCGAGGAGTACTCAGTCACACAGACCACACTGGACCAG"
+        },
+        {
+          "number": 49,
+          "cds_start": 6730,
+          "cds_end": 6816,
+          "genomic_start": 93996109,
+          "genomic_end": 93996195,
+          "sequence": "GTGTTTGTAAATTTTGCTAAACAGCAGACTGAAAGTCATGACCTCCCTCTGCACCCTCGAGCTGCTGGAGCCAGTCGACAAGCCCAG"
+        },
+        {
+          "number": 50,
+          "cds_start": 6817,
+          "cds_end": 6822,
+          "genomic_start": 93993237,
+          "genomic_end": 93993242,
+          "sequence": "GACTGA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 1,
+          "genomic_start": 94113067,
+          "genomic_end": 94120979,
+          "total_len": 7913,
+          "five_prime_sequence": "gtaacagttactgtctgtggtttaaaaatg",
+          "three_prime_sequence": "actttctctctttttgttttgtttttccag"
+        },
+        {
+          "number": 2,
+          "genomic_start": 94111580,
+          "genomic_end": 94112972,
+          "total_len": 1393,
+          "five_prime_sequence": "gtaagcatagcagggtagcttgggcaagcc",
+          "three_prime_sequence": "cccgtcttgtcctcattttctgttttaaag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 94108717,
+          "genomic_end": 94111437,
+          "total_len": 2721,
+          "five_prime_sequence": "gtaagtgttgagatccctaccatgcagggg",
+          "three_prime_sequence": "ttccttattaatgaggctttgtccttacag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 94103143,
+          "genomic_end": 94108576,
+          "total_len": 5434,
+          "five_prime_sequence": "gtaagcatgactgcagtgctctcaagcatc",
+          "three_prime_sequence": "caccctgttctttctcttattcatatgtag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 94098992,
+          "genomic_end": 94103014,
+          "total_len": 4023,
+          "five_prime_sequence": "gtagggggatgtcactggccagtggtccct",
+          "three_prime_sequence": "agtttctagtgttgcctcttctccctgcag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 94083442,
+          "genomic_end": 94098793,
+          "total_len": 15352,
+          "five_prime_sequence": "gtaagggaggggtttggctgctcgccaatt",
+          "three_prime_sequence": "tttaaaaaattgttttactgtcaattacag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 94080719,
+          "genomic_end": 94083351,
+          "total_len": 2633,
+          "five_prime_sequence": "gtgagtagcctgatggtagtaattataatt",
+          "three_prime_sequence": "aaataacctgaagactttgccttgccctag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 94079462,
+          "genomic_end": 94080477,
+          "total_len": 1016,
+          "five_prime_sequence": "gtaagttttctgagtcctgcttataaattg",
+          "three_prime_sequence": "ctgtaaaatctgtcccttgtctcctggcag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 94078707,
+          "genomic_end": 94079321,
+          "total_len": 615,
+          "five_prime_sequence": "gtaagatcccagctgggcttgccttgtgta",
+          "three_prime_sequence": "gtctctgtcttgatctctgtctggttttag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 94077888,
+          "genomic_end": 94078589,
+          "total_len": 702,
+          "five_prime_sequence": "gtaaggggggttggaggatggggaggggag",
+          "three_prime_sequence": "agagcagtgactgtatttcttcttcccaag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 94063318,
+          "genomic_end": 94077689,
+          "total_len": 14372,
+          "five_prime_sequence": "gtaaggggctgcaagccccacagtgggccc",
+          "three_prime_sequence": "acactctctcaactttgtgactctctgcag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 94062754,
+          "genomic_end": 94063111,
+          "total_len": 358,
+          "five_prime_sequence": "gtgatgtttcaggaagggctcgctgcattt",
+          "three_prime_sequence": "cccatcctttgtccctctgtgtcttctcag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 94060760,
+          "genomic_end": 94062576,
+          "total_len": 1817,
+          "five_prime_sequence": "gtgagtctgaagttcgcgatcctcctccat",
+          "three_prime_sequence": "tactattctgcttctctccttttgctttag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 94056823,
+          "genomic_end": 94060536,
+          "total_len": 3714,
+          "five_prime_sequence": "gtaagccaaatggagaaggcccagaaaatc",
+          "three_prime_sequence": "agttactgacgcatggcctcttggtttcag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 94055316,
+          "genomic_end": 94056600,
+          "total_len": 1285,
+          "five_prime_sequence": "gtgaggcccttgggctggcccctgtcctac",
+          "three_prime_sequence": "tttttctgtgccctctccgcctcactgcag"
+        },
+        {
+          "number": 16,
+          "genomic_start": 94051699,
+          "genomic_end": 94055110,
+          "total_len": 3412,
+          "five_prime_sequence": "gtaagcatcctcctctatagggtaaaggta",
+          "three_prime_sequence": "ctttctctgtttatttgtctctatttttag"
+        },
+        {
+          "number": 17,
+          "genomic_start": 94048958,
+          "genomic_end": 94051632,
+          "total_len": 2675,
+          "five_prime_sequence": "gtgagtcctttaaaacacaaatcttaatgt",
+          "three_prime_sequence": "tagagtaacactggcttctgattggtgcag"
+        },
+        {
+          "number": 18,
+          "genomic_start": 94047094,
+          "genomic_end": 94048867,
+          "total_len": 1774,
+          "five_prime_sequence": "gtaaaaccccgataaagaatacacagcaga",
+          "three_prime_sequence": "ttacatcatgttcattttttttcctccaag"
+        },
+        {
+          "number": 19,
+          "genomic_start": 94044745,
+          "genomic_end": 94046918,
+          "total_len": 2174,
+          "five_prime_sequence": "gtgagtcttccagcagagaagctggctgcc",
+          "three_prime_sequence": "tcttctgccactgacgcctgtgttctgcag"
+        },
+        {
+          "number": 20,
+          "genomic_start": 94043476,
+          "genomic_end": 94044612,
+          "total_len": 1137,
+          "five_prime_sequence": "gtaagcgacacaggaactgagaccgcccca",
+          "three_prime_sequence": "actgcttttctcgttgtcccatcctcctag"
+        },
+        {
+          "number": 21,
+          "genomic_start": 94042899,
+          "genomic_end": 94043335,
+          "total_len": 437,
+          "five_prime_sequence": "gtgctcagagctggatggagacagggccac",
+          "three_prime_sequence": "ttaactctcccgtccttcttgtgcctccag"
+        },
+        {
+          "number": 22,
+          "genomic_start": 94041403,
+          "genomic_end": 94042760,
+          "total_len": 1358,
+          "five_prime_sequence": "gtaacagctgctgctcagtctcctgggctg",
+          "three_prime_sequence": "ctggtgattgccctggcccctaccttgcag"
+        },
+        {
+          "number": 23,
+          "genomic_start": 94040128,
+          "genomic_end": 94041208,
+          "total_len": 1081,
+          "five_prime_sequence": "gtaggtgtctgcccagggaaggaccctggc",
+          "three_prime_sequence": "cttgtcagtcatcccatccatctgttgcag"
+        },
+        {
+          "number": 24,
+          "genomic_start": 94037351,
+          "genomic_end": 94040042,
+          "total_len": 2692,
+          "five_prime_sequence": "gtaaggactggacgggccatacttgggttc",
+          "three_prime_sequence": "agctggcatcagtcttttttcttgtcctag"
+        },
+        {
+          "number": 25,
+          "genomic_start": 94036789,
+          "genomic_end": 94037144,
+          "total_len": 356,
+          "five_prime_sequence": "gtaaagtagagattccagctggtttctgtc",
+          "three_prime_sequence": "caaaattctctctttttttcttcttgacag"
+        },
+        {
+          "number": 26,
+          "genomic_start": 94032044,
+          "genomic_end": 94036739,
+          "total_len": 4696,
+          "five_prime_sequence": "gtatggtgctggagccagtggcttgttccc",
+          "three_prime_sequence": "ccaaattattaattcaatctctcaaaacag"
+        },
+        {
+          "number": 27,
+          "genomic_start": 94031121,
+          "genomic_end": 94031777,
+          "total_len": 657,
+          "five_prime_sequence": "gtactattgtcggtcggtgtttagctgagc",
+          "three_prime_sequence": "catgtttattccacgtctattctcccacag"
+        },
+        {
+          "number": 28,
+          "genomic_start": 94030527,
+          "genomic_end": 94030995,
+          "total_len": 469,
+          "five_prime_sequence": "gtgcgcggactcggggtcaccattctcctc",
+          "three_prime_sequence": "tgtcccagtcacatgtctcactctgtctag"
+        },
+        {
+          "number": 29,
+          "genomic_start": 94029632,
+          "genomic_end": 94030427,
+          "total_len": 796,
+          "five_prime_sequence": "gtaagtgcctacgcgcccctgtcctaagaa",
+          "three_prime_sequence": "attatggaatattttcttgtcttccatgag"
+        },
+        {
+          "number": 30,
+          "genomic_start": 94025049,
+          "genomic_end": 94029444,
+          "total_len": 4396,
+          "five_prime_sequence": "gtacctgacctccaaacaacggggccccag",
+          "three_prime_sequence": "gtaattaacgtgggtgtctcattgcctcag"
+        },
+        {
+          "number": 31,
+          "genomic_start": 94023419,
+          "genomic_end": 94024953,
+          "total_len": 1535,
+          "five_prime_sequence": "gtaagaagaaatccttttatgctttttatc",
+          "three_prime_sequence": "ttcattgcattattttattttggctttcag"
+        },
+        {
+          "number": 32,
+          "genomic_start": 94021952,
+          "genomic_end": 94023385,
+          "total_len": 1434,
+          "five_prime_sequence": "gtaagaaactatttttatcagaattaaaat",
+          "three_prime_sequence": "tggtctgaggatttcctgtttccttgtcag"
+        },
+        {
+          "number": 33,
+          "genomic_start": 94021715,
+          "genomic_end": 94021845,
+          "total_len": 131,
+          "five_prime_sequence": "gtatgtaaacagactggagatttgagtagg",
+          "three_prime_sequence": "gtcttgtttgtttgtttacatggtttttag"
+        },
+        {
+          "number": 34,
+          "genomic_start": 94021410,
+          "genomic_end": 94021639,
+          "total_len": 230,
+          "five_prime_sequence": "gtacttgacctatgtataatctgctctgga",
+          "three_prime_sequence": "agcgtctcagatgtcctctccaccctctag"
+        },
+        {
+          "number": 35,
+          "genomic_start": 94019760,
+          "genomic_end": 94021239,
+          "total_len": 1480,
+          "five_prime_sequence": "gtaagccaccacagccccagcctcaccact",
+          "three_prime_sequence": "cctctccctgtgtctctggccctgctgcag"
+        },
+        {
+          "number": 36,
+          "genomic_start": 94015855,
+          "genomic_end": 94019581,
+          "total_len": 3727,
+          "five_prime_sequence": "gtaagtgtcagtttacagcgcctccctccc",
+          "three_prime_sequence": "agtgacttgctctcctcttctctttccgag"
+        },
+        {
+          "number": 37,
+          "genomic_start": 94014691,
+          "genomic_end": 94015738,
+          "total_len": 1048,
+          "five_prime_sequence": "gtaagccgtttgggccattagctaatgcct",
+          "three_prime_sequence": "catcactctgagttgtctcatttcacacag"
+        },
+        {
+          "number": 38,
+          "genomic_start": 94011386,
+          "genomic_end": 94014542,
+          "total_len": 3157,
+          "five_prime_sequence": "gtgagcataactttcttggcttttttgttt",
+          "three_prime_sequence": "gtttccaacagtcctacttctctgtttcag"
+        },
+        {
+          "number": 39,
+          "genomic_start": 94010930,
+          "genomic_end": 94011261,
+          "total_len": 332,
+          "five_prime_sequence": "gtgggtggtagccgaggcccatggagcatg",
+          "three_prime_sequence": "gaagtggactcaattcctgttgatgcccag"
+        },
+        {
+          "number": 40,
+          "genomic_start": 94008872,
+          "genomic_end": 94010799,
+          "total_len": 1928,
+          "five_prime_sequence": "gtacgtccatgccacaccctgggccagtgg",
+          "three_prime_sequence": "gcccaatcctgaccccttttcttcatctag"
+        },
+        {
+          "number": 41,
+          "genomic_start": 94008298,
+          "genomic_end": 94008750,
+          "total_len": 453,
+          "five_prime_sequence": "gtaagggaatgggtatgagtttggaggtgc",
+          "three_prime_sequence": "ttctcagtccggtttcttcgtatcttgcag"
+        },
+        {
+          "number": 42,
+          "genomic_start": 94007741,
+          "genomic_end": 94008234,
+          "total_len": 494,
+          "five_prime_sequence": "gtgggtactctgcagaccacgtgtgaaagg",
+          "three_prime_sequence": "gggccaggctagctctgtgttttctcctag"
+        },
+        {
+          "number": 43,
+          "genomic_start": 94005583,
+          "genomic_end": 94007633,
+          "total_len": 2051,
+          "five_prime_sequence": "gtgagtatcctgctcctcctgtctcaggga",
+          "three_prime_sequence": "gatactcagtaattgctttttttcttgcag"
+        },
+        {
+          "number": 44,
+          "genomic_start": 94001993,
+          "genomic_end": 94005440,
+          "total_len": 3448,
+          "five_prime_sequence": "gtgaaaaatgttttgttgtggccacatagg",
+          "three_prime_sequence": "ctccaaatggcatttctttctcttccctag"
+        },
+        {
+          "number": 45,
+          "genomic_start": 94001106,
+          "genomic_end": 94001857,
+          "total_len": 752,
+          "five_prime_sequence": "gtaactgcgggcttgggccgcaccaagggc",
+          "three_prime_sequence": "tgtgcccccaaccttctctccaccccccag"
+        },
+        {
+          "number": 46,
+          "genomic_start": 94000929,
+          "genomic_end": 94001001,
+          "total_len": 73,
+          "five_prime_sequence": "gcaagagattcccagggctggggaaggtgg",
+          "three_prime_sequence": "cctgctcacctcctctctcctgccccacag"
+        },
+        {
+          "number": 47,
+          "genomic_start": 93998111,
+          "genomic_end": 94000835,
+          "total_len": 2725,
+          "five_prime_sequence": "gtaagcagatggtggggcgtgccccttgtt",
+          "three_prime_sequence": "ggcctgtcctgcactgtgtgcatcccctag"
+        },
+        {
+          "number": 48,
+          "genomic_start": 93996196,
+          "genomic_end": 93997860,
+          "total_len": 1665,
+          "five_prime_sequence": "gcaagttggccctggggcaccgagagctga",
+          "three_prime_sequence": "tacctaatctcgctcttctcttacctctag"
+        },
+        {
+          "number": 49,
+          "genomic_start": 93993243,
+          "genomic_end": 93996108,
+          "total_len": 2866,
+          "five_prime_sequence": "gtacccctgctgcttatgcagtccacagct",
+          "three_prime_sequence": "gacgcgagtccatgtgatctccttccacag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "APC",
+      "cdna": "c.7884G>C",
+      "transcript": "NM_000038.6",
+      "requested_transcript": "NM_000038.6",
+      "transcript_aliases": [
+        "NM_000038.6",
+        "ENST00000257430.9",
+        "APC-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Uncertain significance",
+      "clinvar_variation_id": "4801525",
+      "accession": "VCV004801525",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4801525/",
+      "chrom": "5",
+      "strand": "+",
+      "ensembl_gene_id": "ENSG00000134982",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 112707498,
+      "gene_end": 112846239,
+      "gene_length": 138742,
+      "cds_length": 8532,
+      "protein_length": 2843,
+      "utr5_length": 59,
+      "utr3_length": 2113,
+      "mrna_length": 10704,
+      "translation_id": "ENSP00000257430",
+      "variant": {
+        "hgvs_c": "c.7884G>C",
+        "hgvs_p": "p.Gln2628His",
+        "cds_pos": 7884,
+        "ref": "G",
+        "alt": "C",
+        "genomic_hg38": "5-112843478-G-C",
+        "codon_number": 2628,
+        "codon_offset": 2,
+        "aa_ref": "Q",
+        "aa_alt": "H",
+        "classification": "vus"
+      },
+      "exons": [
+        {
+          "number": 2,
+          "cds_start": 1,
+          "cds_end": 135,
+          "genomic_start": 112754891,
+          "genomic_end": 112755025,
+          "sequence": "ATGGCTGCAGCTTCATATGATCAGTTGTTAAAGCAAGTTGAGGCACTGAAGATGGAGAACTCAAATCTTCGACAAGAGCTAGAAGATAATTCCAATCATCTTACAAAACTGGAAACTGAGGCATCTAATATGAAG"
+        },
+        {
+          "number": 3,
+          "cds_start": 136,
+          "cds_end": 220,
+          "genomic_start": 112766326,
+          "genomic_end": 112766410,
+          "sequence": "GAAGTACTTAAACAACTACAAGGAAGTATTGAAGATGAAGCTATGGCTTCTTCTGGACAGATTGATTTATTAGAGCGTCTTAAAG"
+        },
+        {
+          "number": 4,
+          "cds_start": 221,
+          "cds_end": 422,
+          "genomic_start": 112767189,
+          "genomic_end": 112767390,
+          "sequence": "AGCTTAACTTAGATAGCAGTAATTTCCCTGGAGTAAAACTGCGGTCAAAAATGTCCCTCCGTTCTTATGGAAGCCGGGAAGGATCTGTATCAAGCCGTTCTGGAGAGTGCAGTCCTGTTCCTATGGGTTCATTTCCAAGAAGAGGGTTTGTAAATGGAAGCAGAGAAAGTACTGGATATTTAGAAGAACTTGAGAAAGAGAG"
+        },
+        {
+          "number": 5,
+          "cds_start": 423,
+          "cds_end": 531,
+          "genomic_start": 112775629,
+          "genomic_end": 112775737,
+          "sequence": "GTCATTGCTTCTTGCTGATCTTGACAAAGAAGAAAAGGAAAAAGACTGGTATTACGCTCAACTTCAGAATCTCACTAAAAGAATAGATAGTCTTCCTTTAACTGAAAAT"
+        },
+        {
+          "number": 6,
+          "cds_start": 532,
+          "cds_end": 645,
+          "genomic_start": 112780790,
+          "genomic_end": 112780903,
+          "sequence": "TTTTCCTTACAAACAGATATGACCAGAAGGCAATTGGAATATGAAGCAAGGCAAATCAGAGTTGCGATGGAAGAACAACTAGGTACCTGCCAGGATATGGAAAAACGAGCACAG"
+        },
+        {
+          "number": 7,
+          "cds_start": 646,
+          "cds_end": 729,
+          "genomic_start": 112792446,
+          "genomic_end": 112792529,
+          "sequence": "CGAAGAATAGCCAGAATTCAGCAAATCGAAAAGGACATACTTCGTATACGACAGCTTTTACAGTCCCAAGCAACAGAAGCAGAG"
+        },
+        {
+          "number": 8,
+          "cds_start": 730,
+          "cds_end": 834,
+          "genomic_start": 112801279,
+          "genomic_end": 112801383,
+          "sequence": "AGGTCATCTCAGAACAAGCATGAAACCGGCTCACATGATGCTGAGCGGCAGAATGAAGGTCAAGGAGTGGGAGAAATCAACATGGCAACTTCTGGTAATGGTCAG"
+        },
+        {
+          "number": 9,
+          "cds_start": 835,
+          "cds_end": 933,
+          "genomic_start": 112815495,
+          "genomic_end": 112815593,
+          "sequence": "GGTTCAACTACACGAATGGACCATGAAACAGCCAGTGTTTTGAGTTCTAGTAGCACACACTCTGCACCTCGAAGGCTGACAAGTCATCTGGGAACCAAG"
+        },
+        {
+          "number": 10,
+          "cds_start": 934,
+          "cds_end": 1312,
+          "genomic_start": 112818966,
+          "genomic_end": 112819344,
+          "sequence": "GTGGAAATGGTGTATTCATTGTTGTCAATGCTTGGTACTCATGATAAGGATGATATGTCGCGAACTTTGCTAGCTATGTCTAGCTCCCAAGACAGCTGTATATCCATGCGACAGTCTGGATGTCTTCCTCTCCTCATCCAGCTTTTACATGGCAATGACAAAGACTCTGTATTGTTGGGAAATTCCCGGGGCAGTAAAGAGGCTCGGGCCAGGGCCAGTGCAGCACTCCACAACATCATTCACTCACAGCCTGATGACAAGAGAGGCAGGCGTGAAATCCGAGTCCTTCATCTTTTGGAACAGATACGCGCTTACTGTGAAACCTGTTGGGAGTGGCAGGAAGCTCATGAACCAGGCATGGACCAGGACAAAAATCCAA"
+        },
+        {
+          "number": 11,
+          "cds_start": 1313,
+          "cds_end": 1408,
+          "genomic_start": 112821896,
+          "genomic_end": 112821991,
+          "sequence": "TGCCAGCTCCTGTTGAACATCAGATCTGTCCTGCTGTGTGTGTTCTAATGAAACTTTCATTTGATGAAGAGCATAGACATGCAATGAATGAACTAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 1409,
+          "cds_end": 1548,
+          "genomic_start": 112827108,
+          "genomic_end": 112827247,
+          "sequence": "GGGGACTACAGGCCATTGCAGAATTATTGCAAGTGGACTGTGAAATGTATGGGCTTACTAATGACCACTACAGTATTACACTAAGACGATATGCTGGAATGGCTTTGACAAACTTGACTTTTGGAGATGTAGCCAACAAG"
+        },
+        {
+          "number": 13,
+          "cds_start": 1549,
+          "cds_end": 1626,
+          "genomic_start": 112827929,
+          "genomic_end": 112828006,
+          "sequence": "GCTACGCTATGCTCTATGAAAGGCTGCATGAGAGCACTTGTGGCCCAACTAAAATCTGAAAGTGAAGACTTACAGCAG"
+        },
+        {
+          "number": 14,
+          "cds_start": 1627,
+          "cds_end": 1743,
+          "genomic_start": 112828856,
+          "genomic_end": 112828972,
+          "sequence": "GTTATTGCGAGTGTTTTGAGGAATTTGTCTTGGCGAGCAGATGTAAATAGTAAAAAGACGTTGCGAGAAGTTGGAAGTGTGAAAGCATTGATGGAATGTGCTTTAGAAGTTAAAAAG"
+        },
+        {
+          "number": 15,
+          "cds_start": 1744,
+          "cds_end": 1958,
+          "genomic_start": 112834951,
+          "genomic_end": 112835165,
+          "sequence": "GAATCAACCCTCAAAAGCGTATTGAGTGCCTTATGGAATTTGTCAGCACATTGCACTGAGAATAAAGCTGATATATGTGCTGTAGATGGTGCACTTGCATTTTTGGTTGGCACTCTTACTTACCGGAGCCAGACAAACACTTTAGCCATTATTGAAAGTGGAGGTGGGATATTACGGAATGTGTCCAGCTTGATAGCTACAAATGAGGACCACAG"
+        },
+        {
+          "number": 16,
+          "cds_start": 1959,
+          "cds_end": 8532,
+          "genomic_start": 112837553,
+          "genomic_end": 112844126,
+          "sequence": "GCAAATCCTAAGAGAGAACAACTGTCTACAAACTTTATTACAACACTTAAAATCTCATAGTTTGACAATAGTCAGTAATGCATGTGGAACTTTGTGGAATCTCTCAGCAAGAAATCCTAAAGACCAGGAAGCATTATGGGACATGGGGGCAGTTAGCATGCTCAAGAACCTCATTCATTCAAAGCACAAAATGATTGCTATGGGAAGTGCTGCAGCTTTAAGGAATCTCATGGCAAATAGGCCTGCGAAGTACAAGGATGCCAATATTATGTCTCCTGGCTCAAGCTTGCCATCTCTTCATGTTAGGAAACAAAAAGCCCTAGAAGCAGAATTAGATGCTCAGCACTTATCAGAAACTTTTGACAATATAGACAATTTAAGTCCCAAGGCATCTCATCGTAGTAAGCAGAGACACAAGCAAAGTCTCTATGGTGATTATGTTTTTGACACCAATCGACATGATGATAATAGGTCAGACAATTTTAATACTGGCAACATGACTGTCCTTTCACCATATTTGAATACTACAGTGTTACCCAGCTCCTCTTCATCAAGAGGAAGCTTAGATAGTTCTCGTTCTGAAAAAGATAGAAGTTTGGAGAGAGAACGCGGAATTGGTCTAGGCAACTACCATCCAGCAACAGAAAATCCAGGAACTTCTTCAAAGCGAGGTTTGCAGATCTCCACCACTGCAGCCCAGATTGCCAAAGTCATGGAAGAAGTGTCAGCCATTCATACCTCTCAGGAAGACAGAAGTTCTGGGTCTACCACTGAATTACATTGTGTGACAGATGAGAGAAATGCACTTAGAAGAAGCTCTGCTGCCCATACACATTCAAACACTTACAATTTCACTAAGTCGGAAAATTCAAATAGGACATGTTCTATGCCTTATGCCAAATTAGAATACAAGAGATCTTCAAATGATAGTTTAAATAGTGTCAGTAGTAGTGATGGTTATGGTAAAAGAGGTCAAATGAAACCCTCGATTGAATCCTATTCTGAAGATGATGAAAGTAAGTTTTGCAGTTATGGTCAATACCCAGCCGACCTAGCCCATAAAATACATAGTGCAAATCATATGGATGATAATGATGGAGAACTAGATACACCAATAAATTATAGTCTTAAATATTCAGATGAGCAGTTGAACTCTGGAAGGCAAAGTCCTTCACAGAATGAAAGATGGGCAAGACCCAAACACATAATAGAAGATGAAATAAAACAAAGTGAGCAAAGACAATCAAGGAATCAAAGTACAACTTATCCTGTTTATACTGAGAGCACTGATGATAAACACCTCAAGTTCCAACCACATTTTGGACAGCAGGAATGTGTTTCTCCATACAGGTCACGGGGAGCCAATGGTTCAGAAACAAATCGAGTGGGTTCTAATCATGGAATTAATCAAAATGTAAGCCAGTCTTTGTGTCAAGAAGATGACTATGAAGATGATAAGCCTACCAATTATAGTGAACGTTACTCTGAAGAAGAACAGCATGAAGAAGAAGAGAGACCAACAAATTATAGCATAAAATATAATGAAGAGAAACGTCATGTGGATCAGCCTATTGATTATAGTTTAAAATATGCCACAGATATTCCTTCATCACAGAAACAGTCATTTTCATTCTCAAAGAGTTCATCTGGACAAAGCAGTAAAACCGAACATATGTCTTCAAGCAGTGAGAATACGTCCACACCTTCATCTAATGCCAAGAGGCAGAATCAGCTCCATCCAAGTTCTGCACAGAGTAGAAGTGGTCAGCCTCAAAAGGCTGCCACTTGCAAAGTTTCTTCTATTAACCAAGAAACAATACAGACTTATTGTGTAGAAGATACTCCAATATGTTTTTCAAGATGTAGTTCATTATCATCTTTGTCATCAGCTGAAGATGAAATAGGATGTAATCAGACGACACAGGAAGCAGATTCTGCTAATACCCTGCAAATAGCAGAAATAAAAGAAAAGATTGGAACTAGGTCAGCTGAAGATCCTGTGAGCGAAGTTCCAGCAGTGTCACAGCACCCTAGAACCAAATCCAGCAGACTGCAGGGTTCTAGTTTATCTTCAGAATCAGCCAGGCACAAAGCTGTTGAATTTTCTTCAGGAGCGAAATCTCCCTCCAAAAGTGGTGCTCAGACACCCAAAAGTCCACCTGAACACTATGTTCAGGAGACCCCACTCATGTTTAGCAGATGTACTTCTGTCAGTTCACTTGATAGTTTTGAGAGTCGTTCGATTGCCAGCTCCGTTCAGAGTGAACCATGCAGTGGAATGGTAAGTGGCATTATAAGCCCCAGTGATCTTCCAGATAGCCCTGGACAAACCATGCCACCAAGCAGAAGTAAAACACCTCCACCACCTCCTCAAACAGCTCAAACCAAGCGAGAAGTACCTAAAAATAAAGCACCTACTGCTGAAAAGAGAGAGAGTGGACCTAAGCAAGCTGCAGTAAATGCTGCAGTTCAGAGGGTCCAGGTTCTTCCAGATGCTGATACTTTATTACATTTTGCCACGGAAAGTACTCCAGATGGATTTTCTTGTTCATCCAGCCTGAGTGCTCTGAGCCTCGATGAGCCATTTATACAGAAAGATGTGGAATTAAGAATAATGCCTCCAGTTCAGGAAAATGACAATGGGAATGAAACAGAATCAGAGCAGCCTAAAGAATCAAATGAAAACCAAGAGAAAGAGGCAGAAAAAACTATTGATTCTGAAAAGGACCTATTAGATGATTCAGATGATGATGATATTGAAATACTAGAAGAATGTATTATTTCTGCCATGCCAACAAAGTCATCACGTAAAGCAAAAAAGCCAGCCCAGACTGCTTCAAAATTACCTCCACCTGTGGCAAGGAAACCAAGTCAGCTGCCTGTGTACAAACTTCTACCATCACAAAACAGGTTGCAACCCCAAAAGCATGTTAGTTTTACACCGGGGGATGATATGCCACGGGTGTATTGTGTTGAAGGGACACCTATAAACTTTTCCACAGCTACATCTCTAAGTGATCTAACAATCGAATCCCCTCCAAATGAGTTAGCTGCTGGAGAAGGAGTTAGAGGAGGGGCACAGTCAGGTGAATTTGAAAAACGAGATACCATTCCTACAGAAGGCAGAAGTACAGATGAGGCTCAAGGAGGAAAAACCTCATCTGTAACCATACCTGAATTGGATGACAATAAAGCAGAGGAAGGTGATATTCTTGCAGAATGCATTAATTCTGCTATGCCCAAAGGGAAAAGTCACAAGCCTTTCCGTGTGAAAAAGATAATGGACCAGGTCCAGCAAGCATCTGCGTCTTCTTCTGCACCCAACAAAAATCAGTTAGATGGTAAGAAAAAGAAACCAACTTCACCAGTAAAACCTATACCACAAAATACTGAATATAGGACACGTGTAAGAAAAAATGCAGACTCAAAAAATAATTTAAATGCTGAGAGAGTTTTCTCAGACAACAAAGATTCAAAGAAACAGAATTTGAAAAATAATTCCAAGGTCTTCAATGATAAGCTCCCAAATAATGAAGATAGAGTCAGAGGAAGTTTTGCTTTTGATTCACCTCATCATTACACGCCTATTGAAGGAACTCCTTACTGTTTTTCACGAAATGATTCTTTGAGTTCTCTAGATTTTGATGATGATGATGTTGACCTTTCCAGGGAAAAGGCTGAATTAAGAAAGGCAAAAGAAAATAAGGAATCAGAGGCTAAAGTTACCAGCCACACAGAACTAACCTCCAACCAACAATCAGCTAATAAGACACAAGCTATTGCAAAGCAGCCAATAAATCGAGGTCAGCCTAAACCCATACTTCAGAAACAATCCACTTTTCCCCAGTCATCCAAAGACATACCAGACAGAGGGGCAGCAACTGATGAAAAGTTACAGAATTTTGCTATTGAAAATACTCCGGTTTGCTTTTCTCATAATTCCTCTCTGAGTTCTCTCAGTGACATTGACCAAGAAAACAACAATAAAGAAAATGAACCTATCAAAGAGACTGAGCCCCCTGACTCACAGGGAGAACCAAGTAAACCTCAAGCATCAGGCTATGCTCCTAAATCATTTCATGTTGAAGATACCCCAGTTTGTTTCTCAAGAAACAGTTCTCTCAGTTCTCTTAGTATTGACTCTGAAGATGACCTGTTGCAGGAATGTATAAGCTCCGCAATGCCAAAAAAGAAAAAGCCTTCAAGACTCAAGGGTGATAATGAAAAACATAGTCCCAGAAATATGGGTGGCATATTAGGTGAAGATCTGACACTTGATTTGAAAGATATACAGAGACCAGATTCAGAACATGGTCTATCCCCTGATTCAGAAAATTTTGATTGGAAAGCTATTCAGGAAGGTGCAAATTCCATAGTAAGTAGTTTACATCAAGCTGCTGCTGCTGCATGTTTATCTAGACAAGCTTCGTCTGATTCAGATTCCATCCTTTCCCTGAAATCAGGAATCTCTCTGGGATCACCATTTCATCTTACACCTGATCAAGAAGAAAAACCCTTTACAAGTAATAAAGGCCCACGAATTCTAAAACCAGGGGAGAAAAGTACATTGGAAACTAAAAAGATAGAATCTGAAAGTAAAGGAATCAAAGGAGGAAAAAAAGTTTATAAAAGTTTGATTACTGGAAAAGTTCGATCTAATTCAGAAATTTCAGGCCAAATGAAACAGCCCCTTCAAGCAAACATGCCTTCAATCTCTCGAGGCAGGACAATGATTCATATTCCAGGAGTTCGAAATAGCTCCTCAAGTACAAGTCCTGTTTCTAAAAAAGGCCCACCCCTTAAGACTCCAGCCTCCAAAAGCCCTAGTGAAGGTCAAACAGCCACCACTTCTCCTAGAGGAGCCAAGCCATCTGTGAAATCAGAATTAAGCCCTGTTGCCAGGCAGACATCCCAAATAGGTGGGTCAAGTAAAGCACCTTCTAGATCAGGATCTAGAGATTCGACCCCTTCAAGACCTGCCCAGCAACCATTAAGTAGACCTATACAGTCTCCTGGCCGAAACTCAATTTCCCCTGGTAGAAATGGAATAAGTCCTCCTAACAAATTATCTCAACTTCCAAGGACATCATCCCCTAGTACTGCTTCAACTAAGTCCTCAGGTTCTGGAAAAATGTCATATACATCTCCAGGTAGACAGATGAGCCAACAGAACCTTACCAAACAAACAGGTTTATCCAAGAATGCCAGTAGTATTCCAAGAAGTGAGTCTGCCTCCAAAGGACTAAATCAGATGAATAATGGTAATGGAGCCAATAAAAAGGTAGAACTTTCTAGAATGTCTTCAACTAAATCAAGTGGAAGTGAATCTGATAGATCAGAAAGACCTGTATTAGTACGCCAGTCAACTTTCATCAAAGAAGCTCCAAGCCCAACCTTAAGAAGAAAATTGGAGGAATCTGCTTCATTTGAATCTCTTTCTCCATCATCTAGACCAGCTTCTCCCACTAGGTCCCAGGCACAAACTCCAGTTTTAAGTCCTTCCCTTCCTGATATGTCTCTATCCACACATTCGTCTGTTCAGGCTGGTGGATGGCGAAAACTCCCACCTAATCTCAGTCCCACTATAGAGTATAATGATGGAAGACCAGCAAAGCGCCATGATATTGCACGGTCTCATTCTGAAAGTCCTTCTAGACTTCCAATCAATAGGTCAGGAACCTGGAAACGTGAGCACAGCAAACATTCATCATCCCTTCCTCGAGTAAGCACTTGGAGAAGAACTGGAAGTTCATCTTCAATTCTTTCTGCTTCATCAGAATCCAGTGAAAAAGCAAAAAGTGAGGATGAAAAACATGTGAACTCTATTTCAGGAACCAAACAAAGTAAAGAAAACCAAGTATCCGCAAAAGGAACATGGAGAAAAATAAAAGAAAATGAATTTTCTCCCACAAATAGTACTTCTCAGACCGTTTCCTCAGGTGCTACAAATGGTGCTGAATCAAAGACTCTAATTTATCAAATGGCACCTGCTGTTTCTAAAACAGAGGATGTTTGGGTGAGAATTGAGGACTGTCCCATTAACAATCCTAGATCTGGAAGATCTCCCACAGGTAATACTCCCCCGGTGATTGACAGTGTTTCAGAAAAGGCAAATCCAAACATTAAAGATTCAAAAGATAATCAGGCAAAACAAAATGTGGGTAATGGCAGTGTTCCCATGCGTACCGTGGGTTTGGAAAATCGCCTGAACTCCTTTATTCAGGTGGATGCCCCTGACCAAAAAGGAACTGAGATAAAACCAGGACAAAATAATCCTGTCCCTGTATCAGAGACTAATGAAAGTTCTATAGTGGAACGTACCCCATTCAGTTCTAGCAGCTCAAGCAAACACAGTTCACCTAGTGGGACTGTTGCTGCCAGAGTGACTCCTTTTAATTACAACCCAAGCCCTAGGAAAAGCAGCGCAGATAGCACTTCAGCTCGGCCATCTCAGATCCCAACTCCAGTGAATAACAACACAAAGAAGCGAGATTCCAAAACTGACAGCACAGAATCCAGTGGAACCCAAAGTCCTAAGCGCCATTCTGGGTCTTACCTTGTGACATCTGTTTAA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 2,
+          "genomic_start": 112755026,
+          "genomic_end": 112766325,
+          "total_len": 11300,
+          "five_prime_sequence": "gtatcaagactgtgacttttaattgtagtt",
+          "three_prime_sequence": "catgttaatatattgtgttctttttaacag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 112766411,
+          "genomic_end": 112767188,
+          "total_len": 778,
+          "five_prime_sequence": "gtagattttaaaaaggtgttttaaaataat",
+          "three_prime_sequence": "tgtataaaaacttgtttctattttatttag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 112767391,
+          "genomic_end": 112775628,
+          "total_len": 8238,
+          "five_prime_sequence": "gtaacttttcttcatatagtaaacattgcc",
+          "three_prime_sequence": "acgtacctttttttaaaaaaaaaaaaatag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 112775738,
+          "genomic_end": 112780789,
+          "total_len": 5052,
+          "five_prime_sequence": "gtaagtaacttggcagtacaacttatttga",
+          "three_prime_sequence": "ttgatacttttttattatttgtggttttag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 112780904,
+          "genomic_end": 112792445,
+          "total_len": 11542,
+          "five_prime_sequence": "gtaagttacttgtttctaagtgataaaaca",
+          "three_prime_sequence": "taactaattaggtttcttgttttattttag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 112792530,
+          "genomic_end": 112801278,
+          "total_len": 8749,
+          "five_prime_sequence": "gttagtaaattgcctttcttgtttgtgggt",
+          "three_prime_sequence": "catgtactgatgttaactccatcttaacag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 112801384,
+          "genomic_end": 112815494,
+          "total_len": 14111,
+          "five_prime_sequence": "gtaaataaattattttatcatattttttaa",
+          "three_prime_sequence": "tataccatctataatgtgcttaatttttag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 112815594,
+          "genomic_end": 112818965,
+          "total_len": 3372,
+          "five_prime_sequence": "gtaacagaagattacaaaccctggtcacta",
+          "three_prime_sequence": "attttgtttctaaactcatttggcccacag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 112819345,
+          "genomic_end": 112821895,
+          "total_len": 2551,
+          "five_prime_sequence": "gtatgttctctatagtgtacatcgtagtgc",
+          "three_prime_sequence": "attatggtttatgttgattttatttttcag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 112821992,
+          "genomic_end": 112827107,
+          "total_len": 5116,
+          "five_prime_sequence": "gtaagacaaaaatgttttttaatgacatag",
+          "three_prime_sequence": "gtctttttcctcttgccctttttaaattag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 112827248,
+          "genomic_end": 112827928,
+          "total_len": 681,
+          "five_prime_sequence": "gtatgtttttataacatgtatttcttaaga",
+          "three_prime_sequence": "atgatcctctattctgtatttaatttacag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 112828007,
+          "genomic_end": 112828855,
+          "total_len": 849,
+          "five_prime_sequence": "gtactatttagaatttcacctgtttttctt",
+          "three_prime_sequence": "taaattaatctaaaattgattaatttgcag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 112828973,
+          "genomic_end": 112834950,
+          "total_len": 5978,
+          "five_prime_sequence": "gtacctttgaaaacatttagtactataata",
+          "three_prime_sequence": "ttagatgacccatattctgtttcttactag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 112835166,
+          "genomic_end": 112837552,
+          "total_len": 2387,
+          "five_prime_sequence": "gtatatatagagttttatattacttttaaa",
+          "three_prime_sequence": "taattttgtgatctcttgattttatttcag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "BRCA1",
+      "cdna": "c.2858G>T",
+      "transcript": "NM_007294.4",
+      "requested_transcript": "NM_007294.4",
+      "transcript_aliases": [
+        "NM_007294.4",
+        "ENST00000357654.9",
+        "BRCA1-203",
+        "MANE Select"
+      ],
+      "clinical_significance": "Uncertain significance",
+      "clinvar_variation_id": "4799584",
+      "accession": "VCV004799584",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4799584/",
+      "chrom": "17",
+      "strand": "-",
+      "ensembl_gene_id": "ENSG00000012048",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 43044292,
+      "gene_end": 43170245,
+      "gene_length": 125954,
+      "cds_length": 5592,
+      "protein_length": 1863,
+      "utr5_length": 113,
+      "utr3_length": 1383,
+      "mrna_length": 7088,
+      "translation_id": "ENSP00000350283",
+      "variant": {
+        "hgvs_c": "c.2858G>T",
+        "hgvs_p": "p.Cys953Phe",
+        "cds_pos": 2858,
+        "ref": "G",
+        "alt": "T",
+        "genomic_hg38": "17-43092673-C-A",
+        "codon_number": 953,
+        "codon_offset": 1,
+        "aa_ref": "C",
+        "aa_alt": "F",
+        "classification": "vus"
+      },
+      "exons": [
+        {
+          "number": 2,
+          "cds_start": 1,
+          "cds_end": 80,
+          "genomic_start": 43124017,
+          "genomic_end": 43124096,
+          "sequence": "ATGGATTTATCTGCTCTTCGCGTTGAAGAAGTACAAAATGTCATTAATGCTATGCAGAAAATCTTAGAGTGTCCCATCTG"
+        },
+        {
+          "number": 3,
+          "cds_start": 81,
+          "cds_end": 134,
+          "genomic_start": 43115726,
+          "genomic_end": 43115779,
+          "sequence": "TCTGGAGTTGATCAAGGAACCTGTCTCCACAAAGTGTGACCACATATTTTGCAA"
+        },
+        {
+          "number": 4,
+          "cds_start": 135,
+          "cds_end": 212,
+          "genomic_start": 43106456,
+          "genomic_end": 43106533,
+          "sequence": "ATTTTGCATGCTGAAACTTCTCAACCAGAAGAAAGGGCCTTCACAGTGTCCTTTATGTAAGAATGATATAACCAAAAG"
+        },
+        {
+          "number": 5,
+          "cds_start": 213,
+          "cds_end": 301,
+          "genomic_start": 43104868,
+          "genomic_end": 43104956,
+          "sequence": "GAGCCTACAAGAAAGTACGAGATTTAGTCAACTTGTTGAAGAGCTATTGAAAATCATTTGTGCTTTTCAGCTTGACACAGGTTTGGAGT"
+        },
+        {
+          "number": 6,
+          "cds_start": 302,
+          "cds_end": 441,
+          "genomic_start": 43104122,
+          "genomic_end": 43104261,
+          "sequence": "ATGCAAACAGCTATAATTTTGCAAAAAAGGAAAATAACTCTCCTGAACATCTAAAAGATGAAGTTTCTATCATCCAAAGTATGGGCTACAGAAACCGTGCCAAAAGACTTCTACAGAGTGAACCCGAAAATCCTTCCTTG"
+        },
+        {
+          "number": 7,
+          "cds_start": 442,
+          "cds_end": 547,
+          "genomic_start": 43099775,
+          "genomic_end": 43099880,
+          "sequence": "CAGGAAACCAGTCTCAGTGTCCAACTCTCTAACCTTGGAACTGTGAGAACTCTGAGGACAAAGCAGCGGATACAACCTCAAAAGACGTCTGTCTACATTGAATTGG"
+        },
+        {
+          "number": 8,
+          "cds_start": 548,
+          "cds_end": 593,
+          "genomic_start": 43097244,
+          "genomic_end": 43097289,
+          "sequence": "GATCTGATTCTTCTGAAGATACCGTTAATAAGGCAACTTATTGCAG"
+        },
+        {
+          "number": 9,
+          "cds_start": 594,
+          "cds_end": 670,
+          "genomic_start": 43095846,
+          "genomic_end": 43095922,
+          "sequence": "TGTGGGAGATCAAGAATTGTTACAAATCACCCCTCAAGGAACCAGGGATGAAATCAGTTTGGATTCTGCAAAAAAGG"
+        },
+        {
+          "number": 10,
+          "cds_start": 671,
+          "cds_end": 4096,
+          "genomic_start": 43091435,
+          "genomic_end": 43094860,
+          "sequence": "CTGCTTGTGAATTTTCTGAGACGGATGTAACAAATACTGAACATCATCAACCCAGTAATAATGATTTGAACACCACTGAGAAGCGTGCAGCTGAGAGGCATCCAGAAAAGTATCAGGGTAGTTCTGTTTCAAACTTGCATGTGGAGCCATGTGGCACAAATACTCATGCCAGCTCATTACAGCATGAGAACAGCAGTTTATTACTCACTAAAGACAGAATGAATGTAGAAAAGGCTGAATTCTGTAATAAAAGCAAACAGCCTGGCTTAGCAAGGAGCCAACATAACAGATGGGCTGGAAGTAAGGAAACATGTAATGATAGGCGGACTCCCAGCACAGAAAAAAAGGTAGATCTGAATGCTGATCCCCTGTGTGAGAGAAAAGAATGGAATAAGCAGAAACTGCCATGCTCAGAGAATCCTAGAGATACTGAAGATGTTCCTTGGATAACACTAAATAGCAGCATTCAGAAAGTTAATGAGTGGTTTTCCAGAAGTGATGAACTGTTAGGTTCTGATGACTCACATGATGGGGAGTCTGAATCAAATGCCAAAGTAGCTGATGTATTGGACGTTCTAAATGAGGTAGATGAATATTCTGGTTCTTCAGAGAAAATAGACTTACTGGCCAGTGATCCTCATGAGGCTTTAATATGTAAAAGTGAAAGAGTTCACTCCAAATCAGTAGAGAGTAATATTGAAGACAAAATATTTGGGAAAACCTATCGGAAGAAGGCAAGCCTCCCCAACTTAAGCCATGTAACTGAAAATCTAATTATAGGAGCATTTGTTACTGAGCCACAGATAATACAAGAGCGTCCCCTCACAAATAAATTAAAGCGTAAAAGGAGACCTACATCAGGCCTTCATCCTGAGGATTTTATCAAGAAAGCAGATTTGGCAGTTCAAAAGACTCCTGAAATGATAAATCAGGGAACTAACCAAACGGAGCAGAATGGTCAAGTGATGAATATTACTAATAGTGGTCATGAGAATAAAACAAAAGGTGATTCTATTCAGAATGAGAAAAATCCTAACCCAATAGAATCACTCGAAAAAGAATCTGCTTTCAAAACGAAAGCTGAACCTATAAGCAGCAGTATAAGCAATATGGAACTCGAATTAAATATCCACAATTCAAAAGCACCTAAAAAGAATAGGCTGAGGAGGAAGTCTTCTACCAGGCATATTCATGCGCTTGAACTAGTAGTCAGTAGAAATCTAAGCCCACCTAATTGTACTGAATTGCAAATTGATAGTTGTTCTAGCAGTGAAGAGATAAAGAAAAAAAAGTACAACCAAATGCCAGTCAGGCACAGCAGAAACCTACAACTCATGGAAGGTAAAGAACCTGCAACTGGAGCCAAGAAGAGTAACAAGCCAAATGAACAGACAAGTAAAAGACATGACAGCGATACTTTCCCAGAGCTGAAGTTAACAAATGCACCTGGTTCTTTTACTAAGTGTTCAAATACCAGTGAACTTAAAGAATTTGTCAATCCTAGCCTTCCAAGAGAAGAAAAAGAAGAGAAACTAGAAACAGTTAAAGTGTCTAATAATGCTGAAGACCCCAAAGATCTCATGTTAAGTGGAGAAAGGGTTTTGCAAACTGAAAGATCTGTAGAGAGTAGCAGTATTTCATTGGTACCTGGTACTGATTATGGCACTCAGGAAAGTATCTCGTTACTGGAAGTTAGCACTCTAGGGAAGGCAAAAACAGAACCAAATAAATGTGTGAGTCAGTGTGCAGCATTTGAAAACCCCAAGGGACTAATTCATGGTTGTTCCAAAGATAATAGAAATGACACAGAAGGCTTTAAGTATCCATTGGGACATGAAGTTAACCACAGTCGGGAAACAAGCATAGAAATGGAAGAAAGTGAACTTGATGCTCAGTATTTGCAGAATACATTCAAGGTTTCAAAGCGCCAGTCATTTGCTCCGTTTTCAAATCCAGGAAATGCAGAAGAGGAATGTGCAACATTCTCTGCCCACTCTGGGTCCTTAAAGAAACAAAGTCCAAAAGTCACTTTTGAATGTGAACAAAAGGAAGAAAATCAAGGAAAGAATGAGTCTAATATCAAGCCTGTACAGACAGTTAATATCACTGCAGGCTTTCCTGTGGTTGGTCAGAAAGATAAGCCAGTTGATAATGCCAAATGTAGTATCAAAGGAGGCTCTAGGTTTTGTCTATCATCTCAGTTCAGAGGCAACGAAACTGGACTCATTACTCCAAATAAACATGGACTTTTACAAAACCCATATCGTATACCACCACTTTTTCCCATCAAGTCATTTGTTAAAACTAAATGTAAGAAAAATCTGCTAGAGGAAAACTTTGAGGAACATTCAATGTCACCTGAAAGAGAAATGGGAAATGAGAACATTCCAAGTACAGTGAGCACAATTAGCCGTAATAACATTAGAGAAAATGTTTTTAAAGAAGCCAGCTCAAGCAATATTAATGAAGTAGGTTCCAGTACTAATGAAGTGGGCTCCAGTATTAATGAAATAGGTTCCAGTGATGAAAACATTCAAGCAGAACTAGGTAGAAACAGAGGGCCAAAATTGAATGCTATGCTTAGATTAGGGGTTTTGCAACCTGAGGTCTATAAACAAAGTCTTCCTGGAAGTAATTGTAAGCATCCTGAAATAAAAAAGCAAGAATATGAAGAAGTAGTTCAGACTGTTAATACAGATTTCTCTCCATATCTGATTTCAGATAACTTAGAACAGCCTATGGGAAGTAGTCATGCATCTCAGGTTTGTTCTGAGACACCTGATGACCTGTTAGATGATGGTGAAATAAAGGAAGATACTAGTTTTGCTGAAAATGACATTAAGGAAAGTTCTGCTGTTTTTAGCAAAAGCGTCCAGAAAGGAGAGCTTAGCAGGAGTCCTAGCCCTTTCACCCATACACATTTGGCTCAGGGTTACCGAAGAGGGGCCAAGAAATTAGAGTCCTCAGAAGAGAACTTATCTAGTGAGGATGAAGAGCTTCCCTGCTTCCAACACTTGTTATTTGGTAAAGTAAACAATATACCTTCTCAGTCTACTAGGCATAGCACCGTTGCTACCGAGTGTCTGTCTAAGAACACAGAGGAGAATTTATTATCATTGAAGAATAGCTTAAATGACTGCAGTAACCAGGTAATATTGGCAAAGGCATCTCAGGAACATCACCTTAGTGAGGAAACAAAATGTTCTGCTAGCTTGTTTTCTTCACAGTGCAGTGAATTGGAAGACTTGACTGCAAATACAAACACCCAGGATCCTTTCTTGATTGGTTCTTCCAAACAAATGAGGCATCAGTCTGAAAGCCAGGGAGTTGGTCTGAGTGACAAGGAATTGGTTTCAGATGATGAAGAAAGAGGAACGGGCTTGGAAGAAAATAATCAAGAAGAGCAAAGCATGGATTCAAACTTAG"
+        },
+        {
+          "number": 11,
+          "cds_start": 4097,
+          "cds_end": 4185,
+          "genomic_start": 43090944,
+          "genomic_end": 43091032,
+          "sequence": "GTGAAGCAGCATCTGGGTGTGAGAGTGAAACAAGCGTCTCTGAAGACTGCTCAGGGCTATCCTCTCAGAGTGACATTTTAACCACTCAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 4186,
+          "cds_end": 4357,
+          "genomic_start": 43082404,
+          "genomic_end": 43082575,
+          "sequence": "CAGAGGGATACCATGCAACATAACCTGATAAAGCTCCAGCAGGAAATGGCTGAACTAGAAGCTGTGTTAGAACAGCATGGGAGCCAGCCTTCTAACAGCTACCCTTCCATCATAAGTGACTCTTCTGCCCTTGAGGACCTGCGAAATCCAGAACAAAGCACATCAGAAAAAG"
+        },
+        {
+          "number": 13,
+          "cds_start": 4358,
+          "cds_end": 4484,
+          "genomic_start": 43076488,
+          "genomic_end": 43076614,
+          "sequence": "CAGTATTAACTTCACAGAAAAGTAGTGAATACCCTATAAGCCAGAATCCAGAAGGCCTTTCTGCTGACAAGTTTGAGGTGTCTGCAGATAGTTCTACCAGTAAAAATAAAGAACCAGGAGTGGAAAG"
+        },
+        {
+          "number": 14,
+          "cds_start": 4485,
+          "cds_end": 4675,
+          "genomic_start": 43074331,
+          "genomic_end": 43074521,
+          "sequence": "GTCATCCCCTTCTAAATGCCCATCATTAGATGATAGGTGGTACATGCACAGTTGCTCTGGGAGTCTTCAGAATAGAAACTACCCATCTCAAGAGGAGCTCATTAAGGTTGTTGATGTGGAGGAGCAACAGCTGGAAGAGTCTGGGCCACACGATTTGACGGAAACATCTTACTTGCCAAGGCAAGATCTAG"
+        },
+        {
+          "number": 15,
+          "cds_start": 4676,
+          "cds_end": 4986,
+          "genomic_start": 43070928,
+          "genomic_end": 43071238,
+          "sequence": "AGGGAACCCCTTACCTGGAATCTGGAATCAGCCTCTTCTCTGATGACCCTGAATCTGATCCTTCTGAAGACAGAGCCCCAGAGTCAGCTCGTGTTGGCAACATACCATCTTCAACCTCTGCATTGAAAGTTCCCCAATTGAAAGTTGCAGAATCTGCCCAGAGTCCAGCTGCTGCTCATACTACTGATACTGCTGGGTATAATGCAATGGAAGAAAGTGTGAGCAGGGAGAAGCCAGAATTGACAGCTTCAACAGAAAGGGTCAACAAAAGAATGTCCATGGTGGTGTCTGGCCTGACCCCAGAAGAATTT"
+        },
+        {
+          "number": 16,
+          "cds_start": 4987,
+          "cds_end": 5074,
+          "genomic_start": 43067608,
+          "genomic_end": 43067695,
+          "sequence": "ATGCTCGTGTACAAGTTTGCCAGAAAACACCACATCACTTTAACTAATCTAATTACTGAAGAGACTACTCATGTTGTTATGAAAACAG"
+        },
+        {
+          "number": 17,
+          "cds_start": 5075,
+          "cds_end": 5152,
+          "genomic_start": 43063874,
+          "genomic_end": 43063951,
+          "sequence": "ATGCTGAGTTTGTGTGTGAACGGACACTGAAATATTTTCTAGGAATTGCGGGAGGAAAATGGGTAGTTAGCTATTTCT"
+        },
+        {
+          "number": 18,
+          "cds_start": 5153,
+          "cds_end": 5193,
+          "genomic_start": 43063333,
+          "genomic_end": 43063373,
+          "sequence": "GGGTGACCCAGTCTATTAAAGAAAGAAAAATGCTGAATGAG"
+        },
+        {
+          "number": 19,
+          "cds_start": 5194,
+          "cds_end": 5277,
+          "genomic_start": 43057052,
+          "genomic_end": 43057135,
+          "sequence": "CATGATTTTGAAGTCAGAGGAGATGTGGTCAATGGAAGAAACCACCAAGGTCCAAAGCGAGCAAGAGAATCCCAGGACAGAAAG"
+        },
+        {
+          "number": 20,
+          "cds_start": 5278,
+          "cds_end": 5332,
+          "genomic_start": 43051063,
+          "genomic_end": 43051117,
+          "sequence": "ATCTTCAGGGGGCTAGAAATCTGTTGCTATGGGCCCTTCACCAACATGCCCACAG"
+        },
+        {
+          "number": 21,
+          "cds_start": 5333,
+          "cds_end": 5406,
+          "genomic_start": 43049121,
+          "genomic_end": 43049194,
+          "sequence": "ATCAACTGGAATGGATGGTACAGCTGTGTGGTGCTTCTGTGGTGAAGGAGCTTTCATCATTCACCCTTGGCACA"
+        },
+        {
+          "number": 22,
+          "cds_start": 5407,
+          "cds_end": 5467,
+          "genomic_start": 43047643,
+          "genomic_end": 43047703,
+          "sequence": "GGTGTCCACCCAATTGTGGTTGTGCAGCCAGATGCCTGGACAGAGGACAATGGCTTCCATG"
+        },
+        {
+          "number": 23,
+          "cds_start": 5468,
+          "cds_end": 5592,
+          "genomic_start": 43045678,
+          "genomic_end": 43045802,
+          "sequence": "CAATTGGGCAGATGTGTGAGGCACCTGTGGTGACCCGAGAGTGGGTGTTGGACAGTGTAGCACTCTACCAGTGCCAGGAGCTGGACACCTACCTGATACCCCAGATCCCCCACAGCCACTACTGA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 2,
+          "genomic_start": 43115780,
+          "genomic_end": 43124016,
+          "total_len": 8237,
+          "five_prime_sequence": "gtaagtcagcacaagagtgtattaatttgg",
+          "three_prime_sequence": "ttttctttttctccccccctaccctgctag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 43106534,
+          "genomic_end": 43115725,
+          "total_len": 9192,
+          "five_prime_sequence": "gtaagtttgaatgtgttatgtggctccatt",
+          "three_prime_sequence": "aattgttctttctttctttataatttatag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 43104957,
+          "genomic_end": 43106455,
+          "total_len": 1499,
+          "five_prime_sequence": "gtatataatttggtaatgatgctaggttgg",
+          "three_prime_sequence": "gagtgtgtttctcaaacaatttaatttcag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 43104262,
+          "genomic_end": 43104867,
+          "total_len": 606,
+          "five_prime_sequence": "gtaagtgttgaatatcccaagaatgacact",
+          "three_prime_sequence": "aaacataatgttttcccttgtattttacag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 43099881,
+          "genomic_end": 43104121,
+          "total_len": 4241,
+          "five_prime_sequence": "gtaaaaccatttgttttcttcttcttcttc",
+          "three_prime_sequence": "tgcttgactgttctttaccatactgtttag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 43097290,
+          "genomic_end": 43099774,
+          "total_len": 2485,
+          "five_prime_sequence": "gtaagggtctcaggttttttaagtatttaa",
+          "three_prime_sequence": "tgatttattttttggggggaaattttttag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 43095923,
+          "genomic_end": 43097243,
+          "total_len": 1321,
+          "five_prime_sequence": "gtgagtcaaagagaacctttgtctatgaag",
+          "three_prime_sequence": "tcttattaggactctgtcttttccctatag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 43094861,
+          "genomic_end": 43095845,
+          "total_len": 985,
+          "five_prime_sequence": "gtaatggcaaagtttgccaacttaacaggc",
+          "three_prime_sequence": "gagtaccttgttatttttgtatattttcag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 43091033,
+          "genomic_end": 43091434,
+          "total_len": 402,
+          "five_prime_sequence": "gtattggaaccaggtttttgtgtttgcccc",
+          "three_prime_sequence": "acatctgaacctctgtttttgttatttaag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 43082576,
+          "genomic_end": 43090943,
+          "total_len": 8368,
+          "five_prime_sequence": "gtaaaaagcgtgtgtgtgtgtgcacatgcg",
+          "three_prime_sequence": "ttttcttggtgccatttatcgtttttgaag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 43076615,
+          "genomic_end": 43082403,
+          "total_len": 5789,
+          "five_prime_sequence": "gtgtgtattgttggccaaacactgatatct",
+          "three_prime_sequence": "agtagatttgttttctcattccatttaaag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 43074522,
+          "genomic_end": 43076487,
+          "total_len": 1966,
+          "five_prime_sequence": "gtaagaaacatcaatgtaaagatgctgtgg",
+          "three_prime_sequence": "atggttttctccttccatttatctttctag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 43071239,
+          "genomic_end": 43074330,
+          "total_len": 3092,
+          "five_prime_sequence": "gtaatatttcatctgctgtattggaacaaa",
+          "three_prime_sequence": "tgtaaattaaacttctcccattcctttcag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 43067696,
+          "genomic_end": 43070927,
+          "total_len": 3232,
+          "five_prime_sequence": "gtgagtgtatccatatgtatctccctaatg",
+          "three_prime_sequence": "atgataatggaatatttgatttaatttcag"
+        },
+        {
+          "number": 16,
+          "genomic_start": 43063952,
+          "genomic_end": 43067607,
+          "total_len": 3656,
+          "five_prime_sequence": "gtataccaagaacctttacagaataccttg",
+          "three_prime_sequence": "ctaatcctttgagtgtttttcattctgcag"
+        },
+        {
+          "number": 17,
+          "genomic_start": 43063374,
+          "genomic_end": 43063873,
+          "total_len": 500,
+          "five_prime_sequence": "gtaagtataatactatttctcccctcctcc",
+          "three_prime_sequence": "tgtaacctgtcttttctatgatctctttag"
+        },
+        {
+          "number": 18,
+          "genomic_start": 43057136,
+          "genomic_end": 43063332,
+          "total_len": 6197,
+          "five_prime_sequence": "gtaagtacttgatgttacaaactaaccaga",
+          "three_prime_sequence": "tcctgatgggttgtgtttggtttctttcag"
+        },
+        {
+          "number": 19,
+          "genomic_start": 43051118,
+          "genomic_end": 43057051,
+          "total_len": 5934,
+          "five_prime_sequence": "gtaaagctccctccctcaagttgacaaaaa",
+          "three_prime_sequence": "ctgtccctctctcttcctctcttcttccag"
+        },
+        {
+          "number": 20,
+          "genomic_start": 43049195,
+          "genomic_end": 43051062,
+          "total_len": 1868,
+          "five_prime_sequence": "gtaagagcctgggagaaccccagagttcca",
+          "three_prime_sequence": "agtgattttacatctaaatgtccattttag"
+        },
+        {
+          "number": 21,
+          "genomic_start": 43047704,
+          "genomic_end": 43049120,
+          "total_len": 1417,
+          "five_prime_sequence": "gtaagtattgggtgccctgtcagagaggga",
+          "three_prime_sequence": "ttgaatgctctttccttcctggggatccag"
+        },
+        {
+          "number": 22,
+          "genomic_start": 43045803,
+          "genomic_end": 43047642,
+          "total_len": 1840,
+          "five_prime_sequence": "gtaaggtgcctgcatgtacctgtgctatat",
+          "three_prime_sequence": "ctaatctctgcttgtgttctctgtctccag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "BRCA2",
+      "cdna": "c.7751G>T",
+      "transcript": "NM_000059.4",
+      "requested_transcript": "NM_000059.4",
+      "transcript_aliases": [
+        "NM_000059.4",
+        "ENST00000380152.8",
+        "BRCA2-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "4826880",
+      "accession": "VCV004826880",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4826880/",
+      "chrom": "13",
+      "strand": "+",
+      "ensembl_gene_id": "ENSG00000139618",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 32315086,
+      "gene_end": 32400268,
+      "gene_length": 85183,
+      "cds_length": 10257,
+      "protein_length": 3418,
+      "utr5_length": 199,
+      "utr3_length": 1498,
+      "mrna_length": 11954,
+      "translation_id": "ENSP00000369497",
+      "variant": {
+        "hgvs_c": "c.7751G>T",
+        "hgvs_p": "p.Gly2584Val",
+        "cds_pos": 7751,
+        "ref": "G",
+        "alt": "T",
+        "genomic_hg38": "13-32357875-G-T",
+        "codon_number": 2584,
+        "codon_offset": 1,
+        "aa_ref": "G",
+        "aa_alt": "V",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 2,
+          "cds_start": 1,
+          "cds_end": 67,
+          "genomic_start": 32316461,
+          "genomic_end": 32316527,
+          "sequence": "ATGCCTATTGGATCCAAAGAGAGGCCAACATTTTTTGAAATTTTTAAGACACGCTGCAACAAAGCAG"
+        },
+        {
+          "number": 3,
+          "cds_start": 68,
+          "cds_end": 316,
+          "genomic_start": 32319077,
+          "genomic_end": 32319325,
+          "sequence": "ATTTAGGACCAATAAGTCTTAATTGGTTTGAAGAACTTTCTTCAGAAGCTCCACCCTATAATTCTGAACCTGCAGAAGAATCTGAACATAAAAACAACAATTACGAACCAAACCTATTTAAAACTCCACAAAGGAAACCATCTTATAATCAGCTGGCTTCAACTCCAATAATATTCAAAGAGCAAGGGCTGACTCTGCCGCTGTACCAATCTCCTGTAAAAGAATTAGATAAATTCAAATTAGACTTAG"
+        },
+        {
+          "number": 4,
+          "cds_start": 317,
+          "cds_end": 425,
+          "genomic_start": 32325076,
+          "genomic_end": 32325184,
+          "sequence": "GAAGGAATGTTCCCAATAGTAGACATAAAAGTCTTCGCACAGTGAAAACTAAAATGGATCAAGCAGATGATGTTTCCTGTCCACTTCTAAATTCTTGTCTTAGTGAAAG"
+        },
+        {
+          "number": 5,
+          "cds_start": 426,
+          "cds_end": 475,
+          "genomic_start": 32326101,
+          "genomic_end": 32326150,
+          "sequence": "TCCTGTTGTTCTACAATGTACACATGTAACACCACAAAGAGATAAGTCAG"
+        },
+        {
+          "number": 6,
+          "cds_start": 476,
+          "cds_end": 516,
+          "genomic_start": 32326242,
+          "genomic_end": 32326282,
+          "sequence": "TGGTATGTGGGAGTTTGTTTCATACACCAAAGTTTGTGAAG"
+        },
+        {
+          "number": 7,
+          "cds_start": 517,
+          "cds_end": 631,
+          "genomic_start": 32326499,
+          "genomic_end": 32326613,
+          "sequence": "GGTCGTCAGACACCAAAACATATTTCTGAAAGTCTAGGAGCTGAGGTGGATCCTGATATGTCTTGGTCAAGTTCTTTAGCTACACCACCCACCCTTAGTTCTACTGTGCTCATAG"
+        },
+        {
+          "number": 8,
+          "cds_start": 632,
+          "cds_end": 681,
+          "genomic_start": 32329443,
+          "genomic_end": 32329492,
+          "sequence": "TCAGAAATGAAGAAGCATCTGAAACTGTATTTCCTCATGATACTACTGCT"
+        },
+        {
+          "number": 9,
+          "cds_start": 682,
+          "cds_end": 793,
+          "genomic_start": 32330919,
+          "genomic_end": 32331030,
+          "sequence": "AATGTGAAAAGCTATTTTTCCAATCATGATGAAAGTCTGAAGAAAAATGATAGATTTATCGCTTCTGTGACAGACAGTGAAAACACAAATCAAAGAGAAGCTGCAAGTCATG"
+        },
+        {
+          "number": 10,
+          "cds_start": 794,
+          "cds_end": 1909,
+          "genomic_start": 32332272,
+          "genomic_end": 32333387,
+          "sequence": "GATTTGGAAAAACATCAGGGAATTCATTTAAAGTAAATAGCTGCAAAGACCACATTGGAAAGTCAATGCCAAATGTCCTAGAAGATGAAGTATATGAAACAGTTGTAGATACCTCTGAAGAAGATAGTTTTTCATTATGTTTTTCTAAATGTAGAACAAAAAATCTACAAAAAGTAAGAACTAGCAAGACTAGGAAAAAAATTTTCCATGAAGCAAACGCTGATGAATGTGAAAAATCTAAAAACCAAGTGAAAGAAAAATACTCATTTGTATCTGAAGTGGAACCAAATGATACTGATCCATTAGATTCAAATGTAGCAAATCAGAAGCCCTTTGAGAGTGGAAGTGACAAAATCTCCAAGGAAGTTGTACCGTCTTTGGCCTGTGAATGGTCTCAACTAACCCTTTCAGGTCTAAATGGAGCCCAGATGGAGAAAATACCCCTATTGCATATTTCTTCATGTGACCAAAATATTTCAGAAAAAGACCTATTAGACACAGAGAACAAAAGAAAGAAAGATTTTCTTACTTCAGAGAATTCTTTGCCACGTATTTCTAGCCTACCAAAATCAGAGAAGCCATTAAATGAGGAAACAGTGGTAAATAAGAGAGATGAAGAGCAGCATCTTGAATCTCATACAGACTGCATTCTTGCAGTAAAGCAGGCAATATCTGGAACTTCTCCAGTGGCTTCTTCATTTCAGGGTATCAAAAAGTCTATATTCAGAATAAGAGAATCACCTAAAGAGACTTTCAATGCAAGTTTTTCAGGTCATATGACTGATCCAAACTTTAAAAAAGAAACTGAAGCCTCTGAAAGTGGACTGGAAATACATACTGTTTGCTCACAGAAGGAGGACTCCTTATGTCCAAATTTAATTGATAATGGAAGCTGGCCAGCCACCACCACACAGAATTCTGTAGCTTTGAAGAATGCAGGTTTAATATCCACTTTGAAAAAGAAAACAAATAAGTTTATTTATGCTATACATGATGAAACATCTTATAAAGGAAAAAAAATACCGAAAGACCAAAAATCAGAACTAATTAACTGTTCAGCCCAGTTTGAAGCAAATGCTTTTGAAGCACCACTTACATTTGCAAATGCTGATTCAG"
+        },
+        {
+          "number": 11,
+          "cds_start": 1910,
+          "cds_end": 6841,
+          "genomic_start": 32336265,
+          "genomic_end": 32341196,
+          "sequence": "GTTTATTGCATTCTTCTGTGAAAAGAAGCTGTTCACAGAATGATTCTGAAGAACCAACTTTGTCCTTAACTAGCTCTTTTGGGACAATTCTGAGGAAATGTTCTAGAAATGAAACATGTTCTAATAATACAGTAATCTCTCAGGATCTTGATTATAAAGAAGCAAAATGTAATAAGGAAAAACTACAGTTATTTATTACCCCAGAAGCTGATTCTCTGTCATGCCTGCAGGAAGGACAGTGTGAAAATGATCCAAAAAGCAAAAAAGTTTCAGATATAAAAGAAGAGGTCTTGGCTGCAGCATGTCACCCAGTACAACATTCAAAAGTGGAATACAGTGATACTGACTTTCAATCCCAGAAAAGTCTTTTATATGATCATGAAAATGCCAGCACTCTTATTTTAACTCCTACTTCCAAGGATGTTCTGTCAAACCTAGTCATGATTTCTAGAGGCAAAGAATCATACAAAATGTCAGACAAGCTCAAAGGTAACAATTATGAATCTGATGTTGAATTAACCAAAAATATTCCCATGGAAAAGAATCAAGATGTATGTGCTTTAAATGAAAATTATAAAAACGTTGAGCTGTTGCCACCTGAAAAATACATGAGAGTAGCATCACCTTCAAGAAAGGTACAATTCAACCAAAACACAAATCTAAGAGTAATCCAAAAAAATCAAGAAGAAACTACTTCAATTTCAAAAATAACTGTCAATCCAGACTCTGAAGAACTTTTCTCAGACAATGAGAATAATTTTGTCTTCCAAGTAGCTAATGAAAGGAATAATCTTGCTTTAGGAAATACTAAGGAACTTCATGAAACAGACTTGACTTGTGTAAACGAACCCATTTTCAAGAACTCTACCATGGTTTTATATGGAGACACAGGTGATAAACAAGCAACCCAAGTGTCAATTAAAAAAGATTTGGTTTATGTTCTTGCAGAGGAGAACAAAAATAGTGTAAAGCAGCATATAAAAATGACTCTAGGTCAAGATTTAAAATCGGACATCTCCTTGAATATAGATAAAATACCAGAAAAAAATAATGATTACATGAACAAATGGGCAGGACTCTTAGGTCCAATTTCAAATCACAGTTTTGGAGGTAGCTTCAGAACAGCTTCAAATAAGGAAATCAAGCTCTCTGAACATAACATTAAGAAGAGCAAAATGTTCTTCAAAGATATTGAAGAACAATATCCTACTAGTTTAGCTTGTGTTGAAATTGTAAATACCTTGGCATTAGATAATCAAAAGAAACTGAGCAAGCCTCAGTCAATTAATACTGTATCTGCACATTTACAGAGTAGTGTAGTTGTTTCTGATTGTAAAAATAGTCATATAACCCCTCAGATGTTATTTTCCAAGCAGGATTTTAATTCAAACCATAATTTAACACCTAGCCAAAAGGCAGAAATTACAGAACTTTCTACTATATTAGAAGAATCAGGAAGTCAGTTTGAATTTACTCAGTTTAGAAAACCAAGCTACATATTGCAGAAGAGTACATTTGAAGTGCCTGAAAACCAGATGACTATCTTAAAGACCACTTCTGAGGAATGCAGAGATGCTGATCTTCATGTCATAATGAATGCCCCATCGATTGGTCAGGTAGACAGCAGCAAGCAATTTGAAGGTACAGTTGAAATTAAACGGAAGTTTGCTGGCCTGTTGAAAAATGACTGTAACAAAAGTGCTTCTGGTTATTTAACAGATGAAAATGAAGTGGGGTTTAGGGGCTTTTATTCTGCTCATGGCACAAAACTGAATGTTTCTACTGAAGCTCTGCAAAAAGCTGTGAAACTGTTTAGTGATATTGAGAATATTAGTGAGGAAACTTCTGCAGAGGTACATCCAATAAGTTTATCTTCAAGTAAATGTCATGATTCTGTTGTTTCAATGTTTAAGATAGAAAATCATAATGATAAAACTGTAAGTGAAAAAAATAATAAATGCCAACTGATATTACAAAATAATATTGAAATGACTACTGGCACTTTTGTTGAAGAAATTACTGAAAATTACAAGAGAAATACTGAAAATGAAGATAACAAATATACTGCTGCCAGTAGAAATTCTCATAACTTAGAATTTGATGGCAGTGATTCAAGTAAAAATGATACTGTTTGTATTCATAAAGATGAAACGGACTTGCTATTTACTGATCAGCACAACATATGTCTTAAATTATCTGGCCAGTTTATGAAGGAGGGAAACACTCAGATTAAAGAAGATTTGTCAGATTTAACTTTTTTGGAAGTTGCGAAAGCTCAAGAAGCATGTCATGGTAATACTTCAAATAAAGAACAGTTAACTGCTACTAAAACGGAGCAAAATATAAAAGATTTTGAGACTTCTGATACATTTTTTCAGACTGCAAGTGGGAAAAATATTAGTGTCGCCAAAGAGTCATTTAATAAAATTGTAAATTTCTTTGATCAGAAACCAGAAGAATTGCATAACTTTTCCTTAAATTCTGAATTACATTCTGACATAAGAAAGAACAAAATGGACATTCTAAGTTATGAGGAAACAGACATAGTTAAACACAAAATACTGAAAGAAAGTGTCCCAGTTGGTACTGGAAATCAACTAGTGACCTTCCAGGGACAACCCGAACGTGATGAAAAGATCAAAGAACCTACTCTATTGGGTTTTCATACAGCTAGCGGGAAAAAAGTTAAAATTGCAAAGGAATCTTTGGACAAAGTGAAAAACCTTTTTGATGAAAAAGAGCAAGGTACTAGTGAAATCACCAGTTTTAGCCATCAATGGGCAAAGACCCTAAAGTACAGAGAGGCCTGTAAAGACCTTGAATTAGCATGTGAGACCATTGAGATCACAGCTGCCCCAAAGTGTAAAGAAATGCAGAATTCTCTCAATAATGATAAAAACCTTGTTTCTATTGAGACTGTGGTGCCACCTAAGCTCTTAAGTGATAATTTATGTAGACAAACTGAAAATCTCAAAACATCAAAAAGTATCTTTTTGAAAGTTAAAGTACATGAAAATGTAGAAAAAGAAACAGCAAAAAGTCCTGCAACTTGTTACACAAATCAGTCCCCTTATTCAGTCATTGAAAATTCAGCCTTAGCTTTTTACACAAGTTGTAGTAGAAAAACTTCTGTGAGTCAGACTTCATTACTTGAAGCAAAAAAATGGCTTAGAGAAGGAATATTTGATGGTCAACCAGAAAGAATAAATACTGCAGATTATGTAGGAAATTATTTGTATGAAAATAATTCAAACAGTACTATAGCTGAAAATGACAAAAATCATCTCTCCGAAAAACAAGATACTTATTTAAGTAACAGTAGCATGTCTAACAGCTATTCCTACCATTCTGATGAGGTATATAATGATTCAGGATATCTCTCAAAAAATAAACTTGATTCTGGTATTGAGCCAGTATTGAAGAATGTTGAAGATCAAAAAAACACTAGTTTTTCCAAAGTAATATCCAATGTAAAAGATGCAAATGCATACCCACAAACTGTAAATGAAGATATTTGCGTTGAGGAACTTGTGACTAGCTCTTCACCCTGCAAAAATAAAAATGCAGCCATTAAATTGTCCATATCTAATAGTAATAATTTTGAGGTAGGGCCACCTGCATTTAGGATAGCCAGTGGTAAAATCGTTTGTGTTTCACATGAAACAATTAAAAAAGTGAAAGACATATTTACAGACAGTTTCAGTAAAGTAATTAAGGAAAACAACGAGAATAAATCAAAAATTTGCCAAACGAAAATTATGGCAGGTTGTTACGAGGCATTGGATGATTCAGAGGATATTCTTCATAACTCTCTAGATAATGATGAATGTAGCACGCATTCACATAAGGTTTTTGCTGACATTCAGAGTGAAGAAATTTTACAACATAACCAAAATATGTCTGGATTGGAGAAAGTTTCTAAAATATCACCTTGTGATGTTAGTTTGGAAACTTCAGATATATGTAAATGTAGTATAGGGAAGCTTCATAAGTCAGTCTCATCTGCAAATACTTGTGGGATTTTTAGCACAGCAAGTGGAAAATCTGTCCAGGTATCAGATGCTTCATTACAAAACGCAAGACAAGTGTTTTCTGAAATAGAAGATAGTACCAAGCAAGTCTTTTCCAAAGTATTGTTTAAAAGTAACGAACATTCAGACCAGCTCACAAGAGAAGAAAATACTGCTATACGTACTCCAGAACATTTAATATCCCAAAAAGGCTTTTCATATAATGTGGTAAATTCATCTGCTTTCTCTGGATTTAGTACAGCAAGTGGAAAGCAAGTTTCCATTTTAGAAAGTTCCTTACACAAAGTTAAGGGAGTGTTAGAGGAATTTGATTTAATCAGAACTGAGCATAGTCTTCACTATTCACCTACGTCTAGACAAAATGTATCAAAAATACTTCCTCGTGTTGATAAGAGAAACCCAGAGCACTGTGTAAACTCAGAAATGGAAAAAACCTGCAGTAAAGAATTTAAATTATCAAATAACTTAAATGTTGAAGGTGGTTCTTCAGAAAATAATCACTCTATTAAAGTTTCTCCATATCTCTCTCAATTTCAACAAGACAAACAACAGTTGGTATTAGGAACCAAAGTGTCACTTGTTGAGAACATTCATGTTTTGGGAAAAGAACAGGCTTCACCTAAAAACGTAAAAATGGAAATTGGTAAAACTGAAACTTTTTCTGATGTTCCTGTGAAAACAAATATAGAAGTTTGTTCTACTTACTCCAAAGATTCAGAAAACTACTTTGAAACAGAAGCAGTAGAAATTGCTAAAGCTTTTATGGAAGATGATGAACTGACAGATTCTAAACTGCCAAGTCATGCCACACATTCTCTTTTTACATGTCCCGAAAATGAGGAAATGGTTTTGTCAAATTCAAGAATTGGAAAAAGAAGAGGAGAGCCCCTTATCTTAGTGG"
+        },
+        {
+          "number": 12,
+          "cds_start": 6842,
+          "cds_end": 6937,
+          "genomic_start": 32344558,
+          "genomic_end": 32344653,
+          "sequence": "GAGAACCCTCAATCAAAAGAAACTTATTAAATGAATTTGACAGGATAATAGAAAATCAAGAAAAATCCTTAAAGGCTTCAAAAAGCACTCCAGATG"
+        },
+        {
+          "number": 13,
+          "cds_start": 6938,
+          "cds_end": 7007,
+          "genomic_start": 32346827,
+          "genomic_end": 32346896,
+          "sequence": "GCACAATAAAAGATCGAAGATTGTTTATGCATCATGTTTCTTTAGAGCCGATTACCTGTGTACCCTTTCG"
+        },
+        {
+          "number": 14,
+          "cds_start": 7008,
+          "cds_end": 7435,
+          "genomic_start": 32354861,
+          "genomic_end": 32355288,
+          "sequence": "CACAACTAAGGAACGTCAAGAGATACAGAATCCAAATTTTACCGCACCTGGTCAAGAATTTCTGTCTAAATCTCATTTGTATGAACATCTGACTTTGGAAAAATCTTCAAGCAATTTAGCAGTTTCAGGACATCCATTTTATCAAGTTTCTGCTACAAGAAATGAAAAAATGAGACACTTGATTACTACAGGCAGACCAACCAAAGTCTTTGTTCCACCTTTTAAAACTAAATCACATTTTCACAGAGTTGAACAGTGTGTTAGGAATATTAACTTGGAGGAAAACAGACAAAAGCAAAACATTGATGGACATGGCTCTGATGATAGTAAAAATAAGATTAATGACAATGAGATTCATCAGTTTAACAAAAACAACTCCAATCAAGCAGTAGCTGTAACTTTCACAAAGTGTGAAGAAGAACCTTTAG"
+        },
+        {
+          "number": 15,
+          "cds_start": 7436,
+          "cds_end": 7617,
+          "genomic_start": 32356428,
+          "genomic_end": 32356609,
+          "sequence": "ATTTAATTACAAGTCTTCAGAATGCCAGAGATATACAGGATATGCGAATTAAGAAGAAACAAAGGCAACGCGTCTTTCCACAGCCAGGCAGTCTGTATCTTGCAAAAACATCCACTCTGCCTCGAATCTCTCTGAAAGCAGCAGTAGGAGGCCAAGTTCCCTCTGCGTGTTCTCATAAACAG"
+        },
+        {
+          "number": 16,
+          "cds_start": 7618,
+          "cds_end": 7805,
+          "genomic_start": 32357742,
+          "genomic_end": 32357929,
+          "sequence": "CTGTATACGTATGGCGTTTCTAAACATTGCATAAAAATTAACAGCAAAAATGCAGAGTCTTTTCAGTTTCACACTGAAGATTATTTTGGTAAGGAAAGTTTATGGACTGGAAAAGGAATACAGTTGGCTGATGGTGGATGGCTCATACCCTCCAATGATGGAAAGGCTGGAAAAGAAGAATTTTATAG"
+        },
+        {
+          "number": 17,
+          "cds_start": 7806,
+          "cds_end": 7976,
+          "genomic_start": 32362523,
+          "genomic_end": 32362693,
+          "sequence": "GGCTCTGTGTGACACTCCAGGTGTGGATCCAAAGCTTATTTCTAGAATTTGGGTTTATAATCACTATAGATGGATCATATGGAAACTGGCAGCTATGGAATGTGCCTTTCCTAAGGAATTTGCTAATAGATGCCTAAGCCCAGAAAGGGTGCTTCTTCAACTAAAATACAG"
+        },
+        {
+          "number": 18,
+          "cds_start": 7977,
+          "cds_end": 8331,
+          "genomic_start": 32363179,
+          "genomic_end": 32363533,
+          "sequence": "ATATGATACGGAAATTGATAGAAGCAGAAGATCGGCTATAAAAAAGATAATGGAAAGGGATGACACAGCTGCAAAAACACTTGTTCTCTGTGTTTCTGACATAATTTCATTGAGCGCAAATATATCTGAAACTTCTAGCAATAAAACTAGTAGTGCAGATACCCAAAAAGTGGCCATTATTGAACTTACAGATGGGTGGTATGCTGTTAAGGCCCAGTTAGATCCTCCCCTCTTAGCTGTCTTAAAGAATGGCAGACTGACAGTTGGTCAGAAGATTATTCTTCATGGAGCAGAACTGGTGGGCTCTCCTGATGCCTGTACACCTCTTGAAGCCCCAGAATCTCTTATGTTAAAG"
+        },
+        {
+          "number": 19,
+          "cds_start": 8332,
+          "cds_end": 8487,
+          "genomic_start": 32370402,
+          "genomic_end": 32370557,
+          "sequence": "ATTTCTGCTAACAGTACTCGGCCTGCTCGCTGGTATACCAAACTTGGATTCTTTCCTGACCCTAGACCTTTTCCTCTGCCCTTATCATCGCTTTTCAGTGATGGAGGAAATGTTGGTTGTGTTGATGTAATTATTCAAAGAGCATACCCTATACAG"
+        },
+        {
+          "number": 20,
+          "cds_start": 8488,
+          "cds_end": 8632,
+          "genomic_start": 32370956,
+          "genomic_end": 32371100,
+          "sequence": "TGGATGGAGAAGACATCATCTGGATTATACATATTTCGCAATGAAAGAGAGGAAGAAAAGGAAGCAGCAAAATATGTGGAGGCCCAACAAAAGAGACTAGAAGCCTTATTCACTAAAATTCAGGAGGAATTTGAAGAACATGAAG"
+        },
+        {
+          "number": 21,
+          "cds_start": 8633,
+          "cds_end": 8754,
+          "genomic_start": 32376670,
+          "genomic_end": 32376791,
+          "sequence": "AAAACACAACAAAACCATATTTACCATCACGTGCACTAACAAGACAGCAAGTTCGTGCTTTGCAAGATGGTGCAGAGCTTTATGAAGCAGTGAAGAATGCAGCAGACCCAGCTTACCTTGAG"
+        },
+        {
+          "number": 22,
+          "cds_start": 8755,
+          "cds_end": 8953,
+          "genomic_start": 32379317,
+          "genomic_end": 32379515,
+          "sequence": "GGTTATTTCAGTGAAGAGCAGTTAAGAGCCTTGAATAATCACAGGCAAATGTTGAATGATAAGAAACAAGCTCAGATCCAGTTGGAAATTAGGAAGGCCATGGAATCTGCTGAACAAAAGGAACAAGGTTTATCAAGGGATGTCACAACCGTGTGGAAGTTGCGTATTGTAAGCTATTCAAAAAAAGAAAAAGATTCAG"
+        },
+        {
+          "number": 23,
+          "cds_start": 8954,
+          "cds_end": 9117,
+          "genomic_start": 32379750,
+          "genomic_end": 32379913,
+          "sequence": "TTATACTGAGTATTTGGCGTCCATCATCAGATTTATATTCTCTGTTAACAGAAGGAAAGAGATACAGAATTTATCATCTTGCAACTTCAAAATCTAAAAGTAAATCTGAAAGAGCTAACATACAGTTAGCAGCGACAAAAAAAACTCAGTATCAACAACTACCG"
+        },
+        {
+          "number": 24,
+          "cds_start": 9118,
+          "cds_end": 9256,
+          "genomic_start": 32380007,
+          "genomic_end": 32380145,
+          "sequence": "GTTTCAGATGAAATTTTATTTCAGATTTACCAGCCACGGGAGCCCCTTCACTTCAGCAAATTTTTAGATCCAGACTTTCAGCCATCTTGTTCTGAGGTGGACCTAATAGGATTTGTCGTTTCTGTTGTGAAAAAAACAG"
+        },
+        {
+          "number": 25,
+          "cds_start": 9257,
+          "cds_end": 9501,
+          "genomic_start": 32394689,
+          "genomic_end": 32394933,
+          "sequence": "GACTTGCCCCTTTCGTCTATTTGTCAGACGAATGTTACAATTTACTGGCAATAAAGTTTTGGATAGACCTTAATGAGGACATTATTAAGCCTCATATGTTAATTGCTGCAAGCAACCTCCAGTGGCGACCAGAATCCAAATCAGGCCTTCTTACTTTATTTGCTGGAGATTTTTCTGTGTTTTCTGCTAGTCCAAAAGAGGGCCACTTTCAAGAGACATTCAACAAAATGAAAAATACTGTTGAG"
+        },
+        {
+          "number": 26,
+          "cds_start": 9502,
+          "cds_end": 9648,
+          "genomic_start": 32396898,
+          "genomic_end": 32397044,
+          "sequence": "AATATTGACATACTTTGCAATGAAGCAGAAAACAAGCTTATGCATATACTGCATGCAAATGATCCCAAGTGGTCCACCCCAACTAAAGACTGTACTTCAGGGCCGTACACTGCTCAAATCATTCCTGGTACAGGAAACAAGCTTCTG"
+        },
+        {
+          "number": 27,
+          "cds_start": 9649,
+          "cds_end": 10257,
+          "genomic_start": 32398162,
+          "genomic_end": 32398770,
+          "sequence": "ATGTCTTCTCCTAATTGTGAGATATATTATCAAAGTCCTTTATCACTTTGTATGGCCAAAAGGAAGTCTGTTTCCACACCTGTCTCAGCCCAGATGACTTCAAAGTCTTGTAAAGGGGAGAAAGAGATTGATGACCAAAAGAACTGCAAAAAGAGAAGAGCCTTGGATTTCTTGAGTAGACTGCCTTTACCTCCACCTGTTAGTCCCATTTGTACATTTGTTTCTCCGGCTGCACAGAAGGCATTTCAGCCACCAAGGAGTTGTGGCACCAAATACGAAACACCCATAAAGAAAAAAGAACTGAATTCTCCTCAGATGACTCCATTTAAAAAATTCAATGAAATTTCTCTTTTGGAAAGTAATTCAATAGCTGACGAAGAACTTGCATTGATAAATACCCAAGCTCTTTTGTCTGGTTCAACAGGAGAAAAACAATTTATATCTGTCAGTGAATCCACTAGGACTGCTCCCACCAGTTCAGAAGATTATCTCAGACTGAAACGACGTTGTACTACATCTCTGATCAAAGAACAGGAGAGTTCCCAGGCCAGTACGGAAGAATGTGAGAAAAATAAGCAGGACACAATTACAACTAAAAAATATATCTAA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 2,
+          "genomic_start": 32316528,
+          "genomic_end": 32319076,
+          "total_len": 2549,
+          "five_prime_sequence": "gtattgacaaattttatataactttataaa",
+          "three_prime_sequence": "aaactaaggtgggattttttttttaaatag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 32319326,
+          "genomic_end": 32325075,
+          "total_len": 5750,
+          "five_prime_sequence": "gtaagtaatgcaatatggtagactggggag",
+          "three_prime_sequence": "cattctcactgaattattgtactgtttcag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 32325185,
+          "genomic_end": 32326100,
+          "total_len": 916,
+          "five_prime_sequence": "gtatgatgaagctattatattaaaatattt",
+          "three_prime_sequence": "acctaagggatttgctttgttttattttag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 32326151,
+          "genomic_end": 32326241,
+          "total_len": 91,
+          "five_prime_sequence": "gtatgattaaaaacaatgctttttattctt",
+          "three_prime_sequence": "ttaacaattttcccctttttttacccccag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 32326283,
+          "genomic_end": 32326498,
+          "total_len": 216,
+          "five_prime_sequence": "gtaaatattctacctggtttatttttatga",
+          "three_prime_sequence": "taaaaaataaactattttctttcctcccag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 32326614,
+          "genomic_end": 32329442,
+          "total_len": 2829,
+          "five_prime_sequence": "gtaataatagcaaatgtgtatttacaagaa",
+          "three_prime_sequence": "atacaatacacataaatttttatcttacag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 32329493,
+          "genomic_end": 32330918,
+          "total_len": 1426,
+          "five_prime_sequence": "gtaagtaaatatgacattgattagactgtt",
+          "three_prime_sequence": "actagtgattttaaactataatttttgcag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 32331031,
+          "genomic_end": 32332271,
+          "total_len": 1241,
+          "five_prime_sequence": "gtaagtcctctgtttagttgaactacaggt",
+          "three_prime_sequence": "ttaatgtgcttctgttttatactttaacag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 32333388,
+          "genomic_end": 32336264,
+          "total_len": 2877,
+          "five_prime_sequence": "gtacctctgtctttttttttttgtaaatag",
+          "three_prime_sequence": "aattttgtcactttgtgtttttatgtttag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 32341197,
+          "genomic_end": 32344557,
+          "total_len": 3361,
+          "five_prime_sequence": "gtaagtgttcatttttacctttcgtgttgc",
+          "three_prime_sequence": "taaaaacatatatgaaatatttctttttag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 32344654,
+          "genomic_end": 32346826,
+          "total_len": 2173,
+          "five_prime_sequence": "gtaaaattagctttttatttatatctgttc",
+          "three_prime_sequence": "aatatgtaatataaaataattgtttcctag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 32346897,
+          "genomic_end": 32354860,
+          "total_len": 7964,
+          "five_prime_sequence": "gtaagacatgtttaaatttttctaaattct",
+          "three_prime_sequence": "ataaacttatatattttctccccattgcag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 32355289,
+          "genomic_end": 32356427,
+          "total_len": 1139,
+          "five_prime_sequence": "gtattgtatgacaatttgtgtgatgaattt",
+          "three_prime_sequence": "tatttttgctaagtatttattctttgatag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 32356610,
+          "genomic_end": 32357741,
+          "total_len": 1132,
+          "five_prime_sequence": "gtatgtgtttgtctacaatactgatggctt",
+          "three_prime_sequence": "ttcttttttgtgtgtgtttattttgtgtag"
+        },
+        {
+          "number": 16,
+          "genomic_start": 32357930,
+          "genomic_end": 32362522,
+          "total_len": 4593,
+          "five_prime_sequence": "gtactctatgcaaaaagattgtgtgttaac",
+          "three_prime_sequence": "tatgataatattctacttttatttgttcag"
+        },
+        {
+          "number": 17,
+          "genomic_start": 32362694,
+          "genomic_end": 32363178,
+          "total_len": 485,
+          "five_prime_sequence": "gcaagtttaaagcattacattacgtaatca",
+          "three_prime_sequence": "taaaatatgcatttttgttttcacttttag"
+        },
+        {
+          "number": 18,
+          "genomic_start": 32363534,
+          "genomic_end": 32370401,
+          "total_len": 6868,
+          "five_prime_sequence": "gtaaattaatttgcactcttggtaaaaatc",
+          "three_prime_sequence": "ctaaatcaatatatttattaatttgtccag"
+        },
+        {
+          "number": 19,
+          "genomic_start": 32370558,
+          "genomic_end": 32370955,
+          "total_len": 398,
+          "five_prime_sequence": "gtatgatgtattcttgaaacttaccatata",
+          "three_prime_sequence": "ttttttggtgtgtgtaacacattattacag"
+        },
+        {
+          "number": 20,
+          "genomic_start": 32371101,
+          "genomic_end": 32376669,
+          "total_len": 5569,
+          "five_prime_sequence": "gtaaaattagttatatggtacacattgtta",
+          "three_prime_sequence": "agtgaattaataatccttttgttttcttag"
+        },
+        {
+          "number": 21,
+          "genomic_start": 32376792,
+          "genomic_end": 32379316,
+          "total_len": 2525,
+          "five_prime_sequence": "gtgagagagtaagaggacatataatgaggc",
+          "three_prime_sequence": "tttttattccaatatcttaaatggtcacag"
+        },
+        {
+          "number": 22,
+          "genomic_start": 32379516,
+          "genomic_end": 32379749,
+          "total_len": 234,
+          "five_prime_sequence": "gtaagtatgtaaatgctttgtttttatcag",
+          "three_prime_sequence": "attgcatctttctcatctttctccaaacag"
+        },
+        {
+          "number": 23,
+          "genomic_start": 32379914,
+          "genomic_end": 32380006,
+          "total_len": 93,
+          "five_prime_sequence": "gtacaaacctttcattgtaatttttcagtt",
+          "three_prime_sequence": "tatgttgaatttttgttttgttttctgtag"
+        },
+        {
+          "number": 24,
+          "genomic_start": 32380146,
+          "genomic_end": 32394688,
+          "total_len": 14543,
+          "five_prime_sequence": "gtaatgcacaatatagttaattttttttat",
+          "three_prime_sequence": "taacattcttttcttttttttccattctag"
+        },
+        {
+          "number": 25,
+          "genomic_start": 32394934,
+          "genomic_end": 32396897,
+          "total_len": 1964,
+          "five_prime_sequence": "gtaaggttacttttcagcatcaccacacat",
+          "three_prime_sequence": "ataaagcagcttttccacttattttcttag"
+        },
+        {
+          "number": 26,
+          "genomic_start": 32397045,
+          "genomic_end": 32398161,
+          "total_len": 1117,
+          "five_prime_sequence": "gtaagttaatgtaaactcaaggaatattat",
+          "three_prime_sequence": "tgataggctacgttttcatttttttatcag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "CFTR",
+      "cdna": "c.199C>T",
+      "transcript": "NM_000492.4",
+      "requested_transcript": "NM_000492.4",
+      "transcript_aliases": [
+        "NM_000492.4",
+        "ENST00000003084.11",
+        "CFTR-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "4818493",
+      "accession": "VCV004818493",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4818493/",
+      "chrom": "7",
+      "strand": "+",
+      "ensembl_gene_id": "ENSG00000001626",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 117287120,
+      "gene_end": 117715971,
+      "gene_length": 428852,
+      "cds_length": 4443,
+      "protein_length": 1480,
+      "utr5_length": 70,
+      "utr3_length": 1557,
+      "mrna_length": 6070,
+      "translation_id": "ENSP00000003084",
+      "variant": {
+        "hgvs_c": "c.199C>T",
+        "hgvs_p": "p.Pro67Ser",
+        "cds_pos": 199,
+        "ref": "C",
+        "alt": "T",
+        "genomic_hg38": "7-117509068-C-T",
+        "codon_number": 67,
+        "codon_offset": 0,
+        "aa_ref": "P",
+        "aa_alt": "S",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 53,
+          "genomic_start": 117480095,
+          "genomic_end": 117480147,
+          "sequence": "ATGCAGAGGTCGCCTCTGGAAAAGGCCAGCGTTGTCTCCAAACTTTTTTTCAG"
+        },
+        {
+          "number": 2,
+          "cds_start": 54,
+          "cds_end": 164,
+          "genomic_start": 117504253,
+          "genomic_end": 117504363,
+          "sequence": "CTGGACCAGACCAATTTTGAGGAAAGGATACAGACAGCGCCTGGAATTGTCAGACATATACCAAATCCCTTCTGTTGATTCTGCTGACAATCTATCTGAAAAATTGGAAAG"
+        },
+        {
+          "number": 3,
+          "cds_start": 165,
+          "cds_end": 273,
+          "genomic_start": 117509034,
+          "genomic_end": 117509142,
+          "sequence": "AGAATGGGATAGAGAGCTGGCTTCAAAGAAAAATCCTAAACTCATTAATGCCCTTCGGCGATGTTTTTTCTGGAGATTTATGTTCTATGGAATCTTTTTATATTTAGGG"
+        },
+        {
+          "number": 4,
+          "cds_start": 274,
+          "cds_end": 489,
+          "genomic_start": 117530899,
+          "genomic_end": 117531114,
+          "sequence": "GAAGTCACCAAAGCAGTACAGCCTCTCTTACTGGGAAGAATCATAGCTTCCTATGACCCGGATAACAAGGAGGAACGCTCTATCGCGATTTATCTAGGCATAGGCTTATGCCTTCTCTTTATTGTGAGGACACTGCTCCTACACCCAGCCATTTTTGGCCTTCATCACATTGGAATGCAGATGAGAATAGCTATGTTTAGTTTGATTTATAAGAAG"
+        },
+        {
+          "number": 5,
+          "cds_start": 490,
+          "cds_end": 579,
+          "genomic_start": 117534276,
+          "genomic_end": 117534365,
+          "sequence": "ACTTTAAAGCTGTCAAGCCGTGTTCTAGATAAAATAAGTATTGGACAACTTGTTAGTCTCCTTTCCAACAACCTGAACAAATTTGATGAA"
+        },
+        {
+          "number": 6,
+          "cds_start": 580,
+          "cds_end": 743,
+          "genomic_start": 117535248,
+          "genomic_end": 117535411,
+          "sequence": "GGACTTGCATTGGCACATTTCGTGTGGATCGCTCCTTTGCAAGTGGCACTCCTCATGGGGCTAATCTGGGAGTTGTTACAGGCGTCTGCCTTCTGTGGACTTGGTTTCCTGATAGTCCTTGCCCTTTTTCAGGCTGGGCTAGGGAGAATGATGATGAAGTACAG"
+        },
+        {
+          "number": 7,
+          "cds_start": 744,
+          "cds_end": 869,
+          "genomic_start": 117536548,
+          "genomic_end": 117536673,
+          "sequence": "AGATCAGAGAGCTGGGAAGATCAGTGAAAGACTTGTGATTACCTCAGAAATGATTGAAAATATCCAATCTGTTAAGGCATACTGCTGGGAAGAAGCAATGGAAAAAATGATTGAAAACTTAAGACA"
+        },
+        {
+          "number": 8,
+          "cds_start": 870,
+          "cds_end": 1116,
+          "genomic_start": 117540100,
+          "genomic_end": 117540346,
+          "sequence": "AACAGAACTGAAACTGACTCGGAAGGCAGCCTATGTGAGATACTTCAATAGCTCAGCCTTCTTCTTCTCAGGGTTCTTTGTGGTGTTTTTATCTGTGCTTCCCTATGCACTAATCAAAGGAATCATCCTCCGGAAAATATTCACCACCATCTCATTCTGCATTGTTCTGCGCATGGCGGTCACTCGGCAATTTCCCTGGGCTGTACAAACATGGTATGACTCTCTTGGAGCAATAAACAAAATACAG"
+        },
+        {
+          "number": 9,
+          "cds_start": 1117,
+          "cds_end": 1209,
+          "genomic_start": 117542016,
+          "genomic_end": 117542108,
+          "sequence": "GATTTCTTACAAAAGCAAGAATATAAGACATTGGAATATAACTTAACGACTACAGAAGTAGTGATGGAGAATGTAACAGCCTTCTGGGAGGAG"
+        },
+        {
+          "number": 10,
+          "cds_start": 1210,
+          "cds_end": 1392,
+          "genomic_start": 117548641,
+          "genomic_end": 117548823,
+          "sequence": "GGATTTGGGGAATTATTTGAGAAAGCAAAACAAAACAATAACAATAGAAAAACTTCTAATGGTGATGACAGCCTCTTCTTCAGTAATTTCTCACTTCTTGGTACTCCTGTCCTGAAAGATATTAATTTCAAGATAGAAAGAGGACAGTTGTTGGCGGTTGCTGGATCCACTGGAGCAGGCAAG"
+        },
+        {
+          "number": 11,
+          "cds_start": 1393,
+          "cds_end": 1584,
+          "genomic_start": 117559464,
+          "genomic_end": 117559655,
+          "sequence": "ACTTCACTTCTAATGGTGATTATGGGAGAACTGGAGCCTTCAGAGGGTAAAATTAAGCACAGTGGAAGAATTTCATTCTGTTCTCAGTTTTCCTGGATTATGCCTGGCACCATTAAAGAAAATATCATCTTTGGTGTTTCCTATGATGAATATAGATACAGAAGCGTCATCAAAGCATGCCAACTAGAAGAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 1585,
+          "cds_end": 1679,
+          "genomic_start": 117587739,
+          "genomic_end": 117587833,
+          "sequence": "GACATCTCCAAGTTTGCAGAGAAAGACAATATAGTTCTTGGAGAAGGTGGAATCACACTGAGTGGAGGTCAACGAGCAAGAATTTCTTTAGCAAG"
+        },
+        {
+          "number": 13,
+          "cds_start": 1680,
+          "cds_end": 1766,
+          "genomic_start": 117590353,
+          "genomic_end": 117590439,
+          "sequence": "AGCAGTATACAAAGATGCTGATTTGTATTTATTAGACTCTCCTTTTGGATACCTAGATGTTTTAACAGAAAAAGAAATATTTGAAAG"
+        },
+        {
+          "number": 14,
+          "cds_start": 1767,
+          "cds_end": 2490,
+          "genomic_start": 117591934,
+          "genomic_end": 117592657,
+          "sequence": "CTGTGTCTGTAAACTGATGGCTAACAAAACTAGGATTTTGGTCACTTCTAAAATGGAACATTTAAAGAAAGCTGACAAAATATTAATTTTGCATGAAGGTAGCAGCTATTTTTATGGGACATTTTCAGAACTCCAAAATCTACAGCCAGACTTTAGCTCAAAACTCATGGGATGTGATTCTTTCGACCAATTTAGTGCAGAAAGAAGAAATTCAATCCTAACTGAGACCTTACACCGTTTCTCATTAGAAGGAGATGCTCCTGTCTCCTGGACAGAAACAAAAAAACAATCTTTTAAACAGACTGGAGAGTTTGGGGAAAAAAGGAAGAATTCTATTCTCAATCCAATCAACTCTATACGAAAATTTTCCATTGTGCAAAAGACTCCCTTACAAATGAATGGCATCGAAGAGGATTCTGATGAGCCTTTAGAGAGAAGGCTGTCCTTAGTACCAGATTCTGAGCAGGGAGAGGCGATACTGCCTCGCATCAGCGTGATCAGCACTGGCCCCACGCTTCAGGCACGAAGGAGGCAGTCTGTCCTGAACCTGATGACACACTCAGTTAACCAAGGTCAGAACATTCACCGAAAGACAACAGCATCCACACGAAAAGTGTCACTGGCCCCTCAGGCAAACTTGACTGAACTGGATATATATTCAAGAAGGTTATCTCAAGAAACTGGCTTGGAAATAAGTGAAGAAATTAACGAAGAAGACTTAAAG"
+        },
+        {
+          "number": 15,
+          "cds_start": 2491,
+          "cds_end": 2619,
+          "genomic_start": 117594930,
+          "genomic_end": 117595058,
+          "sequence": "GAGTGCTTTTTTGATGATATGGAGAGCATACCAGCAGTGACTACATGGAACACATACCTTCGATATATTACTGTCCACAAGAGCTTAATTTTTGTGCTAATTTGGTGCTTAGTAATTTTTCTGGCAGAG"
+        },
+        {
+          "number": 16,
+          "cds_start": 2620,
+          "cds_end": 2657,
+          "genomic_start": 117602826,
+          "genomic_end": 117602863,
+          "sequence": "GTGGCTGCTTCTTTGGTTGTGCTGTGGCTCCTTGGAAA"
+        },
+        {
+          "number": 17,
+          "cds_start": 2658,
+          "cds_end": 2908,
+          "genomic_start": 117603532,
+          "genomic_end": 117603782,
+          "sequence": "CACTCCTCTTCAAGACAAAGGGAATAGTACTCATAGTAGAAATAACAGCTATGCAGTGATTATCACCAGCACCAGTTCGTATTATGTGTTTTACATTTACGTGGGAGTAGCCGACACTTTGCTTGCTATGGGATTCTTCAGAGGTCTACCACTGGTGCATACTCTAATCACAGTGTCGAAAATTTTACACCACAAAATGTTACATTCTGTTCTTCAAGCACCTATGTCAACCCTCAACACGTTGAAAGCAG"
+        },
+        {
+          "number": 18,
+          "cds_start": 2909,
+          "cds_end": 2988,
+          "genomic_start": 117606674,
+          "genomic_end": 117606753,
+          "sequence": "GTGGGATTCTTAATAGATTCTCCAAAGATATAGCAATTTTGGATGACCTTCTGCCTCTTACCATATTTGACTTCATCCAG"
+        },
+        {
+          "number": 19,
+          "cds_start": 2989,
+          "cds_end": 3139,
+          "genomic_start": 117610519,
+          "genomic_end": 117610669,
+          "sequence": "TTGTTATTAATTGTGATTGGAGCTATAGCAGTTGTCGCAGTTTTACAACCCTACATCTTTGTTGCAACAGTGCCAGTGATAGTGGCTTTTATTATGTTGAGAGCATATTTCCTCCAAACCTCACAGCAACTCAAACAACTGGAATCTGAAG"
+        },
+        {
+          "number": 20,
+          "cds_start": 3140,
+          "cds_end": 3367,
+          "genomic_start": 117611581,
+          "genomic_end": 117611808,
+          "sequence": "GCAGGAGTCCAATTTTCACTCATCTTGTTACAAGCTTAAAAGGACTATGGACACTTCGTGCCTTCGGACGGCAGCCTTACTTTGAAACTCTGTTCCACAAAGCTCTGAATTTACATACTGCCAACTGGTTCTTGTACCTGTCAACACTGCGCTGGTTCCAAATGAGAATAGAAATGATTTTTGTCATCTTCTTCATTGCTGTTACCTTCATTTCCATTTTAACAACAG"
+        },
+        {
+          "number": 21,
+          "cds_start": 3368,
+          "cds_end": 3468,
+          "genomic_start": 117614613,
+          "genomic_end": 117614713,
+          "sequence": "GAGAAGGAGAAGGAAGAGTTGGTATTATCCTGACTTTAGCCATGAATATCATGAGTACATTGCAGTGGGCTGTAAACTCCAGCATAGATGTGGATAGCTTG"
+        },
+        {
+          "number": 22,
+          "cds_start": 3469,
+          "cds_end": 3717,
+          "genomic_start": 117627522,
+          "genomic_end": 117627770,
+          "sequence": "ATGCGATCTGTGAGCCGAGTCTTTAAGTTCATTGACATGCCAACAGAAGGTAAACCTACCAAGTCAACCAAACCATACAAGAATGGCCAACTCTCGAAAGTTATGATTATTGAGAATTCACACGTGAAGAAAGATGACATCTGGCCCTCAGGGGGCCAAATGACTGTCAAAGATCTCACAGCAAAATACACAGAAGGTGGAAATGCCATATTAGAGAACATTTCCTTCTCAATAAGTCCTGGCCAGAGG"
+        },
+        {
+          "number": 23,
+          "cds_start": 3718,
+          "cds_end": 3873,
+          "genomic_start": 117642438,
+          "genomic_end": 117642593,
+          "sequence": "GTGGGCCTCTTGGGAAGAACTGGATCAGGGAAGAGTACTTTGTTATCAGCTTTTTTGAGACTACTGAACACTGAAGGAGAAATCCAGATCGATGGTGTGTCTTGGGATTCAATAACTTTGCAACAGTGGAGGAAAGCCTTTGGAGTGATACCACAG"
+        },
+        {
+          "number": 24,
+          "cds_start": 3874,
+          "cds_end": 3963,
+          "genomic_start": 117652842,
+          "genomic_end": 117652931,
+          "sequence": "AAAGTATTTATTTTTTCTGGAACATTTAGAAAAAACTTGGATCCCTATGAACAGTGGAGTGATCAAGAAATATGGAAAGTTGCAGATGAG"
+        },
+        {
+          "number": 25,
+          "cds_start": 3964,
+          "cds_end": 4136,
+          "genomic_start": 117664688,
+          "genomic_end": 117664860,
+          "sequence": "GTTGGGCTCAGATCTGTGATAGAACAGTTTCCTGGGAAGCTTGACTTTGTCCTTGTGGATGGGGGCTGTGTCCTAAGCCATGGCCACAAGCAGTTGATGTGCTTGGCTAGATCTGTTCTCAGTAAGGCGAAGATCTTGCTGCTTGATGAACCCAGTGCTCATTTGGATCCAGT"
+        },
+        {
+          "number": 26,
+          "cds_start": 4137,
+          "cds_end": 4242,
+          "genomic_start": 117665459,
+          "genomic_end": 117665564,
+          "sequence": "AACATACCAAATAATTAGAAGAACTCTAAAACAAGCATTTGCTGATTGCACAGTAATTCTCTGTGAACACAGGATAGAAGCAATGCTGGAATGCCAACAATTTTTG"
+        },
+        {
+          "number": 27,
+          "cds_start": 4243,
+          "cds_end": 4443,
+          "genomic_start": 117666908,
+          "genomic_end": 117667108,
+          "sequence": "GTCATAGAAGAGAACAAAGTGCGGCAGTACGATTCCATCCAGAAACTGCTGAACGAGAGGAGCCTCTTCCGGCAAGCCATCAGCCCCTCCGACAGGGTGAAGCTCTTTCCCCACCGGAACTCAAGCAAGTGCAAGTCTAAGCCCCAGATTGCTGCTCTGAAAGAGGAGACAGAAGAAGAGGTGCAAGATACAAGGCTTTAG"
+        }
+      ],
+      "introns": [
+        {
+          "number": 1,
+          "genomic_start": 117480148,
+          "genomic_end": 117504252,
+          "total_len": 24105,
+          "five_prime_sequence": "gtgagaaggtggccaaccgagcttcggaaa",
+          "three_prime_sequence": "gaatatctgttcctcctctctttattttag"
+        },
+        {
+          "number": 2,
+          "genomic_start": 117504364,
+          "genomic_end": 117509033,
+          "total_len": 4670,
+          "five_prime_sequence": "gtatgttcatgtacattgtttagttgaaga",
+          "three_prime_sequence": "ttattggtcccactttttattcttttgcag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 117509143,
+          "genomic_end": 117530898,
+          "total_len": 21756,
+          "five_prime_sequence": "gtaaggatctcatttgtacattcattatgt",
+          "three_prime_sequence": "tttaatttctctgtttttccccttttgtag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 117531115,
+          "genomic_end": 117534275,
+          "total_len": 3161,
+          "five_prime_sequence": "gtaatacttccttgcacaggccccatggca",
+          "three_prime_sequence": "aaattatctaactttccatttttcttttag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 117534366,
+          "genomic_end": 117535247,
+          "total_len": 882,
+          "five_prime_sequence": "gtatgtacctattgatttaatcttttaggc",
+          "three_prime_sequence": "acctgtttttgctgtgcttttattttccag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 117535412,
+          "genomic_end": 117536547,
+          "total_len": 1136,
+          "five_prime_sequence": "gtagcaacctattttcataacttgaaagtt",
+          "three_prime_sequence": "tgattgattgattgattgattgatttacag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 117536674,
+          "genomic_end": 117540099,
+          "total_len": 3426,
+          "five_prime_sequence": "gtaagttgttccaataatttcaatattgtt",
+          "three_prime_sequence": "cctgaattttattgttattgttttttatag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 117540347,
+          "genomic_end": 117542015,
+          "total_len": 1669,
+          "five_prime_sequence": "gtaatgtaccataatgctgcattatatact",
+          "three_prime_sequence": "taatatgtttttgctctcttttataaatag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 117542109,
+          "genomic_end": 117548640,
+          "total_len": 6532,
+          "five_prime_sequence": "gtcagaatttttaaaaaattgtttgctcta",
+          "three_prime_sequence": "tgtgtgtgtgtgtgtgtgtttttttaacag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 117548824,
+          "genomic_end": 117559463,
+          "total_len": 10640,
+          "five_prime_sequence": "gtagttcttttgttcttcactattaagaac",
+          "three_prime_sequence": "tgacctaataatgatgggttttatttccag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 117559656,
+          "genomic_end": 117587738,
+          "total_len": 28083,
+          "five_prime_sequence": "gtaagaaactatgtgaaaactttttgatta",
+          "three_prime_sequence": "gactctctaattttctatttttggtaatag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 117587834,
+          "genomic_end": 117590352,
+          "total_len": 2519,
+          "five_prime_sequence": "gtgaataactaattattggtctagcaagca",
+          "three_prime_sequence": "aatgtaatttaatttccattttctttttag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 117590440,
+          "genomic_end": 117591933,
+          "total_len": 1494,
+          "five_prime_sequence": "gtatgttctttgaataccttacttataatg",
+          "three_prime_sequence": "ttgatatttatatgtttttatatcttaaag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 117592658,
+          "genomic_end": 117594929,
+          "total_len": 2272,
+          "five_prime_sequence": "gtaggtatacatcgcttgggggtatttcac",
+          "three_prime_sequence": "tattgtaatagccataattcttttattcag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 117595059,
+          "genomic_end": 117602825,
+          "total_len": 7767,
+          "five_prime_sequence": "gtaagaatgttctattgtaaagtattactg",
+          "three_prime_sequence": "aaaaatcaactgtgtcttgttccattccag"
+        },
+        {
+          "number": 16,
+          "genomic_start": 117602864,
+          "genomic_end": 117603531,
+          "total_len": 668,
+          "five_prime_sequence": "gtgagtattccatgtcctattgtgtagatt",
+          "three_prime_sequence": "ccaaataacgatttcctatttgctttacag"
+        },
+        {
+          "number": 17,
+          "genomic_start": 117603783,
+          "genomic_end": 117606673,
+          "total_len": 2891,
+          "five_prime_sequence": "gtactttactaggtctaagaaatgaaactg",
+          "three_prime_sequence": "ttgaggaatttgtcatcttgtatattatag"
+        },
+        {
+          "number": 18,
+          "genomic_start": 117606754,
+          "genomic_end": 117610518,
+          "total_len": 3765,
+          "five_prime_sequence": "gtatgtaaaaataagtaccgttaagtatgt",
+          "three_prime_sequence": "ctcaccaacatgttttctttgatcttacag"
+        },
+        {
+          "number": 19,
+          "genomic_start": 117610670,
+          "genomic_end": 117611580,
+          "total_len": 911,
+          "five_prime_sequence": "gtatgacagtgaatgtgcgatactcatctt",
+          "three_prime_sequence": "tgcaatgttttctatggaaatatttcacag"
+        },
+        {
+          "number": 20,
+          "genomic_start": 117611809,
+          "genomic_end": 117614612,
+          "total_len": 2804,
+          "five_prime_sequence": "gtactatgaactcattaactttagctaagc",
+          "three_prime_sequence": "ggttcatttacgtcttttgtgcatctatag"
+        },
+        {
+          "number": 21,
+          "genomic_start": 117614714,
+          "genomic_end": 117627521,
+          "total_len": 12808,
+          "five_prime_sequence": "gtaagtcttatcatctttttaacttttatg",
+          "three_prime_sequence": "aaaacaaaaatgttgttatttttatttcag"
+        },
+        {
+          "number": 22,
+          "genomic_start": 117627771,
+          "genomic_end": 117642437,
+          "total_len": 14667,
+          "five_prime_sequence": "gtgagatttgaacactgcttgctttgttag",
+          "three_prime_sequence": "agaagtgatcccatcacttttaccttatag"
+        },
+        {
+          "number": 23,
+          "genomic_start": 117642594,
+          "genomic_end": 117652841,
+          "total_len": 10248,
+          "five_prime_sequence": "gtgagcaaaaggacttagccagaaaaaagg",
+          "three_prime_sequence": "actttcttcttcttttcttttttgctatag"
+        },
+        {
+          "number": 24,
+          "genomic_start": 117652932,
+          "genomic_end": 117664687,
+          "total_len": 11756,
+          "five_prime_sequence": "gtaaggctgctaactgaaatgattttgaaa",
+          "three_prime_sequence": "tggtatctgaactatcttctctaactgcag"
+        },
+        {
+          "number": 25,
+          "genomic_start": 117664861,
+          "genomic_end": 117665458,
+          "total_len": 598,
+          "five_prime_sequence": "gtgagtttcagatgttctgttacttaatag",
+          "three_prime_sequence": "attatgtgtggtattttctttcttttctag"
+        },
+        {
+          "number": 26,
+          "genomic_start": 117665565,
+          "genomic_end": 117666907,
+          "total_len": 1343,
+          "five_prime_sequence": "gtgagtctttataactttacttaagatctc",
+          "three_prime_sequence": "cccagatctcactaacagccatttccctag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "HBB",
+      "cdna": "c.327C>G",
+      "transcript": "NM_000518.5",
+      "requested_transcript": "NM_000518.5",
+      "transcript_aliases": [
+        "NM_000518.5",
+        "ENST00000335295.4",
+        "HBB-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "3336287",
+      "accession": "VCV003336287",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3336287/",
+      "chrom": "11",
+      "strand": "-",
+      "ensembl_gene_id": "ENSG00000244734",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 5225464,
+      "gene_end": 5229395,
+      "gene_length": 3932,
+      "cds_length": 444,
+      "protein_length": 147,
+      "utr5_length": 50,
+      "utr3_length": 134,
+      "mrna_length": 628,
+      "translation_id": "ENSP00000333994",
+      "variant": {
+        "hgvs_c": "c.327C>G",
+        "hgvs_p": "p.Asn109Lys",
+        "cds_pos": 327,
+        "ref": "C",
+        "alt": "G",
+        "genomic_hg38": "11-5225715-G-C",
+        "codon_number": 109,
+        "codon_offset": 2,
+        "aa_ref": "N",
+        "aa_alt": "K",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 92,
+          "genomic_start": 5226930,
+          "genomic_end": 5227021,
+          "sequence": "ATGGTGCATCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAACGTGGATGAAGTTGGTGGTGAGGCCCTGGGCAG"
+        },
+        {
+          "number": 2,
+          "cds_start": 93,
+          "cds_end": 315,
+          "genomic_start": 5226577,
+          "genomic_end": 5226799,
+          "sequence": "GCTGCTGGTGGTCTACCCTTGGACCCAGAGGTTCTTTGAGTCCTTTGGGGATCTGTCCACTCCTGATGCTGTTATGGGCAACCCTAAGGTGAAGGCTCATGGCAAGAAAGTGCTCGGTGCCTTTAGTGATGGCCTGGCTCACCTGGACAACCTCAAGGGCACCTTTGCCACACTGAGTGAGCTGCACTGTGACAAGCTGCACGTGGATCCTGAGAACTTCAGG"
+        },
+        {
+          "number": 3,
+          "cds_start": 316,
+          "cds_end": 444,
+          "genomic_start": 5225598,
+          "genomic_end": 5225726,
+          "sequence": "CTCCTGGGCAACGTGCTGGTCTGTGTGCTGGCCCATCACTTTGGCAAAGAATTCACCCCACCAGTGCAGGCTGCCTATCAGAAAGTGGTGGCTGGTGTGGCTAATGCCCTGGCCCACAAGTATCACTAA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 1,
+          "genomic_start": 5226800,
+          "genomic_end": 5226929,
+          "total_len": 130,
+          "five_prime_sequence": "gttggtatcaaggttacaagacaggtttaa",
+          "three_prime_sequence": "ctgcctattggtctattttcccacccttag"
+        },
+        {
+          "number": 2,
+          "genomic_start": 5225727,
+          "genomic_end": 5226576,
+          "total_len": 850,
+          "five_prime_sequence": "gtgagtctatgggacgcttgatgttttctt",
+          "three_prime_sequence": "atgttcatacctcttatcttcctcccacag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "LDLR",
+      "cdna": "c.155G>T",
+      "transcript": "NM_000527.5",
+      "requested_transcript": "NM_000527.5",
+      "transcript_aliases": [
+        "NM_000527.5",
+        "ENST00000558518.6",
+        "LDLR-208",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "4812851",
+      "accession": "VCV004812851",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4812851/",
+      "chrom": "19",
+      "strand": "+",
+      "ensembl_gene_id": "ENSG00000130164",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 11089418,
+      "gene_end": 11133830,
+      "gene_length": 44413,
+      "cds_length": 2583,
+      "protein_length": 860,
+      "utr5_length": 86,
+      "utr3_length": 2504,
+      "mrna_length": 5173,
+      "translation_id": "ENSP00000454071",
+      "variant": {
+        "hgvs_c": "c.155G>T",
+        "hgvs_p": "p.Cys52Phe",
+        "cds_pos": 155,
+        "ref": "G",
+        "alt": "T",
+        "genomic_hg38": "19-11100310-G-T",
+        "codon_number": 52,
+        "codon_offset": 1,
+        "aa_ref": "C",
+        "aa_alt": "F",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 67,
+          "genomic_start": 11089549,
+          "genomic_end": 11089615,
+          "sequence": "ATGGGGCCCTGGGGCTGGAAATTGCGCTGGACCGTCGCCTTGCTCCTCGCCGCGGCGGGGACTGCAG"
+        },
+        {
+          "number": 2,
+          "cds_start": 68,
+          "cds_end": 190,
+          "genomic_start": 11100223,
+          "genomic_end": 11100345,
+          "sequence": "TGGGCGACAGATGCGAAAGAAACGAGTTCCAGTGCCAAGACGGGAAATGCATCTCCTACAAGTGGGTCTGCGATGGCAGCGCTGAGTGCCAGGATGGCTCTGATGAGTCCCAGGAGACGTGCT"
+        },
+        {
+          "number": 3,
+          "cds_start": 191,
+          "cds_end": 313,
+          "genomic_start": 11102664,
+          "genomic_end": 11102786,
+          "sequence": "TGTCTGTCACCTGCAAATCCGGGGACTTCAGCTGTGGGGGCCGTGTCAACCGCTGCATTCCTCAGTTCTGGAGGTGCGATGGCCAAGTGGACTGCGACAACGGCTCAGACGAGCAAGGCTGTC"
+        },
+        {
+          "number": 4,
+          "cds_start": 314,
+          "cds_end": 694,
+          "genomic_start": 11105220,
+          "genomic_end": 11105600,
+          "sequence": "CCCCCAAGACGTGCTCCCAGGACGAGTTTCGCTGCCACGATGGGAAGTGCATCTCTCGGCAGTTCGTCTGTGACTCAGACCGGGACTGCTTGGACGGCTCAGACGAGGCCTCCTGCCCGGTGCTCACCTGTGGTCCCGCCAGCTTCCAGTGCAACAGCTCCACCTGCATCCCCCAGCTGTGGGCCTGCGACAACGACCCCGACTGCGAAGATGGCTCGGATGAGTGGCCGCAGCGCTGTAGGGGTCTTTACGTGTTCCAAGGGGACAGTAGCCCCTGCTCGGCCTTCGAGTTCCACTGCCTAAGTGGCGAGTGCATCCACTCCAGCTGGCGCTGTGATGGTGGCCCCGACTGCAAGGACAAATCTGACGAGGAAAACTGCG"
+        },
+        {
+          "number": 5,
+          "cds_start": 695,
+          "cds_end": 817,
+          "genomic_start": 11106565,
+          "genomic_end": 11106687,
+          "sequence": "CTGTGGCCACCTGTCGCCCTGACGAATTCCAGTGCTCTGATGGAAACTGCATCCATGGCAGCCGGCAGTGTGACCGGGAATATGACTGCAAGGACATGAGCGATGAAGTTGGCTGCGTTAATG"
+        },
+        {
+          "number": 6,
+          "cds_start": 818,
+          "cds_end": 940,
+          "genomic_start": 11107392,
+          "genomic_end": 11107514,
+          "sequence": "TGACACTCTGCGAGGGACCCAACAAGTTCAAGTGTCACAGCGGCGAATGCATCACCCTGGACAAAGTCTGCAACATGGCTAGAGACTGCCGGGACTGGTCAGATGAACCCATCAAAGAGTGCG"
+        },
+        {
+          "number": 7,
+          "cds_start": 941,
+          "cds_end": 1060,
+          "genomic_start": 11110652,
+          "genomic_end": 11110771,
+          "sequence": "GGACCAACGAATGCTTGGACAACAACGGCGGCTGTTCCCACGTCTGCAATGACCTTAAGATCGGCTACGAGTGCCTGTGCCCCGACGGCTTCCAGCTGGTGGCCCAGCGAAGATGCGAAG"
+        },
+        {
+          "number": 8,
+          "cds_start": 1061,
+          "cds_end": 1186,
+          "genomic_start": 11111514,
+          "genomic_end": 11111639,
+          "sequence": "ATATCGATGAGTGTCAGGATCCCGACACCTGCAGCCAGCTCTGCGTGAACCTGGAGGGTGGCTACAAGTGCCAGTGTGAGGAAGGCTTCCAGCTGGACCCCCACACGAAGGCCTGCAAGGCTGTGG"
+        },
+        {
+          "number": 9,
+          "cds_start": 1187,
+          "cds_end": 1358,
+          "genomic_start": 11113278,
+          "genomic_end": 11113449,
+          "sequence": "GCTCCATCGCCTACCTCTTCTTCACCAACCGGCACGAGGTCAGGAAGATGACGCTGGACCGGAGCGAGTACACCAGCCTCATCCCCAACCTGAGGAACGTGGTCGCTCTGGACACGGAGGTGGCCAGCAATAGAATCTACTGGTCTGACCTGTCCCAGAGAATGATCTGCAG"
+        },
+        {
+          "number": 10,
+          "cds_start": 1359,
+          "cds_end": 1586,
+          "genomic_start": 11113535,
+          "genomic_end": 11113762,
+          "sequence": "CACCCAGCTTGACAGAGCCCACGGCGTCTCTTCCTATGACACCGTCATCAGCAGAGACATCCAGGCCCCCGACGGGCTGGCTGTGGACTGGATCCACAGCAACATCTACTGGACCGACTCTGTCCTGGGCACTGTCTCTGTTGCGGATACCAAGGGCGTGAAGAGGAAAACGTTATTCAGGGAGAACGGCTCCAAGCCAAGGGCCATCGTGGTGGATCCTGTTCATGG"
+        },
+        {
+          "number": 11,
+          "cds_start": 1587,
+          "cds_end": 1705,
+          "genomic_start": 11116094,
+          "genomic_end": 11116212,
+          "sequence": "CTTCATGTACTGGACTGACTGGGGAACTCCCGCCAAGATCAAGAAAGGGGGCCTGAATGGTGTGGACATCTACTCGCTGGTGACTGAAAACATTCAGTGGCCCAATGGCATCACCCTAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 1706,
+          "cds_end": 1845,
+          "genomic_start": 11116859,
+          "genomic_end": 11116998,
+          "sequence": "ATCTCCTCAGTGGCCGCCTCTACTGGGTTGACTCCAAACTTCACTCCATCTCAAGCATCGATGTCAACGGGGGCAACCGGAAGACCATCTTGGAGGATGAAAAGAGGCTGGCCCACCCCTTCTCCTTGGCCGTCTTTGAG"
+        },
+        {
+          "number": 13,
+          "cds_start": 1846,
+          "cds_end": 1987,
+          "genomic_start": 11120092,
+          "genomic_end": 11120233,
+          "sequence": "GACAAAGTATTTTGGACAGATATCATCAACGAAGCCATTTTCAGTGCCAACCGCCTCACAGGTTCCGATGTCAACTTGTTGGCTGAAAACCTACTGTCCCCAGAGGATATGGTTCTCTTCCACAACCTCACCCAGCCAAGAG"
+        },
+        {
+          "number": 14,
+          "cds_start": 1988,
+          "cds_end": 2140,
+          "genomic_start": 11120370,
+          "genomic_end": 11120522,
+          "sequence": "GAGTGAACTGGTGTGAGAGGACCACCCTGAGCAATGGCGGCTGCCAGTATCTGTGCCTCCCTGCCCCGCAGATCAACCCCCACTCGCCCAAGTTTACCTGCGCCTGCCCGGACGGCATGCTGCTGGCCAGGGACATGAGGAGCTGCCTCACAG"
+        },
+        {
+          "number": 15,
+          "cds_start": 2141,
+          "cds_end": 2311,
+          "genomic_start": 11123174,
+          "genomic_end": 11123344,
+          "sequence": "AGGCTGAGGCTGCAGTGGCCACCCAGGAGACATCCACCGTCAGGCTAAAGGTCAGCTCCACAGCCGTAAGGACACAGCACACAACCACCCGACCTGTTCCCGACACCTCCCGGCTGCCTGGGGCCACCCCTGGGCTCACCACGGTGGAGATAGTGACAATGTCTCACCAAG"
+        },
+        {
+          "number": 16,
+          "cds_start": 2312,
+          "cds_end": 2389,
+          "genomic_start": 11128008,
+          "genomic_end": 11128085,
+          "sequence": "CTCTGGGCGACGTTGCTGGCAGAGGAAATGAGAAGAAGCCCAGTAGCGTGAGGGCTCTGTCCATTGTCCTCCCCATCG"
+        },
+        {
+          "number": 17,
+          "cds_start": 2390,
+          "cds_end": 2547,
+          "genomic_start": 11129513,
+          "genomic_end": 11129670,
+          "sequence": "TGCTCCTCGTCTTCCTTTGCCTGGGGGTCTTCCTTCTATGGAAGAACTGGCGGCTTAAGAACATCAACAGCATCAACTTTGACAACCCCGTCTATCAGAAGACCACAGAGGATGAGGTCCACATTTGCCACAACCAGGACGGCTACAGCTACCCCTCG"
+        },
+        {
+          "number": 18,
+          "cds_start": 2548,
+          "cds_end": 2583,
+          "genomic_start": 11131281,
+          "genomic_end": 11131316,
+          "sequence": "AGACAGATGGTCAGTCTGGAGGATGACGTGGCGTGA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 1,
+          "genomic_start": 11089616,
+          "genomic_end": 11100222,
+          "total_len": 10607,
+          "five_prime_sequence": "gtaaggcttgctccaggcgccagaataggt",
+          "three_prime_sequence": "gagaccctttctccttttcctctctctcag"
+        },
+        {
+          "number": 2,
+          "genomic_start": 11100346,
+          "genomic_end": 11102663,
+          "total_len": 2318,
+          "five_prime_sequence": "gtgagtcccctttgggcatgatatgcattt",
+          "three_prime_sequence": "agtgacagttcaatcctgtctcttctgtag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 11102787,
+          "genomic_end": 11105219,
+          "total_len": 2433,
+          "five_prime_sequence": "gtaagtgtggccctgcctttgctattgagc",
+          "three_prime_sequence": "atggtggtctcggcccatccatccctgcag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 11105601,
+          "genomic_end": 11106564,
+          "total_len": 964,
+          "five_prime_sequence": "gtatgggcggggccagggtgggggcggggc",
+          "three_prime_sequence": "aaaatcaacacactctgtcctgttttccag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 11106688,
+          "genomic_end": 11107391,
+          "total_len": 704,
+          "five_prime_sequence": "gtgagcgctggccatctggttttccatccc",
+          "three_prime_sequence": "cttcctccttcctctctctggctctcacag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 11107515,
+          "genomic_end": 11110651,
+          "total_len": 3137,
+          "five_prime_sequence": "gtgagtctcggtgcaggcggcttgcagagt",
+          "three_prime_sequence": "gaccagtctgcatcccctggccctgcgcag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 11110772,
+          "genomic_end": 11111513,
+          "total_len": 742,
+          "five_prime_sequence": "gtgattcccgggtgggactgagccctgggc",
+          "three_prime_sequence": "ccccaccaagcctctttctctctcttccag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 11111640,
+          "genomic_end": 11113277,
+          "total_len": 1638,
+          "five_prime_sequence": "gtgagcacgggaaggcggcgggtgggggcg",
+          "three_prime_sequence": "accccctgacctcgctccccggacccccag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 11113450,
+          "genomic_end": 11113534,
+          "total_len": 85,
+          "five_prime_sequence": "gtgagcgtcgcccctgcctgcagccttggc",
+          "three_prime_sequence": "cgctgatgcccttctctcctcctgcctcag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 11113763,
+          "genomic_end": 11116093,
+          "total_len": 2331,
+          "five_prime_sequence": "gtgcgtatccacgacgctgagggctgcaga",
+          "three_prime_sequence": "cctcacagctattctctgtcctcccaccag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 11116213,
+          "genomic_end": 11116858,
+          "total_len": 646,
+          "five_prime_sequence": "gtatgttcgcaggacagccgtcccagccag",
+          "three_prime_sequence": "tgacctctccttatccacttgtgtgtctag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 11116999,
+          "genomic_end": 11120091,
+          "total_len": 3093,
+          "five_prime_sequence": "gtgtggcttacgtacgagatgcaagcactt",
+          "three_prime_sequence": "gatttgtcatcttccttgctgcctgtttag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 11120234,
+          "genomic_end": 11120369,
+          "total_len": 136,
+          "five_prime_sequence": "gtaagggtgggtcagccccacccccccaac",
+          "three_prime_sequence": "cctgccctgactccgcttcttctgccccag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 11120523,
+          "genomic_end": 11123173,
+          "total_len": 2651,
+          "five_prime_sequence": "gtgtggcacacgccttgtttctgcgtcctg",
+          "three_prime_sequence": "cactcagaagacgtttatttattctttcag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 11123345,
+          "genomic_end": 11128007,
+          "total_len": 4663,
+          "five_prime_sequence": "gtaaagactgggccctccctaggcccctct",
+          "three_prime_sequence": "ctgggcctcactcttgcttctctcctgcag"
+        },
+        {
+          "number": 16,
+          "genomic_start": 11128086,
+          "genomic_end": 11129512,
+          "total_len": 1427,
+          "five_prime_sequence": "gtaagcgcgggccggtcccccagcgtcccc",
+          "three_prime_sequence": "ctgtgtgacagagcgtgcctctccctacag"
+        },
+        {
+          "number": 17,
+          "genomic_start": 11129671,
+          "genomic_end": 11131280,
+          "total_len": 1610,
+          "five_prime_sequence": "gtgagtgaccctctctagaaagccagagcc",
+          "three_prime_sequence": "tagtttccgctgtttaccatttgttggcag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "MLH1",
+      "cdna": "c.83C>G",
+      "transcript": "NM_000249.4",
+      "requested_transcript": "NM_000249.4",
+      "transcript_aliases": [
+        "NM_000249.4",
+        "ENST00000231790.8",
+        "MLH1-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "4683074",
+      "accession": "VCV004683074",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4683074/",
+      "chrom": "3",
+      "strand": "+",
+      "ensembl_gene_id": "ENSG00000076242",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 36993226,
+      "gene_end": 37050896,
+      "gene_length": 57671,
+      "cds_length": 2271,
+      "protein_length": 756,
+      "utr5_length": 30,
+      "utr3_length": 193,
+      "mrna_length": 2494,
+      "translation_id": "ENSP00000231790",
+      "variant": {
+        "hgvs_c": "c.83C>G",
+        "hgvs_p": "p.Pro28Arg",
+        "cds_pos": 83,
+        "ref": "C",
+        "alt": "G",
+        "genomic_hg38": "3-36993630-C-G",
+        "codon_number": 28,
+        "codon_offset": 1,
+        "aa_ref": "P",
+        "aa_alt": "R",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 116,
+          "genomic_start": 36993548,
+          "genomic_end": 36993663,
+          "sequence": "ATGTCGTTCGTGGCAGGGGTTATTCGGCGGCTGGACGAGACAGTGGTGAACCGCATCGCGGCGGGGGAAGTTATCCAGCGGCCAGCTAATGCTATCAAAGAGATGATTGAGAACTG"
+        },
+        {
+          "number": 2,
+          "cds_start": 117,
+          "cds_end": 207,
+          "genomic_start": 36996619,
+          "genomic_end": 36996709,
+          "sequence": "TTTAGATGCAAAATCCACAAGTATTCAAGTGATTGTTAAAGAGGGAGGCCTGAAGTTGATTCAGATCCAAGACAATGGCACCGGGATCAGG"
+        },
+        {
+          "number": 3,
+          "cds_start": 208,
+          "cds_end": 306,
+          "genomic_start": 37000955,
+          "genomic_end": 37001053,
+          "sequence": "AAAGAAGATCTGGATATTGTATGTGAAAGGTTCACTACTAGTAAACTGCAGTCCTTTGAGGATTTAGCCAGTATTTCTACCTATGGCTTTCGAGGTGAG"
+        },
+        {
+          "number": 4,
+          "cds_start": 307,
+          "cds_end": 380,
+          "genomic_start": 37004401,
+          "genomic_end": 37004474,
+          "sequence": "GCTTTGGCCAGCATAAGCCATGTGGCTCATGTTACTATTACAACGAAAACAGCTGATGGAAAGTGTGCATACAG"
+        },
+        {
+          "number": 5,
+          "cds_start": 381,
+          "cds_end": 453,
+          "genomic_start": 37006991,
+          "genomic_end": 37007063,
+          "sequence": "AGCAAGTTACTCAGATGGAAAACTGAAAGCCCCTCCTAAACCATGTGCTGGCAATCAAGGGACCCAGATCACG"
+        },
+        {
+          "number": 6,
+          "cds_start": 454,
+          "cds_end": 545,
+          "genomic_start": 37008814,
+          "genomic_end": 37008905,
+          "sequence": "GTGGAGGACCTTTTTTACAACATAGCCACGAGGAGAAAAGCTTTAAAAAATCCAAGTGAAGAATATGGGAAAATTTTGGAAGTTGTTGGCAG"
+        },
+        {
+          "number": 7,
+          "cds_start": 546,
+          "cds_end": 588,
+          "genomic_start": 37011820,
+          "genomic_end": 37011862,
+          "sequence": "GTATTCAGTACACAATGCAGGCATTAGTTTCTCAGTTAAAAAA"
+        },
+        {
+          "number": 8,
+          "cds_start": 589,
+          "cds_end": 677,
+          "genomic_start": 37012011,
+          "genomic_end": 37012099,
+          "sequence": "CAAGGAGAGACAGTAGCTGATGTTAGGACACTACCCAATGCCTCAACCGTGGACAATATTCGCTCCATCTTTGGAAATGCTGTTAGTCG"
+        },
+        {
+          "number": 9,
+          "cds_start": 678,
+          "cds_end": 790,
+          "genomic_start": 37014432,
+          "genomic_end": 37014544,
+          "sequence": "AGAACTGATAGAAATTGGATGTGAGGATAAAACCCTAGCCTTCAAAATGAATGGTTACATATCCAATGCAAACTACTCAGTGAAGAAGTGCATCTTCTTACTCTTCATCAACC"
+        },
+        {
+          "number": 10,
+          "cds_start": 791,
+          "cds_end": 884,
+          "genomic_start": 37017506,
+          "genomic_end": 37017599,
+          "sequence": "ATCGTCTGGTAGAATCAACTTCCTTGAGAAAAGCCATAGAAACAGTGTATGCAGCCTATTTGCCCAAAAACACACACCCATTCCTGTACCTCAG"
+        },
+        {
+          "number": 11,
+          "cds_start": 885,
+          "cds_end": 1038,
+          "genomic_start": 37020310,
+          "genomic_end": 37020463,
+          "sequence": "TTTAGAAATCAGTCCCCAGAATGTGGATGTTAATGTGCACCCCACAAAGCATGAAGTTCACTTCCTGCACGAGGAGAGCATCCTGGAGCGGGTGCAGCAGCACATCGAGAGCAAGCTCCTGGGCTCCAATTCCTCCAGGATGTACTTCACCCAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 1039,
+          "cds_end": 1409,
+          "genomic_start": 37025637,
+          "genomic_end": 37026007,
+          "sequence": "ACTTTGCTACCAGGACTTGCTGGCCCCTCTGGGGAGATGGTTAAATCCACAACAAGTCTGACCTCGTCTTCTACTTCTGGAAGTAGTGATAAGGTCTATGCCCACCAGATGGTTCGTACAGATTCCCGGGAACAGAAGCTTGATGCATTTCTGCAGCCTCTGAGCAAACCCCTGTCCAGTCAGCCCCAGGCCATTGTCACAGAGGATAAGACAGATATTTCTAGTGGCAGGGCTAGGCAGCAAGATGAGGAGATGCTTGAACTCCCAGCCCCTGCTGAAGTGGCTGCCAAAAATCAGAGCTTGGAGGGGGATACAACAAAGGGGACTTCAGAAATGTCAGAGAAGAGAGGACCTACTTCCAGCAACCCCAG"
+        },
+        {
+          "number": 13,
+          "cds_start": 1410,
+          "cds_end": 1558,
+          "genomic_start": 37028784,
+          "genomic_end": 37028932,
+          "sequence": "AAAGAGACATCGGGAAGATTCTGATGTGGAAATGGTGGAAGATGATTCCCGAAAGGAAATGACTGCAGCTTGTACCCCCCGGAGAAGGATCATTAACCTCACTAGTGTTTTGAGTCTCCAGGAAGAAATTAATGAGCAGGGACATGAGG"
+        },
+        {
+          "number": 14,
+          "cds_start": 1559,
+          "cds_end": 1667,
+          "genomic_start": 37040186,
+          "genomic_end": 37040294,
+          "sequence": "TTCTCCGGGAGATGTTGCATAACCACTCCTTCGTGGGCTGTGTGAATCCTCAGTGGGCCTTGGCACAGCATCAAACCAAGTTATACCTTCTCAACACCACCAAGCTTAG"
+        },
+        {
+          "number": 15,
+          "cds_start": 1668,
+          "cds_end": 1731,
+          "genomic_start": 37042268,
+          "genomic_end": 37042331,
+          "sequence": "TGAAGAACTGTTCTACCAGATACTCATTTATGATTTTGCCAATTTTGGTGTTCTCAGGTTATCG"
+        },
+        {
+          "number": 16,
+          "cds_start": 1732,
+          "cds_end": 1896,
+          "genomic_start": 37047519,
+          "genomic_end": 37047683,
+          "sequence": "GAGCCAGCACCGCTCTTTGACCTTGCCATGCTTGCCTTAGATAGTCCAGAGAGTGGCTGGACAGAGGAAGATGGTCCCAAAGAAGGACTTGCTGAATACATTGTTGAGTTTCTGAAGAAGAAGGCTGAGATGCTTGCAGACTATTTCTCTTTGGAAATTGATGAG"
+        },
+        {
+          "number": 17,
+          "cds_start": 1897,
+          "cds_end": 1989,
+          "genomic_start": 37048517,
+          "genomic_end": 37048609,
+          "sequence": "GAAGGGAACCTGATTGGATTACCCCTTCTGATTGACAACTATGTGCCCCCTTTGGAGGGACTGCCTATCTTCATTCTTCGACTAGCCACTGAG"
+        },
+        {
+          "number": 18,
+          "cds_start": 1990,
+          "cds_end": 2103,
+          "genomic_start": 37048904,
+          "genomic_end": 37049017,
+          "sequence": "GTGAATTGGGACGAAGAAAAGGAATGTTTTGAAAGCCTCAGTAAAGAATGCGCTATGTTCTATTCCATCCGGAAGCAGTACATATCTGAGGAGTCGACCCTCTCAGGCCAGCAG"
+        },
+        {
+          "number": 19,
+          "cds_start": 2104,
+          "cds_end": 2271,
+          "genomic_start": 37050486,
+          "genomic_end": 37050653,
+          "sequence": "AGTGAAGTGCCTGGCTCCATTCCAAACTCCTGGAAGTGGACTGTGGAACACATTGTCTATAAAGCCTTGCGCTCACACATTCTGCCTCCTAAACATTTCACAGAAGATGGAAATATCCTGCAGCTTGCTAACCTGCCTGATCTATACAAAGTCTTTGAGAGGTGTTAA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 1,
+          "genomic_start": 36993664,
+          "genomic_end": 36996618,
+          "total_len": 2955,
+          "five_prime_sequence": "gtacggagggagtcgagccgggctcactta",
+          "three_prime_sequence": "tgataaattattttctgtttgatttgccag"
+        },
+        {
+          "number": 2,
+          "genomic_start": 36996710,
+          "genomic_end": 37000954,
+          "total_len": 4245,
+          "five_prime_sequence": "gtaagtaaaacctcaaagtagcaggatgtt",
+          "three_prime_sequence": "ttatttactcatctttttggtatctaacag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 37001054,
+          "genomic_end": 37004400,
+          "total_len": 3347,
+          "five_prime_sequence": "gtaagctaaagattcaagaaatgtgtaaaa",
+          "three_prime_sequence": "tctttcagtctattttcttttcttccttag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 37004475,
+          "genomic_end": 37006990,
+          "total_len": 2516,
+          "five_prime_sequence": "gtatagtgctgacttcttttactcatatat",
+          "three_prime_sequence": "ggatattaatttgttatattttctcattag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 37007064,
+          "genomic_end": 37008813,
+          "total_len": 1750,
+          "five_prime_sequence": "gtaagaatggtacatgggagagtaaattgt",
+          "three_prime_sequence": "atttacaagaaaaatcaatcttctgttcag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 37008906,
+          "genomic_end": 37011819,
+          "total_len": 2914,
+          "five_prime_sequence": "gtacagtccaaaatctgggagtgggtctct",
+          "three_prime_sequence": "ttttcttactcttttgtttttcttttccag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 37011863,
+          "genomic_end": 37012010,
+          "total_len": 148,
+          "five_prime_sequence": "gtaagttcttggtttatgggggatggtttt",
+          "three_prime_sequence": "tccttgtgtcttctgctgtttgtttatcag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 37012100,
+          "genomic_end": 37014431,
+          "total_len": 2332,
+          "five_prime_sequence": "gtatgtcgataacctatataaaaaaatctt",
+          "three_prime_sequence": "tcaaaagcttcagaatctcttttctaatag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 37014545,
+          "genomic_end": 37017505,
+          "total_len": 2961,
+          "five_prime_sequence": "gtaagttaaaaagaaccacatgggaaatcc",
+          "three_prime_sequence": "tgaactggttgctttctttttattgtttag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 37017600,
+          "genomic_end": 37020309,
+          "total_len": 2710,
+          "five_prime_sequence": "gtaatgtagcaccaaactcctcaaccaaga",
+          "three_prime_sequence": "ggtaattgttctctcttattttcctgacag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 37020464,
+          "genomic_end": 37025636,
+          "total_len": 5173,
+          "five_prime_sequence": "gtcagggcgcttctcatccagctacttctc",
+          "three_prime_sequence": "tatttttttttttttttttttttaatacag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 37026008,
+          "genomic_end": 37028783,
+          "total_len": 2776,
+          "five_prime_sequence": "gtatggccttttgggaaaagtacagcctac",
+          "three_prime_sequence": "atgatctgcacttccttttcttcattgcag"
+        },
+        {
+          "number": 13,
+          "genomic_start": 37028933,
+          "genomic_end": 37040185,
+          "total_len": 11253,
+          "five_prime_sequence": "gtacgtaaacgctgtggcctgcctgggatg",
+          "three_prime_sequence": "tgttttttggttttattttttgttttgcag"
+        },
+        {
+          "number": 14,
+          "genomic_start": 37040295,
+          "genomic_end": 37042267,
+          "total_len": 1973,
+          "five_prime_sequence": "gtaaatcagctgagtgtgtgaacaagcaga",
+          "three_prime_sequence": "tccttaaagtcacttcatttttattttcag"
+        },
+        {
+          "number": 15,
+          "genomic_start": 37042332,
+          "genomic_end": 37047518,
+          "total_len": 5187,
+          "five_prime_sequence": "gtaagtttagatccttttcacttctgaaat",
+          "three_prime_sequence": "ttgctccttcatgttcttgcttcttcctag"
+        },
+        {
+          "number": 16,
+          "genomic_start": 37047684,
+          "genomic_end": 37048516,
+          "total_len": 833,
+          "five_prime_sequence": "gtgtgacagccattcttatacttctgttgt",
+          "three_prime_sequence": "ttgttcccttgtcctttttcctgcaagcag"
+        },
+        {
+          "number": 17,
+          "genomic_start": 37048610,
+          "genomic_end": 37048903,
+          "total_len": 294,
+          "five_prime_sequence": "gtcagtgatcaagcagatactaagcatttc",
+          "three_prime_sequence": "attttgaggtattgaatttctttggaccag"
+        },
+        {
+          "number": 18,
+          "genomic_start": 37049018,
+          "genomic_end": 37050485,
+          "total_len": 1468,
+          "five_prime_sequence": "gtacagtggtgatgcacactggcaccccag",
+          "three_prime_sequence": "gaggcttatgacatctaatgtgttttccag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "PAH",
+      "cdna": "c.877T>A",
+      "transcript": "NM_000277.3",
+      "requested_transcript": "NM_000277.3",
+      "transcript_aliases": [
+        "NM_000277.3",
+        "ENST00000553106.6",
+        "PAH-215",
+        "MANE Select"
+      ],
+      "clinical_significance": "Likely pathogenic",
+      "clinvar_variation_id": "4540589",
+      "accession": "VCV004540589",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4540589/",
+      "chrom": "12",
+      "strand": "-",
+      "ensembl_gene_id": "ENSG00000171759",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 102836889,
+      "gene_end": 102958410,
+      "gene_length": 121522,
+      "cds_length": 1359,
+      "protein_length": 452,
+      "utr5_length": 114,
+      "utr3_length": 2286,
+      "mrna_length": 3759,
+      "translation_id": "ENSP00000448059",
+      "variant": {
+        "hgvs_c": "c.877T>A",
+        "hgvs_p": "p.Leu293Met",
+        "cds_pos": 877,
+        "ref": "T",
+        "alt": "A",
+        "genomic_hg38": "12-102851722-A-T",
+        "codon_number": 293,
+        "codon_offset": 0,
+        "aa_ref": "L",
+        "aa_alt": "M",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 60,
+          "genomic_start": 102917071,
+          "genomic_end": 102917130,
+          "sequence": "ATGTCCACTGCGGTCCTGGAAAACCCAGGCTTGGGCAGGAAACTCTCTGACTTTGGACAG"
+        },
+        {
+          "number": 2,
+          "cds_start": 61,
+          "cds_end": 168,
+          "genomic_start": 102912791,
+          "genomic_end": 102912898,
+          "sequence": "GAAACAAGCTATATTGAAGACAACTGCAATCAAAATGGTGCCATATCACTGATCTTCTCACTCAAAGAAGAAGTTGGTGCATTGGCCAAAGTATTGCGCTTATTTGAG"
+        },
+        {
+          "number": 3,
+          "cds_start": 169,
+          "cds_end": 352,
+          "genomic_start": 102894735,
+          "genomic_end": 102894918,
+          "sequence": "GAGAATGATGTAAACCTGACCCACATTGAATCTAGACCTTCTCGTTTAAAGAAAGATGAGTATGAATTTTTCACCCATTTGGATAAACGTAGCCTGCCTGCTCTGACAAACATCATCAAGATCTTGAGGCATGACATTGGTGCCACTGTCCATGAGCTTTCACGAGATAAGAAGAAAGACACAG"
+        },
+        {
+          "number": 4,
+          "cds_start": 353,
+          "cds_end": 441,
+          "genomic_start": 102877462,
+          "genomic_end": 102877550,
+          "sequence": "TGCCCTGGTTCCCAAGAACCATTCAAGAGCTGGACAGATTTGCCAATCAGATTCTCAGCTATGGAGCGGAACTGGATGCTGACCACCCT"
+        },
+        {
+          "number": 5,
+          "cds_start": 442,
+          "cds_end": 509,
+          "genomic_start": 102866596,
+          "genomic_end": 102866663,
+          "sequence": "GGTTTTAAAGATCCTGTGTACCGTGCAAGACGGAAGCAGTTTGCTGACATTGCCTACAACTACCGCCA"
+        },
+        {
+          "number": 6,
+          "cds_start": 510,
+          "cds_end": 706,
+          "genomic_start": 102855136,
+          "genomic_end": 102855332,
+          "sequence": "TGGGCAGCCCATCCCTCGAGTGGAATACATGGAGGAAGAAAAGAAAACATGGGGCACAGTGTTCAAGACTCTGAAGTCCTTGTATAAAACCCATGCTTGCTATGAGTACAATCACATTTTTCCACTTCTTGAAAAGTACTGTGGCTTCCATGAAGATAACATTCCCCAGCTGGAAGACGTTTCTCAGTTCCTGCAGA"
+        },
+        {
+          "number": 7,
+          "cds_start": 707,
+          "cds_end": 842,
+          "genomic_start": 102852815,
+          "genomic_end": 102852950,
+          "sequence": "CTTGCACTGGTTTCCGCCTCCGACCTGTGGCTGGCCTGCTTTCCTCTCGGGATTTCTTGGGTGGCCTGGCCTTCCGAGTCTTCCACTGCACACAGTACATCAGACATGGATCCAAGCCCATGTATACCCCCGAACC"
+        },
+        {
+          "number": 8,
+          "cds_start": 843,
+          "cds_end": 912,
+          "genomic_start": 102851687,
+          "genomic_end": 102851756,
+          "sequence": "TGACATCTGCCATGAGCTGTTGGGACATGTGCCCTTGTTTTCAGATCGCAGCTTTGCCCAGTTTTCCCAG"
+        },
+        {
+          "number": 9,
+          "cds_start": 913,
+          "cds_end": 969,
+          "genomic_start": 102846895,
+          "genomic_end": 102846951,
+          "sequence": "GAAATTGGCCTTGCCTCTCTGGGTGCACCTGATGAATACATTGAAAAGCTCGCCACA"
+        },
+        {
+          "number": 10,
+          "cds_start": 970,
+          "cds_end": 1065,
+          "genomic_start": 102844336,
+          "genomic_end": 102844431,
+          "sequence": "ATTTACTGGTTTACTGTGGAGTTTGGGCTCTGCAAACAAGGAGACTCCATAAAGGCATATGGTGCTGGGCTCCTGTCATCCTTTGGTGAATTACAG"
+        },
+        {
+          "number": 11,
+          "cds_start": 1066,
+          "cds_end": 1199,
+          "genomic_start": 102843646,
+          "genomic_end": 102843779,
+          "sequence": "TACTGCTTATCAGAGAAGCCAAAGCTTCTCCCCCTGGAGCTGGAGAAGACAGCCATCCAAAATTACACTGTCACGGAGTTCCAGCCCCTCTATTACGTGGCAGAGAGTTTTAATGATGCCAAGGAGAAAGTAAG"
+        },
+        {
+          "number": 12,
+          "cds_start": 1200,
+          "cds_end": 1315,
+          "genomic_start": 102840400,
+          "genomic_end": 102840515,
+          "sequence": "GAACTTTGCTGCCACAATACCTCGGCCCTTCTCAGTTCGCTACGACCCATACACCCAAAGGATTGAGGTCTTGGACAATACCCAGCAGCTTAAGATTTTGGCTGATTCCATTAACA"
+        },
+        {
+          "number": 13,
+          "cds_start": 1316,
+          "cds_end": 1359,
+          "genomic_start": 102839175,
+          "genomic_end": 102839218,
+          "sequence": "GTGAAATTGGAATCCTTTGCAGTGCCCTCCAGAAAATAAAGTAA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 1,
+          "genomic_start": 102912899,
+          "genomic_end": 102917070,
+          "total_len": 4172,
+          "five_prime_sequence": "gtgagccacggcagcctgagctgctcagtt",
+          "three_prime_sequence": "tgttttaaacaaatgcatcttatcctgtag"
+        },
+        {
+          "number": 2,
+          "genomic_start": 102894919,
+          "genomic_end": 102912790,
+          "total_len": 17872,
+          "five_prime_sequence": "gtcagtgctacaatcatgtttgtcttggat",
+          "three_prime_sequence": "tctcctcaccctccccattctctcttctag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 102877551,
+          "genomic_end": 102894734,
+          "total_len": 17184,
+          "five_prime_sequence": "gtaagaattagaggaattttgcaacataag",
+          "three_prime_sequence": "actcaggacgttgccttctctgtgtttcag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 102866664,
+          "genomic_end": 102877461,
+          "total_len": 10798,
+          "five_prime_sequence": "gtgagtccatggcccgtaggatgagatttt",
+          "three_prime_sequence": "ttgaaaaatcaggtgtctcttttctcctag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 102855333,
+          "genomic_end": 102866595,
+          "total_len": 11263,
+          "five_prime_sequence": "gtaagtctgccttgcttgttgaggggaaga",
+          "three_prime_sequence": "tgagacacctattttgtgcctgtattctag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 102852951,
+          "genomic_end": 102855135,
+          "total_len": 2185,
+          "five_prime_sequence": "gtaagtccacatcagggtcaatggccctgc",
+          "three_prime_sequence": "tttgagttttctttcttcttttcatcccag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 102851757,
+          "genomic_end": 102852814,
+          "total_len": 1058,
+          "five_prime_sequence": "gtgagtactgtcctccagctaccagttgcc",
+          "three_prime_sequence": "tccgagctctctgtgctttctgtctttcag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 102846952,
+          "genomic_end": 102851686,
+          "total_len": 4735,
+          "five_prime_sequence": "gtaaggaatggattttttagccttctagtt",
+          "three_prime_sequence": "agaacaggttctattttcccccaattacag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 102844432,
+          "genomic_end": 102846894,
+          "total_len": 2463,
+          "five_prime_sequence": "gtaagtcccttctctccctgggtggatggt",
+          "three_prime_sequence": "gtgtgctctcagattgactttccattccag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 102843780,
+          "genomic_end": 102844335,
+          "total_len": 556,
+          "five_prime_sequence": "gtatgaccttcacaggaaccaaggatagat",
+          "three_prime_sequence": "tgataataacttttcacttggggcctacag"
+        },
+        {
+          "number": 11,
+          "genomic_start": 102840516,
+          "genomic_end": 102843645,
+          "total_len": 3130,
+          "five_prime_sequence": "gtgaggtggtgacaaaggtgagccactagc",
+          "three_prime_sequence": "cttcactcaagcctgtggttttggtcttag"
+        },
+        {
+          "number": 12,
+          "genomic_start": 102839219,
+          "genomic_end": 102840399,
+          "total_len": 1181,
+          "five_prime_sequence": "gtaagtaatttacaccttacgaggccactc",
+          "three_prime_sequence": "ggcccattttgatggtgtttttctttgtag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    },
+    {
+      "gene": "TP53",
+      "cdna": "c.440T>G",
+      "transcript": "NM_000546.6",
+      "requested_transcript": "NM_000546.6",
+      "transcript_aliases": [
+        "NM_000546.6",
+        "ENST00000269305.9",
+        "TP53-201",
+        "MANE Select"
+      ],
+      "clinical_significance": "Pathogenic/Likely pathogenic",
+      "clinvar_variation_id": "3602769",
+      "accession": "VCV003602769",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3602769/",
+      "chrom": "17",
+      "strand": "-",
+      "ensembl_gene_id": "ENSG00000141510",
+      "species": "human",
+      "genome_build": "GRCh38",
+      "gene_start": 7661779,
+      "gene_end": 7687546,
+      "gene_length": 25768,
+      "cds_length": 1182,
+      "protein_length": 393,
+      "utr5_length": 142,
+      "utr3_length": 1188,
+      "mrna_length": 2512,
+      "translation_id": "ENSP00000269305",
+      "variant": {
+        "hgvs_c": "c.440T>G",
+        "hgvs_p": "p.Val147Gly",
+        "cds_pos": 440,
+        "ref": "T",
+        "alt": "G",
+        "genomic_hg38": "17-7675172-A-C",
+        "codon_number": 147,
+        "codon_offset": 1,
+        "aa_ref": "V",
+        "aa_alt": "G",
+        "classification": "likely_pathogenic"
+      },
+      "exons": [
+        {
+          "number": 2,
+          "cds_start": 1,
+          "cds_end": 74,
+          "genomic_start": 7676521,
+          "genomic_end": 7676594,
+          "sequence": "ATGGAGGAGCCGCAGTCAGATCCTAGCGTCGAGCCCCCTCTGAGTCAGGAAACATTTTCAGACCTATGGAAACT"
+        },
+        {
+          "number": 3,
+          "cds_start": 75,
+          "cds_end": 96,
+          "genomic_start": 7676382,
+          "genomic_end": 7676403,
+          "sequence": "ACTTCCTGAAAACAACGTTCTG"
+        },
+        {
+          "number": 4,
+          "cds_start": 97,
+          "cds_end": 375,
+          "genomic_start": 7675994,
+          "genomic_end": 7676272,
+          "sequence": "TCCCCCTTGCCGTCCCAAGCAATGGATGATTTGATGCTGTCCCCGGACGATATTGAACAATGGTTCACTGAAGACCCAGGTCCAGATGAAGCTCCCAGAATGCCAGAGGCTGCTCCCCCCGTGGCCCCTGCACCAGCAGCTCCTACACCGGCGGCCCCTGCACCAGCCCCCTCCTGGCCCCTGTCATCTTCTGTCCCTTCCCAGAAAACCTACCAGGGCAGCTACGGTTTCCGTCTGGGCTTCTTGCATTCTGGGACAGCCAAGTCTGTGACTTGCACG"
+        },
+        {
+          "number": 5,
+          "cds_start": 376,
+          "cds_end": 559,
+          "genomic_start": 7675053,
+          "genomic_end": 7675236,
+          "sequence": "TACTCCCCTGCCCTCAACAAGATGTTTTGCCAACTGGCCAAGACCTGCCCTGTGCAGCTGTGGGTTGATTCCACACCCCCGCCCGGCACCCGCGTCCGCGCCATGGCCATCTACAAGCAGTCACAGCACATGACGGAGGTTGTGAGGCGCTGCCCCCACCATGAGCGCTGCTCAGATAGCGATG"
+        },
+        {
+          "number": 6,
+          "cds_start": 560,
+          "cds_end": 672,
+          "genomic_start": 7674859,
+          "genomic_end": 7674971,
+          "sequence": "GTCTGGCCCCTCCTCAGCATCTTATCCGAGTGGAAGGAAATTTGCGTGTGGAGTATTTGGATGACAGAAACACTTTTCGACATAGTGTGGTGGTGCCCTATGAGCCGCCTGAG"
+        },
+        {
+          "number": 7,
+          "cds_start": 673,
+          "cds_end": 782,
+          "genomic_start": 7674181,
+          "genomic_end": 7674290,
+          "sequence": "GTTGGCTCTGACTGTACCACCATCCACTACAACTACATGTGTAACAGTTCCTGCATGGGCGGCATGAACCGGAGGCCCATCCTCACCATCATCACACTGGAAGACTCCAG"
+        },
+        {
+          "number": 8,
+          "cds_start": 783,
+          "cds_end": 919,
+          "genomic_start": 7673701,
+          "genomic_end": 7673837,
+          "sequence": "TGGTAATCTACTGGGACGGAACAGCTTTGAGGTGCGTGTTTGTGCCTGTCCTGGGAGAGACCGGCGCACAGAGGAAGAGAATCTCCGCAAGAAAGGGGAGCCTCACCACGAGCTGCCCCCAGGGAGCACTAAGCGAG"
+        },
+        {
+          "number": 9,
+          "cds_start": 920,
+          "cds_end": 993,
+          "genomic_start": 7673535,
+          "genomic_end": 7673608,
+          "sequence": "CACTGCCCAACAACACCAGCTCCTCTCCCCAGCCAAAGAAGAAACCACTGGATGGAGAATATTTCACCCTTCAG"
+        },
+        {
+          "number": 10,
+          "cds_start": 994,
+          "cds_end": 1100,
+          "genomic_start": 7670609,
+          "genomic_end": 7670715,
+          "sequence": "ATCCGTGGGCGTGAGCGCTTCGAGATGTTCCGAGAGCTGAATGAGGCCTTGGAACTCAAGGATGCCCAGGCTGGGAAGGAGCCAGGGGGGAGCAGGGCTCACTCCAG"
+        },
+        {
+          "number": 11,
+          "cds_start": 1101,
+          "cds_end": 1182,
+          "genomic_start": 7669609,
+          "genomic_end": 7669690,
+          "sequence": "CCACCTGAAGTCCAAAAAGGGTCAGTCTACCTCCCGCCATAAAAAACTCATGTTCAAGACAGAAGGGCCTGACTCAGACTGA"
+        }
+      ],
+      "introns": [
+        {
+          "number": 2,
+          "genomic_start": 7676404,
+          "genomic_end": 7676520,
+          "total_len": 117,
+          "five_prime_sequence": "gtgagtggatccattggaagggcaggccca",
+          "three_prime_sequence": "tgggactgactttctgctcttgtctttcag"
+        },
+        {
+          "number": 3,
+          "genomic_start": 7676273,
+          "genomic_end": 7676381,
+          "total_len": 109,
+          "five_prime_sequence": "gtaaggacaagggttgggctggggacctgg",
+          "three_prime_sequence": "cctctgactgctcttttcacccatctacag"
+        },
+        {
+          "number": 4,
+          "genomic_start": 7675237,
+          "genomic_end": 7675993,
+          "total_len": 757,
+          "five_prime_sequence": "gtcagttgccctgaggggctggcttccatg",
+          "three_prime_sequence": "ttcaactctgtctccttcctcttcctacag"
+        },
+        {
+          "number": 5,
+          "genomic_start": 7674972,
+          "genomic_end": 7675052,
+          "total_len": 81,
+          "five_prime_sequence": "gtgagcagctggggctggagagacgacagg",
+          "three_prime_sequence": "ggcctctgattcctcactgattgctcttag"
+        },
+        {
+          "number": 6,
+          "genomic_start": 7674291,
+          "genomic_end": 7674858,
+          "total_len": 568,
+          "five_prime_sequence": "gtctggtttgcaactggggtctctgggagg",
+          "three_prime_sequence": "gcctcatcttgggcctgtgttatctcctag"
+        },
+        {
+          "number": 7,
+          "genomic_start": 7673838,
+          "genomic_end": 7674180,
+          "total_len": 343,
+          "five_prime_sequence": "gtcaggagccacttgccaccctgcacactg",
+          "three_prime_sequence": "ctcttgcttctcttttcctatcctgagtag"
+        },
+        {
+          "number": 8,
+          "genomic_start": 7673609,
+          "genomic_end": 7673700,
+          "total_len": 92,
+          "five_prime_sequence": "gtaagcaagcaggacaagaagcggtggagg",
+          "three_prime_sequence": "ttttatcacctttccttgcctctttcctag"
+        },
+        {
+          "number": 9,
+          "genomic_start": 7670716,
+          "genomic_end": 7673534,
+          "total_len": 2819,
+          "five_prime_sequence": "gtactaagtcttgggacctcttatcaagtg",
+          "three_prime_sequence": "cttacttctccccctcctctgttgctgcag"
+        },
+        {
+          "number": 10,
+          "genomic_start": 7669691,
+          "genomic_end": 7670608,
+          "total_len": 918,
+          "five_prime_sequence": "gtgagtgacctcagccccttcctggcccta",
+          "three_prime_sequence": "atctctcctccctgcttctgtctcctacag"
+        }
+      ],
+      "warnings": [
+        "gene_viewer_transcript_model_fixture",
+        "transcript_model_from_ensembl_rest_fixture",
+        "sequence_from_ensembl_rest_fixture",
+        "clinvar_record_from_gene_agnostic_stack"
+      ]
+    }
+  ]
+}

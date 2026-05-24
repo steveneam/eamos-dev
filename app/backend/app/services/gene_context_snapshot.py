@@ -125,7 +125,10 @@ class GeneContextSnapshotService:
             return _snapshot_from_source_bundle(bundle, source_status="live")
 
         try:
-            response = self.fixture_provider.viewer(payload)
+            if query.gene == "RPE65" and query.hgvs == "c.260A>G":
+                response = self.fixture_provider.viewer(payload)
+                return _snapshot_from_rpe65_fixture(response)
+            bundle = self.fixture_provider.viewer_bundle(payload)
         except GeneViewerError as exc:
             return _unavailable_snapshot(
                 gene=query.gene,
@@ -133,7 +136,7 @@ class GeneContextSnapshotService:
                 transcript=query.resolver_transcript,
                 warnings=[exc.code, "gene_context_snapshot_fixture_unavailable"],
             )
-        return _snapshot_from_rpe65_fixture(response)
+        return _snapshot_from_source_bundle(bundle, source_status="fixture")
 
     @property
     def _use_source_backed_path(self) -> bool:
@@ -150,12 +153,12 @@ def _snapshot_from_source_bundle(
     response = bundle.response
     exons, introns = _rows_from_source_transcript(bundle.transcript_source)
     variant = _variant_projection_from_response(response, exons=exons, introns=introns)
-    warnings = _dedupe(
-        [
-            *response.provenance.warnings,
-            "gene_context_snapshot_source_backed",
-        ]
+    status_warning = (
+        "gene_context_snapshot_source_backed"
+        if source_status == "live"
+        else "gene_context_snapshot_fixture"
     )
+    warnings = _dedupe([*response.provenance.warnings, status_warning])
     return GeneContextSnapshot(
         source_status=source_status,
         gene=response.identity.gene,

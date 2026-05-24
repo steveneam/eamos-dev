@@ -14,6 +14,8 @@ from pydantic import ValidationError
 from app.core.config import Settings
 from app.schemas.gene_viewer import (
     AppliedVariant,
+    ClinvarVariant,
+    ExonVariantDensity,
     GeneViewerRequest,
     GeneViewerResponse,
     ProteinDomain,
@@ -98,6 +100,8 @@ class GeneViewerError(Exception):
 
 
 class GeneViewerFixtureProvider:
+    curated_fixture_name = "gene_viewer_transcript_models.json"
+
     def __init__(self, fixtures_dir: Path | None = None) -> None:
         self.fixtures_dir = fixtures_dir or (
             Path(__file__).resolve().parents[1] / "fixtures" / "workbench"
@@ -106,13 +110,7 @@ class GeneViewerFixtureProvider:
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
         query = normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
         if query.gene != "RPE65" or query.hgvs != "c.260A>G":
-            code = unsupported_input_warning("fixture")
-            raise GeneViewerError(
-                code=code,
-                message="Offline gene viewer fixture is available only for RPE65 c.260A>G.",
-                status_code=HTTP_UNPROCESSABLE_ENTITY,
-                warnings=[code],
-            )
+            return self.viewer_bundle(payload, query=query).response
         try:
             response = GeneViewerResponse(**self._load("viewer_rpe65.json"))
         except ValidationError as exc:
@@ -122,6 +120,16 @@ class GeneViewerFixtureProvider:
                 status_code=status.HTTP_502_BAD_GATEWAY,
             ) from exc
         return _viewer_response_for_allele_mode(response, payload.allele_mode)
+
+    def viewer_bundle(
+        self,
+        payload: GeneViewerRequest,
+        *,
+        query: NormalizedVariantQuery | None = None,
+    ) -> SourceBackedViewerBundle:
+        query = query or normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
+        fixture = self._load(self.curated_fixture_name)
+        return _curated_fixture_viewer_bundle(payload=payload, query=query, fixture=fixture)
 
     def _load(self, name: str) -> dict[str, Any]:
         try:
@@ -985,6 +993,263 @@ def _source_resolver_transcript(source: SourceTranscriptModel) -> str:
         "transcript",
         f"Could not choose a source-backed transcript for {source.gene}.",
     )
+
+
+def _curated_fixture_viewer_bundle(
+    *,
+    payload: GeneViewerRequest,
+    query: NormalizedVariantQuery,
+    fixture: dict[str, Any],
+) -> SourceBackedViewerBundle:
+    record = _curated_fixture_record(fixture=fixture, query=query)
+    if record is None:
+        code = unsupported_input_warning("fixture")
+        raise GeneViewerError(
+            code=code,
+            message=(
+                "Offline gene viewer fixture is available for RPE65 c.260A>G "
+                "and curated ClinVar-stack transcript-model cases."
+            ),
+            status_code=HTTP_UNPROCESSABLE_ENTITY,
+            warnings=[code],
+        )
+    _validate_curated_fixture_window(payload=payload, record=record)
+    variant = _variant_from_curated_fixture(record)
+    source = _source_transcript_from_curated_fixture(record)
+    response = TranscriptWindowBuilder().build(
+        request=payload,
+        transcript=_transcript_model_from_curated_fixture(record),
+        variant=variant,
+    )
+    query = _query_with_source_transcript(query, source)
+    response.provenance = ViewerProvenance(
+        sources=_curated_fixture_provenance_sources(
+            record=record,
+            fixture_version=str(fixture.get("version") or ""),
+        ),
+        warnings=list(record.get("warnings") or []),
+    )
+    response.tracks.clinvar_variants = [
+        ClinvarVariant(
+            cds_pos=variant.cds_pos,
+            hgvs_c=variant.hgvs_c,
+            hgvs_p=variant.hgvs_p,
+            classification=variant.classification,
+            clinvar_id=str(record.get("accession") or record.get("clinvar_variation_id") or ""),
+            queried=True,
+        )
+    ]
+    exon_number = next(
+        (exon.number for exon in source.exons if exon.cds_start <= variant.cds_pos <= exon.cds_end),
+        None,
+    )
+    if exon_number is not None:
+        response.tracks.exon_density = [
+            ExonVariantDensity(exon_number=exon_number, variant_count=1)
+        ]
+    return SourceBackedViewerBundle(
+        query=query,
+        variant=variant,
+        transcript_source=source,
+        response=response,
+    )
+
+
+def _curated_fixture_record(
+    *,
+    fixture: dict[str, Any],
+    query: NormalizedVariantQuery,
+) -> dict[str, Any] | None:
+    requested_transcript = _versionless(query.resolver_transcript or query.transcript or "")
+    for record in fixture.get("records") or []:
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("gene") or "").upper() != query.gene:
+            continue
+        if str(record.get("cdna") or "") != query.hgvs:
+            continue
+        if not requested_transcript:
+            return record
+        aliases = [
+            str(record.get("transcript") or ""),
+            str(record.get("requested_transcript") or ""),
+            *(str(alias) for alias in record.get("transcript_aliases") or []),
+        ]
+        if any(_versionless(alias) == requested_transcript for alias in aliases):
+            return record
+    return None
+
+
+def _validate_curated_fixture_window(
+    *,
+    payload: GeneViewerRequest,
+    record: dict[str, Any],
+) -> None:
+    default_window = record.get("default_window") or {
+        "kind": "around_variant",
+        "cds_flank_bp": 120,
+        "intron_flank_bp": 30,
+    }
+    if (
+        payload.window.kind == default_window.get("kind")
+        and payload.window.cds_start is None
+        and payload.window.cds_end is None
+        and payload.window.cds_flank_bp == default_window.get("cds_flank_bp")
+        and payload.window.intron_flank_bp == default_window.get("intron_flank_bp")
+    ):
+        return
+    code = unsupported_input_warning("fixture_window")
+    raise GeneViewerError(
+        code=code,
+        message=(
+            "Curated non-RPE65 gene viewer fixtures support the default "
+            "around-variant window only."
+        ),
+        status_code=HTTP_UNPROCESSABLE_ENTITY,
+        warnings=[code],
+    )
+
+
+def _source_transcript_from_curated_fixture(record: dict[str, Any]) -> SourceTranscriptModel:
+    return SourceTranscriptModel(
+        gene=str(record["gene"]),
+        transcript=str(record["transcript"]),
+        chrom=str(record["chrom"]),
+        strand=str(record.get("strand") or "unknown"),
+        exons=tuple(
+            SourceTranscriptExon(
+                number=int(exon["number"]),
+                cds_start=int(exon["cds_start"]),
+                cds_end=int(exon["cds_end"]),
+                genomic_start=int(exon["genomic_start"]),
+                genomic_end=int(exon["genomic_end"]),
+            )
+            for exon in record.get("exons") or []
+        ),
+        introns=tuple(
+            SourceTranscriptIntron(
+                number=int(intron["number"]),
+                genomic_start=int(intron["genomic_start"]),
+                genomic_end=int(intron["genomic_end"]),
+            )
+            for intron in record.get("introns") or []
+        ),
+        ensembl_gene_id=_optional_fixture_text(record.get("ensembl_gene_id")),
+        transcript_aliases=tuple(str(alias) for alias in record.get("transcript_aliases") or []),
+        species=str(record.get("species") or "human"),
+        genome_build=str(record.get("genome_build") or "GRCh38"),
+        gene_start=_fixture_int_or_none(record.get("gene_start")),
+        gene_end=_fixture_int_or_none(record.get("gene_end")),
+        gene_length=_fixture_int_or_none(record.get("gene_length")),
+        cds_length=_fixture_int_or_none(record.get("cds_length")),
+        protein_length=_fixture_int_or_none(record.get("protein_length")),
+        utr5_length=_fixture_int_or_none(record.get("utr5_length")),
+        utr3_length=_fixture_int_or_none(record.get("utr3_length")),
+        mrna_length=_fixture_int_or_none(record.get("mrna_length")),
+        translation_id=_optional_fixture_text(record.get("translation_id")),
+        warnings=tuple(str(warning) for warning in record.get("warnings") or []),
+    )
+
+
+def _transcript_model_from_curated_fixture(record: dict[str, Any]) -> TranscriptModel:
+    return TranscriptModel(
+        gene=str(record["gene"]),
+        transcript=str(record["transcript"]),
+        chrom=str(record["chrom"]),
+        strand=str(record.get("strand") or "unknown"),
+        exons=tuple(
+            TranscriptExon(
+                number=int(exon["number"]),
+                cds_start=int(exon["cds_start"]),
+                cds_end=int(exon["cds_end"]),
+                sequence=str(exon.get("sequence") or _placeholder_sequence(exon)),
+                genomic_start=int(exon["genomic_start"]),
+                genomic_end=int(exon["genomic_end"]),
+            )
+            for exon in record.get("exons") or []
+        ),
+        introns=tuple(
+            TranscriptIntron(
+                number=int(intron["number"]),
+                total_len=int(intron.get("total_len") or _fixture_intron_length(intron)),
+                five_prime_sequence=str(intron.get("five_prime_sequence") or ""),
+                three_prime_sequence=str(intron.get("three_prime_sequence") or ""),
+                genomic_start=int(intron["genomic_start"]),
+                genomic_end=int(intron["genomic_end"]),
+            )
+            for intron in record.get("introns") or []
+        ),
+        ensembl_gene_id=_optional_fixture_text(record.get("ensembl_gene_id")),
+        transcript_aliases=tuple(str(alias) for alias in record.get("transcript_aliases") or []),
+        species=str(record.get("species") or "human"),
+        genome_build=str(record.get("genome_build") or "GRCh38"),
+        gene_start=_fixture_int_or_none(record.get("gene_start")),
+        gene_end=_fixture_int_or_none(record.get("gene_end")),
+        gene_length=_fixture_int_or_none(record.get("gene_length")),
+        total_exons=len(record.get("exons") or []),
+        cds_length=_fixture_int_or_none(record.get("cds_length")),
+        protein_length=_fixture_int_or_none(record.get("protein_length")),
+        utr5_length=_fixture_int_or_none(record.get("utr5_length")),
+        utr3_length=_fixture_int_or_none(record.get("utr3_length")),
+        mrna_length=_fixture_int_or_none(record.get("mrna_length")),
+    )
+
+
+def _variant_from_curated_fixture(record: dict[str, Any]) -> VariantProjection:
+    variant = record.get("variant") or {}
+    return VariantProjection(
+        hgvs_c=str(variant["hgvs_c"]),
+        cds_pos=int(variant["cds_pos"]),
+        ref=str(variant["ref"]),
+        alt=str(variant["alt"]),
+        hgvs_p=_optional_fixture_text(variant.get("hgvs_p")),
+        genomic_hg38=_optional_fixture_text(variant.get("genomic_hg38")),
+        codon_number=_fixture_int_or_none(variant.get("codon_number")),
+        codon_offset=_fixture_int_or_none(variant.get("codon_offset")),
+        aa_ref=_optional_fixture_text(variant.get("aa_ref")),
+        aa_alt=_optional_fixture_text(variant.get("aa_alt")),
+        classification=str(variant.get("classification") or "unknown"),
+    )
+
+
+def _curated_fixture_provenance_sources(
+    *,
+    record: dict[str, Any],
+    fixture_version: str,
+) -> list[ViewerProvenanceSource]:
+    return [
+        ViewerProvenanceSource(
+            name="ensembl_rest_fixture",
+            identifier=str(record.get("transcript") or ""),
+            url="https://rest.ensembl.org",
+            version=fixture_version or None,
+        ),
+        ViewerProvenanceSource(
+            name="clinvar_gene_agnostic_stack",
+            identifier=str(record.get("accession") or record.get("clinvar_variation_id") or ""),
+            url=_optional_fixture_text(record.get("source_url")),
+            version=fixture_version or None,
+        ),
+    ]
+
+
+def _placeholder_sequence(exon: dict[str, Any]) -> str:
+    return "N" * (int(exon["cds_end"]) - int(exon["cds_start"]) + 1)
+
+
+def _fixture_intron_length(intron: dict[str, Any]) -> int:
+    return abs(int(intron["genomic_end"]) - int(intron["genomic_start"])) + 1
+
+
+def _fixture_int_or_none(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    return int(value)
+
+
+def _optional_fixture_text(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text or None
 
 
 @dataclass(frozen=True)
