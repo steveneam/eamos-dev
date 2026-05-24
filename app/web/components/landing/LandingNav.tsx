@@ -128,8 +128,30 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
           </button>
         </div>
 
-        {/* Center: nav links (over the hero) cross-fading with the pinned search */}
+        {/* Center: nav links (over the hero) cross-fading with the pinned search.
+            On mobile this region instead holds the menu toggle, centered between
+            the logo and the auth button. */}
         <div className="relative flex min-w-0 flex-1 items-center justify-center">
+          <button
+            data-mobile-menu
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-menu"
+            className="inline-flex shrink-0 items-center justify-center transition-colors md:hidden"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'var(--hero-glass)',
+              border: '0.5px solid var(--hero-line)',
+              color: 'var(--hero-ink)',
+              cursor: 'pointer',
+            }}
+          >
+            {menuOpen ? <CloseIcon /> : <MenuIcon />}
+          </button>
           <div ref={linksRef} className="absolute hidden items-center gap-8 md:flex">
             {NAV_LINKS.map((l) => (
               <a
@@ -175,26 +197,6 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
           }}
         >
           <AuthMenu tone="dark" />
-          <button
-            data-mobile-menu
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-nav-menu"
-            className="inline-flex shrink-0 items-center justify-center transition-colors md:hidden"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: 'var(--hero-glass)',
-              border: '0.5px solid var(--hero-line)',
-              color: 'var(--hero-ink)',
-              cursor: 'pointer',
-            }}
-          >
-            {menuOpen ? <CloseIcon /> : <MenuIcon />}
-          </button>
         </div>
       </div>
 
