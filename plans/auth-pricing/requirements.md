@@ -28,13 +28,12 @@
 - **Account-created confirmation** (user-requested) — mirrors the payment-success
   receipt: after a successful sign-up show a success state — green check,
   "Account created successfully" + short welcome line, optionally the account
-  email, and a primary button to continue. Two cases to decide:
-  - **Email verification ON** (Supabase default for email signups): message =
-    "Account created — check your email to confirm" (+ resend link); user isn't
-    fully signed in until they click the verification link.
-  - **Auto-confirm ON**: message = "Account created — you're in", close panel →
-    signed-in state.
-  Can render in-panel (replacing the form) or as a small confirmation card.
+  email, and a primary button to continue.
+  **DECIDED (user 2026-05-24): auto-confirm ON** → instant sign-in; the receipt
+  reads "Account created — you're in", then close panel → signed-in state. In
+  Supabase: Authentication → Email provider → turn OFF "Confirm email" so
+  `signUp` returns a session immediately. (Email verification can be added later
+  for production.) Render in-panel (replacing the form) or as a small card.
 - **Backend:** Supabase Auth. `profiles` row auto-creates on signup via the
   `handle_new_user` trigger (already in the migration). RLS already enabled.
   To make the tables usable post-login we must `GRANT` the `authenticated` role

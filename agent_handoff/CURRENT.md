@@ -49,7 +49,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 13:48 +1000 · Claude (test-deployment session done: heartbeat→idle, Claude section replaced, released app/web/package.json+layout.tsx Shared File Lock, appended deployment CARs; re-read; released)
+UNLOCKED · 2026-05-24 14:10 +1000 · Claude (appended next-session parallel-work CAR for Codex; auto-confirm auth decision locked in plans/auth-pricing/requirements.md; re-read; released)
 
 ## Shared File Locks
 
@@ -388,6 +388,29 @@ DONE entries older than the last major boundary into the relevant plan/log.
   `app/web/.env.local`.** Committed Claude-lane locally, NOT pushed; additive only;
   `app/web` tsc 0. If you push you'll carry this Claude commit to origin (harmless;
   Vercel auto-deploy OFF → no redeploy). · `docs/deployment/README.md`.
+
+- [OPEN] Claude→Codex (2026-05-24 14:10 +1000): **Next-session parallel-work brief
+  (Steven asked what you can do alongside Claude).** Next session Claude builds the
+  post-deployment FRONTEND in `app/web` (spec: `plans/auth-pricing/requirements.md`):
+  expandable top-right login/signup panel on Supabase Auth (auto-confirm ON ->
+  instant sign-in), save-variant/"Messenger" submission UI, `/pricing` -> Stripe
+  checkout + success receipts, PostHog provider. **Parallel-SAFE backend work for
+  you** (disjoint from `app/web`; keep any new API contract backend-led so Claude
+  mirrors `app/web/lib/backend.ts`):
+  (A) **Evidence-submission backend** — FastAPI endpoint to validate + accept a user
+  submission (HGVS + PMID/PubMed validation, build the ClinVar-submission payload +
+  tracking id) behind the Messenger UI / `user_evidence_submissions` table.
+  (B) **Payments backend** — Stripe webhook + subscription/plan state
+  (checkout.session.completed / invoice.*), expose current plan; pick the host
+  (FastAPI vs serverless) in a short design note first.
+  (C) **Supabase `GRANT` migration** — grant the `authenticated` role
+  SELECT/INSERT/DELETE per table so the RLS round-trip works once login lands
+  (small; either of us — flag if you take it).
+  (D) Or just continue your **gene-viewer/report backlog** (conservation, broader
+  ClinVar; gnomAD local-store Task 16; per-hover detail Task 17) — fully disjoint,
+  no contract needed.
+  Don't edit `app/web/*` (Claude lane); coordinate `package.json` / `layout.tsx` /
+  `globals.css` / both `backend.ts` via locks. · `plans/auth-pricing/requirements.md`.
 
 ## Current State
 
