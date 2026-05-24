@@ -25,6 +25,16 @@
 - **Login vs Sign-up:** the user described the *sign-up* shape. Add a small
   toggle/link ("Already have an account? Log in") so the same panel handles login
   (email + password + Sign in). Confirm with user. Include password-reset link.
+- **Account-created confirmation** (user-requested) — mirrors the payment-success
+  receipt: after a successful sign-up show a success state — green check,
+  "Account created successfully" + short welcome line, optionally the account
+  email, and a primary button to continue. Two cases to decide:
+  - **Email verification ON** (Supabase default for email signups): message =
+    "Account created — check your email to confirm" (+ resend link); user isn't
+    fully signed in until they click the verification link.
+  - **Auto-confirm ON**: message = "Account created — you're in", close panel →
+    signed-in state.
+  Can render in-panel (replacing the form) or as a small confirmation card.
 - **Backend:** Supabase Auth. `profiles` row auto-creates on signup via the
   `handle_new_user` trigger (already in the migration). RLS already enabled.
   To make the tables usable post-login we must `GRANT` the `authenticated` role
