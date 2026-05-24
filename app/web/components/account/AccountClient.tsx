@@ -5,11 +5,17 @@ import { AuthPanel } from '@/components/auth/AuthPanel'
 import { useAuth } from '@/components/auth/AuthProvider'
 import {
   addSavedVariant,
-  addSubmission,
+  clinvarReadiness,
   deleteSavedVariant,
+  EVIDENCE_API_ENABLED,
   listSavedVariants,
   listSubmissions,
+  submitEvidence,
+  type CollectionMethod,
+  type EvidenceCode,
   type EvidenceSubmission,
+  type EvidenceSubmissionInput,
+  type FunctionalEffect,
   type SavedVariant,
 } from '@/lib/messenger'
 
@@ -196,6 +202,8 @@ function SavedVariants({
 }
 
 // ── Evidence submissions (Messenger) ───────────────────────────────────────────
+const EVIDENCE_CODES: EvidenceCode[] = ['PS3', 'BS3', 'PS3_Supporting', 'BS3_Supporting', 'Other']
+
 function Submissions({
   userId,
   rows,
@@ -208,9 +216,53 @@ function Submissions({
   const [hgvs, setHgvs] = useState('')
   const [pmid, setPmid] = useState('')
   const [curatorNotes, setCuratorNotes] = useState('')
+  // ClinVar functional-evidence detail — only collected/sent when the live API
+  // path is enabled (NEXT_PUBLIC_EVIDENCE_API_ENABLED). Default form is unchanged.
+  const [showDetails, setShowDetails] = useState(false)
+  const [conditionName, setConditionName] = useState('')
+  const [assayType, setAssayType] = useState('')
+  const [collectionMethod, setCollectionMethod] = useState<CollectionMethod | ''>('')
+  const [functionalEffect, setFunctionalEffect] = useState<FunctionalEffect | ''>('')
+  const [functionalConsequence, setFunctionalConsequence] = useState('')
+  const [method, setMethod] = useState('')
+  const [result, setResult] = useState('')
+  const [evidenceCodes, setEvidenceCodes] = useState<EvidenceCode[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const [ok, setOk] = useState(false)
+  const [okMsg, setOkMsg] = useState<string | null>(null)
+
+  const buildInput = (): EvidenceSubmissionInput => ({
+    variant_hgvs: hgvs.trim(),
+    submitted_pmid: pmid.trim(),
+    curator_notes: curatorNotes.trim(),
+    condition_name: conditionName.trim(),
+    assay_type: assayType.trim(),
+    collection_method: collectionMethod || undefined,
+    functional_effect: functionalEffect || undefined,
+    functional_consequence: functionalConsequence.trim()
+      ? functionalConsequence.split(',').map((s) => s.trim()).filter(Boolean)
+      : [],
+    method: method.trim(),
+    result: result.trim(),
+    evidence_codes: evidenceCodes,
+  })
+
+  const readiness = clinvarReadiness(buildInput())
+
+  const resetForm = () => {
+    setHgvs('')
+    setPmid('')
+    setCuratorNotes('')
+    setConditionName('')
+    setAssayType('')
+    setCollectionMethod('')
+    setFunctionalEffect('')
+    setFunctionalConsequence('')
+    setMethod('')
+    setResult('')
+    setEvidenceCodes([])
+    setShowDetails(false)
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -220,17 +272,17 @@ function Submissions({
     }
     setBusy(true)
     setErr(null)
-    setOk(false)
+    setOkMsg(null)
     try {
-      await addSubmission(userId, {
-        variant_hgvs: hgvs.trim(),
-        submitted_pmid: pmid.trim(),
-        curator_notes: curatorNotes.trim(),
-      })
-      setHgvs('')
-      setPmid('')
-      setCuratorNotes('')
-      setOk(true)
+      const res = await submitEvidence(userId, buildInput())
+      resetForm()
+      if (res.payloadStatus === null) {
+        setOkMsg('Logged — tracking ID pending.')
+      } else if (res.payloadStatus === 'ready_for_clinvar_dry_run') {
+        setOkMsg(`Recorded ${res.trackingId} — ready for ClinVar dry-run.`)
+      } else {
+        setOkMsg(`Saved ${res.trackingId} as a draft — add the curator fields to complete the ClinVar payload.`)
+      }
       await onChange()
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not submit.')
@@ -270,11 +322,112 @@ function Submissions({
           rows={3}
           style={{ ...fieldStyle, height: 'auto', padding: '10px 12px', resize: 'vertical' }}
         />
+
+        {EVIDENCE_API_ENABLED && (
+          <div style={{ borderRadius: 12, border: '0.5px solid var(--hero-line)', background: 'rgba(5,26,19,0.4)', padding: '12px 14px' }}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDetails((v) => !v)}
+                style={{ ...delBtn, color: 'var(--em-bright)', fontSize: 12.5 }}
+              >
+                {showDetails ? '− Hide ClinVar functional details' : '+ Add ClinVar functional details'}
+              </button>
+              <span style={readinessChip(readiness.ready)}>
+                {readiness.ready ? 'Ready for ClinVar dry-run' : `Draft — needs: ${readiness.missing.join(', ')}`}
+              </span>
+            </div>
+
+            {showDetails && (
+              <div className="mt-3 flex flex-col gap-2.5">
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <input
+                    data-tone="dark"
+                    value={conditionName}
+                    onChange={(e) => setConditionName(e.target.value)}
+                    placeholder="Condition — e.g. Leber congenital amaurosis"
+                    style={fieldStyle}
+                  />
+                  <input
+                    data-tone="dark"
+                    value={assayType}
+                    onChange={(e) => setAssayType(e.target.value)}
+                    placeholder="Assay type — e.g. minigene splicing assay"
+                    style={fieldStyle}
+                  />
+                  <select
+                    data-tone="dark"
+                    value={collectionMethod}
+                    onChange={(e) => setCollectionMethod(e.target.value as CollectionMethod | '')}
+                    style={fieldStyle}
+                  >
+                    <option value="">Collection method…</option>
+                    <option value="in vitro">in vitro</option>
+                    <option value="in vivo">in vivo</option>
+                  </select>
+                  <select
+                    data-tone="dark"
+                    value={functionalEffect}
+                    onChange={(e) => setFunctionalEffect(e.target.value as FunctionalEffect | '')}
+                    style={fieldStyle}
+                  >
+                    <option value="">Functional effect…</option>
+                    <option value="functionally abnormal">functionally abnormal</option>
+                    <option value="function uncertain">function uncertain</option>
+                    <option value="functionally normal">functionally normal</option>
+                  </select>
+                  <input
+                    data-tone="dark"
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value)}
+                    placeholder="Method — e.g. RT-PCR of patient mRNA"
+                    style={fieldStyle}
+                  />
+                  <input
+                    data-tone="dark"
+                    value={result}
+                    onChange={(e) => setResult(e.target.value)}
+                    placeholder="Result — e.g. exon 1 skipping"
+                    style={fieldStyle}
+                  />
+                </div>
+                <input
+                  data-tone="dark"
+                  value={functionalConsequence}
+                  onChange={(e) => setFunctionalConsequence(e.target.value)}
+                  placeholder="Functional consequence (comma-separated) — e.g. abnormal protein, loss of function"
+                  style={fieldStyle}
+                />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span style={{ fontSize: 11.5, color: 'var(--hero-ink-3)', marginRight: 4 }}>Evidence codes:</span>
+                  {EVIDENCE_CODES.map((code) => {
+                    const on = evidenceCodes.includes(code)
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() =>
+                          setEvidenceCodes((prev) =>
+                            prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+                          )
+                        }
+                        style={codeChip(on)}
+                      >
+                        {code}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <button type="submit" disabled={busy} style={addBtn}>
             {busy ? 'Submitting…' : 'Submit evidence'}
           </button>
-          {ok && <span style={{ fontSize: 12.5, color: 'var(--em-bright)' }}>Logged — tracking ID pending.</span>}
+          {okMsg && <span style={{ fontSize: 12.5, color: 'var(--em-bright)' }}>{okMsg}</span>}
         </div>
       </form>
       {err && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>{err}</p>}
@@ -377,6 +530,32 @@ function trackingBadge(id: string): React.CSSProperties {
     color: pending ? '#fac775' : 'var(--em-bright)',
     border: `0.5px solid ${pending ? 'rgba(250,199,117,0.35)' : 'rgba(52,211,153,0.4)'}`,
     whiteSpace: 'nowrap',
+  }
+}
+
+function readinessChip(ready: boolean): React.CSSProperties {
+  return {
+    fontSize: 11,
+    fontWeight: 600,
+    padding: '3px 9px',
+    borderRadius: 100,
+    background: ready ? 'rgba(16,185,129,0.16)' : 'rgba(186,117,23,0.14)',
+    color: ready ? 'var(--em-bright)' : '#fac775',
+    border: `0.5px solid ${ready ? 'rgba(52,211,153,0.4)' : 'rgba(250,199,117,0.32)'}`,
+  }
+}
+
+function codeChip(on: boolean): React.CSSProperties {
+  return {
+    fontFamily: 'var(--mono)',
+    fontSize: 11,
+    fontWeight: 600,
+    padding: '3px 9px',
+    borderRadius: 100,
+    cursor: 'pointer',
+    background: on ? 'rgba(16,185,129,0.18)' : 'var(--hero-glass)',
+    color: on ? 'var(--em-bright)' : 'var(--hero-ink-3)',
+    border: `0.5px solid ${on ? 'rgba(52,211,153,0.45)' : 'var(--hero-line)'}`,
   }
 }
 
