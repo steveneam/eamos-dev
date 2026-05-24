@@ -30,9 +30,58 @@
         "homozygote_count": 0
       },
       {
+        "id": "ami",
+        "allele_count": 0,
+        "allele_number": 912,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
         "id": "amr",
         "allele_count": 0,
         "allele_number": 18330,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "asj",
+        "allele_count": 0,
+        "allele_number": 10020,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "eas",
+        "allele_count": 0,
+        "allele_number": 19906,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "fin",
+        "allele_count": 0,
+        "allele_number": 10428,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "mid",
+        "allele_count": 0,
+        "allele_number": 4200,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "remaining",
+        "allele_count": 0,
+        "allele_number": null,
+        "allele_frequency": 0.0,
+        "homozygote_count": 0
+      },
+      {
+        "id": "sas",
+        "allele_count": 0,
+        "allele_number": 15210,
         "allele_frequency": 0.0,
         "homozygote_count": 0
       }
@@ -51,6 +100,42 @@
         "n_larger": 0
       }
     },
+    "age_distributions": [
+      {
+        "sequencing_type": "exome",
+        "age_distribution": {
+          "het": {
+            "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+            "bin_freq": [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+            "n_smaller": 0,
+            "n_larger": 0
+          },
+          "hom": {
+            "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+            "bin_freq": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "n_smaller": 0,
+            "n_larger": 0
+          }
+        }
+      },
+      {
+        "sequencing_type": "genome",
+        "age_distribution": {
+          "het": {
+            "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+            "bin_freq": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "n_smaller": 0,
+            "n_larger": 0
+          },
+          "hom": {
+            "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+            "bin_freq": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "n_smaller": 0,
+            "n_larger": 0
+          }
+        }
+      }
+    ],
     "flags": [],
     "url": "https://gnomad.broadinstitute.org/variant/1-68444869-T-C?dataset=gnomad_r4"
   }

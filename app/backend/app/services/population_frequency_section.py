@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.schemas.run import (
     PopulationAgeBin,
+    PopulationAgeDistribution,
     PopulationAgeHistogram,
     PopulationAgeHistogramView,
     PopulationFrequencyAncestryGroup,
@@ -10,6 +11,7 @@ from app.schemas.run import (
     PopulationFrequencySourceRow,
     PopulationFrequencyVisualGroup,
     PopulationFrequencyVisualScale,
+    PopulationSequencingAgeDistribution,
 )
 from app.services.report_provenance import provenance_for_source
 
@@ -27,6 +29,21 @@ _GROUP_LABELS = {
     "nfe": "Non-Finnish European genetic ancestry",
     "remaining": "Remaining genetic ancestry",
     "sas": "South Asian genetic ancestry",
+}
+
+GNOMAD_V4_ALL_INDIVIDUAL_AGE_DISTRIBUTIONS = {
+    "exome": PopulationAgeHistogram(
+        bin_edges=[30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+        bin_freq=[3337, 3806, 46374, 60862, 71023, 83028, 108358, 83329, 6292, 2814],
+        n_smaller=5892,
+        n_larger=1950,
+    ),
+    "genome": PopulationAgeHistogram(
+        bin_edges=[30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+        bin_freq=[1332, 1401, 1642, 2949, 4283, 3601, 3282, 2909, 1955, 1202],
+        n_smaller=3760,
+        n_larger=438,
+    ),
 }
 
 
@@ -132,21 +149,35 @@ def _visual_scale(
 
 
 def _age_histograms(detail: PopulationFrequencyDetail) -> list[PopulationAgeHistogramView]:
-    if detail.age_distribution is None:
-        return []
     histograms: list[PopulationAgeHistogramView] = []
-    if detail.age_distribution.het is not None:
+    age_distributions = list(detail.age_distributions)
+    if not age_distributions and detail.age_distribution is not None:
+        age_distributions = [
+            PopulationSequencingAgeDistribution(
+                sequencing_type=detail.sequencing_type,
+                age_distribution=detail.age_distribution,
+            )
+        ]
+    for item in age_distributions:
+        carrier_histogram = _carrier_age_histogram(item.age_distribution)
+        if carrier_histogram is None:
+            continue
         histograms.append(
             _age_histogram_view(
-                detail.age_distribution.het,
-                genotype="heterozygous_alternate",
+                carrier_histogram,
+                sequencing_type=item.sequencing_type,
+                series_kind="variant_carriers",
+                genotype="combined",
             )
         )
-    if detail.age_distribution.hom is not None:
+    for sequencing_type, histogram in GNOMAD_V4_ALL_INDIVIDUAL_AGE_DISTRIBUTIONS.items():
         histograms.append(
             _age_histogram_view(
-                detail.age_distribution.hom,
-                genotype="homozygous_alternate",
+                histogram,
+                sequencing_type=sequencing_type,
+                series_kind="all_individuals",
+                genotype="not_applicable",
+                warnings=["age_distribution_source:gnomad_v4_age_distribution_metadata"],
             )
         )
     return histograms
@@ -155,19 +186,51 @@ def _age_histograms(detail: PopulationFrequencyDetail) -> list[PopulationAgeHist
 def _age_histogram_view(
     histogram: PopulationAgeHistogram,
     *,
+    sequencing_type: str,
+    series_kind: str,
     genotype: str,
+    warnings: list[str] | None = None,
 ) -> PopulationAgeHistogramView:
     return PopulationAgeHistogramView(
+        sequencing_type=sequencing_type,  # type: ignore[arg-type]
+        series_kind=series_kind,  # type: ignore[arg-type]
         genotype=genotype,  # type: ignore[arg-type]
         scope="overall_release_samples",
         bins=_age_bins(histogram),
         n_smaller=histogram.n_smaller,
         n_larger=histogram.n_larger,
-        warnings=[
+        warnings=warnings
+        or [
             "age_distribution_scope:overall_release_samples",
             "per_genetic_ancestry_age_distribution_not_available",
         ],
     )
+
+
+def _carrier_age_histogram(
+    distribution: PopulationAgeDistribution,
+) -> PopulationAgeHistogram | None:
+    histograms = [item for item in (distribution.het, distribution.hom) if item is not None]
+    if not histograms:
+        return None
+    max_bins = max(len(item.bin_freq) for item in histograms)
+    first = histograms[0]
+    return PopulationAgeHistogram(
+        bin_edges=first.bin_edges,
+        bin_freq=[
+            sum(item.bin_freq[index] if index < len(item.bin_freq) else 0 for item in histograms)
+            for index in range(max_bins)
+        ],
+        n_smaller=_sum_optional_counts([item.n_smaller for item in histograms]),
+        n_larger=_sum_optional_counts([item.n_larger for item in histograms]),
+    )
+
+
+def _sum_optional_counts(values: list[int | None]) -> int | None:
+    reported = [value for value in values if value is not None]
+    if not reported:
+        return None
+    return sum(reported)
 
 
 def _age_bins(histogram: PopulationAgeHistogram) -> list[PopulationAgeBin]:
@@ -217,7 +280,7 @@ def _section_warnings(
     warnings = list(detail.warnings)
     if not groups:
         warnings.append("genetic_ancestry_groups_unavailable")
-    if detail.age_distribution is None:
+    if detail.age_distribution is None and not detail.age_distributions:
         warnings.append("age_distribution_unavailable")
     else:
         warnings.append("age_distribution_scope:overall_release_samples")

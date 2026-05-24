@@ -116,6 +116,21 @@ def _age_distribution_for(data: dict, source_data: dict) -> dict | None:
     return None
 
 
+def _age_distributions_by_sequencing_type(data: dict) -> list[dict]:
+    distributions: list[dict] = []
+    for sequencing_type in ("exome", "genome", "joint"):
+        source = data.get(sequencing_type) or {}
+        age_distribution = source.get("age_distribution")
+        if isinstance(age_distribution, dict):
+            distributions.append(
+                {
+                    "sequencing_type": sequencing_type,
+                    "age_distribution": age_distribution,
+                }
+            )
+    return distributions
+
+
 def _genetic_ancestry_groups(source_data: dict) -> list[dict]:
     groups = []
     for item in source_data.get("populations") or []:
@@ -305,6 +320,7 @@ class GnomadTool(FixtureBackedTool):
             "popmax_population": faf.get("popmax_population"),
             "genetic_ancestry_groups": _genetic_ancestry_groups(source_data),
             "age_distribution": _age_distribution_for(data, source_data),
+            "age_distributions": _age_distributions_by_sequencing_type(data),
             "flags": data.get("flags", []),
             "url": source_url,
         }

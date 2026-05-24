@@ -24,6 +24,60 @@ class _FakeResponse:
                         "homozygote_count": 226,
                         "populations": [
                             {
+                                "id": "remaining",
+                                "ac": 813,
+                                "an": 61242,
+                                "homozygote_count": 12,
+                            },
+                            {
+                                "id": "amr",
+                                "ac": 406,
+                                "an": 55508,
+                                "homozygote_count": 3,
+                            },
+                            {
+                                "id": "fin",
+                                "ac": 2394,
+                                "an": 61024,
+                                "homozygote_count": 48,
+                            },
+                            {
+                                "id": "ami",
+                                "ac": 6,
+                                "an": 912,
+                                "homozygote_count": 0,
+                            },
+                            {
+                                "id": "eas",
+                                "ac": 0,
+                                "an": 43066,
+                                "homozygote_count": 0,
+                            },
+                            {
+                                "id": "mid",
+                                "ac": 26,
+                                "an": 5138,
+                                "homozygote_count": 1,
+                            },
+                            {
+                                "id": "sas",
+                                "ac": 92,
+                                "an": 86168,
+                                "homozygote_count": 1,
+                            },
+                            {
+                                "id": "asj",
+                                "ac": 147,
+                                "an": 28948,
+                                "homozygote_count": 0,
+                            },
+                            {
+                                "id": "afr",
+                                "ac": 184,
+                                "an": 74402,
+                                "homozygote_count": 2,
+                            },
+                            {
                                 "id": "nfe",
                                 "ac": 19432,
                                 "an": 1164182,
@@ -39,12 +93,6 @@ class _FakeResponse:
                                 "id": "1kg:gbr",
                                 "ac": 4,
                                 "an": 174,
-                                "homozygote_count": 0,
-                            },
-                            {
-                                "id": "eas",
-                                "ac": 0,
-                                "an": 43066,
                                 "homozygote_count": 0,
                             },
                         ],
@@ -73,7 +121,28 @@ class _FakeResponse:
                         },
                         "faf95": {"popmax": 0.01542945, "popmax_population": "nfe"},
                     },
-                    "genome": None,
+                    "genome": {
+                        "ac": 1866,
+                        "an": 152404,
+                        "homozygote_count": 3,
+                        "af": 0.012243772,
+                        "populations": [],
+                        "age_distribution": {
+                            "het": {
+                                "bin_edges": [30, 35, 40],
+                                "bin_freq": [8, 7],
+                                "n_smaller": 3,
+                                "n_larger": 2,
+                            },
+                            "hom": {
+                                "bin_edges": [30, 35, 40],
+                                "bin_freq": [0, 0],
+                                "n_smaller": 0,
+                                "n_larger": 0,
+                            },
+                        },
+                        "faf95": {"popmax": 0.01484423, "popmax_population": "nfe"},
+                    },
                     "flags": [],
                 }
             }
@@ -116,11 +185,32 @@ def test_gnomad_live_summary_keeps_ancestry_and_age_distribution(monkeypatch, tm
     assert result.summary["popmax_population"] == "nfe"
     assert result.summary["genetic_ancestry_groups"] == [
         {
-            "id": "nfe",
-            "allele_count": 19432,
-            "allele_number": 1164182,
-            "allele_frequency": 19432 / 1164182,
-            "homozygote_count": 159,
+            "id": "remaining",
+            "allele_count": 813,
+            "allele_number": 61242,
+            "allele_frequency": 813 / 61242,
+            "homozygote_count": 12,
+        },
+        {
+            "id": "amr",
+            "allele_count": 406,
+            "allele_number": 55508,
+            "allele_frequency": 406 / 55508,
+            "homozygote_count": 3,
+        },
+        {
+            "id": "fin",
+            "allele_count": 2394,
+            "allele_number": 61024,
+            "allele_frequency": 2394 / 61024,
+            "homozygote_count": 48,
+        },
+        {
+            "id": "ami",
+            "allele_count": 6,
+            "allele_number": 912,
+            "allele_frequency": 6 / 912,
+            "homozygote_count": 0,
         },
         {
             "id": "eas",
@@ -129,9 +219,52 @@ def test_gnomad_live_summary_keeps_ancestry_and_age_distribution(monkeypatch, tm
             "allele_frequency": 0.0,
             "homozygote_count": 0,
         },
+        {
+            "id": "mid",
+            "allele_count": 26,
+            "allele_number": 5138,
+            "allele_frequency": 26 / 5138,
+            "homozygote_count": 1,
+        },
+        {
+            "id": "sas",
+            "allele_count": 92,
+            "allele_number": 86168,
+            "allele_frequency": 92 / 86168,
+            "homozygote_count": 1,
+        },
+        {
+            "id": "asj",
+            "allele_count": 147,
+            "allele_number": 28948,
+            "allele_frequency": 147 / 28948,
+            "homozygote_count": 0,
+        },
+        {
+            "id": "afr",
+            "allele_count": 184,
+            "allele_number": 74402,
+            "allele_frequency": 184 / 74402,
+            "homozygote_count": 2,
+        },
+        {
+            "id": "nfe",
+            "allele_count": 19432,
+            "allele_number": 1164182,
+            "allele_frequency": 19432 / 1164182,
+            "homozygote_count": 159,
+        },
     ]
     assert result.summary["age_distribution"]["het"]["bin_edges"] == [30, 35, 40]
     assert result.summary["age_distribution"]["het"]["bin_freq"] == [58, 79]
+    assert [item["sequencing_type"] for item in result.summary["age_distributions"]] == [
+        "exome",
+        "genome",
+    ]
+    assert result.summary["age_distributions"][1]["age_distribution"]["het"]["bin_freq"] == [
+        8,
+        7,
+    ]
 
 
 def test_gnomad_fixture_uses_variant_source_url(tmp_path: Path):

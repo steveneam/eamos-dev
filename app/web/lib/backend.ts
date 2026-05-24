@@ -557,6 +557,11 @@ export interface PopulationAgeDistribution {
   hom?: PopulationAgeHistogram | null
 }
 
+export interface PopulationSequencingAgeDistribution {
+  sequencing_type: PopulationSequencingType
+  age_distribution: PopulationAgeDistribution
+}
+
 export interface PopulationFrequencyDetail {
   source: string
   dataset: string
@@ -570,6 +575,7 @@ export interface PopulationFrequencyDetail {
   popmax_population?: string | null
   genetic_ancestry_groups: PopulationFrequencyAncestryGroup[]
   age_distribution?: PopulationAgeDistribution | null
+  age_distributions: PopulationSequencingAgeDistribution[]
   flags: string[]
   warnings: string[]
   source_url?: string | null
@@ -741,7 +747,9 @@ export interface PopulationAgeBin {
 }
 
 export interface PopulationAgeHistogramView {
-  genotype: 'heterozygous_alternate' | 'homozygous_alternate'
+  sequencing_type: PopulationSequencingType
+  series_kind: 'variant_carriers' | 'all_individuals'
+  genotype: 'heterozygous_alternate' | 'homozygous_alternate' | 'combined' | 'not_applicable'
   scope: 'overall_release_samples' | 'genetic_ancestry_group'
   group_id?: string | null
   bins: PopulationAgeBin[]

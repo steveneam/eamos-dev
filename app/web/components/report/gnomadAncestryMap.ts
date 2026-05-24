@@ -5,7 +5,7 @@ export interface GnomadMapAnchor {
   context: string
 }
 
-export const GNOMAD_ANCESTRY_MAP_VERSION = 'eamos-gnomad-ancestry-map-v2'
+export const GNOMAD_ANCESTRY_MAP_VERSION = 'eamos-gnomad-ancestry-map-v3'
 
 // Eamos proprietary visual anchor layer: gnomAD group labels describe
 // source genetic-similarity cohorts, not patient ancestry or exact geography.

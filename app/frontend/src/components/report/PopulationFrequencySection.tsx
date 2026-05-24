@@ -15,7 +15,7 @@ interface PopulationFrequencySectionProps {
   section?: PopulationFrequencyReportSection | null
 }
 
-type PopulationTab = 'ancestry' | 'age'
+type PopulationTab = 'map' | 'ancestry' | 'age'
 
 function formatInteger(value: number | null | undefined): string {
   return value == null ? 'Not reported' : new Intl.NumberFormat('en-US').format(value)
@@ -61,7 +61,7 @@ function maxGroupFrequency(groups: PopulationFrequencyVisualGroup[]): number {
 }
 
 export function PopulationFrequencySection({ section }: PopulationFrequencySectionProps) {
-  const [activeTab, setActiveTab] = useState<PopulationTab>('ancestry')
+  const [activeTab, setActiveTab] = useState<PopulationTab>('map')
   const warnings = section?.warnings ?? []
   const groups = useMemo(
     () => [...(section?.visual_groups ?? [])].sort((a, b) => (a.sort_order ?? 99) - (b.sort_order ?? 99)),
@@ -120,6 +120,9 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
             </div>
           </div>
           <div className="inline-flex gap-1 rounded-lg border border-[var(--line)] bg-[var(--bg)] p-1">
+            <TabButton active={activeTab === 'map'} onClick={() => setActiveTab('map')}>
+              World map
+            </TabButton>
             <TabButton active={activeTab === 'ancestry'} onClick={() => setActiveTab('ancestry')}>
               Genetic ancestry group frequencies
             </TabButton>
@@ -130,7 +133,14 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
         </div>
 
         <div style={{ padding: '16px' }}>
-          {activeTab === 'ancestry' ? (
+          {activeTab === 'map' ? (
+            <MapOverviewTab
+              groups={groups}
+              activeGroup={activeGroup}
+              maxFrequency={section.visual_scale?.max_value ?? maxGroupFrequency(groups)}
+              onActiveGroup={setActiveGroupId}
+            />
+          ) : activeTab === 'ancestry' ? (
             <AncestryFrequencyTab
               groups={groups}
               activeGroup={activeGroup}
@@ -139,7 +149,13 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
               onActiveGroup={setActiveGroupId}
             />
           ) : (
-            <AgeDistributionTab histograms={section.age_histograms ?? []} />
+            <AgeDistributionTab
+              groups={groups}
+              activeGroup={activeGroup}
+              maxFrequency={section.visual_scale?.max_value ?? maxGroupFrequency(groups)}
+              histograms={section.age_histograms ?? []}
+              onActiveGroup={setActiveGroupId}
+            />
           )}
 
           {warnings.length > 0 && (
@@ -209,6 +225,41 @@ function TabButton({
   )
 }
 
+function MapOverviewTab({
+  groups,
+  activeGroup,
+  maxFrequency,
+  onActiveGroup,
+}: {
+  groups: PopulationFrequencyVisualGroup[]
+  activeGroup: PopulationFrequencyVisualGroup | null
+  maxFrequency: number
+  onActiveGroup: (id: string | null) => void
+}) {
+  if (groups.length === 0) {
+    return <UnavailablePanel title="Genetic ancestry group frequencies unavailable" />
+  }
+
+  return (
+    <div
+      style={{
+        border: '0.5px solid var(--line)',
+        borderRadius: 8,
+        background: 'linear-gradient(180deg, #f8fbfd 0%, #f1f6f8 100%)',
+        overflow: 'hidden',
+      }}
+    >
+      <WorldFrequencyMap
+        groups={groups}
+        activeGroup={activeGroup}
+        maxFrequency={maxFrequency}
+        layout="full"
+        onActiveGroup={onActiveGroup}
+      />
+    </div>
+  )
+}
+
 function AncestryFrequencyTab({
   groups,
   activeGroup,
@@ -237,7 +288,7 @@ function AncestryFrequencyTab({
     >
       <div
         style={{
-          flex: '1.35 1 360px',
+          flex: '1.2 1 360px',
           minWidth: 0,
           border: '0.5px solid var(--line)',
           borderRadius: 8,
@@ -249,13 +300,14 @@ function AncestryFrequencyTab({
           groups={groups}
           activeGroup={activeGroup}
           maxFrequency={maxFrequency}
+          layout="side"
           onActiveGroup={onActiveGroup}
         />
       </div>
 
       <aside
         style={{
-          flex: '1 1 300px',
+          flex: '0.9 1 250px',
           minWidth: 0,
           border: '0.5px solid var(--line)',
           borderRadius: 8,
@@ -292,7 +344,7 @@ function AncestryFrequencyTab({
             </div>
           </div>
         )}
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-3 flex flex-col gap-1.5">
           {groups.map((group) => {
             const value = group.allele_frequency ?? 0
             const width = maxFrequency > 0 && value > 0 ? Math.max(2, (value / maxFrequency) * 100) : 0
@@ -312,7 +364,7 @@ function AncestryFrequencyTab({
                   borderColor: isActive ? '#fde047' : 'var(--line)',
                   background: isActive ? 'rgba(254, 249, 195, 0.72)' : 'var(--bg)',
                   borderRadius: 7,
-                  padding: '8px 9px',
+                  padding: '7px 8px',
                   textAlign: 'left',
                   cursor: 'pointer',
                   boxShadow: isActive
@@ -324,7 +376,7 @@ function AncestryFrequencyTab({
                 <div className="flex items-center justify-between gap-2">
                   <span
                     style={{
-                      fontSize: 11.5,
+                      fontSize: 10.8,
                       fontWeight: 700,
                       color: isActive ? '#111827' : 'var(--ink-2)',
                       textShadow: isActive ? `0 0 11px ${barColor}99` : 'none',
@@ -332,7 +384,7 @@ function AncestryFrequencyTab({
                   >
                     {compactLabel(group.label)}
                   </span>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10.4, color: 'var(--ink-3)' }}>
                     {formatFrequency(group.allele_frequency)}
                   </span>
                 </div>
@@ -340,7 +392,7 @@ function AncestryFrequencyTab({
                   className="mt-2"
                   aria-hidden
                   style={{
-                    height: 6,
+                    height: 5,
                     borderRadius: 999,
                     background: 'var(--bg-soft2)',
                     overflow: 'hidden',
@@ -379,29 +431,35 @@ function WorldFrequencyMap({
   groups,
   activeGroup,
   maxFrequency,
+  layout = 'side',
   onActiveGroup,
 }: {
   groups: PopulationFrequencyVisualGroup[]
   activeGroup: PopulationFrequencyVisualGroup | null
   maxFrequency: number
+  layout?: 'full' | 'side'
   onActiveGroup: (id: string | null) => void
 }) {
+  const isFull = layout === 'full'
   return (
     <div style={{ position: 'relative' }}>
       <svg
         viewBox="0 0 2000 857"
         role="img"
         aria-label="World map of gnomAD genetic ancestry group allele frequencies"
-        style={{ width: '100%', minHeight: 238, display: 'block' }}
+        style={{ width: '100%', aspectRatio: '2000 / 857', display: 'block' }}
       >
         <defs>
           <linearGradient id="population-map-ocean" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#f7fbfd" />
             <stop offset="100%" stopColor="#eef5f8" />
           </linearGradient>
+          <mask id="population-map-land-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="2000" height="857">
+            <image href="/world.svg" x="0" y="0" width="2000" height="857" opacity="1" />
+          </mask>
           <filter id="population-map-region-glow" x="-35%" y="-35%" width="170%" height="170%">
-            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#fef08a" floodOpacity="0.95" />
-            <feDropShadow dx="0" dy="0" stdDeviation="22" floodColor="#111827" floodOpacity="0.32" />
+            <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#fef08a" floodOpacity="0.9" />
+            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#111827" floodOpacity="0.22" />
           </filter>
         </defs>
         <g transform="translate(-120 -40) scale(1.12)">
@@ -446,14 +504,16 @@ function WorldFrequencyMap({
               >
                 <path
                   d={anchor.regionPath}
+                  data-active={active ? 'true' : 'false'}
                   fill={fill}
                   fillOpacity={fillOpacity}
-                  stroke={active ? '#fde047' : '#111827'}
-                  strokeOpacity={active ? 0.95 : 0.56}
-                  strokeWidth={active ? 7 : 3}
+                  mask="url(#population-map-land-mask)"
+                  stroke="transparent"
+                  strokeOpacity="0"
+                  strokeWidth="0"
                   strokeLinejoin="round"
-                  filter={active ? 'url(#population-map-region-glow)' : undefined}
                   style={{
+                    mixBlendMode: 'multiply',
                     transition:
                       'fill-opacity 140ms ease, stroke-width 140ms ease, stroke-opacity 140ms ease',
                   }}
@@ -462,13 +522,13 @@ function WorldFrequencyMap({
                   x={anchor.x}
                   y={anchor.y + 14}
                   textAnchor="middle"
-                  fontSize="31"
+                  fontSize={isFull ? '23' : '19'}
                   fontFamily="JetBrains Mono, monospace"
                   fill={active ? '#0b1a2b' : '#475569'}
                   fontWeight={active ? 700 : 600}
                   paintOrder="stroke"
                   stroke={active ? '#fef9c3' : '#ffffff'}
-                  strokeWidth={active ? 8 : 5}
+                  strokeWidth={active ? 6 : 4.5}
                   strokeLinejoin="round"
                   style={{
                     textShadow: active ? `0 0 14px ${fill}` : 'none',
@@ -493,9 +553,9 @@ function WorldFrequencyMap({
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span style={{ flex: '1 1 260px' }}>
-            Basemap from SimpleMaps. Regional anchors orient gnomAD genetic ancestry groups;
-            frequency values come from inferred source-group data, not race, ethnicity, patient
-            ancestry, or exact geography. Algorithm {GNOMAD_ANCESTRY_MAP_VERSION}.
+            Basemap from SimpleMaps. Regional fills are clipped to land silhouettes and orient
+            gnomAD genetic ancestry groups; frequency values come from source-group data, not
+            race, ethnicity, patient ancestry, or exact geography. Algorithm {GNOMAD_ANCESTRY_MAP_VERSION}.
           </span>
           <span className="flex items-center gap-2" style={{ flex: '0 0 auto', fontSize: 10.5 }}>
             <span>Lower AF</span>
@@ -517,120 +577,311 @@ function WorldFrequencyMap({
   )
 }
 
-function AgeDistributionTab({ histograms }: { histograms: PopulationAgeHistogramView[] }) {
-  const het = histograms.find((histogram) => histogram.genotype === 'heterozygous_alternate') ?? null
-  const hom = histograms.find((histogram) => histogram.genotype === 'homozygous_alternate') ?? null
-  const panels = [
+function AgeDistributionTab({
+  groups,
+  activeGroup,
+  maxFrequency,
+  histograms,
+  onActiveGroup,
+}: {
+  groups: PopulationFrequencyVisualGroup[]
+  activeGroup: PopulationFrequencyVisualGroup | null
+  maxFrequency: number
+  histograms: PopulationAgeHistogramView[]
+  onActiveGroup: (id: string | null) => void
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
+        gap: 16,
+      }}
+    >
+      <div
+        style={{
+          flex: '0.72 1 260px',
+          minWidth: 0,
+          border: '0.5px solid var(--line)',
+          borderRadius: 8,
+          background: 'linear-gradient(180deg, #f8fbfd 0%, #f1f6f8 100%)',
+          overflow: 'hidden',
+        }}
+      >
+        {groups.length === 0 ? (
+          <UnavailablePanel title="Genetic ancestry group frequencies unavailable" />
+        ) : (
+          <WorldFrequencyMap
+            groups={groups}
+            activeGroup={activeGroup}
+            maxFrequency={maxFrequency}
+            layout="side"
+            onActiveGroup={onActiveGroup}
+          />
+        )}
+      </div>
+
+      <aside
+        style={{
+          flex: '1.28 1 390px',
+          minWidth: 0,
+          border: '0.5px solid var(--line)',
+          borderRadius: 8,
+          background: 'var(--bg)',
+          padding: 12,
+        }}
+      >
+        <div
+          className="uppercase"
+          style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-4)' }}
+        >
+          Source age distribution
+        </div>
+        <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.45, color: 'var(--ink-4)' }}>
+          Exact gnomAD age-bin counts split by sequencing type. Variant-carrier panels use the
+          variant age_distribution payload; all-individual panels use gnomAD v4 dataset metadata.
+        </div>
+        <AgeHistogramGrid histograms={histograms} />
+      </aside>
+    </div>
+  )
+}
+
+type AgeChartSequencingType = 'exome' | 'genome'
+type AgeChartSeriesKind = 'variant_carriers' | 'all_individuals'
+
+function AgeHistogramGrid({ histograms }: { histograms: PopulationAgeHistogramView[] }) {
+  const panels: Array<{
+    key: string
+    title: string
+    sequencingType: AgeChartSequencingType
+    seriesKind: AgeChartSeriesKind
+    fill: string
+    unit: string
+  }> = [
     {
-      title: 'Heterozygous alternate carriers',
-      meta: 'overall source-release samples',
-      histogram: het,
+      key: 'exome-carriers',
+      title: 'Exome variant carriers',
+      sequencingType: 'exome',
+      seriesKind: 'variant_carriers',
+      fill: '#3d7dbf',
+      unit: 'carriers',
     },
     {
-      title: 'Homozygous alternate carriers',
-      meta: 'overall source-release samples',
-      histogram: hom,
-    },
-    {
+      key: 'exome-all',
       title: 'Exome all individuals',
-      meta: 'baseline not in current payload',
-      histogram: null,
+      sequencingType: 'exome',
+      seriesKind: 'all_individuals',
+      fill: '#31a68f',
+      unit: 'individuals',
     },
     {
+      key: 'genome-carriers',
+      title: 'Genome variant carriers',
+      sequencingType: 'genome',
+      seriesKind: 'variant_carriers',
+      fill: '#8059b7',
+      unit: 'carriers',
+    },
+    {
+      key: 'genome-all',
       title: 'Genome all individuals',
-      meta: 'baseline not in current payload',
-      histogram: null,
+      sequencingType: 'genome',
+      seriesKind: 'all_individuals',
+      fill: '#d07a33',
+      unit: 'individuals',
     },
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div
+      className="mt-3"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: 10,
+        maxWidth: 540,
+      }}
+    >
       {panels.map((panel) => (
         <AgeHistogramCard
-          key={panel.title}
+          key={panel.key}
           title={panel.title}
-          meta={panel.meta}
-          histogram={panel.histogram}
+          histogram={findAgeHistogram(histograms, panel.sequencingType, panel.seriesKind)}
+          fill={panel.fill}
+          unit={panel.unit}
         />
       ))}
     </div>
   )
 }
 
+function findAgeHistogram(
+  histograms: PopulationAgeHistogramView[],
+  sequencingType: AgeChartSequencingType,
+  seriesKind: AgeChartSeriesKind,
+): PopulationAgeHistogramView | null {
+  return (
+    histograms.find(
+      (histogram) =>
+        histogram.sequencing_type === sequencingType && histogram.series_kind === seriesKind,
+    ) ?? null
+  )
+}
+
 function AgeHistogramCard({
   title,
-  meta,
   histogram,
+  fill,
+  unit,
 }: {
   title: string
-  meta: string
   histogram: PopulationAgeHistogramView | null
+  fill: string
+  unit: string
 }) {
-  const bins = histogram?.bins ?? []
+  const bins = histogram ? ageChartBins(histogram) : []
   const maxCount = Math.max(0, ...bins.map((bin) => bin.count))
-  const chartWidth = 180
-  const chartHeight = 86
-  const padX = 10
-  const padTop = 8
-  const padBottom = 18
+  const yMax = niceMaxCount(maxCount)
+  const chartWidth = 340
+  const chartHeight = 192
+  const padLeft = 44
+  const padRight = 10
+  const padTop = 14
+  const padBottom = 38
+  const plotWidth = chartWidth - padLeft - padRight
   const plotHeight = chartHeight - padTop - padBottom
-  const barGap = 2
-  const barWidth = bins.length > 0 ? (chartWidth - padX * 2 - barGap * (bins.length - 1)) / bins.length : 0
-  const points = bins
-    .map((bin, index) => {
-      const x = padX + index * (barWidth + barGap) + barWidth / 2
-      const y = padTop + plotHeight - (maxCount > 0 ? (bin.count / maxCount) * plotHeight : 0)
-      return `${x},${y}`
-    })
-    .join(' ')
+  const groupWidth = bins.length > 0 ? plotWidth / bins.length : plotWidth
+  const barWidth = Math.max(4, Math.min(18, groupWidth * 0.58))
+  const ticks = yAxisTicks(yMax)
 
   return (
     <div
       style={{
-        minWidth: 0,
         border: '0.5px solid var(--line)',
         borderRadius: 8,
-        background: 'var(--bg)',
-        padding: 11,
+        background: 'var(--bg-soft)',
+        padding: 10,
+        minWidth: 0,
       }}
     >
-      <div style={{ minHeight: 42 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{title}</div>
-        <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--ink-4)' }}>{meta}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2 }}>
+          {title}
+        </div>
+        {histogram && (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-3)' }}>
+            n={formatInteger(histogramTotal(histogram))}
+          </div>
+        )}
       </div>
-      {bins.length === 0 ? (
-        <UnavailablePanel title="Not reported" compact />
+
+      {!histogram || bins.length === 0 ? (
+        <div
+          style={{
+            minHeight: 154,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--ink-4)',
+            fontSize: 11.5,
+            textAlign: 'center',
+            padding: 10,
+          }}
+        >
+          Age distribution not reported
+        </div>
       ) : (
-        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: '100%', height: 118, display: 'block' }}>
-          <line x1={padX} y1={padTop + plotHeight} x2={chartWidth - padX} y2={padTop + plotHeight} stroke="#dbe5ec" strokeWidth="0.8" />
-          {bins.map((bin, index) => {
-            const height = maxCount > 0 ? (bin.count / maxCount) * plotHeight : 0
-            const x = padX + index * (barWidth + barGap)
-            const y = padTop + plotHeight - height
+        <svg
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          role="img"
+          aria-label={`${title} age histogram`}
+          style={{ width: '100%', minHeight: 174, display: 'block' }}
+        >
+          {ticks.map((tick) => {
+            const y = padTop + plotHeight - (yMax > 0 ? (tick / yMax) * plotHeight : 0)
             return (
-              <g key={bin.label}>
-                <rect x={x} y={y} width={barWidth} height={height} rx="1.5" fill="#8fb9aa" />
-                {index % 2 === 0 && (
-                  <text x={x + barWidth / 2} y={chartHeight - 5} textAnchor="middle" fontSize="6.5" fill="#64748b" fontFamily="JetBrains Mono, monospace">
-                    {bin.label.split('-')[0]}
+              <g key={tick}>
+                <line x1={padLeft} y1={y} x2={chartWidth - padRight} y2={y} stroke="#e2e8f0" strokeWidth="0.8" />
+                <text x={padLeft - 7} y={y + 3} textAnchor="end" fontSize="8.2" fill="#64748b" fontFamily="JetBrains Mono, monospace">
+                  {formatInteger(tick)}
+                </text>
+              </g>
+            )
+          })}
+          <line x1={padLeft} y1={padTop} x2={padLeft} y2={padTop + plotHeight} stroke="#94a3b8" strokeWidth="0.8" />
+          <line x1={padLeft} y1={padTop + plotHeight} x2={chartWidth - padRight} y2={padTop + plotHeight} stroke="#94a3b8" strokeWidth="0.8" />
+
+          {bins.map((bin, binIndex) => {
+            const height = yMax > 0 ? (bin.count / yMax) * plotHeight : 0
+            const visibleHeight = bin.count > 0 ? Math.max(2, height) : 0
+            const x = padLeft + binIndex * groupWidth + groupWidth / 2 - barWidth / 2
+            const y = padTop + plotHeight - visibleHeight
+            const showLabel =
+              bins.length <= 9 || binIndex % 2 === 0 || bin.label.startsWith('<') || bin.label.endsWith('+')
+            return (
+              <g key={`${bin.label}-${binIndex}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={visibleHeight}
+                  rx="1.5"
+                  fill={fill}
+                  opacity={bin.count > 0 ? 0.88 : 0}
+                >
+                  <title>{`${title}, age ${bin.label}: ${formatInteger(bin.count)} ${unit}`}</title>
+                </rect>
+                {showLabel && (
+                  <text x={padLeft + binIndex * groupWidth + groupWidth / 2} y={chartHeight - 20} textAnchor="middle" fontSize="7.6" fill="#64748b" fontFamily="JetBrains Mono, monospace">
+                    {bin.label}
                   </text>
                 )}
               </g>
             )
           })}
-          {points && maxCount > 0 && (
-            <polyline points={points} fill="none" stroke="#1D9E75" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          )}
+
+          <text x={padLeft + plotWidth / 2} y={chartHeight - 6} textAnchor="middle" fontSize="9.5" fill="#475569">
+            Age
+          </text>
+          <text x="12" y={padTop + plotHeight / 2} textAnchor="middle" fontSize="9.5" fill="#475569" transform={`rotate(-90 12 ${padTop + plotHeight / 2})`}>
+            Count
+          </text>
         </svg>
-      )}
-      {histogram && (
-        <div className="mt-1 flex justify-between gap-2" style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>
-          <span>Below range {formatInteger(histogram.n_smaller)}</span>
-          <span>Above range {formatInteger(histogram.n_larger)}</span>
-        </div>
       )}
     </div>
   )
+}
+
+function ageChartBins(histogram: PopulationAgeHistogramView): Array<{ label: string; count: number }> {
+  const bins: Array<{ label: string; count: number }> = []
+  if (histogram.n_smaller != null) {
+    bins.push({ label: '<30', count: histogram.n_smaller })
+  }
+  bins.push(...histogram.bins.map((bin) => ({ label: bin.label, count: bin.count })))
+  if (histogram.n_larger != null) {
+    bins.push({ label: '80+', count: histogram.n_larger })
+  }
+  return bins
+}
+
+function histogramTotal(histogram: PopulationAgeHistogramView): number {
+  return histogram.bins.reduce((sum, bin) => sum + bin.count, 0) + (histogram.n_smaller ?? 0) + (histogram.n_larger ?? 0)
+}
+
+function niceMaxCount(maxCount: number): number {
+  if (maxCount <= 1) return 1
+  const exponent = 10 ** Math.floor(Math.log10(maxCount))
+  const fraction = maxCount / exponent
+  const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10
+  return niceFraction * exponent
+}
+
+function yAxisTicks(maxCount: number): number[] {
+  if (maxCount <= 1) return [0, 1]
+  if (maxCount <= 4) return Array.from({ length: maxCount + 1 }, (_, index) => index)
+  return Array.from(new Set([0, 0.25, 0.5, 0.75, 1].map((ratio) => Math.round(maxCount * ratio))))
 }
 
 function UnavailablePanel({ title, compact = false }: { title: string; compact?: boolean }) {

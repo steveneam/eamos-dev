@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jwt import InvalidTokenError
+from jwt import InvalidTokenError, PyJWKClient, PyJWKClientError
 
 from app.schemas.auth import AuthUser
 
 bearer_scheme = HTTPBearer(auto_error=False)
+_SUPPORTED_SUPABASE_ALGORITHMS = {"HS256", "ES256"}
 
 
 @dataclass(frozen=True)
@@ -102,13 +104,17 @@ def _local_principal(request: Request, token: str) -> AuthenticatedPrincipal | N
 
 def _supabase_principal(request: Request, token: str) -> AuthenticatedPrincipal | None:
     settings = request.app.state.settings
-    if not settings.supabase_jwt_secret:
+    algorithm = _supabase_token_algorithm(settings, token)
+    if algorithm is None:
+        return None
+    key = _supabase_verification_key(settings, token, algorithm)
+    if key is None:
         return None
     try:
         claims = jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=[settings.supabase_jwt_algorithm],
+            key,
+            algorithms=[algorithm],
             audience="authenticated",
         )
     except InvalidTokenError:
@@ -128,3 +134,46 @@ def _supabase_principal(request: Request, token: str) -> AuthenticatedPrincipal 
         token=token,
         email=email,
     )
+
+
+def _supabase_token_algorithm(settings, token: str) -> str | None:
+    configured = str(getattr(settings, "supabase_jwt_algorithm", "") or "").upper()
+    if configured and configured != "AUTO":
+        return configured if configured in _SUPPORTED_SUPABASE_ALGORITHMS else None
+    try:
+        header = jwt.get_unverified_header(token)
+    except InvalidTokenError:
+        return None
+    algorithm = str(header.get("alg") or "").upper()
+    return algorithm if algorithm in _SUPPORTED_SUPABASE_ALGORITHMS else None
+
+
+def _supabase_verification_key(settings, token: str, algorithm: str):
+    if algorithm == "HS256":
+        return settings.supabase_jwt_secret
+
+    if algorithm == "ES256" and settings.supabase_jwt_public_key:
+        return _normalized_pem(settings.supabase_jwt_public_key)
+
+    jwks_url = settings.supabase_jwks_url or _default_supabase_jwks_url(settings.supabase_url)
+    if not jwks_url:
+        return None
+    try:
+        return _jwk_client_for_url(jwks_url).get_signing_key_from_jwt(token).key
+    except (InvalidTokenError, PyJWKClientError, ValueError):
+        return None
+
+
+def _default_supabase_jwks_url(supabase_url: str | None) -> str | None:
+    if not supabase_url:
+        return None
+    return f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+
+
+def _normalized_pem(value: str) -> str:
+    return value.replace("\\n", "\n").strip()
+
+
+@lru_cache(maxsize=8)
+def _jwk_client_for_url(jwks_url: str) -> PyJWKClient:
+    return PyJWKClient(jwks_url)

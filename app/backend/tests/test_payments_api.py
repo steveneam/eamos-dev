@@ -22,6 +22,11 @@ def test_current_plan_defaults_to_free(auth_client: TestClient) -> None:
     body = response.json()
     assert body["plan_key"] == "free"
     assert body["status"] == "free"
+    assert body["plan"]["display_name"] == "Free"
+    assert body["plan"]["monthly_price_aud_cents"] == 0
+    assert body["plan"]["limits"]["ai_queries_per_day"] == 3
+    assert body["plan"]["limits"]["quiet_free_search_rate_limit"] is True
+    assert body["plan"]["limits"]["evidence_submissions_enabled"] is False
 
 
 def test_checkout_session_returns_mock_when_stripe_not_configured(
@@ -29,15 +34,35 @@ def test_checkout_session_returns_mock_when_stripe_not_configured(
 ) -> None:
     response = auth_client.post(
         "/api/v1/payments/checkout-session",
-        json={"plan_key": "pro", "billing_interval": "yearly"},
+        json={"plan_key": "max"},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["mode"] == "mock"
     assert body["checkout_url"] is None
-    assert body["plan_key"] == "pro"
+    assert body["plan_key"] == "max"
+    assert body["billing_interval"] == "monthly"
+    assert body["plan"]["monthly_price_aud_cents"] == 2495
+    assert body["plan"]["limits"]["ai_queries_per_day"] == 100
+    assert body["plan"]["limits"]["ai_queries_fair_use"] is True
     assert "stripe_checkout_not_configured" in body["warnings"]
+
+
+def test_checkout_session_rejects_legacy_starter_and_yearly_cycle(
+    auth_client: TestClient,
+) -> None:
+    legacy_plan = auth_client.post(
+        "/api/v1/payments/checkout-session",
+        json={"plan_key": "starter"},
+    )
+    legacy_cycle = auth_client.post(
+        "/api/v1/payments/checkout-session",
+        json={"plan_key": "pro", "billing_interval": "yearly"},
+    )
+
+    assert legacy_plan.status_code == 422
+    assert legacy_cycle.status_code == 422
 
 
 def test_stripe_webhook_rejects_missing_signature(client: TestClient) -> None:
@@ -67,8 +92,7 @@ def test_stripe_checkout_webhook_records_plan_state(auth_client: TestClient) -> 
                 "payment_status": "paid",
                 "metadata": {
                     "user_id": user_id,
-                    "plan_key": "pro",
-                    "billing_interval": "monthly",
+                    "plan_key": "max",
                 },
             }
         },
@@ -84,12 +108,15 @@ def test_stripe_checkout_webhook_records_plan_state(auth_client: TestClient) -> 
     assert response.status_code == 200
     webhook = response.json()
     assert webhook["processed"] is True
-    assert webhook["plan_state"]["plan_key"] == "pro"
+    assert webhook["plan_state"]["plan_key"] == "max"
     assert webhook["plan_state"]["status"] == "active"
+    assert webhook["plan_state"]["plan"]["monthly_price_aud_cents"] == 2495
 
     plan = auth_client.get("/api/v1/payments/plan")
     assert plan.status_code == 200
     plan_body = plan.json()
-    assert plan_body["plan_key"] == "pro"
+    assert plan_body["plan_key"] == "max"
     assert plan_body["billing_interval"] == "monthly"
+    assert plan_body["plan"]["limits"]["evidence_submissions_enabled"] is True
+    assert plan_body["plan"]["limits"]["evidence_submission_requires_identity_verification"] is True
     assert plan_body["stripe_subscription_id"] == "sub_123"

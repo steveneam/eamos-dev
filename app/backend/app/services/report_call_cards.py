@@ -7,6 +7,7 @@ from app.schemas.run import (
     PopulationAgeHistogram,
     PopulationFrequencyAncestryGroup,
     PopulationFrequencyDetail,
+    PopulationSequencingAgeDistribution,
     ReportCallBadge,
     ReportCallCard,
     ReportCallInteraction,
@@ -57,6 +58,7 @@ def build_population_frequency_detail(
     ancestry_groups = [item for item in ancestry_groups if item is not None]
 
     age_distribution = _age_distribution_from_summary(gnomad_summary.get("age_distribution"))
+    age_distributions = _age_distributions_from_summary(gnomad_summary.get("age_distributions"))
     warnings = list(source_warnings or [])
     if source_status in {"fallback", "degraded", "error", "failed"}:
         warnings.append(f"gnomad_source_status:{source_status}")
@@ -73,6 +75,7 @@ def build_population_frequency_detail(
         popmax_population=_as_optional_str(gnomad_summary.get("popmax_population")),
         genetic_ancestry_groups=ancestry_groups,
         age_distribution=age_distribution,
+        age_distributions=age_distributions,
         flags=[
             str(item) for item in gnomad_summary.get("flags", []) if isinstance(item, str) and item
         ],
@@ -526,6 +529,28 @@ def _age_distribution_from_summary(value: Any) -> PopulationAgeDistribution | No
     if het is None and hom is None:
         return None
     return PopulationAgeDistribution(het=het, hom=hom)
+
+
+def _age_distributions_from_summary(value: Any) -> list[PopulationSequencingAgeDistribution]:
+    if not isinstance(value, list):
+        return []
+    distributions: list[PopulationSequencingAgeDistribution] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        age_distribution = _age_distribution_from_summary(item.get("age_distribution"))
+        if age_distribution is None:
+            continue
+        sequencing_type = str(item.get("sequencing_type") or "unknown")
+        if sequencing_type not in {"joint", "exome", "genome", "unknown"}:
+            sequencing_type = "unknown"
+        distributions.append(
+            PopulationSequencingAgeDistribution(
+                sequencing_type=sequencing_type,  # type: ignore[arg-type]
+                age_distribution=age_distribution,
+            )
+        )
+    return distributions
 
 
 def _age_histogram_from_summary(value: Any) -> PopulationAgeHistogram | None:

@@ -1,6 +1,6 @@
 # Auth + Pricing Backend Contracts
 
-Section edited: 2026-05-24 16:29 +1000 - Codex.
+Section edited: 2026-05-24 19:51 +1000 - Codex.
 
 ## Payment Host Decision
 
@@ -73,15 +73,38 @@ boundary with a fake PostgREST client; no live Supabase secret is required.
 
 `POST /api/v1/payments/checkout-session`
 
-Request: `plan_key` (`starter` or `pro`) and `billing_interval`
-(`monthly` or `yearly`). If Stripe is not configured, returns `mode: "mock"` so
-the UI can remain mock-first. With `STRIPE_SECRET_KEY` and the matching
-`STRIPE_PRICE_*` env var, the backend creates a hosted Stripe Checkout session.
+Request: `plan_key` (`pro` or `max`). Checkout is monthly-only; clients should
+send `/checkout?plan=<id>` with no cycle. Free has no Stripe checkout path.
+
+If Stripe is not configured, returns `mode: "mock"` so the UI can remain
+mock-first. With `STRIPE_SECRET_KEY` and the matching monthly price env var, the
+backend creates a hosted Stripe Checkout session:
+
+- `STRIPE_PRICE_PRO_MONTHLY`
+- `STRIPE_PRICE_MAX_MONTHLY`
+
+The old `starter` id and `yearly` billing interval are retired. Backend defaults
+success/cancel URLs to the primary domain:
+
+- `https://eamos.com.au/checkout/success?session_id={CHECKOUT_SESSION_ID}`
+- `https://eamos.com.au/pricing`
 
 `GET /api/v1/payments/plan`
 
-Returns the authenticated user's current plan. Missing subscription state maps
-to `plan_key: "free"` and `status: "free"`.
+Returns the authenticated user's current plan. Missing subscription state maps to
+`plan_key: "free"` and `status: "free"`. The response also includes the
+canonical backend plan contract and limits:
+
+| Plan | id | AUD monthly, GST incl. | AI queries/day | Evidence submissions | VCF uploads | Search rate-limit |
+| --- | --- | ---: | ---: | --- | --- | --- |
+| Free | `free` | $0.00 | 3 | Disabled | Disabled | Quiet Free search rate-limit |
+| Pro | `pro` | $9.95 | 10 | Active subscription + identity verification required | Enabled; numeric cap pending product decision | Standard |
+| Max | `max` | $24.95 | 100 fair-use | Active subscription + identity verification required | Bulk/fair-use | Standard |
+
+The response field is `plan: { plan_key, display_name,
+monthly_price_aud_cents, currency: "AUD", billing_interval: "monthly",
+limits: {...} }`. VCF numeric caps stay explicit in the contract surface but
+remain product-gated until Steven locks the exact Pro/Max cap values.
 
 `POST /api/v1/payments/stripe/webhook`
 
@@ -93,4 +116,6 @@ from:
 - `invoice.paid`
 - `invoice.payment_failed`
 
-Webhook metadata should include `user_id`, `plan_key`, and `billing_interval`.
+Webhook metadata should include `user_id` and `plan_key`. `billing_interval` may
+be omitted; the backend records paid plans as monthly. Stripe price ids remain
+environment-gated until the real Stripe products are known.

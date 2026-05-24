@@ -1,5 +1,158 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 29 - 24 May 2026 - Supabase ES256/JWKS auth for Messenger API
+
+Codex implemented the backend auth fix from Claude's 22:04 handoff so the
+Messenger live API path can validate Supabase ES256 access tokens. This stayed
+backend-only and avoided `/runs`, AlphaMissense, destructive git, push, stash,
+reset, and clean. It was included in the Codex lane commit pushed to origin.
+
+Completed:
+- Ran `git pull --ff-only` first; local branch was already up to date at
+  `d2dface`.
+- Changed Supabase JWT algorithm handling from HS256-only to `auto`, allowing
+  the backend to inspect the bearer token header and route supported Supabase
+  tokens through HS256 or ES256 verification.
+- Added `SUPABASE_JWKS_URL` and `SUPABASE_JWT_PUBLIC_KEY` config options.
+  Without an explicit JWKS URL, ES256 verification derives
+  `{SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
+- Added cached `PyJWKClient` verification for ES256 Supabase tokens while
+  preserving HS256 shared-secret compatibility for local/test deployments.
+- Added `cryptography>=42,<46` to backend requirements because PyJWT requires it
+  for ES256 signature verification.
+- Updated evidence-submission API tests to cover Supabase HS256 bearer tokens
+  and real ES256 signature verification through a JWKS-client path.
+- Installed `cryptography` into the local Python user environment so the ES256
+  test could run rather than skip.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py -q`
+  -> passed (6 tests, ES256 test active).
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_frontend_contract.py tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_payments_api.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_auth_api.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest -q` -> passed (full backend suite; 5
+  skips, existing short-test-JWT warnings only).
+- `cd app/backend && python -m ruff check app/core/deps.py app/core/config.py tests/test_evidence_submissions_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/deps.py app/core/config.py tests/test_evidence_submissions_api.py`
+  -> passed.
+- `git diff --check` on touched auth/handoff files -> passed with CRLF
+  working-copy warnings only.
+- Live Supabase JWKS endpoint returned an EC/P-256 `ES256` signing key with a
+  `kid`, matching the backend JWKS path expectation.
+
+Coordination:
+- Messenger FE should remain flag-off until Render has the backend with this
+  change plus `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / Supabase migration
+  `0003` applied.
+- Render can use `SUPABASE_JWT_ALGORITHM=auto`; for the current live project,
+  `SUPABASE_URL=https://cpdjxsgasaesysvxkpmi.supabase.co` is enough for JWKS
+  discovery unless an explicit `SUPABASE_JWKS_URL` is preferred.
+- Claude's 22:04 Messenger-live CAR is satisfied from the backend code side.
+- The Codex lane commit contains the payment-contract, gnomAD visual/age, and
+  Supabase ES256/JWKS slices and was pushed to origin.
+
+## Session 28 - 24 May 2026 - gnomAD map layout and exact age distribution panels
+
+Codex refreshed Section 3 gnomAD population visuals and backend age-distribution
+contract after Steven clarified that the chart should show variant carriers and
+all individuals separately for exome and genome. This avoided `/runs`,
+AlphaMissense, destructive git, push, stash, reset, and clean. It was included
+in the Codex lane commit pushed to origin.
+
+Completed:
+- Kept the world map as the default full-section tab; the map only moves beside
+  the ancestry table or age charts after the user opens those tabs.
+- Tightened gnomAD region highlights by clipping Eamos region fills to the
+  SimpleMaps land silhouette so they read closer to country outlines instead of
+  freeform region blobs.
+- Expanded the demo/fixture/test paths to include all ten core gnomAD genetic
+  ancestry groups (`afr`, `ami`, `amr`, `asj`, `eas`, `fin`, `mid`, `nfe`,
+  `remaining`, `sas`).
+- Added backend `age_distributions` alongside the legacy `age_distribution` so
+  live gnomAD exome and genome variant-carrier bins remain separate.
+- Changed Section 3 age histograms to four exact-count series:
+  exome variant carriers, exome all individuals, genome variant carriers, and
+  genome all individuals. Variant-carrier bins come from live gnomAD
+  `age_distribution` values; all-individual bins come from gnomAD v4
+  `ageDistribution.json` dataset metadata.
+- Removed the misleading distribution curve; charts now render source-count bar
+  histograms only.
+- Mirrored the contract into both frontend `backend.ts` files and refreshed the
+  Vite/Next sample report payloads.
+- Updated `docs/proprietary/gnomad-ancestry-map.md` to note the proprietary
+  Eamos map logic and the public gnomAD age metadata source.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/frontend && npm run test -- src/components/report/gnomadAncestryMap.test.ts --reporter=dot`
+  -> passed.
+- `cd app/frontend && npm run build` -> passed; existing large chunk warning
+  remains.
+- `cd app/frontend && npm run test:e2e -- tests/e2e/gnomad-map-hover.spec.ts --reporter=line`
+  -> passed in Chrome.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- `git diff --check` on touched gnomAD/contract files -> passed with CRLF
+  working-copy warnings only.
+- Browser screenshots were captured via Chrome channel for visual QA and then
+  removed before commit at Steven's request.
+- Live gnomAD query for `1-68429764-G-T` confirmed exact carrier bins are
+  available separately: exome AC 5 / AN 1,461,118 with 3 reported-age carriers
+  across the age bins, and genome AC 7 / AN 152,074 with 2 reported-age
+  carriers.
+
+Coordination:
+- The implementation remains Eamos-proprietary UI/contract code. It references
+  public gnomAD source data and metadata with attribution; no gnomAD browser
+  component code was copied.
+- No RStudio/R workflow was needed; the app renders the exact source-count bars
+  directly from GraphQL + metadata.
+- Temporary Vite dev server was stopped after screenshot verification; port
+  5173 is clear.
+
+## Session 27 - 24 May 2026 - Auth/pricing backend payment tier contract refresh
+
+Codex refreshed the backend payment contract after Steven locked the pricing
+model as Free/Pro/Max, monthly-only. This stayed backend-led and did not touch
+`app/web` render files, `/runs`, AlphaMissense, destructive git, push, stash,
+reset, or clean.
+
+Completed:
+- Retired the legacy backend checkout contract that allowed `starter` and
+  `yearly`; checkout now accepts paid plan ids `pro` or `max` only and defaults
+  monthly when the frontend sends `?plan=<id>` with no cycle.
+- Added explicit plan-contract payloads to payment responses: Free/Pro/Max ids,
+  AUD monthly prices ($0/$9.95/$24.95 GST-inclusive), and plan limits for AI
+  queries/day, quiet Free search rate limiting, evidence-submission eligibility,
+  identity-verification requirement, and VCF upload cap policy.
+- Updated Stripe env/config names to monthly-only Pro/Max price ids
+  (`STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_MAX_MONTHLY`) and default
+  success/cancel URLs to `https://eamos.com.au`.
+- Preserved mock-first checkout behavior when Stripe secrets or matching price
+  ids are absent.
+- Updated the auth/pricing backend contract document with the new canonical
+  ids, prices, and gating notes. VCF numeric caps remain product-gated.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_payments_api.py -q` -> passed.
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_frontend_contract.py tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_payments_api.py -q`
+  -> passed (existing short test-JWT warnings only).
+- `cd app/backend && python -m ruff check app/schemas/payments.py app/services/payments.py app/core/config.py tests/test_payments_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/schemas/payments.py app/services/payments.py app/core/config.py tests/test_payments_api.py`
+  -> passed after formatting `tests/test_payments_api.py`.
+- `cd app/web && npx tsc --noEmit` -> passed.
+
+Coordination:
+- Live Messenger POST remains gated until Steven confirms Supabase migration
+  `0003` plus Render env `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+  `SUPABASE_JWT_SECRET`.
+- Stripe live checkout remains gated until Steven creates Stripe products and
+  supplies the Pro/Max monthly price ids for backend env.
+
 ## Session 26 - 24 May 2026 - gnomAD map region heat fills and linked hover
 
 Codex implemented the user-requested gnomAD Section 3 map update in both report

@@ -77,6 +77,7 @@ ReportCallCardId = Literal[
 ]
 ReportCallBadgeKind = Literal["acmg", "metric", "source", "warning", "neutral"]
 PopulationSequencingType = Literal["joint", "exome", "genome", "unknown"]
+PopulationAgeSeriesKind = Literal["variant_carriers", "all_individuals"]
 
 
 class PublicationSnippet(BaseModel):
@@ -219,6 +220,11 @@ class PopulationAgeDistribution(BaseModel):
     hom: PopulationAgeHistogram | None = None
 
 
+class PopulationSequencingAgeDistribution(BaseModel):
+    sequencing_type: PopulationSequencingType
+    age_distribution: PopulationAgeDistribution
+
+
 class PopulationFrequencyDetail(BaseModel):
     source: str = "gnomAD"
     dataset: str = ""
@@ -232,6 +238,7 @@ class PopulationFrequencyDetail(BaseModel):
     popmax_population: str | None = None
     genetic_ancestry_groups: list[PopulationFrequencyAncestryGroup] = Field(default_factory=list)
     age_distribution: PopulationAgeDistribution | None = None
+    age_distributions: list[PopulationSequencingAgeDistribution] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     source_url: str | None = None
@@ -537,7 +544,14 @@ class PopulationAgeBin(BaseModel):
 
 
 class PopulationAgeHistogramView(BaseModel):
-    genotype: Literal["heterozygous_alternate", "homozygous_alternate"]
+    sequencing_type: PopulationSequencingType = "unknown"
+    series_kind: PopulationAgeSeriesKind = "variant_carriers"
+    genotype: Literal[
+        "heterozygous_alternate",
+        "homozygous_alternate",
+        "combined",
+        "not_applicable",
+    ]
     scope: Literal["overall_release_samples", "genetic_ancestry_group"] = "overall_release_samples"
     group_id: str | None = None
     bins: list[PopulationAgeBin] = Field(default_factory=list)

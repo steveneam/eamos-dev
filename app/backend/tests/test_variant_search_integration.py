@@ -377,12 +377,28 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     assert population["popmax_population"] == "NFE"
     assert population["genetic_ancestry_groups"][0]["id"] == "nfe"
     assert population["age_distribution"]["het"]["bin_edges"][0] == 30.0
+    assert [item["sequencing_type"] for item in population["age_distributions"]] == [
+        "exome",
+        "genome",
+    ]
     section3 = payload["report_payload"]["report_profile"]["population_frequency"]
     assert section3["section_number"] == 3
     assert section3["section_id"] == "section-3-population-frequency"
     assert section3["panel_id"] == "gnomad-expansion"
     assert section3["visual_groups"][0]["label"] == "Non-Finnish European genetic ancestry"
     assert section3["age_histograms"][0]["scope"] == "overall_release_samples"
+    histograms_by_key = {
+        (hist["sequencing_type"], hist["series_kind"]): hist
+        for hist in section3["age_histograms"]
+    }
+    assert set(histograms_by_key) == {
+        ("exome", "variant_carriers"),
+        ("genome", "variant_carriers"),
+        ("exome", "all_individuals"),
+        ("genome", "all_individuals"),
+    }
+    assert histograms_by_key[("exome", "variant_carriers")]["bins"][3]["count"] == 1
+    assert histograms_by_key[("exome", "all_individuals")]["bins"][6]["count"] == 108358
     call_cards = payload["report_payload"]["call_cards"]["cards"]
     assert [card["card_id"] for card in call_cards] == [
         "population_frequency",

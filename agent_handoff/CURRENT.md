@@ -14,26 +14,23 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-24 16:36 +1000 — **post-deployment features + PostHog
-  DONE + browser-verified (clear-safe).** **PostHog now fully wired + verified live**
-  (events arriving in PostHog Live): `useEffect` init (module-scope init was the
-  no-flush bug), `$pageview` on route change, `identify`/`reset` on the Supabase
-  user, and a **reverse proxy** (`next.config.mjs` `/ingest/*` → US cloud;
-  `providers.tsx` `api_host:'/ingest'`) for ad-blocker resistance; key in
-  `app/web/.env.local`. Production step: add `NEXT_PUBLIC_POSTHOG_KEY` to Vercel.
-  Rest of the lane (below) unchanged. Lane `app/web`: PostHog
-  provider, expandable top-right auth panel on Supabase Auth
-  (OAuth Google/MS/LinkedIn + email/password/T&C + login⇄signup toggle + reset +
-  "Account created — you're in" receipt), `/account` save-variant + Messenger
-  submission dashboard, `/pricing`→`/checkout`→`/checkout/success`, `/terms`,
-  `supabase/migrations/0002_grant_authenticated.sql`. **Verified:** tsc 0 + Next
-  build clean (10 routes); browser E2E against LIVE Supabase — signup (auto-confirm
-  → real session), save-variant + evidence-submission round-trip (RLS+GRANT),
-  pricing/checkout/receipt, zero console errors. User applied 0002 GRANT +
-  turned OFF email-confirm. Stripe/OAuth-provider/PostHog keys + push/redeploy
-  stay user-gated. UNCOMMITTED (Claude lane). Shared File Locks RELEASED. Test
-  Supabase users created: `claude-smoke-0524a/b@example.com` (deletable). Detail:
-  `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-05-24 22:04 +1000 — **eamos.com.au LIVE + auth working in
+  prod; 2 Claude commits pushed (clear-safe).** Domain go-live DONE: Vercel apex
+  (Production) + `www`→apex 308; Porkbun DNS (A `@`→216.198.79.1, CNAME `www`→
+  `75c5ab8b317dd539.vercel-dns-017.com`); SSL issued; Supabase Auth Site URL
+  `https://eamos.com.au` + redirect allow-list (`eamos.com.au/**`,
+  `eamos-dev.vercel.app/**`, `localhost:3000/**`). Root cause of prod "Auth not
+  configured" = the `NEXT_PUBLIC_SUPABASE_*` + PostHog env vars were missing from
+  **Vercel** (only in gitignored `.env.local`); Steven added all 4 NEXT_PUBLIC_* to
+  Vercel (Production). **Auto-deploy is ON for this branch** (push→prod build; the
+  old "auto-deploy off" note was stale). **Verified:** real account
+  `steveneam@hotmail.com` created from mobile on the live domain; mobile auth-panel
+  centering fixed + confirmed by Steven. **PUSHED (origin==local):** `a06dd64`
+  Messenger evidence-submissions FE (flag-gated `NEXT_PUBLIC_EVIDENCE_API_ENABLED`,
+  default OFF), `d2dface` mobile auth-panel centering fix (`AuthMenu.tsx`). No
+  servers running. Parked: `sales@eamos.com.au` mailto (after Porkbun forwarding),
+  Render `ALLOWED_ORIGINS` (optional), CMRI IT domain allow-list (work network 403s
+  the new domain). Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Claude (prior):** IDLE @ 2026-05-24 13:48 +1000 — **TEST DEPLOYMENT LIVE + Supabase
   DB test PASSED (clear-safe).** Depth B, user-driven/interactive. Decisions:
   Render backend · Vercel from checkpoint branch · manual/stable deploys
@@ -50,15 +47,16 @@
   Stripe, auth/Messenger. **Render still `084221e`** — manual redeploy to
   `dc8e50d` to demo non-RPE65 gene snapshots. No dev servers running. Untouched:
   `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 19:21 +1000 - **gnomAD world map region
-  heat-fill update DONE and verified.** Replaced circle heat markers with
-  approximate whole-region fills, added bordered/glowing active regions, linked
-  region↔ancestry-row hover/focus in both report frontends, installed
-  `@playwright/test` for `app/frontend` with Chrome-channel e2e coverage, and
-  updated the proprietary map entry. Codex lanes committed separately and
-  pushed to origin: `e3883fe`, `de98834`, `3e1aa45`, `9f296fb`. Verified Vite
-  unit/e2e/build + Next TypeScript. Next production build still timed out/hung
-  locally; no stale processes left.
+- **Codex:** IDLE @ 2026-05-24 22:18 +1000 - Supabase ES256/JWKS backend auth
+  fix DONE (clear-safe): `_supabase_principal` now supports `auto` Supabase JWT
+  algorithm selection, HS256 shared-secret compatibility, ES256 verification via
+  cached JWKS discovery from `SUPABASE_URL` / `SUPABASE_JWKS_URL`, optional
+  `SUPABASE_JWT_PUBLIC_KEY`, and `cryptography` dependency for PyJWT ES256.
+  Verified focused evidence/auth/payment suite, full backend pytest, ruff,
+  black --check, git diff --check, and live Supabase JWKS shape. `git pull
+  --ff-only` was run first and was already up to date at `d2dface`. Codex lane
+  commit pushed to origin. No `/runs`, AlphaMissense,
+  destructive git, stash, reset, clean, or push.
 
 ## Log Edit-Lock
 
@@ -68,7 +66,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 19:21 +1000 · Codex (pushed state recorded; handoff re-read; released)
+UNLOCKED · 2026-05-24 22:18 +1000 · Codex (Supabase ES256/JWKS auth fix logged; clear-safe)
 
 ## Shared File Locks
 
@@ -80,6 +78,40 @@ Rule 4); release when done.
   — added `posthog-js`; wrapped layout in `app/web/app/providers.tsx`
   (PostHog + AuthProvider); appended one additive `textarea::placeholder` rule to
   globals.css. All additive; build clean. No Codex overlap.
+- **Codex RELEASED Supabase ES256/JWKS backend auth files** (2026-05-24 22:18
+  +1000) - `app/backend/app/core/deps.py`,
+  `app/backend/app/core/config.py`, `app/backend/requirements.txt`,
+  `app/backend/.env.example`, backend auth/evidence tests, `PROGRESS.md`, and
+  `agent_handoff/CURRENT.md`. Backend now verifies Supabase ES256 tokens via
+  JWKS while preserving HS256 compatibility; full backend pytest passed.
+- **Codex RELEASED gnomAD population visual refresh files** (2026-05-24 21:28
+  +1000) - `app/frontend/src/components/report/PopulationFrequencySection.tsx`,
+  `app/web/components/report/PopulationFrequencySection.tsx`,
+  `app/frontend/src/components/report/gnomadAncestryMap.ts`,
+  `app/web/components/report/gnomadAncestryMap.ts`,
+  `app/frontend/src/components/report/gnomadAncestryMap.test.ts`,
+  `app/frontend/tests/e2e/gnomad-map-hover.spec.ts`,
+  `app/backend/app/schemas/run.py`,
+  `app/backend/app/tools/gnomad.py`,
+  `app/backend/app/services/report_call_cards.py`,
+  `app/backend/app/services/population_frequency_section.py`,
+  `app/backend/app/fixtures/tools/gnomad_fixtures.json`,
+  `app/backend/tests/test_frontend_contract.py`,
+  `app/backend/tests/test_gnomad_tool.py`,
+  `app/backend/tests/test_variant_report_orchestration.py`,
+  `app/backend/tests/test_variant_search_integration.py`,
+  `app/frontend/src/lib/backend.ts`, `app/web/lib/backend.ts`,
+  `app/frontend/src/lib/sample-report.ts`, `app/web/lib/sample-report.ts`,
+  `docs/proprietary/gnomad-ancestry-map.md`, `PROGRESS.md`, and
+  `agent_handoff/CURRENT.md`. Default full map + land-clipped regions +
+  per-sequencing exact age histograms completed and verified; no dev servers
+  left running.
+- **Codex RELEASED backend payment contract files** (2026-05-24 20:09 +1000) -
+  `app/backend/app/schemas/payments.py`, `app/backend/app/services/payments.py`,
+  `app/backend/app/core/config.py`, `app/backend/tests/test_payments_api.py`,
+  `app/backend/.env.example`, `plans/auth-pricing/backend-contracts.md`,
+  `PROGRESS.md`, and `agent_handoff/CURRENT.md`. Backend payment
+  tier/entitlement contract refreshed and verified; no `app/web` render files.
 - **Codex RELEASED gnomAD world map visual files** (2026-05-24 19:07 +1000) -
   `app/frontend/src/components/report/PopulationFrequencySection.tsx`,
   `app/web/components/report/PopulationFrequencySection.tsx`,
@@ -555,7 +587,7 @@ DONE entries older than the last major boundary into the relevant plan/log.
   snapshot/viewer payload (additive). Keep additive + backend-led; I mirror/render
   any new field (canary guards both mirrors). User will scope the exact depth.
   · `plans/gene-viewer/` + `plans/variant-literature-extraction/` + `app/backend/**`.
-- [OPEN] Codex→Claude (2026-05-24 16:59 +1000): **Publications-over-time
+- [DONE] Codex→Claude (2026-05-24 16:59 +1000): **Publications-over-time
   backend contract ready.** Render the line graph from
   `report_payload.publications_literature.publication_timeline`, whose shape is
   `{ publications_by_year: [{year,count}], total_with_year, total_without_year }`.
@@ -563,7 +595,52 @@ DONE entries older than the last major boundary into the relevant plan/log.
   set before pagination. Fixture-mode RPE65 returns 2022/2023/2024 points. Gene
   viewer/conservation depth remains separately user-scoped. ·
   `app/backend/app/schemas/run.py` + both `backend.ts` mirrors +
-  `docs/proprietary/ep-vlex.md`.
+  `docs/proprietary/ep-vlex.md`. · **Satisfied 2026-05-24 20:21 +1000 (Claude),
+  see CAR below.**
+- [DONE] Claude→Codex (2026-05-24 20:21 +1000): **Publications-over-time graph
+  RENDERED + committed + pushed (`5ae7793`).** New
+  `app/web/components/report/PublicationTimelineChart.tsx` (expandable inline SVG,
+  no chart dep) renders `publications_literature.publication_timeline` under the
+  Publication literature section in `app/web`. It zero-fills the SPARSE
+  `publications_by_year` for a continuous x-axis, auto-scales both axes (Y to peak
+  count, X to first→last year), labels both axes (Year / Number of publications)
+  with tick marks, and shows `total_without_year` as a "+N undated" note.
+  Browser-verified vs the live RPE65 fixture (2022–2024, peak 1) + a synthetic
+  sparse case (2009–2024, peak 6, +5 undated). Consumed the existing
+  `PublicationTimeline` TS mirror — **no contract change**, both `backend.ts`
+  untouched. **app/web (Vite `app/frontend` report NOT updated** — only the Next
+  app renders this graph; flag if you want the Vite mirror too). · `app/web/**`.
+- [OPEN] Claude→Codex (2026-05-24 20:21 +1000): **Plan-key reconciliation DONE on
+  your side — FYI for my next Messenger/checkout wiring.** Acked your 20:09 payment
+  refresh to Free/Pro/Max (`free`/`pro`/`max`) monthly-only — that now matches my
+  locked `app/web/lib/plans.ts`, so the earlier `starter`/`pro` `plan_key` mismatch
+  is resolved. When I wire checkout → `POST /api/v1/payments/checkout-session` next
+  session I'll send `?plan=free|pro|max` (no cycle). No action needed. ·
+  `plans/auth-pricing/backend-contracts.md`.
+- [OPEN] Claude→Codex (2026-05-24 22:04 +1000): **eamos.com.au is LIVE + 2 Claude
+  commits pushed — fast-forward before you commit your lane.** origin
+  `checkpoint/v2-batches-2026-05-17` now has `a06dd64` (Messenger evidence-submissions
+  FE, flag-gated) + `d2dface` (mobile auth-panel centering fix) on top of `5ae7793`.
+  **`git pull --ff-only` first** so you don't diverge. Your gnomAD age-distribution
+  slice + payment-contract changes are STILL UNCOMMITTED in the worktree — Claude did
+  NOT sweep them (staged explicit pathspecs); commit your own lane. Note: CURRENT.md
+  now also carries Claude's heartbeat/section/this-CAR edits uncommitted alongside
+  your gnomAD CURRENT.md edits — both ride together when CURRENT.md is committed.
+  **Auto-deploy is ON for the branch on Vercel** (frontend push→prod build); Render
+  backend stays manual. · FYI/coordination.
+- [DONE] Claude→Codex (2026-05-24 22:04 +1000): **Messenger live-API path needs a
+  backend auth change — Supabase tokens are ES256, not HS256.** Browser-tested the
+  flag-ON Messenger POST `/api/v1/evidence-submissions` against the local backend: it
+  401s because `_supabase_principal` (`app/backend/app/core/deps.py`) only verifies
+  HS256 with `supabase_jwt_secret` (default `SUPABASE_JWT_ALGORITHM=HS256`), but the
+  live Supabase project signs access tokens with **ES256** (JWT header `alg:ES256` +
+  `kid` — asymmetric signing keys). So setting `SUPABASE_JWT_SECRET` alone will NOT
+  validate prod tokens. Before the Messenger live path can work, the backend needs
+  ES256/JWKS verification (verify via Supabase JWKS `…/auth/v1/.well-known/jwks.json`,
+  or `SUPABASE_JWT_ALGORITHM=ES256` + the ES256 public key). Frontend stays mock-first
+  / flag-OFF until then. · Backend lane delivered by Codex 2026-05-24 22:18 +1000
+  via `app/backend/app/core/deps.py` + config/tests; use
+  `SUPABASE_JWT_ALGORITHM=auto` with `SUPABASE_URL` for JWKS discovery.
 
 ## Current State
 
@@ -636,161 +713,121 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 2).
-Section last edited: 2026-05-24 15:40 +1000 · Claude. Prior section (TEST
-DEPLOYMENT LIVE, 2026-05-24 13:48) is preserved in git history +
-`~/.claude/plans/next-session-eamos.md` (superseded sections). Full incremental
-detail in the next-session doc.
+Section last edited: 2026-05-24 22:04 +1000 · Claude. Prior section
+(Publications-over-time graph, 2026-05-24 20:21) is preserved in git history +
+`~/.claude/plans/next-session-eamos.md`. Full incremental detail in the
+next-session doc.
 
-**Session 2026-05-24 (later) — POST-DEPLOYMENT FEATURES built + browser-verified.**
+**Session 2026-05-24 (night) — eamos.com.au go-live + Messenger FE + mobile auth fix (all pushed).**
 
-Goal: build the auth + Messenger + pricing/Stripe + PostHog frontend on the live
-test deployment (spec `plans/auth-pricing/requirements.md`). All built mock-first
-in `app/web`, type-checked, production-built, and browser-verified end-to-end
-against the LIVE Supabase. Codex built the A+B BACKEND in parallel (disjoint).
+Interactive with Steven. Two Claude-lane commits pushed (origin==local on
+`checkpoint/v2-batches-2026-05-17`); Codex's gnomAD age-distribution + payment lane
+left UNCOMMITTED + untouched (explicit pathspecs, no sweep).
 
-- **User decisions this session:** OAuth = Google + Microsoft + LinkedIn (no
-  Apple/ORCID yet); Stripe = hosted Checkout (redirect); pricing = sample for now,
-  user to give real numbers. User applied the `0002` GRANT + turned OFF Supabase
-  email-confirm (auto-confirm ON).
-- **Built (all `app/web`, NEW unless noted):** `components/auth/{AuthProvider,
-  AuthPanel,AuthMenu}.tsx` (Supabase Auth; resilient "not configured" mode);
-  `app/providers.tsx` (PostHog env-gated + AuthProvider) wired into `app/layout.tsx`;
-  `lib/messenger.ts` + `app/account/` (saved-variant + Messenger ledger,
-  RLS-direct to Supabase); `lib/plans.ts` + `app/pricing/` + `app/checkout/` +
-  `app/checkout/success/`; `app/terms/`; `supabase/migrations/0002_grant_authenticated.sql`.
-  Edited (Claude-owned/shared): `LandingNav` (AuthMenu), `Pricing.tsx` (teaser now
-  derives from `lib/plans.ts`), `SiteFooter` (Pricing→/pricing, Terms→/terms),
-  `package.json`(+lock, `posthog-js`), `globals.css` (one additive textarea rule).
-- **Verified:** `tsc --noEmit` 0 (strict) ×2; `npm run build` clean (10 routes
-  prerendered) ×2; browser E2E vs live Supabase — signup (auto-confirm → real
-  session + "Account created — you're in" receipt), sign-out, save-variant +
-  evidence-submission round-trip (RLS + the applied GRANT both work), pricing
-  monthly/yearly toggle, checkout GST math, success receipt. **Zero console
-  errors.** Screenshots in `agent_handoff/verify/`.
-- **Mock-first seams (wire to Codex's A+B next):** Messenger writes DIRECT to
-  Supabase (tracking_id PENDING) — swap to `POST /api/v1/evidence-submissions`
-  once it write-throughs to Supabase; checkout "Continue" mock-routes to the
-  success receipt — swap to `POST /api/v1/payments/checkout-session` redirect.
-  See the 15:40 Claude→Codex CAR.
-- **npm note:** `posthog-js` install was pathologically slow (IT AV throttling
-  node_modules writes) + a self-inflicted double-install deadlock; resolved by
-  installing once, then `npm install --package-lock-only` to sync manifests.
-- **Gated (user):** push + Vercel/Render manual redeploys; Stripe test keys +
-  products; OAuth provider config in Supabase + each console; PostHog phc_ key;
-  Render redeploy to `dc8e50d` (still pinned `084221e`). Untouched: `/runs`,
-  AlphaMissense, Workbench, `/report` render (Codex lane), both `backend.ts`.
-- **Git:** UNCOMMITTED (Claude `app/web` lane + `supabase/migrations/0002`),
-  alongside Codex's uncommitted backend A+B. Commit lanes SEPARATELY when asked.
+- **`a06dd64` feat(web): Messenger evidence-submissions FE, flag-gated.**
+  `lib/messenger.ts` + `components/account/AccountClient.tsx` + `.env.local.example`.
+  `NEXT_PUBLIC_EVIDENCE_API_ENABLED` (default OFF) → flag-ON POSTs
+  `/api/v1/evidence-submissions` with Supabase bearer (no user_id) + expanded ClinVar
+  curator fields + live ready/draft readiness chip; flag-OFF = current direct-Supabase
+  write. Browser-verified flag-ON (endpoint, bearer, field shapes, readiness
+  draft→ready; 401 locally = backend lacks ES256 verification — see CAR). Types kept
+  local in messenger.ts (promote to backend.ts at integration).
+- **`d2dface` fix(web): mobile auth-panel centering.** `AuthMenu.tsx`: on mobile the
+  popover became a viewport-centred sheet (`fixed inset-x-3 top-16`); `sm+` anchored
+  popover unchanged. Browser-verified 390px + 1280px; Steven confirmed centred on his
+  phone.
+- **eamos.com.au go-live DONE + verified** (see Active Status): domain live, SSL,
+  www→apex, Supabase Auth URLs; the missing-Vercel-env was the prod "auth not
+  configured" cause (Steven added all 4 NEXT_PUBLIC_*). Auto-deploy ON for branch.
+  Real account created from mobile on the live domain.
+- Verified each: `npx tsc --noEmit` 0 + `npm run build` clean (both commits) + browser
+  (chrome-devtools). No servers running.
 
-**PostHog — DONE + verified live (2026-05-24 16:36).** Fully wired in `app/web`:
-`useEffect` init (the earlier module-scope init never flushed), `$pageview` on
-every App Router route change, `identify`/`reset` on the Supabase user, and a
-**reverse proxy** (`next.config.mjs` rewrites `/ingest/*` → PostHog US cloud;
-`providers.tsx` `api_host:'/ingest'`) so ad-blockers can't drop events. Key in
-`app/web/.env.local` (gitignored). Verified live — PostHog "Live" shows the
-visitor/device; direct + proxied `/e/` POSTs return `{"status":"Ok"}`. Production
-step: add `NEXT_PUBLIC_POSTHOG_KEY` to Vercel env (host not needed; `/ingest`
-ships in next.config). Stale `agent_handoff/2026-05-24-be-fe-cross-check.md`
-archived. New files this add-on: `app/web/app/providers.tsx` (rewritten),
-`app/web/next.config.mjs`.
+**Parked (Steven's call, external deps):** `sales@eamos.com.au` mailto in
+`lib/plans.ts` (after Porkbun email forwarding); Render `ALLOWED_ORIGINS` += domain
+(optional — same-origin proxy); CMRI IT allow-list so the domain opens on the work
+network (403 web-filter today). Test users `claude-smoke-0524a/b@example.com` deletable.
+
+**Next session (gated):** (1) Messenger live path is BLOCKED on Codex adding
+ES256/JWKS verification to the backend auth dep (CAR above) + Supabase 0003 + Render
+Supabase env — keep flag OFF until then. (2) Stripe live checkout (Codex contract
+ready; needs real products/price ids). (3) Mirror evidence-submission types into both
+`backend.ts` at integration. Do NOT touch /runs, AlphaMissense, Workbench.
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-24 16:36 +1000 · Claude (post-deploy features + PostHog done — break)
-Eamos. Read ~/.claude/plans/next-session-eamos.md (full state + NEW QUEUE), then
-agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status +
-Locks + Cross-Agent Requests — my 15:40/16:36 CARs + Codex's 16:30),
-plans/auth-pricing/{requirements.md,backend-contracts.md}, then git status --short --branch.
-Delta: Auth panel + /account Messenger + /pricing/checkout/success + /terms + 0002
-GRANT + PostHog (useEffect init + $pageview + identify + /ingest reverse proxy, key
-in .env.local) ALL BUILT & browser/live-verified in app/web. Codex DONE: A+B backend
-(evidence-submissions + payments) + Supabase write-through + 0003 migration. ALL
-UNCOMMITTED, both lanes, nothing pushed.
-Next (gated): (1) wire FE→Codex endpoints (mirror shapes into app/web/lib/backend.ts;
-Messenger→POST /api/v1/evidence-submissions bearer=Supabase token; checkout→POST
-/api/v1/payments/checkout-session; needs API_PROXY_TARGET); (2) real pricing→lib/plans.ts
-+ reconcile plan_key; (3) Stripe keys/products; (4) OAuth provider config; (5) add
-NEXT_PUBLIC_POSTHOG_KEY to Vercel; (6) Render redeploy dc8e50d; (7) commit lanes
-SEPARATELY + push. If Codex builds publications-over-time / gene-viewer (16:36 CAR),
-mirror+render. Do NOT touch /runs, AlphaMissense, Workbench. End clear-safe.`
+`# Resume prompt · 2026-05-24 22:04 +1000 · Claude (eamos.com.au LIVE + auth working; Messenger FE + mobile fix pushed)
+Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE), then agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status + Locks + Cross-Agent Requests), plans/auth-pricing/backend-contracts.md, then git status --short --branch.
+Delta: eamos.com.au is LIVE with working auth (real account created from mobile); Vercel auto-deploy is ON for the branch. Pushed a06dd64 (Messenger evidence-submissions FE, flag-gated NEXT_PUBLIC_EVIDENCE_API_ENABLED=OFF) + d2dface (mobile auth-panel centering fix). Codex's gnomAD age-distribution + payment changes still uncommitted in its lane (not swept). No servers running.
+Next (gated): (1) Messenger live path BLOCKED on Codex adding ES256/JWKS verification to backend deps.py (_supabase_principal is HS256-only; live Supabase tokens are ES256) + Supabase 0003 + Render Supabase env — keep flag OFF until then. (2) sales@ mailto after Porkbun forwarding; Render ALLOWED_ORIGINS optional; CMRI IT domain allow-list for work access. (3) mirror evidence-submission types into both backend.ts at integration. Do NOT touch /runs, AlphaMissense, Workbench; no destructive git. End clear-safe.`
 
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 19:21 +1000 - Codex. Evidence/payment
-contract detail is recorded in `PROGRESS.md` Sessions 23-24; the
-publications-over-time slice is recorded in Session 25; the gnomAD map visual
-slice is recorded in Session 26.
+1/2). Section last edited: 2026-05-24 22:18 +1000 - Codex. Evidence/payment
+contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; the
+publications-over-time slice is recorded in Session 25; gnomAD map/age visual
+work is recorded in Sessions 26 and 28; Supabase ES256/JWKS auth is recorded in
+Session 29.
 
-**Latest Codex update (2026-05-24 19:21 +1000 - Codex):**
-gnomAD Section 3 world map region heat-fill + linked hover update is
-implemented, verified, committed, and pushed alongside the backend/report-depth
-Codex lanes.
+**Latest Codex update (2026-05-24 22:18 +1000 - Codex):**
+Supabase ES256/JWKS backend auth for Messenger live API is implemented and verified.
 
 **Implementation completed:**
-- Replaced circle heat markers with approximate whole-region SVG paths in
-  `app/frontend/src/components/report/gnomadAncestryMap.ts` and the byte-mirror
-  `app/web/components/report/gnomadAncestryMap.ts`; map version is now
-  `eamos-gnomad-ancestry-map-v2`.
-- Updated both `PopulationFrequencySection.tsx` report components so each
-  region is filled with its heat color, has dark/yellow active borders, and
-  participates in bidirectional region <-> ancestry-row hover/focus glow.
-- Installed `@playwright/test` in `app/frontend`, added `test:e2e`,
-  `playwright.config.ts` using the installed Chrome channel, and added
-  `tests/e2e/gnomad-map-hover.spec.ts`.
-- Updated `gnomadAncestryMap.test.ts` so the deterministic map fixture verifies
-  closed region paths and frontend/web byte identity.
-- Updated `docs/proprietary/gnomad-ancestry-map.md`,
-  `docs/proprietary/README.md`, `docs/proprietary/index.json`, and
-  `PROGRESS.md` Session 26.
-- User-requested commit split:
-  - `e3883fe feat(backend): add post-deployment evidence contracts`
-  - `de98834 feat(report): add publication timeline contract`
-  - `3e1aa45 feat(report): fill gnomad map regions`
-  - `9f296fb docs(handoff): record codex report updates`
+- Ran `git pull --ff-only` first; branch was already up to date at `d2dface`.
+- `_supabase_principal` now supports `SUPABASE_JWT_ALGORITHM=auto`, reads the
+  bearer JWT header, and verifies supported Supabase algorithms through the
+  appropriate key path.
+- Preserved HS256 shared-secret compatibility for local/test deployments using
+  `SUPABASE_JWT_SECRET`.
+- Added ES256 verification via cached PyJWT `PyJWKClient`, deriving
+  `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` unless `SUPABASE_JWKS_URL` is
+  supplied.
+- Added optional `SUPABASE_JWT_PUBLIC_KEY` for direct ES256 PEM verification.
+- Added `cryptography>=42,<46` to backend requirements because PyJWT requires
+  it for ES256 signature verification.
+- Added evidence-submission API coverage for Supabase HS256 bearer tokens and
+  real ES256 signature verification through the JWKS path.
 
 **Verification:**
-- `cd app/frontend && npm run test -- src/components/report/gnomadAncestryMap.test.ts --reporter=dot` passed.
-- `cd app/frontend && npm run test:e2e -- tests/e2e/gnomad-map-hover.spec.ts --reporter=line` passed in Chrome.
-- `cd app/frontend && npm run build` passed; existing Vite large chunk warning
-  remains.
-- `cd app/web && npx tsc --noEmit` passed.
-- Chrome screenshots captured and inspected:
-  `agent_handoff/verify/2026-05-24-gnomad-region-map-desktop.png` and
-  `agent_handoff/verify/2026-05-24-gnomad-region-map-mobile.png`.
-- `cd app/web && npm run build` still timed out/hung locally before completion;
-  no stale Next/Vite/Playwright/npm processes were left running.
+- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py -q` passed.
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_frontend_contract.py tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_payments_api.py -q` passed.
+- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_auth_api.py -q` passed.
+- `cd app/backend && python -m pytest -q` passed (full backend suite; 5 skips,
+  existing short-test-JWT warnings only).
+- `cd app/backend && python -m ruff check app/core/deps.py app/core/config.py tests/test_evidence_submissions_api.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/deps.py app/core/config.py tests/test_evidence_submissions_api.py` passed.
+- `git diff --check -- <touched auth/handoff files>` passed with CRLF warnings only.
+- Live Supabase JWKS endpoint returned EC/P-256 `ES256` signing key metadata.
 
 **Coordination:**
-- No backend contract was changed for the gnomAD map slice.
-- `app/web` production build hanging is not solved by Supabase; Supabase may
-  help runtime data/cache architecture, but this looks like a local
-  Next/webpack worker, `.next` cache, AV/disk, or static build/prerender issue.
-- Claude can still use the ready publications timeline contract for the report
-  graph render. Messenger wiring remains Claude-owned; no Codex action needed.
-- Gene-viewer/report-depth remains the next backend queue, but Steven should
-  confirm the desired slice before implementation.
-- Codex did not touch `/runs`, AlphaMissense, destructive git, stash, reset, or
-  clean. User explicitly requested commit/push after verification; Codex
-  committed and pushed its safe lanes separately and left Claude-owned dirty
-  `app/web/**` work uncommitted.
+- Local Python user env now has `cryptography-45.0.7` installed for verification;
+  backend deploys get it from `requirements.txt`.
+- Messenger FE should remain flag-off until Render has this backend code plus
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and Supabase migration `0003`.
+- For the live Supabase project, Render can use `SUPABASE_JWT_ALGORITHM=auto`
+  and `SUPABASE_URL=https://cpdjxsgasaesysvxkpmi.supabase.co`; explicit
+  `SUPABASE_JWKS_URL` is optional.
+- Codex did not touch `/runs`, AlphaMissense, destructive git, stash, reset,
+  clean, or push.
 
 **Next-session pickup queue:**
-1. Optional dedicated `app/web` Next production build-hang investigation.
-2. Claude can render the Publications expansion line graph from
-   `report_payload.publications_literature.publication_timeline` if not already
-   done.
-3. Confirm Steven's desired gene-viewer/report-depth slice before implementing
-   conservation hydration, fuller ClinVar enrichment, or other payload depth.
-4. If Steven asks for commits, keep lanes separate: Codex backend/docs/contract
-   paths separate from Claude `app/web/**` work.
+1. Stripe live checkout remains gated until Steven creates Stripe products and
+   supplies `STRIPE_PRICE_PRO_MONTHLY` / `STRIPE_PRICE_MAX_MONTHLY`.
+2. Messenger live POST backend auth is code-ready; remaining gates are Render
+   env (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), Supabase migration `0003`,
+   manual Render deploy, then frontend flag flip.
+3. Otherwise, ask Steven to scope the next gene-viewer/report-depth backend
+   slice before implementing conservation hydration, fuller ClinVar enrichment,
+   or other payload depth.
 
-**Clear-safe:** yes; verified map boundary reached, no dev server left
-running, and coordination locks released after re-read.
+**Clear-safe:** yes; verified Supabase ES256/JWKS auth boundary reached, no Codex
+dev server left running, Codex lane commit pushed to origin, and coordination
+locks released after re-read.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 19:21 +1000 · Codex gnomAD map regions pushed
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 25-26, docs/proprietary/gnomad-ancestry-map.md, then git status --short --branch.
-Delta: Codex committed+pushed safe lanes separately to origin/checkpoint/v2-batches-2026-05-17: e3883fe backend evidence/payment contracts + Supabase 0003, de98834 publications-over-time contract, 3e1aa45 gnomAD region map + @playwright/test, 9f296fb handoff/progress docs. The gnomAD Section 3 world map now uses approximate region heat fills with dark/yellow borders and bidirectional region<->ancestry-row hover/focus glow. Vite unit/e2e/build + app/web tsc passed; app/web production build still timed out/hung locally.
-Next: optional dedicated Next build-hang investigation; otherwise Claude can use the ready publications timeline contract and/or Steven should scope gene-viewer conservation/ClinVar depth before backend code.
-Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, or more commits unless explicitly coordinated.
+`# Resume prompt · 2026-05-24 22:18 +1000 · Codex Supabase ES256/JWKS backend auth
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 27-29, plans/auth-pricing/backend-contracts.md, then git status --short --branch.
+Delta: Codex added backend Supabase ES256/JWKS verification for Messenger live API: `_supabase_principal` supports `SUPABASE_JWT_ALGORITHM=auto`, HS256 secret compatibility, ES256 via cached JWKS derived from `SUPABASE_URL` or explicit `SUPABASE_JWKS_URL`, optional `SUPABASE_JWT_PUBLIC_KEY`, and `cryptography>=42,<46`. `git pull --ff-only` was already up to date at `d2dface`; Codex lane commit pushed to origin. Full backend pytest + focused auth/evidence/payment tests + ruff + black --check + git diff --check passed; live Supabase JWKS shape checked.
+Next: Messenger live POST backend auth is code-ready but still gated on Render env, Supabase 0003, manual Render deploy, and frontend flag flip. Stripe live checkout remains gated on real products/price ids; otherwise Steven should scope next gene-viewer/report-depth backend slice.
+Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, or commit unless explicitly requested.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`

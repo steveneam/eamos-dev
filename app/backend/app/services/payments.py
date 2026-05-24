@@ -16,10 +16,50 @@ from app.schemas.payments import (
     CheckoutSessionRequest,
     CheckoutSessionResponse,
     CurrentPlanResponse,
+    PlanContract,
+    PlanLimits,
     StripeWebhookResponse,
 )
 
 _ACTIVE_STATUSES = {"active", "trialing", "past_due", "incomplete", "unpaid"}
+_PLAN_CATALOG: dict[str, PlanContract] = {
+    "free": PlanContract(
+        plan_key="free",
+        display_name="Free",
+        monthly_price_aud_cents=0,
+        limits=PlanLimits(
+            ai_queries_per_day=3,
+            quiet_free_search_rate_limit=True,
+            evidence_submissions_enabled=False,
+            vcf_uploads_enabled=False,
+            vcf_variants_per_upload=0,
+            vcf_cap_policy="disabled",
+        ),
+    ),
+    "pro": PlanContract(
+        plan_key="pro",
+        display_name="Pro",
+        monthly_price_aud_cents=995,
+        limits=PlanLimits(
+            ai_queries_per_day=10,
+            evidence_submissions_enabled=True,
+            vcf_uploads_enabled=True,
+            vcf_cap_policy="numeric_cap_pending",
+        ),
+    ),
+    "max": PlanContract(
+        plan_key="max",
+        display_name="Max",
+        monthly_price_aud_cents=2495,
+        limits=PlanLimits(
+            ai_queries_per_day=100,
+            ai_queries_fair_use=True,
+            evidence_submissions_enabled=True,
+            vcf_uploads_enabled=True,
+            vcf_cap_policy="fair_use",
+        ),
+    ),
+}
 
 
 class PaymentsService:
@@ -32,7 +72,8 @@ class PaymentsService:
         payload: CheckoutSessionRequest,
         principal: AuthenticatedPrincipal,
     ) -> CheckoutSessionResponse:
-        price_id = self._price_id(payload.plan_key, payload.billing_interval)
+        plan = _plan_contract(payload.plan_key)
+        price_id = self._price_id(payload.plan_key)
         if not self.settings.stripe_secret_key or not price_id:
             return CheckoutSessionResponse(
                 session_id=f"mock_cs_{uuid4().hex}",
@@ -40,6 +81,7 @@ class PaymentsService:
                 mode="mock",
                 plan_key=payload.plan_key,
                 billing_interval=payload.billing_interval,
+                plan=plan,
                 warnings=["stripe_checkout_not_configured"],
             )
 
@@ -52,10 +94,10 @@ class PaymentsService:
             "client_reference_id": principal.user_id,
             "metadata[user_id]": principal.user_id,
             "metadata[plan_key]": payload.plan_key,
-            "metadata[billing_interval]": payload.billing_interval,
+            "metadata[billing_interval]": "monthly",
             "subscription_data[metadata][user_id]": principal.user_id,
             "subscription_data[metadata][plan_key]": payload.plan_key,
-            "subscription_data[metadata][billing_interval]": payload.billing_interval,
+            "subscription_data[metadata][billing_interval]": "monthly",
         }
         if principal.email:
             data["customer_email"] = principal.email
@@ -81,12 +123,16 @@ class PaymentsService:
             mode="stripe",
             plan_key=payload.plan_key,
             billing_interval=payload.billing_interval,
+            plan=plan,
         )
 
     def current_plan(self, principal: AuthenticatedPrincipal) -> CurrentPlanResponse:
         record = self.subscriptions_repo.get_by_user_id(principal.user_id)
         if record is None:
-            return CurrentPlanResponse(user_id=principal.user_id)
+            return CurrentPlanResponse(
+                user_id=principal.user_id,
+                plan=_plan_contract("free"),
+            )
         return _record_to_plan_response(record, principal.user_id)
 
     def process_stripe_webhook(
@@ -153,7 +199,10 @@ class PaymentsService:
         if not user_id:
             return None
         plan_key = _normalize_plan(metadata.get("plan_key"))
-        billing_interval = _normalize_interval(metadata.get("billing_interval"))
+        billing_interval = _billing_interval_for_plan(
+            plan_key,
+            metadata.get("billing_interval"),
+        )
         status_value = "active" if session.get("payment_status") == "paid" else "incomplete"
         record = self.subscriptions_repo.upsert_state(
             user_id=user_id,
@@ -181,6 +230,7 @@ class PaymentsService:
         billing_interval = _normalize_interval(
             metadata.get("billing_interval") or _interval_from_subscription(subscription)
         )
+        billing_interval = _billing_interval_for_plan(plan_key, billing_interval)
         status_value = _normalize_subscription_status(subscription.get("status"))
         record = self.subscriptions_repo.upsert_state(
             user_id=user_id,
@@ -204,7 +254,10 @@ class PaymentsService:
         user_id = metadata.get("user_id")
         status_value = "active" if event.get("type") == "invoice.paid" else "past_due"
         plan_key = _normalize_plan(metadata.get("plan_key"))
-        billing_interval = _normalize_interval(metadata.get("billing_interval"))
+        billing_interval = _billing_interval_for_plan(
+            plan_key,
+            metadata.get("billing_interval"),
+        )
         record = self.subscriptions_repo.upsert_state(
             user_id=user_id,
             stripe_customer_id=_text(invoice.get("customer")),
@@ -218,8 +271,8 @@ class PaymentsService:
         )
         return _record_to_plan_response(record, user_id or "")
 
-    def _price_id(self, plan_key: str, billing_interval: str) -> str | None:
-        attr = f"stripe_price_{plan_key}_{billing_interval}"
+    def _price_id(self, plan_key: str) -> str | None:
+        attr = f"stripe_price_{plan_key}_monthly"
         return getattr(self.settings, attr, None)
 
     def _plan_from_subscription(self, subscription: dict[str, Any]) -> str | None:
@@ -227,10 +280,8 @@ class PaymentsService:
         if not price_id:
             return None
         price_to_plan = {
-            self.settings.stripe_price_starter_monthly: "starter",
-            self.settings.stripe_price_starter_yearly: "starter",
             self.settings.stripe_price_pro_monthly: "pro",
-            self.settings.stripe_price_pro_yearly: "pro",
+            self.settings.stripe_price_max_monthly: "max",
         }
         return price_to_plan.get(price_id)
 
@@ -276,16 +327,18 @@ def _verify_stripe_signature(
 
 
 def _record_to_plan_response(record, user_id: str) -> CurrentPlanResponse:
-    plan_key = record.plan_key if record.status in _ACTIVE_STATUSES else "free"
+    active_plan_key = _normalize_plan(record.plan_key)
+    plan_key = active_plan_key if record.status in _ACTIVE_STATUSES else "free"
     return CurrentPlanResponse(
         user_id=record.user_id or user_id,
         plan_key=plan_key,
-        billing_interval=record.billing_interval if plan_key != "free" else None,
+        billing_interval=_billing_interval_for_plan(plan_key, record.billing_interval),
         status=record.status,
         stripe_customer_id=record.stripe_customer_id,
         stripe_subscription_id=record.stripe_subscription_id,
         current_period_end=record.current_period_end,
         updated_at=record.updated_at,
+        plan=_plan_contract(plan_key),
     )
 
 
@@ -304,11 +357,18 @@ def _text(value: Any) -> str | None:
 
 
 def _normalize_plan(value: str | None) -> str:
-    return value if value in {"starter", "pro"} else "free"
+    return value if value in {"pro", "max"} else "free"
 
 
 def _normalize_interval(value: str | None) -> str | None:
-    return value if value in {"monthly", "yearly"} else None
+    return value if value == "monthly" else None
+
+
+def _billing_interval_for_plan(plan_key: str, value: str | None) -> str | None:
+    interval = _normalize_interval(value)
+    if plan_key in {"pro", "max"}:
+        return interval or "monthly"
+    return None
 
 
 def _normalize_subscription_status(value: Any) -> str:
@@ -354,6 +414,8 @@ def _interval_from_subscription(subscription: dict[str, Any]) -> str | None:
     interval = recurring.get("interval")
     if interval == "month":
         return "monthly"
-    if interval == "year":
-        return "yearly"
     return None
+
+
+def _plan_contract(plan_key: str) -> PlanContract:
+    return _PLAN_CATALOG.get(plan_key, _PLAN_CATALOG["free"]).model_copy(deep=True)

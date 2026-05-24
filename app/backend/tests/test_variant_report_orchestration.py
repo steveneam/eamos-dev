@@ -35,13 +35,36 @@ def _assert_section_3_population_frequency(profile: dict, payload: dict) -> None
     assert population["variant_id"] == payload["population_frequency_detail"]["variant_id"]
     assert population["visual_scale"]["basis"] == "popmax_frequency"
     assert population["visual_scale"]["max_group_id"] == "nfe"
-    assert [group["id"] for group in population["visual_groups"]] == ["nfe", "afr", "amr"]
+    assert [group["id"] for group in population["visual_groups"]] == [
+        "nfe",
+        "afr",
+        "ami",
+        "amr",
+        "asj",
+        "eas",
+        "fin",
+        "mid",
+        "remaining",
+        "sas",
+    ]
     assert all("genetic ancestry" in group["label"] for group in population["visual_groups"])
     assert population["visual_groups"][0]["is_popmax"] is True
     assert population["visual_groups"][1]["data_state"] == "zero_observed"
     assert population["source_rows"][0]["group_id"] == "nfe"
     assert {hist["scope"] for hist in population["age_histograms"]} == {"overall_release_samples"}
     assert all(hist["group_id"] is None for hist in population["age_histograms"])
+    histograms_by_key = {
+        (hist["sequencing_type"], hist["series_kind"]): hist
+        for hist in population["age_histograms"]
+    }
+    assert set(histograms_by_key) == {
+        ("exome", "variant_carriers"),
+        ("genome", "variant_carriers"),
+        ("exome", "all_individuals"),
+        ("genome", "all_individuals"),
+    }
+    assert histograms_by_key[("exome", "variant_carriers")]["bins"][3]["count"] == 1
+    assert histograms_by_key[("exome", "all_individuals")]["bins"][6]["count"] == 108358
     assert "age_distribution_scope:overall_release_samples" in population["warnings"]
     assert "per_genetic_ancestry_age_distribution_not_available" in population["warnings"]
 

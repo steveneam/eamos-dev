@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_ttl_days: int = 7
     supabase_jwt_secret: str | None = None
-    supabase_jwt_algorithm: str = "HS256"
+    supabase_jwt_algorithm: str = "auto"
+    supabase_jwks_url: str | None = None
+    supabase_jwt_public_key: str | None = None
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     supabase_rest_timeout_seconds: float = 10.0
@@ -63,13 +65,11 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = None
     stripe_webhook_tolerance_seconds: int = 300
     stripe_checkout_success_url: str = (
-        "http://localhost:3000/pricing/success?session_id={CHECKOUT_SESSION_ID}"
+        "https://eamos.com.au/checkout/success?session_id={CHECKOUT_SESSION_ID}"
     )
-    stripe_checkout_cancel_url: str = "http://localhost:3000/pricing"
-    stripe_price_starter_monthly: str | None = None
-    stripe_price_starter_yearly: str | None = None
+    stripe_checkout_cancel_url: str = "https://eamos.com.au/pricing"
     stripe_price_pro_monthly: str | None = None
-    stripe_price_pro_yearly: str | None = None
+    stripe_price_max_monthly: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
