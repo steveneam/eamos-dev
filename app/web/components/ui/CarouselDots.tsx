@@ -71,12 +71,14 @@ export function CarouselDots({
   }
 
   const tones = TONES[tone]
+  // Layout lives in classNames (not inline style) so the caller's responsive
+  // `sm:hidden` / `md:hidden` can override `flex` and hide the dots on desktop —
+  // an inline `display:flex` would win over the class and leak onto desktop.
   return (
     <div
-      className={className}
+      className={`flex items-center justify-center gap-1.5${className ? ` ${className}` : ''}`}
       role="tablist"
       aria-label="Carousel pagination"
-      style={{ display: 'flex', justifyContent: 'center', gap: 6 }}
     >
       {Array.from({ length: count }).map((_, i) => {
         const isActive = i === active
