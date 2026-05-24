@@ -302,22 +302,34 @@ function AncestryFrequencyTab({
               <button
                 key={group.id}
                 type="button"
+                data-gnomad-row={group.id}
                 title={`${group.label}; allele number ${formatInteger(group.allele_number)}; ${groupContext(group)}`}
                 onMouseEnter={() => onActiveGroup(group.id)}
                 onFocus={() => onActiveGroup(group.id)}
                 onClick={() => onActiveGroup(group.id)}
                 style={{
                   border: '0.5px solid',
-                  borderColor: isActive ? 'var(--teal)' : 'var(--line)',
-                  background: isActive ? 'var(--teal-tint)' : 'var(--bg)',
+                  borderColor: isActive ? '#fde047' : 'var(--line)',
+                  background: isActive ? 'rgba(254, 249, 195, 0.72)' : 'var(--bg)',
                   borderRadius: 7,
                   padding: '8px 9px',
                   textAlign: 'left',
                   cursor: 'pointer',
+                  boxShadow: isActive
+                    ? `0 0 0 2px rgba(253, 224, 71, 0.42), 0 0 18px ${barColor}55`
+                    : 'none',
+                  transition: 'border-color 140ms ease, background 140ms ease, box-shadow 140ms ease',
                 }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      color: isActive ? '#111827' : 'var(--ink-2)',
+                      textShadow: isActive ? `0 0 11px ${barColor}99` : 'none',
+                    }}
+                  >
                     {compactLabel(group.label)}
                   </span>
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
@@ -387,6 +399,10 @@ function WorldFrequencyMap({
             <stop offset="0%" stopColor="#f7fbfd" />
             <stop offset="100%" stopColor="#eef5f8" />
           </linearGradient>
+          <filter id="population-map-region-glow" x="-35%" y="-35%" width="170%" height="170%">
+            <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#fef08a" floodOpacity="0.95" />
+            <feDropShadow dx="0" dy="0" stdDeviation="22" floodColor="#111827" floodOpacity="0.32" />
+          </filter>
         </defs>
         <g transform="translate(-120 -40) scale(1.12)">
           <rect x="0" y="0" width="2000" height="857" fill="url(#population-map-ocean)" />
@@ -400,51 +416,64 @@ function WorldFrequencyMap({
             <line x1="0" y1="643" x2="2000" y2="643" stroke="#dbe6ec" strokeWidth="1" />
           </g>
           <image href="/world.svg" x="0" y="0" width="2000" height="857" opacity="0.78" />
-          <rect x="0" y="0" width="2000" height="857" fill="#ffffff" opacity="0.12" />
+          <rect
+            x="0"
+            y="0"
+            width="2000"
+            height="857"
+            fill="#ffffff"
+            opacity={activeGroup ? 0.28 : 0.14}
+          />
           {groups.map((group) => {
             const anchor = gnomadMapAnchor(group.id)
             const normalized = heatRatio(group.allele_frequency, maxFrequency)
             const fill = heatColor(group.allele_frequency, maxFrequency, group.data_state)
-            const radius = group.data_state === 'zero_observed' ? 21 : 28 + Math.sqrt(normalized) * 34
-            const haloRadius = radius + 34 + normalized * 18
             const active = activeGroup?.id === group.id
+            const fillOpacity = group.data_state === 'zero_observed'
+              ? active ? 0.68 : 0.4
+              : active ? 0.82 : 0.5 + normalized * 0.2
             return (
               <g
                 key={group.id}
                 tabIndex={0}
                 role="button"
+                data-gnomad-region={group.id}
                 aria-label={`${group.label}: ${formatFrequency(group.allele_frequency)}, allele number ${formatInteger(group.allele_number)}. ${groupContext(group)}`}
                 onMouseEnter={() => onActiveGroup(group.id)}
                 onFocus={() => onActiveGroup(group.id)}
                 onClick={() => onActiveGroup(group.id)}
                 style={{ cursor: 'pointer' }}
               >
-                {group.data_state !== 'zero_observed' && (
-                  <circle
-                    cx={anchor.x}
-                    cy={anchor.y}
-                    r={haloRadius}
-                    fill={fill}
-                    opacity={0.14 + normalized * 0.18}
-                  />
-                )}
-                <circle
-                  cx={anchor.x}
-                  cy={anchor.y}
-                  r={radius + (active ? 5 : 0)}
+                <path
+                  d={anchor.regionPath}
                   fill={fill}
-                  opacity={group.data_state === 'zero_observed' ? 0.76 : 0.68 + normalized * 0.22}
-                  stroke={active ? '#0b1a2b' : '#ffffff'}
+                  fillOpacity={fillOpacity}
+                  stroke={active ? '#fde047' : '#111827'}
+                  strokeOpacity={active ? 0.95 : 0.56}
                   strokeWidth={active ? 7 : 3}
+                  strokeLinejoin="round"
+                  filter={active ? 'url(#population-map-region-glow)' : undefined}
+                  style={{
+                    transition:
+                      'fill-opacity 140ms ease, stroke-width 140ms ease, stroke-opacity 140ms ease',
+                  }}
                 />
                 <text
                   x={anchor.x}
-                  y={anchor.y + radius + 42}
+                  y={anchor.y + 14}
                   textAnchor="middle"
                   fontSize="31"
                   fontFamily="JetBrains Mono, monospace"
                   fill={active ? '#0b1a2b' : '#475569'}
                   fontWeight={active ? 700 : 600}
+                  paintOrder="stroke"
+                  stroke={active ? '#fef9c3' : '#ffffff'}
+                  strokeWidth={active ? 8 : 5}
+                  strokeLinejoin="round"
+                  style={{
+                    textShadow: active ? `0 0 14px ${fill}` : 'none',
+                    pointerEvents: 'none',
+                  }}
                 >
                   {group.id.toUpperCase()}
                 </text>

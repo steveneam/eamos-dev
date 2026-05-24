@@ -28,6 +28,8 @@ describe('gnomAD ancestry map anchors', () => {
       expect(anchor.x).toBeLessThanOrEqual(2000)
       expect(anchor.y).toBeGreaterThanOrEqual(0)
       expect(anchor.y).toBeLessThanOrEqual(857)
+      expect(anchor.regionPath).toMatch(/^M\d/)
+      expect(anchor.regionPath).toContain('Z')
       expect(anchor.context.toLowerCase()).toContain('gnomad')
       expect(anchor.context.toLowerCase()).toContain(groupId === 'remaining' ? 'rmi' : groupId)
     }
@@ -46,6 +48,6 @@ describe('gnomAD ancestry map anchors', () => {
     )
 
     expect(nextMap).toBe(viteMap)
-    expect(GNOMAD_ANCESTRY_MAP_VERSION).toBe('eamos-gnomad-ancestry-map-v1')
+    expect(GNOMAD_ANCESTRY_MAP_VERSION).toBe('eamos-gnomad-ancestry-map-v2')
   })
 })

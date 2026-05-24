@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-24 13:08 +1000 - Codex",
+  "updated": "2026-05-24 18:48 +1000 - Codex",
   "purpose": "Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic.",
   "entries": [
     {
@@ -9,7 +9,7 @@
       "type": "backend_algorithm_service",
       "status": "active_backend_prototype",
       "added_at": "2026-05-19 19:56 +1000 - Codex",
-      "last_updated_at": "2026-05-23 18:22 +1000 - Codex",
+      "last_updated_at": "2026-05-24 16:48 +1000 - Codex",
       "doc": "docs/proprietary/ep-vlex.md",
       "source_files": [
         "app/backend/app/services/publication_literature.py",
@@ -155,15 +155,17 @@
     },
     {
       "id": "gnomad-ancestry-map",
-      "name": "gnomAD Genetic Ancestry Map Anchors",
+      "name": "gnomAD Genetic Ancestry Map Regions",
       "type": "ui_mapping_algorithm",
       "status": "active_frontend_prototype",
       "added_at": "2026-05-24 01:56 +1000 - Codex",
-      "last_updated_at": "2026-05-24 03:38 +1000 - Codex",
+      "last_updated_at": "2026-05-24 18:48 +1000 - Codex",
       "doc": "docs/proprietary/gnomad-ancestry-map.md",
       "source_files": [
         "app/frontend/src/components/report/gnomadAncestryMap.ts",
         "app/frontend/src/components/report/gnomadAncestryMap.test.ts",
+        "app/frontend/tests/e2e/gnomad-map-hover.spec.ts",
+        "app/frontend/playwright.config.ts",
         "app/web/components/report/gnomadAncestryMap.ts",
         "app/frontend/src/components/report/PopulationFrequencySection.tsx",
         "app/web/components/report/PopulationFrequencySection.tsx"
@@ -173,6 +175,7 @@
       ],
       "tests": [
         "app/frontend/src/components/report/gnomadAncestryMap.test.ts",
+        "app/frontend/tests/e2e/gnomad-map-hover.spec.ts",
         "app/frontend build/typecheck",
         "app/web build/typecheck",
         "browser visual QA"
