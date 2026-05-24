@@ -349,8 +349,8 @@ function ReportBody({ data, query }: ReportBodyProps) {
       </Card>
 
       <VariantDecoder decoder={payload.variant_decoder} number={6} />
-      <TrialsSection payload={payload} number={7} />
-      <PubMedSection payload={payload} number={8} />
+      <PubMedSection payload={payload} number={7} />
+      <TrialsSection payload={payload} number={8} />
     </div>
   )
 }

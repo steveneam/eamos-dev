@@ -10,30 +10,15 @@ export function TrialsSection({ payload, number }: TrialsSectionProps) {
   const typedTrials = payload.report_profile?.therapies_trials ?? null
   const trials = typedTrials?.trial_rows ?? []
   const warnings = typedTrials?.warnings ?? []
-  const text = payload.therapeutic_landscape?.trim()
-  const showLegacyText = Boolean(text && (!typedTrials || trials.length > 0))
-  if (!showLegacyText && trials.length === 0 && warnings.length === 0) return null
+  if (trials.length === 0 && warnings.length === 0) return null
 
   return (
     <Card number={number} title="Active trials & approved therapies" meta="ClinicalTrials.gov">
-      {showLegacyText && (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13.5,
-            lineHeight: 1.65,
-            color: 'var(--ink-2)',
-            whiteSpace: 'pre-line',
-          }}
-        >
-          {text}
-        </p>
-      )}
       {trials.length > 0 && <TrialRows rows={trials} />}
       {typedTrials && trials.length === 0 && (
         <p
           style={{
-            margin: showLegacyText ? '12px 0 0' : 0,
+            margin: 0,
             fontSize: 12.5,
             lineHeight: 1.6,
             color: 'var(--ink-4)',

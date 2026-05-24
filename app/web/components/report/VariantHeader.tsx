@@ -12,19 +12,10 @@ interface CrossDbChip {
   href: string
 }
 
-interface StatCell {
-  label: string
-  value: string
-  tone?: 'warn'
-  hint?: string
-}
-
 // Genoox/Franklin deliberately excluded — competitor, no outbound link.
 function buildCrossDbChips(row: VariantSummaryRow | undefined, gene: string): CrossDbChip[] {
   const cdna = row?.transcript_hgvs?.split(':').pop() ?? ''
   const enc = encodeURIComponent(`${gene} ${cdna}`.trim())
-  const omimEntry = OMIM_BY_GENE[gene] ?? null
-  const alphaFold = UNIPROT_BY_GENE[gene] ?? null
 
   return [
     {
@@ -36,36 +27,22 @@ function buildCrossDbChips(row: VariantSummaryRow | undefined, gene: string): Cr
       href: `https://gnomad.broadinstitute.org/gene/${ENSEMBL_BY_GENE[gene] ?? gene}?dataset=gnomad_r4`,
     },
     {
-      label: 'UCSC',
-      href: `https://genome.ucsc.edu/cgi-bin/hgGene?hgg_gene=${gene}&db=hg38`,
+      label: 'SpliceAI',
+      href: 'https://spliceailookup.broadinstitute.org/',
     },
     {
       label: 'Ensembl',
       href: `https://www.ensembl.org/Homo_sapiens/Search/Results?q=${enc}`,
     },
-    omimEntry
-      ? { label: 'OMIM', href: `https://www.omim.org/entry/${omimEntry}` }
-      : { label: 'OMIM', href: `https://www.omim.org/search/?search=${encodeURIComponent(gene)}` },
-    alphaFold
-      ? { label: 'AlphaFold', href: `https://alphafold.ebi.ac.uk/entry/${alphaFold}` }
-      : { label: 'AlphaFold', href: `https://alphafold.ebi.ac.uk/search/text/${encodeURIComponent(gene)}` },
+    {
+      label: 'PubMed',
+      href: `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(gene)}`,
+    },
+    {
+      label: 'ClinicalTrials.gov',
+      href: `https://clinicaltrials.gov/search?term=${encodeURIComponent(gene)}`,
+    },
   ]
-}
-
-const OMIM_BY_GENE: Record<string, string> = {
-  RPE65: '180069',
-  USH2A: '608400',
-  ABCA4: '601691',
-  RPGR:  '312610',
-  CNGA3: '600053',
-}
-
-const UNIPROT_BY_GENE: Record<string, string> = {
-  RPE65: 'Q16518',
-  USH2A: 'O75445',
-  ABCA4: 'P78363',
-  RPGR:  'Q92834',
-  CNGA3: 'Q16281',
 }
 
 const ENSEMBL_BY_GENE: Record<string, string> = {
@@ -91,49 +68,6 @@ function deriveClassificationLabel(acmg: string | null | undefined): string | nu
   return first
 }
 
-function formatInteger(value: number | null | undefined): string {
-  return value == null ? 'Not reported' : new Intl.NumberFormat('en-US').format(value)
-}
-
-function formatAlleleFrequency(value: number | null | undefined): string | null {
-  if (value == null) return null
-  if (value === 0) return '0'
-  if (value < 0.0001) return value.toExponential(2)
-  return value.toPrecision(3)
-}
-
-function buildHeaderStats(payload: ReportPayload, classificationLabel: string | null): StatCell[] {
-  const stats: StatCell[] = []
-  const classificationSource =
-    payload.report_profile?.header?.classification_source ??
-    payload.report_profile?.acmg_worksheet?.classification_source ??
-    (classificationLabel ? 'ClinVar' : null)
-  const population = payload.population_frequency_detail
-  const populationAf = formatAlleleFrequency(population?.allele_frequency)
-  const revel = payload.in_silico_predictions?.cards.find((card) => card.name === 'REVEL')
-
-  if (classificationLabel) {
-    stats.push({ label: classificationSource ?? 'Classification', value: classificationLabel })
-  }
-  if (populationAf) {
-    stats.push({
-      label: 'gnomAD AF',
-      value: populationAf,
-      hint: `AC ${formatInteger(population?.allele_count)} / AN ${formatInteger(population?.allele_number)}`,
-    })
-  }
-  if (revel) {
-    stats.push({
-      label: 'REVEL',
-      value: revel.score.toFixed(2),
-      tone: revel.score >= revel.threshold ? 'warn' : undefined,
-      hint: revel.verdict_label ?? revel.verdict,
-    })
-  }
-
-  return stats
-}
-
 export function VariantHeader({ payload, query }: VariantHeaderProps) {
   const row = payload.variant_summary_rows[0]
   const gene = row?.gene ?? '—'
@@ -146,7 +80,6 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
       payload.report_profile?.acmg_worksheet?.classification ??
       payload.acmg_classification,
   )
-  const headerStats = buildHeaderStats(payload, classificationLabel)
   const [followed, setFollowed] = useState(false)
   const chips = buildCrossDbChips(row, gene)
 
@@ -304,17 +237,6 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
           </div>
         </div>
 
-        {headerStats.length > 0 && (
-          <div className="v-stat-row">
-            {headerStats.map((s) => (
-              <div key={s.label} className="v-stat">
-                <div className="label">{s.label}</div>
-                <div className={s.tone ? `value ${s.tone}` : 'value'}>{s.value}</div>
-                {s.hint && <div className="hint">{s.hint}</div>}
-              </div>
-            ))}
-          </div>
-        )}
         <style>{`
           @media (max-width: 640px) {
             .variant-header-card {
