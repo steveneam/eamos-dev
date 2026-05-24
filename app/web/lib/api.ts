@@ -1,4 +1,4 @@
-import type { LookupRequest, LookupResponse } from './backend'
+import type { LookupRequest, LookupResponse, PublicationLiterature } from './backend'
 
 // Variant Evidence Report → FastAPI. Same-origin by default (empty base):
 // next.config.ts rewrites `/api/*` to the FastAPI dev server, so no CORS.
@@ -45,4 +45,30 @@ export async function variantLookup(payload: LookupRequest): Promise<LookupRespo
     }
   }
   throw lastError
+}
+
+// Mirror of the backend `PublicationPageRequest` (app/backend/app/schemas/lookup.py).
+// Local to the api layer because it's a request body the frontend constructs —
+// the response shape (PublicationLiterature) is the shared contract type.
+// GOTCHA (probed live): omit `transcript` and always send species:'human' —
+// including the transcript returns total_count=0 from the live backend.
+export interface PublicationPageRequest {
+  gene: string
+  cdna: string
+  transcript?: string | null
+  protein_change?: string | null
+  species?: 'human' | 'mouse'
+  limit?: number
+  offset?: number
+}
+
+export async function lookupPublications(
+  payload: PublicationPageRequest,
+): Promise<PublicationLiterature> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/lookup/publications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return parseResponse<PublicationLiterature>(response)
 }

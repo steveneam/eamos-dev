@@ -1,3 +1,5 @@
+'use client'
+import { useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import type { ReportPayload, TrialMatch } from '@/lib/backend'
 
@@ -5,6 +7,8 @@ interface TrialsSectionProps {
   payload: ReportPayload
   number?: number
 }
+
+const VISIBLE_TRIALS = 5
 
 export function TrialsSection({ payload, number }: TrialsSectionProps) {
   const typedTrials = payload.report_profile?.therapies_trials ?? null
@@ -53,26 +57,51 @@ export function TrialsSection({ payload, number }: TrialsSectionProps) {
 }
 
 function TrialRows({ rows }: { rows: TrialMatch[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasOverflow = rows.length > VISIBLE_TRIALS
+  const visible = expanded ? rows : rows.slice(0, VISIBLE_TRIALS)
+  const hiddenCount = rows.length - VISIBLE_TRIALS
+
   return (
     <div className="mt-4" style={{ borderTop: '0.5px solid var(--line)' }}>
       <div
         className="py-2 uppercase"
         style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-4)' }}
       >
-        {rows.length} ClinicalTrials.gov record{rows.length === 1 ? '' : 's'}
+        {hasOverflow && !expanded
+          ? `Showing ${VISIBLE_TRIALS} of ${rows.length} ClinicalTrials.gov records`
+          : `${rows.length} ClinicalTrials.gov record${rows.length === 1 ? '' : 's'}`}
       </div>
       <div className="flex flex-col">
-        {rows.map((row) => (
+        {visible.map((row) => (
           <TrialRow key={row.nct_id} row={row} />
         ))}
       </div>
+      {hasOverflow && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-3 transition-colors"
+          style={{
+            padding: '7px 14px',
+            borderRadius: 10,
+            border: '0.5px solid var(--line-2)',
+            background: 'var(--bg)',
+            color: 'var(--ink-2)',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {expanded ? 'Show fewer' : `View ${hiddenCount} more trial${hiddenCount === 1 ? '' : 's'}`}
+        </button>
+      )}
     </div>
   )
 }
 
 function TrialRow({ row }: { row: TrialMatch }) {
-  const detail = [
-    row.status ? formatStatus(row.status) : null,
+  const neutralPills = [
     row.phase,
     row.match_level ? formatWarning(row.match_level) : null,
   ].filter((item): item is string => Boolean(item))
@@ -97,7 +126,8 @@ function TrialRow({ row }: { row: TrialMatch }) {
         <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-3)' }}>
           {row.nct_id}
         </span>
-        {detail.map((item) => (
+        {row.status && <StatusPill status={row.status} />}
+        {neutralPills.map((item) => (
           <span
             key={item}
             style={{
@@ -123,6 +153,41 @@ function TrialRow({ row }: { row: TrialMatch }) {
       )}
     </a>
   )
+}
+
+// ClinicalTrials.gov recruitment-status colour coding (per Codex/Steven split):
+// RECRUITING green · NOT_YET_RECRUITING yellow · ACTIVE_NOT_RECRUITING red ·
+// everything else neutral. Phase + match_level stay neutral (above).
+function StatusPill({ status }: { status: string }) {
+  const tone = statusTone(status)
+  return (
+    <span
+      style={{
+        border: `0.5px solid ${tone.border}`,
+        borderRadius: 999,
+        padding: '2px 7px',
+        fontSize: 10.5,
+        fontWeight: 600,
+        color: tone.fg,
+        background: tone.bg,
+      }}
+    >
+      {formatStatus(status)}
+    </span>
+  )
+}
+
+function statusTone(status: string): { bg: string; fg: string; border: string } {
+  switch (status.toUpperCase()) {
+    case 'RECRUITING':
+      return { bg: 'var(--teal-tint)', fg: 'var(--teal-deep)', border: '#cbe3d8' }
+    case 'NOT_YET_RECRUITING':
+      return { bg: 'var(--warn-tint)', fg: '#633806', border: 'var(--warn-bdr)' }
+    case 'ACTIVE_NOT_RECRUITING':
+      return { bg: 'var(--danger-faint)', fg: 'var(--danger)', border: 'var(--danger-border)' }
+    default:
+      return { bg: 'var(--bg-soft)', fg: 'var(--ink-3)', border: 'var(--line)' }
+  }
 }
 
 function formatStatus(value: string): string {

@@ -278,6 +278,11 @@ function ReportBody({ data, query }: ReportBodyProps) {
     ? [row0.gene, row0.transcript_hgvs].filter(Boolean).join(' · ')
     : query || 'Gene context'
 
+  // Identity for keying the paginated sections (PubMed/Trials) so their local
+  // expand/fetch state resets when the rendered variant changes.
+  const header = payload.report_profile?.header
+  const variantKey = header ? `${header.gene}|${header.cdna}` : query
+
   // BE-12 frozen code: any `live_fetch_failed:<ExceptionName>` means a source
   // fell back to cached data. Key on the prefix only — the suffix is the
   // exception class, not the tool name (incoherence finding #6). Non-blocking.
@@ -349,8 +354,8 @@ function ReportBody({ data, query }: ReportBodyProps) {
       </Card>
 
       <VariantDecoder decoder={payload.variant_decoder} number={6} />
-      <PubMedSection payload={payload} number={7} />
-      <TrialsSection payload={payload} number={8} />
+      <PubMedSection key={`pubs-${variantKey}`} payload={payload} number={7} />
+      <TrialsSection key={`trials-${variantKey}`} payload={payload} number={8} />
     </div>
   )
 }

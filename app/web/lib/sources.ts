@@ -13,10 +13,10 @@ export const SOURCES: SourceMeta[] = [
     description: 'NCBI variant classification archive',
   },
   {
-    key: 'vep',
-    label: 'VEP',
-    href: 'https://www.ensembl.org/Tools/VEP',
-    description: 'Ensembl Variant Effect Predictor',
+    key: 'gnomad',
+    label: 'gnomAD',
+    href: 'https://gnomad.broadinstitute.org/',
+    description: 'Population allele frequencies',
   },
   {
     key: 'spliceai',
@@ -25,10 +25,10 @@ export const SOURCES: SourceMeta[] = [
     description: 'Deep learning splicing impact scores',
   },
   {
-    key: 'gnomad',
-    label: 'gnomAD',
-    href: 'https://gnomad.broadinstitute.org/',
-    description: 'Population allele frequencies',
+    key: 'ensembl',
+    label: 'Ensembl',
+    href: 'https://www.ensembl.org/',
+    description: 'Genome annotation & Variant Effect Predictor',
   },
   {
     key: 'pubmed',
@@ -36,8 +36,23 @@ export const SOURCES: SourceMeta[] = [
     href: 'https://pubmed.ncbi.nlm.nih.gov/',
     description: 'NCBI biomedical literature',
   },
+  {
+    key: 'clinicaltrials',
+    label: 'ClinicalTrials.gov',
+    href: 'https://clinicaltrials.gov/',
+    description: 'NIH clinical trials registry',
+  },
 ]
 
+// Legacy/backend source keys that map onto a canonical SOURCES entry, so
+// per-source lookups (e.g. the evidence table's `vep` row) keep resolving
+// after the VEP→Ensembl rename.
+const SOURCE_ALIASES: Record<string, string> = {
+  vep: 'ensembl',
+  ensembl_vep: 'ensembl',
+}
+
 export function getSourceMeta(key: string): SourceMeta | undefined {
-  return SOURCES.find((s) => s.key === key.toLowerCase())
+  const k = key.toLowerCase()
+  return SOURCES.find((s) => s.key === k || s.key === SOURCE_ALIASES[k])
 }
