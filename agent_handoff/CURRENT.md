@@ -50,15 +50,15 @@
   Stripe, auth/Messenger. **Render still `084221e`** — manual redeploy to
   `dc8e50d` to demo non-RPE65 gene snapshots. No dev servers running. Untouched:
   `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-24 19:18 +1000 - **gnomAD world map region
+- **Codex:** IDLE @ 2026-05-24 19:21 +1000 - **gnomAD world map region
   heat-fill update DONE and verified.** Replaced circle heat markers with
   approximate whole-region fills, added bordered/glowing active regions, linked
   region↔ancestry-row hover/focus in both report frontends, installed
   `@playwright/test` for `app/frontend` with Chrome-channel e2e coverage, and
-  updated the proprietary map entry. Codex lanes committed separately:
-  `e3883fe`, `de98834`, `3e1aa45`. Verified Vite unit/e2e/build + Next
-  TypeScript. Next production build still timed out/hung locally; no stale
-  processes left.
+  updated the proprietary map entry. Codex lanes committed separately and
+  pushed to origin: `e3883fe`, `de98834`, `3e1aa45`, `9f296fb`. Verified Vite
+  unit/e2e/build + Next TypeScript. Next production build still timed out/hung
+  locally; no stale processes left.
 
 ## Log Edit-Lock
 
@@ -68,7 +68,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 19:19 +1000 · Codex (commit hashes recorded; handoff re-read; released)
+UNLOCKED · 2026-05-24 19:21 +1000 · Codex (pushed state recorded; handoff re-read; released)
 
 ## Shared File Locks
 
@@ -716,14 +716,14 @@ mirror+render. Do NOT touch /runs, AlphaMissense, Workbench. End clear-safe.`
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-24 19:18 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-24 19:21 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24; the
 publications-over-time slice is recorded in Session 25; the gnomAD map visual
 slice is recorded in Session 26.
 
-**Latest Codex update (2026-05-24 19:18 +1000 - Codex):**
+**Latest Codex update (2026-05-24 19:21 +1000 - Codex):**
 gnomAD Section 3 world map region heat-fill + linked hover update is
-implemented, verified, and committed locally alongside the backend/report-depth
+implemented, verified, committed, and pushed alongside the backend/report-depth
 Codex lanes.
 
 **Implementation completed:**
@@ -746,6 +746,7 @@ Codex lanes.
   - `e3883fe feat(backend): add post-deployment evidence contracts`
   - `de98834 feat(report): add publication timeline contract`
   - `3e1aa45 feat(report): fill gnomad map regions`
+  - `9f296fb docs(handoff): record codex report updates`
 
 **Verification:**
 - `cd app/frontend && npm run test -- src/components/report/gnomadAncestryMap.test.ts --reporter=dot` passed.
@@ -770,8 +771,8 @@ Codex lanes.
   confirm the desired slice before implementation.
 - Codex did not touch `/runs`, AlphaMissense, destructive git, stash, reset, or
   clean. User explicitly requested commit/push after verification; Codex
-  committed its safe lanes separately and left Claude-owned dirty `app/web/**`
-  work uncommitted.
+  committed and pushed its safe lanes separately and left Claude-owned dirty
+  `app/web/**` work uncommitted.
 
 **Next-session pickup queue:**
 1. Optional dedicated `app/web` Next production build-hang investigation.
@@ -787,9 +788,9 @@ Codex lanes.
 running, and coordination locks released after re-read.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-24 19:18 +1000 · Codex gnomAD map regions committed
+`# Resume prompt · 2026-05-24 19:21 +1000 · Codex gnomAD map regions pushed
 Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 25-26, docs/proprietary/gnomad-ancestry-map.md, then git status --short --branch.
-Delta: Codex committed safe lanes separately: e3883fe backend evidence/payment contracts + Supabase 0003, de98834 publications-over-time contract, 3e1aa45 gnomAD region map + @playwright/test. The gnomAD Section 3 world map now uses approximate region heat fills with dark/yellow borders and bidirectional region<->ancestry-row hover/focus glow. Vite unit/e2e/build + app/web tsc passed; app/web production build still timed out/hung locally.
+Delta: Codex committed+pushed safe lanes separately to origin/checkpoint/v2-batches-2026-05-17: e3883fe backend evidence/payment contracts + Supabase 0003, de98834 publications-over-time contract, 3e1aa45 gnomAD region map + @playwright/test, 9f296fb handoff/progress docs. The gnomAD Section 3 world map now uses approximate region heat fills with dark/yellow borders and bidirectional region<->ancestry-row hover/focus glow. Vite unit/e2e/build + app/web tsc passed; app/web production build still timed out/hung locally.
 Next: optional dedicated Next build-hang investigation; otherwise Claude can use the ready publications timeline contract and/or Steven should scope gene-viewer conservation/ClinVar depth before backend code.
 Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, or more commits unless explicitly coordinated.
 End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
