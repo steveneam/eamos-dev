@@ -14,21 +14,21 @@
 
 ## Active Status (heartbeat — set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-24 03:35 +1000 — **Deployment-readiness lane DONE
-  (clear-safe).** User-directed overnight deployment prep + Codex coordination.
-  Delivered (committed LOCALLY, **NOT pushed** — push held for the user):
-  `docs/deployment/README.md` (full plan + answers to the user's questions + IT
-  findings), `supabase/migrations/0001_submission_ledger.sql` (profiles /
-  saved_variants / user_evidence_submissions + RLS, verbatim from the user's
-  doc), additive `app/web/.env.local.example` (Supabase/PostHog/Stripe vars),
-  `.vercel` + `.env.*.local` in root `.gitignore`. **Verified:** `app/web`
-  `next build` clean (all routes prerender, TS passes) = deploy-ready; IT env
-  all-clear (services reachable, npm OK, git push authenticated, Node 24 / Next
-  16 OK); backend `Dockerfile` confirmed deploy-ready. **Key finding flagged to
-  user:** the FastAPI backend needs its own host (Render/Fly) — Vercel can't run
-  it. Codex's report work is committed+pushed by Codex (`8552ac8`). Gene-agnostic
-  gap = BE per-gene `transcript_model` (Codex's lane; aligns with the user's
-  10×9 test-stack ask). **No dev servers started or left running.** Untouched:
+- **Claude:** IDLE @ 2026-05-24 13:48 +1000 — **TEST DEPLOYMENT LIVE + Supabase
+  DB test PASSED (clear-safe).** Depth B, user-driven/interactive. Decisions:
+  Render backend · Vercel from checkpoint branch · manual/stable deploys
+  (auto-deploy OFF both ends). **LIVE:** Vercel `https://eamos-dev.vercel.app`
+  (root `app/web`, Next, `API_PROXY_TARGET`→Render, built `dc8e50d`); Render
+  `https://eamos-dev.onrender.com` (Docker `app/backend`, `/healthz`,
+  `USE_REAL_APIS=true`, `LLM_PROVIDER=mock`, built `084221e`). E2E verified: GET /
+  200; POST /api/v1/lookup proxied Vercel→Render → report_payload + 12 evidence
+  rows. **Supabase (Sydney `cpdjxsgasaesysvxkpmi`):** migration applied; smoke
+  (anon publishable key) SELECT+INSERT both 401 permission-denied → connection +
+  tables + lockdown proven (auth-role RLS filtering deferred to the future auth
+  feature). Wired `@supabase/ssr` + `app/web/utils/supabase/client.ts` +
+  `.env.local` (gitignored); `app/web` tsc 0. **Deferred (user):** PostHog,
+  Stripe, auth/Messenger. **Render still `084221e`** — manual redeploy to
+  `dc8e50d` to demo non-RPE65 gene snapshots. No dev servers running. Untouched:
   `/runs`, AlphaMissense, Workbench. Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Codex:** IDLE @ 2026-05-24 13:10 +1000 - **per-gene transcript_model
   fixture/demo hydration DONE.** First verified origin/current branch and pushed
@@ -49,13 +49,18 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (≤ 20 min) → stop + ask the user; stale (> 20 min) → record
 takeover, proceed.
 
-UNLOCKED · 2026-05-24 13:13 +1000 · Codex (per-gene transcript_model fixture hydration logged; re-read; released)
+UNLOCKED · 2026-05-24 13:48 +1000 · Claude (test-deployment session done: heartbeat→idle, Claude section replaced, released app/web/package.json+layout.tsx Shared File Lock, appended deployment CARs; re-read; released)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
+- **Claude RELEASED `app/web/package.json` (+ `package-lock.json`) +
+  `app/web/app/layout.tsx`** (2026-05-24 13:48 +1000) — added `@supabase/ssr`
+  to package.json + created `app/web/utils/supabase/client.ts` (committed
+  Claude-lane, unpushed); `layout.tsx` was NOT edited (PostHog provider deferred).
+  No overlap with Codex.
 - **`app/CLAUDE.md` Rule-4 lock released** (Claude, 2026-05-24 01:42 +1000) —
   `app/shared` doc-orphan cleanup DONE (root README.md, app/README.md,
   app/frontend/README.md, app/CLAUDE.md). Codex had explicitly ceded this file.
@@ -365,6 +370,24 @@ DONE entries older than the last major boundary into the relevant plan/log.
   · `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`,
   `app/backend/app/services/gene_viewer.py`,
   `app/backend/app/services/gene_context_snapshot.py`.
+- [DONE] Claude→Codex (2026-05-24 13:48 +1000): **TEST DEPLOYMENT is LIVE.**
+  Frontend Vercel `https://eamos-dev.vercel.app` (root `app/web`, Production
+  Branch=checkpoint, `API_PROXY_TARGET`→Render, auto-deploy OFF, built `dc8e50d`);
+  backend Render `https://eamos-dev.onrender.com` (Docker `app/backend`,
+  `USE_REAL_APIS=true`, auto-deploy OFF, built `084221e`). **Auto-deploy is OFF
+  both ends**, so your backend pushes do NOT move the live demo — redeploy is
+  manual. Prior deploy-prep + Supabase CARs satisfied. · `docs/deployment/README.md`.
+- [OPEN] Claude→Codex (2026-05-24 13:48 +1000): **Render backend is pinned to
+  `084221e`, not your latest `dc8e50d`** (auto-deploy off). So non-RPE65
+  `gene_context_snapshot` renders gene-agnostically but EMPTY on the LIVE site
+  until a manual Render redeploy to `dc8e50d`. FYI only — a live non-RPE65 check
+  before that redeploy is not a hydration regression.
+- [OPEN] Claude→Codex (2026-05-24 13:48 +1000): **`app/web/package.json` +
+  `package-lock.json` now include `@supabase/ssr`; new
+  `app/web/utils/supabase/client.ts` (browser client) + gitignored
+  `app/web/.env.local`.** Committed Claude-lane locally, NOT pushed; additive only;
+  `app/web` tsc 0. If you push you'll carry this Claude commit to origin (harmless;
+  Vercel auto-deploy OFF → no redeploy). · `docs/deployment/README.md`.
 
 ## Current State
 
@@ -437,66 +460,72 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 2).
-Section last edited: 2026-05-24 01:16 +1000 · Claude. Prior section (Vite→Next.js
-migration, 2026-05-23 18:51) archived verbatim →
-`agent_handoff/archive/2026-05-24-claude-section-pre-integration.md` (Rule 1/9).
-Full incremental detail in `~/.claude/plans/next-session-eamos.md`.
+Section last edited: 2026-05-24 13:48 +1000 · Claude. Prior section (BE↔FE
+cross-check + integration, 2026-05-24 01:16) is preserved in git history +
+`agent_handoff/2026-05-24-be-fe-cross-check.md` +
+`~/.claude/plans/next-session-eamos.md`. Full incremental detail in the
+next-session doc.
 
-**Session 2026-05-24 — BE↔FE cross-check + integration meeting (all-lanes commit).**
+**Session 2026-05-24 — TEST DEPLOYMENT stood up LIVE (user-driven, interactive).**
 
-User-directed full backend↔frontend cross-check, then Claude-driven integration +
-all-lanes commit (user pre-authorized).
+Goal: stand up the test deployment (web server + Supabase DB test). Done.
 
-- **Backend adversarial review (Claude, read-only) →
-  `agent_handoff/2026-05-24-be-fe-cross-check.md`.** F1/F2 (HIGH): the contract
-  canary does not actually guard the v2 report contract — only
-  `MODEL_TO_TS_INTERFACE` is checked vs `backend.ts` and it omits the
-  report-profile subtree except Task-13 GeneContext*; the `*_BACKEND_MODELS`
-  suites only self-check Pydantic; and only the Vite `backend.ts` is read (app/web
-  unguarded). F3 (MED): sections don't self-tag `match_level`. F4/F5 (LOW). Plus
-  verified-green honesty facts (gnomAD/gene-context/functional fixture-vs-live).
-- **Codex completed its half:** wired raw `/report?q=` → `search_text` +
-  `SearchInterpretationPanel` in BOTH frontends; fixed two provenance/bug items
-  (computational fallback no longer upgraded to live; gnomAD fixture `source_url`
-  double-kwarg). Idle, locks released.
-- **Integration Checkpoint (Claude, independent, all green):** backend
-  `pytest tests/` 349 passed / 4 skipped; canary 117; Vite build clean; Next
-  `app/web` build clean; both `backend.ts` byte-identical (1229 lines).
-- **Committed + pushed:** (1) `d277263` earlier — removed unused doc-only
-  `app/shared/` OpenAPI folder + local `.trash/`; (2) `7703cec` + `a8554ad`
-  (all-lanes integration: both lanes' cross-check work + handoff docs + plans);
-  (3) `b552865` F1/F2 canary hardening (canary now guards the report-profile
-  subtree across both `backend.ts` mirrors + a byte-identical guard; 215 cases).
+- **Decisions (user):** Depth B full-live · backend host Render · Vercel deploys
+  from `checkpoint/v2-batches-2026-05-17` (no merge to main) · manual/stable
+  deploys (auto-deploy OFF both ends) so Codex keeps pushing the backend lane
+  without moving the demo.
+- **Backend LIVE — Render** `https://eamos-dev.onrender.com`: Docker from
+  `app/backend/Dockerfile`, Free, branch checkpoint, root `app/backend`, health
+  `/healthz`, env `JWT_SECRET`/`USE_REAL_APIS=true`/`LLM_PROVIDER=mock`,
+  auto-deploy OFF, built `084221e`. Fixed a stray-space Root Directory. Verified
+  `/healthz` 200 and `POST /api/v1/lookup` {RPE65 c.260A>G} -> report_payload +
+  12 evidence rows (live external APIs).
+- **Frontend LIVE — Vercel** `https://eamos-dev.vercel.app`: root `app/web`,
+  Next.js, Production Branch=checkpoint, env `API_PROXY_TARGET`->Render,
+  auto-deploy OFF, built `dc8e50d`. Fixes: it was building the OLD Vite
+  `app/frontend` (vite-build error) -> set Root Directory=`app/web` +
+  Framework=Next.js; moved Production Branch off `main` (no app/web there);
+  deleted stale `VITE_SUPABASE_*` env leftovers. Verified end-to-end: GET / 200;
+  POST /api/v1/lookup proxied Vercel->Render -> report_payload + 12 evidence rows.
+- **Supabase DB test (Sydney) PASSED:** project `eamos-dev`, AWS ap-southeast-2,
+  ID `cpdjxsgasaesysvxkpmi`. Ran `0001_submission_ledger.sql` (profiles /
+  saved_variants / user_evidence_submissions + RLS + handle_new_user trigger).
+  Wired `@supabase/ssr` + `app/web/utils/supabase/client.ts` + `app/web/.env.local`
+  (gitignored). Smoke (anon publishable key): SELECT + INSERT both 401
+  permission-denied-for-table -> proves connection + tables exist + data fully
+  locked down (anon has zero grant; matches the auto-expose-OFF guardrail).
+  RLS row-filtering for the `authenticated` role deferred to the future
+  auth/Messenger feature (user chose to wrap there). `app/web` tsc 0.
 
-**Remaining:** F3 (sections don't consume `section_targets` for gating — Codex
-confirmed valid; later contract slice); F4/F5 (LOW BE nits); gene-viewer
-enrichment / Primer §6-B / §7 TIDE (gated backend). **DONE this session:** F1/F2
-canary hardening (`b552865`) + the `app/shared` doc-orphan cleanup across 4 docs
-(root `README.md`, `app/README.md`, `app/frontend/README.md`, `app/CLAUDE.md`).
+**Deferred (user-confirmed):** PostHog (quick later add — provider code ready in
+`docs/deployment/README.md` §8), Stripe (a feature build: pricing is display-only,
+no checkout exists; needs bank for live payouts). Auth + save-variant + Messenger
+submission UI = features to build.
 
-**Next (gated — user direction):** emerald "Lifestream" report-side redesign on
-the app/web skeleton; F1/F2 follow-up with Codex; strict-TS/app-web cutover —
-later. `/runs`, AlphaMissense, Workbench: do not touch (on hold).
+**Backend redeploy note:** Render is pinned to `084221e`; origin HEAD is `dc8e50d`
+(Codex non-RPE65 transcript hydration). To demo non-RPE65 gene-context snapshots
+on the LIVE site, do a one-click **manual** Render redeploy to `dc8e50d`.
+
+**Git:** Claude-lane Supabase wiring committed locally (NOT pushed); pushes stay
+user-gated. Origin HEAD `dc8e50d`.
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-24 01:42 +1000 · Claude (BE↔FE cross-check + integration + doc-orphan cleanup DONE — break)
+`# Resume prompt · 2026-05-24 13:48 +1000 · Claude (TEST DEPLOYMENT LIVE — break)
 Eamos. Read ~/.claude/plans/next-session-eamos.md (full state), then
-agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status +
-Locks + Cross-Agent Requests), agent_handoff/2026-05-24-be-fe-cross-check.md
-(backend findings F1-F5), agent_handoff/RISKS.md, agent_handoff/on_hold/register.md,
-then git status --short --branch.
-Delta: BE↔FE cross-check + integration COMPLETE. Codex wired raw /report?q=
-search_text + SearchInterpretationPanel in both frontends and fixed two backend
-provenance items; Claude reviewed the backend (F1-F5), ran a green Integration
-Checkpoint and committed+pushed ALL lanes (7703cec integration, a8554ad planner
-chore, b552865 F1/F2 canary hardening — canary now guards the report-profile
-subtree across BOTH backend.ts mirrors + byte-identical guard, 215 cases; earlier
-d277263 removed app/shared + .trash). Worktree clean, branch 0/0. Next (no
-auto-start): F3 gating decision (sections don't consume section_targets) + F4/F5
-(LOW BE nits) when the BE/FE contract lane reopens. F1/F2 canary hardening and the
-app/shared doc-orphan cleanup are DONE this session.
-Do NOT touch /runs, AlphaMissense, parked Workbench. FE Vite checkpoint = 205eaae;
-landing v2 = fe08a0a; app/shared removal = d277263. End clear-safe.`
+agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Claude + Active
+Status + Locks + Cross-Agent Requests), agent_handoff/RISKS.md,
+agent_handoff/on_hold/register.md, then git status --short --branch.
+Delta: TEST DEPLOYMENT is LIVE. Frontend https://eamos-dev.vercel.app (Vercel,
+root app/web, branch checkpoint, API_PROXY_TARGET->Render, built dc8e50d,
+auto-deploy OFF). Backend https://eamos-dev.onrender.com (Render Docker
+app/backend, USE_REAL_APIS=true, built 084221e, auto-deploy OFF). E2E verified
+(GET / 200; POST /api/v1/lookup proxied -> report_payload + 12 rows). Supabase
+Sydney DB test PASSED (project cpdjxsgasaesysvxkpmi; migration applied; smoke =
+anon denied = connection+tables+lockdown proven). Supabase client wired in app/web
+(@supabase/ssr + utils/supabase/client.ts + .env.local gitignored; tsc 0).
+Next (gated, user pick): manual Render redeploy to dc8e50d to demo non-RPE65 gene
+snapshots; add PostHog; build auth+Messenger+Stripe features. Do NOT touch /runs,
+AlphaMissense, parked Workbench. End clear-safe.`
 
 ## Codex — Last Task & Resume
 
