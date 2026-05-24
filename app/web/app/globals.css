@@ -183,8 +183,23 @@
   50%      { opacity: 0.9; }
 }
 
-/* Dark-tone search inputs (landing hero) need a lighter placeholder. */
-[data-tone="dark"] input::placeholder { color: var(--hero-ink-3); opacity: 1; }
+/* Dark-tone inputs (landing hero, auth panel, account forms) need a lighter placeholder. */
+[data-tone="dark"] input::placeholder,
+[data-tone="dark"] textarea::placeholder { color: var(--hero-ink-3); opacity: 1; }
+
+/* Pricing cards (landing teaser + /pricing) — every card lifts + glows on
+   hover, rather than a single permanently-glowing "featured" card. The resting
+   box-shadow is left unset (the inline styles no longer set it) so :hover can
+   own it. Reduced-motion is handled by the global guard below. */
+.pricing-card {
+  transition:
+    box-shadow var(--dur-2) var(--ease-standard),
+    transform var(--dur-2) var(--ease-standard);
+}
+.pricing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 28px 70px -34px rgba(16, 185, 129, 0.55);
+}
 
 * {
   box-sizing: border-box;

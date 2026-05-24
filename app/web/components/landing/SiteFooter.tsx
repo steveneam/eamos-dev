@@ -31,7 +31,7 @@ export function SiteFooter() {
             <FooterCol title="Product">
               <FooterLink href="#how">How it works</FooterLink>
               <FooterLink href="#features">Features</FooterLink>
-              <FooterLink href="#pricing">Pricing</FooterLink>
+              <FooterLink href="/pricing">Pricing</FooterLink>
               <FooterLink href="#faq">FAQ</FooterLink>
             </FooterCol>
             <FooterCol title="More">
@@ -48,7 +48,9 @@ export function SiteFooter() {
           className="mt-12 flex flex-col gap-2 pt-8 text-[11.5px] sm:flex-row sm:items-center sm:justify-between"
           style={{ borderTop: '0.5px solid var(--hero-line)', color: 'var(--hero-ink-3)' }}
         >
-          <span>End-user software terms apply.</span>
+          <a href="/terms" style={{ color: 'var(--hero-ink-3)', textDecoration: 'none' }}>
+            Terms &amp; Conditions
+          </a>
           <span>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
         </div>
       </div>

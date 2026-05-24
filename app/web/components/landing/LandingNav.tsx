@@ -1,10 +1,12 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { EamosSearch } from '@/components/landing/EamosSearch'
+import { AuthMenu } from '@/components/auth/AuthMenu'
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
@@ -19,6 +21,23 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
   const upRef = useRef<HTMLButtonElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // Mobile menu: close on outside-click / Esc. Links + the panel both carry
+  // [data-mobile-menu] so a click on either keeps it open.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-mobile-menu]')) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   useGSAP(
     () => {
@@ -111,7 +130,7 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
 
         {/* Center: nav links (over the hero) cross-fading with the pinned search */}
         <div className="relative flex min-w-0 flex-1 items-center justify-center">
-          <div ref={linksRef} className="absolute flex items-center gap-8">
+          <div ref={linksRef} className="absolute hidden items-center gap-8 md:flex">
             {NAV_LINKS.map((l) => (
               <a
                 key={l.href}
@@ -126,7 +145,7 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
 
           <div
             ref={searchRef}
-            className="min-w-0"
+            className="hidden min-w-0 md:block"
             onFocus={() => setExpanded(true)}
             onBlur={(e) => {
               if (!searchRef.current?.contains(e.relatedTarget as Node | null)) setExpanded(false)
@@ -144,33 +163,82 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
           </div>
         </div>
 
-        {/* Right: auth (collapses away when the search expands) */}
+        {/* Right: auth + mobile menu toggle (collapses away when search expands) */}
         <div
-          className="flex items-center gap-2"
+          className="flex items-center justify-end gap-2"
           style={{
             maxWidth: expanded ? 0 : 260,
             opacity: expanded ? 0 : 1,
-            overflow: 'hidden',
+            overflow: 'visible',
             transition: sideTransition,
             pointerEvents: expanded ? 'none' : 'auto',
           }}
         >
-          <a
-            href="#"
-            className="hidden items-center rounded-[10px] px-3 py-1.5 text-[12.5px] font-semibold transition-colors sm:inline-flex"
-            style={{ color: 'var(--hero-ink-2)', textDecoration: 'none' }}
+          <AuthMenu tone="dark" />
+          <button
+            data-mobile-menu
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-menu"
+            className="inline-flex shrink-0 items-center justify-center transition-colors md:hidden"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'var(--hero-glass)',
+              border: '0.5px solid var(--hero-line)',
+              color: 'var(--hero-ink)',
+              cursor: 'pointer',
+            }}
           >
-            Sign in
-          </a>
-          <a
-            href="#"
-            className="inline-flex shrink-0 items-center rounded-[10px] px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors"
-            style={{ color: '#fff', background: 'var(--em)', textDecoration: 'none' }}
-          >
-            Register
-          </a>
+            {menuOpen ? <CloseIcon /> : <MenuIcon />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile dropdown menu — the nav links, expanded on tap (md and below) */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            data-mobile-menu
+            id="mobile-nav-menu"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18, ease: [0.3, 0, 0, 1] }}
+            className="absolute left-0 right-0 md:hidden"
+            style={{
+              top: 56,
+              background: 'rgba(4,22,16,0.96)',
+              borderBottom: '0.5px solid var(--hero-line)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <nav className="mx-auto flex flex-col px-4 py-1.5" style={{ maxWidth: 1180 }}>
+              {NAV_LINKS.map((l, i) => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="transition-colors"
+                  style={{
+                    padding: '13px 8px',
+                    color: 'var(--hero-ink-2)',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    borderTop: i === 0 ? 'none' : '0.5px solid var(--hero-line)',
+                  }}
+                >
+                  {l.label}
+                </a>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -180,6 +248,25 @@ function UpIcon() {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <line x1="12" y1="19" x2="12" y2="5" />
       <polyline points="5 12 12 5 19 12" />
+    </svg>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="6" y1="18" x2="18" y2="6" />
     </svg>
   )
 }
