@@ -14,6 +14,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     func,
+    inspect,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
@@ -38,6 +39,45 @@ class UserRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class UserEvidenceSubmissionRecord(Base):
+    __tablename__ = "user_evidence_submissions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    variant_hgvs: Mapped[str] = mapped_column(String(255), index=True)
+    submitted_pmid: Mapped[str] = mapped_column(String(16), index=True)
+    curator_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    clinvar_tracking_id: Mapped[str] = mapped_column(String(64), index=True)
+    pubmed_validation: Mapped[dict] = mapped_column(JSON)
+    clinvar_payload: Mapped[dict] = mapped_column(JSON)
+    submission_payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class SubscriptionStateRecord(Base):
+    __tablename__ = "subscription_states"
+
+    state_id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(
+        String(128), unique=True, index=True, nullable=True
+    )
+    plan_key: Mapped[str] = mapped_column(String(32), default="free")
+    billing_interval: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="free", index=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_event_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    raw_event: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
 
 
 class ReportRecord(Base):
@@ -207,7 +247,31 @@ def build_session_factory(database_url: str):
 def initialize_database(session_factory) -> None:
     engine = session_factory.kw["bind"]
     Base.metadata.create_all(engine)
+    _ensure_user_evidence_submission_payload_column(engine)
     _ensure_postgres_search_indexes(engine)
+
+
+def _ensure_user_evidence_submission_payload_column(engine) -> None:
+    if "user_evidence_submissions" not in inspect(engine).get_table_names():
+        return
+    columns = {
+        column["name"] for column in inspect(engine).get_columns("user_evidence_submissions")
+    }
+    if "submission_payload" in columns:
+        return
+
+    if engine.dialect.name == "postgresql":
+        statement = (
+            "ALTER TABLE user_evidence_submissions "
+            "ADD COLUMN IF NOT EXISTS submission_payload JSONB DEFAULT '{}'::jsonb"
+        )
+    else:
+        statement = (
+            "ALTER TABLE user_evidence_submissions "
+            "ADD COLUMN submission_payload JSON DEFAULT '{}'"
+        )
+    with engine.begin() as connection:
+        connection.execute(text(statement))
 
 
 @contextmanager

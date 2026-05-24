@@ -16,7 +16,12 @@ from app.core.config import ensure_runtime_dirs, get_settings
 from app.core.db import build_session_factory, initialize_database
 from app.core.logging import configure_logging, get_logger
 from app.repos.reports_repo import ReportsRepo
+from app.repos.evidence_submissions_repo import (
+    EvidenceSubmissionsRepo,
+    SupabaseEvidenceSubmissionsRepo,
+)
 from app.repos.run_repo import RunRepo
+from app.repos.subscriptions_repo import SubscriptionsRepo
 from app.repos.users_repo import UsersRepo
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
@@ -24,9 +29,11 @@ from app.services.auth import AuthService
 from app.services.chat_service import ChatService
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
+from app.services.evidence_submissions import EvidenceSubmissionService
 from app.services.gene_viewer import GeneViewerService
 from app.services.intake import IntakeService
 from app.services.lookup_service import LookupService
+from app.services.payments import PaymentsService
 from app.services.recommendation import RecommendationService
 from app.services.report_draft import ReportDraftService
 from app.services.run_chat import RunChatService
@@ -61,7 +68,9 @@ def create_app(settings=None) -> FastAPI:
     )
 
     reports_repo = ReportsRepo(db_session_factory)
+    evidence_submissions_repo = _build_evidence_submissions_repo(settings, db_session_factory)
     run_repo = RunRepo(db_session_factory)
+    subscriptions_repo = SubscriptionsRepo(db_session_factory)
     users_repo = UsersRepo(db_session_factory)
     variant_cache_repo = VariantCacheRepo(db_session_factory)
     report_pdf_tool = ReportPdfTool()
@@ -78,10 +87,20 @@ def create_app(settings=None) -> FastAPI:
     app.state.settings = settings
     app.state.db_session_factory = db_session_factory
     app.state.reports_repo = reports_repo
+    app.state.evidence_submissions_repo = evidence_submissions_repo
     app.state.run_repo = run_repo
+    app.state.subscriptions_repo = subscriptions_repo
     app.state.users_repo = users_repo
     app.state.variant_cache_repo = variant_cache_repo
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
+    app.state.evidence_submission_service = EvidenceSubmissionService(
+        settings=settings,
+        submissions_repo=evidence_submissions_repo,
+    )
+    app.state.payments_service = PaymentsService(
+        settings=settings,
+        subscriptions_repo=subscriptions_repo,
+    )
     app.state.intake_service = IntakeService(
         settings, reports_repo, report_pdf_tool, extraction_chain
     )
@@ -119,3 +138,13 @@ def create_app(settings=None) -> FastAPI:
 
     app.include_router(build_api_router())
     return app
+
+
+def _build_evidence_submissions_repo(settings, db_session_factory):
+    if settings.supabase_url and settings.supabase_service_role_key:
+        return SupabaseEvidenceSubmissionsRepo(
+            supabase_url=settings.supabase_url,
+            service_role_key=settings.supabase_service_role_key,
+            timeout_seconds=settings.supabase_rest_timeout_seconds,
+        )
+    return EvidenceSubmissionsRepo(db_session_factory)

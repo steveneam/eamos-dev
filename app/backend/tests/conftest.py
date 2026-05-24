@@ -27,6 +27,9 @@ def app(tmp_path: Path):
         max_upload_mb=5,
         debug=True,
         jwt_secret="test-secret",
+        supabase_jwt_secret=None,
+        supabase_url=None,
+        supabase_service_role_key=None,
     )
     return create_app(settings)
 

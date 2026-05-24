@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     jwt_ttl_days: int = 7
+    supabase_jwt_secret: str | None = None
+    supabase_jwt_algorithm: str = "HS256"
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_rest_timeout_seconds: float = 10.0
 
     llm_provider: str = "mock"
     openai_api_key: str | None = None
@@ -54,6 +59,17 @@ class Settings(BaseSettings):
     clingen_erepo_base_url: str = "https://erepo.clinicalgenome.org/evrepo"
     hgnc_rest_base_url: str = "https://rest.genenames.org"
     cache_ttl_days: int = 30
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_webhook_tolerance_seconds: int = 300
+    stripe_checkout_success_url: str = (
+        "http://localhost:3000/pricing/success?session_id={CHECKOUT_SESSION_ID}"
+    )
+    stripe_checkout_cancel_url: str = "http://localhost:3000/pricing"
+    stripe_price_starter_monthly: str | None = None
+    stripe_price_starter_yearly: str | None = None
+    stripe_price_pro_monthly: str | None = None
+    stripe_price_pro_yearly: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
