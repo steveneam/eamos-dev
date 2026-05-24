@@ -56,6 +56,7 @@ export function ReportClient() {
 
   const [state, setState] = useState<LoadState>({ kind: 'idle' })
   const [attempt, setAttempt] = useState(0)
+  const [searchExpanded, setSearchExpanded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -202,7 +203,20 @@ export function ReportClient() {
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
       <TopNav right={<ModePill current="report" />}>
-        <div className="mx-auto" style={{ maxWidth: 620 }}>
+        {/* Sticky nav (via TopNav). The compact search expands to fill the bar
+            when focused and collapses back on blur — mirrors the landing nav. */}
+        <div
+          className="mx-auto"
+          onFocus={() => setSearchExpanded(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSearchExpanded(false)
+          }}
+          style={{
+            width: '100%',
+            maxWidth: searchExpanded ? 1180 : 620,
+            transition: 'max-width var(--dur-3) var(--ease-emphasized)',
+          }}
+        >
           <EamosSearch size="compact" tone="light" onSubmit={handleSearch} />
         </div>
       </TopNav>
