@@ -1,0 +1,2442 @@
+{
+  "version": "2026-05-24-clinvar-gene-agnostic-report-stack-v1",
+  "verified_at": "2026-05-24 03:38 +1000",
+  "verified_with": {
+    "source": "NCBI ClinVar E-utilities",
+    "esearch_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=clinvar",
+    "esummary_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=clinvar",
+    "record_url_template": "https://www.ncbi.nlm.nih.gov/clinvar/variation/{clinvar_variation_id}/"
+  },
+  "selection_policy": {
+    "stack_gene_count": 10,
+    "variants_per_stack_gene": 9,
+    "required_categories_per_gene": {
+      "pathogenic_lp": 3,
+      "benign_lb": 3,
+      "vus": 3
+    },
+    "reference_control_gene": "RPE65",
+    "notes": [
+      "Clinical significance is copied from current ClinVar germline classification summaries at verification time.",
+      "Rows are for report/render/source-state QA and are not final clinical interpretation.",
+      "The fixture intentionally includes synonymous and non-coding records in addition to missense/indel/splice classes to exercise sparse report states."
+    ]
+  },
+  "coverage": {
+    "genes": 10,
+    "variants": 90,
+    "category_counts": {
+      "pathogenic_lp": 30,
+      "benign_lb": 30,
+      "vus": 30
+    },
+    "variant_type_counts": {
+      "missense": 26,
+      "duplication": 4,
+      "insertion": 1,
+      "splicing": 28,
+      "synonymous": 13,
+      "deletion": 12,
+      "delins": 5,
+      "non-coding transcript variant": 1
+    }
+  },
+  "stack_genes": [
+    {
+      "gene": "ABCA4",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "ABCA4",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4536993",
+          "accession": "VCV004536993",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4536993/",
+          "title": "NM_000350.3(ABCA4):c.5435T>A (p.Ile1812Asn)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.5435T>A",
+          "protein": "p.Ile1812Asn",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/11/06 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.5435T>A",
+            "transcript_hgvs": "NM_000350.3:c.5435T>A",
+            "raw_text": "ABCA4 NM_000350.3:c.5435T>A"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3659493",
+          "accession": "VCV003659493",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3659493/",
+          "title": "NM_000350.3(ABCA4):c.3326dup (p.Gly1110fs)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.3326dup",
+          "protein": "p.Gly1110fs",
+          "clinical_significance": "Pathogenic/Likely pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2024/09/11 00:00",
+          "variant_type": "duplication",
+          "molecular_consequence": [
+            "frameshift variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.3326dup",
+            "transcript_hgvs": "NM_000350.3:c.3326dup",
+            "raw_text": "ABCA4 NM_000350.3:c.3326dup"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4538559",
+          "accession": "VCV004538559",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4538559/",
+          "title": "NM_000350.3(ABCA4):c.4605_4606insT (p.Lys1536Ter)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.4605_4606insT",
+          "protein": "p.Lys1536Ter",
+          "clinical_significance": "Pathogenic",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2025/12/05 00:00",
+          "variant_type": "insertion",
+          "molecular_consequence": [
+            "nonsense"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.4605_4606insT",
+            "transcript_hgvs": "NM_000350.3:c.4605_4606insT",
+            "raw_text": "ABCA4 NM_000350.3:c.4605_4606insT"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4563392",
+          "accession": "VCV004563392",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4563392/",
+          "title": "NM_000350.3(ABCA4):c.1888G>A (p.Val630Ile)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.1888G>A",
+          "protein": "p.Val630Ile",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/11/08 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.1888G>A",
+            "transcript_hgvs": "NM_000350.3:c.1888G>A",
+            "raw_text": "ABCA4 NM_000350.3:c.1888G>A"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4807258",
+          "accession": "VCV004807258",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4807258/",
+          "title": "NM_000350.3(ABCA4):c.570+7G>A",
+          "transcript": "NM_000350.3",
+          "cdna": "c.570+7G>A",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/09/08 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.570+7G>A",
+            "transcript_hgvs": "NM_000350.3:c.570+7G>A",
+            "raw_text": "ABCA4 NM_000350.3:c.570+7G>A"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4700527",
+          "accession": "VCV004700527",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4700527/",
+          "title": "NM_000350.3(ABCA4):c.90G>A (p.Val30=)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.90G>A",
+          "protein": "p.Val30=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/12/06 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.90G>A",
+            "transcript_hgvs": "NM_000350.3:c.90G>A",
+            "raw_text": "ABCA4 NM_000350.3:c.90G>A"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "vus",
+          "clinvar_variation_id": "4849237",
+          "accession": "VCV004849237",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4849237/",
+          "title": "NM_000350.3(ABCA4):c.3682G>A (p.Glu1228Lys)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.3682G>A",
+          "protein": "p.Glu1228Lys",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2026/03/24 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.3682G>A",
+            "transcript_hgvs": "NM_000350.3:c.3682G>A",
+            "raw_text": "ABCA4 NM_000350.3:c.3682G>A"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "vus",
+          "clinvar_variation_id": "4805016",
+          "accession": "VCV004805016",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4805016/",
+          "title": "NM_000350.3(ABCA4):c.302+6T>A",
+          "transcript": "NM_000350.3",
+          "cdna": "c.302+6T>A",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/04/13 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.302+6T>A",
+            "transcript_hgvs": "NM_000350.3:c.302+6T>A",
+            "raw_text": "ABCA4 NM_000350.3:c.302+6T>A"
+          }
+        },
+        {
+          "gene": "ABCA4",
+          "category": "vus",
+          "clinvar_variation_id": "4292814",
+          "accession": "VCV004292814",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4292814/",
+          "title": "NM_000350.3(ABCA4):c.768G>A (p.Val256=)",
+          "transcript": "NM_000350.3",
+          "cdna": "c.768G>A",
+          "protein": "p.Val256=",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/02/12 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "ABCA4",
+            "cdna": "c.768G>A",
+            "transcript_hgvs": "NM_000350.3:c.768G>A",
+            "raw_text": "ABCA4 NM_000350.3:c.768G>A"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "APC",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "APC",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4843502",
+          "accession": "VCV004843502",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4843502/",
+          "title": "NM_000038.6(APC):c.933+1G>T",
+          "transcript": "NM_000038.6",
+          "cdna": "c.933+1G>T",
+          "protein": null,
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/12/16 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "splice donor variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.933+1G>T",
+            "transcript_hgvs": "NM_000038.6:c.933+1G>T",
+            "raw_text": "APC NM_000038.6:c.933+1G>T"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4827303",
+          "accession": "VCV004827303",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4827303/",
+          "title": "NM_000038.6(APC):c.2949del (p.Ile983fs)",
+          "transcript": "NM_000038.6",
+          "cdna": "c.2949del",
+          "protein": "p.Ile983fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/03/10 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.2949del",
+            "transcript_hgvs": "NM_000038.6:c.2949del",
+            "raw_text": "APC NM_000038.6:c.2949del"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4837769",
+          "accession": "VCV004837769",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4837769/",
+          "title": "NM_000038.6(APC):c.6053dup (p.Val2019fs)",
+          "transcript": "NM_000038.6",
+          "cdna": "c.6053dup",
+          "protein": "p.Val2019fs",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/01/23 00:00",
+          "variant_type": "duplication",
+          "molecular_consequence": [
+            "frameshift variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.6053dup",
+            "transcript_hgvs": "NM_000038.6:c.6053dup",
+            "raw_text": "APC NM_000038.6:c.6053dup"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4803141",
+          "accession": "VCV004803141",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4803141/",
+          "title": "NM_000038.6(APC):c.645+8del",
+          "transcript": "NM_000038.6",
+          "cdna": "c.645+8del",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/09/18 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.645+8del",
+            "transcript_hgvs": "NM_000038.6:c.645+8del",
+            "raw_text": "APC NM_000038.6:c.645+8del"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4825045",
+          "accession": "VCV004825045",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4825045/",
+          "title": "NM_000038.6(APC):c.96T>C (p.Asn32=)",
+          "transcript": "NM_000038.6",
+          "cdna": "c.96T>C",
+          "protein": "p.Asn32=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/02/10 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant",
+            "5 prime UTR variant",
+            "non-coding transcript variant",
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.96T>C",
+            "transcript_hgvs": "NM_000038.6:c.96T>C",
+            "raw_text": "APC NM_000038.6:c.96T>C"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4806423",
+          "accession": "VCV004806423",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4806423/",
+          "title": "NM_000038.6(APC):c.220+13A>G",
+          "transcript": "NM_000038.6",
+          "cdna": "c.220+13A>G",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/04/17 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.220+13A>G",
+            "transcript_hgvs": "NM_000038.6:c.220+13A>G",
+            "raw_text": "APC NM_000038.6:c.220+13A>G"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "vus",
+          "clinvar_variation_id": "4801525",
+          "accession": "VCV004801525",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4801525/",
+          "title": "NM_000038.6(APC):c.7884G>C (p.Gln2628His)",
+          "transcript": "NM_000038.6",
+          "cdna": "c.7884G>C",
+          "protein": "p.Gln2628His",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/03/13 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.7884G>C",
+            "transcript_hgvs": "NM_000038.6:c.7884G>C",
+            "raw_text": "APC NM_000038.6:c.7884G>C"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "vus",
+          "clinvar_variation_id": "4813144",
+          "accession": "VCV004813144",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4813144/",
+          "title": "NM_000038.6(APC):c.5026_5034delinsGGAGGA (p.Arg1676del)",
+          "transcript": "NM_000038.6",
+          "cdna": "c.5026_5034delinsGGAGGA",
+          "protein": "p.Arg1676del",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/02/11 00:00",
+          "variant_type": "delins",
+          "molecular_consequence": [
+            "non-coding transcript variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.5026_5034delinsGGAGGA",
+            "transcript_hgvs": "NM_000038.6:c.5026_5034delinsGGAGGA",
+            "raw_text": "APC NM_000038.6:c.5026_5034delinsGGAGGA"
+          }
+        },
+        {
+          "gene": "APC",
+          "category": "vus",
+          "clinvar_variation_id": "4809328",
+          "accession": "VCV004809328",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4809328/",
+          "title": "NM_001127511.3(APC):c.144C>G (p.Gly48=)",
+          "transcript": "NM_001127511.3",
+          "cdna": "c.144C>G",
+          "protein": "p.Gly48=",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/04/27 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant",
+            "5 prime UTR variant",
+            "non-coding transcript variant",
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "APC",
+            "cdna": "c.144C>G",
+            "transcript_hgvs": "NM_001127511.3:c.144C>G",
+            "raw_text": "APC NM_001127511.3:c.144C>G"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "BRCA1",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "BRCA1",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4850689",
+          "accession": "VCV004850689",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4850689/",
+          "title": "NM_007294.4(BRCA1):c.4185+1372T>G",
+          "transcript": "NM_007294.4",
+          "cdna": "c.4185+1372T>G",
+          "protein": null,
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/04/08 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.4185+1372T>G",
+            "transcript_hgvs": "NM_007294.4:c.4185+1372T>G",
+            "raw_text": "BRCA1 NM_007294.4:c.4185+1372T>G"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4824193",
+          "accession": "VCV004824193",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4824193/",
+          "title": "NM_007294.4(BRCA1):c.24del (p.Glu9fs)",
+          "transcript": "NM_007294.4",
+          "cdna": "c.24del",
+          "protein": "p.Glu9fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/02/06 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "5 prime UTR variant",
+            "intron variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.24del",
+            "transcript_hgvs": "NM_007294.4:c.24del",
+            "raw_text": "BRCA1 NM_007294.4:c.24del"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4810288",
+          "accession": "VCV004810288",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4810288/",
+          "title": "NM_007294.4(BRCA1):c.190dup (p.Cys64fs)",
+          "transcript": "NM_007294.4",
+          "cdna": "c.190dup",
+          "protein": "p.Cys64fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/10/07 00:00",
+          "variant_type": "duplication",
+          "molecular_consequence": [
+            "frameshift variant",
+            "initiator_codon_variant",
+            "intron variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.190dup",
+            "transcript_hgvs": "NM_007294.4:c.190dup",
+            "raw_text": "BRCA1 NM_007294.4:c.190dup"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4071323",
+          "accession": "VCV004071323",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4071323/",
+          "title": "NM_007294.4(BRCA1):c.4097-12T>C",
+          "transcript": "NM_007294.4",
+          "cdna": "c.4097-12T>C",
+          "protein": null,
+          "clinical_significance": "Benign/Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/01/04 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.4097-12T>C",
+            "transcript_hgvs": "NM_007294.4:c.4097-12T>C",
+            "raw_text": "BRCA1 NM_007294.4:c.4097-12T>C"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4625505",
+          "accession": "VCV004625505",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4625505/",
+          "title": "NM_007294.4(BRCA1):c.1380A>C (p.Ile460=)",
+          "transcript": "NM_007294.4",
+          "cdna": "c.1380A>C",
+          "protein": "p.Ile460=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/11/13 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant",
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.1380A>C",
+            "transcript_hgvs": "NM_007294.4:c.1380A>C",
+            "raw_text": "BRCA1 NM_007294.4:c.1380A>C"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4625758",
+          "accession": "VCV004625758",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4625758/",
+          "title": "NM_007294.4(BRCA1):c.954T>G (p.His318Gln)",
+          "transcript": "NM_007294.4",
+          "cdna": "c.954T>G",
+          "protein": "p.His318Gln",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/12/10 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.954T>G",
+            "transcript_hgvs": "NM_007294.4:c.954T>G",
+            "raw_text": "BRCA1 NM_007294.4:c.954T>G"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "vus",
+          "clinvar_variation_id": "4799584",
+          "accession": "VCV004799584",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4799584/",
+          "title": "NM_007294.4(BRCA1):c.2858G>T (p.Cys953Phe)",
+          "transcript": "NM_007294.4",
+          "cdna": "c.2858G>T",
+          "protein": "p.Cys953Phe",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/01/20 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.2858G>T",
+            "transcript_hgvs": "NM_007294.4:c.2858G>T",
+            "raw_text": "BRCA1 NM_007294.4:c.2858G>T"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "vus",
+          "clinvar_variation_id": "4797040",
+          "accession": "VCV004797040",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4797040/",
+          "title": "NM_007294.4(BRCA1):c.-20+1G>A",
+          "transcript": "NM_007294.4",
+          "cdna": "c.-20+1G>A",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/12/28 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "splice donor variant",
+            "5 prime UTR variant",
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.-20+1G>A",
+            "transcript_hgvs": "NM_007294.4:c.-20+1G>A",
+            "raw_text": "BRCA1 NM_007294.4:c.-20+1G>A"
+          }
+        },
+        {
+          "gene": "BRCA1",
+          "category": "vus",
+          "clinvar_variation_id": "4732390",
+          "accession": "VCV004732390",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4732390/",
+          "title": "NM_007294.4(BRCA1):c.580del (p.Ala194fs)",
+          "transcript": "NM_007294.4",
+          "cdna": "c.580del",
+          "protein": "p.Ala194fs",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/12/02 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "BRCA1",
+            "cdna": "c.580del",
+            "transcript_hgvs": "NM_007294.4:c.580del",
+            "raw_text": "BRCA1 NM_007294.4:c.580del"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "BRCA2",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "BRCA2",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4813031",
+          "accession": "VCV004813031",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4813031/",
+          "title": "NM_000059.4(BRCA2):c.518_520delinsT (p.Gly173fs)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.518_520delinsT",
+          "protein": "p.Gly173fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/02/19 00:00",
+          "variant_type": "delins",
+          "molecular_consequence": [
+            "frameshift variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.518_520delinsT",
+            "transcript_hgvs": "NM_000059.4:c.518_520delinsT",
+            "raw_text": "BRCA2 NM_000059.4:c.518_520delinsT"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4826880",
+          "accession": "VCV004826880",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4826880/",
+          "title": "NM_000059.4(BRCA2):c.7751G>T (p.Gly2584Val)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.7751G>T",
+          "protein": "p.Gly2584Val",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/03/02 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.7751G>T",
+            "transcript_hgvs": "NM_000059.4:c.7751G>T",
+            "raw_text": "BRCA2 NM_000059.4:c.7751G>T"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4826888",
+          "accession": "VCV004826888",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4826888/",
+          "title": "NM_000059.4(BRCA2):c.284del (p.Val95fs)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.284del",
+          "protein": "p.Val95fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/03/11 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "5 prime UTR variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.284del",
+            "transcript_hgvs": "NM_000059.4:c.284del",
+            "raw_text": "BRCA2 NM_000059.4:c.284del"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4756156",
+          "accession": "VCV004756156",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4756156/",
+          "title": "NM_000059.4(BRCA2):c.927A>C (p.Ser309=)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.927A>C",
+          "protein": "p.Ser309=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/12/23 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant",
+            "non-coding transcript variant",
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.927A>C",
+            "transcript_hgvs": "NM_000059.4:c.927A>C",
+            "raw_text": "BRCA2 NM_000059.4:c.927A>C"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4850686",
+          "accession": "VCV004850686",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4850686/",
+          "title": "NM_000059.4(BRCA2):c.166A>T (p.Asn56Tyr)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.166A>T",
+          "protein": "p.Asn56Tyr",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/04/08 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "5 prime UTR variant",
+            "missense variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.166A>T",
+            "transcript_hgvs": "NM_000059.4:c.166A>T",
+            "raw_text": "BRCA2 NM_000059.4:c.166A>T"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4809650",
+          "accession": "VCV004809650",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4809650/",
+          "title": "NM_000059.4(BRCA2):c.68-18G>C",
+          "transcript": "NM_000059.4",
+          "cdna": "c.68-18G>C",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/11/25 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.68-18G>C",
+            "transcript_hgvs": "NM_000059.4:c.68-18G>C",
+            "raw_text": "BRCA2 NM_000059.4:c.68-18G>C"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "vus",
+          "clinvar_variation_id": "4842980",
+          "accession": "VCV004842980",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4842980/",
+          "title": "NM_000059.4(BRCA2):c.619A>T (p.Thr207Ser)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.619A>T",
+          "protein": "p.Thr207Ser",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/01/07 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.619A>T",
+            "transcript_hgvs": "NM_000059.4:c.619A>T",
+            "raw_text": "BRCA2 NM_000059.4:c.619A>T"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "vus",
+          "clinvar_variation_id": "4826882",
+          "accession": "VCV004826882",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4826882/",
+          "title": "NM_000059.4(BRCA2):c.317-5T>C",
+          "transcript": "NM_000059.4",
+          "cdna": "c.317-5T>C",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/03/04 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.317-5T>C",
+            "transcript_hgvs": "NM_000059.4:c.317-5T>C",
+            "raw_text": "BRCA2 NM_000059.4:c.317-5T>C"
+          }
+        },
+        {
+          "gene": "BRCA2",
+          "category": "vus",
+          "clinvar_variation_id": "4813431",
+          "accession": "VCV004813431",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4813431/",
+          "title": "NM_000059.4(BRCA2):c.3858_3863del (p.Lys1286_Asn1287del)",
+          "transcript": "NM_000059.4",
+          "cdna": "c.3858_3863del",
+          "protein": "p.Lys1286_Asn1287del",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2023/07/06 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "inframe_deletion",
+            "non-coding transcript variant",
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "BRCA2",
+            "cdna": "c.3858_3863del",
+            "transcript_hgvs": "NM_000059.4:c.3858_3863del",
+            "raw_text": "BRCA2 NM_000059.4:c.3858_3863del"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "CFTR",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "CFTR",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4818493",
+          "accession": "VCV004818493",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4818493/",
+          "title": "NM_000492.4(CFTR):c.199C>T (p.Pro67Ser)",
+          "transcript": "NM_000492.4",
+          "cdna": "c.199C>T",
+          "protein": "p.Pro67Ser",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/04/23 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.199C>T",
+            "transcript_hgvs": "NM_000492.4:c.199C>T",
+            "raw_text": "CFTR NM_000492.4:c.199C>T"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4811574",
+          "accession": "VCV004811574",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4811574/",
+          "title": "NM_000492.4(CFTR):c.1767-2A>C",
+          "transcript": "NM_000492.4",
+          "cdna": "c.1767-2A>C",
+          "protein": null,
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/12/23 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "splice acceptor variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.1767-2A>C",
+            "transcript_hgvs": "NM_000492.4:c.1767-2A>C",
+            "raw_text": "CFTR NM_000492.4:c.1767-2A>C"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4532958",
+          "accession": "VCV004532958",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4532958/",
+          "title": "NM_000492.4(CFTR):c.2147_2149delinsGG (p.Lys716fs)",
+          "transcript": "NM_000492.4",
+          "cdna": "c.2147_2149delinsGG",
+          "protein": "p.Lys716fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/02/06 00:00",
+          "variant_type": "delins",
+          "molecular_consequence": [
+            "frameshift variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.2147_2149delinsGG",
+            "transcript_hgvs": "NM_000492.4:c.2147_2149delinsGG",
+            "raw_text": "CFTR NM_000492.4:c.2147_2149delinsGG"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4652059",
+          "accession": "VCV004652059",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4652059/",
+          "title": "NM_000492.4(CFTR):c.1029C>T (p.Cys343=)",
+          "transcript": "NM_000492.4",
+          "cdna": "c.1029C>T",
+          "protein": "p.Cys343=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/12/20 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.1029C>T",
+            "transcript_hgvs": "NM_000492.4:c.1029C>T",
+            "raw_text": "CFTR NM_000492.4:c.1029C>T"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4827540",
+          "accession": "VCV004827540",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4827540/",
+          "title": "NM_000492.4(CFTR):c.2727C>A (p.Ser909Arg)",
+          "transcript": "NM_000492.4",
+          "cdna": "c.2727C>A",
+          "protein": "p.Ser909Arg",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/03/12 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.2727C>A",
+            "transcript_hgvs": "NM_000492.4:c.2727C>A",
+            "raw_text": "CFTR NM_000492.4:c.2727C>A"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4778527",
+          "accession": "VCV004778527",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4778527/",
+          "title": "NM_000492.4(CFTR):c.53+9G>A",
+          "transcript": "NM_000492.4",
+          "cdna": "c.53+9G>A",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/11/23 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.53+9G>A",
+            "transcript_hgvs": "NM_000492.4:c.53+9G>A",
+            "raw_text": "CFTR NM_000492.4:c.53+9G>A"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "vus",
+          "clinvar_variation_id": "4823907",
+          "accession": "VCV004823907",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4823907/",
+          "title": "NM_000492.4(CFTR):c.28A>G (p.Ser10Gly)",
+          "transcript": "NM_000492.4",
+          "cdna": "c.28A>G",
+          "protein": "p.Ser10Gly",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/04/23 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.28A>G",
+            "transcript_hgvs": "NM_000492.4:c.28A>G",
+            "raw_text": "CFTR NM_000492.4:c.28A>G"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "vus",
+          "clinvar_variation_id": "4687463",
+          "accession": "VCV004687463",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4687463/",
+          "title": "NM_000492.4(CFTR):c.489+6A>T",
+          "transcript": "NM_000492.4",
+          "cdna": "c.489+6A>T",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/10/08 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.489+6A>T",
+            "transcript_hgvs": "NM_000492.4:c.489+6A>T",
+            "raw_text": "CFTR NM_000492.4:c.489+6A>T"
+          }
+        },
+        {
+          "gene": "CFTR",
+          "category": "vus",
+          "clinvar_variation_id": "4683093",
+          "accession": "VCV004683093",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4683093/",
+          "title": "NM_000492.4(CFTR):c.3854_3855delinsAA (p.Ala1285Glu)",
+          "transcript": "NM_000492.4",
+          "cdna": "c.3854_3855delinsAA",
+          "protein": "p.Ala1285Glu",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/12/23 00:00",
+          "variant_type": "delins",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "CFTR",
+            "cdna": "c.3854_3855delinsAA",
+            "transcript_hgvs": "NM_000492.4:c.3854_3855delinsAA",
+            "raw_text": "CFTR NM_000492.4:c.3854_3855delinsAA"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "HBB",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "HBB",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3336287",
+          "accession": "VCV003336287",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3336287/",
+          "title": "NM_000518.5(HBB):c.327C>G (p.Asn109Lys)",
+          "transcript": "NM_000518.5",
+          "cdna": "c.327C>G",
+          "protein": "p.Asn109Lys",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/03/26 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.327C>G",
+            "transcript_hgvs": "NM_000518.5:c.327C>G",
+            "raw_text": "HBB NM_000518.5:c.327C>G"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "869356",
+          "accession": "VCV000869356",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/869356/",
+          "title": "NM_000518.5(HBB):c.315+5G>C",
+          "transcript": "NM_000518.5",
+          "cdna": "c.315+5G>C",
+          "protein": null,
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/09/12 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.315+5G>C",
+            "transcript_hgvs": "NM_000518.5:c.315+5G>C",
+            "raw_text": "HBB NM_000518.5:c.315+5G>C"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3068889",
+          "accession": "VCV003068889",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3068889/",
+          "title": "NM_000518.5(HBB):c.19del (p.Glu7fs)",
+          "transcript": "NM_000518.5",
+          "cdna": "c.19del",
+          "protein": "p.Glu7fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/10/20 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.19del",
+            "transcript_hgvs": "NM_000518.5:c.19del",
+            "raw_text": "HBB NM_000518.5:c.19del"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "benign_lb",
+          "clinvar_variation_id": "2877828",
+          "accession": "VCV002877828",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2877828/",
+          "title": "NM_000518.5(HBB):c.316-51A>C",
+          "transcript": "NM_000518.5",
+          "cdna": "c.316-51A>C",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2024/11/14 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.316-51A>C",
+            "transcript_hgvs": "NM_000518.5:c.316-51A>C",
+            "raw_text": "HBB NM_000518.5:c.316-51A>C"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "benign_lb",
+          "clinvar_variation_id": "3627289",
+          "accession": "VCV003627289",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3627289/",
+          "title": "NM_000518.5(HBB):c.207C>A (p.Leu69=)",
+          "transcript": "NM_000518.5",
+          "cdna": "c.207C>A",
+          "protein": "p.Leu69=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/02/11 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.207C>A",
+            "transcript_hgvs": "NM_000518.5:c.207C>A",
+            "raw_text": "HBB NM_000518.5:c.207C>A"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4525835",
+          "accession": "VCV004525835",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4525835/",
+          "title": "NM_000518.5(HBB):c.9T>G (p.His3Gln)",
+          "transcript": "NM_000518.5",
+          "cdna": "c.9T>G",
+          "protein": "p.His3Gln",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/07/30 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.9T>G",
+            "transcript_hgvs": "NM_000518.5:c.9T>G",
+            "raw_text": "HBB NM_000518.5:c.9T>G"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "vus",
+          "clinvar_variation_id": "3251803",
+          "accession": "VCV003251803",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3251803/",
+          "title": "NM_000518.5(HBB):c.400G>T (p.Val134Leu)",
+          "transcript": "NM_000518.5",
+          "cdna": "c.400G>T",
+          "protein": "p.Val134Leu",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2024/04/26 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.400G>T",
+            "transcript_hgvs": "NM_000518.5:c.400G>T",
+            "raw_text": "HBB NM_000518.5:c.400G>T"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "vus",
+          "clinvar_variation_id": "4069109",
+          "accession": "VCV004069109",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4069109/",
+          "title": "NM_000518.5(HBB):c.92+4G>T",
+          "transcript": "NM_000518.5",
+          "cdna": "c.92+4G>T",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "no assertion criteria provided",
+          "last_evaluated": "2025/04/10 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.92+4G>T",
+            "transcript_hgvs": "NM_000518.5:c.92+4G>T",
+            "raw_text": "HBB NM_000518.5:c.92+4G>T"
+          }
+        },
+        {
+          "gene": "HBB",
+          "category": "vus",
+          "clinvar_variation_id": "3767038",
+          "accession": "VCV003767038",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3767038/",
+          "title": "NM_000518.5(HBB):c.82_83delinsTT (p.Ala28Phe)",
+          "transcript": "NM_000518.5",
+          "cdna": "c.82_83delinsTT",
+          "protein": "p.Ala28Phe",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2023/12/14 00:00",
+          "variant_type": "delins",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "HBB",
+            "cdna": "c.82_83delinsTT",
+            "transcript_hgvs": "NM_000518.5:c.82_83delinsTT",
+            "raw_text": "HBB NM_000518.5:c.82_83delinsTT"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "LDLR",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "LDLR",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4812851",
+          "accession": "VCV004812851",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4812851/",
+          "title": "NM_000527.5(LDLR):c.155G>T (p.Cys52Phe)",
+          "transcript": "NM_000527.5",
+          "cdna": "c.155G>T",
+          "protein": "p.Cys52Phe",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/07/22 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.155G>T",
+            "transcript_hgvs": "NM_000527.5:c.155G>T",
+            "raw_text": "LDLR NM_000527.5:c.155G>T"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4820289",
+          "accession": "VCV004820289",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4820289/",
+          "title": "NM_000527.5(LDLR):c.1706-2_1710dup",
+          "transcript": "NM_000527.5",
+          "cdna": "c.1706-2_1710dup",
+          "protein": null,
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/02/18 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "splice acceptor variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.1706-2_1710dup",
+            "transcript_hgvs": "NM_000527.5:c.1706-2_1710dup",
+            "raw_text": "LDLR NM_000527.5:c.1706-2_1710dup"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4812875",
+          "accession": "VCV004812875",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4812875/",
+          "title": "NM_000527.5(LDLR):c.49del (p.Ala17fs)",
+          "transcript": "NM_000527.5",
+          "cdna": "c.49del",
+          "protein": "p.Ala17fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2024/02/19 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "non-coding transcript variant",
+            "frameshift variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.49del",
+            "transcript_hgvs": "NM_000527.5:c.49del",
+            "raw_text": "LDLR NM_000527.5:c.49del"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "benign_lb",
+          "clinvar_variation_id": "3896461",
+          "accession": "VCV003896461",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3896461/",
+          "title": "NM_000527.5(LDLR):c.68-11C>T",
+          "transcript": "NM_000527.5",
+          "cdna": "c.68-11C>T",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/12/08 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.68-11C>T",
+            "transcript_hgvs": "NM_000527.5:c.68-11C>T",
+            "raw_text": "LDLR NM_000527.5:c.68-11C>T"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4738878",
+          "accession": "VCV004738878",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4738878/",
+          "title": "NM_000527.5(LDLR):c.2049T>C (p.Pro683=)",
+          "transcript": "NM_000527.5",
+          "cdna": "c.2049T>C",
+          "protein": "p.Pro683=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/12/26 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant",
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.2049T>C",
+            "transcript_hgvs": "NM_000527.5:c.2049T>C",
+            "raw_text": "LDLR NM_000527.5:c.2049T>C"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4757623",
+          "accession": "VCV004757623",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4757623/",
+          "title": "NM_000527.5(LDLR):c.46C>T (p.Leu16Phe)",
+          "transcript": "NM_000527.5",
+          "cdna": "c.46C>T",
+          "protein": "p.Leu16Phe",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/07/02 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "non-coding transcript variant",
+            "missense variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.46C>T",
+            "transcript_hgvs": "NM_000527.5:c.46C>T",
+            "raw_text": "LDLR NM_000527.5:c.46C>T"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "vus",
+          "clinvar_variation_id": "4695946",
+          "accession": "VCV004695946",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4695946/",
+          "title": "NM_000527.5(LDLR):c.119T>C (p.Ile40Thr)",
+          "transcript": "NM_000527.5",
+          "cdna": "c.119T>C",
+          "protein": "p.Ile40Thr",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/07/02 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.119T>C",
+            "transcript_hgvs": "NM_000527.5:c.119T>C",
+            "raw_text": "LDLR NM_000527.5:c.119T>C"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "vus",
+          "clinvar_variation_id": "4756564",
+          "accession": "VCV004756564",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4756564/",
+          "title": "NM_000527.5(LDLR):c.-41C>T",
+          "transcript": "NM_000527.5",
+          "cdna": "c.-41C>T",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/01/07 00:00",
+          "variant_type": "non-coding transcript variant",
+          "molecular_consequence": [
+            "non-coding transcript variant",
+            "5 prime UTR variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.-41C>T",
+            "transcript_hgvs": "NM_000527.5:c.-41C>T",
+            "raw_text": "LDLR NM_000527.5:c.-41C>T"
+          }
+        },
+        {
+          "gene": "LDLR",
+          "category": "vus",
+          "clinvar_variation_id": "4756638",
+          "accession": "VCV004756638",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4756638/",
+          "title": "NM_000527.5(LDLR):c.190+4A>G",
+          "transcript": "NM_000527.5",
+          "cdna": "c.190+4A>G",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/09/04 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "LDLR",
+            "cdna": "c.190+4A>G",
+            "transcript_hgvs": "NM_000527.5:c.190+4A>G",
+            "raw_text": "LDLR NM_000527.5:c.190+4A>G"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "MLH1",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "MLH1",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4108563",
+          "accession": "VCV004108563",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4108563/",
+          "title": "NM_000249.4(MLH1):c.1894del (p.Glu632fs)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.1894del",
+          "protein": "p.Glu632fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/07/21 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "intron variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.1894del",
+            "transcript_hgvs": "NM_000249.4:c.1894del",
+            "raw_text": "MLH1 NM_000249.4:c.1894del"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3779861",
+          "accession": "VCV003779861",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3779861/",
+          "title": "NM_000249.4(MLH1):c.87dup (p.Asn30Ter)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.87dup",
+          "protein": "p.Asn30Ter",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2026/03/02 00:00",
+          "variant_type": "duplication",
+          "molecular_consequence": [
+            "nonsense",
+            "5 prime UTR variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.87dup",
+            "transcript_hgvs": "NM_000249.4:c.87dup",
+            "raw_text": "MLH1 NM_000249.4:c.87dup"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4683074",
+          "accession": "VCV004683074",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4683074/",
+          "title": "NM_000249.4(MLH1):c.83C>G (p.Pro28Arg)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.83C>G",
+          "protein": "p.Pro28Arg",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/02/25 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "5 prime UTR variant",
+            "missense variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.83C>G",
+            "transcript_hgvs": "NM_000249.4:c.83C>G",
+            "raw_text": "MLH1 NM_000249.4:c.83C>G"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4539415",
+          "accession": "VCV004539415",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4539415/",
+          "title": "NM_000249.4(MLH1):c.1667+13A>C",
+          "transcript": "NM_000249.4",
+          "cdna": "c.1667+13A>C",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/12/29 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.1667+13A>C",
+            "transcript_hgvs": "NM_000249.4:c.1667+13A>C",
+            "raw_text": "MLH1 NM_000249.4:c.1667+13A>C"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4723501",
+          "accession": "VCV004723501",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4723501/",
+          "title": "NM_000249.4(MLH1):c.25C>A (p.Arg9=)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.25C>A",
+          "protein": "p.Arg9=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/08/10 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "5 prime UTR variant",
+            "synonymous variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.25C>A",
+            "transcript_hgvs": "NM_000249.4:c.25C>A",
+            "raw_text": "MLH1 NM_000249.4:c.25C>A"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4108578",
+          "accession": "VCV004108578",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4108578/",
+          "title": "NM_000249.4(MLH1):c.298C>A (p.Arg100=)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.298C>A",
+          "protein": "p.Arg100=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/09/06 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "intron variant",
+            "synonymous variant",
+            "5 prime UTR variant",
+            "missense variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.298C>A",
+            "transcript_hgvs": "NM_000249.4:c.298C>A",
+            "raw_text": "MLH1 NM_000249.4:c.298C>A"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "vus",
+          "clinvar_variation_id": "4689888",
+          "accession": "VCV004689888",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4689888/",
+          "title": "NM_000249.4(MLH1):c.53G>C (p.Arg18Pro)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.53G>C",
+          "protein": "p.Arg18Pro",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/08/13 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "5 prime UTR variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.53G>C",
+            "transcript_hgvs": "NM_000249.4:c.53G>C",
+            "raw_text": "MLH1 NM_000249.4:c.53G>C"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "vus",
+          "clinvar_variation_id": "4719298",
+          "accession": "VCV004719298",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4719298/",
+          "title": "NM_000249.4(MLH1):c.453+3A>T",
+          "transcript": "NM_000249.4",
+          "cdna": "c.453+3A>T",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/05/12 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.453+3A>T",
+            "transcript_hgvs": "NM_000249.4:c.453+3A>T",
+            "raw_text": "MLH1 NM_000249.4:c.453+3A>T"
+          }
+        },
+        {
+          "gene": "MLH1",
+          "category": "vus",
+          "clinvar_variation_id": "4081840",
+          "accession": "VCV004081840",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4081840/",
+          "title": "NM_000249.4(MLH1):c.342_347del (p.Ile115_Thr116del)",
+          "transcript": "NM_000249.4",
+          "cdna": "c.342_347del",
+          "protein": "p.Ile115_Thr116del",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/08/20 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "inframe_deletion",
+            "5 prime UTR variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "MLH1",
+            "cdna": "c.342_347del",
+            "transcript_hgvs": "NM_000249.4:c.342_347del",
+            "raw_text": "MLH1 NM_000249.4:c.342_347del"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "PAH",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "PAH",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "4540589",
+          "accession": "VCV004540589",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4540589/",
+          "title": "NM_000277.3(PAH):c.877T>A (p.Leu293Met)",
+          "transcript": "NM_000277.3",
+          "cdna": "c.877T>A",
+          "protein": "p.Leu293Met",
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2024/09/06 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.877T>A",
+            "transcript_hgvs": "NM_000277.3:c.877T>A",
+            "raw_text": "PAH NM_000277.3:c.877T>A"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "2682168",
+          "accession": "VCV002682168",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2682168/",
+          "title": "NM_000277.3(PAH):c.353-2A>T",
+          "transcript": "NM_000277.3",
+          "cdna": "c.353-2A>T",
+          "protein": null,
+          "clinical_significance": "Pathogenic",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2023/12/30 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "splice acceptor variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.353-2A>T",
+            "transcript_hgvs": "NM_000277.3:c.353-2A>T",
+            "raw_text": "PAH NM_000277.3:c.353-2A>T"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "2682164",
+          "accession": "VCV002682164",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2682164/",
+          "title": "NM_000277.3(PAH):c.75del (p.Ile25fs)",
+          "transcript": "NM_000277.3",
+          "cdna": "c.75del",
+          "protein": "p.Ile25fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2023/10/13 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.75del",
+            "transcript_hgvs": "NM_000277.3:c.75del",
+            "raw_text": "PAH NM_000277.3:c.75del"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "benign_lb",
+          "clinvar_variation_id": "2824741",
+          "accession": "VCV002824741",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2824741/",
+          "title": "NM_000277.3(PAH):c.61-4del",
+          "transcript": "NM_000277.3",
+          "cdna": "c.61-4del",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2023/09/22 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.61-4del",
+            "transcript_hgvs": "NM_000277.3:c.61-4del",
+            "raw_text": "PAH NM_000277.3:c.61-4del"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "benign_lb",
+          "clinvar_variation_id": "2828440",
+          "accession": "VCV002828440",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2828440/",
+          "title": "NM_000277.3(PAH):c.27A>C (p.Pro9=)",
+          "transcript": "NM_000277.3",
+          "cdna": "c.27A>C",
+          "protein": "p.Pro9=",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2023/03/09 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.27A>C",
+            "transcript_hgvs": "NM_000277.3:c.27A>C",
+            "raw_text": "PAH NM_000277.3:c.27A>C"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "benign_lb",
+          "clinvar_variation_id": "2823419",
+          "accession": "VCV002823419",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2823419/",
+          "title": "NM_000277.3(PAH):c.61-4G>A",
+          "transcript": "NM_000277.3",
+          "cdna": "c.61-4G>A",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2022/12/23 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.61-4G>A",
+            "transcript_hgvs": "NM_000277.3:c.61-4G>A",
+            "raw_text": "PAH NM_000277.3:c.61-4G>A"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "vus",
+          "clinvar_variation_id": "4540588",
+          "accession": "VCV004540588",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4540588/",
+          "title": "NM_000277.3(PAH):c.228G>C (p.Glu76Asp)",
+          "transcript": "NM_000277.3",
+          "cdna": "c.228G>C",
+          "protein": "p.Glu76Asp",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2025/10/12 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.228G>C",
+            "transcript_hgvs": "NM_000277.3:c.228G>C",
+            "raw_text": "PAH NM_000277.3:c.228G>C"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "vus",
+          "clinvar_variation_id": "2637578",
+          "accession": "VCV002637578",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/2637578/",
+          "title": "NM_000277.3(PAH):c.1199+5G>A",
+          "transcript": "NM_000277.3",
+          "cdna": "c.1199+5G>A",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/09/25 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.1199+5G>A",
+            "transcript_hgvs": "NM_000277.3:c.1199+5G>A",
+            "raw_text": "PAH NM_000277.3:c.1199+5G>A"
+          }
+        },
+        {
+          "gene": "PAH",
+          "category": "vus",
+          "clinvar_variation_id": "4540585",
+          "accession": "VCV004540585",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4540585/",
+          "title": "NM_000277.3(PAH):c.84C>T (p.Asn28=)",
+          "transcript": "NM_000277.3",
+          "cdna": "c.84C>T",
+          "protein": "p.Asn28=",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "reviewed by expert panel",
+          "last_evaluated": "2025/07/18 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "PAH",
+            "cdna": "c.84C>T",
+            "transcript_hgvs": "NM_000277.3:c.84C>T",
+            "raw_text": "PAH NM_000277.3:c.84C>T"
+          }
+        }
+      ]
+    },
+    {
+      "gene": "TP53",
+      "variant_count": 9,
+      "variants": [
+        {
+          "gene": "TP53",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3602769",
+          "accession": "VCV003602769",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3602769/",
+          "title": "NM_000546.6(TP53):c.440T>G (p.Val147Gly)",
+          "transcript": "NM_000546.6",
+          "cdna": "c.440T>G",
+          "protein": "p.Val147Gly",
+          "clinical_significance": "Pathogenic/Likely pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/10/07 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "non-coding transcript variant",
+            "5 prime UTR variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.440T>G",
+            "transcript_hgvs": "NM_000546.6:c.440T>G",
+            "raw_text": "TP53 NM_000546.6:c.440T>G"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3972447",
+          "accession": "VCV003972447",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3972447/",
+          "title": "NM_000546.6(TP53):c.920-2del",
+          "transcript": "NM_000546.6",
+          "cdna": "c.920-2del",
+          "protein": null,
+          "clinical_significance": "Likely pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/06/11 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "splice acceptor variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.920-2del",
+            "transcript_hgvs": "NM_000546.6:c.920-2del",
+            "raw_text": "TP53 NM_000546.6:c.920-2del"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "pathogenic_lp",
+          "clinvar_variation_id": "3972465",
+          "accession": "VCV003972465",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3972465/",
+          "title": "NM_000546.6(TP53):c.78del (p.Pro27fs)",
+          "transcript": "NM_000546.6",
+          "cdna": "c.78del",
+          "protein": "p.Pro27fs",
+          "clinical_significance": "Pathogenic",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/10/20 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "5 prime UTR variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Pathogenic or likely pathogenic",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.78del",
+            "transcript_hgvs": "NM_000546.6:c.78del",
+            "raw_text": "TP53 NM_000546.6:c.78del"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4071430",
+          "accession": "VCV004071430",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4071430/",
+          "title": "NM_000546.6(TP53):c.673-4C>T",
+          "transcript": "NM_000546.6",
+          "cdna": "c.673-4C>T",
+          "protein": null,
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/09/15 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "intron variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.673-4C>T",
+            "transcript_hgvs": "NM_000546.6:c.673-4C>T",
+            "raw_text": "TP53 NM_000546.6:c.673-4C>T"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "benign_lb",
+          "clinvar_variation_id": "4071089",
+          "accession": "VCV004071089",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4071089/",
+          "title": "NM_000546.6(TP53):c.99C>T (p.Ser33=)",
+          "transcript": "NM_000546.6",
+          "cdna": "c.99C>T",
+          "protein": "p.Ser33=",
+          "clinical_significance": "Benign/Likely benign",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/10/22 00:00",
+          "variant_type": "synonymous",
+          "molecular_consequence": [
+            "synonymous variant",
+            "5 prime UTR variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.99C>T",
+            "transcript_hgvs": "NM_000546.6:c.99C>T",
+            "raw_text": "TP53 NM_000546.6:c.99C>T"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "benign_lb",
+          "clinvar_variation_id": "3972456",
+          "accession": "VCV003972456",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3972456/",
+          "title": "NM_000546.6(TP53):c.62A>C (p.Asp21Ala)",
+          "transcript": "NM_000546.6",
+          "cdna": "c.62A>C",
+          "protein": "p.Asp21Ala",
+          "clinical_significance": "Likely benign",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2025/06/05 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "5 prime UTR variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Benign or likely benign",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.62A>C",
+            "transcript_hgvs": "NM_000546.6:c.62A>C",
+            "raw_text": "TP53 NM_000546.6:c.62A>C"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "vus",
+          "clinvar_variation_id": "3972446",
+          "accession": "VCV003972446",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3972446/",
+          "title": "NM_000546.6(TP53):c.424C>A (p.Pro142Thr)",
+          "transcript": "NM_000546.6",
+          "cdna": "c.424C>A",
+          "protein": "p.Pro142Thr",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, multiple submitters, no conflicts",
+          "last_evaluated": "2025/04/08 00:00",
+          "variant_type": "missense",
+          "molecular_consequence": [
+            "missense variant",
+            "non-coding transcript variant",
+            "5 prime UTR variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.424C>A",
+            "transcript_hgvs": "NM_000546.6:c.424C>A",
+            "raw_text": "TP53 NM_000546.6:c.424C>A"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "vus",
+          "clinvar_variation_id": "3773928",
+          "accession": "VCV003773928",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/3773928/",
+          "title": "NM_000546.6(TP53):c.-26G>A",
+          "transcript": "NM_000546.6",
+          "cdna": "c.-26G>A",
+          "protein": null,
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2024/09/20 00:00",
+          "variant_type": "splicing",
+          "molecular_consequence": [
+            "5 prime UTR variant",
+            "non-coding transcript variant",
+            "splice acceptor variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.-26G>A",
+            "transcript_hgvs": "NM_000546.6:c.-26G>A",
+            "raw_text": "TP53 NM_000546.6:c.-26G>A"
+          }
+        },
+        {
+          "gene": "TP53",
+          "category": "vus",
+          "clinvar_variation_id": "4824215",
+          "accession": "VCV004824215",
+          "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/4824215/",
+          "title": "NM_000546.6(TP53):c.1176del (p.Asp393fs)",
+          "transcript": "NM_000546.6",
+          "cdna": "c.1176del",
+          "protein": "p.Asp393fs",
+          "clinical_significance": "Uncertain significance",
+          "review_status": "criteria provided, single submitter",
+          "last_evaluated": "2026/02/17 00:00",
+          "variant_type": "deletion",
+          "molecular_consequence": [
+            "frameshift variant",
+            "3 prime UTR variant",
+            "non-coding transcript variant"
+          ],
+          "category_label": "Uncertain significance",
+          "report_query": {
+            "gene": "TP53",
+            "cdna": "c.1176del",
+            "transcript_hgvs": "NM_000546.6:c.1176del",
+            "raw_text": "TP53 NM_000546.6:c.1176del"
+          }
+        }
+      ]
+    }
+  ],
+  "reference_control_gene": {
+    "gene": "RPE65",
+    "purpose": "Reference/control gene for the existing rich Variant Evidence Report fixture path.",
+    "control_variant": {
+      "gene": "RPE65",
+      "category": "vus",
+      "category_label": "Uncertain significance",
+      "clinvar_variation_id": "1421454",
+      "accession": "VCV001421454",
+      "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/1421454/",
+      "title": "NM_000329.3(RPE65):c.260A>G (p.Asp87Gly)",
+      "transcript": "NM_000329.3",
+      "cdna": "c.260A>G",
+      "protein": "p.Asp87Gly",
+      "clinical_significance": "Uncertain significance",
+      "review_status": "criteria provided, single submitter",
+      "last_evaluated": null,
+      "variant_type": "missense",
+      "molecular_consequence": [
+        "missense variant"
+      ],
+      "report_query": {
+        "gene": "RPE65",
+        "cdna": "c.260A>G",
+        "transcript_hgvs": "NM_000329.3:c.260A>G",
+        "raw_text": "RPE65 NM_000329.3:c.260A>G"
+      }
+    }
+  }
+}

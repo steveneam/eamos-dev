@@ -1,5 +1,51 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 21 - 24 May 2026 - gnomAD map guardrails and ClinVar gene-agnostic stack
+
+Codex completed the follow-up hardening requested after `8552ac8`. The gnomAD
+Section 3 anchor layer now has a Vite unit test proving deterministic current
+group anchors, neutral fallback for future/unmapped group IDs, and byte-identical
+Vite/Next anchor-map copies. The proprietary map documentation and index now
+point to that test.
+
+Added `app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json`,
+a ClinVar-backed QA stack verified against current NCBI ClinVar E-utilities
+summaries at `2026-05-24 03:38 +1000`: 10 non-RPE65 genes x 9 variants each
+(`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`, `MLH1`, `PAH`,
+`TP53`) with 3 pathogenic/likely pathogenic, 3 benign/likely benign, and 3 VUS
+records per gene. It includes missense, insertion, deletion, duplication,
+splicing, delins, synonymous, and non-coding records. `RPE65`
+`NM_000329.3:c.260A>G` / `VCV001421454` is the reference/control gene.
+
+Added `app/backend/tests/test_clinvar_gene_agnostic_stack.py` to validate the
+fixture offline, smoke one representative report query per gene for no RPE65
+fixture bleed, and provide an opt-in live refresh check via
+`EAMOS_VERIFY_CLINVAR_STACK=1`.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_clinvar_gene_agnostic_stack.py tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py -q`
+  -> passed (27 tests, 1 skipped live ClinVar refresh).
+- `cd app/backend && EAMOS_VERIFY_CLINVAR_STACK=1 python -m pytest tests/test_clinvar_gene_agnostic_stack.py -q`
+  -> passed (14 tests live-refreshed against ClinVar summaries).
+- `cd app/backend && python -m ruff check tests/test_clinvar_gene_agnostic_stack.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 tests/test_clinvar_gene_agnostic_stack.py`
+  -> passed.
+- `cd app/frontend && npx vitest run src/components/report/gnomadAncestryMap.test.ts --reporter=dot`
+  -> passed (3 tests).
+- `cd app/frontend && npm run build`
+  -> passed; Vite emitted only the existing large-chunk/plugin timing warnings.
+- Vite browser smoke against `/report?demo` passed in headless Chrome at
+  desktop and mobile viewports; screenshots were non-empty and the rendered DOM
+  contained the Variant Evidence Report title, gene-context section, and gnomAD
+  Section 3. Temporary dev server on port 5173 was stopped.
+
+Coordination:
+- Claude completed deployment readiness separately in local commit `ad94d5a`
+  (not pushed). Codex did not touch those deployment files.
+- No `/runs`, AlphaMissense, `backend.ts`, or `globals.css` work.
+- No commit or push by Codex in this slice.
+
 ## Session 20 - 24 May 2026 - Variant report gene-context snapshot contract
 
 Codex implemented Task 13 from `plans/variant-report-data-orchestration/plan.md`.

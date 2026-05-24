@@ -41,7 +41,7 @@ script, algorithm, CLI, service, or orchestration behavior changes.
 | [Source-Backed Candidate Resolution](./candidate-resolution.md) | Backend interpreter/resolver | 2026-05-21 19:07 +1000 - Codex | 2026-05-23 18:00 +1000 - Codex | `app/backend/app/services/search_input_interpreter.py`, `app/backend/app/services/search_candidate_resolver.py` |
 | [Search Input AI Extractor + Lexicon](./search-input-ai.md) | Mock-first AI extraction service | 2026-05-21 23:09 +1000 - Codex | 2026-05-23 18:00 +1000 - Codex | `app/backend/app/services/search_input_ai.py`, `app/backend/app/fixtures/search_input_lexicon.json` |
 | [Variant Report Data Orchestrator](./variant-report-orchestration.md) | Backend orchestration layer | 2026-05-23 12:10 +1000 - Codex | 2026-05-23 19:51 +1000 - Codex | `app/backend/app/services/variant_report_orchestrator.py`, `app/backend/app/services/report_extraction_plan.py`, `app/backend/app/services/population_frequency_section.py`, `app/backend/app/tools/gene_disease.py`, `app/backend/app/tools/molecular_context.py`, `app/backend/app/tools/computational_annotations.py` |
-| [gnomAD Genetic Ancestry Map Anchors](./gnomad-ancestry-map.md) | UI mapping algorithm | 2026-05-24 01:56 +1000 - Codex | 2026-05-24 01:56 +1000 - Codex | `app/frontend/src/components/report/gnomadAncestryMap.ts`, `app/web/components/report/gnomadAncestryMap.ts` |
+| [gnomAD Genetic Ancestry Map Anchors](./gnomad-ancestry-map.md) | UI mapping algorithm | 2026-05-24 01:56 +1000 - Codex | 2026-05-24 03:38 +1000 - Codex | `app/frontend/src/components/report/gnomadAncestryMap.ts`, `app/web/components/report/gnomadAncestryMap.ts` |
 
 Machine-readable index: [index.json](./index.json).
 

@@ -4,7 +4,7 @@ Status: Active frontend prototype
 Type: UI mapping algorithm
 Owner: Codex
 Added: 2026-05-24 01:56 +1000 - Codex
-Last updated: 2026-05-24 01:56 +1000 - Codex
+Last updated: 2026-05-24 03:38 +1000 - Codex
 
 ## What It Does
 
@@ -31,6 +31,7 @@ context.
 ## Source Of Truth
 
 - `app/frontend/src/components/report/gnomadAncestryMap.ts`
+- `app/frontend/src/components/report/gnomadAncestryMap.test.ts`
 - `app/web/components/report/gnomadAncestryMap.ts`
 - `app/frontend/src/components/report/PopulationFrequencySection.tsx`
 - `app/web/components/report/PopulationFrequencySection.tsx`
@@ -50,4 +51,3 @@ context.
   until a reviewed anchor is added.
 - Population values must continue to come from source-backed gnomAD payload
   fields, not from the map layer.
-

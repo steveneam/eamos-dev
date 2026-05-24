@@ -2,8 +2,8 @@
 
 Source: `plans/variant-report-data-orchestration/spec.md`
 
-Status: In progress - Tasks 1-8 implemented and verified; Task 9 parser/helper slice complete; Task 11A gene-agnostic hardening + Task 12 Section 3 gnomAD expansion implemented and verified; Task 13 gene-context snapshot contract implemented and verified; Tasks 14-19 remain planned for snapshot UI, production gnomAD, ClinicalTrials.gov hardening, and final UI QA
-Last updated: 2026-05-24 00:00 +1000 - Codex
+Status: In progress - Tasks 1-8 implemented and verified; Task 9 parser/helper slice complete; Task 11A gene-agnostic hardening + Task 12 Section 3 gnomAD expansion implemented and verified; Task 13 gene-context snapshot contract implemented and verified; Task 14 static snapshot UI, Task 15 gnomAD map guardrails, and Task 20 ClinVar gene-agnostic stack implemented and verified; Tasks 16-19 remain planned for production gnomAD, ClinicalTrials.gov hardening, and final UI QA
+Last updated: 2026-05-24 03:48 +1000 - Codex
 
 Shared decisions:
 
@@ -1066,7 +1066,7 @@ cd ../web
 npx tsc --noEmit --pretty false
 ```
 
-## Task 14 - Static Report Gene Context Snapshot UI - PLANNED 2026-05-23 23:27 +1000 - Codex
+## Task 14 - Static Report Gene Context Snapshot UI - DONE 2026-05-24 03:15 +1000 - Codex
 
 **Goal**
 
@@ -1148,7 +1148,19 @@ available.
 Backend contract shape decisions, Workbench interaction changes, live gnomAD
 warehouse work, `/runs`, and AlphaMissense.
 
-## Task 15 - gnomAD Ancestry Region Mapping Algorithm - PLANNED 2026-05-23 23:27 +1000 - Codex
+**Implementation note:** Added `GeneContextSnapshotSection` to both the Vite
+and Next report frontends, rendering the existing additive
+`gene_context_snapshot` contract as a static full-transcript overview plus
+zoomed variant-neighborhood figure with Workbench deep link and warning states.
+Section gating now consumes `section_targets`, and the zoom track uses
+`zoom_window.total_display_bases` rather than a fixed span.
+
+**Verified 2026-05-24 03:15 +1000 - Codex:** focused backend report suites,
+ruff/black, Vite typecheck/build, Next typecheck/build, and partial Next
+desktop/mobile browser smoke passed. Vite browser smoke was added in the
+Task 15/20 follow-up below.
+
+## Task 15 - gnomAD Ancestry Region Mapping Algorithm - DONE 2026-05-24 03:48 +1000 - Codex
 
 **Goal**
 
@@ -1169,7 +1181,10 @@ language.
 - `app/backend/app/services/report_call_cards.py`
 - `app/backend/app/tools/gnomad.py`
 - `app/frontend/src/components/report/PopulationFrequencySection.tsx`
+- `app/frontend/src/components/report/gnomadAncestryMap.ts`
+- `app/frontend/src/components/report/gnomadAncestryMap.test.ts`
 - `app/web/components/report/PopulationFrequencySection.tsx`
+- `app/web/components/report/gnomadAncestryMap.ts`
 - `app/backend/tests/test_gnomad_tool.py`
 - `app/backend/tests/test_variant_report_orchestration.py`
 - `docs/proprietary/index.json`
@@ -1212,6 +1227,91 @@ python -m black --check --target-version py310 app tests/test_gnomad_tool.py tes
 
 Local gnomAD warehouse, per-hover detail endpoint, and frontend visual redesign
 beyond labels/states needed by the algorithm.
+
+**Implementation note:** Moved gnomAD group anchors into explicit mirrored
+frontend mapping modules, documented the Eamos-specific non-patient-ancestry
+anchor algorithm in `docs/proprietary/gnomad-ancestry-map.md`, updated the
+proprietary catalogue, and added a Vite unit test proving deterministic current
+group anchors, neutral fallback behavior for future groups, and byte-identical
+Vite/Next anchor-map copies.
+
+**Verified 2026-05-24 03:48 +1000 - Codex:**
+
+```bash
+cd app/backend
+python -m pytest tests/test_clinvar_gene_agnostic_stack.py tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py -q
+
+cd ../frontend
+npx vitest run src/components/report/gnomadAncestryMap.test.ts --reporter=dot
+npm run build
+```
+
+Vite browser smoke also passed against `/report?demo` in headless Chrome at
+desktop and mobile viewports; screenshots were non-empty and the rendered DOM
+contained the report title, gene-context section, and gnomAD Section 3.
+
+## Task 20 - ClinVar-Backed Gene-Agnostic Report Test Stack - DONE 2026-05-24 03:48 +1000 - Codex
+
+**Goal**
+
+Create a durable, source-verified ClinVar test stack for gene-agnostic live and
+offline Variant Evidence Report QA.
+
+**Context**
+
+The report now degrades cleanly for non-RPE65 genes, but future per-gene
+`transcript_model` work needs a broad, current source-backed matrix rather than
+one-off examples.
+
+**Relevant Files Or References**
+
+- `app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json`
+- `app/backend/tests/test_clinvar_gene_agnostic_stack.py`
+- NCBI ClinVar E-utilities `esearch.fcgi` and `esummary.fcgi`
+
+**Implementation note:** Added a generated fixture verified from current NCBI
+ClinVar E-utilities summaries at `2026-05-24 03:38 +1000`. It contains 10
+non-RPE65 genes (`ABCA4`, `APC`, `BRCA1`, `BRCA2`, `CFTR`, `HBB`, `LDLR`,
+`MLH1`, `PAH`, `TP53`), each with 9 variants: 3 pathogenic/likely pathogenic,
+3 benign/likely benign, and 3 uncertain significance. The stack includes
+missense, insertion, deletion, duplication, splicing, delins, synonymous, and
+non-coding records. `RPE65` `NM_000329.3:c.260A>G` / `VCV001421454` is kept as
+the report reference/control gene.
+
+**Acceptance Criteria**
+
+- Each stack gene has exactly 9 variants and exactly 3 rows per clinical
+  category.
+- Each row carries ClinVar variation ID, VCV accession, source URL, transcript,
+  cDNA, clinical significance, review status, variant type, and report query.
+- Required variant classes across the stack include missense, insertion,
+  deletion, duplication, and splicing.
+- Offline route smoke verifies one representative variant per gene does not
+  inherit RPE65 fixture facts.
+- Live ClinVar refresh verification is available but skipped by default.
+
+**Verified 2026-05-24 03:48 +1000 - Codex:**
+
+```bash
+cd app/backend
+python -m pytest tests/test_clinvar_gene_agnostic_stack.py -q
+EAMOS_VERIFY_CLINVAR_STACK=1 python -m pytest tests/test_clinvar_gene_agnostic_stack.py -q
+python -m ruff check tests/test_clinvar_gene_agnostic_stack.py
+python -m black --check --target-version py310 tests/test_clinvar_gene_agnostic_stack.py
+```
+
+The live refresh check above was run once before finalizing the fixture. Keep it
+as an opt-in future refresh check:
+
+```bash
+cd app/backend
+EAMOS_VERIFY_CLINVAR_STACK=1 python -m pytest tests/test_clinvar_gene_agnostic_stack.py -q
+```
+
+**Out Of Scope**
+
+Per-gene transcript-model hydration, local gnomAD warehouse, `/runs`,
+AlphaMissense, and frontend contract changes.
 
 ## Task 16 - gnomAD Local Data Access Prototype - PLANNED 2026-05-23 23:27 +1000 - Codex
 
