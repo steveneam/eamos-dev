@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { Reveal } from '@/components/landing/Reveal'
 
 export function Testimonials() {
@@ -12,6 +13,13 @@ export function Testimonials() {
     >
       <div className="mx-auto px-8" style={{ maxWidth: 880 }}>
         <Reveal className="flex flex-col items-center text-center">
+          <Image
+            src="/founder-steven.webp"
+            alt="Steven, founder of Eamos"
+            width={112}
+            height={112}
+            className="mb-6"
+          />
           <span
             className="mb-7 text-[11px] font-semibold uppercase tracking-[0.16em]"
             style={{ color: 'var(--em-bright)' }}
