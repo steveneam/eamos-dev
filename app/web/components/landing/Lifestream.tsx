@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 
 /**
@@ -18,6 +19,18 @@ const CURVES = [
 
 export function Lifestream() {
   const reduce = useReducedMotion()
+  // Also freeze motion on small screens: continuously animating large blurred
+  // blobs + SVG pulses keep the mobile GPU busy and cause input lag when typing
+  // (e.g. the sign-up form over the hero). The static glow stays; motion stops.
+  const [isSmall, setIsSmall] = useState(false)
+  useEffect(() => {
+    const m = window.matchMedia('(max-width: 640px)')
+    const update = () => setIsSmall(m.matches)
+    update()
+    m.addEventListener('change', update)
+    return () => m.removeEventListener('change', update)
+  }, [])
+  const still = reduce || isSmall
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -34,7 +47,7 @@ export function Lifestream() {
             'radial-gradient(circle, rgba(16,185,129,0.32), rgba(16,185,129,0) 70%)',
           filter: 'blur(36px)',
         }}
-        animate={reduce ? undefined : { x: [0, 60, -20, 0], y: [0, 30, -10, 0], scale: [1, 1.08, 0.96, 1] }}
+        animate={still ? undefined : { x: [0, 60, -20, 0], y: [0, 30, -10, 0], scale: [1, 1.08, 0.96, 1] }}
         transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
@@ -49,7 +62,7 @@ export function Lifestream() {
             'radial-gradient(circle, rgba(52,211,153,0.22), rgba(52,211,153,0) 70%)',
           filter: 'blur(44px)',
         }}
-        animate={reduce ? undefined : { x: [0, -50, 20, 0], y: [0, 40, -20, 0], scale: [1, 1.1, 0.94, 1] }}
+        animate={still ? undefined : { x: [0, -50, 20, 0], y: [0, 40, -20, 0], scale: [1, 1.1, 0.94, 1] }}
         transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       />
 
@@ -80,7 +93,7 @@ export function Lifestream() {
               strokeLinecap="round"
               strokeDasharray="120 1900"
               initial={{ strokeDashoffset: 2020 }}
-              animate={reduce ? { strokeDashoffset: 1000 } : { strokeDashoffset: [2020, 0] }}
+              animate={still ? { strokeDashoffset: 1000 } : { strokeDashoffset: [2020, 0] }}
               transition={
                 reduce
                   ? { duration: 0 }

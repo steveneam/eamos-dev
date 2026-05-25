@@ -83,9 +83,11 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
         className="absolute inset-0"
         style={{
           opacity: 0,
-          background: 'rgba(4,22,16,0.82)',
+          // Solid-ish (was 0.82 + blur). A sticky backdrop-filter:blur repaints on
+          // every keystroke anywhere on the page → mobile typing lag (this nav is on
+          // the landing AND /account, behind the sign-up form). Drop the blur.
+          background: 'rgba(4,22,16,0.95)',
           borderBottom: '0.5px solid var(--hero-line)',
-          backdropFilter: 'blur(8px)',
         }}
       />
 
