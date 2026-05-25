@@ -35,6 +35,8 @@ interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<AuthResult>
   signInWithOAuth: (provider: OAuthProvider) => Promise<AuthResult>
   resetPassword: (email: string) => Promise<AuthResult>
+  /** Set a new password for the current (recovery) session — used by /account/update-password. */
+  updatePassword: (newPassword: string) => Promise<AuthResult>
   signOut: () => Promise<void>
 }
 
@@ -130,6 +132,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [client],
   )
 
+  const updatePassword = useCallback(
+    async (newPassword: string): Promise<AuthResult> => {
+      if (!client) return NOT_CONFIGURED
+      const { error } = await client.auth.updateUser({ password: newPassword })
+      return error ? { error: error.message } : {}
+    },
+    [client],
+  )
+
   const signOut = useCallback(async () => {
     if (!client) return
     await client.auth.signOut()
@@ -144,9 +155,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signInWithOAuth,
       resetPassword,
+      updatePassword,
       signOut,
     }),
-    [client, loading, user, signInWithPassword, signUp, signInWithOAuth, resetPassword, signOut],
+    [client, loading, user, signInWithPassword, signUp, signInWithOAuth, resetPassword, updatePassword, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

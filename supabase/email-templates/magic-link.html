@@ -1,0 +1,38 @@
+<!--
+  Eamos — "Magic Link" email.
+  Paste the markup below into: Supabase → Authentication → Email Templates
+    → "Magic Link" → Body (Source).
+  Suggested Subject: Your Eamos sign-in link
+
+  NOTE: the app doesn't currently expose a magic-link sign-in in the UI — this is
+  styled for consistency in case it's enabled later.
+  Link form: {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/account
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:32px 14px;">
+  <tr><td align="center">
+    <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:100%;background:#ffffff;border:1px solid #e6eee9;border-radius:16px;">
+      <tr><td style="padding:34px 36px 6px;">
+        <span style="font-size:22px;font-weight:700;letter-spacing:-0.01em;color:#0a1a12;">eamos</span>
+        <span style="margin-left:8px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#10b981;">Genomics for All</span>
+      </td></tr>
+      <tr><td style="padding:16px 36px 0;">
+        <h1 style="margin:0 0 12px;font-size:21px;line-height:1.3;font-weight:700;color:#0a1a12;">Your sign-in link</h1>
+        <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#42514a;">Click below to sign in to Eamos — no password needed. This link is good for a short while.</p>
+      </td></tr>
+      <tr><td style="padding:0 36px 6px;">
+        <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/account" style="display:inline-block;background:#10b981;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:10px;">Sign in to Eamos &rarr;</a>
+      </td></tr>
+      <tr><td style="padding:20px 36px 0;">
+        <p style="margin:0;font-size:12.5px;line-height:1.55;color:#7a8c83;">Button not working? Copy and paste this link:<br>
+          <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/account" style="color:#0f9d6f;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/account</a>
+        </p>
+      </td></tr>
+      <tr><td style="padding:24px 36px 32px;">
+        <div style="border-top:1px solid #eef3f0;padding-top:18px;">
+          <p style="margin:0;font-size:12px;line-height:1.55;color:#9aa8a0;">Didn't try to sign in? You can safely ignore this email.</p>
+          <p style="margin:10px 0 0;font-size:11.5px;line-height:1.5;color:#aeb9b2;">Eamos · Genomic intelligence platform · Research use only — not a medical device.</p>
+        </div>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
