@@ -81,6 +81,16 @@
   --aa-cys:   #f4ecd2;
   --aa-stop:  #d9dde2;
 
+  /* Workbench-only tokens */
+  --line-3:   #f1f5f9;
+  --err:      #B82B2B;
+  --err-tint: #fbeaea;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --nav-h: 60px;
+  --ctx-h: 48px;
+
   /* Surface width helpers */
   --maxw-report: 920px;
   --maxw-nav: 1180px;

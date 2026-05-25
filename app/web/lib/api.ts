@@ -1,4 +1,5 @@
-import type { LookupRequest, LookupResponse, PublicationLiterature } from './backend'
+import type { GeneViewerRequest, GeneViewerResponse, LookupRequest, LookupResponse, PublicationLiterature } from './backend'
+import { GENE_VIEWER_SAMPLE } from './workbench/gene-viewer-sample'
 
 // Variant Evidence Report → FastAPI. Same-origin by default (empty base):
 // next.config.ts rewrites `/api/*` to the FastAPI dev server, so no CORS.
@@ -60,6 +61,40 @@ export interface PublicationPageRequest {
   species?: 'human' | 'mouse'
   limit?: number
   offset?: number
+}
+
+/**
+ * Gene viewer payload for the Workbench sequence viewer. Calls
+ * `POST /api/v1/viewer`; if the backend is unreachable it resolves with the
+ * bundled `GENE_VIEWER_SAMPLE` for the default RPE65 request (mock-first).
+ */
+export async function getGeneViewer(
+  payload: GeneViewerRequest,
+): Promise<GeneViewerResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/viewer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return await parseResponse<GeneViewerResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError && isDefaultGeneViewerPayload(payload)) {
+      return GENE_VIEWER_SAMPLE
+    }
+    throw err
+  }
+}
+
+function isDefaultGeneViewerPayload(payload: GeneViewerRequest): boolean {
+  const gene = payload.gene.trim().toUpperCase()
+  const cdna = payload.cdna.replace(/\s+/g, '')
+  const transcript = payload.transcript?.trim()
+  return (
+    gene === GENE_VIEWER_SAMPLE.identity.gene &&
+    cdna === GENE_VIEWER_SAMPLE.queried_variant.hgvs_c &&
+    (!transcript || transcript === GENE_VIEWER_SAMPLE.identity.resolved_transcript)
+  )
 }
 
 export async function lookupPublications(
