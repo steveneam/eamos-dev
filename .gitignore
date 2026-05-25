@@ -38,3 +38,4 @@ node_modules_temp/
 # User-local — should never be committed
 .obsidian/
 .trash/
+.render-deploy-hook
