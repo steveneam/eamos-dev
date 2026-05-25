@@ -33,7 +33,7 @@ export default function UpdatePasswordPage() {
     <main style={{ minHeight: '100dvh', background: 'var(--d-bg)', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 400, background: 'rgba(5,26,19,0.6)', border: '0.5px solid var(--hero-line)', borderRadius: 16, padding: '28px 26px' }}>
         <a href="/" style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--hero-ink)', textDecoration: 'none' }}>
-          eamos
+          Eamos
         </a>
         <h1 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 19, color: 'var(--hero-ink)', margin: '18px 0 6px' }}>
           Set a new password

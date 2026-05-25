@@ -80,7 +80,7 @@ export function WorkbenchClient() {
               <circle cx="22.5" cy="11" r="2.8" fill="#1D9E75" />
             </svg>
             <span className="logo-word">
-              <span className="e1">e</span>amos
+              <span className="e1">E</span>amos
             </span>
             <span className="logo-sub">workbench</span>
           </Link>

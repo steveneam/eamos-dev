@@ -41,7 +41,7 @@ export function EamosLogo({ size = 16, showWordmark = true, className, tone = 'l
           className="font-semibold tracking-[-0.01em]"
           style={{ fontSize: size, lineHeight: 1 }}
         >
-          <span style={{ color: mark }}>e</span>amos
+          <span style={{ color: mark }}>E</span>amos
         </span>
       )}
     </span>
