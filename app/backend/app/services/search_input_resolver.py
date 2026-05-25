@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
+import json
 from dataclasses import dataclass, field, replace
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -24,6 +27,22 @@ class SourceSpecificInputs:
     spliceai: str | None = None
     clinvar: str | None = None
     literature_terms: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RsidResolutionCandidate:
+    candidate_id: str
+    display_label: str
+    rsid: str
+    gene: str
+    cdna: str
+    transcript: str | None = None
+    protein_change: str | None = None
+    genomic_hg38: str | None = None
+    genomic_hgvs: str | None = None
+    variant_allele: str | None = None
+    source_support: tuple[str, ...] = ()
+    is_preferred: bool = False
 
 
 @dataclass(frozen=True)
@@ -54,6 +73,7 @@ class SearchInputResolution:
     variant_validator_summary: dict[str, Any] | None = None
     variant_validator_raw: dict[str, Any] | None = None
     variant_validator_url: str | None = None
+    rsid_candidates: tuple[RsidResolutionCandidate, ...] = ()
 
 
 class EamosSearchInputResolver:
@@ -132,11 +152,16 @@ class EamosSearchInputResolver:
         variant_validator_summary = None
         variant_validator_raw = None
         variant_validator_url = None
+        rsid_candidates: tuple[RsidResolutionCandidate, ...] = ()
 
         if genomic_hg38 is not None:
             if genomic_hgvs is None:
                 genomic_hgvs = genomic_variant_id_to_refseq_hgvs(genomic_hg38)
             provenance.append("submitted_genomic_variant_id")
+        elif kind == "rsid":
+            rsid_candidates, rsid_warnings, rsid_provenance = self._resolve_rsid_candidates(hgvs)
+            warnings.extend(rsid_warnings)
+            provenance.extend(rsid_provenance)
         elif self.resolve_coordinates and kind == "cdna" and resolver_transcript is not None:
             (
                 genomic_hg38,
@@ -196,6 +221,7 @@ class EamosSearchInputResolver:
             variant_validator_summary=variant_validator_summary,
             variant_validator_raw=variant_validator_raw,
             variant_validator_url=variant_validator_url,
+            rsid_candidates=rsid_candidates,
         )
 
     def _resolve_mane_transcript(self, gene: str) -> tuple[str | None, list[str]]:
@@ -291,6 +317,47 @@ class EamosSearchInputResolver:
             [],
         )
 
+    def _resolve_rsid_candidates(
+        self,
+        rsid: str,
+    ) -> tuple[tuple[RsidResolutionCandidate, ...], list[str], list[str]]:
+        fixture_candidates = _fixture_rsid_candidates(rsid)
+        if self.settings is None or not getattr(self.settings, "use_real_apis", False):
+            if fixture_candidates:
+                return fixture_candidates, [], ["rsid_resolution_fixture"]
+            return (), [], []
+
+        url = f"{self.settings.vep_base_url}" f"/vep/human/id/{quote(rsid, safe='')}"
+        try:
+            response = httpx.get(
+                url,
+                params={
+                    "content-type": "application/json",
+                    "hgvs": "1",
+                    "canonical": "1",
+                    "mane": "1",
+                },
+                headers={"Accept": "application/json"},
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:
+            warnings = [f"rsid_resolution_failed:{type(exc).__name__}"]
+            if fixture_candidates:
+                return fixture_candidates, warnings, ["rsid_resolution_fixture"]
+            return (), warnings, []
+
+        candidate_payload = payload[0] if isinstance(payload, list) and payload else {}
+        if not isinstance(candidate_payload, dict):
+            return (), [f"rsid_resolution_unavailable:{rsid}"], ["ensembl_vep_rsid_lookup"]
+
+        candidates = _rsid_candidates_from_vep_payload(rsid, candidate_payload)
+        warnings: list[str] = []
+        if not candidates:
+            warnings.append(f"rsid_resolution_unavailable:{rsid}")
+        return candidates, warnings, ["ensembl_vep_rsid_lookup"]
+
     def _clinvar_input(
         self,
         gene: str,
@@ -323,6 +390,242 @@ class EamosSearchInputResolver:
             if term and term not in unique:
                 unique.append(term)
         return tuple(unique)
+
+
+@lru_cache(maxsize=1)
+def _rsid_resolution_fixture() -> tuple[dict[str, Any], ...]:
+    fixture_path = Path(__file__).resolve().parents[1] / "fixtures" / "rsid_resolution_records.json"
+    if not fixture_path.exists():
+        return ()
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    return tuple(item for item in payload if isinstance(item, dict))
+
+
+def _fixture_rsid_candidates(rsid: str) -> tuple[RsidResolutionCandidate, ...]:
+    normalized = rsid.strip().lower()
+    candidates = [
+        _rsid_candidate_from_mapping(item)
+        for item in _rsid_resolution_fixture()
+        if str(item.get("rsid") or "").strip().lower() == normalized
+    ]
+    return tuple(candidate for candidate in candidates if candidate is not None)
+
+
+def _rsid_candidate_from_mapping(item: dict[str, Any]) -> RsidResolutionCandidate | None:
+    rsid = str(item.get("rsid") or "").strip()
+    gene = str(item.get("gene") or "").strip().upper()
+    cdna = str(item.get("cdna") or "").strip()
+    if not (rsid and gene and cdna):
+        return None
+    transcript = _optional_text(item.get("transcript"))
+    protein_change = _optional_text(item.get("protein_change"))
+    genomic_hg38 = _optional_text(item.get("genomic_hg38"))
+    genomic_hgvs = _optional_text(item.get("genomic_hgvs"))
+    source_support = tuple(
+        str(value).strip() for value in item.get("source_support") or [] if str(value).strip()
+    )
+    return RsidResolutionCandidate(
+        candidate_id=str(
+            item.get("candidate_id") or _rsid_candidate_id(rsid, gene, transcript, cdna)
+        ),
+        display_label=str(
+            item.get("display_label") or _rsid_display_label(gene, transcript, cdna, protein_change)
+        ),
+        rsid=rsid,
+        gene=gene,
+        cdna=cdna,
+        transcript=transcript,
+        protein_change=protein_change,
+        genomic_hg38=genomic_hg38,
+        genomic_hgvs=genomic_hgvs,
+        variant_allele=_optional_text(item.get("variant_allele")),
+        source_support=source_support,
+        is_preferred=bool(item.get("is_preferred", False)),
+    )
+
+
+def _rsid_candidates_from_vep_payload(
+    rsid: str,
+    payload: dict[str, Any],
+) -> tuple[RsidResolutionCandidate, ...]:
+    supported_alleles = _source_supported_alleles(payload, rsid)
+    ranked: list[tuple[int, RsidResolutionCandidate]] = []
+    seen: set[tuple[str, str | None, str, str | None]] = set()
+    for consequence in _as_list(payload.get("transcript_consequences")):
+        if not isinstance(consequence, dict):
+            continue
+        gene = str(consequence.get("gene_symbol") or "").strip().upper()
+        hgvsc = str(consequence.get("hgvsc") or "").strip()
+        transcript_from_hgvsc, cdna = _split_hgvsc(hgvsc)
+        if not (gene and cdna):
+            continue
+        transcript = _optional_text(consequence.get("mane_select")) or transcript_from_hgvsc
+        if not transcript:
+            continue
+        variant_allele = _optional_text(consequence.get("variant_allele"))
+        genomic_hg38 = _variant_id_from_vep_payload(payload, variant_allele)
+        genomic_hgvs = genomic_variant_id_to_refseq_hgvs(genomic_hg38) if genomic_hg38 else None
+        protein_change = _protein_change_from_hgvsp(consequence.get("hgvsp"))
+        support = ["Ensembl VEP rsID"]
+        if consequence.get("mane_select"):
+            support.append("MANE Select")
+        if consequence.get("canonical") in {1, "1", True}:
+            support.append("canonical transcript")
+        if variant_allele and variant_allele.upper() in supported_alleles:
+            support.append("source-supported alternate allele")
+        key = (gene, transcript, cdna, variant_allele)
+        if key in seen:
+            continue
+        seen.add(key)
+        candidate = RsidResolutionCandidate(
+            candidate_id=_rsid_candidate_id(rsid, gene, transcript, cdna),
+            display_label=_rsid_display_label(gene, transcript, cdna, protein_change),
+            rsid=rsid,
+            gene=gene,
+            cdna=cdna,
+            transcript=transcript,
+            protein_change=protein_change,
+            genomic_hg38=genomic_hg38,
+            genomic_hgvs=genomic_hgvs,
+            variant_allele=variant_allele,
+            source_support=tuple(support),
+            is_preferred=False,
+        )
+        ranked.append(
+            (_rsid_candidate_score(consequence, variant_allele, supported_alleles), candidate)
+        )
+
+    candidates = [
+        candidate for _, candidate in sorted(ranked, key=lambda item: item[0], reverse=True)
+    ]
+    candidates = _prefer_best_transcript_set(candidates)
+    preferred_indexes = [
+        index
+        for index, candidate in enumerate(candidates)
+        if candidate.variant_allele and candidate.variant_allele.upper() in supported_alleles
+    ]
+    if len(candidates) == 1:
+        preferred_indexes = [0]
+    elif len(preferred_indexes) != 1:
+        preferred_indexes = []
+    return tuple(
+        replace(candidate, is_preferred=index in preferred_indexes)
+        for index, candidate in enumerate(candidates)
+    )
+
+
+def _source_supported_alleles(payload: dict[str, Any], rsid: str) -> set[str]:
+    supported: set[str] = set()
+    for colocated in _as_list(payload.get("colocated_variants")):
+        if not isinstance(colocated, dict):
+            continue
+        if str(colocated.get("id") or "").lower() != rsid.lower():
+            continue
+        frequencies = colocated.get("frequencies")
+        if isinstance(frequencies, dict):
+            supported.update(str(allele).upper() for allele in frequencies if str(allele).strip())
+        clin_sig_allele = str(colocated.get("clin_sig_allele") or "")
+        for token in re.split(r"[;,\s]+", clin_sig_allele):
+            allele = token.split(":", 1)[0].strip().upper()
+            if allele:
+                supported.add(allele)
+    return supported
+
+
+def _variant_id_from_vep_payload(payload: dict[str, Any], variant_allele: str | None) -> str | None:
+    chrom = str(payload.get("seq_region_name") or "").removeprefix("chr")
+    pos = str(payload.get("start") or "")
+    allele_string = str(payload.get("allele_string") or "")
+    alleles = [part.upper() for part in allele_string.split("/") if part and part != "-"]
+    if not (chrom and pos and variant_allele and alleles):
+        return None
+    ref = alleles[0]
+    alt = variant_allele.upper()
+    if not re.fullmatch(r"[ACGT]+", ref) or not re.fullmatch(r"[ACGT]+", alt):
+        return None
+    return f"{chrom}-{pos}-{ref}-{alt}"
+
+
+def _split_hgvsc(hgvsc: str) -> tuple[str | None, str | None]:
+    if ":" not in hgvsc:
+        return None, None
+    transcript, cdna = hgvsc.split(":", 1)
+    cdna = cdna.strip()
+    return transcript.strip() or None, cdna or None
+
+
+def _protein_change_from_hgvsp(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return text.split(":", 1)[-1]
+
+
+def _rsid_candidate_score(
+    consequence: dict[str, Any],
+    variant_allele: str | None,
+    supported_alleles: set[str],
+) -> int:
+    score = 0
+    if consequence.get("mane_select"):
+        score += 100
+    if consequence.get("canonical") in {1, "1", True}:
+        score += 50
+    if str(consequence.get("biotype") or "") == "protein_coding":
+        score += 20
+    if consequence.get("hgvsc"):
+        score += 10
+    if consequence.get("hgvsp"):
+        score += 5
+    if variant_allele and variant_allele.upper() in supported_alleles:
+        score += 40
+    return score
+
+
+def _prefer_best_transcript_set(
+    candidates: list[RsidResolutionCandidate],
+) -> list[RsidResolutionCandidate]:
+    if any("MANE Select" in candidate.source_support for candidate in candidates):
+        candidates = [
+            candidate for candidate in candidates if "MANE Select" in candidate.source_support
+        ]
+    elif any("canonical transcript" in candidate.source_support for candidate in candidates):
+        candidates = [
+            candidate
+            for candidate in candidates
+            if "canonical transcript" in candidate.source_support
+        ]
+    return candidates[:6]
+
+
+def _rsid_candidate_id(
+    rsid: str,
+    gene: str,
+    transcript: str | None,
+    cdna: str,
+) -> str:
+    token = "_".join(part for part in (gene, transcript or "", cdna) if part)
+    token = re.sub(r"[^A-Za-z0-9_.-]+", "_", token).strip("_")
+    return f"ensembl:{rsid}:{token}"
+
+
+def _rsid_display_label(
+    gene: str,
+    transcript: str | None,
+    cdna: str,
+    protein_change: str | None,
+) -> str:
+    label = f"{gene} {transcript + ':' if transcript else ''}{cdna}"
+    if protein_change:
+        label += f" ({protein_change})"
+    return label
+
+
+def _optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 _TRANSCRIPT_SEARCH_RE = re.compile(

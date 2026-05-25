@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.core.config import Settings
+from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver, parse_search_text
 
 
@@ -65,6 +66,91 @@ def test_parse_search_text_accepts_transcript_gene_and_protein_alias() -> None:
     assert parsed.cdna == "c.875A>T"
     assert parsed.transcript == "NM_001089.3"
     assert parsed.protein_change == "p.Glu292Val"
+
+
+def test_eamos_search_input_resolver_uses_fixture_rsid_candidates() -> None:
+    resolution = EamosSearchInputResolver(_settings(use_real_apis=False)).resolve_text(
+        "rs61752871",
+    )
+
+    assert resolution.kind == "rsid"
+    assert resolution.rsid_candidates[0].gene == "RPE65"
+    assert resolution.rsid_candidates[0].cdna == "c.271C>T"
+    assert resolution.rsid_candidates[0].transcript == "NM_000329.3"
+    assert resolution.rsid_candidates[0].genomic_hg38 == "1-68444858-G-A"
+
+
+def test_search_input_interpreter_auto_resolves_fixture_rsid() -> None:
+    interpretation = SearchInputInterpreter(settings=_settings(use_real_apis=False)).interpret(
+        "rs61752871"
+    )
+
+    assert interpretation.mode == "auto_resolved"
+    assert interpretation.gene == "RPE65"
+    assert interpretation.cdna == "c.271C>T"
+    assert interpretation.transcript == "NM_000329.3"
+    assert interpretation.protein_change == "p.Arg91Trp"
+    assert interpretation.genomic_hg38 == "1-68444858-G-A"
+
+
+def test_search_input_interpreter_live_rsid_prefers_source_supported_allele(
+    monkeypatch,
+) -> None:
+    def fake_get(url: str, **kwargs):
+        assert "/vep/human/id/rs1801133" in url
+        assert kwargs["params"]["hgvs"] == "1"
+        return _Response(
+            [
+                {
+                    "id": "rs1801133",
+                    "seq_region_name": "1",
+                    "start": 11796321,
+                    "allele_string": "G/A/C",
+                    "colocated_variants": [
+                        {
+                            "id": "rs1801133",
+                            "frequencies": {"A": {"af": 0.2454}},
+                            "clin_sig_allele": "A:benign",
+                        }
+                    ],
+                    "transcript_consequences": [
+                        {
+                            "gene_symbol": "MTHFR",
+                            "hgvsc": "ENST00000376590.9:c.665C>T",
+                            "hgvsp": "ENSP00000365775.3:p.Ala222Val",
+                            "mane_select": "NM_005957.5",
+                            "canonical": 1,
+                            "variant_allele": "A",
+                            "biotype": "protein_coding",
+                        },
+                        {
+                            "gene_symbol": "MTHFR",
+                            "hgvsc": "ENST00000376590.9:c.665C>G",
+                            "hgvsp": "ENSP00000365775.3:p.Ala222Gly",
+                            "mane_select": "NM_005957.5",
+                            "canonical": 1,
+                            "variant_allele": "C",
+                            "biotype": "protein_coding",
+                        },
+                    ],
+                }
+            ]
+        )
+
+    monkeypatch.setattr("app.services.search_input_resolver.httpx.get", fake_get)
+
+    interpretation = SearchInputInterpreter(settings=_settings(use_real_apis=True)).interpret(
+        "rs1801133"
+    )
+
+    assert interpretation.mode == "auto_resolved"
+    assert interpretation.gene == "MTHFR"
+    assert interpretation.cdna == "c.665C>T"
+    assert interpretation.transcript == "NM_005957.5"
+    assert interpretation.protein_change == "p.Ala222Val"
+    assert interpretation.genomic_hg38 == "1-11796321-G-A"
+    assert "multiallelic" in interpretation.assumptions[1]
+    assert "ensembl_vep_rsid_lookup" in interpretation.provenance
 
 
 def test_eamos_search_input_resolver_accepts_spaced_genomic_search_text() -> None:

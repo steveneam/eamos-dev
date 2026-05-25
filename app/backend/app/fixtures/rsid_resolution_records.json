@@ -1,0 +1,35 @@
+[
+  {
+    "rsid": "rs61752871",
+    "candidate_id": "ensembl:rs61752871:RPE65_NM_000329.3_c.271C_T",
+    "display_label": "RPE65 NM_000329.3:c.271C>T (p.Arg91Trp)",
+    "gene": "RPE65",
+    "cdna": "c.271C>T",
+    "transcript": "NM_000329.3",
+    "protein_change": "p.Arg91Trp",
+    "genomic_hg38": "1-68444858-G-A",
+    "genomic_hgvs": "NC_000001.11:g.68444858G>A",
+    "variant_allele": "A",
+    "source_support": ["Ensembl VEP rsID fixture", "MANE Select", "canonical transcript"],
+    "is_preferred": true
+  },
+  {
+    "rsid": "rs1801133",
+    "candidate_id": "ensembl:rs1801133:MTHFR_NM_005957.5_c.665C_T",
+    "display_label": "MTHFR NM_005957.5:c.665C>T (p.Ala222Val)",
+    "gene": "MTHFR",
+    "cdna": "c.665C>T",
+    "transcript": "NM_005957.5",
+    "protein_change": "p.Ala222Val",
+    "genomic_hg38": "1-11796321-G-A",
+    "genomic_hgvs": "NC_000001.11:g.11796321G>A",
+    "variant_allele": "A",
+    "source_support": [
+      "Ensembl VEP rsID fixture",
+      "MANE Select",
+      "canonical transcript",
+      "source-supported alternate allele"
+    ],
+    "is_preferred": true
+  }
+]

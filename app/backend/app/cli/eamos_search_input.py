@@ -113,6 +113,7 @@ def _resolution_to_dict(query: str, resolver: EamosSearchInputResolver, args: ar
             "genomic_hgvs": resolution.genomic_hgvs,
         },
         "source_inputs": asdict(resolution.source_inputs),
+        "rsid_candidates": [asdict(candidate) for candidate in resolution.rsid_candidates],
         "warnings": warnings,
         "provenance": list(resolution.provenance),
     }

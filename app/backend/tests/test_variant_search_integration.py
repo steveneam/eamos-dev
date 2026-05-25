@@ -263,6 +263,45 @@ def test_lookup_raw_query_alias_runs_equivalent_report(client) -> None:
     assert response.json()["search_interpretation"]["submitted_text"] == "RPE65:c.260A>G"
 
 
+def test_lookup_parse_bare_rsid_auto_resolves_advertised_example(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/parse",
+        json={"search_text": "rs61752871"},
+    )
+
+    assert response.status_code == 200
+    interpretation = response.json()["interpretation"]
+    assert interpretation["mode"] == "auto_resolved"
+    assert interpretation["gene"] == "RPE65"
+    assert interpretation["cdna"] == "c.271C>T"
+    assert interpretation["transcript"] == "NM_000329.3"
+    assert interpretation["protein_change"] == "p.Arg91Trp"
+    assert interpretation["genomic_hg38"] == "1-68444858-G-A"
+    assert interpretation["auto_selected_candidate_id"].startswith("ensembl:rs61752871")
+
+
+def test_lookup_bare_rsid_runs_resolved_report_identity(client) -> None:
+    response = client.post(
+        "/api/v1/lookup",
+        json={"search_text": "rs1801133"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    interpretation = payload["search_interpretation"]
+    assert payload["query"] == "MTHFR:c.665C>T"
+    assert interpretation["mode"] == "auto_resolved"
+    assert interpretation["gene"] == "MTHFR"
+    assert interpretation["cdna"] == "c.665C>T"
+    assert interpretation["transcript"] == "NM_005957.5"
+    assert interpretation["protein_change"] == "p.Ala222Val"
+    assert interpretation["genomic_hg38"] == "1-11796321-G-A"
+    row = payload["report_payload"]["variant_summary_rows"][0]
+    assert row["gene"] == "MTHFR"
+    assert row["transcript_hgvs"] == "NM_005957.5:c.665C>T"
+    assert row["genomic_hg38"] == "1-11796321-G-A"
+
+
 def test_lookup_rejects_mixed_raw_and_structured_input(client) -> None:
     response = client.post(
         "/api/v1/lookup",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
@@ -322,6 +323,20 @@ class LookupService:
             transcript=request.transcript,
             protein_change=request.protein_change,
         )
+        if search_interpretation is not None and search_interpretation.genomic_hg38:
+            input_resolution = replace(
+                input_resolution,
+                genomic_hg38=search_interpretation.genomic_hg38,
+                genomic_hgvs=search_interpretation.genomic_hgvs or input_resolution.genomic_hgvs,
+                source_inputs=replace(
+                    input_resolution.source_inputs,
+                    gnomad=search_interpretation.genomic_hg38,
+                    spliceai=search_interpretation.genomic_hg38,
+                    clinvar=(
+                        search_interpretation.genomic_hgvs or input_resolution.source_inputs.clinvar
+                    ),
+                ),
+            )
         gene = input_resolution.gene
         cdna = input_resolution.hgvs
         query_kind = input_resolution.kind

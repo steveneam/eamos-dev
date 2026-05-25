@@ -41,3 +41,15 @@ def test_eamos_search_input_cli_accepts_unquoted_spaced_genomic_query(capsys) ->
     assert result["normalized"]["kind"] == "genomic"
     assert result["source_inputs"]["gnomad"] == "6-31740453-G-T"
     assert result["source_inputs"]["variant_validator"] == "NC_000006.12:g.31740453G>T"
+
+
+def test_eamos_search_input_cli_prints_rsid_candidates(capsys) -> None:
+    exit_code = main(["--fixture-mode", "rs61752871"])
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    result = output["results"][0]
+    assert result["normalized"]["kind"] == "rsid"
+    assert result["rsid_candidates"][0]["gene"] == "RPE65"
+    assert result["rsid_candidates"][0]["cdna"] == "c.271C>T"
+    assert result["rsid_candidates"][0]["genomic_hg38"] == "1-68444858-G-A"

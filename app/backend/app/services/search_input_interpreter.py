@@ -12,6 +12,7 @@ from app.services.search_input_ai import SearchInputAiExtractor
 from app.services.search_candidate_resolver import SearchCandidateResolver
 from app.services.search_input_resolver import (
     EamosSearchInputResolver,
+    RsidResolutionCandidate,
     SearchInputResolution,
     SourceSpecificInputs,
 )
@@ -70,6 +71,13 @@ class SearchInputInterpreter:
                     "so Eamos can show matching variants."
                 ),
                 warnings=ai_warnings,
+            )
+
+        if resolution.kind == "rsid":
+            return self._rsid_interpretation(
+                submitted_text=text,
+                resolution=resolution,
+                resolve_coordinates=resolve_coordinates,
             )
 
         if resolution.kind == "protein":
@@ -243,6 +251,9 @@ class SearchInputInterpreter:
     def from_selected_candidate(self, candidate_id: str) -> SearchInputInterpretation:
         candidate = self.candidate_resolver.get_candidate(candidate_id)
         if candidate is None:
+            rsid_interpretation = self._selected_rsid_candidate_interpretation(candidate_id)
+            if rsid_interpretation is not None:
+                return rsid_interpretation
             return SearchInputInterpretation(
                 submitted_text=candidate_id,
                 mode="suggestions",
@@ -266,6 +277,40 @@ class SearchInputInterpreter:
             candidate=candidate,
             assumptions=["User selected a source-backed candidate."],
         )
+
+    def _selected_rsid_candidate_interpretation(
+        self,
+        candidate_id: str,
+    ) -> SearchInputInterpretation | None:
+        rsid = _rsid_from_candidate_id(candidate_id)
+        if not rsid:
+            return None
+        resolution = self.resolver.resolve(gene="", cdna=rsid)
+        for rsid_candidate in resolution.rsid_candidates:
+            if rsid_candidate.candidate_id != candidate_id:
+                continue
+            canonical_resolution = self.resolver.resolve(
+                gene=rsid_candidate.gene,
+                cdna=rsid_candidate.cdna,
+                transcript=rsid_candidate.transcript,
+                protein_change=rsid_candidate.protein_change,
+            )
+            canonical_resolution = replace(
+                canonical_resolution,
+                warnings=(*resolution.warnings, *canonical_resolution.warnings),
+                provenance=(*resolution.provenance, *canonical_resolution.provenance),
+            )
+            return self._auto_resolved(
+                submitted_text=candidate_id,
+                resolution=canonical_resolution,
+                candidate=_rsid_search_candidate(
+                    rsid_candidate,
+                    match_reason="Selected dbSNP rsID candidate.",
+                    confidence="high",
+                ),
+                assumptions=["User selected a source-backed rsID candidate."],
+            )
+        return None
 
     def _resolver(self, *, resolve_coordinates: bool) -> EamosSearchInputResolver:
         if not resolve_coordinates:
@@ -294,6 +339,78 @@ class SearchInputInterpreter:
             genomic_hg38=resolution.genomic_hg38,
             genomic_hgvs=resolution.genomic_hgvs,
             source_inputs=_source_inputs_schema(resolution.source_inputs),
+            warnings=list(resolution.warnings),
+            provenance=["deterministic_parser", *resolution.provenance],
+        )
+
+    def _rsid_interpretation(
+        self,
+        *,
+        submitted_text: str,
+        resolution: SearchInputResolution,
+        resolve_coordinates: bool,
+    ) -> SearchInputInterpretation:
+        if not resolution.rsid_candidates:
+            return self._suggestions(
+                submitted_text=submitted_text,
+                resolution=resolution,
+                ui_prompt=(
+                    "Add a gene plus cDNA/genomic allele for this rsID, or try again "
+                    "when live source resolution is available."
+                ),
+            )
+
+        preferred = [
+            candidate for candidate in resolution.rsid_candidates if candidate.is_preferred
+        ]
+        if len(resolution.rsid_candidates) == 1 or len(preferred) == 1:
+            rsid_candidate = preferred[0] if preferred else resolution.rsid_candidates[0]
+            resolver = self._resolver(resolve_coordinates=resolve_coordinates)
+            canonical_resolution = resolver.resolve(
+                gene=rsid_candidate.gene,
+                cdna=rsid_candidate.cdna,
+                transcript=rsid_candidate.transcript,
+                protein_change=rsid_candidate.protein_change,
+            )
+            canonical_resolution = replace(
+                canonical_resolution,
+                warnings=(*resolution.warnings, *canonical_resolution.warnings),
+                provenance=(*resolution.provenance, *canonical_resolution.provenance),
+            )
+            assumptions = ["dbSNP rsID resolved to a canonical variant candidate."]
+            if len(resolution.rsid_candidates) > 1:
+                assumptions.append(
+                    "The rsID is multiallelic; the source-supported alternate allele was selected."
+                )
+            return self._auto_resolved(
+                submitted_text=submitted_text,
+                resolution=canonical_resolution,
+                candidate=_rsid_search_candidate(
+                    rsid_candidate,
+                    match_reason="dbSNP rsID resolved through Ensembl VEP.",
+                    confidence="high",
+                ),
+                assumptions=assumptions,
+            )
+
+        return SearchInputInterpretation(
+            submitted_text=submitted_text,
+            mode="needs_selection",
+            confidence="medium",
+            normalized_query=resolution.hgvs,
+            query_kind=resolution.kind,
+            source_inputs=_source_inputs_schema(resolution.source_inputs),
+            requires_confirmation=True,
+            exact_variant_available=False,
+            candidates=[
+                _rsid_search_candidate(
+                    candidate,
+                    match_reason="dbSNP rsID maps to this source-backed allele.",
+                    confidence="medium",
+                )
+                for candidate in resolution.rsid_candidates
+            ],
+            ui_prompt="Choose the allele/transcript candidate for this rsID to continue.",
             warnings=list(resolution.warnings),
             provenance=["deterministic_parser", *resolution.provenance],
         )
@@ -502,6 +619,36 @@ def _source_inputs_schema(source_inputs: SourceSpecificInputs) -> SearchInputSou
         clinvar=source_inputs.clinvar,
         literature_terms=list(source_inputs.literature_terms),
     )
+
+
+def _rsid_search_candidate(
+    candidate: RsidResolutionCandidate,
+    *,
+    match_reason: str,
+    confidence: str,
+) -> SearchInputCandidate:
+    return SearchInputCandidate(
+        candidate_id=candidate.candidate_id,
+        display_label=candidate.display_label,
+        gene=candidate.gene,
+        cdna=candidate.cdna,
+        transcript=candidate.transcript,
+        protein_change=candidate.protein_change,
+        genomic_hg38=candidate.genomic_hg38,
+        genomic_hgvs=candidate.genomic_hgvs,
+        match_reason=match_reason,
+        source_support=list(candidate.source_support),
+        source_count=len(candidate.source_support),
+        confidence=confidence if confidence in {"high", "medium", "low"} else "medium",
+    )
+
+
+def _rsid_from_candidate_id(candidate_id: str) -> str | None:
+    parts = candidate_id.split(":", 2)
+    if len(parts) < 3 or parts[0] != "ensembl":
+        return None
+    rsid = parts[1]
+    return rsid if rsid.lower().startswith("rs") else None
 
 
 def _normalized_query(resolution: SearchInputResolution) -> str:
