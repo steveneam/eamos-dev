@@ -1,5 +1,138 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 34 - 25 May 2026 - Provider/cache health endpoint
+
+Codex continued after the arbitrary gnomAD source-cache handoff under the same
+guardrails: no `/runs`, AlphaMissense, destructive git, stash, reset, clean,
+push, or commit. The next backend slice was the additive provider/cache health
+payload.
+
+Completed:
+- Added `GET /api/v1/health/provider-cache` while leaving `/healthz` liveness
+  and mode flags unchanged.
+- Added sanitized `SourceCacheRepo.health_summary()` aggregates: total/fresh/
+  stale/versioned row counts, per-source row/status counts, and oldest/latest
+  fetch timestamps.
+- Added CRISPR provider availability to the health payload, including the
+  configured provider, local deterministic availability, disabled/unavailable
+  `crisprscore_r` state, package checks when that provider is configured, and
+  no configured paths.
+- Added regression tests proving the payload omits cache keys, normalized or
+  request identities, raw payloads, source URLs, warnings, and variant strings.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_health_api.py -q` -> passed.
+- `cd app/backend && python -m pytest tests/test_source_cache.py tests/test_crispr_design.py tests/test_health_api.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_health_api.py tests/test_frontend_contract.py -q`
+  -> passed (existing short JWT test-key warnings only).
+- `cd app/backend && python -m ruff check app/api/routes/health.py app/repos/source_cache_repo.py tests/test_health_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/api/routes/health.py app/repos/source_cache_repo.py tests/test_health_api.py`
+  -> passed after formatting `app/repos/source_cache_repo.py`.
+- `git diff --check` -> passed with existing CRLF working-copy warnings only.
+
+Notes:
+- No frontend contract/schema mirror was required; this is a backend-only health
+  route.
+- AB1/alignment input hardening remains the next safest backend slice.
+
+## Session 33 - 25 May 2026 - Arbitrary gnomAD source-cache read-through
+
+Codex continued the source-cache work under the same guardrails: no `/runs`,
+AlphaMissense, destructive git, stash, reset, clean, push, or commit. The
+DeepThink side review pushed the scope narrower than the initial broad idea:
+arbitrary-query source-cache now starts with gnomAD only, keyed by provider
+identity rather than by `gene:cdna`.
+
+Completed:
+- Kept the existing hero-example cache behavior intact for the four landing
+  variants.
+- Added arbitrary resolved-variant read-through for `gnomad` only when
+  `USE_REAL_APIS=true`, a `SourceCacheRepo` is configured, and
+  `variant.genomic_hg38` is available after coordinate resolution.
+- Arbitrary gnomAD cache rows use a provider identity key:
+  `gnomad:<dataset>:<normalized_variant_id>` (for example
+  `gnomad:gnomad_r4:1-68444869-t-c`) instead of the hero `GENE:cDNA` key.
+- Preserved fresh-cache and stale-on-failure semantics:
+  `status="cache"`, `cache_status="cache_hit"` for fresh rows;
+  `status="stale"`, `cache_status="stale_on_failure"` when live gnomAD
+  returns a failure state and only stale data exists.
+- Arbitrary gnomAD no-hits carrying `gnomad_variant_not_found` are not persisted
+  as normal long-TTL live successes. Fixture mode still does not read/write
+  source-cache rows.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_source_cache.py -q` -> passed.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_variant_cache.py tests/test_source_cache.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/services/lookup_service.py tests/test_source_cache.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/lookup_service.py tests/test_source_cache.py`
+  -> passed.
+
+Notes:
+- ClinVar, ClinGen, and SpliceAI arbitrary-query source-cache read-through are
+  intentionally deferred. SpliceAI needs an explicit version/source-version
+  decision first; ClinVar/ClinGen should land in a separate selection/identity
+  slice.
+- DeepThink read-only side reviews also recommended an additive provider/cache
+  health endpoint and AB1/alignment input hardening as good next slices.
+
+## Session 32 - 25 May 2026 - Source-cache hero example pilot
+
+Codex implemented the first `source_cache` slice for the landing hero examples
+under the user guardrails: no `/runs`, AlphaMissense, destructive git, stash,
+reset, clean, push, or commit. The slice is deliberately limited to the four
+report-capable hero examples before any arbitrary-query cache generalization.
+
+Completed:
+- Added a normalized `source_cache` table and `SourceCacheRepo` with fresh
+  reads, stale reads, source/version/warning/payload storage, and SQLite/Postgres
+  compatible upsert-by-select behavior.
+- Added backend-owned hero example definitions for `RPE65 c.260A>G`,
+  `RPE65 c.11+5G>A`, `USH2A c.2276G>T`, and `BRCA1 c.5266dupC`, plus a
+  `HeroExampleSourceCacheWarmer` and CLI:
+  `python -m app.cli.warm_source_cache --real-apis`.
+- Wired `LookupService` read-through source cache only when
+  `USE_REAL_APIS=true`, a `source_cache_repo` is configured, and the resolved
+  variant is one of the four hero examples.
+- Added stale-on-failure behavior: if a hero-example live source returns
+  fallback/error/failed and an expired source row exists, the report uses the
+  stale source row with `status="stale"` and
+  `cache_status="stale_on_failure"` instead of replacing it with a blank miss.
+- Added additive freshness fields to `EvidenceSourceSummary`:
+  `fetched_at`, `source_version`, and `cache_status`; mirrored both
+  `backend.ts` files and extended source provenance normalization to preserve
+  `stale`, `live_stub`, and `failed` statuses.
+- Refreshed `app/web/lib/rpe65-sample.json` from the stealth live endpoint
+  `https://eamos-dev.vercel.app/api/v1/lookup` and added the new optional
+  evidence freshness keys. `eamos.com.au` was not used.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_source_cache.py -q` -> passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q` -> passed.
+- `cd app/backend && python -m pytest tests/test_source_cache.py tests/test_variant_cache.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/core/db.py app/repos/source_cache_repo.py app/services/source_cache.py app/services/lookup_service.py app/services/report_provenance.py app/cli/warm_source_cache.py tests/test_source_cache.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/db.py app/repos/source_cache_repo.py app/services/source_cache.py app/services/lookup_service.py app/services/report_provenance.py app/cli/warm_source_cache.py tests/test_source_cache.py`
+  -> passed after formatting.
+- `cd app/backend && python -m app.cli.warm_source_cache --help` -> passed.
+- `cd app/web && npm run build` -> passed; Next static generation retried slow
+  pages but completed.
+- `cd app/frontend && npm run build` -> passed with the existing large chunk /
+  plugin timing warnings.
+- `git diff --check` -> passed with existing CRLF working-copy warnings only.
+
+Notes:
+- The pilot does not pre-warm or read-through source-cache rows for arbitrary
+  non-hero lookups yet.
+- Existing unrelated dirty/untracked web/workbench/plugin files remain in the
+  worktree and were not cleaned or committed.
+
 ## Session 31 - 25 May 2026 - Publications quality, Workbench source-backed engines, and source-cache architecture
 
 Codex resumed the backend lane with Steven's guardrails: no `/runs`,

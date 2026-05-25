@@ -18,6 +18,9 @@ class ToolResult:
     warnings: list[str] = field(default_factory=list)
     raw: Any = None
     source_url: str | None = None
+    fetched_at: str | None = None
+    source_version: str | None = None
+    cache_status: str | None = None
 
 
 class ToolError(RuntimeError):

@@ -39,6 +39,7 @@ from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver
 from app.services.variant_report_orchestrator import VariantReportDataOrchestrator
 from app.services.variant_decoder import decode_variant
+from app.services.source_cache import is_hero_example_variant, source_cache_key
 from app.tools.base import ToolResult
 from app.tools.registry import STRICT_GENOMIC_PLUGINS
 
@@ -65,6 +66,10 @@ GENE_THERAPY_MAP: dict[str, str] = {
         "Check ClinicalTrials.gov for current recruitment status."
     ),
 }
+
+SOURCE_CACHE_PERSIST_STATUSES = {"live", "cache"}
+SOURCE_CACHE_FAILURE_STATUSES = {"fallback", "degraded", "error", "failed"}
+SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
 
 
 def _format_clinical_trials_summary(gene: str, rows: list[dict[str, Any]]) -> str:
@@ -96,6 +101,9 @@ def _result_to_evidence(result: ToolResult) -> EvidenceSourceSummary:
         summary=result.summary,
         warnings=result.warnings,
         source_url=result.source_url,
+        fetched_at=result.fetched_at,
+        source_version=result.source_version,
+        cache_status=result.cache_status,
     )
 
 
@@ -108,7 +116,42 @@ def _evidence_summary_to_result(item: dict[str, Any]) -> ToolResult:
         warnings=item.get("warnings", []),
         raw=item.get("raw"),
         source_url=item.get("source_url"),
+        fetched_at=item.get("fetched_at"),
+        source_version=item.get("source_version"),
+        cache_status=item.get("cache_status"),
     )
+
+
+def _source_version_from_result(result: ToolResult) -> str | None:
+    if result.source_version:
+        return result.source_version
+    summary = result.summary or {}
+    for key in ("source_version", "version", "dataset"):
+        value = summary.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _source_cache_token(value: str | None) -> str:
+    return (value or "").strip().removeprefix("chr").lower()
+
+
+def _hydrate_variant_from_source_result(variant, source_name: str, result: ToolResult) -> None:
+    summary = result.summary or {}
+    if source_name == "variant_validator":
+        variant_id = summary.get("variant_id")
+        if isinstance(variant_id, str) and variant_id:
+            variant.genomic_hg38 = variant_id
+        genomic_hgvs = summary.get("hgvs_genomic_description")
+        if isinstance(genomic_hgvs, str) and genomic_hgvs:
+            variant.genomic_hgvs = genomic_hgvs
+        variation_type = summary.get("variation_type") or summary.get("variant_type")
+        if isinstance(variation_type, str) and variation_type and not variant.variation_type:
+            variant.variation_type = variation_type
+        consequence = summary.get("consequence") or summary.get("most_severe_consequence")
+        if isinstance(consequence, str) and consequence and not variant.consequence:
+            variant.consequence = consequence
 
 
 def _scholar_url(gene: str, cdna: str) -> str:
@@ -218,6 +261,7 @@ class LookupService:
         rule_engine,
         draft_render_service=None,
         variant_cache_repo=None,
+        source_cache_repo=None,
         settings=None,
         functional_evidence_extractor=None,
         clinical_consensus_builder=None,
@@ -226,6 +270,7 @@ class LookupService:
         self.rule_engine = rule_engine
         self.draft_render_service = draft_render_service
         self.variant_cache_repo = variant_cache_repo
+        self.source_cache_repo = source_cache_repo
         self.settings = settings
         self.publication_literature = EamosProprietaryVariantLiteratureExtractor()
         self.functional_evidence = functional_evidence_extractor or FunctionalEvidenceExtractor(
@@ -336,6 +381,97 @@ class LookupService:
         warnings.extend(input_resolution.warnings)
 
         cache_key = f"{gene}:{cdna}"
+        source_key = source_cache_key(gene, cdna)
+        source_cache_enabled = (
+            self.settings is not None
+            and self.settings.use_real_apis
+            and self.source_cache_repo is not None
+        )
+        source_cache_hero_variant = is_hero_example_variant(gene, cdna)
+
+        def source_cache_key_for(name: str) -> str | None:
+            if not source_cache_enabled:
+                return None
+            if source_cache_hero_variant:
+                return source_key
+            if name not in SOURCE_CACHE_GENERAL_SOURCES:
+                return None
+            variant_id = _source_cache_token(variant.genomic_hg38)
+            if not variant_id:
+                return None
+            dataset = str(getattr(self.tool_registry.get("gnomad"), "DATASET", "gnomad_r4"))
+            return f"gnomad:{dataset}:{variant_id}"
+
+        def should_persist_source_cache(name: str, result: ToolResult) -> bool:
+            if result.status not in SOURCE_CACHE_PERSIST_STATUSES:
+                return False
+            if (
+                not source_cache_hero_variant
+                and name == "gnomad"
+                and "gnomad_variant_not_found" in result.warnings
+            ):
+                return False
+            return True
+
+        def source_cached_result(name: str, producer) -> ToolResult:
+            source_cache_lookup_key = source_cache_key_for(name)
+            use_source_cache = source_cache_lookup_key is not None
+            if use_source_cache and not refresh:
+                hit = self.source_cache_repo.get_fresh(name, source_cache_lookup_key)
+                if hit is not None:
+                    return hit.to_tool_result(status="cache", cache_status="cache_hit")
+
+            try:
+                result = producer()
+            except Exception as exc:
+                if use_source_cache:
+                    stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
+                    if stale is not None:
+                        return stale.to_tool_result(
+                            status="stale",
+                            cache_status="stale_on_failure",
+                            extra_warnings=[
+                                f"source_cache_stale_on_failure:{name}",
+                                f"live_fetch_failed:{type(exc).__name__}",
+                            ],
+                        )
+                raise
+
+            if use_source_cache and result.status in SOURCE_CACHE_FAILURE_STATUSES:
+                stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
+                if stale is not None:
+                    return stale.to_tool_result(
+                        status="stale",
+                        cache_status="stale_on_failure",
+                        extra_warnings=[
+                            f"source_cache_stale_on_failure:{name}",
+                            f"live_status:{result.status}",
+                            *result.warnings,
+                        ],
+                    )
+
+            if use_source_cache and should_persist_source_cache(name, result):
+                self.source_cache_repo.upsert(
+                    result.source,
+                    source_cache_lookup_key,
+                    normalized_identity={
+                        "query": source_cache_lookup_key,
+                        "gene": gene,
+                        "cdna": cdna,
+                        "genomic_hg38": variant.genomic_hg38,
+                        "genomic_hgvs": variant.genomic_hgvs,
+                    },
+                    request_identity=result.request_identity,
+                    status=result.status,
+                    summary=result.summary,
+                    raw=result.raw,
+                    warnings=result.warnings,
+                    source_url=result.source_url,
+                    ttl_days=self.settings.cache_ttl_days,
+                    source_version=_source_version_from_result(result),
+                )
+            return result
+
         cache_hit = None
         if (
             self.settings is not None
@@ -375,12 +511,17 @@ class LookupService:
         else:
             for name in ("vep", "variant_validator"):
                 tool = self.tool_registry[name]
-                result = tool.get_evidence(variant=variant)
+                result = source_cached_result(
+                    name,
+                    lambda tool=tool: tool.get_evidence(variant=variant),
+                )
                 if name == "vep":
                     variant.vep_raw = result.raw
                     consequence = (result.summary or {}).get("most_severe_consequence")
                     if consequence and not variant.consequence:
                         variant.consequence = consequence
+                elif name == "variant_validator":
+                    _hydrate_variant_from_source_result(variant, name, result)
                 record_result(name, result)
 
             if not variant.genomic_hg38:
@@ -389,7 +530,10 @@ class LookupService:
             # Phase 2 runs strict-genomic plugins after resolver mutation.
             for name in STRICT_GENOMIC_PLUGINS:
                 tool = self.tool_registry[name]
-                result = tool.get_evidence(variant=variant)
+                result = source_cached_result(
+                    name,
+                    lambda tool=tool: tool.get_evidence(variant=variant),
+                )
                 record_result(name, result)
 
         # Phase 3 annotates with non-coordinate sources.
@@ -419,7 +563,10 @@ class LookupService:
                     source_url=publication_cache.get("pubmed_source_url"),
                 )
             else:
-                result = tool.get_evidence(variant=variant)
+                result = source_cached_result(
+                    name,
+                    lambda tool=tool: tool.get_evidence(variant=variant),
+                )
             record_result(name, result)
             if name == "clinvar":
                 variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
@@ -436,7 +583,11 @@ class LookupService:
                 source_url=publication_cache.get("source_url"),
             )
         else:
-            litvar_result = self.tool_registry["litvar2"].get_evidence(variant=variant)
+            litvar_tool = self.tool_registry["litvar2"]
+            litvar_result = source_cached_result(
+                "litvar2",
+                lambda tool=litvar_tool: tool.get_evidence(variant=variant),
+            )
         record_result("litvar2", litvar_result)
 
         variant_row.genomic_hg38 = variant.genomic_hg38 or None
@@ -472,7 +623,12 @@ class LookupService:
         if trials_tool is not None:
             trial_rows: list[dict[str, Any]] = []
             if hasattr(trials_tool, "get_trial_matches"):
-                trials_result = trials_tool.get_trial_matches(variant=variant, gene=gene, limit=15)
+                trials_result = source_cached_result(
+                    "clinical_trials",
+                    lambda tool=trials_tool: tool.get_trial_matches(
+                        variant=variant, gene=gene, limit=15
+                    ),
+                )
                 record_result("clinical_trials", trials_result)
                 trial_rows_raw = (
                     trials_result.summary.get("trial_rows", [])

@@ -22,6 +22,7 @@ from app.repos.evidence_submissions_repo import (
 )
 from app.repos.run_repo import RunRepo
 from app.repos.subscriptions_repo import SubscriptionsRepo
+from app.repos.source_cache_repo import SourceCacheRepo
 from app.repos.users_repo import UsersRepo
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
@@ -38,6 +39,7 @@ from app.services.recommendation import RecommendationService
 from app.services.report_draft import ReportDraftService
 from app.services.run_chat import RunChatService
 from app.services.sequence_context import EnsemblVariantSequenceResolver, SequenceContextService
+from app.services.source_cache import HeroExampleSourceCacheWarmer
 from app.services.workbench_design import WorkbenchDesignService
 from app.services.workflow import WorkflowService
 from app.tools.registry import build_tool_registry
@@ -73,6 +75,7 @@ def create_app(settings=None) -> FastAPI:
     subscriptions_repo = SubscriptionsRepo(db_session_factory)
     users_repo = UsersRepo(db_session_factory)
     variant_cache_repo = VariantCacheRepo(db_session_factory)
+    source_cache_repo = SourceCacheRepo(db_session_factory)
     report_pdf_tool = ReportPdfTool()
     extraction_chain = build_extraction_chain(settings)
     draft_chain = build_draft_chain(settings)
@@ -92,6 +95,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.subscriptions_repo = subscriptions_repo
     app.state.users_repo = users_repo
     app.state.variant_cache_repo = variant_cache_repo
+    app.state.source_cache_repo = source_cache_repo
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(
         settings=settings,
@@ -133,7 +137,11 @@ def create_app(settings=None) -> FastAPI:
         rule_engine=ClinicRules(),
         draft_render_service=DraftRenderService(draft_chain),
         variant_cache_repo=variant_cache_repo,
+        source_cache_repo=source_cache_repo,
         settings=settings,
+    )
+    app.state.hero_example_source_cache_warmer = HeroExampleSourceCacheWarmer(
+        app.state.lookup_service
     )
 
     app.include_router(build_api_router())

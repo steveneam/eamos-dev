@@ -118,6 +118,9 @@ export interface EvidenceSourceSummary {
   summary: Record<string, unknown>
   warnings: string[]
   source_url?: string | null
+  fetched_at?: string | null
+  source_version?: string | null
+  cache_status?: string | null
 }
 
 export interface RunResponse {
@@ -581,7 +584,16 @@ export interface PopulationFrequencyDetail {
   source_url?: string | null
 }
 
-export type SourceStatus = 'live' | 'cache' | 'fixture' | 'fallback' | 'missing' | 'error'
+export type SourceStatus =
+  | 'live'
+  | 'cache'
+  | 'stale'
+  | 'fixture'
+  | 'fallback'
+  | 'missing'
+  | 'live_stub'
+  | 'error'
+  | 'failed'
 export type ReportMatchLevel = 'variant_level' | 'gene_level' | 'disease_level' | 'unavailable'
 export type EvidenceAssertionLevel = 'source_asserted' | 'eamos_hint' | 'not_assessed'
 

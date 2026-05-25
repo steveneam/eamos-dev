@@ -11,14 +11,15 @@ def provenance_from_evidence(
     *,
     retrieved_at: datetime | None = None,
 ) -> list[SourceProvenance]:
-    timestamp = retrieved_at or datetime.now(timezone.utc)
+    default_timestamp = retrieved_at or datetime.now(timezone.utc)
     return [
         SourceProvenance(
             source=item.source,
             status=normalize_source_status(item.status),
             query=_string_query_identity(item.request_identity),
             source_url=item.source_url,
-            retrieved_at=timestamp,
+            retrieved_at=_parse_timestamp(item.fetched_at) or default_timestamp,
+            version=item.source_version,
             warnings=list(item.warnings),
         )
         for item in evidence
@@ -47,15 +48,35 @@ def provenance_for_source(
 
 def normalize_source_status(status: str | None) -> SourceStatus:
     normalized = (status or "").strip().lower()
-    if normalized in {"live", "cache", "fixture", "fallback", "missing", "error"}:
+    if normalized in {
+        "live",
+        "cache",
+        "stale",
+        "fixture",
+        "fallback",
+        "missing",
+        "live_stub",
+        "error",
+        "failed",
+    }:
         return normalized  # type: ignore[return-value]
     if normalized in {"degraded", "stub", "unavailable"}:
         return "fallback"
-    if normalized in {"failed", "timeout"}:
+    if normalized in {"timeout"}:
         return "error"
     if not normalized:
         return "missing"
     return "fallback"
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
 
 
 def _string_query_identity(identity: dict[str, Any]) -> dict[str, str]:

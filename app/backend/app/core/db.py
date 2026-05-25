@@ -175,6 +175,33 @@ class VariantCacheRecord(Base):
     )
 
 
+class SourceCacheRecord(Base):
+    __tablename__ = "source_cache"
+    __table_args__ = (Index("ix_source_cache_source_key", "source", "cache_key", unique=True),)
+
+    cache_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(64), index=True)
+    cache_key: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_identity: Mapped[dict] = mapped_column(JSON, default=dict)
+    request_identity: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    source_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    raw: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSON, nullable=True)
+    warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
 def _build_search_documents_fts_expression(search_documents_table):
     simple_cfg = text("'simple'")
     english_cfg = text("'english'")

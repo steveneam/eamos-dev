@@ -14,22 +14,7 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-25 00:20 +1000 â€” **/report UI pass + demo-fixture
-  refresh shipped (clear-safe).** Pushed on checkpoint (origin==local): `6184af6`
-  Contact-sales mailto â†’ `sales@eamos.com.au` (Porkbun forwarding verified
-  end-to-end); `37e105e` four FE `/report` changes (Publications above Trials;
-  annotated-only trials [legacy `therapeutic_landscape` prose dropped]; removed the
-  header ClinVar/REVEL stat strip so the 4 call cards rise; Open-in pills now
-  ClinVarÂ·gnomADÂ·SpliceAIÂ·EnsemblÂ·PubMedÂ·ClinicalTrials.gov); `a179d62` replaced
-  the hand-curated `app/web/lib/sample-report.ts` with a verbatim live-lookup
-  snapshot â†’ new `app/web/lib/rpe65-sample.json` (demo now mirrors real: VUS + 4
-  call cards). All verified on `eamos-dev.vercel.app` (local dev impractical â€” slow
-  `E:` disk; `eamos.com.au` IT-blocked from the work network). **HELD/uncommitted
-  (no-sweep):** my 1-line landing source-sync sentence rides in
-  `app/web/components/landing/LandingClient.tsx` alongside Codex's uncommitted
-  landing chip/parsing WIP â€” decide ship-whole-file vs isolate-sentence. Left a
-  Codex CAR (backend data flag + captured-fixture heads-up). No servers running.
-  Detail: `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-05-25 21:50 +1000 - **Launch-readiness pass (app/web, UNCOMMITTED, tsc-clean).** deepthink audit -> P0/P1 fixes: PostHog scrubs the queried variant from `$current_url` + identifies by Supabase UUID not email (`providers.tsx`); dev-leak offline/loading copy removed (`ReportClient.tsx`); "ACMG verdict"->"classification" (`DiseaseSection.tsx`); RUO footer line + github placeholder removed (`SiteFooter.tsx`); founder note replaced the fabricated testimonial (`Testimonials.tsx`); MetricBelt real sourced metrics (ClinVar 3M+/gnomAD 909M+/ClinicalTrials 586K+/PubMed 40M+); FeaturesGrid -> product-snapshot gallery (new `public/feat-*.webp`). Workbench->Next pass 1 also landed in app/web (route+chrome+viewer skeleton; Vite untouched). Supabase MCP wired (`.mcp.json`, hosted HTTP/OAuth - needs restart+auth). NOT committed; no servers running. Pending: SEO (metadataBase/OG/robots/sitemap), gnomAD-map gallery tile, Privacy Policy, EvidenceTable provenance pills. Detail: ~/.claude/plans/next-session-eamos.md.
 - **Claude (prior):** IDLE @ 2026-05-24 22:04 +1000 â€” **eamos.com.au LIVE + auth working in
   prod; 2 Claude commits pushed (clear-safe).** Domain go-live DONE: Vercel apex
   (Production) + `www`â†’apex 308; Porkbun DNS (A `@`â†’216.198.79.1, CNAME `www`â†’
@@ -47,10 +32,10 @@
   servers running. Parked: `sales@eamos.com.au` mailto (after Porkbun forwarding),
   Render `ALLOWED_ORIGINS` (optional), CMRI IT domain allow-list (work network 403s
   the new domain). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-25 02:15 +1000 - Publications backend quality,
-  Workbench CRISPR/AB1 source-backed slice, and source-cache architecture plan
-  reached verified handoff boundary. No `/runs`, AlphaMissense, destructive git,
-  stash, reset, clean, push, or commit.
+- **Codex:** IDLE @ 2026-05-25 21:46 +1000 - Added Claude's bare-rsID
+  resolver request to the Codex next-session queue; no source changes after the
+  verified provider/cache health slice. No `/runs`, AlphaMissense, destructive
+  git, stash, reset, clean, push, or commit.
 
 ## Log Edit-Lock
 
@@ -60,12 +45,47 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-25 02:23 +1000 · Codex (Source-cache hero-example priority recorded)
+UNLOCKED · 2026-05-25 21:47 +1000 · Codex (bare-rsID resolver task added to next-session queue)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED source-cache hero example pilot files**
+  (2026-05-25 20:25 +1000)
+  - Backend/source cache: `app/backend/app/core/db.py`,
+  `app/backend/app/repos/source_cache_repo.py`,
+  `app/backend/app/services/source_cache.py`,
+  `app/backend/app/services/lookup_service.py`,
+  `app/backend/app/services/report_provenance.py`,
+  `app/backend/app/tools/base.py`, `app/backend/app/main.py`,
+  `app/backend/app/cli/warm_source_cache.py`, and
+  `app/backend/tests/test_source_cache.py`.
+  - Additive contract/sample: `app/backend/app/schemas/run.py`,
+  `app/frontend/src/lib/backend.ts`, `app/web/lib/backend.ts`, and
+  `app/web/lib/rpe65-sample.json`.
+  - Coordination/docs: `PROGRESS.md`, `plans/source-cache-architecture.md`, and
+  `agent_handoff/CURRENT.md`. Task 0 is verified; arbitrary-query source-cache
+  generalization remains pending. No `/runs`, AlphaMissense, destructive git,
+  stash, reset, clean, push, or commit.
+
+- **Codex RELEASED source-cache Task 2 files** (2026-05-25 21:23 +1000)
+  - Backend: `app/backend/app/services/lookup_service.py`,
+  `app/backend/tests/test_source_cache.py`.
+  - Coordination/docs: `PROGRESS.md`, `plans/source-cache-architecture.md`,
+  and `agent_handoff/CURRENT.md`.
+  - Scope: arbitrary resolved-variant gnomAD read-through only; no `/runs`,
+  AlphaMissense, destructive git, stash, reset, clean, push, or commit.
+
+- **Codex RELEASED provider/cache health files** (2026-05-25 21:40 +1000)
+  - Backend: `app/backend/app/api/routes/health.py`,
+  `app/backend/app/repos/source_cache_repo.py`, and
+  `app/backend/tests/test_health_api.py`.
+  - Coordination/docs: `PROGRESS.md`, `plans/source-cache-architecture.md`,
+  and `agent_handoff/CURRENT.md`.
+  - Scope: additive backend-only health payload; no `/runs`, AlphaMissense,
+  destructive git, stash, reset, clean, push, or commit.
 
 - **Codex RELEASED Publications/Workbench/source-cache architecture files**
   (2026-05-25 02:15 +1000)
@@ -717,6 +737,35 @@ DONE entries older than the last major boundary into the relevant plan/log.
   `app/web/components/report/{PubMedSection,TrialsSection}.tsx`;
   `app/backend/app/services/publication_literature.py`;
   `app/backend/app/tools/clinvar.py`.
+- [OPEN] Claude->Codex (2026-05-25 21:50 +1000): **Bare dbSNP rsID does not
+  resolve (backend resolver).** `/report?q=rs1801133` (MTHFR C677T) on
+  eamos-dev returns a `SearchInputInterpretation` "Search needs more detail"
+  (deterministic, high) with NO candidate, so no report renders -- the FE
+  correctly shows the interpretation panel (not a FE bug). Is `/lookup` raw
+  `search_text` meant to resolve bare rsIDs -> gene+HGVS (dbSNP / Ensembl /
+  VariantValidator)? The report MalformedBlock advertises `rs61752871` as a
+  supported dbSNP format, so either arbitrary rsIDs should resolve live OR
+  rsID support is fixture-only and Claude softens that FE copy -- which is it,
+  and does `rs61752871` itself resolve live? (Separate/known: Render free-tier
+  cold start ~30-60s slows the first live lookup.) Deliver via backend
+  resolver / `/lookup`; FE copy in
+  `app/web/components/report/ReportClient.tsx` MalformedBlock.
+- [OPEN] Claude->Codex (2026-05-25 21:50 +1000): **Claude-lane app/web
+  launch-hardening is UNCOMMITTED -- `git pull --ff-only` before you commit so
+  we do not diverge.** deepthink launch-readiness pass:
+  `app/web/app/providers.tsx` (PostHog scrubs the queried variant from
+  `$current_url`, identifies by Supabase UUID not email);
+  `components/report/ReportClient.tsx` (removed dev-leak localhost/uvicorn
+  offline + "mock mode" loading copy); `components/report/DiseaseSection.tsx`
+  ("ACMG verdict"->"classification");
+  `components/landing/{SiteFooter,Testimonials,MetricBelt,FeaturesGrid}.tsx`
+  (RUO footer line; founder note replacing the fabricated testimonial; real
+  sourced metrics ClinVar 3M+/gnomAD 909M+/ClinicalTrials 586K+/PubMed 40M+;
+  FeaturesGrid -> product-snapshot gallery); new `public/feat-*.webp`. Plus
+  Workbench->Next pass 1 (route + chrome + viewer skeleton). NONE touch
+  `app/backend/**`, either `backend.ts`, `lib/api.ts`, or `rpe65-sample.json`.
+  tsc clean; Claude commits Claude-lane with explicit pathspecs. FYI /
+  coordination -- `app/web/**`.
 
 ## Current State
 
@@ -786,147 +835,128 @@ DONE entries older than the last major boundary into the relevant plan/log.
   un-gated (a mixed-worktree checkpoint commit still warrants an explicit
   ask). See `RISKS.md`.
 
-## Claude â€” Last Task & Resume
+## Claude — Last Task & Resume
 
-Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 2).
-Section last edited: 2026-05-24 22:04 +1000 Â· Claude. Prior section
-(Publications-over-time graph, 2026-05-24 20:21) is preserved in git history +
-`~/.claude/plans/next-session-eamos.md`. Full incremental detail in the
-next-session doc.
+Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 1/2).
+Section last edited: 2026-05-25 03:05 +1000 · Claude. Prior section (eamos.com.au
+go-live night) is preserved in git history + `~/.claude/plans/next-session-eamos.md`.
+Full incremental detail in the next-session doc (sections "2026-05-25 later 1..5").
 
-**Session 2026-05-24 (night) â€” eamos.com.au go-live + Messenger FE + mobile auth fix (all pushed).**
+**Session 2026-05-25 — large /report + landing FE pass + stealth (all pushed + verified).**
 
-Interactive with Steven. Two Claude-lane commits pushed (origin==local on
-`checkpoint/v2-batches-2026-05-17`); Codex's gnomAD age-distribution + payment lane
-left UNCOMMITTED + untouched (explicit pathspecs, no sweep).
+Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `b7fc9ca`. All Claude-lane,
+`app/web` only, Vercel auto-deploys, each verified on `eamos-dev.vercel.app`:
+- `d1c3a2a` trials/pubs display rules (5 + View-more, coloured ClinicalTrials status
+  pills RECRUITING/NOT_YET/ACTIVE_NOT, live publications pagination via
+  `/api/v1/lookup/publications`, honest `snippet_status`, PubMed search link).
+- `5448ba3` pricing collapsed to ONE landing surface; **`/pricing` page removed**
+  (Individual/Team toggle + enterprise card moved to landing, cumulative
+  "Everything in … plus:" leads, CTAs to `/checkout`). `app/web` `SearchShell.tsx` now unused.
+- `9c11b91`/`7146d4f`/`1989b44` mobile swipe carousels for the 4 report call cards +
+  pagination dots (new `components/ui/CarouselDots.tsx`) + desktop-leak fix.
+- `b847e10` mobile nav hamburger centred (left of auth).
+- `3aee4c1`/`9f0e469`/`73c3257`/`b7fc9ca` report search unified with the hero freeform
+  `EamosSearch` (added `tone` prop, suggestive placeholder, dropped Lookup/AI toggle,
+  shared `lib/variant-search.ts`), sticky + smooth focus-expand growing from a narrower
+  resting state on mobile + desktop (percentage width, no overshoot).
 
-- **`a06dd64` feat(web): Messenger evidence-submissions FE, flag-gated.**
-  `lib/messenger.ts` + `components/account/AccountClient.tsx` + `.env.local.example`.
-  `NEXT_PUBLIC_EVIDENCE_API_ENABLED` (default OFF) â†’ flag-ON POSTs
-  `/api/v1/evidence-submissions` with Supabase bearer (no user_id) + expanded ClinVar
-  curator fields + live ready/draft readiness chip; flag-OFF = current direct-Supabase
-  write. Browser-verified flag-ON (endpoint, bearer, field shapes, readiness
-  draftâ†’ready; 401 locally = backend lacks ES256 verification â€” see CAR). Types kept
-  local in messenger.ts (promote to backend.ts at integration).
-- **`d2dface` fix(web): mobile auth-panel centering.** `AuthMenu.tsx`: on mobile the
-  popover became a viewport-centred sheet (`fixed inset-x-3 top-16`); `sm+` anchored
-  popover unchanged. Browser-verified 390px + 1280px; Steven confirmed centred on his
-  phone.
-- **eamos.com.au go-live DONE + verified** (see Active Status): domain live, SSL,
-  wwwâ†’apex, Supabase Auth URLs; the missing-Vercel-env was the prod "auth not
-  configured" cause (Steven added all 4 NEXT_PUBLIC_*). Auto-deploy ON for branch.
-  Real account created from mobile on the live domain.
-- Verified each: `npx tsc --noEmit` 0 + `npm run build` clean (both commits) + browser
-  (chrome-devtools). No servers running.
+**Stealth (verified):** `eamos.com.au` + `www` unhooked from Vercel; Supabase Site
+URL to `https://eamos-dev.vercel.app`. Confirmed `eamos.com.au` shows "Deployment not
+found" on Steven's mobile; vercel URL serves + auth works. Un-stealth steps (re-add
+domain in Vercel + revert Supabase Site URL) are in the next-session doc; Steven saved them.
 
-**Parked (Steven's call, external deps):** `sales@eamos.com.au` mailto in
-`lib/plans.ts` (after Porkbun email forwarding); Render `ALLOWED_ORIGINS` += domain
-(optional â€” same-origin proxy); CMRI IT allow-list so the domain opens on the work
-network (403 web-filter today). Test users `claude-smoke-0524a/b@example.com` deletable.
+**Render:** Steven manually redeployed `084221e` to branch tip `b7fc9ca`; live with
+Codex's `f625107` (RPE65 ClinVar contradiction fixed: `nearby_variants` c.260A>G now
+`vus`; honest publication `gene_only_no_variant`). Verified via live probe.
 
-**Next session (gated):** (1) Messenger live path is BLOCKED on Codex adding
-ES256/JWKS verification to the backend auth dep (CAR above) + Supabase 0003 + Render
-Supabase env â€” keep flag OFF until then. (2) Stripe live checkout (Codex contract
-ready; needs real products/price ids). (3) Mirror evidence-submission types into both
-`backend.ts` at integration. Do NOT touch /runs, AlphaMissense, Workbench.
+**Coordination:** `b7fc9ca` inadvertently swept Codex's staged docs (`PROGRESS.md`, this
+`CURRENT.md`, `plans/source-cache-architecture.md`, `plans/v2-backend.md`) — Codex
+verified the content + agreed leave-as-is (no rewrite). Claude now commits with
+`git commit -- <pathspec>` to avoid re-sweeping the shared index.
+
+**Open:** (Codex lane) re-capture `app/web/lib/rpe65-sample.json` — the `?demo=1` fixture
+drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, Steven's
+"add to consideration") host-conditional `noindex` (noindex all hosts EXCEPT
+`eamos.com.au`) for when going public. No servers running.
 
 **Resume prompt:**
-`# Resume prompt Â· 2026-05-24 22:04 +1000 Â· Claude (eamos.com.au LIVE + auth working; Messenger FE + mobile fix pushed)
-Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE), then agent_handoff/README.md, agent_handoff/CURRENT.md (## Claude + Active Status + Locks + Cross-Agent Requests), plans/auth-pricing/backend-contracts.md, then git status --short --branch.
-Delta: eamos.com.au is LIVE with working auth (real account created from mobile); Vercel auto-deploy is ON for the branch. Pushed a06dd64 (Messenger evidence-submissions FE, flag-gated NEXT_PUBLIC_EVIDENCE_API_ENABLED=OFF) + d2dface (mobile auth-panel centering fix). Codex's gnomAD age-distribution + payment changes still uncommitted in its lane (not swept). No servers running.
-Next (gated): (1) Messenger live path BLOCKED on Codex adding ES256/JWKS verification to backend deps.py (_supabase_principal is HS256-only; live Supabase tokens are ES256) + Supabase 0003 + Render Supabase env â€” keep flag OFF until then. (2) sales@ mailto after Porkbun forwarding; Render ALLOWED_ORIGINS optional; CMRI IT domain allow-list for work access. (3) mirror evidence-submission types into both backend.ts at integration. Do NOT touch /runs, AlphaMissense, Workbench; no destructive git. End clear-safe.`
+`# Resume prompt · 2026-05-25 03:05 +1000 · Claude (FE polish done; stealth on; Render live)`
+`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — "2026-05-25 later 5" is newest), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Claude + Active Status + Locks + Cross-Agent Requests), agent_handoff/RISKS.md, then git status --short --branch. Branch checkpoint/v2-batches-2026-05-17 (HEAD b7fc9ca, local==origin).`
+`Verify on eamos-dev.vercel.app ONLY — eamos.com.au is in STEALTH (domain unhooked from Vercel; Supabase Site URL set to eamos-dev.vercel.app). Vercel auto-deploys app/web on push; Render backend is MANUAL (live at b7fc9ca with Codex f625107 fixes).`
+`Delta: large /report+landing FE session shipped+verified (trials/pubs display, single-surface pricing [/pricing removed], mobile carousels+dots, centred mobile nav, report search unified with hero freeform bar + smooth focus-expand mobile+desktop). b7fc9ca inadvertently swept Codex staged docs — Codex agreed leave-as-is.`
+`Open: (Codex) re-capture app/web/lib/rpe65-sample.json (demo fixture drifted from corrected live = vus + gene_only_no_variant); (Claude parked) host-conditional noindex when going public; un-stealth = re-add domain in Vercel + Supabase Site URL to eamos.com.au.`
+`Guardrails: no /runs, AlphaMissense, Workbench (Vite app/frontend = Codex lane); commit with git commit -- <pathspec> (concurrent Codex index); no destructive git. End clear-safe.`
 
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-25 02:15 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-25 21:46 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
 timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
 ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
 publication-quality/Workbench-source-backed/source-cache architecture in
-Session 31.
+Session 31; source-cache hero pilot in Session 32; arbitrary gnomAD
+source-cache read-through in Session 33; provider/cache health in Session 34.
 
-**Latest Codex update (2026-05-25 02:15 +1000 - Codex):**
-Main lane and subagent work reached a verified handoff boundary. EP-VLEx now
-requires exact variant text before returning variant snippets and exposes
-honest non-exact `snippet_status` values. RPE65 ClinVar fixtures were corrected:
-`c.260A>G` / `p.Asp87Gly` resolves to VCV001421454 / VUS; VCV000099473 is an
-ABCA4 variant, not RPE65. Workbench now has a Biopython AB1 parser path and a
-configurable R/Bioconductor `crisprScore` adapter boundary. Source-cache
-architecture is planned in `plans/source-cache-architecture.md`, including
-Claude's stale-on-failure and Supabase RLS notes.
+**Latest Codex update (2026-05-25 21:40 +1000 - Codex):**
+The additive backend-only provider/cache health endpoint is implemented at
+`GET /api/v1/health/provider-cache`; `/healthz` remains unchanged for stable
+liveness and mode flags.
 
 **Implementation completed:**
-- Publications: exact variant snippets/statuses in
-  `publication_literature.py`, with lookup integration tests for RPE65 page and
-  pagination statuses. No frontend-invented snippets and no report contract
-  shape change.
-- ClinVar contradiction: NCBI E-utilities confirm RPE65 `c.260A>G` / `D87G` /
-  `p.Asp87Gly` maps to VCV001421454 / VUS; VCV000099473 is ABCA4. Backend RPE65
-  lookup/viewer fixtures and tests were corrected.
-- Workbench CRISPR: added configurable Rscript path/conda env settings and
-  source-backed `crisprScore` adapter wiring with deterministic fallback.
-- Workbench alignment: added shared Biopython AB1 parser, trace channels,
-  Q-scores/base calls, and PairwiseAligner-first backend alignment path.
-- Architecture: added `plans/source-cache-architecture.md`, including
-  stale-on-failure, backend-only Supabase RLS posture for global source cache,
-  canonical status vocabulary, and future freshness contract fields.
+- `SourceCacheRepo.health_summary()` returns sanitized source-cache aggregates:
+  total/fresh/stale/versioned rows, per-source status counts, and oldest/latest
+  fetch timestamps.
+- Health payload reports CRISPR configured provider availability, local
+  deterministic availability, and `crisprscore_r` disabled/unavailable/package
+  checks when configured.
+- Regression tests assert the detailed health payload does not expose cache
+  keys, variants, normalized/request identities, raw payloads, source URLs,
+  warnings, or configured paths.
+- No frontend contract/schema mirror was required.
 
 **Verification:**
-- Backend publication/ClinVar/contract focused suite passed:
-  `tests/test_publication_literature.py`, two lookup integration tests,
-  RPE65 gene-viewer fixture test, and `tests/test_frontend_contract.py`.
-- Backend Workbench suite passed:
-  `python -m pytest tests/test_crispr_design.py tests/test_workbench_api.py -q`
-  (36 tests).
-- Backend cache/health suite passed:
-  `python -m pytest tests/test_health_api.py tests/test_variant_cache.py -q`.
-- Focused backend ruff and black checks passed for touched services/tests.
-- Frontend Workbench unit tests passed for alignment pairwise,
-  CRISPR disclosure, guide map, and TIDE sample helpers (26 tests).
-- Local FastAPI baseline boot passed on `http://127.0.0.1:8000`; `/healthz`
-  returned database ok and fixture lookup returned `RPE65:c.260A>G`.
-- Real AB1 parse smoke passed on the user UNC folder:
-  `SE01_1RPE65_BEN1_1_D04.ab1` -> 604 base calls/Q-scores and four trace
-  channels.
-- Temporary backend/Vite servers were stopped; ports 8000/5173 clear.
+- `python -m pytest tests/test_health_api.py -q` passed.
+- `python -m pytest tests/test_source_cache.py tests/test_crispr_design.py tests/test_health_api.py -q`
+  passed.
+- `python -m pytest tests/test_auth_api.py tests/test_health_api.py tests/test_frontend_contract.py -q`
+  passed with existing short JWT test-key warnings only.
+- `python -m ruff check app/api/routes/health.py app/repos/source_cache_repo.py tests/test_health_api.py`
+  passed.
+- `python -m black --check --target-version py310 app/api/routes/health.py app/repos/source_cache_repo.py tests/test_health_api.py`
+  passed.
+- `git diff --check` passed with existing CRLF working-copy warnings only.
 
 **Coordination / caveats:**
-- No report contract shape changed for publication snippet/status quality, so
-  neither `backend.ts` mirror nor `app/web/lib/rpe65-sample.json` needed
-  recapture this session.
-- `crisprScore` and `crisprScoreData` are installed for the existing local R
-  4.3.1 / Bioconductor 3.18 stack. RStudio is not required for backend use.
-  Newer R can be used later by pointing `CRISPR_RSCRIPT_PATH` at the newer
-  `Rscript.exe` and installing `crisprScore` there.
-- RuleSet3 and Lindel remain conda-env gated; DeepHF/DeepCpf1/enPAM+GB remain
-  platform-gated/not Windows-safe. Deterministic fallback remains visible.
-- `app/web/lib/variant-search.ts` is untracked and appears to be pre-existing
-  web-lane landing helper work; Codex left it untouched.
+- Existing unrelated dirty/untracked web/workbench/plugin files remain in the
+  worktree and were not cleaned, staged, or committed.
+- Source-cache Task 2 remains gnomAD-only for arbitrary read-through.
+- New Claude→Codex request from 2026-05-25 21:50 +1000: decide/fix bare
+  dbSNP rsID lookup behavior (`/report?q=rs1801133`; verify whether
+  advertised `rs61752871` resolves live) or coordinate FE copy softening.
 - No `/runs`, AlphaMissense, destructive git, stash, reset, clean, push, or
   commit.
 
 **Next-session pickup queue:**
-1. Implement the source-cache slice from `plans/source-cache-architecture.md`,
-   starting with Task 0: cache-warm the report-capable example variants under
-   the landing hero search bar. Then generalize to `source_cache` repo/table,
-   stale-on-failure, backend-only Supabase posture, and additive freshness
-   fields only when ready to mirror both `backend.ts` files and recapture
-   `app/web/lib/rpe65-sample.json`.
-2. Continue Workbench source-backed CRISPR scoring hardening: provider health
-   endpoint/reporting, score cache keys by provider/package version, and wider
-   sequence-context tests for RuleSet1/CRISPRscan/CRISPRater/MIT/CFD.
-3. Continue alignment M-002E: route-level AB1 upload/base64 smoke, trace UX
-   integration, and shared parser reuse for future `/api/v1/crispr/tide`.
-4. Optional: refresh frontend workbench build/lint after Claude reviews the
-   subagent UI changes; avoid unrelated app/web landing/helper files.
+1. Resolve/decide bare dbSNP rsID support in the backend resolver:
+   `/report?q=rs1801133` currently produces no candidate despite rsID support
+   being advertised; verify `rs61752871` live behavior and either implement
+   source-backed rsID resolution or request FE copy softening.
+2. Harden Workbench AB1/alignment input bounds before any trace persistence or
+   score-cache work.
+3. Continue source-cache Task 2 with SpliceAI only after an explicit
+   source-version decision; keep ClinVar/ClinGen as separate identity slices.
+4. Treat ClinVar/ClinGen cache identity as separate design slices; do not cache
+   broadly until first-ID selection and term matching rules are stricter.
+5. Consider a Codex-native DeepThink wrapper later if this workflow becomes
+   common.
 
-**Clear-safe:** yes; verified backend/frontend focused suites passed, temporary
-servers stopped, coordination locks released after re-read.
+**Clear-safe:** yes; focused backend/source-cache/CRISPR/auth/contract tests,
+ruff/black, and diff check passed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-25 02:15 +1000 · Codex source-cache + Workbench engines
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 31, plans/source-cache-architecture.md, then git status --short --branch.
-Delta: Publications backend quality landed: exact variant snippets only on exact variant text, honest snippet_status values, and RPE65 ClinVar fixture correction to VCV001421454/VUS; VCV000099473 is ABCA4. Workbench source-backed slice added Biopython AB1 parsing/alignment and configurable R/Bioconductor crisprScore adapter path; local R 4.3.1 has crisprScore/crisprScoreData installed. Source-cache plan now includes stale-on-failure, backend-only Supabase RLS, status vocabulary, and future freshness fields.
-Next: implement source_cache read-through/stale-on-failure if approved, starting with cache-warming the report-capable landing hero examples; add fetched_at/source_version/cache_status only when ready to mirror both backend.ts files and recapture app/web/lib/rpe65-sample.json if lookup shape changes. Continue CRISPR provider health/cache and AB1/TIDE parser hardening. Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, or commit unless explicitly requested.
-End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
+`# Resume prompt · 2026-05-25 21:46 +1000 · Codex provider/cache health + rsID pickup`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 32-34, plans/source-cache-architecture.md, then git status --short --branch.`
+`Delta: Additive backend-only provider/cache health landed at GET /api/v1/health/provider-cache; /healthz unchanged; payload exposes only source-cache aggregates and CRISPR provider availability, with tests guarding against cache keys, variants, raw payloads, paths, and warnings. Claude added a bare-rsID resolver request: /report?q=rs1801133 returns no candidate while report copy advertises rsID support; verify rs61752871 too.`
+`Next: backend rsID resolver decision/fix first; then AB1/alignment input hardening; SpliceAI source-cache only after source-version decision; ClinVar/ClinGen later as separate identity slices.`
+`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, or commit unless explicitly requested. End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`

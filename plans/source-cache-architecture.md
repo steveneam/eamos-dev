@@ -3,8 +3,11 @@
 Source: user request on 2026-05-25 to run or plan a local database/webserver
 architecture for faster source-backed evidence and Workbench scoring.
 
-Status: Planned baseline; existing FastAPI + SQLite/Postgres + `variant_cache`
-is runnable today. Full source-cache and local warehouse slices are pending.
+Status: Task 0 hero-example source-cache pilot, Task 2 arbitrary gnomAD
+read-through, and the additive provider/cache health endpoint were implemented
+by Codex on 2026-05-25; existing FastAPI + SQLite/Postgres + `variant_cache` is
+runnable today. SpliceAI, ClinVar, ClinGen, and local warehouse slices are still
+pending separate identity/version decisions.
 
 ## Shared Decisions
 
@@ -98,6 +101,8 @@ Invoke-WebRequest http://127.0.0.1:8000/healthz
 
 ## Task 0 - Hero Example Cache Pilot
 
+Status: Implemented 2026-05-25 by Codex.
+
 **Goal**
 
 Make the landing-page hero example variants load from warmed source-cache rows
@@ -135,16 +140,33 @@ explicit refresh.
 
 **Acceptance Criteria**
 
-- Hero example variants are cache-warmed without changing the chip UI contract.
-- First report load for a warmed example can use cache rows for supported
-  sources and returns status/freshness metadata.
-- Provider failure with only stale hero-example data returns `status="stale"`
-  rather than a blank/missing report section.
-- `?refresh=true` still performs a live refresh and rewrites cache rows only on
+- DONE: Hero example variants are cache-warmed without changing the chip UI
+  contract.
+- DONE: First report load for a warmed example can use source-cache rows for
+  supported sources and returns status/freshness metadata on
+  `EvidenceSourceSummary`.
+- DONE: Provider failure with only stale hero-example data returns
+  `status="stale"` rather than a blank/missing report section.
+- DONE: `?refresh=true` performs a live refresh and rewrites cache rows only on
   successful usable provider results.
-- No non-example arbitrary user query is pre-warmed by this pilot.
-- If `/api/v1/lookup` response shape changes, both `backend.ts` mirrors and
-  `app/web/lib/rpe65-sample.json` are updated in the same backend-led slice.
+- DONE: No non-example arbitrary user query is pre-warmed or read through by
+  this pilot.
+- DONE: `/api/v1/lookup` shape changed additively; both `backend.ts` mirrors
+  and `app/web/lib/rpe65-sample.json` were updated in the same backend-led
+  slice.
+
+Implemented files:
+
+- `app/backend/app/core/db.py`
+- `app/backend/app/repos/source_cache_repo.py`
+- `app/backend/app/services/source_cache.py`
+- `app/backend/app/services/lookup_service.py`
+- `app/backend/app/cli/warm_source_cache.py`
+- `app/backend/app/schemas/run.py`
+- `app/frontend/src/lib/backend.ts`
+- `app/web/lib/backend.ts`
+- `app/web/lib/rpe65-sample.json`
+- `app/backend/tests/test_source_cache.py`
 
 **Verify**
 
@@ -202,6 +224,11 @@ python -m pytest tests/test_source_cache.py tests/test_variant_cache.py -q
 
 ## Task 2 - Wire Read-Through Cache For Small Evidence Sources
 
+Status: Partially implemented 2026-05-25 by Codex. Arbitrary resolved-variant
+source-cache read-through now starts with gnomAD only, keyed by
+`gnomad:<dataset>:<normalized_variant_id>`. ClinVar, ClinGen, and SpliceAI are
+deferred to separate identity/version slices.
+
 **Goal**
 
 Reduce live API calls for small, variant-level sources while keeping provenance
@@ -209,9 +236,12 @@ honest.
 
 **Context**
 
-ClinVar, ClinGen, SpliceAI, and gnomAD variant GraphQL responses are suitable
-for read-through caching. PubMed/LitVar2 already have lookup-level caching but
-can later reuse the source-cache repository.
+gnomAD variant GraphQL responses are the first arbitrary-query source-cache
+target because they have a stable provider identity (`variant_id` + `dataset`).
+ClinVar, ClinGen, and SpliceAI remain suitable candidates, but they should land
+after explicit source identity and source-version decisions. PubMed/LitVar2
+already have lookup-level caching but can later reuse the source-cache
+repository.
 
 **Relevant Files**
 
@@ -224,21 +254,26 @@ can later reuse the source-cache repository.
 
 **Proposed Approach**
 
-Wrap selected tools with a `CachedEvidenceTool` in live mode. Compute the cache
-key before calling the provider from source plus normalized genomic/HGVS terms.
-On a hit, return `ToolResult(status="cache", ...)` with the cached source status
+Wrap selected tools with read-through source cache in live mode. For arbitrary
+resolved variants, compute provider-identity cache keys before calling the
+provider. For gnomAD this is `gnomad:<dataset>:<normalized_variant_id>`. On a
+hit, return `ToolResult(status="cache", ...)` with the cached source status
 inside the payload/provenance. On refresh, bypass and rewrite.
 
 **Acceptance Criteria**
 
-- Repeated live lookup of the same resolved variant avoids duplicate ClinVar,
-  ClinGen, SpliceAI, and gnomAD provider calls.
-- `?refresh=true` bypasses the cache.
-- Cache hits are labeled as cache hits and retain source provenance.
-- If live refresh fails and only stale data exists, the tool returns the stale
-  row rather than a miss, with source failure warnings preserved separately.
-- Provider failures do not overwrite a fresh successful cache row.
-- Fixture mode never writes source-cache rows.
+- DONE: Repeated live lookup of the same resolved variant avoids duplicate
+  arbitrary gnomAD provider calls when a fresh source-cache row exists.
+- DONE: Arbitrary gnomAD cache keys use provider identity, not `gene:cdna`.
+- DONE: `?refresh=true` bypasses the cache for the existing read-through path.
+- DONE: Cache hits are labeled as cache hits and retain source provenance.
+- DONE: If live gnomAD returns a failure state and only stale data exists, the
+  tool returns the stale row rather than a miss, with source failure warnings
+  preserved separately.
+- DONE: Arbitrary gnomAD no-hits carrying `gnomad_variant_not_found` are not
+  persisted as normal long-TTL live successes.
+- DONE: Fixture mode never writes source-cache rows.
+- PENDING: ClinVar, ClinGen, and SpliceAI arbitrary read-through.
 
 **Verify**
 
@@ -332,6 +367,10 @@ python -m pytest tests/test_gnomad_tool.py tests/test_gnomad_local_store.py -q
 
 ## Task 5 - Deployment Modes
 
+Status: Partially implemented 2026-05-25 by Codex. The additive backend-only
+provider/cache health route is available at `GET /api/v1/health/provider-cache`
+and `/healthz` remains the stable liveness endpoint.
+
 **Goal**
 
 Make the same architecture usable locally, in Docker, and later with Supabase.
@@ -356,7 +395,10 @@ Support three modes:
 **Acceptance Criteria**
 
 - Environment variables select providers without frontend contract changes.
-- The backend health endpoint can report database/provider availability.
+- DONE: The backend health endpoint can report database/provider availability.
+  The provider/cache route includes sanitized source-cache row aggregates and
+  CRISPR provider availability without cache keys, variant identities, raw
+  payloads, source URLs, configured paths, or warnings.
 - No large dataset is required for the app to boot.
 - Source-backed modes degrade to deterministic or missing states rather than
   crashing the report/Workbench.

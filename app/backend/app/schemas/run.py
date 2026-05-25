@@ -34,6 +34,9 @@ class EvidenceSourceSummary(BaseModel):
     summary: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     source_url: str | None = None
+    fetched_at: str | None = None
+    source_version: str | None = None
+    cache_status: str | None = None
 
 
 class VariantSummaryRow(BaseModel):
@@ -362,7 +365,17 @@ class PublicationsCallout(BaseModel):
     ai_summary_prompt: str
 
 
-SourceStatus = Literal["live", "cache", "fixture", "fallback", "missing", "error"]
+SourceStatus = Literal[
+    "live",
+    "cache",
+    "stale",
+    "fixture",
+    "fallback",
+    "missing",
+    "live_stub",
+    "error",
+    "failed",
+]
 ReportMatchLevel = Literal["variant_level", "gene_level", "disease_level", "unavailable"]
 EvidenceAssertionLevel = Literal["source_asserted", "eamos_hint", "not_assessed"]
 
