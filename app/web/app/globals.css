@@ -197,6 +197,12 @@
 [data-tone="dark"] input::placeholder,
 [data-tone="dark"] textarea::placeholder { color: var(--hero-ink-3); opacity: 1; }
 
+/* Dark-theme native <select>: the browser's default option popup is white, so the
+   light option text was invisible. color-scheme:dark renders the popup dark; the
+   explicit option colors are a cross-browser fallback. */
+select[data-tone="dark"] { color-scheme: dark; }
+[data-tone="dark"] option { background-color: var(--d-bg-2); color: var(--hero-ink); }
+
 /* Pricing cards (landing teaser + /pricing) — every card lifts + glows on
    hover, rather than a single permanently-glowing "featured" card. The resting
    box-shadow is left unset (the inline styles no longer set it) so :hover can
