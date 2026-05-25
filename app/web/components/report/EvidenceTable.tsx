@@ -15,6 +15,62 @@ const STATUS_DOT: Record<string, string> = {
   blocked: '#dc2626',
 }
 
+const DEGRADED_STATUSES = new Set(['fallback', 'fixture', 'missing', 'error', 'failed'])
+
+function isFreshCache(ev: EvidenceSourceSummary): boolean {
+  return ev.status === 'cache' || ev.cache_status === 'cache_hit'
+}
+
+function isStaleCache(ev: EvidenceSourceSummary): boolean {
+  return ev.status === 'stale' || ev.cache_status === 'stale_on_failure'
+}
+
+function CachePill({ fresh, stale }: { fresh: boolean; stale: boolean }) {
+  if (fresh) {
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '1px 6px',
+          borderRadius: 999,
+          fontSize: 10,
+          fontWeight: 500,
+          letterSpacing: '0.02em',
+          color: 'var(--teal-deep)',
+          background: 'var(--teal-tint)',
+          border: '0.5px solid var(--teal)',
+          lineHeight: '16px',
+          verticalAlign: 'middle',
+        }}
+      >
+        Cached
+      </span>
+    )
+  }
+  if (stale) {
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '1px 6px',
+          borderRadius: 999,
+          fontSize: 10,
+          fontWeight: 500,
+          letterSpacing: '0.02em',
+          color: 'var(--warn)',
+          background: 'var(--warn-tint)',
+          border: '0.5px solid var(--warn-bdr)',
+          lineHeight: '16px',
+          verticalAlign: 'middle',
+        }}
+      >
+        Stale cache
+      </span>
+    )
+  }
+  return null
+}
+
 // Flatten a summary value to a readable string. Recurses one structural
 // level so nested objects render their `k=v` pairs instead of the previous
 // `[object Object]`; arrays of objects (e.g. PubMed / litvar2 `articles`)
@@ -54,12 +110,16 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
   const rows = evidence.filter((ev) => ev.source?.toLowerCase() !== 'alphamissense')
   if (rows.length === 0) return null
 
+  const degradedRows = rows.filter((ev) => DEGRADED_STATUSES.has(ev.status))
+
   const table = (
     <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: 13 }}>
         <tbody>
           {rows.map((ev, i) => {
             const meta = getSourceMeta(ev.source)
             const dot = STATUS_DOT[ev.status] ?? 'var(--ink-4)'
+            const fresh = isFreshCache(ev)
+            const stale = isStaleCache(ev)
             return (
               <tr
                 key={i}
@@ -103,6 +163,7 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
                     ) : (
                       <span>{meta?.label ?? ev.source}</span>
                     )}
+                    {(fresh || stale) && <CachePill fresh={fresh} stale={stale} />}
                   </div>
                   <div
                     className="mt-0.5"
@@ -141,10 +202,30 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
       </table>
   )
 
-  if (embedded) return table
+  const degradedBanner = degradedRows.length > 0 ? (
+    <div
+      style={{
+        marginTop: 10,
+        padding: '7px 10px',
+        borderRadius: 6,
+        background: 'var(--warn-tint)',
+        border: '0.5px solid var(--warn-bdr)',
+        fontSize: 11,
+        color: 'var(--warn)',
+      }}
+    >
+      Degraded sources:{' '}
+      {degradedRows
+        .map((ev) => getSourceMeta(ev.source)?.label ?? ev.source)
+        .join(', ')}
+    </div>
+  ) : null
+
+  if (embedded) return <>{table}{degradedBanner}</>
   return (
     <Card number={number} title="Evidence by source" meta={`${rows.length} sources`}>
       {table}
+      {degradedBanner}
     </Card>
   )
 }

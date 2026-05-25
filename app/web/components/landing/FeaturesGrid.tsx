@@ -8,8 +8,8 @@ interface Shot {
 }
 
 // Product snapshots captured from a live report. Rough first pass — replace with
-// polished marketing shots later. gnomAD world-map tile is added once captured
-// from a gnomAD-present variant (the RPE65 demo variant isn't in gnomAD).
+// polished marketing shots later. The gnomAD world-map featured band below was
+// captured from MTHFR c.665C>T (a gnomAD-present variant; the RPE65 demo isn't in gnomAD).
 const SHOTS: Shot[] = [
   {
     src: '/feat-classification.webp',
@@ -76,6 +76,36 @@ export function FeaturesGrid() {
               <p style={feat.caption}>
                 Population, computational, functional and clinical consensus — the four pillars, mapped
                 above the fold with no nested tabs to dig through.
+              </p>
+            </figcaption>
+          </figure>
+        </Reveal>
+
+        {/* Featured: gnomAD population-frequency world map (captured from MTHFR c.665C>T) */}
+        <Reveal as="article">
+          <figure
+            className="m-0 overflow-hidden"
+            style={{ marginTop: 20, background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 16 }}
+          >
+            <div
+              className="relative"
+              style={{ aspectRatio: '7 / 3', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+            >
+              <Image
+                src="/feat-gnomad-map.webp"
+                alt="gnomAD v4 allele frequencies across genetic ancestry groups, rendered on a land-clipped world map"
+                fill
+                sizes="(max-width: 1180px) 100vw, 1180px"
+                style={{ objectFit: 'cover', objectPosition: 'center' }}
+              />
+            </div>
+            <figcaption style={{ padding: '20px 24px' }}>
+              <h3 className="mb-1" style={feat.title}>
+                Population frequency, mapped
+              </h3>
+              <p style={feat.caption}>
+                gnomAD v4 allele frequencies across every genetic ancestry group, on a land-clipped
+                world map — source-group data, not patient ancestry or geography.
               </p>
             </figcaption>
           </figure>

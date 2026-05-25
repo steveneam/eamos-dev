@@ -48,6 +48,9 @@ export function SiteFooter() {
           <a href="/terms" style={{ color: 'var(--hero-ink-3)', textDecoration: 'none' }}>
             Terms &amp; Conditions
           </a>
+          <a href="/privacy" style={{ color: 'var(--hero-ink-3)', textDecoration: 'none' }}>
+            Privacy Policy
+          </a>
           <span>Research use only — not a medical device.</span>
           <span>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
         </div>
