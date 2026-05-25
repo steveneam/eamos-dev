@@ -40,25 +40,11 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
         className="mb-4 flex items-center gap-3 pb-4"
         style={{ borderBottom: '0.5px solid var(--line)' }}
       >
-        <span
-          className="inline-flex items-center justify-center text-white"
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 999,
-            background: 'var(--teal)',
-            fontFamily: 'var(--mono)',
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
-          1
-        </span>
         <h2
           className="flex-1"
           style={{
             fontFamily: 'var(--display)',
-            fontWeight: 600,
+            fontWeight: 400,
             fontSize: 18,
             letterSpacing: '-0.01em',
             color: 'var(--ink)',

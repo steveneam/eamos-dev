@@ -83,7 +83,7 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
         className="flex items-center gap-2.5"
         style={{
           padding: '14px 26px',
-          background: 'linear-gradient(180deg, var(--teal-tint), transparent)',
+          background: 'var(--teal-tint)',
           borderBottom: '0.5px solid var(--line)',
         }}
       >
@@ -174,12 +174,13 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
 
         {error && (
           <div
+            role="alert"
             className="mb-3"
             style={{
               fontSize: 12,
-              color: '#991b1b',
-              background: '#fef2f2',
-              border: '0.5px solid #fca5a5',
+              color: 'var(--err)',
+              background: 'var(--err-tint)',
+              border: '0.5px solid var(--err)',
               padding: '8px 12px',
               borderRadius: 10,
             }}
@@ -190,12 +191,13 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-1.5"
+          className="ask-form flex items-end gap-1.5"
           style={{
             background: 'var(--bg-soft)',
             border: '0.5px solid var(--line)',
             borderRadius: 10,
             padding: '5px 5px 5px 14px',
+            transition: `border-color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard)`,
           }}
         >
           <textarea
@@ -258,7 +260,7 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
                 type="button"
                 onClick={() => void send(s)}
                 disabled={streaming}
-                className="inline-flex items-center gap-1.5 transition-all"
+                className="ask-chip inline-flex items-center gap-1.5"
                 style={{
                   background: 'var(--bg)',
                   border: '0.5px solid var(--line)',
@@ -266,6 +268,9 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
                   padding: '5px 11px',
                   fontSize: 11.5,
                   color: 'var(--ink-2)',
+                  cursor: streaming ? 'not-allowed' : 'pointer',
+                  opacity: streaming ? 0.5 : 1,
+                  transition: `border-color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard)`,
                 }}
               >
                 {s}
@@ -274,6 +279,26 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
           </div>
         )}
 
+        <style>{`
+          .ask-form:focus-within {
+            border-color: var(--teal) !important;
+            box-shadow: 0 0 0 3px rgba(29,158,117,0.10);
+          }
+          .ask-chip:hover:not(:disabled) {
+            background: var(--bg-soft) !important;
+            border-color: var(--ink-5) !important;
+            color: var(--ink) !important;
+          }
+          .ask-chip:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
+            border-color: var(--teal) !important;
+          }
+          .ask-chip:active:not(:disabled) {
+            transform: scale(0.97);
+            transition-duration: 80ms;
+          }
+        `}</style>
         <div
           className="mt-2.5 flex items-center gap-1.5"
           style={{ fontSize: 10.5, color: 'var(--ink-4)' }}

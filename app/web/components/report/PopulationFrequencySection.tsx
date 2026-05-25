@@ -767,7 +767,7 @@ function AgeHistogramCard({
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2 }}>
           {title}
         </div>
         {histogram && (

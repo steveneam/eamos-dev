@@ -81,7 +81,8 @@ function TrialRows({ rows }: { rows: TrialMatch[] }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-3 transition-colors"
+          aria-expanded={expanded}
+          className="trials-expand-btn mt-3"
           style={{
             padding: '7px 14px',
             borderRadius: 10,
@@ -91,11 +92,17 @@ function TrialRows({ rows }: { rows: TrialMatch[] }) {
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',
+            transition: `border-color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard)`,
           }}
         >
           {expanded ? 'Show fewer' : `View ${hiddenCount} more trial${hiddenCount === 1 ? '' : 's'}`}
         </button>
       )}
+      <style>{`
+        .trials-expand-btn:hover { background: var(--bg-soft) !important; border-color: var(--ink-5) !important; }
+        .trials-expand-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); }
+        .trials-expand-btn:active { transform: translateY(1px); transition-duration: 80ms; }
+      `}</style>
     </div>
   )
 }
@@ -114,14 +121,21 @@ function TrialRow({ row }: { row: TrialMatch }) {
       href={row.source_url}
       target="_blank"
       rel="noreferrer"
+      className="trial-row-link"
       style={{
         display: 'block',
         borderTop: '0.5px solid var(--line)',
         padding: '10px 0',
         color: 'inherit',
         textDecoration: 'none',
+        transition: `background var(--dur-1) var(--ease-standard)`,
+        borderRadius: 4,
       }}
     >
+      <style>{`
+        .trial-row-link:hover { background: var(--bg-soft) !important; }
+        .trial-row-link:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); }
+      `}</style>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-3)' }}>
           {row.nct_id}
@@ -184,7 +198,7 @@ function statusTone(status: string): { bg: string; fg: string; border: string } 
     case 'NOT_YET_RECRUITING':
       return { bg: 'var(--warn-tint)', fg: '#633806', border: 'var(--warn-bdr)' }
     case 'ACTIVE_NOT_RECRUITING':
-      return { bg: 'var(--danger-faint)', fg: 'var(--danger)', border: 'var(--danger-border)' }
+      return { bg: 'var(--err-tint)', fg: 'var(--err)', border: 'var(--err)' }
     default:
       return { bg: 'var(--bg-soft)', fg: 'var(--ink-3)', border: 'var(--line)' }
   }

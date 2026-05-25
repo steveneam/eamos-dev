@@ -13,10 +13,10 @@ export function Card({ number, title, meta, children, className }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl bg-[var(--bg)] border border-[var(--line)] overflow-hidden',
+        'rounded-[14px] bg-[var(--bg)] border border-[var(--line)] overflow-hidden',
         className,
       )}
-      style={{ borderWidth: '0.5px' }}
+      style={{ borderWidth: '0.5px', boxShadow: 'var(--elev-1)' }}
     >
       <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--line)]" style={{ borderBottomWidth: '0.5px' }}>
         <div className="flex items-center gap-3">
@@ -29,7 +29,7 @@ export function Card({ number, title, meta, children, className }: CardProps) {
             </span>
           )}
           <h2
-            className="text-[15px] font-semibold tracking-[-0.01em]"
+            className="text-[18px] font-medium tracking-[-0.01em]"
             style={{ color: 'var(--ink)', fontFamily: 'var(--display)' }}
           >
             {title}

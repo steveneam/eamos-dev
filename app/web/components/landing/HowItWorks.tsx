@@ -22,7 +22,7 @@ const STEPS: Step[] = [
     kicker: 'Parallel sweep',
     title: 'Eamos queries every source at once',
     description:
-      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed in parallel — aggregated and deduplicated, with the ACMG rules engine on top.',
+      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
     visual: { lines: ['ClinVar … ok', 'gnomAD … ok', 'SpliceAI … ok', 'VEP … ok'] },
   },
   {
@@ -30,7 +30,7 @@ const STEPS: Step[] = [
     kicker: 'Instant rendering',
     title: 'Read the report',
     description:
-      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials — every claim cited.',
+      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials, with every claim cited.',
     visual: { lines: ['Verdict: Likely path.', 'PM1, PM2, PP3', 'Trials: 3 recruiting'] },
   },
 ]

@@ -4,6 +4,10 @@ import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { getPlan, gstComponent, formatAud } from '@/lib/plans'
 
+/**
+ * Checkout receipt — presented as a document, not a hero.
+ * Warm-white surface, receipts live in the product register.
+ */
 export function CheckoutSuccessClient() {
   const params = useSearchParams()
   const { user } = useAuth()
@@ -11,10 +15,16 @@ export function CheckoutSuccessClient() {
   const plan = getPlan(params.get('plan'))
   const amount = Number(params.get('amount') ?? 0)
   const cycle = params.get('cycle') === 'yearly' ? 'yearly' : 'monthly'
-  const order = params.get('order') ?? '—'
+  const order = params.get('order') ?? ''
   const methodKey = params.get('method') ?? 'card'
   const method =
-    methodKey === 'apple' ? 'Apple Pay' : methodKey === 'google' ? 'Google Pay' : methodKey === 'paypal' ? 'PayPal' : 'Card'
+    methodKey === 'apple'
+      ? 'Apple Pay'
+      : methodKey === 'google'
+      ? 'Google Pay'
+      : methodKey === 'paypal'
+      ? 'PayPal'
+      : 'Card'
 
   const gst = gstComponent(amount)
   const subtotal = amount - gst
@@ -22,102 +32,256 @@ export function CheckoutSuccessClient() {
   const when = now.toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })
 
   return (
-    <div style={{ background: 'var(--d-bg)', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '48px 20px' }}>
-      <div
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--bg-soft)',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '48px 20px',
+      }}
+    >
+      <article
         style={{
           width: '100%',
-          maxWidth: 460,
-          borderRadius: 20,
-          background: 'var(--d-card)',
-          border: '0.5px solid var(--d-line)',
-          padding: '34px 30px',
-          textAlign: 'center',
-          boxShadow: '0 40px 100px -40px rgba(0,0,0,0.7)',
+          maxWidth: 500,
         }}
       >
+        {/* Document header */}
+        <header className="mb-8 text-center">
+          <Link
+            href="/"
+            aria-label="Eamos home"
+            style={{
+              fontFamily: 'var(--display)',
+              fontSize: 20,
+              fontWeight: 400,
+              letterSpacing: '-0.01em',
+              color: 'var(--ink)',
+              textDecoration: 'none',
+            }}
+          >
+            Eamos
+          </Link>
+          <p
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 10.5,
+              fontWeight: 500,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'var(--teal)',
+              marginTop: 8,
+            }}
+          >
+            Payment receipt
+          </p>
+        </header>
+
         <div
           style={{
-            width: 58,
-            height: 58,
-            margin: '0 auto 18px',
-            borderRadius: 999,
-            background: 'rgba(16,185,129,0.16)',
-            border: '0.5px solid rgba(52,211,153,0.5)',
-            display: 'grid',
-            placeItems: 'center',
+            borderRadius: 'var(--r-lg)',
+            background: 'var(--bg)',
+            border: '0.5px solid var(--line)',
+            boxShadow: 'var(--elev-1)',
+            overflow: 'hidden',
           }}
         >
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--em-bright)" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
+          {/* Plan confirmation strip */}
+          <div
+            style={{
+              padding: '20px 28px',
+              borderBottom: '0.5px solid var(--line)',
+              background: 'var(--bg-tint)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                    margin: 0,
+                  }}
+                >
+                  {plan ? `Eamos ${plan.name}` : 'Eamos plan'} is active.
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '3px 0 0' }}>
+                  Your subscription starts today.
+                </p>
+              </div>
+              <span
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  padding: '3px 10px',
+                  borderRadius: 100,
+                  background: 'var(--teal-tint)',
+                  color: 'var(--teal-deep)',
+                  border: '0.5px solid var(--teal)',
+                  whiteSpace: 'nowrap',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Active
+              </span>
+            </div>
+          </div>
 
-        <h1 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 23, color: 'var(--hero-ink)', margin: 0 }}>
-          Payment successful
-        </h1>
-        <p className="mt-2 text-[14px]" style={{ color: 'var(--hero-ink-2)' }}>
-          Thank you{plan ? ` — your ${plan.name} plan is active.` : '.'}
-        </p>
+          {/* Receipt details */}
+          <div style={{ padding: '20px 28px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                <ReceiptRow label="Receipt" value={order || 'Preview'} mono />
+                <ReceiptRow label="Date" value={when} />
+                <ReceiptRow label="Payment method" value={method} />
+                <ReceiptRow label="Account" value={user?.email ?? 'Guest'} mono />
+                <ReceiptRow
+                  label="Billing"
+                  value={cycle === 'yearly' ? 'Yearly' : 'Monthly'}
+                />
+              </tbody>
+            </table>
+          </div>
 
-        <span
-          className="mt-4 inline-flex items-center gap-2"
-          style={{ padding: '6px 12px', borderRadius: 100, background: 'var(--hero-glass)', border: '0.5px solid var(--hero-line)', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--hero-ink-2)' }}
-        >
-          Receipt #{order}
-        </span>
+          {/* Totals */}
+          <div
+            style={{
+              padding: '16px 28px 20px',
+              borderTop: '0.5px solid var(--line)',
+              background: 'var(--bg-soft)',
+            }}
+          >
+            <div className="flex items-center justify-between py-1.5">
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Amount (ex. GST)</span>
+              <span style={{ fontSize: 13, fontFamily: 'var(--mono)', color: 'var(--ink)' }}>
+                {formatAud(subtotal)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-1.5">
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>GST (10%)</span>
+              <span style={{ fontSize: 13, fontFamily: 'var(--mono)', color: 'var(--ink)' }}>
+                {formatAud(gst)}
+              </span>
+            </div>
+            <div
+              className="flex items-baseline justify-between"
+              style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--line)' }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                Total charged
+              </span>
+              <span
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontWeight: 600,
+                  fontSize: 24,
+                  color: 'var(--ink)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {formatAud(amount)}
+              </span>
+            </div>
+          </div>
 
-        <div className="mt-6 text-left" style={{ borderTop: '0.5px solid var(--hero-line)', paddingTop: 16 }}>
-          <Detail label="Date" value={when} />
-          <Detail label="Payment ID" value={order} mono />
-          <Detail label="Payment method" value={method} />
-          <Detail label="Account" value={user?.email ?? 'Guest checkout'} mono />
-          <Detail label="Billing" value={cycle === 'yearly' ? 'Yearly' : 'Monthly'} />
-        </div>
-
-        <div className="mt-4" style={{ borderTop: '0.5px solid var(--hero-line)', paddingTop: 16 }}>
-          <Detail label="Amount" value={formatAud(subtotal)} mono />
-          <Detail label="GST (10%)" value={formatAud(gst)} mono />
-          <div className="mt-2 flex items-baseline justify-between">
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--hero-ink)' }}>Total</span>
-            <span style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 22, color: 'var(--hero-ink)' }}>
-              {formatAud(amount)}
-            </span>
+          {/* Actions */}
+          <div
+            style={{
+              padding: '16px 28px',
+              borderTop: '0.5px solid var(--line)',
+              display: 'flex',
+              gap: 10,
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                ...actionBtn,
+                flex: 1,
+                background: 'var(--bg-soft)',
+                color: 'var(--ink-2)',
+                border: '0.5px solid var(--line)',
+              }}
+            >
+              Return home
+            </Link>
+            <Link
+              href="/account"
+              style={{
+                ...actionBtn,
+                flex: 1,
+                background: 'var(--teal)',
+                color: '#fff',
+                border: '0.5px solid var(--teal)',
+              }}
+            >
+              View account
+            </Link>
           </div>
         </div>
 
-        <div className="mt-7 flex items-center gap-3">
-          <Link href="/" style={{ ...btn, flex: 1, background: 'var(--hero-glass)', color: 'var(--hero-ink)', border: '0.5px solid var(--hero-line)' }}>
-            Return home
-          </Link>
-          <Link href="/account" style={{ ...btn, flex: 1, background: 'var(--em)', color: '#04140e', border: '0.5px solid var(--em)' }}>
-            View account
-          </Link>
-        </div>
-        <p className="mt-4 text-[11px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Preview build — no real charge was made.
+        <p className="mt-5 text-center text-[11.5px]" style={{ color: 'var(--ink-4)' }}>
+          Preview build — no real charge was made. For questions, contact{' '}
+          <a
+            href="mailto:support@eamos.com.au"
+            style={{ color: 'var(--ink-3)', textDecoration: 'none' }}
+          >
+            support@eamos.com.au
+          </a>
+          .
         </p>
-      </div>
+      </article>
     </div>
   )
 }
 
-function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function ReceiptRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
-      <span style={{ fontSize: 12.5, color: 'var(--hero-ink-3)' }}>{label}</span>
-      <span
-        className="truncate text-right"
-        style={{ fontSize: 12.5, color: 'var(--hero-ink)', fontFamily: mono ? 'var(--mono)' : 'var(--body)', maxWidth: '60%' }}
+    <tr>
+      <td
+        style={{
+          fontSize: 12.5,
+          color: 'var(--ink-3)',
+          paddingBottom: 8,
+          width: '40%',
+        }}
+      >
+        {label}
+      </td>
+      <td
+        style={{
+          fontSize: 12.5,
+          color: 'var(--ink)',
+          textAlign: 'right',
+          fontFamily: mono ? 'var(--mono)' : 'var(--body)',
+          paddingBottom: 8,
+          maxWidth: 220,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
       >
         {value}
-      </span>
-    </div>
+      </td>
+    </tr>
   )
 }
 
-const btn: React.CSSProperties = {
-  height: 44,
-  borderRadius: 10,
+const actionBtn: React.CSSProperties = {
+  height: 42,
+  borderRadius: 'var(--r-md)',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',

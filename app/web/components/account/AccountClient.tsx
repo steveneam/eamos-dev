@@ -1,8 +1,8 @@
 'use client'
+import Link from 'next/link'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { PageHeader } from '@/components/pricing/PageHeader'
-import { AuthPanel } from '@/components/auth/AuthPanel'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { AuthPanel } from '@/components/auth/AuthPanel'
 import {
   addSavedVariant,
   clinvarReadiness,
@@ -19,20 +19,107 @@ import {
   type SavedVariant,
 } from '@/lib/messenger'
 
+function AccountStyles() {
+  return (
+    <style>{`
+      .ac-field {
+        height: 40px;
+        padding: 0 12px;
+        border-radius: var(--r-md);
+        background: var(--bg-soft);
+        border: 0.5px solid var(--line-2);
+        color: var(--ink);
+        font-size: 13px;
+        outline: none;
+        min-width: 0;
+        width: 100%;
+        transition: border-color var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard);
+      }
+      .ac-field:focus-visible,
+      .ac-field:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+        outline: none;
+      }
+      .ac-field[aria-invalid="true"] {
+        border-color: var(--err);
+      }
+      textarea.ac-field {
+        height: auto;
+        padding: 10px 12px;
+        resize: vertical;
+      }
+
+      .ac-add-btn {
+        height: 40px;
+        padding: 0 18px;
+        border-radius: var(--r-md);
+        border: none;
+        background: var(--teal);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard),
+                    transform var(--dur-1) var(--ease-standard);
+      }
+      .ac-add-btn:hover:not(:disabled) { background: var(--teal-deep); }
+      .ac-add-btn:active:not(:disabled) { transform: translateY(1px); }
+      .ac-add-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
+      }
+      .ac-add-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      .ac-remove-btn {
+        background: none;
+        border: none;
+        color: var(--ink-4);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 6px;
+        border-radius: 5px;
+        transition: color var(--dur-1) var(--ease-standard),
+                    background var(--dur-1) var(--ease-standard);
+      }
+      .ac-remove-btn:hover:not(:disabled) {
+        color: var(--err);
+        background: var(--err-tint);
+      }
+      .ac-remove-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(184,43,43,0.15);
+        color: var(--err);
+      }
+      .ac-remove-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    `}</style>
+  )
+}
+
 export function AccountClient() {
   const { configured, loading, user } = useAuth()
 
   return (
-    <div style={{ background: 'var(--d-bg)', minHeight: '100vh' }}>
-      <PageHeader />
-      <main className="mx-auto px-6 pb-28 pt-12" style={{ maxWidth: 920 }}>
+    <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
+      <AccountStyles />
+      <ProductNav />
+      <main
+        className="mx-auto px-6 pb-28 pt-12"
+        style={{ maxWidth: 920 }}
+        aria-busy={loading ? 'true' : undefined}
+      >
         {!configured ? (
           <Notice>
-            Auth isn’t configured in this environment yet. Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
+            Auth is not configured in this environment. Set{' '}
+            <code>NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
             <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to enable accounts.
           </Notice>
         ) : loading ? (
-          <p style={{ color: 'var(--hero-ink-3)', fontSize: 14 }}>Loading…</p>
+          <AccountSkeleton />
         ) : user ? (
           <Dashboard userId={user.id} email={user.email ?? ''} />
         ) : (
@@ -43,17 +130,94 @@ export function AccountClient() {
   )
 }
 
+function ProductNav() {
+  return (
+    <header
+      className="sticky top-0 z-50"
+      style={{
+        background: 'var(--bg)',
+        borderBottom: '0.5px solid var(--line)',
+        height: 'var(--nav-h)',
+        display: 'flex',
+        alignItems: 'center',
+      }}
+    >
+      <div
+        className="mx-auto flex items-center justify-between px-6"
+        style={{ maxWidth: 1180, width: '100%' }}
+      >
+        <Link href="/" aria-label="Eamos home" style={{ textDecoration: 'none' }}>
+          <span
+            style={{
+              fontFamily: 'var(--display)',
+              fontSize: 18,
+              fontWeight: 400,
+              letterSpacing: '-0.01em',
+              color: 'var(--ink)',
+            }}
+          >
+            Eamos
+          </span>
+        </Link>
+        <nav className="flex items-center gap-5">
+          <Link
+            href="/#pricing"
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--ink-3)',
+              textDecoration: 'none',
+            }}
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/account"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--ink)',
+              textDecoration: 'none',
+            }}
+          >
+            Account
+          </Link>
+        </nav>
+      </div>
+    </header>
+  )
+}
+
 function SignedOut() {
   return (
     <div className="mx-auto" style={{ maxWidth: 420 }}>
-      <h1 className="mb-2 text-center" style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 26, color: 'var(--hero-ink)' }}>
-        Sign in to your account
+      <h1
+        className="mb-2 text-center"
+        style={{
+          fontFamily: 'var(--display)',
+          fontWeight: 400,
+          fontSize: 28,
+          color: 'var(--ink)',
+          letterSpacing: '-0.02em',
+        }}
+      >
+        Sign in to continue
       </h1>
-      <p className="mb-6 text-center text-[14px]" style={{ color: 'var(--hero-ink-2)' }}>
+      <p
+        className="mb-8 text-center"
+        style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6 }}
+      >
         Track variants and manage your ClinVar evidence submissions.
       </p>
-      <div style={{ borderRadius: 16, background: 'rgba(5,26,19,0.6)', border: '0.5px solid var(--hero-line)' }}>
-        <AuthPanel onClose={() => {}} />
+      <div
+        style={{
+          background: 'var(--bg)',
+          border: '0.5px solid var(--line)',
+          borderRadius: 'var(--r-lg)',
+          boxShadow: 'var(--elev-2)',
+        }}
+      >
+        <AuthPanel onClose={() => {}} tone="light" />
       </div>
     </div>
   )
@@ -83,28 +247,107 @@ function Dashboard({ userId, email }: { userId: string; email: string }) {
 
   return (
     <>
-      <header className="mb-8">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--em-bright)' }}>
-          Account
-        </p>
-        <h1 className="mt-2" style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 30, color: 'var(--hero-ink)' }}>
-          Your workspace
-        </h1>
-        <p className="mt-1.5 text-[13.5px]" style={{ color: 'var(--hero-ink-3)' }}>{email}</p>
-      </header>
+      {/* Plan status header */}
+      <PlanStatusHeader email={email} />
 
       {dataError && (
         <Notice tone="warn">
-          Couldn’t reach your data: <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{dataError}</span>
+          Could not load your data:{' '}
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{dataError}</span>
           <br />
-          If this is a permission error, apply <code>supabase/migrations/0002_grant_authenticated.sql</code> (grants the
-          signed-in role access to its own rows).
+          If this is a permission error, apply{' '}
+          <code>supabase/migrations/0002_grant_authenticated.sql</code>.
         </Notice>
       )}
 
       <SavedVariants userId={userId} rows={saved} onChange={refresh} />
       <Submissions userId={userId} rows={subs} onChange={refresh} />
     </>
+  )
+}
+
+function PlanStatusHeader({ email }: { email: string }) {
+  return (
+    <header
+      className="mb-8"
+      style={{
+        borderRadius: 'var(--r-lg)',
+        background: 'var(--bg)',
+        border: '0.5px solid var(--line)',
+        padding: '24px 28px',
+        boxShadow: 'var(--elev-1)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 10.5,
+              fontWeight: 500,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'var(--ink-4)',
+              margin: 0,
+            }}
+          >
+            Account
+          </p>
+          <h1
+            className="mt-2 truncate"
+            style={{
+              fontFamily: 'var(--display)',
+              fontWeight: 400,
+              fontSize: 26,
+              color: 'var(--ink)',
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}
+          >
+            Your workspace
+          </h1>
+          <p
+            className="mt-1.5 truncate"
+            style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-3)' }}
+          >
+            {email}
+          </p>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <span
+            style={{
+              display: 'inline-block',
+              fontFamily: 'var(--mono)',
+              fontSize: 10.5,
+              fontWeight: 600,
+              padding: '4px 10px',
+              borderRadius: 100,
+              background: 'var(--teal-tint)',
+              color: 'var(--teal-deep)',
+              border: '0.5px solid var(--teal)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Free plan
+          </span>
+          <div className="mt-2">
+            <Link
+              href="/#pricing"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--teal)',
+                textDecoration: 'none',
+              }}
+            >
+              Upgrade
+            </Link>
+          </div>
+        </div>
+      </div>
+    </header>
   )
 }
 
@@ -122,6 +365,7 @@ function SavedVariants({
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -140,57 +384,91 @@ function SavedVariants({
     }
   }
 
+  const handleRemove = async (id: string, hgvsLabel: string) => {
+    if (removingId) return
+    setRemovingId(id)
+    try {
+      await deleteSavedVariant(id)
+      await onChange()
+    } catch {
+      // onChange will refresh; on error leave the row in place
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
   return (
     <Section title="Saved variants" subtitle="Bookmark variants to track for reclassification.">
       <form onSubmit={submit} className="flex flex-col gap-2.5 sm:flex-row">
         <input
-          data-tone="dark"
           value={hgvs}
           onChange={(e) => setHgvs(e.target.value)}
           placeholder="Variant HGVS — e.g. NM_000257.4:c.1208G>A"
-          style={{ ...fieldStyle, flex: 1.4, fontFamily: 'var(--mono)' }}
+          aria-label="Variant HGVS"
+          className="ac-field"
+          style={{ flex: 1.4, fontFamily: 'var(--mono)' }}
         />
         <input
-          data-tone="dark"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Note (optional)"
-          style={{ ...fieldStyle, flex: 1 }}
+          aria-label="Note"
+          className="ac-field"
+          style={{ flex: 1 }}
         />
-        <button type="submit" disabled={busy} style={addBtn}>
+        <button type="submit" disabled={busy} aria-busy={busy} className="ac-add-btn">
           {busy ? 'Saving…' : 'Save'}
         </button>
       </form>
-      {err && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>{err}</p>}
+      {err && (
+        <p style={{ color: 'var(--err)', fontSize: 12, marginTop: 8 }} role="alert">
+          {err}
+        </p>
+      )}
 
       <div className="mt-4 flex flex-col gap-2">
         {rows === null ? (
-          <Skeleton />
+          <RowSkeleton count={2} />
         ) : rows.length === 0 ? (
-          <Empty text="No saved variants yet." />
+          <EmptyState
+            heading="No saved variants"
+            body="Search for a variant on the homepage and bookmark it to track reclassification."
+            action={{ label: 'Search variants', href: '/' }}
+          />
         ) : (
           rows.map((r) => (
             <div key={r.id} style={rowStyle}>
               <div className="min-w-0">
-                <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--hero-ink)', margin: 0, wordBreak: 'break-all' }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: 13,
+                    color: 'var(--ink)',
+                    margin: 0,
+                    wordBreak: 'break-all',
+                  }}
+                >
                   {r.variant_hgvs}
                 </p>
                 {r.custom_notes && (
-                  <p style={{ fontSize: 12, color: 'var(--hero-ink-3)', margin: '3px 0 0' }}>{r.custom_notes}</p>
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '3px 0 0' }}>
+                    {r.custom_notes}
+                  </p>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <time style={{ fontSize: 11, color: 'var(--hero-ink-3)' }}>{fmtDate(r.created_at)}</time>
+                <time style={{ fontSize: 11, color: 'var(--ink-4)' }}>
+                  {fmtDate(r.created_at)}
+                </time>
                 <button
                   type="button"
-                  onClick={async () => {
-                    await deleteSavedVariant(r.id)
-                    await onChange()
-                  }}
-                  aria-label="Remove"
-                  style={delBtn}
+                  onClick={() => handleRemove(r.id, r.variant_hgvs)}
+                  disabled={removingId === r.id}
+                  aria-busy={removingId === r.id}
+                  aria-label={`Remove ${r.variant_hgvs}`}
+                  className="ac-remove-btn"
                 >
-                  Remove
+                  {removingId === r.id ? 'Removing…' : 'Remove'}
                 </button>
               </div>
             </div>
@@ -216,8 +494,6 @@ function Submissions({
   const [hgvs, setHgvs] = useState('')
   const [pmid, setPmid] = useState('')
   const [curatorNotes, setCuratorNotes] = useState('')
-  // ClinVar functional-evidence detail — only collected/sent when the live API
-  // path is enabled (NEXT_PUBLIC_EVIDENCE_API_ENABLED). Default form is unchanged.
   const [showDetails, setShowDetails] = useState(false)
   const [conditionName, setConditionName] = useState('')
   const [assayType, setAssayType] = useState('')
@@ -281,7 +557,7 @@ function Submissions({
       } else if (res.payloadStatus === 'ready_for_clinvar_dry_run') {
         setOkMsg(`Recorded ${res.trackingId} — ready for ClinVar dry-run.`)
       } else {
-        setOkMsg(`Saved ${res.trackingId} as a draft — add the curator fields to complete the ClinVar payload.`)
+        setOkMsg(`Saved ${res.trackingId} as a draft — add curator fields to complete the ClinVar payload.`)
       }
       await onChange()
     } catch (e) {
@@ -293,83 +569,100 @@ function Submissions({
 
   return (
     <Section
-      title="Evidence submissions — Messenger"
-      subtitle="Log supporting literature (PS3/BS3) for onward routing to ClinVar. Each submission is recorded in your audit ledger."
+      title="Evidence submissions"
+      subtitle="Log supporting literature (PS3/BS3) for routing to ClinVar. Each submission is recorded in your audit ledger."
     >
-      <form onSubmit={submit} className="flex flex-col gap-2.5">
+      <form onSubmit={submit} className="flex flex-col gap-2.5" noValidate>
         <div className="flex flex-col gap-2.5 sm:flex-row">
           <input
-            data-tone="dark"
             value={hgvs}
             onChange={(e) => setHgvs(e.target.value)}
             placeholder="Variant HGVS — e.g. NM_000257.4:c.1208G>A"
-            style={{ ...fieldStyle, flex: 1.4, fontFamily: 'var(--mono)' }}
+            aria-label="Variant HGVS"
+            required
+            className="ac-field"
+            style={{ flex: 1.4, fontFamily: 'var(--mono)' }}
           />
           <input
-            data-tone="dark"
             value={pmid}
             onChange={(e) => setPmid(e.target.value)}
             placeholder="Supporting PMID"
+            aria-label="Supporting PMID"
             inputMode="numeric"
-            style={{ ...fieldStyle, flex: 1, fontFamily: 'var(--mono)' }}
+            required
+            className="ac-field"
+            style={{ flex: 1, fontFamily: 'var(--mono)' }}
           />
         </div>
         <textarea
-          data-tone="dark"
           value={curatorNotes}
           onChange={(e) => setCuratorNotes(e.target.value)}
           placeholder="Curator rationale (optional) — why this evidence supports the classification."
+          aria-label="Curator rationale"
           rows={3}
-          style={{ ...fieldStyle, height: 'auto', padding: '10px 12px', resize: 'vertical' }}
+          className="ac-field"
         />
 
         {EVIDENCE_API_ENABLED && (
-          <div style={{ borderRadius: 12, border: '0.5px solid var(--hero-line)', background: 'rgba(5,26,19,0.4)', padding: '12px 14px' }}>
+          <div
+            style={{
+              borderRadius: 'var(--r-md)',
+              border: '0.5px solid var(--line)',
+              background: 'var(--bg-soft)',
+              padding: '12px 14px',
+            }}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setShowDetails((v) => !v)}
-                style={{ ...delBtn, color: 'var(--em-bright)', fontSize: 12.5 }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--teal)',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
               >
-                {showDetails ? '− Hide ClinVar functional details' : '+ Add ClinVar functional details'}
+                {showDetails ? 'Hide ClinVar details' : 'Add ClinVar functional details'}
               </button>
-              <span style={readinessChip(readiness.ready)}>
-                {readiness.ready ? 'Ready for ClinVar dry-run' : `Draft — needs: ${readiness.missing.join(', ')}`}
-              </span>
+              <ReadinessChip ready={readiness.ready} missing={readiness.missing} />
             </div>
 
             {showDetails && (
               <div className="mt-3 flex flex-col gap-2.5">
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <input
-                    data-tone="dark"
                     value={conditionName}
                     onChange={(e) => setConditionName(e.target.value)}
                     placeholder="Condition — e.g. Leber congenital amaurosis"
-                    style={fieldStyle}
+                    aria-label="Condition name"
+                    className="ac-field"
                   />
                   <input
-                    data-tone="dark"
                     value={assayType}
                     onChange={(e) => setAssayType(e.target.value)}
                     placeholder="Assay type — e.g. minigene splicing assay"
-                    style={fieldStyle}
+                    aria-label="Assay type"
+                    className="ac-field"
                   />
                   <select
-                    data-tone="dark"
                     value={collectionMethod}
                     onChange={(e) => setCollectionMethod(e.target.value as CollectionMethod | '')}
-                    style={fieldStyle}
+                    aria-label="Collection method"
+                    className="ac-field"
                   >
                     <option value="">Collection method…</option>
                     <option value="in vitro">in vitro</option>
                     <option value="in vivo">in vivo</option>
                   </select>
                   <select
-                    data-tone="dark"
                     value={functionalEffect}
                     onChange={(e) => setFunctionalEffect(e.target.value as FunctionalEffect | '')}
-                    style={fieldStyle}
+                    aria-label="Functional effect"
+                    className="ac-field"
                   >
                     <option value="">Functional effect…</option>
                     <option value="functionally abnormal">functionally abnormal</option>
@@ -377,29 +670,31 @@ function Submissions({
                     <option value="functionally normal">functionally normal</option>
                   </select>
                   <input
-                    data-tone="dark"
                     value={method}
                     onChange={(e) => setMethod(e.target.value)}
                     placeholder="Method — e.g. RT-PCR of patient mRNA"
-                    style={fieldStyle}
+                    aria-label="Method"
+                    className="ac-field"
                   />
                   <input
-                    data-tone="dark"
                     value={result}
                     onChange={(e) => setResult(e.target.value)}
                     placeholder="Result — e.g. exon 1 skipping"
-                    style={fieldStyle}
+                    aria-label="Result"
+                    className="ac-field"
                   />
                 </div>
                 <input
-                  data-tone="dark"
                   value={functionalConsequence}
                   onChange={(e) => setFunctionalConsequence(e.target.value)}
                   placeholder="Functional consequence (comma-separated) — e.g. abnormal protein, loss of function"
-                  style={fieldStyle}
+                  aria-label="Functional consequence"
+                  className="ac-field"
                 />
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span style={{ fontSize: 11.5, color: 'var(--hero-ink-3)', marginRight: 4 }}>Evidence codes:</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--ink-4)', marginRight: 4 }}>
+                    Evidence codes:
+                  </span>
                   {EVIDENCE_CODES.map((code) => {
                     const on = evidenceCodes.includes(code)
                     return (
@@ -408,10 +703,25 @@ function Submissions({
                         type="button"
                         onClick={() =>
                           setEvidenceCodes((prev) =>
-                            prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+                            prev.includes(code)
+                              ? prev.filter((c) => c !== code)
+                              : [...prev, code],
                           )
                         }
-                        style={codeChip(on)}
+                        aria-pressed={on}
+                        style={{
+                          fontFamily: 'var(--mono)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '3px 9px',
+                          borderRadius: 100,
+                          cursor: 'pointer',
+                          background: on ? 'var(--teal-tint)' : 'var(--bg)',
+                          color: on ? 'var(--teal-deep)' : 'var(--ink-3)',
+                          border: `0.5px solid ${on ? 'var(--teal)' : 'var(--line)'}`,
+                          transition:
+                            'background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard)',
+                        }}
                       >
                         {code}
                       </button>
@@ -423,34 +733,55 @@ function Submissions({
           </div>
         )}
 
-        <div className="flex items-center gap-3">
-          <button type="submit" disabled={busy} style={addBtn}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button type="submit" disabled={busy} aria-busy={busy} className="ac-add-btn">
             {busy ? 'Submitting…' : 'Submit evidence'}
           </button>
-          {okMsg && <span style={{ fontSize: 12.5, color: 'var(--em-bright)' }}>{okMsg}</span>}
+          <span
+            aria-live="polite"
+            aria-atomic="true"
+            style={{ fontSize: 12.5, color: 'var(--teal-deep)', minHeight: '1em' }}
+          >
+            {okMsg ?? ''}
+          </span>
         </div>
       </form>
-      {err && <p style={{ color: '#fca5a5', fontSize: 12, marginTop: 8 }}>{err}</p>}
+      {err && (
+        <p style={{ color: 'var(--err)', fontSize: 12, marginTop: 8 }} role="alert">
+          {err}
+        </p>
+      )}
 
       <div className="mt-4 flex flex-col gap-2">
         {rows === null ? (
-          <Skeleton />
+          <RowSkeleton count={2} />
         ) : rows.length === 0 ? (
-          <Empty text="No submissions yet." />
+          <EmptyState
+            heading="No submissions yet"
+            body="Add a variant HGVS and supporting PMID above to log your first evidence submission."
+          />
         ) : (
           rows.map((r) => (
             <div key={r.id} style={{ ...rowStyle, alignItems: 'flex-start' }}>
               <div className="min-w-0">
-                <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--hero-ink)', margin: 0, wordBreak: 'break-all' }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: 13,
+                    color: 'var(--ink)',
+                    margin: 0,
+                    wordBreak: 'break-all',
+                  }}
+                >
                   {r.variant_hgvs}
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--hero-ink-3)', margin: '3px 0 0' }}>
+                <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '3px 0 0' }}>
                   PMID{' '}
                   <a
                     href={`https://pubmed.ncbi.nlm.nih.gov/${r.submitted_pmid}/`}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ color: 'var(--em-bright)', textDecoration: 'none' }}
+                    style={{ color: 'var(--teal)', textDecoration: 'none', fontWeight: 600 }}
                   >
                     {r.submitted_pmid}
                   </a>
@@ -458,8 +789,10 @@ function Submissions({
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1.5">
-                <span style={trackingBadge(r.clinvar_tracking_id)}>{r.clinvar_tracking_id}</span>
-                <time style={{ fontSize: 11, color: 'var(--hero-ink-3)' }}>{fmtDate(r.created_at)}</time>
+                <TrackingBadge id={r.clinvar_tracking_id} />
+                <time style={{ fontSize: 11, color: 'var(--ink-4)' }}>
+                  {fmtDate(r.created_at)}
+                </time>
               </div>
             </div>
           ))
@@ -470,33 +803,68 @@ function Submissions({
 }
 
 // ── shared bits ─────────────────────────────────────────────────────────────
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+}) {
   return (
     <section
       className="mb-6"
-      style={{ borderRadius: 16, background: 'var(--d-card)', border: '0.5px solid var(--d-line)', padding: '24px 24px 26px' }}
+      style={{
+        borderRadius: 'var(--r-lg)',
+        background: 'var(--bg)',
+        border: '0.5px solid var(--line)',
+        padding: '24px 24px 26px',
+        boxShadow: 'var(--elev-1)',
+      }}
     >
-      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 17, color: 'var(--hero-ink)', margin: 0 }}>
+      <h2
+        style={{
+          fontFamily: 'var(--display)',
+          fontWeight: 400,
+          fontSize: 18,
+          color: 'var(--ink)',
+          margin: 0,
+          letterSpacing: '-0.01em',
+        }}
+      >
         {title}
       </h2>
-      <p className="mt-1.5 mb-4 text-[12.5px] leading-[1.55]" style={{ color: 'var(--hero-ink-3)' }}>{subtitle}</p>
+      <p
+        className="mt-1.5 mb-4"
+        style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)' }}
+      >
+        {subtitle}
+      </p>
       {children}
     </section>
   )
 }
 
-function Notice({ children, tone = 'info' }: { children: React.ReactNode; tone?: 'info' | 'warn' }) {
+function Notice({
+  children,
+  tone = 'info',
+}: {
+  children: React.ReactNode
+  tone?: 'info' | 'warn'
+}) {
   const warn = tone === 'warn'
   return (
     <div
       style={{
-        borderRadius: 12,
+        borderRadius: 'var(--r-md)',
         padding: '14px 16px',
-        background: warn ? 'rgba(186,117,23,0.12)' : 'var(--hero-glass)',
-        border: `0.5px solid ${warn ? 'rgba(250,199,117,0.4)' : 'var(--hero-line)'}`,
-        color: 'var(--hero-ink-2)',
+        background: warn ? 'var(--warn-tint)' : 'var(--bg-soft)',
+        border: `0.5px solid ${warn ? 'var(--warn-bdr)' : 'var(--line)'}`,
+        color: warn ? 'var(--warn)' : 'var(--ink-2)',
         fontSize: 13,
         lineHeight: 1.55,
+        marginBottom: 20,
       }}
     >
       {children}
@@ -504,101 +872,182 @@ function Notice({ children, tone = 'info' }: { children: React.ReactNode; tone?:
   )
 }
 
-function Empty({ text }: { text: string }) {
+function EmptyState({
+  heading,
+  body,
+  action,
+}: {
+  heading: string
+  body: string
+  action?: { label: string; href: string }
+}) {
   return (
-    <p style={{ fontSize: 13, color: 'var(--hero-ink-3)', padding: '14px 4px', textAlign: 'center' }}>{text}</p>
+    <div
+      style={{
+        padding: '24px 16px',
+        textAlign: 'center',
+        borderRadius: 'var(--r-md)',
+        border: '0.5px dashed var(--line)',
+        background: 'var(--bg-soft)',
+      }}
+    >
+      <p
+        style={{
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: 'var(--ink-2)',
+          margin: 0,
+        }}
+      >
+        {heading}
+      </p>
+      <p
+        style={{
+          fontSize: 13,
+          color: 'var(--ink-3)',
+          margin: '6px 0 0',
+          lineHeight: 1.55,
+          maxWidth: 380,
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      >
+        {body}
+      </p>
+      {action && (
+        <Link
+          href={action.href}
+          style={{
+            display: 'inline-flex',
+            marginTop: 14,
+            padding: '7px 16px',
+            borderRadius: 'var(--r-md)',
+            background: 'var(--teal)',
+            color: '#fff',
+            fontSize: 12.5,
+            fontWeight: 600,
+            textDecoration: 'none',
+          }}
+        >
+          {action.label}
+        </Link>
+      )}
+    </div>
   )
 }
 
-function Skeleton() {
-  return <div style={{ height: 48, borderRadius: 10, background: 'var(--hero-glass)', opacity: 0.5 }} />
+function RowSkeleton({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            height: 56,
+            borderRadius: 'var(--r-md)',
+            background: 'var(--bg-soft2)',
+            border: '0.5px solid var(--line)',
+            opacity: 1 - i * 0.25,
+          }}
+          aria-hidden="true"
+        />
+      ))}
+    </>
+  )
+}
+
+function AccountSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      {[1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            borderRadius: 'var(--r-lg)',
+            background: 'var(--bg)',
+            border: '0.5px solid var(--line)',
+            padding: '24px 24px 26px',
+            boxShadow: 'var(--elev-1)',
+          }}
+        >
+          <div
+            style={{
+              height: 20,
+              width: '40%',
+              borderRadius: 6,
+              background: 'var(--bg-soft2)',
+              marginBottom: 12,
+            }}
+          />
+          <div
+            style={{
+              height: 56,
+              borderRadius: 'var(--r-md)',
+              background: 'var(--bg-soft2)',
+              opacity: 0.6,
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TrackingBadge({ id }: { id: string }) {
+  const pending = id === 'PENDING'
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--mono)',
+        fontSize: 10.5,
+        fontWeight: 600,
+        padding: '3px 8px',
+        borderRadius: 100,
+        background: pending ? 'var(--warn-tint)' : 'var(--teal-tint)',
+        color: pending ? 'var(--warn)' : 'var(--teal-deep)',
+        border: `0.5px solid ${pending ? 'var(--warn-bdr)' : 'var(--teal)'}`,
+        whiteSpace: 'nowrap' as const,
+      }}
+    >
+      {id}
+    </span>
+  )
+}
+
+function ReadinessChip({ ready, missing }: { ready: boolean; missing: string[] }) {
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        padding: '3px 9px',
+        borderRadius: 100,
+        background: ready ? 'var(--teal-tint)' : 'var(--warn-tint)',
+        color: ready ? 'var(--teal-deep)' : 'var(--warn)',
+        border: `0.5px solid ${ready ? 'var(--teal)' : 'var(--warn-bdr)'}`,
+      }}
+    >
+      {ready ? 'Ready for ClinVar dry-run' : `Draft: needs ${missing.join(', ')}`}
+    </span>
+  )
 }
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
-function trackingBadge(id: string): React.CSSProperties {
-  const pending = id === 'PENDING'
-  return {
-    fontFamily: 'var(--mono)',
-    fontSize: 10.5,
-    fontWeight: 600,
-    padding: '3px 8px',
-    borderRadius: 100,
-    background: pending ? 'rgba(186,117,23,0.16)' : 'rgba(16,185,129,0.16)',
-    color: pending ? '#fac775' : 'var(--em-bright)',
-    border: `0.5px solid ${pending ? 'rgba(250,199,117,0.35)' : 'rgba(52,211,153,0.4)'}`,
-    whiteSpace: 'nowrap',
-  }
-}
-
-function readinessChip(ready: boolean): React.CSSProperties {
-  return {
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '3px 9px',
-    borderRadius: 100,
-    background: ready ? 'rgba(16,185,129,0.16)' : 'rgba(186,117,23,0.14)',
-    color: ready ? 'var(--em-bright)' : '#fac775',
-    border: `0.5px solid ${ready ? 'rgba(52,211,153,0.4)' : 'rgba(250,199,117,0.32)'}`,
-  }
-}
-
-function codeChip(on: boolean): React.CSSProperties {
-  return {
-    fontFamily: 'var(--mono)',
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '3px 9px',
-    borderRadius: 100,
-    cursor: 'pointer',
-    background: on ? 'rgba(16,185,129,0.18)' : 'var(--hero-glass)',
-    color: on ? 'var(--em-bright)' : 'var(--hero-ink-3)',
-    border: `0.5px solid ${on ? 'rgba(52,211,153,0.45)' : 'var(--hero-line)'}`,
-  }
-}
-
-const fieldStyle: React.CSSProperties = {
-  height: 40,
-  padding: '0 12px',
-  borderRadius: 10,
-  background: 'var(--hero-glass)',
-  border: '0.5px solid var(--hero-line)',
-  color: 'var(--hero-ink)',
-  fontSize: 13,
-  outline: 'none',
-  minWidth: 0,
-  width: '100%',
-}
-const addBtn: React.CSSProperties = {
-  height: 40,
-  padding: '0 18px',
-  borderRadius: 10,
-  border: 'none',
-  background: 'var(--em)',
-  color: '#04140e',
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-}
-const delBtn: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: 'var(--hero-ink-3)',
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: 'pointer',
-  padding: 0,
-}
+// ── styles ─────────────────────────────────────────────────────────────────
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 14,
   padding: '12px 14px',
-  borderRadius: 10,
-  background: 'var(--hero-glass)',
-  border: '0.5px solid var(--hero-line)',
+  borderRadius: 'var(--r-md)',
+  background: 'var(--bg-soft)',
+  border: '0.5px solid var(--line)',
 }

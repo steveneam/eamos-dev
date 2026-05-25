@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { LandingNav } from '@/components/landing/LandingNav'
 import { EamosSearch } from '@/components/landing/EamosSearch'
-import { Lifestream } from '@/components/landing/Lifestream'
+import { GenomicFlow } from '@/components/landing/GenomicFlow'
 import { SourceStrip } from '@/components/landing/SourceStrip'
 import { MetricBelt } from '@/components/landing/MetricBelt'
 import { HowItWorks } from '@/components/landing/HowItWorks'
@@ -11,6 +11,7 @@ import { Testimonials } from '@/components/landing/Testimonials'
 import { Pricing } from '@/components/landing/Pricing'
 import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
+import { Pill, PillStyles } from '@/components/landing/ui/Pill'
 import { reportHrefForQuery } from '@/lib/variant-search'
 
 export function LandingClient() {
@@ -28,43 +29,18 @@ export function LandingClient() {
     <div style={{ background: 'var(--hero-top)', minHeight: '100vh' }}>
       <LandingNav onSubmit={handleSubmit} />
 
-      {/* Hero — the deep emerald Lifestream */}
+      {/* Hero — warm-brown editorial ground; evidence converges into the search */}
       <section
         id="hero"
         className="relative overflow-hidden"
         style={{
           background:
-            'linear-gradient(180deg, var(--hero-top) 0%, var(--hero-mid) 48%, var(--hero-bot) 100%)',
-          padding: '96px 24px 132px',
+            'linear-gradient(180deg, var(--hero-top) 0%, var(--hero-mid) 52%, var(--hero-bot) 100%)',
+          padding: '96px 0 112px',
         }}
       >
-        {/* Generated 8K emerald "lifestream tree" backdrop */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-          <img
-            src="/hero-tree.webp"
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{ objectPosition: '50% 30%', opacity: 0.95 }}
-          />
-          {/* darken the centre for headline legibility + blend edges into the page */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(74% 60% at 50% 38%, rgba(3,19,13,0.62) 0%, rgba(3,19,13,0.24) 58%, rgba(3,19,13,0) 82%)',
-            }}
-          />
-          <div
-            className="absolute inset-x-0 top-0"
-            style={{ height: 130, background: 'linear-gradient(to bottom, var(--hero-top), rgba(2,17,12,0))' }}
-          />
-          <div
-            className="absolute inset-x-0 bottom-0"
-            style={{ height: 220, background: 'linear-gradient(to bottom, rgba(2,17,12,0), var(--hero-bot))' }}
-          />
-        </div>
-        <Lifestream />
-        <div className="relative z-10 mx-auto flex flex-col items-center text-center" style={{ maxWidth: 760 }}>
+        <GenomicFlow />
+        <div className="relative z-10 mx-auto flex flex-col items-start px-8 text-left" style={{ maxWidth: 1180 }}>
           <span
             className="mb-7 inline-flex items-center gap-2 rounded-full"
             style={{
@@ -85,26 +61,27 @@ export function LandingClient() {
                 height: 6,
                 borderRadius: 999,
                 background: 'var(--em-bright)',
-                boxShadow: '0 0 0 3px rgba(52,211,153,0.22)',
+                boxShadow: '0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent)',
               }}
             />
-            Genomic intelligence platform
+            Genomics for everyone
           </span>
 
           <h1
             style={{
               fontFamily: 'var(--display)',
-              fontWeight: 600,
-              fontSize: 'clamp(38px, 5.4vw, 66px)',
-              lineHeight: 1.04,
-              letterSpacing: '-0.025em',
+              fontWeight: 400,
+              fontSize: 'clamp(42px, 5.8vw, 68px)',
+              lineHeight: 1.08,
+              letterSpacing: '-0.02em',
               color: 'var(--hero-ink)',
               textWrap: 'balance',
+              maxWidth: 820,
               margin: '0 0 22px',
             }}
           >
-            Instant, evidence-aggregated{' '}
-            <span style={{ color: 'var(--em-bright)' }}>variant interpretation</span>.
+            Understand any genetic{' '}
+            <span style={{ color: 'var(--em-bright)' }}>variant</span>
           </h1>
 
           <p
@@ -112,20 +89,20 @@ export function LandingClient() {
               fontSize: 18,
               lineHeight: 1.6,
               color: 'var(--hero-ink-2)',
-              maxWidth: 560,
+              maxWidth: 580,
               margin: '0 0 40px',
             }}
           >
-            One variant in, one structured report out. Eamos aggregates ClinVar, gnomAD, SpliceAI,
-            Ensembl, PubMed, and ClinicalTrials.gov into a single clinician-readable report — so you
-            stop opening six tabs per variant.
+            Search a gene, a variant, or ask in plain words. Eamos gathers the genomic evidence and
+            returns one clear, sourced report
           </p>
 
-          <div style={{ width: '100%', maxWidth: 620 }}>
-            <EamosSearch size="hero" onSubmit={handleSubmit} />
+          <div style={{ width: '100%', maxWidth: 880 }}>
+            <EamosSearch size="hero" tone="light" onSubmit={handleSubmit} />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <PillStyles />
             <span className="mr-1 text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--hero-ink-3)' }}>
               Try
             </span>
@@ -135,24 +112,15 @@ export function LandingClient() {
               'USH2A c.2276G>T',
               'BRCA1 c.5266dupC',
             ].map((chip) => (
-              <button
+              <Pill
                 key={chip}
-                type="button"
+                as="button"
                 onClick={() => handleSubmit(chip)}
-                className="inline-flex items-center gap-1.5 rounded-full transition-colors"
-                style={{
-                  padding: '5px 11px',
-                  background: 'var(--hero-glass)',
-                  border: '0.5px solid var(--hero-line)',
-                  fontFamily: 'var(--mono)',
-                  fontSize: 11,
-                  color: 'var(--hero-ink-2)',
-                  cursor: 'pointer',
-                }}
+                fontFamily="var(--mono)"
+                style={{ fontSize: 11 }}
               >
-                <span aria-hidden style={{ width: 4, height: 4, borderRadius: 999, background: 'var(--em-bright)' }} />
                 {chip}
-              </button>
+              </Pill>
             ))}
           </div>
         </div>

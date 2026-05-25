@@ -1,9 +1,13 @@
+'use client'
+import { useState } from 'react'
 import type {
   LocusContext as LocusContextData,
   NearbyVariant as NearbyVariantData,
   CodonCell as CodonCellData,
   ClassificationTier,
 } from '@/lib/backend'
+
+type ZoomLevel = 'gene' | 'exon' | 'codon'
 
 interface NearbyVariantDisplay {
   left: number
@@ -106,6 +110,8 @@ function mapCodons(items: CodonCellData[]): CodonCellDisplay[] {
 }
 
 export function LocusContext({ data }: LocusContextProps) {
+  const [zoom, setZoom] = useState<ZoomLevel>('codon')
+
   if (!data) {
     return (
       <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
@@ -123,16 +129,39 @@ export function LocusContext({ data }: LocusContextProps) {
   const queried = nearby.find((v) => v.queried)
   const markerLeft = queried?.left ?? 50
 
+  const ZOOM_LEVELS: Array<{ id: ZoomLevel; label: string }> = [
+    { id: 'gene', label: 'Gene' },
+    { id: 'exon', label: 'Exon' },
+    { id: 'codon', label: 'Codon' },
+  ]
+
   return (
     <div className="locus">
       <div className="locus-bar">
         <div className="locus-coords">{coords}</div>
         <div className="locus-zoom" role="group" aria-label="Zoom level">
-          <button type="button">Gene</button>
-          <button type="button">Exon</button>
-          <button type="button" className="active">Codon</button>
+          {ZOOM_LEVELS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              className={zoom === id ? 'active locus-zoom-btn' : 'locus-zoom-btn'}
+              aria-pressed={zoom === id}
+              onClick={() => setZoom(id)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
+      <style>{`
+        .locus-zoom-btn {
+          transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
+          cursor: pointer;
+        }
+        .locus-zoom-btn:not(.active):hover { background: var(--bg-soft2); color: var(--ink); }
+        .locus-zoom-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-radius: 4px; }
+        .locus-zoom-btn:active { transform: scale(0.96); transition-duration: 80ms; }
+      `}</style>
 
       <div className="locus-track">
         <div className="locus-row variants">
@@ -172,11 +201,11 @@ export function LocusContext({ data }: LocusContextProps) {
         </div>
 
         <div className="locus-legend">
-          <div className="locus-legend-item"><span className="dot" style={{ background: '#B82B2B' }} />Pathogenic</div>
-          <div className="locus-legend-item"><span className="dot" style={{ background: '#BA7517' }} />Likely Pathogenic</div>
-          <div className="locus-legend-item"><span className="dot" style={{ background: '#94a3b8' }} />VUS</div>
-          <div className="locus-legend-item"><span className="dot" style={{ background: '#6FA88F' }} />Likely Benign</div>
-          <div className="locus-legend-item"><span className="dot" style={{ background: '#1D9E75' }} />Benign</div>
+          <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-path-dot)' }} />Pathogenic</div>
+          <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-lpath-dot)' }} />Likely Pathogenic</div>
+          <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-vus-dot)' }} />VUS</div>
+          <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-lben-dot)' }} />Likely Benign</div>
+          <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-ben-dot)' }} />Benign</div>
           <div className="locus-legend-item" style={{ marginLeft: 'auto' }}>
             <a
               href={workbenchHref}

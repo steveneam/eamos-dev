@@ -1,3 +1,5 @@
+'use client'
+import { useState } from 'react'
 import type {
   AcmgCode,
   AcmgCriteriaScaffold,
@@ -65,6 +67,8 @@ function mapCriteria(items: AcmgCriterionData[]): Criterion[] {
 }
 
 export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {
+  const [open, setOpen] = useState(false)
+
   if (!data) {
     return (
       <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
@@ -81,15 +85,39 @@ export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {
   const unmet = criteria.length - met
 
   return (
-    <details className="fold">
-      <summary className="fold-summary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <div className="fold">
+      <button
+        type="button"
+        className="fold-summary"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+          style={{
+            transition: `transform var(--dur-2) var(--ease-emphasized)`,
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}
+        >
           <polyline points="9 18 15 12 9 6" />
         </svg>
         ACMG criteria — automated scaffolding
         <span className="count">{met} met · {unmet} unmet · ACMG 2015 + 2022 PP3/BP4</span>
-      </summary>
-      <div className="fold-body">
+      </button>
+      <div
+        className="fold-body"
+        hidden={!open}
+        aria-hidden={!open}
+        style={{
+          animation: open ? `acmg-reveal var(--dur-2) var(--ease-emphasized) both` : undefined,
+        }}
+      >
         {intro && (
           <p className="intro">
             {intro.split(/\b(This is supporting evidence, not a classification\.)\b/).map((part, i) =>
@@ -125,6 +153,27 @@ export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {
           </div>
         )}
       </div>
-    </details>
+      <style>{`
+        @keyframes acmg-reveal {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fold-summary {
+          cursor: pointer;
+          width: 100%;
+          text-align: left;
+          background: none;
+          border: none;
+          padding: 0;
+          transition: color var(--dur-1) var(--ease-standard);
+        }
+        .fold-summary:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
+          border-radius: 4px;
+        }
+        .fold-summary:hover { color: var(--ink); }
+      `}</style>
+    </div>
   )
 }

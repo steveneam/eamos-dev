@@ -223,7 +223,7 @@ export function ReportClient() {
         </div>
       </TopNav>
 
-      <main className="mx-auto px-8" style={{ maxWidth: 920, padding: '32px 32px 80px' }}>
+      <main className="mx-auto" style={{ maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}>
         {state.kind === 'loading' && <LoadingBlock query={queryLabel} />}
         {state.kind === 'error' && (
           <ErrorBlock
@@ -304,6 +304,9 @@ function ReportBody({ data, query }: ReportBodyProps) {
       ? null
       : payload.report_profile?.population_frequency
 
+  // Derive gene name for the running head from the first summary row.
+  const runningHeadGene = payload.variant_summary_rows[0]?.gene ?? null
+
   return (
     <div className="flex flex-col gap-3.5">
       {degraded && (
@@ -323,46 +326,99 @@ function ReportBody({ data, query }: ReportBodyProps) {
         </div>
       )}
       <VariantHeader payload={payload} query={query} />
-      <CallCardsGrid payload={payload} />
-      <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
 
-      <Card number={2} title="Locus context" meta="ClinVar · ±40bp window">
-        <LocusContext data={payload.locus_context} />
-      </Card>
-
-      <GeneContextSnapshotSection
-        snapshot={payload.report_profile?.gene_context_snapshot}
-        sectionTarget={targetFor('gene_context_snapshot')}
-      />
-
-      {populationSection && (
-        <Card
-          number={3}
-          title="gnomAD population frequency"
-          meta="genetic ancestry groups | source age distribution"
-        >
-          <PopulationFrequencySection section={populationSection} />
-        </Card>
-      )}
-
-      <Card number={4} title="Evidence by source" meta="in-silico · per-source detail · ACMG">
-        <InSilicoGrid data={payload.in_silico_predictions} />
-        <EvidenceTable evidence={data.evidence} embedded />
-        <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
-      </Card>
-
-      <Card number={5} title="Gene context & associated conditions" meta={geneContextMeta}>
-        <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
-        <CuratedVariantsGrid data={payload.curated_variants_distribution} />
-        <AssociatedConditions data={payload.associated_conditions} />
-        {!payload.publications_literature && (
-          <PublicationsCallout data={payload.publications_callout} />
+      {/* Journal column: full-height 0.5px left rule; section numerals in the
+          margin gutter; gene name as the article running head. Below 760px the
+          ruled-column primitive collapses to a flat stack (globals.css). */}
+      <div
+        className="ruled-column"
+        style={{ marginLeft: 52 }}
+      >
+        {runningHeadGene && (
+          <h2
+            className="running-head"
+            style={{ marginBottom: 24 }}
+            aria-hidden
+          >
+            {runningHeadGene}
+          </h2>
         )}
-      </Card>
 
-      <VariantDecoder decoder={payload.variant_decoder} number={6} />
-      <PubMedSection key={`pubs-${variantKey}`} payload={payload} number={7} />
-      <TrialsSection key={`trials-${variantKey}`} payload={payload} number={8} />
+        {/* Section 1 — AI evidence + call cards */}
+        <span className="col-mark" aria-hidden>01</span>
+        <div className="flex flex-col gap-3.5" style={{ marginBottom: 14 }}>
+          <CallCardsGrid payload={payload} />
+          <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
+        </div>
+
+        {/* Section 2 — Locus context */}
+        <span className="col-mark" aria-hidden>02</span>
+        <div style={{ marginBottom: 14 }}>
+          <Card number={2} title="Locus context" meta="ClinVar · ±40bp window">
+            <LocusContext data={payload.locus_context} />
+          </Card>
+        </div>
+
+        <GeneContextSnapshotSection
+          snapshot={payload.report_profile?.gene_context_snapshot}
+          sectionTarget={targetFor('gene_context_snapshot')}
+        />
+
+        {populationSection && (
+          <>
+            {/* Section 3 — Population frequency */}
+            <span className="col-mark" aria-hidden>03</span>
+            <div style={{ marginBottom: 14 }}>
+              <Card
+                number={3}
+                title="gnomAD population frequency"
+                meta="genetic ancestry groups | source age distribution"
+              >
+                <PopulationFrequencySection section={populationSection} />
+              </Card>
+            </div>
+          </>
+        )}
+
+        {/* Section 4 — Evidence by source */}
+        <span className="col-mark" aria-hidden>04</span>
+        <div style={{ marginBottom: 14 }}>
+          <Card number={4} title="Evidence by source" meta="in-silico · per-source detail · ACMG">
+            <InSilicoGrid data={payload.in_silico_predictions} />
+            <EvidenceTable evidence={data.evidence} embedded />
+            <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
+          </Card>
+        </div>
+
+        {/* Section 5 — Gene context */}
+        <span className="col-mark" aria-hidden>05</span>
+        <div style={{ marginBottom: 14 }}>
+          <Card number={5} title="Gene context & associated conditions" meta={geneContextMeta}>
+            <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
+            <CuratedVariantsGrid data={payload.curated_variants_distribution} />
+            <AssociatedConditions data={payload.associated_conditions} />
+            {!payload.publications_literature && (
+              <PublicationsCallout data={payload.publications_callout} />
+            )}
+          </Card>
+        </div>
+
+        {/* Section 6 — Variant decoder */}
+        <span className="col-mark" aria-hidden>06</span>
+        <div style={{ marginBottom: 14 }}>
+          <VariantDecoder decoder={payload.variant_decoder} number={6} />
+        </div>
+
+        {/* Section 7 — Publication literature */}
+        <span className="col-mark" aria-hidden>07</span>
+        <div style={{ marginBottom: 14 }}>
+          <PubMedSection key={`pubs-${variantKey}`} payload={payload} number={7} />
+        </div>
+
+        {/* Section 8 — Clinical trials */}
+        <span className="col-mark" aria-hidden>08</span>
+        <TrialsSection key={`trials-${variantKey}`} payload={payload} number={8} />
+      </div>
     </div>
   )
 }

@@ -156,6 +156,12 @@ Rules:
 
 ## Color Tokens
 
+> **v2 "Reading Room" migration (2026-05-26).** The active `app/web` surfaces moved
+> to **warm-white OKLCH** neutrals (warm hue ~45-75, never slate, never #000/#fff).
+> The canonical token values now live in `app/web/app/globals.css` (OKLCH);
+> the hex below is the legacy/Vite reference. Brand teal `#1D9E75` is unchanged.
+> Validated WCAG-AA + CVD via `app/web/scripts/contrast-gate.mjs`.
+
 ```css
 :root {
   /* Surfaces */
@@ -214,15 +220,22 @@ Muted, ~25% chroma. **Never use Benchling rainbow.**
 --aa-stop:  #d9dde2;   /* stop codon */
 ```
 
-### Classification colours (semantic — never change)
+### Classification colours (semantic — the ACMG ramp)
 
-| Tier | bg | text | bdr | dot |
-| ---- | -- | ---- | --- | --- |
-| Pathogenic | `#FCEBEB` | `#791F1F` | `#F7C1C1` | `#E24B4A` |
-| Likely Pathogenic | `#FAEEDA` | `#633806` | `#FAC775` | `#BA7517` |
-| VUS | `#FAEEDA` | `#854F0B` | `#EF9F27` | `#d97706` |
-| Likely Benign | `#EAF3DE` | `#3B6D11` | `#C0DD97` | `#639922` |
-| Benign | `#EAF3DE` | `#27500A` | `#9FE1CB` | `#1D9E75` |
+Steven's mandate (2026-05-26): the 5 ACMG tiers read as **one ordered ramp**
+red → orange → yellow → lime → green. **Grey is reserved** for unresolved /
+conflicting / no-data / NA and is never a tier colour. Consume via `var(--cls-*)`
+only — no inline tier hex in components. Canonical values are OKLCH in
+`globals.css`; the hex below is the rendered sRGB (CVD-checked, AA text-on-bg 6.5–8.0:1).
+
+| Tier | token prefix | bg | text | bdr | dot |
+| ---- | ------------ | -- | ---- | --- | --- |
+| Pathogenic | `--cls-path-*` | `#ffe7e4` | `#82241e` | `#ffbfb7` | `#ce222c` (red) |
+| Likely Pathogenic | `--cls-lpath-*` | `#ffebd7` | `#773f05` | `#ffc79d` | `#cc6600` (orange) |
+| VUS | `--cls-vus-*` | `#fef4ce` | `#735200` | `#ebd47d` | `#e4b826` (yellow) |
+| Likely Benign | `--cls-lben-*` | `#e5f9db` | `#325c22` | `#bbe1ae` | `#6bb85a` (lime) |
+| Benign | `--cls-ben-*` | `#defaeb` | `#015636` | `#a8e0c3` | `#089868` (green) |
+| Unresolved / Conflict / No data / NA | `--cls-na-*` | `--bg-soft` | `--ink-3` | `--line` | `--ink-4` (grey) |
 
 ### Predictor score scales
 
@@ -242,29 +255,46 @@ Muted, ~25% chroma. **Never use Benchling rainbow.**
 
 ## Typography
 
+v2 "Reading Room" stack — **Spectral** (editorial serif, display) + **Inter**
+(body) + **JetBrains Mono** (HGVS identity, kept). Spectral is a deliberate
+non-reflex pick (impeccable flags Newsreader/Syne/etc. as reflex-default serifs);
+the editorial register is justified because Eamos is literally a genomic-evidence
+reading surface. **Avoid the editorial-template fingerprint**: do not lean on
+repeated tiny uppercase tracked mono labels as section grammar, and ship real
+imagery on the landing (text-only is the failure mode).
+
 ```css
---display: 'Syne', system-ui, sans-serif;
---body:    'Plus Jakarta Sans', system-ui, sans-serif;
+--display: 'Spectral', Georgia, serif;       /* editorial serif — HEADING-ROLE ONLY */
+--body:    'Inter', system-ui, sans-serif;
 --mono:    'JetBrains Mono', ui-monospace, monospace;
 
-body { font-family: var(--body); font-size: 14.5px; line-height: 1.6; }
+body { font-family: var(--body); font-size: 15px; line-height: 1.6; }
 ```
 
-Loaded once via `@import` in `src/index.css`. Tailwind v4 `@theme inline` exposes them as `font-display`, `font-sans`, `font-mono`.
+**Hard rule — serif is display/heading-only.** `--display` is for gene names,
+running heads, hero, and section/card titles. It must never be set on 13–15px body
+text or dense tables; that degrades clinical legibility (the #1 taste-risk of the
+direction). Body and tables are always `--body` (Inter). The Eamos wordmark is the
+one sanctioned small-serif use (brand logotype / masthead).
 
-### Scale
+Loaded once via `@import` in `app/web/app/globals.css`. Tailwind v4 `@theme inline`
+exposes them as `font-display`, `font-sans`, `font-mono`.
 
-| Size | Weight | Use |
-| ---- | ------ | --- |
-| 24px | 600 (display) | Gene name on variant header |
-| 17px | 600 (display) | Logo wordmark |
-| 14.5px | 400 | Body, paragraph text |
-| 13px  | 500 | Section headers, nav text |
-| 12.5px | 500 (mono) | HGVS in search input, transcript |
-| 11.5px | 500 | Cross-DB chips, badge text |
-| 10.5px | 500 (uppercase) | Section number labels, metadata |
+### Scale (≥1.25 steps; serif provides the leaps, sans/mono carry density)
 
-**Never use weight > 700.**
+| Role | Size | Face / weight |
+| ---- | ---- | ------------- |
+| Hero display (landing) | clamp 44–72px | serif 300–400 |
+| Display L | 36–44px | serif 400 |
+| Gene name / report running head | 28px | serif 400 |
+| Section / card title | 18px | serif 400 or sans 600 |
+| Body | 15px / 1.6 | sans 400–500 |
+| Dense / secondary | 13px | sans 500 |
+| Label / metadata | 11px uppercase, tracked | mono 500 |
+| HGVS / scores / coords | per context | mono 500 |
+
+**Never use weight > 700** on product; the serif reads authoritative at low weight
+(300–400 large), so bold is rarely needed.
 
 ---
 

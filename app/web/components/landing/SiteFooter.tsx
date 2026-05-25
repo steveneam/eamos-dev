@@ -1,5 +1,6 @@
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { SOURCES } from '@/lib/sources'
+import { TextLink, TextLinkStyles } from '@/components/landing/ui/TextLink'
 
 export function SiteFooter() {
   return (
@@ -10,6 +11,7 @@ export function SiteFooter() {
         borderTop: '0.5px solid var(--hero-line)',
       }}
     >
+      <TextLinkStyles />
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
         <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
           <div style={{ maxWidth: 360 }}>
@@ -23,36 +25,32 @@ export function SiteFooter() {
           <div className="flex flex-wrap gap-12">
             <FooterCol title="Sources">
               {SOURCES.map((s) => (
-                <FooterLink key={s.key} href={s.href} external>
+                <TextLink key={s.key} href={s.href} target="_blank" rel="noopener noreferrer" className="text-[12.5px]">
                   {s.label}
-                </FooterLink>
+                </TextLink>
               ))}
             </FooterCol>
             <FooterCol title="Product">
-              <FooterLink href="#how">How it works</FooterLink>
-              <FooterLink href="#features">Features</FooterLink>
-              <FooterLink href="/#pricing">Pricing</FooterLink>
-              <FooterLink href="#faq">FAQ</FooterLink>
+              <TextLink href="#how" className="text-[12.5px]">How it works</TextLink>
+              <TextLink href="#features" className="text-[12.5px]">Features</TextLink>
+              <TextLink href="/#pricing" className="text-[12.5px]">Pricing</TextLink>
+              <TextLink href="#faq" className="text-[12.5px]">FAQ</TextLink>
             </FooterCol>
             <FooterCol title="More">
-              <FooterLink href="/report?demo=1">Sample report</FooterLink>
-              <FooterLink href="#contact">Contact</FooterLink>
+              <TextLink href="/report?demo=1" className="text-[12.5px]">Sample report</TextLink>
+              <TextLink href="#contact" className="text-[12.5px]">Contact</TextLink>
             </FooterCol>
           </div>
         </div>
 
         <div
           className="mt-12 flex flex-col gap-2 pt-8 text-[11.5px] sm:flex-row sm:items-center sm:justify-between"
-          style={{ borderTop: '0.5px solid var(--hero-line)', color: 'var(--hero-ink-3)' }}
+          style={{ borderTop: '0.5px solid var(--hero-line)' }}
         >
-          <a href="/terms" style={{ color: 'var(--hero-ink-3)', textDecoration: 'none' }}>
-            Terms &amp; Conditions
-          </a>
-          <a href="/privacy" style={{ color: 'var(--hero-ink-3)', textDecoration: 'none' }}>
-            Privacy Policy
-          </a>
-          <span>Research use only — not a medical device.</span>
-          <span>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
+          <TextLink href="/terms" className="text-[11.5px]">Terms &amp; Conditions</TextLink>
+          <TextLink href="/privacy" className="text-[11.5px]">Privacy Policy</TextLink>
+          <span style={{ color: 'var(--hero-ink-3)' }}>Research use only — not a medical device.</span>
+          <span style={{ color: 'var(--hero-ink-3)' }}>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
         </div>
       </div>
     </footer>
@@ -70,26 +68,5 @@ function FooterCol({ title, children }: { title: string; children: React.ReactNo
       </span>
       {children}
     </div>
-  )
-}
-
-function FooterLink({
-  href,
-  children,
-  external,
-}: {
-  href: string
-  children: React.ReactNode
-  external?: boolean
-}) {
-  return (
-    <a
-      href={href}
-      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-      className="text-[12.5px] transition-colors hover:opacity-100"
-      style={{ color: 'var(--hero-ink-2)', textDecoration: 'none', opacity: 0.85 }}
-    >
-      {children}
-    </a>
   )
 }

@@ -76,174 +76,239 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
   const sideTransition = 'max-width 460ms var(--ease-emphasized), opacity 300ms var(--ease-standard)'
 
   return (
-    <div ref={root} className="sticky top-0 z-50">
-      <div
-        ref={bgRef}
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          opacity: 0,
-          // Solid-ish (was 0.82 + blur). A sticky backdrop-filter:blur repaints on
-          // every keystroke anywhere on the page → mobile typing lag (this nav is on
-          // the landing AND /account, behind the sign-up form). Drop the blur.
-          background: 'rgba(4,22,16,0.95)',
-          borderBottom: '0.5px solid var(--hero-line)',
-        }}
-      />
-
-      <div
-        className="relative mx-auto flex items-center gap-3 px-4 sm:gap-4 sm:px-8"
-        style={{ maxWidth: 1180, height: 56 }}
-      >
-        {/* Left: logo + back-to-top (collapses away when the search expands) */}
+    <>
+      <LandingNavStyles />
+      <div ref={root} className="sticky top-0 z-50">
         <div
-          className="flex items-center gap-2"
+          ref={bgRef}
+          aria-hidden
+          className="absolute inset-0"
           style={{
-            maxWidth: expanded ? 0 : 240,
-            opacity: expanded ? 0 : 1,
-            overflow: 'hidden',
-            transition: sideTransition,
-            pointerEvents: expanded ? 'none' : 'auto',
+            opacity: 0,
+            // Solid-ish, no blur. A sticky backdrop-filter:blur repaints on every
+            // keystroke anywhere on the page — mobile typing lag. Warm near-white so
+            // the scrolled nav reads as the cream cover firming up.
+            background: 'rgba(252,249,243,0.96)',
+            borderBottom: '0.5px solid var(--hero-line)',
           }}
+        />
+
+        <div
+          className="relative mx-auto flex items-center gap-3 px-4 sm:gap-4 sm:px-8"
+          style={{ maxWidth: 1180, height: 'var(--nav-h)' }}
         >
-          <a href="/" aria-label="Eamos home" className="flex shrink-0 items-center" style={{ textDecoration: 'none' }}>
-            <EamosLogo size={18} tone="dark" />
-          </a>
-          <button
-            ref={upRef}
-            type="button"
-            onClick={scrollToTop}
-            aria-label="Back to top"
-            className="inline-flex shrink-0 items-center justify-center transition-colors"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 999,
-              background: 'var(--hero-glass)',
-              border: '0.5px solid var(--hero-line)',
-              color: 'var(--hero-ink-2)',
-              cursor: 'pointer',
-              opacity: 0,
-            }}
-          >
-            <UpIcon />
-          </button>
-        </div>
-
-        {/* Center: nav links (over the hero) cross-fading with the pinned search.
-            On mobile this region instead holds the menu toggle, centered between
-            the logo and the auth button. */}
-        <div className="relative flex min-w-0 flex-1 items-center justify-center">
-          <button
-            data-mobile-menu
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-nav-menu"
-            className="inline-flex shrink-0 items-center justify-center transition-colors md:hidden"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: 'var(--hero-glass)',
-              border: '0.5px solid var(--hero-line)',
-              color: 'var(--hero-ink)',
-              cursor: 'pointer',
-            }}
-          >
-            {menuOpen ? <CloseIcon /> : <MenuIcon />}
-          </button>
-          <div ref={linksRef} className="absolute hidden items-center gap-8 md:flex">
-            {NAV_LINKS.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                className="transition-colors"
-                style={{ color: 'var(--hero-ink-2)', fontSize: 13.5, fontWeight: 600, textDecoration: 'none' }}
-              >
-                {l.label}
-              </a>
-            ))}
-          </div>
-
+          {/* Left: logo + back-to-top (collapses away when the search expands) */}
           <div
-            ref={searchRef}
-            className="hidden min-w-0 md:block"
-            onFocus={() => setExpanded(true)}
-            onBlur={(e) => {
-              if (!searchRef.current?.contains(e.relatedTarget as Node | null)) setExpanded(false)
-            }}
+            className="flex items-center gap-2"
             style={{
-              opacity: 0,
-              width: '100%',
-              maxWidth: expanded ? 1180 : 400,
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              transition: 'max-width 460ms var(--ease-emphasized)',
+              maxWidth: expanded ? 0 : 240,
+              opacity: expanded ? 0 : 1,
+              overflow: 'hidden',
+              transition: sideTransition,
+              pointerEvents: expanded ? 'none' : 'auto',
             }}
           >
-            <EamosSearch size="compact" onSubmit={onSubmit} />
+            <a href="/" aria-label="Eamos home" className="lnav-home-link flex shrink-0 items-center">
+              <EamosLogo size={18} tone="light" />
+            </a>
+            <button
+              ref={upRef}
+              type="button"
+              onClick={scrollToTop}
+              aria-label="Back to top"
+              className="lnav-icon-btn inline-flex shrink-0 items-center justify-center"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                background: 'var(--hero-glass)',
+                border: '0.5px solid var(--hero-line)',
+                color: 'var(--hero-ink-2)',
+                cursor: 'pointer',
+                opacity: 0,
+              }}
+            >
+              <UpIcon />
+            </button>
           </div>
-        </div>
 
-        {/* Right: auth + mobile menu toggle (collapses away when search expands) */}
-        <div
-          className="flex items-center justify-end gap-2"
-          style={{
-            maxWidth: expanded ? 0 : 260,
-            opacity: expanded ? 0 : 1,
-            overflow: 'visible',
-            transition: sideTransition,
-            pointerEvents: expanded ? 'none' : 'auto',
-          }}
-        >
-          <AuthMenu tone="dark" />
-        </div>
-      </div>
-
-      {/* Mobile dropdown menu — the nav links, expanded on tap (md and below) */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            data-mobile-menu
-            id="mobile-nav-menu"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18, ease: [0.3, 0, 0, 1] }}
-            className="absolute left-0 right-0 md:hidden"
-            style={{
-              top: 56,
-              background: 'rgba(4,22,16,0.96)',
-              borderBottom: '0.5px solid var(--hero-line)',
-              backdropFilter: 'blur(12px)',
-            }}
-          >
-            <nav className="mx-auto flex flex-col px-4 py-1.5" style={{ maxWidth: 1180 }}>
-              {NAV_LINKS.map((l, i) => (
+          {/* Center: nav links (over the hero) cross-fading with the pinned search.
+              On mobile this region instead holds the menu toggle, centered between
+              the logo and the auth button. */}
+          <div className="relative flex min-w-0 flex-1 items-center justify-center">
+            <button
+              data-mobile-menu
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav-menu"
+              className="lnav-icon-btn inline-flex shrink-0 items-center justify-center md:hidden"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                background: 'var(--hero-glass)',
+                border: '0.5px solid var(--hero-line)',
+                color: 'var(--hero-ink)',
+                cursor: 'pointer',
+              }}
+            >
+              {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            </button>
+            <div ref={linksRef} className="absolute hidden items-center gap-8 md:flex">
+              {NAV_LINKS.map((l) => (
                 <a
                   key={l.href}
                   href={l.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="transition-colors"
-                  style={{
-                    padding: '13px 8px',
-                    color: 'var(--hero-ink-2)',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    borderTop: i === 0 ? 'none' : '0.5px solid var(--hero-line)',
-                  }}
+                  className="lnav-link"
+                  style={{ fontSize: 13.5, fontWeight: 600 }}
                 >
                   {l.label}
                 </a>
               ))}
-            </nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            </div>
+
+            <div
+              ref={searchRef}
+              className="hidden min-w-0 md:block"
+              onFocus={() => setExpanded(true)}
+              onBlur={(e) => {
+                if (!searchRef.current?.contains(e.relatedTarget as Node | null)) setExpanded(false)
+              }}
+              style={{
+                opacity: 0,
+                width: '100%',
+                maxWidth: expanded ? 1180 : 400,
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                transition: 'max-width 460ms var(--ease-emphasized)',
+              }}
+            >
+              <EamosSearch size="compact" tone="light" onSubmit={onSubmit} />
+            </div>
+          </div>
+
+          {/* Right: auth + mobile menu toggle (collapses away when search expands) */}
+          <div
+            className="flex items-center justify-end gap-2"
+            style={{
+              maxWidth: expanded ? 0 : 260,
+              opacity: expanded ? 0 : 1,
+              overflow: 'visible',
+              transition: sideTransition,
+              pointerEvents: expanded ? 'none' : 'auto',
+            }}
+          >
+            <AuthMenu tone="light" />
+          </div>
+        </div>
+
+        {/* Mobile dropdown menu — the nav links, expanded on tap (md and below) */}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              data-mobile-menu
+              id="mobile-nav-menu"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: [0.3, 0, 0, 1] }}
+              className="absolute left-0 right-0 md:hidden"
+              style={{
+                top: 56,
+                background: 'rgba(250,246,239,0.97)',
+                borderBottom: '0.5px solid var(--hero-line)',
+                backdropFilter: 'blur(12px)',
+              }}
+            >
+              <nav className="mx-auto flex flex-col px-4 py-1.5" style={{ maxWidth: 1180 }}>
+                {NAV_LINKS.map((l, i) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="lnav-mobile-link"
+                    style={{
+                      padding: '13px 8px',
+                      fontSize: 15,
+                      fontWeight: 600,
+                      borderTop: i === 0 ? 'none' : '0.5px solid var(--hero-line)',
+                    }}
+                  >
+                    {l.label}
+                  </a>
+                ))}
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  )
+}
+
+function LandingNavStyles() {
+  return (
+    <style>{`
+      /* Nav text links (desktop) */
+      .lnav-link {
+        color: var(--hero-ink-2);
+        text-decoration: none;
+        transition: color var(--dur-1) var(--ease-standard);
+        border-radius: 3px;
+        outline: none;
+      }
+      .lnav-link:hover { color: var(--hero-ink); }
+      .lnav-link:focus-visible {
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
+      }
+
+      /* Mobile dropdown links */
+      .lnav-mobile-link {
+        display: block;
+        color: var(--hero-ink-2);
+        text-decoration: none;
+        transition: color var(--dur-1) var(--ease-standard);
+        border-radius: 4px;
+        outline: none;
+      }
+      .lnav-mobile-link:hover { color: var(--hero-ink); }
+      .lnav-mobile-link:focus-visible {
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
+      }
+
+      /* Icon buttons: back-to-top + mobile menu toggle */
+      .lnav-icon-btn {
+        transition:
+          background var(--dur-1) var(--ease-standard),
+          border-color var(--dur-1) var(--ease-standard),
+          color var(--dur-1) var(--ease-standard),
+          transform var(--dur-1) var(--ease-standard);
+        outline: none;
+      }
+      .lnav-icon-btn:hover {
+        background: var(--hero-glass2) !important;
+        border-color: var(--em) !important;
+        color: var(--hero-ink) !important;
+      }
+      .lnav-icon-btn:active { transform: scale(0.95); }
+      .lnav-icon-btn:focus-visible {
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
+      }
+
+      /* Home logo link */
+      .lnav-home-link {
+        text-decoration: none;
+        border-radius: 4px;
+        outline: none;
+        transition: opacity var(--dur-1) var(--ease-standard);
+      }
+      .lnav-home-link:hover { opacity: 0.8; }
+      .lnav-home-link:focus-visible {
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
+      }
+    `}</style>
   )
 }
 

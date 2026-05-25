@@ -81,6 +81,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
       payload.acmg_classification,
   )
   const [followed, setFollowed] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const chips = buildCrossDbChips(row, gene)
 
   return (
@@ -102,7 +103,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
       </nav>
 
       <section
-        className="variant-header-card relative mb-4 overflow-hidden"
+        className="variant-header-card mb-4"
         style={{
           background: 'var(--bg)',
           border: '0.5px solid var(--line)',
@@ -110,17 +111,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
           padding: '28px 32px',
         }}
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-0 top-0"
-          style={{
-            width: '50%',
-            height: '100%',
-            background:
-              'radial-gradient(ellipse at top right, rgba(29,158,117,0.05), transparent 70%)',
-          }}
-        />
-        <div className="variant-header-layout relative flex flex-wrap items-start justify-between gap-5">
+        <div className="variant-header-layout flex flex-wrap items-start justify-between gap-5">
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               className="mb-2 inline-flex items-center gap-1.5 uppercase"
@@ -140,7 +131,7 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
               className="variant-title mb-1.5"
               style={{
                 fontFamily: 'var(--display)',
-                fontWeight: 600,
+                fontWeight: 400,
                 fontSize: 36,
                 lineHeight: 1.05,
                 letterSpacing: '-0.02em',
@@ -148,8 +139,12 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
                 margin: 0,
               }}
             >
-              <span style={{ color: 'var(--teal-deep)' }}>{gene}</span>
-              {proteinChange ? ` ${proteinChange}` : ''}
+              {gene}
+              {proteinChange ? (
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 500, color: 'var(--ink-3)', marginLeft: 10, letterSpacing: 0 }}>
+                  {proteinChange}
+                </span>
+              ) : ''}
             </h1>
             <p
               className="variant-meta"
@@ -203,14 +198,14 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
                 aria-pressed={followed}
                 onClick={() => setFollowed((v) => !v)}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                   <path d="M10 21a2 2 0 0 0 4 0" />
                 </svg>
                 <span>{followed ? 'Following' : 'Follow'}</span>
               </button>
-              <button type="button" className="v-tool" onClick={() => window.print()}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <button type="button" className="v-tool" onClick={() => window.print()} aria-label="Export PDF">
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
@@ -220,24 +215,66 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
               <button
                 type="button"
                 className="v-tool"
+                aria-label={shareCopied ? 'Link copied' : 'Copy link to share'}
                 onClick={() => {
                   if (typeof navigator !== 'undefined' && 'clipboard' in navigator) {
-                    void navigator.clipboard.writeText(window.location.href)
+                    void navigator.clipboard.writeText(window.location.href).then(() => {
+                      setShareCopied(true)
+                      setTimeout(() => setShareCopied(false), 2000)
+                    })
                   }
                 }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                  <polyline points="16 6 12 2 8 6" />
-                  <line x1="12" y1="2" x2="12" y2="15" />
-                </svg>
-                <span>Share</span>
+                {shareCopied ? (
+                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                )}
+                <span>{shareCopied ? 'Copied' : 'Share'}</span>
               </button>
             </div>
+            {shareCopied && (
+              <span role="status" aria-live="polite" className="sr-only">Link copied to clipboard</span>
+            )}
           </div>
         </div>
 
         <style>{`
+          .v-tool {
+            transition: background var(--dur-1) var(--ease-standard),
+                        border-color var(--dur-1) var(--ease-standard),
+                        color var(--dur-1) var(--ease-standard);
+          }
+          .v-tool:hover {
+            background: var(--bg-soft2) !important;
+            border-color: var(--ink-5) !important;
+          }
+          .v-tool:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
+            border-color: var(--teal) !important;
+          }
+          .v-tool:active {
+            transform: translateY(1px) scale(0.98);
+            transition-duration: 80ms;
+          }
+          .v-jump-chip {
+            transition: color var(--dur-1) var(--ease-standard),
+                        border-color var(--dur-1) var(--ease-standard),
+                        background var(--dur-1) var(--ease-standard);
+          }
+          .v-jump-chip:hover { color: var(--ink) !important; border-color: var(--ink-5) !important; background: var(--bg-soft2) !important; }
+          .v-jump-chip:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
+            border-color: var(--teal) !important;
+          }
           @media (max-width: 640px) {
             .variant-header-card {
               padding: 22px 16px !important;

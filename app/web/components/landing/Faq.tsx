@@ -2,6 +2,17 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useState } from 'react'
 
+function FaqStyles() {
+  return (
+    <style>{`
+      .faq-row-btn:hover { background: color-mix(in oklab, var(--em) 5%, transparent) !important; }
+      .faq-row-btn:focus-visible {
+        box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--em) 35%, transparent);
+      }
+    `}</style>
+  )
+}
+
 interface QA {
   q: string
   a: string
@@ -53,6 +64,7 @@ export function Faq() {
           </h2>
         </header>
 
+        <FaqStyles />
         <div
           style={{
             background: 'var(--d-card)',
@@ -80,12 +92,14 @@ function FaqRow({ item, last }: { item: QA; last: boolean }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 text-left transition-colors"
+        className="faq-row-btn flex w-full items-center justify-between gap-4 text-left"
         style={{
           padding: '20px 22px',
-          background: open ? 'rgba(255,255,255,0.03)' : 'transparent',
+          background: open ? 'rgba(29,158,117,0.04)' : 'transparent',
           border: 'none',
           cursor: 'pointer',
+          outline: 'none',
+          transition: 'background var(--dur-1) var(--ease-standard)',
         }}
       >
         <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--hero-ink)' }}>{item.q}</span>

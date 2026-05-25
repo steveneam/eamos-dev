@@ -12,6 +12,14 @@ interface PubMedSectionProps {
 
 const PAGE_SIZE = 5
 
+const pubStyles = `
+  .article-title-link:hover { color: var(--teal-deep) !important; text-decoration: underline; text-underline-offset: 3px; }
+  .article-title-link:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-radius: 3px; }
+  .pub-more-btn:hover:not(:disabled) { background: var(--bg-soft) !important; border-color: var(--ink-5) !important; }
+  .pub-more-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); }
+  .pub-more-btn:active:not(:disabled) { transform: translateY(1px); transition-duration: 80ms; }
+`
+
 function formatLabel(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
 }
@@ -76,7 +84,7 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
         const seen = new Set(articles.map((a) => a.pmid))
         const fresh = (page.articles ?? []).filter((a) => a.pmid && !seen.has(a.pmid))
         if (fresh.length === 0) {
-          // Backend has no further distinct rows — stop offering "View more".
+          // Backend has no further distinct rows -- stop offering "View more".
           setTotal(shownCount)
           return
         }
@@ -87,8 +95,11 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
       .finally(() => setLoading(false))
   }
 
+  const moreCount = Math.min(PAGE_SIZE, total - shownCount)
+
   return (
     <Card number={number} title="Publication literature" meta={meta}>
+      <style>{pubStyles}</style>
       {hasTimeline && timeline && <PublicationTimelineChart timeline={timeline} />}
       {articles.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
@@ -109,7 +120,8 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
               type="button"
               onClick={handleLoadMore}
               disabled={loading}
-              className="transition-colors"
+              aria-busy={loading}
+              className="pub-more-btn"
               style={{
                 padding: '7px 14px',
                 borderRadius: 10,
@@ -118,16 +130,17 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
                 color: 'var(--ink-2)',
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: loading ? 'default' : 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 opacity: loading ? 0.6 : 1,
+                transition: 'border-color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard)',
               }}
             >
-              {loading ? 'Loading…' : `View ${Math.min(PAGE_SIZE, total - shownCount)} more`}
+              {loading ? 'Loading...' : ('View ' + String(moreCount) + ' more')}
             </button>
           )}
           {failed && (
-            <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
-              Couldn’t load more here — search the full set on PubMed.
+            <span role="alert" style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
+              Could not load more here. Search the full set on PubMed.
             </span>
           )}
           {pubmedSearchUrl && (
@@ -142,7 +155,7 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
                 textDecoration: 'none',
               }}
             >
-              Search all on PubMed ↗
+              Search all on PubMed &#8599;
             </a>
           )}
         </div>
@@ -183,6 +196,7 @@ function ArticleRow({ article }: { article: PubMedArticle }) {
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
+        className="article-title-link"
         style={{
           display: 'block',
           fontSize: 14,
@@ -190,6 +204,7 @@ function ArticleRow({ article }: { article: PubMedArticle }) {
           color: 'var(--ink)',
           lineHeight: 1.4,
           textDecoration: 'none',
+          transition: 'color var(--dur-1) var(--ease-standard)',
         }}
       >
         {article.title}
@@ -237,7 +252,7 @@ function ArticleRow({ article }: { article: PubMedArticle }) {
             className="mt-2"
             style={{ fontSize: 11.5, fontStyle: 'italic', color: 'var(--ink-4)', margin: '8px 0 0' }}
           >
-            No exact-variant snippet — {formatLabel(article.snippet_status)}
+            No exact-variant snippet. {formatLabel(article.snippet_status)}
           </p>
         )
       )}
@@ -251,7 +266,7 @@ function SnippetBlock({ snippet }: { snippet: PublicationSnippet }) {
     .join(' · ')
 
   return (
-    <div style={{ borderLeft: '2px solid var(--teal)', paddingLeft: 10 }}>
+    <div style={{ background: 'var(--teal-tint)', border: '0.5px solid var(--line)', borderRadius: 6, padding: '8px 12px' }}>
       <p style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink-3)', margin: 0 }}>
         {highlightTerms(snippet.text, snippet.matched_terms ?? [])}
       </p>
@@ -267,7 +282,7 @@ function SnippetBlock({ snippet }: { snippet: PublicationSnippet }) {
   )
 }
 
-// Wrap backend-provided matched terms in <mark>. No frontend snippet extraction —
+// Wrap backend-provided matched terms in <mark>. No frontend snippet extraction --
 // we only highlight terms the backend already flagged for this snippet.
 function highlightTerms(text: string, terms: string[]): ReactNode {
   const clean = terms.filter((t) => t && t.trim().length > 0)

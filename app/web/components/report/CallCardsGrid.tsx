@@ -1,3 +1,5 @@
+'use client'
+import { useState, type ReactNode } from 'react'
 import { CarouselDots } from '@/components/ui/CarouselDots'
 import type { ReportCallBadgeKind, ReportCallCard, ReportPayload } from '@/lib/backend'
 
@@ -31,6 +33,9 @@ function cardCanNavigate(card: ReportCallCard): boolean {
   )
 }
 
+// Warning codes that should never surface in the rendered UI.
+const SUPPRESSED_WARNINGS = new Set(['alphamissense_on_hold'])
+
 function cardMeta(card: ReportCallCard): string {
   const provenance = card.provenance ?? []
   if (provenance.length > 0) return provenance.slice(0, 2).join(' | ')
@@ -49,7 +54,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
         {cards.map((card) => {
           const navigates = cardCanNavigate(card)
           const badges = card.support_badges ?? []
-          const cardWarnings = card.warnings ?? []
+          const cardWarnings = (card.warnings ?? []).filter((w) => !SUPPRESSED_WARNINGS.has(w))
           const cardBody = (
             <>
               <div
@@ -69,7 +74,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                   minHeight: 50,
                   fontFamily: 'var(--display)',
                   fontSize: 18,
-                  fontWeight: 650,
+                  fontWeight: 600,
                   lineHeight: 1.15,
                   color: 'var(--ink)',
                 }}
@@ -136,6 +141,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                   borderRadius: 10,
                   background: 'var(--bg)',
                   padding: '15px 16px',
+                  boxShadow: 'var(--elev-1)',
                 }}
               >
                 {cardBody}
@@ -144,33 +150,68 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
           }
 
           return (
-            <button
+            <InteractiveCard
               key={card.card_id}
-              type="button"
-              onClick={() => scrollToInteraction(card)}
-              className="w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
-              style={{
-                minHeight: 158,
-                border: '0.5px solid var(--line)',
-                borderRadius: 10,
-                background: 'var(--bg)',
-                padding: '15px 16px',
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-            >
-              {cardBody}
-              <span
-                className="mt-3 inline-flex"
-                style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--teal-deep)' }}
-              >
-                View detail
-              </span>
-            </button>
+              card={card}
+              cardBody={cardBody}
+              onNavigate={() => scrollToInteraction(card)}
+            />
           )
         })}
       </div>
       <CarouselDots containerId="call-cards-scroller" tone="light" className="mt-3 sm:hidden" />
     </section>
+  )
+}
+
+interface InteractiveCardProps {
+  card: ReportCallCard
+  cardBody: ReactNode
+  onNavigate: () => void
+}
+
+function InteractiveCard({ card, cardBody, onNavigate }: InteractiveCardProps) {
+  const [hovered, setHovered] = useState(false)
+  const label = `${card.title}: ${card.primary_label ?? 'view detail'}`
+  return (
+    <button
+      type="button"
+      onClick={onNavigate}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={label}
+      className="call-card-btn w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
+      style={{
+        minHeight: 158,
+        border: `0.5px solid ${hovered ? 'var(--ink-5)' : 'var(--line)'}`,
+        borderRadius: 10,
+        background: 'var(--bg)',
+        padding: '15px 16px',
+        textAlign: 'left',
+        cursor: 'pointer',
+        boxShadow: hovered ? 'var(--elev-2)' : 'var(--elev-1)',
+        transition: `box-shadow var(--dur-2) var(--ease-standard), border-color var(--dur-2) var(--ease-standard)`,
+      }}
+    >
+      {cardBody}
+      <span
+        className="mt-3 inline-flex"
+        style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--teal-deep)' }}
+        aria-hidden
+      >
+        View detail
+      </span>
+      <style>{`
+        .call-card-btn:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.14), var(--elev-2) !important;
+          border-color: var(--teal) !important;
+        }
+        .call-card-btn:active {
+          transform: scale(0.985);
+          transition-duration: 80ms;
+        }
+      `}</style>
+    </button>
   )
 }

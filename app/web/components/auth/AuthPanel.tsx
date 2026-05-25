@@ -1,18 +1,39 @@
 'use client'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useAuth, type OAuthProvider } from '@/components/auth/AuthProvider'
 
 type Mode = 'signup' | 'login' | 'reset' | 'success'
 
-// Apple/ORCID are phase-2 (user 2026-05-24) — AuthProvider still supports 'apple'
-// if re-added here later.
+// Apple/ORCID are phase-2 — AuthProvider still supports 'apple' if re-added.
 const OAUTH: { id: OAuthProvider; label: string; icon: React.ReactNode }[] = [
   { id: 'google', label: 'Google', icon: <GoogleIcon /> },
   { id: 'azure', label: 'Microsoft', icon: <MicrosoftIcon /> },
   { id: 'linkedin_oidc', label: 'LinkedIn', icon: <LinkedInIcon /> },
 ]
 
-export function AuthPanel({ onClose }: { onClose: () => void }) {
+// Map Supabase raw error strings to plain-language copy.
+function humaniseError(raw: string): string {
+  const r = raw.toLowerCase()
+  if (r.includes('invalid login credentials') || r.includes('invalid email or password'))
+    return 'Email or password is incorrect. Check your details and try again.'
+  if (r.includes('email not confirmed'))
+    return 'Confirm your email first — check your inbox for the verification link.'
+  if (r.includes('user already registered') || r.includes('already been registered'))
+    return 'An account with this email already exists. Sign in instead.'
+  if (r.includes('password should be'))
+    return 'Password must be at least 8 characters.'
+  if (r.includes('rate limit') || r.includes('too many'))
+    return 'Too many attempts — wait a minute, then try again.'
+  if (r.includes('network') || r.includes('fetch'))
+    return 'Network error. Check your connection and try again.'
+  if (r.includes('not configured') || r.includes('supabase_url'))
+    return 'Auth is not configured in this environment.'
+  return raw
+}
+
+type ToneProps = { tone?: 'dark' | 'light' }
+
+export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } & ToneProps) {
   const { signInWithPassword, signUp, signInWithOAuth, resetPassword, configured } = useAuth()
   const [mode, setMode] = useState<Mode>('signup')
   const [email, setEmail] = useState('')
@@ -20,35 +41,55 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
   const [confirm, setConfirm] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [busyProvider, setBusyProvider] = useState<OAuthProvider | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [receipt, setReceipt] = useState<{ confirmed: boolean }>({ confirmed: true })
+  // Inline field validation state (on blur)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  const reset = () => {
+  const dark = tone === 'dark'
+
+  const clear = () => {
     setError(null)
     setNotice(null)
+    setFieldErrors({})
   }
 
+  const setFieldError = (field: string, msg: string) =>
+    setFieldErrors((prev) => ({ ...prev, [field]: msg }))
+
+  const clearFieldError = (field: string) =>
+    setFieldErrors((prev) => {
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+
   const onOAuth = async (provider: OAuthProvider) => {
-    reset()
+    if (busy || busyProvider) return
+    clear()
+    setBusyProvider(provider)
     setBusy(true)
     const { error } = await signInWithOAuth(provider)
     if (error) {
-      setError(error)
+      setError(humaniseError(error))
       setBusy(false)
+      setBusyProvider(null)
     }
-    // On success the browser redirects to the provider — no further UI needed.
+    // On success the page redirects; no need to reset busy.
   }
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    reset()
+    if (busy) return
+    clear()
 
     if (mode === 'reset') {
       setBusy(true)
       const { error } = await resetPassword(email)
       setBusy(false)
-      if (error) return setError(error)
+      if (error) return setError(humaniseError(error))
       setNotice('If that email has an account, a reset link is on its way.')
       return
     }
@@ -56,58 +97,31 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
     if (mode === 'signup') {
       if (password !== confirm) return setError('Passwords do not match.')
       if (password.length < 8) return setError('Use at least 8 characters.')
-      if (!agreed) return setError('Please accept the Terms & Conditions.')
+      if (!agreed) return setError('Accept the Terms and Conditions to continue.')
       setBusy(true)
       const { error, needsConfirmation } = await signUp(email, password)
       setBusy(false)
-      if (error) return setError(error)
+      if (error) return setError(humaniseError(error))
       setReceipt({ confirmed: !needsConfirmation })
       setMode('success')
       return
     }
 
-    // login
     setBusy(true)
     const { error } = await signInWithPassword(email, password)
     setBusy(false)
-    if (error) return setError(error)
-    onClose() // signed in — AuthMenu re-renders to the signed-in state
+    if (error) return setError(humaniseError(error))
+    onClose()
   }
 
   if (mode === 'success') {
     return (
-      <div style={{ padding: '28px 24px', textAlign: 'center' }}>
-        <div
-          style={{
-            width: 52,
-            height: 52,
-            margin: '4px auto 16px',
-            borderRadius: 999,
-            background: 'rgba(16,185,129,0.16)',
-            display: 'grid',
-            placeItems: 'center',
-            border: '0.5px solid rgba(52,211,153,0.5)',
-          }}
-        >
-          <CheckIcon />
-        </div>
-        <h3 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 18, color: 'var(--hero-ink)', margin: 0 }}>
-          {receipt.confirmed ? 'Account created — you’re in' : 'Account created'}
-        </h3>
-        <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--hero-ink-2)', margin: '8px 0 0' }}>
-          {receipt.confirmed
-            ? 'Welcome to Eamos. Your researcher workspace is ready.'
-            : 'Check your inbox to confirm your email, then sign in.'}
-        </p>
-        {email && (
-          <p style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--hero-ink-3)', margin: '10px 0 0' }}>
-            {email}
-          </p>
-        )}
-        <button type="button" onClick={onClose} style={primaryBtn} className="mt-5 w-full">
-          {receipt.confirmed ? 'Continue' : 'Done'}
-        </button>
-      </div>
+      <SuccessState
+        confirmed={receipt.confirmed}
+        email={email}
+        onClose={onClose}
+        dark={dark}
+      />
     )
   }
 
@@ -115,140 +129,361 @@ export function AuthPanel({ onClose }: { onClose: () => void }) {
   const isReset = mode === 'reset'
 
   return (
-    <div style={{ padding: '20px 22px 22px' }}>
-      <header className="mb-4 flex items-center justify-between">
-        <h3 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 16.5, color: 'var(--hero-ink)', margin: 0 }}>
-          {isReset ? 'Reset password' : isSignup ? 'Create your account' : 'Welcome back'}
-        </h3>
-        <button type="button" onClick={onClose} aria-label="Close" style={iconBtn}>
-          <CloseIcon />
-        </button>
-      </header>
-
-      {!configured && (
-        <p style={noticeBox} role="status">
-          Demo mode — connect Supabase env to enable live sign-in.
-        </p>
-      )}
-
-      {!isReset && (
-        <>
-          <div className="grid grid-cols-3 gap-2">
-            {OAUTH.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onOAuth(p.id)}
-                disabled={busy}
-                aria-label={`Continue with ${p.label}`}
-                title={`Continue with ${p.label}`}
-                style={oauthBtn}
-                className="auth-oauth"
-              >
-                {p.icon}
-              </button>
-            ))}
-          </div>
-          <div className="my-4 flex items-center gap-3">
-            <span style={{ flex: 1, height: '0.5px', background: 'var(--hero-line)' }} />
-            <span style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--hero-ink-3)' }}>
-              or with email
-            </span>
-            <span style={{ flex: 1, height: '0.5px', background: 'var(--hero-line)' }} />
-          </div>
-        </>
-      )}
-
-      <form onSubmit={onSubmit} className="flex flex-col gap-2.5">
-        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" placeholder="you@lab.org" />
-
-        {!isReset && (
-          <Field
-            label={isSignup ? 'Create password' : 'Password'}
-            type="password"
-            value={password}
-            onChange={setPassword}
-            autoComplete={isSignup ? 'new-password' : 'current-password'}
-            placeholder="••••••••"
-          />
-        )}
-        {isSignup && (
-          <Field
-            label="Confirm password"
-            type="password"
-            value={confirm}
-            onChange={setConfirm}
-            autoComplete="new-password"
-            placeholder="••••••••"
-          />
-        )}
-
-        {isSignup && (
-          <label className="mt-1 flex items-start gap-2.5" style={{ cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              style={{ marginTop: 2, accentColor: 'var(--em)', width: 15, height: 15 }}
-            />
-            <span style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--hero-ink-2)' }}>
-              I agree to the{' '}
-              <a href="/terms" target="_blank" rel="noreferrer" style={{ color: 'var(--em-bright)', textDecoration: 'none' }}>
-                Terms &amp; Conditions
-              </a>
-              .
-            </span>
-          </label>
-        )}
-
-        {!isSignup && !isReset && (
+    <>
+      <AuthPanelStyles />
+      <div style={{ padding: '20px 22px 22px' }}>
+        <header className="mb-4 flex items-center justify-between">
+          <h3
+            style={{
+              fontFamily: 'var(--display)',
+              fontWeight: 400,
+              fontSize: 17,
+              color: dark ? 'var(--hero-ink)' : 'var(--ink)',
+              margin: 0,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {isReset ? 'Reset password' : isSignup ? 'Create your account' : 'Welcome back'}
+          </h3>
           <button
             type="button"
-            onClick={() => {
-              reset()
-              setMode('reset')
-            }}
-            style={{ alignSelf: 'flex-end', fontSize: 12, color: 'var(--hero-ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            onClick={onClose}
+            aria-label="Close"
+            className="ap-icon-btn"
+            data-dark={dark ? '' : undefined}
           >
-            Forgot password?
+            <CloseIcon dark={dark} />
           </button>
+        </header>
+
+        {!configured && (
+          <p style={noticeStyle(dark)} role="status">
+            Demo mode — connect Supabase env to enable live sign-in.
+          </p>
         )}
 
-        {error && <p style={errorBox} role="alert">{error}</p>}
-        {notice && <p style={noticeBox} role="status">{notice}</p>}
+        {!isReset && (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              {OAUTH.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onOAuth(p.id)}
+                  disabled={busy}
+                  aria-label={`Continue with ${p.label}`}
+                  title={`Continue with ${p.label}`}
+                  aria-busy={busyProvider === p.id}
+                  className="ap-oauth-btn"
+                  data-dark={dark ? '' : undefined}
+                  data-busy={busyProvider === p.id ? '' : undefined}
+                >
+                  {busyProvider === p.id ? <MiniSpinner /> : p.icon}
+                </button>
+              ))}
+            </div>
+            <div className="my-4 flex items-center gap-3">
+              <span
+                style={{
+                  flex: 1,
+                  height: '0.5px',
+                  background: dark ? 'var(--hero-line)' : 'var(--line)',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 10.5,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  color: dark ? 'var(--hero-ink-3)' : 'var(--ink-4)',
+                }}
+              >
+                or with email
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  height: '0.5px',
+                  background: dark ? 'var(--hero-line)' : 'var(--line)',
+                }}
+              />
+            </div>
+          </>
+        )}
 
-        <div className="mt-2 flex items-center gap-2.5">
-          <button type="button" onClick={onClose} style={ghostBtn} disabled={busy}>
-            Cancel
-          </button>
-          <button type="submit" style={{ ...primaryBtn, flex: 1, opacity: busy ? 0.7 : 1 }} disabled={busy}>
-            {busy ? 'Working…' : isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Sign in'}
-          </button>
+        <form onSubmit={onSubmit} className="flex flex-col gap-2.5" noValidate>
+          <Field
+            label="Email"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            autoComplete="email"
+            placeholder="you@lab.org"
+            dark={dark}
+            fieldError={fieldErrors.email}
+            onBlur={() => {
+              if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                setFieldError('email', 'Enter a valid email address.')
+              else clearFieldError('email')
+            }}
+          />
+
+          {!isReset && (
+            <Field
+              label={isSignup ? 'Create password' : 'Password'}
+              type="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete={isSignup ? 'new-password' : 'current-password'}
+              placeholder="••••••••"
+              dark={dark}
+              fieldError={fieldErrors.password}
+              onBlur={() => {
+                if (isSignup && password && password.length < 8)
+                  setFieldError('password', 'Use at least 8 characters.')
+                else clearFieldError('password')
+              }}
+            />
+          )}
+          {isSignup && (
+            <Field
+              label="Confirm password"
+              type="password"
+              value={confirm}
+              onChange={setConfirm}
+              autoComplete="new-password"
+              placeholder="••••••••"
+              dark={dark}
+              fieldError={fieldErrors.confirm}
+              onBlur={() => {
+                if (confirm && confirm !== password)
+                  setFieldError('confirm', 'Passwords do not match.')
+                else clearFieldError('confirm')
+              }}
+            />
+          )}
+
+          {isSignup && (
+            <label className="mt-1 flex items-start gap-2.5" style={{ cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                style={{
+                  marginTop: 2,
+                  accentColor: 'var(--teal)',
+                  width: 15,
+                  height: 15,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color: dark ? 'var(--hero-ink-2)' : 'var(--ink-3)',
+                }}
+              >
+                I agree to the{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: 'var(--teal)',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                  }}
+                >
+                  Terms and Conditions
+                </a>
+                .
+              </span>
+            </label>
+          )}
+
+          {!isSignup && !isReset && (
+            <button
+              type="button"
+              onClick={() => {
+                clear()
+                setMode('reset')
+              }}
+              className="ap-link-btn"
+              style={{
+                alignSelf: 'flex-end',
+                fontSize: 12,
+                color: dark ? 'var(--hero-ink-2)' : 'var(--ink-3)',
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
+
+          {error && (
+            <p style={errorStyle(dark)} role="alert">
+              {error}
+            </p>
+          )}
+          {notice && (
+            <p style={noticeStyle(dark)} role="status">
+              {notice}
+            </p>
+          )}
+
+          <div className="mt-2 flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="ap-ghost-btn"
+              data-dark={dark ? '' : undefined}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ap-primary-btn"
+              style={{ flex: 1, opacity: busy ? 0.65 : 1 }}
+              disabled={busy}
+              aria-busy={busy}
+            >
+              {busy ? 'Working…' : isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Sign in'}
+            </button>
+          </div>
+        </form>
+
+        <p className="mt-4 text-center" style={{ fontSize: 12.5, color: dark ? 'var(--hero-ink-3)' : 'var(--ink-4)' }}>
+          {isReset ? (
+            <button
+              type="button"
+              onClick={() => {
+                clear()
+                setMode('login')
+              }}
+              className="ap-link-btn"
+              style={{ color: 'var(--teal)', fontWeight: 600, fontSize: 12.5 }}
+            >
+              Back to sign in
+            </button>
+          ) : isSignup ? (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  clear()
+                  setMode('login')
+                }}
+                className="ap-link-btn"
+                style={{ color: 'var(--teal)', fontWeight: 600, fontSize: 12.5 }}
+              >
+                Sign in
+              </button>
+            </>
+          ) : (
+            <>
+              New to Eamos?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  clear()
+                  setMode('signup')
+                }}
+                className="ap-link-btn"
+                style={{ color: 'var(--teal)', fontWeight: 600, fontSize: 12.5 }}
+              >
+                Create an account
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+    </>
+  )
+}
+
+function SuccessState({
+  confirmed,
+  email,
+  onClose,
+  dark,
+}: {
+  confirmed: boolean
+  email: string
+  onClose: () => void
+  dark: boolean
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    btnRef.current?.focus()
+  }, [])
+
+  return (
+    <>
+      <AuthPanelStyles />
+      <div style={{ padding: '28px 24px', textAlign: 'center' }}>
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            margin: '4px auto 16px',
+            borderRadius: 999,
+            background: 'var(--teal-tint)',
+            display: 'grid',
+            placeItems: 'center',
+            border: '0.5px solid var(--teal)',
+          }}
+        >
+          <CheckIcon />
         </div>
-      </form>
-
-      <p className="mt-4 text-center" style={{ fontSize: 12.5, color: 'var(--hero-ink-3)' }}>
-        {isReset ? (
-          <button type="button" onClick={() => { reset(); setMode('login') }} style={linkBtn}>
-            ← Back to sign in
-          </button>
-        ) : isSignup ? (
-          <>
-            Already have an account?{' '}
-            <button type="button" onClick={() => { reset(); setMode('login') }} style={linkBtn}>
-              Log in
-            </button>
-          </>
-        ) : (
-          <>
-            New to Eamos?{' '}
-            <button type="button" onClick={() => { reset(); setMode('signup') }} style={linkBtn}>
-              Create an account
-            </button>
-          </>
+        <h3
+          style={{
+            fontFamily: 'var(--display)',
+            fontWeight: 400,
+            fontSize: 18,
+            color: dark ? 'var(--hero-ink)' : 'var(--ink)',
+            margin: 0,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {confirmed ? 'Account created' : 'Check your inbox'}
+        </h3>
+        <p
+          style={{
+            fontSize: 13.5,
+            lineHeight: 1.55,
+            color: dark ? 'var(--hero-ink-2)' : 'var(--ink-3)',
+            margin: '8px 0 0',
+          }}
+        >
+          {confirmed
+            ? 'Your workspace is ready.'
+            : 'Confirm your email to activate your account, then sign in.'}
+        </p>
+        {email && (
+          <p
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 12,
+              color: dark ? 'var(--hero-ink-3)' : 'var(--ink-4)',
+              margin: '10px 0 0',
+            }}
+          >
+            {email}
+          </p>
         )}
-      </p>
-    </div>
+        <button
+          ref={btnRef}
+          type="button"
+          onClick={onClose}
+          className="ap-primary-btn"
+          style={{ marginTop: 20, width: '100%' }}
+        >
+          {confirmed ? 'Continue' : 'Done'}
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -259,6 +494,9 @@ function Field({
   onChange,
   autoComplete,
   placeholder,
+  dark,
+  fieldError,
+  onBlur,
 }: {
   label: string
   type: string
@@ -266,110 +504,269 @@ function Field({
   onChange: (v: string) => void
   autoComplete?: string
   placeholder?: string
+  dark: boolean
+  fieldError?: string
+  onBlur?: () => void
 }) {
+  const id = `auth-field-${label.toLowerCase().replace(/\s+/g, '-')}`
+  const errId = fieldError ? `${id}-err` : undefined
+
   return (
     <label className="flex flex-col gap-1.5">
-      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--hero-ink-2)' }}>{label}</span>
+      <span
+        style={{
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: dark ? 'var(--hero-ink-2)' : 'var(--ink-2)',
+        }}
+      >
+        {label}
+      </span>
       <input
-        data-tone="dark"
+        id={id}
+        data-tone={dark ? 'dark' : undefined}
+        className="ap-field"
+        data-error={fieldError ? '' : undefined}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         required
         autoComplete={autoComplete}
         placeholder={placeholder}
         spellCheck={false}
-        style={inputStyle}
+        aria-describedby={errId}
+        aria-invalid={fieldError ? true : undefined}
+        style={{
+          background: dark ? 'var(--hero-glass)' : 'var(--bg)',
+          color: dark ? 'var(--hero-ink)' : 'var(--ink)',
+        }}
       />
+      {fieldError && (
+        <span id={errId} role="alert" style={{ fontSize: 11.5, color: 'var(--err)', marginTop: -2 }}>
+          {fieldError}
+        </span>
+      )}
     </label>
   )
 }
 
-// ── styles ──────────────────────────────────────────────────────────────────
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  height: 40,
-  padding: '0 12px',
-  borderRadius: 10,
-  background: 'var(--hero-glass)',
-  border: '0.5px solid var(--hero-line)',
-  color: 'var(--hero-ink)',
-  fontSize: 13.5,
-  outline: 'none',
-}
-const primaryBtn: React.CSSProperties = {
-  height: 40,
-  borderRadius: 10,
-  border: 'none',
-  background: 'var(--em)',
-  color: '#04140e',
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-}
-const ghostBtn: React.CSSProperties = {
-  height: 40,
-  padding: '0 16px',
-  borderRadius: 10,
-  background: 'var(--hero-glass)',
-  border: '0.5px solid var(--hero-line)',
-  color: 'var(--hero-ink-2)',
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-}
-const oauthBtn: React.CSSProperties = {
-  height: 42,
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: 10,
-  background: 'var(--hero-glass2)',
-  border: '0.5px solid var(--hero-line)',
-  color: 'var(--hero-ink)',
-  cursor: 'pointer',
-}
-const iconBtn: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: 8,
-  background: 'transparent',
-  border: 'none',
-  color: 'var(--hero-ink-3)',
-  cursor: 'pointer',
-}
-const linkBtn: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  padding: 0,
-  color: 'var(--em-bright)',
-  fontWeight: 600,
-  cursor: 'pointer',
-  fontSize: 12.5,
-}
-const errorBox: React.CSSProperties = {
-  margin: 0,
-  padding: '8px 11px',
-  borderRadius: 8,
-  background: 'rgba(220,80,70,0.14)',
-  border: '0.5px solid rgba(220,80,70,0.4)',
-  color: '#fca5a5',
-  fontSize: 12,
-  lineHeight: 1.45,
-}
-const noticeBox: React.CSSProperties = {
-  margin: 0,
-  padding: '8px 11px',
-  borderRadius: 8,
-  background: 'var(--hero-glass)',
-  border: '0.5px solid var(--hero-line)',
-  color: 'var(--hero-ink-2)',
-  fontSize: 12,
-  lineHeight: 1.45,
+// ── scoped styles ────────────────────────────────────────────────────────────
+function AuthPanelStyles() {
+  return (
+    <style>{`
+      .ap-field {
+        width: 100%;
+        height: 40px;
+        padding: 0 12px;
+        border-radius: var(--r-md);
+        font-size: 13.5px;
+        border: 0.5px solid var(--line-2);
+        outline: none;
+        transition: border-color var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard);
+      }
+      .ap-field[data-error] {
+        border-color: var(--err);
+      }
+      .ap-field:focus-visible,
+      .ap-field:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+        outline: none;
+      }
+      .ap-field[data-error]:focus-visible,
+      .ap-field[data-error]:focus {
+        border-color: var(--err);
+        box-shadow: 0 0 0 3px rgba(184,43,43,0.10);
+      }
+
+      .ap-primary-btn {
+        height: 40px;
+        padding: 0 16px;
+        border-radius: var(--r-md);
+        border: none;
+        background: var(--teal);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard),
+                    transform var(--dur-1) var(--ease-standard);
+      }
+      .ap-primary-btn:hover:not(:disabled) {
+        background: var(--teal-deep);
+      }
+      .ap-primary-btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .ap-primary-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
+      }
+      .ap-primary-btn:disabled {
+        cursor: not-allowed;
+      }
+
+      .ap-ghost-btn {
+        height: 40px;
+        padding: 0 16px;
+        border-radius: var(--r-md);
+        background: transparent;
+        border: 0.5px solid var(--line-2);
+        color: var(--ink-3);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color var(--dur-1) var(--ease-standard),
+                    color var(--dur-1) var(--ease-standard);
+      }
+      .ap-ghost-btn[data-dark] {
+        border-color: var(--hero-line);
+        color: var(--hero-ink-2);
+      }
+      .ap-ghost-btn:hover:not(:disabled) {
+        border-color: var(--ink-4);
+        color: var(--ink-2);
+      }
+      .ap-ghost-btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .ap-ghost-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+        border-color: var(--teal);
+      }
+      .ap-ghost-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .ap-oauth-btn {
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--r-md);
+        background: var(--bg-soft);
+        border: 0.5px solid var(--line);
+        color: var(--ink);
+        cursor: pointer;
+        transition: border-color var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard);
+      }
+      .ap-oauth-btn[data-dark] {
+        background: var(--hero-glass2, rgba(255,255,255,0.06));
+        border-color: var(--hero-line);
+        color: var(--hero-ink);
+      }
+      .ap-oauth-btn:hover:not(:disabled) {
+        border-color: var(--ink-4);
+        box-shadow: var(--elev-1);
+      }
+      .ap-oauth-btn:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      .ap-oauth-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+        border-color: var(--teal);
+      }
+      .ap-oauth-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .ap-oauth-btn[data-busy] {
+        opacity: 0.7;
+      }
+
+      .ap-icon-btn {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--ink-4);
+        transition: background var(--dur-1) var(--ease-standard);
+      }
+      .ap-icon-btn:hover {
+        background: var(--bg-soft2);
+      }
+      .ap-icon-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+      }
+
+      .ap-link-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        transition: opacity var(--dur-1) var(--ease-standard);
+      }
+      .ap-link-btn:hover {
+        opacity: 0.75;
+      }
+      .ap-link-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+        border-radius: 3px;
+      }
+    `}</style>
+  )
 }
 
-// ── brand icons (compact marks) ──────────────────────────────────────────────
+// ── micro spinner ────────────────────────────────────────────────────────────
+function MiniSpinner() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      aria-hidden
+      style={{ animation: 'ap-spin 0.7s linear infinite' }}
+    >
+      <style>{`@keyframes ap-spin { to { transform: rotate(360deg); } }`}</style>
+      <path d="M12 2a10 10 0 0 1 10 10" />
+    </svg>
+  )
+}
+
+// ── styles ──────────────────────────────────────────────────────────────────
+function errorStyle(dark: boolean): React.CSSProperties {
+  return {
+    margin: 0,
+    padding: '9px 11px',
+    borderRadius: 8,
+    background: 'var(--err-tint)',
+    border: '0.5px solid rgba(184,43,43,0.3)',
+    color: 'var(--err)',
+    fontSize: 12,
+    lineHeight: 1.5,
+  }
+}
+
+function noticeStyle(dark: boolean): React.CSSProperties {
+  return {
+    margin: 0,
+    padding: '9px 11px',
+    borderRadius: 8,
+    background: dark ? 'var(--hero-glass)' : 'var(--bg-soft)',
+    border: dark ? '0.5px solid var(--hero-line)' : '0.5px solid var(--line)',
+    color: dark ? 'var(--hero-ink-2)' : 'var(--ink-3)',
+    fontSize: 12,
+    lineHeight: 1.5,
+  }
+}
+
+// ── brand icons ──────────────────────────────────────────────────────────────
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
@@ -399,14 +796,14 @@ function LinkedInIcon() {
 }
 function CheckIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--em-bright)" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <polyline points="20 6 9 17 4 12" />
     </svg>
   )
 }
-function CloseIcon() {
+function CloseIcon({ dark }: { dark: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={dark ? 'var(--hero-ink-3)' : 'var(--ink-4)'} strokeWidth={2} strokeLinecap="round" aria-hidden>
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>

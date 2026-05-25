@@ -23,6 +23,9 @@ const TONES = {
     glowFocus:
       '0 24px 70px -28px rgba(0,0,0,0.7), 0 0 0 4px rgba(52,211,153,0.14), 0 0 70px -16px rgba(16,185,129,0.55)',
     glowHero: '0 24px 70px -30px rgba(0,0,0,0.7), 0 0 60px -20px rgba(16,185,129,0.38)',
+    glowHover: '0 20px 60px -28px rgba(0,0,0,0.6), 0 0 0 4px rgba(52,211,153,0.08)',
+    borderHover: 'var(--hero-ink-3)',
+    sendDeep: 'var(--em-deep)',
     backdrop: 'blur(10px)',
   },
   light: {
@@ -35,6 +38,9 @@ const TONES = {
     sendIcon: '#ffffff',
     glowFocus: '0 1px 2px rgba(15,23,42,0.04), 0 0 0 4px rgba(29,158,117,0.13)',
     glowHero: '0 12px 36px -22px rgba(15,23,42,0.22)',
+    glowHover: '0 8px 24px -16px rgba(15,23,42,0.20), 0 0 0 4px rgba(29,158,117,0.06)',
+    borderHover: 'var(--ink-5)',
+    sendDeep: 'var(--teal-deep)',
     backdrop: 'none',
   },
 } as const
@@ -49,6 +55,9 @@ const TONES = {
 export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className }: EamosSearchProps) {
   const [value, setValue] = useState('')
   const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [sendHover, setSendHover] = useState(false)
+  const [attachHover, setAttachHover] = useState(false)
   const isHero = size === 'hero'
   const t = TONES[tone]
 
@@ -65,13 +74,15 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
       role="search"
       aria-label="Search Eamos"
       className={cn('flex items-center', className)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         gap: isHero ? 8 : 6,
         background: t.bg,
-        border: `0.5px solid ${focused ? t.borderFocus : t.border}`,
+        border: `0.5px solid ${focused ? t.borderFocus : hovered ? t.borderHover : t.border}`,
         borderRadius: isHero ? 18 : 999,
         padding: isHero ? '8px 8px 8px 12px' : '5px 5px 5px 12px',
-        boxShadow: focused ? t.glowFocus : isHero ? t.glowHero : 'none',
+        boxShadow: focused ? t.glowFocus : hovered ? t.glowHover : isHero ? t.glowHero : 'none',
         backdropFilter: t.backdrop,
         transition:
           'border-color var(--dur-2) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard)',
@@ -82,13 +93,15 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
         aria-label="Attach a file"
         title="Attach a VCF (coming soon)"
         className="inline-flex shrink-0 items-center justify-center transition-colors"
+        onMouseEnter={() => setAttachHover(true)}
+        onMouseLeave={() => setAttachHover(false)}
         style={{
           width: isHero ? 38 : 30,
           height: isHero ? 38 : 30,
           borderRadius: 999,
           background: 'transparent',
           border: 'none',
-          color: t.icon,
+          color: attachHover ? t.text : t.icon,
           cursor: 'pointer',
         }}
       >
@@ -102,7 +115,7 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         placeholder={
-          isHero ? 'Gene + variant — e.g. RPE65 c.260A>G, or just ask…' : 'Gene + variant — e.g. RPE65 c.260A>G'
+          isHero ? 'Gene, variant, or a plain question, e.g. RPE65 c.260A>G' : 'Gene, variant, e.g. RPE65 c.260A>G'
         }
         autoComplete="off"
         spellCheck={false}
@@ -120,15 +133,19 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
       <button
         type="submit"
         aria-label="Search"
-        className="inline-flex shrink-0 items-center justify-center transition-transform"
+        className="inline-flex shrink-0 items-center justify-center"
+        onMouseEnter={() => setSendHover(true)}
+        onMouseLeave={() => setSendHover(false)}
         style={{
           width: isHero ? 40 : 32,
           height: isHero ? 40 : 32,
           borderRadius: 999,
           border: 'none',
-          background: t.send,
+          background: sendHover ? t.sendDeep : t.send,
           color: t.sendIcon,
           cursor: 'pointer',
+          transform: sendHover ? 'scale(1.06)' : 'scale(1)',
+          transition: 'transform var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard)',
         }}
       >
         <ArrowUpIcon />
