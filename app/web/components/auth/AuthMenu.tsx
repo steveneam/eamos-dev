@@ -97,10 +97,12 @@ export function AuthMenu({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
             }
             style={{
               borderRadius: 16,
-              background: 'rgba(5,26,19,0.92)',
+              // Near-solid (was 0.92 + backdrop blur). The blur on a position:fixed
+              // mobile sheet caused per-keystroke repaint jank → input lag while
+              // typing on mobile. Dropping it (negligible visual change) fixes it.
+              background: 'rgba(5,26,19,0.98)',
               border: '0.5px solid var(--hero-line)',
               boxShadow: '0 30px 80px -28px rgba(0,0,0,0.8)',
-              backdropFilter: 'blur(16px)',
             }}
           >
             {open === 'account' && user ? (
