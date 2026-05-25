@@ -3,6 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
+from app.core.rate_limit import (
+    RATE_LIMIT_PAYMENTS_CHECKOUT,
+    RATE_LIMIT_PAYMENTS_WEBHOOK,
+    enforce_rate_limit,
+)
 from app.schemas.payments import (
     CheckoutSessionRequest,
     CheckoutSessionResponse,
@@ -19,6 +24,7 @@ def create_checkout_session(
     request: Request,
     principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> CheckoutSessionResponse:
+    enforce_rate_limit(request, RATE_LIMIT_PAYMENTS_CHECKOUT, subject=principal.user_id)
     service = getattr(request.app.state, "payments_service", None)
     if service is None:
         raise HTTPException(
@@ -44,6 +50,7 @@ def current_plan(
 
 @router.post("/stripe/webhook", response_model=StripeWebhookResponse)
 async def stripe_webhook(request: Request) -> StripeWebhookResponse:
+    enforce_rate_limit(request, RATE_LIMIT_PAYMENTS_WEBHOOK)
     service = getattr(request.app.state, "payments_service", None)
     if service is None:
         raise HTTPException(

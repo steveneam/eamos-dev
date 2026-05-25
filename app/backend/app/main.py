@@ -15,6 +15,7 @@ from app.api.routes import build_api_router
 from app.core.config import ensure_runtime_dirs, get_settings
 from app.core.db import build_session_factory, initialize_database
 from app.core.logging import configure_logging, get_logger
+from app.core.rate_limit import InMemoryRateLimiter
 from app.repos.reports_repo import ReportsRepo
 from app.repos.evidence_submissions_repo import (
     EvidenceSubmissionsRepo,
@@ -89,6 +90,7 @@ def create_app(settings=None) -> FastAPI:
 
     app.state.settings = settings
     app.state.db_session_factory = db_session_factory
+    app.state.rate_limiter = InMemoryRateLimiter()
     app.state.reports_repo = reports_repo
     app.state.evidence_submissions_repo = evidence_submissions_repo
     app.state.run_repo = run_repo

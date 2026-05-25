@@ -190,6 +190,7 @@ export const RPE65_V2: GeneWindowData = {
       { aa: 329, residue: 'C', label: 'S-palmitoyl cysteine (membrane anchor)' },
     ],
   },
+  proteinProduct: null,
 
   genomicCoords: { chrom: 'chr1', start: 68428820, end: 68449958, strand: '-' },
 

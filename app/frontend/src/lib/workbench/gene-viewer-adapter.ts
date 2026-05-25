@@ -18,13 +18,17 @@ import type {
   AlleleMode,
   ClinvarVariant as BackendClinvarVariant,
   GeneViewerResponse,
+  ProteinProductEffect as BackendProteinProductEffect,
   VariantClassification,
 } from '../backend'
 import type { Base } from './codon-table'
 import type {
   ClinClass,
   ClinvarVariant,
+  DomainInfo,
   GeneWindowData,
+  ProteinFeatures,
+  ProteinProductEffect,
   WindowSegment,
 } from './gene-window'
 import { RPE65_V2 } from './sample-rpe65-v2'
@@ -67,6 +71,119 @@ function mapClinvar(v: BackendClinvarVariant): ClinvarVariant {
   }
 }
 
+function mapProteinProduct(
+  product: BackendProteinProductEffect | null | undefined,
+  alleleMode: AlleleMode,
+): ProteinProductEffect | null {
+  if (!product || product.allele_mode !== alleleMode) return null
+  return {
+    alleleMode: product.allele_mode,
+    consequence: product.consequence,
+    label: product.label,
+    description: product.description,
+    referenceProteinLength: product.reference_protein_length ?? null,
+    effectiveProteinLength: product.effective_protein_length ?? null,
+    truncatesProtein: product.truncates_protein,
+    stopCodon: product.stop_codon ?? null,
+    affectedAaStart: product.affected_aa_start ?? null,
+    lostAaCount: product.lost_aa_count,
+    nmdRisk: product.nmd_risk ?? null,
+    exonEffects: product.exon_effects.map((effect) => ({
+      exonNumber: effect.exon_number,
+      cdsStart: effect.cds_start,
+      cdsEnd: effect.cds_end,
+      state: effect.state,
+      affectedCdsStart: effect.affected_cds_start ?? null,
+      affectedCdsEnd: effect.affected_cds_end ?? null,
+      lostCdsBases: effect.lost_cds_bases,
+    })),
+  }
+}
+
+function annotateExons(
+  exons: GeneWindowData['exons'],
+  product: ProteinProductEffect | null,
+): GeneWindowData['exons'] {
+  if (!product || product.alleleMode !== 'variant') return exons
+  const effectByExon = new Map(product.exonEffects.map((effect) => [effect.exonNumber, effect]))
+  return exons.map((exon) => {
+    const effect = effectByExon.get(exon.num)
+    if (!effect) return exon
+    return {
+      ...exon,
+      proteinState: effect.state,
+      affectedCdsStart: effect.affectedCdsStart,
+      affectedCdsEnd: effect.affectedCdsEnd,
+      lostCdsBases: effect.lostCdsBases,
+    }
+  })
+}
+
+function clipRange(
+  aaStart: number,
+  aaEnd: number,
+  limit: number,
+): { aaStart: number; aaEnd: number } | null {
+  const boundedLimit = Math.max(1, limit)
+  const start = Math.max(1, Math.min(aaStart, aaEnd))
+  const end = Math.min(boundedLimit, Math.max(aaStart, aaEnd))
+  return end >= start ? { aaStart: start, aaEnd: end } : null
+}
+
+function mapDomain(d: { aa_start: number; aa_end: number; label: string; short_label?: string | null }, limit: number): DomainInfo | null {
+  const clipped = clipRange(d.aa_start, d.aa_end, limit)
+  if (!clipped) return null
+  return {
+    aaStart: clipped.aaStart,
+    aaEnd: clipped.aaEnd,
+    label: d.label,
+    shortLabel: d.short_label ?? undefined,
+  }
+}
+
+function mapRangeFeature(
+  r: { aa_start: number; aa_end: number; label: string },
+  limit: number,
+): { aaStart: number; aaEnd: number; label: string } | null {
+  const clipped = clipRange(r.aa_start, r.aa_end, limit)
+  return clipped ? { ...clipped, label: r.label } : null
+}
+
+function mapProteinFeatures(
+  pf: GeneViewerResponse['tracks']['protein_features'],
+  limit: number,
+): ProteinFeatures {
+  return {
+    signalPeptide: pf.signal_peptide
+      ? clipRange(pf.signal_peptide.aa_start, pf.signal_peptide.aa_end, limit)
+      : null,
+    transmembrane: pf.transmembrane
+      .map((r) => mapRangeFeature(r, limit))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r)),
+    domains: pf.domains
+      .map((d) => mapDomain(d, limit))
+      .filter((d): d is DomainInfo => Boolean(d))
+      .map(({ aaStart, aaEnd, label }) => ({ aaStart, aaEnd, label })),
+    activeSites: pf.active_sites
+      .filter((a) => a.aa <= limit)
+      .map((a) => ({
+        aa: a.aa,
+        residue: a.residue,
+        label: a.label,
+      })),
+    membraneBinding: pf.membrane_binding
+      .map((r) => mapRangeFeature(r, limit))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r)),
+    palmitoylation: pf.palmitoylation
+      .filter((p) => p.aa <= limit)
+      .map((p) => ({
+        aa: p.aa,
+        residue: p.residue,
+        label: p.label,
+      })),
+  }
+}
+
 /**
  * Map a backend `GeneViewerResponse` into the renderer `GeneWindowData`.
  *
@@ -91,16 +208,28 @@ export function adaptGeneViewer(
     identity.gene === scaffold.gene &&
     identity.resolved_transcript === scaffold.transcript
 
+  const applied = alleleMode === 'variant' ? resp.sequences.applied_variant : null
+  let cumulativeOffset = 0
   const windowSegments: WindowSegment[] = resp.segments.map((seg) => {
+    const segmentOffset = cumulativeOffset
+    const segmentLength =
+      seg.kind === 'exon'
+        ? seg.sequence.length
+        : seg.five_prime_sequence.length + seg.three_prime_sequence.length
+    cumulativeOffset += segmentLength
     if (seg.kind === 'exon') {
       const cdsStart = seg.cds_start ?? 0
       const cdsEnd = seg.cds_end ?? 0
       let seq = seg.sequence
-      if (
-        alleleMode === 'variant' &&
-        qvCds >= cdsStart &&
-        qvCds <= cdsEnd
-      ) {
+      if (applied?.segment_id === seg.id) {
+        const localOffset = applied.sequence_offset - segmentOffset
+        if (localOffset >= 0 && localOffset <= seq.length) {
+          seq =
+            seq.slice(0, localOffset) +
+            applied.alt +
+            seq.slice(localOffset + applied.ref.length)
+        }
+      } else if (alleleMode === 'variant' && qvCds >= cdsStart && qvCds <= cdsEnd) {
         seq = spliceBase(seq, qvCds - cdsStart, toBase(qv.alt))
       }
       return {
@@ -129,7 +258,15 @@ export function adaptGeneViewer(
   })
 
   const pf = tracks.protein_features
-  const exons = canUseSampleScaffold
+  const rawProteinLength =
+    summary.protein_length ?? (canUseSampleScaffold ? scaffold.proteinLength : 0)
+  const proteinProduct = mapProteinProduct(tracks.protein_product, alleleMode)
+  const proteinLength =
+    alleleMode === 'variant' && proteinProduct?.truncatesProtein
+      ? (proteinProduct.effectiveProteinLength ?? rawProteinLength)
+      : rawProteinLength
+  const featureLimit = Math.max(1, proteinLength || rawProteinLength || 1)
+  const rawExons = canUseSampleScaffold
     ? scaffold.exons
     : windowSegments
         .filter((seg): seg is Extract<WindowSegment, { kind: 'exon' }> => seg.kind === 'exon')
@@ -139,6 +276,7 @@ export function adaptGeneViewer(
           cdsEnd: seg.cdsEnd,
           genomicLen: seg.cdsEnd - seg.cdsStart + 1,
         }))
+  const exons = annotateExons(rawExons, proteinProduct)
   const introns = canUseSampleScaffold
     ? scaffold.introns
     : windowSegments
@@ -158,7 +296,7 @@ export function adaptGeneViewer(
     geneLength: summary.gene_length ?? (canUseSampleScaffold ? scaffold.geneLength : 0),
     totalExons: summary.total_exons,
     cdsLength: summary.cds_length ?? (canUseSampleScaffold ? scaffold.cdsLength : 0),
-    proteinLength: summary.protein_length ?? (canUseSampleScaffold ? scaffold.proteinLength : 0),
+    proteinLength,
     utr5Length: summary.utr5_length ?? (canUseSampleScaffold ? scaffold.utr5Length : 0),
     utr3Length: summary.utr3_length ?? (canUseSampleScaffold ? scaffold.utr3Length : 0),
     mrnaLength: summary.mrna_length ?? (canUseSampleScaffold ? scaffold.mrnaLength : 0),
@@ -184,43 +322,12 @@ export function adaptGeneViewer(
     clinvar: tracks.clinvar_variants.map(mapClinvar),
     exonVariantCount,
 
-    domains: pf.domains.map((d) => ({
-      aaStart: d.aa_start,
-      aaEnd: d.aa_end,
-      label: d.label,
-      shortLabel: d.short_label ?? undefined,
-    })),
+    domains: pf.domains
+      .map((d) => mapDomain(d, featureLimit))
+      .filter((d): d is DomainInfo => Boolean(d)),
 
-    proteinFeatures: {
-      signalPeptide: pf.signal_peptide
-        ? { aaStart: pf.signal_peptide.aa_start, aaEnd: pf.signal_peptide.aa_end }
-        : null,
-      transmembrane: pf.transmembrane.map((r) => ({
-        aaStart: r.aa_start,
-        aaEnd: r.aa_end,
-        label: r.label,
-      })),
-      domains: pf.domains.map((d) => ({
-        aaStart: d.aa_start,
-        aaEnd: d.aa_end,
-        label: d.label,
-      })),
-      activeSites: pf.active_sites.map((a) => ({
-        aa: a.aa,
-        residue: a.residue,
-        label: a.label,
-      })),
-      membraneBinding: pf.membrane_binding.map((r) => ({
-        aaStart: r.aa_start,
-        aaEnd: r.aa_end,
-        label: r.label,
-      })),
-      palmitoylation: pf.palmitoylation.map((p) => ({
-        aa: p.aa,
-        residue: p.residue,
-        label: p.label,
-      })),
-    },
+    proteinFeatures: mapProteinFeatures(pf, featureLimit),
+    proteinProduct,
 
     genomicCoords: {
       chrom: locus.chrom,

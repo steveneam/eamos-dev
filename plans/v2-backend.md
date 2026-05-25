@@ -23,7 +23,46 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-25, Codex):
+Recent backend status notes (2026-05-26, Codex):
+- GV-DYN dynamic variant-applied gene/protein viewer is implemented locally and
+  verified. Added internal `variant_applied_model.py`, exposed
+  `tracks.protein_product`, mirrored both TypeScript contracts, and wired
+  Workbench gene/protein/exon rendering so variant mode can reflect
+  source-backed missense/synonymous/stop-gained/stop-lost/frameshift/in-frame
+  indel/dup/delins-style product effects instead of only static reference
+  geometry. Simple coding SNV/indel/dup/delins window edits are applied; cross-
+  segment/cross-intron edits still fail closed until multi-segment rendering is
+  supported.
+- GV-SEC viewer hardening is implemented locally. `/api/v1/viewer` now shares
+  Workbench rate limits, viewer request/window/track fields are bounded, and
+  proxy-header trust for rate-limit client IPs defaults false unless explicitly
+  enabled.
+- WB-SEC Workbench AB1/alignment input hardening is implemented locally and
+  full backend pytest is green. Added Workbench request-size/field bounds,
+  AB1 encoded/decoded/base-call/channel/finite-signal guards, ambiguous
+  align-input rejection, and a pairwise-alignment matrix preflight fallback
+  before Biopython is called.
+- Project-wide hardening cohort correction: the existing
+  `clinvar_gene_agnostic_report_stack.json` is 90 variants plus one global
+  RPE65 control. It is not the intended landing/report/workbench hardening
+  matrix. The next cohort artifact should be a separate 100-sample manifest:
+  10 chosen genes, each with one per-gene control sample plus nine challenge
+  variants.
+- LAUNCH-SEC backend hardening is implemented locally and full backend pytest is
+  green. Added configurable in-memory rate limiting for auth, lookup/parse,
+  chat/stream, evidence submissions, payments checkout/webhook, and Workbench
+  primer/crispr/align; removed client-controlled Stripe checkout redirects; and
+  changed backend `DEBUG` defaults to false. Durable Redis/private-DB/gateway
+  rate limiting remains the future multi-instance path.
+- SEARCH-RSID bare dbSNP resolver hardening is committed and pushed as
+  `548fde7` (`fix(backend): resolve bare dbSNP rsID searches`). Raw search text
+  `rs61752871` resolves to `RPE65 NM_000329.3:c.271C>T`; `rs1801133` resolves
+  to source-supported `MTHFR NM_005957.5:c.665C>T`, with resolved genomic
+  identity carried into `/api/v1/lookup`; Claude redeployed Render and live
+  `/lookup/parse` smokes passed for both rsIDs.
+- LAUNCH-BLOCKERS pickup: Claude/Steven reported Supabase 0003/0004/0005/0006
+  live, Render Supabase env set, `DEBUG=false`, authenticated evidence
+  write-through E2E green, and Supabase security advisors clean.
 - RP-PUB-2 EP-VLEx exact snippet/status quality is done. Exact variant snippets
   now require exact variant-term text; non-exact rows expose honest
   `snippet_status` values. RPE65 ClinVar fixture contradiction corrected to

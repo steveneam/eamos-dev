@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 PlanKey = Literal["free", "pro", "max"]
 PaidPlanKey = Literal["pro", "max"]
@@ -45,18 +45,10 @@ class PlanContract(BaseModel):
 
 
 class CheckoutSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     plan_key: PaidPlanKey
     billing_interval: BillingInterval = "monthly"
-    success_url: str | None = Field(default=None, max_length=500)
-    cancel_url: str | None = Field(default=None, max_length=500)
-
-    @field_validator("success_url", "cancel_url", mode="before")
-    @classmethod
-    def _strip_url(cls, value):
-        if value is None or not isinstance(value, str):
-            return value
-        stripped = value.strip()
-        return stripped or None
 
 
 class CheckoutSessionResponse(BaseModel):

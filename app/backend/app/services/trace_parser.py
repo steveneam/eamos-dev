@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import base64
 import binascii
+import math
 from dataclasses import dataclass
 from importlib import import_module
 from io import BytesIO
 from typing import Any
 
 TRACE_INVALID_BASE64 = "trace_invalid_base64"
+TRACE_INVALID_SIGNAL = "trace_invalid_signal"
+TRACE_PAYLOAD_TOO_LARGE = "trace_payload_too_large"
 TRACE_PARSER_UNAVAILABLE = "trace_parser_unavailable"
 TRACE_UNSUPPORTED_FORMAT = "trace_unsupported_format"
+TRACE_MAX_ENCODED_BYTES = 3_000_000
+TRACE_MAX_DECODED_BYTES = 2_000_000
+TRACE_MAX_BASE_CALLS = 5_000
+TRACE_MAX_CHANNEL_SAMPLES = 20_000
 
 
 @dataclass(frozen=True)
@@ -39,6 +46,14 @@ def parse_ab1_base64(blob: str, *, seqio_module: Any | None = None) -> ParsedTra
     if encoded.lower().startswith("data:") and "," in encoded:
         encoded = encoded.split(",", 1)[1]
 
+    if len(encoded) > TRACE_MAX_ENCODED_BYTES:
+        raise TraceParseError(
+            code=TRACE_PAYLOAD_TOO_LARGE,
+            message=(
+                "AB1 trace payload is too large " f"({TRACE_MAX_DECODED_BYTES} byte decoded limit)."
+            ),
+        )
+
     try:
         data = base64.b64decode(encoded, validate=True)
     except (binascii.Error, ValueError) as exc:
@@ -57,6 +72,14 @@ def parse_ab1_base64(blob: str, *, seqio_module: Any | None = None) -> ParsedTra
 
 
 def parse_ab1_bytes(data: bytes, *, seqio_module: Any | None = None) -> ParsedTrace:
+    if len(data) > TRACE_MAX_DECODED_BYTES:
+        raise TraceParseError(
+            code=TRACE_PAYLOAD_TOO_LARGE,
+            message=(
+                "AB1 trace payload is too large " f"({TRACE_MAX_DECODED_BYTES} byte decoded limit)."
+            ),
+        )
+
     seqio = seqio_module if seqio_module is not None else _bio_seqio()
     try:
         record = seqio.read(BytesIO(data), "abi")
@@ -76,14 +99,36 @@ def parse_ab1_bytes(data: bytes, *, seqio_module: Any | None = None) -> ParsedTr
             code=TRACE_UNSUPPORTED_FORMAT,
             message="AB1 trace did not contain base calls.",
         )
+    _validate_count(
+        count=len(sequence),
+        limit=TRACE_MAX_BASE_CALLS,
+        message=f"AB1 trace contains more than {TRACE_MAX_BASE_CALLS} base calls.",
+    )
 
     base_calls = _base_calls(abif_raw, sequence)
+    _validate_count(
+        count=len(base_calls),
+        limit=TRACE_MAX_BASE_CALLS,
+        message=f"AB1 trace contains more than {TRACE_MAX_BASE_CALLS} base calls.",
+    )
+    q_scores = _quality_scores(record, abif_raw)
+    peak_locations = _int_tuple(_first_value(abif_raw, "PLOC2", "PLOC1"))
+    _validate_count(
+        count=len(q_scores),
+        limit=TRACE_MAX_BASE_CALLS,
+        message=f"AB1 trace contains more than {TRACE_MAX_BASE_CALLS} quality scores.",
+    )
+    _validate_count(
+        count=len(peak_locations),
+        limit=TRACE_MAX_BASE_CALLS,
+        message=f"AB1 trace contains more than {TRACE_MAX_BASE_CALLS} peak locations.",
+    )
     return ParsedTrace(
         sequence=sequence,
         base_calls=base_calls,
-        q_scores=_quality_scores(record, abif_raw),
+        q_scores=q_scores,
         trace_channels=_trace_channels(abif_raw),
-        peak_locations=_int_tuple(_first_value(abif_raw, "PLOC2", "PLOC1")),
+        peak_locations=peak_locations,
     )
 
 
@@ -128,6 +173,15 @@ def _trace_channels(abif_raw: dict[str, Any]) -> tuple[TraceChannelData, ...]:
             by_base[base] = TraceChannelData(base=base, values=values)
 
     return tuple(by_base[base] for base in ("A", "T", "C", "G") if base in by_base)
+
+
+def _validate_count(*, count: int, limit: int, message: str) -> None:
+    if count <= limit:
+        return
+    raise TraceParseError(
+        code=TRACE_PAYLOAD_TOO_LARGE,
+        message=message,
+    )
 
 
 def _first_value(values: dict[str, Any], *keys: str) -> Any:
@@ -179,6 +233,16 @@ def _normalized_values(values: Any) -> tuple[float, ...]:
 
     if not numbers:
         return ()
+    if any(not math.isfinite(number) for number in numbers):
+        raise TraceParseError(
+            code=TRACE_INVALID_SIGNAL,
+            message="AB1 trace channel contains non-finite signal values.",
+        )
+    _validate_count(
+        count=len(numbers),
+        limit=TRACE_MAX_CHANNEL_SAMPLES,
+        message=f"AB1 trace channel contains more than {TRACE_MAX_CHANNEL_SAMPLES} samples.",
+    )
     high = max(numbers)
     if high <= 0:
         return tuple(0.0 for _ in numbers)

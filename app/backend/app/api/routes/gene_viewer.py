@@ -4,6 +4,7 @@ from typing import NoReturn, Protocol
 
 from fastapi import APIRouter, HTTPException, Request, status
 
+from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
 from app.schemas.gene_viewer import GeneViewerRequest, GeneViewerResponse
 from app.services.gene_viewer import (
     GENE_VIEWER_SERVICE_UNAVAILABLE,
@@ -40,6 +41,7 @@ def _raise_gene_viewer_error(error: GeneViewerError) -> NoReturn:
 
 @router.post("/viewer", response_model=GeneViewerResponse)
 def build_viewer(payload: GeneViewerRequest, request: Request) -> GeneViewerResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _gene_viewer_service(request).build_viewer(payload)
     except GeneViewerError as exc:

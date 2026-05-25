@@ -42,6 +42,7 @@ from app.services.workbench_design import (
     WORKBENCH_PROVIDER_MALFORMED,
     WORKBENCH_PROVIDER_UNAVAILABLE,
 )
+from app.services.variant_applied_model import build_protein_product_effect
 
 GENE_VIEWER_PROVIDER_UNAVAILABLE = WORKBENCH_PROVIDER_UNAVAILABLE
 GENE_VIEWER_PROVIDER_MALFORMED = WORKBENCH_PROVIDER_MALFORMED
@@ -325,6 +326,8 @@ class HttpGeneViewerSourceClient:
         return VariantProjection(
             hgvs_c=variant.hgvs_c,
             cds_pos=variant.cds_pos,
+            cds_end=variant.cds_end,
+            variant_type=variant.variant_type,
             ref=variant.ref,
             alt=variant.alt,
             hgvs_p=hgvs_p,
@@ -765,6 +768,12 @@ class SourceBackedGeneViewerProvider:
 
         if protein_features is not None:
             response.tracks.protein_features = protein_features
+        response.tracks.protein_product = build_protein_product_effect(
+            variant=variant,
+            allele_mode=payload.allele_mode,
+            reference_protein_length=transcript_source.protein_length,
+            exons=transcript_source.exons,
+        )
         response.provenance = ViewerProvenance(
             sources=self.source_client.provenance_sources(
                 query=query,
@@ -1039,6 +1048,12 @@ def _curated_fixture_viewer_bundle(
             queried=True,
         )
     ]
+    response.tracks.protein_product = build_protein_product_effect(
+        variant=variant,
+        allele_mode=payload.allele_mode,
+        reference_protein_length=source.protein_length,
+        exons=source.exons,
+    )
     exon_number = next(
         (exon.number for exon in source.exons if exon.cds_start <= variant.cds_pos <= exon.cds_end),
         None,
@@ -1312,6 +1327,8 @@ class VariantProjection:
     cds_pos: int
     ref: str
     alt: str
+    cds_end: int | None = None
+    variant_type: str = "substitution"
     hgvs_p: str | None = None
     genomic_hg38: str | None = None
     codon_number: int | None = None
@@ -1322,19 +1339,101 @@ class VariantProjection:
 
     @classmethod
     def from_hgvs_c(cls, hgvs_c: str) -> VariantProjection:
-        match = re.fullmatch(r"c\.(?P<pos>\d+)(?P<ref>[ACGT])>(?P<alt>[ACGT])", hgvs_c)
-        if match is None:
-            raise GeneViewerError(
-                code=GENE_VIEWER_UNSUPPORTED_VARIANT,
-                message="Only coding SNV viewer overlays are supported in this slice.",
-                status_code=HTTP_UNPROCESSABLE_ENTITY,
-            )
-        return cls(
-            hgvs_c=hgvs_c,
-            cds_pos=int(match.group("pos")),
-            ref=match.group("ref"),
-            alt=match.group("alt"),
+        substitution = re.fullmatch(
+            r"c\.(?P<pos>\d+)(?P<ref>[ACGT]+)>(?P<alt>[ACGT]+)",
+            hgvs_c,
+            flags=re.IGNORECASE,
         )
+        if substitution is not None:
+            return cls(
+                hgvs_c=hgvs_c,
+                cds_pos=int(substitution.group("pos")),
+                cds_end=int(substitution.group("pos")) + len(substitution.group("ref")) - 1,
+                ref=substitution.group("ref").upper(),
+                alt=substitution.group("alt").upper(),
+                variant_type="substitution",
+            )
+
+        deletion = re.fullmatch(
+            r"c\.(?P<start>\d+)(?:_(?P<end>\d+))?del(?P<ref>[ACGT]+)?",
+            hgvs_c,
+            flags=re.IGNORECASE,
+        )
+        if deletion is not None:
+            start = int(deletion.group("start"))
+            end = int(deletion.group("end") or start)
+            return cls(
+                hgvs_c=hgvs_c,
+                cds_pos=start,
+                cds_end=end,
+                ref=(deletion.group("ref") or "").upper(),
+                alt="",
+                variant_type="deletion",
+            )
+
+        duplication = re.fullmatch(
+            r"c\.(?P<start>\d+)(?:_(?P<end>\d+))?dup(?P<alt>[ACGT]+)?",
+            hgvs_c,
+            flags=re.IGNORECASE,
+        )
+        if duplication is not None:
+            start = int(duplication.group("start"))
+            end = int(duplication.group("end") or start)
+            return cls(
+                hgvs_c=hgvs_c,
+                cds_pos=start,
+                cds_end=end,
+                ref="",
+                alt=(duplication.group("alt") or "").upper(),
+                variant_type="duplication",
+            )
+
+        insertion = re.fullmatch(
+            r"c\.(?P<left>\d+)_(?P<right>\d+)ins(?P<alt>[ACGT]+)",
+            hgvs_c,
+            flags=re.IGNORECASE,
+        )
+        if insertion is not None:
+            return cls(
+                hgvs_c=hgvs_c,
+                cds_pos=int(insertion.group("left")),
+                cds_end=int(insertion.group("right")),
+                ref="",
+                alt=insertion.group("alt").upper(),
+                variant_type="insertion",
+            )
+
+        delins = re.fullmatch(
+            r"c\.(?P<start>\d+)(?:_(?P<end>\d+))?delins(?P<alt>[ACGT]+)",
+            hgvs_c,
+            flags=re.IGNORECASE,
+        )
+        if delins is not None:
+            start = int(delins.group("start"))
+            end = int(delins.group("end") or start)
+            return cls(
+                hgvs_c=hgvs_c,
+                cds_pos=start,
+                cds_end=end,
+                ref="",
+                alt=delins.group("alt").upper(),
+                variant_type="delins",
+            )
+
+        raise GeneViewerError(
+            code=GENE_VIEWER_UNSUPPORTED_VARIANT,
+            message="Only simple coding substitution, deletion, duplication, insertion, and delins viewer overlays are supported.",
+            status_code=HTTP_UNPROCESSABLE_ENTITY,
+        )
+
+
+@dataclass(frozen=True)
+class VariantDisplayOperation:
+    segment_id: str
+    sequence_offset: int
+    ref: str
+    alt: str
+    replace_length: int
 
 
 class TranscriptWindowBuilder:
@@ -1345,13 +1444,6 @@ class TranscriptWindowBuilder:
         transcript: TranscriptModel,
         variant: VariantProjection,
     ) -> GeneViewerResponse:
-        if len(variant.ref) != 1 or len(variant.alt) != 1:
-            raise GeneViewerError(
-                code=GENE_VIEWER_UNSUPPORTED_VARIANT,
-                message="Only SNV overlays are supported in this viewer slice.",
-                status_code=HTTP_UNPROCESSABLE_ENTITY,
-            )
-
         display_start, display_end = self._window_bounds(
             window=request.window,
             variant=variant,
@@ -1425,7 +1517,14 @@ class TranscriptWindowBuilder:
                 display_window_sequence=display_sequence,
                 applied_variant=applied_variant,
             ),
-            tracks=ViewerTracks(),
+            tracks=ViewerTracks(
+                protein_product=build_protein_product_effect(
+                    variant=variant,
+                    allele_mode=request.allele_mode,
+                    reference_protein_length=transcript.protein_length,
+                    exons=transcript.exons,
+                )
+            ),
             provenance=ViewerProvenance(
                 sources=[
                     ViewerProvenanceSource(
@@ -1526,46 +1625,28 @@ class TranscriptWindowBuilder:
         segments: list[ViewerSegment],
         variant: VariantProjection,
     ) -> tuple[AppliedVariant | None, str]:
-        cumulative = 0
-        for segment in segments:
-            segment_sequence = _segment_display_sequence(segment)
-            if (
-                segment.kind == "exon"
-                and segment.cds_start is not None
-                and segment.cds_end is not None
-            ):
-                if segment.cds_start <= variant.cds_pos <= segment.cds_end:
-                    local_offset = variant.cds_pos - segment.cds_start
-                    global_offset = cumulative + local_offset
-                    observed_ref = reference_sequence[global_offset]
-                    if observed_ref.upper() != variant.ref.upper():
-                        raise GeneViewerError(
-                            code=GENE_VIEWER_REFERENCE_MISMATCH,
-                            message=(
-                                "Viewer reference base does not match the requested "
-                                f"variant at {variant.hgvs_c}."
-                            ),
-                            status_code=HTTP_UNPROCESSABLE_ENTITY,
-                            warnings=[GENE_VIEWER_REFERENCE_MISMATCH],
-                        )
-                    if allele_mode == "reference":
-                        return None, reference_sequence
-                    applied = AppliedVariant(
-                        hgvs_c=variant.hgvs_c,
-                        cds_pos=variant.cds_pos,
-                        segment_id=segment.id,
-                        sequence_offset=global_offset,
-                        ref=variant.ref,
-                        alt=variant.alt,
-                    )
-                    return applied, _replace_at(reference_sequence, global_offset, variant.alt)
-            cumulative += len(segment_sequence)
-
-        raise GeneViewerError(
-            code=unsupported_input_warning("variant_outside_window"),
-            message="Queried variant is outside the active viewer window.",
-            status_code=HTTP_UNPROCESSABLE_ENTITY,
+        operation = _variant_display_operation(
+            segments=segments,
+            reference_sequence=reference_sequence,
+            variant=variant,
         )
+        if allele_mode == "reference":
+            return None, reference_sequence
+
+        applied = AppliedVariant(
+            hgvs_c=variant.hgvs_c,
+            cds_pos=variant.cds_pos,
+            segment_id=operation.segment_id,
+            sequence_offset=operation.sequence_offset,
+            ref=operation.ref,
+            alt=operation.alt,
+        )
+        display_sequence = (
+            reference_sequence[: operation.sequence_offset]
+            + operation.alt
+            + reference_sequence[operation.sequence_offset + operation.replace_length :]
+        )
+        return applied, display_sequence
 
 
 def _segment_display_sequence(segment: ViewerSegment) -> str:
@@ -1576,6 +1657,115 @@ def _segment_display_sequence(segment: ViewerSegment) -> str:
 
 def _replace_at(sequence: str, index: int, value: str) -> str:
     return f"{sequence[:index]}{value}{sequence[index + 1:]}"
+
+
+def _variant_display_operation(
+    *,
+    segments: list[ViewerSegment],
+    reference_sequence: str,
+    variant: VariantProjection,
+) -> VariantDisplayOperation:
+    coord_map = _exon_display_coordinate_map(segments)
+    end = variant.cds_end or variant.cds_pos
+
+    if variant.variant_type == "insertion":
+        left = variant.cds_pos
+        right = end
+        if right != left + 1:
+            _raise_unsupported(
+                "variant_insert_coordinates",
+                "Viewer insertion overlays require adjacent coding coordinates.",
+            )
+        if left not in coord_map or right not in coord_map:
+            _raise_variant_outside_window(variant)
+        segment_id, left_offset = coord_map[left]
+        return VariantDisplayOperation(
+            segment_id=segment_id,
+            sequence_offset=left_offset + 1,
+            ref="",
+            alt=variant.alt,
+            replace_length=0,
+        )
+
+    positions = list(range(variant.cds_pos, end + 1))
+    if not positions or any(position not in coord_map for position in positions):
+        _raise_variant_outside_window(variant)
+
+    mapped = [coord_map[position] for position in positions]
+    segment_ids = {segment_id for segment_id, _offset in mapped}
+    offsets = [offset for _segment_id, offset in mapped]
+    if len(segment_ids) != 1 or offsets != list(range(offsets[0], offsets[0] + len(offsets))):
+        _raise_unsupported(
+            "variant_spans_segments",
+            "Viewer overlays currently require the affected coding bases to be contiguous in the displayed segment.",
+        )
+
+    segment_id = mapped[0][0]
+    sequence_offset = offsets[0]
+    observed_ref = reference_sequence[sequence_offset : offsets[-1] + 1].upper()
+
+    if variant.variant_type == "duplication":
+        duplicated = variant.alt or observed_ref
+        if variant.alt and duplicated != observed_ref:
+            _raise_reference_mismatch(variant)
+        return VariantDisplayOperation(
+            segment_id=segment_id,
+            sequence_offset=offsets[-1] + 1,
+            ref="",
+            alt=duplicated,
+            replace_length=0,
+        )
+
+    if variant.ref and observed_ref != variant.ref.upper():
+        _raise_reference_mismatch(variant)
+
+    if variant.variant_type in {"substitution", "deletion", "delins"}:
+        return VariantDisplayOperation(
+            segment_id=segment_id,
+            sequence_offset=sequence_offset,
+            ref=variant.ref.upper() or observed_ref,
+            alt=variant.alt,
+            replace_length=len(observed_ref),
+        )
+
+    _raise_unsupported(
+        "variant_type",
+        f"Viewer overlays do not support variant type {variant.variant_type}.",
+    )
+
+
+def _exon_display_coordinate_map(
+    segments: list[ViewerSegment],
+) -> dict[int, tuple[str, int]]:
+    coord_map: dict[int, tuple[str, int]] = {}
+    cumulative = 0
+    for segment in segments:
+        segment_sequence = _segment_display_sequence(segment)
+        if segment.kind == "exon" and segment.cds_start is not None and segment.cds_end is not None:
+            for local_offset, cds_pos in enumerate(range(segment.cds_start, segment.cds_end + 1)):
+                coord_map[cds_pos] = (segment.id, cumulative + local_offset)
+        cumulative += len(segment_sequence)
+    return coord_map
+
+
+def _raise_reference_mismatch(variant: VariantProjection) -> None:
+    raise GeneViewerError(
+        code=GENE_VIEWER_REFERENCE_MISMATCH,
+        message=(
+            "Viewer reference sequence does not match the requested "
+            f"variant at {variant.hgvs_c}."
+        ),
+        status_code=HTTP_UNPROCESSABLE_ENTITY,
+        warnings=[GENE_VIEWER_REFERENCE_MISMATCH],
+    )
+
+
+def _raise_variant_outside_window(variant: VariantProjection) -> None:
+    raise GeneViewerError(
+        code=unsupported_input_warning("variant_outside_window"),
+        message=f"Queried variant {variant.hgvs_c} is outside the active viewer window.",
+        status_code=HTTP_UNPROCESSABLE_ENTITY,
+    )
 
 
 def _schema_strand(strand: str) -> str:
@@ -1741,12 +1931,15 @@ def _viewer_response_for_allele_mode(
     allele_mode: str,
 ) -> GeneViewerResponse:
     if allele_mode == response.sequences.allele_mode:
-        return response
+        updated = response.model_copy(deep=True)
+        _set_windowed_protein_product(updated, allele_mode=allele_mode)
+        return updated
     if allele_mode == "reference":
         updated = response.model_copy(deep=True)
         updated.sequences.allele_mode = "reference"
         updated.sequences.display_window_sequence = updated.sequences.reference_window_sequence
         updated.sequences.applied_variant = None
+        _set_windowed_protein_product(updated, allele_mode="reference")
         return updated
 
     updated = response.model_copy(deep=True)
@@ -1787,6 +1980,7 @@ def _viewer_response_for_allele_mode(
                 ref=variant.ref,
                 alt=variant.alt,
             )
+            _set_windowed_protein_product(updated, allele_mode="variant")
             return updated
         cumulative += len(segment_sequence)
 
@@ -1794,4 +1988,28 @@ def _viewer_response_for_allele_mode(
         code=unsupported_input_warning("variant_outside_window"),
         message="Queried variant is outside the active viewer fixture window.",
         status_code=HTTP_UNPROCESSABLE_ENTITY,
+    )
+
+
+def _set_windowed_protein_product(response: GeneViewerResponse, *, allele_mode: str) -> None:
+    response.tracks.protein_product = build_protein_product_effect(
+        variant=response.queried_variant,
+        allele_mode=allele_mode,
+        reference_protein_length=response.summary.protein_length,
+        exons=[
+            SourceTranscriptExon(
+                number=segment.exon_number,
+                cds_start=segment.cds_start,
+                cds_end=segment.cds_end,
+                genomic_start=segment.genomic_start or 0,
+                genomic_end=segment.genomic_end or 0,
+            )
+            for segment in response.segments
+            if (
+                segment.kind == "exon"
+                and segment.exon_number is not None
+                and segment.cds_start is not None
+                and segment.cds_end is not None
+            )
+        ],
     )

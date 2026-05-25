@@ -16,6 +16,26 @@ ViewerTrack = Literal[
 ]
 ViewerWindowKind = Literal["around_variant", "cds_range"]
 ViewerSegmentKind = Literal["exon", "intron"]
+ProteinConsequenceKind = Literal[
+    "reference",
+    "synonymous",
+    "missense",
+    "stop_gained",
+    "stop_lost",
+    "frameshift",
+    "inframe_deletion",
+    "inframe_insertion",
+    "inframe_duplication",
+    "delins",
+    "splice",
+    "unknown",
+]
+ProteinProductExonState = Literal[
+    "retained",
+    "contains_variant",
+    "downstream_truncated",
+    "not_applicable",
+]
 VariantClassification = Literal[
     "pathogenic",
     "likely_pathogenic",
@@ -28,18 +48,18 @@ VariantClassification = Literal[
 
 class ViewerWindowRequest(BaseModel):
     kind: ViewerWindowKind = "around_variant"
-    cds_start: int | None = None
-    cds_end: int | None = None
-    cds_flank_bp: int = 120
-    intron_flank_bp: int = 30
+    cds_start: int | None = Field(default=None, ge=1, le=50000)
+    cds_end: int | None = Field(default=None, ge=1, le=50000)
+    cds_flank_bp: int = Field(default=120, ge=0, le=5000)
+    intron_flank_bp: int = Field(default=30, ge=0, le=500)
 
 
 class GeneViewerRequest(BaseModel):
-    gene: str
-    cdna: str
-    transcript: str | None = None
-    species: str = "human"
-    genome_build: str = "GRCh38"
+    gene: str = Field(min_length=1, max_length=32)
+    cdna: str = Field(min_length=1, max_length=160)
+    transcript: str | None = Field(default=None, max_length=80)
+    species: str = Field(default="human", min_length=1, max_length=32)
+    genome_build: str = Field(default="GRCh38", min_length=1, max_length=16)
     allele_mode: AlleleMode = "reference"
     window: ViewerWindowRequest = Field(default_factory=ViewerWindowRequest)
     tracks: list[ViewerTrack] = Field(
@@ -49,7 +69,8 @@ class GeneViewerRequest(BaseModel):
             "clinvar",
             "protein_features",
             "restriction",
-        ]
+        ],
+        max_length=8,
     )
 
 
@@ -178,6 +199,31 @@ class ProteinPointFeature(BaseModel):
     label: str
 
 
+class ProteinProductExonEffect(BaseModel):
+    exon_number: int
+    cds_start: int
+    cds_end: int
+    state: ProteinProductExonState
+    affected_cds_start: int | None = None
+    affected_cds_end: int | None = None
+    lost_cds_bases: int = 0
+
+
+class ProteinProductEffect(BaseModel):
+    allele_mode: AlleleMode
+    consequence: ProteinConsequenceKind
+    label: str
+    description: str
+    reference_protein_length: int | None = None
+    effective_protein_length: int | None = None
+    truncates_protein: bool = False
+    stop_codon: int | None = None
+    affected_aa_start: int | None = None
+    lost_aa_count: int = 0
+    nmd_risk: str | None = None
+    exon_effects: list[ProteinProductExonEffect] = Field(default_factory=list)
+
+
 class ProteinFeatures(BaseModel):
     signal_peptide: ProteinRangeFeature | None = None
     transmembrane: list[ProteinRangeFeature] = Field(default_factory=list)
@@ -204,6 +250,7 @@ class ViewerTracks(BaseModel):
     clinvar_variants: list[ClinvarVariant] = Field(default_factory=list)
     exon_density: list[ExonVariantDensity] = Field(default_factory=list)
     protein_features: ProteinFeatures = Field(default_factory=ProteinFeatures)
+    protein_product: ProteinProductEffect | None = None
     conservation_values: list[float] = Field(default_factory=list)
     restriction_sites: list[RestrictionSite] = Field(default_factory=list)
     features: list[ViewerFeature] = Field(default_factory=list)

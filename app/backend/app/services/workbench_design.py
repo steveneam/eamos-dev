@@ -41,6 +41,7 @@ from app.services.sequence_context import (
 )
 from app.services.trace_parser import (
     TRACE_INVALID_BASE64,
+    TRACE_PAYLOAD_TOO_LARGE,
     TRACE_PARSER_UNAVAILABLE,
     ParsedTrace,
     TraceParseError,
@@ -490,6 +491,15 @@ def _reverse_complement(sequence: str) -> str:
 
 
 def _alignment_read(payload: AlignRequest) -> tuple[str, ParsedTrace | None]:
+    if payload.user_sequence and payload.ab1_blob_base64:
+        code = unsupported_input_warning("alignment_read")
+        raise WorkbenchDesignError(
+            code=code,
+            message="Provide either user_sequence or ab1_blob_base64, not both.",
+            status_code=HTTP_UNPROCESSABLE_ENTITY,
+            warnings=[code],
+        )
+
     if payload.ab1_blob_base64:
         trace = _parse_ab1_trace(payload.ab1_blob_base64)
         return trace.sequence, trace
@@ -518,7 +528,11 @@ def _parse_ab1_trace(blob: str) -> ParsedTrace:
                 warnings=[WORKBENCH_PROVIDER_UNAVAILABLE, exc.code],
             ) from exc
 
-        kind = "ab1_blob_base64" if exc.code == TRACE_INVALID_BASE64 else "ab1"
+        kind = (
+            "ab1_blob_base64"
+            if exc.code in {TRACE_INVALID_BASE64, TRACE_PAYLOAD_TOO_LARGE}
+            else "ab1"
+        )
         code = unsupported_input_warning(kind)
         raise WorkbenchDesignError(
             code=code,
@@ -545,6 +559,18 @@ def _parse_alignment_sequence(raw_sequence: str) -> str:
                 bases.append(base)
             else:
                 invalid.add(char)
+
+            if len(bases) > ALIGN_MAX_SEQUENCE_BASES:
+                code = unsupported_input_warning("alignment_length")
+                raise WorkbenchDesignError(
+                    code=code,
+                    message=(
+                        "Alignment read is too long for the local Workbench aligner "
+                        f"({ALIGN_MAX_SEQUENCE_BASES} bp limit)."
+                    ),
+                    status_code=HTTP_UNPROCESSABLE_ENTITY,
+                    warnings=[code],
+                )
 
     if invalid:
         code = unsupported_input_warning("alignment_sequence")
@@ -585,6 +611,9 @@ def _validate_alignment_size(*, reference: str, read: str) -> None:
 
 
 def _align_sequences(*, reference: str, read: str) -> tuple[AlignmentCell, ...]:
+    if _alignment_matrix_cells(reference=reference, read=read) > ALIGN_MAX_MATRIX_CELLS:
+        return _positional_alignment(reference=reference, read=read)
+
     bio_cells = _bio_pairwise_alignment(reference=reference, read=read)
     if bio_cells:
         return bio_cells
@@ -749,13 +778,17 @@ def _fallback_alignment(*, reference: str, read: str) -> tuple[AlignmentCell, ..
     if len(reference) == len(read):
         return _positional_alignment(reference=reference, read=read)
 
-    if (len(reference) + 1) * (len(read) + 1) > ALIGN_MAX_MATRIX_CELLS:
+    if _alignment_matrix_cells(reference=reference, read=read) > ALIGN_MAX_MATRIX_CELLS:
         return _positional_alignment(reference=reference, read=read)
 
     cells, score = _smith_waterman_alignment(reference=reference, read=read)
     if score > 0 and cells:
         return cells
     return _positional_alignment(reference=reference, read=read)
+
+
+def _alignment_matrix_cells(*, reference: str, read: str) -> int:
+    return (len(reference) + 1) * (len(read) + 1)
 
 
 def _positional_alignment(*, reference: str, read: str) -> tuple[AlignmentCell, ...]:

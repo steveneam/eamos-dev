@@ -1053,6 +1053,24 @@ export type ViewerTrack =
   | 'conservation'
 export type ViewerWindowKind = 'around_variant' | 'cds_range'
 export type ViewerSegmentKind = 'exon' | 'intron'
+export type ProteinConsequenceKind =
+  | 'reference'
+  | 'synonymous'
+  | 'missense'
+  | 'stop_gained'
+  | 'stop_lost'
+  | 'frameshift'
+  | 'inframe_deletion'
+  | 'inframe_insertion'
+  | 'inframe_duplication'
+  | 'delins'
+  | 'splice'
+  | 'unknown'
+export type ProteinProductExonState =
+  | 'retained'
+  | 'contains_variant'
+  | 'downstream_truncated'
+  | 'not_applicable'
 export type VariantClassification =
   | 'pathogenic'
   | 'likely_pathogenic'
@@ -1205,6 +1223,31 @@ export interface ProteinPointFeature {
   label: string
 }
 
+export interface ProteinProductExonEffect {
+  exon_number: number
+  cds_start: number
+  cds_end: number
+  state: ProteinProductExonState
+  affected_cds_start?: number | null
+  affected_cds_end?: number | null
+  lost_cds_bases: number
+}
+
+export interface ProteinProductEffect {
+  allele_mode: AlleleMode
+  consequence: ProteinConsequenceKind
+  label: string
+  description: string
+  reference_protein_length?: number | null
+  effective_protein_length?: number | null
+  truncates_protein: boolean
+  stop_codon?: number | null
+  affected_aa_start?: number | null
+  lost_aa_count: number
+  nmd_risk?: string | null
+  exon_effects: ProteinProductExonEffect[]
+}
+
 export interface ProteinFeatures {
   signal_peptide?: ProteinRangeFeature | null
   transmembrane: ProteinRangeFeature[]
@@ -1231,6 +1274,7 @@ export interface ViewerTracks {
   clinvar_variants: ClinvarVariant[]
   exon_density: ExonVariantDensity[]
   protein_features: ProteinFeatures
+  protein_product?: ProteinProductEffect | null
   conservation_values: number[]
   restriction_sites: RestrictionSite[]
   features: ViewerFeature[]

@@ -18,6 +18,10 @@ export interface ExonInfo {
   cdsStart: number
   cdsEnd: number
   genomicLen: number
+  proteinState?: ProteinProductExonState
+  affectedCdsStart?: number | null
+  affectedCdsEnd?: number | null
+  lostCdsBases?: number
 }
 
 export interface IntronInfo {
@@ -78,6 +82,51 @@ export interface ProteinFeatures {
   palmitoylation: Array<{ aa: number; residue: string; label: string }>
 }
 
+export type ProteinConsequenceKind =
+  | 'reference'
+  | 'synonymous'
+  | 'missense'
+  | 'stop_gained'
+  | 'stop_lost'
+  | 'frameshift'
+  | 'inframe_deletion'
+  | 'inframe_insertion'
+  | 'inframe_duplication'
+  | 'delins'
+  | 'splice'
+  | 'unknown'
+
+export type ProteinProductExonState =
+  | 'retained'
+  | 'contains_variant'
+  | 'downstream_truncated'
+  | 'not_applicable'
+
+export interface ProteinProductExonEffect {
+  exonNumber: number
+  cdsStart: number
+  cdsEnd: number
+  state: ProteinProductExonState
+  affectedCdsStart: number | null
+  affectedCdsEnd: number | null
+  lostCdsBases: number
+}
+
+export interface ProteinProductEffect {
+  alleleMode: 'reference' | 'variant'
+  consequence: ProteinConsequenceKind
+  label: string
+  description: string
+  referenceProteinLength: number | null
+  effectiveProteinLength: number | null
+  truncatesProtein: boolean
+  stopCodon: number | null
+  affectedAaStart: number | null
+  lostAaCount: number
+  nmdRisk: string | null
+  exonEffects: ProteinProductExonEffect[]
+}
+
 export interface RestrictionSite {
   name: string
   site: string
@@ -115,6 +164,7 @@ export interface GeneWindowData {
   exonVariantCount: Record<number, number>
   domains: DomainInfo[]
   proteinFeatures: ProteinFeatures
+  proteinProduct: ProteinProductEffect | null
   genomicCoords: { chrom: string; start: number; end: number; strand: '+' | '-' }
   conservation: number[]
   restriction: RestrictionSite[]

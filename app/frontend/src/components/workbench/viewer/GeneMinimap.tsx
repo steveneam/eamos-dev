@@ -27,7 +27,17 @@ export function GeneMinimap({
     const pct = (bp: number) => (total > 0 ? (bp / total) * 100 : 0)
     const starts = new Map<number, number>()
     const segs: Array<
-      | { kind: 'exon'; num: number; startPct: number; widthPct: number; cdsStart: number; cdsEnd: number; bp: number }
+      | {
+          kind: 'exon'
+          num: number
+          startPct: number
+          widthPct: number
+          cdsStart: number
+          cdsEnd: number
+          bp: number
+          proteinState: GeneWindowData['exons'][number]['proteinState']
+          lostCdsBases: number
+        }
       | { kind: 'intron'; num: number; startPct: number; widthPct: number; bp: number }
     > = []
     let cursor = 0
@@ -42,6 +52,8 @@ export function GeneMinimap({
         cdsStart: ex.cdsStart,
         cdsEnd: ex.cdsEnd,
         bp: exBp,
+        proteinState: ex.proteinState,
+        lostCdsBases: ex.lostCdsBases ?? 0,
       })
       cursor += exBp
       if (idx < data.introns.length) {
@@ -113,8 +125,24 @@ export function GeneMinimap({
             <button
               key={`e${s.num}`}
               type="button"
-              className={`sv-mm-seg exon${s.num === activeExon ? ' active' : ''}`}
-              title={`Exon ${s.num} · ${s.bp} bp · c.${s.cdsStart}–c.${s.cdsEnd}`}
+              className={[
+                'sv-mm-seg',
+                'exon',
+                s.num === activeExon ? 'active' : '',
+                s.proteinState === 'contains_variant' ? 'contains-variant' : '',
+                s.proteinState === 'downstream_truncated' ? 'downstream-truncated' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              title={[
+                `Exon ${s.num} · ${s.bp} bp · c.${s.cdsStart}–c.${s.cdsEnd}`,
+                s.proteinState === 'contains_variant' ? 'variant-applied product starts here' : '',
+                s.proteinState === 'downstream_truncated'
+                  ? `${s.lostCdsBases} CDS bp lost from variant-applied product`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
               style={{ left: `${s.startPct}%`, width: `${s.widthPct}%` }}
               onClick={() => onExonClick(s.num)}
             >

@@ -1,5 +1,301 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 40 - 26 May 2026 - Dynamic variant-applied gene/protein viewer
+
+Codex implemented the local gene-viewer dynamic product workflow Steven asked
+for, then stopped at a clean break point. Steven then explicitly approved
+committing and pushing the Codex lane. No `/runs`, AlphaMissense, destructive
+git, stash, reset, clean, deploy, or Supabase write was performed.
+
+Completed:
+- Added `app/backend/app/services/variant_applied_model.py`, an Eamos-owned
+  internal workflow that derives `ProteinProductEffect` from resolved viewer
+  variant/protein/exon data. It covers source-backed reference, synonymous,
+  missense, stop-gained, stop-lost, frameshift, in-frame deletion/insertion/
+  duplication, delins, and unknown/unsupported cases.
+- Exposed `tracks.protein_product` in the backend viewer schema and mirrored
+  the additive contract in both `app/frontend` and `app/web`.
+- Extended viewer window application beyond SNVs for simple coding deletions,
+  duplications, insertions, and delins. Cross-segment/cross-intron edits still
+  fail closed until the renderer has a clean multi-segment representation.
+- Updated Workbench gene/protein/exon rendering so variant mode can show
+  effective/reference protein length, truncation/extension notes, affected exon
+  states, and domain/feature clipping for truncated products.
+- Hardened viewer security in the same slice: `/api/v1/viewer` now uses the
+  Workbench rate limiter, viewer request/window fields are bounded, and
+  rate-limit proxy-header trust defaults to false unless explicitly enabled.
+- Closed known active subagents and stopped the Vite verification server before
+  handoff.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_applied_model.py tests/test_frontend_contract.py -q -p no:cacheprovider`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_rate_limits.py tests/test_payments_api.py -q -p no:cacheprovider`
+  -> passed.
+- `cd app/backend && python -m pytest -q -p no:cacheprovider` -> passed
+  (5 skipped; expected short test-JWT warnings only).
+- `cd app/backend && python -m ruff check ...` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 ...` ->
+  passed after formatting `app/services/variant_applied_model.py`.
+- `cd app/frontend && npm run test -- src/lib/workbench/gene-window.test.ts src/lib/workbench/gene-viewer-adapter.test.ts src/lib/workbench/codon-layout.test.ts`
+  -> passed (47 tests).
+- `cd app/frontend && npx tsc -b --pretty false` -> passed.
+- `cd app/frontend && npx vite build --debug` -> passed.
+- `cd app/frontend && npm run build` -> passed, with the existing large-chunk
+  warning.
+- Browser smoke on Vite `/workbench` via installed Chrome passed on desktop
+  after opening the Protein tab. Backend was not running, so the UI used
+  fallback sample data and logged expected backend connection failures.
+
+Notes:
+- `app/web` `npm run build` timed out locally while an existing Next dev server
+  was active; this was not counted as a pass.
+- Mobile Workbench still has existing horizontal overflow; leave it as a
+  separate UI fix.
+- This is a proprietary/internal Eamos workflow in code. A docs/proprietary
+  catalogue entry can be added later if Steven wants the algorithm formally
+  indexed.
+
+## Session 39 - 26 May 2026 - Workbench input hardening and cohort correction
+
+Codex continued the backend launch-security lane locally. No `/runs`,
+AlphaMissense, destructive git, stash, reset, clean, commit, push, deploy, or
+Supabase write/migration was performed.
+
+Completed:
+- Hardened Workbench request schemas with bounded `gene`, `cdna`,
+  `user_sequence`, AB1 base64 payload, primer Tm/product-size, and CRISPR
+  tolerance fields.
+- Hardened AB1 parsing before expensive work: encoded and decoded payload byte
+  limits, base-call and quality/peak-count limits, trace-channel sample limits,
+  and finite numeric signal validation.
+- Hardened alignment routing: real-mode `/align` now rejects ambiguous
+  `user_sequence` + `ab1_blob_base64` input, overlong sequence input aborts
+  during cleanup, and the Biopython pairwise matrix is preflight-bounded before
+  calling `PairwiseAligner`.
+- Used a read-only subagent to review the Workbench AB1/alignment attack
+  surface and a second read-only subagent to inspect TIDE/TIDER. TIDE/TIDER
+  are R/Shiny-era tools that use Sanger traces and non-negative least squares,
+  but the safer first Eamos slice is a Python-native backend implementation
+  that can emit the clean TIDE-like output contract without adding an R runtime.
+- Reviewed the two supplied genomicLLM notebooks. They help with nucleotide
+  transformer/embedding and zero-shot variant-scoring ideas, but not directly
+  with Sanger alignment, primer design, CRISPR guide design, or TIDE-style
+  decomposition.
+- Corrected the hardening-cohort assumption after Steven clarified the target:
+  the current ClinVar stack is **90 variants plus one global RPE65 control**,
+  not the intended project-hardening matrix. The future matrix should be
+  **10 genes x (one per-gene control sample + nine challenge variants) = 100
+  samples** across landing, variant report, and Workbench. No 100-sample
+  manifest was created in this session.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_workbench_api.py -q`
+  -> passed (34 tests).
+- `cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_rate_limits.py tests/test_payments_api.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/schemas/workbench.py app/services/trace_parser.py app/services/workbench_design.py tests/test_workbench_api.py app/core/rate_limit.py app/core/config.py app/main.py app/api/routes/auth.py app/api/routes/lookup.py app/api/routes/chat.py app/api/routes/evidence.py app/api/routes/payments.py app/api/routes/workbench.py app/schemas/payments.py app/services/payments.py tests/test_rate_limits.py tests/test_payments_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/schemas/workbench.py app/services/trace_parser.py app/services/workbench_design.py tests/test_workbench_api.py app/core/rate_limit.py app/core/config.py app/main.py app/api/routes/auth.py app/api/routes/lookup.py app/api/routes/chat.py app/api/routes/evidence.py app/api/routes/payments.py app/api/routes/workbench.py app/schemas/payments.py app/services/payments.py tests/test_rate_limits.py tests/test_payments_api.py`
+  -> passed after formatting `app/services/trace_parser.py`.
+- `cd app/backend && python -m pytest tests/ -q` -> passed (expected short
+  test-JWT warnings only).
+- `git diff --check` -> passed with existing CRLF working-copy warnings only.
+
+Notes:
+- Render MCP/env access still was not available through callable tools here, so
+  live Render `DEBUG=false` remains to verify when access is visible.
+- SpliceAI source-version decision: use a pinned latest official Illumina
+  package/dataset version only if licensing/deployment is acceptable; do not
+  leave it floating as "latest" at runtime.
+- Supabase storage can be useful later for durable hardening artifacts/caches,
+  but only via backend-owned/service-role paths with private schemas/buckets,
+  explicit RLS/storage policies, and migrations reviewed separately.
+
+## Session 38 - 26 May 2026 - Backend launch security hardening
+
+Codex implemented the backend launch security slice under the explicit user
+approval in the resume prompt. No `/runs`, AlphaMissense, destructive git,
+stash, reset, clean, commit, push, or deploy was performed.
+
+Completed:
+- Ran `git pull --ff-only`; local branch was already up to date.
+- Added a first-launch in-memory backend rate limiter attached to app state and
+  enforced it on auth, lookup/parse/publications, chat/stream, evidence
+  submissions, payments checkout/webhook, and Workbench primer/crispr/align.
+- Added configurable per-scope limits in `Settings` and `.env.example`; kept the
+  implementation backend-local and Redis/gateway-ready for a later durable
+  limiter.
+- Removed client-controlled Stripe checkout redirects from
+  `CheckoutSessionRequest` by forbidding extra fields and always using
+  server-configured `STRIPE_CHECKOUT_SUCCESS_URL` /
+  `STRIPE_CHECKOUT_CANCEL_URL`.
+- Changed the backend `debug` default and `.env.example` to `false` so
+  production no longer depends solely on Render env to avoid debug behavior.
+- Added focused route/security tests for `429` handling and Stripe redirect
+  ownership.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_rate_limits.py tests/test_payments_api.py -q`
+  -> passed (14 tests; expected short test-JWT warnings).
+- `cd app/backend && python -m pytest tests/test_auth_api.py tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_variant_search_integration.py tests/test_lookup_normalize.py tests/test_workbench_api.py tests/test_run_chat_api.py -q`
+  -> passed (79 tests; expected short test-JWT warnings).
+- `cd app/backend && python -m pytest tests/ -q` -> passed (527 passed,
+  5 skipped; expected short test-JWT warnings).
+- `cd app/backend && python -m ruff check app/core/rate_limit.py app/core/config.py app/main.py app/api/routes/auth.py app/api/routes/lookup.py app/api/routes/chat.py app/api/routes/evidence.py app/api/routes/payments.py app/api/routes/workbench.py app/schemas/payments.py app/services/payments.py tests/test_rate_limits.py tests/test_payments_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/rate_limit.py app/core/config.py app/main.py app/api/routes/auth.py app/api/routes/lookup.py app/api/routes/chat.py app/api/routes/evidence.py app/api/routes/payments.py app/api/routes/workbench.py app/schemas/payments.py app/services/payments.py tests/test_rate_limits.py tests/test_payments_api.py`
+  -> passed.
+- `git diff --check` -> passed with existing CRLF working-copy warnings only.
+
+Notes:
+- This is a single-Render-instance limiter by design for launch. A future
+  multi-instance/durable deployment should move counters to Redis, a private DB
+  table, or gateway-level controls.
+- Render env access was still not available in this Codex session, so live
+  `DEBUG=false` was not independently read from Render. The code and example env
+  now default to `false`.
+- An unrelated untracked `PRODUCT.md` is present in the worktree and was left
+  untouched.
+
+## Session 37 - 26 May 2026 - Bare rsID fix committed and pushed
+
+Steven explicitly authorized committing and pushing the rsID fix. Codex kept the
+commit narrowly scoped and did not deploy.
+
+Completed:
+- Ran `git pull --ff-only`; local was already up to date at `af0ebc6`.
+- Staged only the rsID backend code/tests/fixture:
+  `app/backend/app/cli/eamos_search_input.py`,
+  `app/backend/app/services/lookup_service.py`,
+  `app/backend/app/services/search_input_interpreter.py`,
+  `app/backend/app/services/search_input_resolver.py`,
+  `app/backend/app/fixtures/rsid_resolution_records.json`,
+  `app/backend/tests/test_eamos_search_input_cli.py`,
+  `app/backend/tests/test_search_input_resolver.py`, and
+  `app/backend/tests/test_variant_search_integration.py`.
+- Committed `548fde7`:
+  `fix(backend): resolve bare dbSNP rsID searches`.
+- Pushed `548fde7` to `origin/checkpoint/v2-batches-2026-05-17`.
+- Left launch/security handoff docs unstaged/uncommitted; no unrelated Claude,
+  Supabase, or web files were included.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py -q`
+  -> passed (46 tests).
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py tests/test_lookup_normalize.py tests/test_variant_report_orchestration.py -q`
+  -> passed (237 tests).
+- `cd app/backend && python -m ruff check app/services/search_input_resolver.py app/services/search_input_interpreter.py app/services/lookup_service.py app/cli/eamos_search_input.py tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/search_input_resolver.py app/services/search_input_interpreter.py app/services/lookup_service.py app/cli/eamos_search_input.py tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py`
+  -> passed.
+- `git diff --cached --check` passed before commit.
+
+Notes:
+- Render still needs a redeploy to `548fde7` before `rs61752871` and
+  `rs1801133` resolve live on eamos-dev.
+- Per Claude/Steven status, Supabase evidence write-through is now green; the
+  remaining backend launch security items are rate limiting, Stripe redirect
+  restriction, and any remaining Supabase advisor cleanup.
+
+## Session 36 - 25 May 2026 - Launch-blocker and backend security pickup
+
+Codex resumed after Claude's launch-hardening/vibe-security handoff under the
+same guardrails: no `/runs`, AlphaMissense, destructive git, stash, reset,
+clean, push, commit, or deploy.
+
+Completed:
+- Confirmed the current worktree still carries the uncommitted Codex rsID
+  backend/doc fix, plus concurrent app/web files outside the Codex lane.
+- Checked Supabase/Render access for migration 0003 and evidence write-through:
+  Supabase CLI is not installed, no `mcp__supabase__*` tools are exposed in this
+  Codex session, and no Supabase/Render credentials are present in environment.
+  Therefore the live 0003 migration, Render env update, and authenticated live
+  evidence write-through E2E remain blocked here.
+- Read current Supabase guidance. Relevant launch detail: Supabase treats
+  grants and RLS as separate Data API controls, and new-project exposure
+  defaults are changing; the existing Eamos 0001/0002 posture still needs
+  direct column/policy verification after 0003 is applied.
+- Ran the vendored vibe-security backend review over the backend launch surface:
+  Supabase RLS/write-through, JWT verification, evidence submission, Stripe
+  payment/webhook, AI/chat, deployment config, CORS/env, and data access.
+- Live read-only Render smoke passed: `/healthz` returned 200 with database ok,
+  mock LLM, real APIs; `/api/v1/health/provider-cache` returned 200; unauth
+  `POST /api/v1/evidence-submissions` returned 401.
+- Planning subagents produced read-only next-slice plans for AB1/alignment input
+  hardening and SpliceAI source-cache. SpliceAI remains gated on a source-version
+  decision.
+
+Security findings recorded in `agent_handoff/RISKS.md`:
+- Backend has no rate limiting on auth, public lookup/chat, evidence submission,
+  payment checkout/webhook, or Workbench CPU/AB1-style endpoints.
+- `Settings.debug` defaults to true, so Render must explicitly set
+  `DEBUG=false` or the app can expose debug behavior in production.
+- Stripe checkout accepts caller-provided `success_url` / `cancel_url` and sends
+  them to Stripe; this should be removed or restricted to approved origins.
+- Supabase 0001 defines `public.handle_new_user()` as `SECURITY DEFINER`
+  without fixed `search_path` or explicit `REVOKE EXECUTE` hardening.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_evidence_submissions_api.py tests/test_evidence_submissions_supabase.py tests/test_payments_api.py -q`
+  -> passed (14 tests; expected short test-JWT warnings).
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py -q`
+  -> passed (46 tests).
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py tests/test_lookup_normalize.py tests/test_variant_report_orchestration.py -q`
+  -> passed (237 tests).
+
+Notes:
+- No live DB mutation, Render env mutation, commit, push, or deploy was
+  performed.
+- The rsID resolver fix remains uncommitted until explicitly authorized.
+
+## Session 35 - 25 May 2026 - Bare dbSNP rsID resolver hardening
+
+Codex fixed the backend search gap Claude surfaced for bare dbSNP rsIDs under
+the guardrails: no `/runs`, AlphaMissense, destructive git, stash, reset,
+clean, push, or commit.
+
+Completed:
+- Added bounded bare-rsID resolution in the search-input resolver. Fixture mode
+  now has deterministic rsID candidates for the advertised `rs61752871` example
+  and `rs1801133`; live mode queries Ensembl VEP by rsID with `hgvs`,
+  `canonical`, and `mane` fields to derive gene, transcript cDNA, protein,
+  GRCh38 variant ID, and RefSeq genomic HGVS.
+- Updated the interpreter so resolved rsIDs auto-select a canonical candidate
+  when unambiguous or when one alternate allele has source support. The
+  multiallelic `rs1801133` path records the assumption and selects the
+  source-supported MTHFR `NM_005957.5:c.665C>T` / `p.Ala222Val` allele.
+- Hardened `/api/v1/lookup` so a raw rsID auto-resolution carries its resolved
+  genomic identity into the report pipeline instead of dropping back to an
+  empty-gene `:rs...` query.
+- Extended `python -m app.cli.eamos_search_input` output with
+  `rsid_candidates` for developer smoke/debugging.
+- Added regressions for `/lookup/parse`, `/lookup`, resolver live/fallback
+  behavior, and the developer CLI.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py tests/test_lookup_normalize.py tests/test_variant_report_orchestration.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_tool_invariants.py tests/test_source_cache.py tests/test_variant_cache.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/services/search_input_resolver.py app/services/search_input_interpreter.py app/services/lookup_service.py app/cli/eamos_search_input.py tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/search_input_resolver.py app/services/search_input_interpreter.py app/services/lookup_service.py app/cli/eamos_search_input.py tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_eamos_search_input_cli.py`
+  -> passed.
+- Live local Ensembl smoke: `rs61752871` auto-resolved to
+  `RPE65 NM_000329.3:c.271C>T (p.Arg91Trp)` / `1-68444858-G-A`;
+  `rs1801133` auto-resolved to `MTHFR NM_005957.5:c.665C>T
+  (p.Ala222Val)` / `1-11796321-G-A` with the multiallelic assumption recorded.
+- `git diff --check` -> passed with existing CRLF working-copy warnings only.
+
+Notes:
+- This is a backend-only search hardening slice. No TypeScript/backend contract
+  shape changed.
+- Deployed `eamos-dev` will still show the old behavior until this uncommitted
+  backend change is committed/pushed and Render is redeployed.
+
 ## Session 34 - 25 May 2026 - Provider/cache health endpoint
 
 Codex continued after the arbitrary gnomAD source-cache handoff under the same

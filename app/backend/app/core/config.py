@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     app_name: str = "eamos-backend"
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = True
+    debug: bool = False
     search_answer_enabled: bool = False
     search_answer_top_k: int = 5
     api_prefix: str = "/api/v1"
@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     supabase_rest_timeout_seconds: float = 10.0
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    rate_limit_default_max_requests: int = 60
+    rate_limit_auth_max_requests: int = 20
+    rate_limit_lookup_max_requests: int = 30
+    rate_limit_chat_max_requests: int = 10
+    rate_limit_evidence_max_requests: int = 10
+    rate_limit_payments_checkout_max_requests: int = 6
+    rate_limit_payments_webhook_max_requests: int = 60
+    rate_limit_workbench_max_requests: int = 20
+    rate_limit_trust_proxy_headers: bool = False
 
     llm_provider: str = "mock"
     openai_api_key: str | None = None

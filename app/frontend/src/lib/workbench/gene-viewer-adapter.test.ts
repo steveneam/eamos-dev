@@ -221,6 +221,105 @@ describe('adaptGeneViewer — fixture parity with RPE65_V2 (hybrid)', () => {
     expect(data.exonVariantCount[4]).toBe(46)
     expect(data.exonVariantCount[14]).toBe(11)
   })
+
+  it('applies protein-product truncation to protein length, features, and exons', () => {
+    const resp: GeneViewerResponse = {
+      ...GENERIC_VIEWER_RESPONSE,
+      queried_variant: {
+        ...GENERIC_VIEWER_RESPONSE.queried_variant,
+        hgvs_c: 'c.4G>T',
+        hgvs_p: 'p.Glu2Ter',
+        cds_pos: 4,
+        ref: 'G',
+        alt: 'T',
+        codon_number: 2,
+        codon_offset: 0,
+        aa_ref: 'E',
+        aa_alt: '*',
+      },
+      segments: [
+        {
+          ...GENERIC_VIEWER_RESPONSE.segments[0],
+          sequence: 'ATGGAA',
+        },
+        GENERIC_VIEWER_RESPONSE.segments[1],
+        {
+          ...GENERIC_VIEWER_RESPONSE.segments[2],
+          sequence: 'TTTTAA',
+        },
+      ],
+      tracks: {
+        ...GENERIC_VIEWER_RESPONSE.tracks,
+        protein_features: {
+          ...GENERIC_VIEWER_RESPONSE.tracks.protein_features,
+          domains: [
+            {
+              aa_start: 1,
+              aa_end: 4,
+              label: 'Mini catalytic domain',
+              short_label: 'Mini domain',
+            },
+          ],
+          active_sites: [{ aa: 3, residue: 'H', label: 'Downstream active site' }],
+          membrane_binding: [{ aa_start: 2, aa_end: 4, label: 'Downstream helix' }],
+        },
+        protein_product: {
+          allele_mode: 'variant',
+          consequence: 'stop_gained',
+          label: 'Stop gained at codon 2',
+          description: 'Variant-applied translation stops at codon 2.',
+          reference_protein_length: 4,
+          effective_protein_length: 1,
+          truncates_protein: true,
+          stop_codon: 2,
+          affected_aa_start: 2,
+          lost_aa_count: 3,
+          nmd_risk: 'possible',
+          exon_effects: [
+            {
+              exon_number: 1,
+              cds_start: 1,
+              cds_end: 6,
+              state: 'contains_variant',
+              affected_cds_start: 4,
+              affected_cds_end: 6,
+              lost_cds_bases: 3,
+            },
+            {
+              exon_number: 2,
+              cds_start: 7,
+              cds_end: 12,
+              state: 'downstream_truncated',
+              affected_cds_start: 7,
+              affected_cds_end: 12,
+              lost_cds_bases: 6,
+            },
+          ],
+        },
+      },
+    }
+
+    const data = adaptGeneViewer(resp, 'variant')
+
+    expect(data.proteinLength).toBe(1)
+    expect(data.proteinProduct?.consequence).toBe('stop_gained')
+    expect(data.proteinProduct?.truncatesProtein).toBe(true)
+    expect(data.exons.map((ex) => [ex.num, ex.proteinState])).toEqual([
+      [1, 'contains_variant'],
+      [2, 'downstream_truncated'],
+    ])
+    expect(data.exons[1].lostCdsBases).toBe(6)
+    expect(data.domains).toEqual([
+      {
+        aaStart: 1,
+        aaEnd: 1,
+        label: 'Mini catalytic domain',
+        shortLabel: 'Mini domain',
+      },
+    ])
+    expect(data.proteinFeatures.activeSites).toEqual([])
+    expect(data.proteinFeatures.membraneBinding).toEqual([])
+  })
 })
 
 describe('adaptGeneViewer — allele mode overlay', () => {
@@ -270,6 +369,44 @@ describe('adaptGeneViewer — non-RPE65 live payloads', () => {
       { kind: 'exon', exonNum: 1, cdsStart: 1, cdsEnd: 6, seq: 'AAACCC' },
       { kind: 'intron', intronNum: 1, totalLen: 94, fiveSeq: '', threeSeq: '' },
       { kind: 'exon', exonNum: 2, cdsStart: 7, cdsEnd: 12, seq: 'GAGTTT' },
+    ])
+  })
+
+  it('uses backend-applied edit metadata for indel-sized segment changes', () => {
+    const resp: GeneViewerResponse = {
+      ...GENERIC_VIEWER_RESPONSE,
+      queried_variant: {
+        ...GENERIC_VIEWER_RESPONSE.queried_variant,
+        hgvs_c: 'c.4_6delGAA',
+        cds_pos: 4,
+        ref: 'GAA',
+        alt: '',
+      },
+      segments: [
+        {
+          ...GENERIC_VIEWER_RESPONSE.segments[0],
+          sequence: 'ATGGAA',
+        },
+      ],
+      sequences: {
+        allele_mode: 'variant',
+        reference_window_sequence: 'ATGGAA',
+        display_window_sequence: 'ATG',
+        applied_variant: {
+          hgvs_c: 'c.4_6delGAA',
+          cds_pos: 4,
+          segment_id: 'exon-1:1-6',
+          sequence_offset: 3,
+          ref: 'GAA',
+          alt: '',
+        },
+      },
+    }
+
+    const data = adaptGeneViewer(resp, 'variant')
+
+    expect(data.windowSegments).toEqual([
+      { kind: 'exon', exonNum: 1, cdsStart: 1, cdsEnd: 6, seq: 'ATG' },
     ])
   })
 })

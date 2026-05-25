@@ -21,6 +21,93 @@ Guardrails:
   uncommitted work and origin/main, not Claude specifically.
 - Do not treat untracked files as junk.
 
+## Backend Launch Security Findings
+
+Section edited: 2026-05-26 04:12 +1000 - Codex.
+
+The vendored vibe-security backend review findings are now mostly resolved in
+the local backend tree:
+
+- **Resolved locally - backend rate limiting.** Auth register/login/logout/me,
+  public lookup/parse/publications, chat/stream, evidence submission, payment
+  checkout/webhook, and Workbench primer/crispr/align now call a configurable
+  in-memory limiter. Evidence and checkout combine per-IP with per-principal
+  counters; auth combines per-IP with username/token subject where available.
+  This is launch-suitable for a single Render instance. Durable multi-instance
+  deployments should move counters to Redis, a private DB table, or gateway
+  controls.
+- **Resolved locally - production debug default.**
+  `app/backend/app/core/config.py` and `app/backend/.env.example` now default
+  `DEBUG=false`. Render env still should be verified directly once env access is
+  visible, but the code no longer defaults to debug behavior.
+- **Resolved locally - Stripe checkout redirects.** `CheckoutSessionRequest`
+  no longer accepts `success_url` / `cancel_url`; extra fields are rejected, and
+  Stripe checkout always uses configured server-side redirect URLs.
+- **Resolved locally - Workbench AB1/alignment bounds.** Primer/CRISPR/align
+  request schemas now bound core text/numeric fields; AB1 parsing rejects
+  overlarge encoded/decoded payloads, too many base calls/qualities/peaks,
+  too many trace-channel samples, and non-finite signal values; real-mode
+  `/align` rejects ambiguous sequence+AB1 input; and pairwise alignment checks
+  the matrix size before calling Biopython.
+- **Resolved locally - viewer route perimeter.** `/api/v1/viewer` now uses the
+  Workbench rate limiter, `GeneViewerRequest` fields/window values/tracks are
+  bounded, and spoofable proxy-header trust for rate-limit client IP selection
+  now defaults false unless explicitly enabled.
+- **Resolved live per Claude/Steven - Supabase advisor cleanup.** Supabase
+  0006 reportedly cleared the `public.rls_auto_enable()` advisor warning and
+  security advisors are clean.
+- **Residual - durable perimeter.** The limiter is still in-memory and
+  single-instance; a multi-instance deployment should move counters to Redis,
+  a private Supabase/Postgres table, or gateway controls. If forwarded-client-IP
+  semantics are needed later, enable them only after reviewing the exact
+  Render/gateway path.
+- **Residual - live env visibility.** Render `DEBUG=false` was reported set by
+  Claude/Steven and code now defaults false, but this Codex session still did
+  not have callable Render env visibility to verify it directly.
+
+## Gene Viewer Dynamic Product Risks
+
+Section edited: 2026-05-26 04:12 +1000 - Codex.
+
+The gene/protein viewer now has an internal Eamos variant-applied product
+workflow, but the following limits should remain explicit:
+
+- It is a molecular-display workflow, not an ACMG classification engine. PVS1,
+  NMD, LoF mechanism, rescue transcript, and pathogenicity strength should
+  remain source-gated.
+- Simple transcript-window SNV/indel/dup/delins edits are handled locally.
+  Cross-segment, cross-exon, or ambiguous HGVS representations fail closed until
+  the viewer can represent multi-segment edits without misleading geometry.
+- Backend source confidence still matters. Prefer VEP/VariantValidator/ClinVar
+  consequence data and keep unsupported protein-only or ambiguous alignments out
+  of live variant-applied claims.
+- Browser verification used Vite fallback sample data because the backend API
+  was not running. Re-smoke with the backend running before treating live
+  request/render wiring as end-to-end verified.
+- Mobile Workbench horizontal overflow remains a separate frontend risk.
+
+## Project-Wide Hardening Cohort
+
+Section edited: 2026-05-26 02:49 +1000 - Codex.
+
+The current ClinVar stack is not the project-wide hardening matrix Steven
+clarified on 2026-05-26:
+
+- Existing fixture shape:
+  `app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json` has
+  10 non-RPE65 genes x 9 variants = 90 variants, plus one separate global
+  RPE65 control.
+- Required hardening shape: 10 chosen genes x (one per-gene control sample +
+  nine challenge variants) = 100 samples across landing, variant report, and
+  Workbench.
+- Safest path: add a separate hardening manifest instead of mutating the
+  existing ClinVar report-stack fixture, because
+  `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
+  references the existing stack for curated snapshot hydration.
+- Supabase storage can hold durable hardening artifacts/caches later, but only
+  through backend-owned service-role paths with private schemas/buckets,
+  explicit RLS/storage policies, and reviewed migrations.
+
 ## Old Agent-Split Assumptions
 
 Some existing docs say or imply Claude Code owns substantive work while Codex

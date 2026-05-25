@@ -174,6 +174,11 @@ function ViewerSide({
   const qv = data.queriedVariant
   const g = data.genomicCoords
   const pf = data.proteinFeatures
+  const product = data.proteinProduct
+  const proteinLengthLabel =
+    product?.truncatesProtein && product.referenceProteinLength != null
+      ? `${product.effectiveProteinLength ?? data.proteinLength} / ${product.referenceProteinLength} aa`
+      : `${data.proteinLength} aa`
 
   return (
     <>
@@ -185,6 +190,13 @@ function ViewerSide({
             k="Codon"
             v={`${qv.codonNumber} (${aaThree[qv.aaRef]} → ${aaThree[qv.aaAlt]})`}
           />
+          {product && (
+            <Kv
+              k="Product"
+              v={product.label}
+              tone={product.truncatesProtein ? 'warn' : undefined}
+            />
+          )}
           <Kv k="Class" v="Likely Pathogenic" tone="warn" />
           <Kv k="PhyloP" v="0.96" tone="ok" />
         </div>
@@ -216,7 +228,11 @@ function ViewerSide({
           <Kv k="CDS" v={`c.1–c.${data.cdsLength} · ${data.cdsLength.toLocaleString()} bp`} />
           <Kv k="5′ UTR" v={`${data.utr5Length} bp (exons 1–2)`} />
           <Kv k="3′ UTR" v={`${data.utr3Length.toLocaleString()} bp (exon ${data.totalExons})`} />
-          <Kv k="Protein" v={`${data.proteinLength} aa`} />
+          <Kv
+            k="Protein"
+            v={proteinLengthLabel}
+            tone={product?.truncatesProtein ? 'warn' : undefined}
+          />
           <Kv
             k="Native strand"
             v={g.strand === '-' ? 'reverse (←)' : 'forward (→)'}
@@ -256,6 +272,8 @@ function ViewerSide({
                 'side-exon-row',
                 ex.num >= 3 && ex.num <= 5 ? 'in-window' : '',
                 ex.num === activeExon ? 'current' : '',
+                ex.proteinState === 'contains_variant' ? 'contains-variant' : '',
+                ex.proteinState === 'downstream_truncated' ? 'downstream-truncated' : '',
               ]
                 .filter(Boolean)
                 .join(' ')
@@ -264,9 +282,17 @@ function ViewerSide({
                   key={ex.num}
                   type="button"
                   className={cls}
-                  title={`Exon ${ex.num} · ${len} bp · ${
-                    data.exonVariantCount[ex.num] || 0
-                  } ClinVar variants`}
+                  title={[
+                    `Exon ${ex.num} · ${len} bp · ${
+                      data.exonVariantCount[ex.num] || 0
+                    } ClinVar variants`,
+                    ex.proteinState === 'contains_variant' ? 'variant-applied product affected' : '',
+                    ex.proteinState === 'downstream_truncated'
+                      ? `${ex.lostCdsBases ?? 0} CDS bp lost from product`
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                   onClick={() => onJumpToExon(ex.num)}
                 >
                   <span className="ex-num">{ex.num}</span>
@@ -287,7 +313,18 @@ function ViewerSide({
 
       <Section title="Protein features">
         <div className="kv-list">
-          <Kv k="Length" v={`${data.proteinLength} aa`} />
+          <Kv
+            k="Length"
+            v={proteinLengthLabel}
+            tone={product?.truncatesProtein ? 'warn' : undefined}
+          />
+          {product && (
+            <Kv
+              k="Variant product"
+              v={product.label}
+              tone={product.truncatesProtein ? 'warn' : undefined}
+            />
+          )}
           <Kv
             k="Signal peptide"
             v={pf.signalPeptide ? `aa ${pf.signalPeptide.aaStart}–${pf.signalPeptide.aaEnd}` : 'none'}

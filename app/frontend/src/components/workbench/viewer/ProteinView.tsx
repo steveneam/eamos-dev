@@ -44,7 +44,22 @@ const LANE_GAP_PCT = 3.4
 const MAX_LANES = 4
 
 export function ProteinView({ data, alleleMode }: ProteinViewProps) {
-  const protLen = Math.max(1, data.proteinLength || 0)
+  const product = alleleMode === 'variant' ? data.proteinProduct : null
+  const referenceLen = Math.max(
+    1,
+    product?.referenceProteinLength ?? data.proteinLength ?? 0,
+  )
+  const effectiveLen = Math.max(
+    0,
+    product?.truncatesProtein
+      ? (product.effectiveProteinLength ?? data.proteinLength)
+      : data.proteinLength,
+  )
+  const protLen = product?.truncatesProtein ? referenceLen : Math.max(1, data.proteinLength || 0)
+  const truncationStartAa =
+    product?.truncatesProtein
+      ? (product.stopCodon ?? Math.min(referenceLen, effectiveLen + 1))
+      : null
   const clampAa = (aa: number) => Math.min(Math.max(aa, 1), protLen)
   const pct = (aa: number) => ((clampAa(aa) - 1) / Math.max(1, protLen - 1)) * 100
   const spanStyle = (aaStart: number, aaEnd: number) => {
@@ -129,8 +144,13 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
       <div className="sv-pv-head-row">
         <span className="sv-pv-title">Protein</span>
         <span className="sv-pv-meta">
-          {data.gene} · {protLen} aa ·{' '}
+          {data.gene} ·{' '}
+          {product?.truncatesProtein
+            ? `${effectiveLen} / ${referenceLen} aa`
+            : `${protLen} aa`}{' '}
+          ·{' '}
           {alleleMode === 'variant' ? 'variant-applied' : 'reference'} ·{' '}
+          {product?.truncatesProtein ? `${product.label} · ` : ''}
           {lollipops.length} ClinVar record{lollipops.length === 1 ? '' : 's'}{' '}
           projected
           {splices.length ? ` (+${splices.length} splice/intronic)` : ''}
@@ -171,6 +191,16 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
 
         {/* Backbone + domains + region features */}
         <div className="sv-pv-backbone">
+          {product?.truncatesProtein && truncationStartAa != null && (
+            <div
+              className="sv-pv-truncated-zone"
+              style={{
+                left: `${pct(truncationStartAa)}%`,
+                width: `${Math.max(0, pct(referenceLen) - pct(truncationStartAa))}%`,
+              }}
+              title={`${product.lostAaCount} aa lost from variant-applied product`}
+            />
+          )}
           {signalPeptide && (
             <div
               className="sv-pv-region signal"
@@ -203,6 +233,13 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
           })}
           <span className="sv-pv-term n">N</span>
           <span className="sv-pv-term c">C</span>
+          {product?.truncatesProtein && truncationStartAa != null && (
+            <span
+              className="sv-pv-stop"
+              style={{ left: `${pct(truncationStartAa)}%` }}
+              title={product.label}
+            />
+          )}
         </div>
 
         {/* Point features below the backbone */}
@@ -240,6 +277,9 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
       </div>
 
       <div className="sv-pv-legend">
+        {product?.truncatesProtein && (
+          <span className="sv-pv-product-note">{product.description}</span>
+        )}
         <span>
           Lollipops are <b>uniform size</b> — ClinVar is a curated record set,
           not a cohort frequency table.

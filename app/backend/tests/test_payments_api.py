@@ -65,6 +65,61 @@ def test_checkout_session_rejects_legacy_starter_and_yearly_cycle(
     assert legacy_cycle.status_code == 422
 
 
+def test_checkout_session_rejects_client_controlled_redirect_urls(
+    auth_client: TestClient,
+) -> None:
+    response = auth_client.post(
+        "/api/v1/payments/checkout-session",
+        json={
+            "plan_key": "max",
+            "success_url": "https://evil.example/success",
+            "cancel_url": "https://evil.example/cancel",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_stripe_checkout_uses_server_configured_redirect_urls(
+    auth_client: TestClient,
+    monkeypatch,
+) -> None:
+    captured: dict = {}
+    settings = auth_client.app.state.settings
+    settings.stripe_secret_key = "sk_test_mock"
+    settings.stripe_price_max_monthly = "price_max_mock"
+    settings.stripe_checkout_success_url = (
+        "https://eamos.com.au/checkout/success?session_id={CHECKOUT_SESSION_ID}"
+    )
+    settings.stripe_checkout_cancel_url = "https://eamos.com.au/checkout"
+
+    class FakeStripeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"id": "cs_test_redirects", "url": "https://checkout.stripe.test/session"}
+
+    def fake_post(url, *, data, headers, timeout):
+        captured["url"] = url
+        captured["data"] = data
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        return FakeStripeResponse()
+
+    monkeypatch.setattr("app.services.payments.httpx.post", fake_post)
+
+    response = auth_client.post(
+        "/api/v1/payments/checkout-session",
+        json={"plan_key": "max"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "stripe"
+    assert captured["data"]["success_url"] == settings.stripe_checkout_success_url
+    assert captured["data"]["cancel_url"] == settings.stripe_checkout_cancel_url
+
+
 def test_stripe_webhook_rejects_missing_signature(client: TestClient) -> None:
     client.app.state.settings.stripe_webhook_secret = "whsec_test"
     response = client.post(

@@ -775,6 +775,8 @@ def test_viewer_endpoint_applies_variant_mode_to_fixture_response(client) -> Non
     assert body["sequences"]["reference_window_sequence"][103] == "A"
     assert body["sequences"]["display_window_sequence"][103] == "G"
     assert body["sequences"]["applied_variant"]["sequence_offset"] == 103
+    assert body["tracks"]["protein_product"]["allele_mode"] == "variant"
+    assert body["tracks"]["protein_product"]["consequence"] == "missense"
 
 
 def test_viewer_endpoint_returns_curated_non_rpe65_fixture_response(client) -> None:
@@ -796,6 +798,43 @@ def test_viewer_endpoint_returns_curated_non_rpe65_fixture_response(client) -> N
     assert body["segments"][2]["exon_number"] == 3
     assert "transcript_model_from_ensembl_rest_fixture" in body["provenance"]["warnings"]
     assert "transcript_model_from_rpe65_fixture_scaffold" not in body["provenance"]["warnings"]
+
+
+def test_viewer_endpoint_rejects_oversized_schema_inputs(client) -> None:
+    overlong_gene = client.post(
+        "/api/v1/viewer",
+        json={"gene": "G" * 33, "cdna": "c.260A>G"},
+    )
+    too_many_tracks = client.post(
+        "/api/v1/viewer",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "tracks": ["sequence"] * 9,
+        },
+    )
+
+    assert overlong_gene.status_code == 422
+    assert too_many_tracks.status_code == 422
+
+
+def test_viewer_endpoint_rejects_non_overlapping_window(client) -> None:
+    response = client.post(
+        "/api/v1/viewer",
+        json={
+            "gene": "CFTR",
+            "cdna": "c.199C>T",
+            "transcript": "NM_000492.4",
+            "window": {
+                "kind": "cds_range",
+                "cds_start": 50000,
+                "cds_end": 1,
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == unsupported_input_warning("fixture_window")
 
 
 def test_viewer_endpoint_service_failures_map_to_structured_http_errors(client) -> None:
@@ -879,6 +918,100 @@ def test_window_builder_variant_mode_applies_only_requested_snv() -> None:
     assert response.sequences.applied_variant is not None
     assert response.sequences.applied_variant.segment_id == "exon-2:10-12"
     assert response.sequences.applied_variant.sequence_offset == 7
+
+
+@pytest.mark.parametrize(
+    "hgvs_c,expected,ref,alt,offset",
+    [
+        ("c.4_6delGAA", "ATG", "GAA", "", 3),
+        ("c.3_4insTT", "ATGTTGAA", "", "TT", 3),
+        ("c.4_6dupGAA", "ATGGAAGAA", "", "GAA", 6),
+        ("c.4_6delinsTT", "ATGTT", "GAA", "TT", 3),
+    ],
+)
+def test_window_builder_applies_simple_indel_dup_and_delins_variants(
+    hgvs_c: str,
+    expected: str,
+    ref: str,
+    alt: str,
+    offset: int,
+) -> None:
+    transcript = TranscriptModel(
+        gene="EDIT",
+        transcript="NM_EDIT.1",
+        chrom="chr1",
+        strand="+",
+        exons=(TranscriptExon(number=1, cds_start=1, cds_end=6, sequence="ATGGAA"),),
+    )
+
+    response = TranscriptWindowBuilder().build(
+        request=GeneViewerRequest(
+            gene="EDIT",
+            cdna=hgvs_c,
+            transcript="NM_EDIT.1",
+            allele_mode="variant",
+            window=ViewerWindowRequest(kind="cds_range", cds_start=1, cds_end=6),
+        ),
+        transcript=transcript,
+        variant=VariantProjection.from_hgvs_c(hgvs_c),
+    )
+
+    assert response.sequences.reference_window_sequence == "ATGGAA"
+    assert response.sequences.display_window_sequence == expected
+    assert response.sequences.applied_variant is not None
+    assert response.sequences.applied_variant.ref == ref
+    assert response.sequences.applied_variant.alt == alt
+    assert response.sequences.applied_variant.sequence_offset == offset
+
+
+def test_window_builder_variant_mode_models_stop_gained_product_truncation() -> None:
+    transcript = TranscriptModel(
+        gene="STOP",
+        transcript="NM_STOP.1",
+        chrom="chr1",
+        strand="+",
+        exons=(
+            TranscriptExon(number=1, cds_start=1, cds_end=6, sequence="ATGGAA"),
+            TranscriptExon(number=2, cds_start=7, cds_end=12, sequence="TTTTAA"),
+        ),
+        cds_length=12,
+        protein_length=4,
+    )
+    variant = VariantProjection(
+        hgvs_c="c.4G>T",
+        cds_pos=4,
+        ref="G",
+        alt="T",
+        hgvs_p="p.Glu2Ter",
+        codon_number=2,
+        codon_offset=0,
+        aa_ref="E",
+        aa_alt="*",
+    )
+
+    response = TranscriptWindowBuilder().build(
+        request=GeneViewerRequest(
+            gene="STOP",
+            cdna="c.4G>T",
+            transcript="NM_STOP.1",
+            allele_mode="variant",
+            window=ViewerWindowRequest(kind="cds_range", cds_start=1, cds_end=12),
+        ),
+        transcript=transcript,
+        variant=variant,
+    )
+
+    product = response.tracks.protein_product
+    assert product is not None
+    assert product.consequence == "stop_gained"
+    assert product.truncates_protein is True
+    assert product.stop_codon == 2
+    assert product.effective_protein_length == 1
+    assert product.lost_aa_count == 3
+    assert [(item.exon_number, item.state) for item in product.exon_effects] == [
+        (1, "contains_variant"),
+        (2, "downstream_truncated"),
+    ]
 
 
 def test_window_builder_renders_reverse_strand_in_transcript_order() -> None:

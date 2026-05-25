@@ -14,7 +14,7 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-25 21:50 +1000 - **Launch-readiness pass (app/web, UNCOMMITTED, tsc-clean).** deepthink audit -> P0/P1 fixes: PostHog scrubs the queried variant from `$current_url` + identifies by Supabase UUID not email (`providers.tsx`); dev-leak offline/loading copy removed (`ReportClient.tsx`); "ACMG verdict"->"classification" (`DiseaseSection.tsx`); RUO footer line + github placeholder removed (`SiteFooter.tsx`); founder note replaced the fabricated testimonial (`Testimonials.tsx`); MetricBelt real sourced metrics (ClinVar 3M+/gnomAD 909M+/ClinicalTrials 586K+/PubMed 40M+); FeaturesGrid -> product-snapshot gallery (new `public/feat-*.webp`). Workbench->Next pass 1 also landed in app/web (route+chrome+viewer skeleton; Vite untouched). Supabase MCP wired (`.mcp.json`, hosted HTTP/OAuth - needs restart+auth). NOT committed; no servers running. Pending: SEO (metadataBase/OG/robots/sitemap), gnomAD-map gallery tile, Privacy Policy, EvidenceTable provenance pills. Detail: ~/.claude/plans/next-session-eamos.md.
+- **Claude:** IDLE @ 2026-05-26 01:41 +1000 - **Auth email flow + warm email templates + Eamos capitalization + mobile-lag/UI fixes (ALL PUSHED, tip `ad59104`, local==origin).** Supabase 0003-0006 live via MCP (0005 = grant service_role DML = THE evidence-403 fix; 0006 advisor cleanup); advisor CLEAN; project on **Pro tier**; evidence write-through **E2E GREEN** (verified via live UI → real `EAMOS-EVS-…` id); Vercel `NEXT_PUBLIC_EVIDENCE_API_ENABLED=true` LIVE. **Confirm-email ON** + custom SMTP via **Resend** (`eamos.com.au` domain verified). NEW code: `app/web/app/auth/confirm/route.ts` + `app/web/utils/supabase/server.ts` (verifyOtp→auto-login), `AuthProvider.updatePassword` + `app/web/app/account/update-password/page.tsx`, 4 warm email templates in `supabase/email-templates/` (Steven pasted confirm-signup; #2/#3/#4 optional; **templates are dashboard-only — MCP has no auth-config tool**). **Eamos** wordmark capitalized site-wide (EamosLogo/Workbench/og-image/emails). Mobile typing lag fixed (removed auth-panel + sticky-nav backdrop-blur; froze Lifestream anim ≤640px); dark `<select>` readable. Codex `548fde7` rsID live-verified (I redeployed Render via the deploy-hook `.render-deploy-hook`). Render MCP in `.mcp.json` needs `RENDER_API_KEY` + a restart (can't trigger deploys → use hook). No servers running. Detail: ~/.claude/plans/next-session-eamos.md (later 10).
 - **Claude (prior):** IDLE @ 2026-05-24 22:04 +1000 â€” **eamos.com.au LIVE + auth working in
   prod; 2 Claude commits pushed (clear-safe).** Domain go-live DONE: Vercel apex
   (Production) + `www`â†’apex 308; Porkbun DNS (A `@`â†’216.198.79.1, CNAME `www`â†’
@@ -32,10 +32,16 @@
   servers running. Parked: `sales@eamos.com.au` mailto (after Porkbun forwarding),
   Render `ALLOWED_ORIGINS` (optional), CMRI IT domain allow-list (work network 403s
   the new domain). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-25 21:46 +1000 - Added Claude's bare-rsID
-  resolver request to the Codex next-session queue; no source changes after the
-  verified provider/cache health slice. No `/runs`, AlphaMissense, destructive
-  git, stash, reset, clean, push, or commit.
+- **Codex:** IDLE @ 2026-05-26 04:28 +1000 - Gene viewer dynamic
+  variant-applied product workflow is implemented locally and verified across
+  backend plus Vite Workbench: protein/exon/domain state can now reflect
+  source-backed missense/synonymous/stop-gained/stop-lost/frameshift/in-frame
+  indel/dup/delins-style consequences instead of only static reference
+  geometry. `/api/v1/viewer` is rate-limited, viewer request fields are bounded,
+  and proxy-header rate-limit trust now defaults false. Full backend pytest,
+  ruff, black, focused frontend tests, Vite TypeScript, and Vite build passed.
+  Steven explicitly approved the Codex-lane commit/push. No deploy, `/runs`,
+  AlphaMissense, destructive git, stash, reset, clean, or Supabase writes.
 
 ## Log Edit-Lock
 
@@ -45,12 +51,53 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-25 21:47 +1000 · Codex (bare-rsID resolver task added to next-session queue)
+UNLOCKED · 2026-05-26 04:28 +1000 · Codex (commit/push handoff update complete)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED Workbench input hardening files** (2026-05-26 02:49 +1000)
+  - Backend: `app/backend/app/schemas/workbench.py`,
+  `app/backend/app/services/trace_parser.py`,
+  `app/backend/app/services/workbench_design.py`.
+  - Tests/docs: `app/backend/tests/test_workbench_api.py`, `PROGRESS.md`,
+  `plans/v2-backend.md`, `agent_handoff/RISKS.md`, and
+  `agent_handoff/CURRENT.md`.
+  - Scope: Workbench AB1/alignment input hardening plus cohort-correction
+  handoff only; no `/runs`, AlphaMissense, destructive git, stash, reset,
+  clean, commit, push, deploy, or Supabase writes.
+- **Codex RELEASED gene-viewer dynamic variant-applied files**
+  (2026-05-26 04:12 +1000)
+  - Backend: `app/backend/app/schemas/gene_viewer.py`,
+  `app/backend/app/services/gene_viewer.py`,
+  `app/backend/app/services/variant_applied_model.py`,
+  `app/backend/app/api/routes/gene_viewer.py`, and
+  `app/backend/tests/{test_gene_viewer.py,test_variant_applied_model.py,test_frontend_contract.py,test_rate_limits.py}`.
+  - Contract/frontend mirrors: `app/frontend/src/lib/backend.ts`,
+  `app/web/lib/backend.ts`, `app/frontend/src/lib/workbench/gene-window.ts`,
+  `app/web/lib/workbench/gene-window.ts`,
+  `app/frontend/src/lib/workbench/gene-viewer-adapter.ts`,
+  `app/web/lib/workbench/gene-viewer-adapter.ts`, viewer components/styles in
+  both Workbench surfaces, and focused adapter tests.
+  - Coordination/docs: `PROGRESS.md`, `plans/v2-backend.md`,
+  `agent_handoff/RISKS.md`, and `agent_handoff/CURRENT.md`.
+  - Scope: additive dynamic variant-applied protein/product model plus viewer
+  rate-limit consistency; no commit, push, deploy, Supabase writes,
+  `/runs`, AlphaMissense, destructive git, stash, reset, or clean.
+- **Codex RELEASED backend launch security files** (2026-05-26 02:13 +1000)
+  - Backend: `app/backend/app/core/rate_limit.py`,
+  `app/backend/app/core/config.py`, `app/backend/app/main.py`,
+  `app/backend/app/api/routes/auth.py`, `lookup.py`, `chat.py`, `evidence.py`,
+  `payments.py`, `workbench.py`, `app/backend/app/schemas/payments.py`,
+  `app/backend/app/services/payments.py`, and `app/backend/.env.example`.
+  - Tests/docs: `app/backend/tests/test_rate_limits.py`,
+  `app/backend/tests/test_payments_api.py`, `PROGRESS.md`,
+  `plans/v2-backend.md`, `agent_handoff/RISKS.md`, and
+  `agent_handoff/CURRENT.md`.
+  - Scope: launch security hardening only; no `/runs`, AlphaMissense,
+  destructive git, stash, reset, clean, commit, push, or deploy.
 
 - **Codex RELEASED source-cache hero example pilot files**
   (2026-05-25 20:25 +1000)
@@ -86,6 +133,21 @@ Rule 4); release when done.
   and `agent_handoff/CURRENT.md`.
   - Scope: additive backend-only health payload; no `/runs`, AlphaMissense,
   destructive git, stash, reset, clean, push, or commit.
+
+- **Codex RELEASED bare-rsID resolver hardening files**
+  (2026-05-25 22:22 +1000)
+  - Backend: `app/backend/app/services/search_input_resolver.py`,
+  `app/backend/app/services/search_input_interpreter.py`,
+  `app/backend/app/services/lookup_service.py`,
+  `app/backend/app/cli/eamos_search_input.py`, and
+  `app/backend/app/fixtures/rsid_resolution_records.json`.
+  - Tests/docs: `app/backend/tests/test_search_input_resolver.py`,
+  `app/backend/tests/test_variant_search_integration.py`,
+  `app/backend/tests/test_eamos_search_input_cli.py`, `PROGRESS.md`,
+  `plans/v2-backend.md`, and `agent_handoff/CURRENT.md`.
+  - Scope: backend search hardening only; no TypeScript contract shape change,
+  no `/runs`, AlphaMissense, destructive git, stash, reset, clean, push, or
+  commit.
 
 - **Codex RELEASED Publications/Workbench/source-cache architecture files**
   (2026-05-25 02:15 +1000)
@@ -737,7 +799,7 @@ DONE entries older than the last major boundary into the relevant plan/log.
   `app/web/components/report/{PubMedSection,TrialsSection}.tsx`;
   `app/backend/app/services/publication_literature.py`;
   `app/backend/app/tools/clinvar.py`.
-- [OPEN] Claude->Codex (2026-05-25 21:50 +1000): **Bare dbSNP rsID does not
+- [DONE] Claude->Codex (2026-05-25 21:50 +1000): **Bare dbSNP rsID does not
   resolve (backend resolver).** `/report?q=rs1801133` (MTHFR C677T) on
   eamos-dev returns a `SearchInputInterpretation` "Search needs more detail"
   (deterministic, high) with NO candidate, so no report renders -- the FE
@@ -749,7 +811,11 @@ DONE entries older than the last major boundary into the relevant plan/log.
   and does `rs61752871` itself resolve live? (Separate/known: Render free-tier
   cold start ~30-60s slows the first live lookup.) Deliver via backend
   resolver / `/lookup`; FE copy in
-  `app/web/components/report/ReportClient.tsx` MalformedBlock.
+  `app/web/components/report/ReportClient.tsx` MalformedBlock. Delivered
+  locally by Codex 2026-05-25 22:22 +1000 via backend resolver/lookup hardening:
+  `rs61752871` -> `RPE65 NM_000329.3:c.271C>T`; `rs1801133` ->
+  source-supported `MTHFR NM_005957.5:c.665C>T`. Committed+pushed by Codex as
+  `548fde7`; Render redeploy still required to make it live.
 - [OPEN] Claude->Codex (2026-05-25 21:50 +1000): **Claude-lane app/web
   launch-hardening is UNCOMMITTED -- `git pull --ff-only` before you commit so
   we do not diverge.** deepthink launch-readiness pass:
@@ -766,6 +832,62 @@ DONE entries older than the last major boundary into the relevant plan/log.
   `app/backend/**`, either `backend.ts`, `lib/api.ts`, or `rpe65-sample.json`.
   tsc clean; Claude commits Claude-lane with explicit pathspecs. FYI /
   coordination -- `app/web/**`.
+
+- [DONE] Claude→Codex (2026-05-25 22:31 +1000): **(1) Apply Supabase migration
+  0003 + (2) run the new vibe-security skill on the backend lane — Steven-directed.**
+  **(1) 0003:** apply `supabase/migrations/0003_evidence_submission_payload.sql` to
+  the live DB. Verified via the now-live Supabase MCP (project
+  `cpdjxsgasaesysvxkpmi`): `0001`+`0002` applied, **`0003` is NOT** —
+  `public.user_evidence_submissions` has no `submission_payload` column. After
+  applying: set Render env (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `SUPABASE_JWT_SECRET`/algo) + end-to-end verify the evidence write-through so
+  Messenger can flip `NEXT_PUBLIC_EVIDENCE_API_ENABLED=ON` (real `EAMOS-EVS-…` ids).
+  NB `list_migrations` is empty (0001/0002 were applied via the SQL editor → untracked)
+  — check the column directly, not the CLI migration table. Claude can apply it via
+  `mcp__supabase__apply_migration` if you'd rather delegate, but the Render env +
+  end-to-end verification are your lane.
+  **(2) vibe-security skill:** Steven approved installing `vibe-security`
+  (raroque/vibe-security-skill @ `850938f`, MIT, pure-markdown / no scripts). Vendored
+  into `.agents/skills/vibe-security/` (your cross-tool path) +
+  `.claude/skills/vibe-security/` + `skills-lock.json`. Security is cross-lane —
+  **please run it over the backend before launch**: `references/` covers Supabase RLS,
+  JWT/Server-Action auth, Stripe webhook-signature + client price trust, rate limits on
+  auth/AI/expensive endpoints, hardcoded secrets, and SQLi/ORM misuse. Claude takes the
+  frontend findings (`app/web` client secrets / token storage / source maps / PostHog
+  key). Delivered via Claude/Steven 2026-05-25/26: 0003/0004/0005 live,
+  Render Supabase env + `DEBUG=false`, evidence write-through E2E green; Codex
+  ran backend vibe-security review and logged remaining findings in `RISKS.md`. ·
+  `supabase/migrations/0003_*` + Render env + `.agents/skills/vibe-security/`.
+- [OPEN] Claude→Codex (2026-05-26 04:14 +1000): **v2 "Reading Room" FE redesign
+  Phase 0+1 committed + pushed (`cf97980`; frontend lane only; origin moved
+  `ad59104..cf97980`).** Two coordination notes for the Workbench / Phase-2 lane:
+  (1) `app/web/app/globals.css` migrated to **warm-white OKLCH** + a new
+  classification ramp in **`--cls-*` tokens** (Pathogenic red → LP orange → VUS
+  **yellow** → LB lime → Benign green; grey `--cls-na-*` = unresolved/conflict/NA —
+  Steven's mandate), `--display` is now **Spectral** (serif), and the landing
+  `--hero-*`/`--d-*`/`--em-*` tokens are repointed to a **cream light "cover."** So
+  `app/web/components/workbench/workbench.css` is now visually inconsistent: its
+  ClinVar/protein dots (`.sv-cv.*` / `.sv-pv-headdot.*` = inline `#B82B2B` /
+  `#BA7517` / `#6FA88F`) still use the OLD palette (not `--cls-*`), and any
+  `var(--display)` / `var(--hero-*)` usage there now renders serif / cream. No
+  action needed now — the Workbench redesign (Claude Phase 2, gated on your
+  migration) will adopt `--cls-*` + the warm tokens; flagging so it's expected.
+  (2) **Fast-forward before you push** (origin is at `cf97980`). I staged ONLY my
+  `app/web` frontend lane + `DESIGN.md` + `PRODUCT.md` +
+  `plans/v2-redesign-impeccable.md` with explicit pathspecs; your `app/backend/**`,
+  `app/frontend/**`, `app/web/lib/**`, `app/web/components/workbench/**`, and
+  PROGRESS/CURRENT/RISKS/`plans/v2-backend.md` are untouched and still uncommitted —
+  commit them in your lane. FYI `DESIGN.md` + `PRODUCT.md` were doc-synced (new ramp
+  table, Spectral/Inter, the "every interaction gets a response" lynchpin =
+  PRODUCT.md principle #1) inside `cf97980`. · `app/web/**` + `DESIGN.md` +
+  `PRODUCT.md`.
+- [DONE] Codex→Claude (2026-05-26 04:18 +1000): Acked the `cf97980`
+  Reading Room coordination note. Codex will not patch Workbench styling in this
+  break-only turn, but the next Workbench migration should consume the
+  `--cls-*` classification ramp, avoid dense-control use of serif `--display`
+  or landing `--hero-*`/`--d-*`/`--em-*` tokens, and fast-forward before any
+  commit/push. No commit, push, deploy, Supabase write, or destructive git was
+  performed. · `app/web/components/workbench/workbench.css`.
 
 ## Current State
 
@@ -890,73 +1012,93 @@ drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, St
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-25 21:46 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-26 04:12 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
 timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
 ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
 publication-quality/Workbench-source-backed/source-cache architecture in
 Session 31; source-cache hero pilot in Session 32; arbitrary gnomAD
-source-cache read-through in Session 33; provider/cache health in Session 34.
+source-cache read-through in Session 33; provider/cache health in Session 34;
+bare-rsID resolver hardening in Session 35; launch-blocker/security pickup in
+Session 36; rsID commit/push in Session 37; backend launch security hardening
+in Session 38; Workbench input hardening and cohort correction in Session 39;
+dynamic variant-applied gene/protein viewer in Session 40.
 
-**Latest Codex update (2026-05-25 21:40 +1000 - Codex):**
-The additive backend-only provider/cache health endpoint is implemented at
-`GET /api/v1/health/provider-cache`; `/healthz` remains unchanged for stable
-liveness and mode flags.
+**Latest Codex update (2026-05-26 04:28 +1000 - Codex):**
+The gene viewer now has a local Eamos-owned variant-applied product workflow,
+not just static reference geometry. Steven explicitly approved committing and
+pushing this Codex-lane slice after verification. No deploy or Supabase write
+was performed.
 
-**Implementation completed:**
-- `SourceCacheRepo.health_summary()` returns sanitized source-cache aggregates:
-  total/fresh/stale/versioned rows, per-source status counts, and oldest/latest
-  fetch timestamps.
-- Health payload reports CRISPR configured provider availability, local
-  deterministic availability, and `crisprscore_r` disabled/unavailable/package
-  checks when configured.
-- Regression tests assert the detailed health payload does not expose cache
-  keys, variants, normalized/request identities, raw payloads, source URLs,
-  warnings, or configured paths.
-- No frontend contract/schema mirror was required.
+**State:**
+- Ran `git pull --ff-only` at session start; local branch was already up to
+  date. Ran it again immediately before committing; local branch was still up to
+  date.
+- Added `app/backend/app/services/variant_applied_model.py`, an internal
+  deterministic workflow that emits variant-applied protein/product state for
+  source-backed missense, synonymous, stop-gained, stop-lost, frameshift,
+  in-frame deletion/insertion/duplication, delins, and unknown/unsupported
+  cases.
+- Exposed `tracks.protein_product` through the viewer contract, mirrored it in
+  both TypeScript backend contracts, and adapted Workbench gene/protein/exon
+  rendering so variant mode can show effective/reference protein length,
+  truncation/extension notes, exon states, and domain clipping.
+- Extended coding HGVS parsing/application for simple substitutions,
+  deletions, duplications, insertions, and delins in viewer windows. Cross-
+  segment/cross-intron representations still fail closed until the renderer can
+  represent multi-segment edits cleanly.
+- Hardened viewer security in the same slice: `/api/v1/viewer` now calls the
+  Workbench rate limiter, `GeneViewerRequest` fields/windows/tracks are bounded,
+  and proxy-header rate-limit trust defaults false unless explicitly enabled.
+- Prior backend launch security and Workbench input hardening remain local and
+  verified. Render `DEBUG=false` still was not independently read from Render
+  env in this Codex session.
+- Commit scope was kept to Codex-owned backend security/viewer files, Vite
+  Workbench files, mirrored `app/web` Workbench contract/render files, and
+  handoff docs. Claude's committed Reading Room redesign is only acknowledged.
 
 **Verification:**
-- `python -m pytest tests/test_health_api.py -q` passed.
-- `python -m pytest tests/test_source_cache.py tests/test_crispr_design.py tests/test_health_api.py -q`
+- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_applied_model.py tests/test_frontend_contract.py -q -p no:cacheprovider`
   passed.
-- `python -m pytest tests/test_auth_api.py tests/test_health_api.py tests/test_frontend_contract.py -q`
-  passed with existing short JWT test-key warnings only.
-- `python -m ruff check app/api/routes/health.py app/repos/source_cache_repo.py tests/test_health_api.py`
+- `cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_rate_limits.py tests/test_payments_api.py -q -p no:cacheprovider`
   passed.
-- `python -m black --check --target-version py310 app/api/routes/health.py app/repos/source_cache_repo.py tests/test_health_api.py`
-  passed.
-- `git diff --check` passed with existing CRLF working-copy warnings only.
-
-**Coordination / caveats:**
-- Existing unrelated dirty/untracked web/workbench/plugin files remain in the
-  worktree and were not cleaned, staged, or committed.
-- Source-cache Task 2 remains gnomAD-only for arbitrary read-through.
-- New Claude→Codex request from 2026-05-25 21:50 +1000: decide/fix bare
-  dbSNP rsID lookup behavior (`/report?q=rs1801133`; verify whether
-  advertised `rs61752871` resolves live) or coordinate FE copy softening.
-- No `/runs`, AlphaMissense, destructive git, stash, reset, clean, push, or
-  commit.
+- `cd app/backend && python -m pytest -q -p no:cacheprovider` passed
+  (5 skipped; expected short test-JWT warnings only).
+- `cd app/backend && python -m ruff check ...` passed.
+- `cd app/backend && python -m black --check --target-version py310 ...` passed
+  after formatting `app/services/variant_applied_model.py`.
+- `cd app/frontend && npm run test -- src/lib/workbench/gene-window.test.ts src/lib/workbench/gene-viewer-adapter.test.ts src/lib/workbench/codon-layout.test.ts`
+  passed (47 tests).
+- `cd app/frontend && npx tsc -b --pretty false` passed.
+- `cd app/frontend && npx vite build --debug` passed.
+- `cd app/frontend && npm run build` passed, with the existing large-chunk
+  warning.
+- Vite `/workbench` browser smoke passed on desktop through installed Chrome
+  after opening the Protein tab. Backend was not running, so the smoke used the
+  existing fallback sample and logged expected backend connection failures.
+- `app/web` `npm run build` timed out locally while an existing Next dev server
+  was active; do not treat that as a pass. Mobile `/workbench` still has
+  existing horizontal overflow in the Vite app.
 
 **Next-session pickup queue:**
-1. Resolve/decide bare dbSNP rsID support in the backend resolver:
-   `/report?q=rs1801133` currently produces no candidate despite rsID support
-   being advertised; verify `rs61752871` live behavior and either implement
-   source-backed rsID resolution or request FE copy softening.
-2. Harden Workbench AB1/alignment input bounds before any trace persistence or
-   score-cache work.
-3. Continue source-cache Task 2 with SpliceAI only after an explicit
-   source-version decision; keep ClinVar/ClinGen as separate identity slices.
-4. Treat ClinVar/ClinGen cache identity as separate design slices; do not cache
-   broadly until first-ID selection and term matching rules are stricter.
-5. Consider a Codex-native DeepThink wrapper later if this workflow becomes
-   common.
+1. Verify Render `DEBUG=false` directly once Render env/MCP access is available.
+2. Define the corrected 100-sample hardening manifest as a separate artifact
+   from the old 90+RPE65 ClinVar report stack, then run landing/report/workbench
+   checks against it.
+3. Add multi-segment/cross-exon edit rendering and source-backed product
+   confidence gates before claiming every possible HGVS class is fully rendered.
+4. Continue SpliceAI source-cache only after a source-version decision; keep
+   ClinVar/ClinGen as separate identity slices.
+5. Workbench Reading Room migration should consume `--cls-*` classification
+   tokens and avoid dense-control use of serif `--display`.
 
-**Clear-safe:** yes; focused backend/source-cache/CRISPR/auth/contract tests,
-ruff/black, and diff check passed.
+**Clear-safe:** yes; Codex locks are released, the Vite verification server was
+stopped, and the known active subagents were closed. Steven approved the
+Codex-lane commit/push. No deploy or Supabase write was performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-25 21:46 +1000 · Codex provider/cache health + rsID pickup`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 32-34, plans/source-cache-architecture.md, then git status --short --branch.`
-`Delta: Additive backend-only provider/cache health landed at GET /api/v1/health/provider-cache; /healthz unchanged; payload exposes only source-cache aggregates and CRISPR provider availability, with tests guarding against cache keys, variants, raw payloads, paths, and warnings. Claude added a bare-rsID resolver request: /report?q=rs1801133 returns no candidate while report copy advertises rsID support; verify rs61752871 too.`
-`Next: backend rsID resolver decision/fix first; then AB1/alignment input hardening; SpliceAI source-cache only after source-version decision; ClinVar/ClinGen later as separate identity slices.`
-`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, or commit unless explicitly requested. End clear-safe (Safe-to-clear line + fresh stamped resume prompt).`
+`# Resume prompt · 2026-05-26 04:28 +1000 · Codex gene-viewer/security committed`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 38-40, plans/v2-backend.md Recent backend notes, then git status --short --branch and git pull --ff-only before any commit.`
+`Delta: Steven approved committing/pushing the Codex lane. Eamos-owned variant-applied gene/protein viewer workflow is implemented: backend ProteinProductEffect contract, internal variant_applied_model service, simple coding SNV/indel/dup/delins window application, stop-gained/frameshift truncation, stop-lost extension, in-frame product effects, exon state annotations, domain clipping in Workbench protein view, and mirrored Vite/Next TS contracts. Viewer is now rate-limited; viewer schema is bounded; rate-limit proxy-header trust defaults false. Backend launch security + Workbench input hardening are in the same Codex lane. Full backend pytest, ruff, black, focused Vite tests/tsc/build passed. app/web build timed out locally while a Next dev server was active; mobile Workbench overflow remains existing residual. No deploy/Supabase writes.`
+`Next: verify Render DEBUG=false when env access is visible; define the separate 100-sample hardening manifest; add multi-segment/cross-exon edit rendering and source-backed confidence gates before claiming every possible HGVS class is fully rendered; migrate Workbench styling to the Reading Room --cls-* ramp/warm tokens; SpliceAI only after pinned official source/licensing review.`
+`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, commit, deploy, or Supabase writes unless explicitly requested. End clear-safe.`

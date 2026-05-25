@@ -4,6 +4,7 @@ from typing import NoReturn, Protocol
 
 from fastapi import APIRouter, HTTPException, Request, status
 
+from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
 from app.schemas.workbench import (
     AlignRequest,
     AlignResponse,
@@ -49,6 +50,7 @@ def _raise_workbench_error(error: WorkbenchDesignError) -> NoReturn:
 
 @router.post("/primer", response_model=PrimerResponse)
 def design_primers(payload: PrimerRequest, request: Request) -> PrimerResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _workbench_service(request).design_primers(payload)
     except WorkbenchDesignError as exc:
@@ -57,6 +59,7 @@ def design_primers(payload: PrimerRequest, request: Request) -> PrimerResponse:
 
 @router.post("/crispr", response_model=CrisprResponse)
 def design_guides(payload: CrisprRequest, request: Request) -> CrisprResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _workbench_service(request).design_guides(payload)
     except WorkbenchDesignError as exc:
@@ -65,6 +68,7 @@ def design_guides(payload: CrisprRequest, request: Request) -> CrisprResponse:
 
 @router.post("/align", response_model=AlignResponse)
 def align(payload: AlignRequest, request: Request) -> AlignResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _workbench_service(request).align(payload)
     except WorkbenchDesignError as exc:

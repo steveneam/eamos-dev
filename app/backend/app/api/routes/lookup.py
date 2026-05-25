@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, status
 
+from app.core.rate_limit import RATE_LIMIT_LOOKUP, enforce_rate_limit
 from app.schemas.lookup import (
     LookupRequest,
     LookupResponse,
@@ -20,6 +21,7 @@ def variant_lookup(
     request: Request,
     refresh: bool = False,
 ) -> LookupResponse:
+    enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=_lookup_subject(payload))
     service = getattr(request.app.state, "lookup_service", None)
     if service is None:
         raise HTTPException(
@@ -34,6 +36,7 @@ def parse_lookup_input(
     payload: SearchInputParseRequest,
     request: Request,
 ) -> SearchInputParseResponse:
+    enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=payload.search_text)
     service = getattr(request.app.state, "lookup_service", None)
     if service is None:
         raise HTTPException(
@@ -48,6 +51,11 @@ def lookup_publications(
     payload: PublicationPageRequest,
     request: Request,
 ) -> PublicationLiterature:
+    enforce_rate_limit(
+        request,
+        RATE_LIMIT_LOOKUP,
+        subject=":".join(part for part in (payload.gene, payload.cdna) if part),
+    )
     service = getattr(request.app.state, "lookup_service", None)
     if service is None:
         raise HTTPException(
@@ -60,3 +68,15 @@ def lookup_publications(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
+
+
+def _lookup_subject(payload: LookupRequest) -> str | None:
+    if payload.raw_search_text:
+        return payload.raw_search_text
+    if payload.selected_candidate_id:
+        return payload.selected_candidate_id
+    return ":".join(
+        part
+        for part in (payload.gene, payload.cdna, payload.transcript, payload.protein_change)
+        if part
+    )

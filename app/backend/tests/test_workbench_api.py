@@ -32,6 +32,8 @@ from app.services.sequence_context import (
     unsupported_input_warning,
 )
 from app.services.workbench_design import (
+    ALIGN_MAX_MATRIX_CELLS,
+    ALIGN_MAX_SEQUENCE_BASES,
     PRIMER_SPECIFICITY_UCSC_ISPCR,
     WORKBENCH_PROVIDER_MALFORMED,
     WORKBENCH_PROVIDER_UNAVAILABLE,
@@ -41,11 +43,18 @@ from app.services.workbench_design import (
     TemplateAmpliconSpecificityProvider,
     WorkbenchDesignError,
     WorkbenchDesignService,
+    _align_sequences,
 )
 from app.services.trace_parser import (
+    TRACE_MAX_BASE_CALLS,
+    TRACE_MAX_CHANNEL_SAMPLES,
+    TRACE_MAX_ENCODED_BYTES,
+    TRACE_INVALID_SIGNAL,
+    TRACE_PAYLOAD_TOO_LARGE,
     TRACE_PARSER_UNAVAILABLE,
     TRACE_UNSUPPORTED_FORMAT,
     TraceParseError,
+    parse_ab1_base64,
     parse_ab1_bytes,
 )
 
@@ -428,6 +437,66 @@ def test_real_mode_align_requires_read_input_maps_to_422(client) -> None:
     }
 
 
+def test_real_mode_align_rejects_ambiguous_read_inputs(client) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=_context())
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "user_sequence": "ACGT",
+            "ab1_blob_base64": base64.b64encode(b"synthetic-ab1").decode("ascii"),
+        },
+    )
+
+    warning = unsupported_input_warning("alignment_read")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": "Provide either user_sequence or ab1_blob_base64, not both.",
+        "warnings": [warning],
+    }
+
+
+def test_real_mode_align_rejects_overlong_user_sequence(client) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=_context())
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "user_sequence": "A" * (ALIGN_MAX_SEQUENCE_BASES + 1),
+        },
+    )
+
+    warning = unsupported_input_warning("alignment_length")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": (
+            "Alignment read is too long for the local Workbench aligner "
+            f"({ALIGN_MAX_SEQUENCE_BASES} bp limit)."
+        ),
+        "warnings": [warning],
+    }
+
+
 def test_real_mode_align_ab1_unsupported_file_maps_to_422(client, monkeypatch) -> None:
     query = normalize_sequence_query("RPE65", "c.260A>G")
 
@@ -540,6 +609,85 @@ def test_trace_parser_extracts_synthetic_ab1_record() -> None:
         ("C", (1.0, 1.0)),
         ("G", (0.0, 1.0)),
     ]
+
+
+def test_trace_parser_rejects_oversized_base64_before_parser() -> None:
+    with pytest.raises(TraceParseError) as error:
+        parse_ab1_base64("A" * (TRACE_MAX_ENCODED_BYTES + 1))
+
+    assert error.value.code == TRACE_PAYLOAD_TOO_LARGE
+
+
+def test_trace_parser_rejects_too_many_base_calls() -> None:
+    class FakeSeqIO:
+        @staticmethod
+        def read(_handle, _file_format):
+            return SimpleNamespace(
+                seq="A" * (TRACE_MAX_BASE_CALLS + 1),
+                annotations={"abif_raw": {}},
+                letter_annotations={},
+            )
+
+    with pytest.raises(TraceParseError) as error:
+        parse_ab1_bytes(b"synthetic-ab1", seqio_module=FakeSeqIO)
+
+    assert error.value.code == TRACE_PAYLOAD_TOO_LARGE
+
+
+def test_trace_parser_rejects_too_many_channel_samples() -> None:
+    class FakeSeqIO:
+        @staticmethod
+        def read(_handle, _file_format):
+            return SimpleNamespace(
+                seq="A",
+                annotations={
+                    "abif_raw": {
+                        "FWO_1": b"GATC",
+                        "DATA9": [1] * (TRACE_MAX_CHANNEL_SAMPLES + 1),
+                    }
+                },
+                letter_annotations={},
+            )
+
+    with pytest.raises(TraceParseError) as error:
+        parse_ab1_bytes(b"synthetic-ab1", seqio_module=FakeSeqIO)
+
+    assert error.value.code == TRACE_PAYLOAD_TOO_LARGE
+
+
+def test_trace_parser_rejects_non_finite_channel_values() -> None:
+    class FakeSeqIO:
+        @staticmethod
+        def read(_handle, _file_format):
+            return SimpleNamespace(
+                seq="A",
+                annotations={
+                    "abif_raw": {
+                        "FWO_1": b"GATC",
+                        "DATA9": [1, float("nan")],
+                    }
+                },
+                letter_annotations={},
+            )
+
+    with pytest.raises(TraceParseError) as error:
+        parse_ab1_bytes(b"synthetic-ab1", seqio_module=FakeSeqIO)
+
+    assert error.value.code == TRACE_INVALID_SIGNAL
+
+
+def test_large_alignment_skips_pairwise_matrix(monkeypatch) -> None:
+    sequence_length = int(ALIGN_MAX_MATRIX_CELLS**0.5) + 1
+
+    def fail_pairwise(**_kwargs):
+        raise AssertionError("pairwise aligner should not run for oversized matrices")
+
+    monkeypatch.setattr("app.services.workbench_design._bio_pairwise_alignment", fail_pairwise)
+
+    cells = _align_sequences(reference="A" * sequence_length, read="A" * sequence_length)
+
+    assert len(cells) == sequence_length
+    assert all(cell.reference_base == "A" and cell.read_base == "A" for cell in cells[:5])
 
 
 def test_primer3_provider_maps_engine_output() -> None:
