@@ -80,7 +80,7 @@ export function DiseaseSection({ payload, number, embedded, sectionTarget }: Dis
               color: 'var(--ink-4)',
             }}
           >
-            ACMG verdict
+            ACMG classification
           </span>
           <ClassificationBadge classification={classification} />
           {rawClassificationText && (

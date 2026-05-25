@@ -452,7 +452,7 @@ function LoadingBlock({ query }: { query: string }) {
         className="mt-5"
         style={{ fontSize: 12, color: 'var(--ink-4)', margin: '20px 0 0' }}
       >
-        Real-API queries can take up to ~15 seconds; mock mode returns instantly.
+        Aggregating evidence across multiple databases — this can take up to ~15 seconds.
       </p>
 
       <style>{`
@@ -557,46 +557,8 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
                 margin: '10px 0 0',
               }}
             >
-              The Eamos backend isn't responding on{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 12.5,
-                  background: 'var(--bg)',
-                  border: '0.5px solid var(--line)',
-                  padding: '1px 6px',
-                  borderRadius: 4,
-                }}
-              >
-                localhost:8000
-              </code>
-              . Start it from{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 12.5,
-                  background: 'var(--bg)',
-                  border: '0.5px solid var(--line)',
-                  padding: '1px 6px',
-                  borderRadius: 4,
-                }}
-              >
-                app/backend
-              </code>{' '}
-              with{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  fontSize: 12.5,
-                  background: 'var(--bg)',
-                  border: '0.5px solid var(--line)',
-                  padding: '1px 6px',
-                  borderRadius: 4,
-                }}
-              >
-                python -m uvicorn app.main:create_app --factory --reload
-              </code>
-              .
+              The Eamos service is temporarily unavailable — this can happen if the
+              server is waking from idle. Please wait a few moments and try again.
             </p>
           ) : isUnresolved ? (
             <p

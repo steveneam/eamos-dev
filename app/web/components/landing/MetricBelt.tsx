@@ -9,24 +9,41 @@ interface Metric {
   hint: string
 }
 
+// Approximate totals from the public sources Eamos unifies (May 2026):
+// ClinVar >3M classified variants; gnomAD v4 ~909M variants; ClinicalTrials.gov
+// ~586K studies; PubMed >40M citations. Counters animate to these figures.
+const abbrPlus = (n: number): string => {
+  const v = Math.round(n)
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B+`
+  if (v >= 1_000_000) return `${Math.round(v / 1_000_000)}M+`
+  if (v >= 1_000) return `${Math.round(v / 1_000)}K+`
+  return `${v}`
+}
+
 const METRICS: Metric[] = [
   {
-    value: 1420893,
-    display: (n) => Math.round(n).toLocaleString(),
-    label: 'Tracked variants indexed',
-    hint: 'across the aggregated source graph',
+    value: 3_000_000,
+    display: abbrPlus,
+    label: 'Clinically interpreted variants',
+    hint: 'ClinVar',
   },
   {
-    value: 432910,
-    display: (n) => Math.round(n).toLocaleString(),
-    label: 'Mined functional papers',
-    hint: 'unique PMIDs, deduplicated',
+    value: 909_000_000,
+    display: abbrPlus,
+    label: 'Population variants',
+    hint: 'gnomAD v4',
   },
   {
-    value: 1204,
-    display: (n) => Math.round(n).toLocaleString(),
-    label: 'Submissions to ClinVar',
-    hint: 'passed through the ledger messenger',
+    value: 586_000,
+    display: abbrPlus,
+    label: 'Clinical trials indexed',
+    hint: 'ClinicalTrials.gov',
+  },
+  {
+    value: 40_000_000,
+    display: abbrPlus,
+    label: 'Publications searchable',
+    hint: 'PubMed',
   },
 ]
 
@@ -42,9 +59,9 @@ export function MetricBelt() {
     >
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
         <p className="mb-10 text-center text-[13px]" style={{ color: 'var(--hero-ink-2)' }}>
-          Eamos runs a live, parallel evidence aggregator across global genomics data.
+          Every Eamos report draws on the public databases clinical genetics already trusts:
         </p>
-        <div className="grid grid-cols-1 gap-px sm:grid-cols-3" style={{ background: 'var(--d-line)' }}>
+        <div className="grid grid-cols-2 gap-px lg:grid-cols-4" style={{ background: 'var(--d-line)' }}>
           {METRICS.map((m) => (
             <div
               key={m.label}
@@ -76,7 +93,7 @@ export function MetricBelt() {
           ))}
         </div>
         <p className="mt-6 text-center text-[11px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Sample figures — live counters wire in at launch.
+          Approximate totals from public sources, May 2026 · ClinVar · gnomAD v4 · ClinicalTrials.gov · PubMed.
         </p>
       </div>
     </section>

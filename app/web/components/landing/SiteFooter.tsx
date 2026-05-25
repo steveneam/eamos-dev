@@ -36,9 +36,6 @@ export function SiteFooter() {
             </FooterCol>
             <FooterCol title="More">
               <FooterLink href="/report?demo=1">Sample report</FooterLink>
-              <FooterLink href="https://github.com/" external>
-                GitHub
-              </FooterLink>
               <FooterLink href="#contact">Contact</FooterLink>
             </FooterCol>
           </div>
@@ -51,6 +48,7 @@ export function SiteFooter() {
           <a href="/terms" style={{ color: 'var(--hero-ink-3)', textDecoration: 'none' }}>
             Terms &amp; Conditions
           </a>
+          <span>Research use only — not a medical device.</span>
           <span>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
         </div>
       </div>

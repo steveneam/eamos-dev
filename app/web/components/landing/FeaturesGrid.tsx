@@ -1,36 +1,30 @@
-import { type ReactNode } from 'react'
+import Image from 'next/image'
 import { Reveal } from '@/components/landing/Reveal'
 
-interface Feature {
-  icon: ReactNode
+interface Shot {
+  src: string
   title: string
-  description: string
+  caption: string
 }
 
-const FEATURES: Feature[] = [
+// Product snapshots captured from a live report. Rough first pass — replace with
+// polished marketing shots later. gnomAD world-map tile is added once captured
+// from a gnomAD-present variant (the RPE65 demo variant isn't in gnomAD).
+const SHOTS: Shot[] = [
   {
-    icon: <GridIcon />,
-    title: 'Four-card evidence matrix',
-    description:
-      'Population, splicing, functional, and consensus — the four pillars of evidence mapped cleanly above the fold, no nested tabs to dig through.',
+    src: '/feat-classification.webp',
+    title: 'Classification at a glance',
+    caption: 'ClinVar + UniProt distribution across LOF, missense, non-coding and synonymous.',
   },
   {
-    icon: <SparkIcon />,
-    title: 'Cognitive summary generator',
-    description:
-      'An immediate, conversational AI paragraph explains the biological verdict right below the matrix — with inline citations to every source.',
+    src: '/feat-publications.webp',
+    title: 'Cited literature, deduplicated',
+    caption: 'Variant-level publication mining with snippets and a publications-over-time view.',
   },
   {
-    icon: <ShieldIcon />,
-    title: 'Zero-trust aggregation',
-    description:
-      'Records are pulled live, per query, over secure requests. No identifiable patient sequence files are ever stored on the platform.',
-  },
-  {
-    icon: <SendIcon />,
-    title: 'Pass-through ClinVar messenger',
-    description:
-      'Found a new functional assay? Wire it straight to ClinVar from your dashboard — no wrestling with complex federal submission forms.',
+    src: '/feat-trials.webp',
+    title: 'Active trials & therapies',
+    caption: 'ClinicalTrials.gov discovery links, colour-coded by recruitment status.',
   },
 ]
 
@@ -38,124 +32,167 @@ export function FeaturesGrid() {
   return (
     <section id="features" className="py-28" style={{ background: 'var(--d-bg)' }}>
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
-        <header className="mb-16" style={{ maxWidth: 720 }}>
+        <header className="mb-14" style={{ maxWidth: 720 }}>
           <p
             className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
             style={{ color: 'var(--em-bright)' }}
           >
-            Why Eamos
+            What you get
           </p>
           <h2
             className="mb-4 text-[clamp(30px,3.5vw,42px)] font-semibold leading-[1.1] tracking-[-0.02em]"
             style={{ fontFamily: 'var(--display)', color: 'var(--hero-ink)' }}
           >
-            Built for the actual variant-interpretation workflow.
+            One lookup. The whole evidence picture.
           </h2>
           <p className="text-[17px] leading-[1.55]" style={{ color: 'var(--hero-ink-2)', maxWidth: 620 }}>
-            Eamos folds the databases you already open into one structured, cited, ACMG-aware report —
-            engineered for speed and clinical trust.
+            Every report folds the databases you already open into one structured, cited, ACMG-aware
+            view — engineered for speed and clinical trust.
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          {FEATURES.map((feat, i) => (
-            <Reveal key={feat.title} as="article" delay={(i % 2) * 0.1}>
+        {/* Featured: the four evidence call cards */}
+        <Reveal as="article">
+          <figure
+            className="m-0 overflow-hidden"
+            style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 16 }}
+          >
+            <div
+              className="relative"
+              style={{ aspectRatio: '1280 / 300', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+            >
+              <Image
+                src="/feat-report-cards.webp"
+                alt="Variant evidence report — four-card matrix: population, computational, functional and clinical consensus"
+                fill
+                sizes="(max-width: 1180px) 100vw, 1180px"
+                style={{ objectFit: 'cover', objectPosition: 'top center' }}
+              />
+            </div>
+            <figcaption style={{ padding: '20px 24px' }}>
+              <h3 className="mb-1" style={feat.title}>
+                Four-card evidence matrix
+              </h3>
+              <p style={feat.caption}>
+                Population, computational, functional and clinical consensus — the four pillars, mapped
+                above the fold with no nested tabs to dig through.
+              </p>
+            </figcaption>
+          </figure>
+        </Reveal>
+
+        {/* Grid: the other product snapshots + the in-development Workbench */}
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {SHOTS.map((shot, i) => (
+            <Reveal key={shot.src} as="article" delay={(i % 2) * 0.08}>
+              <figure
+                className="m-0 h-full overflow-hidden"
+                style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+              >
+                <div
+                  className="relative"
+                  style={{ aspectRatio: '16 / 11', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+                >
+                  <Image
+                    src={shot.src}
+                    alt={shot.title}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                  />
+                </div>
+                <figcaption style={{ padding: '16px 18px' }}>
+                  <h3 className="mb-1" style={feat.title}>
+                    {shot.title}
+                  </h3>
+                  <p style={feat.caption}>{shot.caption}</p>
+                </figcaption>
+              </figure>
+            </Reveal>
+          ))}
+
+          {/* Workbench — in development */}
+          <Reveal as="article" delay={0.08}>
+            <figure
+              className="m-0 h-full overflow-hidden"
+              style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+            >
               <div
-                className="flex h-full gap-4 transition-colors"
+                className="relative flex items-center justify-center"
                 style={{
-                  background: 'var(--d-card)',
-                  border: '0.5px solid var(--d-line)',
-                  borderRadius: 14,
-                  padding: '28px 30px',
+                  aspectRatio: '16 / 11',
+                  overflow: 'hidden',
+                  background:
+                    'radial-gradient(120% 120% at 50% 0%, rgba(16,185,129,0.10), transparent 60%), var(--d-bg-2)',
                 }}
               >
                 <span
-                  className="inline-flex shrink-0 items-center justify-center"
+                  aria-hidden
+                  className="text-center"
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 11,
-                    background: 'rgba(16,185,129,0.12)',
-                    border: '0.5px solid var(--hero-line)',
-                    color: 'var(--em-bright)',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 11,
+                    lineHeight: 1.7,
+                    letterSpacing: '0.04em',
+                    color: 'var(--hero-ink-3)',
+                    filter: 'grayscale(1)',
+                    opacity: 0.7,
                   }}
                 >
-                  {feat.icon}
+                  Sequence viewer
+                  <br />
+                  Primer · CRISPR design
+                  <br />
+                  Pairwise alignment
                 </span>
-                <div>
-                  <h3
-                    className="mb-1.5"
-                    style={{
-                      fontFamily: 'var(--display)',
-                      fontWeight: 600,
-                      fontSize: 18,
-                      lineHeight: 1.25,
-                      letterSpacing: '-0.015em',
-                      color: 'var(--hero-ink)',
-                    }}
-                  >
-                    {feat.title}
-                  </h3>
-                  <p style={{ fontSize: 13.5, color: 'var(--hero-ink-2)', lineHeight: 1.6, margin: 0 }}>
-                    {feat.description}
-                  </p>
-                </div>
+                <span
+                  className="absolute"
+                  style={{
+                    top: 12,
+                    right: 12,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    color: 'var(--em-bright)',
+                    background: 'rgba(16,185,129,0.12)',
+                    border: '0.5px solid var(--hero-line)',
+                    borderRadius: 999,
+                    padding: '4px 10px',
+                  }}
+                >
+                  In development
+                </span>
               </div>
-            </Reveal>
-          ))}
+              <figcaption style={{ padding: '16px 18px' }}>
+                <h3 className="mb-1" style={feat.title}>
+                  Workbench
+                </h3>
+                <p style={feat.caption}>
+                  Sequence viewer, primer & CRISPR design, and alignment — in the works.
+                </p>
+              </figcaption>
+            </figure>
+          </Reveal>
         </div>
       </div>
     </section>
   )
 }
 
-function iconProps() {
-  return {
-    width: 19,
-    height: 19,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
-}
-
-function GridIcon() {
-  return (
-    <svg {...iconProps()}>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
-    </svg>
-  )
-}
-
-function SparkIcon() {
-  return (
-    <svg {...iconProps()}>
-      <path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z" />
-    </svg>
-  )
-}
-
-function ShieldIcon() {
-  return (
-    <svg {...iconProps()}>
-      <path d="M12 3 L20 6 V11 C20 16 16.5 19.5 12 21 C7.5 19.5 4 16 4 11 V6 Z" />
-      <path d="M9 12 l2 2 l4 -4" />
-    </svg>
-  )
-}
-
-function SendIcon() {
-  return (
-    <svg {...iconProps()}>
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  )
+const feat = {
+  title: {
+    fontFamily: 'var(--display)',
+    fontWeight: 600,
+    fontSize: 16,
+    lineHeight: 1.25,
+    letterSpacing: '-0.015em',
+    color: 'var(--hero-ink)',
+  } as const,
+  caption: {
+    fontSize: 13,
+    color: 'var(--hero-ink-2)',
+    lineHeight: 1.55,
+    margin: 0,
+  } as const,
 }

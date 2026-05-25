@@ -43,10 +43,11 @@ function PostHogPageView() {
   const searchParams = useSearchParams()
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return
-    let url = window.location.origin + pathname
-    const qs = searchParams.toString()
-    if (qs) url += `?${qs}`
-    posthog.capture('$pageview', { $current_url: url })
+    // Privacy: never send the queried variant to analytics. Capture the route
+    // only — the query string (gene/cdna/q) is dropped from $current_url.
+    // searchParams stays in the deps so a new lookup on the same /report path
+    // still counts as a view, but its value is never transmitted.
+    posthog.capture('$pageview', { $current_url: window.location.origin + pathname })
   }, [pathname, searchParams])
   return null
 }
@@ -58,7 +59,8 @@ function PostHogIdentify() {
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return
     if (user) {
-      posthog.identify(user.id, { email: user.email })
+      // Privacy: identify by opaque Supabase UUID only — no email/PII to analytics.
+      posthog.identify(user.id)
       prevId.current = user.id
     } else if (prevId.current) {
       // Real sign-out (not the initial anonymous load) → drop the identity.

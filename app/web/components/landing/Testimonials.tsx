@@ -16,7 +16,7 @@ export function Testimonials() {
             className="mb-7 text-[11px] font-semibold uppercase tracking-[0.16em]"
             style={{ color: 'var(--em-bright)' }}
           >
-            From the bench · illustrative
+            From the founder
           </span>
           <span aria-hidden style={{ fontFamily: 'var(--display)', fontSize: 48, lineHeight: 1, color: 'var(--em-bright)' }}>
             “
@@ -26,19 +26,37 @@ export function Testimonials() {
             style={{
               fontFamily: 'var(--display)',
               fontWeight: 500,
-              fontSize: 'clamp(20px, 2.6vw, 28px)',
-              lineHeight: 1.4,
-              letterSpacing: '-0.015em',
+              fontSize: 'clamp(17px, 1.9vw, 22px)',
+              lineHeight: 1.5,
+              letterSpacing: '-0.01em',
               color: 'var(--hero-ink)',
               margin: 0,
             }}
           >
-            Eamos completely changed our laboratory workflow. The dual-badge functional card alone saved
-            our curation team over 100 hours of tedious manual review this year.
+            As a researcher, I&rsquo;ve felt first-hand how much time disappears into manually sifting
+            through countless databases just to annotate and curate a single variant — and how those
+            delays push back the genetic reports patients are waiting on. With debilitating, progressive
+            genetic disease, every second matters: it can be the difference between the right treatment in
+            time and missing it altogether. I built Eamos to give that time back — to researchers and
+            clinicians, and to the patients and curious minds who simply want to understand their own
+            genetics.
           </blockquote>
-          <div className="mt-8 flex flex-col items-center gap-1">
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--hero-ink)' }}>Dr Sarah Jenkins, PhD</span>
-            <span style={{ fontSize: 12.5, color: 'var(--hero-ink-3)' }}>Principal Molecular Geneticist</span>
+          <p
+            className="mt-7"
+            style={{
+              fontFamily: 'var(--display)',
+              fontWeight: 600,
+              fontSize: 'clamp(18px, 2vw, 22px)',
+              letterSpacing: '-0.01em',
+              color: 'var(--em-bright)',
+              margin: 0,
+            }}
+          >
+            Our mission: Genomics for All.
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-1">
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--hero-ink)' }}>Steven</span>
+            <span style={{ fontSize: 12.5, color: 'var(--hero-ink-3)' }}>Founder, Eamos</span>
           </div>
         </Reveal>
       </div>
