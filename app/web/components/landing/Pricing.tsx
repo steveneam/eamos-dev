@@ -22,7 +22,18 @@ function PricingStyles() {
         box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 28%, transparent);
       }
 
-      /* Pricing card: focus-within ring for keyboard users tabbing to the CTA */
+      /* Pricing card hover — match the .eamos-pill teal-border accent.
+         No pop-up / elev lift; just the same teal-axis signal every other
+         interactive surface uses. Featured card's baseline teal-40% border
+         deepens to full teal on hover so it still leads the rank. */
+      .pricing-card {
+        transition:
+          border-color var(--dur-1) var(--ease-standard),
+          background-color var(--dur-1) var(--ease-standard);
+      }
+      .pricing-card:hover {
+        border-color: var(--em) !important;
+      }
       .pricing-card:focus-within {
         outline: none;
       }
@@ -114,52 +125,34 @@ export function Pricing() {
 }
 
 /**
- * Cards are structurally differentiated by tier rather than identical-card-grid:
- *   Free  (rank 0) — compact, plain, entry presentation
- *   Pro   (rank 1) — full-height featured card, teal border, larger price display
- *   Max   (rank 2) — compact, elevated, mono price
- * All lift via box-shadow on hover (--elev-2), no translateY bloom.
+ * Cards share IDENTICAL geometry — same padding, same h3 size/weight, same
+ * price size, same bg. The only differentiator is the rest-state border:
+ * Pro (rank 1) carries a semi-teal border to lead the rank. Hover on any
+ * card swaps the border to full teal (matches .eamos-pill / .lnav-link
+ * teal-axis hover signal).
  */
 function PlanCard({ plan, rank }: { plan: Plan; rank: number }) {
   const isFeatured = rank === 1
   const isFree = plan.id === 'free'
-  const [hovered, setHovered] = useState(false)
 
   return (
     <div
       className="pricing-card relative flex h-full flex-col"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
       style={{
-        // Elevation lift via token; translateY suppressed via data attribute below.
-        boxShadow: hovered ? 'var(--elev-2)' : 'var(--elev-1)',
-        background: isFeatured ? 'rgba(16,185,129,0.06)' : 'var(--d-card)',
-        border: `0.5px solid ${isFeatured ? 'rgba(52,211,153,0.4)' : 'var(--d-line)'}`,
+        boxShadow: 'var(--elev-1)',
+        background: 'var(--d-card)',
+        border: `0.5px solid ${isFeatured ? 'rgba(52,211,153,0.55)' : 'var(--d-line)'}`,
         borderRadius: 16,
-        // Featured card has tighter visual top padding and a teal accent rule
-        padding: isFeatured ? '0 0 28px' : '28px 26px',
+        padding: '28px 26px',
       }}
     >
-      {isFeatured && (
-        <div
-          style={{
-            height: 3,
-            borderRadius: '16px 16px 0 0',
-            background: 'linear-gradient(90deg, var(--teal) 0%, var(--em-bright) 100%)',
-          }}
-          aria-hidden
-        />
-      )}
-
-      <div style={{ padding: isFeatured ? '26px 26px 0' : 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div className="mb-1">
           <h3
             style={{
               fontFamily: 'var(--display)',
-              fontWeight: isFeatured ? 600 : 400,
-              fontSize: isFeatured ? 20 : 18,
+              fontWeight: 400,
+              fontSize: 18,
               color: 'var(--hero-ink)',
               letterSpacing: '-0.01em',
               margin: 0,
@@ -177,7 +170,7 @@ function PlanCard({ plan, rank }: { plan: Plan; rank: number }) {
             style={{
               fontFamily: 'var(--mono)',
               fontWeight: 600,
-              fontSize: isFeatured ? 40 : 32,
+              fontSize: 32,
               color: 'var(--hero-ink)',
               letterSpacing: '-0.03em',
             }}
