@@ -253,19 +253,11 @@
 select[data-tone="dark"] { color-scheme: dark; }
 [data-tone="dark"] option { background-color: var(--d-bg-2); color: var(--hero-ink); }
 
-/* Pricing cards (landing teaser + /pricing) — every card lifts + glows on
-   hover, rather than a single permanently-glowing "featured" card. The resting
-   box-shadow is left unset (the inline styles no longer set it) so :hover can
-   own it. Reduced-motion is handled by the global guard below. */
-.pricing-card {
-  transition:
-    box-shadow var(--dur-2) var(--ease-standard),
-    transform var(--dur-2) var(--ease-standard);
-}
-.pricing-card:hover {
-  /* subtle lift only; each pricing card owns its hover elevation via --elev-* state */
-  transform: translateY(-2px);
-}
+/* Pricing card hover is owned by Pricing.tsx — teal border swap on the same
+   teal-axis signal every other landing surface uses. No transform/lift, no
+   shadow swap.
+   (The old global .pricing-card:hover{transform:translateY(-2px)} is removed;
+   if you see it again in a bundle, restart the dev server's CSS cache.) */
 
 * {
   box-sizing: border-box;
