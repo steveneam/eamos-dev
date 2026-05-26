@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "source_id": "ucsc_hg38_2bit",
+    "genome_build": "GRCh38",
+    "source_version": "hg38_fixture_reference_v1",
+    "reader": "fixture_json"
+  },
+  "chromosomes": {
+    "1": {
+      "aliases": ["1", "chr1", "NC_000001.11"],
+      "sequence": "ACGTACGTACGTACGTACGTACGTACGTACGT"
+    },
+    "X": {
+      "aliases": ["X", "chrX", "NC_000023.11"],
+      "sequence": "TTGACCATGACTGACTGACCTTAA"
+    },
+    "M": {
+      "aliases": ["M", "MT", "chrM", "chrMT", "NC_012920.1"],
+      "sequence": "GATTACAGATTACA"
+    }
+  }
+}

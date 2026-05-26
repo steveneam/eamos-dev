@@ -1,0 +1,285 @@
+{
+  "version": "2026-05-26-project-hardening-manifest-v1",
+  "defined_at": "2026-05-26",
+  "purpose": "Project-wide landing/report/workbench hardening cohort manifest.",
+  "sources": {
+    "challenge_stack": "app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json",
+    "control_transcript_models": "app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json"
+  },
+  "selection_policy": {
+    "gene_count": 10,
+    "samples_per_gene": 10,
+    "control_samples_per_gene": 1,
+    "challenge_samples_per_gene": 9,
+    "total_samples": 100,
+    "control_policy": "Use one transcript-model representative per gene as the reference/control render sample.",
+    "challenge_policy": "Use all nine ClinVar challenge variants already curated for that gene in the immutable challenge stack.",
+    "dedupe_policy": "Controls are counted as separate hardening samples because they exercise reference/control render states even when the representative variant is also present in the challenge stack.",
+    "do_not_mutate": [
+      "app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json"
+    ]
+  },
+  "surfaces": [
+    "landing",
+    "variant_report",
+    "workbench"
+  ],
+  "coverage": {
+    "genes": 10,
+    "samples": 100,
+    "control_samples": 10,
+    "challenge_samples": 90
+  },
+  "genes": [
+    {
+      "gene": "ABCA4",
+      "control_sample": {
+        "sample_id": "HC-ABCA4-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000350.3",
+        "cdna": "c.5435T>A",
+        "query": {
+          "gene": "ABCA4",
+          "cdna": "c.5435T>A",
+          "transcript_hgvs": "NM_000350.3:c.5435T>A",
+          "raw_text": "ABCA4 NM_000350.3:c.5435T>A"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-ABCA4-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "ABCA4",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "APC",
+      "control_sample": {
+        "sample_id": "HC-APC-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000038.6",
+        "cdna": "c.7884G>C",
+        "query": {
+          "gene": "APC",
+          "cdna": "c.7884G>C",
+          "transcript_hgvs": "NM_000038.6:c.7884G>C",
+          "raw_text": "APC NM_000038.6:c.7884G>C"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-APC-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "APC",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "BRCA1",
+      "control_sample": {
+        "sample_id": "HC-BRCA1-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_007294.4",
+        "cdna": "c.2858G>T",
+        "query": {
+          "gene": "BRCA1",
+          "cdna": "c.2858G>T",
+          "transcript_hgvs": "NM_007294.4:c.2858G>T",
+          "raw_text": "BRCA1 NM_007294.4:c.2858G>T"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-BRCA1-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "BRCA1",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "BRCA2",
+      "control_sample": {
+        "sample_id": "HC-BRCA2-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000059.4",
+        "cdna": "c.7751G>T",
+        "query": {
+          "gene": "BRCA2",
+          "cdna": "c.7751G>T",
+          "transcript_hgvs": "NM_000059.4:c.7751G>T",
+          "raw_text": "BRCA2 NM_000059.4:c.7751G>T"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-BRCA2-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "BRCA2",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "CFTR",
+      "control_sample": {
+        "sample_id": "HC-CFTR-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000492.4",
+        "cdna": "c.199C>T",
+        "query": {
+          "gene": "CFTR",
+          "cdna": "c.199C>T",
+          "transcript_hgvs": "NM_000492.4:c.199C>T",
+          "raw_text": "CFTR NM_000492.4:c.199C>T"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-CFTR-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "CFTR",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "HBB",
+      "control_sample": {
+        "sample_id": "HC-HBB-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000518.5",
+        "cdna": "c.327C>G",
+        "query": {
+          "gene": "HBB",
+          "cdna": "c.327C>G",
+          "transcript_hgvs": "NM_000518.5:c.327C>G",
+          "raw_text": "HBB NM_000518.5:c.327C>G"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-HBB-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "HBB",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "LDLR",
+      "control_sample": {
+        "sample_id": "HC-LDLR-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000527.5",
+        "cdna": "c.155G>T",
+        "query": {
+          "gene": "LDLR",
+          "cdna": "c.155G>T",
+          "transcript_hgvs": "NM_000527.5:c.155G>T",
+          "raw_text": "LDLR NM_000527.5:c.155G>T"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-LDLR-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "LDLR",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "MLH1",
+      "control_sample": {
+        "sample_id": "HC-MLH1-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000249.4",
+        "cdna": "c.83C>G",
+        "query": {
+          "gene": "MLH1",
+          "cdna": "c.83C>G",
+          "transcript_hgvs": "NM_000249.4:c.83C>G",
+          "raw_text": "MLH1 NM_000249.4:c.83C>G"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-MLH1-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "MLH1",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "PAH",
+      "control_sample": {
+        "sample_id": "HC-PAH-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000277.3",
+        "cdna": "c.877T>A",
+        "query": {
+          "gene": "PAH",
+          "cdna": "c.877T>A",
+          "transcript_hgvs": "NM_000277.3:c.877T>A",
+          "raw_text": "PAH NM_000277.3:c.877T>A"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-PAH-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "PAH",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    },
+    {
+      "gene": "TP53",
+      "control_sample": {
+        "sample_id": "HC-TP53-CTRL",
+        "sample_kind": "reference_control",
+        "source_fixture": "control_transcript_models",
+        "transcript": "NM_000546.6",
+        "cdna": "c.440T>G",
+        "query": {
+          "gene": "TP53",
+          "cdna": "c.440T>G",
+          "transcript_hgvs": "NM_000546.6:c.440T>G",
+          "raw_text": "TP53 NM_000546.6:c.440T>G"
+        },
+        "workbench_viewer_mode": "reference"
+      },
+      "challenge_samples": {
+        "sample_id_prefix": "HC-TP53-CH",
+        "sample_kind": "clinvar_challenge",
+        "source_fixture": "challenge_stack",
+        "source_gene": "TP53",
+        "include_all_gene_variants": true,
+        "expected_count": 9
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # On-Hold And Pause Register
 
-Last updated: 2026-05-23 12:35 +1000 - Claude (frontend Workbench hold added)
+Last updated: 2026-05-26 20:29 +1000 - Codex (Codex next-task queue paused)
 
 This is a pickup aid, not a replacement for `DECISIONS.md`, `RISKS.md`, or the
 active plans. Keep the list sorted by priority so resume prompts can point here
@@ -41,6 +41,21 @@ when the detail lives here.
   gating tests.
 
 ## 2. Active Lane Pauses
+
+### Codex backend next-task queue paused
+
+- Added: 2026-05-26 20:29 +1000 - Codex
+- Last touched: 2026-05-26 20:29 +1000 - Codex
+- Owner/next reviewer: user, then Codex.
+- Resume condition: user finishes/redirects the bigger next-session topic and
+  explicitly resumes Codex backend queue work.
+- Source of truth: `agent_handoff/CURRENT.md` Codex section,
+  `plans/v2-backend.md`, `PROGRESS.md` Sessions 41-42.
+- Notes: do not auto-start the previous Codex next tasks on resume. Parked
+  queue includes landing/report/workbench checks against
+  `project_100_sample_manifest.json`, multi-segment/cross-exon viewer edit
+  rendering and source-backed confidence gates, Workbench Reading Room styling
+  migration, and SpliceAI source-cache/licensing review.
 
 ### Frontend design-overhaul implementation
 

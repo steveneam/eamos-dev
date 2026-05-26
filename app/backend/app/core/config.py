@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     ucsc_ispcr_timeout_seconds: float = 30.0
     ucsc_ispcr_min_perfect: int = 15
     ucsc_ispcr_min_good: int = 15
+    hg38_2bit_runtime_asset_mode: str = "local_path"
+    hg38_2bit_runtime_asset_path: Path = Path("./data/bio_assets/genomes/hg38.2bit")
+    hg38_2bit_runtime_asset_object_uri: str | None = None
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"

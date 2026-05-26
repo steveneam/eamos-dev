@@ -23,7 +23,7 @@ Guardrails:
 
 ## Backend Launch Security Findings
 
-Section edited: 2026-05-26 04:12 +1000 - Codex.
+Section edited: 2026-05-26 20:23 +1000 - Codex.
 
 The vendored vibe-security backend review findings are now mostly resolved in
 the local backend tree:
@@ -38,8 +38,8 @@ the local backend tree:
   controls.
 - **Resolved locally - production debug default.**
   `app/backend/app/core/config.py` and `app/backend/.env.example` now default
-  `DEBUG=false`. Render env still should be verified directly once env access is
-  visible, but the code no longer defaults to debug behavior.
+  `DEBUG=false`. Render env was directly verified read-only by Codex on
+  2026-05-26: backend service `eamos-dev` has `DEBUG=false`.
 - **Resolved locally - Stripe checkout redirects.** `CheckoutSessionRequest`
   no longer accepts `success_url` / `cancel_url`; extra fields are rejected, and
   Stripe checkout always uses configured server-side redirect URLs.
@@ -61,9 +61,8 @@ the local backend tree:
   a private Supabase/Postgres table, or gateway controls. If forwarded-client-IP
   semantics are needed later, enable them only after reviewing the exact
   Render/gateway path.
-- **Residual - live env visibility.** Render `DEBUG=false` was reported set by
-  Claude/Steven and code now defaults false, but this Codex session still did
-  not have callable Render env visibility to verify it directly.
+- **Resolved - live env visibility.** Render `DEBUG=false` was reported set by
+  Claude/Steven and is now directly verified by Codex through the Render API.
 
 ## Gene Viewer Dynamic Product Risks
 
@@ -88,7 +87,7 @@ workflow, but the following limits should remain explicit:
 
 ## Project-Wide Hardening Cohort
 
-Section edited: 2026-05-26 02:49 +1000 - Codex.
+Section edited: 2026-05-26 20:10 +1000 - Codex.
 
 The current ClinVar stack is not the project-wide hardening matrix Steven
 clarified on 2026-05-26:
@@ -97,11 +96,12 @@ clarified on 2026-05-26:
   `app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json` has
   10 non-RPE65 genes x 9 variants = 90 variants, plus one separate global
   RPE65 control.
-- Required hardening shape: 10 chosen genes x (one per-gene control sample +
-  nine challenge variants) = 100 samples across landing, variant report, and
-  Workbench.
-- Safest path: add a separate hardening manifest instead of mutating the
-  existing ClinVar report-stack fixture, because
+- Required hardening shape is now defined in
+  `app/backend/app/fixtures/hardening/project_100_sample_manifest.json`: 10
+  chosen genes x (one per-gene reference/control render sample + nine challenge
+  variants) = 100 samples across landing, variant report, and Workbench.
+- Keep this as a separate hardening manifest instead of mutating the existing
+  ClinVar report-stack fixture, because
   `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
   references the existing stack for curated snapshot hydration.
 - Supabase storage can hold durable hardening artifacts/caches later, but only

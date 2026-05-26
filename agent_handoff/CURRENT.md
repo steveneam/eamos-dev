@@ -14,34 +14,15 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-26 01:41 +1000 - **Auth email flow + warm email templates + Eamos capitalization + mobile-lag/UI fixes (ALL PUSHED, tip `ad59104`, local==origin).** Supabase 0003-0006 live via MCP (0005 = grant service_role DML = THE evidence-403 fix; 0006 advisor cleanup); advisor CLEAN; project on **Pro tier**; evidence write-through **E2E GREEN** (verified via live UI → real `EAMOS-EVS-…` id); Vercel `NEXT_PUBLIC_EVIDENCE_API_ENABLED=true` LIVE. **Confirm-email ON** + custom SMTP via **Resend** (`eamos.com.au` domain verified). NEW code: `app/web/app/auth/confirm/route.ts` + `app/web/utils/supabase/server.ts` (verifyOtp→auto-login), `AuthProvider.updatePassword` + `app/web/app/account/update-password/page.tsx`, 4 warm email templates in `supabase/email-templates/` (Steven pasted confirm-signup; #2/#3/#4 optional; **templates are dashboard-only — MCP has no auth-config tool**). **Eamos** wordmark capitalized site-wide (EamosLogo/Workbench/og-image/emails). Mobile typing lag fixed (removed auth-panel + sticky-nav backdrop-blur; froze Lifestream anim ≤640px); dark `<select>` readable. Codex `548fde7` rsID live-verified (I redeployed Render via the deploy-hook `.render-deploy-hook`). Render MCP in `.mcp.json` needs `RENDER_API_KEY` + a restart (can't trigger deploys → use hook). No servers running. Detail: ~/.claude/plans/next-session-eamos.md (later 10).
-- **Claude (prior):** IDLE @ 2026-05-24 22:04 +1000 â€” **eamos.com.au LIVE + auth working in
-  prod; 2 Claude commits pushed (clear-safe).** Domain go-live DONE: Vercel apex
-  (Production) + `www`â†’apex 308; Porkbun DNS (A `@`â†’216.198.79.1, CNAME `www`â†’
-  `75c5ab8b317dd539.vercel-dns-017.com`); SSL issued; Supabase Auth Site URL
-  `https://eamos.com.au` + redirect allow-list (`eamos.com.au/**`,
-  `eamos-dev.vercel.app/**`, `localhost:3000/**`). Root cause of prod "Auth not
-  configured" = the `NEXT_PUBLIC_SUPABASE_*` + PostHog env vars were missing from
-  **Vercel** (only in gitignored `.env.local`); Steven added all 4 NEXT_PUBLIC_* to
-  Vercel (Production). **Auto-deploy is ON for this branch** (pushâ†’prod build; the
-  old "auto-deploy off" note was stale). **Verified:** real account
-  `steveneam@hotmail.com` created from mobile on the live domain; mobile auth-panel
-  centering fixed + confirmed by Steven. **PUSHED (origin==local):** `a06dd64`
-  Messenger evidence-submissions FE (flag-gated `NEXT_PUBLIC_EVIDENCE_API_ENABLED`,
-  default OFF), `d2dface` mobile auth-panel centering fix (`AuthMenu.tsx`). No
-  servers running. Parked: `sales@eamos.com.au` mailto (after Porkbun forwarding),
-  Render `ALLOWED_ORIGINS` (optional), CMRI IT domain allow-list (work network 403s
-  the new domain). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-26 04:28 +1000 - Gene viewer dynamic
-  variant-applied product workflow is implemented locally and verified across
-  backend plus Vite Workbench: protein/exon/domain state can now reflect
-  source-backed missense/synonymous/stop-gained/stop-lost/frameshift/in-frame
-  indel/dup/delins-style consequences instead of only static reference
-  geometry. `/api/v1/viewer` is rate-limited, viewer request fields are bounded,
-  and proxy-header rate-limit trust now defaults false. Full backend pytest,
-  ruff, black, focused frontend tests, Vite TypeScript, and Vite build passed.
-  Steven explicitly approved the Codex-lane commit/push. No deploy, `/runs`,
-  AlphaMissense, destructive git, stash, reset, clean, or Supabase writes.
+- **Claude:** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
+- **Claude (prior):** IDLE @ 2026-05-26 01:41 +1000 — **Auth email flow + warm email templates + Eamos capitalization + mobile-lag/UI fixes (ALL PUSHED, tip `ad59104`, local==origin).** Supabase 0003-0006 live via MCP (0005 = grant service_role DML = THE evidence-403 fix; 0006 advisor cleanup); advisor CLEAN; project on **Pro tier**; evidence write-through **E2E GREEN** (verified via live UI → real `EAMOS-EVS-…` id); Vercel `NEXT_PUBLIC_EVIDENCE_API_ENABLED=true` LIVE. **Confirm-email ON** + custom SMTP via **Resend** (`eamos.com.au` domain verified). NEW code: `app/web/app/auth/confirm/route.ts` + `app/web/utils/supabase/server.ts` (verifyOtp→auto-login), `AuthProvider.updatePassword` + `app/web/app/account/update-password/page.tsx`, 4 warm email templates in `supabase/email-templates/` (Steven pasted confirm-signup; #2/#3/#4 optional; **templates are dashboard-only — MCP has no auth-config tool**). **Eamos** wordmark capitalized site-wide (EamosLogo/Workbench/og-image/emails). Mobile typing lag fixed (removed auth-panel + sticky-nav backdrop-blur; froze Lifestream anim ≤640px); dark `<select>` readable. Codex `548fde7` rsID live-verified (I redeployed Render via the deploy-hook `.render-deploy-hook`). Render MCP in `.mcp.json` needs `RENDER_API_KEY` + a restart (can't trigger deploys → use hook). No servers running. Detail: ~/.claude/plans/next-session-eamos.md (later 10).
+- **Codex:** ACTIVE @ 2026-05-26 23:30 +1000 - User approved committing and
+  pushing Codex/backend local-first work and updating Claude coordination.
+  Scope: Codex-owned backend/data-source docs/tests/handoff only; do not sweep
+  Claude's dirty `app/web/**` work. No full `hg38.2bit` sequence reads,
+  downloads, uploads, file moves/replacements, installs, provider wiring,
+  source-cache writes, Supabase writes/resources, env mutation, deploy,
+  `/runs`, AlphaMissense, destructive git, stash, reset, or clean.
 
 ## Log Edit-Lock
 
@@ -51,12 +32,56 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-26 04:28 +1000 · Codex (commit/push handoff update complete)
+LOCKED: Codex · 2026-05-26 23:30 +1000 · commit/push local-first backend + Claude note
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED local-first data-source Task 6 runtime asset path**
+  (2026-05-26 23:21 +1000)
+  - Scope: `app/backend/app/core/config.py`,
+    `app/backend/app/data_sources/registry.py`,
+    `app/backend/app/services/reference_genome.py`, focused backend tests,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Guardrails: no binary upload/move/replacement, no env mutation, no deploy,
+    no Supabase writes/resources, no downloads/installs, no full-asset sequence
+    reads, no provider wiring, no commit/push, no destructive git, no stash,
+    reset, or clean.
+
+- **Codex RELEASED local-first data-source task plan**
+  (2026-05-26 21:39 +1000)
+  - Scope: `docs/local-first-data-source-strategy/plan.md`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates only.
+  - Guardrails: no implementation, downloads, installs, Supabase writes, env
+    mutation, deploy, commit, push, `/runs`, AlphaMissense, destructive git,
+    stash, reset, or clean.
+
+- **Codex RELEASED local-first data-source design doc**
+  (2026-05-26 21:34 +1000)
+  - Scope: `docs/local-first-data-source-strategy/*`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates only.
+  - Guardrails: no downloads, installs, Supabase writes, env mutation, deploy,
+    commit, push, `/runs`, AlphaMissense, destructive git, stash, reset, or
+    clean.
+
+- **Codex RELEASED hg38.2bit priority registry/spec docs**
+  (2026-05-26 21:19 +1000)
+  - Scope: `plans/data-source-registry/*`, `plans/v2-backend.md`,
+    `plans/local-first-search-licensing-architecture.md`, `PROGRESS.md`, and
+    Codex-owned handoff updates only.
+  - Guardrails: no downloads, installs, Supabase writes, env mutation, deploy,
+    commit, push, `/runs`, AlphaMissense, destructive git, stash, reset, or
+    clean.
+
+- **Codex RELEASED data-source registry/spec planning docs**
+  (2026-05-26 21:13 +1000)
+  - Scope: `plans/data-source-registry/*`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates only.
+  - Guardrails: no downloads, installs, Supabase writes, env mutation, deploy,
+    commit, push, `/runs`, AlphaMissense, destructive git, stash, reset, or
+    clean.
 
 - **Codex RELEASED Workbench input hardening files** (2026-05-26 02:49 +1000)
   - Backend: `app/backend/app/schemas/workbench.py`,
@@ -284,6 +309,23 @@ Rule 4); release when done.
 Append-only. Format: `[OPEN|DONE] <from>â†’<to> (date): <ask> Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
 
+- [OPEN] Codex→Claude (2026-05-26 23:30 +1000): **FYI before next
+  Workbench/report-data pass:** Codex is committing/pushing the backend
+  local-first data-source foundation, covering runtime source registry,
+  license/field policy, existing `hg38.2bit` inventory proof, fixture-backed
+  `ReferenceGenomeStore`, skipped-by-default local full-asset smoke, and
+  production `hg38.2bit` runtime asset path/status config. Task 7 remains
+  gated: no 2bit reader install/selection or full-asset sequence reads yet.
+  Supabase MCP tools are still not visible in this active Codex session after
+  plugin install; next Codex restart should verify tool exposure before any
+  storage proof. Claude should not touch Codex backend/data-source files, but
+  can assume the backend now records the runtime requirement: hosted
+  `hg38.2bit` must be a local path, local cache, or mounted volume before
+  website tools depend on fast sequence reads. ·
+  `PROGRESS.md` Sessions 44-50, `plans/v2-backend.md` Recent backend notes,
+  `docs/local-first-data-source-strategy/*`,
+  `plans/data-source-registry/*`, `app/backend/app/data_sources/**`,
+  `app/backend/app/services/reference_genome.py`.
 - [DONE] Codexâ†’Claude (2026-05-17): keep CRISPR FE mock-first on the existing
   `CrisprResponse` shape; no additive fields until backend contract approved.
   Â· Satisfied â€” see Claude section / `plans/v2-frontend.md` FE-6 notes.
@@ -1012,7 +1054,7 @@ drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, St
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-26 04:12 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-26 23:21 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
 timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
 ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
@@ -1022,83 +1064,88 @@ source-cache read-through in Session 33; provider/cache health in Session 34;
 bare-rsID resolver hardening in Session 35; launch-blocker/security pickup in
 Session 36; rsID commit/push in Session 37; backend launch security hardening
 in Session 38; Workbench input hardening and cohort correction in Session 39;
-dynamic variant-applied gene/protein viewer in Session 40.
+dynamic variant-applied gene/protein viewer in Session 40; project 100-sample
+hardening manifest in Session 41; Render DEBUG env verification in Session 42;
+Codex next-task queue pause in Session 43; data-source registry/spec draft in
+Session 44; runtime data-source registry validation in Session 45; source field
+policy helper in Session 46; existing `hg38.2bit` inventory proof in Session
+47; fixture-backed `ReferenceGenomeStore` in Session 48; opt-in local
+`hg38.2bit` smoke scaffold in Session 49; production `hg38.2bit` runtime asset
+path config in Session 50. Genomic LLM notebook relevance was saved as a
+deferred local-first follow-up at 2026-05-26 23:02 +1000.
 
-**Latest Codex update (2026-05-26 04:28 +1000 - Codex):**
-The gene viewer now has a local Eamos-owned variant-applied product workflow,
-not just static reference geometry. Steven explicitly approved committing and
-pushing this Codex-lane slice after verification. No deploy or Supabase write
-was performed.
+**Latest Codex update (2026-05-26 23:21 +1000 - Codex):**
+User approved Task 6 from `docs/local-first-data-source-strategy/plan.md`.
+Codex implemented only production `hg38.2bit` runtime asset path
+planning/config tests. No asset upload, file move/replacement, environment
+mutation, deploy, Supabase write/resource creation, download, install,
+full-asset sequence-window read, reader package selection/install, provider
+wiring, source-cache write, commit, push, `/runs`, AlphaMissense, destructive
+git, stash, reset, or clean.
 
 **State:**
-- Ran `git pull --ff-only` at session start; local branch was already up to
-  date. Ran it again immediately before committing; local branch was still up to
-  date.
-- Added `app/backend/app/services/variant_applied_model.py`, an internal
-  deterministic workflow that emits variant-applied protein/product state for
-  source-backed missense, synonymous, stop-gained, stop-lost, frameshift,
-  in-frame deletion/insertion/duplication, delins, and unknown/unsupported
-  cases.
-- Exposed `tracks.protein_product` through the viewer contract, mirrored it in
-  both TypeScript backend contracts, and adapted Workbench gene/protein/exon
-  rendering so variant mode can show effective/reference protein length,
-  truncation/extension notes, exon states, and domain clipping.
-- Extended coding HGVS parsing/application for simple substitutions,
-  deletions, duplications, insertions, and delins in viewer windows. Cross-
-  segment/cross-intron representations still fail closed until the renderer can
-  represent multi-segment edits cleanly.
-- Hardened viewer security in the same slice: `/api/v1/viewer` now calls the
-  Workbench rate limiter, `GeneViewerRequest` fields/windows/tracks are bounded,
-  and proxy-header rate-limit trust defaults false unless explicitly enabled.
-- Prior backend launch security and Workbench input hardening remain local and
-  verified. Render `DEBUG=false` still was not independently read from Render
-  env in this Codex session.
-- Commit scope was kept to Codex-owned backend security/viewer files, Vite
-  Workbench files, mirrored `app/web` Workbench contract/render files, and
-  handoff docs. Claude's committed Reading Room redesign is only acknowledged.
+- Added `HG38_2BIT_RUNTIME_ASSET_MODE`,
+  `HG38_2BIT_RUNTIME_ASSET_PATH`, and
+  `HG38_2BIT_RUNTIME_ASSET_OBJECT_URI` settings plus `.env.example`
+  documentation. Defaults point to
+  `./data/bio_assets/genomes/hg38.2bit` under the backend root.
+- Added `app/backend/app/data_sources/runtime_assets.py`, a pure config/status
+  helper for the `hg38.2bit` runtime plan. It reports `ready`, `missing`,
+  `not_file`, `size_mismatch`, `checksum_mismatch`, and `config_error`.
+- Extended the `ucsc_hg38_2bit` registry row with delivery modes
+  `local_path`, `object_storage_local_cache`, and `mounted_volume`, and
+  records that the reader requires a local filesystem path.
+- Added `app/backend/tests/test_hg38_runtime_asset_config.py` covering local
+  path defaults, missing asset behavior, ready checksum-matched files,
+  checksum/size mismatch, object-storage local-cache URI requirements, and
+  invalid mode config errors.
+- Existing fixture-backed `ReferenceGenomeStore`, opt-in full-asset smoke,
+  policy, inventory, Claude-owned frontend work, and provider/source-cache
+  wiring were left intact.
+- Supabase MCP note: `.mcp.json` points at project `cpdjxsgasaesysvxkpmi`, but
+  Supabase MCP tools are not exposed in this Codex session. Install/enable the
+  Codex Supabase plugin and restart/reload before Supabase-heavy storage proof
+  work.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_gene_viewer.py tests/test_variant_applied_model.py tests/test_frontend_contract.py -q -p no:cacheprovider`
+- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py -q`
+  passed (`8 passed`).
+- `cd app/backend && python -m pytest tests/test_data_source_registry.py -q`
+  passed (`11 passed`).
+- `cd app/backend && python -m pytest tests/test_local_hg38_inventory.py -q`
+  passed (`2 passed`).
+- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py -q`
+  passed (`21 passed`).
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py -q`
+  passed (`10 passed, 2 skipped`).
+- `cd app/backend && python -m ruff check app/core/config.py app/data_sources tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py`
   passed.
-- `cd app/backend && python -m pytest tests/test_workbench_api.py tests/test_rate_limits.py tests/test_payments_api.py -q -p no:cacheprovider`
+- `cd app/backend && python -m black --check --target-version py310 app/core/config.py app/data_sources tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py`
   passed.
-- `cd app/backend && python -m pytest -q -p no:cacheprovider` passed
-  (5 skipped; expected short test-JWT warnings only).
-- `cd app/backend && python -m ruff check ...` passed.
-- `cd app/backend && python -m black --check --target-version py310 ...` passed
-  after formatting `app/services/variant_applied_model.py`.
-- `cd app/frontend && npm run test -- src/lib/workbench/gene-window.test.ts src/lib/workbench/gene-viewer-adapter.test.ts src/lib/workbench/codon-layout.test.ts`
-  passed (47 tests).
-- `cd app/frontend && npx tsc -b --pretty false` passed.
-- `cd app/frontend && npx vite build --debug` passed.
-- `cd app/frontend && npm run build` passed, with the existing large-chunk
-  warning.
-- Vite `/workbench` browser smoke passed on desktop through installed Chrome
-  after opening the Protein tab. Backend was not running, so the smoke used the
-  existing fallback sample and logged expected backend connection failures.
-- `app/web` `npm run build` timed out locally while an existing Next dev server
-  was active; do not treat that as a pass. Mobile `/workbench` still has
-  existing horizontal overflow in the Vite app.
+- `git diff --check -- app/backend/app/core/config.py app/backend/app/data_sources app/backend/tests/test_hg38_runtime_asset_config.py app/backend/tests/test_data_source_registry.py app/backend/.env.example`
+  passed with existing CRLF working-copy warnings only.
 
-**Next-session pickup queue:**
-1. Verify Render `DEBUG=false` directly once Render env/MCP access is available.
-2. Define the corrected 100-sample hardening manifest as a separate artifact
-   from the old 90+RPE65 ClinVar report stack, then run landing/report/workbench
-   checks against it.
-3. Add multi-segment/cross-exon edit rendering and source-backed product
-   confidence gates before claiming every possible HGVS class is fully rendered.
-4. Continue SpliceAI source-cache only after a source-version decision; keep
-   ClinVar/ClinGen as separate identity slices.
-5. Workbench Reading Room migration should consume `--cls-*` classification
-   tokens and avoid dense-control use of serif `--display`.
+**Next-session direction:**
+- Task 7 remains gated: choose/install a 2bit reader and prove full-asset RPE65
+  reference-base reads only after explicit approval. If Supabase plugin access
+  is enabled, first verify Codex can see Supabase MCP tools before any storage
+  proof.
+- Actual Supabase Storage upload/bucket/policy work, deployment mutation, env
+  mutation, MyVariant, dbSNP, ClinVar, InterVar, restricted predictors,
+  provider/source-cache wiring, and the parked backend queue remain separately
+  gated.
+- Keep the genomic LLM notebooks parked as a deferred ML spike until the local
+  reference-window and variant-window builder are stable.
 
-**Clear-safe:** yes; Codex locks are released, the Vite verification server was
-stopped, and the known active subagents were closed. Steven approved the
-Codex-lane commit/push. No deploy or Supabase write was performed.
+**Clear-safe:** yes; Codex source work is verified and no Codex test processes
+or servers are running. No downloads, uploads, file moves/replacements, reader
+installs, provider wiring, source-cache writes, Supabase writes/resources, env
+mutation, deploy, commit, push, `/runs`, AlphaMissense, destructive git, stash,
+reset, or clean were performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-26 04:28 +1000 · Codex gene-viewer/security committed`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 38-40, plans/v2-backend.md Recent backend notes, then git status --short --branch and git pull --ff-only before any commit.`
-`Delta: Steven approved committing/pushing the Codex lane. Eamos-owned variant-applied gene/protein viewer workflow is implemented: backend ProteinProductEffect contract, internal variant_applied_model service, simple coding SNV/indel/dup/delins window application, stop-gained/frameshift truncation, stop-lost extension, in-frame product effects, exon state annotations, domain clipping in Workbench protein view, and mirrored Vite/Next TS contracts. Viewer is now rate-limited; viewer schema is bounded; rate-limit proxy-header trust defaults false. Backend launch security + Workbench input hardening are in the same Codex lane. Full backend pytest, ruff, black, focused Vite tests/tsc/build passed. app/web build timed out locally while a Next dev server was active; mobile Workbench overflow remains existing residual. No deploy/Supabase writes.`
-`Next: verify Render DEBUG=false when env access is visible; define the separate 100-sample hardening manifest; add multi-segment/cross-exon edit rendering and source-backed confidence gates before claiming every possible HGVS class is fully rendered; migrate Workbench styling to the Reading Room --cls-* ramp/warm tokens; SpliceAI only after pinned official source/licensing review.`
-`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, commit, deploy, or Supabase writes unless explicitly requested. End clear-safe.`
+`# Resume prompt · 2026-05-26 23:21 +1000 · Codex hg38 runtime asset path config`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 41-50, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md}, plans/data-source-registry/{spec.md,source-registry.seed.json}, then git status --short --branch.`
+`Delta: Approved Task 6 implemented only. Added hg38 runtime asset mode/path/object-URI settings, registry delivery modes local_path/object_storage_local_cache/mounted_volume, and pure runtime asset status tests for ready/missing/not-file/size/checksum/config states. Focused pytest/reference smoke/ruff/black/diff-check passed.`
+`Next: Task 7 remains gated: choose/install a 2bit reader and prove full-asset RPE65 GRCh38 1:68444869=T only after explicit approval. If Steven installs/enables the Codex Supabase plugin, first verify Supabase MCP tools are visible before any storage proof.`
+`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, commit, deploy, env mutation, Supabase writes/resources, downloads, uploads, installs, file moves/replacements, full-asset sequence reads, provider wiring, or runtime ML scoring unless explicitly requested. End clear-safe.`

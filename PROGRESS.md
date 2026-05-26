@@ -1,5 +1,409 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 50 - 26 May 2026 - Production hg38.2bit runtime asset path config
+
+User approved Task 6 from `docs/local-first-data-source-strategy/plan.md`.
+Codex implemented only production `hg38.2bit` runtime asset path
+planning/config tests. No asset upload, file move/replacement, environment
+mutation, deploy, Supabase write/resource creation, download, install,
+full-asset sequence-window read, reader package selection/install, provider
+wiring, source-cache write, commit, push, `/runs`, AlphaMissense, destructive
+git, stash, reset, or clean was performed.
+
+Completed:
+- Added `HG38_2BIT_RUNTIME_ASSET_MODE`,
+  `HG38_2BIT_RUNTIME_ASSET_PATH`, and
+  `HG38_2BIT_RUNTIME_ASSET_OBJECT_URI` settings plus `.env.example`
+  documentation. Defaults point to the backend-local ignored asset path:
+  `./data/bio_assets/genomes/hg38.2bit`.
+- Extended the `ucsc_hg38_2bit` registry row with explicit supported runtime
+  delivery modes: `local_path`, `object_storage_local_cache`, and
+  `mounted_volume`. The row now records that the eventual reader requires a
+  local filesystem path, so hosted object storage must materialize to a
+  checksum-validated local cache or mounted volume before real reads.
+- Added `app/backend/app/data_sources/runtime_assets.py` with pure config/status
+  helpers that build the runtime plan and report `ready`, `missing`,
+  `not_file`, `size_mismatch`, `checksum_mismatch`, or `config_error`.
+- Added `app/backend/tests/test_hg38_runtime_asset_config.py` covering local
+  path defaults, missing assets, ready checksum-matched files, checksum/size
+  mismatch failures, object-storage local-cache URI requirements, and invalid
+  mode config errors. Tests use tiny temporary files, not the full `hg38.2bit`
+  for sequence reads.
+- Existing fixture-backed `ReferenceGenomeStore`, opt-in full-asset smoke,
+  policy, inventory, Claude-owned frontend work, and provider/source-cache
+  wiring were left intact.
+- Supabase note: this Codex session can see `.mcp.json` for project
+  `cpdjxsgasaesysvxkpmi`, but Supabase MCP tools are not exposed in the
+  current Codex tool surface. Installing/enabling the Codex Supabase plugin and
+  restarting/reloading the session should be done before Supabase-heavy storage
+  proof work.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py -q`
+  -> passed (`8 passed`).
+- `cd app/backend && python -m pytest tests/test_data_source_registry.py -q`
+  -> passed (`11 passed`).
+- `cd app/backend && python -m pytest tests/test_local_hg38_inventory.py -q`
+  -> passed (`2 passed`; hashes the existing ignored local asset when present).
+- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py -q`
+  -> passed (`21 passed`).
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py -q`
+  -> passed (`10 passed, 2 skipped`).
+- `cd app/backend && python -m ruff check app/core/config.py app/data_sources tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/config.py app/data_sources tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py`
+  -> passed.
+- `git diff --check -- app/backend/app/core/config.py app/backend/app/data_sources app/backend/tests/test_hg38_runtime_asset_config.py app/backend/tests/test_data_source_registry.py app/backend/.env.example`
+  -> passed with existing CRLF working-copy warnings only.
+
+Out of scope: actual Supabase Storage upload/bucket/policy work, deployment
+mutation, environment mutation, reader package selection/install,
+full-asset sequence reads, dbSNP, ClinVar, MyVariant, InterVar, restricted
+predictor unlocks, provider/source-cache wiring, and the parked backend queue.
+
+## Session 49 - 26 May 2026 - Opt-in local hg38.2bit smoke scaffold
+
+User approved Task 5 from `docs/local-first-data-source-strategy/plan.md`.
+Codex implemented only the skipped-by-default local `hg38.2bit` smoke
+scaffold. No full `hg38.2bit` sequence-window read, reader install, package
+download, asset download, upload, file move/replacement, provider wiring,
+source-cache write, Supabase write, environment mutation, deploy, commit,
+push, `/runs`, AlphaMissense, destructive git, stash, reset, or clean was
+performed.
+
+Completed:
+- Added `app/backend/tests/test_reference_genome_store_local_hg38.py`.
+- The new smoke is skipped unless `EAMOS_VERIFY_LOCAL_HG38_2BIT=1`.
+- When opted in, it reuses the existing read-only inventory helper to verify
+  the ignored local `app/backend/data/bio_assets/genomes/hg38.2bit` path, size
+  `835,393,456`, MD5 `dcc3ea27079aa6dc3f9deccd7275e0f8`, registry metadata,
+  and `md5sum.txt` entry.
+- Documented the future reader-backed RPE65 check as a pending skipped test:
+  GRCh38 `1:68444869` should be `T` for
+  `NM_000329.3:c.260A>G` / `1-68444869-T-C`.
+- Existing fixture-backed `ReferenceGenomeStore`, registry, policy, inventory,
+  Claude-owned frontend work, and provider/source-cache wiring were left
+  intact.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_reference_genome_store_local_hg38.py -q`
+  -> passed (`2 skipped`).
+- `cd app/backend && & { $env:EAMOS_VERIFY_LOCAL_HG38_2BIT = '1'; python -m pytest tests/test_reference_genome_store_local_hg38.py -q }`
+  -> passed (`1 passed, 1 skipped`).
+- `cd app/backend && python -m pytest tests/test_reference_genome_store_local_hg38.py tests/test_reference_genome_store.py tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py -q`
+  -> passed (`30 passed, 2 skipped`).
+- `cd app/backend && python -m ruff check app/data_sources app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py`
+  -> passed.
+- `git diff --check -- app/backend/tests/test_reference_genome_store_local_hg38.py`
+  -> passed.
+
+Out of scope: reader package installation/selection, sequence-window reads from
+the full `hg38.2bit`, production asset delivery, Supabase/object-storage
+writes, MyVariant, dbSNP, ClinVar, InterVar, restricted predictor unlocks,
+provider/source-cache wiring, and the parked backend queue.
+
+## Session 48 - 26 May 2026 - Fixture-backed ReferenceGenomeStore
+
+User approved Task 4 from `docs/local-first-data-source-strategy/plan.md`.
+Codex implemented only the tiny fixture-backed `ReferenceGenomeStore`
+interface. No full `hg38.2bit` sequence-window reads, file move, replacement,
+download, upload, reader install, provider wiring, source-cache write,
+Supabase write, environment mutation, deploy, commit, push, `/runs`,
+AlphaMissense, destructive git, stash, reset, or clean was performed.
+
+Completed:
+- Added `app/backend/app/services/reference_genome.py` with a fixture-backed
+  `ReferenceGenomeStore`, `ReferenceGenomeMetadata`, `ReferenceWindow`,
+  `ReferenceBaseCheck`, and structured `ReferenceGenomeStoreError`.
+- Added tiny checked-in fixture data under
+  `app/backend/app/fixtures/reference_genome/hg38_tiny.json`; the fixture uses
+  synthetic sequence only and reuses the registry/inventory metadata shape for
+  source ID, source URL, source version, path, checksum, reader, local
+  `hg38.2bit` path, MD5, and size.
+- Added `app/backend/app/fixtures/reference_genome/README.md` to preserve the
+  local-model methods/protocol: provenance, 1-based inclusive coordinate
+  convention, Python slicing equation, alias rules, validation behavior, and
+  checksum method.
+- Added `app/backend/tests/test_reference_genome_store.py` covering metadata,
+  window reads, `1`/`chr1`/`NC_...` aliases, mitochondrial aliases,
+  reference-base match/mismatch, invalid expected bases, unknown chromosomes,
+  out-of-bounds windows, invalid coordinates, and unsupported builds.
+- Existing registry, policy, local inventory, Claude-owned frontend work, and
+  source-cache/provider wiring were left intact.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py -q`
+  -> passed (`30 passed`).
+- `cd app/backend && python -m ruff check app/services/reference_genome.py tests/test_reference_genome_store.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/reference_genome.py tests/test_reference_genome_store.py`
+  -> passed.
+- `git diff --check -- app/backend/app/services/reference_genome.py app/backend/app/fixtures/reference_genome app/backend/tests/test_reference_genome_store.py`
+  -> passed.
+
+Out of scope: production asset delivery, Supabase/object-storage writes, 2bit
+reader installs, sequence-window reads from the full `hg38.2bit`, MyVariant,
+dbSNP, ClinVar, InterVar, restricted predictor unlocks, provider/source-cache
+wiring, and the parked backend queue.
+
+## Session 47 - 26 May 2026 - Existing hg38.2bit inventory proof
+
+User approved Task 3 from `docs/local-first-data-source-strategy/plan.md`.
+Codex implemented only the read-only inventory proof for the existing ignored
+local `hg38.2bit` asset. No file move, replacement, download, upload, reader
+install, provider wiring, source-cache write, Supabase write, environment
+mutation, deploy, commit, push, `/runs`, AlphaMissense, destructive git, stash,
+reset, or clean was performed.
+
+Completed:
+- Added `app/backend/app/data_sources/local_inventory.py`, a read-only helper
+  that resolves registry-local asset paths, stats the file, streams MD5, and
+  reads the local `md5sum.txt` entry without mutating asset files.
+- Exported `LOCAL_HG38_2BIT_SOURCE_ID`, `LocalAssetInventory`,
+  `LocalAssetInventoryError`, `inventory_local_asset`,
+  `inventory_local_hg38_2bit`, and `resolve_local_asset_path`.
+- Strengthened registry validation so `ucsc_hg38_2bit` must retain source URL,
+  local path, local size, and local MD5 metadata.
+- Added `app/backend/tests/test_local_hg38_inventory.py`. The test skips
+  cleanly if the ignored asset is absent; on this host it verified
+  `app/backend/data/bio_assets/genomes/hg38.2bit` as 835,393,456 bytes with MD5
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, matching registry metadata and
+  `md5sum.txt`.
+- Existing Claude-owned frontend work and prior Codex source-policy work were
+  left intact.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py -q`
+  -> passed (`20 passed`).
+- `cd app/backend && python -m ruff check app/data_sources tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources tests/test_local_hg38_inventory.py tests/test_data_source_registry.py tests/test_source_field_policy.py`
+  -> passed.
+- `git diff --check -- app/backend/app/data_sources app/backend/tests/test_local_hg38_inventory.py app/backend/tests/test_data_source_registry.py app/backend/tests/test_source_field_policy.py`
+  -> passed.
+
+Out of scope: production asset delivery, Supabase/object-storage writes, 2bit
+reader installs, sequence-window reads from the 2bit file, MyVariant adapter
+implementation, dbSNP, ClinVar, InterVar, restricted predictor unlocks,
+provider/source-cache wiring, and the parked backend queue.
+
+## Session 46 - 26 May 2026 - Source field policy helper
+
+User approved Task 2 from `docs/local-first-data-source-strategy/plan.md`.
+Codex implemented only the pure backend license/field policy helper. No
+provider wiring, MyVariant adapter, source-cache writes, downloads, installs,
+Supabase writes, environment mutation, deploy, commit, push, `/runs`,
+AlphaMissense, destructive git, stash, reset, or clean was performed.
+
+Completed:
+- Added `app/backend/app/data_sources/policy.py`.
+- Exported `SourceFieldPolicy`, `FieldPolicyDecision`, `PolicyAction`, and
+  `ProductTier` through `app/backend/app/data_sources/__init__.py`.
+- Added request/cache/normalize/serialize decision helpers with explicit
+  allow/deny reasons.
+- Added recursive payload filtering for future source adapters before cache or
+  serialization.
+- Kept MyVariant allowlisted to `gnomad_genome` and `gnomad_exome`; CADD,
+  dbNSFP REVEL/PrimateAI, SpliceAI, REVEL, and PrimateAI-3D paths deny by
+  default.
+- Public/prod policy denies the restricted predictor source rows while their
+  registry rows remain `restricted_unlicensed`.
+- Internal fixture mode can preserve warning-labeled restricted examples, but
+  public/prod serialization filters them out and unlabeled fixture payloads are
+  filtered.
+- Added `app/backend/tests/test_source_field_policy.py` for the Task 2
+  acceptance criteria.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_source_field_policy.py tests/test_data_source_registry.py -q`
+  -> passed (`17 passed`).
+- `cd app/backend && python -m ruff check app/data_sources tests/test_source_field_policy.py tests/test_data_source_registry.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources tests/test_source_field_policy.py tests/test_data_source_registry.py`
+  -> passed.
+- `git diff --check -- app/backend/app/data_sources/__init__.py app/backend/app/data_sources/policy.py app/backend/tests/test_source_field_policy.py`
+  -> passed.
+
+Out of scope: production asset delivery, Supabase/object-storage writes, 2bit
+reader installs, MyVariant adapter implementation, dbSNP, ClinVar, InterVar,
+restricted predictor unlocks, provider/source-cache wiring, and the parked
+backend queue.
+
+## Session 45 - 26 May 2026 - Runtime data-source registry validation
+
+User approved `docs/local-first-data-source-strategy/plan.md`. Codex
+implemented Task 1 only: backend runtime data-source registry validation. No
+downloads, installs, Supabase writes, environment mutation, deploy, commit,
+push, `/runs`, AlphaMissense, destructive git, stash, reset, or clean was
+performed.
+
+Completed:
+- Added `app/backend/app/data_sources/__init__.py` and
+  `app/backend/app/data_sources/registry.py`.
+- Added a frozen `DataSourceRecord`, `DataSourceRegistry`, `LicenseStatus`,
+  and `RegistryValidationError` runtime surface.
+- Promoted 23 reviewed source rows into backend runtime code without importing
+  from `plans/` at request time.
+- Registry validation now fails closed for missing source identity, license
+  status, storage target, allowed/restricted field policy, checksum/source
+  version policy, and unsafe `download_approved=true` rows.
+- The default registry enforces `ucsc_hg38_2bit` as
+  `p0_first_asset_proof`, keeps `ncbi_dbsnp_gcf_000001405_40` as active Day 1
+  but not download-approved, and keeps SpliceAI/CADD/REVEL/PrimateAI-3D rows
+  restricted/unlicensed.
+- Added `app/backend/tests/test_data_source_registry.py` for the Task 1
+  acceptance criteria.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_data_source_registry.py -q`
+  -> passed (`10 passed`).
+- `cd app/backend && python -m ruff check app/data_sources tests/test_data_source_registry.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources tests/test_data_source_registry.py`
+  -> passed.
+- `git diff --check -- app/backend/app/data_sources/__init__.py app/backend/app/data_sources/registry.py app/backend/tests/test_data_source_registry.py`
+  -> passed.
+
+Out of scope: license/field policy helper, production asset delivery,
+Supabase/object-storage writes, 2bit reader installs, MyVariant, dbSNP,
+ClinVar, InterVar, restricted predictor unlocks, and the parked backend queue.
+
+## Session 44 - 26 May 2026 - Data-source registry/spec draft
+
+Codex started the user-directed local-first data-source registry/spec pass
+before any downloads, installs, Supabase writes, env mutation, deploy, commit,
+or push.
+
+Completed:
+- Added `plans/data-source-registry/spec.md`, a review-gated backend planning
+  spec for source registry fields, license policy, restricted predictor
+  filtering, MyVariant gnomAD-only use, storage/staging rules, implementation
+  phases, and acceptance criteria.
+- Added `plans/data-source-registry/source-registry.seed.json`, a structured
+  seed registry preserving the corrected DOCX matrix: MyVariant for gnomAD Day
+  1 lookup only; restricted predictors locked/filtered; dbSNP
+  `GCF_000001405.40` as a Day 1 large asset; InterVar DOCX-intended but
+  blocked for commercial production until InterVar/ANNOVAR/OMIM rights review;
+  and `C:` staging for assets whose actual download size exceeds 10 GB.
+- Follow-up correction: `hg38.2bit` is now explicitly marked as
+  `p0_first_asset_proof`, because it is the shared reference backbone for local
+  sequence context, gene viewer, primer design, CRISPR guide discovery, Sanger
+  alignment context, and variant normalization checks.
+- Follow-up design-doc pass: added
+  `docs/local-first-data-source-strategy/design.md` to separate the three
+  decision tracks: local reference/model layer, Supabase storage/runtime
+  posture, and licensing/field policy. Per the `design-doc` skill, stop for
+  review before writing the implementation spec and task plan.
+- Existing local asset correction: `app/backend/data/bio_assets/genomes/hg38.2bit`
+  already exists from prior ignored `isPcr` work. Codex re-verified it read-only:
+  size 835,393,456 bytes, MD5 `dcc3ea27079aa6dc3f9deccd7275e0f8`, matching the
+  local `md5sum.txt`. The next task should inventory and prove this asset
+  rather than redownload it.
+- Spec pass after design approval: added
+  `docs/local-first-data-source-strategy/spec.md`. The spec covers the runtime
+  data-source registry, backend license/field policy, and fixture-first
+  `ReferenceGenomeStore`/existing-`hg38.2bit` inventory proof. Per the `spec`
+  skill, stop for review before writing the task plan.
+- Plan pass after spec approval: added
+  `docs/local-first-data-source-strategy/plan.md`. The plan splits work into
+  runtime registry, license/field policy, existing `hg38.2bit` inventory,
+  fixture-backed `ReferenceGenomeStore`, skipped local smoke, production
+  `hg38.2bit` runtime asset path, and gated 2bit reader compatibility proof.
+  It explicitly states that Git should carry code/manifest/checksum, while the
+  deployed backend needs an approved local cache/mount/object-storage path for
+  fast sequence analysis.
+
+Verification:
+- `git diff --check -- plans\data-source-registry\spec.md plans\data-source-registry\source-registry.seed.json`
+  -> passed.
+- `Get-Content -Raw plans\data-source-registry\source-registry.seed.json | ConvertFrom-Json | Out-Null`
+  -> passed.
+- `rg -n "MyVariant|GCF_000001405\.40|InterVar|greater than 10 GB|SpliceAI|CADD|REVEL|PrimateAI-3D|restricted" plans\data-source-registry`
+  -> confirmed the key guardrails are present.
+- `git diff --check -- docs\local-first-data-source-strategy\design.md`
+  -> passed.
+- `Get-FileHash -Algorithm MD5 app\backend\data\bio_assets\genomes\hg38.2bit`
+  -> `DCC3EA27079AA6DC3F9DECCD7275E0F8`, matching local `md5sum.txt`.
+- `git diff --check -- docs\local-first-data-source-strategy\spec.md`
+  -> passed.
+- `git diff --check -- docs\local-first-data-source-strategy\plan.md`
+  -> passed.
+
+Out of scope: runtime code, source downloads, package installs, Supabase writes,
+environment mutation, deploys, commits, pushes, `/runs`, AlphaMissense,
+destructive git, stash, reset, clean.
+
+## Session 43 - 26 May 2026 - Codex next-task queue paused
+
+User asked to pause the Codex next-task queue for a bigger topic next session.
+Codex recorded the hold in `agent_handoff/on_hold/register.md` and updated the
+resume prompt so the next session starts with the user's topic rather than
+auto-starting backend queue work. No code, deploy, env mutation, Supabase write,
+`/runs`, AlphaMissense, destructive git, stash, reset, clean, commit, or push
+was performed.
+
+## Session 42 - 26 May 2026 - Render DEBUG env verified
+
+Codex performed a read-only Render API check now that `RENDER_API_KEY` is
+available in the local environment. No deploy, Render env mutation, Supabase
+write, `/runs`, AlphaMissense, destructive git, stash, reset, clean, commit, or
+push was performed.
+
+Completed:
+- Listed Render services through the API and identified the backend service as
+  `eamos-dev` (`srv-d896ie77f7vs73brs140`) at
+  `https://eamos-dev.onrender.com`.
+- Read only the `DEBUG` env var for that service and confirmed it is present
+  with value `false`.
+
+Verification:
+- Render API `GET /v1/services?limit=100` succeeded.
+- Render API `GET /v1/services/srv-d896ie77f7vs73brs140/env-vars?limit=100`
+  succeeded; filtered output showed `DEBUG=false`.
+
+## Session 41 - 26 May 2026 - Project 100-sample hardening manifest
+
+Codex defined the corrected project-wide hardening cohort as a separate backend
+fixture artifact, without mutating the existing 90-variant ClinVar stack or the
+RPE65 control. No deploy, Supabase write, `/runs`, AlphaMissense, destructive
+git, stash, reset, clean, commit, or push was performed.
+
+Completed:
+- Added `app/backend/app/fixtures/hardening/project_100_sample_manifest.json`.
+  The manifest resolves to 10 genes x 10 samples = 100 total samples:
+  one per-gene reference/control render sample plus all nine existing ClinVar
+  challenge variants for that gene.
+- Kept the old `clinvar_gene_agnostic_report_stack.json` as an immutable
+  challenge source: 10 non-RPE65 genes x 9 variants = 90 challenge variants,
+  plus the existing separate RPE65 reference-control record.
+- Added `app/backend/tests/test_project_hardening_manifest.py` to validate the
+  manifest shape, source fixture pointers, per-gene control/query alignment
+  against `gene_viewer_transcript_models.json`, challenge resolution against
+  the ClinVar stack, sample-id uniqueness, and the old stack's unchanged
+  90+RPE65 shape.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_project_hardening_manifest.py tests/test_clinvar_gene_agnostic_stack.py -q -p no:cacheprovider`
+  -> passed (`test_clinvar_gene_agnostic_stack_matches_live_clinvar_summaries`
+  remains skipped unless `EAMOS_VERIFY_CLINVAR_STACK=1`).
+- `cd app/backend && python -m ruff check tests/test_project_hardening_manifest.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 tests/test_project_hardening_manifest.py`
+  -> passed.
+- `cd app/backend && python -m pytest tests -q -p no:cacheprovider` -> passed
+  (5 skipped; expected short test-JWT warnings only).
+- `git diff --check` -> passed with the repo's existing CRLF working-copy
+  warnings only.
+
+Notes:
+- Render env visibility still was not available through callable tools, so
+  live `DEBUG=false` remains unverified directly by Codex.
+- Claude-owned frontend changes under `app/web/components/landing/**` and
+  `.tmp-verify/` were present in the worktree during this session and were left
+  untouched.
+
 ## Session 40 - 26 May 2026 - Dynamic variant-applied gene/protein viewer
 
 Codex implemented the local gene-viewer dynamic product workflow Steven asked

@@ -1,0 +1,773 @@
+{
+  "registry_id": "eamos-data-source-registry-seed",
+  "status": "draft_for_user_review",
+  "owner": "Codex/backend",
+  "last_updated": "2026-05-26 21:05 +1000",
+  "source_context": "Seeded from the corrected DOCX matrix preserved in plans/local-first-search-licensing-architecture.md.",
+  "rules": {
+    "no_downloads_from_this_seed": true,
+    "no_installs_from_this_seed": true,
+    "download_approval_required": true,
+    "checksum_required_for_downloaded_files": true,
+    "source_version_required": true,
+    "large_asset_threshold_gb": 10,
+    "large_asset_temporary_staging_root": "C:\\EamosDataStaging",
+    "large_asset_staging_rule": "Assets with actual download size greater than 10 GB stage on C: until moved to Supabase Storage or another approved object-storage target.",
+    "do_not_commit_large_assets_to_git": true,
+    "myvariant_allowed_use": "gnomAD Day 1 lookup only",
+    "myvariant_allowed_fields": [
+      "gnomad_genome",
+      "gnomad_exome"
+    ],
+    "restricted_predictor_sources": [
+      "spliceai",
+      "cadd",
+      "revel",
+      "primateai_3d"
+    ],
+    "restricted_predictor_policy": "Do not request, cache, return, or serialize restricted predictor fields in public/prod paths unless the row is licensed_enabled."
+  },
+  "priority_order": [
+    {
+      "rank": 0,
+      "source_id": "ucsc_hg38_2bit",
+      "label": "first_asset_proof",
+      "reason": "Shared reference backbone for sequence context, gene viewer, primer design, CRISPR guide discovery, alignment context, and variant normalization checks. Proves checksum/storage/random-read path before larger indexed assets."
+    },
+    {
+      "rank": 1,
+      "source_id": "ncbi_dbsnp_gcf_000001405_40",
+      "label": "first_large_identity_asset_after_reference_proof",
+      "reason": "Day 1 rsID identity layer, but larger than 10 GB and should wait until the reference reader/storage path is proven."
+    }
+  ],
+  "license_status_values": [
+    "pending_terms_record",
+    "public_allowed_after_terms_review",
+    "commercial_allowed",
+    "commercial_license_review_required",
+    "restricted_unlicensed",
+    "licensed_enabled",
+    "internal_fixture_only"
+  ],
+  "sources": [
+    {
+      "source_id": "ucsc_hg38_2bit",
+      "display_name": "hg38.2bit",
+      "priority": "p0_first_asset_proof",
+      "dependency_role": "reference_backbone_for_local_sequence_context_gene_viewer_primer_crispr_alignment_and_variant_normalization",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "hg38.2bit"
+      ],
+      "upstream_source": "UCSC Genome Browser",
+      "source_url": "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.2bit",
+      "source_url_status": "known_from_prior_isPcr_asset_install",
+      "expected_size": "about 800 MB",
+      "actual_size_bytes_local": 835393456,
+      "storage_target": "supabase_storage_after_review",
+      "current_local_path": "app/backend/data/bio_assets/genomes/hg38.2bit",
+      "current_local_status": "exists_ignored_reverified_2026_05_26",
+      "current_local_md5": "dcc3ea27079aa6dc3f9deccd7275e0f8",
+      "current_local_md5_source": "app/backend/data/bio_assets/genomes/md5sum.txt",
+      "temporary_staging": "not_expected",
+      "adapter": "twobitreader_or_py2bit_after_compatibility_proof",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "reference_sequence_windows"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "static_asset_with_manifest_checksum",
+      "download_approved": false,
+      "next_proof": "Inventory existing ignored local hg38.2bit, implement tiny ReferenceGenomeStore fixture, then prove selected 2bit reader compatibility against fixture and existing local asset before any replacement download or storage promotion."
+    },
+    {
+      "source_id": "ncbi_dbsnp_gcf_000001405_40",
+      "display_name": "dbSNP GRCh38 GCF_000001405.40",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "GCF_000001405.40.vcf.gz",
+        "GCF_000001405.40.vcf.gz.tbi"
+      ],
+      "upstream_source": "NCBI dbSNP",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 15 GB",
+      "storage_target": "supabase_storage_after_review",
+      "temporary_staging": "stage_on_C_drive",
+      "adapter": "pysam_tabix_after_compatibility_proof",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "rsid",
+        "chrom",
+        "position",
+        "ref",
+        "alt",
+        "merge_identity_if_later_approved"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "local_identity_store_plus_source_cache",
+      "download_approved": false,
+      "notes": "Day 1 large asset. Preserve upstream GCF_000001405.40 naming even if a local alias uses .vcf.gz."
+    },
+    {
+      "source_id": "ncbi_clinvar_vcf",
+      "display_name": "ClinVar VCF",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "clinvar.vcf.gz",
+        "clinvar.vcf.gz.tbi"
+      ],
+      "upstream_source": "NCBI ClinVar FTP",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 60 MB",
+      "storage_target": "supabase_storage_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "pysam_tabix_after_compatibility_proof",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "variation_id",
+        "classification",
+        "review_status",
+        "condition_summary",
+        "hgvs_aliases"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "local_variant_classification_store_plus_source_cache",
+      "download_approved": false
+    },
+    {
+      "source_id": "repeatmasker_rmsk_bb",
+      "display_name": "RepeatMasker rmsk.bb",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "rmsk.bb"
+      ],
+      "upstream_source": "RepeatMasker text / UCSC Table Browser conversion",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 100 MB",
+      "storage_target": "supabase_storage_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "bigbed_reader_or_conversion_path_after_proof",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "repeat_overlap",
+        "repeat_family",
+        "design_warning"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "static_indexed_asset",
+      "download_approved": false
+    },
+    {
+      "source_id": "ucsc_phylop100way_hg38",
+      "display_name": "hg38.phyloP100way.bw",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "hg38.phyloP100way.bw"
+      ],
+      "upstream_source": "UCSC PhyloP directory",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 10 GB",
+      "storage_target": "supabase_storage_after_review",
+      "temporary_staging": "check_actual_size_stage_on_C_if_greater_than_10gb",
+      "adapter": "pyBigWig_after_compatibility_proof",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "conservation_score"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "static_indexed_asset_plus_small_window_cache",
+      "download_approved": false
+    },
+    {
+      "source_id": "illumina_spliceai_precomputed_hg38",
+      "display_name": "SpliceAI masked SNV hg38 precomputed scores",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "pro_waitlist_only",
+      "files_or_api": [
+        "spliceai_scores.masked.snv.hg38.vcf.gz",
+        "spliceai_scores.masked.snv.hg38.vcf.gz.tbi"
+      ],
+      "upstream_source": "Illumina BaseSpace",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 20 GB",
+      "storage_target": "supabase_storage_after_license_approval",
+      "temporary_staging": "stage_on_C_drive",
+      "adapter": "pysam_tabix_after_license_and_compatibility_proof",
+      "license_status": "restricted_unlicensed",
+      "allowed_product_tiers": [
+        "licensed_pro_future",
+        "internal_fixture_only"
+      ],
+      "allowed_fields": [],
+      "restricted_fields": [
+        "spliceai",
+        "DS_AG",
+        "DS_AL",
+        "DS_DG",
+        "DS_DL",
+        "DP_AG",
+        "DP_AL",
+        "DP_DG",
+        "DP_DL"
+      ],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "locked_until_license_enabled",
+      "download_approved": false
+    },
+    {
+      "source_id": "illumina_primateai3d_scores",
+      "display_name": "PrimateAI-3D precomputed scores",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "pro_waitlist_only",
+      "files_or_api": [
+        "primateai3d_scores.vcf.gz",
+        "primateai3d_scores.vcf.gz.tbi"
+      ],
+      "upstream_source": "Illumina GitHub/BaseSpace",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 10 GB",
+      "storage_target": "supabase_storage_after_license_approval",
+      "temporary_staging": "check_actual_size_stage_on_C_if_greater_than_10gb",
+      "adapter": "pysam_tabix_after_license_and_compatibility_proof",
+      "license_status": "restricted_unlicensed",
+      "allowed_product_tiers": [
+        "licensed_pro_future",
+        "internal_fixture_only"
+      ],
+      "allowed_fields": [],
+      "restricted_fields": [
+        "primateai_3d",
+        "PrimateAI-3D"
+      ],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "locked_until_license_enabled",
+      "download_approved": false
+    },
+    {
+      "source_id": "uw_cadd_scores_hg38",
+      "display_name": "CADD scores",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "pro_waitlist_only",
+      "files_or_api": [
+        "cadd_scores.tsv.gz",
+        "cadd_scores.tsv.gz.tbi"
+      ],
+      "upstream_source": "University of Washington",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 30 GB",
+      "storage_target": "supabase_storage_after_license_approval",
+      "temporary_staging": "stage_on_C_drive",
+      "adapter": "pysam_tabix_after_license_and_compatibility_proof",
+      "license_status": "restricted_unlicensed",
+      "allowed_product_tiers": [
+        "licensed_pro_future",
+        "internal_fixture_only"
+      ],
+      "allowed_fields": [],
+      "restricted_fields": [
+        "cadd",
+        "CADD",
+        "CADD PHRED"
+      ],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "locked_until_license_enabled",
+      "download_approved": false
+    },
+    {
+      "source_id": "zenodo_revel_scores",
+      "display_name": "REVEL scores",
+      "tier": "tier_1_object_storage_asset",
+      "day1_status": "pro_waitlist_only",
+      "files_or_api": [
+        "revel_scores.tsv.gz",
+        "revel_scores.tsv.gz.tbi"
+      ],
+      "upstream_source": "Zenodo public repo",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 2 GB",
+      "storage_target": "supabase_storage_after_license_approval",
+      "temporary_staging": "not_expected",
+      "adapter": "pysam_tabix_after_license_and_compatibility_proof",
+      "license_status": "restricted_unlicensed",
+      "allowed_product_tiers": [
+        "licensed_pro_future",
+        "internal_fixture_only"
+      ],
+      "allowed_fields": [],
+      "restricted_fields": [
+        "revel",
+        "REVEL"
+      ],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "locked_until_license_enabled",
+      "download_approved": false
+    },
+    {
+      "source_id": "ncbi_mane_grch38_v1_4_select_ensembl",
+      "display_name": "MANE GRCh38 v1.4 Select Ensembl GTF",
+      "tier": "tier_2_repo_asset_candidate",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "MANE.GRCh38.v1.4.select_ensembl.gtf.gz"
+      ],
+      "upstream_source": "NCBI MANE FTP",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 25 MB",
+      "storage_target": "render_repo_candidate_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "transcript_model_parser",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "mane_select_transcripts",
+        "gene_transcript_mapping",
+        "exon_cds_model"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "static_repo_asset_or_object_asset_manifest",
+      "download_approved": false
+    },
+    {
+      "source_id": "gencode_v45_annotation",
+      "display_name": "GENCODE v45 annotation GTF",
+      "tier": "tier_2_repo_asset_candidate",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "gencode.v45.annotation.gtf.gz"
+      ],
+      "upstream_source": "GENCODE Project",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 60 MB",
+      "storage_target": "render_repo_candidate_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "transcript_model_parser",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "gene_transcript_mapping",
+        "exon_cds_model"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "static_repo_asset_or_object_asset_manifest",
+      "download_approved": false
+    },
+    {
+      "source_id": "intervar_pipeline_config",
+      "display_name": "InterVar pipeline configuration files",
+      "tier": "tier_2_repo_asset_candidate",
+      "day1_status": "docx_intended_day1_blocked_for_commercial_production",
+      "files_or_api": [
+        "InterVar pipeline configuration files"
+      ],
+      "upstream_source": "GitHub InterVar repo",
+      "source_url": null,
+      "source_url_status": "required_before_download",
+      "expected_size": "about 10 MB",
+      "storage_target": "blocked_until_license_review",
+      "temporary_staging": "not_expected",
+      "adapter": "optional_licensed_intervar_integration",
+      "license_status": "commercial_license_review_required",
+      "allowed_product_tiers": [
+        "internal_review_only"
+      ],
+      "allowed_fields": [],
+      "restricted_fields": [
+        "intervar_acmg_classification",
+        "annovar_dependencies",
+        "omim_derived_inputs"
+      ],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "blocked_until_license_enabled",
+      "download_approved": false,
+      "notes": "DOCX-intended, but commercial production requires InterVar, ANNOVAR, and OMIM rights review. Prefer an Eamos-owned ACMG worksheet/rules engine for Day 1."
+    },
+    {
+      "source_id": "python_primer3_py",
+      "display_name": "primer3-py",
+      "tier": "tier_2_5_python_engine",
+      "day1_status": "already_present",
+      "files_or_api": [
+        "app/backend/requirements.txt"
+      ],
+      "upstream_source": "primer3-py package",
+      "source_url": null,
+      "source_url_status": "record_package_source_before_runtime_policy_change",
+      "expected_size": "package_dependency",
+      "storage_target": "backend_runtime_dependency",
+      "temporary_staging": "not_applicable",
+      "adapter": "existing_primer_provider",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "existing_runtime"
+      ],
+      "allowed_fields": [
+        "primer_thermodynamics"
+      ],
+      "restricted_fields": [],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "provider_version_invalidation",
+      "download_approved": false
+    },
+    {
+      "source_id": "python_biopython",
+      "display_name": "biopython",
+      "tier": "tier_2_5_python_engine",
+      "day1_status": "already_present",
+      "files_or_api": [
+        "app/backend/requirements.txt"
+      ],
+      "upstream_source": "Biopython package",
+      "source_url": null,
+      "source_url_status": "record_package_source_before_runtime_policy_change",
+      "expected_size": "package_dependency",
+      "storage_target": "backend_runtime_dependency",
+      "temporary_staging": "not_applicable",
+      "adapter": "existing_alignment_and_sequence_helpers",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "existing_runtime"
+      ],
+      "allowed_fields": [
+        "sequence_helpers",
+        "alignment_support"
+      ],
+      "restricted_fields": [],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "provider_version_invalidation",
+      "download_approved": false
+    },
+    {
+      "source_id": "python_pysam",
+      "display_name": "pysam",
+      "tier": "tier_2_5_python_engine",
+      "day1_status": "candidate_after_compatibility_proof",
+      "files_or_api": [
+        "python_package"
+      ],
+      "upstream_source": "pysam package",
+      "source_url": null,
+      "source_url_status": "required_before_install",
+      "expected_size": "package_dependency",
+      "storage_target": "backend_runtime_dependency_after_review",
+      "temporary_staging": "not_applicable",
+      "adapter": "indexed_vcf_bcf_tsv_reader",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "future_after_review"
+      ],
+      "allowed_fields": [
+        "indexed_variant_file_access"
+      ],
+      "restricted_fields": [],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "not_applicable",
+      "download_approved": false
+    },
+    {
+      "source_id": "python_twobit_reader",
+      "display_name": "twobitreader or py2bit",
+      "tier": "tier_2_5_python_engine",
+      "day1_status": "candidate_after_compatibility_proof",
+      "files_or_api": [
+        "python_package"
+      ],
+      "upstream_source": "selected 2bit reader package",
+      "source_url": null,
+      "source_url_status": "required_before_install",
+      "expected_size": "package_dependency",
+      "storage_target": "backend_runtime_dependency_after_review",
+      "temporary_staging": "not_applicable",
+      "adapter": "reference_genome_store",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "future_after_review"
+      ],
+      "allowed_fields": [
+        "reference_sequence_windows"
+      ],
+      "restricted_fields": [],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "not_applicable",
+      "download_approved": false
+    },
+    {
+      "source_id": "python_pybigwig",
+      "display_name": "pyBigWig",
+      "tier": "tier_2_5_python_engine",
+      "day1_status": "candidate_after_compatibility_proof",
+      "files_or_api": [
+        "python_package"
+      ],
+      "upstream_source": "pyBigWig package",
+      "source_url": null,
+      "source_url_status": "required_before_install",
+      "expected_size": "package_dependency",
+      "storage_target": "backend_runtime_dependency_after_review",
+      "temporary_staging": "not_applicable",
+      "adapter": "conservation_bigwig_reader",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "future_after_review"
+      ],
+      "allowed_fields": [
+        "conservation_score"
+      ],
+      "restricted_fields": [],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "not_applicable",
+      "download_approved": false
+    },
+    {
+      "source_id": "python_duckdb_pyarrow",
+      "display_name": "duckdb and optional pyarrow",
+      "tier": "tier_2_5_python_engine",
+      "day1_status": "candidate_after_store_design",
+      "files_or_api": [
+        "python_package"
+      ],
+      "upstream_source": "DuckDB and PyArrow packages",
+      "source_url": null,
+      "source_url_status": "required_before_install",
+      "expected_size": "package_dependency",
+      "storage_target": "backend_runtime_dependency_after_review",
+      "temporary_staging": "not_applicable",
+      "adapter": "optional_columnar_local_store",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "future_after_review"
+      ],
+      "allowed_fields": [
+        "local_columnar_queries"
+      ],
+      "restricted_fields": [],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "provider_version_invalidation",
+      "download_approved": false
+    },
+    {
+      "source_id": "mondo_disease_ontology",
+      "display_name": "Mondo Disease Ontology",
+      "tier": "tier_3_supabase_postgres_table",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "mondo.json",
+        "mondo.tsv"
+      ],
+      "upstream_source": "Mondo Disease Ontology",
+      "source_url": null,
+      "source_url_status": "required_before_import",
+      "expected_size": "about 40 MB",
+      "storage_target": "supabase_postgres_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "disease_ontology_table",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "disease_ids",
+        "disease_names",
+        "cross_references"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "postgres_import_with_source_version",
+      "download_approved": false,
+      "notes": "DOCX label says OMIM and Orphanet combined, but listed files are Mondo. Do not import OMIM-derived files without separate license approval."
+    },
+    {
+      "source_id": "human_phenotype_ontology",
+      "display_name": "Human Phenotype Ontology annotations",
+      "tier": "tier_3_supabase_postgres_table",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "phenotype.hpoa",
+        "hp.gpad"
+      ],
+      "upstream_source": "Human Phenotype Ontology",
+      "source_url": null,
+      "source_url_status": "required_before_import",
+      "expected_size": "about 5 MB",
+      "storage_target": "supabase_postgres_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "phenotype_annotation_table",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "phenotype_ids",
+        "phenotype_terms",
+        "gene_or_disease_links"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "postgres_import_with_source_version",
+      "download_approved": false
+    },
+    {
+      "source_id": "clingen_gene_validity",
+      "display_name": "ClinGen gene validity",
+      "tier": "tier_3_supabase_postgres_table",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "clingen_gene_validity.csv"
+      ],
+      "upstream_source": "ClinGen",
+      "source_url": null,
+      "source_url_status": "required_before_import",
+      "expected_size": "about 2 MB",
+      "storage_target": "supabase_postgres_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "gene_disease_validity_table",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "gene",
+        "disease",
+        "validity_classification",
+        "source_date"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "postgres_import_with_source_version",
+      "download_approved": false
+    },
+    {
+      "source_id": "gencc_download",
+      "display_name": "GenCC download",
+      "tier": "tier_3_supabase_postgres_table",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "gencc-download.csv"
+      ],
+      "upstream_source": "GenCC",
+      "source_url": null,
+      "source_url_status": "required_before_import",
+      "expected_size": "about 5 MB",
+      "storage_target": "supabase_postgres_after_review",
+      "temporary_staging": "not_expected",
+      "adapter": "gene_disease_assertion_table",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "gene",
+        "disease",
+        "assertion",
+        "submitter",
+        "source_date"
+      ],
+      "restricted_fields": [],
+      "checksum_required": true,
+      "source_version_required": true,
+      "cache_policy": "postgres_import_with_source_version",
+      "download_approved": false
+    },
+    {
+      "source_id": "myvariant_gnomad_only",
+      "display_name": "MyVariant gnomAD-only API adapter",
+      "tier": "tier_4_live_api",
+      "day1_status": "active_day1",
+      "files_or_api": [
+        "myvariant.info API",
+        "gnomad_genome",
+        "gnomad_exome"
+      ],
+      "upstream_source": "MyVariant.info",
+      "source_url": null,
+      "source_url_status": "required_before_adapter_enablement",
+      "expected_size": "zero-download live public cloud API",
+      "storage_target": "live_api_plus_source_cache",
+      "temporary_staging": "not_applicable",
+      "adapter": "httpx_provider",
+      "license_status": "pending_terms_record",
+      "allowed_product_tiers": [
+        "public_day1_after_review"
+      ],
+      "allowed_fields": [
+        "gnomad_genome",
+        "gnomad_exome"
+      ],
+      "restricted_fields": [
+        "cadd",
+        "dbnsfp.revel",
+        "dbnsfp.primateai",
+        "spliceai",
+        "revel",
+        "primateai_3d"
+      ],
+      "checksum_required": false,
+      "source_version_required": true,
+      "cache_policy": "source_cache_by_normalized_variant_field_set_and_adapter_version",
+      "download_approved": false,
+      "notes": "Use only for gnomAD frequency lookup. Aggregation does not remove upstream licensing obligations."
+    }
+  ]
+}
