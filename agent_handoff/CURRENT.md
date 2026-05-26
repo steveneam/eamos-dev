@@ -16,13 +16,14 @@
 
 - **Claude:** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Claude (prior):** IDLE @ 2026-05-26 01:41 +1000 — **Auth email flow + warm email templates + Eamos capitalization + mobile-lag/UI fixes (ALL PUSHED, tip `ad59104`, local==origin).** Supabase 0003-0006 live via MCP (0005 = grant service_role DML = THE evidence-403 fix; 0006 advisor cleanup); advisor CLEAN; project on **Pro tier**; evidence write-through **E2E GREEN** (verified via live UI → real `EAMOS-EVS-…` id); Vercel `NEXT_PUBLIC_EVIDENCE_API_ENABLED=true` LIVE. **Confirm-email ON** + custom SMTP via **Resend** (`eamos.com.au` domain verified). NEW code: `app/web/app/auth/confirm/route.ts` + `app/web/utils/supabase/server.ts` (verifyOtp→auto-login), `AuthProvider.updatePassword` + `app/web/app/account/update-password/page.tsx`, 4 warm email templates in `supabase/email-templates/` (Steven pasted confirm-signup; #2/#3/#4 optional; **templates are dashboard-only — MCP has no auth-config tool**). **Eamos** wordmark capitalized site-wide (EamosLogo/Workbench/og-image/emails). Mobile typing lag fixed (removed auth-panel + sticky-nav backdrop-blur; froze Lifestream anim ≤640px); dark `<select>` readable. Codex `548fde7` rsID live-verified (I redeployed Render via the deploy-hook `.render-deploy-hook`). Render MCP in `.mcp.json` needs `RENDER_API_KEY` + a restart (can't trigger deploys → use hook). No servers running. Detail: ~/.claude/plans/next-session-eamos.md (later 10).
-- **Codex:** ACTIVE @ 2026-05-26 23:30 +1000 - User approved committing and
-  pushing Codex/backend local-first work and updating Claude coordination.
-  Scope: Codex-owned backend/data-source docs/tests/handoff only; do not sweep
-  Claude's dirty `app/web/**` work. No full `hg38.2bit` sequence reads,
-  downloads, uploads, file moves/replacements, installs, provider wiring,
-  source-cache writes, Supabase writes/resources, env mutation, deploy,
-  `/runs`, AlphaMissense, destructive git, stash, reset, or clean.
+- **Codex:** IDLE @ 2026-05-26 23:33 +1000 - Codex/backend local-first
+  source registry foundation committed and pushed as `cf8557d`; handoff cleanup
+  completed locally for the final push. Claude-facing coordination note added
+  under Cross-Agent Requests. Claude's dirty `app/web/**` work was left
+  unstaged/untouched. No full `hg38.2bit` sequence reads, downloads, uploads,
+  file moves/replacements, installs, provider wiring, source-cache writes,
+  Supabase writes/resources, env mutation, deploy, `/runs`, AlphaMissense,
+  destructive git, stash, reset, or clean.
 
 ## Log Edit-Lock
 
@@ -32,7 +33,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-LOCKED: Codex · 2026-05-26 23:30 +1000 · commit/push local-first backend + Claude note
+UNLOCKED · 2026-05-26 23:33 +1000 · Codex (local-first backend commit pushed; locks released)
 
 ## Shared File Locks
 
@@ -310,7 +311,8 @@ Append-only. Format: `[OPEN|DONE] <from>â†’<to> (date): <ask> Â· <where>`
 DONE entries older than the last major boundary into the relevant plan/log.
 
 - [OPEN] Codex→Claude (2026-05-26 23:30 +1000): **FYI before next
-  Workbench/report-data pass:** Codex is committing/pushing the backend
+  Workbench/report-data pass:** Codex pushed `cf8557d`
+  (`feat(backend): add local-first source registry foundation`), the backend
   local-first data-source foundation, covering runtime source registry,
   license/field policy, existing `hg38.2bit` inventory proof, fixture-backed
   `ReferenceGenomeStore`, skipped-by-default local full-asset smoke, and
@@ -1054,7 +1056,7 @@ drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, St
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-26 23:21 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-26 23:33 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
 timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
 ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
@@ -1074,14 +1076,17 @@ policy helper in Session 46; existing `hg38.2bit` inventory proof in Session
 path config in Session 50. Genomic LLM notebook relevance was saved as a
 deferred local-first follow-up at 2026-05-26 23:02 +1000.
 
-**Latest Codex update (2026-05-26 23:21 +1000 - Codex):**
+**Latest Codex update (2026-05-26 23:33 +1000 - Codex):**
 User approved Task 6 from `docs/local-first-data-source-strategy/plan.md`.
 Codex implemented only production `hg38.2bit` runtime asset path
-planning/config tests. No asset upload, file move/replacement, environment
-mutation, deploy, Supabase write/resource creation, download, install,
-full-asset sequence-window read, reader package selection/install, provider
-wiring, source-cache write, commit, push, `/runs`, AlphaMissense, destructive
-git, stash, reset, or clean.
+planning/config tests, then user approved commit/push. Pushed `cf8557d`
+(`feat(backend): add local-first source registry foundation`) to
+`origin/checkpoint/v2-batches-2026-05-17`; Claude-facing coordination note was
+added under Cross-Agent Requests. No asset upload, file move/replacement,
+environment mutation, deploy, Supabase write/resource creation, download,
+install, full-asset sequence-window read, reader package selection/install,
+provider wiring, source-cache write, `/runs`, AlphaMissense, destructive git,
+stash, reset, or clean.
 
 **State:**
 - Added `HG38_2BIT_RUNTIME_ASSET_MODE`,
@@ -1137,15 +1142,15 @@ git, stash, reset, or clean.
 - Keep the genomic LLM notebooks parked as a deferred ML spike until the local
   reference-window and variant-window builder are stable.
 
-**Clear-safe:** yes; Codex source work is verified and no Codex test processes
-or servers are running. No downloads, uploads, file moves/replacements, reader
-installs, provider wiring, source-cache writes, Supabase writes/resources, env
-mutation, deploy, commit, push, `/runs`, AlphaMissense, destructive git, stash,
-reset, or clean were performed.
+**Clear-safe:** yes; Codex source work is verified, committed/pushed, and no
+Codex test processes or servers are running. No downloads, uploads, file
+moves/replacements, reader installs, provider wiring, source-cache writes,
+Supabase writes/resources, env mutation, deploy, `/runs`, AlphaMissense,
+destructive git, stash, reset, or clean were performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-26 23:21 +1000 · Codex hg38 runtime asset path config`
+`# Resume prompt · 2026-05-26 23:33 +1000 · Codex local-first backend pushed`
 `Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 41-50, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md}, plans/data-source-registry/{spec.md,source-registry.seed.json}, then git status --short --branch.`
-`Delta: Approved Task 6 implemented only. Added hg38 runtime asset mode/path/object-URI settings, registry delivery modes local_path/object_storage_local_cache/mounted_volume, and pure runtime asset status tests for ready/missing/not-file/size/checksum/config states. Focused pytest/reference smoke/ruff/black/diff-check passed.`
+`Delta: Approved Task 6 implemented only, then user approved commit/push. Pushed cf8557d feat(backend): add local-first source registry foundation, covering local-first registry/policy/hg38 inventory/reference-store/smoke/runtime-asset config plus the project hardening manifest. Claude-facing note added in Cross-Agent Requests. Focused pytest/reference smoke/ruff/black/diff-check passed.`
 `Next: Task 7 remains gated: choose/install a 2bit reader and prove full-asset RPE65 GRCh38 1:68444869=T only after explicit approval. If Steven installs/enables the Codex Supabase plugin, first verify Supabase MCP tools are visible before any storage proof.`
-`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, push, commit, deploy, env mutation, Supabase writes/resources, downloads, uploads, installs, file moves/replacements, full-asset sequence reads, provider wiring, or runtime ML scoring unless explicitly requested. End clear-safe.`
+`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, downloads, uploads, installs, file moves/replacements, full-asset sequence reads, provider wiring, or runtime ML scoring unless explicitly requested. End clear-safe.`
