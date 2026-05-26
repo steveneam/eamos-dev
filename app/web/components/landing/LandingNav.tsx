@@ -57,10 +57,13 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
       tl.to(bgRef.current, { opacity: 1, ease: 'none' }, 0)
         .to(linksRef.current, { opacity: 0, y: -6, pointerEvents: 'none', ease: 'none' }, 0)
         .fromTo(upRef.current, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, ease: 'none' }, 0)
+        // The compact search starts invisible AND pointer-inert — otherwise its
+        // input sits on top of the nav links at scroll=0 and swallows mouse
+        // clicks (the links work via keyboard/.click() but not by pointing).
         .fromTo(
           searchRef.current,
-          { opacity: 0, scale: 0.96, yPercent: 8 },
-          { opacity: 1, scale: 1, yPercent: 0, ease: 'none' },
+          { opacity: 0, scale: 0.96, yPercent: 8, pointerEvents: 'none' },
+          { opacity: 1, scale: 1, yPercent: 0, pointerEvents: 'auto', ease: 'none' },
           0,
         )
     },
