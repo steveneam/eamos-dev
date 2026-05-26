@@ -32,6 +32,7 @@ import { ProteinView } from './ProteinView'
 import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
 import { EditPopoverV2 } from './EditPopoverV2'
+import { ZoomSlider } from './ZoomSlider'
 
 export interface ScratchEntry {
   idx: number
@@ -58,6 +59,8 @@ interface SequenceViewerV2Props {
   trackOn: TrackState
   strandMode: StrandMode
   baseW: number
+  /** Drives the hover-revealed zoom slider inside the Sequence window. */
+  onBaseW: (w: number) => void
   /** Reference/control vs variant-applied sequence basis (GV-006). The
    *  adapter already applied the SNV to `data` in `variant` mode; this is
    *  passed through so the queried codon shows its ref→alt change. */
@@ -83,6 +86,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       trackOn,
       strandMode,
       baseW,
+      onBaseW,
       alleleMode,
       navCollapsed,
       onToggleMinimap,
@@ -569,32 +573,42 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         />
         {proteinOpen && <ProteinView data={data} alleleMode={alleleMode} />}
 
-        <SectionHeader
-          title="Sequence"
-          sub="codons · bases · ruler"
-          open={sequenceOpen}
-          onToggle={() => setSequenceOpen((o) => !o)}
-        />
-        {sequenceOpen && (
-          <CodonDetail
-            data={data}
-            flat={flat}
-            codons={codons}
-            baseW={baseW}
-            trackOn={trackOn}
-            strandMode={strandMode}
-            alleleMode={alleleMode}
-            edits={edits}
-            selection={selection}
-            searchQuery={searchQuery}
-            restrictionHover={restrictionHover}
-            onBaseMouseDown={onBaseMouseDown}
-            onBaseContextMenu={onBaseContextMenu}
-            onClinvarClick={jumpToFlatIdx}
-            onRestrictionHover={setRestrictionHover}
-            onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
+        {/* Sequence window — wrapped so the zoom slider can hover-reveal
+            scoped to this window only (not the whole viewer box, which
+            would overlap the ViewerToolbar's Undo/Redo cluster). */}
+        <div className="sv-sequence-wrap">
+          <SectionHeader
+            title="Sequence"
+            sub="codons · bases · ruler"
+            open={sequenceOpen}
+            onToggle={() => setSequenceOpen((o) => !o)}
           />
-        )}
+          {sequenceOpen && (
+            <>
+              <div className="sv-zoom-overlay-seq" aria-hidden={false}>
+                <ZoomSlider baseW={baseW} onBaseW={onBaseW} />
+              </div>
+              <CodonDetail
+                data={data}
+                flat={flat}
+                codons={codons}
+                baseW={baseW}
+                trackOn={trackOn}
+                strandMode={strandMode}
+                alleleMode={alleleMode}
+                edits={edits}
+                selection={selection}
+                searchQuery={searchQuery}
+                restrictionHover={restrictionHover}
+                onBaseMouseDown={onBaseMouseDown}
+                onBaseContextMenu={onBaseContextMenu}
+                onClinvarClick={jumpToFlatIdx}
+                onRestrictionHover={setRestrictionHover}
+                onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
+              />
+            </>
+          )}
+        </div>
 
         {showHistory && history.length > 0 && (
           <HistoryTimeline
@@ -664,14 +678,14 @@ function SectionHeader({
         }
       }}
     >
-      <span className="sv-section-title">
-        {title}
-        {sub ? <span className="sv-section-sub"> · {sub}</span> : null}
-      </span>
       <span className="sv-section-chev" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
           <polyline points="6 9 12 15 18 9" />
         </svg>
+      </span>
+      <span className="sv-section-title">
+        {title}
+        {sub ? <span className="sv-section-sub"> · {sub}</span> : null}
       </span>
     </div>
   )

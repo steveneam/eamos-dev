@@ -134,10 +134,6 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         />
 
         <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
-          {/* Zoom slider lives INSIDE the viewer box, hover-revealed (CSS). */}
-          <div className="sv-zoom-overlay" aria-hidden={false}>
-            <ZoomSlider baseW={baseW} onBaseW={setBaseW} />
-          </div>
           {data ? (
             <SequenceViewerV2
               ref={viewerRef}
@@ -145,6 +141,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
               trackOn={trackOn}
               strandMode={strandMode}
               baseW={baseW}
+              onBaseW={setBaseW}
               navCollapsed={navCollapsed}
               onToggleMinimap={() => setNavCollapsed((c) => !c)}
               alleleMode={alleleMode}

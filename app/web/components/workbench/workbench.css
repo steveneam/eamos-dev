@@ -254,26 +254,29 @@
   overflow: hidden;
   transition: max-height .25s ease, padding .25s ease, opacity .25s;
 }
-/* Hover-revealed zoom overlay anchored to the viewer's top-right corner.
-   Fades from opacity 0 to 1 when the mouse is anywhere over .viewer; stays
-   keyboard-accessible (focus-within) so non-mouse users can still adjust. */
-.sv-zoom-overlay {
+/* Hover-revealed zoom overlay scoped to the Sequence window (NOT the
+   whole viewer box — at that scope it overlapped the Undo/Redo cluster
+   in the ViewerToolbar). Lives inside .sv-sequence-wrap; fades in when
+   the mouse is over the sequence section only. */
+.sv-sequence-wrap { position: relative; }
+.sv-zoom-overlay-seq {
   position: absolute;
-  top: 10px; right: 14px;
+  top: 38px;          /* clears the section-head row */
+  right: 14px;
   z-index: 5;
   opacity: 0;
   transform: translateY(-2px);
   pointer-events: none;
   transition: opacity .18s ease, transform .18s ease;
 }
-.viewer:hover .sv-zoom-overlay,
-.viewer:focus-within .sv-zoom-overlay {
+.sv-sequence-wrap:hover .sv-zoom-overlay-seq,
+.sv-sequence-wrap:focus-within .sv-zoom-overlay-seq {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
 @media (prefers-reduced-motion: reduce) {
-  .sv-zoom-overlay { transition: opacity .12s linear; transform: none; }
+  .sv-zoom-overlay-seq { transition: opacity .12s linear; transform: none; }
 }
 .viewer.viewer-collapsed { max-height: 0; padding: 0; border: none; opacity: 0; margin-bottom: 0; }
 .viewer-loading {
@@ -613,8 +616,8 @@
    collapsed state — the workbench windows can be folded down to just their
    labels for vertical focus. */
 .sv-section-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px;
+  display: flex; align-items: center;
+  gap: 10px;
   width: 100%;
   padding: 10px 22px;
   background: var(--bg-soft);
@@ -626,19 +629,24 @@
   font-size: 10.5px; font-weight: 600;
   color: var(--ink-3);
   text-transform: uppercase; letter-spacing: 0.08em;
+  text-align: left;
   transition: background .15s, color .15s;
 }
 .sv-section-head:first-child { border-top: none; }
 .sv-section-head:hover { background: var(--bg-soft2, var(--bg-soft)); color: var(--ink); }
 .sv-section-head[aria-expanded="false"] { color: var(--ink-4); }
-.sv-section-head .sv-section-title { display: inline-flex; align-items: center; gap: 8px; }
-.sv-section-head .sv-section-sub { color: var(--ink-4); font-weight: 500; text-transform: none; letter-spacing: 0; }
 .sv-section-head .sv-section-chev {
   width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ink-3);
   transition: transform .2s ease;
+  flex: 0 0 auto;
 }
+.sv-section-head .sv-section-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex: 1;
+}
+.sv-section-head .sv-section-sub { color: var(--ink-4); font-weight: 500; text-transform: none; letter-spacing: 0; }
 .sv-section-head[aria-expanded="false"] .sv-section-chev { transform: rotate(-90deg); }
 
 /* ─────────────── CODON DETAIL (wrapped block layout v2.1) ─────────────── */
@@ -1392,11 +1400,13 @@
 }
 
 /* ── Collapsible side-panel section header (chevron pattern matching the
-   viewer's .sv-section-head). Click anywhere on the row to toggle. ── */
+   viewer's .sv-section-head). Chevron on the LEFT of the title (Google
+   Docs / VS Code disclosure pattern). Title takes remaining space; meta
+   floats to the right edge. Click anywhere on the row to toggle. ── */
 .side-section-head {
   width: 100%;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
+  display: flex; align-items: center;
+  gap: 8px;
   padding: 9px 10px;
   background: transparent;
   border: none;
@@ -1415,12 +1425,6 @@
   outline-offset: 2px;
 }
 .side-section-head[aria-expanded="false"] { color: var(--ink-4); }
-.side-section-title { display: inline-flex; align-items: center; gap: 8px; flex: 1; }
-.side-section-meta {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: var(--ink-3);
-  text-transform: none; letter-spacing: 0; font-weight: 500;
-}
 .side-section-chev {
   width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1429,6 +1433,16 @@
   flex: 0 0 auto;
 }
 .side-section-head[aria-expanded="false"] .side-section-chev { transform: rotate(-90deg); }
+.side-section-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex: 1;
+}
+.side-section-meta {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ink-3);
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+  flex: 0 0 auto;
+}
 .side-section-body { padding: 4px 4px 10px; }
 
 /* Scratchpad surface — warm yellow so the workspace reads distinctly
@@ -1548,12 +1562,12 @@
   cursor: not-allowed;
 }
 
-/* Nested section disclosure (e.g. Exons inside Transcript) — same chevron
-   language as the section headers, indented one notch. */
+/* Nested section disclosure (e.g. Exons inside Transcript) — same chevron-
+   left language as the section headers, slightly indented. */
 .side-nested-head {
   width: 100%;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
+  display: flex; align-items: center;
+  gap: 8px;
   padding: 7px 8px;
   margin-top: 8px;
   background: var(--bg-soft);
@@ -1567,13 +1581,6 @@
   text-align: left;
 }
 .side-nested-head:hover { background: var(--bg-soft2, var(--bg-soft)); color: var(--ink-2); }
-.side-nested-title { flex: 0 0 auto; }
-.side-nested-meta {
-  flex: 1;
-  color: var(--ink-4);
-  text-transform: none; letter-spacing: 0; font-weight: 500;
-  text-align: right;
-}
 .side-nested-chev {
   width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1582,6 +1589,13 @@
   flex: 0 0 auto;
 }
 .side-nested-head[aria-expanded="false"] .side-nested-chev { transform: rotate(-90deg); }
+.side-nested-title { flex: 0 0 auto; }
+.side-nested-meta {
+  flex: 1;
+  color: var(--ink-4);
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+  text-align: right;
+}
 .side-nested-head + .side-exon-table { margin-top: 6px; }
 
 .scratch-list { display: flex; flex-direction: column; gap: 6px; }

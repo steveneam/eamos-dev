@@ -69,13 +69,13 @@ function CollapsibleSection({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="side-section-title">{title}</span>
-        {meta ? <span className="side-section-meta">{meta}</span> : null}
         <span className="side-section-chev" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </span>
+        <span className="side-section-title">{title}</span>
+        {meta ? <span className="side-section-meta">{meta}</span> : null}
       </button>
       {open && <div className="side-section-body">{children}</div>}
     </div>
@@ -429,14 +429,14 @@ function ViewerSide({
           aria-controls="side-exon-table"
           onClick={onToggleExonTable}
         >
-          <span className="side-nested-title">Exons</span>
-          <span className="side-nested-meta">
-            {data.totalExons} total · viewing exon {activeExon}
-          </span>
           <span className="side-nested-chev" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
               <polyline points="6 9 12 15 18 9" />
             </svg>
+          </span>
+          <span className="side-nested-title">Exons</span>
+          <span className="side-nested-meta">
+            {data.totalExons} total · viewing exon {activeExon}
           </span>
         </button>
         {exonTableOpen && (
