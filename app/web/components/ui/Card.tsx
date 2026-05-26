@@ -7,6 +7,11 @@ interface CardProps {
   number?: number
   title: string
   meta?: ReactNode
+  /** Optional action slot rendered on the far right of the header — used for
+   *  the CopyButton so users can grab the section data into Excel. Click
+   *  events inside should call e.stopPropagation() so the Card header
+   *  doesn't also toggle collapse. */
+  actions?: ReactNode
   children: ReactNode
   className?: string
   /** Start collapsed. The report renders open by default — the chevron is the
@@ -25,6 +30,7 @@ export function Card({
   number,
   title,
   meta,
+  actions,
   children,
   className,
   defaultOpen = true,
@@ -39,9 +45,12 @@ export function Card({
       )}
       style={{ borderWidth: '0.5px', boxShadow: 'var(--elev-1)' }}
     >
-      <button
-        type="button"
-        className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors"
+      <div
+        // Using role="button" instead of <button> so the CopyButton in the
+        // actions slot doesn't end up as a nested interactive control.
+        role="button"
+        tabIndex={0}
+        className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors select-none"
         style={{
           borderBottom: open ? '0.5px solid var(--line)' : 'none',
           background: 'transparent',
@@ -49,6 +58,12 @@ export function Card({
         }}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setOpen((o) => !o)
+          }
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'var(--bg-soft)'
         }}
@@ -94,12 +109,24 @@ export function Card({
             {title}
           </h2>
         </div>
-        {meta && (
-          <span className="text-[12px]" style={{ color: 'var(--ink-4)' }}>
-            {meta}
-          </span>
-        )}
-      </button>
+        <div className="flex items-center gap-3">
+          {meta && (
+            <span className="text-[12px]" style={{ color: 'var(--ink-4)' }}>
+              {meta}
+            </span>
+          )}
+          {actions && (
+            <span
+              className="inline-flex items-center"
+              // Headers are click-to-toggle; without this the copy button
+              // click would also bubble up and collapse the section.
+              onClick={(e) => e.stopPropagation()}
+            >
+              {actions}
+            </span>
+          )}
+        </div>
+      </div>
       {open && <div className="px-6 py-5">{children}</div>}
     </div>
   )

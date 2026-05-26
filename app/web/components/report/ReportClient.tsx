@@ -23,10 +23,20 @@ import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnapshotSection'
 import { Card } from '@/components/ui/Card'
+import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import { RPE65_SAMPLE } from '@/lib/sample-report'
+import {
+  tsvAISummary,
+  tsvDiseaseAndConditions,
+  tsvEvidenceBySource,
+  tsvGeneContextSnapshot,
+  tsvPopulation,
+  tsvPublications,
+  tsvTrials,
+} from '@/lib/report-tsv'
 import { SOURCES } from '@/lib/sources'
 import type {
   LookupResponse,
@@ -325,37 +335,84 @@ function ReportBody({ data, query }: ReportBodyProps) {
       <VariantHeader payload={payload} query={query} />
 
       <div className="flex flex-col gap-3.5">
-        <div>
-          <CallCardsGrid payload={payload} />
-          <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
-        </div>
+        {/* Call cards sit just under the header as the at-a-glance verdicts.
+            They're scannable summary; the numbered evidence sections begin
+            below. */}
+        <CallCardsGrid payload={payload} />
 
-        <Card number={2} title="Locus context" meta="ClinVar · ±40bp window">
-          <LocusContext data={payload.locus_context} />
-        </Card>
-
-        <GeneContextSnapshotSection
-          snapshot={payload.report_profile?.gene_context_snapshot}
-          sectionTarget={targetFor('gene_context_snapshot')}
-        />
-
+        {/* 1 · Population frequency (gnomAD) */}
         {populationSection && (
           <Card
-            number={3}
+            number={1}
             title="gnomAD population frequency"
             meta="genetic ancestry groups | source age distribution"
+            actions={
+              <CopyButton
+                text={tsvPopulation(payload, payload.population_frequency_detail)}
+                label="Copy population frequency as TSV"
+              />
+            }
           >
             <PopulationFrequencySection section={populationSection} />
           </Card>
         )}
 
-        <Card number={4} title="Evidence by source" meta="in-silico · per-source detail · ACMG">
+        {/* 2 · Evidence by source (in-silico + per-source detail + ACMG) */}
+        <Card
+          number={2}
+          title="Evidence by source"
+          meta="in-silico · per-source detail · ACMG"
+          actions={
+            <CopyButton
+              text={tsvEvidenceBySource(
+                payload,
+                payload.in_silico_predictions,
+                payload.acmg_criteria_scaffold,
+                data.evidence.map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
+              )}
+              label="Copy evidence as TSV"
+            />
+          }
+        >
           <InSilicoGrid data={payload.in_silico_predictions} />
           <EvidenceTable evidence={data.evidence} embedded />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
-        <Card number={5} title="Gene context & associated conditions" meta={geneContextMeta}>
+        {/* 3 · Gene context snapshot (Locus context merged in). */}
+        <GeneContextSnapshotSection
+          number={3}
+          snapshot={payload.report_profile?.gene_context_snapshot}
+          sectionTarget={targetFor('gene_context_snapshot')}
+          locus={payload.locus_context}
+          actions={
+            <CopyButton
+              text={tsvGeneContextSnapshot(
+                payload,
+                payload.report_profile?.gene_context_snapshot ?? null,
+                payload.locus_context,
+              )}
+              label="Copy gene context as TSV"
+            />
+          }
+        />
+
+        {/* 4 · Gene context & associated conditions. */}
+        <Card
+          number={4}
+          title="Gene context & associated conditions"
+          meta={geneContextMeta}
+          actions={
+            <CopyButton
+              text={tsvDiseaseAndConditions(
+                payload,
+                payload.curated_variants_distribution,
+                payload.associated_conditions,
+              )}
+              label="Copy conditions as TSV"
+            />
+          }
+        >
           <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
           <CuratedVariantsGrid data={payload.curated_variants_distribution} />
           <AssociatedConditions data={payload.associated_conditions} />
@@ -364,11 +421,30 @@ function ReportBody({ data, query }: ReportBodyProps) {
           )}
         </Card>
 
-        <VariantDecoder decoder={payload.variant_decoder} number={6} />
+        {/* 5 · Publication literature. */}
+        <PubMedSection key={`pubs-${variantKey}`} payload={payload} number={5} />
 
-        <PubMedSection key={`pubs-${variantKey}`} payload={payload} number={7} />
+        {/* 6 · Active trials & approved therapies. */}
+        <TrialsSection key={`trials-${variantKey}`} payload={payload} number={6} />
 
-        <TrialsSection key={`trials-${variantKey}`} payload={payload} number={8} />
+        {/* 7 · AI evidence summary — last so the deterministic source rows
+            anchor the read before the synthesised summary. */}
+        <Card
+          number={7}
+          title="AI evidence summary"
+          meta="deterministic · cited"
+          actions={
+            <CopyButton
+              text={tsvAISummary(payload)}
+              label="Copy AI summary as TSV"
+            />
+          }
+        >
+          <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
+        </Card>
+
+        {/* Optional plain-language decoder (not part of the numbered chain). */}
+        <VariantDecoder decoder={payload.variant_decoder} />
       </div>
     </div>
   )

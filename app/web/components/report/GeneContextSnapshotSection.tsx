@@ -1,13 +1,15 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Disclosure } from '@/components/ui/Disclosure'
+import { LocusContext } from '@/components/report/LocusContext'
 import type {
   GeneContextSnapshot,
   GeneContextTranscriptExon,
   GeneContextTranscriptIntron,
   GeneContextVariantProjection,
+  LocusContext as LocusContextData,
   ReportExtractionSectionTarget,
   ViewerSegment,
 } from '@/lib/backend'
@@ -15,6 +17,14 @@ import type {
 interface GeneContextSnapshotSectionProps {
   snapshot?: GeneContextSnapshot | null
   sectionTarget?: ReportExtractionSectionTarget | null
+  /** Optional section number rendered in the Card header (1–7). */
+  number?: number
+  /** Optional Locus context (variant ±40bp) shown inside this card — the
+   *  former standalone Locus card was merged in for tighter "gene context"
+   *  grouping. */
+  locus?: LocusContextData | null
+  /** Optional action slot (CopyButton) forwarded to the Card header. */
+  actions?: ReactNode
 }
 
 interface OverviewSegment {
@@ -38,6 +48,9 @@ const TRACK_WIDTH = 828
 export function GeneContextSnapshotSection({
   snapshot,
   sectionTarget,
+  number,
+  locus,
+  actions,
 }: GeneContextSnapshotSectionProps) {
   const allWarnings = useMemo(() => {
     if (!snapshot) return sectionTarget?.warnings ?? []
@@ -65,7 +78,12 @@ export function GeneContextSnapshotSection({
 
   return (
     <section id={snapshot.section_id} className="scroll-mt-24">
-      <Card title={snapshot.title || 'Gene context snapshot'} meta={meta}>
+      <Card
+        number={number}
+        title={snapshot.title || 'Gene context snapshot'}
+        meta={meta}
+        actions={actions}
+      >
         <div className="flex flex-wrap gap-2">
           <StatusPill label={snapshot.source_status} />
           {sectionTarget?.match_level && <StatusPill label={formatWarning(sectionTarget.match_level)} />}
@@ -79,6 +97,25 @@ export function GeneContextSnapshotSection({
           source transcript coordinates where available; introns are compressed for report
           readability.
         </p>
+
+        {locus && (
+          <div style={{ marginTop: 18 }}>
+            <h3
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-4)',
+                margin: '0 0 10px',
+                fontFamily: 'var(--mono)',
+              }}
+            >
+              Locus context — ClinVar ±40bp window
+            </h3>
+            <LocusContext data={locus} />
+          </div>
+        )}
 
         <Disclosure
           id={snapshot.panel_id}
