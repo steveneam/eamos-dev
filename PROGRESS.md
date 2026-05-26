@@ -1,5 +1,101 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 52 - 27 May 2026 - RPE65 demo payload mojibake fix
+
+Claude reported live `/report?demo=1` mojibake on the RPE65 demo payload:
+UTF-8 em-dash and middle-dot bytes were being served as Latin-1-style
+`â...` / `Â·` text in locus coordinates, in-silico prose,
+curated-variant distribution copy, and associated-condition provenance lists.
+
+Completed:
+- Traced the live demo path: `/report?demo=1` imports the generated
+  `app/web/lib/rpe65-sample.json` artifact. Backend source strings and
+  `app/backend/app/fixtures/lookup_v2_modules.json` decode cleanly as UTF-8;
+  the checked-in sample JSON carried the corrupted strings.
+- Repaired `app/web/lib/rpe65-sample.json` as structured JSON and rewrote it
+  ASCII-escaped, preserving payload shape while making `\u2014` and `\u00b7`
+  explicit in the shipped artifact.
+- Updated `FixtureBackedTool.load_fixture()` to read fixture JSON with
+  `encoding="utf-8"` instead of relying on the Windows platform default.
+- Added `app/backend/tests/test_demo_payload_encoding.py` to assert backend
+  lookup responses are `application/json`, backend/sample payloads contain no
+  UTF-8-as-Latin-1 mojibake, and fixture-backed tools read UTF-8 fixtures
+  correctly.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_demo_payload_encoding.py -q`
+  -> passed (`3 passed`).
+- `cd app/backend && python -m pytest tests/test_demo_payload_encoding.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_tool_invariants.py -q`
+  -> passed (`23 passed`).
+- `cd app/backend && python -m ruff check app/tools/base.py tests/test_demo_payload_encoding.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/tools/base.py tests/test_demo_payload_encoding.py`
+  -> passed.
+- `rg -n "â|Â|\\u0080|\\u0094|\\u0093|\\u0099|\\u009c|\\u009d" app/web/lib/rpe65-sample.json app/backend/app/fixtures/lookup_v2_modules.json app/backend/app/services/lookup_service.py app/backend/app/tools/base.py app/backend/tests/test_demo_payload_encoding.py`
+  -> no matches.
+- Python JSON parse check confirmed clean strings:
+  `chr1 : 68,444,849 — 68,444,889  ·  RPE65 exon 4  ·  (+) strand`,
+  `1,286 classified variants · ClinVar + UniProt`, and
+  `OMIM · Monarch · DECIPHER · GenCC · ClinGen`.
+
+Out of scope: UI/component/style edits, provider/source-cache wiring,
+Supabase writes/resources, uploads, file moves/replacements, env mutation,
+deploy, `/runs`, AlphaMissense, runtime ML scoring, destructive git, stash,
+reset, or clean.
+
+## Session 51 - 27 May 2026 - 2bit reader compatibility proof
+
+User explicitly approved Task 7 from
+`docs/local-first-data-source-strategy/plan.md`: choose/install a 2bit reader
+and prove the existing local full-asset RPE65 reference-base read. Codex first
+confirmed Supabase MCP tools are visible in this session, then performed no
+Supabase project/storage/resource actions.
+
+Completed:
+- Checked current PyPI package metadata and selected `twobitreader==3.1.8`
+  over `py2bit`. Rationale: `twobitreader` publishes a pure Python
+  `py3-none-any` wheel and requires Python `>=3.9`; `py2bit` is a C extension
+  with POSIX/manylinux-oriented artifacts, so it is a weaker Windows fit.
+- Installed `twobitreader==3.1.8` in the current Python user site with pip.
+  Pip also installed its `setuptools>=80` dependency as `setuptools-82.0.1`.
+- Added `twobitreader==3.1.8` to `app/backend/requirements.txt`.
+- Updated the runtime data-source registry `python_twobit_reader` row with the
+  selected package, version, PyPI URL, wheel size, adapter name, and rationale.
+- Added `TwoBitReferenceGenomeStore`, a `twobitreader`-backed reference store
+  that preserves the existing 1-based inclusive caller convention, normalizes
+  `chr1`/`1`/`NC_000001.11`-style aliases, reports source metadata, validates
+  optional size/checksum expectations before opening, and fails closed for
+  missing assets, checksum mismatch, unknown chromosomes, out-of-bounds
+  windows, and short reads.
+- Added default tiny `.2bit` fixture-generation tests so the real reader path
+  is covered without requiring the 835 MB asset in ordinary pytest.
+- Replaced the pending RPE65 smoke with the approved opt-in full-asset check:
+  with `EAMOS_VERIFY_LOCAL_HG38_2BIT=1`, the existing ignored local
+  `app/backend/data/bio_assets/genomes/hg38.2bit` was inventoried and then
+  read via `twobitreader`; GRCh38 `1:68444869` observed `T` for
+  `NM_000329.3:c.260A>G` / `1-68444869-T-C`.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py -q`
+  -> passed (`14 passed`).
+- `cd app/backend && $env:EAMOS_VERIFY_LOCAL_HG38_2BIT='1'; python -m pytest tests/test_reference_genome_store_local_hg38.py -q; Remove-Item Env:EAMOS_VERIFY_LOCAL_HG38_2BIT`
+  -> passed (`2 passed`).
+- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py -q`
+  -> passed (`35 passed, 2 skipped`).
+- `cd app/backend && python -m ruff check app/data_sources/registry.py app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources/registry.py app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py`
+  -> passed.
+- Direct proof command printed `T True twobitreader==3.1.8`.
+- `git diff --check -- app/backend/requirements.txt app/backend/app/data_sources/registry.py app/backend/app/services/reference_genome.py app/backend/tests/test_reference_genome_store.py app/backend/tests/test_reference_genome_store_local_hg38.py agent_handoff/CURRENT.md`
+  -> passed with existing CRLF working-copy warnings only.
+
+Out of scope: Supabase writes/resources/storage proof, uploads, file
+moves/replacements, env mutation, deploy, provider/source-cache wiring,
+dbSNP/ClinVar/MyVariant/InterVar/restricted predictors, `/runs`,
+AlphaMissense, runtime ML scoring, commit, push, destructive git, stash, reset,
+or clean.
+
 ## Session 50 - 26 May 2026 - Production hg38.2bit runtime asset path config
 
 User approved Task 6 from `docs/local-first-data-source-strategy/plan.md`.

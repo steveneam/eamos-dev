@@ -23,7 +23,41 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-26, Codex):
+Recent backend status notes (2026-05-27, Codex):
+- REPORT-DEMO-ENCODING live `/report?demo=1` mojibake fix is implemented and
+  verified. The backend source fixture strings decoded cleanly; the generated
+  `app/web/lib/rpe65-sample.json` demo artifact carried UTF-8-as-Latin-1
+  strings for em-dash and middle-dot display text. Repaired the sample as
+  structured JSON and rewrote it ASCII-escaped, updated
+  `FixtureBackedTool.load_fixture()` to use `encoding="utf-8"`, and added
+  `tests/test_demo_payload_encoding.py` covering backend response
+  content-type/clean Unicode payloads, the shipped RPE65 sample artifact, and
+  UTF-8 fixture loading. Focused pytest, Ruff, Black check, no-mojibake `rg`,
+  and JSON parse checks passed. No UI/component/style edits, provider wiring,
+  source-cache writes, Supabase writes/resources, env mutation, deploy,
+  `/runs`, AlphaMissense, or destructive git were performed.
+- DATA-SOURCE-REGISTRY-TASK-7 approved 2bit reader compatibility proof is
+  implemented and verified. Supabase MCP tools are visible in this Codex
+  session, but no Supabase projects/storage/resources were touched. Current
+  PyPI metadata was checked and `twobitreader==3.1.8` was selected over
+  `py2bit` because `twobitreader` publishes a pure Python `py3-none-any` wheel
+  for Python `>=3.9`, while `py2bit` is a C extension with
+  POSIX/manylinux-oriented artifacts. Added the dependency to
+  `app/backend/requirements.txt`, recorded the selection/rationale in the
+  runtime registry `python_twobit_reader` row, and added
+  `TwoBitReferenceGenomeStore` in `app/backend/app/services/reference_genome.py`.
+  The adapter preserves 1-based inclusive caller coordinates, supports
+  `chr1`/`1`/`NC_000001.11` aliases, reports source metadata, and fails closed
+  for missing assets, checksum mismatch, unknown chromosomes, out-of-bounds
+  windows, and short reads. Default tiny `.2bit` fixture tests pass without the
+  full asset; the opt-in local smoke with `EAMOS_VERIFY_LOCAL_HG38_2BIT=1`
+  inventoried the existing ignored `hg38.2bit` and read GRCh38 `1:68444869` as
+  `T` for `NM_000329.3:c.260A>G` / `1-68444869-T-C`. Focused pytest,
+  opt-in full-asset smoke, Ruff, Black check, direct proof command, and diff
+  check passed. No uploads, file moves/replacements, env mutation, deploy,
+  provider/source-cache wiring, Supabase writes/resources, `/runs`,
+  AlphaMissense, runtime ML scoring, commit, push, or destructive git were
+  performed.
 - DATA-SOURCE-REGISTRY-TASK-6 production `hg38.2bit` runtime asset path
   planning/config tests are implemented and verified. Added
   `HG38_2BIT_RUNTIME_ASSET_MODE`, `HG38_2BIT_RUNTIME_ASSET_PATH`, and

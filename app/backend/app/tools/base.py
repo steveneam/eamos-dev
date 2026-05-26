@@ -39,6 +39,6 @@ class FixtureBackedTool:
 
     def load_fixture(self) -> dict[str, Any]:
         try:
-            return json.loads(self.fixture_path().read_text())
+            return json.loads(self.fixture_path().read_text(encoding="utf-8"))
         except (FileNotFoundError, JSONDecodeError):
             return {}

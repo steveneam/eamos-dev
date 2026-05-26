@@ -10,6 +10,7 @@ from app.data_sources import (
     inventory_local_hg38_2bit,
     resolve_local_asset_path,
 )
+from app.services.reference_genome import TwoBitReferenceGenomeStore
 
 VERIFY_LOCAL_HG38_2BIT = os.environ.get("EAMOS_VERIFY_LOCAL_HG38_2BIT") == "1"
 RPE65_GRCH38_REFERENCE_BASE_CHECK = {
@@ -49,11 +50,22 @@ def test_opt_in_local_hg38_asset_matches_registry_metadata() -> None:
     assert inventory.md5sum_matches is True
 
 
-def test_rpe65_reference_base_check_is_pending_until_2bit_reader_is_approved() -> None:
-    pytest.skip(
-        "pending Task 7 2bit reader approval: GRCh38 "
-        f"{RPE65_GRCH38_REFERENCE_BASE_CHECK['chrom']}:"
-        f"{RPE65_GRCH38_REFERENCE_BASE_CHECK['position']} should be "
-        f"{RPE65_GRCH38_REFERENCE_BASE_CHECK['expected_base']} for "
-        f"{RPE65_GRCH38_REFERENCE_BASE_CHECK['variant']}"
-    )
+def test_twobit_reader_verifies_rpe65_reference_base_from_local_hg38_asset() -> None:
+    record = DEFAULT_DATA_SOURCE_REGISTRY.get(LOCAL_HG38_2BIT_SOURCE_ID)
+    asset_path = resolve_local_asset_path(record)
+    if not asset_path.exists():
+        pytest.skip(f"ignored local hg38.2bit asset is absent: {asset_path}")
+
+    with TwoBitReferenceGenomeStore.local_hg38() as store:
+        check = store.validate_reference_base(
+            RPE65_GRCH38_REFERENCE_BASE_CHECK["chrom"],
+            RPE65_GRCH38_REFERENCE_BASE_CHECK["position"],
+            RPE65_GRCH38_REFERENCE_BASE_CHECK["expected_base"],
+        )
+
+    assert check.matches is True
+    assert check.chrom == "1"
+    assert check.position == 68444869
+    assert check.expected_base == "T"
+    assert check.observed_base == "T"
+    assert check.reason == "reference_base_match"

@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import re
+import struct
+from pathlib import Path
 
 import pytest
 
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, LOCAL_HG38_2BIT_SOURCE_ID
-from app.services.reference_genome import ReferenceGenomeStore, ReferenceGenomeStoreError
+from app.data_sources.local_inventory import compute_md5
+from app.services.reference_genome import (
+    ReferenceGenomeStore,
+    ReferenceGenomeStoreError,
+    TwoBitReferenceGenomeStore,
+)
 
 
 def test_fixture_store_metadata_reuses_registry_source_shape() -> None:
@@ -131,3 +138,135 @@ def test_unsupported_build_returns_structured_error() -> None:
         "requested_build": "GRCh37",
         "available_build": "GRCh38",
     }
+
+
+def test_twobit_store_reads_1_based_inclusive_windows_from_fixture_file(
+    tmp_path: Path,
+) -> None:
+    fixture_path = tmp_path / "tiny.2bit"
+    _write_tiny_twobit(fixture_path, {"chr1": "ACGTACGTACGTACGT", "chrM": "GATTACAGATTACAAT"})
+
+    with TwoBitReferenceGenomeStore(
+        fixture_path,
+        source_version="tiny_twobit_fixture_v1",
+        expected_size_bytes=fixture_path.stat().st_size,
+        expected_md5=compute_md5(fixture_path),
+        verify_checksum=True,
+    ) as store:
+        metadata = store.metadata()
+        window = store.get_sequence("NC_000001.11", 5, 12)
+        base = store.validate_reference_base("chr1", 8, "T")
+
+    assert metadata.reader == "twobitreader==3.1.8"
+    assert metadata.source_version == "tiny_twobit_fixture_v1"
+    assert metadata.checksum_algorithm == "md5"
+    assert metadata.checksum == compute_md5(fixture_path)
+    assert window.chrom == "1"
+    assert window.zero_based_start == 4
+    assert window.zero_based_end_exclusive == 12
+    assert window.sequence == "ACGTACGT"
+    assert base.matches is True
+    assert base.observed_base == "T"
+
+
+def test_twobit_store_rejects_missing_asset(tmp_path: Path) -> None:
+    missing_path = tmp_path / "missing.2bit"
+
+    with pytest.raises(ReferenceGenomeStoreError) as exc_info:
+        TwoBitReferenceGenomeStore(missing_path)
+
+    assert exc_info.value.code == "missing_reference_asset"
+    assert exc_info.value.details == {"path": str(missing_path)}
+
+
+def test_twobit_store_rejects_checksum_mismatch(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "tiny.2bit"
+    _write_tiny_twobit(fixture_path, {"chr1": "ACGTACGTACGTACGT"})
+
+    with pytest.raises(ReferenceGenomeStoreError) as exc_info:
+        TwoBitReferenceGenomeStore(
+            fixture_path,
+            expected_md5="0" * 32,
+            verify_checksum=True,
+        )
+
+    assert exc_info.value.code == "reference_asset_checksum_mismatch"
+    assert exc_info.value.details["expected_md5"] == "0" * 32
+    assert exc_info.value.details["actual_md5"] == compute_md5(fixture_path)
+
+
+def test_twobit_store_unknown_chromosome_and_out_of_bounds_fail_closed(
+    tmp_path: Path,
+) -> None:
+    fixture_path = tmp_path / "tiny.2bit"
+    _write_tiny_twobit(fixture_path, {"chr1": "ACGTACGTACGTACGT"})
+
+    with TwoBitReferenceGenomeStore(fixture_path) as store:
+        with pytest.raises(ReferenceGenomeStoreError) as unknown_exc:
+            store.get_sequence("chr7", 1, 4)
+        with pytest.raises(ReferenceGenomeStoreError) as bounds_exc:
+            store.get_sequence("chr1", 14, 17)
+
+    assert unknown_exc.value.code == "unknown_chromosome"
+    assert unknown_exc.value.details == {"requested_chrom": "chr7"}
+    assert bounds_exc.value.code == "out_of_bounds"
+    assert bounds_exc.value.details == {
+        "chrom": "1",
+        "start": 14,
+        "end": 17,
+        "chromosome_length": 16,
+    }
+
+
+def _write_tiny_twobit(path: Path, sequences: dict[str, str]) -> None:
+    header_size = 16
+    index_size = sum(1 + len(name.encode("ascii")) + 4 for name in sequences)
+    offset = header_size + index_size
+    records: list[bytes] = []
+    index_entries: list[tuple[str, int]] = []
+
+    for name, sequence in sequences.items():
+        index_entries.append((name, offset))
+        record = _twobit_sequence_record(sequence)
+        records.append(record)
+        offset += len(record)
+
+    payload = bytearray()
+    payload.extend(struct.pack("<LLLL", 0x1A412743, 0, len(sequences), 0))
+    for name, record_offset in index_entries:
+        encoded_name = name.encode("ascii")
+        payload.extend(struct.pack("B", len(encoded_name)))
+        payload.extend(encoded_name)
+        payload.extend(struct.pack("<L", record_offset))
+    for record in records:
+        payload.extend(record)
+
+    path.write_bytes(bytes(payload))
+
+
+def _twobit_sequence_record(sequence: str) -> bytes:
+    normalized = sequence.upper()
+    if any(base not in {"A", "C", "G", "T"} for base in normalized):
+        raise ValueError("tiny 2bit test writer supports only A/C/G/T")
+
+    payload = bytearray()
+    payload.extend(struct.pack("<L", len(normalized)))
+    payload.extend(struct.pack("<L", 0))
+    payload.extend(struct.pack("<L", 0))
+    payload.extend(struct.pack("<L", 0))
+    payload.extend(_pack_twobit_bases(normalized))
+    while len(payload) % 4:
+        payload.append(0)
+    return bytes(payload)
+
+
+def _pack_twobit_bases(sequence: str) -> bytes:
+    base_to_bits = {"T": 0b00, "C": 0b01, "A": 0b10, "G": 0b11}
+    packed = bytearray()
+    for index in range(0, len(sequence), 4):
+        chunk = sequence[index : index + 4].ljust(4, "T")
+        byte = 0
+        for base in chunk:
+            byte = (byte << 2) | base_to_bits[base]
+        packed.append(byte)
+    return bytes(packed)

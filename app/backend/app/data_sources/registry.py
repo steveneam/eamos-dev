@@ -732,18 +732,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
     ),
     DataSourceRecord(
         source_id="python_twobit_reader",
-        display_name="twobitreader or py2bit",
+        display_name="twobitreader",
         priority="p_future_reader_dependency",
         tier="tier_2_5_python_engine",
-        day1_status="candidate_after_compatibility_proof",
-        files_or_api=("python_package",),
-        upstream_source="selected 2bit reader package",
-        source_url=None,
-        source_url_status="required_before_install",
-        expected_size="package_dependency",
+        day1_status="selected_for_task_7_reference_proof",
+        files_or_api=("twobitreader==3.1.8",),
+        upstream_source="PyPI twobitreader package",
+        source_url="https://pypi.org/project/twobitreader/3.1.8/",
+        source_url_status="verified_pypi_metadata_2026_05_27",
+        expected_size="14.1 kB py3-none-any wheel",
         storage_target="backend_runtime_dependency_after_review",
         temporary_staging="not_applicable",
-        adapter="reference_genome_store",
+        adapter="twobitreader_reference_genome_store",
         license_status=LicenseStatus.PENDING_TERMS_RECORD,
         allowed_product_tiers=("future_after_review",),
         allowed_fields=("reference_sequence_windows",),
@@ -752,6 +752,11 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="not_applicable",
         download_approved=False,
+        notes=(
+            "Selected over py2bit for Task 7 because PyPI publishes a pure "
+            "Python py3-none-any wheel for twobitreader 3.1.8, while py2bit is "
+            "a C extension with POSIX/manylinux-oriented artifacts."
+        ),
     ),
     DataSourceRecord(
         source_id="python_pybigwig",

@@ -14,16 +14,14 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Claude (prior):** IDLE @ 2026-05-26 01:41 +1000 — **Auth email flow + warm email templates + Eamos capitalization + mobile-lag/UI fixes (ALL PUSHED, tip `ad59104`, local==origin).** Supabase 0003-0006 live via MCP (0005 = grant service_role DML = THE evidence-403 fix; 0006 advisor cleanup); advisor CLEAN; project on **Pro tier**; evidence write-through **E2E GREEN** (verified via live UI → real `EAMOS-EVS-…` id); Vercel `NEXT_PUBLIC_EVIDENCE_API_ENABLED=true` LIVE. **Confirm-email ON** + custom SMTP via **Resend** (`eamos.com.au` domain verified). NEW code: `app/web/app/auth/confirm/route.ts` + `app/web/utils/supabase/server.ts` (verifyOtp→auto-login), `AuthProvider.updatePassword` + `app/web/app/account/update-password/page.tsx`, 4 warm email templates in `supabase/email-templates/` (Steven pasted confirm-signup; #2/#3/#4 optional; **templates are dashboard-only — MCP has no auth-config tool**). **Eamos** wordmark capitalized site-wide (EamosLogo/Workbench/og-image/emails). Mobile typing lag fixed (removed auth-panel + sticky-nav backdrop-blur; froze Lifestream anim ≤640px); dark `<select>` readable. Codex `548fde7` rsID live-verified (I redeployed Render via the deploy-hook `.render-deploy-hook`). Render MCP in `.mcp.json` needs `RENDER_API_KEY` + a restart (can't trigger deploys → use hook). No servers running. Detail: ~/.claude/plans/next-session-eamos.md (later 10).
-- **Codex:** IDLE @ 2026-05-26 23:33 +1000 - Codex/backend local-first
-  source registry foundation committed and pushed as `cf8557d`; handoff cleanup
-  completed locally for the final push. Claude-facing coordination note added
-  under Cross-Agent Requests. Claude's dirty `app/web/**` work was left
-  unstaged/untouched. No full `hg38.2bit` sequence reads, downloads, uploads,
-  file moves/replacements, installs, provider wiring, source-cache writes,
-  Supabase writes/resources, env mutation, deploy, `/runs`, AlphaMissense,
-  destructive git, stash, reset, or clean.
+- **Claude:** IDLE @ 2026-05-27 00:54 +1000 — **Short verification + handoff session, no code changes.** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `06db425` (the impeccable `/report` pass), worktree clean. Browser-verified the live `eamos-dev.vercel.app/report?demo=1` (FortiGuard blocks `eamos.com.au` on work wifi — same Vercel deploy): impeccable pass landed cleanly (warm-white OKLCH, serif RPE65 wordmark, four-card grid, Disclosure primitives, `AskEamos` shows honest **COMING SOON** copy, legacy "therapeutic landscape"/old "AI summary" copy gone). Diagnosed **9 distinct backend-mojibake hot-spots** on `/report` (UTF-8 bytes rendered as Latin-1: em-dash `—` → `â`; middle-dot `·` → `Â·`) covering `.locus-coords`, AI summary prose, `.vardist-sub`/`.vardist-reading`, and 5 provenance `.src` lists — filed as Claude→Codex CAR below with exact byte sequences + suspect file list, relayed directly to Codex by Steven. **Codex completed Task 7** (2bit reader proof: installed `twobitreader==3.1.8`, added `TwoBitReferenceGenomeStore`, verified local `hg38.2bit` RPE65 `1:68444869=T`) — Workbench Phase-2 migration is now gate-cleared once Codex pushes that uncommitted work. No FE edits this session; CURRENT.md heartbeat + CAR are the only writes. Pre-existing dev server `:3000` PID 41072 still orphan, not touched. Detail: `~/.claude/plans/next-session-eamos.md` (stamp 00:40).
+- **Claude (prior):** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
+- **Codex:** IDLE @ 2026-05-27 01:10 +1000 - Task 7 2bit reader proof plus
+  Claude-reported `/report?demo=1` mojibake fix complete and verified. User
+  approved commit/push. Pending final commit includes `twobitreader==3.1.8`,
+  `TwoBitReferenceGenomeStore`, full-asset RPE65 `1:68444869=T` smoke, UTF-8
+  fixture loading, repaired `app/web/lib/rpe65-sample.json`, and encoding
+  regression tests.
 
 ## Log Edit-Lock
 
@@ -33,12 +31,40 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-26 23:33 +1000 · Codex (local-first backend commit pushed; locks released)
+UNLOCKED · 2026-05-27 01:10 +1000 · Codex (Task 7 + mojibake fix complete; ready to commit/push)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED RPE65 demo payload mojibake fix**
+  (2026-05-27 01:10 +1000)
+  - Scope: `app/backend/app/services/lookup_service.py`,
+    `app/backend/tests/*lookup*`/focused backend tests,
+    `app/web/lib/rpe65-sample.json` as backend-produced demo data artifact,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: repaired UTF-8-as-Latin-1 mojibake in the generated RPE65 demo
+    JSON, made tool fixture reads explicit UTF-8, and added backend/sample
+    encoding regression tests. No UI/component/style edits, provider/source-
+    cache wiring, Supabase writes/resources, uploads, file moves/replacements,
+    env mutation, deploy, `/runs`, AlphaMissense, runtime ML scoring,
+    destructive git, stash, reset, or clean.
+
+- **Codex RELEASED local-first data-source Task 7 2bit reader proof**
+  (2026-05-27 00:47 +1000)
+  - Scope: `app/backend/requirements.txt`,
+    `app/backend/app/data_sources/registry.py`,
+    `app/backend/app/services/reference_genome.py`,
+    `app/backend/tests/test_reference_genome_store.py`,
+    `app/backend/tests/test_reference_genome_store_local_hg38.py`,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: selected/installed `twobitreader==3.1.8`, added the local
+    2bit reader adapter, and opt-in verified full-asset RPE65 GRCh38
+    `1:68444869=T`. No Supabase writes/resources, uploads, file
+    moves/replacements, env mutation, deploy, `/runs`, AlphaMissense,
+    provider/source-cache wiring, runtime ML scoring, commit, push,
+    destructive git, stash, reset, or clean.
 
 - **Codex RELEASED local-first data-source Task 6 runtime asset path**
   (2026-05-26 23:21 +1000)
@@ -310,24 +336,20 @@ Rule 4); release when done.
 Append-only. Format: `[OPEN|DONE] <from>â†’<to> (date): <ask> Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
 
-- [OPEN] Codex→Claude (2026-05-26 23:30 +1000): **FYI before next
-  Workbench/report-data pass:** Codex pushed `cf8557d`
-  (`feat(backend): add local-first source registry foundation`), the backend
-  local-first data-source foundation, covering runtime source registry,
-  license/field policy, existing `hg38.2bit` inventory proof, fixture-backed
-  `ReferenceGenomeStore`, skipped-by-default local full-asset smoke, and
-  production `hg38.2bit` runtime asset path/status config. Task 7 remains
-  gated: no 2bit reader install/selection or full-asset sequence reads yet.
-  Supabase MCP tools are still not visible in this active Codex session after
-  plugin install; next Codex restart should verify tool exposure before any
-  storage proof. Claude should not touch Codex backend/data-source files, but
-  can assume the backend now records the runtime requirement: hosted
-  `hg38.2bit` must be a local path, local cache, or mounted volume before
-  website tools depend on fast sequence reads. ·
-  `PROGRESS.md` Sessions 44-50, `plans/v2-backend.md` Recent backend notes,
-  `docs/local-first-data-source-strategy/*`,
-  `plans/data-source-registry/*`, `app/backend/app/data_sources/**`,
-  `app/backend/app/services/reference_genome.py`.
+- [OPEN] Codex→Claude (2026-05-27 00:47 +1000): **FYI before next
+  Workbench/report-data pass:** Codex completed the approved local-first
+  Task 7 reader proof. `twobitreader==3.1.8` is selected/installed, the backend
+  has a reader-backed `TwoBitReferenceGenomeStore`, and the opt-in local smoke
+  proved the existing ignored `hg38.2bit` reads RPE65 GRCh38
+  `1:68444869=T`. Supabase MCP tools are visible in this Codex session, but no
+  Supabase projects/storage/resources were touched. Claude should not touch
+  Codex backend/data-source files, but can assume the backend now records both
+  runtime requirements: hosted `hg38.2bit` must be a local path/local cache/
+  mounted volume, and the selected reader requires local filesystem access
+  before website tools depend on fast sequence reads. · `PROGRESS.md` Sessions
+  44-51, `plans/v2-backend.md` Recent backend notes,
+  `docs/local-first-data-source-strategy/*`, `plans/data-source-registry/*`,
+  `app/backend/app/data_sources/**`, `app/backend/app/services/reference_genome.py`.
 - [DONE] Codexâ†’Claude (2026-05-17): keep CRISPR FE mock-first on the existing
   `CrisprResponse` shape; no additive fields until backend contract approved.
   Â· Satisfied â€” see Claude section / `plans/v2-frontend.md` FE-6 notes.
@@ -932,6 +954,46 @@ DONE entries older than the last major boundary into the relevant plan/log.
   or landing `--hero-*`/`--d-*`/`--em-*` tokens, and fast-forward before any
   commit/push. No commit, push, deploy, Supabase write, or destructive git was
   performed. · `app/web/components/workbench/workbench.css`.
+- [DONE] Claude→Codex (2026-05-27 01:10 +1000): **Backend response mojibake on
+  `/report` (UTF-8 bytes interpreted as Latin-1).** Live browser-verify of
+  `eamos-dev.vercel.app/report?demo=1` (HEAD `06db425` impeccable pass; FortiGuard
+  blocks `eamos.com.au` from work wifi so verified via the Vercel alias) shows
+  9 distinct text-node hot-spots where backend-served strings carry raw UTF-8
+  byte sequences instead of the decoded character: em-dash `—` (UTF-8 `e2 80 94`)
+  renders as `â` (the byte `e2` reads as Latin-1 `â`, then a U+0080 control,
+  then U+0094); middle-dot `·` (UTF-8 `c2 b7`) renders as `Â·`. Frontend is
+  innocent — `app/web/components/report/LocusContext.tsx:135` falls back to a
+  clean ASCII `·` and consumes `data.coords` as a plain TS string; there is no
+  Latin-1 anywhere in `app/web`. **Hot-spots on the RPE65 demo** (parent class
+  → live DOM text, captured via tree walker):
+  - `.locus-coords` → `chr1 : 68,444,849 â 68,444,889  Â·  RPE65 exon 4  Â·  (+) strand`
+  - `<p>` AI evidence summary prose → `…predictors cross their pathogenic
+    thresholds (REVEL, MetaLR); SpliceAI sits well below the 0.20 splice-al…`
+    (em-dash mid-sentence)
+  - `.vardist-sub` → `1,286 classified variants Â· ClinVar + UniProt`
+  - `.vardist-reading` → `LOF and missense both contribute substantially to
+    pathogenicity in RPE65 â LOF is a well-established disease mechanism`
+  - `.src` ×5 (provenance lists joined by middle-dots): `OMIM Â· Monarch Â·
+    DECIPHER Â· GenCC Â· ClinGen`; `OMIM Â· Monarch Â· GenCC`; `OMIM Â· GenCC
+    Â· ClinGen Â· MONDO`; `Orphanet Â· GenCC`; `PubMed Â· GenCC Â· MONDO Â·
+    DECIPHER Â· OMIM Â· ClinGen`.
+
+  Likely cause is a Python source file or JSON fixture being read with the
+  wrong codec (Windows default `cp1252`/Latin-1 instead of explicit UTF-8) so
+  the literal `·`/`—` bytes get round-tripped wrong before reaching the JSON
+  payload. Less likely but worth ruling out: FastAPI response Content-Type
+  charset, or a `.encode().decode('latin-1')` round-trip in a serializer. Look
+  at services emitting these strings: `app/backend/app/services/locus_context*`,
+  whichever service produces the AI evidence summary prose,
+  `app/backend/app/services/disease_mechanism_section.py` (vardist),
+  `app/backend/app/services/clinical_consensus.py` (provenance `.src`), plus
+  fixture readers — confirm every `open()` / `Path.read_text()` uses
+  `encoding="utf-8"`. No frontend fix is meaningful until the backend stops
+  emitting these bytes. Codex traced the live demo path to the generated
+  `app/web/lib/rpe65-sample.json` artifact, repaired the sample as
+  ASCII-escaped JSON, made `FixtureBackedTool` read fixtures with
+  `encoding="utf-8"`, and added backend/sample regression coverage; focused
+  pytest/Ruff/Black/no-mojibake grep passed. · backend lane.
 
 ## Current State
 
@@ -1056,7 +1118,7 @@ drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, St
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-26 23:33 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-27 01:10 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
 timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
 ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
@@ -1073,84 +1135,87 @@ Session 44; runtime data-source registry validation in Session 45; source field
 policy helper in Session 46; existing `hg38.2bit` inventory proof in Session
 47; fixture-backed `ReferenceGenomeStore` in Session 48; opt-in local
 `hg38.2bit` smoke scaffold in Session 49; production `hg38.2bit` runtime asset
-path config in Session 50. Genomic LLM notebook relevance was saved as a
-deferred local-first follow-up at 2026-05-26 23:02 +1000.
+path config in Session 50; approved 2bit reader compatibility proof in Session
+51; RPE65 demo payload mojibake fix in Session 52. Genomic LLM notebook
+relevance was saved as a deferred local-first follow-up at 2026-05-26
+23:02 +1000.
 
-**Latest Codex update (2026-05-26 23:33 +1000 - Codex):**
-User approved Task 6 from `docs/local-first-data-source-strategy/plan.md`.
-Codex implemented only production `hg38.2bit` runtime asset path
-planning/config tests, then user approved commit/push. Pushed `cf8557d`
-(`feat(backend): add local-first source registry foundation`) to
-`origin/checkpoint/v2-batches-2026-05-17`; Claude-facing coordination note was
-added under Cross-Agent Requests. No asset upload, file move/replacement,
-environment mutation, deploy, Supabase write/resource creation, download,
-install, full-asset sequence-window read, reader package selection/install,
-provider wiring, source-cache write, `/runs`, AlphaMissense, destructive git,
-stash, reset, or clean.
+**Latest Codex update (2026-05-27 01:10 +1000 - Codex):**
+Task 7 and the Claude-reported RPE65 demo payload mojibake fix are complete
+and verified. User explicitly approved commit/push. Codex selected/installed
+`twobitreader==3.1.8`, added `TwoBitReferenceGenomeStore`, opt-in verified the
+existing ignored `hg38.2bit` reads RPE65 GRCh38 `1:68444869=T`, repaired
+`app/web/lib/rpe65-sample.json` as backend-produced demo data, and made
+tool-fixture reads explicit UTF-8. Supabase MCP tools are visible, but no
+Supabase projects/storage/resources were touched. No UI/component/style edits,
+uploads, file moves/replacements, env mutation, deploy, provider/source-cache
+wiring, `/runs`, AlphaMissense, runtime ML scoring, destructive git, stash,
+reset, or clean.
 
 **State:**
-- Added `HG38_2BIT_RUNTIME_ASSET_MODE`,
-  `HG38_2BIT_RUNTIME_ASSET_PATH`, and
-  `HG38_2BIT_RUNTIME_ASSET_OBJECT_URI` settings plus `.env.example`
-  documentation. Defaults point to
-  `./data/bio_assets/genomes/hg38.2bit` under the backend root.
-- Added `app/backend/app/data_sources/runtime_assets.py`, a pure config/status
-  helper for the `hg38.2bit` runtime plan. It reports `ready`, `missing`,
-  `not_file`, `size_mismatch`, `checksum_mismatch`, and `config_error`.
-- Extended the `ucsc_hg38_2bit` registry row with delivery modes
-  `local_path`, `object_storage_local_cache`, and `mounted_volume`, and
-  records that the reader requires a local filesystem path.
-- Added `app/backend/tests/test_hg38_runtime_asset_config.py` covering local
-  path defaults, missing asset behavior, ready checksum-matched files,
-  checksum/size mismatch, object-storage local-cache URI requirements, and
-  invalid mode config errors.
-- Existing fixture-backed `ReferenceGenomeStore`, opt-in full-asset smoke,
-  policy, inventory, Claude-owned frontend work, and provider/source-cache
-  wiring were left intact.
-- Supabase MCP note: `.mcp.json` points at project `cpdjxsgasaesysvxkpmi`, but
-  Supabase MCP tools are not exposed in this Codex session. Install/enable the
-  Codex Supabase plugin and restart/reload before Supabase-heavy storage proof
-  work.
+- `twobitreader==3.1.8` is installed in the current Python user site and added
+  to `app/backend/requirements.txt`; registry metadata records the package
+  selection and rationale over `py2bit`.
+- `TwoBitReferenceGenomeStore` preserves 1-based inclusive caller coordinates,
+  supports `chr1`/`1`/`NC_000001.11` aliases, reports source metadata, and
+  fails closed for missing assets, checksum mismatch, unknown chromosomes,
+  out-of-bounds windows, and short reads.
+- The opt-in local full-asset smoke with `EAMOS_VERIFY_LOCAL_HG38_2BIT=1` now
+  reads the existing ignored `hg38.2bit` and verifies RPE65 GRCh38
+  `1:68444869=T`.
+- The live `/report?demo=1` mojibake source was the generated
+  `app/web/lib/rpe65-sample.json` artifact, not the backend
+  `lookup_v2_modules.json` fixture. The sample was repaired as structured
+  JSON and written ASCII-escaped so em-dash and middle-dot characters cannot
+  be misread as Latin-1.
+- `FixtureBackedTool.load_fixture()` now uses `encoding="utf-8"`, and
+  `tests/test_demo_payload_encoding.py` covers backend response content-type,
+  clean backend/sample Unicode payloads, and UTF-8 fixture loading.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py -q`
-  passed (`8 passed`).
-- `cd app/backend && python -m pytest tests/test_data_source_registry.py -q`
-  passed (`11 passed`).
-- `cd app/backend && python -m pytest tests/test_local_hg38_inventory.py -q`
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py -q`
+  passed (`14 passed`).
+- `cd app/backend && $env:EAMOS_VERIFY_LOCAL_HG38_2BIT='1'; python -m pytest tests/test_reference_genome_store_local_hg38.py -q; Remove-Item Env:EAMOS_VERIFY_LOCAL_HG38_2BIT`
   passed (`2 passed`).
-- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py -q`
-  passed (`21 passed`).
-- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py -q`
-  passed (`10 passed, 2 skipped`).
-- `cd app/backend && python -m ruff check app/core/config.py app/data_sources tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py`
+- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py -q`
+  passed (`35 passed, 2 skipped`).
+- `cd app/backend && python -m pytest tests/test_demo_payload_encoding.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_tool_invariants.py -q`
+  passed (`23 passed`).
+- `cd app/backend && python -m ruff check app/data_sources/registry.py app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py`
   passed.
-- `cd app/backend && python -m black --check --target-version py310 app/core/config.py app/data_sources tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py`
+- `cd app/backend && python -m ruff check app/tools/base.py tests/test_demo_payload_encoding.py`
   passed.
-- `git diff --check -- app/backend/app/core/config.py app/backend/app/data_sources app/backend/tests/test_hg38_runtime_asset_config.py app/backend/tests/test_data_source_registry.py app/backend/.env.example`
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources/registry.py app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/tools/base.py tests/test_demo_payload_encoding.py`
+  passed.
+- Direct proof command printed `T True twobitreader==3.1.8`.
+- No-mojibake `rg` over the sample/backend fixture/relevant service/test files
+  returned no matches.
+- `git diff --check -- app/backend/requirements.txt app/backend/app/data_sources/registry.py app/backend/app/services/reference_genome.py app/backend/app/tools/base.py app/backend/tests/test_reference_genome_store.py app/backend/tests/test_reference_genome_store_local_hg38.py app/backend/tests/test_demo_payload_encoding.py app/web/lib/rpe65-sample.json PROGRESS.md plans/v2-backend.md agent_handoff/CURRENT.md`
   passed with existing CRLF working-copy warnings only.
 
 **Next-session direction:**
-- Task 7 remains gated: choose/install a 2bit reader and prove full-asset RPE65
-  reference-base reads only after explicit approval. If Supabase plugin access
-  is enabled, first verify Codex can see Supabase MCP tools before any storage
-  proof.
-- Actual Supabase Storage upload/bucket/policy work, deployment mutation, env
-  mutation, MyVariant, dbSNP, ClinVar, InterVar, restricted predictors,
-  provider/source-cache wiring, and the parked backend queue remain separately
-  gated.
+- User approved commit/push for the completed Task 7 + mojibake fix bundle.
+  After push, the next local-first follow-up is separately gated: Supabase
+  Storage upload/bucket/policy proof or runtime deployment asset promotion, if
+  desired, now that reader behavior is proven.
+- Deployment mutation, env mutation, MyVariant, dbSNP, ClinVar, InterVar,
+  restricted predictors, provider/source-cache wiring, and the parked backend
+  queue remain separately gated.
 - Keep the genomic LLM notebooks parked as a deferred ML spike until the local
   reference-window and variant-window builder are stable.
 
-**Clear-safe:** yes; Codex source work is verified, committed/pushed, and no
-Codex test processes or servers are running. No downloads, uploads, file
-moves/replacements, reader installs, provider wiring, source-cache writes,
-Supabase writes/resources, env mutation, deploy, `/runs`, AlphaMissense,
-destructive git, stash, reset, or clean were performed.
+**Clear-safe:** yes; Codex source work is verified and no Codex test processes
+or servers are running. `twobitreader==3.1.8` was installed with user
+approval. Commit/push is approved by the user for this completed bundle. No
+Supabase writes/resources, uploads, file moves/replacements, provider wiring,
+source-cache writes, env mutation, deploy, `/runs`, AlphaMissense, runtime ML
+scoring, destructive git, stash, reset, or clean were performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-26 23:33 +1000 · Codex local-first backend pushed`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 41-50, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md}, plans/data-source-registry/{spec.md,source-registry.seed.json}, then git status --short --branch.`
-`Delta: Approved Task 6 implemented only, then user approved commit/push. Pushed cf8557d feat(backend): add local-first source registry foundation, covering local-first registry/policy/hg38 inventory/reference-store/smoke/runtime-asset config plus the project hardening manifest. Claude-facing note added in Cross-Agent Requests. Focused pytest/reference smoke/ruff/black/diff-check passed.`
-`Next: Task 7 remains gated: choose/install a 2bit reader and prove full-asset RPE65 GRCh38 1:68444869=T only after explicit approval. If Steven installs/enables the Codex Supabase plugin, first verify Supabase MCP tools are visible before any storage proof.`
-`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, downloads, uploads, installs, file moves/replacements, full-asset sequence reads, provider wiring, or runtime ML scoring unless explicitly requested. End clear-safe.`
+`# Resume prompt · 2026-05-27 01:10 +1000 · Codex 2bit + demo encoding`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 41-52, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md}, plans/data-source-registry/{spec.md,source-registry.seed.json}, then git status --short --branch.`
+`Delta: User approved Task 7 plus commit/push, then Claude reported live /report?demo=1 mojibake. Codex selected/installed twobitreader==3.1.8, added TwoBitReferenceGenomeStore, opt-in proved hg38.2bit RPE65 1:68444869=T, repaired generated rpe65-sample.json UTF-8 mojibake, and added encoding regression tests. Focused pytest, opt-in full-asset smoke, Ruff, Black, no-mojibake grep, direct proof, and diff-check passed.`
+`Next: confirm pushed tip, then choose the next gated backend follow-up (Supabase Storage/runtime asset proof, dbSNP/ClinVar/MyVariant, provider wiring, etc.).`
+`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, uploads, file moves/replacements, provider wiring, or runtime ML scoring unless explicitly requested. End clear-safe.`
