@@ -12,6 +12,8 @@
  * via the backend; this is a proof, not a substitute.
  */
 
+import { LandingH2 } from '@/components/landing/ui/LandingHeading'
+
 interface BadgeSpec {
   text: string
   tone: 'acmg' | 'metric' | 'source' | 'warning' | 'neutral'
@@ -77,36 +79,25 @@ export function MetricBelt() {
   return (
     <section
       aria-label="A specimen of an Eamos variant report"
-      className="py-24"
+      className="py-28"
       style={{
-        background: 'var(--d-bg)',
-        borderTop: '0.5px solid var(--d-line)',
-        borderBottom: '0.5px solid var(--d-line)',
+        background: 'var(--page-bg)',
+        borderTop: '0.5px solid var(--page-line)',
+        borderBottom: '0.5px solid var(--page-line)',
       }}
     >
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
-        {/* Section eyebrow + headline */}
+        {/* Section headline (no kicker; the headline alone introduces the specimen) */}
         <header className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div style={{ maxWidth: 560 }}>
-            <p
-              className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em]"
-              style={{ color: 'var(--em-bright)' }}
-            >
-              A specimen
-            </p>
-            <h2
-              className="text-[clamp(26px,3vw,36px)] leading-[1.1] tracking-[-0.02em]"
-              style={{ fontFamily: 'var(--display)', fontWeight: 500, color: 'var(--hero-ink)' }}
-            >
-              How the evidence reads.
-            </h2>
+            <LandingH2>How the evidence reads.</LandingH2>
           </div>
           <p
             className="md:max-w-[380px] md:text-right"
             style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--hero-ink-2)' }}
           >
-            Four call cards at the top of every report — clinical consensus, population
-            frequency, computational, functional — each citing the source it came from.
+            Four call cards at the top of every report: clinical consensus, population
+            frequency, computational, functional. Each citing the source it came from.
           </p>
         </header>
 

@@ -18,7 +18,7 @@ export function SiteFooter() {
             <EamosLogo size={18} tone="dark" />
             <p className="mt-4 text-[12.5px] leading-[1.6]" style={{ color: 'var(--hero-ink-2)' }}>
               Built independently for genomic medicine. Evidence is aggregated live from public
-              databases — no patient sequence files are stored.
+              databases; no patient sequence files are stored.
             </p>
           </div>
 
@@ -49,7 +49,7 @@ export function SiteFooter() {
         >
           <TextLink href="/terms" className="text-[11.5px]">Terms &amp; Conditions</TextLink>
           <TextLink href="/privacy" className="text-[11.5px]">Privacy Policy</TextLink>
-          <span style={{ color: 'var(--hero-ink-3)' }}>Research use only — not a medical device.</span>
+          <span style={{ color: 'var(--hero-ink-3)' }}>Research use only. Not a medical device.</span>
           <span style={{ color: 'var(--hero-ink-3)' }}>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { Reveal } from '@/components/landing/Reveal'
+import { LandingH2, LandingH3 } from '@/components/landing/ui/LandingHeading'
 
 interface Step {
   num: number
@@ -22,7 +23,7 @@ const STEPS: Step[] = [
     kicker: 'Parallel sweep',
     title: 'Eamos queries every source at once',
     description:
-      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed — fanned out in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
+      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed, fanned out in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
     visual: {
       lines: [
         'ClinVar  … ok  (12 submissions)',
@@ -38,7 +39,7 @@ const STEPS: Step[] = [
     kicker: 'Instant rendering',
     title: 'Read the report',
     description:
-      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials — every claim cited.',
+      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials; every claim cited.',
     visual: { lines: ['Verdict: Likely path.', 'PM1, PM2, PP3', 'Trials: 3 recruiting'] },
   },
 ]
@@ -49,25 +50,14 @@ export function HowItWorks() {
       id="how"
       className="py-28"
       style={{
-        background: 'var(--d-bg-2)',
-        borderBottom: '0.5px solid var(--d-line)',
+        background: 'var(--page-bg-deep)',
+        borderBottom: '0.5px solid var(--page-line)',
       }}
     >
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
         <header className="mb-14 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div style={{ maxWidth: 720 }}>
-            <p
-              className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-              style={{ color: 'var(--em-bright)' }}
-            >
-              How it works
-            </p>
-            <h2
-              className="text-[clamp(30px,3.5vw,42px)] leading-[1.1] tracking-[-0.02em]"
-              style={{ fontFamily: 'var(--display)', fontWeight: 500, color: 'var(--hero-ink)' }}
-            >
-              One variant in. One structured report out.
-            </h2>
+            <LandingH2>One variant in. One structured report out.</LandingH2>
           </div>
           <p
             className="md:max-w-[300px] md:text-right"
@@ -80,7 +70,7 @@ export function HowItWorks() {
         {/* Asymmetric 3 / 6 / 3 — step 2 is the featured station, twice the width
             of the bookend steps. Stacks on small screens (step 2 still first by
             visual order, not source order — preserves narrative). */}
-        <div className="grid grid-cols-1 gap-px lg:grid-cols-12" style={{ background: 'var(--d-line)' }}>
+        <div className="grid grid-cols-1 gap-px lg:grid-cols-12" style={{ background: 'var(--page-line)' }}>
           {STEPS.map((step, i) => {
             const isFeatured = step.num === 2
             const colSpan = isFeatured ? 'lg:col-span-6' : 'lg:col-span-3'
@@ -94,7 +84,7 @@ export function HowItWorks() {
                 <div
                   className="flex h-full flex-col"
                   style={{
-                    background: isFeatured ? 'var(--d-card)' : 'var(--d-bg-2)',
+                    background: isFeatured ? 'var(--page-card)' : 'var(--page-bg-deep)',
                     padding: isFeatured ? '36px 32px' : '28px 24px',
                   }}
                 >
@@ -122,19 +112,7 @@ export function HowItWorks() {
                       {step.kicker}
                     </span>
                   </div>
-                  <h3
-                    className="mb-3"
-                    style={{
-                      fontFamily: 'var(--display)',
-                      fontWeight: 500,
-                      fontSize: isFeatured ? 26 : 18,
-                      lineHeight: 1.18,
-                      letterSpacing: '-0.018em',
-                      color: 'var(--hero-ink)',
-                    }}
-                  >
-                    {step.title}
-                  </h3>
+                  <LandingH3 className="mb-3">{step.title}</LandingH3>
                   <p
                     style={{
                       fontSize: isFeatured ? 14.5 : 13,

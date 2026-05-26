@@ -6,9 +6,9 @@ export function Testimonials() {
     <section
       className="py-28"
       style={{
-        background: 'var(--d-bg-2)',
-        borderTop: '0.5px solid var(--d-line)',
-        borderBottom: '0.5px solid var(--d-line)',
+        background: 'var(--page-bg-deep)',
+        borderTop: '0.5px solid var(--page-line)',
+        borderBottom: '0.5px solid var(--page-line)',
       }}
     >
       <div className="mx-auto px-8" style={{ maxWidth: 880 }}>
@@ -18,14 +18,8 @@ export function Testimonials() {
             alt="Steven, founder of Eamos"
             width={112}
             height={112}
-            className="mb-6"
+            className="mb-7"
           />
-          <span
-            className="mb-7 text-[11px] font-semibold uppercase tracking-[0.16em]"
-            style={{ color: 'var(--em-bright)' }}
-          >
-            From the founder
-          </span>
           <span aria-hidden style={{ fontFamily: 'var(--display)', fontSize: 48, lineHeight: 1, color: 'var(--em-bright)' }}>
             “
           </span>
@@ -42,10 +36,10 @@ export function Testimonials() {
             }}
           >
             As a researcher, I&rsquo;ve felt first-hand how much time disappears into manually sifting
-            through countless databases just to annotate and curate a single variant — and how those
+            through countless databases just to annotate and curate a single variant, and how those
             delays push back the genetic reports patients are waiting on. With debilitating, progressive
             genetic disease, every second matters: it can be the difference between the right treatment in
-            time and missing it altogether. I built Eamos to give that time back — to researchers and
+            time and missing it altogether. I built Eamos to give that time back, to researchers and
             clinicians, and to the patients and curious minds who simply want to understand their own
             genetics.
           </blockquote>

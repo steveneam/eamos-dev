@@ -1,6 +1,7 @@
 'use client'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useState } from 'react'
+import { LandingH2 } from '@/components/landing/ui/LandingHeading'
 
 function FaqStyles() {
   return (
@@ -25,11 +26,11 @@ const ITEMS: QA[] = [
   },
   {
     q: 'Does Eamos store private patient data?',
-    a: 'No. Eamos functions strictly as an evidence aggregator. No genetic sequence files (VCFs) are retained in our database pipelines — records are pulled live, per query.',
+    a: 'No. Eamos functions strictly as an evidence aggregator. No genetic sequence files (VCFs) are retained in our database pipelines; records are pulled live, per query.',
   },
   {
     q: 'Which databases does a single search cover?',
-    a: 'ClinVar, gnomAD, Ensembl VEP, SpliceAI, and PubMed — plus ClinicalTrials.gov for active trials — with the ACMG/AMP rules engine applied on top of the aggregated evidence.',
+    a: 'ClinVar, gnomAD, Ensembl VEP, SpliceAI, and PubMed (plus ClinicalTrials.gov for active trials), with the ACMG/AMP rules engine applied on top of the aggregated evidence.',
   },
   {
     q: 'How current is the data?',
@@ -43,32 +44,21 @@ export function Faq() {
       id="faq"
       className="py-28"
       style={{
-        background: 'var(--d-bg-2)',
-        borderTop: '0.5px solid var(--d-line)',
-        borderBottom: '0.5px solid var(--d-line)',
+        background: 'var(--page-bg-deep)',
+        borderTop: '0.5px solid var(--page-line)',
+        borderBottom: '0.5px solid var(--page-line)',
       }}
     >
       <div className="mx-auto px-8" style={{ maxWidth: 760 }}>
         <header className="mb-12 text-center">
-          <p
-            className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--em-bright)' }}
-          >
-            FAQ
-          </p>
-          <h2
-            className="text-[clamp(28px,3.4vw,40px)] font-semibold leading-[1.1] tracking-[-0.02em]"
-            style={{ fontFamily: 'var(--display)', color: 'var(--hero-ink)' }}
-          >
-            Questions, answered.
-          </h2>
+          <LandingH2 className="mx-auto">Questions, answered.</LandingH2>
         </header>
 
         <FaqStyles />
         <div
           style={{
-            background: 'var(--d-card)',
-            border: '0.5px solid var(--d-line)',
+            background: 'var(--page-card)',
+            border: '0.5px solid var(--page-line)',
             borderRadius: 14,
             overflow: 'hidden',
           }}
@@ -87,7 +77,7 @@ function FaqRow({ item, last }: { item: QA; last: boolean }) {
   const reduce = useReducedMotion()
 
   return (
-    <div style={{ borderBottom: last ? 'none' : '0.5px solid var(--d-line)' }}>
+    <div style={{ borderBottom: last ? 'none' : '0.5px solid var(--page-line)' }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

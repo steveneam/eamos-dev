@@ -22,6 +22,17 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
   const searchRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Track whether the compact search has scrolled into view so we can mark the
+  // wrapper `inert` while it's invisible — otherwise the input still sits in
+  // keyboard tab order at the top of the page (a11y trip).
+  const [compactVisible, setCompactVisible] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setCompactVisible(window.scrollY > 240)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // Mobile menu: close on outside-click / Esc. Links + the panel both carry
   // [data-mobile-menu] so a click on either keeps it open.
@@ -91,7 +102,7 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
             // Solid-ish, no blur. A sticky backdrop-filter:blur repaints on every
             // keystroke anywhere on the page — mobile typing lag. Warm near-white so
             // the scrolled nav reads as the cream cover firming up.
-            background: 'rgba(252,249,243,0.96)',
+            background: 'var(--nav-bg)',
             borderBottom: '0.5px solid var(--hero-line)',
           }}
         />
@@ -175,6 +186,10 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
             <div
               ref={searchRef}
               className="hidden min-w-0 md:block"
+              // `inert` removes the element from focus + a11y tree without
+              // touching opacity/visibility (GSAP still owns the opacity tween).
+              inert={!compactVisible}
+              aria-hidden={compactVisible ? undefined : true}
               onFocus={() => setExpanded(true)}
               onBlur={(e) => {
                 if (!searchRef.current?.contains(e.relatedTarget as Node | null)) setExpanded(false)

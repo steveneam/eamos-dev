@@ -60,7 +60,7 @@ const SECTIONS: { h: string; p: string }[] = [
 
 export default function PrivacyPage() {
   return (
-    <div style={{ background: 'var(--d-bg)', minHeight: '100vh' }}>
+    <div style={{ background: 'var(--page-bg)', minHeight: '100vh' }}>
       <header
         className="mx-auto flex items-center justify-between px-6"
         style={{ maxWidth: 820, height: 64 }}

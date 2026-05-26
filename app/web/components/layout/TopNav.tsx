@@ -15,7 +15,7 @@ export function TopNav({ children, right, className }: TopNavProps) {
       style={{
         // Opaque warm-paper — backdrop-filter:blur on a sticky element repaints
         // on every keystroke anywhere on the page (mobile typing lag).
-        background: 'rgba(252,249,243,0.97)',
+        background: 'var(--nav-bg)',
         borderBottom: '0.5px solid var(--line)',
       }}
     >

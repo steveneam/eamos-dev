@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { Reveal } from '@/components/landing/Reveal'
+import { LandingH2, LandingH3 } from '@/components/landing/ui/LandingHeading'
 
 interface Shot {
   src: string
@@ -34,24 +35,13 @@ const SHOTS: Shot[] = [
 
 export function FeaturesGrid() {
   return (
-    <section id="features" className="py-28" style={{ background: 'var(--d-bg)' }}>
+    <section id="features" className="py-28" style={{ background: 'var(--page-bg)' }}>
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
         <header className="mb-14" style={{ maxWidth: 720 }}>
-          <p
-            className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--em-bright)' }}
-          >
-            What you get
-          </p>
-          <h2
-            className="mb-4 text-[clamp(30px,3.5vw,42px)] font-semibold leading-[1.1] tracking-[-0.02em]"
-            style={{ fontFamily: 'var(--display)', color: 'var(--hero-ink)' }}
-          >
-            One lookup. The whole evidence picture.
-          </h2>
+          <LandingH2 className="mb-4">One lookup. The whole evidence picture.</LandingH2>
           <p className="text-[17px] leading-[1.55]" style={{ color: 'var(--hero-ink-2)', maxWidth: 620 }}>
             Every report folds the databases you already open into one structured, cited, ACMG-aware
-            view — engineered for speed and clinical trust.
+            view, engineered for speed and clinical trust.
           </p>
         </header>
 
@@ -61,11 +51,11 @@ export function FeaturesGrid() {
         <Reveal as="article">
           <figure
             className="m-0 overflow-hidden"
-            style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 16 }}
+            style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 16 }}
           >
             <div
               className="relative"
-              style={{ aspectRatio: '7 / 3', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+              style={{ aspectRatio: '7 / 3', overflow: 'hidden', background: 'var(--page-bg-deep)' }}
             >
               <Image
                 src="/feat-gnomad-map.webp"
@@ -77,12 +67,12 @@ export function FeaturesGrid() {
               />
             </div>
             <figcaption style={{ padding: '20px 24px' }}>
-              <h3 className="mb-1" style={feat.title}>
+              <LandingH3 className="mb-1">
                 Population frequency, mapped
-              </h3>
+              </LandingH3>
               <p style={feat.caption}>
                 gnomAD v4 allele frequencies across every genetic ancestry group, on a land-clipped
-                world map — source-group data, not patient ancestry or geography.
+                world map. Source-group data, not patient ancestry or geography.
               </p>
             </figcaption>
           </figure>
@@ -96,11 +86,11 @@ export function FeaturesGrid() {
           <Reveal as="article" className="lg:col-span-4" delay={0}>
             <figure
               className="m-0 h-full overflow-hidden"
-              style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+              style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 14 }}
             >
               <div
                 className="relative"
-                style={{ aspectRatio: '16 / 8', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+                style={{ aspectRatio: '16 / 8', overflow: 'hidden', background: 'var(--page-bg-deep)' }}
               >
                 <Image
                   src={SHOTS[0].src}
@@ -112,9 +102,9 @@ export function FeaturesGrid() {
                 />
               </div>
               <figcaption style={{ padding: '18px 22px' }}>
-                <h3 className="mb-1" style={feat.title}>
+                <LandingH3 className="mb-1">
                   {SHOTS[0].title}
-                </h3>
+                </LandingH3>
                 <p style={feat.caption}>{SHOTS[0].caption}</p>
               </figcaption>
             </figure>
@@ -126,11 +116,11 @@ export function FeaturesGrid() {
               <Reveal key={shot.src} as="article" delay={0.06 + i * 0.04}>
                 <figure
                   className="m-0 h-full overflow-hidden"
-                  style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+                  style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 14 }}
                 >
                   <div
                     className="relative"
-                    style={{ aspectRatio: '16 / 9', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+                    style={{ aspectRatio: '16 / 9', overflow: 'hidden', background: 'var(--page-bg-deep)' }}
                   >
                     <Image
                       src={shot.src}
@@ -141,9 +131,9 @@ export function FeaturesGrid() {
                     />
                   </div>
                   <figcaption style={{ padding: '14px 18px' }}>
-                    <h3 className="mb-1" style={feat.title}>
+                    <LandingH3 className="mb-1">
                       {shot.title}
-                    </h3>
+                    </LandingH3>
                     <p style={feat.caption}>{shot.caption}</p>
                   </figcaption>
                 </figure>
@@ -156,7 +146,7 @@ export function FeaturesGrid() {
           <Reveal as="article" className="lg:col-span-6" delay={0.18}>
             <figure
               className="m-0 h-full overflow-hidden"
-              style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+              style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 14 }}
             >
               <div
                 className="relative flex items-center justify-center"
@@ -164,7 +154,7 @@ export function FeaturesGrid() {
                   aspectRatio: '32 / 9',
                   overflow: 'hidden',
                   background:
-                    'radial-gradient(120% 120% at 50% 0%, rgba(16,185,129,0.10), transparent 60%), var(--d-bg-2)',
+                    'radial-gradient(120% 120% at 50% 0%, rgba(16,185,129,0.10), transparent 60%), var(--page-bg-deep)',
                 }}
               >
                 <span
@@ -206,11 +196,11 @@ export function FeaturesGrid() {
                 </span>
               </div>
               <figcaption style={{ padding: '16px 18px' }}>
-                <h3 className="mb-1" style={feat.title}>
+                <LandingH3 className="mb-1">
                   Workbench
-                </h3>
+                </LandingH3>
                 <p style={feat.caption}>
-                  Sequence viewer, primer & CRISPR design, and alignment — in the works.
+                  Sequence viewer, primer & CRISPR design, and alignment; in the works.
                 </p>
               </figcaption>
             </figure>
@@ -222,14 +212,6 @@ export function FeaturesGrid() {
 }
 
 const feat = {
-  title: {
-    fontFamily: 'var(--display)',
-    fontWeight: 600,
-    fontSize: 16,
-    lineHeight: 1.25,
-    letterSpacing: '-0.015em',
-    color: 'var(--hero-ink)',
-  } as const,
   caption: {
     fontSize: 13,
     color: 'var(--hero-ink-2)',

@@ -226,11 +226,19 @@
   --flow-cool: oklch(40% 0.072 248);
   --flow-warm: var(--em-bright);
 
-  /* Warm-light content surfaces below the hero (alternating sections). */
-  --d-bg:    oklch(96.2% 0.012 78);
-  --d-bg-2:  oklch(94.6% 0.014 76);
-  --d-card:  oklch(99.2% 0.004 82);
-  --d-line:  oklch(88% 0.012 72);
+  /* Warm-light content surfaces below the hero — alternating L2/L3 register
+     to give the landing a page-turn rhythm. --page-bg is the standard cream
+     "page" tone, --page-bg-deep is the deeper register, --page-card is the
+     near-white inset for elevated sub-surfaces, --page-line is the hairline
+     tuned to read on the warm ground. */
+  --page-bg:      oklch(96.2% 0.012 78);
+  --page-bg-deep: oklch(94.6% 0.014 76);
+  --page-card:    oklch(99.2% 0.004 82);
+  --page-line:    oklch(88% 0.012 72);
+
+  /* Sticky nav cream (opaque-ish warm-white at 0.97 alpha). Used by
+     LandingNav + TopNav. Was previously a raw rgba() in components. */
+  --nav-bg: rgba(252, 249, 243, 0.97);
 }
 
 @keyframes ls-drift {
@@ -251,7 +259,7 @@
    light option text was invisible. color-scheme:dark renders the popup dark; the
    explicit option colors are a cross-browser fallback. */
 select[data-tone="dark"] { color-scheme: dark; }
-[data-tone="dark"] option { background-color: var(--d-bg-2); color: var(--hero-ink); }
+[data-tone="dark"] option { background-color: var(--page-bg-deep); color: var(--hero-ink); }
 
 /* Pricing card hover is owned by Pricing.tsx — teal border swap on the same
    teal-axis signal every other landing surface uses. No transform/lift, no

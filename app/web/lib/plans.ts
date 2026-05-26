@@ -49,7 +49,7 @@ export const PLANS: Plan[] = [
       '10 AI queries / day',
       'ClinVar & evidence submissions',
       'VCF upload (batch variants)',
-      'Workbench — 1 active project',
+      'Workbench (1 active project)',
       'Reclassification alerts & PDF export',
     ],
   },
@@ -73,7 +73,7 @@ export const PLANS: Plan[] = [
 // it lives outside PLANS and renders in the "Team & Enterprise" toggle view.
 export const ENTERPRISE = {
   name: 'Lab / Enterprise',
-  blurb: 'For diagnostic labs, teams and groups — per-seat licensing. Contact us for a quote.',
+  blurb: 'For diagnostic labs, teams and groups; per-seat licensing. Contact us for a quote.',
   contact: 'mailto:sales@eamos.com.au',
   features: [
     'Shared collaborative workspace',

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Reveal } from '@/components/landing/Reveal'
 import { CarouselDots } from '@/components/ui/CarouselDots'
+import { LandingH2, LandingH3 } from '@/components/landing/ui/LandingHeading'
 import { PLANS, ENTERPRISE, formatAud, type Plan } from '@/lib/plans'
 
 function PricingStyles() {
@@ -63,22 +64,13 @@ export function Pricing() {
   const [audience, setAudience] = useState<Audience>('individual')
 
   return (
-    <section id="pricing" className="py-28" style={{ background: 'var(--d-bg)' }}>
+    <section id="pricing" className="py-28" style={{ background: 'var(--page-bg-deep)' }}>
       <PricingStyles />
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
         <header className="mb-10 text-center">
-          <p
-            className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--em-bright)' }}
-          >
-            Pricing
-          </p>
-          <h2
-            className="mx-auto text-[clamp(30px,3.5vw,42px)] font-semibold leading-[1.1] tracking-[-0.02em]"
-            style={{ fontFamily: 'var(--display)', color: 'var(--hero-ink)', maxWidth: 640 }}
-          >
+          <LandingH2 className="mx-auto" style={{ maxWidth: 640 }}>
             Start free. Scale to the whole lab.
-          </h2>
+          </LandingH2>
           <p
             className="mx-auto mt-4 text-[14px] leading-[1.6]"
             style={{ color: 'var(--hero-ink-2)', maxWidth: 480 }}
@@ -117,7 +109,7 @@ export function Pricing() {
           *Usage limits apply. Prices and plans are subject to change.
         </p>
         <p className="mt-2 text-center text-[11px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Sample pricing for the preview deployment — final tiers to be confirmed.
+          Sample pricing for the preview deployment; final tiers to be confirmed.
         </p>
       </div>
     </section>
@@ -140,26 +132,15 @@ function PlanCard({ plan, rank }: { plan: Plan; rank: number }) {
       className="pricing-card relative flex h-full flex-col"
       style={{
         boxShadow: 'var(--elev-1)',
-        background: 'var(--d-card)',
-        border: `0.5px solid ${isFeatured ? 'rgba(52,211,153,0.55)' : 'var(--d-line)'}`,
+        background: 'var(--page-card)',
+        border: `0.5px solid ${isFeatured ? 'rgba(52,211,153,0.55)' : 'var(--page-line)'}`,
         borderRadius: 16,
         padding: '28px 26px',
       }}
     >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div className="mb-1">
-          <h3
-            style={{
-              fontFamily: 'var(--display)',
-              fontWeight: 400,
-              fontSize: 18,
-              color: 'var(--hero-ink)',
-              letterSpacing: '-0.01em',
-              margin: 0,
-            }}
-          >
-            {plan.name}
-          </h3>
+          <LandingH3>{plan.name}</LandingH3>
           <p className="mt-1 text-[12.5px]" style={{ color: 'var(--hero-ink-3)' }}>
             {plan.blurb}
           </p>
@@ -286,25 +267,14 @@ function EnterpriseCard() {
         className="pricing-card flex w-full flex-col"
         style={{
           maxWidth: 560,
-          background: 'var(--d-card)',
-          border: '0.5px solid var(--d-line)',
+          background: 'var(--page-card)',
+          border: '0.5px solid var(--page-line)',
           borderRadius: 16,
           padding: '30px 28px',
         }}
       >
         <div className="mb-1">
-          <h3
-            style={{
-              fontFamily: 'var(--display)',
-              fontWeight: 400,
-              fontSize: 18,
-              color: 'var(--hero-ink)',
-              letterSpacing: '-0.01em',
-              margin: 0,
-            }}
-          >
-            {ENTERPRISE.name}
-          </h3>
+          <LandingH3>{ENTERPRISE.name}</LandingH3>
           <p className="mt-1 text-[12.5px]" style={{ color: 'var(--hero-ink-3)' }}>
             {ENTERPRISE.blurb}
           </p>

@@ -40,8 +40,11 @@ const TONES = {
     sendIcon: '#ffffff',
     glowFocus: '0 1px 2px rgba(15,23,42,0.04), 0 0 0 4px rgba(29,158,117,0.13)',
     glowHero: '0 12px 36px -22px rgba(15,23,42,0.22)',
-    glowHover: '0 8px 24px -16px rgba(15,23,42,0.20), 0 0 0 4px rgba(29,158,117,0.06)',
-    borderHover: 'var(--ink-5)',
+    // Hover signal matches the Try pills + nav text-links: the border snaps
+    // to the teal accent and a soft teal ring picks it up. Same teal axis as
+    // every other interactive surface on the landing.
+    glowHover: '0 8px 24px -16px rgba(15,23,42,0.18), 0 0 0 4px rgba(29,158,117,0.16)',
+    borderHover: 'var(--teal)',
     sendDeep: 'var(--teal-deep)',
     backdrop: 'none',
   },
