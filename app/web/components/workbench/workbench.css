@@ -8,7 +8,13 @@
    muted (no saturated rainbow) so it reads as Eamos, not Benchling.
 ═════════════════════════════════════════════════════════════════════════ */
 
-/* Workbench-only root tokens are defined in globals.css. */
+/* Workbench-only root tokens are defined in globals.css; these locals alias
+   the long names into the short identifiers used throughout this stylesheet
+   (parity with the Vite reference at app/frontend/src/styles/workbench.css). */
+:root {
+  --maxw: var(--maxw-workbench);
+  --side-w: var(--maxw-workbench-side);
+}
 
 .wrap-wide { max-width: var(--maxw-workbench); margin: 0 auto; padding: 0 24px; }
 
@@ -572,12 +578,53 @@
 }
 .sv-mm-bookends .bp { color: var(--ink-3); }
 
+/* ─────────────── SECTION HEADERS (collapse chevrons) ───────────────
+   Shared chrome above the gene minimap, protein view, and sequence detail.
+   Each header is a full-width clickable bar that toggles its body's
+   collapsed state — the workbench windows can be folded down to just their
+   labels for vertical focus. */
+.sv-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 22px;
+  background: var(--bg-soft);
+  border-top: 0.5px solid var(--line);
+  border-bottom: 0.5px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--mono);
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  transition: background .15s, color .15s;
+}
+.sv-section-head:first-child { border-top: none; }
+.sv-section-head:hover { background: var(--bg-soft2, var(--bg-soft)); color: var(--ink); }
+.sv-section-head[aria-expanded="false"] { color: var(--ink-4); }
+.sv-section-head .sv-section-title { display: inline-flex; align-items: center; gap: 8px; }
+.sv-section-head .sv-section-sub { color: var(--ink-4); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.sv-section-head .sv-section-chev {
+  width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  transition: transform .2s ease;
+}
+.sv-section-head[aria-expanded="false"] .sv-section-chev { transform: rotate(-90deg); }
+
 /* ─────────────── CODON DETAIL (wrapped block layout v2.1) ─────────────── */
 .sv-detail {
   background: var(--bg-canvas);
-  padding: 20px 22px 0;
+  padding: 20px 22px 22px;
   display: flex; flex-direction: column;
   gap: 22px;
+  /* Benchling-style internal scroll — the sequence may run thousands of bp
+     across many wrapped rows; cap the panel height and scroll inside it
+     instead of stretching the page. The ResizeObserver still measures
+     clientWidth correctly when the vertical scrollbar appears. */
+  max-height: 62vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .sv-block {
   position: relative;

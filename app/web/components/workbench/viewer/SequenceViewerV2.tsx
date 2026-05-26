@@ -33,11 +33,6 @@ import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
 import { EditPopoverV2 } from './EditPopoverV2'
 
-/** Detail-pane mode: the codon/base sequence view or the protein-coordinate
- *  domain + ClinVar lollipop view (GV-006; replaces the removed exon-only
- *  third view). The gene minimap stays as the genomic overview in both. */
-type DetailMode = 'sequence' | 'protein'
-
 export interface ScratchEntry {
   idx: number
   cdsPos: number
@@ -67,8 +62,14 @@ interface SequenceViewerV2Props {
    *  adapter already applied the SNV to `data` in `variant` mode; this is
    *  passed through so the queried codon shows its ref→alt change. */
   alleleMode: AlleleMode
-  /** Hide the gene minimap (collapsible nav; minimap only). */
+  /** Hide the gene minimap (collapsible nav; minimap only). Driven from
+   *  outside (ZoomSlider "Hide map" + the new inline section-header
+   *  chevron via `onToggleMinimap`). */
   navCollapsed: boolean
+  /** Optional callback so the inline section-header chevron above the
+   *  minimap can drive the same external state the ZoomSlider button does.
+   *  Falls back to a noop — the prop is optional for backwards-compat. */
+  onToggleMinimap?: () => void
   onScratchChange: (entries: ScratchEntry[]) => void
   onSelectionChange: (selection: SelectionSummary | null) => void
   onEditCountChange?: (count: number) => void
@@ -84,6 +85,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       baseW,
       alleleMode,
       navCollapsed,
+      onToggleMinimap,
       onScratchChange,
       onSelectionChange,
       onEditCountChange,
@@ -108,7 +110,12 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const [popover, setPopover] = useState<{ idx: number; x: number; y: number } | null>(
       null,
     )
-    const [detailMode, setDetailMode] = useState<DetailMode>('sequence')
+    // Local collapse state for the inline protein + sequence windows. The
+    // minimap collapse is driven externally via `navCollapsed`/`onToggleMinimap`
+    // so the ZoomSlider "Hide map" button and the inline header chevron
+    // stay in sync.
+    const [proteinOpen, setProteinOpen] = useState(true)
+    const [sequenceOpen, setSequenceOpen] = useState(true)
 
     const exonOf = useCallback(
       (cds: number) =>
@@ -536,6 +543,15 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           registerFocus={registerFocus}
         />
 
+        {/* Three stacked windows: Gene minimap → Protein view → Sequence
+            detail. Each gets a chevron header so the user can fold a window
+            down without losing the others. */}
+        <SectionHeader
+          title="Gene minimap"
+          sub={`${data.gene} · ${data.totalExons} exons`}
+          open={!navCollapsed}
+          onToggle={onToggleMinimap}
+        />
         {!navCollapsed && (
           <GeneMinimap
             data={data}
@@ -545,32 +561,21 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           />
         )}
 
-        <div className="sv-detailmode-row">
-          <div
-            className="sv-strand-pill sv-detailmode"
-            role="group"
-            aria-label="Detail view"
-          >
-            <button
-              type="button"
-              className={detailMode === 'sequence' ? 'active' : undefined}
-              title="Codon / base sequence detail"
-              onClick={() => setDetailMode('sequence')}
-            >
-              Sequence
-            </button>
-            <button
-              type="button"
-              className={detailMode === 'protein' ? 'active' : undefined}
-              title="Protein domains + ClinVar lollipop (amino-acid coordinates)"
-              onClick={() => setDetailMode('protein')}
-            >
-              Protein
-            </button>
-          </div>
-        </div>
+        <SectionHeader
+          title="Protein view"
+          sub={`${data.proteinLength || '—'} aa · ${alleleMode === 'variant' ? 'variant-applied' : 'reference'}`}
+          open={proteinOpen}
+          onToggle={() => setProteinOpen((o) => !o)}
+        />
+        {proteinOpen && <ProteinView data={data} alleleMode={alleleMode} />}
 
-        {detailMode === 'sequence' ? (
+        <SectionHeader
+          title="Sequence"
+          sub="codons · bases · ruler"
+          open={sequenceOpen}
+          onToggle={() => setSequenceOpen((o) => !o)}
+        />
+        {sequenceOpen && (
           <CodonDetail
             data={data}
             flat={flat}
@@ -589,8 +594,6 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             onRestrictionHover={setRestrictionHover}
             onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
           />
-        ) : (
-          <ProteinView data={data} alleleMode={alleleMode} />
         )}
 
         {showHistory && history.length > 0 && (
@@ -633,6 +636,46 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     )
   },
 )
+
+/** Collapsible header bar above each viewer window (gene minimap, protein
+ *  view, sequence detail). Click the row or the chevron to toggle. */
+function SectionHeader({
+  title,
+  sub,
+  open,
+  onToggle,
+}: {
+  title: string
+  sub?: string
+  open: boolean
+  onToggle?: () => void
+}) {
+  return (
+    <div
+      className="sv-section-head"
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle?.()
+        }
+      }}
+    >
+      <span className="sv-section-title">
+        {title}
+        {sub ? <span className="sv-section-sub"> · {sub}</span> : null}
+      </span>
+      <span className="sv-section-chev" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </span>
+    </div>
+  )
+}
 
 function formatExonList(nums: number[]): string {
   if (nums.length === 0) return ''

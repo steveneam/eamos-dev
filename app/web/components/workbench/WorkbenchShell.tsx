@@ -149,6 +149,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
               strandMode={strandMode}
               baseW={baseW}
               navCollapsed={navCollapsed}
+              onToggleMinimap={() => setNavCollapsed((c) => !c)}
               alleleMode={alleleMode}
               onScratchChange={setScratch}
               onSelectionChange={setSelSummary}
