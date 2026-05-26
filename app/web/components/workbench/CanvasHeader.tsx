@@ -4,6 +4,10 @@ import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { TOOL_META } from './tools'
 import type { StrandMode, TrackState } from './viewer/viewer-types'
 
+// Minimal-chrome header above the viewer: shows the active gene + variant
+// only. Descriptive metrics (transcript ID, coordinates, build, gene length)
+// stay in the right-hand workspace panel — they don't earn space here.
+
 const TRACKS: Array<{ key: keyof TrackState; label: string }> = [
   { key: 'annotations', label: 'Features (exon / intron / oligo)' },
   { key: 'domains', label: 'Protein domain bar' },
@@ -29,6 +33,8 @@ const STRANDS: Array<{ s: StrandMode; label: string; title: string }> = [
 
 interface CanvasHeaderProps {
   tool: WorkbenchTool
+  gene: string
+  variant: string
   trackOn: TrackState
   onToggleTrack: (key: keyof TrackState) => void
   strandMode: StrandMode
@@ -39,6 +45,8 @@ interface CanvasHeaderProps {
 
 export function CanvasHeader({
   tool,
+  gene,
+  variant,
   trackOn,
   onToggleTrack,
   strandMode,
@@ -65,8 +73,11 @@ export function CanvasHeader({
   return (
     <div className="canvas-head">
       <div className="canvas-head-left">
-        <h1 className="canvas-title">{meta.title}</h1>
-        <span className="canvas-subtitle">{meta.sub}</span>
+        <h1 className="canvas-title">
+          <span className="canvas-title-gene">{gene}</span>
+          <span className="canvas-title-sep">·</span>
+          <span className="canvas-title-variant">{variant}</span>
+        </h1>
       </div>
 
       <div className="canvas-head-right">

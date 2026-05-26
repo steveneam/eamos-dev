@@ -5,12 +5,14 @@ import { ToolBar } from './ToolBar'
 interface ContextStripProps {
   gene: string
   variant: string
-  sub: string
   tool: WorkbenchTool
   onSelectTool: (tool: WorkbenchTool) => void
 }
 
-export function ContextStrip({ gene, variant, sub, tool, onSelectTool }: ContextStripProps) {
+// Minimal context — gene + variant only. The full transcript / coordinate /
+// genome-build metrics live in the right-hand workspace panel; the strip
+// stays a clean wayfinder.
+export function ContextStrip({ gene, variant, tool, onSelectTool }: ContextStripProps) {
   return (
     <div className="ctx-wrap">
       <div className="wrap-wide ctx">
@@ -18,7 +20,6 @@ export function ContextStrip({ gene, variant, sub, tool, onSelectTool }: Context
           <span className="ctx-gene">{gene}</span>
           <span className="ctx-sep">·</span>
           <span className="ctx-var">{variant}</span>
-          <span className="ctx-sub">{sub}</span>
         </div>
         <div className="ctx-right">
           <ToolBar active={tool} onSelect={onSelectTool} />

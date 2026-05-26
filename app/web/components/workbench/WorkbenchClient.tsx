@@ -10,10 +10,6 @@ import { WorkbenchShell } from './WorkbenchShell'
 const DEFAULT_GENE = 'RPE65'
 const DEFAULT_CDNA = 'c.260A>G'
 
-const RPE65_CTX = {
-  sub: 'p.Asp87Gly · NM_000329.3 · chr1:68,444,869 T>C · GRCh38 · 21,138 bp gene',
-}
-
 function parseQuery(raw: string): { gene: string; cdna: string; transcript?: string } | null {
   const s = raw.trim()
   if (!s) return null
@@ -40,10 +36,6 @@ export function WorkbenchClient() {
   const gene = cleanParam(params.get('gene'))?.toUpperCase() ?? DEFAULT_GENE
   const cdna = cleanParam(params.get('cdna')) ?? DEFAULT_CDNA
   const transcript = cleanParam(params.get('transcript'))
-  const contextSub =
-    gene === DEFAULT_GENE && cdna === DEFAULT_CDNA && !transcript
-      ? RPE65_CTX.sub
-      : [transcript, 'GRCh38'].filter(Boolean).join(' · ')
   const qs = useMemo(() => {
     const q = params.toString()
     return q ? `?${q}` : ''
@@ -73,12 +65,6 @@ export function WorkbenchClient() {
       <div className="nav-wrap">
         <div className="wrap-wide nav">
           <Link href="/" className="logo" aria-label="Eamos home">
-            <svg width="28" height="20" viewBox="0 0 30 22" fill="none" aria-hidden="true">
-              <rect x="0" y="2" width="28" height="3" rx="1.5" fill="#0b1a2b" />
-              <rect x="0" y="9.5" width="20" height="3" rx="1.5" fill="#0b1a2b" />
-              <rect x="0" y="17" width="12" height="3" rx="1.5" fill="#0b1a2b" />
-              <circle cx="22.5" cy="11" r="2.8" fill="#1D9E75" />
-            </svg>
             <span className="logo-word">
               <span className="e1">E</span>amos
             </span>
@@ -165,7 +151,6 @@ export function WorkbenchClient() {
       <ContextStrip
         gene={gene}
         variant={cdna}
-        sub={contextSub}
         tool={tool}
         onSelectTool={setTool}
       />

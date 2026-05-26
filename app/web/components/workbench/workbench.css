@@ -182,13 +182,20 @@
   font-weight: 600;
   font-size: 22px;
   letter-spacing: -0.015em;
-  margin: 0 0 2px;
+  margin: 0;
   color: var(--ink);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
 }
-.canvas-subtitle {
-  font-size: 12px;
-  color: var(--ink-4);
+.canvas-title-gene { color: var(--ink); }
+.canvas-title-sep { color: var(--ink-4); font-weight: 400; }
+.canvas-title-variant {
   font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink-2);
+  letter-spacing: 0;
 }
 .canvas-head-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
@@ -239,12 +246,34 @@
 
 /* ─────────────────── SEQUENCE VIEWER (v2) ─────────────────── */
 .viewer {
+  position: relative;
   background: var(--bg);
   border: 0.5px solid var(--line);
   border-radius: var(--r-lg);
   padding: 0;
   overflow: hidden;
   transition: max-height .25s ease, padding .25s ease, opacity .25s;
+}
+/* Hover-revealed zoom overlay anchored to the viewer's top-right corner.
+   Fades from opacity 0 to 1 when the mouse is anywhere over .viewer; stays
+   keyboard-accessible (focus-within) so non-mouse users can still adjust. */
+.sv-zoom-overlay {
+  position: absolute;
+  top: 10px; right: 14px;
+  z-index: 5;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.viewer:hover .sv-zoom-overlay,
+.viewer:focus-within .sv-zoom-overlay {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv-zoom-overlay { transition: opacity .12s linear; transform: none; }
 }
 .viewer.viewer-collapsed { max-height: 0; padding: 0; border: none; opacity: 0; margin-bottom: 0; }
 .viewer-loading {
@@ -1334,8 +1363,11 @@
   top: calc(var(--nav-h) + var(--ctx-h));
   max-height: calc(100vh - var(--nav-h) - var(--ctx-h));
 }
-.side-section { margin-bottom: 22px; }
+.side-section { margin-bottom: 14px; }
 .side-section:last-child { margin-bottom: 0; }
+/* Legacy .side-h kept for callsites that still pass markup without the new
+   collapsible header (none in the viewer side panel right now — kept for
+   safety / future tool panels). */
 .side-h {
   font-size: 10.5px;
   font-weight: 600;
@@ -1345,7 +1377,8 @@
   margin: 0 0 10px;
   display: flex; align-items: center; justify-content: space-between;
 }
-.side-h .count {
+.side-h .count,
+.side-section-meta .count {
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--ink-3);
@@ -1357,6 +1390,199 @@
   text-transform: none;
   font-weight: 500;
 }
+
+/* ── Collapsible side-panel section header (chevron pattern matching the
+   viewer's .sv-section-head). Click anywhere on the row to toggle. ── */
+.side-section-head {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  text-align: left;
+  transition: background .15s, color .15s;
+}
+.side-section-head:hover { background: var(--bg-soft); color: var(--ink); }
+.side-section-head:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.side-section-head[aria-expanded="false"] { color: var(--ink-4); }
+.side-section-title { display: inline-flex; align-items: center; gap: 8px; flex: 1; }
+.side-section-meta {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ink-3);
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+}
+.side-section-chev {
+  width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  transition: transform .2s ease;
+  flex: 0 0 auto;
+}
+.side-section-head[aria-expanded="false"] .side-section-chev { transform: rotate(-90deg); }
+.side-section-body { padding: 4px 4px 10px; }
+
+/* Scratchpad surface — warm yellow so the workspace reads distinctly
+   against the cooler evidence sections. The whole section card gets a
+   tinted background + a soft border. */
+.side-section.is-scratchpad {
+  background: oklch(98% 0.035 95);
+  border: 0.5px solid oklch(88% 0.07 90);
+  border-radius: var(--r-md);
+  padding: 4px 6px 6px;
+  margin-bottom: 18px;
+}
+.side-section.is-scratchpad .side-section-head {
+  color: oklch(38% 0.08 80);
+}
+.side-section.is-scratchpad .side-section-head:hover {
+  background: oklch(96% 0.06 90);
+  color: oklch(28% 0.10 75);
+}
+.side-section.is-scratchpad .side-section-head[aria-expanded="false"] {
+  color: oklch(48% 0.05 80);
+}
+.side-section.is-scratchpad .side-section-body { padding: 4px 6px 6px; }
+
+/* Scratchpad tab strip (Log · Notes · Ask Eamos). */
+.scratch-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: oklch(96% 0.05 90);
+  border: 0.5px solid oklch(86% 0.07 88);
+  border-radius: 8px;
+  margin: 0 0 10px;
+}
+.scratch-tab {
+  background: transparent;
+  border: none;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--body, inherit);
+  color: oklch(45% 0.06 80);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.scratch-tab:hover { color: oklch(28% 0.10 75); }
+.scratch-tab.active {
+  background: var(--bg);
+  color: oklch(22% 0.10 70);
+  box-shadow: 0 0 0 0.5px oklch(86% 0.07 88);
+}
+
+/* Notes tab. */
+.scratch-notes { display: flex; flex-direction: column; gap: 6px; }
+.scratch-notes-area {
+  width: 100%;
+  min-height: 140px;
+  padding: 9px 10px;
+  background: var(--bg);
+  border: 0.5px solid oklch(86% 0.07 88);
+  border-radius: 6px;
+  font-family: var(--body, inherit);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  resize: vertical;
+}
+.scratch-notes-area:focus {
+  outline: none;
+  border-color: oklch(70% 0.13 85);
+  box-shadow: 0 0 0 3px oklch(88% 0.10 90 / 0.45);
+}
+.scratch-notes-hint {
+  font-size: 10.5px;
+  color: var(--ink-4);
+  font-family: var(--mono);
+}
+
+/* Ask Eamos tab — honest COMING SOON placeholder until variant-aware chat lands. */
+.scratch-ask { display: flex; flex-direction: column; gap: 9px; }
+.scratch-ask-badge {
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.10em;
+  color: oklch(38% 0.10 70);
+  background: oklch(94% 0.06 90);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 0.5px solid oklch(82% 0.08 85);
+}
+.scratch-ask-copy {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.scratch-ask-input-row { display: flex; gap: 6px; }
+.scratch-ask-input {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+.scratch-ask-btn {
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  color: var(--ink-4);
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: not-allowed;
+}
+
+/* Nested section disclosure (e.g. Exons inside Transcript) — same chevron
+   language as the section headers, indented one notch. */
+.side-nested-head {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  padding: 7px 8px;
+  margin-top: 8px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  text-align: left;
+}
+.side-nested-head:hover { background: var(--bg-soft2, var(--bg-soft)); color: var(--ink-2); }
+.side-nested-title { flex: 0 0 auto; }
+.side-nested-meta {
+  flex: 1;
+  color: var(--ink-4);
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+  text-align: right;
+}
+.side-nested-chev {
+  width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  transition: transform .2s ease;
+  flex: 0 0 auto;
+}
+.side-nested-head[aria-expanded="false"] .side-nested-chev { transform: rotate(-90deg); }
+.side-nested-head + .side-exon-table { margin-top: 6px; }
 
 .scratch-list { display: flex; flex-direction: column; gap: 6px; }
 .scratch-row {

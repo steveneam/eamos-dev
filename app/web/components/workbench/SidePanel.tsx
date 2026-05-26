@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { WorkbenchTool } from '@/lib/backend'
 import { aaThree } from '@/lib/workbench/codon-table'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
@@ -38,22 +38,46 @@ function Kv({ k, v, tone }: { k: string; v: string; tone?: 'warn' | 'ok' }) {
   )
 }
 
-function Section({
+/** Collapsible side-panel section. Header row mirrors the viewer's
+ *  `.sv-section-head` chevron pattern so the whole workbench reads the
+ *  same way. Local-only open state — close one without affecting siblings.
+ *  Use `tone="scratch"` for the yellow Scratchpad surface. */
+function CollapsibleSection({
   title,
   meta,
   children,
+  defaultOpen = true,
+  tone,
+  id,
 }: {
   title: string
-  meta?: React.ReactNode
-  children: React.ReactNode
+  meta?: ReactNode
+  children: ReactNode
+  defaultOpen?: boolean
+  tone?: 'scratch'
+  id?: string
 }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="side-section">
-      <h3 className="side-h">
-        {title}
-        {meta}
-      </h3>
-      {children}
+    <div
+      className={`side-section${tone === 'scratch' ? ' is-scratchpad' : ''}${open ? '' : ' is-collapsed'}`}
+      id={id}
+    >
+      <button
+        type="button"
+        className="side-section-head"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="side-section-title">{title}</span>
+        {meta ? <span className="side-section-meta">{meta}</span> : null}
+        <span className="side-section-chev" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
+      {open && <div className="side-section-body">{children}</div>}
     </div>
   )
 }
@@ -152,6 +176,159 @@ function SelectionBlock({
   )
 }
 
+type ScratchTab = 'log' | 'notes' | 'ask'
+
+/** Scratchpad is the user's workbench — a log of edits + free-form notes +
+ *  variant-aware chat. Sits at the top of the side panel on a warm yellow
+ *  surface to read as "your workspace" against the cooler neutral
+ *  evidence sections below. */
+function ScratchpadSection({
+  scratch,
+  selection,
+  onResetAll,
+  onDelSelection,
+  onReplaceSelection,
+  onClearSelection,
+}: {
+  scratch: ScratchEntry[]
+  selection: SelectionSummary | null
+  onResetAll: () => void
+  onDelSelection: () => void
+  onReplaceSelection: (seq: string) => void
+  onClearSelection: () => void
+}) {
+  const [tab, setTab] = useState<ScratchTab>('log')
+  const [notes, setNotes] = useState('')
+
+  const meta =
+    tab === 'log' && scratch.length > 0 ? (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span className="count">
+          {scratch.length} edit{scratch.length === 1 ? '' : 's'}
+        </span>
+        <button
+          type="button"
+          className="side-h-action"
+          onClick={(e) => {
+            e.stopPropagation()
+            onResetAll()
+          }}
+        >
+          Reset
+        </button>
+      </span>
+    ) : undefined
+
+  return (
+    <CollapsibleSection title="Scratchpad" meta={meta} tone="scratch" defaultOpen>
+      <div className="scratch-tabs" role="tablist" aria-label="Scratchpad mode">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'log'}
+          className={`scratch-tab${tab === 'log' ? ' active' : ''}`}
+          onClick={() => setTab('log')}
+        >
+          Log
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'notes'}
+          className={`scratch-tab${tab === 'notes' ? ' active' : ''}`}
+          onClick={() => setTab('notes')}
+        >
+          Notes
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'ask'}
+          className={`scratch-tab${tab === 'ask' ? ' active' : ''}`}
+          onClick={() => setTab('ask')}
+        >
+          Ask Eamos
+        </button>
+      </div>
+
+      {tab === 'log' && (
+        <>
+          {selection && (
+            <SelectionBlock
+              selection={selection}
+              onDel={onDelSelection}
+              onReplace={onReplaceSelection}
+              onClear={onClearSelection}
+            />
+          )}
+          <div className="scratch-list">
+            {scratch.length === 0 ? (
+              <div className="scratch-empty">
+                Left-click or drag in the canvas to select bases. Right-click a
+                base to edit it (substitute / delete / insert). Predicted
+                consequences land here.
+              </div>
+            ) : (
+              scratch.map((e) => (
+                <div className="scratch-row" key={e.idx}>
+                  <div className="top">
+                    <span className="pos">
+                      c.{e.cdsPos} {e.ref}&gt;{e.alt === '-' ? 'del' : e.alt}
+                    </span>
+                    <span className={`conseq ${e.conseq.kind}`}>{e.conseq.label}</span>
+                  </div>
+                  <div className="desc">{e.conseq.detail}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {tab === 'notes' && (
+        <div className="scratch-notes">
+          <textarea
+            className="scratch-notes-area"
+            placeholder="Jot working notes about this variant — questions for review, things to follow up on, design rationale…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            spellCheck
+            rows={8}
+            aria-label="Notes"
+          />
+          <div className="scratch-notes-hint">
+            Notes live in this tab for the session. Persistent saving lands with
+            the account workspace.
+          </div>
+        </div>
+      )}
+
+      {tab === 'ask' && (
+        <div className="scratch-ask">
+          <div className="scratch-ask-badge">COMING SOON</div>
+          <p className="scratch-ask-copy">
+            Variant-aware chat. Ask follow-up questions about this gene, this
+            variant, the literature, the call cards, or what to do next — Eamos
+            answers with cited sources from the report.
+          </p>
+          <div className="scratch-ask-input-row">
+            <input
+              type="text"
+              className="scratch-ask-input"
+              placeholder="Ask about this variant…"
+              disabled
+              aria-label="Ask Eamos (coming soon)"
+            />
+            <button type="button" className="scratch-ask-btn" disabled aria-label="Send (coming soon)">
+              →
+            </button>
+          </div>
+        </div>
+      )}
+    </CollapsibleSection>
+  )
+}
+
 function ViewerSide({
   data,
   scratch,
@@ -176,7 +353,17 @@ function ViewerSide({
 
   return (
     <>
-      <Section title="Active variant">
+      {/* Scratchpad first — your workspace lives above the evidence. */}
+      <ScratchpadSection
+        scratch={scratch}
+        selection={selection}
+        onResetAll={onResetAll}
+        onDelSelection={onDelSelection}
+        onReplaceSelection={onReplaceSelection}
+        onClearSelection={onClearSelection}
+      />
+
+      <CollapsibleSection title="Active variant">
         <div className="kv-list">
           <Kv k="HGVS (c.)" v={qv.hgvsC} tone="warn" />
           <Kv k="HGVS (p.)" v={qv.hgvsP} tone="warn" />
@@ -207,9 +394,9 @@ function ViewerSide({
             </a>
           ))}
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="Transcript">
+      <CollapsibleSection title="Transcript">
         <div className="kv-list">
           <Kv k="Gene" v={`${data.gene} · ${data.ensg}`} />
           <Kv k="Transcript" v={data.transcript} />
@@ -234,28 +421,23 @@ function ViewerSide({
           />
         </div>
 
+        {/* Nested disclosure styled to match the section headers above. */}
         <button
           type="button"
-          className="side-disclosure"
+          className="side-nested-head"
           aria-expanded={exonTableOpen}
           aria-controls="side-exon-table"
           onClick={onToggleExonTable}
         >
-          <span>Exons (click to view)</span>
-          <span className="side-disclosure-meta">
+          <span className="side-nested-title">Exons</span>
+          <span className="side-nested-meta">
             {data.totalExons} total · viewing exon {activeExon}
           </span>
-          <svg
-            className={`side-disclosure-chev${exonTableOpen ? ' open' : ''}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <span className="side-nested-chev" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
         </button>
         {exonTableOpen && (
           <div className="side-exon-table" id="side-exon-table">
@@ -302,9 +484,9 @@ function ViewerSide({
         <div className="side-source">
           Source: NCBI Entrez (gene/Gene_summary) · Ensembl REST (exon coords)
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="Protein features">
+      <CollapsibleSection title="Protein features">
         <div className="kv-list">
           <Kv
             k="Length"
@@ -359,59 +541,9 @@ function ViewerSide({
           </>
         )}
         <div className="side-source">Source: UniProt Q16518 · Proteins API</div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section
-        title="Scratchpad"
-        meta={
-          scratch.length > 0 ? (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="count">
-                {scratch.length} edit{scratch.length === 1 ? '' : 's'}
-              </span>
-              <button
-                type="button"
-                className="side-h-action"
-                onClick={onResetAll}
-              >
-                Reset
-              </button>
-            </span>
-          ) : undefined
-        }
-      >
-        {selection && (
-          <SelectionBlock
-            selection={selection}
-            onDel={onDelSelection}
-            onReplace={onReplaceSelection}
-            onClear={onClearSelection}
-          />
-        )}
-        <div className="scratch-list">
-          {scratch.length === 0 ? (
-            <div className="scratch-empty">
-              Left-click or drag in the canvas to select bases. Right-click a
-              base to edit it (substitute / delete / insert). Predicted
-              consequences land here.
-            </div>
-          ) : (
-            scratch.map((e) => (
-              <div className="scratch-row" key={e.idx}>
-                <div className="top">
-                  <span className="pos">
-                    c.{e.cdsPos} {e.ref}&gt;{e.alt === '-' ? 'del' : e.alt}
-                  </span>
-                  <span className={`conseq ${e.conseq.kind}`}>{e.conseq.label}</span>
-                </div>
-                <div className="desc">{e.conseq.detail}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </Section>
-
-      <Section title="AI note">
+      <CollapsibleSection title="AI note" defaultOpen={false}>
         <div className="side-info">
           <b>Why this variant matters.</b> Codon 87 sits in the strictly
           conserved core of the carotenoid-oxygenase domain (PhyloP 0.96). The
@@ -420,7 +552,7 @@ function ViewerSide({
           V83I, c.277 R93C) are also pathogenic — this region is intolerant to
           substitution.
         </div>
-      </Section>
+      </CollapsibleSection>
     </>
   )
 }
@@ -432,7 +564,7 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
   )
   return (
     <>
-      <Section title="Editing strategy">
+      <CollapsibleSection title="Editing strategy">
         <div className="kv-list">
           <Kv k="Approach" v="HDR knock-in (ssODN)" />
           <Kv k="Nuclease" v="SpCas9 · NGG PAM" />
@@ -444,9 +576,9 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
           {qv.hgvsC} with a silent PAM-blocking edit to prevent re-cutting of
           the corrected allele.
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="Target window">
+      <CollapsibleSection title="Target window">
         <div className="kv-list">
           <Kv
             k="Region"
@@ -459,9 +591,9 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
           Guides are scored against the design template returned with the
           result; whole-genome off-target lands with the engine (M-002D).
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="AI assist">
+      <CollapsibleSection title="AI assist">
         <div className="side-info">
           Guided design help arrives with the CRISPR engine (FE-6 / M-002D).
         </div>
@@ -470,7 +602,7 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
           <span className="side-chip">Explain off-target risk</span>
           <span className="side-chip">HDR design rationale</span>
         </div>
-      </Section>
+      </CollapsibleSection>
     </>
   )
 }
@@ -482,7 +614,7 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
   )
   return (
     <>
-      <Section title="Assay strategy">
+      <CollapsibleSection title="Assay strategy">
         <div className="kv-list">
           <Kv k="Approach" v="Sanger / qPCR amplicon" />
           <Kv k="Engine" v="Primer3 · local" />
@@ -493,9 +625,9 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
           <b>Goal.</b> Design a balanced primer pair whose amplicon spans{' '}
           {qv.hgvsC}, with matched Tm and a single specific product.
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="Target window">
+      <CollapsibleSection title="Target window">
         <div className="kv-list">
           <Kv
             k="Region"
@@ -508,9 +640,9 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
           Pairs are screened against the resolved design template; whole-genome
           specificity needs the local UCSC isPcr provider (M-002C, gated).
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="AI assist">
+      <CollapsibleSection title="AI assist">
         <div className="side-info">
           Guided primer help arrives with the design engine (FE-6 / M-002C).
         </div>
@@ -519,7 +651,7 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
           <span className="side-chip">Explain specificity</span>
           <span className="side-chip">Redesign for qPCR</span>
         </div>
-      </Section>
+      </CollapsibleSection>
     </>
   )
 }
@@ -554,11 +686,11 @@ export function SidePanel(props: SidePanelProps) {
       ) : tool === 'crispr' ? (
         <CrisprSide data={props.data} />
       ) : (
-        <Section title={meta.rail} meta={<span className="count">context</span>}>
+        <CollapsibleSection title={meta.rail} meta={<span className="count">context</span>}>
           <div className="side-info">
             <b>{meta.title}</b> — {meta.sub}
           </div>
-        </Section>
+        </CollapsibleSection>
       )}
     </aside>
   )

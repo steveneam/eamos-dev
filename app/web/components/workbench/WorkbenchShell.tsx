@@ -20,7 +20,6 @@ import {
   type SelectionSummary,
   type StrandMode,
   type TrackState,
-  type ZoomLevel,
 } from './viewer/viewer-types'
 
 export type { ScratchEntry }
@@ -118,13 +117,14 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
       return next
     })
   }, [])
-  const onPreset = useCallback((level: ZoomLevel) => setBaseW(ZOOM_PRESETS[level]), [])
 
   return (
     <div className={`wb${sideCollapsed && data ? ' side-collapsed' : ''}`}>
       <main className="canvas">
         <CanvasHeader
           tool={tool}
+          gene={gene}
+          variant={cdna}
           trackOn={trackOn}
           onToggleTrack={toggleTrack}
           strandMode={strandMode}
@@ -134,13 +134,10 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         />
 
         <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
-          <ZoomSlider
-            baseW={baseW}
-            navCollapsed={navCollapsed}
-            onBaseW={setBaseW}
-            onPreset={onPreset}
-            onToggleNav={() => setNavCollapsed((c) => !c)}
-          />
+          {/* Zoom slider lives INSIDE the viewer box, hover-revealed (CSS). */}
+          <div className="sv-zoom-overlay" aria-hidden={false}>
+            <ZoomSlider baseW={baseW} onBaseW={setBaseW} />
+          </div>
           {data ? (
             <SequenceViewerV2
               ref={viewerRef}
