@@ -143,6 +143,9 @@ Rules:
 
 ### Affordance cheat-sheet
 
+**Product surfaces (`/report`, `/workbench`)** — elevation + hairline-driven
+clinical hover, per the Dashboard Interaction Language above:
+
 | State | Signal |
 | ----- | ------ |
 | Interactive, idle | `cursor: pointer`, `--elev-1`, hairline border |
@@ -151,6 +154,41 @@ Rules:
 | Pressed | brief `transform: translateY(1px)` or `scale(.98)`, `--dur-1` |
 | Static / display only | flat within its card, no hover response, default cursor |
 | Disabled | `opacity: .5`, `cursor: not-allowed`, no hover/motion |
+
+**Brand surfaces (landing, /terms, /privacy, /account, /checkout, /auth)** —
+every clickable carries a teal-axis hover so the surface reads as one system.
+No `--elev-2` lift on brand cards (the elevation language belongs to the
+clinical product surfaces); the teal-accent swap does the work:
+
+| Element type | Rest | Hover signal |
+| ------------ | ---- | ------------ |
+| Text link (nav, footer, inline) | `--hero-ink-2`, no underline | `text-decoration-color: var(--em-bright)` underline (1.5px / offset 5px); ink darkens to `--hero-ink` |
+| Pill / chip (Try, Powered by, source) | `--hero-line` border | border → `var(--em)`, bg → `--hero-glass2` |
+| Input (email, password, promo, search) | `--line-2` border | border → `var(--teal)`; teal glow on focus, not hover |
+| Toggle pill (evidence codes, audience) | `--line` border | border → `var(--teal)`, color darkens (active state keeps teal-tint fill) |
+| Solid CTA (Choose Pro, Continue, View account, Register) | `--teal` bg | `filter: brightness(0.88)` |
+| Outlined CTA (Return home) | `--line` border | border → `var(--teal)`, color → `--ink` |
+| Logo home-link (`.brand-home-link`) | full opacity | `opacity: 0.7` |
+| Pricing card | `--page-line` (or semi-teal for featured) | border → `var(--em)`. **No translateY lift, no shadow swap** — user-mandated 2026-05-26 |
+| Checkbox row (label wrapper) | transparent | bg → `color-mix(in oklab, var(--teal) 6%, transparent)` |
+| Icon button | `--hero-line` border | border → `var(--em)`, bg → `--hero-glass2`, color → `--hero-ink` |
+| FAQ row | transparent | bg → `color-mix(in oklab, var(--em) 5%, transparent)` |
+
+Focus ring is the same teal across both registers: `box-shadow: 0 0 0 3px
+color-mix(in oklab, var(--em) 22%, transparent)` (or `rgba(29,158,117,.12-.25)`
+depending on context — keep within the teal alpha range).
+
+Disabled buttons always go to `opacity: .45-.55` and `cursor: not-allowed`,
+no hover.
+
+**Banned hover affordances** (user-mandated 2026-05-26):
+
+- `transform: translateY(...)` on cards/buttons as a "lift". The brand surface
+  uses border/color swaps; translate is reserved for active-press (`:active`).
+- Shadow level swap on brand cards (e.g. pricing). The pricing card hover is
+  the canonical reference — border only.
+- `backdrop-filter: blur(...)` on any sticky/overlay element. Repaints on every
+  keystroke (mobile typing lag); use an opaque token instead.
 
 ---
 
@@ -196,6 +234,35 @@ Rules:
   --err-tint:  #fbeaea;
 }
 ```
+
+### Landing / brand-surface tokens (warm-paper register)
+
+The brand surfaces (landing, /terms, /privacy, /account, /checkout, /auth) sit on
+warm-paper neutrals — distinct from the product report's white surfaces. Tokens
+live in `app/web/app/globals.css` under the v2 "Reading Room" block.
+
+```css
+/* Warm-light content surfaces (alternating L2/L3 register for page-turn rhythm) */
+--page-bg:      oklch(96.2% 0.012 78);   /* L2 — standard cream "page" */
+--page-bg-deep: oklch(94.6% 0.014 76);   /* L3 — deeper register */
+--page-card:    oklch(99.2% 0.004 82);   /* near-white inset surface */
+--page-line:    oklch(88% 0.012 72);     /* hairline tuned for warm ground */
+
+/* Sticky brand-nav cream (warm-white at 0.97 alpha) — used by LandingNav,
+   TopNav, PageHeader, /terms, /privacy. No backdrop-filter:blur on a sticky
+   element (mobile typing lag). */
+--nav-bg: rgba(252, 249, 243, 0.97);
+
+/* Hero editorial ground + accent (deeper teal for legibility on cream) */
+--hero-top / --hero-mid / --hero-bot   /* gradient stops, gradient sits behind GenomicFlow */
+--hero-ink / --hero-ink-2 / --hero-ink-3   /* warm-dark ink scale on cream */
+--hero-line / --hero-glass / --hero-glass2  /* hairline + glass surfaces */
+--em / --em-deep / --em-bright / --em-glow / --em-tint   /* landing teal scale */
+```
+
+The deprecated `--d-*` names (`--d-bg`, `--d-card`, `--d-line`) were renamed to
+`--page-*` on 2026-05-26; the values are warm-light despite the "dark" prefix
+they used to carry.
 
 ### Sequence palette (Workbench only)
 
@@ -285,9 +352,10 @@ exposes them as `font-display`, `font-sans`, `font-mono`.
 | Role | Size | Face / weight |
 | ---- | ---- | ------------- |
 | Hero display (landing) | clamp 44–72px | serif 300–400 |
-| Display L | 36–44px | serif 400 |
+| Display L (every landing section h2) | clamp(30, 3.6vw, 42)px | serif 400 |
 | Gene name / report running head | 28px | serif 400 |
-| Section / card title | 18px | serif 400 or sans 600 |
+| Tile / card / step h3 (landing) | 18px | serif 400 |
+| Section / card title (product) | 18px | serif 400 or sans 600 |
 | Body | 15px / 1.6 | sans 400–500 |
 | Dense / secondary | 13px | sans 500 |
 | Label / metadata | 11px uppercase, tracked | mono 500 |
@@ -295,6 +363,21 @@ exposes them as `font-display`, `font-sans`, `font-mono`.
 
 **Never use weight > 700** on product; the serif reads authoritative at low weight
 (300–400 large), so bold is rarely needed.
+
+**Landing typescale primitives:** `app/web/components/landing/ui/LandingHeading.tsx`
+exports `LandingH2` and `LandingH3` — every landing-section h2 + tile/card h3
+flows through them so the surface keeps one canonical type spec per role. Do
+not override `fontWeight` / `fontFamily` via `style`; if a section needs more
+rank, express it via layout, color, or content, not a type-size bump.
+
+**Editorial-template guard.** A landing surface should not lean on tracked
+uppercase eyebrows above every section heading ("A specimen", "How it works",
+"What you get", etc.) — impeccable flags this as the editorial-template
+fingerprint and DESIGN.md/PRODUCT.md both call it out. Keep at most one
+deliberate kicker (e.g. the hero badge); let the h2 alone introduce each
+section. Inline pill-row prefixes (`Try`, `Powered by`, footer column labels)
+and in-card status badges (`IN DEVELOPMENT`, step kickers) are not section
+grammar and are fine.
 
 ---
 
@@ -343,6 +426,23 @@ e.g. a Primer result card, a selectable list row) adds:
 .card--interactive:hover,
 .card--interactive:focus-within { box-shadow: var(--elev-2); border-color: var(--ink-5); }
 ```
+
+### Brand-surface primitives (`app/web/components/landing/ui/`)
+
+| Primitive | What |
+| --------- | ---- |
+| `LandingH2` / `LandingH3` | The canonical h2 (clamp 30-42px Spectral 400) and h3 (18px Spectral 400) for the landing + legal pages. Every section heading flows through them. |
+| `Pill` + `PillStyles` | Shared `.eamos-pill` (Try chips, Powered-by source pills, etc.). Hover: bg → `--hero-glass2`, border → `var(--em)`, color → `--hero-ink`. The brand surface's signature hover. |
+| `TextLink` + `TextLinkStyles` | Shared `.eamos-text-link` (footer + inline links). Hover: teal underline (`text-decoration-color: var(--em-bright)`). |
+| `.brand-home-link` (global) | Eamos-logo wrapper class used by LandingNav, PageHeader, /terms, /privacy, /checkout/success. Hover: `opacity: 0.7`. |
+| `.lnav-link` / `.lnav-mobile-link` (LandingNav) | The desktop + mobile nav text links. Same teal-underline hover as TextLink. |
+| `.lnav-icon-btn` (LandingNav) | Back-to-top + mobile menu toggle. Hover: bg → `--hero-glass2`, border → `var(--em)`, color → `--hero-ink`. |
+
+The brand-surface nav geometry is identical across landing / legal / account /
+checkout: logo left, Features / Pricing / FAQ centered in a flex-1 zone,
+AuthMenu right. `PageHeader` (in `components/pricing/`, used by /checkout and
+/account) and the inline nav on /terms + /privacy both mirror the LandingNav
+shape — change one, change them together.
 
 ### Hairline utility
 
@@ -534,28 +634,42 @@ Landing (/)  ─┬─→ Report (/report?q=GENE:c.cdna)  ⇄  Workbench (/workb
 ## Quick reference
 
 ```
-Page bg:         var(--bg-soft) for body, var(--bg) for cards
-Card border:     0.5px solid var(--line)
-Card radius:     var(--r-lg) (14px)
-Card padding:    24px 28px
-Card rest:       box-shadow var(--elev-1)   (interactive → var(--elev-2) on hover)
-Overlay:         box-shadow var(--elev-3)
+PRODUCT SURFACES (/report, /workbench)
+  Page bg:       var(--bg-soft) for body, var(--bg) for cards
+  Card border:   0.5px solid var(--line)
+  Card radius:   var(--r-lg) (14px)
+  Card padding:  24px 28px
+  Card rest:     box-shadow var(--elev-1)   (interactive → var(--elev-2) on hover)
+  Overlay:       box-shadow var(--elev-3)
 
-Hover/press:     var(--dur-1) var(--ease-standard)
-Disclosure:      var(--dur-2) var(--ease-emphasized)
-Reduced motion:  always ship the prefers-reduced-motion guard
+BRAND SURFACES (landing, /terms, /privacy, /account, /checkout, /auth)
+  Page bg:       var(--page-bg) (L2 cream), var(--page-bg-deep) (L3 deeper)
+  Card bg:       var(--page-card)
+  Hairline:      0.5px solid var(--page-line)
+  Sticky nav:    var(--nav-bg) (warm cream 0.97 alpha, NEVER backdrop-filter:blur)
+  Hover signal:  teal accent (border → var(--em/--teal), or text underline
+                 → var(--em-bright)); never translateY lift, never shadow swap.
 
-Primary brand:   var(--teal) (#1D9E75)
-Secondary brand: var(--ink-2) (#1e3a5f)
-Body text:       var(--ink)
-Secondary text:  var(--ink-3)
-Hint text:       var(--ink-4)
+MOTION (both registers)
+  Hover/press:     var(--dur-1) var(--ease-standard)
+  Disclosure:      var(--dur-2) var(--ease-emphasized)
+  Reduced motion:  always ship the prefers-reduced-motion guard
 
-Base font:       'Plus Jakarta Sans'
-Display font:    'Syne'
-Mono font:       'JetBrains Mono'
-Base size:       14.5px
-Line height:     1.6
+COLOUR
+  Primary brand:   var(--teal) (#1D9E75)
+  Landing accent:  var(--em) / var(--em-bright)  (slightly deeper for cream)
+  Body text:       var(--ink) (product) / var(--hero-ink) (brand)
+  Secondary text:  var(--ink-3) (product) / var(--hero-ink-2) (brand)
+  Hint text:       var(--ink-4) (product) / var(--hero-ink-3) (brand)
+
+TYPE
+  Display font:  'Spectral' (editorial serif — HEADING-ROLE ONLY)
+  Body font:     'Inter'
+  Mono font:     'JetBrains Mono' (HGVS / coords / scores)
+  Body size:     15px / 1.6
+  Landing h2:    LandingH2 — clamp(30, 3.6vw, 42)px, Spectral 400
+  Landing h3:    LandingH3 — 18px, Spectral 400
+  Weight cap:    700 (never above)
 ```
 
 ---

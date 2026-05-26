@@ -38,7 +38,7 @@ export function SiteFooter() {
             </FooterCol>
             <FooterCol title="More">
               <TextLink href="/report?demo=1" className="text-[12.5px]">Sample report</TextLink>
-              <TextLink href="#contact" className="text-[12.5px]">Contact</TextLink>
+              <TextLink href="mailto:hello@eamos.com.au" className="text-[12.5px]">Contact</TextLink>
             </FooterCol>
           </div>
         </div>

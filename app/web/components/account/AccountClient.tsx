@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { AuthPanel } from '@/components/auth/AuthPanel'
@@ -237,6 +238,7 @@ export function AccountClient() {
 // justify-between layout that pushed everything right of the logo.
 
 function SignedOut() {
+  const router = useRouter()
   return (
     <div className="mx-auto" style={{ maxWidth: 420 }}>
       <h1
@@ -265,7 +267,9 @@ function SignedOut() {
           boxShadow: 'var(--elev-2)',
         }}
       >
-        <AuthPanel onClose={() => {}} tone="light" />
+        {/* X / Cancel route back to the landing — /account on its own is a
+            sign-in gate, so 'close' has to mean 'leave the gate'. */}
+        <AuthPanel onClose={() => router.push('/')} tone="light" />
       </div>
     </div>
   )
