@@ -41,6 +41,47 @@ export function CheckoutSuccessClient() {
         padding: '48px 20px',
       }}
     >
+      <style>{`
+        /* Receipt action buttons — teal-axis hover language matching the rest
+           of the brand surfaces (solid teal → brightness, outlined → teal border). */
+        .csc-action-secondary {
+          transition: border-color var(--dur-1) var(--ease-standard),
+                      color var(--dur-1) var(--ease-standard);
+        }
+        .csc-action-secondary:hover {
+          border-color: var(--teal) !important;
+          color: var(--ink) !important;
+        }
+        .csc-action-secondary:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.18);
+        }
+        .csc-action-primary {
+          transition: filter var(--dur-1) var(--ease-standard),
+                      box-shadow var(--dur-1) var(--ease-standard),
+                      transform var(--dur-1) var(--ease-standard);
+        }
+        .csc-action-primary:hover { filter: brightness(0.88); }
+        .csc-action-primary:active { transform: translateY(1px); }
+        .csc-action-primary:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
+        }
+        /* Inline support-email link: teal underline hover. */
+        .csc-support-link {
+          color: var(--ink-3);
+          text-decoration: underline;
+          text-decoration-color: transparent;
+          text-decoration-thickness: 1.5px;
+          text-underline-offset: 4px;
+          transition: color var(--dur-1) var(--ease-standard),
+                      text-decoration-color var(--dur-1) var(--ease-standard);
+        }
+        .csc-support-link:hover {
+          color: var(--ink);
+          text-decoration-color: var(--teal);
+        }
+      `}</style>
       <article
         style={{
           width: '100%',
@@ -52,13 +93,13 @@ export function CheckoutSuccessClient() {
           <Link
             href="/"
             aria-label="Eamos home"
+            className="brand-home-link"
             style={{
               fontFamily: 'var(--display)',
               fontSize: 20,
               fontWeight: 400,
               letterSpacing: '-0.01em',
               color: 'var(--ink)',
-              textDecoration: 'none',
             }}
           >
             Eamos
@@ -199,6 +240,7 @@ export function CheckoutSuccessClient() {
           >
             <Link
               href="/"
+              className="csc-action-secondary"
               style={{
                 ...actionBtn,
                 flex: 1,
@@ -211,6 +253,7 @@ export function CheckoutSuccessClient() {
             </Link>
             <Link
               href="/account"
+              className="csc-action-primary"
               style={{
                 ...actionBtn,
                 flex: 1,
@@ -226,10 +269,7 @@ export function CheckoutSuccessClient() {
 
         <p className="mt-5 text-center text-[11.5px]" style={{ color: 'var(--ink-4)' }}>
           Preview build — no real charge was made. For questions, contact{' '}
-          <a
-            href="mailto:support@eamos.com.au"
-            style={{ color: 'var(--ink-3)', textDecoration: 'none' }}
-          >
+          <a href="mailto:support@eamos.com.au" className="csc-support-link">
             support@eamos.com.au
           </a>
           .

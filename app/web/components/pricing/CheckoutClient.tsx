@@ -21,6 +21,11 @@ function CheckoutStyles() {
         transition: border-color var(--dur-1) var(--ease-standard),
                     box-shadow var(--dur-1) var(--ease-standard);
       }
+      /* Hover: same teal-axis signal as .eamos-pill / .lnav-link / the hero
+         search bar — the input + Apply button read as one teal unit. */
+      .cc-promo-input:hover:not(:focus):not([data-invalid]) {
+        border-color: var(--teal);
+      }
       .cc-promo-input:focus-visible,
       .cc-promo-input:focus {
         border-color: var(--teal);
@@ -73,6 +78,68 @@ function CheckoutStyles() {
         width: 100%;
       }
       .cc-continue-btn:hover:not(:disabled) { background: var(--teal-deep); }
+
+      /* Solid teal "View pricing" CTA. Brightness step on hover, matching
+         the rest of the site's solid-CTA hovers (.pc-cta / .ac-cta-link). */
+      .cc-primary-link {
+        height: 44px;
+        padding: 0 22px;
+        border-radius: var(--r-md);
+        align-items: center;
+        justify-content: center;
+        background: var(--teal);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        transition: filter var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard),
+                    transform var(--dur-1) var(--ease-standard);
+      }
+      .cc-primary-link:hover { filter: brightness(0.88); }
+      .cc-primary-link:active { transform: translateY(1px); }
+      .cc-primary-link:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
+      }
+
+      /* Subtle back-link ("Back to plans"): same teal-underline hover signal
+         as .eamos-text-link. */
+      .cc-back-link {
+        color: var(--ink-3);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 4px;
+        transition: color var(--dur-1) var(--ease-standard),
+                    text-decoration-color var(--dur-1) var(--ease-standard);
+      }
+      .cc-back-link:hover {
+        color: var(--ink);
+        text-decoration-color: var(--teal);
+      }
+      .cc-back-link:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.18);
+        border-radius: 3px;
+      }
+
+      /* Inline "Terms" link inside the legal copy at the bottom of the
+         right column. Same teal-underline hover. */
+      .cc-inline-link {
+        color: var(--ink-3);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 4px;
+        transition: color var(--dur-1) var(--ease-standard),
+                    text-decoration-color var(--dur-1) var(--ease-standard);
+      }
+      .cc-inline-link:hover {
+        color: var(--ink);
+        text-decoration-color: var(--teal);
+      }
       .cc-continue-btn:active:not(:disabled) { transform: translateY(1px); }
       .cc-continue-btn:focus-visible {
         outline: none;
@@ -144,11 +211,7 @@ export function CheckoutClient() {
           <p className="mt-3" style={{ fontSize: 14, color: 'var(--ink-3)' }}>
             Pick a plan and we'll bring you to checkout.
           </p>
-          <Link
-            href="/#pricing"
-            className="mt-6 inline-flex"
-            style={primaryLink}
-          >
+          <Link href="/#pricing" className="cc-primary-link mt-6">
             View pricing
           </Link>
         </main>
@@ -179,8 +242,7 @@ export function CheckoutClient() {
       <main className="mx-auto px-6 pb-28 pt-12" style={{ maxWidth: 1000 }}>
         <Link
           href="/#pricing"
-          className="mb-8 inline-flex items-center gap-1.5 text-[13px] font-semibold"
-          style={{ color: 'var(--ink-3)', textDecoration: 'none' }}
+          className="cc-back-link mb-8 inline-flex items-center gap-1.5 text-[13px] font-semibold"
         >
           Back to plans
         </Link>
@@ -415,7 +477,7 @@ export function CheckoutClient() {
             </button>
             <p className="mt-3 text-center text-[11px]" style={{ color: 'var(--ink-4)' }}>
               By subscribing you agree to our{' '}
-              <Link href="/terms" style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
+              <Link href="/terms" className="cc-inline-link">
                 Terms
               </Link>
               .
@@ -498,20 +560,6 @@ function ManifestRow({
       </span>
     </div>
   )
-}
-
-const primaryLink: React.CSSProperties = {
-  height: 44,
-  padding: '0 22px',
-  borderRadius: 'var(--r-md)',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'var(--teal)',
-  color: '#fff',
-  fontSize: 13,
-  fontWeight: 600,
-  textDecoration: 'none',
-  display: 'inline-flex',
 }
 
 const infoBox: React.CSSProperties = {

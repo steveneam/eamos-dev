@@ -37,6 +37,10 @@ function AccountStyles() {
         transition: border-color var(--dur-1) var(--ease-standard),
                     box-shadow var(--dur-1) var(--ease-standard);
       }
+      /* Hover: same teal-axis signal as the rest of the brand surface. */
+      .ac-field:hover:not(:focus):not([aria-invalid="true"]) {
+        border-color: var(--teal);
+      }
       .ac-field:focus-visible,
       .ac-field:focus {
         border-color: var(--teal);
@@ -97,6 +101,102 @@ function AccountStyles() {
         color: var(--err);
       }
       .ac-remove-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      /* Inline teal text-button (e.g. "Add ClinVar functional details") —
+         teal underline on hover, matches .eamos-text-link / .lnav-link. */
+      .ac-text-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--teal);
+        font-size: 12.5px;
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 4px;
+        transition: text-decoration-color var(--dur-1) var(--ease-standard);
+      }
+      .ac-text-btn:hover { text-decoration-color: var(--teal); }
+      .ac-text-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.18);
+        border-radius: 3px;
+      }
+
+      /* Inline teal link (e.g. "Upgrade" in plan-status header) — same
+         teal-underline hover as .ac-text-btn. */
+      .ac-text-link {
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 4px;
+        transition: text-decoration-color var(--dur-1) var(--ease-standard);
+      }
+      .ac-text-link:hover { text-decoration-color: var(--teal); }
+      .ac-text-link:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.18);
+        border-radius: 3px;
+      }
+
+      /* Solid teal CTA Link (action cards in Empty/Notice). Matches the solid
+         pricing CTA hover: brightness step. */
+      .ac-cta-link {
+        display: inline-flex;
+        margin-top: 14px;
+        padding: 7px 16px;
+        border-radius: var(--r-md);
+        background: var(--teal);
+        color: #fff;
+        font-size: 12.5px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: filter var(--dur-1) var(--ease-standard),
+                    box-shadow var(--dur-1) var(--ease-standard),
+                    transform var(--dur-1) var(--ease-standard);
+      }
+      .ac-cta-link:hover { filter: brightness(0.88); }
+      .ac-cta-link:active { transform: translateY(1px); }
+      .ac-cta-link:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
+      }
+
+      /* Evidence-code toggle pills (PS3, BS3, etc.) — when not active, the
+         border lifts to teal on hover. Active state already carries the teal
+         border baseline. */
+      .ac-evcode-pill {
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 100px;
+        cursor: pointer;
+        background: var(--bg);
+        color: var(--ink-3);
+        border: 0.5px solid var(--line);
+        transition: background var(--dur-1) var(--ease-standard),
+                    border-color var(--dur-1) var(--ease-standard),
+                    color var(--dur-1) var(--ease-standard);
+      }
+      .ac-evcode-pill[aria-pressed="true"] {
+        background: var(--teal-tint);
+        color: var(--teal-deep);
+        border-color: var(--teal);
+      }
+      .ac-evcode-pill:hover:not([aria-pressed="true"]) {
+        border-color: var(--teal);
+        color: var(--ink);
+      }
+      .ac-evcode-pill:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.22);
+      }
     `}</style>
   )
 }
@@ -281,15 +381,7 @@ function PlanStatusHeader({ email }: { email: string }) {
             Free plan
           </span>
           <div className="mt-2">
-            <Link
-              href="/#pricing"
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--teal)',
-                textDecoration: 'none',
-              }}
-            >
+            <Link href="/#pricing" className="ac-text-link">
               Upgrade
             </Link>
           </div>
@@ -564,15 +656,7 @@ function Submissions({
               <button
                 type="button"
                 onClick={() => setShowDetails((v) => !v)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--teal)',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
+                className="ac-text-btn"
               >
                 {showDetails ? 'Hide ClinVar details' : 'Add ClinVar functional details'}
               </button>
@@ -657,19 +741,7 @@ function Submissions({
                           )
                         }
                         aria-pressed={on}
-                        style={{
-                          fontFamily: 'var(--mono)',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: '3px 9px',
-                          borderRadius: 100,
-                          cursor: 'pointer',
-                          background: on ? 'var(--teal-tint)' : 'var(--bg)',
-                          color: on ? 'var(--teal-deep)' : 'var(--ink-3)',
-                          border: `0.5px solid ${on ? 'var(--teal)' : 'var(--line)'}`,
-                          transition:
-                            'background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard)',
-                        }}
+                        className="ac-evcode-pill"
                       >
                         {code}
                       </button>
@@ -863,20 +935,7 @@ function EmptyState({
         {body}
       </p>
       {action && (
-        <Link
-          href={action.href}
-          style={{
-            display: 'inline-flex',
-            marginTop: 14,
-            padding: '7px 16px',
-            borderRadius: 'var(--r-md)',
-            background: 'var(--teal)',
-            color: '#fff',
-            fontSize: 12.5,
-            fontWeight: 600,
-            textDecoration: 'none',
-          }}
-        >
+        <Link href={action.href} className="ac-cta-link">
           {action.label}
         </Link>
       )}

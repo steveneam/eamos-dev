@@ -75,7 +75,7 @@ export default function PrivacyPage() {
           style={{ maxWidth: 1180, height: 'var(--nav-h)' }}
         >
           <div className="flex items-center gap-2">
-            <Link href="/" aria-label="Eamos home" className="flex shrink-0 items-center" style={{ textDecoration: 'none' }}>
+            <Link href="/" aria-label="Eamos home" className="brand-home-link flex shrink-0 items-center">
               <EamosLogo size={18} tone="dark" />
             </Link>
           </div>

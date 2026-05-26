@@ -47,8 +47,7 @@ export function PageHeader({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
           <Link
             href="/"
             aria-label="Eamos home"
-            className="flex shrink-0 items-center"
-            style={{ textDecoration: 'none' }}
+            className="brand-home-link flex shrink-0 items-center"
           >
             <EamosLogo size={18} tone={tone} />
           </Link>

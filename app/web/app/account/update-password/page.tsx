@@ -52,6 +52,10 @@ export default function UpdatePasswordPage() {
           transition: border-color var(--dur-1) var(--ease-standard),
                       box-shadow var(--dur-1) var(--ease-standard);
         }
+        /* Hover: same teal-axis signal as the rest of the brand surface. */
+        .upw-field:hover:not(:focus):not([aria-invalid="true"]) {
+          border-color: var(--teal);
+        }
         .upw-field:focus-visible,
         .upw-field:focus {
           border-color: var(--teal);

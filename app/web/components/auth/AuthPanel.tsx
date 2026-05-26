@@ -264,7 +264,17 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
           )}
 
           {isSignup && (
-            <label className="mt-1 flex items-start gap-2.5" style={{ cursor: 'pointer' }}>
+            <label
+              className="ap-check mt-1 flex items-start gap-2.5"
+              style={{
+                cursor: 'pointer',
+                padding: '6px 8px',
+                marginLeft: -8,
+                marginRight: -8,
+                borderRadius: 6,
+                transition: 'background var(--dur-1) var(--ease-standard)',
+              }}
+            >
               <input
                 type="checkbox"
                 checked={agreed}
@@ -275,6 +285,7 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
                   width: 15,
                   height: 15,
                   flexShrink: 0,
+                  cursor: 'pointer',
                 }}
               />
               <span
@@ -289,11 +300,7 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
                   href="/terms"
                   target="_blank"
                   rel="noreferrer"
-                  style={{
-                    color: 'var(--teal)',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                  }}
+                  className="ap-tos-link"
                 >
                   Terms and Conditions
                 </a>
@@ -568,6 +575,34 @@ function AuthPanelStyles() {
       }
       .ap-field[data-error] {
         border-color: var(--err);
+      }
+      /* Hover: same teal-axis signal as the rest of the brand surface. */
+      .ap-field:hover:not(:focus):not([data-error]) {
+        border-color: var(--teal);
+      }
+      /* Terms-of-service checkbox row — subtle teal-tint fill on the label so
+         the whole row reads as one clickable target. */
+      .ap-check:hover {
+        background: color-mix(in oklab, var(--teal) 6%, transparent);
+      }
+      /* Inline "Terms and Conditions" link — teal underline on hover, same
+         signal as .eamos-text-link / .lnav-link. */
+      .ap-tos-link {
+        color: var(--teal);
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 4px;
+        transition: text-decoration-color var(--dur-1) var(--ease-standard);
+      }
+      .ap-tos-link:hover {
+        text-decoration-color: var(--teal);
+      }
+      .ap-tos-link:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+        border-radius: 3px;
       }
       .ap-field:focus-visible,
       .ap-field:focus {
