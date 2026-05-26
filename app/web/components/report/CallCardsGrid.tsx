@@ -67,7 +67,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
               <div
                 className="uppercase"
                 style={{
-                  fontSize: 10,
+                  fontSize: 10.5,
                   fontWeight: 700,
                   letterSpacing: '0.08em',
                   color: 'var(--ink-4)',

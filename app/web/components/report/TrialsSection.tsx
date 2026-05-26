@@ -82,27 +82,12 @@ function TrialRows({ rows }: { rows: TrialMatch[] }) {
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="trials-expand-btn mt-3"
-          style={{
-            padding: '7px 14px',
-            borderRadius: 10,
-            border: '0.5px solid var(--line-2)',
-            background: 'var(--bg)',
-            color: 'var(--ink-2)',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: `border-color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard)`,
-          }}
+          className="eamos-toggle-btn mt-3"
         >
+          <span aria-hidden style={{ color: 'var(--ink-3)' }}>{expanded ? '−' : '+'}</span>
           {expanded ? 'Show fewer' : `View ${hiddenCount} more trial${hiddenCount === 1 ? '' : 's'}`}
         </button>
       )}
-      <style>{`
-        .trials-expand-btn:hover { background: var(--bg-soft) !important; border-color: var(--ink-5) !important; }
-        .trials-expand-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); }
-        .trials-expand-btn:active { transform: translateY(1px); transition-duration: 80ms; }
-      `}</style>
     </div>
   )
 }

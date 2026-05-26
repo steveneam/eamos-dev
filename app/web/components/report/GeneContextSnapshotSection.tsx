@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Card } from '@/components/ui/Card'
+import { Disclosure } from '@/components/ui/Disclosure'
 import type {
   GeneContextSnapshot,
   GeneContextTranscriptExon,
@@ -38,7 +39,6 @@ export function GeneContextSnapshotSection({
   snapshot,
   sectionTarget,
 }: GeneContextSnapshotSectionProps) {
-  const [expanded, setExpanded] = useState(() => shouldOpenFromHash(snapshot))
   const allWarnings = useMemo(() => {
     if (!snapshot) return sectionTarget?.warnings ?? []
     return dedupe([
@@ -53,7 +53,7 @@ export function GeneContextSnapshotSection({
   const unavailableByPlan = sectionTarget?.match_level === 'unavailable'
   const hasTranscriptModel = snapshot.exons.length > 0
   const canRenderFigures = hasTranscriptModel && !unavailableByPlan
-  const panelId = `${snapshot.panel_id}-figure`
+  const defaultOpenFromHash = shouldOpenFromHash(snapshot)
   const meta = [
     snapshot.gene,
     snapshot.transcript,
@@ -66,49 +66,29 @@ export function GeneContextSnapshotSection({
   return (
     <section id={snapshot.section_id} className="scroll-mt-24">
       <Card title={snapshot.title || 'Gene context snapshot'} meta={meta}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap gap-2">
-              <StatusPill label={snapshot.source_status} />
-              {sectionTarget?.match_level && <StatusPill label={formatWarning(sectionTarget.match_level)} />}
-              {snapshot.render_hints.large_gene_compression_applied && (
-                <StatusPill label="compressed introns" />
-              )}
-            </div>
-            <p
-              className="mt-3"
-              style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.6, color: 'var(--ink-2)' }}
-            >
-              Static transcript context for {snapshot.gene}
-              {snapshot.variant?.hgvs_c ? ` ${snapshot.variant.hgvs_c}` : ''}. The overview uses
-              source transcript coordinates where available; introns are compressed for report
-              readability.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-controls={panelId}
-            onClick={() => setExpanded((value) => !value)}
-            style={{
-              border: '0.5px solid var(--line-2)',
-              background: expanded ? 'var(--teal-tint)' : 'var(--bg-soft)',
-              color: expanded ? 'var(--teal-deep)' : 'var(--ink-2)',
-              borderRadius: 8,
-              padding: '7px 11px',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {expanded ? 'Collapse' : 'Expand'}
-          </button>
+        <div className="flex flex-wrap gap-2">
+          <StatusPill label={snapshot.source_status} />
+          {sectionTarget?.match_level && <StatusPill label={formatWarning(sectionTarget.match_level)} />}
+          {snapshot.render_hints.large_gene_compression_applied && (
+            <StatusPill label="compressed introns" />
+          )}
         </div>
+        <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.6, color: 'var(--ink-2)' }}>
+          Static transcript context for {snapshot.gene}
+          {snapshot.variant?.hgvs_c ? ` ${snapshot.variant.hgvs_c}` : ''}. The overview uses
+          source transcript coordinates where available; introns are compressed for report
+          readability.
+        </p>
 
-        {expanded && (
-          <div id={panelId} className="mt-4 flex flex-col gap-3.5">
+        <Disclosure
+          id={snapshot.panel_id}
+          kicker="Transcript figures"
+          showLabel={canRenderFigures ? 'Show transcript figures' : 'Show details'}
+          hideLabel="Hide figures"
+          summary={canRenderFigures ? `${snapshot.exons.length} exons · zoom window` : undefined}
+          defaultOpen={defaultOpenFromHash}
+        >
+          <div className="flex flex-col gap-3.5">
             {canRenderFigures ? (
               <>
                 <TranscriptOverview snapshot={snapshot} />
@@ -127,14 +107,12 @@ export function GeneContextSnapshotSection({
               {snapshot.workbench_link?.url && (
                 <a
                   href={snapshot.workbench_link.url}
+                  className="eamos-toggle-btn"
                   style={{
-                    border: '0.5px solid var(--ink-2)',
                     background: 'var(--ink-2)',
                     color: '#fff',
-                    borderRadius: 8,
-                    padding: '7px 11px',
-                    fontSize: 12,
-                    fontWeight: 700,
+                    borderColor: 'var(--ink-2)',
+                    fontWeight: 600,
                     textDecoration: 'none',
                     whiteSpace: 'nowrap',
                   }}
@@ -144,7 +122,7 @@ export function GeneContextSnapshotSection({
               )}
             </div>
           </div>
-        )}
+        </Disclosure>
       </Card>
     </section>
   )

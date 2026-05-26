@@ -60,7 +60,10 @@ function aa3(letter: string): string {
   return AA_1TO3[letter] ?? letter
 }
 
-function mapNearby(items: NearbyVariantData[]): NearbyVariantDisplay[] {
+// Position the variant dots across the lane. `widthScale` lets us spread
+// further from the centre marker when zoomed out to the full gene view, and
+// compress toward the centre at the exon view.
+function mapNearby(items: NearbyVariantData[], widthScale: number): NearbyVariantDisplay[] {
   const span = items.reduce((acc, v) => Math.max(acc, Math.abs(v.cds_pos)), 0) || 1
   return items.map((v) => {
     const tierLabel = TIER_LABEL[v.classification]
@@ -70,7 +73,7 @@ function mapNearby(items: NearbyVariantData[]): NearbyVariantDisplay[] {
     if (queried) titleParts.push('queried')
     titleParts.push(tierLabel)
     return {
-      left: 50 + (v.cds_pos / span) * 50,
+      left: 50 + (v.cds_pos / span) * 50 * widthScale,
       classification: TIER_ABBREV[v.classification],
       title: titleParts.join(' · '),
       queried,
@@ -81,7 +84,6 @@ function mapNearby(items: NearbyVariantData[]): NearbyVariantDisplay[] {
 function mapCodons(items: CodonCellData[]): CodonCellDisplay[] {
   return items.map((c) => {
     if (c.is_query && c.aa_alt && c.dna_alt) {
-      // Show the variant codon with the substituted base highlighted.
       const ref = c.dna_ref ?? ''
       const alt = c.dna_alt
       let diff = alt.length - 1
@@ -109,8 +111,15 @@ function mapCodons(items: CodonCellData[]): CodonCellDisplay[] {
   })
 }
 
+const ZOOM_LEVELS: Array<{ id: ZoomLevel; label: string; hint: string }> = [
+  { id: 'gene',  label: 'Gene',  hint: 'Full gene span — nearby variants only, no codons' },
+  { id: 'exon',  label: 'Exon',  hint: 'Balanced view — variants in lanes and the codon strip together' },
+  { id: 'codon', label: 'Codon', hint: 'Codon strip only — focus on the local protein neighbourhood' },
+]
+
 export function LocusContext({ data }: LocusContextProps) {
-  const [zoom, setZoom] = useState<ZoomLevel>('codon')
+  // Default to the balanced 'exon' view (variants + codons together).
+  const [zoom, setZoom] = useState<ZoomLevel>('exon')
 
   if (!data) {
     return (
@@ -120,7 +129,8 @@ export function LocusContext({ data }: LocusContextProps) {
     )
   }
 
-  const nearby = mapNearby(data.nearby_variants)
+  const widthScale = zoom === 'gene' ? 1.4 : zoom === 'exon' ? 1.0 : 0.7
+  const nearby = mapNearby(data.nearby_variants, widthScale)
   const codons = mapCodons(data.codon_strip)
   const coords = data.coords || `${data.gene} · ${data.centre_cdna}`
   const centreLabel = data.centre_cdna
@@ -129,23 +139,24 @@ export function LocusContext({ data }: LocusContextProps) {
   const queried = nearby.find((v) => v.queried)
   const markerLeft = queried?.left ?? 50
 
-  const ZOOM_LEVELS: Array<{ id: ZoomLevel; label: string }> = [
-    { id: 'gene', label: 'Gene' },
-    { id: 'exon', label: 'Exon' },
-    { id: 'codon', label: 'Codon' },
-  ]
+  const showLanes = zoom !== 'codon'
+  const showCodons = zoom !== 'gene'
+  // When the codon strip is hidden the marker line shouldn't drop below the
+  // lane track; clamp it to the lane row height so it doesn't trail off.
+  const markerBottom = showCodons ? '-110px' : '0px'
 
   return (
     <div className="locus">
       <div className="locus-bar">
         <div className="locus-coords">{coords}</div>
         <div className="locus-zoom" role="group" aria-label="Zoom level">
-          {ZOOM_LEVELS.map(({ id, label }) => (
+          {ZOOM_LEVELS.map(({ id, label, hint }) => (
             <button
               key={id}
               type="button"
-              className={zoom === id ? 'active locus-zoom-btn' : 'locus-zoom-btn'}
+              className={zoom === id ? 'active' : ''}
               aria-pressed={zoom === id}
+              title={hint}
               onClick={() => setZoom(id)}
             >
               {label}
@@ -153,52 +164,53 @@ export function LocusContext({ data }: LocusContextProps) {
           ))}
         </div>
       </div>
-      <style>{`
-        .locus-zoom-btn {
-          transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
-          cursor: pointer;
-        }
-        .locus-zoom-btn:not(.active):hover { background: var(--bg-soft2); color: var(--ink); }
-        .locus-zoom-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-radius: 4px; }
-        .locus-zoom-btn:active { transform: scale(0.96); transition-duration: 80ms; }
-      `}</style>
 
       <div className="locus-track">
-        <div className="locus-row variants">
-          <span className="axis-label">ClinVar variants nearby</span>
-          <div className="lane">
-            <div className="lane-line p" /><span className="lane-label" style={{ top: '0%' }}>P</span>
-            <div className="lane-line lp" /><span className="lane-label" style={{ top: '25%' }}>LP</span>
-            <div className="lane-line vus" /><span className="lane-label" style={{ top: '50%' }}>VUS</span>
-            <div className="lane-line lb" /><span className="lane-label" style={{ top: '75%' }}>LB</span>
-            <div className="lane-line b" /><span className="lane-label" style={{ top: '100%' }}>B</span>
+        {showLanes && (
+          <div className="locus-row variants">
+            <span className="axis-label">ClinVar variants nearby</span>
+            <div className="lane">
+              <div className="lane-line p" /><span className="lane-label" style={{ top: '0%' }}>P</span>
+              <div className="lane-line lp" /><span className="lane-label" style={{ top: '25%' }}>LP</span>
+              <div className="lane-line vus" /><span className="lane-label" style={{ top: '50%' }}>VUS</span>
+              <div className="lane-line lb" /><span className="lane-label" style={{ top: '75%' }}>LB</span>
+              <div className="lane-line b" /><span className="lane-label" style={{ top: '100%' }}>B</span>
 
-            {nearby.map((v, i) => (
-              <span
-                key={i}
-                className={`locus-dot ${v.classification}${v.queried ? ' queried' : ''}`}
-                style={{ left: `${v.left}%`, top: LANE_TOPS[v.classification] }}
-                title={v.title}
+              {nearby
+                .filter((v) => v.left >= -5 && v.left <= 105)
+                .map((v, i) => (
+                  <span
+                    key={i}
+                    className={`locus-dot ${v.classification}${v.queried ? ' queried' : ''}`}
+                    style={{ left: `${v.left}%`, top: LANE_TOPS[v.classification] }}
+                    title={v.title}
+                  />
+                ))}
+
+              <div
+                className="locus-marker"
+                data-label={centreLabel}
+                style={{ left: `${markerLeft}%`, bottom: markerBottom }}
               />
-            ))}
-
-            <div className="locus-marker" data-label={centreLabel} style={{ left: `${markerLeft}%` }} />
-          </div>
-        </div>
-
-        <div className="locus-row codons">
-          {codons.map((c, i) => (
-            <div key={i} className={c.queried ? 'codon queried' : 'codon'}>
-              <span className="aa">{c.aa}</span>
-              <span className="dna">
-                {c.dna}
-                {c.dnaAlt && <span className="alt">{c.dnaAlt}</span>}
-                {c.dnaPost}
-              </span>
-              <span className="pos">{c.pos}</span>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+
+        {showCodons && (
+          <div className="locus-row codons">
+            {codons.map((c, i) => (
+              <div key={i} className={c.queried ? 'codon queried' : 'codon'}>
+                <span className="aa">{c.aa}</span>
+                <span className="dna">
+                  {c.dna}
+                  {c.dnaAlt && <span className="alt">{c.dnaAlt}</span>}
+                  {c.dnaPost}
+                </span>
+                <span className="pos">{c.pos}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="locus-legend">
           <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-path-dot)' }} />Pathogenic</div>
@@ -206,18 +218,12 @@ export function LocusContext({ data }: LocusContextProps) {
           <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-vus-dot)' }} />VUS</div>
           <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-lben-dot)' }} />Likely Benign</div>
           <div className="locus-legend-item"><span className="dot" style={{ background: 'var(--cls-ben-dot)' }} />Benign</div>
-          <div className="locus-legend-item" style={{ marginLeft: 'auto' }}>
-            <a
-              href={workbenchHref}
-              style={{
-                color: 'var(--teal-deep)',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-              }}
-            >
-              Open full sequence in Workbench ↗
-            </a>
-          </div>
+        </div>
+
+        <div className="locus-footer">
+          <a className="locus-workbench-link" href={workbenchHref}>
+            Open full sequence in Workbench ↗
+          </a>
         </div>
       </div>
     </div>

@@ -112,6 +112,23 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
         >
           Ask Eamos about this variant
         </h3>
+        {disabled && (
+          <span
+            style={{
+              padding: '2px 8px',
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-3)',
+              background: 'var(--bg)',
+              border: '0.5px solid var(--line)',
+            }}
+          >
+            Coming soon
+          </span>
+        )}
         {contextLabel && (
           <span
             className="ml-auto"
@@ -208,7 +225,7 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
             rows={1}
             placeholder={
               disabled
-                ? 'Save a patient run to ask questions.'
+                ? 'Variant-aware chat is coming. We are wiring it to this report next.'
                 : 'Ask a follow-up about this variant, evidence, or therapies…'
             }
             aria-label="Ask Eamos"

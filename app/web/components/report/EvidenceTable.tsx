@@ -113,7 +113,21 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
   const degradedRows = rows.filter((ev) => DEGRADED_STATUSES.has(ev.status))
 
   const table = (
-    <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+    <>
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          color: 'var(--ink-4)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          marginTop: 18,
+          marginBottom: 10,
+        }}
+      >
+        Per-source detail
+      </div>
+      <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: 13 }}>
         <tbody>
           {rows.map((ev, i) => {
             const meta = getSourceMeta(ev.source)
@@ -200,6 +214,7 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
           })}
         </tbody>
       </table>
+    </>
   )
 
   const degradedBanner = degradedRows.length > 0 ? (

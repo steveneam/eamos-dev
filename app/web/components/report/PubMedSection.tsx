@@ -15,9 +15,6 @@ const PAGE_SIZE = 5
 const pubStyles = `
   .article-title-link:hover { color: var(--teal-deep) !important; text-decoration: underline; text-underline-offset: 3px; }
   .article-title-link:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-radius: 3px; }
-  .pub-more-btn:hover:not(:disabled) { background: var(--bg-soft) !important; border-color: var(--ink-5) !important; }
-  .pub-more-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); }
-  .pub-more-btn:active:not(:disabled) { transform: translateY(1px); transition-duration: 80ms; }
 `
 
 function formatLabel(value: string): string {
@@ -100,7 +97,6 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
   return (
     <Card number={number} title="Publication literature" meta={meta}>
       <style>{pubStyles}</style>
-      {hasTimeline && timeline && <PublicationTimelineChart timeline={timeline} />}
       {articles.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
           No publication rows available for this lookup.
@@ -121,21 +117,10 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
               onClick={handleLoadMore}
               disabled={loading}
               aria-busy={loading}
-              className="pub-more-btn"
-              style={{
-                padding: '7px 14px',
-                borderRadius: 10,
-                border: '0.5px solid var(--line-2)',
-                background: 'var(--bg)',
-                color: 'var(--ink-2)',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-                transition: 'border-color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard)',
-              }}
+              className="eamos-toggle-btn"
             >
-              {loading ? 'Loading...' : ('View ' + String(moreCount) + ' more')}
+              <span aria-hidden style={{ color: 'var(--ink-3)' }}>+</span>
+              {loading ? 'Loading…' : `View ${moreCount} more`}
             </button>
           )}
           {failed && (
@@ -155,7 +140,7 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
                 textDecoration: 'none',
               }}
             >
-              Search all on PubMed &#8599;
+              Search all on PubMed ↗
             </a>
           )}
         </div>
@@ -182,6 +167,8 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
           ))}
         </div>
       )}
+
+      {hasTimeline && timeline && <PublicationTimelineChart timeline={timeline} />}
     </Card>
   )
 }

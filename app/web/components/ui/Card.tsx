@@ -29,7 +29,7 @@ export function Card({ number, title, meta, children, className }: CardProps) {
             </span>
           )}
           <h2
-            className="text-[18px] font-medium tracking-[-0.01em]"
+            className="text-[18px] font-normal tracking-[-0.01em]"
             style={{ color: 'var(--ink)', fontFamily: 'var(--display)' }}
           >
             {title}

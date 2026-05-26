@@ -77,62 +77,36 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
   if (!section) return null
 
   return (
-    <div id={section.section_id} className="scroll-mt-24">
+    <div id={section.section_id} className="scroll-mt-24" data-panel-id={section.panel_id}>
       <div
-        id={section.panel_id}
-        style={{
-          border: '0.5px solid var(--line)',
-          borderRadius: 10,
-          background: 'var(--bg)',
-          overflow: 'hidden',
-        }}
+        className="flex flex-wrap items-center justify-between gap-3"
+        style={{ marginBottom: 14 }}
       >
         <div
-          className="flex flex-wrap items-center justify-between gap-3"
           style={{
-            padding: '14px 16px',
-            borderBottom: '0.5px solid var(--line)',
-            background: 'var(--bg-soft)',
+            fontFamily: 'var(--mono)',
+            fontSize: 11.5,
+            color: 'var(--ink-3)',
+            overflowWrap: 'anywhere',
           }}
         >
-          <div className="min-w-0">
-            <div
-              className="uppercase"
-              style={{
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                color: 'var(--ink-4)',
-              }}
-            >
-              {section.dataset || 'gnomAD'} | {section.genome_build || 'GRCh38'}
-            </div>
-            <div
-              style={{
-                marginTop: 3,
-                fontFamily: 'var(--mono)',
-                fontSize: 12,
-                color: 'var(--ink-2)',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {section.variant_id || 'Variant ID unavailable'} | {section.sequencing_type}
-            </div>
-          </div>
-          <div className="inline-flex gap-1 rounded-lg border border-[var(--line)] bg-[var(--bg)] p-1">
-            <TabButton active={activeTab === 'map'} onClick={() => setActiveTab('map')}>
-              World map
-            </TabButton>
-            <TabButton active={activeTab === 'ancestry'} onClick={() => setActiveTab('ancestry')}>
-              Genetic ancestry group frequencies
-            </TabButton>
-            <TabButton active={activeTab === 'age'} onClick={() => setActiveTab('age')}>
-              Age distribution
-            </TabButton>
-          </div>
+          {section.variant_id || 'Variant ID unavailable'} · {section.sequencing_type}
         </div>
+        <div className="inline-flex gap-1 rounded-lg border border-[var(--line)] bg-[var(--bg-soft)] p-1">
+          <TabButton active={activeTab === 'map'} onClick={() => setActiveTab('map')}>
+            World map
+          </TabButton>
+          <TabButton active={activeTab === 'ancestry'} onClick={() => setActiveTab('ancestry')}>
+            Ancestry group frequencies
+          </TabButton>
+          <TabButton active={activeTab === 'age'} onClick={() => setActiveTab('age')}>
+            Age distribution
+          </TabButton>
+        </div>
+      </div>
 
-        <div style={{ padding: '16px' }}>
+      <div id={section.panel_id}>
+        <div>{/* tab content begins */}
           {activeTab === 'map' ? (
             <MapOverviewTab
               groups={groups}
@@ -205,6 +179,8 @@ function TabButton({
       type="button"
       aria-pressed={active}
       onClick={onClick}
+      data-active={active}
+      className="pop-tab-btn"
       style={{
         border: '0.5px solid',
         borderColor: active ? 'var(--teal)' : 'transparent',
@@ -218,8 +194,27 @@ function TabButton({
         maxWidth: 220,
         whiteSpace: 'normal',
         lineHeight: 1.2,
+        transition:
+          'background var(--dur-1) var(--ease-standard),' +
+          'border-color var(--dur-1) var(--ease-standard),' +
+          'color var(--dur-1) var(--ease-standard)',
       }}
     >
+      <style>{`
+        .pop-tab-btn[data-active="false"]:hover {
+          background: var(--bg);
+          color: var(--ink);
+          border-color: var(--ink-5);
+        }
+        .pop-tab-btn:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.18);
+        }
+        .pop-tab-btn:active {
+          transform: translateY(0.5px);
+          transition-duration: 80ms;
+        }
+      `}</style>
       {children}
     </button>
   )

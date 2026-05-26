@@ -81,9 +81,9 @@ export function InSilicoGrid({ data }: InSilicoGridProps) {
     <div style={{ marginBottom: 18 }}>
       <div
         style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: 'var(--ink-3)',
+          fontSize: 10.5,
+          fontWeight: 700,
+          color: 'var(--ink-4)',
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           marginBottom: 10,

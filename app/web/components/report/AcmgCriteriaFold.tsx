@@ -1,5 +1,4 @@
-'use client'
-import { useState } from 'react'
+import { Disclosure } from '@/components/ui/Disclosure'
 import type {
   AcmgCode,
   AcmgCriteriaScaffold,
@@ -67,8 +66,6 @@ function mapCriteria(items: AcmgCriterionData[]): Criterion[] {
 }
 
 export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {
-  const [open, setOpen] = useState(false)
-
   if (!data) {
     return (
       <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
@@ -85,95 +82,53 @@ export function AcmgCriteriaFold({ data }: AcmgCriteriaFoldProps) {
   const unmet = criteria.length - met
 
   return (
-    <div className="fold">
-      <button
-        type="button"
-        className="fold-summary"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+    <Disclosure
+      kicker="ACMG criteria"
+      showLabel="Show all 28 criteria"
+      hideLabel="Hide criteria"
+      summary={`${met} met · ${unmet} unmet · ACMG 2015 + 2022 PP3/BP4`}
+    >
+      {intro && (
+        <p
           style={{
-            transition: `transform var(--dur-2) var(--ease-emphasized)`,
-            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+            margin: '0 0 14px',
+            fontSize: 12.5,
+            lineHeight: 1.6,
+            color: 'var(--ink-3)',
           }}
         >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-        ACMG criteria — automated scaffolding
-        <span className="count">{met} met · {unmet} unmet · ACMG 2015 + 2022 PP3/BP4</span>
-      </button>
-      <div
-        className="fold-body"
-        hidden={!open}
-        aria-hidden={!open}
-        style={{
-          animation: open ? `acmg-reveal var(--dur-2) var(--ease-emphasized) both` : undefined,
-        }}
-      >
-        {intro && (
-          <p className="intro">
-            {intro.split(/\b(This is supporting evidence, not a classification\.)\b/).map((part, i) =>
-              part === 'This is supporting evidence, not a classification.' ? (
-                <strong key={i}>{part}</strong>
-              ) : (
-                part
-              ),
-            )}
-          </p>
-        )}
+          {intro.split(/\b(This is supporting evidence, not a classification\.)\b/).map((part, i) =>
+            part === 'This is supporting evidence, not a classification.' ? (
+              <strong key={i} style={{ color: 'var(--ink)' }}>{part}</strong>
+            ) : (
+              part
+            ),
+          )}
+        </p>
+      )}
 
-        <div className="acmg-grid">
-          {criteria.map((c) => {
-            const cls =
-              c.verdict === 'met'
-                ? 'acmg-cell met'
-                : c.verdict === 'met-benign'
-                ? 'acmg-cell met-benign'
-                : 'acmg-cell'
-            return (
-              <div key={c.code} className={cls}>
-                <span className="code">{c.code}</span>
-                <span className="label-l">{c.label}</span>
-              </div>
-            )
-          })}
-        </div>
-
-        {note && (
-          <div className="acmg-note">
-            <strong>Note:</strong> {note}
-          </div>
-        )}
+      <div className="acmg-grid">
+        {criteria.map((c) => {
+          const cls =
+            c.verdict === 'met'
+              ? 'acmg-cell met'
+              : c.verdict === 'met-benign'
+              ? 'acmg-cell met-benign'
+              : 'acmg-cell'
+          return (
+            <div key={c.code} className={cls}>
+              <span className="code">{c.code}</span>
+              <span className="label-l">{c.label}</span>
+            </div>
+          )
+        })}
       </div>
-      <style>{`
-        @keyframes acmg-reveal {
-          from { opacity: 0; transform: translateY(-4px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .fold-summary {
-          cursor: pointer;
-          width: 100%;
-          text-align: left;
-          background: none;
-          border: none;
-          padding: 0;
-          transition: color var(--dur-1) var(--ease-standard);
-        }
-        .fold-summary:focus-visible {
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
-          border-radius: 4px;
-        }
-        .fold-summary:hover { color: var(--ink); }
-      `}</style>
-    </div>
+
+      {note && (
+        <div className="acmg-note">
+          <strong>Note:</strong> {note}
+        </div>
+      )}
+    </Disclosure>
   )
 }
