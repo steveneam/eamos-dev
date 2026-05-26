@@ -627,7 +627,7 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
               }}
             >
               We reached the databases, but none could resolve this query to
-              genomic coordinates — Ensembl VEP and VariantValidator didn’t
+              genomic coordinates: Ensembl and VariantValidator didn’t
               recognise the gene/HGVS pair. This isn’t a network failure.
               Double-check the transcript and cDNA (or try the rsID), then
               retry.

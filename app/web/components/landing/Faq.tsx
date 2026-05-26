@@ -30,7 +30,7 @@ const ITEMS: QA[] = [
   },
   {
     q: 'Which databases does a single search cover?',
-    a: 'ClinVar, gnomAD, Ensembl VEP, SpliceAI, and PubMed (plus ClinicalTrials.gov for active trials), with the ACMG/AMP rules engine applied on top of the aggregated evidence.',
+    a: 'ClinVar, gnomAD, Ensembl, SpliceAI, and PubMed (plus ClinicalTrials.gov for active trials), with the ACMG/AMP rules engine applied on top of the aggregated evidence.',
   },
   {
     q: 'How current is the data?',

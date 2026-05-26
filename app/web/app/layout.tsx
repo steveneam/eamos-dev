@@ -38,7 +38,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
 const defaultTitle = 'Eamos — Genomic Intelligence Platform'
 const defaultDescription =
-  'Aggregates ClinVar, VEP, SpliceAI, gnomAD and PubMed for genomic variant evidence. Research use only.'
+  'Aggregates ClinVar, Ensembl, SpliceAI, gnomAD and PubMed for genomic variant evidence. Research use only.'
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,

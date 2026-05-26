@@ -23,13 +23,13 @@ const STEPS: Step[] = [
     kicker: 'Parallel sweep',
     title: 'Eamos queries every source at once',
     description:
-      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed, fanned out in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
+      'ClinVar, gnomAD, Ensembl, SpliceAI, and PubMed, fanned out in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
     visual: {
       lines: [
         'ClinVar  … ok  (12 submissions)',
         'gnomAD   … ok  (v4, exomes+genomes)',
         'SpliceAI … ok  (Δ 0.94)',
-        'VEP      … ok  (CADD 32, REVEL 0.92)',
+        'Ensembl  … ok  (CADD 32, REVEL 0.92)',
         'PubMed   … ok  (4 citations matched)',
       ],
     },
