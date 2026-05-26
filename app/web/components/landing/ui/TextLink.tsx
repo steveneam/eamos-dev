@@ -49,14 +49,24 @@ export function TextLink({ href, target, rel, children, className, style, onClic
 export function TextLinkStyles() {
   return (
     <style>{`
+      /* Shares the landing's teal-accent hover signal with .lnav-link and
+         .eamos-pill — every interactive surface hits the same teal axis. */
       .eamos-text-link {
         color: var(--hero-ink-2);
-        text-decoration: none;
-        transition: color var(--dur-1) var(--ease-standard);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 5px;
+        transition:
+          color var(--dur-1) var(--ease-standard),
+          text-decoration-color var(--dur-1) var(--ease-standard);
         border-radius: 3px;
         outline: none;
       }
-      .eamos-text-link:hover { color: var(--hero-ink); }
+      .eamos-text-link:hover {
+        color: var(--hero-ink);
+        text-decoration-color: var(--em-bright);
+      }
       .eamos-text-link:focus-visible {
         box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
       }

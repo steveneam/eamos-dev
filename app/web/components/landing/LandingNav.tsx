@@ -256,29 +256,47 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
 function LandingNavStyles() {
   return (
     <style>{`
-      /* Nav text links (desktop) */
+      /* Nav text links (desktop) — share the landing teal-accent hover signal
+         with .eamos-text-link / .eamos-pill: every interactive surface hits
+         the same teal axis so hovers read as one system. */
       .lnav-link {
         color: var(--hero-ink-2);
-        text-decoration: none;
-        transition: color var(--dur-1) var(--ease-standard);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 5px;
+        transition:
+          color var(--dur-1) var(--ease-standard),
+          text-decoration-color var(--dur-1) var(--ease-standard);
         border-radius: 3px;
         outline: none;
       }
-      .lnav-link:hover { color: var(--hero-ink); }
+      .lnav-link:hover {
+        color: var(--hero-ink);
+        text-decoration-color: var(--em-bright);
+      }
       .lnav-link:focus-visible {
         box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
       }
 
-      /* Mobile dropdown links */
+      /* Mobile dropdown links — same hover language as desktop */
       .lnav-mobile-link {
         display: block;
         color: var(--hero-ink-2);
-        text-decoration: none;
-        transition: color var(--dur-1) var(--ease-standard);
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 5px;
+        transition:
+          color var(--dur-1) var(--ease-standard),
+          text-decoration-color var(--dur-1) var(--ease-standard);
         border-radius: 4px;
         outline: none;
       }
-      .lnav-mobile-link:hover { color: var(--hero-ink); }
+      .lnav-mobile-link:hover {
+        color: var(--hero-ink);
+        text-decoration-color: var(--em-bright);
+      }
       .lnav-mobile-link:focus-visible {
         box-shadow: 0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent);
       }
