@@ -66,28 +66,33 @@ export default function PrivacyPage() {
     <div style={{ background: 'var(--page-bg)', minHeight: '100vh' }}>
       <TextLinkStyles />
 
-      {/* Composed nav: logo, anchor links into the landing, AuthMenu. Static, not
-          sticky — legal pages are read-not-scroll-back-to-search surfaces. */}
+      {/* Composed nav — same geometry as LandingNav: logo left, links
+          centered in a flex-1 zone, AuthMenu right. Static (not sticky) since
+          legal pages don't have a hero search to fold into. */}
       <header style={{ borderBottom: '0.5px solid var(--page-line)' }}>
         <div
-          className="mx-auto flex items-center gap-6 px-6 sm:px-8"
+          className="relative mx-auto flex items-center gap-3 px-4 sm:gap-4 sm:px-8"
           style={{ maxWidth: 1180, height: 'var(--nav-h)' }}
         >
-          <Link href="/" aria-label="Eamos home" style={{ textDecoration: 'none' }}>
-            <EamosLogo size={18} tone="dark" />
-          </Link>
-          <nav className="ml-auto hidden items-center gap-7 md:flex">
-            <TextLink href="/#features" style={{ fontSize: 13.5, fontWeight: 600 }}>
-              Features
-            </TextLink>
-            <TextLink href="/#pricing" style={{ fontSize: 13.5, fontWeight: 600 }}>
-              Pricing
-            </TextLink>
-            <TextLink href="/#faq" style={{ fontSize: 13.5, fontWeight: 600 }}>
-              FAQ
-            </TextLink>
-          </nav>
-          <div className="ml-auto flex items-center md:ml-0">
+          <div className="flex items-center gap-2">
+            <Link href="/" aria-label="Eamos home" className="flex shrink-0 items-center" style={{ textDecoration: 'none' }}>
+              <EamosLogo size={18} tone="dark" />
+            </Link>
+          </div>
+          <div className="relative flex min-w-0 flex-1 items-center justify-center">
+            <nav className="hidden items-center gap-8 md:flex">
+              <TextLink href="/#features" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                Features
+              </TextLink>
+              <TextLink href="/#pricing" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                Pricing
+              </TextLink>
+              <TextLink href="/#faq" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                FAQ
+              </TextLink>
+            </nav>
+          </div>
+          <div className="flex items-center justify-end gap-2">
             <AuthMenu tone="light" />
           </div>
         </div>

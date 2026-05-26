@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { AuthPanel } from '@/components/auth/AuthPanel'
+import { PageHeader } from '@/components/pricing/PageHeader'
 import {
   addSavedVariant,
   clinvarReadiness,
@@ -106,7 +107,7 @@ export function AccountClient() {
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
       <AccountStyles />
-      <ProductNav />
+      <PageHeader tone="light" />
       <main
         className="mx-auto px-6 pb-28 pt-12"
         style={{ maxWidth: 920 }}
@@ -130,63 +131,10 @@ export function AccountClient() {
   )
 }
 
-function ProductNav() {
-  return (
-    <header
-      className="sticky top-0 z-50"
-      style={{
-        background: 'var(--bg)',
-        borderBottom: '0.5px solid var(--line)',
-        height: 'var(--nav-h)',
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      <div
-        className="mx-auto flex items-center justify-between px-6"
-        style={{ maxWidth: 1180, width: '100%' }}
-      >
-        <Link href="/" aria-label="Eamos home" style={{ textDecoration: 'none' }}>
-          <span
-            style={{
-              fontFamily: 'var(--display)',
-              fontSize: 18,
-              fontWeight: 400,
-              letterSpacing: '-0.01em',
-              color: 'var(--ink)',
-            }}
-          >
-            Eamos
-          </span>
-        </Link>
-        <nav className="flex items-center gap-5">
-          <Link
-            href="/#pricing"
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--ink-3)',
-              textDecoration: 'none',
-            }}
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/account"
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--ink)',
-              textDecoration: 'none',
-            }}
-          >
-            Account
-          </Link>
-        </nav>
-      </div>
-    </header>
-  )
-}
+// Account nav comes from the shared PageHeader primitive — same geometry as
+// LandingNav (logo left, links centered, AuthMenu right) so the brand surfaces
+// read as one system. The bespoke ProductNav this replaced used a
+// justify-between layout that pushed everything right of the logo.
 
 function SignedOut() {
   return (
