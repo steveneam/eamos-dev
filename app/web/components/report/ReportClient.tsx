@@ -422,10 +422,33 @@ function ReportBody({ data, query }: ReportBodyProps) {
         </Card>
 
         {/* 5 · Publication literature. */}
-        <PubMedSection key={`pubs-${variantKey}`} payload={payload} number={5} />
+        <PubMedSection
+          key={`pubs-${variantKey}`}
+          payload={payload}
+          number={5}
+          actions={
+            <CopyButton
+              text={tsvPublications(payload, payload.publications_literature)}
+              label="Copy publications as TSV"
+            />
+          }
+        />
 
         {/* 6 · Active trials & approved therapies. */}
-        <TrialsSection key={`trials-${variantKey}`} payload={payload} number={6} />
+        <TrialsSection
+          key={`trials-${variantKey}`}
+          payload={payload}
+          number={6}
+          actions={
+            <CopyButton
+              text={tsvTrials(
+                payload,
+                payload.report_profile?.therapies_trials?.trial_rows ?? [],
+              )}
+              label="Copy trials as TSV"
+            />
+          }
+        />
 
         {/* 7 · AI evidence summary — last so the deterministic source rows
             anchor the read before the synthesised summary. */}

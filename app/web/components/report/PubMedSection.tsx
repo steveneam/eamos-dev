@@ -8,6 +8,8 @@ import type { PublicationSnippet, PubMedArticle, ReportPayload } from '@/lib/bac
 interface PubMedSectionProps {
   payload: ReportPayload
   number?: number
+  /** Optional action slot (CopyButton) forwarded to the Card header. */
+  actions?: ReactNode
 }
 
 const PAGE_SIZE = 5
@@ -25,7 +27,7 @@ function articleDate(article: PubMedArticle): string {
   return article.publication_date || article.year || ''
 }
 
-export function PubMedSection({ payload, number }: PubMedSectionProps) {
+export function PubMedSection({ payload, number, actions }: PubMedSectionProps) {
   const literature = payload.publications_literature ?? null
   const hasTypedLiterature = literature != null
   const initialArticles = hasTypedLiterature
@@ -95,7 +97,7 @@ export function PubMedSection({ payload, number }: PubMedSectionProps) {
   const moreCount = Math.min(PAGE_SIZE, total - shownCount)
 
   return (
-    <Card number={number} title="Publication literature" meta={meta}>
+    <Card number={number} title="Publication literature" meta={meta} actions={actions}>
       <style>{pubStyles}</style>
       {articles.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>

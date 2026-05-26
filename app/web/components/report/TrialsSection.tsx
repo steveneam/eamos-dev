@@ -1,23 +1,30 @@
 'use client'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Card } from '@/components/ui/Card'
 import type { ReportPayload, TrialMatch } from '@/lib/backend'
 
 interface TrialsSectionProps {
   payload: ReportPayload
   number?: number
+  /** Optional action slot (CopyButton) forwarded to the Card header. */
+  actions?: ReactNode
 }
 
 const VISIBLE_TRIALS = 5
 
-export function TrialsSection({ payload, number }: TrialsSectionProps) {
+export function TrialsSection({ payload, number, actions }: TrialsSectionProps) {
   const typedTrials = payload.report_profile?.therapies_trials ?? null
   const trials = typedTrials?.trial_rows ?? []
   const warnings = typedTrials?.warnings ?? []
   if (trials.length === 0 && warnings.length === 0) return null
 
   return (
-    <Card number={number} title="Active trials & approved therapies" meta="ClinicalTrials.gov">
+    <Card
+      number={number}
+      title="Active trials & approved therapies"
+      meta="ClinicalTrials.gov"
+      actions={actions}
+    >
       {trials.length > 0 && <TrialRows rows={trials} />}
       {typedTrials && trials.length === 0 && (
         <p
