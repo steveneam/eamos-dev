@@ -10,6 +10,10 @@ interface Shot {
 // Product snapshots captured from a live report. Rough first pass — replace with
 // polished marketing shots later. The gnomAD world-map featured band below was
 // captured from MTHFR c.665C>T (a gnomAD-present variant; the RPE65 demo isn't in gnomAD).
+//
+// The four-card "evidence matrix" specimen lives in MetricBelt above; this grid
+// shows the *other* layers of the report (classification, publications, trials,
+// gnomAD map, Workbench).
 const SHOTS: Shot[] = [
   {
     src: '/feat-classification.webp',
@@ -51,42 +55,13 @@ export function FeaturesGrid() {
           </p>
         </header>
 
-        {/* Featured: the four evidence call cards */}
+        {/* Featured: gnomAD population-frequency world map (captured from MTHFR c.665C>T).
+            The four-call-card specimen lives in MetricBelt above — re-showing it here would
+            duplicate the page; this section opens with the gnomAD map as the next layer. */}
         <Reveal as="article">
           <figure
             className="m-0 overflow-hidden"
             style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 16 }}
-          >
-            <div
-              className="relative"
-              style={{ aspectRatio: '1280 / 300', overflow: 'hidden', background: 'var(--d-bg-2)' }}
-            >
-              <Image
-                src="/feat-report-cards.webp"
-                alt="Variant evidence report — four-card matrix: population, computational, functional and clinical consensus"
-                fill
-                priority
-                sizes="(max-width: 1180px) 100vw, 1180px"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
-              />
-            </div>
-            <figcaption style={{ padding: '20px 24px' }}>
-              <h3 className="mb-1" style={feat.title}>
-                Four-card evidence matrix
-              </h3>
-              <p style={feat.caption}>
-                Population, computational, functional and clinical consensus — the four pillars, mapped
-                above the fold with no nested tabs to dig through.
-              </p>
-            </figcaption>
-          </figure>
-        </Reveal>
-
-        {/* Featured: gnomAD population-frequency world map (captured from MTHFR c.665C>T) */}
-        <Reveal as="article">
-          <figure
-            className="m-0 overflow-hidden"
-            style={{ marginTop: 20, background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 16 }}
           >
             <div
               className="relative"
@@ -96,6 +71,7 @@ export function FeaturesGrid() {
                 src="/feat-gnomad-map.webp"
                 alt="gnomAD v4 allele frequencies across genetic ancestry groups, rendered on a land-clipped world map"
                 fill
+                priority
                 sizes="(max-width: 1180px) 100vw, 1180px"
                 style={{ objectFit: 'cover', objectPosition: 'center' }}
               />
