@@ -16,9 +16,9 @@ import { motion, useReducedMotion } from 'framer-motion'
 // reads as a woven pair without drawing the literal ladder. A third, fainter,
 // outer strand adds depth. Right-weighted, since the hero content sits left.
 const STRANDS = [
-  { d: 'M 760 -40 C 640 130, 980 290, 840 450 C 720 590, 1000 690, 860 840', stroke: 'var(--flow-cool)', w: 2, o: 0.18, delay: 0 },
-  { d: 'M 850 -40 C 980 130, 660 290, 920 450 C 1040 590, 740 690, 900 840', stroke: 'var(--flow-warm)', w: 2, o: 0.16, delay: 0.18 },
-  { d: 'M 1012 -40 C 930 170, 1110 370, 990 560 C 910 710, 1060 800, 1000 900', stroke: 'var(--flow-cool)', w: 1.4, o: 0.1, delay: 0.36 },
+  { d: 'M 760 -40 C 640 130, 980 290, 840 450 C 720 590, 1000 690, 860 840', stroke: 'var(--flow-cool)', w: 2.2, o: 0.42, delay: 0 },
+  { d: 'M 850 -40 C 980 130, 660 290, 920 450 C 1040 590, 740 690, 900 840', stroke: 'var(--flow-warm)', w: 2.2, o: 0.38, delay: 0.18 },
+  { d: 'M 1012 -40 C 930 170, 1110 370, 990 560 C 910 710, 1060 800, 1000 900', stroke: 'var(--flow-cool)', w: 1.6, o: 0.24, delay: 0.36 },
 ]
 
 export function GenomicFlow() {
@@ -76,10 +76,10 @@ export function GenomicFlow() {
           <motion.path
             d={STRANDS[1].d}
             stroke="var(--flow-warm)"
-            strokeWidth={2.6}
+            strokeWidth={3}
             strokeLinecap="round"
-            strokeOpacity={0.42}
-            strokeDasharray="70 1600"
+            strokeOpacity={0.6}
+            strokeDasharray="100 1600"
             initial={{ strokeDashoffset: 1670 }}
             animate={{ strokeDashoffset: -70 }}
             transition={{ duration: 9, repeat: Infinity, ease: 'linear', delay: 1.4 }}

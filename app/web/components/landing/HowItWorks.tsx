@@ -22,15 +22,23 @@ const STEPS: Step[] = [
     kicker: 'Parallel sweep',
     title: 'Eamos queries every source at once',
     description:
-      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
-    visual: { lines: ['ClinVar … ok', 'gnomAD … ok', 'SpliceAI … ok', 'VEP … ok'] },
+      'ClinVar, gnomAD, VEP, SpliceAI, and PubMed — fanned out in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
+    visual: {
+      lines: [
+        'ClinVar  … ok  (12 submissions)',
+        'gnomAD   … ok  (v4, exomes+genomes)',
+        'SpliceAI … ok  (Δ 0.94)',
+        'VEP      … ok  (CADD 32, REVEL 0.92)',
+        'PubMed   … ok  (4 citations matched)',
+      ],
+    },
   },
   {
     num: 3,
     kicker: 'Instant rendering',
     title: 'Read the report',
     description:
-      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials, with every claim cited.',
+      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials — every claim cited.',
     visual: { lines: ['Verdict: Likely path.', 'PM1, PM2, PP3', 'Trials: 3 recruiting'] },
   },
 ]
@@ -46,98 +54,126 @@ export function HowItWorks() {
       }}
     >
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
-        <header className="mb-16" style={{ maxWidth: 720 }}>
+        <header className="mb-14 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div style={{ maxWidth: 720 }}>
+            <p
+              className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
+              style={{ color: 'var(--em-bright)' }}
+            >
+              How it works
+            </p>
+            <h2
+              className="text-[clamp(30px,3.5vw,42px)] leading-[1.1] tracking-[-0.02em]"
+              style={{ fontFamily: 'var(--display)', fontWeight: 500, color: 'var(--hero-ink)' }}
+            >
+              One variant in. One structured report out.
+            </h2>
+          </div>
           <p
-            className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--em-bright)' }}
+            className="md:max-w-[300px] md:text-right"
+            style={{ fontSize: 12.5, color: 'var(--hero-ink-3)', letterSpacing: '0.01em' }}
           >
-            How it works
+            Three stations. The middle one is where the work happens.
           </p>
-          <h2
-            className="text-[clamp(30px,3.5vw,42px)] font-semibold leading-[1.1] tracking-[-0.02em]"
-            style={{ fontFamily: 'var(--display)', color: 'var(--hero-ink)' }}
-          >
-            One variant in. One structured report out.
-          </h2>
         </header>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {STEPS.map((step, i) => (
-            <Reveal key={step.num} as="article" delay={i * 0.1} className="relative flex flex-col">
-              <div
-                className="flex h-full flex-col"
-                style={{
-                  background: 'var(--d-card)',
-                  border: '0.5px solid var(--d-line)',
-                  borderRadius: 14,
-                  padding: 28,
-                }}
+        {/* Asymmetric 3 / 6 / 3 — step 2 is the featured station, twice the width
+            of the bookend steps. Stacks on small screens (step 2 still first by
+            visual order, not source order — preserves narrative). */}
+        <div className="grid grid-cols-1 gap-px lg:grid-cols-12" style={{ background: 'var(--d-line)' }}>
+          {STEPS.map((step, i) => {
+            const isFeatured = step.num === 2
+            const colSpan = isFeatured ? 'lg:col-span-6' : 'lg:col-span-3'
+            return (
+              <Reveal
+                key={step.num}
+                as="article"
+                delay={i * 0.08}
+                className={`relative flex flex-col ${colSpan}`}
               >
-                <div className="mb-4 flex items-center gap-3">
-                  <span
-                    className="inline-flex items-center justify-center"
+                <div
+                  className="flex h-full flex-col"
+                  style={{
+                    background: isFeatured ? 'var(--d-card)' : 'var(--d-bg-2)',
+                    padding: isFeatured ? '36px 32px' : '28px 24px',
+                  }}
+                >
+                  <div className="mb-5 flex items-center gap-3">
+                    <span
+                      className="inline-flex items-center justify-center"
+                      style={{
+                        width: isFeatured ? 34 : 26,
+                        height: isFeatured ? 34 : 26,
+                        borderRadius: 999,
+                        background: isFeatured ? 'var(--em)' : 'transparent',
+                        color: isFeatured ? '#04140e' : 'var(--em-bright)',
+                        border: isFeatured ? 'none' : '0.5px solid var(--hero-line)',
+                        fontFamily: 'var(--mono)',
+                        fontSize: isFeatured ? 13 : 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {String(step.num).padStart(2, '0')}
+                    </span>
+                    <span
+                      className="text-[10.5px] font-semibold uppercase tracking-[0.12em]"
+                      style={{ color: 'var(--em-bright)' }}
+                    >
+                      {step.kicker}
+                    </span>
+                  </div>
+                  <h3
+                    className="mb-3"
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 999,
-                      background: step.num === 2 ? 'var(--em)' : 'var(--hero-glass2)',
-                      color: step.num === 2 ? '#04140e' : 'var(--hero-ink)',
-                      border: step.num === 2 ? 'none' : '0.5px solid var(--hero-line)',
-                      fontFamily: 'var(--mono)',
-                      fontSize: 12,
-                      fontWeight: 600,
+                      fontFamily: 'var(--display)',
+                      fontWeight: 500,
+                      fontSize: isFeatured ? 26 : 18,
+                      lineHeight: 1.18,
+                      letterSpacing: '-0.018em',
+                      color: 'var(--hero-ink)',
                     }}
                   >
-                    {step.num}
-                  </span>
-                  <span
-                    className="text-[10.5px] font-semibold uppercase tracking-[0.12em]"
-                    style={{ color: 'var(--em-bright)' }}
+                    {step.title}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: isFeatured ? 14.5 : 13,
+                      color: 'var(--hero-ink-2)',
+                      lineHeight: 1.6,
+                      margin: `0 0 ${isFeatured ? 24 : 16}px`,
+                    }}
                   >
-                    {step.kicker}
-                  </span>
+                    {step.description}
+                  </p>
+                  <div
+                    className="mt-auto flex flex-col justify-center gap-1 overflow-hidden"
+                    style={{
+                      background: isFeatured ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.22)',
+                      border: '0.5px solid var(--hero-line)',
+                      borderRadius: 10,
+                      padding: isFeatured ? '16px 18px' : '12px 14px',
+                      fontFamily: 'var(--mono)',
+                      fontSize: isFeatured ? 12 : 11,
+                      color: 'var(--hero-ink-2)',
+                      minHeight: isFeatured ? 132 : 70,
+                    }}
+                  >
+                    {step.visual.lines.map((line, j) => (
+                      <div
+                        key={j}
+                        style={{
+                          color: j === step.visual.lines.length - 1 && !isFeatured ? 'var(--em-bright)' : undefined,
+                          whiteSpace: 'pre',
+                        }}
+                      >
+                        {line}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <h3
-                  className="mb-2"
-                  style={{
-                    fontFamily: 'var(--display)',
-                    fontWeight: 600,
-                    fontSize: 20,
-                    lineHeight: 1.2,
-                    letterSpacing: '-0.015em',
-                    color: 'var(--hero-ink)',
-                  }}
-                >
-                  {step.title}
-                </h3>
-                <p style={{ fontSize: 13.5, color: 'var(--hero-ink-2)', lineHeight: 1.6, margin: '0 0 18px' }}>
-                  {step.description}
-                </p>
-                <div
-                  className="mt-auto flex flex-col justify-center gap-1 overflow-hidden"
-                  style={{
-                    background: 'rgba(0,0,0,0.25)',
-                    border: '0.5px solid var(--hero-line)',
-                    borderRadius: 10,
-                    padding: 14,
-                    fontFamily: 'var(--mono)',
-                    fontSize: 11.5,
-                    color: 'var(--hero-ink-2)',
-                    minHeight: 78,
-                  }}
-                >
-                  {step.visual.lines.map((line, j) => (
-                    <div
-                      key={j}
-                      style={{ color: j === step.visual.lines.length - 1 ? 'var(--em-bright)' : undefined }}
-                    >
-                      {line}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Reveal>
-          ))}
+              </Reveal>
+            )
+          })}
         </div>
       </div>
     </section>

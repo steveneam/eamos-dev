@@ -65,6 +65,7 @@ export function FeaturesGrid() {
                 src="/feat-report-cards.webp"
                 alt="Variant evidence report — four-card matrix: population, computational, functional and clinical consensus"
                 fill
+                priority
                 sizes="(max-width: 1180px) 100vw, 1180px"
                 style={{ objectFit: 'cover', objectPosition: 'top center' }}
               />
@@ -111,38 +112,72 @@ export function FeaturesGrid() {
           </figure>
         </Reveal>
 
-        {/* Grid: the other product snapshots + the in-development Workbench */}
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SHOTS.map((shot, i) => (
-            <Reveal key={shot.src} as="article" delay={(i % 2) * 0.08}>
-              <figure
-                className="m-0 h-full overflow-hidden"
-                style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+        {/* Asymmetric: a wide "Classification" feature, then two narrower
+            shots stacked, then a wide "Workbench" in-development tile. Reads as
+            magazine column-spans, not a 4-up template. Stacks on mobile. */}
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-6">
+          {/* SHOT 0 — wide */}
+          <Reveal as="article" className="lg:col-span-4" delay={0}>
+            <figure
+              className="m-0 h-full overflow-hidden"
+              style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+            >
+              <div
+                className="relative"
+                style={{ aspectRatio: '16 / 8', overflow: 'hidden', background: 'var(--d-bg-2)' }}
               >
-                <div
-                  className="relative"
-                  style={{ aspectRatio: '16 / 11', overflow: 'hidden', background: 'var(--d-bg-2)' }}
-                >
-                  <Image
-                    src={shot.src}
-                    alt={shot.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                  />
-                </div>
-                <figcaption style={{ padding: '16px 18px' }}>
-                  <h3 className="mb-1" style={feat.title}>
-                    {shot.title}
-                  </h3>
-                  <p style={feat.caption}>{shot.caption}</p>
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
+                <Image
+                  src={SHOTS[0].src}
+                  alt={SHOTS[0].title}
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                  style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                />
+              </div>
+              <figcaption style={{ padding: '18px 22px' }}>
+                <h3 className="mb-1" style={feat.title}>
+                  {SHOTS[0].title}
+                </h3>
+                <p style={feat.caption}>{SHOTS[0].caption}</p>
+              </figcaption>
+            </figure>
+          </Reveal>
 
-          {/* Workbench — in development */}
-          <Reveal as="article" delay={0.08}>
+          {/* SHOTS 1-2 — narrow, stacked into one column on lg+ */}
+          <div className="grid grid-cols-1 gap-5 lg:col-span-2">
+            {[SHOTS[1], SHOTS[2]].map((shot, i) => (
+              <Reveal key={shot.src} as="article" delay={0.06 + i * 0.04}>
+                <figure
+                  className="m-0 h-full overflow-hidden"
+                  style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
+                >
+                  <div
+                    className="relative"
+                    style={{ aspectRatio: '16 / 9', overflow: 'hidden', background: 'var(--d-bg-2)' }}
+                  >
+                    <Image
+                      src={shot.src}
+                      alt={shot.title}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 33vw"
+                      style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                    />
+                  </div>
+                  <figcaption style={{ padding: '14px 18px' }}>
+                    <h3 className="mb-1" style={feat.title}>
+                      {shot.title}
+                    </h3>
+                    <p style={feat.caption}>{shot.caption}</p>
+                  </figcaption>
+                </figure>
+              </Reveal>
+            ))}
+          </div>
+
+          {/* Workbench — wide, in development. Spans full width on lg+ so it
+              reads as a milestone, not a peer. */}
+          <Reveal as="article" className="lg:col-span-6" delay={0.18}>
             <figure
               className="m-0 h-full overflow-hidden"
               style={{ background: 'var(--d-card)', border: '0.5px solid var(--d-line)', borderRadius: 14 }}
@@ -150,7 +185,7 @@ export function FeaturesGrid() {
               <div
                 className="relative flex items-center justify-center"
                 style={{
-                  aspectRatio: '16 / 11',
+                  aspectRatio: '32 / 9',
                   overflow: 'hidden',
                   background:
                     'radial-gradient(120% 120% at 50% 0%, rgba(16,185,129,0.10), transparent 60%), var(--d-bg-2)',

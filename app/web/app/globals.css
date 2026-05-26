@@ -1,5 +1,6 @@
-/* Reading Room type: Spectral (editorial serif display, non-reflex) + Inter (body) + JetBrains Mono (HGVS). */
-@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Reading Room type — Spectral (display) / Inter (body) / JetBrains Mono (HGVS)
+   are loaded via next/font in `app/layout.tsx`; the font CSS vars (--display,
+   --body, --mono) are injected on <html> from there. */
 @import "tailwindcss";
 
 @theme inline {
@@ -158,11 +159,10 @@
   --ease-emphasized: cubic-bezier(.3, 0, 0, 1);   /* disclosure / focal reveals */
   --ease-exit:       cubic-bezier(.4, 0, 1, 1);   /* accelerate — exits */
 
-  /* Display = editorial serif (Spectral), heading-role text only (gene name, running
-     heads, hero, section/card titles). Never set on 13-15px body or tables. */
-  --display: 'Spectral', Georgia, 'Times New Roman', serif;
-  --body:    'Inter', system-ui, sans-serif;
-  --mono:    'JetBrains Mono', ui-monospace, monospace;
+  /* Display = editorial serif (Spectral, display-only >=24px), body = Inter,
+     mono = JetBrains Mono (HGVS / coords). These CSS vars are set by next/font
+     on <html> in `app/layout.tsx`; the assignments here would shadow them, so
+     they're intentionally absent. Fallback stacks are passed to next/font. */
 
   /* === BACKWARD-COMPAT (old App.tsx) === */
   --canvas:     #f4f8f8;
