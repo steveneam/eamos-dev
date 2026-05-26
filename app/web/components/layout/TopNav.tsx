@@ -11,9 +11,11 @@ interface TopNavProps {
 export function TopNav({ children, right, className }: TopNavProps) {
   return (
     <div
-      className={cn('sticky top-0 z-50 backdrop-blur', className)}
+      className={cn('sticky top-0 z-50', className)}
       style={{
-        background: 'rgba(255,255,255,0.85)',
+        // Opaque warm-paper — backdrop-filter:blur on a sticky element repaints
+        // on every keystroke anywhere on the page (mobile typing lag).
+        background: 'rgba(252,249,243,0.97)',
         borderBottom: '0.5px solid var(--line)',
       }}
     >

@@ -26,7 +26,9 @@ const TONES = {
     glowHover: '0 20px 60px -28px rgba(0,0,0,0.6), 0 0 0 4px rgba(52,211,153,0.08)',
     borderHover: 'var(--hero-ink-3)',
     sendDeep: 'var(--em-deep)',
-    backdrop: 'blur(10px)',
+    // backdrop:none — the bg (--hero-glass2) is already opaque OKLCH, so blur
+    // only buys per-keystroke repaints (mobile typing lag) with no visible gain.
+    backdrop: 'none',
   },
   light: {
     bg: 'var(--bg)',

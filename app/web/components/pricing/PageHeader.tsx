@@ -17,9 +17,10 @@ export function PageHeader({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
       style={
         dark
           ? {
-              background: 'rgba(4,22,16,0.92)',
+              // Opaque dark — backdrop-filter:blur on a sticky nav repaints on
+              // every keystroke (mobile typing lag).
+              background: 'rgb(4,22,16)',
               borderBottom: '0.5px solid var(--hero-line)',
-              backdropFilter: 'blur(8px)',
               height: 'var(--nav-h)',
               display: 'flex',
               alignItems: 'center',
