@@ -19,10 +19,17 @@ function formatWarning(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
 }
 
+// Sticky TopNav is 60px; leave a small breathing buffer so the target heading
+// lands just below the nav, not under it.
+const SCROLL_OFFSET = 68
+
 function scrollToInteraction(card: ReportCallCard) {
   const targetId = card.interaction?.target_panel_id ?? card.interaction?.target_section_id
   if (!targetId || typeof document === 'undefined') return
-  document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const el = document.getElementById(targetId)
+  if (!el) return
+  const top = el.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET
+  window.scrollTo({ top, behavior: 'smooth' })
 }
 
 function cardCanNavigate(card: ReportCallCard): boolean {
