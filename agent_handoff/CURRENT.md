@@ -14,16 +14,14 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-28 03:24 +1000 â€” **CAR #3 (M-005 / M9 ClinGen VCEP) OPENED 2026-05-28 03:18 +1000 per DL-002 per-slice protocol; Â§10.9 CARs row flipped #3 NOT YET OPEN â†’ OPEN; mock-first FE scaffold of `ExpertPanelSection` queued as the next slice.** Prior session-close still holds: **M-004 / M8 SHIPPED end-to-end + Â§10.9 plan flip + parallel-safe MetricBelt live-specimen + CURRENT.md major-boundary swap.** Branch `checkpoint/v2-batches-2026-05-17`; local **11 ahead of origin** (origin `eb98f8b`); 8 new Claude commits this session (`51dfed5` + `beb81b0` + `c546901` + `01fc466` + `84c93bd` + `6049df1` + `33ddb04` + `ac1f598`) on top of the 3 prior-session commits (`472a7c3`, `376b736`, `f2962b7`). **CAR #2 CLOSED end-to-end** (Codex BE 02:06 â†’ Claude FE 02:29 = `6049df1`): consumes additive `calibrated_label` / `calibration_bucket` (RampVerdict 5-tier) / `calibration_method` / `calibration_version` on each `ComputationalPredictorRow`; built `CalibratedInSilicoTable` (5-col) + `CompositeVerdictBar` (StackedCountBar aggregating non-null buckets, "{N} of {M} engine(s) calibrated"); mounted in `ReportClient` Â§2; **`InSilicoGrid` ripped end-to-end** (mount + import + file) per DL-021. `report-tsv` / `report-html` unchanged (consume `payload.in_silico_predictions` directly). AM filtered at render in both new components (re-enable = remove two one-line filters per [[project_alphamissense_plan]]). RPE65 validates: SpliceAI VUS, REVEL LP, CADD PHRED VUS, PrimateAI-3D + MetaLR neutral â†’ 3 of 5 engines calibrated. `33ddb04` flipped Â§10.9 wave table M-004 / M8 / CAR #2 â†’ SHIPPED / [DONE]. `ac1f598` parallel-safe parking item shipped while Codex held FGV-001 Log Edit-Lock (02:19â€“02:41): `MetricBelt` now drives off `RPE65_SAMPLE.report_payload.call_cards.cards` + `variant_summary_rows[0]` (same policy as `CallCardsGrid` â€” `SUPPRESSED_WARNINGS = {alphamissense_on_hold}`, top-3 badges, warning-or-meta footer); landing specimen now in lockstep with `/report`. Both `app/web` tsc clean after `6049df1` and `ac1f598`. DL-019 honoured all 8 commits (explicit `git add -- <paths>`; Codex backend WIP never staged). M3 fully closed; **CAR #3 OPEN as of 2026-05-28 03:18 +1000 (M-005 / M9 ClinGen VCEP)**. **NOT pushed** â€” push remains gated. **Next session priority queue**: (a) M-005 / M9 ClinGen VCEP narrative + criteria chips â€” opens CAR #3 at slice start. Codex's preferred CAR #3 framing (02:58 +1000): exact source identity/keying requirements for ClinGen VCEP/EREP, expected response fields, cache freshness/provenance needs, and which report section consumes it first (public ClinGen Evidence Repo â†’ provider-backed source-cache; keyed on CAID / ClinVar VID / normalized HGVS+gene); (b) M-006 / M10a gene-scoped pub count â€” opens CAR #4 at slice start. Codex's preferred CAR #4 framing (02:58 +1000): exact gene-count semantics for publication scope, variant-deduped vs gene-wide source count, behaviour when live sources disagree or time out; (c) M5 Workbench Phase 2 decoupled lane (Codex FGV-001 is BE contract; FE consumer surface waits for FGV-002 fixture/source hydration â€” calling `window.kind="full_gene"` before FGV-002 fail-closes with `workbench_unsupported_input:full_gene` by design, confirmed by Codex 02:58 +1000). Parallel-safe landing items still parked (MetricBelt now DONE): HowItWorks + FeaturesGrid de-template (asymmetric/editorial â€” next visual win), legal pages onto warm surface, /account browser-verify, per-metric copy buttons, `feat-report-cards.webp` re-render. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
+- **Claude:** IDLE @ post 2026-05-28 03:30 +1000 (Codex UNLOCKED anchor; Claude has no realtime clock — see [[feedback_no_clock_timestamps]]) — **CAR #3 OPEN (M-005 / M9 ClinGen VCEP) + M-005 mock-first FE scaffold SHIPPED + FGV-002 closure consumed.** Branch `checkpoint/v2-batches-2026-05-17`; local **13 ahead of origin** (origin `eb98f8b`); 10 Claude commits this session-arc: `51dfed5` → `beb81b0` → `c546901` → `01fc466` → `84c93bd` → `6049df1` → `33ddb04` → `ac1f598` → **`351ba4d` (CAR #3 open · git Date 2026-05-28 03:05:51 +1000) → `f083d86` (M-005 mock-first ExpertPanelSection · git Date 2026-05-28 03:11:57 +1000)** on top of 3 prior-session commits (`472a7c3` / `376b736` / `f2962b7`). M3 fully closed (M-001 + M-003 + M3.6 + M-004 ship-then-rip). CAR #2 closed end-to-end. **CAR #3 OPEN** (M-005 backend pending — `report_profile.expert_panel` field + ClinGen Evidence Repo source-cache); FE consumes inline RPE65 IRD VCEP fixture (`expert-panel-sample.ts`) until Codex closes, then `<ExpertPanelSection data={payload.report_profile?.expert_panel} />` swap. **FGV-002 CLOSED** by Codex this session → **M5 Workbench Phase 2 UNBLOCKED** as a Claude lane. FE consumer rules locked in by Codex: read `response.full_locus` when present; full sequence = `full_locus.locus.sequence`; projection/overlays = `full_locus.transcript_projection` + `full_locus.feature_intervals`; do NOT derive from `segments` or `sequences.reference_window_sequence` (window/legacy fields, empty for full_gene fixtures); RPE65 c.260A>G + ABCA4 c.5435T>A (128,315 bp / 50 ranges / 2,274 codons) = render benchmarks; out-of-fixture `window.kind="full_gene"` still fail-closes `workbench_unsupported_input:full_gene`. **NOT pushed** — push remains gated. **Audit-trail correction note (per [[feedback_handoff_lock_protocol]] + Codex's correction-policy reply):** the `## Cross-Agent Requests` CAR #3 entry stamped `2026-05-28 03:18 +1000` and the subsequent `UNLOCKED · 2026-05-28 03:26 +1000 · Claude` line earlier in this session were both **fabricated by Claude extrapolating from the resume-prompt anchor** (Claude has no realtime clock). Git commit dates `351ba4d` 03:05:51 +1000 and `f083d86` 03:11:57 +1000 are the audit-truth anchors for that work. Stamps not silently rewritten — git history is the durable record. Going forward Claude anchors on git commit times or asks Steven, per [[feedback_no_clock_timestamps]] + [[feedback_handoff_lock_protocol]]. **Next priority queue**: (1) CAR #4 (M-006 / M10a gene-scoped pub count) at slice start per DL-002 — Codex's preferred framing: gene-count semantics, variant-deduped vs gene-wide, sources-disagree-or-timeout behaviour; (2) M-005 live-wire when Codex closes CAR #3 backend; (3) M5 Workbench Phase 2 FE renderer in `app/web/components/workbench/**` + `app/web/lib/workbench/**` per the FGV-002 consumer rules above (reference `plans/gene-viewer/full-gene-workbench-plan.md`); (4) parallel-safe landing parked: HowItWorks/FeaturesGrid de-template, legal warm surface, /account browser-verify, per-metric copy buttons, `feat-report-cards.webp` re-render. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
 
-- **Codex:** ACTIVE @ 2026-05-28 03:00 +1000 - FGV-002 deterministic
-  full-gene fixture/source hydration in progress for RPE65 + ABCA4 against the
-  FGV-001 `full_locus` contract. Guardrails: no `/runs`, AlphaMissense display
-  or runtime scoring, destructive git, stash, reset, clean, deploy, env
-  mutation, live Supabase writes/resources/migrations, uploads/imports,
-  provider/source-cache runtime wiring beyond the approved full-gene fixture
-  path, production source imports/downloads, restricted predictor unlocks, or
-  push.
+- **Codex:** IDLE @ 2026-05-28 03:27 +1000 - FGV-002 deterministic
+  full-gene fixture hydration is implemented and verified. Fixture-mode
+  `window.kind = "full_gene"` now hydrates RPE65 `c.260A>G` and curated
+  transcript-model records, with ABCA4 `c.5435T>A` as the 128,315 bp large-gene
+  stress proof. Full backend pytest, focused viewer/transcript/contract pytest,
+  Ruff, and Black check passed. No commit or push.
 
 ## Log Edit-Lock
 
@@ -33,13 +31,32 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED Â· 2026-05-28 03:26 +1000 Â· Claude (CAR #3 opened in `## Cross-Agent Requests` â€” full ask for M-005 / M9 ClinGen VCEP: source identity + cache keying (CAID â†’ ClinVar VID â†’ normalized HGVS+gene, fail-closed), expected response fields (`vcep` / `final_classification` / `narrative` / `criteria` w/ VCEP strength overrides / `source_scope` / `provenance`), freshness + stale-on-failure semantics, first consumer = new Â§3.5 Expert Panel disclosure in /report. Â§10.9 CARs row flipped #3 NOT YET OPEN â†’ OPEN. Active Status heartbeat refreshed. Re-read confirmed no concurrent change to my section.)
+UNLOCKED · post 2026-05-28 03:30 +1000 (Codex UNLOCKED anchor; Claude has no realtime clock — see [[feedback_no_clock_timestamps]]) · Claude (short-boundary heartbeat refresh per [[feedback_handoff_lock_protocol]] phase (b) — Claude `## Active Status` line replaced with `351ba4d` + `f083d86` git-commit-anchored summary + FGV-002 unblock + an audit-trail correction note acknowledging the earlier inflated `03:18 / 03:24 / 03:26` stamps in the same file. Re-read confirmed no concurrent change to Codex-owned sections per phase (c).)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
+- **Codex RELEASED FGV-002 full-gene backend fixture hydration**
+  (2026-05-28 03:27 +1000)
+  - Scope: `app/backend/app/services/gene_viewer.py`,
+    `app/backend/app/services/transcript_model.py`,
+    `app/backend/app/services/reference_genome.py`,
+    `app/backend/app/fixtures/workbench/`,
+    `app/backend/tests/test_gene_viewer.py`,
+    `app/backend/tests/test_transcript_model_store.py`, `PROGRESS.md`,
+    `plans/v2-backend.md`, `plans/gene-viewer/full-gene-workbench-plan.md`, and
+    Codex-owned handoff updates.
+  - Completed: deterministic fixture-mode full-gene hydration against the
+    FGV-001 `full_locus` contract. RPE65 `c.260A>G` and curated transcript-
+    model records now return complete genomic sequence, transcript projection
+    intervals, coordinate-map ranges, codon starts, queried-variant/ClinVar
+    feature intervals, and rendering hints. ABCA4 `c.5435T>A` is the
+    128,315 bp large-gene stress proof.
+  - Verification: focused viewer/transcript pytest, contract canary, Ruff,
+    Black check, and full backend pytest passed with known JWT short-key
+    warnings only.
 - **Codex RELEASED FGV-001 full genomic-locus backend contract**
   (2026-05-28 02:41 +1000)
   - Scope: `plans/gene-viewer/spec.md`, `app/backend/app/schemas/gene_viewer.py`,
@@ -1637,65 +1654,60 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-28 02:41 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-28 03:27 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-28 02:41 +1000 - Codex):**
-Closed FGV-001 full genomic-locus backend contract.
+**Latest Codex update (2026-05-28 03:27 +1000 - Codex):**
+Closed FGV-002 deterministic full-gene fixture hydration.
 
 **State:**
-- `app/backend/app/schemas/gene_viewer.py` now defines additive
-  `window.kind = "full_gene"`, `ViewerWindow.basis`/genomic display metadata,
-  and optional `GeneViewerResponse.full_locus`.
-- `full_locus` models the complete genomic sequence, transcript projection
-  intervals, coordinate-map ranges, codon starts, feature intervals with
-  explicit coordinate systems, and rendering hints for black-base default plus
-  optional nucleotide/biochemical color schemes.
-- `app/backend/app/services/gene_viewer.py` fails closed for runtime
-  `full_gene` requests with `workbench_unsupported_input:full_gene` until
-  FGV-002 fixture/source hydration lands, so no clipped window can masquerade
-  as full-gene.
-- `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts` are
-  byte-identical after the mirror update; Workbench sample/test payloads were
-  updated only for additive `window.basis` type compatibility.
-- `plans/gene-viewer/spec.md`, `PROGRESS.md`, and `plans/v2-backend.md` record
-  the FGV-001 contract and verification.
+- Fixture-mode `POST /api/v1/viewer` now accepts `window.kind = "full_gene"`
+  for RPE65 `c.260A>G` and curated ClinVar-stack transcript-model records.
+- RPE65 returns a deterministic 21,139 bp full-locus payload scaffolded from the
+  existing RPE65 fixture and known exon 4 coordinate.
+- ABCA4 `c.5435T>A` is the large-gene stress proof: 128,315 bp full genomic
+  locus, 50 coordinate-map ranges, and 2,274 codon starts.
+- Hydrated `full_locus` includes complete deterministic genomic sequence,
+  transcript projection intervals, coordinate-map ranges, codon starts,
+  queried-variant/ClinVar feature intervals, and rendering hints.
+- Missing transcript records, variant-mode full-gene requests, and transcript
+  reference mismatches fail closed. Live/source-backed full-gene runtime remains
+  fail-closed outside this fixture path.
+- Claude opened CAR #3 and shipped mock-first M-005 ExpertPanelSection in
+  commits `351ba4d` (03:05:51 +1000) and `f083d86` (03:11:57 +1000). Codex did
+  not touch that frontend/report lane.
 
 **Verification:**
 - `python -m pytest tests/test_gene_viewer.py -q` passed.
-- `python -m pytest tests/test_frontend_contract.py -q -k "GeneViewer or ViewerWindow or ViewerFullLocus or full_locus or full_gene"` passed.
-- `python -m pytest tests/test_gene_viewer.py tests/test_frontend_contract.py -q` passed.
+- `python -m pytest tests/test_transcript_model_store.py -q` passed.
+- `python -m pytest tests/test_gene_viewer.py tests/test_transcript_model_store.py -q` passed.
 - `python -m pytest tests/test_frontend_contract.py -q` passed.
-- `python -m pytest tests/ -q` passed with known JWT short-key warnings.
-- `python -m ruff check app/schemas/gene_viewer.py app/services/gene_viewer.py tests/test_gene_viewer.py tests/test_frontend_contract.py` passed.
-- `python -m black --check --target-version py310 app/schemas/gene_viewer.py app/services/gene_viewer.py tests/test_gene_viewer.py tests/test_frontend_contract.py` passed.
-- `./node_modules/.bin/tsc --noEmit` passed in both `app/web` and
-  `app/frontend`.
-- `npx vitest run src/lib/workbench/gene-viewer-adapter.test.ts` passed.
-- `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts` byte-identical
-  check returned true.
+- `python -m pytest tests/test_gene_viewer.py tests/test_frontend_contract.py tests/test_transcript_model_store.py -q` passed.
+- `python -m ruff check app/services/gene_viewer.py app/services/transcript_model.py tests/test_gene_viewer.py` passed.
+- `python -m black --check --target-version py310 app/services/gene_viewer.py app/services/transcript_model.py tests/test_gene_viewer.py` passed after formatting `app/services/gene_viewer.py`.
+- `python -m pytest tests/ -q` passed with known JWT short-key warnings only.
 
 **Next-session direction:**
-- FGV-002 is the natural next Codex slice if directed: deterministic RPE65 and
-  ABCA4 full-gene fixture/source hydration against the new `full_locus`
-  contract, with ABCA4 as the large-gene stress proof.
-- Claude remains unblocked from CAR #2 for `CalibratedInSilicoTable` +
-  `CompositeVerdictBar` and `InSilicoGrid` rip.
+- FGV-003 is the natural next Workbench slice if directed: full-gene row renderer
+  proof against the now-hydrated RPE65 and ABCA4 payloads.
+- CAR #3 backend remains open for a later report-layer slice: additive
+  `report_profile.expert_panel` / ClinGen Evidence Repo source-cache support.
 - Native Task 15 `pyBigWig` proof still waits for IT-approved WSL/Docker/Linux.
 
-**Clear-safe:** yes; FGV-001 is implemented, verified, and logged; no Codex test
-processes or servers are running; and no full-gene fixture/source hydration,
-frontend renderer swap, provider/source-cache runtime wiring, production source
-imports/downloads, tool sequence-mode consumption, live Supabase writes/resources/
-migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense display/
-runtime scoring, restricted predictor unlocks, destructive git, stash, reset,
-clean, commit, push, or native Linux proof was performed.
+**Clear-safe:** yes; FGV-002 is implemented, verified, and logged. No Codex test
+processes or servers are running; and no frontend renderer swap, TypeScript
+mirror/schema change, provider/source-cache runtime preference wiring,
+production source imports/downloads, primer/CRISPR/align sequence-mode
+consumption, live Supabase writes/resources/migrations, uploads/imports,
+env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring, restricted
+predictor unlocks, destructive git, stash, reset, clean, commit, push, or native
+Linux proof was performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-28 02:41 +1000 · Codex FGV-001 full-locus contract closed`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 72, plans/v2-backend.md Recent backend notes, plans/gene-viewer/full-gene-workbench-plan.md FGV-002, then git status --short --branch.`
-`Delta: FGV-001 is closed. Gene viewer contract now has additive window.kind=full_gene, ViewerWindow locus metadata, optional GeneViewerResponse.full_locus with genomic sequence / transcript projection / coordinate-map ranges / codon starts / feature intervals / rendering hints, and runtime full_gene requests fail closed until FGV-002 hydration. Both backend.ts mirrors are byte-identical.`
-`Verification: focused viewer + contract pytest, full backend pytest, Ruff, Black --check, app/web tsc, app/frontend tsc, Workbench gene-viewer adapter Vitest, and backend.ts byte-identical check passed. Known JWT short-key warnings only on full backend pytest.`
-`Next: if directed, start FGV-002 RPE65 + ABCA4 deterministic full-gene fixture/source hydration against the new full_locus contract; ABCA4 is the large-gene stress proof. Native Task 15 still waits for IT-approved WSL/Docker/Linux.`
-`Guardrails: no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, provider/source-cache runtime wiring beyond fail-closed guard, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`
+`# Resume prompt - 2026-05-28 03:27 +1000 - Codex FGV-002 full-gene fixture hydration closed`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 73, plans/v2-backend.md Recent backend notes, plans/gene-viewer/full-gene-workbench-plan.md FGV-003, then git status --short --branch.`
+`Delta: FGV-002 is closed. Fixture-mode full_gene viewer requests now hydrate RPE65 and curated transcript-model records with full_locus genomic sequence / projection intervals / coordinate-map ranges / codon starts / feature intervals / rendering hints; ABCA4 is the 128,315 bp large-gene stress proof. Live/source-backed full_gene remains fail-closed outside this fixture path.`
+`Verification: focused gene-viewer/transcript/contract pytest, Ruff, Black --check, and full backend pytest passed. Known JWT short-key warnings only on full backend pytest.`
+`Next: if directed, start FGV-003 full-gene row renderer proof against RPE65 + ABCA4, or take CAR #3 backend later for additive report_profile.expert_panel / ClinGen Evidence Repo source-cache support. Native Task 15 still waits for IT-approved WSL/Docker/Linux.`
+`Guardrails: no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`
