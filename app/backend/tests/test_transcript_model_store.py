@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
+
+import pytest
 
 from app.services.transcript_model import (
     GENCODE_SOURCE_ID,
     MANE_SOURCE_ID,
+    TranscriptModelStoreError,
     TranscriptModelStore,
 )
 
@@ -78,6 +83,32 @@ def test_coordinate_map_identifies_reverse_strand_exon_and_cds_position() -> Non
     assert location.location.cds_position == 260
     assert location.location.intron_between_exons is None
     assert location.location.provenance.source_ids == (MANE_SOURCE_ID, GENCODE_SOURCE_ID)
+
+
+def test_coordinate_map_handles_exon_boundaries_on_both_strands() -> None:
+    store = TranscriptModelStore()
+
+    rpe65_genomic_high = store.map_coordinate(
+        gene="RPE65",
+        chrom="1",
+        position=68444897,
+    )
+    rpe65_genomic_low = store.map_coordinate(
+        gene="RPE65",
+        chrom="1",
+        position=68444805,
+    )
+    cftr_start = store.map_coordinate(gene="CFTR", chrom="7", position=117504253)
+    cftr_end = store.map_coordinate(gene="CFTR", chrom="7", position=117504363)
+
+    assert rpe65_genomic_high.location is not None
+    assert rpe65_genomic_high.location.cds_position == 232
+    assert rpe65_genomic_low.location is not None
+    assert rpe65_genomic_low.location.cds_position == 324
+    assert cftr_start.location is not None
+    assert cftr_start.location.cds_position == 54
+    assert cftr_end.location is not None
+    assert cftr_end.location.cds_position == 164
 
 
 def test_coordinate_map_identifies_introns_in_transcript_order() -> None:
@@ -163,3 +194,51 @@ def test_missing_gene_and_transcript_return_structured_unavailable_state() -> No
     assert missing_transcript.model is None
     assert missing_transcript.unavailable_reason == "transcript_not_found"
     assert missing_transcript.warnings == ("transcript_model_transcript_not_found",)
+
+
+def test_malformed_transcript_fixture_rejects_invalid_strand(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "bad_transcript_model.json"
+    _write_transcript_fixture(
+        fixture_path,
+        [
+            {
+                "gene": "RPE65",
+                "refseq_transcript": "NM_000329.3",
+                "ensembl_transcript": "ENST00000262340.6",
+                "transcript_aliases": ["NM_000329.3", "MANE Select"],
+                "chrom": "1",
+                "strand": "?",
+                "exons": [
+                    {
+                        "number": 1,
+                        "cds_start": 1,
+                        "cds_end": 3,
+                        "genomic_start": 100,
+                        "genomic_end": 102,
+                    }
+                ],
+            }
+        ],
+    )
+
+    with pytest.raises(TranscriptModelStoreError) as exc_info:
+        TranscriptModelStore(fixture_path)
+
+    assert exc_info.value.code == "invalid_strand"
+    assert exc_info.value.details == {"gene": "RPE65", "strand": "?"}
+
+
+def _write_transcript_fixture(path: Path, transcripts: list[dict[str, object]]) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "metadata": {
+                    "fixture_version": "test",
+                    "genome_build": "GRCh38",
+                    "source_ids": [MANE_SOURCE_ID, GENCODE_SOURCE_ID],
+                },
+                "transcripts": transcripts,
+            }
+        ),
+        encoding="utf-8",
+    )

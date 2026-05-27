@@ -135,6 +135,35 @@ def test_no_hit_local_sources_remain_visible_and_do_not_substitute_fixture_recor
     assert any(token == f"{CLINVAR_SOURCE_ID}:no_record" for token in bundle.provenance)
 
 
+def test_malformed_variant_alleles_fail_closed_before_local_source_composition() -> None:
+    orchestrator = LocalEvidenceOrchestrator()
+
+    direct = orchestrator.resolve_variant(
+        gene="RPE65",
+        chrom="1",
+        position=68444869,
+        ref="T",
+        alt="<DEL>",
+    )
+    variant_id = orchestrator.resolve_variant_id("1-68444869-T-R")
+
+    assert direct.available is False
+    assert direct.unavailable_reason == "invalid_allele"
+    assert direct.warnings == ("local_evidence_invalid_allele",)
+    assert direct.variant_identity is None
+    assert direct.dbsnp is None
+    assert direct.clinvar is None
+    assert direct.transcript_coordinate is None
+    assert direct.repeatmasker is None
+    assert direct.sequence_context is None
+
+    assert variant_id.available is False
+    assert variant_id.unavailable_reason == "invalid_variant_id"
+    assert variant_id.variant_identity is None
+    assert variant_id.dbsnp is None
+    assert variant_id.clinvar is None
+
+
 def test_local_orchestrator_has_no_public_contract_surface() -> None:
     assert not issubclass(LocalEvidenceBundle, BaseModel)
     assert not issubclass(LocalEvidenceVariantIdentity, BaseModel)
@@ -201,6 +230,23 @@ def test_local_evidence_runtime_gate_rejects_unknown_flows_fail_closed() -> None
     assert gate.for_flow("not-a-flow").enabled is False
     assert gate.for_flow("not-a-flow").reason == "local_evidence_unknown_flow"
     assert "local_evidence_unknown_configured_flow:unknown_flow" in gate.warnings
+
+
+def test_local_evidence_runtime_gate_normalizes_and_dedupes_allowed_flows() -> None:
+    gate = LocalEvidenceRuntimeGate.from_settings(
+        Settings(
+            jwt_secret="test-secret",
+            local_evidence_enabled=True,
+            local_evidence_allowed_flows_raw=" Lookup,lookup,gene-viewer ",
+            local_evidence_require_real_apis=False,
+            use_real_apis=False,
+        )
+    )
+
+    assert gate.allowed_flows == ("lookup", "gene_viewer")
+    assert gate.for_flow("LOOKUP").enabled is True
+    assert gate.for_flow("gene-viewer").enabled is True
+    assert gate.for_flow("search").reason == "local_evidence_flow_not_enabled"
 
 
 class _Rpe65ReferenceStore:

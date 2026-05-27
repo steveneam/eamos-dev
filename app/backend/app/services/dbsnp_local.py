@@ -89,9 +89,32 @@ class DbSnpLocalStore:
             self._vcf_path,
             provenance=self._source_provenance,
         )
-        self._records_by_rsid = {_normalize_rsid(record.rsid): record for record in self._records}
+        self._records_by_rsid: dict[str, DbSnpLocalRecord] = {}
         self._records_by_variant_key: dict[tuple[str, int, str, str], list[DbSnpLocalRecord]] = {}
         for record in self._records:
+            normalized_rsid = _normalize_rsid(record.rsid)
+            existing_rsid_record = self._records_by_rsid.get(normalized_rsid)
+            if existing_rsid_record is not None:
+                raise DbSnpLocalError(
+                    "duplicate_dbsnp_rsid",
+                    "dbSNP fixture has duplicate rsID identities",
+                    {
+                        "rsid": normalized_rsid,
+                        "first_variant_id": _gnomad_variant_id(
+                            existing_rsid_record.chrom,
+                            existing_rsid_record.position,
+                            existing_rsid_record.ref,
+                            existing_rsid_record.alts[0],
+                        ),
+                        "second_variant_id": _gnomad_variant_id(
+                            record.chrom,
+                            record.position,
+                            record.ref,
+                            record.alts[0],
+                        ),
+                    },
+                )
+            self._records_by_rsid[normalized_rsid] = record
             for identity in record.allele_identities:
                 self._records_by_variant_key.setdefault(
                     _variant_key(identity.chrom, identity.position, identity.ref, identity.alt),
@@ -351,9 +374,21 @@ def _parse_info(value: str, *, row_number: int) -> dict[str, str]:
         if not item:
             continue
         if "=" not in item:
+            if item in info:
+                raise DbSnpLocalError(
+                    "malformed_dbsnp_vcf_row",
+                    "dbSNP VCF row has duplicate INFO keys",
+                    {"row": row_number, "field": item},
+                )
             info[item] = "true"
             continue
         key, raw = item.split("=", 1)
+        if key in info:
+            raise DbSnpLocalError(
+                "malformed_dbsnp_vcf_row",
+                "dbSNP VCF row has duplicate INFO keys",
+                {"row": row_number, "field": key},
+            )
         info[key] = raw
     return info
 

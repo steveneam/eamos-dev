@@ -40,6 +40,21 @@ def test_tiny_fixture_returns_repeat_overlaps_and_no_hit_windows() -> None:
     assert no_hit.repeats == ()
 
 
+def test_repeat_overlap_boundaries_are_inclusive() -> None:
+    store = RepeatMaskerLocalStore()
+
+    start_edge = store.query_window(chrom="1", start=101, end=101)
+    end_edge = store.query_window(chrom="1", start=130, end=130)
+    just_after = store.query_window(chrom="1", start=131, end=131)
+
+    assert start_edge.available is True
+    assert len(start_edge.repeats) == 1
+    assert end_edge.available is True
+    assert len(end_edge.repeats) == 1
+    assert just_after.available is True
+    assert just_after.repeats == ()
+
+
 def test_unknown_contig_and_invalid_window_fail_closed() -> None:
     store = RepeatMaskerLocalStore()
 

@@ -277,20 +277,30 @@ class LocalEvidenceOrchestrator:
                 warnings=("local_evidence_invalid_coordinates",),
                 unavailable_reason="invalid_coordinates",
             )
+        normalized_ref = _normalize_local_allele(ref)
+        normalized_alt = _normalize_local_allele(alt)
+        if normalized_ref is None or normalized_alt is None:
+            return LocalEvidenceBundle(
+                query_kind=query_kind,
+                submitted_query=submitted_query or f"{chrom}-{position}-{ref}-{alt}",
+                variant_identity=None,
+                warnings=("local_evidence_invalid_allele",),
+                unavailable_reason="invalid_allele",
+            )
 
         dbsnp_lookup = self.dbsnp_store.lookup_variant(
             chrom=chrom,
             position=position,
-            ref=ref,
-            alt=alt,
+            ref=normalized_ref,
+            alt=normalized_alt,
         )
         identity = LocalEvidenceVariantIdentity(
             chrom=_normalize_chrom(chrom),
             position=position,
-            ref=ref.strip().upper(),
-            alt=alt.strip().upper(),
-            variant_id=_variant_id(chrom, position, ref, alt),
-            genomic_hgvs=_refseq_genomic_hgvs(chrom, position, ref, alt),
+            ref=normalized_ref,
+            alt=normalized_alt,
+            variant_id=_variant_id(chrom, position, normalized_ref, normalized_alt),
+            genomic_hgvs=_refseq_genomic_hgvs(chrom, position, normalized_ref, normalized_alt),
             rsid=(
                 dbsnp_lookup.record.rsid if dbsnp_lookup.available and dbsnp_lookup.record else None
             ),
@@ -504,7 +514,11 @@ def _parse_variant_id(value: str) -> tuple[str, int, str, str] | None:
     if match is None:
         return None
     chrom, position, ref, alt = match.groups()
-    return chrom, int(position), ref.upper(), alt.upper()
+    normalized_ref = _normalize_local_allele(ref)
+    normalized_alt = _normalize_local_allele(alt)
+    if normalized_ref is None or normalized_alt is None:
+        return None
+    return chrom, int(position), normalized_ref, normalized_alt
 
 
 def _variant_id(chrom: str, position: int, ref: str, alt: str) -> str:
@@ -527,6 +541,13 @@ def _refseq_genomic_hgvs(chrom: str, position: int, ref: str, alt: str) -> str |
     if not 1 <= chrom_number <= 22:
         return None
     return f"NC_{chrom_number:06d}.11:g.{position}{ref.strip().upper()}>{alt.strip().upper()}"
+
+
+def _normalize_local_allele(value: str) -> str | None:
+    normalized = value.strip().upper()
+    if not normalized or any(base not in {"A", "C", "G", "T", "N"} for base in normalized):
+        return None
+    return normalized
 
 
 def _normalize_chrom(chrom: str) -> str:

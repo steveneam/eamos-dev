@@ -107,6 +107,44 @@ def test_no_hit_mismatch_and_invalid_queries_return_fail_closed_states() -> None
     assert invalid.warnings == ("dbsnp_local_invalid_rsid",)
 
 
+def test_records_at_rejects_invalid_coordinates_and_unknown_contigs() -> None:
+    store = DbSnpLocalStore()
+
+    with pytest.raises(DbSnpLocalError) as invalid_exc:
+        store.records_at("chr1", 0)
+    with pytest.raises(DbSnpLocalError) as unknown_exc:
+        store.records_at("chr7", 68444869)
+
+    assert invalid_exc.value.code == "invalid_coordinates"
+    assert invalid_exc.value.details == {"chrom": "chr1", "position": 0}
+    assert unknown_exc.value.code == "unknown_contig"
+    assert unknown_exc.value.details == {"requested_chrom": "chr7"}
+
+
+def test_store_rejects_duplicate_rsid_identities(tmp_path: Path) -> None:
+    duplicate_rsid = tmp_path / "dbsnp_duplicate_rsid.vcf"
+    duplicate_rsid.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "##fileDate=20260527",
+                "##assembly=GCF_000001405.40",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                "NC_000001.11\t101\trs1645931040\tA\tG\t.\t.\tdbSNPBuildID=155",
+                "NC_000001.11\t102\trs1645931040\tC\tT\t.\t.\tdbSNPBuildID=155",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DbSnpLocalError) as exc_info:
+        DbSnpLocalStore(duplicate_rsid)
+
+    assert exc_info.value.code == "duplicate_dbsnp_rsid"
+    assert exc_info.value.details["rsid"] == "rs1645931040"
+
+
 def test_parser_failures_are_structured_for_malformed_vcf_rows(tmp_path: Path) -> None:
     provenance = DbSnpLocalProvenance(
         source_id=DBSNP_SOURCE_ID,
@@ -148,7 +186,24 @@ def test_parser_failures_are_structured_for_malformed_vcf_rows(tmp_path: Path) -
     with pytest.raises(DbSnpLocalError) as bad_position_exc:
         parse_dbsnp_vcf(bad_position, provenance=provenance)
 
+    bad_duplicate_info = tmp_path / "bad_duplicate_info.vcf"
+    bad_duplicate_info.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                "1\t68444869\trs1645931040\tT\tC\t.\t.\tdbSNPBuildID=155;dbSNPBuildID=156",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(DbSnpLocalError) as duplicate_info_exc:
+        parse_dbsnp_vcf(bad_duplicate_info, provenance=provenance)
+
     assert missing_rsid_exc.value.code == "malformed_dbsnp_vcf_row"
     assert missing_rsid_exc.value.details == {"row": 3}
     assert bad_position_exc.value.code == "malformed_dbsnp_vcf_row"
     assert bad_position_exc.value.details == {"row": 3, "position": "bad"}
+    assert duplicate_info_exc.value.code == "malformed_dbsnp_vcf_row"
+    assert duplicate_info_exc.value.details == {"row": 3, "field": "dbSNPBuildID"}

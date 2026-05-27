@@ -71,6 +71,97 @@ def test_lookup_accepts_contig_alias_and_vcv_or_variation_id() -> None:
     assert by_variation_id.record == by_ncbi_contig.record
 
 
+def test_parser_canonicalizes_refseq_contigs_for_variant_identity(tmp_path: Path) -> None:
+    vcf_path = tmp_path / "clinvar_nc_contig.vcf"
+    vcf_path.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "##fileDate=20260523",
+                "##reference=GRCh38",
+                "##contig=<ID=NC_000001.11,length=248956422>",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "NC_000001.11\t101\t1421454\tA\tG\t.\t.\t"
+                    "VCV=1421454;CLNSIG=Likely_pathogenic;"
+                    "CLNREVSTAT=criteria_provided,_single_submitter;"
+                    "CLNDN=Leber_congenital_amaurosis_2;"
+                    "CLNHGVS=NC_000001.11:g.101A>G;GENEINFO=RPE65:6121"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    store = ClinVarLocalStore(vcf_path)
+    lookup = store.lookup(chrom="chr1", position=101, ref="a", alt="g")
+
+    assert lookup.available is True
+    assert lookup.record is not None
+    assert lookup.record.chrom == "1"
+    assert lookup.record.gnomad_variant_id == "1-101-A-G"
+    assert lookup.record.accession == "VCV001421454"
+    assert lookup.record.provenance.record_id == "VCV001421454"
+
+
+def test_store_rejects_duplicate_variant_and_accession_identities(tmp_path: Path) -> None:
+    duplicate_variant = tmp_path / "clinvar_duplicate_variant.vcf"
+    duplicate_variant.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "##fileDate=20260523",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "1\t101\t1421454\tA\tG\t.\t.\t"
+                    "VCV=1421454;CLNSIG=Uncertain_significance;"
+                    "CLNREVSTAT=criteria_provided,_single_submitter"
+                ),
+                (
+                    "1\t101\t1421455\tA\tG\t.\t.\t"
+                    "VCV=1421455;CLNSIG=Likely_pathogenic;"
+                    "CLNREVSTAT=criteria_provided,_single_submitter"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    duplicate_accession = tmp_path / "clinvar_duplicate_accession.vcf"
+    duplicate_accession.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "##fileDate=20260523",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "1\t101\t1421454\tA\tG\t.\t.\t"
+                    "VCV=1421454;CLNSIG=Uncertain_significance;"
+                    "CLNREVSTAT=criteria_provided,_single_submitter"
+                ),
+                (
+                    "1\t102\t1421454\tC\tT\t.\t.\t"
+                    "VCV=1421454;CLNSIG=Likely_pathogenic;"
+                    "CLNREVSTAT=criteria_provided,_single_submitter"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ClinVarLocalError) as duplicate_variant_exc:
+        ClinVarLocalStore(duplicate_variant)
+    with pytest.raises(ClinVarLocalError) as duplicate_accession_exc:
+        ClinVarLocalStore(duplicate_accession)
+
+    assert duplicate_variant_exc.value.code == "duplicate_clinvar_variant_identity"
+    assert duplicate_variant_exc.value.details["variant_id"] == "1-101-A-G"
+    assert duplicate_accession_exc.value.code == "duplicate_clinvar_accession"
+    assert duplicate_accession_exc.value.details["accession"] == "VCV001421454"
+
+
 def test_no_hit_mismatch_and_invalid_queries_return_fail_closed_states() -> None:
     store = ClinVarLocalStore()
 
@@ -135,7 +226,28 @@ def test_parser_failures_are_structured_for_malformed_vcf_rows(tmp_path: Path) -
     with pytest.raises(ClinVarLocalError) as bad_position_exc:
         parse_clinvar_vcf(bad_position, provenance=provenance)
 
+    bad_duplicate_info = tmp_path / "bad_duplicate_info.vcf"
+    bad_duplicate_info.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "1\t68444869\tVCV001421454\tT\tC\t.\t.\t"
+                    "CLNSIG=Uncertain_significance;CLNREVSTAT=criteria_provided;"
+                    "CLNSIG=Likely_pathogenic"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ClinVarLocalError) as duplicate_info_exc:
+        parse_clinvar_vcf(bad_duplicate_info, provenance=provenance)
+
     assert missing_info_exc.value.code == "malformed_clinvar_vcf_row"
     assert missing_info_exc.value.details == {"row": 3, "field": "CLNREVSTAT"}
     assert bad_position_exc.value.code == "malformed_clinvar_vcf_row"
     assert bad_position_exc.value.details == {"row": 3, "position": "bad"}
+    assert duplicate_info_exc.value.code == "malformed_clinvar_vcf_row"
+    assert duplicate_info_exc.value.details == {"row": 3, "field": "CLNSIG"}

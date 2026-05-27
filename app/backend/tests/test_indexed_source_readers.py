@@ -9,6 +9,8 @@ from app.services.indexed_sources import (
     PysamIndexedVcfReader,
     PyBigWigConservationReader,
     RepeatMaskerIndexedTable,
+    _build_alias_map,
+    _normalize_contig_alias,
     repeatmasker_path_decision,
 )
 
@@ -69,6 +71,38 @@ def test_pysam_reader_unknown_contig_and_invalid_window_fail_closed(tmp_path: Pa
     assert unknown_exc.value.details == {"requested_chrom": "chr7"}
     assert coordinate_exc.value.code == "invalid_coordinates"
     assert coordinate_exc.value.details == {"chrom": "1", "start": 102, "end": 101}
+
+
+def test_pybigwig_reader_rejects_missing_file_before_import(tmp_path: Path) -> None:
+    missing_path = tmp_path / "missing_phylop.bw"
+
+    with pytest.raises(IndexedSourceError) as exc_info:
+        PyBigWigConservationReader(missing_path)
+
+    assert exc_info.value.code == "missing_bigwig_file"
+    assert exc_info.value.details == {"path": str(missing_path)}
+
+
+def test_indexed_alias_map_canonicalizes_refseq_nc_contigs_without_native_readers() -> None:
+    aliases = _build_alias_map(["1", "X", "Y", "M"])
+
+    assert aliases["1"] == "1"
+    assert aliases[_normalize_contig_alias("NC_000001.11")] == "1"
+    assert aliases["X"] == "X"
+    assert aliases[_normalize_contig_alias("NC_000023.11")] == "X"
+    assert aliases["Y"] == "Y"
+    assert aliases[_normalize_contig_alias("NC_000024.10")] == "Y"
+    assert aliases["M"] == "M"
+    assert aliases[_normalize_contig_alias("NC_012920.1")] == "M"
+
+
+def test_indexed_alias_map_rejects_duplicate_ncbi_contig_aliases() -> None:
+    with pytest.raises(IndexedSourceError) as exc_info:
+        _build_alias_map(["1", "NC_000001.11"])
+
+    assert exc_info.value.code == "duplicate_contig_alias"
+    assert exc_info.value.details["first_contig"] == "1"
+    assert exc_info.value.details["second_contig"] == "NC_000001.11"
 
 
 def test_pybigwig_reader_returns_position_score_and_window_summary(tmp_path: Path) -> None:

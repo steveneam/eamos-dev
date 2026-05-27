@@ -99,6 +99,21 @@ def test_manifest_flags_staging_and_actual_size_rules() -> None:
     assert phylop.needs_actual_size_check is False
 
 
+def test_phylop_plan_stays_reader_proof_only_until_explicit_approval() -> None:
+    readiness = {item.source_id: item for item in build_post_reference_source_readiness()}
+
+    phylop = readiness["ucsc_phylop100way_hg38"]
+
+    assert phylop.files_or_api == ("hg38.phyloP100way.bw",)
+    assert phylop.adapter == "pyBigWig_after_compatibility_proof"
+    assert phylop.download_approved is False
+    assert phylop.ready_for_download_or_import is False
+    assert "reader_compatibility_proof" in phylop.missing_requirements
+    assert "explicit_download_or_import_approval" in phylop.missing_requirements
+    assert phylop.checksum_plan is not None
+    assert "md5sum.txt" in phylop.checksum_plan
+
+
 def test_manifest_marks_supabase_and_repo_assets_backend_owned() -> None:
     readiness = build_post_reference_source_readiness()
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import struct
 from pathlib import Path
@@ -60,6 +61,33 @@ def test_chromosome_aliases_resolve_when_present_in_fixture_metadata() -> None:
     assert store.get_sequence("NC_000001.11", 1, 4).sequence == "ACGT"
     assert store.get_sequence("chrM", 1, 4).sequence == "GATT"
     assert store.get_sequence("MT", 1, 4).sequence == "GATT"
+
+
+def test_fixture_store_rejects_duplicate_canonical_chromosomes(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "duplicate_chromosome.json"
+    fixture_path.write_text(
+        json.dumps(
+            {
+                "metadata": {
+                    "source_id": LOCAL_HG38_2BIT_SOURCE_ID,
+                    "genome_build": "GRCh38",
+                    "source_version": "test",
+                    "reader": "fixture_json",
+                },
+                "chromosomes": {
+                    "1": {"aliases": ["1", "chr1"], "sequence": "ACGT"},
+                    "chr1": {"aliases": ["NC_000001.11"], "sequence": "TGCA"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReferenceGenomeStoreError) as exc_info:
+        ReferenceGenomeStore(fixture_path)
+
+    assert exc_info.value.code == "duplicate_chromosome_alias"
+    assert exc_info.value.details == {"chrom": "chr1", "canonical_chrom": "1"}
 
 
 def test_validate_reference_base_reports_match_and_mismatch() -> None:

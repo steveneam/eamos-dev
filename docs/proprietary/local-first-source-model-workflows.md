@@ -4,7 +4,7 @@ Status: Active backend prototype
 Type: Source-model workflow / local adapter pattern
 Owner: Codex backend
 Added: 2026-05-27 22:11 +1000 - Codex
-Last updated: 2026-05-27 23:00 +1000 - Codex
+Last updated: 2026-05-28 01:24 +1000 - Codex
 
 ## What It Does
 
@@ -111,6 +111,14 @@ novel unless a separate prior-art review is performed.
   local-store preference is disabled by default, requires explicit flow opt-in
   for `lookup`, `search`, `gene_viewer`, or `workbench`, and by default also
   requires `use_real_apis=True` before a runtime path can prefer local stores.
+- Local evidence hardening:
+  malformed local alleles fail closed before source-model composition, runtime
+  gate flow tokens normalize/dedupe before decisions, ClinVar RefSeq contigs
+  canonicalize to gnomAD-style chromosome IDs, and local source fixtures now
+  have edge-case coverage for parser failures, provenance, alias boundaries, and
+  no-public-contract behavior. ClinVar and dbSNP VCF fixture parsing also fails
+  closed on duplicate INFO keys and duplicate source identities instead of
+  silently overwriting local records.
 - dbSNP:
   `rs1645931040` resolves to `1-68444869-T-C`; multiallelic `rs1801133`
   returns both allele identities instead of choosing one.
@@ -131,6 +139,10 @@ Focused verification passed on 2026-05-27:
   checks.
 - ClinVar, dbSNP, RepeatMasker, indexed-reader, search-resolver, and
   variant-search integration tests.
+- Local-first hardening tests for reference duplicate aliases, transcript
+  boundary mapping, clinical parser edge cases, ClinVar `NC_` normalization,
+  ClinVar/dbSNP duplicate local identities, dbSNP/RepeatMasker fail-closed
+  boundaries, phyloP proof/approval gates, and runtime-gate flow normalization.
 - Ruff and Black checks for the touched backend services and tests.
 
 Native `pysam` VCF/tabix and `pyBigWig` proofs remain Windows-host blocked and

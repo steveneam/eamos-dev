@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.data_sources import LOCAL_HG38_2BIT_SOURCE_ID
 from app.services.reference_genome import ReferenceGenomeStore
 from app.services.sequence_window_model import (
@@ -163,3 +165,34 @@ def test_unsupported_allele_returns_unavailable_state_without_reference_read() -
     assert context.warnings == (UNSUPPORTED_VARIANT_ALLELE,)
     assert context.unavailable_reason == UNSUPPORTED_VARIANT_ALLELE
     assert context.provenance is not None
+
+
+def test_unsupported_reference_allele_returns_unavailable_state() -> None:
+    builder = LocalSequenceWindowBuilder(ReferenceGenomeStore(), flank_bp=4)
+
+    context = builder.build(
+        chrom="1",
+        position=8,
+        reference_allele="R",
+        alternate_allele="G",
+    )
+
+    assert context.reference_window is None
+    assert context.reference_base_check is None
+    assert context.variant_window is None
+    assert context.warnings == (UNSUPPORTED_VARIANT_ALLELE,)
+    assert context.unavailable_reason == UNSUPPORTED_VARIANT_ALLELE
+    assert context.provenance is not None
+
+
+def test_negative_per_call_flank_is_rejected() -> None:
+    builder = LocalSequenceWindowBuilder(ReferenceGenomeStore(), flank_bp=4)
+
+    with pytest.raises(ValueError, match="flank_bp must be non-negative"):
+        builder.build(
+            chrom="1",
+            position=8,
+            reference_allele="T",
+            alternate_allele="C",
+            flank_bp=-1,
+        )

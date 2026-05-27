@@ -496,6 +496,12 @@ def _parse_chromosomes(fixture: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
             )
         aliases = _required_string_tuple(payload.get("aliases"), f"chromosomes.{chrom}.aliases")
         canonical_chrom = _normalize_chromosome_alias(str(chrom))
+        if canonical_chrom in chromosomes:
+            raise ReferenceGenomeStoreError(
+                "duplicate_chromosome_alias",
+                f"duplicate canonical chromosome in reference fixture: {chrom}",
+                {"chrom": chrom, "canonical_chrom": canonical_chrom},
+            )
         chromosomes[canonical_chrom] = {"aliases": aliases, "sequence": sequence}
     if not chromosomes:
         raise ReferenceGenomeStoreError(

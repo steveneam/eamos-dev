@@ -128,6 +128,11 @@ Codex. Native Linux VCF/bigWig proof attempted again 2026-05-27 18:26 +1000:
 WSL is not installed, Docker Desktop local engine returned HTTP 500 on both
 contexts after start/restart attempts, and user will seek IT approval for
 Docker on 2026-05-28. No production assets were downloaded or imported.
+Native proof retry 2026-05-28 01:24 +1000 with user approval is still blocked:
+WSL remains uninstalled, Docker engines return HTTP 500, and starting the
+Docker service is not permitted from this session. Hardening added shared
+`NC_` RefSeq contig canonicalization plus duplicate alias-map coverage without
+native readers.
 
 ### Goal
 
@@ -317,6 +322,12 @@ changes, and live provider wiring.
 
 ## Task 12 - ClinVar VCF Local Adapter
 
+Status: DONE 2026-05-27 20:19 +1000 - Codex. Hardening added 2026-05-28
+01:24 +1000: duplicate INFO keys, duplicate variant identities, and duplicate
+VCV/Variation ID identities now fail closed instead of silently overwriting
+local fixture records. No production ClinVar download/import or runtime
+provider replacement.
+
 ### Goal
 
 Implement a fixture-first local ClinVar VCF adapter for classification,
@@ -367,7 +378,9 @@ replacement.
 
 Status: DONE 2026-05-27 21:52 +1000 - Codex. Fixture-first adapter
 implemented; no production GCF download/import, resolver rewiring, Supabase
-upload/import, or source-cache wiring.
+upload/import, or source-cache wiring. Hardening added 2026-05-28 01:24
++1000: duplicate INFO keys and duplicate rsID identities now fail closed
+instead of silently overwriting local fixture records.
 
 ### Goal
 
@@ -482,6 +495,15 @@ Full `rmsk.bb` download, frontend warnings, primer/CRISPR rewiring, and
 Supabase Storage.
 
 ## Task 15 - phyloP Conservation Reader Proof
+
+Status: PLANNED / native proof blocked on this Windows host. Hardening pass
+2026-05-27 23:57 +1000 added missing-bigWig fail-closed coverage before
+`pyBigWig` import and a manifest gate proving phyloP remains
+reader-proof/download-approval gated. No production phyloP download/upload or
+native `pyBigWig` proof was performed.
+Retry 2026-05-28 01:24 +1000 with user approval remains infrastructure-blocked:
+WSL is not installed, Docker engines return HTTP 500, and starting the Docker
+service is not permitted from this session.
 
 ### Goal
 
@@ -601,6 +623,9 @@ provider evidence.
 - The gate allows only known runtime flows (`lookup`, `search`, `gene_viewer`,
   `workbench`), supports `all`, rejects unknown configured or requested flows
   fail-closed, and remains unused by current runtime services.
+- Hardening pass added 2026-05-27 23:57 +1000: malformed local alleles now fail
+  closed before dbSNP/ClinVar/transcript/RepeatMasker/sequence composition, and
+  runtime-gate configured flow tokens are normalized/deduped under test.
 - This is deliberately not wired into `/api/v1/lookup`, `/api/v1/viewer`,
   Workbench routes, source cache, live providers, or frontend schema mirrors.
 

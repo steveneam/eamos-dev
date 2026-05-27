@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from importlib import metadata as importlib_metadata
 import math
 from pathlib import Path
+import re
 from typing import Any, Iterable, Mapping
 
 
@@ -453,6 +454,17 @@ def _normalize_contig_alias(chrom: str) -> str:
     if normalized.lower().startswith("chr"):
         normalized = normalized[3:]
     normalized = normalized.upper()
+    ncbi_match = re.fullmatch(r"NC_0*(\d+)\.\d+", normalized)
+    if ncbi_match is not None:
+        chrom_number = int(ncbi_match.group(1))
+        if 1 <= chrom_number <= 22:
+            return str(chrom_number)
+        if chrom_number == 23:
+            return "X"
+        if chrom_number == 24:
+            return "Y"
+    if normalized == "NC_012920.1":
+        return "M"
     if normalized == "MT":
         return "M"
     return normalized

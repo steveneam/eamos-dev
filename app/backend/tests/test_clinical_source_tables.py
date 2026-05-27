@@ -103,6 +103,64 @@ def test_gencc_fixture_returns_assertion_submitter_disease_gene_and_source_date(
     assert record.provenance.source_id == GENCC_SOURCE_ID
 
 
+def test_hpoa_parser_skips_not_qualifiers_without_dropping_positive_rows(tmp_path: Path) -> None:
+    provenance = _test_provenance(tmp_path / "phenotype.hpoa")
+    hpoa = tmp_path / "phenotype.hpoa"
+    hpoa.write_text(
+        "\n".join(
+            [
+                (
+                    "#DatabaseID\tDiseaseName\tQualifier\tHPO_ID\tReference\tEvidence\tOnset\t"
+                    "Frequency\tSex\tModifier\tAspect\tBiocuration"
+                ),
+                "OMIM:1\tSkipped disease\tNOT\tHP:9999999\tPMID:1\tPCS\t\t\t\t\tP\tHPO:test",
+                "OMIM:2\tKept disease\t\tHP:0000001\tPMID:2\tPCS\t\t1/2\t\t\tP\tHPO:test",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    records = parse_phenotype_hpoa(
+        hpoa,
+        hpo_terms={"HP:0000001": "All"},
+        provenance=provenance,
+    )
+
+    assert len(records) == 1
+    assert records[0].disease_id == "OMIM:2"
+    assert records[0].hpo_id == "HP:0000001"
+    assert records[0].frequency == "1/2"
+
+
+def test_hpoa_parser_rejects_unknown_hpo_terms(tmp_path: Path) -> None:
+    provenance = _test_provenance(tmp_path / "phenotype.hpoa")
+    hpoa = tmp_path / "phenotype.hpoa"
+    hpoa.write_text(
+        "\n".join(
+            [
+                (
+                    "#DatabaseID\tDiseaseName\tQualifier\tHPO_ID\tReference\tEvidence\tOnset\t"
+                    "Frequency\tSex\tModifier\tAspect\tBiocuration"
+                ),
+                "OMIM:2\tBad disease\t\tHP:9999999\tPMID:2\tPCS\t\t\t\t\tP\tHPO:test",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ClinicalSourceTableError) as exc_info:
+        parse_phenotype_hpoa(
+            hpoa,
+            hpo_terms={"HP:0000001": "All"},
+            provenance=provenance,
+        )
+
+    assert exc_info.value.code == "unknown_hpo_term"
+    assert exc_info.value.details == {"row": 2, "hpo_id": "HP:9999999"}
+
+
 def test_parser_failures_are_structured_and_do_not_drop_malformed_rows(tmp_path: Path) -> None:
     provenance = _test_provenance(tmp_path / "fixture.txt")
 

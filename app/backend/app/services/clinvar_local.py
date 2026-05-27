@@ -84,14 +84,36 @@ class ClinVarLocalStore:
             self._vcf_path,
             provenance=self._source_provenance,
         )
-        self._records_by_key = {
-            _variant_key(record.chrom, record.position, record.ref, record.alt): record
-            for record in self._records
-        }
+        self._records_by_key: dict[tuple[str, int, str, str], ClinVarLocalRecord] = {}
         self._records_by_accession: dict[str, ClinVarLocalRecord] = {}
         for record in self._records:
+            key = _variant_key(record.chrom, record.position, record.ref, record.alt)
+            existing_key_record = self._records_by_key.get(key)
+            if existing_key_record is not None:
+                raise ClinVarLocalError(
+                    "duplicate_clinvar_variant_identity",
+                    "ClinVar fixture has duplicate variant identities",
+                    {
+                        "variant_id": record.gnomad_variant_id,
+                        "first_record_id": existing_key_record.record_id,
+                        "second_record_id": record.record_id,
+                    },
+                )
+            self._records_by_key[key] = record
             for accession in {record.accession, record.variation_id, record.record_id}:
-                self._records_by_accession[_normalize_accession(accession)] = record
+                normalized_accession = _normalize_accession(accession)
+                existing_accession_record = self._records_by_accession.get(normalized_accession)
+                if existing_accession_record is not None and existing_accession_record != record:
+                    raise ClinVarLocalError(
+                        "duplicate_clinvar_accession",
+                        "ClinVar fixture has duplicate accession or Variation ID identities",
+                        {
+                            "accession": normalized_accession,
+                            "first_variant_id": existing_accession_record.gnomad_variant_id,
+                            "second_variant_id": record.gnomad_variant_id,
+                        },
+                    )
+                self._records_by_accession[normalized_accession] = record
         self._contig_aliases = _build_alias_map(record.chrom for record in self._records)
 
     def provenance(self) -> ClinVarLocalProvenance:
@@ -299,9 +321,21 @@ def _parse_info(value: str, *, row_number: int) -> dict[str, str]:
         if not item:
             continue
         if "=" not in item:
+            if item in info:
+                raise ClinVarLocalError(
+                    "malformed_clinvar_vcf_row",
+                    "ClinVar VCF row has duplicate INFO keys",
+                    {"row": row_number, "field": item},
+                )
             info[item] = "true"
             continue
         key, raw = item.split("=", 1)
+        if key in info:
+            raise ClinVarLocalError(
+                "malformed_clinvar_vcf_row",
+                "ClinVar VCF row has duplicate INFO keys",
+                {"row": row_number, "field": key},
+            )
         info[key] = raw
     return info
 
@@ -477,6 +511,17 @@ def _normalize_contig_alias(chrom: str) -> str:
     if normalized.lower().startswith("chr"):
         normalized = normalized[3:]
     normalized = normalized.upper()
+    ncbi_match = re.fullmatch(r"NC_0*(\d+)\.\d+", normalized)
+    if ncbi_match is not None:
+        chrom_number = int(ncbi_match.group(1))
+        if 1 <= chrom_number <= 22:
+            return str(chrom_number)
+        if chrom_number == 23:
+            return "X"
+        if chrom_number == 24:
+            return "Y"
+    if normalized == "NC_012920.1":
+        return "M"
     if normalized == "MT":
         return "M"
     return normalized
