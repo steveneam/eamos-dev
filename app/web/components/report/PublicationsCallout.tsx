@@ -1,3 +1,6 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { PublicationsCallout as PublicationsCalloutData } from '@/lib/backend'
 
 interface PublicationsCalloutProps {
@@ -5,7 +8,21 @@ interface PublicationsCalloutProps {
   onAskSummary?: () => void
 }
 
+type PubScope = 'variant' | 'gene'
+
 export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutProps) {
+  const searchParams = useSearchParams()
+  const [scope, setScope] = useState<PubScope>(() => {
+    const param = searchParams.get('pubScope')
+    return param === 'gene' ? 'gene' : 'variant'
+  })
+
+  // Keep scope in sync if the URL param changes externally (e.g. browser back/forward)
+  useEffect(() => {
+    const param = searchParams.get('pubScope')
+    setScope(param === 'gene' ? 'gene' : 'variant')
+  }, [searchParams])
+
   if (!data) {
     return (
       <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '14px 0 0' }}>
@@ -24,43 +41,88 @@ export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutP
         marginTop: 14,
       }}
     >
+      {/* Scope toggle — inbound-only: URL param sets initial state; clicking does NOT push to URL (M-001 scope) */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        <button
+          type="button"
+          onClick={() => setScope('variant')}
+          className="eamos-toggle-btn"
+          style={scope === 'variant' ? { background: 'var(--bg-soft2)', borderColor: 'var(--ink-4)', color: 'var(--ink)' } : undefined}
+        >
+          Variant
+        </button>
+        <button
+          type="button"
+          onClick={() => setScope('gene')}
+          className="eamos-toggle-btn"
+          style={scope === 'gene' ? { background: 'var(--bg-soft2)', borderColor: 'var(--ink-4)', color: 'var(--ink)' } : undefined}
+        >
+          Gene
+        </button>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 13.5,
-              lineHeight: 1.55,
-              color: 'var(--ink-2)',
-            }}
-          >
-            <span
+          {scope === 'variant' ? (
+            <p
               style={{
-                fontFamily: 'var(--mono)',
-                fontWeight: 600,
-                color: 'var(--ink)',
-                marginRight: 6,
+                margin: 0,
+                fontSize: 13.5,
+                lineHeight: 1.55,
+                color: 'var(--ink-2)',
               }}
             >
-              {data.total_count.toLocaleString()} publications
-            </span>
-            {data.blurb}
-          </p>
+              <span
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontWeight: 600,
+                  color: 'var(--ink)',
+                  marginRight: 6,
+                }}
+              >
+                {data.total_count.toLocaleString()} publications
+              </span>
+              {data.blurb}
+            </p>
+          ) : (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13.5,
+                lineHeight: 1.55,
+                color: 'var(--ink-3)',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontWeight: 600,
+                  color: 'var(--ink-3)',
+                  marginRight: 6,
+                }}
+              >
+                Gene publication count:
+              </span>
+              Loading...
+            </p>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <a
-            href={data.scholar_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="eamos-toggle-btn"
-            style={{ textDecoration: 'none' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            Google Scholar ↗
-          </a>
+          {scope === 'variant' && (
+            <a
+              href={data.scholar_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="eamos-toggle-btn"
+              style={{ textDecoration: 'none' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              Google Scholar ↗
+            </a>
+          )}
           {onAskSummary && (
             <button
               type="button"

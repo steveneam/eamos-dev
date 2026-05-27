@@ -1,0 +1,296 @@
+'use client'
+
+import { useEffect, useRef, type RefObject } from 'react'
+
+interface CiteModalProps {
+  onClose: () => void
+  returnFocusRef: RefObject<HTMLButtonElement | null>
+}
+
+const ORCID_URL = 'https://orcid.org/0009-0000-9745-8226'
+const SCHOLAR_URL = 'https://scholar.google.com/citations?user=oNJ9_8YAAAAJ'
+const PUBMED_URL = 'https://pubmed.ncbi.nlm.nih.gov/?term=Steven+S+Eamegdool'
+const EAMOS_URL = 'https://eamos.com.au'
+
+const FOCUSABLE =
+  'a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+
+export function CiteModal({ onClose, returnFocusRef }: CiteModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const titleId = 'cite-modal-title'
+
+  // Focus-trap + ESC
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    // Focus first focusable element on mount
+    const focusables = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE))
+
+    const first = focusables()[0]
+    first?.focus()
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+        return
+      }
+
+      if (e.key !== 'Tab') return
+
+      const els = focusables()
+      if (els.length === 0) return
+      const firstEl = els[0]
+      const lastEl = els[els.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          e.preventDefault()
+          lastEl.focus()
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          e.preventDefault()
+          firstEl.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Return focus on unmount
+  useEffect(() => {
+    return () => {
+      returnFocusRef.current?.focus()
+    }
+  }, [returnFocusRef])
+
+  function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target === e.currentTarget) onClose()
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        background: 'rgba(11,26,43,0.45)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+      }}
+      onClick={handleBackdropClick}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        style={{
+          background: 'var(--bg)',
+          border: '0.5px solid var(--line)',
+          borderRadius: '16px',
+          boxShadow: 'var(--elev-3)',
+          width: '100%',
+          maxWidth: '540px',
+          maxHeight: 'calc(100vh - 32px)',
+          overflowY: 'auto',
+          padding: '28px 32px 24px',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            marginBottom: '20px',
+          }}
+        >
+          <h2
+            id={titleId}
+            style={{
+              fontFamily: 'var(--display)',
+              fontSize: '22px',
+              fontWeight: 400,
+              color: 'var(--ink)',
+              margin: 0,
+              lineHeight: 1.2,
+            }}
+          >
+            How to cite Eamos
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close citation modal"
+            style={{
+              background: 'transparent',
+              border: '0.5px solid var(--line)',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              color: 'var(--ink-3)',
+              fontSize: '18px',
+              lineHeight: 1,
+              marginTop: '2px',
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Hairline */}
+        <div
+          style={{
+            borderTop: '0.5px solid var(--line)',
+            marginBottom: '20px',
+          }}
+        />
+
+        {/* Citation rows */}
+        <dl
+          style={{
+            margin: 0,
+            display: 'grid',
+            gridTemplateColumns: 'max-content 1fr',
+            columnGap: '20px',
+            rowGap: '16px',
+          }}
+        >
+          {/* Software */}
+          <dt style={labelStyle}>Software</dt>
+          <dd style={valueStyle}>
+            Eamos team (2026).{' '}
+            <em style={{ fontStyle: 'italic', color: 'var(--ink)' }}>
+              Eamos: clinical-grade variant interpretation.
+            </em>{' '}
+            <a href={EAMOS_URL} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+              https://eamos.com.au
+            </a>
+            {' · '}
+            DOI:{' '}
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--ink-3)' }}>
+              10.5281/zenodo.XXXXX
+            </span>{' '}
+            <span style={{ color: 'var(--ink-4)', fontSize: '11px' }}>(pending)</span>
+          </dd>
+
+          {/* Author */}
+          <dt style={labelStyle}>Author</dt>
+          <dd style={{ ...valueStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontWeight: 600, color: 'var(--ink)' }}>Steven S. Eamegdool</span>
+            <span>
+              <span style={metaLabelStyle}>ORCID</span>{' '}
+              <a href={ORCID_URL} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+                {ORCID_URL}
+              </a>
+            </span>
+            <span>
+              <span style={metaLabelStyle}>Scholar</span>{' '}
+              <a href={SCHOLAR_URL} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+                {SCHOLAR_URL}
+              </a>
+            </span>
+            <span>
+              <span style={metaLabelStyle}>PubMed</span>{' '}
+              <a href={PUBMED_URL} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+                {PUBMED_URL}
+              </a>
+            </span>
+          </dd>
+
+          {/* This report */}
+          <dt style={labelStyle}>This report</dt>
+          <dd style={valueStyle}>
+            <em style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>{'{variant_display}'}</em>
+            {'. Accessed '}
+            <em style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>{'{date}'}</em>
+            {'. Report v'}
+            <em style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>{'{report_version}'}</em>
+            {'.'}
+          </dd>
+        </dl>
+
+        {/* Hairline */}
+        <div style={{ borderTop: '0.5px solid var(--line)', margin: '20px 0' }} />
+
+        {/* Copy buttons */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {(['citation', 'bibtex', 'ris'] as const).map((fmt) => (
+            <button
+              key={fmt}
+              onClick={() => console.log(`TODO: wire ${fmt}`)}
+              style={copyBtnStyle}
+            >
+              Copy {fmt === 'citation' ? 'citation' : fmt === 'bibtex' ? 'BibTeX' : 'RIS'}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Shared style objects ────────────────────────────────────────────────────
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.06em',
+  color: 'var(--ink-4)',
+  paddingTop: '2px',
+  whiteSpace: 'nowrap',
+}
+
+const valueStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '13px',
+  lineHeight: 1.55,
+  color: 'var(--ink-2)',
+}
+
+const metaLabelStyle: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: '10.5px',
+  fontWeight: 600,
+  color: 'var(--ink-4)',
+  display: 'inline-block',
+  width: '52px',
+}
+
+const linkStyle: React.CSSProperties = {
+  color: 'var(--teal-deep)',
+  textDecoration: 'underline',
+  textDecorationColor: 'transparent',
+  textUnderlineOffset: '3px',
+  wordBreak: 'break-all',
+  transition: 'color 120ms ease, text-decoration-color 120ms ease',
+}
+
+const copyBtnStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '7px 14px',
+  background: 'var(--bg)',
+  color: 'var(--ink-2)',
+  border: '0.5px solid var(--line-2)',
+  borderRadius: 'var(--r-md)',
+  fontFamily: 'var(--body)',
+  fontSize: '12.5px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  boxShadow: 'var(--elev-1)',
+  transition: 'background 120ms ease, border-color 120ms ease, box-shadow 200ms ease',
+}
