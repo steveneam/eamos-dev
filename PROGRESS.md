@@ -1,5 +1,398 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 66 - 27 May 2026 - local evidence runtime gate slice
+
+Continued Task 16 local-first model work after Claude released the handoff
+lock. Codex added the explicit configuration gate for future runtime local-store
+opt-in, without wiring local evidence into lookup/search/gene-viewer/workbench
+routes and without changing public response schemas.
+
+Completed:
+- Added disabled-by-default settings:
+  `local_evidence_enabled`, `local_evidence_allowed_flows_raw`, and
+  `local_evidence_require_real_apis`.
+- Added `LocalEvidenceRuntimeGate` and `LocalEvidenceRuntimeDecision` to the
+  internal local evidence module. The gate normalizes runtime flow names
+  (`lookup`, `search`, `gene_viewer`, `workbench`), supports explicit per-flow
+  opt-in or `all`, rejects unknown flows fail-closed, and by default requires
+  `use_real_apis=True` before a runtime path can prefer local stores.
+- Kept the gate inert: no route, source-cache, provider, frontend mirror, or
+  public Pydantic schema consumes it yet.
+- Extended `tests/test_local_evidence_orchestrator.py` so defaults remain
+  disabled, explicit real-API opt-in is required, unknown flow names fail
+  closed, and no `local_evidence` public contract field appears.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_dbsnp_local_adapter.py tests/test_clinvar_local_adapter.py tests/test_transcript_model_store.py tests/test_repeatmasker_local_adapter.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_variant_search_integration.py tests/test_sequence_context.py tests/test_gene_viewer.py tests/test_workbench_api.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q -k "not mirrors_are_byte_identical"`
+  passed.
+- `cd app/backend && python -m ruff check app/core/config.py app/services/local_evidence_orchestrator.py tests/test_local_evidence_orchestrator.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/core/config.py app/services/local_evidence_orchestrator.py tests/test_local_evidence_orchestrator.py`
+  passed.
+
+Residual verification note:
+- Full `tests/test_frontend_contract.py -q` still fails one pre-existing
+  cross-frontend mirror check:
+  `test_frontend_backend_ts_mirrors_are_byte_identical`. The observed mismatch
+  is between `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts`;
+  `app/web/lib/backend.ts` contains the M11 lookup section-fetch TypeScript
+  block while `app/frontend/src/lib/backend.ts` does not. Codex did not edit
+  frontend mirrors.
+
+Out of scope:
+- No runtime route/provider/source-cache wiring, frontend/schema mirror edits,
+  production source downloads/imports, live Supabase writes, uploads/imports,
+  env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
+  restricted predictor unlocks, destructive git, stash, reset, clean, or Task
+  15 native `pyBigWig`/Linux proof.
+
+## Session 65 - 27 May 2026 - local evidence orchestration slice
+
+Continued the local-first source-model lane after Steven approved more local
+model work. Codex implemented the safe non-native Task 16 slice as an internal
+backend-only composition helper, not as runtime provider/source-cache wiring and
+not as a public API/schema/frontend contract change.
+
+Completed:
+- Added `app/backend/app/services/local_evidence_orchestrator.py` with
+  `LocalEvidenceOrchestrator`, `LocalEvidenceBundle`, and
+  `LocalEvidenceVariantIdentity` plain dataclasses.
+- The helper composes existing fixture-first local models in a deterministic
+  order: dbSNP rsID/variant identity, ClinVar classification/accession,
+  transcript coordinate mapping, RepeatMasker interval query, and optional
+  local sequence-window building through an injectable
+  `LocalSequenceWindowBuilder`.
+- RPE65 `rs1645931040` now has an internal no-HTTP proof path from local dbSNP
+  to `1-68444869-T-C`, ClinVar `VCV001421454`, transcript exon 4/CDS position
+  260, RepeatMasker no-hit state, and an injected reference-window variant
+  context.
+- Multiallelic dbSNP rows fail closed until a caller supplies the requested
+  alternate allele, so `rs1801133` is not silently narrowed.
+- Local no-hit/allele-mismatch states remain visible and do not substitute
+  unrelated fixture records.
+- Added `app/backend/tests/test_local_evidence_orchestrator.py`, including an
+  explicit no-public-contract-surface test proving the helper remains plain
+  dataclasses and does not add `local_evidence` to public lookup/gene-viewer
+  Pydantic models.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_dbsnp_local_adapter.py tests/test_clinvar_local_adapter.py tests/test_transcript_model_store.py tests/test_repeatmasker_local_adapter.py tests/test_sequence_window_model.py tests/test_frontend_contract.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_variant_search_integration.py tests/test_sequence_context.py tests/test_gene_viewer.py tests/test_workbench_api.py tests/test_frontend_contract.py -q`
+  passed.
+- `cd app/backend && python -m ruff check app/services tests/test_local_evidence_orchestrator.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services tests/test_local_evidence_orchestrator.py`
+  passed.
+
+Out of scope:
+- No route/runtime provider wiring, source-cache rewiring, frontend/schema
+  mirror edits, production source downloads/imports, live Supabase writes,
+  uploads/imports, env/deploy mutation, `/runs`, AlphaMissense display/runtime
+  scoring, restricted predictor unlocks, destructive git, stash, reset, clean,
+  or Task 15 native `pyBigWig`/Linux proof.
+
+## Session 64 - 27 May 2026 - transcript coordinate map helper
+
+After Claude finished the planner pass, Codex checked the updated CAR thread.
+No M8/M9/M10a backend implementation CARs were open; CAR #1 for M11 was marked
+done because Codex had already shipped the minimal section-fetch sketch. Codex
+therefore stayed in the backend lane and implemented the safe non-native
+fallback Steven had asked about: deterministic exon/intron coordinate mapping
+from the existing local transcript model fixture. No frontend/schema mirror
+edits, provider/source-cache wiring, production source downloads/imports, live
+Supabase writes, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+display/runtime scoring, destructive git, stash, reset, or clean were
+performed.
+
+Completed:
+- Added `TranscriptCoordinateLocation` and `TranscriptCoordinateLookup` to
+  `app/backend/app/services/transcript_model.py`.
+- Added `TranscriptModelStore.map_coordinate(gene, chrom, position,
+  transcript=None)`, which maps GRCh38 coordinates to exon or intron state
+  using the checked-in MANE/GENCODE fixture, with `chr` / bare chromosome /
+  RefSeq `NC_000001.11` alias normalization.
+- Exon hits return transcript-oriented CDS position, including reverse-strand
+  math for RPE65 (`NC_000001.11:g.68444869` -> RPE65 exon 4, CDS position
+  260).
+- Intron hits return flanking exon numbers in transcript order and distance to
+  the nearest modeled exon.
+- Fail-closed states cover invalid coordinates, missing gene/transcript,
+  chromosome mismatch, outside-transcript coordinates, and gaps outside the
+  modeled exon window.
+- Added focused tests in `app/backend/tests/test_transcript_model_store.py` for
+  RPE65 reverse-strand exon mapping, RPE65/CFTR intron mapping, and structured
+  unavailable states.
+- Added a proprietary catalogue entry for the broader local-first source-model
+  workflow in `docs/proprietary/local-first-source-model-workflows.md`, plus
+  `docs/proprietary/README.md` and `docs/proprietary/index.json` updates. The
+  entry records the Eamos-specific fixture-first/provenance/fail-closed
+  workflow while explicitly avoiding an unsupported global novelty claim.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py tests/test_sequence_window_model.py tests/test_gene_viewer.py -q`
+  passed.
+- `cd app/backend && python -m ruff check app/services/transcript_model.py tests/test_transcript_model_store.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/transcript_model.py tests/test_transcript_model_store.py`
+  passed.
+- `python -m json.tool docs/proprietary/index.json > $null` passed.
+
+Out of scope:
+- No `gffutils`/BioMart install, no production MANE/GENCODE ingestion, no
+  viewer/report API contract change, no frontend/schema mirror, no source-cache
+  wiring, no Supabase work, and no runtime predictor scoring.
+
+## Session 63 - 27 May 2026 - dbSNP + RepeatMasker local source proofs
+
+After M11 minimal section-fetch, Codex resumed the local-first source queue.
+Claude had not opened M8/M9/M10a implementation CARs, so the session stayed in
+backend source-asset scope. No frontend/schema mirror edits, provider/source-
+cache rewiring, production source downloads/imports, live Supabase writes,
+uploads/imports, env/deploy mutation, `/runs`, AlphaMissense display/runtime
+scoring, destructive git, stash, reset, or clean were performed.
+
+Completed:
+- Added `app/backend/app/services/dbsnp_local.py`, a fixture-first dbSNP GCF
+  local adapter for rsID-to-GRCh38 identity lookup over tiny dbSNP-style VCF
+  rows. It preserves upstream source ID/version/provenance
+  `GCF_000001405.40`, normalizes `NC_000001.11` / `chr1` / `1` aliases, and
+  returns structured fail-closed states for invalid rsID, unknown rsID,
+  contig mismatch, allele mismatch, invalid coordinates, and malformed rows.
+- Added `app/backend/app/fixtures/data_sources/dbsnp_tiny.vcf` with
+  `rs1645931040`, multiallelic `rs1801133`, and `rs61752871` fixture rows.
+  Multiallelic rows are represented as multiple allele identities instead of
+  guessing a single allele.
+- Added `app/backend/tests/test_dbsnp_local_adapter.py`, covering provenance,
+  normalized identity, multiallelic representation, contig alias normalization,
+  and structured parser/lookup failures.
+- Added `app/backend/app/services/repeatmasker_local.py`, a small local
+  RepeatMasker adapter over the Task 9 deterministic `rmsk.txt` to indexed
+  interval-table conversion path. This intentionally avoids bigBed download,
+  UI warning wiring, primer/CRISPR rewiring, and Supabase Storage.
+- Added `app/backend/app/fixtures/data_sources/repeatmasker_tiny.rmsk.txt` and
+  `app/backend/tests/test_repeatmasker_local_adapter.py`, covering provenance,
+  conversion strategy, repeat-overlap query behavior, no-hit windows, and
+  fail-closed unknown-contig / invalid-window states.
+- Checked the backend Python environment for lightweight annotation packages
+  after Steven asked about coordinate map checking: `gffutils`, `biomart`,
+  `pybiomart`, and `bioservices` are not installed. Recommendation remains to
+  use the existing local `TranscriptModelStore` for deterministic exon/intron
+  checks now, and consider `gffutils` later for approved MANE/GENCODE
+  production ingestion; BioMart is not a good hot-path fit for local-first
+  coordinate checks.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_dbsnp_local_adapter.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_dbsnp_local_adapter.py tests/test_search_input_resolver.py tests/test_variant_search_integration.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_repeatmasker_local_adapter.py tests/test_indexed_source_readers.py -q`
+  passed with the expected native `pysam`/`pyBigWig` skips on Windows.
+- `cd app/backend && python -m pytest tests/test_dbsnp_local_adapter.py tests/test_search_input_resolver.py tests/test_variant_search_integration.py tests/test_repeatmasker_local_adapter.py tests/test_indexed_source_readers.py -q`
+  passed with expected native reader skips.
+- `cd app/backend && python -m ruff check app/services/dbsnp_local.py app/services/repeatmasker_local.py tests/test_dbsnp_local_adapter.py tests/test_repeatmasker_local_adapter.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/dbsnp_local.py app/services/repeatmasker_local.py tests/test_dbsnp_local_adapter.py tests/test_repeatmasker_local_adapter.py`
+  passed after formatting the new services.
+
+Out of scope:
+- No production dbSNP GCF download/import, no `rmsk.txt.gz` or bigBed download,
+  no Supabase Storage upload/import/migration/application, no rsID merge
+  archive, no search resolver rewiring to prefer local dbSNP, no frontend/UI
+  repeat warnings, no primer/CRISPR tool rewiring, no provider/source-cache
+  wiring, no restricted predictor unlocks, and no runtime ML scoring.
+
+## Session 62 - 27 May 2026 - M11 minimal section-fetch contract sketch
+
+After Claude's 22:55 CAR landed, Codex prioritized the M11 minimal
+section-fetch contract before starting Task 13 dbSNP. This stayed backend-only:
+no frontend/schema mirror edits, provider/source-cache rewiring, live Supabase
+writes, production source downloads/imports, env/deploy mutation, or gated
+predictor/runtime scoring were performed.
+
+Completed:
+- Added backend-only lookup section contract schemas in
+  `app/backend/app/schemas/lookup.py`:
+  `LookupInitialSummaryResponse`, `LookupSummaryTile`,
+  `LookupSectionFetchRequest`, `LookupSectionFetchResponse`, section envelopes,
+  and freshness metadata (`fetched_at`, `source_version`,
+  `stale_on_failure`, `source_status`, `source_url`).
+- Added `app/backend/app/services/lookup_sections.py` to extract a cheap M7
+  tile summary from current call cards and to wrap first lazy sections from
+  today's report payload: `publications`, `computational_deep_dive`, and
+  `clingen_vcep`.
+- Added `POST /api/v1/lookup/summary`, returning one slim summary payload for
+  M7-style matrix tiles instead of requiring one call per tile.
+- Added `POST /api/v1/lookup/sections`, accepting an `include` selector for the
+  first expandable sections. `clingen_vcep` is intentionally marked `partial`
+  because ClinGen Evidence Repository/source-cache integration is a later M9
+  task; current payload comes from the existing ACMG/clinical-consensus
+  snapshot.
+- Deferred population detail, disease mechanism, and therapies/trials splitting
+  until M11-full/perf data. The minimal sketch keeps them in the monolith for
+  now because M7 needs only call-card summaries and these sections are lower
+  priority than publications/computational/ClinGen VCEP expansion.
+- Added `app/backend/tests/test_lookup_section_fetch_contract.py` covering the
+  summary shape, first section payloads with freshness fields, AlphaMissense
+  remaining hidden from computational output, and rejection of deferred
+  population detail as a section selector.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_lookup_section_fetch_contract.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  passed.
+- `cd app/backend && python -m ruff check app/api/routes/lookup.py app/schemas/lookup.py app/services/lookup_sections.py tests/test_lookup_section_fetch_contract.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/api/routes/lookup.py app/schemas/lookup.py app/services/lookup_sections.py tests/test_lookup_section_fetch_contract.py`
+  passed after formatting the new service.
+
+Out of scope:
+- No frontend/backend.ts mirror edits, no provider/source-cache wiring, no M8
+  calibrated predictor fields, no M9 ClinGen ER integration, no M10a
+  gene-scoped publication count, no production source downloads/imports, no
+  live Supabase writes/resources/migrations, no uploads/imports, no `/runs`, no
+  AlphaMissense display/runtime scoring, no destructive git, stash, reset, or
+  clean.
+
+## Session 61 - 27 May 2026 - Supabase RLS migration static verification
+
+While Claude started the Varsome planner pass, Codex took a bounded local-only
+Supabase hardening task. No live Supabase writes, SQL execution, migration
+application, resources, uploads, or env/deploy mutation were performed.
+
+Completed:
+- Added `app/backend/tests/test_supabase_migrations.py`, a focused static
+  regression test for
+  `supabase/migrations/0007_optimize_rls_auth_uid_initplan.sql`.
+- The test parses the original `0001_submission_ledger.sql` policies and the
+  `0007` migration to prove all seven original direct-`auth.uid()` RLS policies
+  are recreated with the same policy names, target tables, and commands.
+- It verifies every `0007` policy predicate wraps `auth.uid()` as
+  `(select auth.uid())`, that every recreated policy has a matching
+  `DROP POLICY IF EXISTS`, and that the profile update policy keeps the
+  explicit `WITH CHECK ((select auth.uid()) = id)` ownership guard.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_supabase_migrations.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_supabase_migrations.py tests/test_evidence_submissions_supabase.py tests/test_source_field_policy.py -q`
+  passed (`13 passed`; existing short test-JWT warnings only).
+- `cd app/backend && python -m ruff check tests/test_supabase_migrations.py tests/test_evidence_submissions_supabase.py tests/test_source_field_policy.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 tests/test_supabase_migrations.py tests/test_evidence_submissions_supabase.py tests/test_source_field_policy.py`
+  passed.
+- `git diff --check -- app/backend/tests/test_supabase_migrations.py supabase/migrations/0007_optimize_rls_auth_uid_initplan.sql agent_handoff/CURRENT.md PROGRESS.md plans/v2-backend.md`
+  passed with only existing CRLF normalization warnings for edited markdown.
+
+Out of scope:
+- The `0007` migration was not applied to any live Supabase project. No
+  Supabase project writes/resources, SQL execution, live migration application,
+  uploads/imports, env/deploy mutation, production source imports/downloads,
+  provider/source-cache wiring, frontend/schema mirror changes, `/runs`,
+  AlphaMissense, runtime ML scoring, destructive git, stash, reset, or clean.
+
+## Session 60 - 27 May 2026 - Task 12 ClinVar adapter + Supabase RLS migration draft
+
+After the user approved parallel subagents, Codex split the work into a
+Supabase migration draft/review lane and a Task 12 ClinVar VCF local-adapter
+lane. The Supabase lane produced the local migration. The Task 12 worker did
+not return a patch, so the parent Codex session implemented the backend adapter
+directly. No live Supabase writes were performed.
+
+Completed:
+- Added `supabase/migrations/0007_optimize_rls_auth_uid_initplan.sql`, a
+  local-only migration draft that drops/recreates the seven existing RLS
+  policies from `0001` with the same names, tables, commands, and default role
+  scope while rewriting direct `auth.uid()` predicates to
+  `(select auth.uid())`. The profile update policy now includes an explicit
+  `WITH CHECK ((select auth.uid()) = id)`, matching the previous implicit
+  ownership check instead of broadening access.
+- Added `app/backend/app/services/clinvar_local.py`, a standalone
+  fixture-first local ClinVar VCF parser/store. It exposes source and
+  record-level provenance, resolves by GRCh38 gnomAD-style variant ID
+  (`1-68444869-T-C`), VCV accession, or numeric Variation ID, normalizes
+  contig aliases, and returns structured fail-closed no-hit, allele-mismatch,
+  contig-mismatch, invalid-coordinate, and malformed-row states.
+- Added tiny ClinVar fixture
+  `app/backend/app/fixtures/data_sources/clinvar_tiny.vcf` for RPE65
+  `1-68444869-T-C` / `VCV001421454`, including classification, review status,
+  condition names, HGVS aliases, gene symbol, fileDate, and source metadata.
+- Added `app/backend/tests/test_clinvar_local_adapter.py` covering provenance,
+  RPE65 lookup, contig aliases, VCV/Variation ID lookup, no-hit/mismatch
+  states, and structured malformed VCF failures.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_clinvar_local_adapter.py tests/test_clinical_consensus.py tests/test_functional_evidence.py tests/test_tool_invariants.py -q`
+  -> passed (`40 passed`).
+- `cd app/backend && python -m ruff check app/services/clinvar_local.py tests/test_clinvar_local_adapter.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/clinvar_local.py tests/test_clinvar_local_adapter.py`
+  -> passed after formatting `clinvar_local.py`.
+- Static Supabase migration checks: `create policy` count `7`,
+  `drop policy if exists` count `7`, and no bare direct `auth.uid()` predicates
+  in `USING` / `WITH CHECK` clauses.
+
+Docs consulted:
+- Supabase RLS performance recommendations:
+  https://supabase.com/docs/guides/database/postgres/row-level-security
+- Supabase RLS performance guide:
+  https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv
+- Supabase May 2026 changelog:
+  https://supabase.com/changelog/45702-developer-update-may-2026
+
+Out of scope:
+- The migration was not applied to any live Supabase project. No Supabase
+  project writes/resources, SQL execution against live data, uploads/imports,
+  env/deploy mutation, production ClinVar download/import, provider/source-
+  cache wiring, frontend Workbench edits, schema mirror changes, `/runs`,
+  AlphaMissense, runtime ML scoring, destructive git, stash, reset, or clean.
+
+## Session 59 - 27 May 2026 - Supabase advisor read-only check
+
+After the user asked whether Codex can work on Supabase while Docker/WSL IT
+approval is pending, Codex performed a read-only Supabase inspection only. No
+SQL was executed, no migrations were applied, no buckets/resources were
+created, no uploads/imports were run, and no environment/deploy settings were
+mutated.
+
+Completed:
+- Re-read the Supabase skill and current repo guardrails, then inspected the
+  existing local Supabase migrations `0001` through `0006` and `.mcp.json`.
+- Queried the configured Supabase project advisors through MCP read-only:
+  project `cpdjxsgasaesysvxkpmi`.
+- Security advisors returned no lints.
+- Performance advisors returned seven `auth_rls_initplan` warnings on existing
+  RLS policies for `public.profiles`, `public.saved_variants`, and
+  `public.user_evidence_submissions`. The fix is a later reviewed migration
+  that rewrites direct `auth.uid()` predicates as `(select auth.uid())`
+  predicates, matching Supabase RLS performance guidance:
+  https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
+- Performance advisors also returned informational unused-index notices for
+  `idx_saved_variants_user`, `idx_saved_variants_hgvs`,
+  `idx_submissions_user`, and `idx_submissions_hgvs`, plus an Auth connection
+  strategy info notice. These were not treated as action items without more
+  production traffic/usage evidence.
+
+Out of scope:
+- No Supabase writes/resources, uploads, migrations, SQL execution, env
+  mutation, deploy, source imports/downloads, provider/source-cache wiring,
+  frontend/schema mirror changes, `/runs`, AlphaMissense, runtime ML scoring,
+  destructive git, stash, reset, or clean.
+
 ## Session 58 - 27 May 2026 - Task 11 clinical source table parsers
 
 Continued the local-first source-asset rollout after the user asked to do both

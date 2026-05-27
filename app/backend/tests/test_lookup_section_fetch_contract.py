@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+import json
+
+
+def test_lookup_summary_returns_m7_tile_contract_without_heavy_sections(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/summary",
+        json={"gene": "RPE65", "cdna": "c.260A>G"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["query"] == "RPE65:c.260A>G"
+    assert body["header"]["gene"] == "RPE65"
+    assert body["header"]["cdna"] == "c.260A>G"
+    assert [section["section_id"] for section in body["lazy_sections"]] == [
+        "publications",
+        "computational_deep_dive",
+        "clingen_vcep",
+    ]
+
+    tiles = {tile["tile_id"]: tile for tile in body["tiles"]}
+    assert set(tiles) == {
+        "population_frequency",
+        "computational",
+        "lab_functional",
+        "clinical_consensus",
+    }
+    assert tiles["computational"]["fetch_section_id"] == "computational_deep_dive"
+    assert tiles["clinical_consensus"]["fetch_section_id"] == "clingen_vcep"
+    assert tiles["population_frequency"]["fetch_section_id"] is None
+    assert tiles["population_frequency"]["primary_label"] == "Rare (0.00159% AF)"
+
+    serialized = json.dumps(body)
+    assert "report_payload" not in body
+    assert "publications_literature" not in serialized
+    assert "functional_evidence" not in serialized
+
+
+def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/sections",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "include": ["publications", "computational_deep_dive", "clingen_vcep"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["query"] == "RPE65:c.260A>G"
+    sections = body["sections"]
+    assert set(sections) == {"publications", "computational_deep_dive", "clingen_vcep"}
+
+    publications = sections["publications"]
+    assert publications["status"] == "available"
+    assert publications["payload"]["total_count"] == 3
+    assert publications["payload"]["articles"][0]["pmid"] == "38191234"
+    assert set(publications["freshness"]) == {
+        "fetched_at",
+        "source_version",
+        "stale_on_failure",
+        "source_status",
+        "source_url",
+    }
+    assert publications["freshness"]["stale_on_failure"] is False
+
+    computational = sections["computational_deep_dive"]
+    assert computational["status"] == "available"
+    predictor_names = {row["name"] for row in computational["payload"]["predictors"]}
+    assert {"REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI"} <= predictor_names
+    assert "AlphaMissense" not in predictor_names
+    assert computational["freshness"]["stale_on_failure"] is False
+
+    clingen = sections["clingen_vcep"]
+    assert clingen["status"] == "partial"
+    assert clingen["payload"]["classification_source"] in {"ClinVar", "ClinGen"}
+    assert clingen["payload"]["criteria"]
+    assert clingen["payload"]["source_scope"] == "current_clinical_consensus_snapshot"
+    assert "clingen_vcep_evidence_repo_source_cache_not_integrated" in clingen["warnings"]
+    assert clingen["freshness"]["stale_on_failure"] is False
+
+
+def test_lookup_sections_rejects_deferred_population_detail_until_m11_full(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/sections",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "include": ["population_frequency"],
+        },
+    )
+
+    assert response.status_code == 422

@@ -4,13 +4,20 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.core.rate_limit import RATE_LIMIT_LOOKUP, enforce_rate_limit
 from app.schemas.lookup import (
+    LookupInitialSummaryResponse,
     LookupRequest,
     LookupResponse,
+    LookupSectionFetchRequest,
+    LookupSectionFetchResponse,
     PublicationPageRequest,
     SearchInputParseRequest,
     SearchInputParseResponse,
 )
 from app.schemas.run import PublicationLiterature
+from app.services.lookup_sections import (
+    build_lookup_initial_summary,
+    build_lookup_section_fetch_response,
+)
 
 router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
 
@@ -29,6 +36,41 @@ def variant_lookup(
             detail="Lookup service is unavailable.",
         )
     return service.lookup(payload, refresh=refresh)
+
+
+@router.post("/summary", response_model=LookupInitialSummaryResponse)
+def lookup_summary(
+    payload: LookupRequest,
+    request: Request,
+    refresh: bool = False,
+) -> LookupInitialSummaryResponse:
+    enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=_lookup_subject(payload))
+    service = getattr(request.app.state, "lookup_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lookup service is unavailable.",
+        )
+    response = service.lookup(payload, refresh=refresh)
+    return build_lookup_initial_summary(response)
+
+
+@router.post("/sections", response_model=LookupSectionFetchResponse)
+def lookup_sections(
+    payload: LookupSectionFetchRequest,
+    request: Request,
+    refresh: bool = False,
+) -> LookupSectionFetchResponse:
+    enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=_lookup_subject(payload))
+    service = getattr(request.app.state, "lookup_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lookup service is unavailable.",
+        )
+    lookup_payload = LookupRequest.model_validate(payload.model_dump(exclude={"include"}))
+    response = service.lookup(lookup_payload, refresh=refresh)
+    return build_lookup_section_fetch_response(response, payload.include)
 
 
 @router.post("/parse", response_model=SearchInputParseResponse)

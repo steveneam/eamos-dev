@@ -186,7 +186,8 @@ predictors.
 ## Task 10 - MANE And GENCODE Transcript Model Store
 
 Status: DONE 2026-05-27 17:52 +1000 - Codex. Fixture-first store implemented;
-no production MANE/GENCODE downloads/imports or runtime wiring.
+coordinate-map helper added 2026-05-27 22:11 +1000. No production
+MANE/GENCODE downloads/imports, runtime wiring, or API contract changes.
 
 ### Goal
 
@@ -223,6 +224,8 @@ task.
 - Done: missing gene/transcript returns structured unavailable state.
 - Done: provenance includes MANE/GENCODE source IDs, fixture path, version, and
   checksum.
+- Done: coordinate-map helper identifies exon/intron state with transcript-
+  oriented CDS position for exon hits and flanking exon numbers for intron hits.
 
 ### Implementation Notes
 
@@ -230,6 +233,9 @@ task.
 - Added `app/backend/app/fixtures/transcript_models/mane_gencode_tiny.json`
   with RPE65 and CFTR fixture controls.
 - Added `app/backend/tests/test_transcript_model_store.py`.
+- Added `TranscriptModelStore.map_coordinate()` for deterministic local
+  coordinate checks: RPE65 reverse-strand exon hits, RPE65/CFTR intron hits,
+  alias normalization, and structured fail-closed mismatch/outside states.
 - This is not wired into `/api/v1/viewer`, Workbench tool contracts, source
   cache, or frontend/schema mirrors yet.
 
@@ -359,6 +365,10 @@ replacement.
 
 ## Task 13 - dbSNP GCF Local Adapter
 
+Status: DONE 2026-05-27 21:52 +1000 - Codex. Fixture-first adapter
+implemented; no production GCF download/import, resolver rewiring, Supabase
+upload/import, or source-cache wiring.
+
 ### Goal
 
 Implement fixture-first dbSNP rsID-to-GRCh38 identity lookup.
@@ -383,11 +393,21 @@ rsIDs to normalized GRCh38 chrom/pos/ref/alt identities. Preserve upstream
 
 ### Acceptance Criteria
 
-- Known rsID rows resolve to normalized genomic identity.
-- Multi-allelic rows are represented without guessing a single allele.
-- Unknown rsID returns structured no-record state.
-- `NC_000001.11`, `1`, and `chr1` aliases normalize at adapter boundary.
-- No production dbSNP file is required by default tests.
+- Done: known rsID rows resolve to normalized genomic identity.
+- Done: multi-allelic rows are represented without guessing a single allele.
+- Done: unknown rsID returns structured no-record state.
+- Done: `NC_000001.11`, `1`, and `chr1` aliases normalize at adapter
+  boundary.
+- Done: no production dbSNP file is required by default tests.
+
+### Implementation Notes
+
+- Added `app/backend/app/services/dbsnp_local.py`.
+- Added `app/backend/app/fixtures/data_sources/dbsnp_tiny.vcf` with
+  `rs1645931040`, multiallelic `rs1801133`, and `rs61752871`.
+- Added `app/backend/tests/test_dbsnp_local_adapter.py`.
+- This is not wired into `search_input_resolver.py`, source cache, lookup
+  orchestration, frontend, or schema mirrors yet.
 
 ### Verify
 
@@ -404,6 +424,10 @@ Production GCF download, Supabase Storage upload, rsID merge archive, and
 resolver rewiring beyond fixture-proof integration.
 
 ## Task 14 - RepeatMasker `rmsk.bb` Design Context Proof
+
+Status: DONE 2026-05-27 21:52 +1000 - Codex. Deterministic `rmsk.txt` fixture
+to indexed interval-table proof implemented; no bigBed download/conversion,
+frontend warnings, primer/CRISPR rewiring, or Supabase Storage.
 
 ### Goal
 
@@ -428,10 +452,20 @@ plus provenance.
 
 ### Acceptance Criteria
 
-- Tiny fixture returns repeat overlaps for a window and empty list for no-hit.
-- Output includes repeat name, class/family, and interval coordinates.
-- Unknown contig and invalid intervals fail closed.
-- Chosen bigBed/conversion path is recorded.
+- Done: tiny fixture returns repeat overlaps for a window and empty list for
+  no-hit.
+- Done: output includes repeat name, class/family, and interval coordinates.
+- Done: unknown contig and invalid intervals fail closed.
+- Done: chosen conversion path is recorded as deterministic `rmsk.txt` to
+  indexed interval table.
+
+### Implementation Notes
+
+- Added `app/backend/app/services/repeatmasker_local.py`.
+- Added `app/backend/app/fixtures/data_sources/repeatmasker_tiny.rmsk.txt`.
+- Added `app/backend/tests/test_repeatmasker_local_adapter.py`.
+- The official source remains `rmsk.txt.gz`; derive bigBed only after a
+  separate approved conversion proof.
 
 ### Verify
 
@@ -496,6 +530,12 @@ licensed predictor scoring.
 
 ## Task 16 - Source-Backed Local Evidence Orchestration
 
+Status: PARTIAL 2026-05-27 23:00 +1000 - Codex. Internal
+no-contract-change local evidence composition slice and inert runtime
+configuration gate implemented; not wired into public
+lookup/search/gene-viewer/workbench routes, source cache, live providers, or
+frontend mirrors.
+
 ### Goal
 
 Make report/search/gene-view backend flows prefer proven local stores while
@@ -513,6 +553,8 @@ wait until Tasks 10-15 have fixture-backed adapters and tests.
 - `app/backend/app/services/sequence_context.py`
 - `app/backend/app/services/gene_viewer.py`
 - `app/backend/app/services/workbench_design.py`
+- `app/backend/app/services/local_evidence_orchestrator.py`
+- `app/backend/tests/test_local_evidence_orchestrator.py`
 - `app/backend/tests/test_variant_search_integration.py`
 - `app/backend/tests/test_gene_viewer.py`
 - `app/backend/tests/test_workbench_api.py`
@@ -527,18 +569,47 @@ provider evidence.
 
 ### Acceptance Criteria
 
-- Search can resolve rsID through local dbSNP fixture before live fallback.
-- ClinVar classification can come from local fixture without HTTP.
-- Sequence context can combine transcript model plus reference window.
-- No-hit local results do not fall through to unrelated fixtures.
+- Partial done: an internal helper resolves RPE65 `rs1645931040` through the
+  local dbSNP fixture before any live fallback path is involved.
+- Partial done: ClinVar classification/accession can come from the local
+  fixture without HTTP inside the internal helper.
+- Partial done: sequence context can combine transcript model output plus an
+  injected reference-window reader.
+- Partial done: no-hit local results do not fall through to unrelated fixtures.
+- Partial done: runtime local-store preference now has an explicit
+  disabled-by-default configuration gate that requires per-flow opt-in and, by
+  default, `use_real_apis=True`.
+- Pending: public search/report/gene-view runtime flows prefer local stores by
+  explicit configuration.
 - Existing fixture-mode lookup behavior remains deterministic.
 - Contract tests remain green before any frontend mirror work.
+
+### Implementation Notes
+
+- Added `LocalEvidenceOrchestrator` as an internal backend-only composition
+  helper using plain dataclasses, not public Pydantic schemas.
+- The helper composes dbSNP local identity, ClinVar local lookup, transcript
+  coordinate mapping, RepeatMasker local intervals, and optional
+  `LocalSequenceWindowBuilder` output.
+- Multiallelic dbSNP rows fail closed until a requested alternate allele is
+  provided.
+- Added disabled-by-default settings `local_evidence_enabled`,
+  `local_evidence_allowed_flows_raw`, and
+  `local_evidence_require_real_apis`, plus internal
+  `LocalEvidenceRuntimeGate` / `LocalEvidenceRuntimeDecision` dataclasses for
+  future runtime opt-in decisions.
+- The gate allows only known runtime flows (`lookup`, `search`, `gene_viewer`,
+  `workbench`), supports `all`, rejects unknown configured or requested flows
+  fail-closed, and remains unused by current runtime services.
+- This is deliberately not wired into `/api/v1/lookup`, `/api/v1/viewer`,
+  Workbench routes, source cache, live providers, or frontend schema mirrors.
 
 ### Verify
 
 ```powershell
 cd app/backend
 python -m pytest tests/test_variant_search_integration.py tests/test_sequence_context.py tests/test_gene_viewer.py tests/test_workbench_api.py tests/test_frontend_contract.py -q
+python -m pytest tests/test_local_evidence_orchestrator.py tests/test_dbsnp_local_adapter.py tests/test_clinvar_local_adapter.py tests/test_transcript_model_store.py tests/test_repeatmasker_local_adapter.py -q
 python -m ruff check app/services tests
 python -m black --check --target-version py310 app/services tests
 ```

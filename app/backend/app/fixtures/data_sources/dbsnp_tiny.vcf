@@ -1,0 +1,11 @@
+##fileformat=VCFv4.2
+##fileDate=20260527
+##source=dbSNP
+##reference=GRCh38.p14
+##assembly=GCF_000001405.40
+##contig=<ID=NC_000001.11,length=248956422>
+##INFO=<ID=dbSNPBuildID,Number=1,Type=Integer,Description="dbSNP build identifier">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+NC_000001.11	68444869	rs1645931040	T	C	.	.	dbSNPBuildID=155
+1	11796321	rs1801133	G	A,C	.	.	dbSNPBuildID=155
+chr1	68444858	rs61752871	G	A	.	.	dbSNPBuildID=155

@@ -36,6 +36,7 @@ script, algorithm, CLI, service, or orchestration behavior changes.
 
 | Entry | Type | Added | Last updated | Implementation |
 | --- | --- | --- | --- | --- |
+| [Local-First Source Model Workflows](./local-first-source-model-workflows.md) | Source-model workflow / local adapter pattern | 2026-05-27 22:11 +1000 - Codex | 2026-05-27 22:11 +1000 - Codex | `app/backend/app/services/{transcript_model,clinvar_local,dbsnp_local,repeatmasker_local,indexed_sources}.py` |
 | [EP-VLEx](./ep-vlex.md) | Backend algorithm/service | 2026-05-19 19:56 +1000 - Codex | 2026-05-24 16:48 +1000 - Codex | `app/backend/app/services/publication_literature.py` |
 | [Eamos Search Input Resolver + CLI](./eamos-search-input.md) | Parser/resolver + developer CLI | 2026-05-21 17:54 +1000 - Codex | 2026-05-23 18:00 +1000 - Codex | `app/backend/app/services/search_input_resolver.py`, `app/backend/app/cli/eamos_search_input.py` |
 | [Source-Backed Candidate Resolution](./candidate-resolution.md) | Backend interpreter/resolver | 2026-05-21 19:07 +1000 - Codex | 2026-05-23 18:00 +1000 - Codex | `app/backend/app/services/search_input_interpreter.py`, `app/backend/app/services/search_candidate_resolver.py` |

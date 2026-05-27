@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##fileDate=20260523
+##source=ClinVar
+##reference=GRCh38
+##contig=<ID=1,length=248956422>
+##INFO=<ID=VCV,Number=1,Type=String,Description="ClinVar Variation accession">
+##INFO=<ID=CLNSIG,Number=1,Type=String,Description="Clinical significance">
+##INFO=<ID=CLNREVSTAT,Number=1,Type=String,Description="Review status">
+##INFO=<ID=CLNDN,Number=.,Type=String,Description="ClinVar condition names">
+##INFO=<ID=CLNHGVS,Number=.,Type=String,Description="ClinVar preferred HGVS expression">
+##INFO=<ID=HGVS,Number=.,Type=String,Description="Tiny fixture transcript/protein HGVS aliases">
+##INFO=<ID=GENEINFO,Number=1,Type=String,Description="Gene symbol and NCBI Gene ID">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+1	68444869	VCV001421454	T	C	.	.	VCV=VCV001421454;CLNSIG=Uncertain_significance;CLNREVSTAT=criteria_provided,_single_submitter;CLNDN=Retinitis_pigmentosa|Leber_congenital_amaurosis_2;CLNHGVS=NC_000001.11:g.68444869T>C;HGVS=NM_000329.3:c.260A>G|NP_000320.1:p.Asp87Gly;GENEINFO=RPE65:6121

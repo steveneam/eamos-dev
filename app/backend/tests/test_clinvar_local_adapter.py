@@ -1,0 +1,141 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+from app.services.clinvar_local import (
+    CLINVAR_SOURCE_ID,
+    ClinVarLocalError,
+    ClinVarLocalProvenance,
+    ClinVarLocalStore,
+    parse_clinvar_vcf,
+)
+
+
+def test_store_provenance_records_clinvar_fixture_metadata() -> None:
+    store = ClinVarLocalStore()
+    provenance = store.provenance()
+
+    assert provenance.source_id == CLINVAR_SOURCE_ID
+    assert provenance.source_version == (
+        "ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523"
+    )
+    assert provenance.file_date == "20260523"
+    assert provenance.relative_path == "app/backend/app/fixtures/data_sources/clinvar_tiny.vcf"
+    assert provenance.checksum_algorithm == "sha256"
+    assert re.fullmatch(r"[0-9a-f]{64}", provenance.checksum)
+    assert provenance.record_id is None
+
+
+def test_tiny_fixture_resolves_rpe65_variant_by_gnomad_style_id() -> None:
+    lookup = ClinVarLocalStore().lookup_variant_id("1-68444869-T-C")
+
+    assert lookup.available is True
+    record = lookup.record
+    assert record is not None
+    assert record.gnomad_variant_id == "1-68444869-T-C"
+    assert record.accession == "VCV001421454"
+    assert record.variation_id == "1421454"
+    assert record.classification == "Uncertain significance"
+    assert record.review_status == "criteria provided, single submitter"
+    assert record.conditions == ("Retinitis pigmentosa", "Leber congenital amaurosis 2")
+    assert record.condition_summary == "Retinitis pigmentosa, Leber congenital amaurosis 2"
+    assert record.hgvs_aliases == (
+        "NC_000001.11:g.68444869T>C",
+        "NM_000329.3:c.260A>G",
+        "NP_000320.1:p.Asp87Gly",
+    )
+    assert record.gene_symbols == ("RPE65",)
+    assert record.provenance.source_id == CLINVAR_SOURCE_ID
+    assert record.provenance.record_id == "VCV001421454"
+
+
+def test_lookup_accepts_contig_alias_and_vcv_or_variation_id() -> None:
+    store = ClinVarLocalStore()
+
+    by_ncbi_contig = store.lookup(
+        chrom="NC_000001.11",
+        position=68444869,
+        ref="T",
+        alt="C",
+    )
+    by_chr_contig = store.lookup(chrom="chr1", position=68444869, ref="T", alt="C")
+    by_vcv = store.lookup_accession("VCV001421454")
+    by_variation_id = store.lookup_accession("1421454")
+
+    assert by_ncbi_contig.available is True
+    assert by_chr_contig.record == by_ncbi_contig.record
+    assert by_vcv.record == by_ncbi_contig.record
+    assert by_variation_id.record == by_ncbi_contig.record
+
+
+def test_no_hit_mismatch_and_invalid_queries_return_fail_closed_states() -> None:
+    store = ClinVarLocalStore()
+
+    no_hit = store.lookup_variant_id("1-68444870-T-C")
+    allele_mismatch = store.lookup(chrom="1", position=68444869, ref="T", alt="A")
+    contig_mismatch = store.lookup(chrom="chr7", position=68444869, ref="T", alt="C")
+    invalid = store.lookup_variant_id("not-a-variant")
+
+    assert no_hit.available is False
+    assert no_hit.unavailable_reason == "variant_not_found"
+    assert no_hit.warnings == ("clinvar_local_variant_not_found",)
+    assert allele_mismatch.available is False
+    assert allele_mismatch.unavailable_reason == "allele_mismatch"
+    assert allele_mismatch.warnings == ("clinvar_local_allele_mismatch",)
+    assert contig_mismatch.available is False
+    assert contig_mismatch.unavailable_reason == "contig_not_found"
+    assert contig_mismatch.warnings == ("clinvar_local_contig_not_found",)
+    assert invalid.available is False
+    assert invalid.unavailable_reason == "invalid_variant_id"
+
+
+def test_parser_failures_are_structured_for_malformed_vcf_rows(tmp_path: Path) -> None:
+    provenance = ClinVarLocalProvenance(
+        source_id=CLINVAR_SOURCE_ID,
+        source_version="test",
+        file_date=None,
+        checksum_algorithm="sha256",
+        checksum="0" * 64,
+        relative_path="bad.vcf",
+    )
+
+    bad_missing_info = tmp_path / "bad_missing_info.vcf"
+    bad_missing_info.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                "1\t68444869\tVCV001421454\tT\tC\t.\t.\tCLNSIG=Uncertain_significance",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ClinVarLocalError) as missing_info_exc:
+        parse_clinvar_vcf(bad_missing_info, provenance=provenance)
+
+    bad_position = tmp_path / "bad_position.vcf"
+    bad_position.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "1\tbad\tVCV001421454\tT\tC\t.\t.\t"
+                    "CLNSIG=Uncertain_significance;CLNREVSTAT=criteria_provided"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ClinVarLocalError) as bad_position_exc:
+        parse_clinvar_vcf(bad_position, provenance=provenance)
+
+    assert missing_info_exc.value.code == "malformed_clinvar_vcf_row"
+    assert missing_info_exc.value.details == {"row": 3, "field": "CLNREVSTAT"}
+    assert bad_position_exc.value.code == "malformed_clinvar_vcf_row"
+    assert bad_position_exc.value.details == {"row": 3, "position": "bad"}

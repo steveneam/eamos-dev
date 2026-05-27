@@ -24,6 +24,138 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-27, Codex):
+- LOCAL-EVIDENCE-RUNTIME-GATE slice is implemented backend-only as an inert
+  Task 16 configuration gate. Added disabled-by-default settings
+  `local_evidence_enabled`, `local_evidence_allowed_flows_raw`, and
+  `local_evidence_require_real_apis`, plus internal
+  `LocalEvidenceRuntimeGate` / `LocalEvidenceRuntimeDecision` dataclasses in
+  `app/backend/app/services/local_evidence_orchestrator.py`. The gate
+  normalizes allowed runtime flows (`lookup`, `search`, `gene_viewer`,
+  `workbench`), supports per-flow opt-in or `all`, rejects unknown flows
+  fail-closed, and by default requires `use_real_apis=True` before future
+  runtime code can prefer local stores. It is deliberately not consumed by
+  routes, source cache, live providers, public Pydantic schemas, frontend
+  mirrors, or Workbench. Focused local-evidence tests, local-source adjacent
+  tests, broader search/sequence/gene-viewer/workbench tests, Ruff, and Black
+  passed. Backend Pydantic contract canary checks pass when the unrelated
+  cross-frontend byte-identical mirror test is excluded; the full
+  `test_frontend_contract.py` still fails that one mirror test because
+  `app/web/lib/backend.ts` has the M11 section-fetch TS block while
+  `app/frontend/src/lib/backend.ts` does not. Codex did not edit frontend
+  mirrors.
+- LOCAL-EVIDENCE-ORCHESTRATION first slice is implemented backend-only as an
+  internal no-contract-change Task 16 proof. Added
+  `app/backend/app/services/local_evidence_orchestrator.py` with plain
+  dataclasses and an injectable `LocalEvidenceOrchestrator` that composes the
+  existing local dbSNP, ClinVar, transcript-coordinate, RepeatMasker, and
+  optional sequence-window models without touching routes, public Pydantic
+  schemas, frontend mirrors, live providers, or source cache. Focused tests
+  prove RPE65 `rs1645931040` resolves locally to `1-68444869-T-C`, ClinVar
+  `VCV001421454`, transcript exon 4/CDS position 260, RepeatMasker no-hit, and
+  an injected reference-window variant context; multiallelic `rs1801133` fails
+  closed until an alternate allele is supplied; local no-hit/allele-mismatch
+  states do not substitute unrelated fixture records; and `LookupResponse` /
+  `GeneViewerResponse` gain no `local_evidence` contract field. Focused local
+  source pytest, broader Task 16-adjacent search/sequence/gene-viewer/workbench
+  pytest, frontend contract canary, Ruff, and Black passed. No route/runtime
+  provider wiring, source-cache rewiring, frontend/schema mirror edits,
+  production source downloads/imports, live Supabase writes, uploads/imports,
+  `/runs`, AlphaMissense display/runtime scoring, restricted predictor unlocks,
+  destructive git, stash, reset, clean, or Task 15 native `pyBigWig`/Linux
+  proof.
+- TRANSCRIPT-COORDINATE-MAP helper is implemented fixture-first after Claude's
+  planner update closed M11 CAR #1 and opened no M8/M9/M10a backend CARs.
+  Added `TranscriptModelStore.map_coordinate()` plus
+  `TranscriptCoordinateLocation` / `TranscriptCoordinateLookup` in
+  `app/backend/app/services/transcript_model.py`. The helper maps GRCh38
+  coordinates against the checked-in MANE/GENCODE fixture, normalizes `chr` /
+  bare chromosome / RefSeq `NC_` aliases, returns exon hits with
+  transcript-oriented CDS position (including RPE65 reverse-strand math), and
+  returns intron hits with flanking exon numbers in transcript order plus
+  nearest-exon distance. Focused tests cover RPE65 exon 4
+  `NC_000001.11:g.68444869` -> CDS position 260, RPE65/CFTR intron mapping,
+  and fail-closed invalid/missing/mismatch/outside states. Focused transcript,
+  sequence-window, gene-viewer pytest, Ruff, and Black passed. No
+  `gffutils`/BioMart install, production MANE/GENCODE ingestion, API contract
+  change, frontend/schema mirror, provider/source-cache wiring, Supabase work,
+  `/runs`, AlphaMissense display/runtime scoring, destructive git, stash,
+  reset, or clean. Also added the broader project-specific local-first source
+  workflow to `docs/proprietary/local-first-source-model-workflows.md` and the
+  proprietary catalogue index, with a caveat that primitives are known
+  bioinformatics patterns while the Eamos fixture-first/provenance/fail-closed
+  workflow is project-specific IP.
+- SOURCE-ASSET Tasks 13 and 14 are implemented fixture-first. Added
+  `app/backend/app/services/dbsnp_local.py` plus
+  `app/backend/app/fixtures/data_sources/dbsnp_tiny.vcf` and
+  `tests/test_dbsnp_local_adapter.py` for local dbSNP GCF
+  rsID-to-GRCh38 identity lookup. The adapter preserves
+  `GCF_000001405.40` provenance, normalizes `NC_000001.11` / `chr1` / `1`,
+  represents multiallelic rows without selecting a single allele, and returns
+  structured fail-closed no-hit/mismatch/malformed states. Added
+  `app/backend/app/services/repeatmasker_local.py` plus
+  `app/backend/app/fixtures/data_sources/repeatmasker_tiny.rmsk.txt` and
+  `tests/test_repeatmasker_local_adapter.py` for the deterministic
+  RepeatMasker `rmsk.txt` to indexed interval-table proof. This intentionally
+  avoids bigBed download/conversion, UI/tool rewiring, and Supabase Storage.
+  Focused dbSNP/search/report pytest, RepeatMasker/indexed-reader pytest,
+  Ruff, and Black passed. Native `pysam`/`pyBigWig` proofs remain skipped on
+  this Windows host pending Docker/WSL/Linux approval. Checked current backend
+  env: `gffutils`, `biomart`, `pybiomart`, and `bioservices` are not installed;
+  use `TranscriptModelStore` for deterministic exon/intron fixture checks now,
+  and consider `gffutils` only after approved MANE/GENCODE ingestion. No
+  production source downloads/imports, Supabase writes/resources/uploads,
+  provider/source-cache wiring, frontend/schema mirror changes, `/runs`,
+  AlphaMissense display/runtime scoring, restricted predictor unlocks,
+  destructive git, stash, reset, or clean.
+- M11-MINIMAL-SECTION-FETCH-SKETCH is implemented backend-only after Claude's
+  22:55 CAR. Added `POST /api/v1/lookup/summary` for one-call M7 tile
+  summaries from current call cards, and `POST /api/v1/lookup/sections` with
+  an `include` selector for `publications`, `computational_deep_dive`, and
+  `clingen_vcep`. New section envelopes include freshness fields
+  (`fetched_at`, `source_version`, `stale_on_failure`, `source_status`,
+  `source_url`). `clingen_vcep` is explicitly `partial` until M9 ClinGen ER /
+  source-cache integration lands. Population detail, disease mechanism, and
+  therapies/trials remain in the monolith until M11-full/perf data; M7 should
+  use the summary tiles and lazy-fetch only the three expandable sections.
+  Focused section-fetch pytest, nearby report/lookup pytest, frontend contract
+  canary, Ruff, and Black passed. No frontend/backend.ts mirror edits,
+  provider/source-cache wiring, live Supabase writes/resources, production
+  source downloads/imports, `/runs`, AlphaMissense display/runtime scoring,
+  destructive git, stash, reset, or clean.
+- SUPABASE-RLS-STATIC-VERIFY is implemented. Added
+  `app/backend/tests/test_supabase_migrations.py`, a focused static regression
+  test for `supabase/migrations/0007_optimize_rls_auth_uid_initplan.sql`. It
+  parses `0001_submission_ledger.sql` and `0007` to prove the seven original
+  direct-`auth.uid()` RLS policies are recreated with the same names, target
+  tables, and commands, every predicate wraps `auth.uid()` as
+  `(select auth.uid())`, each recreated policy has a matching
+  `DROP POLICY IF EXISTS`, and the profile update policy keeps explicit
+  `WITH CHECK` ownership. Focused Supabase pytest (`13 passed` across
+  migration, evidence-submission Supabase, and source-field policy tests),
+  Ruff, Black check, and diff check passed. No live Supabase project
+  writes/resources, SQL execution, migration application, uploads/imports,
+  env/deploy mutation, production source imports/downloads, provider/source-
+  cache wiring, frontend/schema mirror changes, `/runs`, AlphaMissense,
+  runtime ML scoring, destructive git, stash, reset, or clean.
+- SOURCE-ASSET Task 12 ClinVar VCF local adapter is implemented
+  fixture-first, and the Supabase RLS performance migration is drafted
+  local-only. Added `app/backend/app/services/clinvar_local.py` with a
+  standalone parser/store for tiny ClinVar VCF fixtures, source and record
+  provenance, GRCh38 gnomAD-style variant ID lookup, VCV/numeric Variation ID
+  lookup, contig alias normalization, and structured fail-closed no-hit,
+  allele-mismatch, contig-mismatch, invalid-coordinate, and malformed-row
+  states. Added `app/backend/app/fixtures/data_sources/clinvar_tiny.vcf` for
+  RPE65 `1-68444869-T-C` / `VCV001421454` plus
+  `app/backend/tests/test_clinvar_local_adapter.py`. Added
+  `supabase/migrations/0007_optimize_rls_auth_uid_initplan.sql`, which
+  recreates the seven existing RLS policies with direct `auth.uid()` predicates
+  rewritten as `(select auth.uid())`; it was not applied live. Focused pytest
+  (`40 passed` across ClinVar local, clinical consensus, functional evidence,
+  and tool invariant tests), Ruff, Black, and static migration checks passed.
+  No production ClinVar download/import, Supabase project writes/resources,
+  uploads/imports, env/deploy mutation, provider/source-cache wiring,
+  frontend Workbench edits, schema mirror changes, `/runs`, AlphaMissense,
+  runtime ML scoring, destructive git, stash, reset, or clean.
 - SOURCE-ASSET Task 11 small clinical source table parsers are implemented
   fixture-first. Added `app/backend/app/services/clinical_source_tables.py`
   with normalized parsers/store helpers for MONDO JSON, HPOA disease phenotype

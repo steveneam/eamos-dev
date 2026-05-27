@@ -59,6 +59,76 @@ def test_reverse_strand_exons_are_in_transcript_order_with_descending_genomics()
     assert exons[1].genomic_start <= 68444869 <= exons[1].genomic_end
 
 
+def test_coordinate_map_identifies_reverse_strand_exon_and_cds_position() -> None:
+    location = TranscriptModelStore().map_coordinate(
+        gene="RPE65",
+        transcript="NM_000329.3",
+        chrom="NC_000001.11",
+        position=68444869,
+    )
+
+    assert location.available is True
+    assert location.location is not None
+    assert location.location.gene == "RPE65"
+    assert location.location.transcript == "NM_000329.3"
+    assert location.location.chrom == "1"
+    assert location.location.strand == "-"
+    assert location.location.region == "exon"
+    assert location.location.exon_number == 4
+    assert location.location.cds_position == 260
+    assert location.location.intron_between_exons is None
+    assert location.location.provenance.source_ids == (MANE_SOURCE_ID, GENCODE_SOURCE_ID)
+
+
+def test_coordinate_map_identifies_introns_in_transcript_order() -> None:
+    rpe65 = TranscriptModelStore().map_coordinate(
+        gene="RPE65",
+        chrom="chr1",
+        position=68444920,
+    )
+    cftr = TranscriptModelStore().map_coordinate(
+        gene="CFTR",
+        transcript="ENST00000003084",
+        chrom="7",
+        position=117504500,
+    )
+
+    assert rpe65.available is True
+    assert rpe65.location is not None
+    assert rpe65.location.region == "intron"
+    assert rpe65.location.intron_between_exons == (3, 4)
+    assert rpe65.location.distance_to_nearest_exon == 23
+    assert rpe65.location.cds_position is None
+
+    assert cftr.available is True
+    assert cftr.location is not None
+    assert cftr.location.region == "intron"
+    assert cftr.location.intron_between_exons == (2, 3)
+    assert cftr.location.distance_to_nearest_exon == 137
+
+
+def test_coordinate_map_fails_closed_for_mismatch_outside_and_invalid_states() -> None:
+    store = TranscriptModelStore()
+
+    chrom_mismatch = store.map_coordinate(gene="RPE65", chrom="chr7", position=68444869)
+    outside = store.map_coordinate(gene="RPE65", chrom="1", position=68460000)
+    invalid = store.map_coordinate(gene="RPE65", chrom="1", position=0)
+    missing_gene = store.map_coordinate(gene="NOTAGENE", chrom="1", position=68444869)
+
+    assert chrom_mismatch.available is False
+    assert chrom_mismatch.unavailable_reason == "chromosome_mismatch"
+    assert chrom_mismatch.warnings == ("transcript_model_chromosome_mismatch",)
+    assert outside.available is False
+    assert outside.unavailable_reason == "coordinate_outside_transcript"
+    assert outside.warnings == ("transcript_model_coordinate_outside_transcript",)
+    assert invalid.available is False
+    assert invalid.unavailable_reason == "invalid_coordinates"
+    assert invalid.warnings == ("transcript_model_invalid_coordinates",)
+    assert missing_gene.available is False
+    assert missing_gene.unavailable_reason == "gene_not_found"
+    assert missing_gene.warnings == ("transcript_model_gene_not_found",)
+
+
 def test_non_rpe65_control_resolves_by_ensembl_alias_and_preserves_plus_strand_order() -> None:
     lookup = TranscriptModelStore().lookup("CFTR", "ENST00000003084")
 

@@ -5,6 +5,7 @@ from functools import lru_cache
 from hashlib import sha256
 import json
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
@@ -115,6 +116,36 @@ class TranscriptModelLookup:
         return self.model is not None and self.unavailable_reason is None
 
 
+@dataclass(frozen=True)
+class TranscriptCoordinateLocation:
+    gene: str
+    transcript: str
+    chrom: str
+    position: int
+    strand: str
+    region: str
+    provenance: TranscriptModelProvenance
+    exon_number: int | None = None
+    cds_position: int | None = None
+    intron_between_exons: tuple[int, int] | None = None
+    distance_to_nearest_exon: int | None = None
+
+
+@dataclass(frozen=True)
+class TranscriptCoordinateLookup:
+    gene: str
+    transcript: str | None
+    chrom: str
+    position: int
+    location: TranscriptCoordinateLocation | None
+    unavailable_reason: str | None = None
+    warnings: tuple[str, ...] = ()
+
+    @property
+    def available(self) -> bool:
+        return self.location is not None and self.unavailable_reason is None
+
+
 class TranscriptModelStore:
     """Fixture-first local transcript/exon/CDS model store."""
 
@@ -195,6 +226,127 @@ class TranscriptModelStore:
             model=None,
             unavailable_reason="transcript_not_found",
             warnings=("transcript_model_transcript_not_found",),
+        )
+
+    def map_coordinate(
+        self,
+        *,
+        gene: str,
+        chrom: str,
+        position: int,
+        transcript: str | None = None,
+    ) -> TranscriptCoordinateLookup:
+        if position < 1:
+            return TranscriptCoordinateLookup(
+                gene=gene.strip().upper(),
+                transcript=transcript,
+                chrom=chrom,
+                position=position,
+                location=None,
+                unavailable_reason="invalid_coordinates",
+                warnings=("transcript_model_invalid_coordinates",),
+            )
+
+        model_lookup = self.lookup(gene, transcript)
+        if model_lookup.model is None:
+            return TranscriptCoordinateLookup(
+                gene=model_lookup.gene,
+                transcript=transcript,
+                chrom=chrom,
+                position=position,
+                location=None,
+                unavailable_reason=model_lookup.unavailable_reason,
+                warnings=model_lookup.warnings,
+            )
+
+        model = model_lookup.model
+        requested_chrom = _normalize_chrom_alias(chrom)
+        model_chrom = _normalize_chrom_alias(model.chrom)
+        if requested_chrom != model_chrom:
+            return TranscriptCoordinateLookup(
+                gene=model.gene,
+                transcript=transcript,
+                chrom=chrom,
+                position=position,
+                location=None,
+                unavailable_reason="chromosome_mismatch",
+                warnings=("transcript_model_chromosome_mismatch",),
+            )
+
+        span_start, span_end = model.transcript_span
+        if span_start is None or span_end is None or position < span_start or position > span_end:
+            return TranscriptCoordinateLookup(
+                gene=model.gene,
+                transcript=transcript,
+                chrom=chrom,
+                position=position,
+                location=None,
+                unavailable_reason="coordinate_outside_transcript",
+                warnings=("transcript_model_coordinate_outside_transcript",),
+            )
+
+        exon = _exon_at_position(model.exons, position)
+        if exon is not None:
+            return TranscriptCoordinateLookup(
+                gene=model.gene,
+                transcript=transcript,
+                chrom=chrom,
+                position=position,
+                location=TranscriptCoordinateLocation(
+                    gene=model.gene,
+                    transcript=model.refseq_transcript,
+                    chrom=model.chrom,
+                    position=position,
+                    strand=model.strand,
+                    region="exon",
+                    exon_number=exon.number,
+                    cds_position=_cds_position_for_exon_coordinate(
+                        exon,
+                        position=position,
+                        strand=model.strand,
+                    ),
+                    provenance=model.provenance,
+                ),
+            )
+
+        flanking_exons = _flanking_exons_for_intronic_coordinate(model.exons, position)
+        if flanking_exons is None:
+            return TranscriptCoordinateLookup(
+                gene=model.gene,
+                transcript=transcript,
+                chrom=chrom,
+                position=position,
+                location=None,
+                unavailable_reason="coordinate_outside_modeled_exons",
+                warnings=("transcript_model_coordinate_outside_modeled_exons",),
+            )
+
+        left, right = flanking_exons
+        transcript_left, transcript_right = sorted(
+            flanking_exons,
+            key=lambda item: item.cds_start,
+        )
+        return TranscriptCoordinateLookup(
+            gene=model.gene,
+            transcript=transcript,
+            chrom=chrom,
+            position=position,
+            location=TranscriptCoordinateLocation(
+                gene=model.gene,
+                transcript=model.refseq_transcript,
+                chrom=model.chrom,
+                position=position,
+                strand=model.strand,
+                region="intron",
+                intron_between_exons=(transcript_left.number, transcript_right.number),
+                distance_to_nearest_exon=min(
+                    abs(position - left.genomic_start),
+                    abs(position - left.genomic_end),
+                    abs(position - right.genomic_start),
+                    abs(position - right.genomic_end),
+                ),
+                provenance=model.provenance,
+            ),
         )
 
     def _build_provenance(self, registry: DataSourceRegistry) -> TranscriptModelProvenance:
@@ -362,6 +514,57 @@ def _choose_mane_select(candidates: tuple[TranscriptModel, ...]) -> TranscriptMo
         if any(alias.lower() == "mane select" for alias in candidate.transcript_aliases):
             return candidate
     return candidates[0]
+
+
+def _exon_at_position(
+    exons: tuple[TranscriptExonInterval, ...],
+    position: int,
+) -> TranscriptExonInterval | None:
+    for exon in exons:
+        if exon.genomic_start <= position <= exon.genomic_end:
+            return exon
+    return None
+
+
+def _flanking_exons_for_intronic_coordinate(
+    exons: tuple[TranscriptExonInterval, ...],
+    position: int,
+) -> tuple[TranscriptExonInterval, TranscriptExonInterval] | None:
+    by_genomic_start = sorted(exons, key=lambda exon: exon.genomic_start)
+    for left, right in zip(by_genomic_start, by_genomic_start[1:], strict=False):
+        if left.genomic_end < position < right.genomic_start:
+            return (left, right)
+    return None
+
+
+def _cds_position_for_exon_coordinate(
+    exon: TranscriptExonInterval,
+    *,
+    position: int,
+    strand: str,
+) -> int:
+    if strand == "-":
+        return exon.cds_start + (exon.genomic_end - position)
+    return exon.cds_start + (position - exon.genomic_start)
+
+
+def _normalize_chrom_alias(chrom: str) -> str:
+    normalized = chrom.strip()
+    if normalized.lower().startswith("chr"):
+        normalized = normalized[3:]
+    normalized = normalized.upper()
+    ncbi_match = re.fullmatch(r"NC_0*(\d+)\.\d+", normalized)
+    if ncbi_match is not None:
+        chrom_number = int(ncbi_match.group(1))
+        if 1 <= chrom_number <= 22:
+            return str(chrom_number)
+        if chrom_number == 23:
+            return "X"
+        if chrom_number == 24:
+            return "Y"
+    if normalized in {"MT", "NC_012920.1"}:
+        return "M"
+    return normalized
 
 
 def _versionless(identifier: str | None) -> str:

@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     search_input_ai_timeout_seconds: float = 8.0
     run_chat_top_k: int = 4
     use_real_apis: bool = False
+    local_evidence_enabled: bool = False
+    local_evidence_allowed_flows_raw: str = ""
+    local_evidence_require_real_apis: bool = True
     crispr_provider: str = "local_deterministic"
     crispr_rscript_path: Path = Path("Rscript")
     crispr_ruleset3_conda_env: Path | None = None
