@@ -13,7 +13,8 @@ import { DiseaseSection } from '@/components/report/DiseaseSection'
 import { TrialsSection } from '@/components/report/TrialsSection'
 import { PubMedSection } from '@/components/report/PubMedSection'
 import { LocusContext } from '@/components/report/LocusContext'
-import { InSilicoGrid } from '@/components/report/InSilicoGrid'
+import { CalibratedInSilicoTable } from '@/components/report/CalibratedInSilicoTable'
+import { CompositeVerdictBar } from '@/components/report/CompositeVerdictBar'
 import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
 import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
 import { AssociatedConditions } from '@/components/report/AssociatedConditions'
@@ -482,7 +483,8 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
             />
           }
         >
-          <InSilicoGrid data={payload.in_silico_predictions} />
+          <CompositeVerdictBar predictors={payload.report_profile?.computational_deep_dive?.predictors} />
+          <CalibratedInSilicoTable predictors={payload.report_profile?.computational_deep_dive?.predictors} />
           <EvidenceTable evidence={data.evidence} embedded />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
