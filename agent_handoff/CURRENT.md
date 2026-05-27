@@ -14,7 +14,7 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-27 00:54 +1000 — **Short verification + handoff session, no code changes.** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `06db425` (the impeccable `/report` pass), worktree clean. Browser-verified the live `eamos-dev.vercel.app/report?demo=1` (FortiGuard blocks `eamos.com.au` on work wifi — same Vercel deploy): impeccable pass landed cleanly (warm-white OKLCH, serif RPE65 wordmark, four-card grid, Disclosure primitives, `AskEamos` shows honest **COMING SOON** copy, legacy "therapeutic landscape"/old "AI summary" copy gone). Diagnosed **9 distinct backend-mojibake hot-spots** on `/report` (UTF-8 bytes rendered as Latin-1: em-dash `—` → `â`; middle-dot `·` → `Â·`) covering `.locus-coords`, AI summary prose, `.vardist-sub`/`.vardist-reading`, and 5 provenance `.src` lists — filed as Claude→Codex CAR below with exact byte sequences + suspect file list, relayed directly to Codex by Steven. **Codex completed Task 7** (2bit reader proof: installed `twobitreader==3.1.8`, added `TwoBitReferenceGenomeStore`, verified local `hg38.2bit` RPE65 `1:68444869=T`) — Workbench Phase-2 migration is now gate-cleared once Codex pushes that uncommitted work. No FE edits this session; CURRENT.md heartbeat + CAR are the only writes. Pre-existing dev server `:3000` PID 41072 still orphan, not touched. Detail: `~/.claude/plans/next-session-eamos.md` (stamp 00:40).
+- **Claude:** IDLE @ 2026-05-27 12:45 +1000 — **7 Claude/app/web commits shipped + LIVE on eamos-dev.vercel.app (Codex `f00d1c0` push swept them up).** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `f00d1c0`, worktree clean. Single coherent batch: Workbench pass-2 slice 1 = real viewer parity (`248552a` real `SequenceViewerV2` + 6 sub-components ported from Vite verbatim + `codon-layout`); viewer UX (`5caab62` 2/3 width restored via missing `--maxw`/`--side-w` CSS vars, 3 stacked windows = GeneMinimap → ProteinView → CodonDetail w/ collapsible chevron headers + Benchling-style internal scroll on `.sv-detail`); chrome diet (`4bf4b82` SVG bar-logo, descriptive subtitle, Gene/Exon/Codon zoom presets, Hide map button all gone; title = `gene · variant`; Scratchpad → top of side panel on warm-yellow surface w/ Log/Notes/Ask Eamos tabs); zoom slider scoped (`18cedfd` to `.sv-sequence-wrap` only, hover-revealed, no longer overlapping ViewerToolbar Undo/Redo; all collapse chevrons LEFT of titles, Google Docs pattern); /report Cards collapsible (`760e6e1` independent `useState` per Card, defaults open); full report restructure (`8cf4ea6` numbered 1=Population, 2=Evidence by source, 3=Gene context snapshot w/ Locus merged in under sub-header, 4=Conditions, 5=Publications, 6=Trials, 7=AI evidence summary at bottom; `<Card>` switched to `<div role="button">` so `actions` slot can host nested CopyButton without invalid nested interactive); CopyButton primitive + per-section TSV serializers (`lib/report-tsv.ts`) wired into all 7 cards including publications + trials (`9910431`); verified TSV→Excel parity via Python `csv.reader(delimiter='\t')` (pubs = 7-col grid, trials = 9-col grid). Codex's `/api/v1/chat` + `/api/v1/chat/stream` confirmed live — AskEamos placeholders in Scratchpad + Report §7 stay COMING SOON per Steven (not ready to fund API key budget; [[feedback_askeamos_parked]]). Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Claude (prior):** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Codex:** IDLE @ 2026-05-27 03:33 +1000 - Task 9 indexed reader
   compatibility proofs completed to the Windows-compatible boundary. Added
@@ -41,7 +41,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 03:35 +1000 · Codex (Task 9 reader proof closeout completed)
+UNLOCKED · 2026-05-27 12:48 +1000 · Claude (Active Status + ## Claude section refresh post-`f00d1c0`; prior section archived to `agent_handoff/archive/2026-05-27-claude-section-pre-workbench-and-report-restructure.md`)
 
 ## Shared File Locks
 
@@ -1157,54 +1157,161 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-05-25 03:05 +1000 · Claude. Prior section (eamos.com.au
-go-live night) is preserved in git history + `~/.claude/plans/next-session-eamos.md`.
-Full incremental detail in the next-session doc (sections "2026-05-25 later 1..5").
+Section last edited: 2026-05-27 12:45 +1000 · Claude. Prior section
+(2026-05-25 03:05, large `/report` + landing FE pass + stealth night)
+archived verbatim to
+`agent_handoff/archive/2026-05-27-claude-section-pre-workbench-and-report-restructure.md`
+per Hard Rule 1. Full incremental detail in
+`~/.claude/plans/next-session-eamos.md`.
 
-**Session 2026-05-25 — large /report + landing FE pass + stealth (all pushed + verified).**
+**Session 2026-05-27 — Workbench pass-2 slice 1 + viewer UX + chrome diet + scratchpad + report restructure + copy-to-Excel TSV (7 commits, all LIVE).**
 
-Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `b7fc9ca`. All Claude-lane,
-`app/web` only, Vercel auto-deploys, each verified on `eamos-dev.vercel.app`:
-- `d1c3a2a` trials/pubs display rules (5 + View-more, coloured ClinicalTrials status
-  pills RECRUITING/NOT_YET/ACTIVE_NOT, live publications pagination via
-  `/api/v1/lookup/publications`, honest `snippet_status`, PubMed search link).
-- `5448ba3` pricing collapsed to ONE landing surface; **`/pricing` page removed**
-  (Individual/Team toggle + enterprise card moved to landing, cumulative
-  "Everything in … plus:" leads, CTAs to `/checkout`). `app/web` `SearchShell.tsx` now unused.
-- `9c11b91`/`7146d4f`/`1989b44` mobile swipe carousels for the 4 report call cards +
-  pagination dots (new `components/ui/CarouselDots.tsx`) + desktop-leak fix.
-- `b847e10` mobile nav hamburger centred (left of auth).
-- `3aee4c1`/`9f0e469`/`73c3257`/`b7fc9ca` report search unified with the hero freeform
-  `EamosSearch` (added `tone` prop, suggestive placeholder, dropped Lookup/AI toggle,
-  shared `lib/variant-search.ts`), sticky + smooth focus-expand growing from a narrower
-  resting state on mobile + desktop (percentage width, no overshoot).
+Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `f00d1c0`
+(Codex backend bundle on top of my 7 Claude/`app/web` commits). All 7
+swept up to origin in Codex's `f00d1c0` push so all changes auto-deployed
+to `eamos-dev.vercel.app`. Render backend unchanged.
 
-**Stealth (verified):** `eamos.com.au` + `www` unhooked from Vercel; Supabase Site
-URL to `https://eamos-dev.vercel.app`. Confirmed `eamos.com.au` shows "Deployment not
-found" on Steven's mobile; vercel URL serves + auth works. Un-stealth steps (re-add
-domain in Vercel + revert Supabase Site URL) are in the next-session doc; Steven saved them.
+Commits (oldest → newest):
+- `248552a` **Workbench pass-2 slice 1 — real viewer parity.** Replaced
+  the pass-1 skeleton `SequenceViewerV2` (141 lines) with the full Vite
+  viewer (690 lines) + 6 sub-components ported verbatim with `'use
+  client'`: `CodonDetail` (615), `EditPopoverV2` (221, the right-click
+  "differentiator moment" per `plans/v2-redesign-impeccable.md` §5),
+  `GeneMinimap` (177), `ProteinView` (296), `ViewerToolbar` (157),
+  `HistoryTimeline` (47), plus `lib/workbench/codon-layout.ts` (43).
+  All existing app/web helpers (`@/lib/workbench/{gene-window,
+  codon-table,edit-state}`, `@/lib/backend`, `viewer-types`) already
+  exported what the real viewer needs — no helper edits.
+- `5caab62` **Workbench viewer UX.** Restored 2/3 viewer + 1/3 side
+  panel layout (root cause: Vite→Next port lost the `--maxw` /
+  `--side-w` CSS-var aliases inside `:root`, leaving the `.wb` grid
+  template falling back to undefined and eating the right column).
+  Dropped the Sequence/Protein toggle: now renders **GeneMinimap →
+  ProteinView → CodonDetail** in order, each wrapped in a collapsible
+  section header (`<SectionHeader>` w/ chevron). Added
+  `max-height: 62vh` + `overflow-y: auto` on `.sv-detail` so the
+  sequence panel scrolls Benchling-style internally instead of
+  stretching the page. Plumbed `onToggleMinimap` callback through
+  `WorkbenchShell` so the inline chevron and the legacy
+  `navCollapsed`/ZoomSlider "Hide map" stay in sync.
+- `4bf4b82` **Workbench chrome diet + tabbed Scratchpad in yellow.**
+  Stripped the SVG bar-logo from `WorkbenchClient` (Steven read it as
+  a hamburger), removed the descriptive `ContextStrip` subtitle
+  ("p.Asp87Gly · NM_000329.3 · chr1:…") and the `CanvasHeader` title
+  + sub ("Sequence viewer · RPE65 (ENSG…) · …"); new title is just
+  `{gene} · {variant}`. Retired Gene/Exon/Codon zoom presets + Hide
+  map button from `ZoomSlider`. Side panel: every section
+  collapsible via chevron header (matches viewer); **Scratchpad
+  promoted to top** on warm-yellow OKLCH surface
+  (`oklch(98% 0.035 95)`) with tabs **Log / Notes / Ask Eamos**.
+  "Exons (click to view)" disclosure restyled to share the same
+  chevron pattern.
+- `18cedfd` **Zoom slider scoped to Sequence window; chevrons LEFT.**
+  Moved the zoom overlay out of the outer `.viewer` (was overlapping
+  the ViewerToolbar's Undo/Redo cluster) into a new
+  `.sv-sequence-wrap` that wraps the Sequence section only — hover-
+  revealed there. Moved every collapse chevron to the **left** of
+  its title (viewer SectionHeader, side-section-head, nested
+  side-nested-head Exons disclosure) — Google Docs / VS Code
+  disclosure pattern.
+- `760e6e1` **Report `<Card>` is collapsible.** Each `<Card>`
+  instance now has its own `useState` for open state with a
+  left-aligned chevron header. Defaults open. Each section is
+  independent — clicking one chevron toggles only that card.
+- `8cf4ea6` **Report restructure + copy-to-Excel TSV per section.**
+  Section order locked: **1 Population · 2 Evidence by source · 3
+  Gene context snapshot (Locus context MERGED IN as sub-header) ·
+  4 Conditions · 5 Publications · 6 Trials · 7 AI evidence summary
+  (LAST, was unnumbered block after call cards — now a real Card).
+  VariantDecoder renders below 7 un-numbered.** Built new
+  `CopyButton` primitive (`components/ui/CopyButton.tsx`,
+  two-square icon → green ✓ "COPIED" for ~1.5s, hover lift,
+  click-stop-propagation). Built `lib/report-tsv.ts` with seven
+  per-section TSV serializers. `<Card>` switched from `<button>` to
+  `<div role="button">` so the CopyButton in the `actions` slot
+  isn't an invalid nested interactive control.
+- `9910431` **Wire copy buttons for publications + trials.**
+  `PubMedSection` and `TrialsSection` accept an optional `actions`
+  slot forwarded to their internal `<Card>`; `ReportClient` passes
+  CopyButtons bound to `tsvPublications` / `tsvTrials`.
 
-**Render:** Steven manually redeployed `084221e` to branch tip `b7fc9ca`; live with
-Codex's `f625107` (RPE65 ClinVar contradiction fixed: `nearby_variants` c.260A>G now
-`vus`; honest publication `gene_only_no_variant`). Verified via live probe.
+Verified:
+- `cd app/web && npx tsc --noEmit` clean after every commit.
+- `npm run build` (Next 16 webpack) exit 0 (5.8min) once at the end
+  of slice 1; subsequent commits relied on tsc + dev-server smoke.
+- Browser-verified each commit on `http://localhost:3000` (pre-
+  existing orphan dev server PID 41072) via Chrome MCP a11y tree +
+  screenshots.
+- **TSV→Excel parity** verified by overriding
+  `navigator.clipboard.writeText` on the live page to capture
+  copied text, then parsing through Python
+  `csv.reader(io.StringIO(text), delimiter='\t')` (= what Excel does
+  on paste). Publications = clean **7-col** grid (PMID · Title ·
+  Authors · Journal · Year · URL · Snippet status), trials = clean
+  **9-col** grid (NCT · Status · Phase · Match level · Title ·
+  Conditions · Interventions · Locations · URL). Multi-value cells
+  (multiple conditions / locations) use ` | ` as in-cell separator
+  so they don't blow out into extra columns. Python is at
+  `C:\Program Files\Python310\python.exe`.
 
-**Coordination:** `b7fc9ca` inadvertently swept Codex's staged docs (`PROGRESS.md`, this
-`CURRENT.md`, `plans/source-cache-architecture.md`, `plans/v2-backend.md`) — Codex
-verified the content + agreed leave-as-is (no rewrite). Claude now commits with
-`git commit -- <pathspec>` to avoid re-sweeping the shared index.
+**AskEamos chat (Workbench Scratchpad tab + Report §7 AI Card) stays
+COMING SOON** per Steven. Codex confirmed backend `POST /api/v1/chat`
++ `/api/v1/chat/stream` exist with shape `{ question, variant_context:
+ReportPayload, optional history, optional workbench }` — the block is
+purely commercial (Steven not ready to fund OpenAI/Anthropic API key
+budget). Do not wire until explicit go-ahead.
 
-**Open:** (Codex lane) re-capture `app/web/lib/rpe65-sample.json` — the `?demo=1` fixture
-drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, Steven's
-"add to consideration") host-conditional `noindex` (noindex all hosts EXCEPT
-`eamos.com.au`) for when going public. No servers running.
+**Locked UX preferences (carry forward, do not re-litigate):**
+- Workbench: 3 stacked viewer windows w/ collapse chevrons LEFT;
+  zoom slider hover-reveals inside Sequence only; chrome stripped to
+  `{gene} · {variant}` + functional controls on the right; Scratchpad
+  top of side panel on warm-yellow w/ Log/Notes/Ask Eamos tabs.
+- Report: 7 numbered Cards in the order above with Locus merged into
+  Gene context snapshot, AI summary last; chevrons LEFT; sections
+  independent; CopyButton in every Card header.
+
+**Open / next-session:**
+1. **Workbench pass-2 slice 2 — port the 4 tool panels.** Primer
+   (`PrimerPanel` + `PrimerResultCard` + `primer-form` +
+   `primer-metrics` + `primer-sample` lib), CRISPR (`CrisprPanel` +
+   `DesignTab` + `GuideTrack` + `IndelSpectrum` + `OutcomesTab` +
+   crispr-disclosure / crispr-guide-map / crispr-guide-ranking /
+   crispr-sample / crispr-tide-sample lib), Align (`AlignPanel` +
+   `alignment-pairwise` lib). Same pattern as slice 1; ~2,000+ lines
+   incl. tests. Contracts confirmed stable by Codex: `/api/v1/primer`,
+   `/api/v1/crispr`, `/api/v1/align` (NOT under `/workbench/*` —
+   Vite `lib/api.ts` already uses these paths). Primer
+   `specificity_detail` will be additive/optional; TIDE stays
+   separate as `/api/v1/crispr/tide`. After slice 2, the Workbench
+   redesign Phase 2 in `plans/v2-redesign-impeccable.md` M5
+   unblocks.
+2. **(Optional)** per-metric copy buttons inside the report cards.
+   Steven said "move on" after section-level shipped — parked. Each
+   metric box / table can take its own `<CopyButton>` with a smaller
+   TSV slice.
+3. **(Optional)** re-render `feat-report-cards.webp` without the
+   baked "alphamissense on hold" text (violates 2026-05-19 display-
+   only-hide decision).
+4. §6 landing backlog (mobile-nav blur, legal pages on warm surface +
+   composed nav + breadcrumb, retire/repurpose `ls-drift`/
+   `ls-shimmer`), formal impeccable `audit` + `quality-reviewer`
+   gates for M2 (Landing) and M3 (Report).
+
+Runtime notes (Codex 2026-05-27): `TwoBitReferenceGenomeStore` is
+proven locally but NOT yet wired into `/api/v1/viewer`. Viewer still
+serves fixtures unless `USE_REAL_APIS=true`; live mode currently
+fetches Ensembl REST sequence, not the 2bit reader. Doesn't affect FE
+work — the contract / shape is stable.
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-25 03:05 +1000 · Claude (FE polish done; stealth on; Render live)`
-`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — "2026-05-25 later 5" is newest), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Claude + Active Status + Locks + Cross-Agent Requests), agent_handoff/RISKS.md, then git status --short --branch. Branch checkpoint/v2-batches-2026-05-17 (HEAD b7fc9ca, local==origin).`
-`Verify on eamos-dev.vercel.app ONLY — eamos.com.au is in STEALTH (domain unhooked from Vercel; Supabase Site URL set to eamos-dev.vercel.app). Vercel auto-deploys app/web on push; Render backend is MANUAL (live at b7fc9ca with Codex f625107 fixes).`
-`Delta: large /report+landing FE session shipped+verified (trials/pubs display, single-surface pricing [/pricing removed], mobile carousels+dots, centred mobile nav, report search unified with hero freeform bar + smooth focus-expand mobile+desktop). b7fc9ca inadvertently swept Codex staged docs — Codex agreed leave-as-is.`
-`Open: (Codex) re-capture app/web/lib/rpe65-sample.json (demo fixture drifted from corrected live = vus + gene_only_no_variant); (Claude parked) host-conditional noindex when going public; un-stealth = re-add domain in Vercel + Supabase Site URL to eamos.com.au.`
-`Guardrails: no /runs, AlphaMissense, Workbench (Vite app/frontend = Codex lane); commit with git commit -- <pathspec> (concurrent Codex index); no destructive git. End clear-safe.`
+`# Resume prompt · 2026-05-27 12:45 +1000 · Claude (7 commits LIVE; Workbench slice 2 next)`
+`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — full state + queue + 7-commit summary), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + Active Status + ## Claude + ## Cross-Agent Requests), agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md, then git status --short --branch && git log -9 --oneline.`
+`Branch checkpoint/v2-batches-2026-05-17, local==origin at f00d1c0 (Codex backend bundle on top of 7 Claude/app/web commits 248552a..9910431, all LIVE on eamos-dev.vercel.app via Vercel auto-deploy).`
+`Delta: Workbench pass-2 slice 1 (real viewer parity); viewer UX (2/3 width + 3 stacked windows + Benchling internal scroll); chrome diet (no logo SVG, no descriptive subtitles, no Gene/Exon/Codon, no Hide map; title = "gene · variant"); zoom slider scoped to Sequence only; all chevrons LEFT (Google Docs); Scratchpad → top of side panel on yellow w/ Log/Notes/Ask Eamos tabs; /report Cards collapsible (independent); full report restructure (1=Pop, 2=Evidence, 3=Gene context w/ Locus merged in, 4=Conditions, 5=Pubs, 6=Trials, 7=AI summary last); CopyButton primitive + per-section TSV via lib/report-tsv.ts wired into all 7 cards including pubs+trials (verified TSV→Excel via Python csv parser).`
+`AskEamos stays COMING SOON — backend /api/v1/chat exists but Steven not ready to fund API key (memory: feedback_askeamos_parked). Do not wire.`
+`Next: (1) Workbench pass-2 slice 2 = port Primer/CRISPR/Align tool panels from app/frontend/src/components/workbench/{primer,crispr,align}/ following the slice-1 pattern, contracts /api/v1/primer · /api/v1/crispr · /api/v1/align confirmed stable. (2) Optional per-metric copy buttons. (3) §6 landing backlog + impeccable audit gates.`
+`Verification toolkit: tsc via ./node_modules/.bin/tsc in app/web; browser via Chrome MCP on localhost:3000 (pre-existing orphan dev server PID 41072, do NOT kill); TSV/Excel parity via Python at C:\\Program Files\\Python310\\python.exe — override navigator.clipboard.writeText on the live page then csv.reader(delimiter='\\t').`
+`Guardrails: no /runs, AlphaMissense display, Codex backend lane (app/backend/**), destructive git, push without OK. Commit Claude-lane with explicit git add -- <paths>. End clear-safe.`
 
 ## Codex â€” Last Task & Resume
 
