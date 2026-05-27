@@ -596,10 +596,10 @@ textarea {
 .acmg-cell { padding: 8px 10px; border: 0.5px solid var(--line); border-radius: 6px; background: var(--bg-soft); font-family: var(--mono); font-size: 11px; color: var(--ink-4); display: flex; flex-direction: column; gap: 2px; }
 .acmg-cell .code { font-weight: 600; font-size: 11.5px; color: var(--ink); }
 .acmg-cell .label-l { font-family: var(--body); font-size: 10.5px; line-height: 1.35; }
-.acmg-cell.met { background: var(--warn-tint); border-color: var(--warn-bdr); }
-.acmg-cell.met .code, .acmg-cell.met .label-l { color: #633806; }
-.acmg-cell.met-benign { background: var(--teal-tint); border-color: #cbe3d8; }
-.acmg-cell.met-benign .code, .acmg-cell.met-benign .label-l { color: var(--teal-deep); }
+.acmg-cell.met { background: var(--cls-path-bg); border-color: var(--cls-path-bdr); }
+.acmg-cell.met .code, .acmg-cell.met .label-l { color: var(--cls-path-text); }
+.acmg-cell.met-benign { background: var(--cls-ben-bg); border-color: var(--cls-ben-bdr); }
+.acmg-cell.met-benign .code, .acmg-cell.met-benign .label-l { color: var(--cls-ben-text); }
 .acmg-note { margin-top: 12px; font-size: 11px; color: var(--ink-4); line-height: 1.55; }
 .acmg-note strong { color: var(--ink-3); }
 

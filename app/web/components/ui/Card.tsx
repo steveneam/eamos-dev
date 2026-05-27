@@ -3,6 +3,21 @@
 import { useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
+type Verdict =
+  | 'Pathogenic'
+  | 'Likely pathogenic'
+  | 'VUS'
+  | 'Likely benign'
+  | 'Benign'
+
+const VERDICT_DOT: Record<Verdict, string> = {
+  'Pathogenic': 'var(--cls-path-dot)',
+  'Likely pathogenic': 'var(--cls-lpath-dot)',
+  'VUS': 'var(--cls-vus-dot)',
+  'Likely benign': 'var(--cls-lben-dot)',
+  'Benign': 'var(--cls-ben-dot)',
+}
+
 interface CardProps {
   number?: number
   title: string
@@ -17,6 +32,8 @@ interface CardProps {
   /** Start collapsed. The report renders open by default — the chevron is the
    *  affordance, not the resting state. */
   defaultOpen?: boolean
+  /** When provided, renders a 3px frozen-ramp accent on the left border. */
+  verdict?: Verdict | null
 }
 
 /**
@@ -34,8 +51,10 @@ export function Card({
   children,
   className,
   defaultOpen = true,
+  verdict,
 }: CardProps) {
   const [open, setOpen] = useState(defaultOpen)
+  const accentColor = verdict ? VERDICT_DOT[verdict] : undefined
 
   return (
     <div
@@ -43,7 +62,11 @@ export function Card({
         'rounded-[14px] bg-[var(--bg)] border border-[var(--line)] overflow-hidden',
         className,
       )}
-      style={{ borderWidth: '0.5px', boxShadow: 'var(--elev-1)' }}
+      style={{
+        borderWidth: '0.5px',
+        boxShadow: 'var(--elev-1)',
+        ...(accentColor && { borderLeftWidth: '3px', borderLeftColor: accentColor }),
+      }}
     >
       <div
         // Using role="button" instead of <button> so the CopyButton in the
