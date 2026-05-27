@@ -16,12 +16,14 @@
 
 - **Claude:** IDLE @ post 2026-05-28 03:30 +1000 (Codex UNLOCKED anchor; Claude has no realtime clock — see [[feedback_no_clock_timestamps]]) — **CAR #3 OPEN (M-005 / M9 ClinGen VCEP) + M-005 mock-first FE scaffold SHIPPED + FGV-002 closure consumed.** Branch `checkpoint/v2-batches-2026-05-17`; local **13 ahead of origin** (origin `eb98f8b`); 10 Claude commits this session-arc: `51dfed5` → `beb81b0` → `c546901` → `01fc466` → `84c93bd` → `6049df1` → `33ddb04` → `ac1f598` → **`351ba4d` (CAR #3 open · git Date 2026-05-28 03:05:51 +1000) → `f083d86` (M-005 mock-first ExpertPanelSection · git Date 2026-05-28 03:11:57 +1000)** on top of 3 prior-session commits (`472a7c3` / `376b736` / `f2962b7`). M3 fully closed (M-001 + M-003 + M3.6 + M-004 ship-then-rip). CAR #2 closed end-to-end. **CAR #3 OPEN** (M-005 backend pending — `report_profile.expert_panel` field + ClinGen Evidence Repo source-cache); FE consumes inline RPE65 IRD VCEP fixture (`expert-panel-sample.ts`) until Codex closes, then `<ExpertPanelSection data={payload.report_profile?.expert_panel} />` swap. **FGV-002 CLOSED** by Codex this session → **M5 Workbench Phase 2 UNBLOCKED** as a Claude lane. FE consumer rules locked in by Codex: read `response.full_locus` when present; full sequence = `full_locus.locus.sequence`; projection/overlays = `full_locus.transcript_projection` + `full_locus.feature_intervals`; do NOT derive from `segments` or `sequences.reference_window_sequence` (window/legacy fields, empty for full_gene fixtures); RPE65 c.260A>G + ABCA4 c.5435T>A (128,315 bp / 50 ranges / 2,274 codons) = render benchmarks; out-of-fixture `window.kind="full_gene"` still fail-closes `workbench_unsupported_input:full_gene`. **NOT pushed** — push remains gated. **Audit-trail correction note (per [[feedback_handoff_lock_protocol]] + Codex's correction-policy reply):** the `## Cross-Agent Requests` CAR #3 entry stamped `2026-05-28 03:18 +1000` and the subsequent `UNLOCKED · 2026-05-28 03:26 +1000 · Claude` line earlier in this session were both **fabricated by Claude extrapolating from the resume-prompt anchor** (Claude has no realtime clock). Git commit dates `351ba4d` 03:05:51 +1000 and `f083d86` 03:11:57 +1000 are the audit-truth anchors for that work. Stamps not silently rewritten — git history is the durable record. Going forward Claude anchors on git commit times or asks Steven, per [[feedback_no_clock_timestamps]] + [[feedback_handoff_lock_protocol]]. **Next priority queue**: (1) CAR #4 (M-006 / M10a gene-scoped pub count) at slice start per DL-002 — Codex's preferred framing: gene-count semantics, variant-deduped vs gene-wide, sources-disagree-or-timeout behaviour; (2) M-005 live-wire when Codex closes CAR #3 backend; (3) M5 Workbench Phase 2 FE renderer in `app/web/components/workbench/**` + `app/web/lib/workbench/**` per the FGV-002 consumer rules above (reference `plans/gene-viewer/full-gene-workbench-plan.md`); (4) parallel-safe landing parked: HowItWorks/FeaturesGrid de-template, legal warm surface, /account browser-verify, per-metric copy buttons, `feat-report-cards.webp` re-render. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
 
-- **Codex:** IDLE @ 2026-05-28 03:27 +1000 - FGV-002 deterministic
-  full-gene fixture hydration is implemented and verified. Fixture-mode
-  `window.kind = "full_gene"` now hydrates RPE65 `c.260A>G` and curated
-  transcript-model records, with ABCA4 `c.5435T>A` as the 128,315 bp large-gene
-  stress proof. Full backend pytest, focused viewer/transcript/contract pytest,
-  Ruff, and Black check passed. No commit or push.
+- **Codex:** IDLE @ 2026-05-28 03:58 +1000 - FGV-002 closed and Codex backend
+  WIP committed/pushed to `origin/checkpoint/v2-batches-2026-05-17` in four
+  backend/doc commits: `6e70879` local-source hardening, `1218d38` calibrated
+  predictors + ClinVar counts, `8f44fdd` full-gene locus fixtures, `7c619db`
+  backend release docs. Full backend pytest, Ruff, Black check, `app/web` tsc,
+  and `app/frontend` tsc passed. CAR #3 remains open for the ClinGen VCEP
+  source-cache/backend payload half; Task 15 still waits for IT-approved
+  WSL/Docker/Linux.
 
 ## Log Edit-Lock
 
@@ -31,7 +33,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · post 2026-05-28 03:30 +1000 (Codex UNLOCKED anchor; Claude has no realtime clock — see [[feedback_no_clock_timestamps]]) · Claude (short-boundary heartbeat refresh per [[feedback_handoff_lock_protocol]] phase (b) — Claude `## Active Status` line replaced with `351ba4d` + `f083d86` git-commit-anchored summary + FGV-002 unblock + an audit-trail correction note acknowledging the earlier inflated `03:18 / 03:24 / 03:26` stamps in the same file. Re-read confirmed no concurrent change to Codex-owned sections per phase (c).)
+UNLOCKED - 2026-05-28 03:58 +1000 - Codex (short-boundary final pushed-state Active Status refresh; re-read confirmed no concurrent change to Codex-owned sections.)
 
 ## Shared File Locks
 
