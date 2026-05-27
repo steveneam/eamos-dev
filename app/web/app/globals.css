@@ -241,16 +241,6 @@
   --nav-bg: rgba(252, 249, 243, 0.97);
 }
 
-@keyframes ls-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(-50%, 0, 0); }
-}
-
-@keyframes ls-shimmer {
-  0%, 100% { opacity: 0.45; }
-  50%      { opacity: 0.9; }
-}
-
 /* Dark-tone inputs (landing hero, auth panel, account forms) need a lighter placeholder. */
 [data-tone="dark"] input::placeholder,
 [data-tone="dark"] textarea::placeholder { color: var(--hero-ink-3); opacity: 1; }

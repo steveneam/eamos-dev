@@ -237,9 +237,9 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
                 top: 56,
                 // Opaque warm near-white — backdrop-filter:blur on a sticky
                 // overlay repaints on every keystroke (mobile typing lag).
-                background: 'rgb(250,246,239)',
+                background: 'var(--nav-bg)',
                 borderBottom: '0.5px solid var(--hero-line)',
-                boxShadow: '0 8px 24px -16px rgba(40,28,12,0.18)',
+                boxShadow: 'var(--elev-3)',
               }}
             >
               <nav className="mx-auto flex flex-col px-4 py-1.5" style={{ maxWidth: 1180 }}>
