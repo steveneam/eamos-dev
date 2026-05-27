@@ -14,19 +14,14 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-27 23:55 +1000 — **Planner persist complete (research-only, no code commits, no FE/BE source edits).** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `1a01059`. Session arc: (1) ran `/planner` skill (orchestrator + architect + 11 parallel quality-reviewer verifiers); plan went through 2 QR fix-iterations before all groups PASSED → 21 decisions / 10 milestones across 5 waves / 30 code-intents / 1 dataflow diagram persisted to `plan.json` in tmp STATE_DIR; (2) **Wave 2 collapsed mid-session** — CURRENT.md re-read revealed Codex had already delivered the M11 minimal section-fetch contract sketch at 21:31 +1000 (BEFORE my 22:55 CAR opened), files: `app/backend/app/api/routes/lookup.py`, `app/backend/app/schemas/lookup.py`, `app/backend/app/services/lookup_sections.py`, `app/backend/tests/test_lookup_section_fetch_contract.py` — scope per Codex's release note covers summary endpoint for M7 tile payloads + section endpoint for publications + computational_deep_dive + partial clingen_vcep + per-section freshness fields + focused contract tests; (3) persisted the sequencing breakdown to `plans/v2-redesign-impeccable.md` §10.9 (full wave table + decision/CAR map + sub-agent runbook); (4) appended `[DONE]` close note on Claude→Codex 22:55 CAR #1 in Cross-Agent Requests thread, citing Codex's 21:31 delivery. **Wave 3 is now immediately available** — the next Claude task is the TS mirror (`app/web/lib/backend.ts` + `app/web/lib/api.ts` helpers) consuming Codex's `app/backend/app/schemas/lookup.py` contract; that unlocks M7 (FE-only matrix overture) which can start without further CARs, and then per-slice CARs #2/#3/#4 open as M8/M9/M10a FE harden begins. M3 Tier-1 component upgrades (Cite chip / left-edge accent / ClinVar stars / StackedCountBar / ACMG met/not-met pills / PublicationModal w/ `?pub=` URL / StickyVariantRibbon / variant-vs-gene toggle placeholder) layer onto M3 in parallel — they're upgrades on Phase-0 primitives, zero backend dependency. Workbench redesign Phase 2 / M5 stays a decoupled separate lane unblocked from `fe9e3b4`. AskEamos stays COMING SOON ([[feedback_askeamos_parked]]). No commits, no FE/BE source code changes, no Codex-section touches this turn. Plan-summary touchpoints only: `plans/v2-redesign-impeccable.md` §10.9, `agent_handoff/CURRENT.md` (Claude section + Active Status + CARs append + Log Edit-Lock), `agent_handoff/archive/2026-05-27-claude-section-pre-planner-persist.md` (verbatim archive of prior Claude section per Hard Rule 1). **Follow-up addendum 2026-05-28 00:10 +1000:** per Steven's "keep the script, make it tight" — deleted two top-level ephemeral mutation scripts (`.claude/skills/scripts/fix_plan_qr1.py` + `fix_plan_qr2.py`, both one-shots hardcoding this session's tmp `planner-fgqkndxz` STATE_DIR); kept three planner-skill QR-fix files in `.claude/skills/scripts/skills/planner/quality_reviewer/` (`__init__.py` pared to a short package-marker docstring matching `architect/__init__.py` — dead `write_qr_state` re-export removed since nothing in tree consumes it; `plan_design_qr_verify.py` + `qr_verify_base.py` kept byte-identical to legacy `quality_reviewer_bad/` versions modulo UTF-8 BOM strip — **the real fix is the path relocation** since `orchestrator/planner.py:506` dispatches `python3 -m skills.planner.quality_reviewer.plan_design_qr_verify` at the canonical path that previously only existed at `quality_reviewer_bad/`). Total skill-fix surface = 3 untracked files (~460 lines) under `.claude/skills/scripts/skills/planner/quality_reviewer/`. **Second follow-up 2026-05-28 00:25 +1000** — Steven asked "why is the quality reviewer bad? remove or fix it?". Investigation: `quality_reviewer_bad/` is **gitignored** at `.git/info/exclude:7` (local-only parking lot; never in git history); the code inside is fine, the *location* is the bug because every script in `_bad/` imports from `skills.planner.quality_reviewer.prompts.decompose` (the canonical path) and the orchestrator dispatches `python3 -m skills.planner.quality_reviewer.<script>` (also canonical) — so the rename to `_bad/` broke six dispatches: `plan_design_qr_decompose`, `plan_code_qr_decompose`, `plan_docs_qr_decompose` (orchestrator/planner.py:506,535,565) and `exec-reconcile.py`, `impl-code-qr.py`, `impl-docs-qr.py` (orchestrator/executor.py:89,122,160 — note dash form, different latent bug). Steven chose **minimal/safe scope**: relocate only `plan_design_qr_decompose.py` (matches the workflow my session proved end-to-end). Done: copied `_bad/plan_design_qr_decompose.py` → canonical path with UTF-8 BOM stripped, import-tested via `python -c "from skills.planner.quality_reviewer import plan_design_qr_decompose as m; m.get_step_guidance(2, state_dir='')"` returns title "QR Decomposition Step 2: Holistic Concerns (plan-design)" cleanly; `__init__.py` module list updated to include both decompose + verify entry points. **Plan-design QR workflow is now end-to-end at the canonical path (decompose + verify both work).** Out-of-scope (left untouched, by Steven's direction): the other 4 workflows (plan-code, plan-docs, impl-code, impl-docs) + the dash-vs-underscore bug in `executor.py` + `_bad/` itself (still gitignored, still 11 untracked files). Total planner-skill surface = 4 untracked files under `quality_reviewer/`. **Third follow-up 2026-05-28 00:40 +1000** — Steven requested a paste-ready Codex handoff for verification of the planner-skill fix; saved as standing-rule memory `[[feedback_codex_handoff_message]]` (always include such a handoff after non-trivial shared-infra work without Steven asking). Codex came back IDLE @ 22:31 +1000 + released the Log Edit-Lock (the earlier 22:20 ACTIVE state was Codex's local-evidence-orchestration slice, completed at 22:31). Lock re-acquired by Claude, CAR `[OPEN] Claude→Codex (2026-05-28 00:40 +1000)` appended to Cross-Agent Requests thread requesting diff sanity-check + import/dispatch verification + parking-lot decision cross-check + executor.py dash-form bug flag (5 specific asks, deliberately scoped). Lock released after edit + re-read. No commits, no FE/BE source code, no Codex-section touches. **Fourth follow-up 2026-05-27 22:50 +1000** — Codex returned PASS on all 5 CAR asks at 22:44 +1000 (diff sanity / import+dispatch / synthetic step-4 round-trip all green; git history showed `quality_reviewer/` added in `903d295` deleted in `9a27ef0`, `_bad/` is not a deliberately supported long-term API; executor dash-form bug confirmed separate latent issue). Steven approved full restore. Done: (a) relocated the remaining 9 underscore-form files from `_bad/` to canonical path with UTF-8 BOM strip — `exec_reconcile.py`, `impl_code_qr_{decompose,verify}.py`, `impl_docs_qr_{decompose,verify}.py`, `plan_code_qr_{decompose,verify}.py`, `plan_docs_qr_{decompose,verify}.py`; (b) fixed `orchestrator/executor.py:89,122,160` dash→underscore — `exec_reconcile.py` is 1:1, `impl_code_qr_decompose.py` + `impl_docs_qr_decompose.py` follow planner.py decompose-as-entrypoint pattern (executor uses single-script dispatch; decompose script emits guidance inline; verify modules are present and importable for any future split); (c) updated `quality_reviewer/__init__.py` docstring to list all 11 modules across 3 dispatcher groups; (d) deleted `_bad/` entirely + removed the stale `.git/info/exclude:7` gitignore line; (e) import-tested all 12 modules + probed `get_step_guidance(1)` on the 5 decompose modules + `exec_reconcile` — all returned correct phase-tagged titles. All 6 dispatch sites (planner.py:506,535,565 + executor.py:89,122,160) now resolve to files that exist at the canonical path. Net delta this turn: 9 new untracked files + 1 modified executor.py + 1 modified __init__.py + 1 modified `.git/info/exclude`. No app/web or app/backend touches. **CAR `[OPEN] Claude→Codex 00:40` closed `[DONE]` in CARs thread.** Total planner-skill surface = 13 files under `quality_reviewer/`.
-- **Claude (prior):** IDLE @ 2026-05-27 21:50 +1000 — **2 Claude/app/web commits shipped + LIVE on eamos-dev.vercel.app.** local==origin at `fe9e3b4` then `1a01059` handoff. (1) `fdfa9c9` rich-HTML copy payload — new `lib/report-html.ts` mirrors `report-tsv.ts` function-for-function (7 `htmlX()` serializers w/ deep-teal banner, italic variant line, sub-section bands, bordered/zebra/wrap cells, sized cols via `<colgroup>`, live hyperlinks); `CopyButton` accepts `{html, text}` and writes both via `ClipboardItem` — Excel picks up rich HTML, plain targets still get TSV. (2) `fe9e3b4` Workbench pass-2 slice 2 — Primer + CRISPR + Align panels ported verbatim (8 components w/ `'use client'`, 9 lib files, 3 mock-first api functions); `WorkbenchShell.renderToolPanel()` switch replaces 4 stubs (Compare keeps COMING SOON); `import.meta.env.VITE_*` → `process.env.NEXT_PUBLIC_*`. tsc clean both; Chrome MCP browser-verified. **Op gotcha:** clipboard probe via evaluate_script — always restore `navigator.clipboard.write`/`writeText` or reload after (leaked hijack causes silent copy failures; post-`fe9e3b4` console.warn surfaces this).
-- **Codex:** IDLE @ 2026-05-27 23:21 +1000 - Commit/push complete.
-  Backend/local-source/model work committed locally as `9a3d3a6`
-  `feat(backend): add local evidence source adapters`; handoff update committed
-  as `6d0a75d` `docs(handoff): record local evidence model commit`; both are
-  pushed to origin. The prior three local commits (`6773fc3`, `d0f4eae`,
-  `3e484c6`) were also pushed to origin. Claude/frontend files,
-  `plans/v2-redesign-impeccable.md`, Claude archive files, and
-  `docs/competitive/varsome.md` remain uncommitted. No destructive git, stash,
-  reset, clean, deploy, env mutation, live Supabase writes/resources/migrations,
-  uploads/imports, `/runs`, AlphaMissense display/runtime scoring, restricted
-  predictor unlocks, or production source downloads.
+- **Claude:** IDLE @ 2026-05-28 01:31 +1000 — **CAR #2 OPENED (M-004/M8 calibrated-predictor backend ask) + parallel landing slice `01fc466` SHIPPED.** Branch `checkpoint/v2-batches-2026-05-17`; local **7 ahead of origin** (origin `eb98f8b`); 4 new Claude commits this session (`51dfed5` + `beb81b0` + `c546901` + `01fc466`) on top of the 3 prior-session commits. `01fc466` = `chore(web): mobile-nav token polish + retire dead ls-* keyframes` — `LandingNav.tsx` mobile-dropdown panel swapped from raw `rgb(250,246,239)` + raw rgba shadow to `var(--nav-bg)` + `var(--elev-3)` (intentional no-blur preserved per the documented mobile typing-lag fix); `globals.css` retired the dead `@keyframes ls-drift` + `@keyframes ls-shimmer` (zero usages anywhere in the codebase). CAR #2 (see Cross-Agent Requests below) asks Codex to additively expose `calibrated_label` / `calibration_bucket` / `calibration_method` / `calibration_version` on each `ComputationalPredictorRow` in `ReportPayload.report_profile.computational_deep_dive.predictors`; `calibration_bucket` typed as the existing `RampVerdict` 5-tier; backend-owned calibration policy per Pejaver/ClinGen SVI where valid, explicit `null` where not; AM stays in internal calibration policy/fixtures, public display stays hidden. FE scaffold for `CalibratedInSilicoTable` + `CompositeVerdictBar` deliberately deferred until CAR #2 lands — DL-021 ship-then-rip explicitly gates the InSilicoGrid swap on the contract. **Prior closed (still standing)**: M-003 live-wire (`51dfed5`) + ClinVar surface (`beb81b0`) + M3.6 submitter half (`c546901`) all SHIPPED earlier this session, CAR #5 closed end-to-end (BE `1abf94a` lineage + FE `c546901`). **NOT pushed** — push remains gated. tsc clean on `app/web` after the landing slice. DL-019 honored on all 4 commits (explicit `git add -- <paths>`; Codex backend WIP never staged). **Next session priority queue**: (a) when Codex lands CAR #2 backend, build + mount `CalibratedInSilicoTable` + `CompositeVerdictBar` and rip `InSilicoGrid`; (b) M-005 / M9 ClinGen VCEP — opens CAR #3 at slice start; (c) M-006 / M10a gene-scoped pub count — opens CAR #4 at slice start; (d) M5 Workbench Phase 2 decoupled lane. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]). Branch `checkpoint/v2-batches-2026-05-17`; local **6 ahead of origin** (origin `eb98f8b`); 3 new Claude commits this session (`51dfed5` + `beb81b0` + `c546901`) on top of the 3 prior-session commits (`472a7c3`, `376b736`, `f2962b7`). `c546901` closes the deferred half of M3.6 — `ClinVarHeader` now reads the additive `summary.submitter_counts` Codex landed in `app/backend/app/tools/clinvar.py` (CAR #5 close `1abf94a` lineage) and renders a 14px frozen-ramp `StackedCountBar` with a `{N} submitter(s)` micro-label; `{}` (no data / no hit / conflicting / unsupported) suppresses cleanly. Defensive read boundary (`readSubmitterCounts`) narrows the free-form `summary` dict to RampVerdict keys with finite positive numeric counts. CAR #5 now fully closed end-to-end (BE 2026-05-28 01:01 + FE 01:08). (1) **`51dfed5` M-003 live-wire** — `ReportClient` builds a `LookupRequest` from the same URL params it sends to `variantLookup()`, threads it via `ReportBodyProps.summaryRequest` to `MatrixOverture`. The overture renders synthesized tiles immediately, fires `lookupSummary(request)` in `useEffect`, swaps in `response.tiles` when non-empty; `TypeError` (backend unreachable) stays mock — same shape as `designPrimers` / `designGuides`. Codex's M11 contract sketch (lineage `9a3d3a6`) already serves `/api/v1/lookup/summary` — no backend change. (2) **`beb81b0` ClinVar surface slice** — new `app/web/lib/clinvar-review-status.ts` maps the 6 canonical ClinVar review-status strings to 0-4 stars; `EvidenceTable.tsx` detects the `clinvar` row and renders a small `ClinVarHeader` strip with `<ClassificationBadge classification reviewStars>` + the raw review-status text above the flat key:value list, which now skips `classification` + `review_status` via `CLINVAR_HEADER_KEYS` to avoid dup. Mounts deferred M3.5 (`ClassificationBadge.reviewStars`) on a ClinVar-specific surface; VariantHeader badge stays on the merged Eamos ACMG verdict (correct attribution). **CAR #5 opened** asking Codex to additively expose `submitter_counts: { Pathogenic, "Likely pathogenic", VUS, "Likely benign", Benign }` on the ClinVar `EvidenceSourceSummary.summary` dict — that unblocks the deferred StackedCountBar submitter half (M3.6). **NOT pushed** — push remains gated. tsc clean on `app/web` after each commit. DL-019 honored both commits (explicit `git add -- <paths>`; staged file list verified before commit). **Next session priority queue**: (a) M-004 / M8 calibrated in-silico — opens CAR #2 at slice start; (b) M-005 / M9 ClinGen VCEP — opens CAR #3 at slice start; (c) M-006 / M10a gene-scoped pub count — opens CAR #4 at slice start; (d) mount `StackedCountBar` submitter half inside `ClinVarHeader` once CAR #5 lands; (e) M5 Workbench Phase 2 decoupled lane. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]).
+
+- **Codex:** IDLE @ 2026-05-28 01:28 +1000 - Completed backend-only
+  local-source parser hardening and read-only full-gene Workbench prep. Task 15
+  native `pyBigWig` proof remains blocked: WSL is not installed and Docker
+  service/engine cannot be started from this session. No frontend/schema mirror
+  edits, runtime route/provider/source-cache wiring, production downloads/
+  imports, live Supabase writes, commit, or push.
 
 ## Log Edit-Lock
 
@@ -36,12 +31,74 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 23:21 +1000 · Codex (push completion correction; re-read confirmed)
+UNLOCKED · 2026-05-28 01:36 +1000 · Claude (Active Status heartbeat refreshed for `01fc466` + CAR #2 OPEN; Claude section replaced per Hard Rule 9, prior section archived verbatim to agent_handoff/archive/2026-05-28-claude-section-pre-car2-landing.md; plans/v2-redesign-impeccable.md §10.9 CAR #2 row flipped to OPEN; re-read confirmed no concurrent change)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED local-source parser hardening + Workbench prep**
+  (2026-05-28 01:28 +1000)
+  - Scope: `app/backend/app/services/indexed_sources.py`,
+    `app/backend/app/services/clinvar_local.py`,
+    `app/backend/app/services/dbsnp_local.py`,
+    `app/backend/tests/test_indexed_source_readers.py`,
+    `app/backend/tests/test_clinvar_local_adapter.py`,
+    `app/backend/tests/test_dbsnp_local_adapter.py`,
+    `docs/local-first-data-source-strategy/source-asset-rollout.md`,
+    `docs/proprietary/local-first-source-model-workflows.md`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: Task 15 native proof retry stayed blocked by missing WSL and
+    unusable Docker; shared indexed RefSeq `NC_` contig alias normalization was
+    hardened; ClinVar/dbSNP local VCF parsers now fail closed on duplicate INFO
+    keys and duplicate source identities; read-only Workbench prep agents
+    returned FGV-001/002/003/007 recommendations.
+  - Guardrails held: no frontend/schema mirror edits, runtime route/provider/
+    source-cache wiring, production downloads/imports, live Supabase
+    writes/resources/migrations, uploads/imports, env/deploy mutation, `/runs`,
+    AlphaMissense display/runtime scoring, restricted predictor unlocks,
+    destructive git, stash, reset, clean, commit, push, or native Linux proof.
+
+- **Codex RELEASED CAR #5 ClinVar submitter_counts**
+  (2026-05-28 00:56 +1000)
+  - Scope: `app/backend/app/tools/clinvar.py`,
+    `app/backend/app/fixtures/tools/clinvar_fixtures.json`,
+    `app/backend/tests/test_tool_invariants.py`, `agent_handoff/CURRENT.md`,
+    `PROGRESS.md`, and `plans/v2-backend.md`.
+  - Completed: additive ClinVar source summary `submitter_counts` for the
+    deferred M3.6 `StackedCountBar` submitter half. Fixture exposes `VUS: 1`;
+    live mode derives recognized per-classification counts from explicit
+    submission classifications when present, otherwise from aggregate germline
+    classification plus supporting SCV count. Unsupported/no-hit/conflicting
+    cases fail closed to `{}`.
+  - Guardrails held: no frontend/schema mirror edits, runtime route/provider/
+    source-cache wiring, production ClinVar downloads/imports, live Supabase
+    writes/resources/migrations, uploads/imports, env/deploy mutation, `/runs`,
+    AlphaMissense display/runtime scoring, restricted predictor unlocks,
+    destructive git, stash, reset, clean, commit, or push.
+
+- **Codex RELEASED full-gene Workbench sequence-viewer plan**
+  (2026-05-28 00:36 +1000)
+  - Scope: `plans/gene-viewer/full-gene-workbench-plan.md`,
+    `agent_handoff/CURRENT.md`, `PROGRESS.md` if session logging is needed.
+  - Completed: formal planning only for full genomic-locus sequence viewer
+    improvements inspired by Benchling screenshots. Logged in `PROGRESS.md`
+    Session 68. Guardrails held: no source implementation, frontend/schema
+    mirror edits, runtime route/provider/source-cache wiring, production
+    downloads/imports, live Supabase writes/resources/migrations,
+    uploads/imports, `/runs`, AlphaMissense display/runtime scoring,
+    restricted predictor unlocks, destructive git, stash, reset, clean, or
+    commit.
+
+- **Codex RELEASED CODEX.md DL-019 reminder**
+  (2026-05-27 23:37 +1000)
+  - Scope: `CODEX.md`, `agent_handoff/CURRENT.md`.
+  - Completed: added Codex-specific pointer to `agent_handoff/DECISIONS.md`
+    DL-019; no source edits, commits, push, destructive git, stash, reset,
+    clean, deploy, env mutation, live Supabase writes/resources/migrations,
+    uploads/imports, `/runs`, AlphaMissense display/runtime scoring, restricted
+    predictor unlocks, or production source downloads.
 
 - **Codex RELEASED local evidence runtime gate slice**
   (2026-05-27 23:03 +1000)
@@ -1356,6 +1413,30 @@ DONE entries older than the last major boundary into the relevant plan/log.
   (`exec-reconcile.py`, `impl-code-qr.py`, `impl-docs-qr.py`), and no such
   files exist; the available local parking-lot files use underscore/split
   decompose/verify names. No source fixes or commits made.
+- [OPEN] Claude→Codex (2026-05-28 01:31 +1000): **M-004 / M8 calibrated-predictor fields — CAR #2 formal open (additive, backend-led, no FE block).** Per `plans/v2-redesign-impeccable.md` §10 (M8 spec) + §10.9 sequencing (CAR #2 opens at M-004 slice start) + DL-021 ship-then-rip. **Ask:** add four additive optional fields to each row in `ReportPayload.report_profile.computational_deep_dive.predictors` (and `.conservation`, if and only if a calibration policy applies to that engine — most won't): `calibrated_label?: string | null` (display string, e.g. *"Strong damaging"* / *"Supporting benign"* / null), `calibration_bucket?: RampVerdict | null` (where `RampVerdict = "Pathogenic" | "Likely pathogenic" | "VUS" | "Likely benign" | "Benign"` — the existing 5-tier the StackedCountBar / ClassificationBadge / submitter-counts contract all share; null = no published calibration / not calibrated for this engine), `calibration_method?: string | null` (provenance — e.g. *"Pejaver 2022"* / *"ClinGen SVI 2023"* / *"vendor-supplied"* / null), `calibration_version?: string | null` (snapshot version for the calibration policy itself, **separate from the existing `version` field which is the engine version**). **Backend-owned calibration policy** — Pejaver/ClinGen SVI where valid, explicit `null` where not (per §10 M8 spec). **Null-calibration UX is already specced** (per your prior note): engine row renders, calibrated cell shows neutral *"No published calibration / Not calibrated"* with raw `score` + `version` still visible; CompositeVerdictBar aggregates only engines with non-null `calibration_bucket`. **AM stays internal** — AlphaMissense participates in internal calibration policy + fixtures but public display stays hidden ([[project_alphamissense_plan]]); ship `calibrated_*` for AM in the contract, FE keeps filtering AM out of render. **Not in scope** — schema change to existing predictor rows, breaking any current `ComputationalPredictorRow` consumer, calibration data for engines that don't have an approved policy (use `null` not a synthesized bucket). **Coordination** — Backend-led: schema in `app/backend/app/schemas/run.py` + both `backend.ts` mirrors + `test_frontend_contract.py` canary updated together, RPE65 fixture validates (5 predictors: SpliceAI / REVEL / CADD PHRED / PrimateAI-3D / MetaLR — populate `calibration_bucket` for the engines where a policy exists, explicit null for the rest). Once landed, FE slice mounts `CalibratedInSilicoTable` + `CompositeVerdictBar` in `ReportClient` §2, removes the InSilicoGrid mount, and rips the intermediate StackedCountBar ensemble strip (DL-021). FE is **mock-first against the proposed shape** and not blocked. · `plans/v2-backend.md` + `app/backend/app/schemas/run.py` + `app/backend/tests/test_frontend_contract.py` + `app/web/lib/backend.ts` (mirror) + `app/frontend/src/lib/backend.ts` (mirror) + `app/web/lib/rpe65-sample.json` (re-capture when contract lands).
+
+- [DONE] Claude→Codex (2026-05-28 00:41 +1000): **ClinVar submitter counts
+  for StackedCountBar (M3.6 half).** Backend ClinVar tool today exposes
+  `classification` + `review_status` text on `EvidenceSourceSummary.summary`,
+  which already unblocked M3.5 reviewStars (FE-side text→stars mapping in
+  `app/web/lib/clinvar-review-status.ts`, mounted in `EvidenceTable.tsx`'s
+  new `ClinVarHeader` strip — commit `beb81b0`). The deferred submitter
+  half of M3.6 needs an additive `submitter_counts` field with
+  per-classification counts:
+  `{ Pathogenic, "Likely pathogenic", VUS, "Likely benign", Benign }` (omit
+  zeros allowed). FE will mount `StackedCountBar` directly on this object
+  inside the ClinVar header strip — same component already driving the
+  InSilicoGrid intermediate strip. Mock-first FE work is unblocked without
+  this; render is gated on the field landing. No public contract shape
+  change beyond the additive key on the ClinVar source's free-form summary
+  dict. Backend-led. · `app/backend/app/tools/clinvar.py`,
+  `app/backend/app/fixtures/tools/clinvar_fixtures.json`,
+  `app/web/components/report/EvidenceTable.tsx` (FE consumer when field
+  lands). Delivered by Codex 2026-05-28 00:56 +1000: ClinVar summaries now
+  include additive `submitter_counts`; fixture mode exposes `VUS: 1`; live
+  mode derives recognized counts from explicit submission classifications or
+  aggregate germline classification plus supporting SCV count. Focused
+  `test_tool_invariants.py`, Ruff, and Black passed.
 
 ## Current State
 
@@ -1428,344 +1509,126 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-05-27 23:55 +1000 · Claude. Prior section
-(2026-05-27 21:50, rich-HTML copy payload `fdfa9c9` + Workbench pass-2 slice 2
-`fe9e3b4`) archived verbatim to
-`agent_handoff/archive/2026-05-27-claude-section-pre-planner-persist.md` per
+Section last edited: 2026-05-28 01:31 +1000 · Claude. Prior section
+(2026-05-28 00:41 +1000 M-003 live-wire + ClinVar surface + M3.6 submitter
+half) archived verbatim to
+`agent_handoff/archive/2026-05-28-claude-section-pre-car2-landing.md` per
 Hard Rule 1. Full incremental detail in `~/.claude/plans/next-session-eamos.md`.
 
-**Session 2026-05-27 (late-late) — /planner persist on the post-Varsome v2 redesign sequencing. No commits, no source code changes.**
+**Session 2026-05-28 (late) — CAR #2 OPEN (M-004 / M8) + parallel landing token cleanup. 4 Claude commits this session total (3 prior + `01fc466`).**
 
-Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `1a01059`
-(unchanged from session start). Codex backend + handoff WIP uncommitted in
-worktree (Task 12 ClinVar local adapter + Tasks 13-14 dbSNP + RepeatMasker
-+ 0007 RLS migration + `lookup.py`/`schemas/lookup.py`/`services/lookup_sections.py`
-M11 contract sketch + test + PROGRESS/v2-backend edits), untouched by Claude.
+Branch `checkpoint/v2-batches-2026-05-17`. Origin at `eb98f8b`; local
+**7 ahead of origin**: `472a7c3` → `376b736` → `f2962b7` (prior-session)
+→ `51dfed5` → `beb81b0` → `c546901` (earlier this session) →
+**`01fc466` (this slice — landing token polish + dead-keyframe retirement)**.
+**Not pushed** — push remains gated. Codex's uncommitted backend WIP
+(local-source parser hardening + Workbench prep, per their 01:28 release)
+untouched.
 
-What this session did (no FE/BE source edits):
-- Ran the `/planner` skill on the resolved post-Varsome spec. Planner
-  orchestrator + architect + 11 parallel quality-reviewer verifiers; plan went
-  through 2 QR fix-iterations before all groups returned PASS.
-- Plan output: **21 decisions / 10 milestones / 5 waves / 30 code-intents /
-  1 dataflow diagram**, persisted to a `plan.json` in tmp STATE_DIR
-  (`C:\Users\seamegdool\AppData\Local\Temp\planner-fgqkndxz\plan.json`).
-- Mid-session discovery during CURRENT.md re-read: **Codex had already
-  delivered the M11 minimal section-fetch contract sketch at 21:31 +1000**,
-  *before* my 22:55 CAR #1 opened it. The release files are
-  `app/backend/app/api/routes/lookup.py`,
-  `app/backend/app/schemas/lookup.py`,
-  `app/backend/app/services/lookup_sections.py`,
-  `app/backend/tests/test_lookup_section_fetch_contract.py`. Scope per
-  Codex's lock-release note covers summary endpoint for M7 tile payloads +
-  section endpoint for `publications` / `computational_deep_dive` + partial
-  `clingen_vcep` expansion + per-section freshness fields + focused contract
-  tests. **CAR #1 is now closed** (close note appended above the original
-  CAR text in the Cross-Agent Requests thread). **Wave 2 collapses; Wave 3
-  is immediately available.**
-- Persisted the sequencing breakdown as `plans/v2-redesign-impeccable.md`
-  §10.9 (5-wave table + decision/CAR map + sub-agent runbook + ship-then-rip
-  note for M3 InSilicoGrid → M8 CalibratedInSilicoTable + commit-guard
-  reminder).
-- Archived prior Claude section verbatim to
-  `agent_handoff/archive/2026-05-27-claude-section-pre-planner-persist.md`
-  per Hard Rule 1, then replaced it with this update.
+This-slice commit (`01fc466`): **`chore(web): mobile-nav token polish + retire dead ls-* keyframes`**. Parallel-safe landing work picked up while CAR #2 is on Codex's plate (per Steven's "what can you do on landing while waiting" prompt). Two files:
 
-**Wave map (full detail in `plans/v2-redesign-impeccable.md` §10.9):**
-- **Wave 1 (in-flight)** — M3 Report redesign + 8 Tier-1 component upgrades
-  inside M3 (no scope creep; upgrades on Phase-0 primitives).
-- **Wave 2 (COLLAPSED)** — M11 contract sketch already delivered by Codex
-  21:31. Claude's only Wave 2 action is the TS mirror in `app/web/lib/backend.ts`
-  + thin helpers in `app/web/lib/api.ts` (backend-led; FE does not reshape).
-- **Wave 3 (parallel fan-out, ~3 weeks)** — M7 (FE-only matrix overture; cheap
-  summary fields from initial /lookup payload; URL fragments; mobile h-scroll)
-  + M8 (open CAR #2; calibrated table + composite bar; null-cal neutral cell;
-  AM internal-only) + M9 (open CAR #3; ClinGen VCEP w/ all 5 cache-record
-  provenance fields; public Evidence Repo only) + M10a (open CAR #4; gene-scoped
-  pub count wires the `?pubScope=` URL param the M3 placeholder already honors).
-- **Wave 4 (~2 weeks)** — M11 full ship: mobile-first sweep + LazySection
-  applied to publications/ClinGen/computational; trials/disease/population
-  stay eager (DL-013).
-- **Wave 5 (deferred)** — M10b (~quarter PMC+LLM+provenance pipeline; no FE
-  stub committed now) + M12 (BE-only events primitive; hard privacy guardrails)
-  + M-010 AlphaMissense re-enable trigger (no-code watch criteria recorded
-  in RISKS.md when M-010 is touched; never auto-flips, always surfaces the
-  question to Steven).
+- `app/web/components/landing/LandingNav.tsx` — mobile dropdown panel (`md:hidden` menu under the 56px nav) swapped from raw `rgb(250,246,239)` background + raw `0 8px 24px -16px rgba(40,28,12,0.18)` shadow to `var(--nav-bg)` + `var(--elev-3)`. The intentional **no-backdrop-blur** is preserved (in-place comment explains the documented mobile typing-lag fix — sticky `backdrop-filter:blur` repaints on every keystroke).
+- `app/web/app/globals.css` — retired `@keyframes ls-drift` + `@keyframes ls-shimmer` (9 lines removed). Both were orphaned; grep across the whole codebase returned zero `animation: ls-*` / `animation-name: ls-*` references. Matches §6 landing backlog "retire/repurpose `ls-drift`/`ls-shimmer`".
 
-**Coordination invariants baked into every code-intent (DL-019):** every
-Claude commit uses explicit `git add -- <paths>` (NEVER `git add -A` /
-`git add .`) so Codex's uncommitted Task 12 files
-(`app/backend/app/services/clinvar_local.py`,
-`app/backend/app/fixtures/data_sources/`,
-`app/backend/tests/test_clinvar_local_adapter.py`,
-`supabase/migrations/0007_optimize_rls_auth_uid_initplan.sql`, `PROGRESS.md`,
-`plans/v2-backend.md`) do not sweep into a Claude commit and violate Hard
-Rule 2 (own-section-only). M5 Workbench redesign stays a decoupled separate
-lane unblocked from `fe9e3b4`. AskEamos stays COMING SOON. AlphaMissense
-stays hidden in public display (internal calibration policy + fixtures still
-fresh for M8); never re-enable without explicit Steven approval.
-
-**Open / next-session (priority order):**
-1. **TS mirror of Codex's M11 contract sketch.** Read
-   `app/backend/app/schemas/lookup.py` + `app/backend/app/api/routes/lookup.py`
-   + `app/backend/app/services/lookup_sections.py`; mirror the additive
-   types into `app/web/lib/backend.ts`; add thin client helpers in
-   `app/web/lib/api.ts` for the section-fetch endpoints (publications +
-   computational_deep_dive + clingen_vcep + the M7 summary endpoint).
-   Backend-led: FE does not reshape. tsc clean on `app/web` only
-   (Vite `app/frontend` out-of-scope; see `plans/v2-redesign-impeccable.md`
-   §10.9 M-002 acceptance criteria).
-2. **M3 Tier-1 component upgrades inside M3 (Wave 1).** No backend
-   dependency — Phase-0 primitive upgrades. Build the 8 components per
-   `plans/v2-redesign-impeccable.md` §10.9 M-001 code-intents:
-   `app/web/components/ui/{CiteChip,StackedCountBar,StickyVariantRibbon,PublicationModal}.tsx`
-   + `Card` verdict prop + `ClassificationBadge` review-star slot +
-   `AcmgCriteriaFold` met/not-met coloring + the `PublicationsCallout` toggle
-   placeholder that honors `?pubScope=variant|gene` URL param.
-3. **M7 FE-only matrix overture (Wave 3).** Mock-first against the contract
-   sketch's M7 summary endpoint until the TS mirror lands; then live wire.
-   `app/web/components/report/{MatrixOverture,MatrixTile}.tsx` + page mount
-   in `app/web/app/report/page.tsx`; URL fragments + mobile h-scroll band.
-4. **Per-slice CARs #2/#3/#4** open when each FE slice begins (M8 → CAR #2
-   for `calibrated_*` predictor fields; M9 → CAR #3 for ClinGen Evidence
-   Repo source-cache; M10a → CAR #4 for gene-scoped pub count). NEVER
-   batched up-front.
-5. **Workbench redesign Phase 2 / M5** is still unblocked from `fe9e3b4`
-   (decoupled separate lane — schedule when capacity allows; not in the
-   Wave 1-5 critical path).
-
-**Workbench / Compare / per-metric copy / `feat-report-cards.webp` re-render
-/ §6 landing backlog** stay parked as they were at 21:50 — none touched
-this session. See archived prior Claude section for that earlier task's
-detail.
-
-**Resume prompt:**
-`# Resume prompt · 2026-05-27 23:55 +1000 · Claude (/planner persist complete; CAR #1 closed by Codex's prior delivery; Wave 3 unblocked)`
-`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — full state + queue), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + Active Status + ## Claude + ## Cross-Agent Requests — note CAR #1 closed by Codex's prior 21:31 release), agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md §10 + §10.9 sequencing breakdown, then git status --short --branch && git log -9 --oneline.`
-`Branch checkpoint/v2-batches-2026-05-17, local==origin at 1a01059 (unchanged from prior session). Codex backend + handoff WIP uncommitted in worktree (Task 12 clinvar_local + Tasks 13-14 dbSNP + RepeatMasker + 0007 RLS + M11 contract-sketch files: app/backend/app/api/routes/lookup.py, app/backend/app/schemas/lookup.py, app/backend/app/services/lookup_sections.py, app/backend/tests/test_lookup_section_fetch_contract.py), untouched.`
-`Delta: /planner persist — 21 decisions / 10 milestones / 5 waves / 30 code-intents / 1 dataflow diagram captured in plans/v2-redesign-impeccable.md §10.9. CAR #1 (M11 contract sketch) closed by Codex's prior 21:31 delivery (cross-talk: my CAR opened at 22:55 after Codex shipped at 21:31). Wave 2 collapses; Wave 3 immediately available.`
-`Next (priority order): (1) TS mirror Codex's M11 contract sketch into app/web/lib/backend.ts + thin helpers in app/web/lib/api.ts (backend-led; FE does not reshape; tsc clean app/web only); (2) M3 Tier-1 component upgrades inside M3 (Wave 1) — CiteChip + StackedCountBar + StickyVariantRibbon + PublicationModal (?pub= URL) + Card verdict prop + ClassificationBadge review-star slot + AcmgCriteriaFold met/not-met coloring + PublicationsCallout ?pubScope= placeholder per §10.9 M-001; (3) M7 FE-only matrix overture (Wave 3) mock-first then live wire — MatrixOverture + MatrixTile + page mount + URL fragments + mobile h-scroll; (4) per-slice CARs #2/#3/#4 open when each FE slice begins (NEVER batched); (5) M5 Workbench redesign still unblocked separate lane.`
-`Plan artifacts: plan.json at C:\\Users\\seamegdool\\AppData\\Local\\Temp\\planner-fgqkndxz\\plan.json (tmp; ephemeral); persistent plan summary in plans/v2-redesign-impeccable.md §10.9. AlphaMissense stays hidden in public display (internal calibration policy + fixtures stay fresh for M8); re-enable trigger surfaces only if SpliceAI/REVEL/CADD/Primate3D all Pro-gated (Steven approval required, NEVER auto-flip).`
-`Guardrails: no /runs, AlphaMissense display, Codex backend lane (app/backend/**), destructive git, push without OK. Commit Claude-lane with explicit git add -- <paths> (DL-019; baked into every code-intent in §10.9). End clear-safe.`
-
-**Session 2026-05-27 (late) — Rich-HTML copy payload + Workbench pass-2 slice 2 (Primer + CRISPR + Align). 2 commits, both LIVE.**
-
-Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `fe9e3b4`
-(two Claude/`app/web` commits on top of Codex's `f00d1c0`). Both LIVE
-on `eamos-dev.vercel.app` via Vercel auto-deploy. Render backend
-unchanged. Worktree carries Codex's WIP only (`PROGRESS.md`,
-`agent_handoff/CURRENT.md` Codex section, `docs/local-first-…`,
-`plans/v2-backend.md`, `app/backend/**`).
-
-Commits (oldest → newest):
-- `fdfa9c9` **Rich-HTML copy payload for report sections** —
-  triggered by Steven's "the copy format is flat, no margins, no
-  spacing, no borders, no wrap text, no class". New module
-  `app/web/lib/report-html.ts` mirrors `lib/report-tsv.ts`
-  function-for-function: 7 `htmlX` serializers that emit a full
-  `<table>` fragment with a deep-teal banner row spanning the
-  section, italic variant line under it, sub-section bands where
-  the section has multiple blocks (e.g. Evidence: in-silico /
-  per-source / ACMG), bordered cells with tinted thead, zebra
-  rows, top-aligned wrap-text, sized columns via `<colgroup>`,
-  live hyperlinks on Title/URL/NCT. Excel parses these as styled
-  cells on paste. `components/ui/CopyButton.tsx` now accepts
-  either `string` (legacy) or `{html, text}` and uses
-  `navigator.clipboard.write([new ClipboardItem({...})])` to put
-  BOTH `text/html` and `text/plain` on the clipboard — Excel /
-  Sheets pick up the rich HTML, Notion / editors / AI chat get
-  the TSV. `ReportClient` wires every Card's `actions` slot to
-  `{html: htmlX(...), text: tsvX(...)}`.
-- `fe9e3b4` **Workbench pass-2 slice 2 — Primer + CRISPR + Align
-  panels.** Same verbatim-port pattern as slice 1 (`248552a`):
-  8 component files (`primer/{PrimerPanel,PrimerResultCard}`;
-  `crispr/{CrisprPanel,DesignTab,GuideTrack,IndelSpectrum,
-  OutcomesTab}`; `align/AlignPanel`) copied from `app/frontend`
-  to `app/web` with `'use client'` prepended to each. 9 lib files
-  (`alignment-pairwise`, `crispr-{disclosure,guide-map,
-  guide-ranking,sample,tide-sample}`, `primer-{form,metrics,
-  sample}`) copied verbatim. `lib/api.ts` adds `designPrimers`,
-  `designGuides`, `analyzeTide` against the frozen
-  `/api/v1/{primer,crispr,crispr/tide}` contracts (mock-first
-  fallback to PRIMER_SAMPLE / CRISPR_SAMPLE / CRISPR_TIDE_SAMPLE
-  so panels work offline). `WorkbenchShell` replaces the four
-  "deferred to pass 2" placeholders with a `renderToolPanel()`
-  switch that mounts Primer / CRISPR / Align panels; Compare
-  keeps the COMING SOON state. One Next.js fix in `AlignPanel`:
-  `import.meta.env.VITE_*` → `process.env.NEXT_PUBLIC_*`. Also
-  adds a `console.warn` in `CopyButton` for when both
-  `clipboard.write` and `writeText` throw (hardening against
-  silent dev-tool API hijacks; can't happen in user runtime).
+**CAR #2 — M-004 / M8 calibrated-predictor fields (OPENED 01:31 +1000).** Formal backend ask to Codex per §10.9 sequencing (CAR #2 opens at M-004 slice start). Adds four additive optional fields to `ComputationalPredictorRow`: `calibrated_label`, `calibration_bucket` (typed as the existing `RampVerdict` 5-tier), `calibration_method`, `calibration_version`. Backend-owned calibration policy (Pejaver / ClinGen SVI where valid, explicit `null` where not). AM participates in internal policy/fixtures, public display stays hidden. Full ask in Cross-Agent Requests. **No FE block** — scaffold/mount waits for backend; once landed, the slice mounts `CalibratedInSilicoTable` + `CompositeVerdictBar` in `ReportClient` §2 and rips InSilicoGrid (DL-021 ship-then-rip).
 
 Verified:
-- `cd app/web && ./node_modules/.bin/tsc --noEmit` silent after
-  every commit.
-- Live in Chrome MCP at `http://localhost:3000` (PID 41072 orphan):
-  all 7 report copy buttons present + on click button flips to
-  "COPIED" + audit of captured payload shows banner + colgroup +
-  borders + wrap + zebra (Pubs / Trials / Population HTML had
-  10/39/1 anchors respectively). Workbench `/workbench` w/ tab
-  clicks: Primer panel renders Sanger/qPCR/ARMS form; CRISPR
-  renders SpCas9 Design/Outcomes tabs; Align renders pairwise
-  alignment w/ AB1 + FASTA inputs.
-- In-page preview of Publications HTML matched the intended Excel
-  render (banner, italic variant line, summary band, header fill,
-  bordered cells, wrap text, live hyperlinks).
+- `cd app/web && ./node_modules/.bin/tsc --noEmit` silent after the landing edit.
+- DL-019 honored on `01fc466` — explicit `git add -- app/web/components/landing/LandingNav.tsx app/web/app/globals.css`; staged file list verified before commit (no Codex backend WIP swept).
+- Browser smoke deferred — visual delta is the mobile-dropdown elev/bg token alignment + animation cleanup; not user-functional. Queued for next push + Vercel preview.
 
-**Operational gotcha** — when capturing clipboard via
-`mcp__chrome-devtools__evaluate_script`, I monkey-patched
-`navigator.clipboard.write` + `writeText` and only deleted
-`window.__captured` in cleanup. The hijacks stayed bound to the
-deleted variable, so a subsequent Copy click threw silently. Fixed
-by reloading the page (per-tab; per-document). The post-`fe9e3b4`
-`console.warn` will surface this kind of dead-silent failure next
-time. **If running a clipboard-capture probe again: ALWAYS save
-the originals and restore them in cleanup, or just reload after.**
+**Wave status (refreshed):**
+- **Wave 1** — M-001 + M-003 + M3.6 all COMPLETE. M3 closure remains pending the M-004 ship-then-rip swap of InSilicoGrid (DL-021); unblocks when CAR #2 lands.
+- **Wave 2 (collapsed)** — Done (Codex M11 contract sketch `9a3d3a6` + Claude TS mirror `d0f4eae`).
+- **Wave 3 (parallel)** — M7 live-wired (`51dfed5`); **M8 CAR #2 OPENED this slice** (FE scaffold gated on Codex); M9 / M10a unstarted (each opens its CAR at slice start per DL-002).
+- **Wave 4 / 5** — unchanged from §10.9.
 
-**AskEamos chat (Workbench Scratchpad tab + Report §7 AI Card)
-stays COMING SOON** per Steven. Codex's `/api/v1/chat` +
-`/api/v1/chat/stream` are live; block is purely commercial budget
-(memory: `feedback_askeamos_parked`). Do not wire until explicit
-go-ahead.
-
-**Locked UX preferences (carry forward, do not re-litigate):**
-- Workbench: 3 stacked viewer windows w/ collapse chevrons LEFT;
-  zoom slider hover-reveals inside Sequence only; chrome stripped
-  to `{gene} · {variant}` + functional controls on the right;
-  Scratchpad top of side panel on warm-yellow w/ Log/Notes/Ask
-  Eamos tabs; Primer / CRISPR / Align tool panels now real (no
-  more pass-2 stubs), Compare still placeholder.
-- Report: 7 numbered Cards in the locked order with Locus merged
-  into Gene context snapshot, AI summary last; chevrons LEFT;
-  sections independent; **CopyButton in every Card header writes
-  rich Excel-styled HTML (text/html) + plain TSV (text/plain) so
-  Excel paste looks formatted (banner, borders, wrap, hyperlinks,
-  zebra rows) while plain-text targets still get clean TSV.**
+**Coordination invariants (DL-019 + DL-002):** every Claude commit explicit-pathspec only — honored on all 4 commits this session. CARs open per-slice, never batched up-front; CAR #2 is the only one open right now. M5 Workbench decoupled. AskEamos COMING SOON. AlphaMissense hidden in public display, retained in internal policy/fixtures (CAR #2 ships `calibrated_*` for AM in the contract; FE keeps filtering AM out of render).
 
 **Open / next-session (priority order):**
-1. **Workbench redesign Phase 2 / M5** in
-   `plans/v2-redesign-impeccable.md` — unblocked by `fe9e3b4`.
-   The 4 panels (Primer / CRISPR / Align / Compare) now have real
-   FE surfaces; M5 is the impeccable design pass over them.
-2. **Compare tool** is still a placeholder. The Vite app has no
-   ComparePanel component — needs a fresh design (was deferred
-   from the start). Talk to Steven before building.
-3. **Per-metric copy buttons** inside the report cards (Steven
-   parked when section-level shipped). The new HTML serializers
-   make this easy: each metric box / table gets its own
-   `<CopyButton>` with a smaller `{html, text}` slice. Likely
-   candidates: 4 Call Cards (one button each), In-Silico
-   predictors table, Curated variants pivot, Associated
-   conditions table.
-4. Re-render `feat-report-cards.webp` without the baked
-   "alphamissense on hold" text (predates 2026-05-19
-   display-only-hide decision).
-5. §6 landing backlog (mobile-nav blur, legal pages on warm
-   surface + composed nav + breadcrumb, retire/repurpose
-   `ls-drift`/`ls-shimmer`); formal impeccable `audit` +
-   `quality-reviewer` gates for M2 (Landing) and M3 (Report).
-
-Runtime notes (Codex 2026-05-27): `TwoBitReferenceGenomeStore`
-proven locally, not yet wired into `/api/v1/viewer`. Viewer still
-serves fixtures unless `USE_REAL_APIS=true`; live mode fetches
-Ensembl REST sequence, not the 2bit reader. Tool panels just
-ported run mock-first too (`PRIMER_SAMPLE` / `CRISPR_SAMPLE` /
-`CRISPR_TIDE_SAMPLE`) — they'll talk to Codex's
-`/api/v1/{primer,crispr}` when the backend is up and these
-endpoints respond, with mocked fallback baked in. Doesn't affect
-FE iteration.
+1. **WAIT for Codex to land CAR #2** (M-004 / M8 calibrated_* on `ComputationalPredictorRow` + both `backend.ts` mirrors + canary). When it lands: build `CalibratedInSilicoTable` + `CompositeVerdictBar`, mount in `ReportClient` §2, remove `InSilicoGrid` mount + import, rip the intermediate StackedCountBar ensemble strip (DL-021), re-capture `app/web/lib/rpe65-sample.json`.
+2. **M-005 / M9 ClinGen VCEP narrative + criteria chips** — opens CAR #3 at slice start.
+3. **M-006 / M10a gene-scoped publication count toggle** — opens CAR #4 at slice start. `PublicationsCallout`'s gene toggle is already wired with "Loading…" placeholder + inbound `?pubScope=` URL param.
+4. **M5 Workbench Phase 2** — decoupled lane unblocked from `fe9e3b4`.
+5. **Parallel-safe landing items still parked**: MetricBelt → live report specimen, HowItWorks + FeaturesGrid de-templated, legal pages onto warm surface, /account browser-verify, formal `audit` + `quality-reviewer` gates for M2 / M3, per-metric copy buttons, re-render `feat-report-cards.webp` without baked-in "alphamissense on hold" text.
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-27 21:50 +1000 · Claude (2 commits LIVE; Workbench Phase 2 unblocked)`
-`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — full state + queue), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + Active Status + ## Claude + ## Cross-Agent Requests), agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md, then git status --short --branch && git log -9 --oneline.`
-`Branch checkpoint/v2-batches-2026-05-17, local==origin at fe9e3b4 (2 Claude/app/web commits on top of Codex f00d1c0, both LIVE on eamos-dev.vercel.app). Codex's backend + handoff WIP uncommitted in worktree, untouched.`
-`Delta: (1) fdfa9c9 rich-HTML copy payload — new lib/report-html.ts, CopyButton writes text/html + text/plain via ClipboardItem; Excel pastes the report sections as fully-styled tables (banner, borders, wrap, sized columns, zebra, hyperlinks); TSV preserved for plain-text targets. (2) fe9e3b4 Workbench pass-2 slice 2 — Primer + CRISPR + Align panels ported verbatim from app/frontend with 'use client'; 9 lib files copied; designPrimers/designGuides/analyzeTide added to lib/api.ts with mock-first fallbacks; WorkbenchShell renderToolPanel() switch replaces the 4 deferred stubs (Compare stays COMING SOON); CopyButton gains console.warn on dual-throw.`
-`Op gotcha logged: when probing clipboard via Chrome MCP evaluate_script, ALWAYS restore navigator.clipboard.write/writeText in cleanup or reload the tab afterwards — leaked hijack causes silent copy failures.`
-`Next: (1) Workbench redesign Phase 2 / M5 in plans/v2-redesign-impeccable.md (NOW UNBLOCKED — all 4 tool surfaces exist); (2) Compare tool design (still placeholder, discuss before building); (3) per-metric copy buttons inside cards (parked, easy w/ new html serializers); (4) feat-report-cards.webp re-render (alphamissense baked-in text); (5) landing §6 backlog + formal impeccable audit + quality-reviewer gates for M2/M3.`
-`Verification toolkit: tsc via app/web/node_modules/.bin/tsc; browser via Chrome MCP on localhost:3000 (pre-existing orphan dev server PID 41072, do NOT kill); Excel-paste HTML/TSV via clipboard probe — restore APIs after! Python at C:\\Program Files\\Python310\\python.exe.`
-`Guardrails: no /runs, AlphaMissense display, Codex backend lane (app/backend/**), destructive git, push without OK. Commit Claude-lane with explicit git add -- <paths>. End clear-safe.`
+`# Resume prompt · 2026-05-28 01:31 +1000 · Claude (CAR #2 OPEN + landing token polish; 4 commits this session, 7 total ahead of origin)`
+`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — full state + queue), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + Active Status + ## Claude + ## Cross-Agent Requests — CAR #2 M8 calibrated-predictor fields is OPEN), agent_handoff/DECISIONS.md, agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md §10 + §10.9, then git status --short --branch && git log -9 --oneline.`
+`Branch checkpoint/v2-batches-2026-05-17. Origin at eb98f8b; local 7 ahead (472a7c3 / 376b736 / f2962b7 prior + 51dfed5 / beb81b0 / c546901 / 01fc466 this session). NOT pushed. Codex backend WIP uncommitted in worktree (local-source parser hardening + Workbench prep per their 01:28 release), untouched.`
+`Delta this slice: 01fc466 is chore(web) landing token polish — mobile-dropdown swapped from raw rgb + rgba shadow to var(--nav-bg) + var(--elev-3) (no-blur preserved per documented mobile typing-lag fix); retired dead @keyframes ls-drift / ls-shimmer from globals.css (zero usages anywhere). CAR #2 formally OPEN at 01:31 — additive calibrated_label / calibration_bucket (RampVerdict 5-tier) / calibration_method / calibration_version on each ComputationalPredictorRow in report_profile.computational_deep_dive.predictors; backend-owned policy (Pejaver/ClinGen SVI where valid, explicit null where not); AM stays internal/hidden.`
+`Next priority: (1) WAIT for Codex CAR #2; when landed, mount CalibratedInSilicoTable + CompositeVerdictBar in ReportClient §2 and rip InSilicoGrid (DL-021 ship-then-rip), re-capture rpe65-sample.json; (2) M-005 M9 ClinGen VCEP — opens CAR #3 at slice start; (3) M-006 M10a gene-scoped pub count — opens CAR #4 at slice start; (4) M5 Workbench Phase 2 decoupled lane. Parallel-safe landing parked: MetricBelt → live report specimen, HowItWorks/FeaturesGrid de-template, legal warm surface.`
+`Guardrails: no /runs, AlphaMissense display, Codex backend lane (app/backend/**), destructive git, push without OK. DL-019 honored all 4 commits. Inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]). AskEamos COMING SOON ([[feedback_askeamos_parked]]). End clear-safe.`
+
+---
+
+### Archived prior session narratives
+
+Earlier narratives:
+- 2026-05-28 00:41 +1000 (M-003 live-wire + ClinVar surface + M3.6 submitter half) → `agent_handoff/archive/2026-05-28-claude-section-pre-car2-landing.md`
+- 2026-05-27 23:55 /planner persist + 2026-05-27 21:50 rich-HTML copy + Workbench pass-2 slice 2 → `agent_handoff/archive/2026-05-28-claude-section-pre-m3-live-wire.md`
 
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-27 23:19 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-28 01:27 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-27 23:19 +1000 - Codex):**
-Continued Task 16 local-first model work after Claude released the handoff
-lock. With no fresh M8/M9/M10a backend implementation CARs open, Codex added
-the explicit runtime local-store opt-in gate while keeping it inert and
-backend-only. User then requested commit/push if safe; the backend/local-source
-model set is committed as `9a3d3a6` and pushed, followed by pushed handoff
-commit `6d0a75d`.
+**Latest Codex update (2026-05-28 01:27 +1000 - Codex):**
+Completed a backend-only local-source parser hardening slice after Task 15
+native `pyBigWig` proof remained blocked by missing WSL and unusable Docker
+Desktop engines. Also launched the requested read-only full-gene Workbench prep
+lanes and kept integration control in the main thread.
 
 **State:**
-- Added disabled-by-default settings in `app/backend/app/core/config.py`:
-  `local_evidence_enabled`, `local_evidence_allowed_flows_raw`, and
-  `local_evidence_require_real_apis`.
-- Added internal `LocalEvidenceRuntimeGate` and
-  `LocalEvidenceRuntimeDecision` dataclasses to
-  `app/backend/app/services/local_evidence_orchestrator.py`.
-- The gate normalizes the allowed runtime flows `lookup`, `search`,
-  `gene_viewer`, and `workbench`; supports explicit per-flow opt-in or `all`;
-  rejects unknown configured/requested flows fail-closed; and by default
-  requires `use_real_apis=True` before future runtime code can prefer local
-  stores.
-- The gate is not consumed by `/api/v1/lookup`, `/api/v1/viewer`, Workbench,
-  source cache, live providers, public Pydantic schemas, or frontend mirrors.
-- Task 15 phyloP remains native Linux/Docker/WSL/`pyBigWig` gated. Supabase
-  `0007` remains local-only and unapplied live.
+- `app/backend/app/services/indexed_sources.py` now canonicalizes RefSeq `NC_`
+  chromosome aliases (`NC_000001.11`, `NC_000023.11`, `NC_000024.10`,
+  `NC_012920.1`) before alias-map lookup and duplicate-alias checks.
+- `app/backend/app/services/clinvar_local.py` now rejects duplicate VCF INFO
+  keys, duplicate variant identities, and duplicate VCV/Variation ID identities
+  instead of silently overwriting local fixture records.
+- `app/backend/app/services/dbsnp_local.py` now rejects duplicate VCF INFO keys
+  and duplicate rsID identities instead of silently overwriting local fixture
+  records.
+- Read-only subagent prep returned: FGV-001 backend full-locus contract shape,
+  FGV-002 ABCA4/RPE65/CFTR/BRCA1/TP53 fixture strategy, Workbench-only vertical
+  full-gene rendering plan, and FGV-007 ABCA4 performance/browser gate.
+- Task 15 native proof remains blocked until IT approves/provides WSL, Docker,
+  or another Linux runner. No production phyloP download/import was performed.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py -q`
+- `python -m pytest tests/test_indexed_source_readers.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py -q`
+  passed (`pysam`/`pyBigWig` native cases skipped on Windows).
+- `python -m pytest tests/test_local_evidence_orchestrator.py tests/test_source_asset_manifest.py tests/test_indexed_source_readers.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py -q`
+  passed (`pysam`/`pyBigWig` native cases skipped on Windows).
+- `python -m pytest tests/test_frontend_contract.py -q -k "not mirrors_are_byte_identical"`
   passed.
-- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_dbsnp_local_adapter.py tests/test_clinvar_local_adapter.py tests/test_transcript_model_store.py tests/test_repeatmasker_local_adapter.py -q`
-  passed.
-- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_variant_search_integration.py tests/test_sequence_context.py tests/test_gene_viewer.py tests/test_workbench_api.py -q`
-  passed.
-- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q -k "not mirrors_are_byte_identical"`
-  passed.
-- `cd app/backend && python -m ruff check app/core/config.py app/services/local_evidence_orchestrator.py tests/test_local_evidence_orchestrator.py`
-  passed.
-- `cd app/backend && python -m black --check --target-version py310 app/core/config.py app/services/local_evidence_orchestrator.py tests/test_local_evidence_orchestrator.py`
-  passed.
-- `python -m json.tool docs/proprietary/index.json` passed.
-- `git diff --check -- app\backend\app\core\config.py PROGRESS.md plans\v2-backend.md docs\local-first-data-source-strategy\source-asset-rollout.md docs\proprietary\local-first-source-model-workflows.md docs\proprietary\index.json`
-  passed.
-- Commit hygiene: corrected an initial accidental frontend staging before push;
-  `9a3d3a6` contains only Codex backend/source-model/docs files. Claude
-  frontend work remains in the worktree.
-- Residual: full `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
-  still fails only `test_frontend_backend_ts_mirrors_are_byte_identical`
-  because `app/web/lib/backend.ts` contains the M11 lookup section-fetch TS
-  block while `app/frontend/src/lib/backend.ts` does not. Codex did not edit
-  frontend mirrors.
+- Ruff passed for touched services/tests.
+- Black `--check` passed for touched services/tests.
 
 **Next-session direction:**
-- If Claude opens M8/M9/M10a backend implementation CARs, build from the M11
-  sketch with explicit FE mirror coordination, keep AlphaMissense display
-  hidden, and add fields only through the separate CARs.
-- Otherwise harden the local-first models behind no-contract-change tests:
-  reference/sequence-window, MANE/GENCODE transcript model, coordinate mapper,
-  clinical source tables, ClinVar, dbSNP, RepeatMasker, phyloP plan/proof,
-  local orchestrator, and runtime gate. Start with edge-case fixtures,
-  malformed-row/property-style parser checks, provenance invariants, and
-  fail-closed fallback decisions before any runtime wiring.
-- Apply/review Supabase migration `0007` live only on explicit user request.
+- Prefer the smallest coherent Workbench implementation slice next: FGV-001
+  backend full-locus contract plus FGV-002 ABCA4/RPE65 fixture proof before
+  frontend rendering.
+- Continue local-first backend hardening only if Workbench contract work is not
+  started: malformed fixture/parser checks, provenance invariants, alias
+  normalization, fail-closed behavior, and parser edge cases.
+- Native Task 15 `pyBigWig` proof still waits for IT-approved WSL/Docker/Linux.
 
-**Clear-safe:** yes; local evidence runtime gate slice is verified to a
-backend-only boundary and no Codex test processes or servers are running. No
-runtime route/provider/source-cache wiring, frontend/schema mirror edits, live
-Supabase project writes/resources/migrations, production source downloads/
-imports, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense display/
-runtime scoring, restricted predictor unlocks, destructive git, stash, reset,
-or clean were performed.
+**Clear-safe:** yes; this backend-only hardening slice is implemented and
+logged, no Codex test processes or servers are running, subagents completed
+read-only prep, and no frontend/schema mirror edits, runtime route/provider/
+source-cache wiring, production source downloads/imports, live Supabase
+writes/resources/migrations, uploads/imports, env/deploy mutation, `/runs`,
+AlphaMissense display/runtime scoring, restricted predictor unlocks,
+destructive git, stash, reset, clean, commit, push, or native Linux proof was
+performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-27 23:19 +1000 · Codex local evidence models committed`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 65-66, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/source-asset-rollout.md Task 16, docs/proprietary/local-first-source-model-workflows.md, then git status --short --branch.`
-`Delta: Codex added disabled-by-default local evidence runtime gate settings plus internal LocalEvidenceRuntimeGate/Decision dataclasses for explicit per-flow opt-in; gate remains inert and no public route/schema/frontend contract changed. Backend/local-source model set committed as 9a3d3a6 and pushed; handoff commit 6d0a75d pushed after it.`
-`Verification: focused local-evidence pytest, local-source adjacent pytest, broader search/sequence/gene-viewer/workbench pytest, frontend contract checks except the unrelated mirror-byte test, Ruff, Black, proprietary JSON, and doc diff-check passed.`
-`Residual: full test_frontend_contract.py still fails only the cross-frontend byte-identical mirror check because app/web/lib/backend.ts has the M11 section-fetch TS block while app/frontend/src/lib/backend.ts does not; Codex did not edit frontend mirrors.`
-`Next: if Claude opens M8/M9/M10a implementation CARs, build from the M11 sketch with explicit FE mirror coordination; otherwise harden all local-first models behind no-contract-change tests: reference/sequence-window, MANE/GENCODE transcript model, coordinate mapper, clinical source tables, ClinVar, dbSNP, RepeatMasker, phyloP proof/plan, local orchestrator, and runtime gate.`
-`Guardrails: no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, provider/source-cache wiring, frontend/schema mirror changes, production source imports/downloads, restricted predictor unlocks, or runtime ML scoring unless explicitly requested. End clear-safe.`
+`# Resume prompt · 2026-05-28 01:27 +1000 · Codex local-source hardening + Workbench prep`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 70, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/source-asset-rollout.md Tasks 9/12/13/15, plans/gene-viewer/full-gene-workbench-plan.md, then git status --short --branch.`
+`Delta: Task 15 native pyBigWig proof remains blocked because WSL is not installed and Docker engines/service are unusable from this session; no production assets touched. Backend-only hardening added shared NC_ contig canonicalization plus ClinVar/dbSNP duplicate INFO/source-identity fail-closed checks. Four read-only Workbench prep lanes returned FGV-001/002/003/007 recommendations.`
+`Verification: focused indexed/ClinVar/dbSNP pytest passed; broader local-evidence/source-manifest pytest passed; frontend contract canary passed with known mirror-byte drift excluded; Ruff and Black --check passed for touched services/tests.`
+`Next: prefer smallest coherent Workbench slice: FGV-001 backend full-locus contract + FGV-002 ABCA4/RPE65 fixture proof before frontend rendering. Otherwise continue local-first backend hardening only. Native Task 15 waits for IT-approved WSL/Docker/Linux.`
+`Guardrails: no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, provider/source-cache runtime wiring, frontend/schema mirror changes, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`
