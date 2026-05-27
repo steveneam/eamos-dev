@@ -25,6 +25,7 @@ from app.schemas.run import (
 )
 from app.services.population_frequency_section import build_population_frequency_section
 from app.services.clinical_consensus import sanitize_acmg_rationale
+from app.services.computational_calibration import calibration_field_values
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.report_provenance import provenance_for_source, provenance_from_evidence
 from app.services.search_input_resolver import SearchInputResolution
@@ -375,6 +376,7 @@ def _computational_deep_dive_from_legacy_predictions(
                     interpretation=card.verdict_label or card.verdict,
                     source=card.name,
                     source_url=card.source_url,
+                    **calibration_field_values(card.name, card.score),
                 )
             )
             if card.name == "SpliceAI":
@@ -457,14 +459,24 @@ def _computational_row_from_dict(item: dict[str, Any]) -> ComputationalPredictor
     name = _optional_text(item.get("name"))
     if not name:
         return None
+    score = _score_value(item.get("score"))
     source = _optional_text(item.get("source")) or name
+    calibration = calibration_field_values(name, score)
     return ComputationalPredictorRow(
         name=name,
-        score=_score_value(item.get("score")),
+        score=score,
         threshold=_score_value(item.get("threshold")),
         interpretation=_optional_text(item.get("interpretation")),
         source=source,
         version=_optional_text(item.get("version")),
+        calibrated_label=_optional_text(item.get("calibrated_label"))
+        or calibration["calibrated_label"],
+        calibration_bucket=_optional_text(item.get("calibration_bucket"))
+        or calibration["calibration_bucket"],
+        calibration_method=_optional_text(item.get("calibration_method"))
+        or calibration["calibration_method"],
+        calibration_version=_optional_text(item.get("calibration_version"))
+        or calibration["calibration_version"],
         source_url=_optional_text(item.get("source_url")),
         warnings=_string_list(item.get("warnings")),
     )
@@ -491,6 +503,7 @@ def _spliceai_row(spliceai: dict[str, Any]) -> ComputationalPredictorRow | None:
         interpretation=" ".join(interpretation_parts) or None,
         source=_optional_text(spliceai.get("source")) or "SpliceAI",
         version=_optional_text(spliceai.get("version")),
+        **calibration_field_values("SpliceAI", max_delta),
         source_url=_optional_text(spliceai.get("source_url")),
         warnings=_string_list(spliceai.get("warnings")),
     )

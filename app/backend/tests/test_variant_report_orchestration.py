@@ -133,6 +133,17 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert predictor_versions["REVEL"] == "dbNSFP v5.3.1 / REVEL v1.3"
     assert predictor_versions["CADD PHRED"] == "CADD v1.7 GRCh38"
     assert predictor_versions["PrimateAI-3D"] == "dbNSFP v5.3.1 / PrimateAI-3D"
+    predictors_by_name = {row["name"]: row for row in computational["predictors"]}
+    assert predictors_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
+    assert predictors_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
+    assert predictors_by_name["REVEL"]["calibration_version"] == "PMID:36413997"
+    assert predictors_by_name["CADD PHRED"]["calibration_bucket"] == "VUS"
+    assert predictors_by_name["SpliceAI"]["calibration_bucket"] == "VUS"
+    assert predictors_by_name["SpliceAI"]["calibration_method"] == (
+        "Walker 2023 / ClinGen SVI splicing"
+    )
+    assert predictors_by_name["PrimateAI-3D"]["calibration_bucket"] is None
+    assert predictors_by_name["MetaLR"]["calibration_bucket"] is None
     assert computational["spliceai_max_delta"] == 0.12
     assert computational["spliceai_consequence"] == "acceptor_loss"
     assert {row["name"] for row in computational["conservation"]} == {

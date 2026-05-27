@@ -81,6 +81,7 @@ ReportCallCardId = Literal[
 ReportCallBadgeKind = Literal["acmg", "metric", "source", "warning", "neutral"]
 PopulationSequencingType = Literal["joint", "exome", "genome", "unknown"]
 PopulationAgeSeriesKind = Literal["variant_carriers", "all_individuals"]
+RampVerdict = Literal["Pathogenic", "Likely pathogenic", "VUS", "Likely benign", "Benign"]
 
 
 class PublicationSnippet(BaseModel):
@@ -476,6 +477,10 @@ class ComputationalPredictorRow(BaseModel):
     interpretation: str | None = None
     source: str
     version: str | None = None
+    calibrated_label: str | None = None
+    calibration_bucket: RampVerdict | None = None
+    calibration_method: str | None = None
+    calibration_version: str | None = None
     source_url: str | None = None
     warnings: list[str] = Field(default_factory=list)
 

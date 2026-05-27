@@ -72,6 +72,13 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     predictor_names = {row["name"] for row in computational["payload"]["predictors"]}
     assert {"REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI"} <= predictor_names
     assert "AlphaMissense" not in predictor_names
+    predictors_by_name = {row["name"]: row for row in computational["payload"]["predictors"]}
+    assert predictors_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
+    assert predictors_by_name["CADD PHRED"]["calibration_bucket"] == "VUS"
+    assert predictors_by_name["SpliceAI"]["calibration_method"] == (
+        "Walker 2023 / ClinGen SVI splicing"
+    )
+    assert predictors_by_name["MetaLR"]["calibration_bucket"] is None
     assert computational["freshness"]["stale_on_failure"] is False
 
     clingen = sections["clingen_vcep"]

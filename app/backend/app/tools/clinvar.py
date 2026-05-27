@@ -5,6 +5,26 @@ import httpx
 from app.services.sequence_context import genomic_variant_id_to_refseq_hgvs
 from app.tools.base import FixtureBackedTool, ToolResult
 
+SUBMITTER_COUNT_LABELS = (
+    "Pathogenic",
+    "Likely pathogenic",
+    "VUS",
+    "Likely benign",
+    "Benign",
+)
+
+_CLASSIFICATION_ALIASES = {
+    "pathogenic": "Pathogenic",
+    "likely pathogenic": "Likely pathogenic",
+    "likely_pathogenic": "Likely pathogenic",
+    "uncertain significance": "VUS",
+    "uncertain_significance": "VUS",
+    "vus": "VUS",
+    "likely benign": "Likely benign",
+    "likely_benign": "Likely benign",
+    "benign": "Benign",
+}
+
 
 def _extract_cdna(transcript_hgvs: str | None) -> str | None:
     if not transcript_hgvs:
@@ -28,7 +48,75 @@ def _unavailable_summary(gene: str | None) -> dict:
         "conditions": [],
         "consequence": "",
         "accession": None,
+        "submitter_counts": {},
     }
+
+
+def _normalized_classification(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    key = " ".join(value.replace("_", " ").strip().lower().split())
+    if key in {
+        "conflicting classifications of pathogenicity",
+        "conflicting interpretations of pathogenicity",
+    }:
+        return None
+    return _CLASSIFICATION_ALIASES.get(key)
+
+
+def _supporting_submission_count(payload: dict) -> int:
+    supporting = payload.get("supporting_submissions")
+    if not isinstance(supporting, dict):
+        return 0
+    scv = supporting.get("scv")
+    if not isinstance(scv, list):
+        return 0
+    return len([item for item in scv if item])
+
+
+def _iter_classification_values(value: object):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in {
+                "classification",
+                "classification_description",
+                "classificationDescription",
+                "clinical_significance",
+                "clinicalSignificance",
+                "description",
+                "germlineClassificationDescription",
+            }:
+                yield child
+            yield from _iter_classification_values(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _iter_classification_values(child)
+
+
+def _submitter_counts_from_payload(payload: dict) -> dict[str, int]:
+    counts = {label: 0 for label in SUBMITTER_COUNT_LABELS}
+    for value in _iter_classification_values(payload.get("submitter_classifications")):
+        label = _normalized_classification(value)
+        if label:
+            counts[label] += 1
+    for value in _iter_classification_values(payload.get("submissions")):
+        label = _normalized_classification(value)
+        if label:
+            counts[label] += 1
+
+    non_zero = {label: count for label, count in counts.items() if count > 0}
+    if non_zero:
+        return non_zero
+
+    classification = _normalized_classification(
+        (payload.get("germline_classification") or {}).get("description")
+        if isinstance(payload.get("germline_classification"), dict)
+        else None
+    )
+    if classification is None:
+        return {}
+    supporting_count = _supporting_submission_count(payload)
+    return {classification: max(1, supporting_count)}
 
 
 def _fixture_matches_variant(variant, fixture: dict) -> bool:
@@ -154,6 +242,7 @@ class ClinvarTool(FixtureBackedTool):
             ],
             "consequence": (payload.get("molecular_consequence_list") or [""])[0],
             "accession": payload.get("accession"),
+            "submitter_counts": _submitter_counts_from_payload(payload),
         }
         return ToolResult(
             source=self.source,

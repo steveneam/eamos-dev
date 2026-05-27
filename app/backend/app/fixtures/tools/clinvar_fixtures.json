@@ -7,6 +7,9 @@
     "protein_change": "D87G",
     "classification": "Uncertain significance",
     "review_status": "criteria provided, single submitter",
+    "submitter_counts": {
+      "VUS": 1
+    },
     "conditions": [
       "Leber congenital amaurosis 2",
       "Retinitis pigmentosa 20"

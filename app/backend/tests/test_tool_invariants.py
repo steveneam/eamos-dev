@@ -217,7 +217,77 @@ def test_clinvar_live_no_hit_does_not_return_fixture(monkeypatch: pytest.MonkeyP
     assert result.summary["classification"] == "Unavailable"
     assert result.summary["review_status"] == "not found"
     assert result.summary["accession"] is None
+    assert result.summary["submitter_counts"] == {}
     assert "clinvar_variant_not_found" in result.warnings
+
+
+def test_clinvar_fixture_exposes_submitter_counts() -> None:
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        genomic_hgvs="",
+        genomic_hg38="",
+    )
+
+    result = ClinvarTool(_settings(use_real_apis=False)).get_evidence(variant)
+
+    assert result.status == "fixture"
+    assert result.summary["classification"] == "Uncertain significance"
+    assert result.summary["submitter_counts"] == {"VUS": 1}
+
+
+def test_clinvar_live_derives_submitter_counts_from_supporting_scvs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SearchResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"esearchresult": {"idlist": ["12345"]}}
+
+    class SummaryResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "result": {
+                    "12345": {
+                        "genes": [{"symbol": "RPE65"}],
+                        "protein_change": "D87G",
+                        "germline_classification": {
+                            "description": "Likely benign",
+                            "review_status": "criteria provided, multiple submitters, no conflicts",
+                            "trait_set": [{"trait_name": "Retinal dystrophy"}],
+                        },
+                        "molecular_consequence_list": ["missense variant"],
+                        "accession": "VCV000012345",
+                        "supporting_submissions": {"scv": ["SCV000001", "SCV000002", "SCV000003"]},
+                    }
+                }
+            }
+
+    def fake_get(url, *args, **kwargs):
+        if url.endswith("/esearch.fcgi"):
+            return SearchResponse()
+        if url.endswith("/esummary.fcgi"):
+            return SummaryResponse()
+        raise AssertionError(f"unexpected ClinVar URL: {url}")
+
+    monkeypatch.setattr("app.tools.clinvar.httpx.get", fake_get)
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        genomic_hg38="1-68444869-T-C",
+        genomic_hgvs="",
+        search_input_resolution=None,
+    )
+
+    result = ClinvarTool(_settings(use_real_apis=True)).get_evidence(variant)
+
+    assert result.status == "live"
+    assert result.summary["submitter_counts"] == {"Likely benign": 3}
 
 
 def test_clingen_fixture_filters_to_matching_variant() -> None:
@@ -344,6 +414,15 @@ def test_computational_annotations_fixture_returns_source_labeled_rows() -> None
     names = {row["name"] for row in result.summary["predictors"]}
     assert {"SpliceAI", "REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR"} <= names
     assert "AlphaMissense" not in names
+    rows_by_name = {row["name"]: row for row in result.summary["predictors"]}
+    assert rows_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
+    assert rows_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
+    assert rows_by_name["REVEL"]["calibration_method"] == "Pejaver 2022 / ClinGen SVI PP3/BP4"
+    assert rows_by_name["CADD PHRED"]["calibration_bucket"] == "VUS"
+    assert rows_by_name["SpliceAI"]["calibration_bucket"] == "VUS"
+    assert rows_by_name["SpliceAI"]["calibration_method"] == ("Walker 2023 / ClinGen SVI splicing")
+    assert rows_by_name["PrimateAI-3D"]["calibration_bucket"] is None
+    assert rows_by_name["MetaLR"]["calibration_bucket"] is None
     assert result.summary["spliceai"]["max_delta"] == 0.12
     assert result.summary["spliceai"]["component_scores"]["DS_AL"] == 0.12
     assert {row["name"] for row in result.summary["conservation"]} == {

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
+from app.services.computational_calibration import calibration_field_values
 from app.tools.base import FixtureBackedTool, ToolResult
 
 SPLICEAI_SOURCE_URL = "https://spliceailookup.broadinstitute.org/"
@@ -325,6 +326,7 @@ def _row_from_metric(
         "source_url": _text(item.get("source_url")) or _text(block.get("source_url")),
         "warnings": _string_list(item.get("warnings")),
     }
+    row.update(calibration_field_values(name, row["score"]))
     return row, False
 
 
@@ -361,7 +363,7 @@ def _spliceai_predictor_row(spliceai: dict[str, Any] | None) -> dict[str, Any] |
     max_delta = _score_value(spliceai.get("max_delta"))
     if max_delta is None:
         return None
-    return {
+    row = {
         "name": "SpliceAI",
         "score": max_delta,
         "threshold": DEFAULT_SPLICEAI_THRESHOLD,
@@ -371,6 +373,8 @@ def _spliceai_predictor_row(spliceai: dict[str, Any] | None) -> dict[str, Any] |
         "source_url": _text(spliceai.get("source_url")) or SPLICEAI_SOURCE_URL,
         "warnings": _string_list(spliceai.get("warnings")),
     }
+    row.update(calibration_field_values(row["name"], row["score"]))
+    return row
 
 
 def _spliceai_block(record: dict[str, Any]) -> dict[str, Any]:

@@ -49,6 +49,24 @@ def test_report_demo_sample_json_does_not_ship_utf8_as_latin1_mojibake() -> None
     )
 
 
+def test_report_demo_sample_json_carries_calibrated_predictor_fields() -> None:
+    sample_path = Path(__file__).resolve().parents[2] / "web" / "lib" / "rpe65-sample.json"
+    payload = json.loads(sample_path.read_text(encoding="utf-8"))
+
+    predictors = {
+        row["name"]: row
+        for row in payload["report_payload"]["report_profile"]["computational_deep_dive"][
+            "predictors"
+        ]
+    }
+
+    assert predictors["REVEL"]["calibration_bucket"] == "Likely pathogenic"
+    assert predictors["CADD PHRED"]["calibration_bucket"] == "VUS"
+    assert predictors["SpliceAI"]["calibration_method"] == "Walker 2023 / ClinGen SVI splicing"
+    assert predictors["PrimateAI-3D"]["calibrated_label"] is None
+    assert predictors["MetaLR"]["calibration_version"] is None
+
+
 def test_fixture_backed_tool_reads_fixtures_as_utf8(tmp_path: Path) -> None:
     fixtures_root = tmp_path / "fixtures"
     tools_root = fixtures_root / "tools"
