@@ -295,6 +295,78 @@ export interface LookupResponse {
   search_interpretation?: SearchInputInterpretation | null
 }
 
+// ─── M11 lookup section-fetch contract ───
+// Mirror of app/backend/app/schemas/lookup.py (LookupSection*, LookupSummaryTile,
+// LookupInitialSummaryResponse, LookupSectionFetchRequest/Response).
+// Backend-led: FE does not reshape payloads. `payload` on LookupSectionEnvelope
+// is intentionally Record<string, unknown> | null — consumers type-narrow per
+// section_id at the read site against the existing ReportPayload sub-types
+// (PublicationLiteratureshape for 'publications', ComputationalDeepDive for
+// 'computational_deep_dive', AcmgWorksheet + {narrative, source_scope} for
+// 'clingen_vcep').
+export type LookupSectionId =
+  | 'publications'
+  | 'computational_deep_dive'
+  | 'clingen_vcep'
+
+export type LookupSectionStatus = 'available' | 'partial' | 'missing'
+
+export interface LookupSummaryTile {
+  tile_id: string
+  title: string
+  primary_label: string
+  support_badges: string[]
+  source_status: string
+  ui_color_theme: string
+  target_section_id?: string | null
+  target_panel_id?: string | null
+  fetch_section_id?: LookupSectionId | null
+  warnings: string[]
+}
+
+export interface LookupSectionDescriptor {
+  section_id: LookupSectionId
+  endpoint: string
+  include_value: LookupSectionId
+  hydration: 'expand'
+}
+
+export interface LookupInitialSummaryResponse {
+  query: string
+  species: string
+  header?: Record<string, unknown> | null
+  tiles: LookupSummaryTile[]
+  lazy_sections: LookupSectionDescriptor[]
+  warnings: string[]
+}
+
+export interface LookupSectionFetchRequest extends LookupRequest {
+  include: LookupSectionId[]
+}
+
+export interface LookupSectionFreshness {
+  fetched_at?: string | null
+  source_version?: string | null
+  stale_on_failure: boolean
+  source_status?: string | null
+  source_url?: string | null
+}
+
+export interface LookupSectionEnvelope {
+  section_id: LookupSectionId
+  status: LookupSectionStatus
+  payload?: Record<string, unknown> | null
+  freshness: LookupSectionFreshness
+  warnings: string[]
+}
+
+export interface LookupSectionFetchResponse {
+  query: string
+  species: string
+  sections: Partial<Record<LookupSectionId, LookupSectionEnvelope>>
+  warnings: string[]
+}
+
 export interface RunChatRequest {
   question: string
 }

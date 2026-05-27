@@ -3,8 +3,11 @@ import type {
   CrisprResponse,
   GeneViewerRequest,
   GeneViewerResponse,
+  LookupInitialSummaryResponse,
   LookupRequest,
   LookupResponse,
+  LookupSectionFetchRequest,
+  LookupSectionFetchResponse,
   PrimerRequest,
   PrimerResponse,
   PublicationLiterature,
@@ -119,6 +122,28 @@ export async function lookupPublications(
     body: JSON.stringify(payload),
   })
   return parseResponse<PublicationLiterature>(response)
+}
+
+export async function lookupSummary(
+  payload: LookupRequest,
+): Promise<LookupInitialSummaryResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/lookup/summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return parseResponse<LookupInitialSummaryResponse>(response)
+}
+
+export async function fetchLookupSections(
+  payload: LookupSectionFetchRequest,
+): Promise<LookupSectionFetchResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/lookup/sections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return parseResponse<LookupSectionFetchResponse>(response)
 }
 
 export async function designPrimers(payload: PrimerRequest): Promise<PrimerResponse> {
