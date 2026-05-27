@@ -1,13 +1,26 @@
-import type { GeneViewerRequest, GeneViewerResponse, LookupRequest, LookupResponse, PublicationLiterature } from './backend'
+import type {
+  CrisprRequest,
+  CrisprResponse,
+  GeneViewerRequest,
+  GeneViewerResponse,
+  LookupRequest,
+  LookupResponse,
+  PrimerRequest,
+  PrimerResponse,
+  PublicationLiterature,
+} from './backend'
 import { GENE_VIEWER_SAMPLE } from './workbench/gene-viewer-sample'
+import { PRIMER_SAMPLE } from './workbench/primer-sample'
+import { CRISPR_SAMPLE } from './workbench/crispr-sample'
+import { CRISPR_TIDE_SAMPLE, type CrisprTideResult } from './workbench/crispr-tide-sample'
 
 // Variant Evidence Report → FastAPI. Same-origin by default (empty base):
 // next.config.ts rewrites `/api/*` to the FastAPI dev server, so no CORS.
 // Set NEXT_PUBLIC_API_BASE_URL to an absolute origin to call a remote backend.
 //
-// Scope note: this is the lookup subset only. The Vite app's api.ts also held
-// the /runs auth helpers and Workbench tool calls (primer/crispr/tide/viewer);
-// those surfaces stay in the Vite app and are intentionally omitted here.
+// Scope note: this carries the lookup + Workbench tool calls
+// (primer/crispr/tide/viewer). The Vite app's /runs auth helpers stay in the
+// Vite app and are intentionally omitted here.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? ''
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -106,4 +119,51 @@ export async function lookupPublications(
     body: JSON.stringify(payload),
   })
   return parseResponse<PublicationLiterature>(response)
+}
+
+export async function designPrimers(payload: PrimerRequest): Promise<PrimerResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/primer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return await parseResponse<PrimerResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError) return PRIMER_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+export async function designGuides(payload: CrisprRequest): Promise<CrisprResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/crispr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return await parseResponse<CrisprResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError) return CRISPR_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+export async function analyzeTide(
+  controlFile: File,
+  editedFile: File,
+  cutSiteIndex: number,
+): Promise<CrisprTideResult> {
+  const formData = new FormData()
+  formData.append('control_file', controlFile)
+  formData.append('edited_file', editedFile)
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/crispr/tide?cut_site_index=${cutSiteIndex}`,
+      { method: 'POST', body: formData },
+    )
+    return await parseResponse<CrisprTideResult>(response)
+  } catch {
+    return CRISPR_TIDE_SAMPLE // endpoint gated to Codex §7 → mock-first
+  }
 }

@@ -82,7 +82,7 @@ export function CopyButton({
       setCopied(true)
       if (timerRef.current != null) window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(() => setCopied(false), 1500)
-    } catch {
+    } catch (richErr) {
       // Rich write can fail on permission/MIME issues — degrade to plain.
       try {
         if (navigator.clipboard?.writeText) {
@@ -91,8 +91,11 @@ export function CopyButton({
           if (timerRef.current != null) window.clearTimeout(timerRef.current)
           timerRef.current = window.setTimeout(() => setCopied(false), 1500)
         }
-      } catch {
-        // Give up silently — better than a thrown error in the user's face.
+      } catch (plainErr) {
+        // Both paths failed — surface a single console.warn so debugging is
+        // possible. Only happens if the clipboard API is patched out (e.g.,
+        // dev tooling) or permission is denied; can't happen in normal use.
+        console.warn('[CopyButton] clipboard write failed', { richErr, plainErr })
       }
     }
   }

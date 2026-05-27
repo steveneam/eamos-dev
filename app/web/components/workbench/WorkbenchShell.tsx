@@ -8,6 +8,9 @@ import type { GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
 import { viewerCollapsed } from './tools'
+import { PrimerPanel } from './primer/PrimerPanel'
+import { CrisprPanel } from './crispr/CrisprPanel'
+import { AlignPanel } from './align/AlignPanel'
 import {
   SequenceViewerV2,
   type ScratchEntry,
@@ -32,6 +35,27 @@ interface WorkbenchShellProps {
 }
 
 const PANEL_TOOLS: WorkbenchTool[] = ['primer', 'crispr', 'align', 'compare']
+
+function renderToolPanel(
+  tool: WorkbenchTool,
+  gene: string,
+  cdna: string,
+  data: GeneWindowData,
+) {
+  switch (tool) {
+    case 'primer':
+      return <PrimerPanel gene={gene} cdna={cdna} />
+    case 'crispr':
+      return <CrisprPanel gene={gene} cdna={cdna} />
+    case 'align':
+      return <AlignPanel data={data} cdna={cdna} />
+    case 'compare':
+      // Compare tool is still pending — keeps the placeholder.
+      return <div className="viewer-loading">Compare tool — coming soon</div>
+    default:
+      return null
+  }
+}
 
 function isDefaultViewerRequest(gene: string, cdna: string, transcript?: string): boolean {
   return (
@@ -164,12 +188,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
                 className={p === tool ? 'tool-panel active' : 'tool-panel'}
                 data-panel={p}
               >
-                {/* Primer, CRISPR, Align panels deferred to pass 2. */}
-                {p === tool && (
-                  <div className="viewer-loading">
-                    {PANEL_TOOLS.includes(p) ? `${p.charAt(0).toUpperCase() + p.slice(1)} tool — deferred to pass 2` : null}
-                  </div>
-                )}
+                {p === tool && renderToolPanel(p, gene, cdna, data)}
               </div>
             ))
           ) : (
