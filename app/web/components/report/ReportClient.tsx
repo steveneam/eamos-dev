@@ -22,7 +22,8 @@ import { PopulationFrequencySection } from '@/components/report/PopulationFreque
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnapshotSection'
-import { Card } from '@/components/ui/Card'
+import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
+import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
@@ -294,6 +295,8 @@ interface ReportBodyProps {
 }
 
 function ReportBody({ data, query }: ReportBodyProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const payload = data.report_payload
   const row0 = payload.variant_summary_rows[0]
   const contextLabel =
@@ -308,6 +311,46 @@ function ReportBody({ data, query }: ReportBodyProps) {
   // expand/fetch state resets when the rendered variant changes.
   const header = payload.report_profile?.header
   const variantKey = header ? `${header.gene}|${header.cdna}` : query
+
+  // Ribbon facts — header is the authoritative split; row0 carries the
+  // already-formatted strings (transcript_hgvs is "NM_...:c.260A>G"; split off
+  // the transcript so the ribbon can recombine).
+  const ribbonGene = header?.gene ?? row0?.gene ?? undefined
+  const transcriptHgvs = row0?.transcript_hgvs ?? null
+  const ribbonTranscript = header?.transcript ?? transcriptHgvs?.split(':')[0] ?? undefined
+  const ribbonHgvsC = header?.cdna ?? transcriptHgvs?.split(':')[1] ?? undefined
+  const ribbonHgvsP = header?.protein_change ?? row0?.protein_change ?? undefined
+
+  // Derive verdict for Card accent + (future) review stars from optional fields.
+  const verdict = deriveClassificationVerdict(
+    payload.report_profile?.header?.classification ??
+      payload.report_profile?.acmg_worksheet?.classification ??
+      payload.acmg_classification,
+  )
+
+  // Ribbon handlers — mirror VariantHeader buttons (Copy/Share/Export) + open
+  // CiteChip globally via ?cite=1.
+  const handleCopy = () => {
+    const label = [ribbonGene, ribbonTranscript && ribbonHgvsC ? `${ribbonTranscript}:${ribbonHgvsC}` : ribbonHgvsC, ribbonHgvsP ? `(${ribbonHgvsP})` : '']
+      .filter(Boolean)
+      .join(' ')
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(label)
+    }
+  }
+  const handleShare = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(window.location.href)
+    }
+  }
+  const handleExport = () => {
+    if (typeof window !== 'undefined') window.print()
+  }
+  const handleCite = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('cite', '1')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
 
   // BE-12 frozen code: any `live_fetch_failed:<ExceptionName>` means a source
   // fell back to cached data. Key on the prefix only — the suffix is the
@@ -341,6 +384,16 @@ function ReportBody({ data, query }: ReportBodyProps) {
           recent cached data.
         </div>
       )}
+      <StickyVariantRibbon
+        gene={ribbonGene}
+        transcript={ribbonTranscript}
+        hgvsC={ribbonHgvsC}
+        hgvsP={ribbonHgvsP}
+        onCopy={handleCopy}
+        onShare={handleShare}
+        onExport={handleExport}
+        onCite={handleCite}
+      />
       <VariantHeader payload={payload} query={query} />
 
       <div className="flex flex-col gap-3.5">
@@ -374,6 +427,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
           number={2}
           title="Evidence by source"
           meta="in-silico · per-source detail · ACMG"
+          verdict={verdict}
           actions={
             <CopyButton
               text={{
@@ -797,6 +851,21 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
       </div>
     </section>
   )
+}
+
+// Map a free-form ACMG classification string to the Card accent Verdict union.
+// Mirrors VariantHeader's deriveClassificationLabel but returns the typed union
+// (or null when the source string isn't a recognised tier).
+function deriveClassificationVerdict(acmg: string | null | undefined): Verdict | null {
+  if (!acmg) return null
+  const raw = acmg.toLowerCase()
+  if (raw.includes('unavailable') || raw.includes('not found')) return null
+  if (raw.includes('likely pathogenic')) return 'Likely pathogenic'
+  if (raw.includes('likely benign')) return 'Likely benign'
+  if (raw.includes('pathogenic')) return 'Pathogenic'
+  if (raw.includes('benign')) return 'Benign'
+  if (raw.includes('vus') || raw.includes('uncertain')) return 'VUS'
+  return null
 }
 
 // Input-format problem (client-detected, or server `input_unparseable:`).

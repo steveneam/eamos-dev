@@ -4,6 +4,7 @@ import { PostHogProvider } from 'posthog-js/react'
 import { Suspense, useEffect, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { AuthProvider, useAuth } from '@/components/auth/AuthProvider'
+import { CiteChip } from '@/components/ui/CiteChip'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Initialize PostHog once, inside the React lifecycle. Env-gated: with no
@@ -32,6 +33,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </Suspense>
         <PostHogIdentify />
         {children}
+        {/* Global chrome — bottom-left Feedback + Cite chip on every surface.
+            CiteChip uses useSearchParams; the Suspense boundary is required by
+            Next 16 App Router's static-build pre-render gate. */}
+        <Suspense fallback={null}>
+          <CiteChip />
+        </Suspense>
       </AuthProvider>
     </PostHogProvider>
   )

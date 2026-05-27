@@ -1,7 +1,9 @@
 'use client'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { PublicationTimelineChart } from '@/components/report/PublicationTimelineChart'
+import { PublicationModal, usePublicationUrl } from '@/components/report/PublicationModal'
 import { lookupPublications } from '@/lib/api'
 import type { PublicationSnippet, PubMedArticle, ReportPayload } from '@/lib/backend'
 
@@ -48,10 +50,30 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   const [total, setTotal] = useState<number>(literature?.total_count ?? initialArticles.length)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [openArticle, setOpenArticle] = useState<PubMedArticle | null>(null)
+  const searchParams = useSearchParams()
 
   if (!hasTypedLiterature && initialArticles.length === 0) return null
 
   const articles = [...initialArticles, ...extra]
+
+  // Hydrate openArticle from ?pub=PMID:N on mount + whenever articles change
+  // (so newly-loaded "View more" rows are also URL-addressable). Inbound only —
+  // user clicks drive the URL through usePublicationUrl below.
+  useEffect(() => {
+    const param = searchParams.get('pub')
+    if (!param) {
+      if (openArticle) setOpenArticle(null)
+      return
+    }
+    const targetPmid = param.startsWith('PMID:') ? param.slice(5) : param
+    if (openArticle?.pmid === targetPmid) return
+    const match = articles.find((a) => a.pmid === targetPmid)
+    if (match) setOpenArticle(match)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, articles.length])
+
+  usePublicationUrl(openArticle, () => setOpenArticle(null))
   const shownCount = articles.length
   const meta = hasTypedLiterature
     ? `Showing ${shownCount} of ${total} publications`
@@ -106,7 +128,7 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
       ) : (
         <ul className="m-0 flex list-none flex-col gap-4 p-0">
           {articles.map((art) => (
-            <ArticleRow key={art.pmid} article={art} />
+            <ArticleRow key={art.pmid} article={art} onOpen={() => setOpenArticle(art)} />
           ))}
         </ul>
       )}
@@ -171,23 +193,31 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
       )}
 
       {hasTimeline && timeline && <PublicationTimelineChart timeline={timeline} />}
+      <PublicationModal article={openArticle} onClose={() => setOpenArticle(null)} />
     </Card>
   )
 }
 
-function ArticleRow({ article }: { article: PubMedArticle }) {
+function ArticleRow({ article, onOpen }: { article: PubMedArticle; onOpen: () => void }) {
   const snippets = article.snippets ?? []
   const sourceTags = article.source_tags ?? []
 
+  // Title is button-like (opens the modal); the explicit "PubMed ↗" link in the
+  // modal footer + the row's PMID metadata still give one-click PubMed access.
   return (
     <li className="m-0">
-      <a
-        href={article.url}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={onOpen}
         className="article-title-link"
         style={{
           display: 'block',
+          width: '100%',
+          textAlign: 'left',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
           fontSize: 14,
           fontWeight: 600,
           color: 'var(--ink)',
@@ -197,7 +227,7 @@ function ArticleRow({ article }: { article: PubMedArticle }) {
         }}
       >
         {article.title}
-      </a>
+      </button>
       <div className="mt-1" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
         {[article.authors, article.journal, articleDate(article)].filter(Boolean).join(' | ')}
       </div>

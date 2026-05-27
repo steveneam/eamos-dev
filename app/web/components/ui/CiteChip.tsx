@@ -1,23 +1,53 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CiteModal } from './CiteModal'
+
+// Pinned monthly snapshot — bump when the report payload shape ships a breaking change.
+const REPORT_VERSION = '2026.05'
+
+function formatDate(d: Date): string {
+  // AU-style human date for citations (eg. "28 May 2026"). No locale dependency
+  // for SSR safety: month name table is fixed.
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
+}
 
 export function CiteChip() {
   const [citeOpen, setCiteOpen] = useState(false)
   const citeButtonRef = useRef<HTMLButtonElement>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+
+  // {variant_display} resolves on /report routes from URL params; off-report → null.
+  const variantDisplay = useMemo(() => {
+    if (pathname !== '/report') return null
+    const gene = searchParams.get('gene')?.trim()
+    const cdna = searchParams.get('cdna')?.trim()
+    const protein = searchParams.get('protein_change')?.trim()
+    const q = searchParams.get('q')?.trim()
+    if (gene && cdna) return [gene, cdna, protein ? `(${protein})` : ''].filter(Boolean).join(' ').trim()
+    if (q) return q
+    return 'RPE65 c.260A>G' // demo route fallback (matches RPE65_SAMPLE)
+  }, [pathname, searchParams])
+
+  // {date} resolved per-open so it reflects the actual access moment.
+  const [date, setDate] = useState<string | null>(null)
 
   // Open on ?cite=1
   useEffect(() => {
     if (searchParams.get('cite') === '1') {
       setCiteOpen(true)
+      setDate(formatDate(new Date()))
     }
   }, [searchParams])
 
-  const openCite = useCallback(() => setCiteOpen(true), [])
+  const openCite = useCallback(() => {
+    setCiteOpen(true)
+    setDate(formatDate(new Date()))
+  }, [])
 
   const closeCite = useCallback(() => {
     setCiteOpen(false)
@@ -91,7 +121,13 @@ export function CiteChip() {
 
       {/* Modal */}
       {citeOpen && (
-        <CiteModal onClose={closeCite} returnFocusRef={citeButtonRef} />
+        <CiteModal
+          onClose={closeCite}
+          returnFocusRef={citeButtonRef}
+          variantDisplay={variantDisplay}
+          date={date}
+          reportVersion={REPORT_VERSION}
+        />
       )}
     </>
   )

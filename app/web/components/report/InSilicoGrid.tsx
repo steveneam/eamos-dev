@@ -3,6 +3,7 @@ import type {
   PredictorCard as PredictorCardData,
   PredictorVerdict,
 } from '@/lib/backend'
+import { StackedCountBar, type StackedCountSegment } from '@/components/ui/StackedCountBar'
 
 type PredictorTone = 'warn' | 'ok' | 'neutral'
 
@@ -77,6 +78,17 @@ export function InSilicoGrid({ data }: InSilicoGridProps) {
   // Strip the "Predictors converge:" prefix if the backend already includes it.
   const consensusText = consensus?.replace(/^Predictors converge:\s*/i, '') ?? null
 
+  // Ensemble strip — intermediate per DL-021 (ship-then-rip; M-004's
+  // CalibratedInSilicoTable replaces this once calibrated_* fields land).
+  // damaging→Pathogenic, tolerated→Benign, uncertain→VUS so segment colors
+  // match the frozen classification ramp consumers already learn.
+  const ensembleSegments: StackedCountSegment[] = [
+    { verdict: 'Pathogenic',    count: rows.filter((r) => r.tone === 'warn').length,    label: 'Damaging' },
+    { verdict: 'VUS',           count: rows.filter((r) => r.tone === 'neutral').length, label: 'Uncertain' },
+    { verdict: 'Benign',        count: rows.filter((r) => r.tone === 'ok').length,      label: 'Tolerated' },
+  ]
+  const ensembleTotal = ensembleSegments.reduce((s, seg) => s + seg.count, 0)
+
   return (
     <div style={{ marginBottom: 18 }}>
       <div
@@ -91,6 +103,35 @@ export function InSilicoGrid({ data }: InSilicoGridProps) {
       >
         In-silico predictions
       </div>
+
+      {ensembleTotal > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <StackedCountBar
+            segments={ensembleSegments}
+            height={18}
+            ariaLabel={`Ensemble: ${ensembleSegments.map((s) => `${s.label} ${s.count}`).join(', ')}`}
+          />
+          <div
+            style={{
+              display: 'flex',
+              gap: 14,
+              marginTop: 5,
+              fontFamily: 'var(--mono)',
+              fontSize: 10.5,
+              color: 'var(--ink-4)',
+            }}
+          >
+            {ensembleSegments
+              .filter((s) => s.count > 0)
+              .map((s) => (
+                <span key={s.verdict}>
+                  {s.label} <span style={{ color: 'var(--ink-2)' }}>{s.count}</span>
+                </span>
+              ))}
+            <span style={{ marginLeft: 'auto' }}>{ensembleTotal} predictors</span>
+          </div>
+        </div>
+      )}
 
       {/* Analytical comparison strip: one row per predictor */}
       <div

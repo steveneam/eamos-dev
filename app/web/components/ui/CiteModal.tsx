@@ -5,6 +5,10 @@ import { useEffect, useRef, type RefObject } from 'react'
 interface CiteModalProps {
   onClose: () => void
   returnFocusRef: RefObject<HTMLButtonElement | null>
+  /** Resolved by parent on /report routes; falls back to template tokens off-report. */
+  variantDisplay?: string | null
+  date?: string | null
+  reportVersion?: string | null
 }
 
 const ORCID_URL = 'https://orcid.org/0009-0000-9745-8226'
@@ -15,7 +19,13 @@ const EAMOS_URL = 'https://eamos.com.au'
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
-export function CiteModal({ onClose, returnFocusRef }: CiteModalProps) {
+export function CiteModal({
+  onClose,
+  returnFocusRef,
+  variantDisplay,
+  date,
+  reportVersion,
+}: CiteModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = 'cite-modal-title'
 
@@ -208,16 +218,18 @@ export function CiteModal({ onClose, returnFocusRef }: CiteModalProps) {
             </span>
           </dd>
 
-          {/* This report */}
-          <dt style={labelStyle}>This report</dt>
-          <dd style={valueStyle}>
-            <em style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>{'{variant_display}'}</em>
-            {'. Accessed '}
-            <em style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>{'{date}'}</em>
-            {'. Report v'}
-            <em style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>{'{report_version}'}</em>
-            {'.'}
-          </dd>
+          {/* This report — off-report routes hide the row (no variant to cite). */}
+          {variantDisplay && (
+            <>
+              <dt style={labelStyle}>This report</dt>
+              <dd style={valueStyle}>
+                <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink)' }}>{variantDisplay}</span>
+                {date ? <>{'. Accessed '}<span style={{ color: 'var(--ink-2)' }}>{date}</span></> : null}
+                {reportVersion ? <>{'. Report v'}<span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-2)' }}>{reportVersion}</span></> : null}
+                {'.'}
+              </dd>
+            </>
+          )}
         </dl>
 
         {/* Hairline */}
