@@ -36,7 +36,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 23:21 +1000 · Codex (push completion correction; re-read pending)
+UNLOCKED · 2026-05-27 23:21 +1000 · Codex (push completion correction; re-read confirmed)
 
 ## Shared File Locks
 
