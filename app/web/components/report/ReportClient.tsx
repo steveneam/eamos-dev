@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
@@ -50,6 +50,7 @@ import {
 } from '@/lib/report-html'
 import { SOURCES } from '@/lib/sources'
 import type {
+  LookupRequest,
   LookupResponse,
   SearchInputCandidate,
   SearchInputInterpretation,
@@ -81,6 +82,26 @@ export function ReportClient() {
   // the bar when focused — on desktop AND mobile. Percentage width gives a smooth
   // %→% transition (no px overshoot/snap) at any viewport.
   const [searchFocused, setSearchFocused] = useState(false)
+
+  // M7 live-wire: mirror the LookupRequest the report itself uses so the
+  // MatrixOverture can call lookupSummary() and upgrade its mock tiles.
+  // Demo / sample mode leaves request undefined → overture stays mock-only.
+  const summaryRequest = useMemo<LookupRequest | undefined>(() => {
+    if (demo) return undefined
+    if (!gene && !cdna && q) {
+      return { search_text: q, species: 'human' }
+    }
+    if (gene && cdna) {
+      return {
+        gene,
+        cdna: cleanQuery(cdna),
+        transcript: transcript || null,
+        protein_change: proteinChange || null,
+        species: 'human',
+      }
+    }
+    return undefined
+  }, [demo, gene, cdna, transcript, proteinChange, q])
 
   useEffect(() => {
     let cancelled = false
@@ -283,7 +304,11 @@ export function ReportClient() {
           />
         )}
         {state.kind === 'ready' && (
-          <ReportBody data={state.data} query={`${gene} ${cdna}`.trim() || state.data.query} />
+          <ReportBody
+            data={state.data}
+            query={`${gene} ${cdna}`.trim() || state.data.query}
+            summaryRequest={summaryRequest}
+          />
         )}
       </main>
     </div>
@@ -293,9 +318,10 @@ export function ReportClient() {
 interface ReportBodyProps {
   data: LookupResponse
   query: string
+  summaryRequest?: LookupRequest
 }
 
-function ReportBody({ data, query }: ReportBodyProps) {
+function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const payload = data.report_payload
@@ -398,9 +424,10 @@ function ReportBody({ data, query }: ReportBodyProps) {
       <VariantHeader payload={payload} query={query} />
 
       {/* M7 lookahead — 10-12 tiles that deep-link to each numbered section
-          below. Mock-first: tiles synthesized from the existing ReportPayload
-          until lookupSummary() lives behind a Wave-3 fetch. */}
-      <MatrixOverture payload={payload} />
+          below. Live-wired to lookupSummary(); falls back to tiles synthesized
+          from the existing ReportPayload when the backend is unreachable
+          (TypeError) or when no request shape is available (demo mode). */}
+      <MatrixOverture payload={payload} request={summaryRequest} />
 
       <div className="flex flex-col gap-3.5">
         {/* Call cards sit just under the header as the at-a-glance verdicts.

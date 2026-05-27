@@ -1,19 +1,28 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CarouselDots } from '@/components/ui/CarouselDots'
 import { MatrixTile } from '@/components/report/MatrixTile'
-import type { LookupSummaryTile, ReportPayload } from '@/lib/backend'
+import { lookupSummary } from '@/lib/api'
+import type { LookupRequest, LookupSummaryTile, ReportPayload } from '@/lib/backend'
 
 interface MatrixOvertureProps {
   /**
-   * Tiles to render. If omitted, MatrixOverture synthesizes 10-12 tiles
-   * mock-first from the existing ReportPayload so the surface ships before
-   * lookupSummary() is live-wired. Once Wave-3 swaps in the real call, pass
-   * the response.tiles array directly.
+   * Tiles to render. If omitted, MatrixOverture fetches `lookupSummary(request)`
+   * and falls back to synthesizing tiles from the local ReportPayload when no
+   * request is supplied or the network call fails (TypeError = backend down,
+   * same pattern as designPrimers / designGuides). Pass `tiles` explicitly if
+   * the parent has already resolved them.
    */
   tiles?: LookupSummaryTile[]
   payload: ReportPayload
+  /**
+   * The same LookupRequest the parent sent to `variantLookup()`. When provided,
+   * the overture upgrades its synthesized tiles with the backend tile array as
+   * soon as the network call returns. When omitted (e.g. demo/sample mode),
+   * the overture stays mock-only.
+   */
+  request?: LookupRequest
 }
 
 const SCROLL_OFFSET = 68 // matches CallCardsGrid — clears the 60px sticky nav.
@@ -39,11 +48,38 @@ function scrollToTile(tile: LookupSummaryTile) {
  * URL fragment + smooth scroll. DL-017: premium-gated tiles get a distinct
  * surface from no-data tiles — never identical grey (enforced in MatrixTile).
  */
-export function MatrixOverture({ tiles, payload }: MatrixOvertureProps) {
-  const effectiveTiles = useMemo(
-    () => tiles ?? synthesizeTilesFromPayload(payload),
-    [tiles, payload],
-  )
+export function MatrixOverture({ tiles, payload, request }: MatrixOvertureProps) {
+  const synthesized = useMemo(() => synthesizeTilesFromPayload(payload), [payload])
+  const [liveTiles, setLiveTiles] = useState<LookupSummaryTile[] | null>(null)
+
+  useEffect(() => {
+    // Parent already resolved tiles, or we have no request to send — stay mock.
+    if (tiles || !request) {
+      setLiveTiles(null)
+      return
+    }
+    let cancelled = false
+    lookupSummary(request)
+      .then((response) => {
+        if (cancelled) return
+        if (response.tiles && response.tiles.length > 0) {
+          setLiveTiles(response.tiles)
+        }
+      })
+      .catch((err: unknown) => {
+        // TypeError = backend unreachable (offline / dev server down). Stay
+        // mock-first, same fallback shape as designPrimers / designGuides.
+        // Other errors (4xx/5xx body, JSON parse) → stay mock; log for debug.
+        if (!(err instanceof TypeError) && typeof console !== 'undefined') {
+          console.warn('MatrixOverture: lookupSummary failed, using synthesized tiles', err)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [request, tiles])
+
+  const effectiveTiles = tiles ?? liveTiles ?? synthesized
 
   if (effectiveTiles.length === 0) return null
 
