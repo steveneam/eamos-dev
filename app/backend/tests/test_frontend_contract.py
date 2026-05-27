@@ -53,14 +53,22 @@ from app.schemas.gene_viewer import (
     ProteinRangeFeature,
     QueriedVariant,
     RestrictionSite,
+    ViewerCodonStart,
+    ViewerCoordinateMapRange,
+    ViewerFeatureInterval,
+    ViewerFullLocus,
+    ViewerGenomicLocus,
     ViewerFeature,
     ViewerIdentity,
     ViewerLocus,
     ViewerProvenance,
     ViewerProvenanceSource,
+    ViewerRenderingHints,
     ViewerSegment,
     ViewerSequences,
     ViewerSummary,
+    ViewerTranscriptProjection,
+    ViewerTranscriptProjectionInterval,
     ViewerTracks,
     ViewerWindow,
     ViewerWindowRequest,
@@ -240,6 +248,14 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     ViewerTracks: "ViewerTracks",
     ViewerProvenanceSource: "ViewerProvenanceSource",
     ViewerProvenance: "ViewerProvenance",
+    ViewerGenomicLocus: "ViewerGenomicLocus",
+    ViewerCoordinateMapRange: "ViewerCoordinateMapRange",
+    ViewerCodonStart: "ViewerCodonStart",
+    ViewerTranscriptProjectionInterval: "ViewerTranscriptProjectionInterval",
+    ViewerTranscriptProjection: "ViewerTranscriptProjection",
+    ViewerFeatureInterval: "ViewerFeatureInterval",
+    ViewerRenderingHints: "ViewerRenderingHints",
+    ViewerFullLocus: "ViewerFullLocus",
     GeneViewerResponse: "GeneViewerResponse",
     GeneContextTranscriptExon: "GeneContextTranscriptExon",
     GeneContextTranscriptIntron: "GeneContextTranscriptIntron",
@@ -324,6 +340,55 @@ def test_pydantic_field_names_present_in_typescript(model, ts_name, backend_ts_p
 def test_frontend_backend_ts_mirrors_are_byte_identical():
     frontend_backend_ts, next_backend_ts = _frontend_backend_ts_paths()
     assert frontend_backend_ts.read_bytes() == next_backend_ts.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "backend_ts_path",
+    _frontend_backend_ts_paths(),
+    ids=_path_id,
+)
+def test_computational_predictor_calibration_contract_uses_ramp_verdict(backend_ts_path):
+    backend_ts = backend_ts_path.read_text(encoding="utf-8")
+
+    assert "export type RampVerdict =" in backend_ts
+    for verdict in (
+        "'Pathogenic'",
+        "'Likely pathogenic'",
+        "'VUS'",
+        "'Likely benign'",
+        "'Benign'",
+    ):
+        assert verdict in backend_ts
+
+    body = _extract_ts_interface_body(backend_ts, "ComputationalPredictorRow")
+    assert re.search(r"^\s*calibration_bucket\??\s*:\s*RampVerdict \| null", body, re.MULTILINE)
+    assert re.search(r"^\s*calibrated_label\??\s*:\s*string \| null", body, re.MULTILINE)
+    assert re.search(r"^\s*calibration_method\??\s*:\s*string \| null", body, re.MULTILINE)
+    assert re.search(r"^\s*calibration_version\??\s*:\s*string \| null", body, re.MULTILINE)
+
+
+@pytest.mark.parametrize(
+    "backend_ts_path",
+    _frontend_backend_ts_paths(),
+    ids=_path_id,
+)
+def test_gene_viewer_contract_declares_full_locus_mode(backend_ts_path):
+    backend_ts = backend_ts_path.read_text(encoding="utf-8")
+
+    assert "'full_gene'" in backend_ts
+    assert "export type ViewerDisplayBasis =" in backend_ts
+    response_body = _extract_ts_interface_body(backend_ts, "GeneViewerResponse")
+    assert re.search(
+        r"^\s*full_locus\??\s*:\s*ViewerFullLocus \| null",
+        response_body,
+        re.MULTILINE,
+    )
+    window_body = _extract_ts_interface_body(backend_ts, "ViewerWindow")
+    assert re.search(
+        r"^\s*basis\??\s*:\s*ViewerDisplayBasis",
+        window_body,
+        re.MULTILINE,
+    )
 
 
 @pytest.mark.parametrize(

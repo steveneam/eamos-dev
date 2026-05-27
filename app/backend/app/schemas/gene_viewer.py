@@ -14,8 +14,31 @@ ViewerTrack = Literal[
     "restriction",
     "conservation",
 ]
-ViewerWindowKind = Literal["around_variant", "cds_range"]
+ViewerWindowKind = Literal["around_variant", "cds_range", "full_gene"]
+ViewerDisplayBasis = Literal["transcript_window", "genomic_locus"]
 ViewerSegmentKind = Literal["exon", "intron"]
+ViewerCoordinateSystem = Literal["genomic", "cdna", "cds", "protein", "row"]
+ViewerTranscriptIntervalKind = Literal["exon", "intron", "utr5", "utr3", "cds"]
+ViewerFullLocusFeatureKind = Literal[
+    "gene",
+    "transcript",
+    "exon",
+    "intron",
+    "utr5",
+    "utr3",
+    "cds",
+    "queried_variant",
+    "clinvar",
+    "restriction_site",
+    "conservation_bin",
+    "primer",
+    "guide",
+    "custom",
+]
+ViewerOrientation = Literal["genomic_forward", "genomic_reverse", "transcript"]
+ViewerRowCoordinatePolicy = Literal["genomic", "transcript"]
+ViewerBaseColorScheme = Literal["none", "nucleotide"]
+ViewerAminoAcidColorScheme = Literal["none", "biochemical"]
 ProteinConsequenceKind = Literal[
     "reference",
     "synonymous",
@@ -103,6 +126,7 @@ class ViewerSummary(BaseModel):
 
 class ViewerWindow(BaseModel):
     kind: ViewerWindowKind
+    basis: ViewerDisplayBasis = "transcript_window"
     cds_start: int | None = None
     cds_end: int | None = None
     cds_flank_bp: int
@@ -110,6 +134,9 @@ class ViewerWindow(BaseModel):
     display_cds_start: int
     display_cds_end: int
     total_display_bases: int
+    display_genomic_start: int | None = None
+    display_genomic_end: int | None = None
+    total_locus_bases: int | None = None
 
 
 class ViewerSegment(BaseModel):
@@ -268,6 +295,91 @@ class ViewerProvenance(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class ViewerGenomicLocus(BaseModel):
+    chrom: str
+    start: int = Field(ge=1)
+    end: int = Field(ge=1)
+    strand: GenomeStrand = "unknown"
+    genome_build: str = "GRCh38"
+    sequence: str
+    coordinate_system: Literal["genomic"] = "genomic"
+
+
+class ViewerCoordinateMapRange(BaseModel):
+    genomic_start: int = Field(ge=1)
+    genomic_end: int = Field(ge=1)
+    cdna_start: int | None = None
+    cdna_end: int | None = None
+    cds_start: int | None = None
+    cds_end: int | None = None
+    protein_start: int | None = None
+    protein_end: int | None = None
+
+
+class ViewerCodonStart(BaseModel):
+    codon_number: int = Field(ge=1)
+    cds_start: int = Field(ge=1)
+    protein_position: int = Field(ge=1)
+    genomic_start: int = Field(ge=1)
+    genomic_positions: list[int] = Field(default_factory=list)
+
+
+class ViewerTranscriptProjectionInterval(BaseModel):
+    id: str
+    kind: ViewerTranscriptIntervalKind
+    label: str
+    genomic_start: int = Field(ge=1)
+    genomic_end: int = Field(ge=1)
+    strand: GenomeStrand = "unknown"
+    exon_number: int | None = None
+    intron_number: int | None = None
+    cdna_start: int | None = None
+    cdna_end: int | None = None
+    cds_start: int | None = None
+    cds_end: int | None = None
+    protein_start: int | None = None
+    protein_end: int | None = None
+
+
+class ViewerTranscriptProjection(BaseModel):
+    transcript: str
+    strand: GenomeStrand = "unknown"
+    intervals: list[ViewerTranscriptProjectionInterval] = Field(default_factory=list)
+    coordinate_map: list[ViewerCoordinateMapRange] = Field(default_factory=list)
+    codon_starts: list[ViewerCodonStart] = Field(default_factory=list)
+
+
+class ViewerFeatureInterval(BaseModel):
+    id: str
+    kind: ViewerFullLocusFeatureKind
+    label: str
+    coordinate_system: ViewerCoordinateSystem
+    start: int = Field(ge=1)
+    end: int = Field(ge=1)
+    strand: GenomeStrand = "unknown"
+    source: str | None = None
+    classification: VariantClassification | None = None
+    metadata: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+
+
+class ViewerRenderingHints(BaseModel):
+    orientation: ViewerOrientation = "genomic_forward"
+    row_coordinate_policy: ViewerRowCoordinatePolicy = "genomic"
+    bases_per_row_min: int = Field(default=80, ge=20, le=1000)
+    bases_per_row_max: int = Field(default=140, ge=20, le=2000)
+    max_visual_density: int | None = Field(default=None, ge=1)
+    base_color_scheme: ViewerBaseColorScheme = "none"
+    amino_acid_color_scheme: ViewerAminoAcidColorScheme = "biochemical"
+
+
+class ViewerFullLocus(BaseModel):
+    basis: Literal["genomic_locus"] = "genomic_locus"
+    locus: ViewerGenomicLocus
+    transcript_projection: ViewerTranscriptProjection
+    feature_intervals: list[ViewerFeatureInterval] = Field(default_factory=list)
+    rendering_hints: ViewerRenderingHints = Field(default_factory=ViewerRenderingHints)
+
+
 class GeneViewerResponse(BaseModel):
     identity: ViewerIdentity
     locus: ViewerLocus
@@ -277,4 +389,5 @@ class GeneViewerResponse(BaseModel):
     queried_variant: QueriedVariant
     sequences: ViewerSequences
     tracks: ViewerTracks = Field(default_factory=ViewerTracks)
+    full_locus: ViewerFullLocus | None = None
     provenance: ViewerProvenance = Field(default_factory=ViewerProvenance)

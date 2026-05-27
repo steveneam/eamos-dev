@@ -8,10 +8,12 @@ from fastapi import status
 
 from app.core.config import Settings
 from app.schemas.gene_viewer import (
+    GeneViewerResponse,
     GeneViewerRequest,
     ProteinDomain,
     ProteinFeatures,
     ViewerProvenanceSource,
+    ViewerWindow,
     ViewerWindowRequest,
 )
 from app.services.sequence_context import normalize_sequence_query, unsupported_input_warning
@@ -368,6 +370,357 @@ def _plus_transcript() -> TranscriptModel:
             ),
         ),
     )
+
+
+def _full_locus_response(
+    *,
+    gene: str,
+    chrom: str,
+    start: int,
+    end: int,
+    strand: str,
+    transcript: str,
+    cds_pos: int,
+    genomic_variant_pos: int,
+) -> GeneViewerResponse:
+    length = end - start + 1
+    return GeneViewerResponse(
+        identity={
+            "gene": gene,
+            "requested_transcript": transcript,
+            "resolved_transcript": transcript,
+            "species": "human",
+            "genome_build": "GRCh38",
+        },
+        locus={"chrom": chrom, "gene_start": start, "gene_end": end, "strand": strand},
+        summary={
+            "gene_length": length,
+            "total_exons": 2,
+            "cds_length": 600,
+            "protein_length": 200,
+            "utr5_length": 75,
+            "utr3_length": 125,
+            "mrna_length": 800,
+        },
+        window=ViewerWindow(
+            kind="full_gene",
+            basis="genomic_locus",
+            cds_start=1,
+            cds_end=600,
+            cds_flank_bp=0,
+            intron_flank_bp=0,
+            display_cds_start=1,
+            display_cds_end=600,
+            total_display_bases=length,
+            display_genomic_start=start,
+            display_genomic_end=end,
+            total_locus_bases=length,
+        ),
+        segments=[],
+        queried_variant={
+            "hgvs_c": f"c.{cds_pos}A>G",
+            "cds_pos": cds_pos,
+            "genomic_hg38": f"{chrom}-{genomic_variant_pos}-A-G",
+            "ref": "A",
+            "alt": "G",
+            "codon_number": (cds_pos + 2) // 3,
+            "codon_offset": (cds_pos - 1) % 3,
+            "classification": "vus",
+        },
+        sequences={
+            "allele_mode": "reference",
+            "reference_window_sequence": "",
+            "display_window_sequence": "",
+        },
+        full_locus={
+            "locus": {
+                "chrom": chrom,
+                "start": start,
+                "end": end,
+                "strand": strand,
+                "genome_build": "GRCh38",
+                "sequence": "N" * length,
+            },
+            "transcript_projection": {
+                "transcript": transcript,
+                "strand": strand,
+                "intervals": [
+                    {
+                        "id": f"{gene.lower()}-utr5",
+                        "kind": "utr5",
+                        "label": "5' UTR",
+                        "genomic_start": start,
+                        "genomic_end": start + 74,
+                        "strand": strand,
+                        "cdna_start": 1,
+                        "cdna_end": 75,
+                    },
+                    {
+                        "id": f"{gene.lower()}-exon-1",
+                        "kind": "exon",
+                        "label": "Exon 1",
+                        "genomic_start": start + 75,
+                        "genomic_end": start + 374,
+                        "strand": strand,
+                        "exon_number": 1,
+                        "cdna_start": 76,
+                        "cdna_end": 375,
+                        "cds_start": 1,
+                        "cds_end": 300,
+                        "protein_start": 1,
+                        "protein_end": 100,
+                    },
+                    {
+                        "id": f"{gene.lower()}-intron-1",
+                        "kind": "intron",
+                        "label": "Intron 1",
+                        "genomic_start": start + 375,
+                        "genomic_end": end - 300,
+                        "strand": strand,
+                        "intron_number": 1,
+                    },
+                ],
+                "coordinate_map": [
+                    {
+                        "genomic_start": start + 75,
+                        "genomic_end": start + 374,
+                        "cdna_start": 76,
+                        "cdna_end": 375,
+                        "cds_start": 1,
+                        "cds_end": 300,
+                        "protein_start": 1,
+                        "protein_end": 100,
+                    }
+                ],
+                "codon_starts": [
+                    {
+                        "codon_number": (cds_pos + 2) // 3,
+                        "cds_start": cds_pos - ((cds_pos - 1) % 3),
+                        "protein_position": (cds_pos + 2) // 3,
+                        "genomic_start": genomic_variant_pos,
+                        "genomic_positions": [
+                            genomic_variant_pos,
+                            genomic_variant_pos + 1,
+                            genomic_variant_pos + 2,
+                        ],
+                    }
+                ],
+            },
+            "feature_intervals": [
+                {
+                    "id": f"{gene.lower()}-queried-variant",
+                    "kind": "queried_variant",
+                    "label": f"{gene} queried variant",
+                    "coordinate_system": "genomic",
+                    "start": genomic_variant_pos,
+                    "end": genomic_variant_pos,
+                    "strand": strand,
+                    "source": "contract_test",
+                    "classification": "vus",
+                    "metadata": {"cds_pos": cds_pos},
+                }
+            ],
+            "rendering_hints": {
+                "orientation": "genomic_forward",
+                "row_coordinate_policy": "genomic",
+                "bases_per_row_min": 80,
+                "bases_per_row_max": 140,
+                "max_visual_density": 250000,
+                "base_color_scheme": "none",
+                "amino_acid_color_scheme": "biochemical",
+            },
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    "gene,chrom,start,end,strand,transcript,cds_pos,genomic_variant_pos",
+    [
+        ("RPE65", "1", 68428821, 68449958, "-", "NM_000329.3", 260, 68444869),
+        ("ABCA4", "1", 93992834, 94121148, "-", "NM_000350.3", 5435, 94014568),
+    ],
+)
+def test_full_locus_contract_represents_complete_gene_loci(
+    gene: str,
+    chrom: str,
+    start: int,
+    end: int,
+    strand: str,
+    transcript: str,
+    cds_pos: int,
+    genomic_variant_pos: int,
+) -> None:
+    response = _full_locus_response(
+        gene=gene,
+        chrom=chrom,
+        start=start,
+        end=end,
+        strand=strand,
+        transcript=transcript,
+        cds_pos=cds_pos,
+        genomic_variant_pos=genomic_variant_pos,
+    )
+
+    full_locus = response.full_locus
+    assert full_locus is not None
+    assert response.window.kind == "full_gene"
+    assert response.window.basis == "genomic_locus"
+    assert response.window.total_locus_bases == end - start + 1
+    assert len(full_locus.locus.sequence) == response.window.total_locus_bases
+    assert full_locus.locus.coordinate_system == "genomic"
+    assert full_locus.transcript_projection.coordinate_map[0].cds_start == 1
+    assert full_locus.transcript_projection.codon_starts[0].protein_position == (cds_pos + 2) // 3
+    assert full_locus.feature_intervals[0].coordinate_system == "genomic"
+    assert full_locus.rendering_hints.base_color_scheme == "none"
+    assert full_locus.rendering_hints.amino_acid_color_scheme == "biochemical"
+
+
+@pytest.mark.parametrize(
+    "gene,cdna,transcript,expected_length,expected_exons,variant_position",
+    [
+        ("RPE65", "c.260A>G", "NM_000329.3", 21139, 14, 68444869),
+        ("ABCA4", "c.5435T>A", "NM_000350.3", 128315, 50, 94014568),
+    ],
+)
+def test_fixture_provider_hydrates_full_gene_locus_payloads(
+    gene: str,
+    cdna: str,
+    transcript: str,
+    expected_length: int,
+    expected_exons: int,
+    variant_position: int,
+) -> None:
+    response = GeneViewerFixtureProvider().viewer(
+        GeneViewerRequest(
+            gene=gene,
+            cdna=cdna,
+            transcript=transcript,
+            window=ViewerWindowRequest(kind="full_gene"),
+        )
+    )
+
+    full_locus = response.full_locus
+    assert full_locus is not None
+    assert response.window.kind == "full_gene"
+    assert response.window.basis == "genomic_locus"
+    assert response.window.total_locus_bases == expected_length
+    assert response.window.total_display_bases == expected_length
+    assert response.summary.gene_length == expected_length
+    assert response.summary.total_exons == expected_exons
+    assert len(full_locus.locus.sequence) == expected_length
+    assert full_locus.locus.sequence != response.sequences.reference_window_sequence
+    assert response.sequences.reference_window_sequence == ""
+    assert full_locus.locus.coordinate_system == "genomic"
+    assert full_locus.rendering_hints.base_color_scheme == "none"
+    assert full_locus.rendering_hints.amino_acid_color_scheme == "biochemical"
+    assert full_locus.rendering_hints.orientation == "genomic_reverse"
+    assert full_locus.rendering_hints.max_visual_density == expected_length
+    assert len(full_locus.transcript_projection.coordinate_map) == expected_exons
+    assert full_locus.transcript_projection.codon_starts
+    assert any(
+        feature.kind == "queried_variant"
+        and feature.coordinate_system == "genomic"
+        and feature.start == variant_position
+        for feature in full_locus.feature_intervals
+    )
+    assert "full_gene_fixture_hydrated" in response.provenance.warnings
+
+
+def test_abca4_full_gene_fixture_is_not_clipped_to_variant_window() -> None:
+    response = GeneViewerFixtureProvider().viewer(
+        GeneViewerRequest(
+            gene="ABCA4",
+            cdna="c.5435T>A",
+            transcript="NM_000350.3",
+            window=ViewerWindowRequest(kind="full_gene"),
+        )
+    )
+
+    assert response.full_locus is not None
+    assert response.locus.gene_start == 93992834
+    assert response.locus.gene_end == 94121148
+    assert response.window.total_locus_bases == 128315
+    assert response.window.total_display_bases > 5000
+    assert response.window.display_genomic_start == 93992834
+    assert response.window.display_genomic_end == 94121148
+    assert response.full_locus.transcript_projection.coordinate_map[0].cds_start == 1
+    assert response.full_locus.transcript_projection.coordinate_map[-1].cds_end == 6822
+
+
+def test_full_gene_fixture_missing_transcript_fails_closed() -> None:
+    with pytest.raises(GeneViewerError) as error:
+        GeneViewerFixtureProvider().viewer(
+            GeneViewerRequest(
+                gene="ABCA4",
+                cdna="c.5435T>A",
+                transcript="NM_MISSING.1",
+                window=ViewerWindowRequest(kind="full_gene"),
+            )
+        )
+
+    assert error.value.status_code == 422
+    assert error.value.code == unsupported_input_warning("fixture")
+
+
+def test_full_gene_fixture_reference_mismatch_fails_closed(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "gene_viewer_transcript_models.json"
+    fixture_path.write_text(
+        json.dumps(
+            {
+                "version": "test",
+                "records": [
+                    {
+                        "gene": "TEST",
+                        "cdna": "c.2A>G",
+                        "transcript": "NM_TEST.1",
+                        "requested_transcript": "NM_TEST.1",
+                        "transcript_aliases": ["NM_TEST.1"],
+                        "chrom": "1",
+                        "strand": "+",
+                        "species": "human",
+                        "genome_build": "GRCh38",
+                        "gene_start": 100,
+                        "gene_end": 110,
+                        "gene_length": 11,
+                        "cds_length": 3,
+                        "protein_length": 1,
+                        "variant": {
+                            "hgvs_c": "c.2A>G",
+                            "cds_pos": 2,
+                            "ref": "A",
+                            "alt": "G",
+                            "genomic_hg38": "1-101-A-G",
+                        },
+                        "exons": [
+                            {
+                                "number": 1,
+                                "cds_start": 1,
+                                "cds_end": 3,
+                                "genomic_start": 100,
+                                "genomic_end": 102,
+                                "sequence": "CCC",
+                            }
+                        ],
+                        "introns": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GeneViewerError) as error:
+        GeneViewerFixtureProvider(fixtures_dir=tmp_path).viewer(
+            GeneViewerRequest(
+                gene="TEST",
+                cdna="c.2A>G",
+                transcript="NM_TEST.1",
+                window=ViewerWindowRequest(kind="full_gene"),
+            )
+        )
+
+    assert error.value.status_code == 422
+    assert error.value.code == GENE_VIEWER_REFERENCE_MISMATCH
 
 
 def test_fixture_provider_returns_valid_rpe65_reference_viewer_response() -> None:
@@ -835,6 +1188,26 @@ def test_viewer_endpoint_rejects_non_overlapping_window(client) -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == unsupported_input_warning("fixture_window")
+
+
+def test_viewer_endpoint_returns_full_gene_fixture_response(client) -> None:
+    response = client.post(
+        "/api/v1/viewer",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "transcript": "NM_000329.3",
+            "window": {"kind": "full_gene"},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["window"]["kind"] == "full_gene"
+    assert body["window"]["basis"] == "genomic_locus"
+    assert body["full_locus"]["basis"] == "genomic_locus"
+    assert len(body["full_locus"]["locus"]["sequence"]) == body["window"]["total_locus_bases"]
+    assert body["full_locus"]["feature_intervals"][2]["kind"] == "queried_variant"
 
 
 def test_viewer_endpoint_service_failures_map_to_structured_http_errors(client) -> None:

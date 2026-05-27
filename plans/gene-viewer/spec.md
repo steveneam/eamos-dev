@@ -1,6 +1,6 @@
 # Gene Viewer Implementation Spec
 
-Section edited: 2026-05-18 12:01 +1000 · Codex.
+Section edited: 2026-05-28 02:28 +1000 - Codex.
 
 ## What
 
@@ -142,6 +142,36 @@ Required response groups:
   restriction sites where requested and available.
 - `provenance`: provider names, source ids/URLs, checksums, source versions
   where available, and warnings.
+
+FGV-001 full genomic-locus amendment:
+
+- Request mode is additive: `window.kind = "full_gene"` means the response
+  basis is a complete genomic locus, not a transcript/CDS display window.
+  Existing `around_variant` and `cds_range` requests remain valid.
+- Until FGV-002 hydrates deterministic full-gene fixtures/source records,
+  runtime `full_gene` requests fail closed with
+  `workbench_unsupported_input:full_gene`; they must not return a clipped
+  window under a full-gene label.
+- `GeneViewerResponse.full_locus` is optional and present only for full-locus
+  payloads. It carries:
+  - `locus`: `chrom`, `start`, `end`, `strand`, `genome_build`,
+    `coordinate_system="genomic"`, and the full genomic sequence.
+  - `transcript_projection`: transcript id, strand, interval rows, coordinate
+    map ranges, and codon-start records. Coordinate systems are explicit by
+    field name (`genomic_*`, `cdna_*`, `cds_*`, `protein_*`).
+  - `feature_intervals`: queried variant, ClinVar, restriction-site,
+    conservation-bin, and future overlay intervals, each with an explicit
+    `coordinate_system`.
+  - `rendering_hints`: orientation, row-coordinate policy, bases-per-row
+    guidance, maximum visual density, base color scheme, and amino-acid color
+    scheme.
+- `ViewerWindow` gains additive locus-display metadata:
+  `basis`, `display_genomic_start`, `display_genomic_end`, and
+  `total_locus_bases`. Window-mode responses default to
+  `basis="transcript_window"`.
+- Biological data is separate from rendering policy. Default base rendering is
+  `base_color_scheme="none"` for black bases; optional nucleotide coloring and
+  biochemical amino-acid coloring are declared through rendering hints.
 
 Protein-view projection requirements:
 

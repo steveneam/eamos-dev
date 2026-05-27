@@ -38,6 +38,7 @@ const GENERIC_VIEWER_RESPONSE: GeneViewerResponse = {
   },
   window: {
     kind: 'cds_range',
+    basis: 'transcript_window',
     cds_start: 1,
     cds_end: 12,
     cds_flank_bp: 0,

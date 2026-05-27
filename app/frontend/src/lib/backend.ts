@@ -295,6 +295,78 @@ export interface LookupResponse {
   search_interpretation?: SearchInputInterpretation | null
 }
 
+// ─── M11 lookup section-fetch contract ───
+// Mirror of app/backend/app/schemas/lookup.py (LookupSection*, LookupSummaryTile,
+// LookupInitialSummaryResponse, LookupSectionFetchRequest/Response).
+// Backend-led: FE does not reshape payloads. `payload` on LookupSectionEnvelope
+// is intentionally Record<string, unknown> | null — consumers type-narrow per
+// section_id at the read site against the existing ReportPayload sub-types
+// (PublicationLiteratureshape for 'publications', ComputationalDeepDive for
+// 'computational_deep_dive', AcmgWorksheet + {narrative, source_scope} for
+// 'clingen_vcep').
+export type LookupSectionId =
+  | 'publications'
+  | 'computational_deep_dive'
+  | 'clingen_vcep'
+
+export type LookupSectionStatus = 'available' | 'partial' | 'missing'
+
+export interface LookupSummaryTile {
+  tile_id: string
+  title: string
+  primary_label: string
+  support_badges: string[]
+  source_status: string
+  ui_color_theme: string
+  target_section_id?: string | null
+  target_panel_id?: string | null
+  fetch_section_id?: LookupSectionId | null
+  warnings: string[]
+}
+
+export interface LookupSectionDescriptor {
+  section_id: LookupSectionId
+  endpoint: string
+  include_value: LookupSectionId
+  hydration: 'expand'
+}
+
+export interface LookupInitialSummaryResponse {
+  query: string
+  species: string
+  header?: Record<string, unknown> | null
+  tiles: LookupSummaryTile[]
+  lazy_sections: LookupSectionDescriptor[]
+  warnings: string[]
+}
+
+export interface LookupSectionFetchRequest extends LookupRequest {
+  include: LookupSectionId[]
+}
+
+export interface LookupSectionFreshness {
+  fetched_at?: string | null
+  source_version?: string | null
+  stale_on_failure: boolean
+  source_status?: string | null
+  source_url?: string | null
+}
+
+export interface LookupSectionEnvelope {
+  section_id: LookupSectionId
+  status: LookupSectionStatus
+  payload?: Record<string, unknown> | null
+  freshness: LookupSectionFreshness
+  warnings: string[]
+}
+
+export interface LookupSectionFetchResponse {
+  query: string
+  species: string
+  sections: Partial<Record<LookupSectionId, LookupSectionEnvelope>>
+  warnings: string[]
+}
+
 export interface RunChatRequest {
   question: string
 }
@@ -330,6 +402,13 @@ export type ClassificationTier =
   | 'vus'
   | 'likely_benign'
   | 'benign'
+
+export type RampVerdict =
+  | 'Pathogenic'
+  | 'Likely pathogenic'
+  | 'VUS'
+  | 'Likely benign'
+  | 'Benign'
 
 export type AcmgVerdictTier = 'met' | 'not_met' | 'not_assessed'
 export type PredictorVerdict = 'damaging' | 'tolerated' | 'uncertain'
@@ -678,6 +757,10 @@ export interface ComputationalPredictorRow {
   interpretation?: string | null
   source: string
   version?: string | null
+  calibrated_label?: string | null
+  calibration_bucket?: RampVerdict | null
+  calibration_method?: string | null
+  calibration_version?: string | null
   source_url?: string | null
   warnings: string[]
 }
@@ -1051,8 +1134,30 @@ export type ViewerTrack =
   | 'protein_features'
   | 'restriction'
   | 'conservation'
-export type ViewerWindowKind = 'around_variant' | 'cds_range'
+export type ViewerWindowKind = 'around_variant' | 'cds_range' | 'full_gene'
+export type ViewerDisplayBasis = 'transcript_window' | 'genomic_locus'
 export type ViewerSegmentKind = 'exon' | 'intron'
+export type ViewerCoordinateSystem = 'genomic' | 'cdna' | 'cds' | 'protein' | 'row'
+export type ViewerTranscriptIntervalKind = 'exon' | 'intron' | 'utr5' | 'utr3' | 'cds'
+export type ViewerFullLocusFeatureKind =
+  | 'gene'
+  | 'transcript'
+  | 'exon'
+  | 'intron'
+  | 'utr5'
+  | 'utr3'
+  | 'cds'
+  | 'queried_variant'
+  | 'clinvar'
+  | 'restriction_site'
+  | 'conservation_bin'
+  | 'primer'
+  | 'guide'
+  | 'custom'
+export type ViewerOrientation = 'genomic_forward' | 'genomic_reverse' | 'transcript'
+export type ViewerRowCoordinatePolicy = 'genomic' | 'transcript'
+export type ViewerBaseColorScheme = 'none' | 'nucleotide'
+export type ViewerAminoAcidColorScheme = 'none' | 'biochemical'
 export type ProteinConsequenceKind =
   | 'reference'
   | 'synonymous'
@@ -1127,6 +1232,7 @@ export interface ViewerSummary {
 
 export interface ViewerWindow {
   kind: ViewerWindowKind
+  basis: ViewerDisplayBasis
   cds_start?: number | null
   cds_end?: number | null
   cds_flank_bp: number
@@ -1134,6 +1240,9 @@ export interface ViewerWindow {
   display_cds_start: number
   display_cds_end: number
   total_display_bases: number
+  display_genomic_start?: number | null
+  display_genomic_end?: number | null
+  total_locus_bases?: number | null
 }
 
 export interface ViewerSegment {
@@ -1292,6 +1401,91 @@ export interface ViewerProvenance {
   warnings: string[]
 }
 
+export interface ViewerGenomicLocus {
+  chrom: string
+  start: number
+  end: number
+  strand: GenomeStrand
+  genome_build: string
+  sequence: string
+  coordinate_system: 'genomic'
+}
+
+export interface ViewerCoordinateMapRange {
+  genomic_start: number
+  genomic_end: number
+  cdna_start?: number | null
+  cdna_end?: number | null
+  cds_start?: number | null
+  cds_end?: number | null
+  protein_start?: number | null
+  protein_end?: number | null
+}
+
+export interface ViewerCodonStart {
+  codon_number: number
+  cds_start: number
+  protein_position: number
+  genomic_start: number
+  genomic_positions: number[]
+}
+
+export interface ViewerTranscriptProjectionInterval {
+  id: string
+  kind: ViewerTranscriptIntervalKind
+  label: string
+  genomic_start: number
+  genomic_end: number
+  strand: GenomeStrand
+  exon_number?: number | null
+  intron_number?: number | null
+  cdna_start?: number | null
+  cdna_end?: number | null
+  cds_start?: number | null
+  cds_end?: number | null
+  protein_start?: number | null
+  protein_end?: number | null
+}
+
+export interface ViewerTranscriptProjection {
+  transcript: string
+  strand: GenomeStrand
+  intervals: ViewerTranscriptProjectionInterval[]
+  coordinate_map: ViewerCoordinateMapRange[]
+  codon_starts: ViewerCodonStart[]
+}
+
+export interface ViewerFeatureInterval {
+  id: string
+  kind: ViewerFullLocusFeatureKind
+  label: string
+  coordinate_system: ViewerCoordinateSystem
+  start: number
+  end: number
+  strand: GenomeStrand
+  source?: string | null
+  classification?: VariantClassification | null
+  metadata: Record<string, string | number | boolean | null>
+}
+
+export interface ViewerRenderingHints {
+  orientation: ViewerOrientation
+  row_coordinate_policy: ViewerRowCoordinatePolicy
+  bases_per_row_min: number
+  bases_per_row_max: number
+  max_visual_density?: number | null
+  base_color_scheme: ViewerBaseColorScheme
+  amino_acid_color_scheme: ViewerAminoAcidColorScheme
+}
+
+export interface ViewerFullLocus {
+  basis: 'genomic_locus'
+  locus: ViewerGenomicLocus
+  transcript_projection: ViewerTranscriptProjection
+  feature_intervals: ViewerFeatureInterval[]
+  rendering_hints: ViewerRenderingHints
+}
+
 export interface GeneViewerResponse {
   identity: ViewerIdentity
   locus: ViewerLocus
@@ -1301,5 +1495,6 @@ export interface GeneViewerResponse {
   queried_variant: QueriedVariant
   sequences: ViewerSequences
   tracks: ViewerTracks
+  full_locus?: ViewerFullLocus | null
   provenance: ViewerProvenance
 }

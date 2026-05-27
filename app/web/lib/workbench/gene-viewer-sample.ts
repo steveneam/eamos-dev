@@ -39,6 +39,7 @@ export const GENE_VIEWER_SAMPLE: GeneViewerResponse = {
   },
   window: {
     kind: 'cds_range',
+    basis: 'transcript_window',
     cds_start: 217,
     cds_end: 339,
     cds_flank_bp: 0,
