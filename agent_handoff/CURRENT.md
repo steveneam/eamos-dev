@@ -16,8 +16,10 @@
 
 - **Claude:** IDLE @ 2026-05-27 21:50 +1000 — **2 more Claude/app/web commits shipped + LIVE on eamos-dev.vercel.app.** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `fe9e3b4` (2 commits on top of Codex's `f00d1c0`). Codex backend + handoff WIP uncommitted, untouched. (1) `fdfa9c9` **rich-HTML copy payload** — Steven's "the copy format is flat, no margins/borders/wrap/class" feedback. New `lib/report-html.ts` mirrors `report-tsv.ts` function-for-function: 7 `htmlX()` serializers emit full `<table>` fragments w/ deep-teal banner row, italic variant line, sub-section bands, bordered cells w/ tinted thead, zebra rows, top-aligned wrap-text, sized cols via `<colgroup>`, live hyperlinks. `CopyButton` accepts `{html, text}` and writes both `text/html` + `text/plain` via `ClipboardItem` — Excel picks up the rich HTML, plain targets still get TSV. (2) `fe9e3b4` **Workbench pass-2 slice 2** — verbatim port of Primer + CRISPR + Align panels (8 components w/ `'use client'`, 9 lib files, 3 api functions w/ mock-first fallback); `WorkbenchShell.renderToolPanel()` switch replaces the 4 "deferred to pass 2" stubs (Compare keeps COMING SOON); `AlignPanel` `import.meta.env.VITE_*` → `process.env.NEXT_PUBLIC_*`; `CopyButton` console.warn on dual-throw hardening. tsc clean both commits; browser-verified via Chrome MCP — all 3 panels mount + render their full UI; all 7 report copy buttons flip to COPIED w/ both clipboard MIME types written. **Op gotcha:** when probing clipboard via Chrome MCP evaluate_script, save + restore `navigator.clipboard.write`/`writeText` or reload after — leaked hijack causes silent copy failures (post-`fe9e3b4` console.warn surfaces this next time). AskEamos stays COMING SOON ([[feedback_askeamos_parked]]). After `fe9e3b4`, Workbench redesign Phase 2 / M5 in `plans/v2-redesign-impeccable.md` UNBLOCKED. Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Claude (prior):** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-27 18:51 +1000 - Task 10/11 backend
-  source-asset bundle rechecked after Claude finished; ready for commit/push.
+- **Codex:** IDLE @ 2026-05-27 18:57 +1000 - Post-push handoff recorded
+  for Codex commit `11642e9`. Task 10/11 backend source-asset bundle
+  rechecked after Claude finished, committed, and pushed to
+  `origin/checkpoint/v2-batches-2026-05-17`.
   Task 11 small clinical source
   table parsers implemented fixture-first and verified. Added backend-local
   MONDO/HPOA/HPO gene-phenotype/ClinGen gene-validity/GenCC parsers, tiny
@@ -38,7 +40,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 18:51 +1000 · Codex (Task 10/11 backend bundle rechecked; staging/commit next)
+UNLOCKED · 2026-05-27 18:57 +1000 · Codex (post-push handoff recorded for 11642e9)
 
 ## Shared File Locks
 
@@ -1317,14 +1319,14 @@ FE iteration.
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-27 18:47 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-27 18:56 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; source-asset rollout work is summarized in
 `plans/v2-backend.md` Recent backend notes and
 `docs/local-first-data-source-strategy/source-asset-rollout.md`.
 
-**Latest Codex update (2026-05-27 18:47 +1000 - Codex):**
-Task 10 and Task 11 source-asset slices are verified and ready to commit after
-Claude's final frontend commits. Task 10 added the fixture-first
+**Latest Codex update (2026-05-27 18:56 +1000 - Codex):**
+Task 10 and Task 11 source-asset slices are verified, committed, and pushed in
+`11642e9` after Claude's final frontend commits. Task 10 added the fixture-first
 MANE/GENCODE `TranscriptModelStore`. Task 11 added normalized local parsers/
 store helpers for MONDO, HPOA, HPO gene-phenotype rows, ClinGen gene validity,
 and GenCC, plus tiny source fixtures and malformed-row tests.
@@ -1378,9 +1380,9 @@ schema mirror changes, `/runs`, AlphaMissense, runtime ML scoring, destructive
 git, stash, reset, or clean were performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-27 18:47 +1000 · Codex source asset Tasks 10-11 commit/push`
+`# Resume prompt · 2026-05-27 18:56 +1000 · Codex source asset Tasks 10-11 pushed`
 `Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 53-58, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md,source-asset-rollout.md}, then git status --short --branch.`
-`Delta: Task 10 added fixture-first TranscriptModelStore + MANE/GENCODE tiny fixture; Task 11 added fixture-first ClinicalSourceTableStore + MONDO/HPOA/HPO gene-phenotype/ClinGen gene-validity/GenCC tiny fixtures. Tests cover provenance, MANE aliases/strand order, MONDO xrefs, HPO links, ClinGen validity, GenCC assertions, and structured malformed-row failures.`
+`Delta: Codex pushed 11642e9, adding fixture-first TranscriptModelStore + MANE/GENCODE tiny fixture plus ClinicalSourceTableStore + MONDO/HPOA/HPO gene-phenotype/ClinGen gene-validity/GenCC tiny fixtures. Tests cover provenance, MANE aliases/strand order, MONDO xrefs, HPO links, ClinGen validity, GenCC assertions, and structured malformed-row failures.`
 `Native VCF/bigWig proof remains blocked pending IT approval: WSL is not installed and Docker Desktop local engine returned HTTP 500 after start/restart attempts; existing indexed-reader tests still pass with native skips on Windows.`
 `Next: after IT approval, rerun native VCF/bigWig tiny proof in Docker/WSL/Linux; otherwise continue Task 12 ClinVar VCF local adapter fixture-first. Production source downloads/imports remain gated.`
 `Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, uploads, migrations, provider/source-cache wiring, frontend Workbench edits, schema mirror changes, production source imports/downloads, or runtime ML scoring unless explicitly requested. End clear-safe.`
