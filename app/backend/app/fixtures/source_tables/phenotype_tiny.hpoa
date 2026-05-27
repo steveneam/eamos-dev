@@ -1,0 +1,3 @@
+#DatabaseID	DiseaseName	Qualifier	HPO_ID	Reference	Evidence	Onset	Frequency	Sex	Modifier	Aspect	Biocuration
+OMIM:204100	Leber congenital amaurosis 2		HP:0000510	PMID:20301436	PCS		Very frequent		Biallelic RPE65 context	P	HPO:probinson[2026-05-27]
+OMIM:204100	Leber congenital amaurosis 2		HP:0000662	PMID:20301436	PCS		Frequent			P	HPO:probinson[2026-05-27]

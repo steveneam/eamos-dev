@@ -1,0 +1,3 @@
+GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,CLASSIFICATION,CLASSIFICATION DATE,ONLINE REPORT
+RPE65,HGNC:10294,Leber congenital amaurosis 2,MONDO:0008765,Autosomal recessive inheritance,Definitive,2024-03-14,https://search.clinicalgenome.org/kb/gene-validity/CGGV:assertion-rpe65-lca2
+CFTR,HGNC:1884,Cystic fibrosis,MONDO:0009061,Autosomal recessive inheritance,Definitive,2023-12-01,https://search.clinicalgenome.org/kb/gene-validity/CGGV:assertion-cftr-cf

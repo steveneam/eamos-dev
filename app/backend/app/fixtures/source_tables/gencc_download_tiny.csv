@@ -1,0 +1,3 @@
+uuid,gene_curie,gene_symbol,disease_curie,disease_title,classification_title,moi_title,submitter_title,submitted_as_date,submitted_as_public_report_url
+GENCC_000112,HGNC:10294,RPE65,MONDO:0008765,Leber congenital amaurosis 2,Definitive,Autosomal recessive inheritance,ClinGen,2024-03-14,https://search.thegencc.org/submissions/GENCC_000112-HGNC_10294-MONDO_0008765
+GENCC_000492,HGNC:1884,CFTR,MONDO:0009061,Cystic fibrosis,Definitive,Autosomal recessive inheritance,ClinGen,2023-12-01,https://search.thegencc.org/submissions/GENCC_000492-HGNC_1884-MONDO_0009061

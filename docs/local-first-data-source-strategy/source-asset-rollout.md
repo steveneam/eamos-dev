@@ -123,6 +123,12 @@ mutation, provider wiring, and frontend work.
 
 ## Task 9 - Indexed Reader Compatibility Proofs
 
+Status: IMPLEMENTED to Windows-compatible boundary 2026-05-27 03:33 +1000 -
+Codex. Native Linux VCF/bigWig proof attempted again 2026-05-27 18:26 +1000:
+WSL is not installed, Docker Desktop local engine returned HTTP 500 on both
+contexts after start/restart attempts, and user will seek IT approval for
+Docker on 2026-05-28. No production assets were downloaded or imported.
+
 ### Goal
 
 Prove tiny-file reader behavior before production ClinVar, dbSNP, phyloP, or
@@ -179,6 +185,9 @@ predictors.
 
 ## Task 10 - MANE And GENCODE Transcript Model Store
 
+Status: DONE 2026-05-27 17:52 +1000 - Codex. Fixture-first store implemented;
+no production MANE/GENCODE downloads/imports or runtime wiring.
+
 ### Goal
 
 Build the local transcript/exon/CDS model before deeper Workbench work.
@@ -206,12 +215,23 @@ task.
 
 ### Acceptance Criteria
 
-- RPE65 resolves to MANE Select `NM_000329.3` / `ENST00000262340.6`.
-- Reverse-strand exon/CDS order is correct.
-- Store returns transcript span, exon/CDS intervals, coding length, and aliases.
-- Missing gene/transcript returns structured unavailable state.
-- Provenance includes MANE/GENCODE source IDs, fixture path, version, and
+- Done: RPE65 resolves to MANE Select `NM_000329.3` /
+  `ENST00000262340.6`.
+- Done: reverse-strand exon/CDS order is validated for RPE65.
+- Done: store returns transcript span, exon/CDS intervals, coding length, and
+  aliases.
+- Done: missing gene/transcript returns structured unavailable state.
+- Done: provenance includes MANE/GENCODE source IDs, fixture path, version, and
   checksum.
+
+### Implementation Notes
+
+- Added `app/backend/app/services/transcript_model.py`.
+- Added `app/backend/app/fixtures/transcript_models/mane_gencode_tiny.json`
+  with RPE65 and CFTR fixture controls.
+- Added `app/backend/tests/test_transcript_model_store.py`.
+- This is not wired into `/api/v1/viewer`, Workbench tool contracts, source
+  cache, or frontend/schema mirrors yet.
 
 ### Verify
 
@@ -227,6 +247,10 @@ python -m black --check --target-version py310 app/services/transcript_model.py 
 Full MANE/GENCODE downloads, frontend mirrors, and Workbench rendering.
 
 ## Task 11 - Small Clinical Source Table Parsers
+
+Status: DONE 2026-05-27 18:26 +1000 - Codex. Fixture-first parsers
+implemented; no Supabase import/migration, production downloads, or runtime
+wiring.
 
 ### Goal
 
@@ -254,12 +278,22 @@ Add fixture parsers for representative rows from `mondo.json` or `mondo.tsv`,
 
 ### Acceptance Criteria
 
-- MONDO fixture resolves disease ID/name/cross-references without importing
+- Done: MONDO fixture resolves disease ID/name/cross-references without importing
   OMIM-derived files.
-- HPOA fixture links disease/gene context to HPO IDs and labels.
-- ClinGen fixture returns validity classification and source date.
-- GenCC fixture returns assertion, submitter, disease, gene, and source date.
-- Parser failures are structured and do not silently drop malformed rows.
+- Done: HPOA fixture links disease/gene context to HPO IDs and labels.
+- Done: ClinGen fixture returns validity classification and source date.
+- Done: GenCC fixture returns assertion, submitter, disease, gene, and source date.
+- Done: parser failures are structured and do not silently drop malformed rows.
+
+### Implementation Notes
+
+- Added `app/backend/app/services/clinical_source_tables.py`.
+- Added tiny fixtures under `app/backend/app/fixtures/source_tables/` for
+  MONDO JSON, HPO term labels, HPOA disease phenotype rows, HPO gene phenotype
+  rows, ClinGen gene validity CSV, and GenCC CSV.
+- Added `app/backend/tests/test_clinical_source_tables.py`.
+- This is not wired into Supabase, source cache, report orchestration, provider
+  replacement, frontend, or schema mirrors.
 
 ### Verify
 

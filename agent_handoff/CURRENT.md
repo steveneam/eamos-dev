@@ -16,22 +16,19 @@
 
 - **Claude:** IDLE @ 2026-05-27 21:50 +1000 — **2 more Claude/app/web commits shipped + LIVE on eamos-dev.vercel.app.** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `fe9e3b4` (2 commits on top of Codex's `f00d1c0`). Codex backend + handoff WIP uncommitted, untouched. (1) `fdfa9c9` **rich-HTML copy payload** — Steven's "the copy format is flat, no margins/borders/wrap/class" feedback. New `lib/report-html.ts` mirrors `report-tsv.ts` function-for-function: 7 `htmlX()` serializers emit full `<table>` fragments w/ deep-teal banner row, italic variant line, sub-section bands, bordered cells w/ tinted thead, zebra rows, top-aligned wrap-text, sized cols via `<colgroup>`, live hyperlinks. `CopyButton` accepts `{html, text}` and writes both `text/html` + `text/plain` via `ClipboardItem` — Excel picks up the rich HTML, plain targets still get TSV. (2) `fe9e3b4` **Workbench pass-2 slice 2** — verbatim port of Primer + CRISPR + Align panels (8 components w/ `'use client'`, 9 lib files, 3 api functions w/ mock-first fallback); `WorkbenchShell.renderToolPanel()` switch replaces the 4 "deferred to pass 2" stubs (Compare keeps COMING SOON); `AlignPanel` `import.meta.env.VITE_*` → `process.env.NEXT_PUBLIC_*`; `CopyButton` console.warn on dual-throw hardening. tsc clean both commits; browser-verified via Chrome MCP — all 3 panels mount + render their full UI; all 7 report copy buttons flip to COPIED w/ both clipboard MIME types written. **Op gotcha:** when probing clipboard via Chrome MCP evaluate_script, save + restore `navigator.clipboard.write`/`writeText` or reload after — leaked hijack causes silent copy failures (post-`fe9e3b4` console.warn surfaces this next time). AskEamos stays COMING SOON ([[feedback_askeamos_parked]]). After `fe9e3b4`, Workbench redesign Phase 2 / M5 in `plans/v2-redesign-impeccable.md` UNBLOCKED. Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Claude (prior):** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-27 03:33 +1000 - Task 9 indexed reader
-  compatibility proofs completed to the Windows-compatible boundary. Added
-  fail-closed `pysam` VCF/tabix, `pyBigWig` bigWig, and RepeatMasker
-  `rmsk.txt` interval-table reader abstractions plus focused tests. Current
-  PyPI metadata has Linux/mac wheels but no Windows wheels for
-  `pysam==0.24.0` / `pyBigWig==0.3.25`, so native VCF/bigWig tiny proofs skip
-  locally and should run on Linux/Render once dependencies install. Small Linux
-  wheels were staged on `C:` first, then moved to ignored
-  `app/backend/data/package_wheels/task9_readers` on `E:` after checking
-  space. User-directed staging policy is recorded: smaller reviewed source
-  assets can live on `E:`, while dbSNP/GCF and phyloP stage on `C:`. Focused
-  pytest (`22 passed, 4 skipped`), Ruff, Black, pip dry-run, and diff-check
-  passed. No production source downloads/imports, Supabase writes/resources,
-  uploads, migrations, env mutation, deploy, provider/source-cache wiring,
-  frontend Workbench edits, schema mirror changes, `/runs`, AlphaMissense,
-  runtime ML scoring, destructive git, stash, reset, or clean.
+- **Codex:** IDLE @ 2026-05-27 18:51 +1000 - Task 10/11 backend
+  source-asset bundle rechecked after Claude finished; ready for commit/push.
+  Task 11 small clinical source
+  table parsers implemented fixture-first and verified. Added backend-local
+  MONDO/HPOA/HPO gene-phenotype/ClinGen gene-validity/GenCC parsers, tiny
+  fixtures, provenance, and structured malformed-row tests. Native VCF/bigWig
+  proof remains blocked pending IT approval for Docker/WSL: WSL is not
+  installed and Docker Desktop local engine returned HTTP 500 after
+  start/restart attempts. No production downloads/imports, Supabase
+  writes/resources, uploads, migrations, env mutation, deploy,
+  provider/source-cache wiring, frontend Workbench edits, schema mirror
+  changes, `/runs`, AlphaMissense, runtime ML scoring, destructive git, stash,
+  reset, or clean.
 
 ## Log Edit-Lock
 
@@ -41,12 +38,29 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 21:55 +1000 · Claude (CURRENT.md Claude section + heartbeat refreshed for 2 commits; prior section archived)
+UNLOCKED · 2026-05-27 18:51 +1000 · Codex (Task 10/11 backend bundle rechecked; staging/commit next)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED source asset Task 11 clinical source parsers**
+  (2026-05-27 18:26 +1000)
+  - Scope: `app/backend/app/services/clinical_source_tables.py`,
+    `app/backend/app/fixtures/source_tables/`,
+    `app/backend/tests/test_clinical_source_tables.py`,
+    `docs/local-first-data-source-strategy/source-asset-rollout.md`,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: fixture-first MONDO, HPOA, HPO gene-phenotype, ClinGen
+    gene-validity, and GenCC parsers with provenance and structured
+    malformed-row tests. Native VCF/bigWig Linux proof remains blocked pending
+    IT approval for Docker/WSL.
+  - Guardrails held: no production source downloads/imports, Supabase
+    writes/resources, uploads, migrations, env mutation, deploy,
+    provider/source-cache wiring, frontend Workbench edits, schema mirror
+    changes, `/runs`, AlphaMissense, runtime ML scoring, destructive git,
+    stash, reset, or clean.
 
 - **Codex RELEASED source asset Task 9 reader proofs**
   (2026-05-27 03:33 +1000)
@@ -1303,96 +1317,70 @@ FE iteration.
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-27 03:33 +1000 - Codex. Evidence/payment
-contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
-timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
-ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
-publication-quality/Workbench-source-backed/source-cache architecture in
-Session 31; source-cache hero pilot in Session 32; arbitrary gnomAD
-source-cache read-through in Session 33; provider/cache health in Session 34;
-bare-rsID resolver hardening in Session 35; launch-blocker/security pickup in
-Session 36; rsID commit/push in Session 37; backend launch security hardening
-in Session 38; Workbench input hardening and cohort correction in Session 39;
-dynamic variant-applied gene/protein viewer in Session 40; project 100-sample
-hardening manifest in Session 41; Render DEBUG env verification in Session 42;
-Codex next-task queue pause in Session 43; data-source registry/spec draft in
-Session 44; runtime data-source registry validation in Session 45; source field
-policy helper in Session 46; existing `hg38.2bit` inventory proof in Session
-47; fixture-backed `ReferenceGenomeStore` in Session 48; opt-in local
-`hg38.2bit` smoke scaffold in Session 49; production `hg38.2bit` runtime asset
-path config in Session 50; approved 2bit reader compatibility proof in Session
-51; RPE65 demo payload mojibake fix in Session 52; local sequence-window and
-variant-window model in Session 53; source asset rollout plan and readiness
-manifest in Session 54; source asset official metadata readiness in Session 55;
-and indexed reader compatibility proofs in Session 56. Genomic LLM notebook
-relevance was saved as a deferred local-first follow-up at
-2026-05-26 23:02 +1000.
+1/2). Section last edited: 2026-05-27 18:47 +1000 - Codex. Detailed history is
+in `PROGRESS.md`; source-asset rollout work is summarized in
+`plans/v2-backend.md` Recent backend notes and
+`docs/local-first-data-source-strategy/source-asset-rollout.md`.
 
-**Latest Codex update (2026-05-27 03:33 +1000 - Codex):**
-Task 9 indexed reader compatibility proof is complete to the
-Windows-compatible boundary. Codex added fail-closed `pysam` VCF/tabix,
-`pyBigWig` bigWig, and RepeatMasker `rmsk.txt` interval-table abstractions plus
-focused tests. Current PyPI metadata shows `pysam==0.24.0` and
-`pyBigWig==0.3.25` have CPython 3.10 manylinux wheels but no Windows wheels;
-native Windows source-build preparation failed, so actual VCF/bigWig tiny
-proofs skip locally and should run on Linux/Render once dependencies install.
-RepeatMasker is recorded as deterministic `rmsk.txt` to indexed interval-table
-conversion first; no direct `rmsk.bb` source is treated as verified.
+**Latest Codex update (2026-05-27 18:47 +1000 - Codex):**
+Task 10 and Task 11 source-asset slices are verified and ready to commit after
+Claude's final frontend commits. Task 10 added the fixture-first
+MANE/GENCODE `TranscriptModelStore`. Task 11 added normalized local parsers/
+store helpers for MONDO, HPOA, HPO gene-phenotype rows, ClinGen gene validity,
+and GenCC, plus tiny source fixtures and malformed-row tests.
 
 **State:**
-- `app/backend/app/services/indexed_sources.py` is the new backend-local reader
-  seam for indexed VCF/tabix, bigWig conservation, and RepeatMasker interval
-  queries. It raises structured `IndexedSourceError` failures for missing
-  indexes, unavailable readers, unknown contigs, malformed RepeatMasker rows,
-  invalid coordinates, and out-of-range bigWig queries.
-- `app/backend/requirements.txt` now pins `pysam==0.24.0` and
-  `pyBigWig==0.3.25` with `platform_system != "Windows"` markers. Windows
-  local dev ignores those pins; Linux/Render should install them.
-- Package wheels were downloaded to `C:` first, then moved to ignored
-  `app/backend/data/package_wheels/task9_readers` on `E:` after confirming
-  available space. This was dependency-wheel staging only, not source-data
-  staging.
-- User-directed source placement is recorded: reviewed smaller source assets
-  can live on `E:`, while dbSNP/GCF and phyloP stage on `C:`. Production
-  source downloads/imports remain blocked on terms review, backend storage
-  policy review, reader proof in a compatible runtime, and explicit approval.
+- Task 10 code/fixtures/tests:
+  `app/backend/app/services/transcript_model.py`,
+  `app/backend/app/fixtures/transcript_models/mane_gencode_tiny.json`, and
+  `app/backend/tests/test_transcript_model_store.py`.
+- Task 11 code/fixtures/tests:
+  `app/backend/app/services/clinical_source_tables.py`,
+  `app/backend/app/fixtures/source_tables/`, and
+  `app/backend/tests/test_clinical_source_tables.py`.
+- Task 11 resolves MONDO disease/xrefs, HPO disease+gene phenotype links,
+  ClinGen gene-validity classifications/source dates, GenCC assertions/
+  submitters/source dates, and structured parser failures.
+- Native VCF/bigWig proof is still not complete: WSL is not installed and
+  Docker Desktop local engine returned HTTP 500 on both Docker contexts after
+  start/restart attempts. User will seek IT approval for Docker/WSL. No Docker
+  Hub credentials were used.
+- Supabase imports/migrations, production source downloads/imports,
+  source-cache/provider wiring, `/api/v1/viewer`, Workbench tool contracts,
+  frontend/schema mirrors, and runtime API behavior were not touched by Codex.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
-  passed (`22 passed, 4 skipped`; skips are native `pysam`/`pyBigWig` proofs on
-  this Windows host).
-- `cd app/backend && python -m ruff check app/services/indexed_sources.py app/data_sources/registry.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py tests/test_clinical_source_tables.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  passed with existing native-reader skips on Windows.
+- `cd app/backend && python -m ruff check app/services/transcript_model.py app/services/clinical_source_tables.py tests/test_transcript_model_store.py tests/test_clinical_source_tables.py`
   passed.
-- `cd app/backend && python -m black --check --target-version py310 app/services/indexed_sources.py app/data_sources/registry.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
-  passed after formatting the new files.
-- `cd app/backend && python -m pip install --dry-run --no-deps -r requirements.txt`
-  passed and confirmed Windows ignores the native-reader pins.
-- `git diff --check -- app/backend/requirements.txt app/backend/app/services/indexed_sources.py app/backend/app/data_sources/registry.py app/backend/tests/test_indexed_source_readers.py app/backend/tests/test_source_asset_manifest.py app/backend/tests/test_data_source_registry.py docs/local-first-data-source-strategy/source-asset-rollout.md PROGRESS.md plans/v2-backend.md agent_handoff/CURRENT.md`
+- `cd app/backend && python -m black --check --target-version py310 app/services/transcript_model.py app/services/clinical_source_tables.py tests/test_transcript_model_store.py tests/test_clinical_source_tables.py`
+  passed.
+- `git diff --check --` on the backend/source-asset files and touched docs
   passed with existing CRLF working-copy warnings only.
 
 **Next-session direction:**
-- If user wants the actual native VCF/bigWig fixture proofs, run them in
-  Linux/Render or start Docker/WSL with Python 3.10 and install the
-  platform-marked dependencies; the tests are already written.
-- Otherwise proceed to Task 10 MANE/GENCODE transcript model store or Task 11
-  small clinical source parsers, still fixture-first and no production source
-  imports unless explicitly approved.
+- After IT approval, rerun the native VCF/bigWig tiny fixture proof in
+  Docker/WSL/Linux with `pysam` and `pyBigWig` installed.
+- Otherwise continue source-asset rollout with Task 12 ClinVar VCF local
+  adapter fixture-first, still without production ClinVar download/import or
+  provider replacement.
 - Production downloads/imports, Supabase Storage/Postgres work, provider
   wiring, frontend/schema mirror changes, restricted predictors, `/runs`,
   AlphaMissense, deploy/env mutation, and runtime ML scoring remain separately
   gated.
 
-**Clear-safe:** yes; Task 9 is verified to a focused boundary and no Codex test
-processes or servers are running. Existing frontend/Workbench changes were
-left untouched. No production source downloads/imports, Supabase
-writes/resources, uploads, migrations, env mutation, deploy,
-provider/source-cache wiring, frontend Workbench edits, schema mirror changes,
-`/runs`, AlphaMissense, runtime ML scoring, destructive git, stash, reset, or
-clean were performed.
+**Clear-safe:** yes; Task 10/11 are verified to a focused boundary and no
+Codex test processes or servers are running. No production source
+downloads/imports, Supabase writes/resources, uploads, migrations, env
+mutation, deploy, provider/source-cache wiring, frontend Workbench edits,
+schema mirror changes, `/runs`, AlphaMissense, runtime ML scoring, destructive
+git, stash, reset, or clean were performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-27 03:33 +1000 · Codex source asset Task 9 reader proofs`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 53-56, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md,source-asset-rollout.md}, then git status --short --branch.`
-`Delta: Task 9 added fail-closed indexed reader abstractions/tests for pysam VCF/tabix, pyBigWig bigWig, and RepeatMasker rmsk.txt interval conversion; Linux wheels were staged then moved to ignored E-drive package cache, but native pysam/pyBigWig proofs skip on Windows because no Windows wheels exist. Focused pytest 22 passed / 4 skipped, Ruff, Black, pip dry-run, diff-check passed.`
-`Next: either run native VCF/bigWig fixture proofs in Linux/Render/Docker/WSL, or continue fixture-first Task 10 MANE/GENCODE transcript model store / Task 11 clinical source parsers. Production source downloads/imports remain gated.`
+`# Resume prompt · 2026-05-27 18:47 +1000 · Codex source asset Tasks 10-11 commit/push`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 53-58, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md,source-asset-rollout.md}, then git status --short --branch.`
+`Delta: Task 10 added fixture-first TranscriptModelStore + MANE/GENCODE tiny fixture; Task 11 added fixture-first ClinicalSourceTableStore + MONDO/HPOA/HPO gene-phenotype/ClinGen gene-validity/GenCC tiny fixtures. Tests cover provenance, MANE aliases/strand order, MONDO xrefs, HPO links, ClinGen validity, GenCC assertions, and structured malformed-row failures.`
+`Native VCF/bigWig proof remains blocked pending IT approval: WSL is not installed and Docker Desktop local engine returned HTTP 500 after start/restart attempts; existing indexed-reader tests still pass with native skips on Windows.`
+`Next: after IT approval, rerun native VCF/bigWig tiny proof in Docker/WSL/Linux; otherwise continue Task 12 ClinVar VCF local adapter fixture-first. Production source downloads/imports remain gated.`
 `Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, uploads, migrations, provider/source-cache wiring, frontend Workbench edits, schema mirror changes, production source imports/downloads, or runtime ML scoring unless explicitly requested. End clear-safe.`

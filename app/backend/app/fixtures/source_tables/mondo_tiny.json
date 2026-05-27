@@ -1,0 +1,42 @@
+{
+  "graphs": [
+    {
+      "nodes": [
+        {
+          "id": "http://purl.obolibrary.org/obo/MONDO_0008765",
+          "lbl": "Leber congenital amaurosis 2",
+          "meta": {
+            "definition": {
+              "val": "A Leber congenital amaurosis associated with biallelic RPE65 variants."
+            },
+            "xrefs": [
+              {
+                "val": "OMIM:204100"
+              },
+              {
+                "val": "Orphanet:65"
+              },
+              {
+                "val": "MedGen:C1859844"
+              }
+            ]
+          }
+        },
+        {
+          "id": "http://purl.obolibrary.org/obo/MONDO_0013425",
+          "lbl": "Retinitis pigmentosa 20",
+          "meta": {
+            "xrefs": [
+              {
+                "val": "OMIM:613794"
+              },
+              {
+                "val": "MedGen:C3151086"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

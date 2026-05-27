@@ -24,6 +24,39 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-27, Codex):
+- SOURCE-ASSET Task 11 small clinical source table parsers are implemented
+  fixture-first. Added `app/backend/app/services/clinical_source_tables.py`
+  with normalized parsers/store helpers for MONDO JSON, HPOA disease phenotype
+  rows, HPO gene-phenotype rows, ClinGen gene-validity CSV, and GenCC CSV.
+  Added tiny fixtures under `app/backend/app/fixtures/source_tables/` and
+  `tests/test_clinical_source_tables.py` covering provenance, MONDO disease/
+  xref resolution without OMIM import, HPOA+gene phenotype linking, ClinGen
+  classification/source date, GenCC assertion/submitter/source date, and
+  structured malformed-row failures. Focused pytest, related source-registry/
+  manifest pytest, Ruff, and Black passed. Existing indexed-reader tests still
+  pass with native `pysam`/`pyBigWig` skips on Windows. A Docker/WSL native
+  proof attempt is blocked pending IT approval: WSL is not installed and Docker
+  Desktop local engine returned HTTP 500 on both contexts after start/restart
+  attempts. No production source downloads/imports, Supabase writes/resources,
+  uploads, migrations, env mutation, deploy, provider/source-cache wiring,
+  frontend Workbench edits, schema mirror changes, `/runs`, AlphaMissense,
+  runtime ML scoring, destructive git, stash, reset, or clean.
+- SOURCE-ASSET Task 10 MANE/GENCODE transcript model store is implemented
+  fixture-first. Added `app/backend/app/services/transcript_model.py` with
+  `TranscriptModelStore`, structured unavailable lookup states, source
+  provenance, transcript alias matching, and fixture validation for exon/CDS
+  order. Added
+  `app/backend/app/fixtures/transcript_models/mane_gencode_tiny.json` with
+  RPE65 MANE Select `NM_000329.3` / `ENST00000262340.6` plus one non-RPE65
+  CFTR control. RPE65 preserves reverse-strand transcript order and a c.260/
+  exon-4 interval containing GRCh38 `1:68444869`; CFTR preserves plus-strand
+  ordering. Added `tests/test_transcript_model_store.py`; focused pytest,
+  related reference/sequence/gene-viewer pytest, Ruff, Black, and diff-check
+  passed. No production MANE/GENCODE downloads/imports, Supabase
+  writes/resources, uploads, migrations, env mutation, deploy,
+  provider/source-cache wiring, frontend Workbench edits, schema mirror
+  changes, `/runs`, AlphaMissense, runtime ML scoring, destructive git, stash,
+  reset, or clean.
 - SOURCE-ASSET Task 9 reader proof is implemented to the Windows-compatible
   boundary. Added `app/backend/app/services/indexed_sources.py` with
   fail-closed `pysam` VCF/tabix, `pyBigWig` bigWig, and RepeatMasker

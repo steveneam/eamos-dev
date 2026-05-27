@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "fixture_version": "2026-05-27-mane-gencode-tiny-v1",
+    "genome_build": "GRCh38",
+    "description": "Tiny fixture for the local transcript model store. Rows are curated from prior Eamos source-backed viewer fixtures and model the shape expected from MANE v1.4 plus GENCODE v45 without downloading production GTFs.",
+    "source_ids": [
+      "ncbi_mane_grch38_v1_4_select_ensembl",
+      "gencode_v45_annotation"
+    ]
+  },
+  "transcripts": [
+    {
+      "gene": "RPE65",
+      "ensembl_gene_id": "ENSG00000116745",
+      "refseq_transcript": "NM_000329.3",
+      "ensembl_transcript": "ENST00000262340.6",
+      "transcript_aliases": [
+        "NM_000329.3",
+        "ENST00000262340.6",
+        "ENST00000262340",
+        "RPE65-201",
+        "MANE Select"
+      ],
+      "chrom": "1",
+      "strand": "-",
+      "gene_start": 68428820,
+      "gene_end": 68449958,
+      "cds_length": 1602,
+      "protein_length": 533,
+      "source_ids": [
+        "ncbi_mane_grch38_v1_4_select_ensembl",
+        "gencode_v45_annotation"
+      ],
+      "exons": [
+        {
+          "number": 3,
+          "cds_start": 89,
+          "cds_end": 231,
+          "genomic_start": 68446200,
+          "genomic_end": 68446342
+        },
+        {
+          "number": 4,
+          "cds_start": 232,
+          "cds_end": 324,
+          "genomic_start": 68444805,
+          "genomic_end": 68444897
+        },
+        {
+          "number": 5,
+          "cds_start": 325,
+          "cds_end": 432,
+          "genomic_start": 68443000,
+          "genomic_end": 68443107
+        }
+      ]
+    },
+    {
+      "gene": "CFTR",
+      "ensembl_gene_id": "ENSG00000001626",
+      "refseq_transcript": "NM_000492.4",
+      "ensembl_transcript": "ENST00000003084.11",
+      "transcript_aliases": [
+        "NM_000492.4",
+        "ENST00000003084.11",
+        "ENST00000003084",
+        "CFTR-201",
+        "MANE Select"
+      ],
+      "chrom": "7",
+      "strand": "+",
+      "gene_start": 117287120,
+      "gene_end": 117715971,
+      "cds_length": 489,
+      "protein_length": 163,
+      "source_ids": [
+        "ncbi_mane_grch38_v1_4_select_ensembl",
+        "gencode_v45_annotation"
+      ],
+      "exons": [
+        {
+          "number": 1,
+          "cds_start": 1,
+          "cds_end": 53,
+          "genomic_start": 117480095,
+          "genomic_end": 117480147
+        },
+        {
+          "number": 2,
+          "cds_start": 54,
+          "cds_end": 164,
+          "genomic_start": 117504253,
+          "genomic_end": 117504363
+        },
+        {
+          "number": 3,
+          "cds_start": 165,
+          "cds_end": 273,
+          "genomic_start": 117509034,
+          "genomic_end": 117509142
+        },
+        {
+          "number": 4,
+          "cds_start": 274,
+          "cds_end": 489,
+          "genomic_start": 117530899,
+          "genomic_end": 117531114
+        }
+      ]
+    }
+  ]
+}

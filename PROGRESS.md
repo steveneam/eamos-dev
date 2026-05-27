@@ -1,5 +1,115 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 58 - 27 May 2026 - Task 11 clinical source table parsers
+
+Continued the local-first source-asset rollout after the user asked to do both
+the Task 11 parser slice and the separate native VCF/bigWig proof. This slice
+is fixture-first and backend-local only: no production MONDO/HPOA/ClinGen/GenCC
+downloads/imports, Supabase writes/resources, migrations, provider wiring,
+frontend/schema mirror changes, or runtime API changes.
+
+Completed:
+- Added `app/backend/app/services/clinical_source_tables.py` with normalized
+  parsers/store objects for MONDO JSON, HPOA disease phenotype rows, HPO
+  gene-phenotype rows, ClinGen gene-validity CSV, and GenCC CSV. The store
+  carries SHA256/path/source-version provenance and exposes lookup helpers for
+  MONDO IDs/xrefs, gene+disease HPO phenotype links, ClinGen validity, and
+  GenCC assertions.
+- Added tiny source-table fixtures under
+  `app/backend/app/fixtures/source_tables/`:
+  `mondo_tiny.json`, `hpo_terms_tiny.tsv`, `phenotype_tiny.hpoa`,
+  `genes_to_phenotype_tiny.txt`, `clingen_gene_validity_tiny.csv`, and
+  `gencc_download_tiny.csv`.
+- Added `app/backend/tests/test_clinical_source_tables.py` covering provenance,
+  MONDO disease/cross-reference resolution without OMIM import, HPOA+gene
+  phenotype linking, ClinGen validity classification/source date, GenCC
+  assertion/submitter/source date, and structured malformed-row failures.
+- Left Supabase imports/migrations, source-cache/provider wiring, report
+  orchestration, frontend/schema mirrors, and runtime API behavior untouched.
+
+Native VCF/bigWig proof attempt:
+- Re-ran the existing indexed-reader tests on Windows:
+  `tests/test_indexed_source_readers.py` still passes with native
+  `pysam`/`pyBigWig` proof tests skipped because those modules are unavailable
+  on this Windows host.
+- Checked WSL and Docker as requested. WSL is not installed. Docker Desktop is
+  present, but both `desktop-linux` and `default` contexts returned HTTP 500
+  from the local Docker engine on `docker version` / `docker info`; a Docker
+  Desktop restart attempt timed out and left the engine unusable. User will seek
+  IT approval for Docker on 2026-05-28. No Docker Hub credentials were used.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_clinical_source_tables.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_clinical_source_tables.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_indexed_source_readers.py -q`
+  -> passed with the existing native-reader skips on Windows.
+- `cd app/backend && python -m pytest tests/test_clinical_source_tables.py tests/test_transcript_model_store.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  -> passed with the existing native-reader skips on Windows.
+- `cd app/backend && python -m ruff check app/services/clinical_source_tables.py tests/test_clinical_source_tables.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/clinical_source_tables.py tests/test_clinical_source_tables.py`
+  -> passed after formatting the new test file.
+
+Coordination:
+- No production source downloads/imports, Supabase writes/resources, uploads,
+  migrations, env mutation, deploy, provider/source-cache wiring, frontend
+  Workbench edits, schema mirror changes, `/runs`, AlphaMissense, runtime ML
+  scoring, destructive git, stash, reset, or clean.
+- Unrelated app/web Workbench pass-2 files appeared during the session and were
+  left untouched.
+
+## Session 57 - 27 May 2026 - MANE/GENCODE transcript model store
+
+Continued the local-first source-asset rollout with Task 10 after the user
+approved continuing. This slice is fixture-first and backend-local only: no
+production MANE/GENCODE downloads, imports, provider wiring, frontend/schema
+mirror changes, or runtime API changes.
+
+Completed:
+- Added `app/backend/app/services/transcript_model.py` with
+  `TranscriptModelStore`, structured unavailable lookup states, provenance
+  metadata, transcript alias matching, and fixture validation for exon/CDS
+  order.
+- Added `app/backend/app/fixtures/transcript_models/mane_gencode_tiny.json`
+  with RPE65 MANE Select `NM_000329.3` / `ENST00000262340.6` and one non-RPE65
+  CFTR control. The RPE65 fixture preserves reverse-strand transcript order and
+  a c.260/exon-4 interval that contains GRCh38 `1:68444869`; the CFTR control
+  preserves plus-strand order.
+- Added `app/backend/tests/test_transcript_model_store.py` covering MANE/
+  GENCODE provenance, RPE65 transcript/alias resolution, reverse-strand exon/
+  CDS order, CFTR plus-strand control behavior, and missing gene/transcript
+  structured unavailable states.
+- Left `/api/v1/viewer`, Workbench tool contracts, source-cache/provider
+  wiring, and frontend/schema mirrors untouched.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py tests/test_sequence_window_model.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_transcript_model_store.py tests/test_reference_genome_store.py tests/test_sequence_window_model.py tests/test_gene_viewer.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/services/transcript_model.py tests/test_transcript_model_store.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/transcript_model.py tests/test_transcript_model_store.py`
+  -> passed after formatting.
+- `git diff --check -- app/backend/app/services/transcript_model.py app/backend/tests/test_transcript_model_store.py`
+  -> passed.
+
+Coordination:
+- No production source downloads/imports, Supabase writes/resources, uploads,
+  migrations, env mutation, deploy, provider/source-cache wiring, frontend
+  Workbench edits, schema mirror changes, `/runs`, AlphaMissense, runtime ML
+  scoring, destructive git, stash, reset, or clean.
+- Unrelated app/web working-tree changes appeared during the session and were
+  not touched: `app/web/components/report/ReportClient.tsx`,
+  `app/web/components/ui/CopyButton.tsx`, and untracked
+  `app/web/lib/report-html.ts`.
+
 ## Session 56 - 27 May 2026 - Task 9 indexed reader compatibility proofs
 
 User approved Task 9 dependency download/install and clarified storage
