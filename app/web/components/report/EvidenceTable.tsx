@@ -1,5 +1,7 @@
 import { Card } from '@/components/ui/Card'
+import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { getSourceMeta } from '@/lib/sources'
+import { reviewStatusToStars } from '@/lib/clinvar-review-status'
 import type { EvidenceSourceSummary } from '@/lib/backend'
 
 interface EvidenceTableProps {
@@ -93,14 +95,45 @@ function formatValue(value: unknown): string {
   return String(value)
 }
 
-function renderSummaryValue(summary: Record<string, unknown>): string {
+function renderSummaryValue(
+  summary: Record<string, unknown>,
+  skipKeys?: ReadonlySet<string>,
+): string {
   const parts: string[] = []
   for (const [key, raw] of Object.entries(summary)) {
     if (raw === null || raw === undefined) continue
+    if (skipKeys?.has(key)) continue
     const formatted = formatValue(raw)
     if (formatted) parts.push(`${key}: ${formatted}`)
   }
   return parts.join(' · ')
+}
+
+const CLINVAR_HEADER_KEYS: ReadonlySet<string> = new Set(['classification', 'review_status'])
+
+function isClinVarRow(source: string | null | undefined): boolean {
+  return typeof source === 'string' && source.trim().toLowerCase() === 'clinvar'
+}
+
+function ClinVarHeader({ summary }: { summary: Record<string, unknown> }) {
+  const classification = typeof summary.classification === 'string'
+    ? summary.classification
+    : null
+  const reviewStatus = typeof summary.review_status === 'string'
+    ? summary.review_status
+    : null
+  if (!classification && !reviewStatus) return null
+  const stars = reviewStatusToStars(reviewStatus)
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      {classification && (
+        <ClassificationBadge classification={classification} reviewStars={stars} />
+      )}
+      {reviewStatus && (
+        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{reviewStatus}</span>
+      )}
+    </div>
+  )
 }
 
 export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps) {
@@ -195,7 +228,11 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
                     verticalAlign: 'top',
                   }}
                 >
-                  {renderSummaryValue(ev.summary) || '—'}
+                  {isClinVarRow(ev.source) && <ClinVarHeader summary={ev.summary} />}
+                  {renderSummaryValue(
+                    ev.summary,
+                    isClinVarRow(ev.source) ? CLINVAR_HEADER_KEYS : undefined,
+                  ) || '—'}
                   {ev.warnings.length > 0 && (
                     <div
                       className="mt-1"
