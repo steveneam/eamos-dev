@@ -24,6 +24,81 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-27, Codex):
+- SOURCE-ASSET Task 9 reader proof is implemented to the Windows-compatible
+  boundary. Added `app/backend/app/services/indexed_sources.py` with
+  fail-closed `pysam` VCF/tabix, `pyBigWig` bigWig, and RepeatMasker
+  `rmsk.txt` interval-table conversion abstractions, plus
+  `tests/test_indexed_source_readers.py`. Current PyPI metadata shows
+  `pysam==0.24.0` and `pyBigWig==0.3.25` provide CPython 3.10 manylinux wheels
+  but no Windows wheels; source-build prep failed on this Windows host, so
+  native VCF/bigWig tiny proofs skip locally and should run on Linux/Render
+  once dependencies install. Added Linux-only requirement pins, staged wheels
+  on `C:` first, then moved the small package artifacts to ignored
+  `app/backend/data/package_wheels/task9_readers` on `E:` after checking space.
+  User clarified source-asset placement: smaller reviewed sources may live on
+  `E:`, while dbSNP/GCF and phyloP stage on `C:`; registry/docs now mark
+  phyloP for `C:` staging. Focused pytest passed (`22 passed, 4 skipped`),
+  Ruff, Black, and pip dry-run passed. No production source downloads/imports,
+  Supabase writes/resources, uploads, migrations, env mutation, deploy,
+  provider/source-cache wiring, frontend Workbench edits, schema mirror
+  changes, `/runs`, AlphaMissense, runtime ML scoring, destructive git, stash,
+  reset, or clean.
+- SOURCE-ASSET Task 8 registry readiness has official metadata filled for the
+  named post-reference backbone after browsing official source pages/listings
+  only. `DataSourceRecord` now carries `source_version`, `checksum_plan`,
+  `terms_url`, and `terms_status`; `SourceAssetReadiness` exposes those fields
+  while still blocking on terms review, backend storage policy review, reader
+  proof, and explicit approval. Corrections captured: dbSNP official file is
+  `GCF_000001405.40.gz` + `.tbi`; UCSC RepeatMasker source is `rmsk.txt.gz`
+  with derived `rmsk.bb` only after conversion/bigBed proof; phyloP
+  `hg38.phyloP100way.bw` is listed at 9.2 GB with `md5sum.txt`, and was later
+  changed to explicit `C:` staging by user direction on 2026-05-27; MANE v1.4
+  official GTF is
+  `MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz` with MANE Select rows selected by
+  tags; HPO starts from official annotation files and does not treat the draft
+  `hp.gpad` path as verified. Focused pytest (`17 passed`), Ruff, and Black
+  passed. No downloads, imports, dependency installs, Supabase writes/resources,
+  uploads, migrations, env mutation, deploy, provider/source-cache wiring,
+  frontend Workbench edits, schema mirror changes, `/runs`, AlphaMissense,
+  runtime ML scoring, file moves/replacements, destructive git, stash, reset,
+  or clean.
+- SOURCE-ASSET-ROLLOUT is started after user correction that ClinVar VCF,
+  dbSNP/GCF, RepeatMasker, phyloP, MANE, GENCODE, MONDO, HPOA, ClinGen gene
+  validity, and GenCC are the project backbone and should precede deeper
+  Workbench UI work. Added
+  `docs/local-first-data-source-strategy/source-asset-rollout.md` with Task
+  8-16: source manifest/approval pack, indexed reader proofs, transcript model
+  store, small clinical source parsers, ClinVar local adapter, dbSNP local
+  adapter, RepeatMasker proof, phyloP proof, and source-backed orchestration.
+  Also added `app/backend/app/data_sources/source_manifest.py` plus
+  `tests/test_source_asset_manifest.py`; the manifest enumerates the named
+  post-reference Day 1 sources and reports missing approval fields,
+  backend-owned storage review needs, `C:` staging, and actual-size checks.
+  Focused pytest (`15 passed`), Ruff, Black, and diff-check passed. No source
+  downloads, dependency installs, Supabase writes/resources, uploads,
+  migrations, env mutation, deploy, provider/source-cache wiring, frontend
+  Workbench edits, schema mirror changes, `/runs`, AlphaMissense, runtime ML
+  scoring, commit, push, or destructive git were performed.
+- LOCAL-SEQUENCE-WINDOW-MODEL is implemented and verified as a backend-only
+  first slice for the Workbench local-first sequence-read contract. Added
+  `app/backend/app/services/sequence_window_model.py` with
+  `LocalSequenceWindowBuilder`, local reference-window/base-check/variant-window
+  dataclasses, provenance, warnings, and unavailable reasons. It accepts
+  already-resolved genomic alleles, reads through `ReferenceGenomeStore` or
+  `TwoBitReferenceGenomeStore`, validates REF against the local reference, and
+  applies ALT into a small genomic-forward window while preserving the existing
+  1-based inclusive coordinate convention. Added
+  `tests/test_sequence_window_model.py` for SNV, insertion, deletion,
+  mismatch, unavailable-state, offset, flank-convention, and provenance
+  behavior, and extended the opt-in local `hg38.2bit` smoke to prove RPE65
+  `1-68444869-T-C` applies `T>C` in the local full-asset window. Focused
+  pytest, opt-in full-asset smoke, related Workbench/reference pytest, Ruff,
+  Black, and diff-check passed. Full backend pytest was attempted but timed
+  out after 5 minutes before returning output; no Python test process remained.
+  No frontend Workbench edits, schema/contract mirror changes, Supabase
+  writes/resources, uploads, file moves/replacements, env mutation, deploy,
+  provider/source-cache wiring, `/runs`, AlphaMissense, runtime ML scoring,
+  commit, push, or destructive git were performed.
 - REPORT-DEMO-ENCODING live `/report?demo=1` mojibake fix is implemented and
   verified. The backend source fixture strings decoded cleanly; the generated
   `app/web/lib/rpe65-sample.json` demo artifact carried UTF-8-as-Latin-1

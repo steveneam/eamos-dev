@@ -55,6 +55,10 @@ class DataSourceRecord:
     actual_size_bytes_local: int | None = None
     current_local_path: str | None = None
     current_local_md5: str | None = None
+    source_version: str | None = None
+    checksum_plan: str | None = None
+    terms_url: str | None = None
+    terms_status: str | None = None
     runtime_delivery_modes: tuple[str, ...] = ()
     reader_requires_local_path: bool = False
     notes: str | None = None
@@ -102,6 +106,10 @@ class DataSourceRecord:
             actual_size_bytes_local=raw.get("actual_size_bytes_local"),
             current_local_path=_optional_string(raw.get("current_local_path")),
             current_local_md5=_optional_string(raw.get("current_local_md5")),
+            source_version=_optional_string(raw.get("source_version")),
+            checksum_plan=_optional_string(raw.get("checksum_plan")),
+            terms_url=_optional_string(raw.get("terms_url")),
+            terms_status=_optional_string(raw.get("terms_status")),
             runtime_delivery_modes=_as_optional_string_tuple(raw.get("runtime_delivery_modes")),
             reader_requires_local_path=_require_bool(
                 raw.get("reader_requires_local_path", False), "reader_requires_local_path"
@@ -187,6 +195,16 @@ class DataSourceRegistry:
                 if record.source_version_required is not True:
                     errors.append(
                         f"{source_label}: download_approved requires a source-version policy"
+                    )
+                if record.source_version_required and not record.source_version:
+                    errors.append(
+                        f"{source_label}: download_approved requires a recorded source_version"
+                    )
+                if record.checksum_required and not (
+                    record.current_local_md5 or record.checksum_plan
+                ):
+                    errors.append(
+                        f"{source_label}: download_approved requires a checksum plan or checksum"
                     )
                 if not record.storage_target:
                     errors.append(f"{source_label}: download_approved requires a storage_target")
@@ -376,11 +394,11 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         priority="p1_day1_identity_after_reference_proof",
         tier="tier_1_object_storage_asset",
         day1_status="active_day1",
-        files_or_api=("GCF_000001405.40.vcf.gz", "GCF_000001405.40.vcf.gz.tbi"),
+        files_or_api=("GCF_000001405.40.gz", "GCF_000001405.40.gz.tbi"),
         upstream_source="NCBI dbSNP",
-        source_url=None,
-        source_url_status="required_before_download",
-        expected_size="about 15 GB",
+        source_url="https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz",
+        source_url_status="verified_official_ftp_listing_2026_05_27",
+        expected_size="28 GB plus 3.0 MB tabix index in NCBI latest_release listing",
         storage_target="supabase_storage_after_review",
         temporary_staging="stage_on_C_drive",
         adapter="pysam_tabix_after_compatibility_proof",
@@ -399,9 +417,16 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="local_identity_store_plus_source_cache",
         download_approved=False,
+        source_version="dbSNP latest_release GRCh38 GCF_000001405.40",
+        checksum_plan=(
+            "Use NCBI CHECKSUMS plus GCF_000001405.40.gz.md5 and "
+            "GCF_000001405.40.gz.tbi.md5 before any approved download."
+        ),
+        terms_url="https://www.ncbi.nlm.nih.gov/home/about/policies/",
+        terms_status="NCBI data-usage policy URL recorded; backend approval still required",
         notes=(
             "Day 1 large asset. Preserve upstream GCF_000001405.40 naming even "
-            "if a local alias uses .vcf.gz."
+            "if a local alias later adds a .vcf.gz suffix."
         ),
     ),
     DataSourceRecord(
@@ -412,9 +437,9 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         day1_status="active_day1",
         files_or_api=("clinvar.vcf.gz", "clinvar.vcf.gz.tbi"),
         upstream_source="NCBI ClinVar FTP",
-        source_url=None,
-        source_url_status="required_before_download",
-        expected_size="about 60 MB",
+        source_url="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz",
+        source_url_status="verified_official_ftp_listing_2026_05_27",
+        expected_size="183 MB plus 595 KB tabix index in 2026-05-25 listing",
         storage_target="supabase_storage_after_review",
         temporary_staging="not_expected",
         adapter="pysam_tabix_after_compatibility_proof",
@@ -432,18 +457,25 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="local_variant_classification_store_plus_source_cache",
         download_approved=False,
+        source_version="ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523",
+        checksum_plan=(
+            "Use upstream clinvar.vcf.gz.md5; record index size/checksum and "
+            "VCF header fileDate during approved staging."
+        ),
+        terms_url="https://www.ncbi.nlm.nih.gov/clinvar/docs/maintenance_use/",
+        terms_status="ClinVar disclaimer/attribution policy recorded; backend approval still required",
     ),
     DataSourceRecord(
         source_id="repeatmasker_rmsk_bb",
-        display_name="RepeatMasker rmsk.bb",
+        display_name="RepeatMasker rmsk table / derived bigBed",
         priority="p2_day1_design_context",
         tier="tier_1_object_storage_asset",
         day1_status="active_day1",
-        files_or_api=("rmsk.bb",),
-        upstream_source="RepeatMasker text / UCSC Table Browser conversion",
-        source_url=None,
-        source_url_status="required_before_download",
-        expected_size="about 100 MB",
+        files_or_api=("rmsk.txt.gz", "derived rmsk.bb after approved conversion"),
+        upstream_source="UCSC Genome Browser hg38 database",
+        source_url="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/rmsk.txt.gz",
+        source_url_status="verified_official_database_listing_2026_05_27",
+        expected_size="148 MB text table before derived bigBed conversion",
         storage_target="supabase_storage_after_review",
         temporary_staging="not_expected",
         adapter="bigbed_reader_or_conversion_path_after_proof",
@@ -455,6 +487,13 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="static_indexed_asset",
         download_approved=False,
+        source_version="UCSC hg38 rmsk table dump 2022-10-18",
+        checksum_plan=(
+            "No verified UCSC per-table md5 sidecar found for rmsk.txt.gz; "
+            "record downloaded source SHA256 and derived rmsk.bb SHA256 in manifest."
+        ),
+        terms_url="https://genome.ucsc.edu/FAQ/FAQdownloads.html",
+        terms_status="UCSC download guidance recorded; RepeatMasker/library terms still require review",
     ),
     DataSourceRecord(
         source_id="ucsc_phylop100way_hg38",
@@ -464,11 +503,11 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         day1_status="active_day1",
         files_or_api=("hg38.phyloP100way.bw",),
         upstream_source="UCSC PhyloP directory",
-        source_url=None,
-        source_url_status="required_before_download",
-        expected_size="about 10 GB",
+        source_url="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/phyloP100way/hg38.phyloP100way.bw",
+        source_url_status="verified_official_directory_listing_2026_05_27",
+        expected_size="9.2 GB in UCSC phyloP100way listing",
         storage_target="supabase_storage_after_review",
-        temporary_staging="check_actual_size_stage_on_C_if_greater_than_10gb",
+        temporary_staging="stage_on_C_drive",
         adapter="pyBigWig_after_compatibility_proof",
         license_status=LicenseStatus.PENDING_TERMS_RECORD,
         allowed_product_tiers=("public_day1_after_review",),
@@ -478,6 +517,15 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="static_indexed_asset_plus_small_window_cache",
         download_approved=False,
+        source_version="UCSC hg38 100-way phyloP bigWig 2015-05-08",
+        checksum_plan="Use UCSC md5sum.txt plus manifest SHA256/size before any approved download.",
+        terms_url="https://genome.ucsc.edu/goldenPath/credits.html",
+        terms_status="UCSC public-use note recorded; underlying assembly restrictions still require review",
+        notes=(
+            "Listed size is below the original 10 GB automatic C-drive rule, "
+            "but user directed phyloP to C-drive staging with dbSNP/GCF on "
+            "2026-05-27 because it is still a large 9.2 GB asset."
+        ),
     ),
     DataSourceRecord(
         source_id="illumina_spliceai_precomputed_hg38",
@@ -586,15 +634,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
     ),
     DataSourceRecord(
         source_id="ncbi_mane_grch38_v1_4_select_ensembl",
-        display_name="MANE GRCh38 v1.4 Select Ensembl GTF",
+        display_name="MANE GRCh38 v1.4 Ensembl genomic GTF",
         priority="p3_transcript_model",
         tier="tier_2_repo_asset_candidate",
         day1_status="active_day1",
-        files_or_api=("MANE.GRCh38.v1.4.select_ensembl.gtf.gz",),
+        files_or_api=("MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz",),
         upstream_source="NCBI MANE FTP",
-        source_url=None,
-        source_url_status="required_before_download",
-        expected_size="about 25 MB",
+        source_url=(
+            "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4/"
+            "MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz"
+        ),
+        source_url_status="verified_official_release_page_2026_05_27",
+        expected_size="8.1 MB in MANE release 1.4 FTP listing",
         storage_target="render_repo_candidate_after_review",
         temporary_staging="not_expected",
         adapter="transcript_model_parser",
@@ -606,6 +657,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="static_repo_asset_or_object_asset_manifest",
         download_approved=False,
+        source_version=("MANE v1.4; RefSeq GCF_000001405.40-RS_2024_08; Ensembl release 114"),
+        checksum_plan=(
+            "Record upstream FTP size/date plus manifest SHA256; use an upstream "
+            "checksum sidecar if present during approved staging."
+        ),
+        terms_url="https://www.ncbi.nlm.nih.gov/refseq/MANE/",
+        terms_status="NCBI MANE access page recorded; backend approval still required",
+        notes=(
+            "Official v1.4 GTF observed as ensembl_genomic; select rows must be "
+            "extracted by MANE Select tags rather than assuming a separate "
+            "select_ensembl GTF file."
+        ),
     ),
     DataSourceRecord(
         source_id="gencode_v45_annotation",
@@ -615,9 +678,12 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         day1_status="active_day1",
         files_or_api=("gencode.v45.annotation.gtf.gz",),
         upstream_source="GENCODE Project",
-        source_url=None,
-        source_url_status="required_before_download",
-        expected_size="about 60 MB",
+        source_url=(
+            "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/"
+            "release_45/gencode.v45.annotation.gtf.gz"
+        ),
+        source_url_status="verified_official_release_page_2026_05_27",
+        expected_size="GENCODE release 45 comprehensive CHR GTF",
         storage_target="render_repo_candidate_after_review",
         temporary_staging="not_expected",
         adapter="transcript_model_parser",
@@ -629,6 +695,13 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="static_repo_asset_or_object_asset_manifest",
         download_approved=False,
+        source_version="GENCODE v45; GRCh38.p14; Ensembl release 111; released 2024-01",
+        checksum_plan=(
+            "Use GENCODE/EBI FTP checksum metadata if present plus manifest "
+            "SHA256/size before approved staging."
+        ),
+        terms_url="https://www.ebi.ac.uk/about/terms-of-use/",
+        terms_status="EMBL-EBI terms recorded; backend approval still required",
     ),
     DataSourceRecord(
         source_id="intervar_pipeline_config",
@@ -712,15 +785,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         display_name="pysam",
         priority="p_future_reader_dependency",
         tier="tier_2_5_python_engine",
-        day1_status="candidate_after_compatibility_proof",
-        files_or_api=("python_package",),
-        upstream_source="pysam package",
-        source_url=None,
-        source_url_status="required_before_install",
-        expected_size="package_dependency",
+        day1_status="selected_for_task_9_linux_reader_proof_windows_unavailable",
+        files_or_api=("pysam==0.24.0",),
+        upstream_source="PyPI pysam package",
+        source_url="https://pypi.org/project/pysam/0.24.0/",
+        source_url_status="verified_pypi_metadata_2026_05_27",
+        expected_size=(
+            "22.7 MB CPython 3.10 manylinux x86_64 wheel; no Windows wheels "
+            "found in PyPI release metadata"
+        ),
         storage_target="backend_runtime_dependency_after_review",
         temporary_staging="not_applicable",
-        adapter="indexed_vcf_bcf_tsv_reader",
+        adapter="pysam_indexed_vcf_reader",
         license_status=LicenseStatus.PENDING_TERMS_RECORD,
         allowed_product_tiers=("future_after_review",),
         allowed_fields=("indexed_variant_file_access",),
@@ -729,6 +805,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="not_applicable",
         download_approved=False,
+        source_version="pysam 0.24.0",
+        checksum_plan=(
+            "Pin exact PyPI distribution version; use pip hash lock before "
+            "production dependency freeze."
+        ),
+        terms_url="https://github.com/pysam-developers/pysam",
+        terms_status="Package metadata recorded; dependency/license review still required",
+        notes=(
+            "PyPI provides Linux/mac wheels for 0.24.0 but no Windows wheels. "
+            "The Windows host cannot install this natively; Render/Linux can "
+            "install via the platform-marked requirements pin."
+        ),
     ),
     DataSourceRecord(
         source_id="python_twobit_reader",
@@ -763,15 +851,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         display_name="pyBigWig",
         priority="p_future_reader_dependency",
         tier="tier_2_5_python_engine",
-        day1_status="candidate_after_compatibility_proof",
-        files_or_api=("python_package",),
-        upstream_source="pyBigWig package",
-        source_url=None,
-        source_url_status="required_before_install",
-        expected_size="package_dependency",
+        day1_status="selected_for_task_9_linux_reader_proof_windows_unavailable",
+        files_or_api=("pyBigWig==0.3.25",),
+        upstream_source="PyPI pyBigWig package",
+        source_url="https://pypi.org/project/pyBigWig/0.3.25/",
+        source_url_status="verified_pypi_metadata_2026_05_27",
+        expected_size=(
+            "183.5 kB CPython 3.10 manylinux x86_64 wheel; no Windows wheels "
+            "found in PyPI release metadata"
+        ),
         storage_target="backend_runtime_dependency_after_review",
         temporary_staging="not_applicable",
-        adapter="conservation_bigwig_reader",
+        adapter="pybigwig_conservation_reader",
         license_status=LicenseStatus.PENDING_TERMS_RECORD,
         allowed_product_tiers=("future_after_review",),
         allowed_fields=("conservation_score",),
@@ -780,6 +871,18 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="not_applicable",
         download_approved=False,
+        source_version="pyBigWig 0.3.25",
+        checksum_plan=(
+            "Pin exact PyPI distribution version; use pip hash lock before "
+            "production dependency freeze."
+        ),
+        terms_url="https://github.com/deeptools/pyBigWig",
+        terms_status="Package metadata recorded; dependency/license review still required",
+        notes=(
+            "PyPI provides Linux wheels for 0.3.25 but no Windows wheels. The "
+            "Windows host cannot install this natively; Render/Linux can "
+            "install via the platform-marked requirements pin."
+        ),
     ),
     DataSourceRecord(
         source_id="python_duckdb_pyarrow",
@@ -810,11 +913,11 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         priority="p4_small_source_table",
         tier="tier_3_supabase_postgres_table",
         day1_status="active_day1",
-        files_or_api=("mondo.json", "mondo.tsv"),
+        files_or_api=("mondo.json", "derived mondo.tsv after parser proof"),
         upstream_source="Mondo Disease Ontology",
-        source_url=None,
-        source_url_status="required_before_import",
-        expected_size="about 40 MB",
+        source_url="https://purl.obolibrary.org/obo/mondo.json",
+        source_url_status="verified_official_download_page_2026_05_27",
+        expected_size="about 100 MB JSON edition",
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="disease_ontology_table",
@@ -826,6 +929,13 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
         download_approved=False,
+        source_version="Mondo stable release; latest observed release 2026-05-05",
+        checksum_plan=(
+            "Record release version IRI and local SHA256/size for mondo.json; "
+            "record derived TSV checksum if generated."
+        ),
+        terms_url="https://mondo.monarchinitiative.org/pages/download/",
+        terms_status="Mondo CC BY 4.0 download terms recorded; backend approval still required",
         notes=(
             "DOCX label says OMIM and Orphanet combined, but listed files are "
             "Mondo. Do not import OMIM-derived files without separate review."
@@ -837,11 +947,16 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         priority="p4_small_source_table",
         tier="tier_3_supabase_postgres_table",
         day1_status="active_day1",
-        files_or_api=("phenotype.hpoa", "hp.gpad"),
+        files_or_api=(
+            "phenotype.hpoa",
+            "genes_to_phenotype.txt",
+            "phenotype_to_genes.txt",
+            "genes_to_disease.txt",
+        ),
         upstream_source="Human Phenotype Ontology",
-        source_url=None,
-        source_url_status="required_before_import",
-        expected_size="about 5 MB",
+        source_url="https://obophenotype.github.io/human-phenotype-ontology/annotations/phenotype_hpoa/",
+        source_url_status="verified_official_annotation_docs_2026_05_27",
+        expected_size="small annotation files; exact sizes recorded at import approval",
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="phenotype_annotation_table",
@@ -853,6 +968,17 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
         download_approved=False,
+        source_version="HPO release 2026-02-16 observed; record annotation file headers at import",
+        checksum_plan=(
+            "Use GitHub release SHA256 assets where available; otherwise record "
+            "local SHA256/size for approved HPO annotation files before import."
+        ),
+        terms_url="https://human-phenotype-ontology.github.io/license.html",
+        terms_status="HPO license/acknowledgement/version-display terms recorded; backend approval still required",
+        notes=(
+            "The draft hp.gpad path was not verified at the expected OBO PURL; "
+            "start from the official HPO annotation files documented by HPO."
+        ),
     ),
     DataSourceRecord(
         source_id="clingen_gene_validity",
@@ -862,9 +988,9 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         day1_status="active_day1",
         files_or_api=("clingen_gene_validity.csv",),
         upstream_source="ClinGen",
-        source_url=None,
-        source_url_status="required_before_import",
-        expected_size="about 2 MB",
+        source_url="https://search.clinicalgenome.org/kb/downloads",
+        source_url_status="verified_official_download_page_2026_05_27",
+        expected_size="real-time generated CSV; exact size recorded at import approval",
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="gene_disease_validity_table",
@@ -876,6 +1002,10 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
         download_approved=False,
+        source_version="ClinGen Gene-Disease Validity real-time CSV export",
+        checksum_plan="Record export timestamp, source URL, local SHA256, and row count before import.",
+        terms_url="https://clinicalgenome.org/docs/terms-of-use/",
+        terms_status="ClinGen download/medical disclaimer terms recorded; backend approval still required",
     ),
     DataSourceRecord(
         source_id="gencc_download",
@@ -885,9 +1015,9 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         day1_status="active_day1",
         files_or_api=("gencc-download.csv",),
         upstream_source="GenCC",
-        source_url=None,
-        source_url_status="required_before_import",
-        expected_size="about 5 MB",
+        source_url="https://search.thegencc.org/download/action/submissions-export-csv",
+        source_url_status="verified_official_site_2026_05_27",
+        expected_size="live submissions export; exact size recorded at import approval",
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="gene_disease_assertion_table",
@@ -899,6 +1029,10 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
         download_approved=False,
+        source_version="GenCC live submissions export; version by export date",
+        checksum_plan="Record export timestamp, local SHA256, row count, and source statistics before import.",
+        terms_url="https://search.thegencc.org/statistics",
+        terms_status="GenCC CC0/disclaimer terms recorded; backend approval still required",
     ),
     DataSourceRecord(
         source_id="myvariant_gnomad_only",

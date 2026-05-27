@@ -11,6 +11,7 @@ from app.data_sources import (
     resolve_local_asset_path,
 )
 from app.services.reference_genome import TwoBitReferenceGenomeStore
+from app.services.sequence_window_model import LocalSequenceWindowBuilder
 
 VERIFY_LOCAL_HG38_2BIT = os.environ.get("EAMOS_VERIFY_LOCAL_HG38_2BIT") == "1"
 RPE65_GRCH38_REFERENCE_BASE_CHECK = {
@@ -69,3 +70,37 @@ def test_twobit_reader_verifies_rpe65_reference_base_from_local_hg38_asset() -> 
     assert check.expected_base == "T"
     assert check.observed_base == "T"
     assert check.reason == "reference_base_match"
+
+
+def test_local_sequence_window_builder_applies_rpe65_variant_from_hg38_asset() -> None:
+    record = DEFAULT_DATA_SOURCE_REGISTRY.get(LOCAL_HG38_2BIT_SOURCE_ID)
+    asset_path = resolve_local_asset_path(record)
+    if not asset_path.exists():
+        pytest.skip(f"ignored local hg38.2bit asset is absent: {asset_path}")
+
+    with TwoBitReferenceGenomeStore.local_hg38() as store:
+        context = LocalSequenceWindowBuilder(store, flank_bp=8).build(
+            gene="RPE65",
+            transcript="NM_000329.3",
+            cdna_hgvs="NM_000329.3:c.260A>G",
+            genomic_hg38="1-68444869-T-C",
+            chrom=RPE65_GRCH38_REFERENCE_BASE_CHECK["chrom"],
+            position=RPE65_GRCH38_REFERENCE_BASE_CHECK["position"],
+            reference_allele=RPE65_GRCH38_REFERENCE_BASE_CHECK["expected_base"],
+            alternate_allele="C",
+            strand="-",
+        )
+
+    assert context.warnings == ()
+    assert context.reference_window is not None
+    assert context.reference_window.chrom == "1"
+    assert context.reference_window.strand == "-"
+    assert context.reference_base_check is not None
+    assert context.reference_base_check.matches is True
+    assert context.reference_base_check.observed_base == "T"
+    assert context.variant_window is not None
+    assert context.variant_window.reference_start_offset == 8
+    assert context.reference_window.sequence[8] == "T"
+    assert context.variant_window.applied_sequence[8] == "C"
+    assert context.provenance is not None
+    assert context.provenance.reader.startswith("twobitreader==")

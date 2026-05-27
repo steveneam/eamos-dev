@@ -415,15 +415,29 @@ python -m black --check --target-version py310 app/services/reference_genome.py 
 This task does not enable dbSNP, ClinVar, MyVariant, Supabase Storage, or
 restricted predictors.
 
+## Post-Reference Source Asset Rollout
+
+The concrete post-`hg38.2bit` source-asset task plan now lives in
+`docs/local-first-data-source-strategy/source-asset-rollout.md`.
+
+That plan makes the next source work explicit before more Workbench UI:
+source manifest/approval checklist, indexed reader proofs, MANE/GENCODE
+transcript model store, MONDO/HPOA/ClinGen/GenCC local parsers, ClinVar VCF
+local adapter, dbSNP/GCF local adapter, RepeatMasker context proof, phyloP
+reader proof, and final source-backed orchestration.
+
 ## Deferred Follow-Up Tracks
 
 These are not part of the first implementation unless separately approved:
 
-- Supabase Storage proof for static assets after reader behavior is known.
-- Supabase Postgres schema/import plan for Mondo, HPO, ClinGen, and GenCC.
+- Supabase Storage proof for static assets after reader behavior is known and
+  after the source-asset rollout records bucket/prefix/policy requirements.
+- Supabase Postgres schema/import plan for Mondo, HPO, ClinGen, and GenCC
+  after local parser behavior is verified.
 - MyVariant gnomAD-only adapter after policy gates are wired.
-- Local dbSNP `GCF_000001405.40` adapter after the reference proof.
-- Local ClinVar adapter after dbSNP/reference identity handling is proven.
+- Production downloads/imports for dbSNP, ClinVar, MANE, GENCODE,
+  RepeatMasker, phyloP, MONDO, HPOA, ClinGen, and GenCC after the
+  source-asset rollout tasks prove fixtures/readers and approval fields.
 - InterVar compatibility only after InterVar, ANNOVAR, and OMIM rights review.
 - SpliceAI, CADD, REVEL, and PrimateAI-3D only after commercial license unlock,
   entitlement checks, and audit logging.

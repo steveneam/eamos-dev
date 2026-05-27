@@ -1,5 +1,216 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 56 - 27 May 2026 - Task 9 indexed reader compatibility proofs
+
+User approved Task 9 dependency download/install and clarified storage
+placement: reviewed smaller source assets can live on `E:`, while the large
+dbSNP/GCF and phyloP assets should stage on `C:`. Codex did not download any
+production source assets or run imports.
+
+Completed:
+- Added `app/backend/app/services/indexed_sources.py` with fail-closed
+  abstractions for `pysam` bgzip/tabix VCF querying, `pyBigWig` conservation
+  score/window reads, and deterministic UCSC `rmsk.txt` to RepeatMasker
+  interval-table conversion.
+- Added `app/backend/tests/test_indexed_source_readers.py`. The native
+  `pysam`/`pyBigWig` tiny-fixture proofs are present but skip on this Windows
+  host because those packages are not importable here; missing-index,
+  RepeatMasker conversion, malformed-row, unknown-contig, and invalid-interval
+  fail-closed paths run locally.
+- Checked current PyPI metadata: `pysam==0.24.0` and `pyBigWig==0.3.25` have
+  CPython 3.10 manylinux wheels but no Windows wheels in PyPI release metadata.
+  Windows source builds failed during metadata/build-requirements preparation,
+  so native install on this host is not viable without a different runtime.
+- Added Linux-only requirement pins:
+  `pysam==0.24.0; platform_system != "Windows"` and
+  `pyBigWig==0.3.25; platform_system != "Windows"`.
+- Downloaded the Linux wheels to `C:` first, then moved the small package
+  artifacts to ignored `E:\eamos\app\backend\data\package_wheels\task9_readers`
+  after confirming E-drive free space. This was package-wheel staging only,
+  not source-data staging.
+- Updated registry metadata for `python_pysam` and `python_pybigwig` with
+  selected versions, PyPI URLs, wheel-size/platform notes, and Windows
+  limitation notes.
+- Updated phyloP registry/readiness/docs to require `C:` staging by explicit
+  user direction despite being listed below the earlier 10 GB automatic
+  threshold.
+- Recorded the RepeatMasker path decision: start from official `rmsk.txt.gz`
+  and deterministic interval-table conversion; do not treat a direct `rmsk.bb`
+  source as verified.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  -> passed (`22 passed, 4 skipped`; skips are native `pysam`/`pyBigWig`
+  proofs on Windows).
+- `cd app/backend && python -m ruff check app/services/indexed_sources.py app/data_sources/registry.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/indexed_sources.py app/data_sources/registry.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  -> passed after formatting the two new files.
+- `cd app/backend && python -m pip install --dry-run --no-deps -r requirements.txt`
+  -> passed and confirmed Windows ignores the platform-marked `pysam` and
+  `pyBigWig` pins.
+
+Out of scope: production ClinVar/dbSNP/RepeatMasker/phyloP/MANE/GENCODE/
+MONDO/HPO/ClinGen/GenCC downloads or imports, Supabase writes/resources,
+uploads, migrations, env mutation, deploy, provider/source-cache wiring,
+frontend Workbench edits, schema mirror changes, `/runs`, AlphaMissense,
+runtime ML scoring, destructive git, stash, reset, or clean.
+
+## Session 55 - 27 May 2026 - Source asset official metadata readiness
+
+Continued Task 8 after browsing official source pages/listings, without
+downloading, importing, installing dependencies, or mutating Supabase/env/deploy
+state.
+
+Completed:
+- Extended `DataSourceRecord` with code-facing readiness metadata:
+  `source_version`, `checksum_plan`, `terms_url`, and `terms_status`.
+- Filled official source metadata for the post-reference Day 1 backbone:
+  ClinVar GRCh38 VCF, dbSNP `GCF_000001405.40`, UCSC RepeatMasker, UCSC
+  phyloP100way, MANE v1.4, GENCODE v45, MONDO, HPOA, ClinGen gene validity,
+  and GenCC.
+- Kept every named source `download_approved=False`; readiness now distinguishes
+  metadata recorded from remaining approvals.
+- Corrected source identity details found during verification:
+  - NCBI dbSNP official file is `GCF_000001405.40.gz` plus `.tbi`, not a
+    literal `.vcf.gz` filename.
+  - UCSC RepeatMasker official source is `rmsk.txt.gz`; `rmsk.bb` remains a
+    derived bigBed/conversion proof output.
+  - UCSC `hg38.phyloP100way.bw` is listed at 9.2 GB with `md5sum.txt`, so it
+    no longer has automatic `C:` staging unless a later actual-size check
+    crosses 10 GB.
+  - MANE v1.4 official GTF is `MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz`; MANE
+    Select rows must be extracted by tags.
+  - HPO starts from the official HPO annotation files; the draft `hp.gpad` path
+    did not resolve at the expected OBO PURL and is no longer treated as
+    verified.
+- Updated `SourceAssetReadiness` and tests so URL/version/checksum/terms
+  metadata are exposed while remaining blockers still include terms review,
+  backend-owned storage policy review, reader compatibility proof, and explicit
+  download/import approval.
+- Updated `docs/local-first-data-source-strategy/source-asset-rollout.md` with
+  the verified file identity notes.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  -> passed (`17 passed`).
+- `cd app/backend && python -m ruff check app/data_sources/source_manifest.py app/data_sources/registry.py app/data_sources/__init__.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources/source_manifest.py app/data_sources/registry.py app/data_sources/__init__.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  -> passed after formatting `app/data_sources/registry.py`.
+
+Out of scope: source downloads/imports, dependency installs, Supabase
+writes/resources, uploads, migrations, env mutation, deploy, provider/source-
+cache wiring, frontend Workbench edits, schema mirror changes, `/runs`,
+AlphaMissense, runtime ML scoring, file moves/replacements, destructive git,
+stash, reset, or clean.
+
+## Session 54 - 27 May 2026 - Source asset rollout plan and readiness manifest
+
+User challenged the sequencing after the local sequence-window slice: ClinVar
+VCF, dbSNP/GCF, RepeatMasker, phyloP, MANE, GENCODE, MONDO, HPOA, ClinGen gene
+validity, and GenCC are the project backbone and should not be left as vague
+deferred follow-ups behind Workbench UI. Codex agreed and started the
+post-reference source-asset work without downloads or Supabase writes.
+
+Completed:
+- Added `docs/local-first-data-source-strategy/source-asset-rollout.md`, a
+  concrete Task 8-16 plan for:
+  - source asset manifest / approval pack;
+  - indexed reader proofs for VCF/tabix, bigWig, and RepeatMasker bigBed or
+    conversion path;
+  - MANE + GENCODE transcript model store;
+  - MONDO, HPOA, ClinGen gene-validity, and GenCC local parsers;
+  - ClinVar VCF local adapter;
+  - dbSNP `GCF_000001405.40` local adapter;
+  - RepeatMasker context proof;
+  - phyloP conservation proof;
+  - source-backed local evidence orchestration.
+- Updated `docs/local-first-data-source-strategy/plan.md` to point to the
+  source-asset rollout and clarify that production downloads/imports for these
+  assets require fixture/reader proof plus approval fields first.
+- Added `app/backend/app/data_sources/source_manifest.py` with
+  `POST_REFERENCE_DAY1_SOURCE_IDS`,
+  `build_post_reference_source_readiness()`, and readiness output for the
+  named Day 1 sources.
+- Exported the manifest helper from `app/backend/app/data_sources/__init__.py`.
+- Added `app/backend/tests/test_source_asset_manifest.py` covering exact
+  source coverage, not-ready approval state, `C:` staging/actual-size rules,
+  and backend-owned storage review requirements.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  -> passed (`15 passed`).
+- `cd app/backend && python -m ruff check app/data_sources/source_manifest.py app/data_sources/__init__.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/data_sources/source_manifest.py app/data_sources/__init__.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  -> passed after formatting `tests/test_source_asset_manifest.py`.
+- `git diff --check -- docs/local-first-data-source-strategy/plan.md docs/local-first-data-source-strategy/source-asset-rollout.md app/backend/app/data_sources/source_manifest.py app/backend/app/data_sources/__init__.py app/backend/tests/test_source_asset_manifest.py PROGRESS.md plans/v2-backend.md agent_handoff/CURRENT.md`
+  -> passed with existing CRLF working-copy warnings only.
+
+Out of scope: source downloads, dependency installs, Supabase writes/resources,
+uploads, migrations, file moves/replacements, env mutation, deploy,
+provider/source-cache wiring, frontend Workbench edits, schema mirror changes,
+`/runs`, AlphaMissense, runtime ML scoring, commit, push, destructive git,
+stash, reset, or clean.
+
+## Session 53 - 27 May 2026 - Local sequence-window and variant-window model
+
+Implemented the first backend-only local reference/variant-window model after
+the Workbench local-first sequence-read CAR. This slice does not expose an API
+route or TypeScript/frontend contract yet; it gives the backend a deterministic
+service model that future Workbench wiring can consume once contract work is
+explicitly approved.
+
+Completed:
+- Added `app/backend/app/services/sequence_window_model.py` with
+  `LocalSequenceWindowBuilder`, local reference-window dataclasses,
+  reference-base/allele validation, variant-applied window output,
+  provenance, warnings, and unavailable reasons.
+- The builder accepts already-resolved genomic alleles (`chrom`, 1-based
+  `position`, REF, ALT), reads through the existing `ReferenceGenomeStore` /
+  `TwoBitReferenceGenomeStore` interface, preserves the 1-based inclusive
+  reference convention, and records the strand without reverse-complementing
+  the genomic reference sequence.
+- Added fail-closed behavior for unsupported alleles, unknown chromosomes,
+  reference-store errors, and REF allele mismatches. REF mismatches keep the
+  reference window and base-check context but do not emit a variant-applied
+  window.
+- Added `app/backend/tests/test_sequence_window_model.py` covering SNV,
+  insertion, deletion, mismatch, unavailable state, provenance, changed
+  offsets, and flank convention.
+- Extended the skipped-by-default local `hg38.2bit` smoke to prove the same
+  builder against the existing ignored full asset for RPE65
+  `NM_000329.3:c.260A>G` / GRCh38 `1-68444869-T-C`, applying `T>C` inside the
+  returned local window.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_sequence_window_model.py -q`
+  -> passed (`6 passed`).
+- `cd app/backend && python -m pytest tests/test_sequence_window_model.py tests/test_reference_genome_store_local_hg38.py -q`
+  -> passed (`6 passed, 3 skipped`).
+- `cd app/backend && $env:EAMOS_VERIFY_LOCAL_HG38_2BIT = '1'; python -m pytest tests/test_reference_genome_store_local_hg38.py -q`
+  -> passed (`3 passed`).
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_sequence_window_model.py tests/test_reference_genome_store_local_hg38.py tests/test_sequence_context.py -q`
+  -> passed (`27 passed, 3 skipped`).
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py tests/test_hg38_runtime_asset_config.py tests/test_sequence_window_model.py tests/test_sequence_context.py tests/test_workbench_api.py -q`
+  -> passed (`82 passed`).
+- `cd app/backend && python -m ruff check app/services/sequence_window_model.py tests/test_sequence_window_model.py tests/test_reference_genome_store_local_hg38.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/sequence_window_model.py tests/test_sequence_window_model.py tests/test_reference_genome_store_local_hg38.py`
+  -> passed.
+- `git diff --check -- app/backend/app/services/sequence_window_model.py app/backend/tests/test_sequence_window_model.py app/backend/tests/test_reference_genome_store_local_hg38.py`
+  -> passed with existing CRLF working-copy warnings only.
+- Full `cd app/backend && python -m pytest tests/ -q` was attempted but
+  exceeded the 5-minute command timeout before returning output; no Python test
+  process remained afterward.
+
+Out of scope: frontend Workbench edits, schema/contract mirror changes,
+Supabase writes/resources, deploy/env mutation, uploads, file
+moves/replacements, provider wiring, source-cache writes, `/runs`,
+AlphaMissense, runtime ML scoring, commit, push, destructive git, stash, reset,
+or clean.
+
 ## Session 52 - 27 May 2026 - RPE65 demo payload mojibake fix
 
 Claude reported live `/report?demo=1` mojibake on the RPE65 demo payload:

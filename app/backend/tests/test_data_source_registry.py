@@ -38,6 +38,10 @@ def test_default_registry_exposes_expected_priority_sources() -> None:
     assert dbsnp.download_approved is False
     assert dbsnp.temporary_staging == "stage_on_C_drive"
 
+    phylop = registry.get("ucsc_phylop100way_hg38")
+    assert phylop.expected_size == "9.2 GB in UCSC phyloP100way listing"
+    assert phylop.temporary_staging == "stage_on_C_drive"
+
 
 def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
@@ -68,6 +72,21 @@ def test_myvariant_runtime_row_is_gnomad_only() -> None:
     assert record.allowed_fields == ("gnomad_genome", "gnomad_exome")
     assert {"cadd", "spliceai", "revel", "primateai_3d"} <= set(record.restricted_fields)
     assert record.download_approved is False
+
+
+def test_task9_reader_dependency_rows_record_platform_limits() -> None:
+    pysam = DEFAULT_DATA_SOURCE_REGISTRY.get("python_pysam")
+    pybigwig = DEFAULT_DATA_SOURCE_REGISTRY.get("python_pybigwig")
+
+    assert pysam.files_or_api == ("pysam==0.24.0",)
+    assert pysam.source_url == "https://pypi.org/project/pysam/0.24.0/"
+    assert "no Windows wheels" in pysam.expected_size
+    assert pysam.download_approved is False
+
+    assert pybigwig.files_or_api == ("pyBigWig==0.3.25",)
+    assert pybigwig.source_url == "https://pypi.org/project/pyBigWig/0.3.25/"
+    assert "no Windows wheels" in pybigwig.expected_size
+    assert pybigwig.download_approved is False
 
 
 def test_validation_rejects_missing_license_status() -> None:

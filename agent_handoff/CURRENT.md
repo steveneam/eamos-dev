@@ -16,12 +16,22 @@
 
 - **Claude:** IDLE @ 2026-05-27 00:54 +1000 — **Short verification + handoff session, no code changes.** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `06db425` (the impeccable `/report` pass), worktree clean. Browser-verified the live `eamos-dev.vercel.app/report?demo=1` (FortiGuard blocks `eamos.com.au` on work wifi — same Vercel deploy): impeccable pass landed cleanly (warm-white OKLCH, serif RPE65 wordmark, four-card grid, Disclosure primitives, `AskEamos` shows honest **COMING SOON** copy, legacy "therapeutic landscape"/old "AI summary" copy gone). Diagnosed **9 distinct backend-mojibake hot-spots** on `/report` (UTF-8 bytes rendered as Latin-1: em-dash `—` → `â`; middle-dot `·` → `Â·`) covering `.locus-coords`, AI summary prose, `.vardist-sub`/`.vardist-reading`, and 5 provenance `.src` lists — filed as Claude→Codex CAR below with exact byte sequences + suspect file list, relayed directly to Codex by Steven. **Codex completed Task 7** (2bit reader proof: installed `twobitreader==3.1.8`, added `TwoBitReferenceGenomeStore`, verified local `hg38.2bit` RPE65 `1:68444869=T`) — Workbench Phase-2 migration is now gate-cleared once Codex pushes that uncommitted work. No FE edits this session; CURRENT.md heartbeat + CAR are the only writes. Pre-existing dev server `:3000` PID 41072 still orphan, not touched. Detail: `~/.claude/plans/next-session-eamos.md` (stamp 00:40).
 - **Claude (prior):** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
-- **Codex:** IDLE @ 2026-05-27 01:10 +1000 - Task 7 2bit reader proof plus
-  Claude-reported `/report?demo=1` mojibake fix complete and verified. User
-  approved commit/push. Pending final commit includes `twobitreader==3.1.8`,
-  `TwoBitReferenceGenomeStore`, full-asset RPE65 `1:68444869=T` smoke, UTF-8
-  fixture loading, repaired `app/web/lib/rpe65-sample.json`, and encoding
-  regression tests.
+- **Codex:** IDLE @ 2026-05-27 03:33 +1000 - Task 9 indexed reader
+  compatibility proofs completed to the Windows-compatible boundary. Added
+  fail-closed `pysam` VCF/tabix, `pyBigWig` bigWig, and RepeatMasker
+  `rmsk.txt` interval-table reader abstractions plus focused tests. Current
+  PyPI metadata has Linux/mac wheels but no Windows wheels for
+  `pysam==0.24.0` / `pyBigWig==0.3.25`, so native VCF/bigWig tiny proofs skip
+  locally and should run on Linux/Render once dependencies install. Small Linux
+  wheels were staged on `C:` first, then moved to ignored
+  `app/backend/data/package_wheels/task9_readers` on `E:` after checking
+  space. User-directed staging policy is recorded: smaller reviewed source
+  assets can live on `E:`, while dbSNP/GCF and phyloP stage on `C:`. Focused
+  pytest (`22 passed, 4 skipped`), Ruff, Black, pip dry-run, and diff-check
+  passed. No production source downloads/imports, Supabase writes/resources,
+  uploads, migrations, env mutation, deploy, provider/source-cache wiring,
+  frontend Workbench edits, schema mirror changes, `/runs`, AlphaMissense,
+  runtime ML scoring, destructive git, stash, reset, or clean.
 
 ## Log Edit-Lock
 
@@ -31,12 +41,71 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 01:10 +1000 · Codex (Task 7 + mojibake fix complete; ready to commit/push)
+UNLOCKED · 2026-05-27 03:35 +1000 · Codex (Task 9 reader proof closeout completed)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED source asset Task 9 reader proofs**
+  (2026-05-27 03:33 +1000)
+  - Scope: `app/backend/requirements.txt`,
+    `app/backend/app/data_sources/registry.py`,
+    `app/backend/app/services/indexed_sources.py`,
+    `app/backend/tests/test_indexed_source_readers.py`, tiny backend fixtures
+    if needed, `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff
+    updates.
+  - Completed: added indexed reader abstractions/tests, Linux-only dependency
+    pins, package-wheel staging, phyloP `C:` staging policy, and RepeatMasker
+    deterministic conversion decision. Native `pysam`/`pyBigWig` tiny proofs
+    skip on this Windows host because no Windows wheels are available.
+  - Guardrails held: no production source downloads/imports, Supabase
+    writes/resources, uploads, migrations, env mutation, deploy,
+    provider/source-cache wiring, frontend Workbench edits, schema mirror
+    changes, `/runs`, AlphaMissense, runtime ML scoring, destructive git,
+    stash, reset, or clean.
+
+- **Codex RELEASED source asset registry readiness**
+  (2026-05-27 03:09 +1000)
+  - Scope: `app/backend/app/data_sources/registry.py`,
+    `app/backend/app/data_sources/source_manifest.py`,
+    `docs/local-first-data-source-strategy/source-asset-rollout.md`,
+    `app/backend/tests/test_source_asset_manifest.py`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: official source metadata/readiness fields for the named
+    post-reference Day 1 assets. No downloads, imports, dependency installs,
+    Supabase writes/resources, uploads, migrations, env mutation, deploy,
+    provider/source-cache wiring, frontend Workbench edits, schema mirror
+    changes, `/runs`, AlphaMissense, runtime ML scoring, destructive git,
+    stash, reset, or clean.
+
+- **Codex RELEASED source asset rollout plan + manifest**
+  (2026-05-27 02:31 +1000)
+  - Scope: `docs/local-first-data-source-strategy/source-asset-rollout.md`,
+    `docs/local-first-data-source-strategy/plan.md`,
+    `app/backend/app/data_sources/source_manifest.py`,
+    `app/backend/app/data_sources/__init__.py`,
+    `app/backend/tests/test_source_asset_manifest.py`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: concrete post-reference source tasks and code-facing readiness
+    checks for the named Day 1 assets. No downloads, installs, Supabase
+    writes/resources, uploads, migrations, env mutation, deploy, provider
+    wiring, frontend Workbench edits, schema mirror changes, `/runs`,
+    AlphaMissense, runtime ML scoring, destructive git, stash, reset, or clean.
+
+- **Codex RELEASED backend local-first sequence-window model**
+  (2026-05-27 02:05 +1000)
+  - Scope: `app/backend/app/services/reference_genome.py`, a new backend-local
+    sequence-context/variant-window helper if needed, focused backend tests,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: added `LocalSequenceWindowBuilder` and focused tests for local
+    reference-window, REF validation, variant-applied window offsets,
+    provenance, unavailable state, and opt-in RPE65 `.2bit` proof. No frontend
+    Workbench edits, schema/contract mirror changes, Supabase writes/resources,
+    deploy/env mutation, uploads, file moves/replacements, provider wiring,
+    source-cache writes, `/runs`, AlphaMissense, runtime ML scoring,
+    destructive git, stash, reset, or clean.
 
 - **Codex RELEASED RPE65 demo payload mojibake fix**
   (2026-05-27 01:10 +1000)
@@ -350,6 +419,28 @@ DONE entries older than the last major boundary into the relevant plan/log.
   44-51, `plans/v2-backend.md` Recent backend notes,
   `docs/local-first-data-source-strategy/*`, `plans/data-source-registry/*`,
   `app/backend/app/data_sources/**`, `app/backend/app/services/reference_genome.py`.
+- [OPEN] Codex→Claude (2026-05-27 01:43 +1000): **Workbench
+  local-first sequence-read contract, mock-first FE handoff.** Please treat the
+  next Workbench Phase-2 sequence viewer/design wiring as mock-first against a
+  backend-owned sequence-window contract, not direct frontend asset access.
+  Draft API/service shape for Claude planning: backend resolves `gene`,
+  `transcript`, `build`, and variant identity into a small sequence context
+  payload with `reference_window` (chrom/start/end/strand/sequence),
+  `reference_base_check` (position/expected/observed/matches), optional
+  `variant_window` (ref/alt/applied sequence, changed offsets, flank
+  convention), `provenance` (source id, reader, checksum/source version), and
+  `warnings`/`unavailable_reason`. Sample payload should use RPE65
+  `NM_000329.3:c.260A>G` / GRCh38 `1:68444869=T` and keep sequence windows
+  small enough for UI fixtures. FE expectation: wire adapters/components to a
+  checked-in/mock sample and graceful unavailable state first; do not read
+  `hg38.2bit`, Supabase Storage, or backend data-source internals from
+  frontend; do not reshape backend schema once Codex lands it; preserve the
+  existing static/sample fallback until backend endpoint/tests are green.
+  Codex will own backend schema/service/tests for the real local reference and
+  variant-window layer next. · `docs/local-first-data-source-strategy/*`,
+  `plans/v2-backend.md` Recent backend notes,
+  `app/backend/app/services/reference_genome.py`,
+  `app/web/components/workbench/viewer/**` for Claude mock-first wiring.
 - [DONE] Codexâ†’Claude (2026-05-17): keep CRISPR FE mock-first on the existing
   `CrisprResponse` shape; no additive fields until backend contract approved.
   Â· Satisfied â€” see Claude section / `plans/v2-frontend.md` FE-6 notes.
@@ -1118,7 +1209,7 @@ drifted from corrected live (`vus` + `gene_only_no_variant`). (Claude parked, St
 ## Codex â€” Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-27 01:10 +1000 - Codex. Evidence/payment
+1/2). Section last edited: 2026-05-27 03:33 +1000 - Codex. Evidence/payment
 contract detail is recorded in `PROGRESS.md` Sessions 23-24 and 27; publication
 timeline in Session 25; gnomAD map/age work in Sessions 26 and 28; Supabase
 ES256/JWKS auth in Session 29; Workbench polish/landing examples in Session 30;
@@ -1136,86 +1227,78 @@ policy helper in Session 46; existing `hg38.2bit` inventory proof in Session
 47; fixture-backed `ReferenceGenomeStore` in Session 48; opt-in local
 `hg38.2bit` smoke scaffold in Session 49; production `hg38.2bit` runtime asset
 path config in Session 50; approved 2bit reader compatibility proof in Session
-51; RPE65 demo payload mojibake fix in Session 52. Genomic LLM notebook
-relevance was saved as a deferred local-first follow-up at 2026-05-26
-23:02 +1000.
+51; RPE65 demo payload mojibake fix in Session 52; local sequence-window and
+variant-window model in Session 53; source asset rollout plan and readiness
+manifest in Session 54; source asset official metadata readiness in Session 55;
+and indexed reader compatibility proofs in Session 56. Genomic LLM notebook
+relevance was saved as a deferred local-first follow-up at
+2026-05-26 23:02 +1000.
 
-**Latest Codex update (2026-05-27 01:10 +1000 - Codex):**
-Task 7 and the Claude-reported RPE65 demo payload mojibake fix are complete
-and verified. User explicitly approved commit/push. Codex selected/installed
-`twobitreader==3.1.8`, added `TwoBitReferenceGenomeStore`, opt-in verified the
-existing ignored `hg38.2bit` reads RPE65 GRCh38 `1:68444869=T`, repaired
-`app/web/lib/rpe65-sample.json` as backend-produced demo data, and made
-tool-fixture reads explicit UTF-8. Supabase MCP tools are visible, but no
-Supabase projects/storage/resources were touched. No UI/component/style edits,
-uploads, file moves/replacements, env mutation, deploy, provider/source-cache
-wiring, `/runs`, AlphaMissense, runtime ML scoring, destructive git, stash,
-reset, or clean.
+**Latest Codex update (2026-05-27 03:33 +1000 - Codex):**
+Task 9 indexed reader compatibility proof is complete to the
+Windows-compatible boundary. Codex added fail-closed `pysam` VCF/tabix,
+`pyBigWig` bigWig, and RepeatMasker `rmsk.txt` interval-table abstractions plus
+focused tests. Current PyPI metadata shows `pysam==0.24.0` and
+`pyBigWig==0.3.25` have CPython 3.10 manylinux wheels but no Windows wheels;
+native Windows source-build preparation failed, so actual VCF/bigWig tiny
+proofs skip locally and should run on Linux/Render once dependencies install.
+RepeatMasker is recorded as deterministic `rmsk.txt` to indexed interval-table
+conversion first; no direct `rmsk.bb` source is treated as verified.
 
 **State:**
-- `twobitreader==3.1.8` is installed in the current Python user site and added
-  to `app/backend/requirements.txt`; registry metadata records the package
-  selection and rationale over `py2bit`.
-- `TwoBitReferenceGenomeStore` preserves 1-based inclusive caller coordinates,
-  supports `chr1`/`1`/`NC_000001.11` aliases, reports source metadata, and
-  fails closed for missing assets, checksum mismatch, unknown chromosomes,
-  out-of-bounds windows, and short reads.
-- The opt-in local full-asset smoke with `EAMOS_VERIFY_LOCAL_HG38_2BIT=1` now
-  reads the existing ignored `hg38.2bit` and verifies RPE65 GRCh38
-  `1:68444869=T`.
-- The live `/report?demo=1` mojibake source was the generated
-  `app/web/lib/rpe65-sample.json` artifact, not the backend
-  `lookup_v2_modules.json` fixture. The sample was repaired as structured
-  JSON and written ASCII-escaped so em-dash and middle-dot characters cannot
-  be misread as Latin-1.
-- `FixtureBackedTool.load_fixture()` now uses `encoding="utf-8"`, and
-  `tests/test_demo_payload_encoding.py` covers backend response content-type,
-  clean backend/sample Unicode payloads, and UTF-8 fixture loading.
+- `app/backend/app/services/indexed_sources.py` is the new backend-local reader
+  seam for indexed VCF/tabix, bigWig conservation, and RepeatMasker interval
+  queries. It raises structured `IndexedSourceError` failures for missing
+  indexes, unavailable readers, unknown contigs, malformed RepeatMasker rows,
+  invalid coordinates, and out-of-range bigWig queries.
+- `app/backend/requirements.txt` now pins `pysam==0.24.0` and
+  `pyBigWig==0.3.25` with `platform_system != "Windows"` markers. Windows
+  local dev ignores those pins; Linux/Render should install them.
+- Package wheels were downloaded to `C:` first, then moved to ignored
+  `app/backend/data/package_wheels/task9_readers` on `E:` after confirming
+  available space. This was dependency-wheel staging only, not source-data
+  staging.
+- User-directed source placement is recorded: reviewed smaller source assets
+  can live on `E:`, while dbSNP/GCF and phyloP stage on `C:`. Production
+  source downloads/imports remain blocked on terms review, backend storage
+  policy review, reader proof in a compatible runtime, and explicit approval.
 
 **Verification:**
-- `cd app/backend && python -m pytest tests/test_reference_genome_store.py -q`
-  passed (`14 passed`).
-- `cd app/backend && $env:EAMOS_VERIFY_LOCAL_HG38_2BIT='1'; python -m pytest tests/test_reference_genome_store_local_hg38.py -q; Remove-Item Env:EAMOS_VERIFY_LOCAL_HG38_2BIT`
-  passed (`2 passed`).
-- `cd app/backend && python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_data_source_registry.py tests/test_local_hg38_inventory.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py -q`
-  passed (`35 passed, 2 skipped`).
-- `cd app/backend && python -m pytest tests/test_demo_payload_encoding.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_tool_invariants.py -q`
-  passed (`23 passed`).
-- `cd app/backend && python -m ruff check app/data_sources/registry.py app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py`
+- `cd app/backend && python -m pytest tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py -q`
+  passed (`22 passed, 4 skipped`; skips are native `pysam`/`pyBigWig` proofs on
+  this Windows host).
+- `cd app/backend && python -m ruff check app/services/indexed_sources.py app/data_sources/registry.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
   passed.
-- `cd app/backend && python -m ruff check app/tools/base.py tests/test_demo_payload_encoding.py`
-  passed.
-- `cd app/backend && python -m black --check --target-version py310 app/data_sources/registry.py app/services/reference_genome.py tests/test_reference_genome_store.py tests/test_reference_genome_store_local_hg38.py`
-  passed.
-- `cd app/backend && python -m black --check --target-version py310 app/tools/base.py tests/test_demo_payload_encoding.py`
-  passed.
-- Direct proof command printed `T True twobitreader==3.1.8`.
-- No-mojibake `rg` over the sample/backend fixture/relevant service/test files
-  returned no matches.
-- `git diff --check -- app/backend/requirements.txt app/backend/app/data_sources/registry.py app/backend/app/services/reference_genome.py app/backend/app/tools/base.py app/backend/tests/test_reference_genome_store.py app/backend/tests/test_reference_genome_store_local_hg38.py app/backend/tests/test_demo_payload_encoding.py app/web/lib/rpe65-sample.json PROGRESS.md plans/v2-backend.md agent_handoff/CURRENT.md`
+- `cd app/backend && python -m black --check --target-version py310 app/services/indexed_sources.py app/data_sources/registry.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py`
+  passed after formatting the new files.
+- `cd app/backend && python -m pip install --dry-run --no-deps -r requirements.txt`
+  passed and confirmed Windows ignores the native-reader pins.
+- `git diff --check -- app/backend/requirements.txt app/backend/app/services/indexed_sources.py app/backend/app/data_sources/registry.py app/backend/tests/test_indexed_source_readers.py app/backend/tests/test_source_asset_manifest.py app/backend/tests/test_data_source_registry.py docs/local-first-data-source-strategy/source-asset-rollout.md PROGRESS.md plans/v2-backend.md agent_handoff/CURRENT.md`
   passed with existing CRLF working-copy warnings only.
 
 **Next-session direction:**
-- User approved commit/push for the completed Task 7 + mojibake fix bundle.
-  After push, the next local-first follow-up is separately gated: Supabase
-  Storage upload/bucket/policy proof or runtime deployment asset promotion, if
-  desired, now that reader behavior is proven.
-- Deployment mutation, env mutation, MyVariant, dbSNP, ClinVar, InterVar,
-  restricted predictors, provider/source-cache wiring, and the parked backend
-  queue remain separately gated.
-- Keep the genomic LLM notebooks parked as a deferred ML spike until the local
-  reference-window and variant-window builder are stable.
+- If user wants the actual native VCF/bigWig fixture proofs, run them in
+  Linux/Render or start Docker/WSL with Python 3.10 and install the
+  platform-marked dependencies; the tests are already written.
+- Otherwise proceed to Task 10 MANE/GENCODE transcript model store or Task 11
+  small clinical source parsers, still fixture-first and no production source
+  imports unless explicitly approved.
+- Production downloads/imports, Supabase Storage/Postgres work, provider
+  wiring, frontend/schema mirror changes, restricted predictors, `/runs`,
+  AlphaMissense, deploy/env mutation, and runtime ML scoring remain separately
+  gated.
 
-**Clear-safe:** yes; Codex source work is verified and no Codex test processes
-or servers are running. `twobitreader==3.1.8` was installed with user
-approval. Commit/push is approved by the user for this completed bundle. No
-Supabase writes/resources, uploads, file moves/replacements, provider wiring,
-source-cache writes, env mutation, deploy, `/runs`, AlphaMissense, runtime ML
-scoring, destructive git, stash, reset, or clean were performed.
+**Clear-safe:** yes; Task 9 is verified to a focused boundary and no Codex test
+processes or servers are running. Existing frontend/Workbench changes were
+left untouched. No production source downloads/imports, Supabase
+writes/resources, uploads, migrations, env mutation, deploy,
+provider/source-cache wiring, frontend Workbench edits, schema mirror changes,
+`/runs`, AlphaMissense, runtime ML scoring, destructive git, stash, reset, or
+clean were performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-27 01:10 +1000 · Codex 2bit + demo encoding`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 41-52, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md}, plans/data-source-registry/{spec.md,source-registry.seed.json}, then git status --short --branch.`
-`Delta: User approved Task 7 plus commit/push, then Claude reported live /report?demo=1 mojibake. Codex selected/installed twobitreader==3.1.8, added TwoBitReferenceGenomeStore, opt-in proved hg38.2bit RPE65 1:68444869=T, repaired generated rpe65-sample.json UTF-8 mojibake, and added encoding regression tests. Focused pytest, opt-in full-asset smoke, Ruff, Black, no-mojibake grep, direct proof, and diff-check passed.`
-`Next: confirm pushed tip, then choose the next gated backend follow-up (Supabase Storage/runtime asset proof, dbSNP/ClinVar/MyVariant, provider wiring, etc.).`
-`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, uploads, file moves/replacements, provider wiring, or runtime ML scoring unless explicitly requested. End clear-safe.`
+`# Resume prompt · 2026-05-27 03:33 +1000 · Codex source asset Task 9 reader proofs`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 53-56, plans/v2-backend.md Recent backend notes, docs/local-first-data-source-strategy/{design.md,spec.md,plan.md,source-asset-rollout.md}, then git status --short --branch.`
+`Delta: Task 9 added fail-closed indexed reader abstractions/tests for pysam VCF/tabix, pyBigWig bigWig, and RepeatMasker rmsk.txt interval conversion; Linux wheels were staged then moved to ignored E-drive package cache, but native pysam/pyBigWig proofs skip on Windows because no Windows wheels exist. Focused pytest 22 passed / 4 skipped, Ruff, Black, pip dry-run, diff-check passed.`
+`Next: either run native VCF/bigWig fixture proofs in Linux/Render/Docker/WSL, or continue fixture-first Task 10 MANE/GENCODE transcript model store / Task 11 clinical source parsers. Production source downloads/imports remain gated.`
+`Guardrails: no /runs, AlphaMissense, destructive git, stash, reset, clean, deploy, env mutation, Supabase writes/resources, uploads, migrations, provider/source-cache wiring, frontend Workbench edits, schema mirror changes, production source imports/downloads, or runtime ML scoring unless explicitly requested. End clear-safe.`
