@@ -23,6 +23,7 @@ import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnapshotSection'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
+import { MatrixOverture } from '@/components/report/MatrixOverture'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
@@ -396,6 +397,11 @@ function ReportBody({ data, query }: ReportBodyProps) {
       />
       <VariantHeader payload={payload} query={query} />
 
+      {/* M7 lookahead — 10-12 tiles that deep-link to each numbered section
+          below. Mock-first: tiles synthesized from the existing ReportPayload
+          until lookupSummary() lives behind a Wave-3 fetch. */}
+      <MatrixOverture payload={payload} />
+
       <div className="flex flex-col gap-3.5">
         {/* Call cards sit just under the header as the at-a-glance verdicts.
             They're scannable summary; the numbered evidence sections begin
@@ -423,6 +429,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
         )}
 
         {/* 2 · Evidence by source (in-silico + per-source detail + ACMG) */}
+        <div id="evidence_by_source" className="scroll-mt-24" />
         <Card
           number={2}
           title="Evidence by source"
@@ -479,6 +486,8 @@ function ReportBody({ data, query }: ReportBodyProps) {
         />
 
         {/* 4 · Gene context & associated conditions. */}
+        <div id="associated_conditions" className="scroll-mt-24" />
+        <div id="curated_variants" className="scroll-mt-24" />
         <Card
           number={4}
           title="Gene context & associated conditions"
@@ -510,6 +519,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
         </Card>
 
         {/* 5 · Publication literature. */}
+        <div id="publications" className="scroll-mt-24" />
         <PubMedSection
           key={`pubs-${variantKey}`}
           payload={payload}
@@ -526,6 +536,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
         />
 
         {/* 6 · Active trials & approved therapies. */}
+        <div id="trials" className="scroll-mt-24" />
         <TrialsSection
           key={`trials-${variantKey}`}
           payload={payload}
@@ -549,6 +560,7 @@ function ReportBody({ data, query }: ReportBodyProps) {
 
         {/* 7 · AI evidence summary — last so the deterministic source rows
             anchor the read before the synthesised summary. */}
+        <div id="ai_summary" className="scroll-mt-24" />
         <Card
           number={7}
           title="AI evidence summary"
