@@ -14,7 +14,7 @@
 
 ## Active Status (heartbeat â€” set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-27 12:45 +1000 — **7 Claude/app/web commits shipped + LIVE on eamos-dev.vercel.app (Codex `f00d1c0` push swept them up).** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `f00d1c0`, worktree clean. Single coherent batch: Workbench pass-2 slice 1 = real viewer parity (`248552a` real `SequenceViewerV2` + 6 sub-components ported from Vite verbatim + `codon-layout`); viewer UX (`5caab62` 2/3 width restored via missing `--maxw`/`--side-w` CSS vars, 3 stacked windows = GeneMinimap → ProteinView → CodonDetail w/ collapsible chevron headers + Benchling-style internal scroll on `.sv-detail`); chrome diet (`4bf4b82` SVG bar-logo, descriptive subtitle, Gene/Exon/Codon zoom presets, Hide map button all gone; title = `gene · variant`; Scratchpad → top of side panel on warm-yellow surface w/ Log/Notes/Ask Eamos tabs); zoom slider scoped (`18cedfd` to `.sv-sequence-wrap` only, hover-revealed, no longer overlapping ViewerToolbar Undo/Redo; all collapse chevrons LEFT of titles, Google Docs pattern); /report Cards collapsible (`760e6e1` independent `useState` per Card, defaults open); full report restructure (`8cf4ea6` numbered 1=Population, 2=Evidence by source, 3=Gene context snapshot w/ Locus merged in under sub-header, 4=Conditions, 5=Publications, 6=Trials, 7=AI evidence summary at bottom; `<Card>` switched to `<div role="button">` so `actions` slot can host nested CopyButton without invalid nested interactive); CopyButton primitive + per-section TSV serializers (`lib/report-tsv.ts`) wired into all 7 cards including publications + trials (`9910431`); verified TSV→Excel parity via Python `csv.reader(delimiter='\t')` (pubs = 7-col grid, trials = 9-col grid). Codex's `/api/v1/chat` + `/api/v1/chat/stream` confirmed live — AskEamos placeholders in Scratchpad + Report §7 stay COMING SOON per Steven (not ready to fund API key budget; [[feedback_askeamos_parked]]). Detail: `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-05-27 21:50 +1000 — **2 more Claude/app/web commits shipped + LIVE on eamos-dev.vercel.app.** Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `fe9e3b4` (2 commits on top of Codex's `f00d1c0`). Codex backend + handoff WIP uncommitted, untouched. (1) `fdfa9c9` **rich-HTML copy payload** — Steven's "the copy format is flat, no margins/borders/wrap/class" feedback. New `lib/report-html.ts` mirrors `report-tsv.ts` function-for-function: 7 `htmlX()` serializers emit full `<table>` fragments w/ deep-teal banner row, italic variant line, sub-section bands, bordered cells w/ tinted thead, zebra rows, top-aligned wrap-text, sized cols via `<colgroup>`, live hyperlinks. `CopyButton` accepts `{html, text}` and writes both `text/html` + `text/plain` via `ClipboardItem` — Excel picks up the rich HTML, plain targets still get TSV. (2) `fe9e3b4` **Workbench pass-2 slice 2** — verbatim port of Primer + CRISPR + Align panels (8 components w/ `'use client'`, 9 lib files, 3 api functions w/ mock-first fallback); `WorkbenchShell.renderToolPanel()` switch replaces the 4 "deferred to pass 2" stubs (Compare keeps COMING SOON); `AlignPanel` `import.meta.env.VITE_*` → `process.env.NEXT_PUBLIC_*`; `CopyButton` console.warn on dual-throw hardening. tsc clean both commits; browser-verified via Chrome MCP — all 3 panels mount + render their full UI; all 7 report copy buttons flip to COPIED w/ both clipboard MIME types written. **Op gotcha:** when probing clipboard via Chrome MCP evaluate_script, save + restore `navigator.clipboard.write`/`writeText` or reload after — leaked hijack causes silent copy failures (post-`fe9e3b4` console.warn surfaces this next time). AskEamos stays COMING SOON ([[feedback_askeamos_parked]]). After `fe9e3b4`, Workbench redesign Phase 2 / M5 in `plans/v2-redesign-impeccable.md` UNBLOCKED. Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Claude (prior):** IDLE @ 2026-05-26 20:55 +1000 — **Reading Room Phase 1.5 SHIPPED `0d62efc` + call-card scroll fix `000ce7e`, Claude FE lane only.** User flagged "ticks on the right side of the landing page" — pulled `ScrollRule.tsx` and its import/mount in `LandingClient.tsx` (file deleted, mount reverted); the rule wasn't worth keeping without ticks. Committed Phase 1.5 (`0d62efc`): MetricBelt → live report specimen on warm-white inset, HowItWorks 3/6/3 asymmetric with Step 2 featured Parallel sweep, FeaturesGrid 4+2 magazine + full-row Workbench in-development tile, GenomicFlow strand opacity bump, `next/font` Spectral/Inter/JetBrainsMono (drop blocking @import), LCP `priority` on two above-fold WebPs. Then committed report polish (`000ce7e`): `CallCardsGrid.scrollToInteraction` switched from `scrollIntoView({block:'start'})` to `window.scrollTo(top - 68)` so the target heading lands below the 60px sticky `TopNav`. Responsive sweep verified at 500/640/1024/1280/1440 — asymmetric grids collapse single-column on mobile, no console errors, HMR clean. Impeccable critique notes: `alphamissense on hold` text is baked into the `feat-report-cards.webp` asset (predates Phase 1.5, violates the 2026-05-19 display-only-hide decision — flag for asset re-render); Workbench full-row tile feels intentionally sparse (debatable, leave for now); §6 landing backlog still open (mobile-nav blur, legal pages, retire `ls-drift`/`ls-shimmer`). tsc clean both commits. **Workbench, /runs, AlphaMissense, Codex's `app/backend`/`app/frontend`/`app/web/lib`/`app/web/components/workbench` lanes untouched.** Codex's uncommitted PROGRESS/CURRENT/RISKS/plans/v2-backend + backend hardening fixtures left alone. A pre-existing dev server is still on :3000 (PID 41072, not started by me — see resume prompt). Detail: `~/.claude/plans/next-session-eamos.md`.
 - **Codex:** IDLE @ 2026-05-27 03:33 +1000 - Task 9 indexed reader
   compatibility proofs completed to the Windows-compatible boundary. Added
@@ -41,7 +41,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (â‰¤ 20 min) â†’ stop + ask the user; stale (> 20 min) â†’ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-27 12:48 +1000 · Claude (Active Status + ## Claude section refresh post-`f00d1c0`; prior section archived to `agent_handoff/archive/2026-05-27-claude-section-pre-workbench-and-report-restructure.md`)
+UNLOCKED · 2026-05-27 21:55 +1000 · Claude (CURRENT.md Claude section + heartbeat refreshed for 2 commits; prior section archived)
 
 ## Shared File Locks
 
@@ -1157,160 +1157,147 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-05-27 12:45 +1000 · Claude. Prior section
-(2026-05-25 03:05, large `/report` + landing FE pass + stealth night)
-archived verbatim to
-`agent_handoff/archive/2026-05-27-claude-section-pre-workbench-and-report-restructure.md`
+Section last edited: 2026-05-27 21:50 +1000 · Claude. Prior section
+(2026-05-27 12:45, 7-commit Workbench+Report restructure) archived verbatim to
+`agent_handoff/archive/2026-05-27-claude-section-pre-rich-html-and-workbench-slice2.md`
 per Hard Rule 1. Full incremental detail in
 `~/.claude/plans/next-session-eamos.md`.
 
-**Session 2026-05-27 — Workbench pass-2 slice 1 + viewer UX + chrome diet + scratchpad + report restructure + copy-to-Excel TSV (7 commits, all LIVE).**
+**Session 2026-05-27 (late) — Rich-HTML copy payload + Workbench pass-2 slice 2 (Primer + CRISPR + Align). 2 commits, both LIVE.**
 
-Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `f00d1c0`
-(Codex backend bundle on top of my 7 Claude/`app/web` commits). All 7
-swept up to origin in Codex's `f00d1c0` push so all changes auto-deployed
-to `eamos-dev.vercel.app`. Render backend unchanged.
+Branch `checkpoint/v2-batches-2026-05-17`, local==origin at `fe9e3b4`
+(two Claude/`app/web` commits on top of Codex's `f00d1c0`). Both LIVE
+on `eamos-dev.vercel.app` via Vercel auto-deploy. Render backend
+unchanged. Worktree carries Codex's WIP only (`PROGRESS.md`,
+`agent_handoff/CURRENT.md` Codex section, `docs/local-first-…`,
+`plans/v2-backend.md`, `app/backend/**`).
 
 Commits (oldest → newest):
-- `248552a` **Workbench pass-2 slice 1 — real viewer parity.** Replaced
-  the pass-1 skeleton `SequenceViewerV2` (141 lines) with the full Vite
-  viewer (690 lines) + 6 sub-components ported verbatim with `'use
-  client'`: `CodonDetail` (615), `EditPopoverV2` (221, the right-click
-  "differentiator moment" per `plans/v2-redesign-impeccable.md` §5),
-  `GeneMinimap` (177), `ProteinView` (296), `ViewerToolbar` (157),
-  `HistoryTimeline` (47), plus `lib/workbench/codon-layout.ts` (43).
-  All existing app/web helpers (`@/lib/workbench/{gene-window,
-  codon-table,edit-state}`, `@/lib/backend`, `viewer-types`) already
-  exported what the real viewer needs — no helper edits.
-- `5caab62` **Workbench viewer UX.** Restored 2/3 viewer + 1/3 side
-  panel layout (root cause: Vite→Next port lost the `--maxw` /
-  `--side-w` CSS-var aliases inside `:root`, leaving the `.wb` grid
-  template falling back to undefined and eating the right column).
-  Dropped the Sequence/Protein toggle: now renders **GeneMinimap →
-  ProteinView → CodonDetail** in order, each wrapped in a collapsible
-  section header (`<SectionHeader>` w/ chevron). Added
-  `max-height: 62vh` + `overflow-y: auto` on `.sv-detail` so the
-  sequence panel scrolls Benchling-style internally instead of
-  stretching the page. Plumbed `onToggleMinimap` callback through
-  `WorkbenchShell` so the inline chevron and the legacy
-  `navCollapsed`/ZoomSlider "Hide map" stay in sync.
-- `4bf4b82` **Workbench chrome diet + tabbed Scratchpad in yellow.**
-  Stripped the SVG bar-logo from `WorkbenchClient` (Steven read it as
-  a hamburger), removed the descriptive `ContextStrip` subtitle
-  ("p.Asp87Gly · NM_000329.3 · chr1:…") and the `CanvasHeader` title
-  + sub ("Sequence viewer · RPE65 (ENSG…) · …"); new title is just
-  `{gene} · {variant}`. Retired Gene/Exon/Codon zoom presets + Hide
-  map button from `ZoomSlider`. Side panel: every section
-  collapsible via chevron header (matches viewer); **Scratchpad
-  promoted to top** on warm-yellow OKLCH surface
-  (`oklch(98% 0.035 95)`) with tabs **Log / Notes / Ask Eamos**.
-  "Exons (click to view)" disclosure restyled to share the same
-  chevron pattern.
-- `18cedfd` **Zoom slider scoped to Sequence window; chevrons LEFT.**
-  Moved the zoom overlay out of the outer `.viewer` (was overlapping
-  the ViewerToolbar's Undo/Redo cluster) into a new
-  `.sv-sequence-wrap` that wraps the Sequence section only — hover-
-  revealed there. Moved every collapse chevron to the **left** of
-  its title (viewer SectionHeader, side-section-head, nested
-  side-nested-head Exons disclosure) — Google Docs / VS Code
-  disclosure pattern.
-- `760e6e1` **Report `<Card>` is collapsible.** Each `<Card>`
-  instance now has its own `useState` for open state with a
-  left-aligned chevron header. Defaults open. Each section is
-  independent — clicking one chevron toggles only that card.
-- `8cf4ea6` **Report restructure + copy-to-Excel TSV per section.**
-  Section order locked: **1 Population · 2 Evidence by source · 3
-  Gene context snapshot (Locus context MERGED IN as sub-header) ·
-  4 Conditions · 5 Publications · 6 Trials · 7 AI evidence summary
-  (LAST, was unnumbered block after call cards — now a real Card).
-  VariantDecoder renders below 7 un-numbered.** Built new
-  `CopyButton` primitive (`components/ui/CopyButton.tsx`,
-  two-square icon → green ✓ "COPIED" for ~1.5s, hover lift,
-  click-stop-propagation). Built `lib/report-tsv.ts` with seven
-  per-section TSV serializers. `<Card>` switched from `<button>` to
-  `<div role="button">` so the CopyButton in the `actions` slot
-  isn't an invalid nested interactive control.
-- `9910431` **Wire copy buttons for publications + trials.**
-  `PubMedSection` and `TrialsSection` accept an optional `actions`
-  slot forwarded to their internal `<Card>`; `ReportClient` passes
-  CopyButtons bound to `tsvPublications` / `tsvTrials`.
+- `fdfa9c9` **Rich-HTML copy payload for report sections** —
+  triggered by Steven's "the copy format is flat, no margins, no
+  spacing, no borders, no wrap text, no class". New module
+  `app/web/lib/report-html.ts` mirrors `lib/report-tsv.ts`
+  function-for-function: 7 `htmlX` serializers that emit a full
+  `<table>` fragment with a deep-teal banner row spanning the
+  section, italic variant line under it, sub-section bands where
+  the section has multiple blocks (e.g. Evidence: in-silico /
+  per-source / ACMG), bordered cells with tinted thead, zebra
+  rows, top-aligned wrap-text, sized columns via `<colgroup>`,
+  live hyperlinks on Title/URL/NCT. Excel parses these as styled
+  cells on paste. `components/ui/CopyButton.tsx` now accepts
+  either `string` (legacy) or `{html, text}` and uses
+  `navigator.clipboard.write([new ClipboardItem({...})])` to put
+  BOTH `text/html` and `text/plain` on the clipboard — Excel /
+  Sheets pick up the rich HTML, Notion / editors / AI chat get
+  the TSV. `ReportClient` wires every Card's `actions` slot to
+  `{html: htmlX(...), text: tsvX(...)}`.
+- `fe9e3b4` **Workbench pass-2 slice 2 — Primer + CRISPR + Align
+  panels.** Same verbatim-port pattern as slice 1 (`248552a`):
+  8 component files (`primer/{PrimerPanel,PrimerResultCard}`;
+  `crispr/{CrisprPanel,DesignTab,GuideTrack,IndelSpectrum,
+  OutcomesTab}`; `align/AlignPanel`) copied from `app/frontend`
+  to `app/web` with `'use client'` prepended to each. 9 lib files
+  (`alignment-pairwise`, `crispr-{disclosure,guide-map,
+  guide-ranking,sample,tide-sample}`, `primer-{form,metrics,
+  sample}`) copied verbatim. `lib/api.ts` adds `designPrimers`,
+  `designGuides`, `analyzeTide` against the frozen
+  `/api/v1/{primer,crispr,crispr/tide}` contracts (mock-first
+  fallback to PRIMER_SAMPLE / CRISPR_SAMPLE / CRISPR_TIDE_SAMPLE
+  so panels work offline). `WorkbenchShell` replaces the four
+  "deferred to pass 2" placeholders with a `renderToolPanel()`
+  switch that mounts Primer / CRISPR / Align panels; Compare
+  keeps the COMING SOON state. One Next.js fix in `AlignPanel`:
+  `import.meta.env.VITE_*` → `process.env.NEXT_PUBLIC_*`. Also
+  adds a `console.warn` in `CopyButton` for when both
+  `clipboard.write` and `writeText` throw (hardening against
+  silent dev-tool API hijacks; can't happen in user runtime).
 
 Verified:
-- `cd app/web && npx tsc --noEmit` clean after every commit.
-- `npm run build` (Next 16 webpack) exit 0 (5.8min) once at the end
-  of slice 1; subsequent commits relied on tsc + dev-server smoke.
-- Browser-verified each commit on `http://localhost:3000` (pre-
-  existing orphan dev server PID 41072) via Chrome MCP a11y tree +
-  screenshots.
-- **TSV→Excel parity** verified by overriding
-  `navigator.clipboard.writeText` on the live page to capture
-  copied text, then parsing through Python
-  `csv.reader(io.StringIO(text), delimiter='\t')` (= what Excel does
-  on paste). Publications = clean **7-col** grid (PMID · Title ·
-  Authors · Journal · Year · URL · Snippet status), trials = clean
-  **9-col** grid (NCT · Status · Phase · Match level · Title ·
-  Conditions · Interventions · Locations · URL). Multi-value cells
-  (multiple conditions / locations) use ` | ` as in-cell separator
-  so they don't blow out into extra columns. Python is at
-  `C:\Program Files\Python310\python.exe`.
+- `cd app/web && ./node_modules/.bin/tsc --noEmit` silent after
+  every commit.
+- Live in Chrome MCP at `http://localhost:3000` (PID 41072 orphan):
+  all 7 report copy buttons present + on click button flips to
+  "COPIED" + audit of captured payload shows banner + colgroup +
+  borders + wrap + zebra (Pubs / Trials / Population HTML had
+  10/39/1 anchors respectively). Workbench `/workbench` w/ tab
+  clicks: Primer panel renders Sanger/qPCR/ARMS form; CRISPR
+  renders SpCas9 Design/Outcomes tabs; Align renders pairwise
+  alignment w/ AB1 + FASTA inputs.
+- In-page preview of Publications HTML matched the intended Excel
+  render (banner, italic variant line, summary band, header fill,
+  bordered cells, wrap text, live hyperlinks).
 
-**AskEamos chat (Workbench Scratchpad tab + Report §7 AI Card) stays
-COMING SOON** per Steven. Codex confirmed backend `POST /api/v1/chat`
-+ `/api/v1/chat/stream` exist with shape `{ question, variant_context:
-ReportPayload, optional history, optional workbench }` — the block is
-purely commercial (Steven not ready to fund OpenAI/Anthropic API key
-budget). Do not wire until explicit go-ahead.
+**Operational gotcha** — when capturing clipboard via
+`mcp__chrome-devtools__evaluate_script`, I monkey-patched
+`navigator.clipboard.write` + `writeText` and only deleted
+`window.__captured` in cleanup. The hijacks stayed bound to the
+deleted variable, so a subsequent Copy click threw silently. Fixed
+by reloading the page (per-tab; per-document). The post-`fe9e3b4`
+`console.warn` will surface this kind of dead-silent failure next
+time. **If running a clipboard-capture probe again: ALWAYS save
+the originals and restore them in cleanup, or just reload after.**
+
+**AskEamos chat (Workbench Scratchpad tab + Report §7 AI Card)
+stays COMING SOON** per Steven. Codex's `/api/v1/chat` +
+`/api/v1/chat/stream` are live; block is purely commercial budget
+(memory: `feedback_askeamos_parked`). Do not wire until explicit
+go-ahead.
 
 **Locked UX preferences (carry forward, do not re-litigate):**
 - Workbench: 3 stacked viewer windows w/ collapse chevrons LEFT;
-  zoom slider hover-reveals inside Sequence only; chrome stripped to
-  `{gene} · {variant}` + functional controls on the right; Scratchpad
-  top of side panel on warm-yellow w/ Log/Notes/Ask Eamos tabs.
-- Report: 7 numbered Cards in the order above with Locus merged into
-  Gene context snapshot, AI summary last; chevrons LEFT; sections
-  independent; CopyButton in every Card header.
+  zoom slider hover-reveals inside Sequence only; chrome stripped
+  to `{gene} · {variant}` + functional controls on the right;
+  Scratchpad top of side panel on warm-yellow w/ Log/Notes/Ask
+  Eamos tabs; Primer / CRISPR / Align tool panels now real (no
+  more pass-2 stubs), Compare still placeholder.
+- Report: 7 numbered Cards in the locked order with Locus merged
+  into Gene context snapshot, AI summary last; chevrons LEFT;
+  sections independent; **CopyButton in every Card header writes
+  rich Excel-styled HTML (text/html) + plain TSV (text/plain) so
+  Excel paste looks formatted (banner, borders, wrap, hyperlinks,
+  zebra rows) while plain-text targets still get clean TSV.**
 
-**Open / next-session:**
-1. **Workbench pass-2 slice 2 — port the 4 tool panels.** Primer
-   (`PrimerPanel` + `PrimerResultCard` + `primer-form` +
-   `primer-metrics` + `primer-sample` lib), CRISPR (`CrisprPanel` +
-   `DesignTab` + `GuideTrack` + `IndelSpectrum` + `OutcomesTab` +
-   crispr-disclosure / crispr-guide-map / crispr-guide-ranking /
-   crispr-sample / crispr-tide-sample lib), Align (`AlignPanel` +
-   `alignment-pairwise` lib). Same pattern as slice 1; ~2,000+ lines
-   incl. tests. Contracts confirmed stable by Codex: `/api/v1/primer`,
-   `/api/v1/crispr`, `/api/v1/align` (NOT under `/workbench/*` —
-   Vite `lib/api.ts` already uses these paths). Primer
-   `specificity_detail` will be additive/optional; TIDE stays
-   separate as `/api/v1/crispr/tide`. After slice 2, the Workbench
-   redesign Phase 2 in `plans/v2-redesign-impeccable.md` M5
-   unblocks.
-2. **(Optional)** per-metric copy buttons inside the report cards.
-   Steven said "move on" after section-level shipped — parked. Each
-   metric box / table can take its own `<CopyButton>` with a smaller
-   TSV slice.
-3. **(Optional)** re-render `feat-report-cards.webp` without the
-   baked "alphamissense on hold" text (violates 2026-05-19 display-
-   only-hide decision).
-4. §6 landing backlog (mobile-nav blur, legal pages on warm surface +
-   composed nav + breadcrumb, retire/repurpose `ls-drift`/
-   `ls-shimmer`), formal impeccable `audit` + `quality-reviewer`
-   gates for M2 (Landing) and M3 (Report).
+**Open / next-session (priority order):**
+1. **Workbench redesign Phase 2 / M5** in
+   `plans/v2-redesign-impeccable.md` — unblocked by `fe9e3b4`.
+   The 4 panels (Primer / CRISPR / Align / Compare) now have real
+   FE surfaces; M5 is the impeccable design pass over them.
+2. **Compare tool** is still a placeholder. The Vite app has no
+   ComparePanel component — needs a fresh design (was deferred
+   from the start). Talk to Steven before building.
+3. **Per-metric copy buttons** inside the report cards (Steven
+   parked when section-level shipped). The new HTML serializers
+   make this easy: each metric box / table gets its own
+   `<CopyButton>` with a smaller `{html, text}` slice. Likely
+   candidates: 4 Call Cards (one button each), In-Silico
+   predictors table, Curated variants pivot, Associated
+   conditions table.
+4. Re-render `feat-report-cards.webp` without the baked
+   "alphamissense on hold" text (predates 2026-05-19
+   display-only-hide decision).
+5. §6 landing backlog (mobile-nav blur, legal pages on warm
+   surface + composed nav + breadcrumb, retire/repurpose
+   `ls-drift`/`ls-shimmer`); formal impeccable `audit` +
+   `quality-reviewer` gates for M2 (Landing) and M3 (Report).
 
-Runtime notes (Codex 2026-05-27): `TwoBitReferenceGenomeStore` is
-proven locally but NOT yet wired into `/api/v1/viewer`. Viewer still
-serves fixtures unless `USE_REAL_APIS=true`; live mode currently
-fetches Ensembl REST sequence, not the 2bit reader. Doesn't affect FE
-work — the contract / shape is stable.
+Runtime notes (Codex 2026-05-27): `TwoBitReferenceGenomeStore`
+proven locally, not yet wired into `/api/v1/viewer`. Viewer still
+serves fixtures unless `USE_REAL_APIS=true`; live mode fetches
+Ensembl REST sequence, not the 2bit reader. Tool panels just
+ported run mock-first too (`PRIMER_SAMPLE` / `CRISPR_SAMPLE` /
+`CRISPR_TIDE_SAMPLE`) — they'll talk to Codex's
+`/api/v1/{primer,crispr}` when the backend is up and these
+endpoints respond, with mocked fallback baked in. Doesn't affect
+FE iteration.
 
 **Resume prompt:**
-`# Resume prompt · 2026-05-27 12:45 +1000 · Claude (7 commits LIVE; Workbench slice 2 next)`
-`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — full state + queue + 7-commit summary), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + Active Status + ## Claude + ## Cross-Agent Requests), agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md, then git status --short --branch && git log -9 --oneline.`
-`Branch checkpoint/v2-batches-2026-05-17, local==origin at f00d1c0 (Codex backend bundle on top of 7 Claude/app/web commits 248552a..9910431, all LIVE on eamos-dev.vercel.app via Vercel auto-deploy).`
-`Delta: Workbench pass-2 slice 1 (real viewer parity); viewer UX (2/3 width + 3 stacked windows + Benchling internal scroll); chrome diet (no logo SVG, no descriptive subtitles, no Gene/Exon/Codon, no Hide map; title = "gene · variant"); zoom slider scoped to Sequence only; all chevrons LEFT (Google Docs); Scratchpad → top of side panel on yellow w/ Log/Notes/Ask Eamos tabs; /report Cards collapsible (independent); full report restructure (1=Pop, 2=Evidence, 3=Gene context w/ Locus merged in, 4=Conditions, 5=Pubs, 6=Trials, 7=AI summary last); CopyButton primitive + per-section TSV via lib/report-tsv.ts wired into all 7 cards including pubs+trials (verified TSV→Excel via Python csv parser).`
-`AskEamos stays COMING SOON — backend /api/v1/chat exists but Steven not ready to fund API key (memory: feedback_askeamos_parked). Do not wire.`
-`Next: (1) Workbench pass-2 slice 2 = port Primer/CRISPR/Align tool panels from app/frontend/src/components/workbench/{primer,crispr,align}/ following the slice-1 pattern, contracts /api/v1/primer · /api/v1/crispr · /api/v1/align confirmed stable. (2) Optional per-metric copy buttons. (3) §6 landing backlog + impeccable audit gates.`
-`Verification toolkit: tsc via ./node_modules/.bin/tsc in app/web; browser via Chrome MCP on localhost:3000 (pre-existing orphan dev server PID 41072, do NOT kill); TSV/Excel parity via Python at C:\\Program Files\\Python310\\python.exe — override navigator.clipboard.writeText on the live page then csv.reader(delimiter='\\t').`
+`# Resume prompt · 2026-05-27 21:50 +1000 · Claude (2 commits LIVE; Workbench Phase 2 unblocked)`
+`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — full state + queue), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + Active Status + ## Claude + ## Cross-Agent Requests), agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md, then git status --short --branch && git log -9 --oneline.`
+`Branch checkpoint/v2-batches-2026-05-17, local==origin at fe9e3b4 (2 Claude/app/web commits on top of Codex f00d1c0, both LIVE on eamos-dev.vercel.app). Codex's backend + handoff WIP uncommitted in worktree, untouched.`
+`Delta: (1) fdfa9c9 rich-HTML copy payload — new lib/report-html.ts, CopyButton writes text/html + text/plain via ClipboardItem; Excel pastes the report sections as fully-styled tables (banner, borders, wrap, sized columns, zebra, hyperlinks); TSV preserved for plain-text targets. (2) fe9e3b4 Workbench pass-2 slice 2 — Primer + CRISPR + Align panels ported verbatim from app/frontend with 'use client'; 9 lib files copied; designPrimers/designGuides/analyzeTide added to lib/api.ts with mock-first fallbacks; WorkbenchShell renderToolPanel() switch replaces the 4 deferred stubs (Compare stays COMING SOON); CopyButton gains console.warn on dual-throw.`
+`Op gotcha logged: when probing clipboard via Chrome MCP evaluate_script, ALWAYS restore navigator.clipboard.write/writeText in cleanup or reload the tab afterwards — leaked hijack causes silent copy failures.`
+`Next: (1) Workbench redesign Phase 2 / M5 in plans/v2-redesign-impeccable.md (NOW UNBLOCKED — all 4 tool surfaces exist); (2) Compare tool design (still placeholder, discuss before building); (3) per-metric copy buttons inside cards (parked, easy w/ new html serializers); (4) feat-report-cards.webp re-render (alphamissense baked-in text); (5) landing §6 backlog + formal impeccable audit + quality-reviewer gates for M2/M3.`
+`Verification toolkit: tsc via app/web/node_modules/.bin/tsc; browser via Chrome MCP on localhost:3000 (pre-existing orphan dev server PID 41072, do NOT kill); Excel-paste HTML/TSV via clipboard probe — restore APIs after! Python at C:\\Program Files\\Python310\\python.exe.`
 `Guardrails: no /runs, AlphaMissense display, Codex backend lane (app/backend/**), destructive git, push without OK. Commit Claude-lane with explicit git add -- <paths>. End clear-safe.`
 
 ## Codex â€” Last Task & Resume
