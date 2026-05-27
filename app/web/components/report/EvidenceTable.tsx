@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/Card'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
+import { StackedCountBar, type RampVerdict, type StackedCountSegment } from '@/components/ui/StackedCountBar'
 import { getSourceMeta } from '@/lib/sources'
 import { reviewStatusToStars } from '@/lib/clinvar-review-status'
 import type { EvidenceSourceSummary } from '@/lib/backend'
@@ -109,10 +110,38 @@ function renderSummaryValue(
   return parts.join(' · ')
 }
 
-const CLINVAR_HEADER_KEYS: ReadonlySet<string> = new Set(['classification', 'review_status'])
+const CLINVAR_HEADER_KEYS: ReadonlySet<string> = new Set([
+  'classification',
+  'review_status',
+  'submitter_counts',
+])
 
 function isClinVarRow(source: string | null | undefined): boolean {
   return typeof source === 'string' && source.trim().toLowerCase() === 'clinvar'
+}
+
+// CAR #5 contract — additive `summary.submitter_counts` on ClinVar (Codex
+// 2026-05-28 01:01 +1000). Keys are the StackedCountBar RampVerdicts exactly.
+// `{}` = no data / no hit / conflicting / unsupported → bar suppressed.
+const SUBMITTER_VERDICTS: readonly RampVerdict[] = [
+  'Pathogenic',
+  'Likely pathogenic',
+  'VUS',
+  'Likely benign',
+  'Benign',
+]
+
+function readSubmitterCounts(raw: unknown): StackedCountSegment[] {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return []
+  const dict = raw as Record<string, unknown>
+  const segments: StackedCountSegment[] = []
+  for (const verdict of SUBMITTER_VERDICTS) {
+    const v = dict[verdict]
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+      segments.push({ verdict, count: v })
+    }
+  }
+  return segments
 }
 
 function ClinVarHeader({ summary }: { summary: Record<string, unknown> }) {
@@ -122,15 +151,33 @@ function ClinVarHeader({ summary }: { summary: Record<string, unknown> }) {
   const reviewStatus = typeof summary.review_status === 'string'
     ? summary.review_status
     : null
-  if (!classification && !reviewStatus) return null
+  const submitterSegments = readSubmitterCounts(summary.submitter_counts)
+  if (!classification && !reviewStatus && submitterSegments.length === 0) return null
   const stars = reviewStatusToStars(reviewStatus)
+  const submitterTotal = submitterSegments.reduce((sum, s) => sum + s.count, 0)
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2">
-      {classification && (
-        <ClassificationBadge classification={classification} reviewStars={stars} />
-      )}
-      {reviewStatus && (
-        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{reviewStatus}</span>
+    <div className="mb-2 flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        {classification && (
+          <ClassificationBadge classification={classification} reviewStars={stars} />
+        )}
+        {reviewStatus && (
+          <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{reviewStatus}</span>
+        )}
+      </div>
+      {submitterSegments.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <div style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>
+            {submitterTotal} submitter{submitterTotal === 1 ? '' : 's'}
+          </div>
+          <StackedCountBar
+            segments={submitterSegments}
+            height={14}
+            ariaLabel={`ClinVar submitter classifications: ${submitterSegments
+              .map((s) => `${s.verdict} ${s.count}`)
+              .join(', ')}`}
+          />
+        </div>
       )}
     </div>
   )
