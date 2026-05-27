@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface CopyButtonProps {
-  /** Plain text (or TSV) to copy. */
-  text: string
+  /**
+   * What to copy. Either:
+   *   - a plain string (legacy TSV-only callers), or
+   *   - `{ html, text }` so the clipboard carries both `text/html` (Excel,
+   *     Sheets paste with borders/wrap/zebra) and `text/plain` (Notion,
+   *     editors, AI chat) and each target reads the format it understands.
+   */
+  text: string | { html: string; text: string }
   /** ARIA label / tooltip; defaults to "Copy". */
   label?: string
   /** Visual size: compact (header-right) vs inline (next to a value). */
@@ -15,9 +21,10 @@ interface CopyButtonProps {
 
 /**
  * Two-square copy affordance. Lives in the top-right of section headers and
- * data boxes. Hover lifts the contrast; on click it copies the supplied
- * `text` (TSV-friendly per `lib/report-tsv`) and flips the label to a green
- * "Copied!" confirmation for ~1.5s before reverting.
+ * data boxes. Hover lifts the contrast; on click it writes the payload to
+ * the clipboard (rich HTML + plain TSV when both are supplied, plain text
+ * otherwise) and flips the label to a green "Copied!" confirmation for
+ * ~1.5s.
  *
  * Use one button per logical chunk of data so the user can grab just the
  * piece they want — not the whole page — and paste it neatly into a
@@ -42,13 +49,28 @@ export function CopyButton({
 
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (stopPropagation) e.stopPropagation()
+    const payload =
+      typeof text === 'string' ? { html: null, text } : { html: text.html, text: text.text }
+
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text)
+      // 1. Rich path: write both text/html and text/plain so Excel/Sheets
+      //    paste formatted (borders, wrap, header fill) while plain-text
+      //    targets get the TSV.
+      const ClipboardItemCtor: typeof ClipboardItem | undefined =
+        typeof window !== 'undefined' ? (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem : undefined
+      if (payload.html && navigator.clipboard?.write && ClipboardItemCtor) {
+        const item = new ClipboardItemCtor({
+          'text/html': new Blob([payload.html], { type: 'text/html' }),
+          'text/plain': new Blob([payload.text], { type: 'text/plain' }),
+        })
+        await navigator.clipboard.write([item])
+      } else if (navigator.clipboard?.writeText) {
+        // 2. Plain path: secure-context clipboard, text only.
+        await navigator.clipboard.writeText(payload.text)
       } else {
-        // Fallback for non-secure contexts: hidden textarea + execCommand.
+        // 3. Legacy fallback for insecure contexts.
         const ta = document.createElement('textarea')
-        ta.value = text
+        ta.value = payload.text
         ta.setAttribute('readonly', '')
         ta.style.position = 'absolute'
         ta.style.left = '-9999px'
@@ -61,8 +83,17 @@ export function CopyButton({
       if (timerRef.current != null) window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(() => setCopied(false), 1500)
     } catch {
-      // Permission denied or no clipboard API — leave the button silent
-      // rather than throwing in the user's face.
+      // Rich write can fail on permission/MIME issues — degrade to plain.
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(typeof text === 'string' ? text : text.text)
+          setCopied(true)
+          if (timerRef.current != null) window.clearTimeout(timerRef.current)
+          timerRef.current = window.setTimeout(() => setCopied(false), 1500)
+        }
+      } catch {
+        // Give up silently — better than a thrown error in the user's face.
+      }
     }
   }
 

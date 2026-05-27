@@ -37,6 +37,15 @@ import {
   tsvPublications,
   tsvTrials,
 } from '@/lib/report-tsv'
+import {
+  htmlAISummary,
+  htmlDiseaseAndConditions,
+  htmlEvidenceBySource,
+  htmlGeneContextSnapshot,
+  htmlPopulation,
+  htmlPublications,
+  htmlTrials,
+} from '@/lib/report-html'
 import { SOURCES } from '@/lib/sources'
 import type {
   LookupResponse,
@@ -348,8 +357,11 @@ function ReportBody({ data, query }: ReportBodyProps) {
             meta="genetic ancestry groups | source age distribution"
             actions={
               <CopyButton
-                text={tsvPopulation(payload, payload.population_frequency_detail)}
-                label="Copy population frequency as TSV"
+                text={{
+                  html: htmlPopulation(payload, payload.population_frequency_detail),
+                  text: tsvPopulation(payload, payload.population_frequency_detail),
+                }}
+                label="Copy population frequency (paste into Excel for formatted table)"
               />
             }
           >
@@ -364,13 +376,21 @@ function ReportBody({ data, query }: ReportBodyProps) {
           meta="in-silico · per-source detail · ACMG"
           actions={
             <CopyButton
-              text={tsvEvidenceBySource(
-                payload,
-                payload.in_silico_predictions,
-                payload.acmg_criteria_scaffold,
-                data.evidence.map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
-              )}
-              label="Copy evidence as TSV"
+              text={{
+                html: htmlEvidenceBySource(
+                  payload,
+                  payload.in_silico_predictions,
+                  payload.acmg_criteria_scaffold,
+                  data.evidence.map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
+                ),
+                text: tsvEvidenceBySource(
+                  payload,
+                  payload.in_silico_predictions,
+                  payload.acmg_criteria_scaffold,
+                  data.evidence.map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
+                ),
+              }}
+              label="Copy evidence (paste into Excel for formatted table)"
             />
           }
         >
@@ -387,12 +407,19 @@ function ReportBody({ data, query }: ReportBodyProps) {
           locus={payload.locus_context}
           actions={
             <CopyButton
-              text={tsvGeneContextSnapshot(
-                payload,
-                payload.report_profile?.gene_context_snapshot ?? null,
-                payload.locus_context,
-              )}
-              label="Copy gene context as TSV"
+              text={{
+                html: htmlGeneContextSnapshot(
+                  payload,
+                  payload.report_profile?.gene_context_snapshot ?? null,
+                  payload.locus_context,
+                ),
+                text: tsvGeneContextSnapshot(
+                  payload,
+                  payload.report_profile?.gene_context_snapshot ?? null,
+                  payload.locus_context,
+                ),
+              }}
+              label="Copy gene context (paste into Excel for formatted table)"
             />
           }
         />
@@ -404,12 +431,19 @@ function ReportBody({ data, query }: ReportBodyProps) {
           meta={geneContextMeta}
           actions={
             <CopyButton
-              text={tsvDiseaseAndConditions(
-                payload,
-                payload.curated_variants_distribution,
-                payload.associated_conditions,
-              )}
-              label="Copy conditions as TSV"
+              text={{
+                html: htmlDiseaseAndConditions(
+                  payload,
+                  payload.curated_variants_distribution,
+                  payload.associated_conditions,
+                ),
+                text: tsvDiseaseAndConditions(
+                  payload,
+                  payload.curated_variants_distribution,
+                  payload.associated_conditions,
+                ),
+              }}
+              label="Copy conditions (paste into Excel for formatted table)"
             />
           }
         >
@@ -428,8 +462,11 @@ function ReportBody({ data, query }: ReportBodyProps) {
           number={5}
           actions={
             <CopyButton
-              text={tsvPublications(payload, payload.publications_literature)}
-              label="Copy publications as TSV"
+              text={{
+                html: htmlPublications(payload, payload.publications_literature),
+                text: tsvPublications(payload, payload.publications_literature),
+              }}
+              label="Copy publications (paste into Excel for formatted table)"
             />
           }
         />
@@ -441,11 +478,17 @@ function ReportBody({ data, query }: ReportBodyProps) {
           number={6}
           actions={
             <CopyButton
-              text={tsvTrials(
-                payload,
-                payload.report_profile?.therapies_trials?.trial_rows ?? [],
-              )}
-              label="Copy trials as TSV"
+              text={{
+                html: htmlTrials(
+                  payload,
+                  payload.report_profile?.therapies_trials?.trial_rows ?? [],
+                ),
+                text: tsvTrials(
+                  payload,
+                  payload.report_profile?.therapies_trials?.trial_rows ?? [],
+                ),
+              }}
+              label="Copy trials (paste into Excel for formatted table)"
             />
           }
         />
@@ -458,8 +501,11 @@ function ReportBody({ data, query }: ReportBodyProps) {
           meta="deterministic · cited"
           actions={
             <CopyButton
-              text={tsvAISummary(payload)}
-              label="Copy AI summary as TSV"
+              text={{
+                html: htmlAISummary(payload),
+                text: tsvAISummary(payload),
+              }}
+              label="Copy AI summary (paste into Excel for formatted table)"
             />
           }
         >
