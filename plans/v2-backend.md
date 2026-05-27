@@ -23,7 +23,102 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-27, Codex):
+Recent backend status notes (2026-05-28, Codex):
+- FGV-002-FULL-GENE-FIXTURE-HYDRATION is implemented and verified. Fixture-mode
+  `POST /api/v1/viewer` now accepts `window.kind = "full_gene"` for RPE65
+  `c.260A>G` and curated ClinVar-stack transcript-model records, with ABCA4
+  `c.5435T>A` as the large-gene stress proof. The hydrated `full_locus` carries
+  complete deterministic genomic sequence, transcript projection intervals,
+  coordinate-map ranges, codon starts, queried-variant/ClinVar feature
+  intervals, and rendering hints. ABCA4 returns a 128,315 bp full locus with 50
+  coordinate-map ranges and 2,274 codon starts; RPE65 returns a deterministic
+  21,139 bp full locus scaffolded from the existing RPE65 fixture/known exon 4
+  coordinate. Missing transcript records, variant-mode full-gene requests, and
+  transcript reference mismatches fail closed. Live/source-backed full-gene
+  runtime remains fail-closed outside this fixture path. Focused viewer and
+  transcript pytest, contract canary, Ruff, Black check, and full backend pytest
+  passed with known JWT short-key warnings only. No frontend renderer swap,
+  TypeScript mirror/schema change, provider/source-cache runtime preference
+  wiring, production source imports/downloads, primer/CRISPR/align sequence-mode
+  consumption, live Supabase writes, uploads/imports, `/runs`, AlphaMissense
+  display/runtime scoring, restricted predictor unlocks, destructive git, stash,
+  reset, clean, commit, or push.
+- FGV-001-FULL-LOCUS-CONTRACT is implemented and verified. Added additive
+  `window.kind = "full_gene"`, `ViewerWindow.basis`/genomic display metadata,
+  and optional `GeneViewerResponse.full_locus` with full genomic sequence,
+  transcript projection intervals, coordinate-map ranges, codon starts, feature
+  intervals with explicit coordinate systems, and rendering hints for default
+  black bases plus optional nucleotide/biochemical color schemes. Runtime
+  `full_gene` requests fail closed with
+  `workbench_unsupported_input:full_gene` until FGV-002 fixture/source
+  hydration lands, so the backend cannot label a clipped window as full-gene.
+  Both TypeScript backend mirrors are byte-identical. Focused viewer/contract
+  pytest, full backend pytest, Ruff, Black check, both frontend `tsc --noEmit`
+  checks, and the Workbench gene-viewer adapter Vitest passed. No fixture
+  hydration, frontend renderer swap, provider/source-cache runtime wiring,
+  production source imports/downloads, tool sequence-mode consumption, live
+  Supabase writes, uploads/imports, `/runs`, AlphaMissense display/runtime
+  scoring, restricted predictor unlocks, destructive git, stash, reset, clean,
+  commit, or push.
+- CAR-2-CALIBRATED-PREDICTORS is implemented and verified. Added additive
+  `calibrated_label`, `calibration_bucket`, `calibration_method`, and
+  `calibration_version` fields to `ComputationalPredictorRow`, with
+  `calibration_bucket` mirrored as the five-tier `RampVerdict` in both
+  TypeScript contract mirrors. Added a pure backend calibration helper:
+  REVEL/CADD PHRED/canonical PrimateAI use Pejaver 2022 / ClinGen SVI PP3/BP4
+  thresholds, SpliceAI uses Walker 2023 / ClinGen SVI splicing thresholds, and
+  engines without an approved matching policy return explicit null fields.
+  Threaded the fields through computational annotations, the report
+  orchestrator, legacy fallback rows, lazy section fetches, and the RPE65
+  sample. `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts` are
+  byte-identical again. Focused CAR #2 pytest, full backend pytest, Ruff,
+  Black check, and both frontend `tsc --noEmit` checks passed. No frontend
+  rendering swap, provider/source-cache runtime wiring, production source
+  downloads/imports, live Supabase writes/resources/migrations, uploads, `/runs`,
+  AlphaMissense public display/runtime scoring, restricted predictor unlocks,
+  destructive git, stash, reset, clean, commit, or push.
+- LOCAL-SOURCE-PARSER-HARDENING pass is implemented backend-only. Task 15
+  native `pyBigWig` proof was retried with the user's approval but remains
+  blocked because WSL is not installed, Docker Desktop engines return HTTP
+  500, and starting the Docker service is not permitted from this session.
+  Shared indexed source alias normalization now canonicalizes NCBI `NC_`
+  contigs before lookup/duplicate checks; local ClinVar VCF parsing rejects
+  duplicate INFO keys plus duplicate variant/accession identities; and local
+  dbSNP VCF parsing rejects duplicate INFO keys plus duplicate rsID
+  identities. Focused indexed/ClinVar/dbSNP pytest, broader local-evidence and
+  source-manifest pytest, frontend contract canary with the known mirror-byte
+  drift excluded, Ruff, and Black passed. No frontend/schema mirror edits,
+  runtime route/provider/source-cache wiring, production downloads/imports,
+  live Supabase writes, uploads/imports, `/runs`, AlphaMissense display/runtime
+  scoring, restricted predictor unlocks, destructive git, stash, reset, clean,
+  commit, push, or native Linux `pyBigWig` proof.
+- CAR #5 ClinVar `submitter_counts` is implemented backend-only as an
+  additive key on the ClinVar source's free-form
+  `EvidenceSourceSummary.summary` dict. The live tool derives recognized
+  per-classification counts from explicit submission classifications when
+  available, otherwise falls back to aggregate germline classification plus
+  supporting SCV count; unsupported/no-hit/conflicting cases return `{}`.
+  Fixture mode exposes the RPE65 `VUS: 1` count. Focused
+  `test_tool_invariants.py`, Ruff, and Black passed. No frontend/schema mirror
+  edits, public route contract changes, runtime source-cache wiring, or
+  production ClinVar imports/downloads.
+- LOCAL-FIRST-MODEL-HARDENING pass is implemented backend-only behind
+  no-contract-change tests. Reference fixture loading now rejects duplicate
+  canonical chromosomes; ClinVar local `NC_` contigs canonicalize to
+  gnomAD-style chromosomes; and `LocalEvidenceOrchestrator.resolve_variant()`
+  rejects malformed alleles before composing dbSNP, ClinVar, transcript,
+  RepeatMasker, or sequence-window evidence. Added edge-case tests for
+  reference/sequence-window, MANE/GENCODE transcript and coordinate mapping,
+  clinical source tables, ClinVar VCF, dbSNP GCF, RepeatMasker, phyloP
+  proof/manifest gates, LocalEvidenceOrchestrator, and
+  LocalEvidenceRuntimeGate. Focused local-source pytest, broader
+  search/sequence/gene-viewer/workbench pytest, frontend contract canary with
+  the known mirror-byte drift excluded, Ruff, and Black passed. No
+  frontend/schema mirror edits, runtime route/provider/source-cache wiring,
+  production source downloads/imports, live Supabase writes, uploads/imports,
+  `/runs`, AlphaMissense display/runtime scoring, restricted predictor
+  unlocks, destructive git, stash, reset, clean, or Task 15 native
+  `pyBigWig`/Linux proof.
 - LOCAL-EVIDENCE-RUNTIME-GATE slice is implemented backend-only as an inert
   Task 16 configuration gate. Added disabled-by-default settings
   `local_evidence_enabled`, `local_evidence_allowed_flows_raw`, and

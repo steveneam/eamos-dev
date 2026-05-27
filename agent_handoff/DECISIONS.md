@@ -1,5 +1,26 @@
 # Agent Coordination Decisions
 
+## 2026-05-27: DL-019 Explicit Git Staging Rule
+
+Section edited: 2026-05-27 23:27 +1000 - Codex.
+
+Decision (user-confirmed, 2026-05-27): both agents must stage commits with
+explicit paths only.
+
+- Run `git status --short` before any staging or commit operation.
+- Never use `git add -A`, `git add .`, or `git commit -a`.
+- Use `git add -- <paths>` with paths scoped to the owning agent's lane.
+- Codex default staging scope is `app/backend/**`, backend-owned docs/plans,
+  and explicitly approved shared files only.
+- Claude/frontend files, `plans/v2-redesign-impeccable.md`, Claude archive
+  files, and unrelated docs must not be swept into Codex commits.
+- Claude should likewise not sweep Codex `app/backend/**` work into a
+  Claude-lane commit without explicit coordination.
+
+Reasoning: broad staging on 2026-05-27 accidentally mixed frontend files into
+backend commit attempts. Explicit staging preserves parallel-lane ownership and
+keeps commit messages truthful.
+
 Durable coordination decisions only. Section edited: 2026-05-19 14:22 +1000 ·
 Codex (AlphaMissense hold backend fixture alignment). Superseded/done
 decisions are marked inline (kept for rationale, not

@@ -1,5 +1,289 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 73 - 28 May 2026 - FGV-002 full-gene fixture hydration
+
+Implemented deterministic fixture-mode full-gene genomic-locus hydration for
+the Workbench viewer.
+
+Completed:
+- `POST /api/v1/viewer` fixture mode now accepts `window.kind = "full_gene"`
+  for RPE65 `c.260A>G` and curated ClinVar-stack transcript-model records,
+  including ABCA4 `c.5435T>A` as the large-gene stress proof.
+- Full-gene responses populate `GeneViewerResponse.full_locus` with the complete
+  genomic locus sequence, transcript projection intervals, coordinate-map
+  ranges, codon starts, queried-variant/ClinVar feature intervals, and rendering
+  hints.
+- ABCA4 returns a 128,315 bp full locus with 50 coordinate-map ranges and 2,274
+  codon starts; RPE65 returns a deterministic 21,139 bp full locus with a
+  scaffolded 14-exon model anchored to the existing RPE65 fixture and known
+  exon 4 variant coordinate.
+- Full-gene fixture hydration fails closed for missing transcript records,
+  variant-mode full-gene requests, and transcript reference mismatches.
+- Live/source-backed full-gene runtime remains fail-closed; no source-cache,
+  provider-preference, production import/download, or frontend renderer wiring
+  was added.
+
+Verification:
+- `python -m pytest tests/test_gene_viewer.py -q` passed.
+- `python -m pytest tests/test_transcript_model_store.py -q` passed.
+- `python -m pytest tests/test_gene_viewer.py tests/test_transcript_model_store.py -q`
+  passed.
+- `python -m pytest tests/test_frontend_contract.py -q` passed.
+- `python -m pytest tests/test_gene_viewer.py tests/test_frontend_contract.py tests/test_transcript_model_store.py -q`
+  passed.
+- `python -m ruff check app/services/gene_viewer.py app/services/transcript_model.py tests/test_gene_viewer.py`
+  passed.
+- `python -m black --check --target-version py310 app/services/gene_viewer.py app/services/transcript_model.py tests/test_gene_viewer.py`
+  passed after formatting `app/services/gene_viewer.py`.
+- `python -m pytest tests/ -q` passed with known JWT short-key warnings only.
+
+Out of scope:
+- No frontend renderer swap, TypeScript mirror/schema change, provider/source-
+  cache runtime preference wiring, production source imports/downloads, primer/
+  CRISPR/align sequence-mode consumption, live Supabase writes/resources/
+  migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+  public display or runtime scoring, restricted predictor unlocks, destructive
+  git, stash, reset, clean, commit, push, or native Linux proof.
+
+## Session 72 - 28 May 2026 - FGV-001 full genomic-locus contract
+
+Implemented the additive backend contract for the Workbench full genomic-locus
+viewer mode.
+
+Completed:
+- Added `window.kind = "full_gene"` plus additive `ViewerWindow` locus-display
+  metadata (`basis`, `display_genomic_start`, `display_genomic_end`,
+  `total_locus_bases`).
+- Added optional `GeneViewerResponse.full_locus` with full genomic sequence,
+  transcript projection intervals, coordinate-map ranges, codon starts,
+  feature intervals with explicit coordinate systems, and rendering hints for
+  black-base default plus optional nucleotide/biochemical color schemes.
+- Added fail-closed runtime behavior for `full_gene` requests until FGV-002
+  fixture/source hydration lands, preventing a clipped transcript window from
+  being returned under a full-gene label.
+- Updated both TypeScript backend mirrors byte-identically and adjusted local
+  Workbench sample/test payloads for the additive `window.basis` field.
+- Documented the FGV-001 contract amendment in `plans/gene-viewer/spec.md`.
+
+Verification:
+- `python -m pytest tests/test_gene_viewer.py -q` passed.
+- `python -m pytest tests/test_frontend_contract.py -q -k "GeneViewer or ViewerWindow or ViewerFullLocus or full_locus or full_gene"` passed.
+- `python -m pytest tests/test_gene_viewer.py tests/test_frontend_contract.py -q` passed.
+- `python -m pytest tests/test_frontend_contract.py -q` passed.
+- `python -m pytest tests/ -q` passed with known JWT short-key warnings.
+- `python -m ruff check app/schemas/gene_viewer.py app/services/gene_viewer.py tests/test_gene_viewer.py tests/test_frontend_contract.py` passed.
+- `python -m black --check --target-version py310 app/schemas/gene_viewer.py app/services/gene_viewer.py tests/test_gene_viewer.py tests/test_frontend_contract.py` passed after formatting `tests/test_gene_viewer.py`.
+- `./node_modules/.bin/tsc --noEmit` passed in both `app/web` and
+  `app/frontend`.
+- `npx vitest run src/lib/workbench/gene-viewer-adapter.test.ts` passed.
+- `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts` are
+  byte-identical after the mirror update.
+
+Out of scope:
+- No full-gene fixture/source hydration, frontend renderer swap, provider/
+  source-cache runtime wiring, production source imports/downloads, tool
+  sequence-mode consumption, live Supabase writes/resources/migrations,
+  uploads/imports, env/deploy mutation, `/runs`, AlphaMissense public display
+  or runtime scoring, restricted predictor unlocks, destructive git, stash,
+  reset, clean, commit, push, or native Linux proof.
+
+## Session 71 - 28 May 2026 - CAR #2 calibrated predictor contract
+
+Closed Claude CAR #2 for M-004 / M8 by adding the calibrated in-silico
+predictor contract fields to the backend report payload and both TypeScript
+mirrors.
+
+Completed:
+- Added additive optional `calibrated_label`, `calibration_bucket`,
+  `calibration_method`, and `calibration_version` fields to
+  `ComputationalPredictorRow`. `calibration_bucket` is typed as the shared
+  five-tier `RampVerdict`.
+- Added a pure backend calibration helper for approved policies. REVEL, CADD
+  PHRED, and canonical PrimateAI use Pejaver 2022 / ClinGen SVI PP3/BP4
+  thresholds; SpliceAI uses Walker 2023 / ClinGen SVI splicing thresholds.
+  Engines without an approved matching policy return explicit null fields.
+- Threaded calibration fields through computational annotation normalization,
+  the variant report orchestrator, legacy in-silico fallback rows, lazy
+  `computational_deep_dive` section fetches, and the RPE65 offline sample.
+- Re-synced `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts`
+  byte-for-byte, including the previously web-only M11 section-fetch block,
+  so the full frontend contract canary now passes without excluding mirror
+  byte drift.
+
+Verification:
+- `python -m pytest tests/test_computational_calibration.py tests/test_tool_invariants.py tests/test_variant_report_orchestration.py tests/test_lookup_section_fetch_contract.py tests/test_frontend_contract.py tests/test_demo_payload_encoding.py -q`
+  passed.
+- `python -m pytest tests/ -q` passed on rerun with a longer command timeout
+  (the first 5-minute shell invocation timed out before returning output).
+  Known JWT short-key warnings only.
+- `python -m ruff check app/schemas/run.py app/services/computational_calibration.py app/services/variant_report_orchestrator.py app/tools/computational_annotations.py tests/test_computational_calibration.py tests/test_tool_invariants.py tests/test_variant_report_orchestration.py tests/test_lookup_section_fetch_contract.py tests/test_frontend_contract.py tests/test_demo_payload_encoding.py`
+  passed.
+- `python -m black --check --target-version py310 app/schemas/run.py app/services/computational_calibration.py app/services/variant_report_orchestrator.py app/tools/computational_annotations.py tests/test_computational_calibration.py tests/test_tool_invariants.py tests/test_variant_report_orchestration.py tests/test_lookup_section_fetch_contract.py tests/test_frontend_contract.py tests/test_demo_payload_encoding.py`
+  passed.
+- `./node_modules/.bin/tsc --noEmit` passed in both `app/web` and
+  `app/frontend`.
+
+Out of scope:
+- No frontend rendering swap, `CalibratedInSilicoTable`,
+  `CompositeVerdictBar`, provider/source-cache runtime wiring, production
+  source downloads/imports, live Supabase writes/resources/migrations,
+  uploads/imports, `/runs`, AlphaMissense public display/runtime scoring,
+  restricted predictor unlocks, destructive git, stash, reset, clean, commit,
+  or push.
+
+## Session 70 - 28 May 2026 - local source parser hardening + Workbench prep
+
+Continued the Codex local-first backend lane after CAR #5. Task 15 native
+`pyBigWig` proof was retried with the user's approval, but remains blocked on
+local infrastructure: WSL is not installed, Docker Desktop engines return HTTP
+500, and starting the Docker service is not permitted from this session.
+
+Completed:
+- Launched four read-only full-gene Workbench prep lanes and kept integration
+  control in the main thread. Outputs covered FGV-001 full-locus backend
+  contract shape, FGV-002 fixture/stress strategy, Workbench-only vertical
+  full-gene rendering shape, and ABCA4 performance/browser verification gates.
+- Hardened shared indexed contig alias normalization so `NC_000001.11`,
+  `NC_000023.11`, `NC_000024.10`, and `NC_012920.1` normalize consistently
+  before alias-map lookup and duplicate-alias checks.
+- Hardened local ClinVar VCF parsing/store indexing so duplicate INFO keys,
+  duplicate variant identities, and duplicate VCV/Variation ID identities fail
+  closed instead of silently overwriting records.
+- Hardened local dbSNP VCF parsing/store indexing so duplicate INFO keys and
+  duplicate rsID identities fail closed instead of silently overwriting records.
+
+Verification:
+- `python -m pytest tests/test_indexed_source_readers.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py -q`
+  passed (`pysam`/`pyBigWig` native cases skipped on Windows).
+- `python -m pytest tests/test_local_evidence_orchestrator.py tests/test_source_asset_manifest.py tests/test_indexed_source_readers.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py -q`
+  passed (`pysam`/`pyBigWig` native cases skipped on Windows).
+- `python -m pytest tests/test_frontend_contract.py -q -k "not mirrors_are_byte_identical"`
+  passed.
+- `python -m ruff check app/services/indexed_sources.py app/services/clinvar_local.py app/services/dbsnp_local.py tests/test_indexed_source_readers.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py`
+  passed.
+- `python -m black --check --target-version py310 app/services/indexed_sources.py app/services/clinvar_local.py app/services/dbsnp_local.py tests/test_indexed_source_readers.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py`
+  passed.
+
+Out of scope:
+- No frontend/schema mirror edits, runtime route/provider/source-cache wiring,
+  production source downloads/imports, live Supabase writes/resources/
+  migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+  display/runtime scoring, restricted predictor unlocks, destructive git,
+  stash, reset, clean, commit, push, or native Linux `pyBigWig` proof.
+
+## Session 69 - 28 May 2026 - ClinVar submitter counts CAR #5
+
+Closed Claude CAR #5 by adding an additive ClinVar
+`summary.submitter_counts` surface for the deferred report
+`StackedCountBar` submitter half.
+
+Completed:
+- Added canonical ClinVar submitter count labels for `Pathogenic`,
+  `Likely pathogenic`, `VUS`, `Likely benign`, and `Benign`.
+- Updated the live ClinVar tool path to derive counts from explicit
+  submission classifications when present, then fall back to the aggregate
+  germline classification multiplied by the supporting SCV count. No-hit,
+  unsupported, conflicting, or unrecognized classifications fail closed to
+  `{}`.
+- Added the RPE65 fixture `submitter_counts` value (`VUS: 1`) so fixture mode
+  exposes the same additive summary key.
+- Added backend invariant coverage for live no-hit empty counts, fixture
+  counts, and mocked live supporting-SCV derivation.
+
+Verification:
+- `python -m pytest tests/test_tool_invariants.py -q` from `app/backend`
+  passed.
+- `python -m ruff check app/tools/clinvar.py tests/test_tool_invariants.py`
+  passed.
+- `python -m black --check --target-version py310 app/tools/clinvar.py tests/test_tool_invariants.py`
+  passed after formatting the touched Python files.
+
+Out of scope:
+- No frontend/schema mirror edits, runtime route/provider/source-cache wiring,
+  production ClinVar downloads/imports, live Supabase writes/resources/
+  migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+  display/runtime scoring, restricted predictor unlocks, destructive git,
+  stash, reset, clean, commit, or push.
+
+## Session 68 - 28 May 2026 - full-gene Workbench viewer planning
+
+Created a formal planning artifact for the Benchling-informed Workbench
+sequence-viewer direction after Steven answered the product questions.
+
+Completed:
+- Added `plans/gene-viewer/full-gene-workbench-plan.md`.
+- Captured the product decision that Workbench should default to a true full
+  genomic-locus sequence view, including introns and UTRs, with initial focus
+  allowed at the queried variant but no clipped variant-only sequence window.
+- Split the work into portable backend/frontend tasks covering the additive
+  full-locus viewer contract, RPE65/CFTR/BRCA1/ABCA4/TP53 fixture and stress
+  matrix, full-gene row rendering, navigation/selection UX, biological color
+  policy, scratchpad persistence/lab-book boundary, ABCA4 browser performance
+  gate, and deferred tool sequence-mode follow-up.
+- Recorded key decisions: black nucleotide letters by default with optional
+  muted nucleotide coloring, amino-acid colors based on a named biochemical
+  grouping rather than arbitrary colors, automatic edit logs expiring after
+  roughly 24-48 hours, deliberate notes saveable, and Primer/CRISPR/Align
+  waiting for a backend sequence-mode/viewer-context contract.
+
+Out of scope:
+- No implementation, frontend/schema mirror edits, runtime route/provider/
+  source-cache wiring, production source downloads/imports, live Supabase
+  writes/resources/migrations, uploads/imports, env/deploy mutation, `/runs`,
+  AlphaMissense display/runtime scoring, restricted predictor unlocks,
+  destructive git, stash, reset, clean, or commit.
+
+## Session 67 - 27 May 2026 - local-first model hardening
+
+Continued the backend local-first source-model lane after the runtime gate
+slice, staying behind no-contract-change tests. This was a hardening pass over
+the existing fixture-first models; it did not wire local evidence into runtime
+lookup/search/gene-viewer/workbench routes.
+
+Completed:
+- Hardened the reference fixture loader to reject duplicate canonical
+  chromosome definitions instead of silently overwriting alias-colliding
+  entries.
+- Hardened ClinVar local contig normalization so RefSeq `NC_` contigs
+  canonicalize to gnomAD-style chromosomes the same way dbSNP already does.
+- Hardened `LocalEvidenceOrchestrator.resolve_variant()` so malformed local
+  alleles fail closed before dbSNP, ClinVar, transcript, RepeatMasker, or
+  sequence-window composition.
+- Added edge-case tests across local-first models:
+  reference duplicate aliases, sequence-window unsupported reference alleles
+  and negative flanks, transcript exon-boundary CDS math and invalid fixture
+  strand, HPOA `NOT` qualifier skip plus unknown HPO terms, ClinVar `NC_`
+  fixture identity normalization, dbSNP invalid/unknown `records_at`, inclusive
+  RepeatMasker boundaries, phyloP missing-bigWig fail-closed proof plus manifest
+  approval gate, orchestrator malformed allele fail-closed behavior, and
+  runtime-gate flow normalization/deduping.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_reference_genome_store.py tests/test_sequence_window_model.py tests/test_transcript_model_store.py tests/test_clinical_source_tables.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py tests/test_repeatmasker_local_adapter.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_local_evidence_orchestrator.py -q`
+  passed (`pyBigWig`/`pysam` native-reader tests skipped on this Windows host).
+- `cd app/backend && python -m pytest tests/test_local_evidence_orchestrator.py tests/test_variant_search_integration.py tests/test_sequence_context.py tests/test_gene_viewer.py tests/test_workbench_api.py -q`
+  passed.
+- `cd app/backend && python -m pytest tests/test_frontend_contract.py -q -k "not mirrors_are_byte_identical"`
+  passed.
+- `cd app/backend && python -m ruff check app/services/reference_genome.py app/services/clinvar_local.py app/services/local_evidence_orchestrator.py tests/test_reference_genome_store.py tests/test_sequence_window_model.py tests/test_transcript_model_store.py tests/test_clinical_source_tables.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py tests/test_repeatmasker_local_adapter.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_local_evidence_orchestrator.py`
+  passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/reference_genome.py app/services/clinvar_local.py app/services/local_evidence_orchestrator.py tests/test_reference_genome_store.py tests/test_sequence_window_model.py tests/test_transcript_model_store.py tests/test_clinical_source_tables.py tests/test_clinvar_local_adapter.py tests/test_dbsnp_local_adapter.py tests/test_repeatmasker_local_adapter.py tests/test_indexed_source_readers.py tests/test_source_asset_manifest.py tests/test_local_evidence_orchestrator.py`
+  passed.
+
+Residual verification note:
+- Full `tests/test_frontend_contract.py -q` was not re-run in this pass because
+  the known pre-existing cross-frontend byte-identical mirror drift remains:
+  `app/web/lib/backend.ts` has the M11 section-fetch TypeScript block while
+  `app/frontend/src/lib/backend.ts` does not. Codex did not edit frontend
+  mirrors.
+
+Out of scope:
+- No frontend/schema mirror edits, runtime route/provider/source-cache wiring,
+  production source downloads/imports, live Supabase writes, uploads/imports,
+  env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
+  restricted predictor unlocks, destructive git, stash, reset, clean, or Task
+  15 native `pyBigWig`/Linux proof.
+
 ## Session 66 - 27 May 2026 - local evidence runtime gate slice
 
 Continued Task 16 local-first model work after Claude released the handoff

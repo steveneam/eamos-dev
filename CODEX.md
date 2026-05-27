@@ -66,3 +66,7 @@ Codex-specific reminders that follow from it:
   task brief explicitly authorizes it. Do not start FE-6/7/8 or M-002
   follow-ups without explicit user direction. Surface product/design/UX
   decisions for the user instead of silently changing behavior.
+- DL-019 explicit staging rule is durable in `agent_handoff/DECISIONS.md`:
+  before any staging/commit operation, run `git status --short`; never use
+  `git add -A`, `git add .`, or `git commit -a`; stage only explicit
+  Codex-owned paths with `git add -- <paths>`.
