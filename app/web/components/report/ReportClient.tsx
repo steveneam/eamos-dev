@@ -25,6 +25,7 @@ import { SearchInterpretationPanel } from '@/components/report/SearchInterpretat
 import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnapshotSection'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { MatrixOverture } from '@/components/report/MatrixOverture'
+import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
@@ -488,6 +489,13 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
           <EvidenceTable evidence={data.evidence} embedded />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
+
+        {/* Expert Panel (ClinGen VCEP) — mock-first per CAR #3 (opened 2026-05-28 03:18 +1000).
+            Sits between §2 Evidence by source and §3 Gene context snapshot, unnumbered to avoid
+            renumbering the existing sections. Swaps from inline RPE65 IRD VCEP fixture to live
+            payload data once Codex closes CAR #3 (additive `report_profile.expert_panel`). */}
+        <div id="expert_panel" className="scroll-mt-24" />
+        <ExpertPanelSection />
 
         {/* 3 · Gene context snapshot (Locus context merged in). */}
         <GeneContextSnapshotSection
