@@ -86,7 +86,7 @@ STEPS = {
         "title": "Reconciliation",
         "is_dispatch": True,
         "dispatch_agent": "quality-reviewer",
-        "mode_script": "quality_reviewer/exec-reconcile.py",
+        "mode_script": "quality_reviewer/exec_reconcile.py",
         "invoke_suffix": " --milestone N",
         "pre_dispatch": [
             "Validate existing code against plan requirements BEFORE executing.",
@@ -119,7 +119,7 @@ STEPS = {
         "qr_name": "CODE QR",
         "is_dispatch": True,
         "dispatch_agent": "quality-reviewer",
-        "mode_script": "quality_reviewer/impl-code-qr.py",
+        "mode_script": "quality_reviewer/impl_code_qr_decompose.py",
         "pre_dispatch": [
             "<qa_integration>",
             "Before QR code review, run post-implementation QA.",
@@ -157,7 +157,7 @@ STEPS = {
         "qr_name": "DOC QR",
         "is_dispatch": True,
         "dispatch_agent": "quality-reviewer",
-        "mode_script": "quality_reviewer/impl-docs-qr.py",
+        "mode_script": "quality_reviewer/impl_docs_qr_decompose.py",
         "post_dispatch": [
             "The sub-agent will invoke the script and follow its guidance.",
             "",
