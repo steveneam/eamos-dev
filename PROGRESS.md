@@ -1,5 +1,133 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 85 - 29 May 2026 - Full-gene viewer local coordinate ruler
+
+Corrected the actual full-gene viewer numbers issue Steven meant: row labels
+should read like a simple sequence/FASTA ruler by default, not force genomic
+coordinates down the side of every row.
+
+Completed:
+- Added local 1-based sequence start/end positions to the full-locus row model.
+- Changed the full-gene viewer to default row labels to local sequence
+  coordinates: for the current 80 bp rows, row one displays `1` on the left and
+  `80` on the right, row two `81` and `160`, and so on.
+- Added a compact coordinate-mode toggle in the full-gene header:
+  `1-based` (default) and `Genomic`. Genomic mode preserves the previous
+  absolute coordinate behavior for users who need copyable genomic positions.
+- Kept the true genomic locus span in the header/provenance area.
+- Tightened the mobile/narrow layout so long base runs clip inside the sequence
+  column instead of covering the right-side row-end coordinate.
+
+Verification:
+- `app/web` `.\node_modules\.bin\tsc.cmd --noEmit` -> passed.
+- `app/frontend` `.\node_modules\.bin\tsc.cmd --noEmit` -> passed.
+- `app/backend` `python -m pytest tests/test_gene_viewer.py -q` -> passed.
+- Browser verification with isolated Chrome/Playwright against
+  `http://localhost:3000` + `API_PROXY_TARGET=https://eamos-dev.onrender.com`:
+  - ABCA4 full gene defaults to `1-based`; first rows are `1-80`,
+    `81-160`, `161-240`; Genomic toggle changes row one to
+    `93,992,834-93,992,913`.
+  - RPE65 full gene defaults to `1-based`; first row is `1-80`; Genomic toggle
+    changes row one to `68,428,820-68,428,899`.
+  - Mobile RPE65 full gene keeps the right-side row-end coordinate visible
+    inside the viewer bounds.
+  - Final viewer API trace returned 200 statuses; one earlier 503 was transient
+    during the browser pass and did not reproduce.
+- `git diff --check` -> passed with only CRLF conversion warnings.
+
+Guardrails held:
+- No runtime local-source wiring, source-cache/provider rewiring, production
+  source downloads/imports, live Supabase writes/resources/migrations,
+  uploads/imports, `/runs`, AlphaMissense display/runtime scoring, WSL, Docker,
+  destructive git, stash, reset, clean, commit, or push.
+
+## Session 84 - 29 May 2026 - RPE65 full-gene viewer count coherence
+
+Closed the remaining RPE65 viewer count mismatch Steven asked about. The
+full-gene `full_locus` path had already been fixed and live-verified at
+`21,139 bp`; this patch updates the older RPE65 window/sample/scaffold display
+values that still said `21,138`.
+
+Completed:
+- Updated the backend RPE65 viewer fixture and source-backed viewer test mock
+  so `summary.gene_length` matches the inclusive
+  `chr1:68,428,820-68,449,958` span (`21,139 bp`).
+- Updated the app/web and app/frontend Workbench sample/scaffold mirrors and
+  visible RPE65 Workbench display text from `21,138` to `21,139`.
+- Confirmed no `21138` / `21,138` values remain under `app/backend`,
+  `app/web`, or `app/frontend`.
+
+Verification:
+- `python -m pytest tests/test_gene_viewer.py -q` from `app/backend` -> passed.
+- `app/web` `.\node_modules\.bin\tsc.cmd --noEmit` -> passed.
+- `app/frontend` `.\node_modules\.bin\tsc.cmd --noEmit` -> passed.
+- `git diff --check` -> passed with only CRLF conversion warnings.
+
+Guardrails held:
+- No runtime local-source wiring, source-cache/provider rewiring, production
+  source downloads/imports, live Supabase writes/resources/migrations,
+  uploads/imports, `/runs`, AlphaMissense display/runtime scoring, WSL, Docker,
+  destructive git, stash, reset, clean, commit, or push.
+
+## Session 83 - 29 May 2026 - Task 16A local-evidence/cache hardening
+
+Completed the fixture-only Task 16A hardening pass plus the CAR #4
+publication-cache backcompat audit. This stayed backend-only: no public
+route/runtime local-source wiring, source-cache rewiring, frontend contract
+change, production source download/import, Supabase/object-storage work, WSL,
+or Docker.
+
+Completed:
+- Hardened `LocalEvidenceOrchestrator.resolve_rsid()` so malformed
+  `requested_alt` values fail closed before dbSNP/ClinVar/transcript/
+  RepeatMasker/sequence composition, and valid-but-absent requested alleles now
+  return the distinct `rsid_allele_mismatch` state instead of being conflated
+  with ambiguous multiallelic rsIDs.
+- Added Task 16A regressions for unknown rsID no-hit, rsID requested-allele
+  mismatch, malformed requested allele, explicit multiallelic alternate
+  allowlist composition, and a direct submitted-variant true no-hit that proves
+  dbSNP/ClinVar/transcript warnings remain visible without substituting any
+  fixture record.
+- Audited the CAR #4 publication cache path. Current lookup responses rebuild
+  `PublicationLiterature.scope_counts` from cached PubMed/LitVar summaries
+  instead of directly hydrating old `publication_data.ep_vlex`; legacy cache
+  rows lacking `scope_counts` therefore remain response-safe.
+- Added variant-cache regressions proving new cache rows preserve
+  `ep_vlex.scope_counts`, and legacy `ep_vlex` rows without `scope_counts`
+  still hydrate response-level `scope_counts`: variant count remains deduped
+  from article PMIDs, while missing cached PubMed `gene_scope` metadata fails
+  closed to `gene.total_count=None` / `count_kind="unavailable"`.
+- Used read-only subagents for bounded Task 16A and publication-cache audits;
+  their findings drove the true no-hit and legacy-cache regression coverage.
+- A separate read-only `pm-tools` research subagent reviewed
+  `https://github.com/lescientifik/pm-tools` per Steven request. Recommendation:
+  do not adopt it as a dependency or shell out to it; at most consider small,
+  reviewed adaptations of PubMed XML parsing and future PMC/NXML reference
+  extraction behind Eamos provenance, tests, and source policy.
+
+Verification:
+- `python -m pytest app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_dbsnp_local_adapter.py app/backend/tests/test_clinvar_local_adapter.py app/backend/tests/test_transcript_model_store.py app/backend/tests/test_repeatmasker_local_adapter.py -q`
+  -> passed.
+- `python -m pytest app/backend/tests/test_variant_cache.py app/backend/tests/test_publication_literature.py app/backend/tests/test_variant_report_publication_functional_integration.py app/backend/tests/test_variant_search_integration.py -q`
+  -> passed.
+- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_source_cache.py -q`
+  -> passed.
+- `python -m ruff check app/backend/app/services/local_evidence_orchestrator.py app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_variant_cache.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/backend/app/services/local_evidence_orchestrator.py app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_variant_cache.py`
+  -> passed after formatting `test_variant_cache.py`.
+- `git diff --check` -> passed with only CRLF conversion warnings.
+
+Guardrails held:
+- No runtime local-source wiring into lookup/search/gene-viewer/Workbench
+  routes; the local evidence gate remains disabled by default and unused by
+  public routes.
+- No provider/source-cache rewiring, frontend/backend.ts mirror edits,
+  Supabase/object-storage/startup downloads, production source downloads/
+  imports, `/runs`, AlphaMissense display/runtime scoring, restricted
+  predictor unlocks, destructive git, stash, reset, clean, commit, push, WSL,
+  or Docker.
+
 ## Session 82 - 29 May 2026 - M-006 CAR #4 gene-scoped publication count contract
 
 Completed the backend-led CAR #4 contract slice for M-006 / M10a. Publication

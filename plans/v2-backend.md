@@ -24,6 +24,49 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-29, Codex):
+- FULL-GENE-VIEWER-LOCAL-COORDINATE-RULER is implemented and browser-verified
+  in `app/web`. The full-gene row model now carries local 1-based sequence
+  start/end positions, and the viewer defaults to FASTA-style row labels
+  (`1-80`, `81-160`, etc. for the current 80 bp rows) instead of forcing
+  genomic coordinates down every row. A compact `1-based` / `Genomic` toggle
+  preserves absolute coordinate mode, while the true genomic locus span remains
+  in the header. Narrow/mobile layout now clips long base strings inside the
+  sequence column so the right-side row-end coordinate remains visible. Verified
+  with app/web `tsc --noEmit`, app/frontend `tsc --noEmit`, backend
+  `test_gene_viewer.py`, and Chrome/Playwright on RPE65 + ABCA4 full-gene
+  routes against the live Render backend proxy.
+- RPE65-FULL-GENE-VIEWER-COUNT-COHERENCE is patched and verified. The
+  full-gene `full_locus` path had already been fixed/live-verified at
+  `21,139 bp`; this follow-up updates the remaining window/sample/scaffold
+  values and visible Workbench text that still said `21,138` under
+  `app/backend`, `app/web`, and `app/frontend`. The corrected value matches
+  the inclusive `chr1:68,428,820-68,449,958` span. Focused backend
+  `test_gene_viewer.py`, app/web `tsc --noEmit`, app/frontend `tsc --noEmit`,
+  and `git diff --check` passed.
+- TASK-16A-LOCAL-EVIDENCE-CACHE-HARDENING is implemented and verified
+  fixture-only. `LocalEvidenceOrchestrator.resolve_rsid()` now validates
+  malformed `requested_alt` before any local dbSNP/ClinVar/transcript/
+  RepeatMasker/sequence composition, and reports explicit
+  `rsid_allele_mismatch` for valid requested alleles absent from a dbSNP rsID
+  record. Focused Task 16A tests now cover unknown rsID no-hit, rsID allele
+  mismatch, malformed requested allele, explicit multiallelic alternate
+  allowlist composition, direct submitted-variant true no-hit, existing
+  dbSNP/ClinVar/transcript/RepeatMasker composition, disabled-by-default gate,
+  unknown flow, and explicit-flow allowlist behavior. The CAR #4
+  publication-cache audit found current lookup hydration response-safe for
+  older `publication_data.ep_vlex` blobs without `scope_counts`; new tests
+  prove response-level `scope_counts` are rebuilt from cached PubMed/LitVar
+  summaries, variant count remains deduped from article PMIDs, and missing
+  cached PubMed gene-scope metadata fails closed to `gene.total_count=null` /
+  `count_kind="unavailable"`. Focused local-source pytest, publication/cache/
+  source-cache/frontend-contract regressions, Ruff, Black check, and
+  `git diff --check` passed. No runtime local-source route/provider/source-
+  cache wiring, frontend mirror edits, production source downloads/imports,
+  WSL, Docker, commit, or push. Separate read-only `pm-tools` research found
+  it is a generic PubMed/PMC CLI, not a precision-medicine source model; do
+  not adopt it as a dependency or shell out to it, but consider small reviewed
+  PubMed XML parsing / future NXML reference-extraction ideas behind Eamos
+  provenance, tests, and source policy.
 - M-006-CAR-4-GENE-SCOPED-PUBLICATION-COUNT is implemented and verified
   backend-side. `PublicationLiterature` and `PublicationsCallout` now expose
   additive `scope_counts`: `variant` preserves the existing deduped PMID count

@@ -16,16 +16,16 @@
 
 - **Claude:** IDLE @ 2026-05-29 01:25 +1000 (anchor: `c83b8c6` on `origin/main`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
 
-- **Codex:** IDLE @ 2026-05-29 02:19 +1000 - M-006 / CAR #4
-  backend-led gene-scoped publication count contract complete and verified.
-  Additive `scope_counts` now separates variant deduped PMID counts from
-  gene-wide source-reported PubMed counts; `/lookup/publications` accepts
-  `scope: "variant" | "gene"`; both `backend.ts` mirrors carry the contract.
-  Focused backend/contract pytest, Ruff, Black check, both frontend
-  `tsc --noEmit`, and `git diff --check` passed. No FE renderer live-wire,
-  runtime local-source wiring, Supabase/object-storage/startup download/
-  report/Workbench provider rewiring, `/runs`, AlphaMissense, WSL, Docker,
-  destructive git, stash, reset, or clean.
+- **Codex:** IDLE @ 2026-05-29 03:14 +1000 - Task 16A local-evidence/cache
+  hardening remains complete; RPE65 count coherence is patched; actual
+  full-gene viewer numbers issue is now corrected and browser-verified. Row
+  coordinates default to local 1-based sequence positions with right-side row
+  end labels, plus a Genomic toggle for absolute coordinates. Claude handoff
+  received: Wave-3/Wave-4 FE commits `00b30c2`, `4753042`, `013b319` shipped
+  on main, no new CARs opened, Task 16A untouched by Claude. Local Next dev
+  server remains running at `http://localhost:3000` for inspection. No
+  production source downloads/imports, WSL, Docker, destructive git, stash,
+  reset, clean, commit, or push.
 
 ## Log Edit-Lock
 
@@ -35,12 +35,28 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-29 02:19 +1000 - Codex (M-006 CAR #4 contract verified)
+UNLOCKED - 2026-05-29 03:14 +1000 - Codex (full-gene coordinate ruler correction logged)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED Task 16A local-evidence/cache hardening**
+  (2026-05-29 02:48 +1000)
+  - Scope: `app/backend/app/services/local_evidence_orchestrator.py`,
+    `app/backend/tests/test_local_evidence_orchestrator.py`,
+    `app/backend/tests/test_variant_cache.py`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: malformed rsID `requested_alt` fails closed before local
+    source composition; rsID requested-allele mismatches now have a distinct
+    state; local-evidence tests cover no-hit, malformed/mismatched allele,
+    explicit multiallelic allowlist, gate disabled/unknown/allowlist flows;
+    legacy `publication_data.ep_vlex` cache rows without `scope_counts` still
+    rebuild response counts safely.
+  - Verification: focused local-source pytest, publication/cache/source-cache/
+    frontend-contract regressions, Ruff, Black check, and `git diff --check`
+    passed.
 
 - **Codex RELEASED M-006 / CAR #4 gene-scoped publication count contract**
   (2026-05-29 02:19 +1000)
@@ -1754,75 +1770,101 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-29 02:19 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-29 03:13 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-29 02:19 +1000 - Codex):**
-Completed M-006 / CAR #4, the backend-led gene-scoped publication count
-contract slice. Claude can now consume a stable additive contract for the
-`PublicationsCallout` variant/gene toggle.
+**Latest Codex update (2026-05-29 03:13 +1000 - Codex):**
+Corrected the actual full-gene viewer coordinate-ruler issue Steven meant.
+Full-gene row labels now default to local 1-based sequence positions with
+right-side row-end labels, plus a `Genomic` toggle for absolute coordinates.
+Runtime local-source routing remains disabled by default and unused by public
+routes.
 
 **State:**
 - Repo root remains `D:\eamos`; current branch is the intended `main` tracking
   `origin/main`.
-- `PublicationLiterature` and `PublicationsCallout` now expose
-  `scope_counts`.
-- `scope_counts.variant` is the existing EP-VLEx deduped PMID inventory
-  (`count_kind="deduped_pmids"`). This preserves the variant count semantics.
-- `scope_counts.gene` is a separate PubMed source-reported gene-wide count
-  (`count_kind="gene_wide_source_count"`) when available. PubMed failures or
-  missing count metadata fail closed to `total_count=null` with scoped
-  warnings.
-- `/api/v1/lookup/publications` accepts `scope: "variant" | "gene"`. Gene
-  scope returns a count-only response with no article rows.
-- The RPE65 fixture is explicit: variant publication count remains `3`; gene
-  source count is fixture `816`.
-- Both frontend `backend.ts` mirrors are byte-identical and include
-  `PublicationScopeCount` / `PublicationScopeCounts`. `app/web/lib/api.ts`
-  mirrors the request `scope` field.
-- The earlier indexed-reader pytest cleanup remains part of this Codex
-  worktree: lazy `app.services.__init__`, lazy app/TestClient/reportlab imports
-  in `tests/conftest.py`, and non-Windows NumPy in backend requirements for
-  pyBigWig on Linux.
-- The `a23a324` `SourceBackedGeneViewerProvider.viewer()` full_gene fallback
-  for the curated stress matrix remains preserved.
+- `LocalEvidenceOrchestrator.resolve_rsid()` now rejects malformed
+  `requested_alt` values before any dbSNP/ClinVar/transcript/RepeatMasker/
+  sequence composition and returns a distinct `rsid_allele_mismatch` state for
+  valid requested alleles absent from a dbSNP rsID record.
+- Task 16A tests now cover local dbSNP/ClinVar/transcript/RepeatMasker
+  composition, unknown rsID no-hit, malformed allele, mismatched allele, direct
+  submitted-variant true no-hit, unknown runtime flow, disabled default gate,
+  and explicit-flow allowlist behavior.
+- CAR #4 cache audit found current lookup hydration safe for older cached
+  `publication_data.ep_vlex` blobs without `scope_counts`; response-level
+  `scope_counts` are rebuilt from cached PubMed/LitVar summaries.
+- Variant count semantics remain deduped article PMIDs; missing cached PubMed
+  `gene_scope` metadata fails closed to `gene.total_count=null` /
+  `count_kind="unavailable"`, not a fabricated gene count.
+- `pm-tools` research completed read-only: do not adopt or shell out to the
+  package; only consider small reviewed PubMed XML parsing and future
+  PMC/NXML reference-extraction ideas behind Eamos provenance/tests/source
+  policy. No Eamos code changed for that evaluation.
+- The RPE65 full-gene `full_locus` path had already been fixed/live-verified
+  at `21,139 bp`; remaining backend/web/frontend RPE65 window/sample/scaffold
+  values and visible Workbench text now also use `21,139`, matching the
+  inclusive `chr1:68,428,820-68,449,958` span.
+- `app/web` full-gene viewer now carries local sequence start/end per row and
+  defaults to `1-based` labels. With the current 80 bp rows, row one reads
+  `1` on the left and `80` on the right, row two `81` and `160`; the
+  `Genomic` toggle preserves the prior absolute coordinate labels. The genomic
+  locus span stays in the header.
 
 **Verification:**
-- `python -m pytest app/backend/tests/test_publication_literature.py app/backend/tests/test_lookup_section_fetch_contract.py app/backend/tests/test_variant_report_publication_functional_integration.py app/backend/tests/test_variant_search_integration.py app/backend/tests/test_frontend_contract.py app/backend/tests/test_tool_invariants.py::test_pubmed_no_hit_miss_uses_empty_raw -q`
+- `python -m pytest app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_dbsnp_local_adapter.py app/backend/tests/test_clinvar_local_adapter.py app/backend/tests/test_transcript_model_store.py app/backend/tests/test_repeatmasker_local_adapter.py -q`
   passed.
-- `python -m ruff check app/backend/app app/backend/tests` passed.
-- `python -m black --check --target-version py310 app/backend/app app/backend/tests`
-  passed after formatting two touched tests.
-- `cd app/web && .\node_modules\.bin\tsc.cmd --noEmit` passed.
-- `cd app/frontend && .\node_modules\.bin\tsc.cmd --noEmit` passed.
-- `git diff --check` passed with only existing CRLF conversion warnings.
+- `python -m pytest app/backend/tests/test_variant_cache.py app/backend/tests/test_publication_literature.py app/backend/tests/test_variant_report_publication_functional_integration.py app/backend/tests/test_variant_search_integration.py -q`
+  passed.
+- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_source_cache.py -q`
+  passed.
+- `python -m ruff check app/backend/app/services/local_evidence_orchestrator.py app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_variant_cache.py`
+  passed.
+- `python -m black --check --target-version py310 app/backend/app/services/local_evidence_orchestrator.py app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_variant_cache.py`
+  passed after formatting `test_variant_cache.py`.
+- `git diff --check`
+  passed with only CRLF conversion warnings.
+- RPE65 count follow-up verification: `python -m pytest
+  tests/test_gene_viewer.py -q` from `app/backend`, app/web
+  `.\node_modules\.bin\tsc.cmd --noEmit`, app/frontend
+  `.\node_modules\.bin\tsc.cmd --noEmit`, `rg -n "21138|21,138"
+  app\backend app\web app\frontend`, and `git diff --check` all passed
+  (rg returned no matches; diff check had only CRLF warnings).
+- Full-gene coordinate-ruler verification: app/web `tsc --noEmit`,
+  app/frontend `tsc --noEmit`, backend `test_gene_viewer.py`, and
+  Chrome/Playwright browser checks against local Next (`http://localhost:3000`)
+  proxying live Render all passed. ABCA4 full gene defaults to `1-based`
+  first rows `1-80`, `81-160`, `161-240`; `Genomic` changes row one to
+  `93,992,834-93,992,913`. RPE65 full gene defaults to `1-80`; `Genomic`
+  changes row one to `68,428,820-68,428,899`. Mobile RPE65 keeps the
+  right-side row-end label visible. Final viewer API trace returned 200s;
+  one earlier 503 during browser verification was transient and did not
+  reproduce.
 
 **Next-session direction:**
-- Claude owns the FE renderer consumption of `scope_counts` for the
-  `PublicationsCallout` gene toggle.
-- Docker/container parity for the earlier indexed-reader focused test remains
-  optional; do not start Docker unless Steven explicitly asks for Render-like
-  container proof.
-- Still do not wire local indexed assets into web-server request paths,
-  Supabase/object-storage runtime flows, startup local-cache downloads, source
-  cache, production report providers, or Workbench providers without a separate
-  approved implementation slice.
-- A separate WSL smoke is still needed before marking UCSC `isPcr` primer
-  specificity as verified; do not run it unless the user explicitly approves
-  reopening WSL for that separate provider.
+- Continue backend own-tree hardening only if useful; runtime local-source
+  wiring into lookup/search/gene-viewer/Workbench remains separate-approval
+  work despite the native reader gate now being passed.
+- Treat `pm-tools` ideas as planning candidates only until reviewed; do not
+  install, vendor, or shell out to it without a license/dependency/provenance
+  decision.
+- Docker/container parity and WSL-native work remain Steven-approval-only.
 
-**Clear-safe:** yes. No Codex dev servers are running. No WSL or Docker was
-started for CAR #4. No local indexed asset runtime wiring, production source
-imports/downloads, live Supabase writes/resources/migrations, uploads/imports,
-env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
-restricted predictor unlocks, destructive git, stash, reset, or clean was
-performed by Codex.
+**Clear-safe:** yes for Task 16A, RPE65 count coherence, and the full-gene
+coordinate-ruler correction. A local Next dev server is intentionally running
+at `http://localhost:3000` with `API_PROXY_TARGET=https://eamos-dev.onrender.com`
+for Steven to inspect the Workbench. No runtime local-source wiring,
+provider/source-cache rewiring, production source imports/downloads, live
+Supabase writes/resources/migrations, uploads/imports, env/deploy mutation,
+`/runs`, AlphaMissense display/runtime scoring, restricted predictor unlocks,
+WSL, Docker, destructive git, stash, reset, clean, commit, or push was
+performed by Codex. `pm-tools` research was read-only and made no repo changes.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-29 02:19 +1000 · Codex M-006 CAR #4 gene-scoped publication contract`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 82, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: Codex delivered CAR #4 for M-006/M10a. PublicationLiterature/PublicationsCallout now expose scope_counts; variant keeps deduped PMID semantics; gene carries a PubMed source-reported gene-wide count when available and fails closed to null warnings when unavailable. /lookup/publications accepts scope=variant|gene. RPE65 fixture: variant=3, gene=816. backend.ts mirrors and app/web API request type updated.`
-`Verification: focused publication/lookup/frontend-contract pytest plus PubMed no-hit invariant, Ruff, Black check, app/web tsc, app/frontend tsc, and git diff --check passed.`
-`Next: Claude can render PublicationsCallout against scope_counts. Optional Docker parity for the earlier indexed-reader proof remains Steven-approval-only. Keep WSL approval-only.`
-`Guardrails: preserve a23a324 full_gene fixture fallback; no runtime local-source wiring, Supabase/object-storage/startup download/report/Workbench provider wiring, /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, production source downloads, or restricted predictor unlocks. End clear-safe.`
+`# Resume prompt · 2026-05-29 03:13 +1000 · Codex Task 16A + full-gene coordinate ruler`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 85, 84, 83, and 82, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
+`Delta: Codex completed fixture-only Task 16A hardening/CAR #4 cache tests, corrected RPE65 count mirrors to 21,139, then fixed the actual full-gene viewer numbers issue: row labels now default to local 1-based sequence coordinates with right-side row-end labels and a Genomic toggle for absolute positions.`
+`Verification: Task 16A checks passed; RPE65 count checks passed; coordinate-ruler follow-up passed app/web tsc, app/frontend tsc, backend test_gene_viewer.py, Chrome/Playwright desktop ABCA4/RPE65 and mobile RPE65 browser checks, and git diff --check with only CRLF warnings.`
+`Next: runtime local-source wiring has Steven approval as the next backend slice but remains separate work. pm-tools research says do not adopt as a dependency. Docker/WSL remain Steven-approval-only. Local Next dev server is running at http://localhost:3000 proxying live Render for Workbench inspection.`
+`Guardrails: preserve a23a324 full_gene fixture fallback; no Supabase/object-storage/startup download/report provider wiring, /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, production source downloads, restricted predictor unlocks, WSL, Docker, commit, or push. End clear-safe.`
