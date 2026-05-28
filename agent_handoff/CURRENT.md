@@ -14,18 +14,17 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-29 01:25 +1000 (anchor: `c83b8c6` on `origin/main`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
+- **Claude:** IDLE @ 2026-05-29 03:47 +1000 (anchor: `244ba62` on local `main`, 7 ahead of `origin/main`) — **Hard Rule 10 Option A complete: LazySection v1 SHIPPED (`244ba62`).** New FE primitive at `app/web/components/report/LazySection.tsx`: IntersectionObserver wrapper around `fetchLookupSections({ ..., include: [sectionId] })` with `eagerData` short-circuit; wraps `<PubMedSection>` in `ReportClient.tsx` §5. Eager-path browser-verified at `/report?demo` (sentinel absent, zero `/api/v1/lookup/sections` calls, no console errors). Lazy fetch branch is dead-code-until-M-007 trims the eager `publications_literature` payload; `:8000/api/v1/lookup/sections` returned timeouts in this session's offline-mock environment so deeper e2e verification deferred. `app/web` tsc clean. DL-019 honoured (only LazySection.tsx + ReportClient.tsx staged; Codex's pre-existing working-tree edits on `app/backend/app/services/gene_viewer.py` + agents/chat/main/config/schemas + new `test_chat_service.py` left untouched). Major-boundary CURRENT.md replace landed: prior Claude — Last Task & Resume narrative archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md`. **Push held** per Steven's cadence. Prior IDLE state (Phase 2 branch rename + service flip @ 2026-05-29 01:25 +1000, anchor `c83b8c6`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
 
-- **Codex:** IDLE @ 2026-05-29 03:14 +1000 - Task 16A local-evidence/cache
-  hardening remains complete; RPE65 count coherence is patched; actual
-  full-gene viewer numbers issue is now corrected and browser-verified. Row
-  coordinates default to local 1-based sequence positions with right-side row
-  end labels, plus a Genomic toggle for absolute coordinates. Claude handoff
-  received: Wave-3/Wave-4 FE commits `00b30c2`, `4753042`, `013b319` shipped
-  on main, no new CARs opened, Task 16A untouched by Claude. Local Next dev
-  server remains running at `http://localhost:3000` for inspection. No
-  production source downloads/imports, WSL, Docker, destructive git, stash,
-  reset, clean, commit, or push.
+- **Codex:** IDLE @ 2026-05-29 03:33 +1000 - Hard Rule 10 raise-the-bar
+  policy is now canonical in `agent_handoff/README.md` via Claude commit
+  `5c9cc68`; Codex added a `CODEX.md` reminder to name the session's net-new
+  capability/tool/performance/verification deliverable at startup. Task 16A
+  local-evidence/cache hardening and full-gene 1-based row-ruler fix are
+  committed locally (`dfaf561`, `43b0b1a`, `02112cd`); no push. Next Codex
+  session should choose an ambitious safe deliverable under Hard Rule 10, with
+  runtime local-source wiring and all production/Supabase/download guardrails
+  still approval-only.
 
 ## Log Edit-Lock
 
@@ -35,12 +34,17 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-29 03:29 +1000 - Claude (Hard Rule 10 raise-the-bar added to README)
+UNLOCKED · 2026-05-29 03:47 +1000 · Claude (Last Task & Resume major-boundary replace landed; prior section archived; IDLE)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED CODEX.md Hard Rule 10 pointer**
+  (2026-05-29 03:33 +1000)
+  - Scope: `CODEX.md` Codex-specific reminder only; canonical protocol remains
+    in `agent_handoff/README.md`.
 
 - **Codex RELEASED Task 16A local-evidence/cache hardening**
   (2026-05-29 02:48 +1000)
@@ -1696,76 +1700,88 @@ DONE entries older than the last major boundary into the relevant plan/log.
   un-gated (a mixed-worktree checkpoint commit still warrants an explicit
   ask). See `RISKS.md`.
 
-## Claude â€” Last Task & Resume
+## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-05-28 02:56 +1000 Â· Claude. Prior section
-(2026-05-28 01:31 +1000 Â· CAR #2 OPEN + landing token polish) archived
-verbatim to `agent_handoff/archive/2026-05-28-claude-section-pre-m4-ship.md`
-per Hard Rule 9. Full incremental detail in
-`~/.claude/plans/next-session-eamos.md`.
+Section last edited: 2026-05-29 03:47 +1000 · Claude. Prior section
+(2026-05-28 02:56 +1000 · M-004 / M8 SHIPPED end-to-end) archived verbatim to
+`agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md` per
+Hard Rule 9. Full incremental detail in
+`~/.claude/plans/next-session-eamos.md`. The intervening sessions
+(2026-05-28 mobile sweep + M-005 + M-006 + Phase 2 branch rename +
+Hard Rule 10 codification) did not refresh this narrative; their authority
+lives in the per-commit messages + the `## Active Status` heartbeat history.
 
-**Session 2026-05-28 (very late) â€” M-004 / M8 SHIPPED end-to-end (`6049df1`) Â· Â§10.9 plan flip (`33ddb04`) Â· parallel-safe MetricBelt live-specimen (`ac1f598`). 8 Claude commits this session total, 11 total ahead of origin since the prior push gate. CAR #2 CLOSED end-to-end.**
+**Session 2026-05-29 (very early) — Hard Rule 10 slice **Option A**: LazySection v1 SHIPPED (`244ba62`). New FE primitive: IntersectionObserver-driven section loader with `eagerData` short-circuit; wraps PubMedSection so today's offline demo + eager live keep rendering with zero fetches, and the same call site flips to lazy-fetch via `/api/v1/lookup/sections` the moment Codex's M-007 thins the eager payload. Local `main` now 7 ahead of `origin/main` (244ba62 stack tip).**
 
-Branch `checkpoint/v2-batches-2026-05-17`. Origin at `eb98f8b`; local **11
-ahead of origin**: `472a7c3` â†’ `376b736` â†’ `f2962b7` (prior-session) â†’
-`51dfed5` (M-003 live-wire) â†’ `beb81b0` (ClinVar surface) â†’ `c546901`
-(M3.6 submitter half) â†’ `01fc466` (landing token polish) â†’ `84c93bd`
-(CAR #2 docs) â†’ **`6049df1` (M-004 FE ship-then-rip)** â†’ **`33ddb04`
-(Â§10.9 plan flip)** â†’ **`ac1f598` (MetricBelt live-specimen)**.
-**Not pushed** â€” push remains gated. Codex's uncommitted backend WIP
-(FGV-001 full-locus contract per their 02:41 release, CAR #2 fixtures, +
-the byte-identical backend.ts mirrors) untouched on the worktree; no
-Codex files ever staged (DL-019 honoured on all 8 commits).
+Branch `main` (post-Phase-2 rename). Origin at `c83b8c6`; local **7 ahead
+of origin**:
+- `00b30c2` feat(report) M-006 / M10a gene-scoped publication count
+- `4753042` chore(report) M-005 / M9 RPE65 sample carries
+  `report_profile.expert_panel`
+- `013b319` fix(report) M-007 / M11 mobile sweep batch 1
+- `dfaf561` test(backend) Codex local-evidence cache hardening
+- `43b0b1a` fix(workbench) Codex 1-based row ruler
+- `02112cd` docs(handoff) Codex hardening + viewer fixes
+- `5c9cc68` docs(handoff) Hard Rule 10 added
+- **`244ba62` feat(report) LazySection v1 + PubMedSection eagerData
+  short-circuit** ← this slice's tip
 
-**This-slice closes (3 commits since the prior heartbeat at 01:31):**
+Push gate held per Steven's cadence. Codex working-tree changes
+(`app/backend/app/services/gene_viewer.py` + several `app/backend/app/agents/*`,
+`config.py`, `chat.py`, `chat_service.py`, `main.py`, `schemas/chat.py`
+modifications + the new `app/backend/tests/test_chat_service.py`) were
+present in the worktree at session start and **left untouched**; Hard
+Rule 1 + DL-019 honoured (only `app/web/components/report/LazySection.tsx`
++ `app/web/components/report/ReportClient.tsx` staged in `244ba62`).
 
-1. **`6049df1` â€” `feat(web): M-004 calibrated in-silico ship-then-rip (DL-021)`.** Consumes Codex's CAR #2 backend (delivered 02:06): `calibrated_label` / `calibration_bucket` (RampVerdict 5-tier) / `calibration_method` / `calibration_version` on each `ComputationalPredictorRow` in `ReportPayload.report_profile.computational_deep_dive.predictors`. Built `CalibratedInSilicoTable` (5-col: Engine Â· Calibrated label = `ClassificationBadge` on `calibration_bucket` + raw `calibrated_label` text + `calibration_method` Â· Raw score Â· Threshold Â· Version; null bucket = neutral "No published calibration" with raw score + version still visible) + `CompositeVerdictBar` (StackedCountBar wrapper aggregating only non-null buckets, "{N} of {M} engine(s) calibrated" micro-label). Mounted in `ReportClient` Â§2 above `EvidenceTable`. **`InSilicoGrid` removed end-to-end** (mount + import + file). `report-tsv.ts` / `report-html.ts` consume `payload.in_silico_predictions` directly so copy/export pipelines are unchanged. AM filtered at render in both new components per [[project_alphamissense_plan]] (two `.filter(p => p.name !== 'AlphaMissense')` calls â€” one-line revert each). RPE65 validates: SpliceAI 0.94 â†’ VUS, REVEL â†’ LP, CADD PHRED â†’ VUS, PrimateAI-3D + MetaLR â†’ null (no policy) render as the neutral cell.
+**This-slice closes (1 commit since session start at 03:36):**
 
-2. **`33ddb04` â€” `docs(plan): M-004 / M8 + CAR #2 â†’ SHIPPED in Â§10.9 wave table`.** Plan flip only â€” `plans/v2-redesign-impeccable.md` Â§10.9 wave table now marks M-004 / M8 / CAR #2 as SHIPPED / [DONE].
-
-3. **`ac1f598` â€” `refactor(web): MetricBelt live-specimen â€” drive from RPE65 report payload`.** Parallel-safe parking slice (shipped while Codex held the FGV-001 Log Edit-Lock 02:19â€“02:41). `app/web/components/landing/MetricBelt.tsx` previously rendered a hand-crafted `SPECIMEN` constant with an LP-flavoured RPE65 call-card set; backend now emits a VUS call (same drift `sample-report.ts:6-10` already flagged for the report sample itself). Refactor pulls four cards + variant header from `RPE65_SAMPLE.report_payload.call_cards.cards` + `variant_summary_rows[0]` (read-only via the existing typed `sample-report.ts` import). Same policy as `CallCardsGrid`: `SUPPRESSED_WARNINGS = {alphamissense_on_hold}`, top-3 badge slice, warning-or-meta footer, identical `BADGE_TONES` map. Pure FE; no contract change; tsc clean. Landing specimen now in lockstep with what `/report` actually renders for the canonical RPE65 demo. MetricBelt drops off the parked-list.
-
-**CAR #2 â€” M-004 / M8 calibrated-predictor fields â€” CLOSED end-to-end.**
-- Opened by Claude 2026-05-28 01:31 +1000 (`84c93bd`).
-- Closed by Codex 2026-05-28 02:06 +1000 with centralized policy in `app/backend/app/services/computational_calibration.py` (REVEL / CADD PHRED / canonical PrimateAI use Pejaver 2022 / ClinGen SVI PP3/BP4; SpliceAI uses Walker 2023 / ClinGen SVI splicing; MetaLR + PrimateAI-3D return explicit null). Codex's verification: focused CAR #2 pytest + full backend pytest + Ruff + Black + both frontend tsc all green.
-- FE shipped by Claude 2026-05-28 02:29 +1000 (`6049df1`); already marked [DONE] in `## Cross-Agent Requests` (line 1451).
+1. **`244ba62` — `feat(report): add LazySection v1 (IntersectionObserver + eagerData) on PubMedSection`.** New FE primitive at `app/web/components/report/LazySection.tsx`: a generic IntersectionObserver wrapper around `fetchLookupSections({ ..., include: [sectionId] })` (M11 `/api/v1/lookup/sections` endpoint) with a strict `eagerData` short-circuit. When `eagerData != null` the component pass-through renders `children(eagerData)` with no observer attached and no fetch fired — the path the offline `?demo` RPE65 sample + today's eager live response both take. When `eagerData == null` and a `LookupRequest` is provided, it mounts a sentinel, waits for IntersectionObserver to fire (default `rootMargin: '200px'` so the round-trip overlaps the user's approach), and one-shot fetches the section. SSR / no-IO fallback skips the observer and fetches immediately so a section is never stuck on placeholder. Default error view has a retry button that resets the one-shot guard. Mounted at the `<PubMedSection>` call site in `ReportClient.tsx` §5; the `unwrap` callback narrows `LookupSectionEnvelope.payload` to `PublicationLiterature`. Today the eager path is always taken because both demo (`RPE65_SAMPLE.report_payload.publications_literature`) and eager live carry the section inline — when Codex's M-007 thins that payload, the same call site flips to the lazy path with zero further FE work.
 
 Verified:
-- `cd app/web && ./node_modules/.bin/tsc --noEmit` silent after `6049df1` and again after `ac1f598`.
-- DL-019 honoured on all 8 commits this session â€” explicit `git add -- <paths>`; staged file list verified before each commit (no Codex backend WIP swept).
-- Browser smoke deferred â€” visual deltas (Â§2 `CompositeVerdictBar` above the calibrated table + the landing `MetricBelt` swap from LP-flavoured mock to live VUS) queued for next push + Vercel preview.
+- `cd app/web && npx tsc --noEmit` silent post-commit.
+- Browser eager-path proof at `http://localhost:3000/report?demo` via chrome-devtools: `data-lazy-section="publications"` sentinel absent; "Publication literature" heading rendered; zero `/api/v1/lookup/sections` calls in `list_network_requests`; zero console errors.
+- Lazy fetch path is dead-code-until-M-007 (production eager payload still ships `publications_literature` inline); deeper e2e verification deferred to that slice, as the live backend at `:8000/api/v1/lookup/sections` returned timeouts in this session's offline-mock environment and cannot exercise the fetch branch usefully right now.
+- DL-019 honoured: only `app/web/components/report/LazySection.tsx` + `app/web/components/report/ReportClient.tsx` staged. Codex's pre-existing working-tree edits (`app/backend/app/services/gene_viewer.py` + agents/chat/main/config + new `test_chat_service.py`) left untouched.
 
 **Wave status (refreshed):**
-- **Wave 1** â€” M-001 + M-003 + M3.6 all COMPLETE. **M3 fully closed this slice** via the M-004 ship-then-rip (DL-021).
-- **Wave 2 (collapsed)** â€” Done (Codex M11 contract sketch `9a3d3a6` + Claude TS mirror `d0f4eae`).
-- **Wave 3 (parallel)** â€” M7 live-wired (`51dfed5`); **M8 FE SHIPPED this slice (`6049df1`); CAR #2 CLOSED end-to-end**; M9 / M10a unstarted (each opens its CAR at slice start per DL-002).
-- **Wave 4 / 5** â€” unchanged from Â§10.9.
+- **Wave 1** — M-001 + M-003 + M3.6 + M-004 / M8 all COMPLETE (M3 fully closed in the prior session via DL-021 ship-then-rip).
+- **Wave 2 (collapsed)** — Done.
+- **Wave 3 (parallel)** — M7, M-004 / M8 SHIPPED. **M-005 / M9** (`4753042` exercised the contract path with RPE65 sample's `report_profile.expert_panel`); **M-006 / M10a** (`00b30c2` rendered gene-scoped pub count in callout — CAR #4 closed prior to this session).
+- **Wave 4** — **M-007 / M11 in flight.** Mobile sweep batch 1 SHIPPED (`013b319`); **LazySection v1 plumbing SHIPPED this slice (`244ba62`)** ready for the lazy-section ship once eager payload is thinned; mobile sweep batches 2 (375px) + 3 (768px) still pending.
 
-**Coordination invariants (DL-019 + DL-002):** every Claude commit explicit-pathspec only â€” 8 commits this session, all honoured. CARs open per-slice, never batched up-front; CAR #2 closed end-to-end this slice and there is currently **no open CAR**. M5 Workbench decoupled â€” Codex's FGV-001 release at 02:41 is the BE contract for that lane (FE consumer surface waits for FGV-002 fixture/source hydration; calling the `window.kind="full_gene"` path before that would hit the fail-closed runtime guard Codex wired). AskEamos COMING SOON. AlphaMissense hidden in public display â€” the filter now lives at three render sites (`MetricBelt` + `CalibratedInSilicoTable` + `CompositeVerdictBar`); re-enable = remove the three filters, one-line revert each.
+**Coordination invariants:** Hard Rule 1 (no overwriting Codex's work) honoured — Codex's uncommitted backend agents/chat/viewer working-tree edits left exactly as found at session start. Hard Rule 9 (replace-not-stack at major boundaries) honoured — prior Claude section (2026-05-28 02:56) archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md` before this replace. Hard Rule 10 (raise-the-bar / net-new this session) honoured — **LazySection v1 is the new capability**: a real perf primitive with eager-fallback that activates the moment Codex's M-007 trims the eager payload, plus stronger verification (in-browser eager short-circuit confirmed, no network leak). DL-019 honoured (explicit pathspec stage).
 
 **Open / next-session (priority order):**
-1. **M-005 / M9 ClinGen VCEP narrative + criteria chips** â€” opens **CAR #3** at slice start. Codex's preferred CAR #3 framing (per 02:58 +1000 reply): **exact source identity/keying requirements for ClinGen VCEP/EREP, expected response fields, cache freshness/provenance needs, and which report section consumes it first.** (Public ClinGen Evidence Repository â†’ provider-backed source-cache; keyed on CAID / ClinVar VID / normalized HGVS+gene.)
-2. **M-006 / M10a gene-scoped publication count toggle** â€” opens **CAR #4** at slice start. Codex's preferred CAR #4 framing (per 02:58 +1000 reply): **exact gene-count semantics for publication scope, whether count is variant-deduped vs gene-wide source count, and what should happen when live sources disagree or time out.** (`PublicationsCallout`'s gene toggle is already wired with "Loadingâ€¦" placeholder + inbound `?pubScope=` URL param.)
-3. **M5 Workbench Phase 2** â€” decoupled lane; Codex's FGV-001 (`window.kind="full_gene"` + optional `GeneViewerResponse.full_locus` + projection/range/codon/feature interval models + rendering hints) is the BE contract. FE consumer surface waits for FGV-002.
-4. **Parallel-safe landing items still parked** (MetricBelt now DONE â†’ removed): HowItWorks + FeaturesGrid de-templated (asymmetric/editorial â€” next visual win); legal pages onto warm surface + composed nav + breadcrumb; /account browser-verify; per-metric copy buttons; re-render `feat-report-cards.webp` without baked-in "alphamissense on hold" text; formal `audit` + `quality-reviewer` gates for M2 / M3.
+1. **M-007 / M11 follow-ups** — mobile sweep batches 2 (375px iPhone-SE) and 3 (768px tablet): rerun the same offender scan at each width; visual fixes only as needed. Then, once Codex ships the M11 eager-payload trim (drops `publications_literature` from the initial response when summary endpoint is the entry point), browser-verify the LazySection lazy-fetch path end-to-end. Optionally wrap **ExpertPanelSection** (`clingen_vcep`) and **CalibratedInSilicoTable** (`computational_deep_dive`) with LazySection on the same primitive — those are the other two M11 lazy-eligible sections per DL-013.
+2. **Proprietary tool (option B from prior resume, deferred)** — `scripts/eamos-report-preflight.{ps1,ts}`: mobile-overflow scan + contract-coverage diff. Lives next to `scripts/eamos-rename-branch.ps1`. Worth doing while Codex churn on contract shape is high.
+3. **Vitest (option C from prior resume, deferred)** — set up minimal Vitest scaffold in `app/web` and cover `LazySection` state machine (eager / forced-load / unwrap-null / error-retry) + `PublicationsCallout` scope branches + `ExpertPanelSection` fixture-vs-contract render parity. Needs `vitest` + `@testing-library/react` + `jsdom` adds — scope expansion, not in this session.
+4. **Parallel-safe landing items still parked** (unchanged): HowItWorks + FeaturesGrid de-templated; legal pages onto warm surface + composed nav + breadcrumb; /account browser-verify; per-metric copy buttons; re-render `feat-report-cards.webp` without "alphamissense on hold" baked-in text; formal `audit` + `quality-reviewer` gates for M2 / M3.
 
 **Resume prompt:**
-`# Resume prompt Â· 2026-05-28 02:56 +1000 Â· Claude (M-004 FE SHIPPED `6049df1` + Â§10.9 plan flip `33ddb04` + MetricBelt live-specimen `ac1f598`; CAR #2 CLOSED end-to-end; CURRENT.md major-boundary swap landed)`
-`Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE â€” full state + queue), agent_handoff/README.md (protocol), agent_handoff/CURRENT.md (## Log Edit-Lock + ## Active Status + ## Claude + ## Cross-Agent Requests â€” no open CARs as of this stamp), agent_handoff/DECISIONS.md, agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md Â§10 + Â§10.9, then git status --short --branch && git log -11 --oneline.`
-`Branch checkpoint/v2-batches-2026-05-17. Origin at eb98f8b; local 11 ahead (472a7c3 / 376b736 / f2962b7 prior + 51dfed5 / beb81b0 / c546901 / 01fc466 / 84c93bd / 6049df1 / 33ddb04 / ac1f598 this session). NOT pushed. Codex backend WIP uncommitted in worktree (FGV-001 full-locus contract per their 02:41 release + CAR #2 fixtures + byte-identical backend.ts mirrors), untouched.`
-`Delta tail this slice: 6049df1 = feat(web) M-004 calibrated in-silico ship-then-rip (DL-021); 33ddb04 = docs(plan) Â§10.9 flip; ac1f598 = refactor(web) MetricBelt live-specimen â€” drive from RPE65 report payload (parallel-safe parking item shipped while Codex held the FGV-001 lock 02:19â€“02:41). M3 fully closed.`
-`Next priority: (1) M-005 M9 ClinGen VCEP â€” opens CAR #3 at slice start; (2) M-006 M10a gene-scoped pub count â€” opens CAR #4 at slice start; (3) M5 Workbench Phase 2 (Codex FGV-001 is its BE contract; FE consumer waits for FGV-002). Parallel-safe landing parked (MetricBelt now DONE): HowItWorks/FeaturesGrid de-template, legal warm surface, /account browser-verify, per-metric copy buttons, feat-report-cards.webp re-render.`
-`Guardrails: no /runs, AlphaMissense display (filtered at 3 render sites now), Codex backend lane (app/backend/**), destructive git, push without OK. DL-019 honoured all 8 commits. Inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]). AskEamos COMING SOON ([[feedback_askeamos_parked]]). Mobile-nav no-blur preserved. End clear-safe.`
+```
+# Resume prompt · 2026-05-29 03:47 +1000 · Claude (LazySection v1 SHIPPED 244ba62; Hard Rule 10 capability slice closed)
+Eamos. Read agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Claude + ## Cross-Agent Requests), agent_handoff/README.md (protocol; Hard Rule 10 = ship net-new each session), agent_handoff/RISKS.md, plans/v2-redesign-impeccable.md §10.6 + §10.9, plans/v2-frontend.md, then git status --short --branch && git log -10 --oneline.
+
+Branch main. Origin at c83b8c6; local 7 ahead — tip is 244ba62 (LazySection v1). Not pushed (push gate held). Codex working-tree (agents/chat/viewer/.../config/main + new test_chat_service.py) untouched, Hard Rule 1.
+
+Delta this session: 244ba62 = feat(report) LazySection v1 + PubMedSection eagerData short-circuit. IntersectionObserver wrapper around fetchLookupSections; offline-demo path verified in chrome-devtools (sentinel absent, zero /api/v1/lookup/sections calls); lazy fetch branch dead-code-until-M-007. tsc clean.
+
+Next priority: (1) M-007 mobile sweep batches 2 + 3 (375px + 768px), and once Codex M-007 thins the eager payload — browser-verify the LazySection lazy branch end-to-end and consider wrapping ExpertPanelSection (clingen_vcep) + CalibratedInSilicoTable (computational_deep_dive) on the same primitive; (2) scripts/eamos-report-preflight.{ps1,ts} mobile-overflow + contract-coverage drift tool; (3) Vitest scaffold (PublicationsCallout scope branches + LazySection state machine + ExpertPanelSection contract render parity) — needs vitest+@testing-library+jsdom adds.
+
+Guardrails: stay FE-only (no app/backend/** edits); explicit-pathspec stage only (DL-019); no AlphaMissense display ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); Hard Rule 9 (CURRENT.md narrative replace-only at major boundaries, heartbeat every session); Hard Rule 10 (every session ships net-new); after each slice ships, end the turn with a paste-ready Codex handoff message ([[feedback_codex_handoff_message]]). End clear-safe.
+```
 
 ---
 
 ### Archived prior session narratives
 
 Earlier narratives:
-- 2026-05-28 01:31 +1000 (CAR #2 OPEN + landing token polish) â†’ `agent_handoff/archive/2026-05-28-claude-section-pre-m4-ship.md`
-- 2026-05-28 00:41 +1000 (M-003 live-wire + ClinVar surface + M3.6 submitter half) â†’ `agent_handoff/archive/2026-05-28-claude-section-pre-car2-landing.md`
-- 2026-05-27 23:55 /planner persist + 2026-05-27 21:50 rich-HTML copy + Workbench pass-2 slice 2 â†’ `agent_handoff/archive/2026-05-28-claude-section-pre-m3-live-wire.md`
+- 2026-05-28 02:56 +1000 (M-004 / M8 SHIPPED end-to-end) → `agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md`
+- 2026-05-28 01:31 +1000 (CAR #2 OPEN + landing token polish) → `agent_handoff/archive/2026-05-28-claude-section-pre-m4-ship.md`
+- 2026-05-28 00:41 +1000 (M-003 live-wire + ClinVar surface + M3.6 submitter half) → `agent_handoff/archive/2026-05-28-claude-section-pre-car2-landing.md`
+- 2026-05-27 23:55 /planner persist + 2026-05-27 21:50 rich-HTML copy + Workbench pass-2 slice 2 → `agent_handoff/archive/2026-05-28-claude-section-pre-m3-live-wire.md`
 
 ## Codex — Last Task & Resume
 
