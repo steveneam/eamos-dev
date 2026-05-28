@@ -39,3 +39,6 @@ node_modules_temp/
 .obsidian/
 .trash/
 .render-deploy-hook
+
+# Agent scratch workspace (Codex native-reader proof venv, Claude .scratch screenshots, etc.)
+.scratch/
