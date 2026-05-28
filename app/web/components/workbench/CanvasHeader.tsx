@@ -25,6 +25,17 @@ const ALLELES: Array<{ m: AlleleMode; label: string; title: string }> = [
   },
 ]
 
+export type ViewerMode = 'window' | 'locus'
+
+const VIEWER_MODES: Array<{ m: ViewerMode; label: string; title: string }> = [
+  { m: 'window', label: 'Window', title: 'CDS-centric window with introns collapsed' },
+  {
+    m: 'locus',
+    label: 'Full gene',
+    title: 'Full genomic locus — introns and UTRs visible',
+  },
+]
+
 const STRANDS: Array<{ s: StrandMode; label: string; title: string }> = [
   { s: 'top', label: '5′→3′', title: 'Top strand only' },
   { s: 'both', label: 'Both', title: 'Both strands' },
@@ -41,6 +52,8 @@ interface CanvasHeaderProps {
   onStrand: (s: StrandMode) => void
   alleleMode: AlleleMode
   onAlleleMode: (m: AlleleMode) => void
+  viewerMode?: ViewerMode
+  onViewerMode?: (m: ViewerMode) => void
 }
 
 export function CanvasHeader({
@@ -53,6 +66,8 @@ export function CanvasHeader({
   onStrand,
   alleleMode,
   onAlleleMode,
+  viewerMode,
+  onViewerMode,
 }: CanvasHeaderProps) {
   const meta = TOOL_META[tool]
   const [tracksOpen, setTracksOpen] = useState(false)
@@ -81,6 +96,25 @@ export function CanvasHeader({
       </div>
 
       <div className="canvas-head-right">
+        {tool === 'viewer' && viewerMode && onViewerMode && (
+          <div
+            className="sv-strand-pill sv-viewer-mode-pill"
+            role="group"
+            aria-label="Viewer mode"
+          >
+            {VIEWER_MODES.map((vm) => (
+              <button
+                key={vm.m}
+                type="button"
+                className={viewerMode === vm.m ? 'active' : undefined}
+                title={vm.title}
+                onClick={() => onViewerMode(vm.m)}
+              >
+                {vm.label}
+              </button>
+            ))}
+          </div>
+        )}
         {tool === 'viewer' && (
           <div
             className="sv-strand-pill sv-allele-pill"

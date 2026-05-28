@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
+import { adaptFullLocus, type FullLocusViewModel } from '@/lib/workbench/full-locus-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
-import { CanvasHeader } from './CanvasHeader'
+import { CanvasHeader, type ViewerMode } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
 import { viewerCollapsed } from './tools'
 import { PrimerPanel } from './primer/PrimerPanel'
@@ -16,6 +17,7 @@ import {
   type ScratchEntry,
   type SequenceViewerHandle,
 } from './viewer/SequenceViewerV2'
+import { FullLocusViewer, FullLocusUnsupportedBanner } from './viewer/FullLocusViewer'
 import { ZoomSlider } from './viewer/ZoomSlider'
 import { ZOOM_PRESETS } from './viewer/zoom-config'
 import {
@@ -85,11 +87,13 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   const [activeExon, setActiveExon] = useState(4)
 
   const [alleleMode, setAlleleMode] = useState<AlleleMode>('reference')
+  const [viewerMode, setViewerMode] = useState<ViewerMode>('window')
   const [data, setData] = useState<GeneWindowData | null>(() =>
     isDefaultViewerRequest(gene, cdna, transcript)
       ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'reference')
       : null,
   )
+  const [locusModel, setLocusModel] = useState<FullLocusViewModel | null>(null)
   const [viewerError, setViewerError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,21 +103,35 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
       if (stale) return
       setViewerError(null)
       if (!defaultRequest) setData(null)
+      if (viewerMode !== 'locus') setLocusModel(null)
     })
     getGeneViewer({
       gene,
       cdna,
       transcript,
       allele_mode: alleleMode,
+      window: viewerMode === 'locus' ? { kind: 'full_gene' } : undefined,
     })
       .then((resp) => {
-        if (!stale) setData(adaptGeneViewer(resp, alleleMode))
+        if (stale) return
+        setData(adaptGeneViewer(resp, alleleMode))
+        if (viewerMode === 'locus') setLocusModel(adaptFullLocus(resp))
+        else setLocusModel(null)
       })
       .catch(() => {
         if (stale) return
-        if (defaultRequest) {
+        if (viewerMode === 'window' && defaultRequest) {
           setData(adaptGeneViewer(GENE_VIEWER_SAMPLE, alleleMode))
           return
+        }
+        if (viewerMode === 'locus') {
+          setLocusModel({
+            kind: 'unsupported',
+            gene,
+            cdna,
+            transcript: transcript ?? '',
+            warnings: [`full_gene_request_failed:${gene}`],
+          })
         }
         setViewerError(`Sequence unavailable for ${gene} ${cdna}`)
         setData(null)
@@ -121,7 +139,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
     return () => {
       stale = true
     }
-  }, [alleleMode, cdna, gene, transcript])
+  }, [alleleMode, cdna, gene, transcript, viewerMode])
 
   const viewerRef = useRef<SequenceViewerHandle>(null)
   const collapsed = viewerCollapsed(tool)
@@ -155,10 +173,37 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
           onStrand={setStrandMode}
           alleleMode={alleleMode}
           onAlleleMode={setAlleleMode}
+          viewerMode={viewerMode}
+          onViewerMode={setViewerMode}
         />
 
         <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
-          {data ? (
+          {viewerMode === 'locus' && locusModel?.kind === 'ready' ? (
+            <FullLocusViewer model={locusModel} />
+          ) : viewerMode === 'locus' && locusModel?.kind === 'unsupported' ? (
+            <>
+              <FullLocusUnsupportedBanner
+                gene={locusModel.gene}
+                onBackToWindow={() => setViewerMode('window')}
+              />
+              {data ? (
+                <SequenceViewerV2
+                  ref={viewerRef}
+                  data={data}
+                  trackOn={trackOn}
+                  strandMode={strandMode}
+                  baseW={baseW}
+                  onBaseW={setBaseW}
+                  navCollapsed={navCollapsed}
+                  onToggleMinimap={() => setNavCollapsed((c) => !c)}
+                  alleleMode={alleleMode}
+                  onScratchChange={setScratch}
+                  onSelectionChange={setSelSummary}
+                  onActiveExonChange={setActiveExon}
+                />
+              ) : null}
+            </>
+          ) : data ? (
             <SequenceViewerV2
               ref={viewerRef}
               data={data}
