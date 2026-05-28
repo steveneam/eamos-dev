@@ -14,45 +14,30 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-29 post-`a23a324` (anchor: Render deploy `dep-d8c4rvp9rddc73f8jsu0` + `.scratch/{fgv003-rpe65,fgv003-abca4,m005-expert-panel}-*-ready.png`) — **Phase 1 (post-move verify) COMPLETE.** Codex pushed `a23a324` (M-005 ExpertPanelSection live-wire + `SourceBackedGeneViewerProvider.viewer()` full_gene fixture-fallback so the curated stress matrix renders without flipping Render `USE_REAL_APIS`). Claude triggered Render redeploy via `.render-deploy-hook` and chrome-devtools-MCP-verified through the live `eamos-dev.onrender.com` proxy: (i) **FGV-003 Full gene "ready" branch** — RPE65 c.260A>G = 21,139 bp · 265 rows · 80 bp/row · chr1:68,428,820–68,449,958 GRCh38; ABCA4 c.5435T>A = 128,315 bp · 1,604 rows · 80 bp/row · chr1:93,992,834–94,121,148 GRCh38; both with no Unsupported banner and no `Sequence unavailable` state. (ii) **M-005 ExpertPanelSection** on `/report?gene=RPE65&cdna=c.260A%3EG` rendered live `payload.report_profile.expert_panel` — IRD VCEP curation `CA189146`, Likely benign, fetched 2026-05-27, ACMG chips BS1_Strong + BS2_Supporting§ + PM2_Supporting§ + PP3_Moderate§ from ClinGen Evidence Repo 2024.06 (i.e. NOT the prior inline fixture). Dev-server cleanup: killed two orphan Next dev PIDs holding port 3000 (PID 19616 from a prior Claude session + PID 28620 left running by Codex per their "intentionally left running" note — port 3000 now free); Codex's backend `python` on PID 28252 left untouched ([[feedback_background_process_cleanup]]). **Phase 2 (now actionable):** branch rename `checkpoint/v2-batches-2026-05-17` → `main` + external service coord (Vercel production branch + Render web service git branch + Supabase `mcp__supabase__list_branches` check + PostHog/Stripe/Resend/Porkbun verify-only — none are git-branch-coupled). No `.github/workflows/` to update. **Open follow-ups:** (a) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (b) Render `mcp__render__*` MCP now connecting after this session's restart — usable next session for managed redeploys. **Standing flags:** AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); WSL/Linux still gated pending Steven's explicit approval per `cadaf49` guardrail; no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]). **CAR — Codex Linux-session resume (Steven clearing the gate next session):** four things before mount. (i) Confirm `~/.wslconfig` (memory=4GB, processors=2, swap=2GB, guiApplications=false) survived any host reboots; repo is on D:\ so mount target is `/mnt/d` (the `/mnt/e` path in older handoff text is dead — E:\ is cold backup only). (ii) Per Codex's own gate parked in `plans/data-source-registry/spec.md` + `docs/local-first-data-source-strategy/source-asset-rollout.md` (both still uncommitted in Codex's lane on this tree — commit them as the first step of the Linux session so the spec is durable in git, not just the working tree), the session is for the native `pysam` / `pyBigWig` reader proof ONLY — do not wire local indexed assets into web-server request paths, Supabase/object-storage runtime flows, startup local-cache downloads, or production report/Workbench providers in the same session. (iii) Preserve `a23a324`'s `SourceBackedGeneViewerProvider.viewer()` full_gene → curated FGV-002 fixture fallback for the `{RPE65, CFTR, BRCA1, ABCA4, TP53}` stress matrix — that fallback is the contract that keeps the FGV-003 ready branch green on Render real-mode and is verified live; when wiring native readers, do not delete it, only narrow it to genes not yet in the hydrated source set. (iv) Render auto-deploy stays OFF — any backend change you push needs a fresh `.render-deploy-hook` POST. Phase 2 (branch rename) is lower-risk than the Linux proof and Claude can drive that side either before or after Codex's session; flag preference.
+- **Claude:** IDLE @ 2026-05-29 01:25 +1000 (anchor: `c83b8c6` on `origin/main`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
 
-- **Codex:** IDLE @ 2026-05-29 00:15 +1000 - User redirected to the three
-  post-move tasks, then Claude handed off the FGV-003 full-gene live-mode
-  blocker. Windows-only. Completed the small M-005 report live-wire in
-  `app/web/components/report/ReportClient.tsx` so `ExpertPanelSection` now
-  consumes `payload.report_profile?.expert_panel` with its existing fixture
-  fallback. Extended `SourceBackedGeneViewerProvider.viewer()` so
-  `window.kind=full_gene` uses the curated FGV-002 fixture provider while live
-  source-backed full-gene assets are not hydrated, unblocking the real-mode
-  ready branch for the curated stress matrix without flipping Render env.
-  Added focused backend tests for source-backed full-gene fixture fallback and
-  the `/api/v1/viewer` real-mode endpoint fallback. Browser-verified locally
-  through the Chrome extension backend: RPE65 c.260A>G full gene renders
-  21,139 bp / 80 bp-row with no unsupported or sequence-unavailable state;
-  ABCA4 c.5435T>A renders 128,315 bp / 80 bp-row with no unsupported or
-  sequence-unavailable state; screenshots in `.scratch/fgv003-*-fullgene-ready.png`.
-  Also verified `/report?demo=1` renders the live ClinGen VCEP expert-panel
-  data. Read the two Total Data Footprint DOCX files from Steven's Desktop,
-  mapped them to the existing local-first source plan, and verified the local
-  source manifest/registry/policy/orchestrator/adapters/parsers with focused
-  pytest, Ruff, and Black. Installed/configured user-scoped Codex
-  `chrome-devtools` MCP for next sessions in
-  `C:\Users\seamegdool\.codex\config.toml`; current usable browser path was
-  the extension backend, not `iab`. Dev servers intentionally left running:
-  Next app `http://localhost:3000` (node PID 28620) and backend
-  `http://127.0.0.1:8000` (python PID 28252). No WSL/Linux, Supabase writes,
-  uploads/imports, production source imports/downloads, env/deploy mutation,
-  restricted predictor unlocks, branch rename, CAR #4, stash/reset/clean, or
-  destructive git. Follow-up clarification recorded in
-  `plans/data-source-registry/spec.md` and
-  `docs/local-first-data-source-strategy/source-asset-rollout.md`: after
-  Steven explicitly approves Linux/Render work, finish the native `pysam` /
-  `pyBigWig` proof before wiring local indexed assets into web-server request
-  paths, Supabase/object-storage runtime flows, startup local-cache downloads,
-  or production report/Workbench providers. Claude is not blocked on this
-  Codex proof for frontend/autonomous work; Claude's immediate dependency is
-  the already-pushed `a23a324` hosted redeploy/browser verification of the
-  FGV-003 ready branch.
+- **Codex:** IDLE @ 2026-05-29 01:08 +1000 - Steven approved the gated WSL
+  native-reader proof. Confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at
+  `memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`;
+  launched `Ubuntu-24.04` only for the proof; manually mounted `D:` to
+  `/mnt/d`; used `/mnt/d/eamos` only; and shut WSL down after each attempt.
+  Final proof passed through the real `app/backend/app/services/indexed_sources.py`
+  reader classes loaded directly from the repo: `pysam==0.24.0` opened and
+  queried a generated bgzip/tabix VCF by `NC_000001.11` and `chr1`, and
+  `pyBigWig==0.3.25` opened and queried a generated bigWig conservation fixture.
+  The proof also checked missing index/file, unknown contig, invalid window,
+  and out-of-bounds fail-closed codes. Post-check: `Ubuntu-24.04` and
+  `docker-desktop` are stopped, no `vmmemWSL` process is running, and only
+  Windows `wslservice` remains. Scope held: no local indexed assets were wired
+  into web-server request paths, Supabase/object-storage runtime flows, startup
+  downloads, source cache, production report/Workbench providers, or the
+  `a23a324` full_gene fixture fallback. No branch rename, Supabase writes,
+  uploads/imports, production source downloads, env/deploy mutation, `/runs`,
+  AlphaMissense work, restricted predictor unlocks, destructive git, stash,
+  reset, clean, commit, or push by Codex. The disposable
+  `.scratch/native-reader-proof/` workspace was removed after the user asked
+  about the unnecessary partial dependency install; recreate a minimal scratch
+  env only if the native proof must be rerun.
 
 ## Log Edit-Lock
 
@@ -62,7 +47,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-29 post-`ec02059` - Claude (appended Codex Linux-session resume CAR: wslconfig + mnt/d + spec-commit-first + preserve FGV-002 fallback + Render auto-deploy still OFF)
+UNLOCKED · 2026-05-29 01:26 +1000 · Claude (Phase 2 closeout: Claude Active Status replaced; Codex's section + working-tree edits untouched)
 
 ## Shared File Locks
 
@@ -1733,67 +1718,86 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-28 23:02 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-29 01:08 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-28 23:02 +1000 - Codex):**
-Performed a Windows-only post-crash audit after the D-drive WSL mount/proof
-path caused `vmmemWSL` to exhaust host RAM and crash the computer. This session
-did not start a Linux shell. `%USERPROFILE%\.wslconfig` now caps WSL2 at
-`memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`; an
-already-running `vmmemWSL` instance was force-stopped from Windows.
+**Latest Codex update (2026-05-29 01:08 +1000 - Codex):**
+Completed the explicitly approved WSL-native indexed-reader proof after
+re-reading the handoff/source-gate docs and pulling latest origin. The run
+confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at `memory=4GB`,
+`processors=2`, `swap=2GB`, and `guiApplications=false`; `Ubuntu-24.04` was
+started only for this proof and shut down after each attempt. Because WSL did
+not auto-mount `D:`, the proof manually mounted `D:` to `/mnt/d` and used only
+`/mnt/d/eamos`.
 
 **State:**
 - Repo root for Codex is now `D:\eamos`; do not use `E:\eamos` for active work.
-- Do not launch WSL/Linux for routine Eamos work. Use Windows-native checks
-  first. Any future WSL-native proof requires explicit user approval, the
-  `%USERPROFILE%\.wslconfig` cap in place, and immediate shutdown afterward.
-- The last WSL native proof path was `/mnt/d/eamos`; treat that as historical
-  until the user explicitly re-opens Linux work.
-- CAR #3 remains closed on origin. The additive expert-panel backend contract
-  and byte-identical TypeScript mirrors are present; Claude-owned FGV-003
-  Workbench files were not edited by Codex.
-- `E:\` still reports the unresolved Full Repair Needed media flag and should
-  be treated only as cold backup until both agents verify a full D-drive
-  session.
+- The native `pysam` / `pyBigWig` gate is now proven on WSL against generated
+  tiny fixtures, but WSL/Linux remains non-routine for Eamos. Future WSL use
+  still requires explicit approval, the cap in place, `/mnt/d/eamos`, and
+  immediate shutdown afterward.
+- The proof used a scratch venv and script under ignored
+  `.scratch/native-reader-proof/`; this disposable workspace has now been
+  removed. It did not change tracked source files or wire any runtime provider
+  path.
+- Branch status is now the intended `main` rename state from the Claude/Steven
+  branch coordination: current local branch reports as `main` tracking
+  `origin/main`, and reflog records
+  `Branch: renamed refs/heads/checkpoint/v2-batches-2026-05-17 to refs/heads/main`
+  at 2026-05-29 01:17:44 +1000. Codex did not run the rename/switch command.
+- The `a23a324` `SourceBackedGeneViewerProvider.viewer()` full_gene fallback
+  for the curated stress matrix remains preserved.
 
 **Verification:**
-- Windows focused pytest passed:
-  `python -m pytest tests/test_indexed_source_readers.py -q`
-  from `D:\eamos\app\backend` (`.ss...ss...`, expected native-reader skips).
-- `git diff --check` passed for the handoff/doc files with line-ending
-  warnings only.
-- Changed-file secret scan found historical environment variable names and
-  documentation references only; no committed secret values.
-- Process check after the elevated force-stop showed no `vmmemWSL`; only
-  Windows `wslservice` remained.
+- WSL scratch proof passed before cleanup:
+  `/mnt/d/eamos/.scratch/native-reader-proof/venv/bin/python /mnt/d/eamos/.scratch/native-reader-proof/native_reader_proof.py`
+  -> `native indexed reader proof passed`, `pysam=0.24.0`,
+  `pyBigWig=0.3.25`.
+- The proof loaded the real `app/backend/app/services/indexed_sources.py`
+  module directly and exercised `PysamIndexedVcfReader` plus
+  `PyBigWigConservationReader` against generated tiny VCF/tabix and bigWig
+  fixtures. It checked alias normalization (`NC_000001.11`/`chr1`) and
+  fail-closed errors for missing index/file, unknown contig, invalid window,
+  and out-of-bounds intervals.
+- Full `pytest tests/test_indexed_source_readers.py` was attempted inside WSL
+  but blocked by unrelated import-time app dependencies from
+  `tests/conftest.py` / `app.services.__init__`; the direct proof script avoided
+  those unrelated imports while testing the real reader classes.
+- Post-proof check before handoff edits showed `wsl -l -v` with
+  `Ubuntu-24.04` and `docker-desktop` stopped; process check showed no
+  `vmmemWSL`, only Windows `wslservice`; and git was clean at that point.
+  Final worktree now has only handoff/progress/source-gate doc edits from this
+  closeout plus an unrelated `.gitignore` `.vercel` ignore-line change not made
+  by Codex.
 
 **Next-session direction:**
-- If directed, Claude/frontend can live-wire `ExpertPanelSection` to the new
-  backend payload and remove the mock fallback path.
-- CAR #4 is still not open; open it only when M-006 / M10a gene-scoped
+- With the native-reader gate proven, the next backend source work can update
+  the source rollout status and proceed to fixture-first local source follow-up
+  only when explicitly scoped. Do not jump straight into runtime wiring.
+- Still do not wire local indexed assets into web-server request paths,
+  Supabase/object-storage runtime flows, startup local-cache downloads, source
+  cache, production report providers, or Workbench providers without a separate
+  approved implementation slice.
+- CAR #4 remains unopened; open it only when M-006 / M10a gene-scoped
   publication count starts.
-- FGV-003 is active in Claude's lane; Codex did not inspect or verify it beyond
-  `git status`.
-- Native Task 15 has a historical WSL proof, but WSL is now gated by the
-  crash/RAM guardrail above.
 - A separate WSL smoke is still needed before marking UCSC `isPcr` primer
   specificity as verified; do not run it unless the user explicitly approves
-  reopening WSL.
+  reopening WSL for that separate provider.
 
-**Clear-safe:** yes; Windows-only audit checks passed, `vmmemWSL` was
-force-stopped, and no Codex test processes or servers are running. No Linux
-shell, WSL mount, Docker start, frontend renderer live-wire, production source
-imports/downloads, live Supabase writes/resources/migrations, uploads/imports,
-env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
-restricted predictor unlocks, destructive git, stash, reset, or clean was
-performed.
+**Clear-safe:** yes; WSL was shut down immediately after the proof, no
+`vmmemWSL` remains, and no Codex dev servers are running. The worktree is not
+clean because the closeout docs are modified and `.gitignore` has an unrelated
+`.vercel` ignore-line change not made by Codex. No local indexed asset runtime
+wiring, production source imports/downloads, live Supabase writes/resources/
+migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+display/runtime scoring, restricted predictor unlocks, destructive git, stash,
+reset, clean, commit, or push was performed by Codex.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-28 23:02 +1000 · Codex Windows-only WSL crash guardrail audit`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 78, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: D-drive post-move docs audited after host crash; WSL/Linux is no longer routine for Eamos. %USERPROFILE%\\.wslconfig caps WSL2 at memory=4GB/processors=2/swap=2GB/guiApplications=false, and vmmemWSL was force-stopped from Windows.`
-`Verification: Windows D:\\eamos\\app\\backend python -m pytest tests/test_indexed_source_readers.py -q passed with expected native skips; git diff --check passed with line-ending warnings only; changed-file secret scan found docs/env-name references only.`
-`Next: commit/push this safe handoff if not already pushed; then Claude can proceed on D:\\eamos with Windows/browser work. Do not run WSL, rename branch, or open CAR #4 unless explicitly directed.`
-`Guardrails: no WSL/Linux routine work, no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`
+`# Resume prompt · 2026-05-29 01:08 +1000 · Codex native-reader proof gate passed`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 80, plans/v2-backend.md Recent backend notes, plans/data-source-registry/spec.md, docs/local-first-data-source-strategy/source-asset-rollout.md, then git status --short --branch.`
+`Delta: Steven approved the WSL gate; Codex confirmed the WSL2 cap, manually mounted D: to /mnt/d, ran the native pysam/pyBigWig tiny-fixture proof from /mnt/d/eamos, and shut WSL down immediately.`
+`Verification: scratch native proof passed with pysam=0.24.0 and pyBigWig=0.3.25 against generated tiny VCF/tabix and bigWig fixtures; disposable .scratch/native-reader-proof was removed afterward; post-check shows Ubuntu/docker stopped, no vmmemWSL, only wslservice; current branch is the intended main rename state.`
+`Next: update source rollout/task status or start the next fixture-first backend source slice only if explicitly scoped. Do not wire local indexed assets into request-time web-server paths, Supabase/object-storage runtime flows, startup downloads, source cache, production report providers, or Workbench providers in the same pickup.`
+`Guardrails: WSL remains non-routine/approval-only; preserve a23a324 full_gene fixture fallback; no branch rename by Codex, no CAR #4 until M-006 starts, no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, production source downloads, restricted predictor unlocks, commit, or push unless explicitly approved. End clear-safe.`
