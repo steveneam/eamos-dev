@@ -12,6 +12,7 @@ from app.schemas.run import (
     ComputationalPredictorRow,
     DiseaseMechanismSection,
     EvidenceSourceSummary,
+    ExpertPanelSection,
     GeneContextSnapshot,
     InterpretationSummary,
     MolecularContextSection,
@@ -84,6 +85,7 @@ class VariantReportDataOrchestrator:
                 provenance=provenance,
             ),
             acmg_worksheet=_build_acmg_worksheet(payload, evidence_map),
+            expert_panel=_build_expert_panel(evidence, evidence_map),
             therapies_trials=_build_therapies_trials(
                 payload=payload,
                 evidence_map=evidence_map,
@@ -590,6 +592,64 @@ def _build_acmg_worksheet(
         synthesis=scaffold.note or None,
         disclaimer=scaffold.disclaimer,
     )
+
+
+def _build_expert_panel(
+    evidence: list[EvidenceSourceSummary],
+    evidence_map: dict[str, dict[str, Any]],
+) -> ExpertPanelSection | None:
+    clingen = _dict_or_empty(evidence_map.get("clingen"))
+    raw_panel = clingen.get("expert_panel")
+    if not isinstance(raw_panel, dict):
+        return None
+
+    try:
+        panel = ExpertPanelSection.model_validate(raw_panel)
+    except Exception:
+        return None
+
+    clingen_evidence = _first_source_evidence(evidence, "clingen")
+    freshness, freshness_reason = _expert_panel_freshness(clingen_evidence)
+    provenance = panel.provenance
+    if clingen_evidence is not None:
+        provenance = provenance.model_copy(
+            update={
+                "fetched_at": clingen_evidence.fetched_at or provenance.fetched_at,
+                "source_version": clingen_evidence.source_version or provenance.source_version,
+                "source_url": clingen_evidence.source_url or provenance.source_url,
+            }
+        )
+    return panel.model_copy(
+        update={
+            "provenance": provenance,
+            "freshness": freshness,
+            "freshness_reason": freshness_reason,
+        }
+    )
+
+
+def _expert_panel_freshness(
+    evidence: EvidenceSourceSummary | None,
+) -> tuple[str, str | None]:
+    if evidence is None:
+        return "unknown", "tile_only"
+    if evidence.cache_status == "stale_on_failure" or evidence.status == "stale":
+        return "stale", "stale_on_failure"
+    if evidence.cache_status == "cache_hit":
+        return "fresh", "cache_hit"
+    if evidence.status in {"live", "fixture", "cache"}:
+        return "fresh", None
+    return "unknown", "tile_only"
+
+
+def _first_source_evidence(
+    evidence: list[EvidenceSourceSummary],
+    source: str,
+) -> EvidenceSourceSummary | None:
+    for item in evidence:
+        if item.source == source:
+            return item
+    return None
 
 
 def _build_therapies_trials(

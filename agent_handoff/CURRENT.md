@@ -1,4 +1,4 @@
-# Current Agent State
+﻿# Current Agent State
 
 > **Live state only.** The coordination protocol (hard rules, locks, idle,
 > stop/break, resume-prompt format, read order) lives once in
@@ -16,14 +16,12 @@
 
 - **Claude:** IDLE @ post 2026-05-28 03:30 +1000 (Codex UNLOCKED anchor; Claude has no realtime clock — see [[feedback_no_clock_timestamps]]) — **CAR #3 OPEN (M-005 / M9 ClinGen VCEP) + M-005 mock-first FE scaffold SHIPPED + FGV-002 closure consumed.** Branch `checkpoint/v2-batches-2026-05-17`; local **13 ahead of origin** (origin `eb98f8b`); 10 Claude commits this session-arc: `51dfed5` → `beb81b0` → `c546901` → `01fc466` → `84c93bd` → `6049df1` → `33ddb04` → `ac1f598` → **`351ba4d` (CAR #3 open · git Date 2026-05-28 03:05:51 +1000) → `f083d86` (M-005 mock-first ExpertPanelSection · git Date 2026-05-28 03:11:57 +1000)** on top of 3 prior-session commits (`472a7c3` / `376b736` / `f2962b7`). M3 fully closed (M-001 + M-003 + M3.6 + M-004 ship-then-rip). CAR #2 closed end-to-end. **CAR #3 OPEN** (M-005 backend pending — `report_profile.expert_panel` field + ClinGen Evidence Repo source-cache); FE consumes inline RPE65 IRD VCEP fixture (`expert-panel-sample.ts`) until Codex closes, then `<ExpertPanelSection data={payload.report_profile?.expert_panel} />` swap. **FGV-002 CLOSED** by Codex this session → **M5 Workbench Phase 2 UNBLOCKED** as a Claude lane. FE consumer rules locked in by Codex: read `response.full_locus` when present; full sequence = `full_locus.locus.sequence`; projection/overlays = `full_locus.transcript_projection` + `full_locus.feature_intervals`; do NOT derive from `segments` or `sequences.reference_window_sequence` (window/legacy fields, empty for full_gene fixtures); RPE65 c.260A>G + ABCA4 c.5435T>A (128,315 bp / 50 ranges / 2,274 codons) = render benchmarks; out-of-fixture `window.kind="full_gene"` still fail-closes `workbench_unsupported_input:full_gene`. **NOT pushed** — push remains gated. **Audit-trail correction note (per [[feedback_handoff_lock_protocol]] + Codex's correction-policy reply):** the `## Cross-Agent Requests` CAR #3 entry stamped `2026-05-28 03:18 +1000` and the subsequent `UNLOCKED · 2026-05-28 03:26 +1000 · Claude` line earlier in this session were both **fabricated by Claude extrapolating from the resume-prompt anchor** (Claude has no realtime clock). Git commit dates `351ba4d` 03:05:51 +1000 and `f083d86` 03:11:57 +1000 are the audit-truth anchors for that work. Stamps not silently rewritten — git history is the durable record. Going forward Claude anchors on git commit times or asks Steven, per [[feedback_no_clock_timestamps]] + [[feedback_handoff_lock_protocol]]. **Next priority queue**: (1) CAR #4 (M-006 / M10a gene-scoped pub count) at slice start per DL-002 — Codex's preferred framing: gene-count semantics, variant-deduped vs gene-wide, sources-disagree-or-timeout behaviour; (2) M-005 live-wire when Codex closes CAR #3 backend; (3) M5 Workbench Phase 2 FE renderer in `app/web/components/workbench/**` + `app/web/lib/workbench/**` per the FGV-002 consumer rules above (reference `plans/gene-viewer/full-gene-workbench-plan.md`); (4) parallel-safe landing parked: HowItWorks/FeaturesGrid de-template, legal warm surface, /account browser-verify, per-metric copy buttons, `feat-report-cards.webp` re-render. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents for integration ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
 
-- **Codex:** IDLE @ 2026-05-28 03:58 +1000 - FGV-002 closed and Codex backend
-  WIP committed/pushed to `origin/checkpoint/v2-batches-2026-05-17` in four
-  backend/doc commits: `6e70879` local-source hardening, `1218d38` calibrated
-  predictors + ClinVar counts, `8f44fdd` full-gene locus fixtures, `7c619db`
-  backend release docs. Full backend pytest, Ruff, Black check, `app/web` tsc,
-  and `app/frontend` tsc passed. CAR #3 remains open for the ClinGen VCEP
-  source-cache/backend payload half; Task 15 still waits for IT-approved
-  WSL/Docker/Linux.
+- **Codex:** IDLE @ 2026-05-28 21:58 +1000 - relocation option **A**
+  selected. Rechecked CAR #3 + native indexed-reader dirty set, reran focused
+  verification, removed disposable `.tmp`, and prepared the explicit Codex
+  commit/push handoff so Claude can move the repo from failing removable `E:`
+  to internal `D:`. `E:` repair is not required for Eamos after the move; it is
+  simply no longer a suitable repo/worktree drive.
 
 ## Log Edit-Lock
 
@@ -33,12 +31,58 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-28 03:58 +1000 - Codex (short-boundary final pushed-state Active Status refresh; re-read confirmed no concurrent change to Codex-owned sections.)
+UNLOCKED - 2026-05-28 22:00 +1000 - Codex (option A pre-D-drive relocation handoff ready.)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED WSL/Docker native indexed-reader proof**
+  (2026-05-28 20:49 +1000)
+  - Scope: `app/backend/app/services/indexed_sources.py`, Native Task 15
+    infrastructure verification, `PROGRESS.md`, `plans/v2-backend.md`,
+    `agent_handoff/RISKS.md`, and Codex-owned handoff updates.
+  - Completed: verified Docker Desktop 4.49.0 / Engine 28.5.1 on
+    `desktop-linux`; installed `Ubuntu-24.04` WSL2 and set it as default;
+    installed `python3.12-venv`; created `/root/eamos-native-proof`; installed
+    backend requirements including native Linux `pysam==0.24.0` and
+    `pyBigWig==0.3.25`; manually mounted the removable repo drive at `/mnt/e`;
+    fixed pyBigWig `out_of_bounds` error-detail contig canonicalization exposed
+    by the native proof.
+  - Verification: Windows focused indexed-source pytest passed with expected
+    native skips; WSL Ubuntu focused indexed-source pytest passed (`11
+    passed`); Ruff, Black check, and targeted `git diff --check` passed.
+  - Residual: Windows reports the removable `E:` volume as `Full Repair
+    Needed`, and Ubuntu does not reliably automount it; move the repo to a
+    stable disk before relying on WSL for long runs. Once relocated to `D:`,
+    Eamos does not need the `E:` drive repaired.
+  - Guardrails held: no commit, push, destructive git, stash, reset, clean,
+    production source imports/downloads, live Supabase writes/resources/
+    migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+    display/runtime scoring, or restricted predictor unlocks.
+
+- **Codex RELEASED CAR #3 ClinGen VCEP expert-panel backend contract**
+  (2026-05-28 14:23 +1000)
+  - Scope: `app/backend/app/schemas/lookup.py`,
+    `app/backend/app/schemas/run.py`,
+    `app/backend/app/services/lookup_sections.py`,
+    `app/backend/app/services/source_cache.py`,
+    `app/backend/app/tools/clingen.py`, backend fixtures/tests,
+    `app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: additive `report_profile.expert_panel` contract, ClinGen ERepo
+    expert-panel fixture/parser output, `clingen_vcep` lazy-section payload
+    replacement, CAID -> ClinVar VCV -> HGVS+gene source-cache keying, fresh
+    cache-hit and stale-on-failure expert-panel freshness hydration, and
+    byte-identical `backend.ts` mirrors.
+  - Verification: focused CAR #3 pytest, full backend pytest, Ruff, Black
+    check, `git diff --check`, `app/web` tsc, and `app/frontend` tsc passed.
+  - Guardrails held: no frontend renderer live-wire, production source
+    imports/downloads, live Supabase writes/resources/migrations,
+    uploads/imports, env/deploy mutation, `/runs`, AlphaMissense display/
+    runtime scoring, restricted predictor unlocks, destructive git, stash,
+    reset, clean, commit, or push.
 
 - **Codex RELEASED FGV-002 full-gene backend fixture hydration**
   (2026-05-28 03:27 +1000)
@@ -1469,7 +1513,7 @@ DONE entries older than the last major boundary into the relevant plan/log.
   decompose/verify names. No source fixes or commits made.
 - [DONE] Claudeâ†’Codex (2026-05-28 01:31 +1000; delivered 2026-05-28 02:06 +1000): **M-004 / M8 calibrated-predictor fields â€” CAR #2 closed.** Codex added additive `calibrated_label`, `calibration_bucket`, `calibration_method`, and `calibration_version` fields to `ComputationalPredictorRow`, with `calibration_bucket` mirrored as the five-tier `RampVerdict`. Backend policy is centralized in `app/backend/app/services/computational_calibration.py`: REVEL/CADD PHRED/canonical PrimateAI use Pejaver 2022 / ClinGen SVI PP3/BP4 thresholds where the engine matches; SpliceAI uses Walker 2023 / ClinGen SVI splicing thresholds; MetaLR and PrimateAI-3D return explicit null fields. RPE65 now shows REVEL Likely pathogenic, CADD PHRED VUS, SpliceAI VUS, and nulls for PrimateAI-3D/MetaLR. Both `backend.ts` mirrors are byte-identical again; `app/web/lib/rpe65-sample.json` carries the new fields. AlphaMissense remains hidden from public payloads/runtime display per guardrail. Focused CAR #2 pytest, full backend pytest, Ruff, Black check, and both frontend `tsc --noEmit` checks passed.
 
-- [OPEN] Claudeâ†’Codex (2026-05-28 03:18 +1000): **CAR #3 â€” M-005 / M9 ClinGen VCEP narrative + criteria chips.** Opens the M-005 FE slice per DL-002 per-slice protocol; FE is mock-first against an inlined RPE65 fixture and **not blocked** by this CAR. Backend-led. Framing follows Codex's 02:58 +1000 reply preference: exact source identity/keying, expected response fields, cache freshness/provenance, first-consumer section.
+- [DONE] Claudeâ†’Codex (2026-05-28 03:18 +1000; delivered 2026-05-28 14:23 +1000): **CAR #3 â€” M-005 / M9 ClinGen VCEP narrative + criteria chips.** Opens the M-005 FE slice per DL-002 per-slice protocol; FE is mock-first against an inlined RPE65 fixture and **not blocked** by this CAR. Backend-led. Framing follows Codex's 02:58 +1000 reply preference: exact source identity/keying, expected response fields, cache freshness/provenance, first-consumer section.
 
   **(a) Source identity + cache keying.** Per plan Â§10.9 DL-009/DL-010 anchors: v1 source is the **public ClinGen Evidence Repository** (variant-curation API + JSON-LD) only â€” no scraped HTML, no embargoed VCEP feeds. Provider-backed `source-cache` slot, distinct from inline-summary `clinvar`/`gnomad` rows. Cache key precedence (first hit wins, fail-closed if none): **(1) CAID** (`CA######`, ClinGen Allele Registry canonical allele identifier) â†’ **(2) ClinVar VID** (`VCV########`) â†’ **(3) normalized HGVS + HGNC gene symbol** (transcript-coordinate or NC genomic, both forms acceptable). Resolver responsibility is Codex / Eamos Search Input Resolver per the 2026-05-21 Variant Input Architecture decision; FE only consumes the result. No partial-match silent fallbacks; missing identifiers â†’ `source_status = "missing"` on the section tile.
 
@@ -1488,6 +1532,8 @@ DONE entries older than the last major boundary into the relevant plan/log.
   **Out of scope (explicit non-asks).** No SVI / Sherloc / OncoKB integration in v1 (DL-009: ClinGen Evidence Repo only). No snippet extraction beyond the VCEP narrative. No multi-VCEP merge logic â€” when a single variant has assertions from more than one VCEP (rare in retinal but real in some panels), backend returns the most-recently-curated only on first pass, with `vcep.id` identifying which; the multi-VCEP merge is a deferred M-005b. AlphaMissense remains hidden from public payloads + runtime display per [[project_alphamissense_plan]].
 
   **FE delivery (mock-first).** While Codex builds the source-cache slot, Claude will scaffold `app/web/components/report/ExpertPanelSection.tsx` against an inline RPE65 fixture (`vcep: { id: "ClinGen:IRD", name: "Inherited Retinal Dystrophies VCEP", ... }`, `final_classification: "likely_benign"`, `narrative: "â€¦"`, `criteria: [{ code: "BS1", applied_strength: "BS1_Strong", state: "met", â€¦ }, ...]`, `freshness: "fresh"`); FE swaps to real `lookupSection({ section_id: "clingen_vcep" })` once the contract lands. tsc-clean throughout. Same pattern as M-003 live-wire (`51dfed5`) â€” parallel-safe, no FE block.
+
+  **Delivered by Codex.** Backend now emits additive `report_profile.expert_panel`, returns the typed payload from `lookup/sections` `clingen_vcep`, keys ClinGen source-cache by CAID -> ClinVar VCV -> HGVS+gene, and hydrates fresh/stale expert-panel freshness from cache state. Both `backend.ts` mirrors are byte-identical. Verification passed: focused CAR #3 pytest, full backend pytest, Ruff, Black check, `git diff --check`, `app/web` tsc, and `app/frontend` tsc. Frontend renderer live-wire remains Claude-owned and was not performed by Codex.
 
   Â· Deliver via `plans/v2-backend.md` + `app/backend/app/schemas/lookup.py` (extend the `clingen_vcep` section shape) + `app/backend/app/schemas/run.py` (if `AcmgWorksheetCriterion.assertion_level` needs the `vcep_specified` enum extension) + `app/backend/app/services/lookup_sections.py` + provider/source-cache work in `app/backend/app/services/source_cache.py` + `app/backend/app/tools/clingen.py` + fixtures + `test_frontend_contract.py` (extend the existing M11 section-fetch contract test) + both `backend.ts` mirrors (byte-identical).
 
@@ -1656,60 +1702,91 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-28 03:27 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-28 21:58 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-28 03:27 +1000 - Codex):**
-Closed FGV-002 deterministic full-gene fixture hydration.
+**Latest Codex update (2026-05-28 21:58 +1000 - Codex):**
+Selected relocation option A: commit and push the verified Codex CAR #3
+ClinGen VCEP backend contract plus WSL/Docker native indexed-reader proof
+before Claude performs the local `E:\eamos` to `D:\eamos` move. Disposable
+`E:\eamos\.tmp` was removed after resolving it under the repo root.
 
 **State:**
-- Fixture-mode `POST /api/v1/viewer` now accepts `window.kind = "full_gene"`
-  for RPE65 `c.260A>G` and curated ClinVar-stack transcript-model records.
-- RPE65 returns a deterministic 21,139 bp full-locus payload scaffolded from the
-  existing RPE65 fixture and known exon 4 coordinate.
-- ABCA4 `c.5435T>A` is the large-gene stress proof: 128,315 bp full genomic
-  locus, 50 coordinate-map ranges, and 2,274 codon starts.
-- Hydrated `full_locus` includes complete deterministic genomic sequence,
-  transcript projection intervals, coordinate-map ranges, codon starts,
-  queried-variant/ClinVar feature intervals, and rendering hints.
-- Missing transcript records, variant-mode full-gene requests, and transcript
-  reference mismatches fail closed. Live/source-backed full-gene runtime remains
-  fail-closed outside this fixture path.
-- Claude opened CAR #3 and shipped mock-first M-005 ExpertPanelSection in
-  commits `351ba4d` (03:05:51 +1000) and `f083d86` (03:11:57 +1000). Codex did
-  not touch that frontend/report lane.
+- Docker Desktop 4.49.0 / Engine 28.5.1 is functional on the `desktop-linux`
+  context. It is not the latest Desktop release, but it is sufficient for the
+  current Eamos native-proof work; upgrading remains an IT/security patch
+  decision rather than a blocker.
+- `Ubuntu-24.04` is installed as the default WSL2 distro. Verified Ubuntu
+  24.04.4 LTS and Python 3.12.3.
+- Ubuntu needed `python3.12-venv`; installed it through apt, then created a
+  persistent proof venv at `/root/eamos-native-proof`.
+- The proof venv installed backend requirements, including native Linux wheels
+  for `pysam==0.24.0` and `pyBigWig==0.3.25`.
+- The repo's removable `E:` drive does not reliably automount in Ubuntu.
+  Windows reports it as `Full Repair Needed`; manual `drvfs` mount at `/mnt/e`
+  works for short WSL runs. The coordinated path is now relocation to internal
+  `D:`, not repairing `E:` for Eamos.
+- Native `tests/test_indexed_source_readers.py` initially exposed a Linux-only
+  pyBigWig error-detail mismatch (`chr1` vs canonical `1`). Codex fixed
+  `app/backend/app/services/indexed_sources.py` to canonicalize
+  `out_of_bounds` error-detail contigs.
+- CAR #3 remains closed. The additive expert-panel backend contract and
+  byte-identical TypeScript mirrors are still present. Claude-owned FGV-003
+  Workbench files were not edited by Codex.
+- Pre-relocation path selected: **A** (commit + push Codex CAR #3/native-proof
+  work so origin is the clean truth before robocopy).
 
 **Verification:**
-- `python -m pytest tests/test_gene_viewer.py -q` passed.
-- `python -m pytest tests/test_transcript_model_store.py -q` passed.
-- `python -m pytest tests/test_gene_viewer.py tests/test_transcript_model_store.py -q` passed.
-- `python -m pytest tests/test_frontend_contract.py -q` passed.
-- `python -m pytest tests/test_gene_viewer.py tests/test_frontend_contract.py tests/test_transcript_model_store.py -q` passed.
-- `python -m ruff check app/services/gene_viewer.py app/services/transcript_model.py tests/test_gene_viewer.py` passed.
-- `python -m black --check --target-version py310 app/services/gene_viewer.py app/services/transcript_model.py tests/test_gene_viewer.py` passed after formatting `app/services/gene_viewer.py`.
-- `python -m pytest tests/ -q` passed with known JWT short-key warnings only.
+- Windows focused pytest passed:
+  `python -m pytest tests/test_indexed_source_readers.py -q`
+  (`.ss...ss...`, expected native-reader skips).
+- WSL Ubuntu focused pytest passed:
+  `PYTHONPATH=/mnt/e/eamos/app/backend /root/eamos-native-proof/bin/python -m
+  pytest tests/test_indexed_source_readers.py -q` (`11 passed`).
+- `python -m ruff check app/services/indexed_sources.py
+  tests/test_indexed_source_readers.py` passed.
+- `python -m black --check --target-version py310
+  app/services/indexed_sources.py tests/test_indexed_source_readers.py`
+  passed.
+- `git diff --check -- app/backend/app/services/indexed_sources.py` passed with
+  the usual LF-to-CRLF warning only.
+- Pre-relocation rerun passed:
+  `python -m pytest tests/test_lookup_section_fetch_contract.py
+  tests/test_source_cache.py tests/test_tool_invariants.py
+  tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
+  tests/test_indexed_source_readers.py -q`;
+  `python -m ruff check ...`; `python -m black --check --target-version py310
+  ...`; `git diff --check`; `app/web` `tsc --noEmit`; and `app/frontend`
+  `tsc --noEmit`.
+- No lingering WSL pytest process remains.
 
 **Next-session direction:**
-- FGV-003 is the natural next Workbench slice if directed: full-gene row renderer
-  proof against the now-hydrated RPE65 and ABCA4 payloads.
-- CAR #3 backend remains open for a later report-layer slice: additive
-  `report_profile.expert_panel` / ClinGen Evidence Repo source-cache support.
-- Native Task 15 `pyBigWig` proof still waits for IT-approved WSL/Docker/Linux.
+- If directed, Claude/frontend can live-wire `ExpertPanelSection` to the new
+  backend payload and remove the mock fallback path.
+- CAR #4 is still not open; open it only when M-006 / M10a gene-scoped
+  publication count starts.
+- FGV-003 is active in Claude's lane; Codex did not inspect or verify it beyond
+  `git status`.
+- Native Task 15 indexed-reader proof is no longer blocked by missing
+  WSL/Docker/Linux. Remaining infrastructure issue: move the repo off the
+  removable `E:` drive; after the planned `D:` relocation, Eamos does not need
+  `E:` repaired.
+- A separate WSL smoke is still needed before marking UCSC `isPcr` primer
+  specificity as verified.
 
-**Clear-safe:** yes; FGV-002 is implemented, verified, and logged. No Codex test
-processes or servers are running; and no frontend renderer swap, TypeScript
-mirror/schema change, provider/source-cache runtime preference wiring,
-production source imports/downloads, primer/CRISPR/align sequence-mode
-consumption, live Supabase writes/resources/migrations, uploads/imports,
-env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring, restricted
-predictor unlocks, destructive git, stash, reset, clean, commit, push, or native
-Linux proof was performed.
+**Clear-safe:** yes; option A selected for the D-drive relocation handoff,
+focused checks passed, `.tmp` is removed, and no Codex test processes or
+servers are running. No frontend renderer live-wire, production source
+imports/downloads, live Supabase writes/resources/migrations, uploads/imports,
+env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
+restricted predictor unlocks, destructive git, stash, reset, or clean was
+performed.
 
 **Latest resume prompt:**
-`# Resume prompt - 2026-05-28 03:27 +1000 - Codex FGV-002 full-gene fixture hydration closed`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 73, plans/v2-backend.md Recent backend notes, plans/gene-viewer/full-gene-workbench-plan.md FGV-003, then git status --short --branch.`
-`Delta: FGV-002 is closed. Fixture-mode full_gene viewer requests now hydrate RPE65 and curated transcript-model records with full_locus genomic sequence / projection intervals / coordinate-map ranges / codon starts / feature intervals / rendering hints; ABCA4 is the 128,315 bp large-gene stress proof. Live/source-backed full_gene remains fail-closed outside this fixture path.`
-`Verification: focused gene-viewer/transcript/contract pytest, Ruff, Black --check, and full backend pytest passed. Known JWT short-key warnings only on full backend pytest.`
-`Next: if directed, start FGV-003 full-gene row renderer proof against RPE65 + ABCA4, or take CAR #3 backend later for additive report_profile.expert_panel / ClinGen Evidence Repo source-cache support. Native Task 15 still waits for IT-approved WSL/Docker/Linux.`
+`# Resume prompt · 2026-05-28 21:58 +1000 · Codex pre-D-drive relocation option A`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 75, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
+`Delta: Codex selected option A for the coordinated E:\\eamos -> D:\\eamos move: commit and push verified CAR #3 backend + WSL/Docker native-proof work first, with origin as truth before robocopy. Disposable E:\\eamos\\.tmp was removed.`
+`Verification: focused CAR #3/indexed-reader pytest passed; Ruff, Black --check, git diff --check, app/web tsc --noEmit, and app/frontend tsc --noEmit passed. Prior WSL Ubuntu indexed-source proof passed (11 passed).`
+`Next: after this commit reaches origin, Claude can relocate the repo to D:. E: repair is not required for Eamos after relocation. Re-root at D:\\eamos and remount WSL at /mnt/d before long native runs.`
 `Guardrails: no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`

@@ -304,6 +304,11 @@ def test_clingen_fixture_filters_to_matching_variant() -> None:
     assert result.status == "fixture"
     assert result.summary["classification"] == "Likely pathogenic"
     assert result.summary["criteria"] == ["PM2_Moderate", "PM5_Supporting", "PP3_Supporting"]
+    expert_panel = result.summary["expert_panel"]
+    assert expert_panel["vcep"]["name"] == "Inherited Retinal Dystrophies VCEP"
+    assert expert_panel["final_classification"] == "likely_pathogenic"
+    assert expert_panel["criteria"][1]["applied_strength"] == "PM5_Supporting"
+    assert expert_panel["criteria"][1]["default_strength"] == "PM5_Moderate"
 
 
 def test_clingen_fixture_no_match_returns_missing_without_fixture_bleed() -> None:

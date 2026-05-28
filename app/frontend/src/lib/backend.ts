@@ -674,7 +674,24 @@ export type SourceStatus =
   | 'error'
   | 'failed'
 export type ReportMatchLevel = 'variant_level' | 'gene_level' | 'disease_level' | 'unavailable'
-export type EvidenceAssertionLevel = 'source_asserted' | 'eamos_hint' | 'not_assessed'
+export type EvidenceAssertionLevel =
+  | 'source_asserted'
+  | 'vcep_specified'
+  | 'eamos_hint'
+  | 'not_assessed'
+export type ExpertPanelClassification =
+  | 'pathogenic'
+  | 'likely_pathogenic'
+  | 'vus'
+  | 'likely_benign'
+  | 'benign'
+  | 'conflicting'
+  | 'not_classified'
+export type ExpertPanelFreshness = 'fresh' | 'stale' | 'unknown'
+export type ExpertPanelFreshnessReason =
+  | 'cache_hit'
+  | 'stale_on_failure'
+  | 'tile_only'
 
 export interface SourceProvenance {
   source: string
@@ -684,6 +701,45 @@ export interface SourceProvenance {
   retrieved_at?: string | null
   version?: string | null
   warnings: string[]
+}
+
+export interface ExpertPanelVcep {
+  id: string
+  name: string
+  affiliation_id?: string | null
+  last_curated_date: string
+  vcep_url: string
+}
+
+export interface ExpertPanelCriterion {
+  code: string
+  applied_strength: string
+  default_strength: string
+  state: 'met' | 'not_met' | 'not_assessed' | 'conflicting'
+  assertion_level: EvidenceAssertionLevel
+  rationale?: string | null
+  source?: string | null
+  evidence_refs: string[]
+  warnings: string[]
+}
+
+export interface ExpertPanelProvenance {
+  source_url: string
+  fetched_at: string
+  source_version: string
+  cache_record_id?: string | null
+  raw_jsonld_ref?: string | null
+}
+
+export interface ExpertPanelSection {
+  vcep: ExpertPanelVcep
+  final_classification: ExpertPanelClassification
+  narrative: string
+  criteria: ExpertPanelCriterion[]
+  source_scope: string
+  provenance: ExpertPanelProvenance
+  freshness: ExpertPanelFreshness
+  freshness_reason?: ExpertPanelFreshnessReason | null
 }
 
 export interface ReportExtractionSectionTarget {
@@ -980,6 +1036,7 @@ export interface VariantReportProfile {
   molecular_context?: MolecularContextSection | null
   computational_deep_dive?: ComputationalDeepDiveSection | null
   acmg_worksheet?: AcmgWorksheetLedger | null
+  expert_panel?: ExpertPanelSection | null
   therapies_trials?: TherapiesTrialsSection | null
   provenance: SourceProvenance[]
 }

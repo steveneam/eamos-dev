@@ -15,6 +15,7 @@ from app.services.lookup_service import LookupService
 from app.services.source_cache import (
     HERO_EXAMPLE_VARIANTS,
     HeroExampleSourceCacheWarmer,
+    clingen_vcep_source_cache_key,
 )
 from app.tools.base import ToolResult
 
@@ -153,6 +154,45 @@ def _repo(tmp_path: Path) -> SourceCacheRepo:
     )
     initialize_database(session_factory)
     return SourceCacheRepo(session_factory)
+
+
+def _expert_panel_summary() -> dict:
+    return {
+        "expert_panel": {
+            "vcep": {
+                "id": "ClinGen:IRD",
+                "name": "Inherited Retinal Dystrophies VCEP",
+                "affiliation_id": "50039",
+                "last_curated_date": "2023-08-14",
+                "vcep_url": "https://erepo.clinicalgenome.org/evrepo/ui/classifications/CA189146",
+            },
+            "final_classification": "likely_pathogenic",
+            "narrative": "Cached ClinGen VCEP assertion.",
+            "criteria": [
+                {
+                    "code": "PM2",
+                    "applied_strength": "PM2_Moderate",
+                    "default_strength": "PM2_Moderate",
+                    "state": "met",
+                    "assertion_level": "vcep_specified",
+                    "rationale": "Cached PM2 rationale.",
+                    "source": "ClinGen Evidence Repository",
+                    "evidence_refs": ["cached-clingen"],
+                    "warnings": [],
+                }
+            ],
+            "source_scope": "ClinGen Evidence Repository - cached VCEP curation",
+            "provenance": {
+                "source_url": "https://erepo.clinicalgenome.org/evrepo/api/classifications/CA189146",
+                "fetched_at": "2026-05-27T22:14:00Z",
+                "source_version": "ClinGen Evidence Repo cached",
+                "cache_record_id": "clingen:clinvar:VCV001421454",
+                "raw_jsonld_ref": "fixture:cached-clingen",
+            },
+            "freshness": "fresh",
+            "freshness_reason": "cache_hit",
+        }
+    }
 
 
 def test_source_cache_repo_returns_fresh_and_stale_rows(tmp_path: Path) -> None:
@@ -371,6 +411,118 @@ def test_arbitrary_lookup_serves_stale_cache_for_selected_source_failure(
     assert gnomad.summary["allele_frequency"] == 0.00001
     assert "source_cache_stale_on_failure:gnomad" in gnomad.warnings
     assert "live_status:fallback" in gnomad.warnings
+
+
+def test_clingen_vcep_cache_key_prefers_clinvar_vcv_over_hgvs() -> None:
+    cache_key = clingen_vcep_source_cache_key(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        clinvar_summary={"accession": "VCV001421454"},
+    )
+
+    assert cache_key == "clinvar:VCV001421454"
+
+
+def test_clingen_vcep_lookup_uses_fresh_source_cache(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    cache_key = "clinvar:VCV001421454"
+    repo.upsert(
+        "clingen",
+        cache_key,
+        normalized_identity={"gene": "RPE65", "clinvar_accession": "VCV001421454"},
+        request_identity={"cache_key": cache_key},
+        status="live",
+        summary=_expert_panel_summary(),
+        raw={"cached": True},
+        warnings=[],
+        source_url="https://erepo.clinicalgenome.org/evrepo/api/classifications/CA189146",
+        ttl_days=30,
+        source_version="ClinGen Evidence Repo cached",
+    )
+    clingen_tool = _StaticTool("clingen", _expert_panel_summary())
+    service = _service(
+        tmp_path,
+        repo,
+        tool_overrides={
+            "clinvar": _StaticTool(
+                "clinvar",
+                {
+                    "classification": "Uncertain significance",
+                    "review_status": "criteria provided, single submitter",
+                    "accession": "VCV001421454",
+                },
+                raw={"variation_set": []},
+            ),
+            "clingen": clingen_tool,
+        },
+    )
+
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    clingen = next(item for item in response.evidence if item.source == "clingen")
+    assert clingen_tool.calls == 0
+    assert clingen.status == "cache"
+    assert clingen.cache_status == "cache_hit"
+    assert response.report_payload.report_profile is not None
+    expert_panel = response.report_payload.report_profile.expert_panel
+    assert expert_panel is not None
+    assert expert_panel.provenance.source_version == "ClinGen Evidence Repo cached"
+    assert expert_panel.freshness == "fresh"
+    assert expert_panel.freshness_reason == "cache_hit"
+
+
+def test_clingen_vcep_lookup_serves_stale_cache_when_live_source_fails(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    cache_key = "clinvar:VCV001421454"
+    repo.upsert(
+        "clingen",
+        cache_key,
+        normalized_identity={"gene": "RPE65", "clinvar_accession": "VCV001421454"},
+        request_identity={"cache_key": cache_key},
+        status="live",
+        summary=_expert_panel_summary(),
+        raw={"cached": True},
+        warnings=["cached_warning"],
+        source_url="https://erepo.clinicalgenome.org/evrepo/api/classifications/CA189146",
+        ttl_days=-1,
+        source_version="ClinGen Evidence Repo cached",
+    )
+    clingen_tool = _StaticTool(
+        "clingen",
+        status="fallback",
+        warnings=["live_fetch_failed:ReadTimeout"],
+    )
+    service = _service(
+        tmp_path,
+        repo,
+        tool_overrides={
+            "clinvar": _StaticTool(
+                "clinvar",
+                {
+                    "classification": "Uncertain significance",
+                    "review_status": "criteria provided, single submitter",
+                    "accession": "VCV001421454",
+                },
+                raw={"variation_set": []},
+            ),
+            "clingen": clingen_tool,
+        },
+    )
+
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    clingen = next(item for item in response.evidence if item.source == "clingen")
+    assert clingen_tool.calls == 1
+    assert clingen.status == "stale"
+    assert clingen.cache_status == "stale_on_failure"
+    assert "source_cache_stale_on_failure:clingen" in clingen.warnings
+    assert response.report_payload.report_profile is not None
+    expert_panel = response.report_payload.report_profile.expert_panel
+    assert expert_panel is not None
+    assert expert_panel.freshness == "stale"
+    assert expert_panel.freshness_reason == "stale_on_failure"
 
 
 def test_arbitrary_lookup_ignores_source_cache_for_unselected_sources(tmp_path: Path) -> None:

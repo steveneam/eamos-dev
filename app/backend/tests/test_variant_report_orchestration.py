@@ -96,6 +96,10 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert profile["header"]["classification_source"] == "ClinGen"
     assert profile["interpretation_summary"]["mode"] == "deterministic"
     assert "clinical_consensus" in profile["interpretation_summary"]["fact_refs"]
+    assert profile["expert_panel"]["vcep"]["name"] == "Inherited Retinal Dystrophies VCEP"
+    assert profile["expert_panel"]["final_classification"] == "likely_pathogenic"
+    assert profile["expert_panel"]["criteria"][0]["assertion_level"] == "vcep_specified"
+    assert profile["expert_panel"]["freshness"] == "fresh"
     _assert_section_3_population_frequency(profile, report_payload)
     _assert_no_population_metrics_in_section_2_or_acmg(profile)
     assert (

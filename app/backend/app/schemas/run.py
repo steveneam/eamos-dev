@@ -378,7 +378,23 @@ SourceStatus = Literal[
     "failed",
 ]
 ReportMatchLevel = Literal["variant_level", "gene_level", "disease_level", "unavailable"]
-EvidenceAssertionLevel = Literal["source_asserted", "eamos_hint", "not_assessed"]
+EvidenceAssertionLevel = Literal[
+    "source_asserted",
+    "vcep_specified",
+    "eamos_hint",
+    "not_assessed",
+]
+ExpertPanelClassification = Literal[
+    "pathogenic",
+    "likely_pathogenic",
+    "vus",
+    "likely_benign",
+    "benign",
+    "conflicting",
+    "not_classified",
+]
+ExpertPanelFreshness = Literal["fresh", "stale", "unknown"]
+ExpertPanelFreshnessReason = Literal["cache_hit", "stale_on_failure", "tile_only"]
 
 
 class SourceProvenance(BaseModel):
@@ -389,6 +405,45 @@ class SourceProvenance(BaseModel):
     retrieved_at: datetime | None = None
     version: str | None = None
     warnings: list[str] = Field(default_factory=list)
+
+
+class ExpertPanelVcep(BaseModel):
+    id: str
+    name: str
+    affiliation_id: str | None = None
+    last_curated_date: str
+    vcep_url: str
+
+
+class ExpertPanelCriterion(BaseModel):
+    code: str
+    applied_strength: str
+    default_strength: str
+    state: Literal["met", "not_met", "not_assessed", "conflicting"]
+    assertion_level: EvidenceAssertionLevel = "vcep_specified"
+    rationale: str | None = None
+    source: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ExpertPanelProvenance(BaseModel):
+    source_url: str
+    fetched_at: str
+    source_version: str
+    cache_record_id: str | None = None
+    raw_jsonld_ref: str | None = None
+
+
+class ExpertPanelSection(BaseModel):
+    vcep: ExpertPanelVcep
+    final_classification: ExpertPanelClassification
+    narrative: str
+    criteria: list[ExpertPanelCriterion] = Field(default_factory=list)
+    source_scope: str
+    provenance: ExpertPanelProvenance
+    freshness: ExpertPanelFreshness = "unknown"
+    freshness_reason: ExpertPanelFreshnessReason | None = None
 
 
 class ReportExtractionSectionTarget(BaseModel):
@@ -706,6 +761,7 @@ class VariantReportProfile(BaseModel):
     molecular_context: MolecularContextSection | None = None
     computational_deep_dive: ComputationalDeepDiveSection | None = None
     acmg_worksheet: AcmgWorksheetLedger | None = None
+    expert_panel: ExpertPanelSection | None = None
     therapies_trials: TherapiesTrialsSection | None = None
     provenance: list[SourceProvenance] = Field(default_factory=list)
 

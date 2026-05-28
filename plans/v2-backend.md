@@ -24,6 +24,45 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-28, Codex):
+- PRE-D-DRIVE-RELOCATION option A selected. Codex rechecked the dirty tree and
+  verified the CAR #3 ClinGen VCEP backend contract plus native
+  indexed-reader proof before committing/pushing for Claude's local
+  `E:\eamos` -> `D:\eamos` move. The branch was even with origin before this
+  Codex commit path. Disposable `E:\eamos\.tmp` was removed after resolving it
+  under the repo root. After relocation, Eamos does not need the failing
+  removable `E:` drive repaired; it should simply stop using `E:` as the repo
+  drive. Focused CAR #3/indexed-reader pytest, Ruff, Black check,
+  `git diff --check`, and both frontend `tsc --noEmit` checks passed.
+- NATIVE-INDEXED-READER-PROOF is now unblocked and verified in WSL Ubuntu.
+  Docker Desktop 4.49.0 / Engine 28.5.1 answers on the `desktop-linux`
+  context; `Ubuntu-24.04` is installed as the default WSL2 distro; and a
+  persistent proof venv at `/root/eamos-native-proof` installed backend
+  requirements including native Linux wheels for `pysam==0.24.0` and
+  `pyBigWig==0.3.25`. The repo's removable `E:` drive required a manual
+  `drvfs` mount at `/mnt/e` and Windows reports that volume as `Full Repair
+  Needed`, so do not rely on WSL automount until the repo moves to a stable
+  disk. WSL native
+  `tests/test_indexed_source_readers.py -q` passed (`11 passed`) after a
+  one-line backend fix canonicalized pyBigWig `out_of_bounds` error-detail
+  contigs from raw `chr1` to canonical `1`. Windows focused pytest still
+  passed with expected native skips; Ruff, Black check, and targeted
+  `git diff --check` passed. No commit or push.
+- CAR-3-CLINGEN-VCEP-EXPERT-PANEL is implemented and verified backend-side.
+  Added additive `report_profile.expert_panel` with typed VCEP identity,
+  final classification, narrative, VCEP-specific criterion strengths,
+  provenance, and freshness fields. The `clingen_vcep` lazy-section envelope
+  now returns this typed expert-panel payload when available instead of the
+  previous partial worksheet wrapper. ClinGen source-cache keying now follows
+  the CAR #3 precedence order: CAID, then ClinVar VCV accession, then
+  normalized HGVS plus gene; fresh cache hits and stale-on-failure cache
+  fallbacks hydrate `expert_panel.freshness` / `freshness_reason`. Both
+  `backend.ts` mirrors are byte-identical. Focused CAR #3 pytest, full backend
+  pytest, Ruff, Black check, `git diff --check`, and both frontend
+  `tsc --noEmit` checks passed. Known JWT short-key warnings only on full
+  backend pytest. No frontend renderer live-wire, production source
+  imports/downloads, live Supabase writes, uploads/imports, env/deploy
+  mutation, `/runs`, AlphaMissense display/runtime scoring, restricted
+  predictor unlocks, destructive git, stash, reset, clean, commit, or push.
 - FGV-002-FULL-GENE-FIXTURE-HYDRATION is implemented and verified. Fixture-mode
   `POST /api/v1/viewer` now accepts `window.kind = "full_gene"` for RPE65
   `c.260A>G` and curated ClinVar-stack transcript-model records, with ABCA4

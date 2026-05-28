@@ -1,5 +1,126 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 76 - 28 May 2026 - pre-D-drive relocation option A
+
+Selected the coordinated relocation path **A**: commit and push the verified
+Codex CAR #3 backend contract plus WSL/Docker native indexed-reader proof
+before Claude moves the repo from removable `E:` to internal `D:`.
+
+Completed:
+- Re-read handoff/progress/backend notes and inspected the dirty tree. The
+  remaining Codex dirty set was the expected CAR #3 ClinGen VCEP contract,
+  source-cache integration, TypeScript mirrors, native indexed-source
+  pyBigWig detail fix, and Codex-owned handoff/docs.
+- Confirmed branch `checkpoint/v2-batches-2026-05-17` was even with origin
+  before the Codex commit path.
+- Removed disposable `E:\eamos\.tmp` after resolving it under the repo root.
+- Kept the drive decision explicit: after the repo is relocated to `D:`, Eamos
+  does not need the failing removable `E:` drive repaired.
+
+Verification:
+- `python -m pytest tests/test_lookup_section_fetch_contract.py
+  tests/test_source_cache.py tests/test_tool_invariants.py
+  tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
+  tests/test_indexed_source_readers.py -q` passed.
+- `python -m ruff check ...` passed for touched backend source/tests.
+- `python -m black --check --target-version py310 ...` passed.
+- `git diff --check` passed with line-ending warnings only.
+- `app/web`: `./node_modules/.bin/tsc --noEmit` passed.
+- `app/frontend`: `./node_modules/.bin/tsc --noEmit` passed.
+
+Out of scope:
+- No frontend renderer live-wire, production source imports/downloads, live
+  Supabase writes/resources/migrations, uploads/imports, env/deploy mutation,
+  `/runs`, AlphaMissense public display/runtime scoring, restricted predictor
+  unlocks, destructive git, stash, reset, or clean.
+
+## Session 75 - 28 May 2026 - WSL/Docker native indexed-reader proof
+
+Rechecked the Native Task 15 infrastructure after IT installed Docker Desktop
+and WSL, then installed a general-purpose Ubuntu distro and completed the
+native indexed-source proof that had previously skipped on Windows.
+
+Completed:
+- Verified Docker Desktop 4.49.0 is functional for this work: `docker version`
+  and `docker info` both answer on the `desktop-linux` context with Linux
+  Engine 28.5.1.
+- Installed `Ubuntu-24.04` through WSL using `--no-launch --web-download` and
+  set it as the default WSL distro. Verified Ubuntu 24.04.4 LTS, WSL2, and
+  Python 3.12.3.
+- Installed `python3.12-venv` inside Ubuntu and created a persistent proof venv
+  at `/root/eamos-native-proof`.
+- Installed backend requirements in that venv, including native Linux wheels
+  for `pysam==0.24.0` and `pyBigWig==0.3.25`.
+- Manually mounted the repo's removable `E:` drive into Ubuntu at `/mnt/e`;
+  Windows reports the `E:` volume as `Full Repair Needed`, so this mount should
+  be treated as session-local rather than reliable automount.
+- Ran the native `tests/test_indexed_source_readers.py` proof in Ubuntu. The
+  first native run exposed a Linux-only pyBigWig bounds-detail mismatch
+  (`chr1` vs canonical `1`), so `app/services/indexed_sources.py` now
+  canonicalizes the `out_of_bounds` error detail chrom.
+
+Verification:
+- Windows: `python -m pytest tests/test_indexed_source_readers.py -q` passed
+  with expected native-reader skips (`.ss...ss...`).
+- Windows: `python -m ruff check app/services/indexed_sources.py
+  tests/test_indexed_source_readers.py` passed.
+- Windows: `python -m black --check --target-version py310
+  app/services/indexed_sources.py tests/test_indexed_source_readers.py`
+  passed.
+- WSL Ubuntu: `PYTHONPATH=/mnt/e/eamos/app/backend
+  /root/eamos-native-proof/bin/python -m pytest
+  tests/test_indexed_source_readers.py -q` passed (`11 passed`).
+- `git diff --check -- app/backend/app/services/indexed_sources.py` passed
+  with the usual LF-to-CRLF warning only.
+
+Out of scope:
+- No commit, push, destructive git, stash, reset, clean, production source
+  imports/downloads, live Supabase writes/resources/migrations, uploads/imports,
+  env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring, or
+  restricted predictor unlocks.
+
+## Session 74 - 28 May 2026 - CAR #3 ClinGen VCEP expert-panel backend
+
+Closed the Codex backend half of CAR #3 for the M-005 / M9 ClinGen VCEP
+expert-panel slice.
+
+Completed:
+- Added the additive `ReportPayload.report_profile.expert_panel` contract with
+  typed VCEP identity, final classification, narrative, VCEP-specific criteria
+  strengths, provenance, and freshness fields.
+- Extended the ClinGen Evidence Repository tool/fixture path to emit the
+  expert-panel payload while preserving the existing clinical-consensus ACMG
+  worksheet behavior.
+- Replaced the previous partial `clingen_vcep` lazy-section envelope with the
+  typed expert-panel payload when available; the previous ACMG worksheet
+  fallback remains for missing expert-panel data.
+- Added ClinGen VCEP source-cache keying with CAR #3 precedence: CAID first,
+  then ClinVar VCV accession, then normalized HGVS plus gene. Fresh cache hits
+  and stale-on-failure cache fallbacks now hydrate `expert_panel.freshness` and
+  `freshness_reason`.
+- Updated both `backend.ts` mirrors byte-identically for the additive expert
+  panel types and `VariantReportProfile.expert_panel`.
+
+Verification:
+- Focused CAR #3 pytest passed:
+  `tests/test_lookup_section_fetch_contract.py`,
+  `tests/test_source_cache.py`, `tests/test_tool_invariants.py`,
+  `tests/test_variant_report_orchestration.py`, and
+  `tests/test_frontend_contract.py`.
+- `python -m ruff check ...` passed for touched backend files/tests.
+- `python -m black --check --target-version py310 ...` passed after formatting
+  `app/tools/clingen.py`.
+- `python -m pytest tests/ -q` passed with known JWT short-key warnings only.
+- `./node_modules/.bin/tsc --noEmit` passed in both `app/web` and
+  `app/frontend`.
+- `git diff --check` passed; line-ending warnings only.
+
+Out of scope:
+- No frontend renderer live-wire, production source imports/downloads, live
+  Supabase writes/resources/migrations, uploads/imports, env/deploy mutation,
+  `/runs`, AlphaMissense public display/runtime scoring, restricted predictor
+  unlocks, destructive git, stash, reset, clean, commit, or push.
+
 ## Session 73 - 28 May 2026 - FGV-002 full-gene fixture hydration
 
 Implemented deterministic fixture-mode full-gene genomic-locus hydration for

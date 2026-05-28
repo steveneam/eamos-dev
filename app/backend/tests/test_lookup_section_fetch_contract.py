@@ -82,11 +82,14 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     assert computational["freshness"]["stale_on_failure"] is False
 
     clingen = sections["clingen_vcep"]
-    assert clingen["status"] == "partial"
-    assert clingen["payload"]["classification_source"] in {"ClinVar", "ClinGen"}
-    assert clingen["payload"]["criteria"]
-    assert clingen["payload"]["source_scope"] == "current_clinical_consensus_snapshot"
-    assert "clingen_vcep_evidence_repo_source_cache_not_integrated" in clingen["warnings"]
+    assert clingen["status"] == "available"
+    assert clingen["payload"]["vcep"]["name"] == "Inherited Retinal Dystrophies VCEP"
+    assert clingen["payload"]["final_classification"] == "likely_pathogenic"
+    assert clingen["payload"]["criteria"][0]["applied_strength"] == "PM2_Moderate"
+    assert clingen["payload"]["criteria"][0]["assertion_level"] == "vcep_specified"
+    assert clingen["payload"]["freshness"] == "fresh"
+    assert "ClinGen Evidence Repository" in clingen["payload"]["source_scope"]
+    assert clingen["warnings"] == []
     assert clingen["freshness"]["stale_on_failure"] is False
 
 

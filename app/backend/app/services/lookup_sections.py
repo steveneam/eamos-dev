@@ -149,6 +149,16 @@ def _computational_envelope(response: LookupResponse) -> LookupSectionEnvelope:
 
 def _clingen_vcep_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     profile = response.report_payload.report_profile
+    expert_panel = profile.expert_panel if profile is not None else None
+    if expert_panel is not None:
+        return LookupSectionEnvelope(
+            section_id="clingen_vcep",
+            status="available",
+            payload=expert_panel.model_dump(mode="json"),
+            freshness=_freshness(response, "clingen_vcep"),
+            warnings=[],
+        )
+
     worksheet = profile.acmg_worksheet if profile is not None else None
     if worksheet is None:
         return LookupSectionEnvelope(

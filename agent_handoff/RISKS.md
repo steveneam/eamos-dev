@@ -136,6 +136,16 @@ Guardrail:
 - Update shared docs at task boundaries, not while another agent is actively
   editing adjacent work.
 
+## Repo Drive Relocation
+
+Section edited: 2026-05-28 21:58 +1000 - Codex.
+
+The removable `E:` drive reports `HealthStatus=Warning` /
+`OperationalStatus=Full Repair Needed` and should not remain the Eamos repo
+drive. The coordinated mitigation is relocation to internal `D:`. Once the
+repo is moved and verified on `D:`, Eamos does not require `E:` repair; leave
+`E:` as an unresolved hardware/media issue outside the repo workflow.
+
 ## Gated Work
 
 Do not start without explicit user direction:
@@ -150,7 +160,7 @@ Do not start without explicit user direction:
 
 ## M-002C Primer Provider Limitations
 
-Section edited: 2026-05-17 23:07 +1000 · Codex.
+Section edited: 2026-05-28 20:49 +1000 - Codex.
 
 Real primer design now uses local Primer3 via `primer3-py>=2.3,<3` in
 `USE_REAL_APIS=true` mode. It now includes exact amplicon screening against the
@@ -165,11 +175,12 @@ deliberate and should not be misread as completed verification:
 - With `PRIMER_SPECIFICITY_PROVIDER=ucsc_ispcr`, `specificity_hits` means
   local UCSC `isPcr` whole-genome products from the configured hg38 `.2bit`
   file. The local assets are now installed under ignored
-  `app/backend/data/bio_assets/**` and `hg38.2bit` MD5 was verified. A live
-  local `isPcr` smoke was attempted on 2026-05-17 but is blocked on this native
-  Windows host: the official UCSC `isPcr` binary is a Linux ELF and no WSL
-  distribution is installed, causing `WinError 193` / structured `503
-  workbench_provider_unavailable`.
+  `app/backend/data/bio_assets/**` and `hg38.2bit` MD5 was verified. The
+  original 2026-05-17 native Windows smoke failed because the official UCSC
+  `isPcr` binary is a Linux ELF. As of 2026-05-28, `Ubuntu-24.04` WSL2 is
+  installed and native `pysam`/`pyBigWig` indexed-reader proofs pass there, but
+  the `isPcr` provider itself still needs a separate WSL smoke before treating
+  whole-genome primer specificity as verified.
 - A direct online UCSC `hgPcr` call returned a Cloudflare/Turnstile
   bot-protection page from this environment on 2026-05-17. Do not rely on the
   interactive UCSC CGI endpoint for production backend specificity.

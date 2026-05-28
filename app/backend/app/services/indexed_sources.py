@@ -417,11 +417,12 @@ def _validate_interval(chrom: str, start: int, end: int) -> None:
 
 def _validate_bounds(chrom: str, start: int, end: int, contig_length: int) -> None:
     if end > contig_length:
+        canonical_chrom = _normalize_contig_alias(chrom)
         raise IndexedSourceError(
             "out_of_bounds",
             "indexed source query exceeds contig length",
             {
-                "chrom": chrom,
+                "chrom": canonical_chrom,
                 "start": start,
                 "end": end,
                 "contig_length": contig_length,

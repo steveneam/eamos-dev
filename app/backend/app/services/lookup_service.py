@@ -40,7 +40,11 @@ from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver
 from app.services.variant_report_orchestrator import VariantReportDataOrchestrator
 from app.services.variant_decoder import decode_variant
-from app.services.source_cache import is_hero_example_variant, source_cache_key
+from app.services.source_cache import (
+    clingen_vcep_source_cache_key,
+    is_hero_example_variant,
+    source_cache_key,
+)
 from app.tools.base import ToolResult
 from app.tools.registry import STRICT_GENOMIC_PLUGINS
 
@@ -136,6 +140,18 @@ def _source_version_from_result(result: ToolResult) -> str | None:
 
 def _source_cache_token(value: str | None) -> str:
     return (value or "").strip().removeprefix("chr").lower()
+
+
+def _annotate_source_cached_result(name: str, result: ToolResult, *, cache_key: str) -> None:
+    if name != "clingen":
+        return
+    expert_panel = (result.summary or {}).get("expert_panel")
+    if not isinstance(expert_panel, dict):
+        return
+    provenance = expert_panel.get("provenance")
+    if not isinstance(provenance, dict):
+        return
+    provenance.setdefault("cache_record_id", f"clingen:{cache_key}")
 
 
 def _hydrate_variant_from_source_result(variant, source_name: str, result: ToolResult) -> None:
@@ -407,6 +423,16 @@ class LookupService:
         def source_cache_key_for(name: str) -> str | None:
             if not source_cache_enabled:
                 return None
+            if name == "clingen":
+                return clingen_vcep_source_cache_key(
+                    gene=gene,
+                    transcript_hgvs=variant.transcript_hgvs,
+                    cdna=cdna,
+                    genomic_hgvs=variant.genomic_hgvs,
+                    genomic_hg38=variant.genomic_hg38,
+                    clinvar_summary=evidence_map.get("clinvar"),
+                    clinvar_raw=evidence_raw.get("clinvar"),
+                )
             if source_cache_hero_variant:
                 return source_key
             if name not in SOURCE_CACHE_GENERAL_SOURCES:
@@ -424,6 +450,11 @@ class LookupService:
                 not source_cache_hero_variant
                 and name == "gnomad"
                 and "gnomad_variant_not_found" in result.warnings
+            ):
+                return False
+            if name == "clingen" and (
+                "clingen_variant_not_found" in result.warnings
+                or not (result.summary or {}).get("expert_panel")
             ):
                 return False
             return True
@@ -466,6 +497,11 @@ class LookupService:
                     )
 
             if use_source_cache and should_persist_source_cache(name, result):
+                _annotate_source_cached_result(
+                    name,
+                    result,
+                    cache_key=source_cache_lookup_key,
+                )
                 self.source_cache_repo.upsert(
                     result.source,
                     source_cache_lookup_key,
