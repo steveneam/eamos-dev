@@ -1,16 +1,21 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import type { PublicationsCallout as PublicationsCalloutData } from '@/lib/backend'
+import type {
+  PublicationsCallout as PublicationsCalloutData,
+  PublicationScopeCounts,
+} from '@/lib/backend'
 
 interface PublicationsCalloutProps {
   data?: PublicationsCalloutData | null
+  scopeCounts?: PublicationScopeCounts | null
+  geneSymbol?: string | null
   onAskSummary?: () => void
 }
 
 type PubScope = 'variant' | 'gene'
 
-export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutProps) {
+export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummary }: PublicationsCalloutProps) {
   const searchParams = useSearchParams()
   const [scope, setScope] = useState<PubScope>(() => {
     const param = searchParams.get('pubScope')
@@ -23,13 +28,24 @@ export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutP
     setScope(param === 'gene' ? 'gene' : 'variant')
   }, [searchParams])
 
-  if (!data) {
+  if (!data && !scopeCounts) {
     return (
       <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '14px 0 0' }}>
         No publication summary available for this variant.
       </p>
     )
   }
+
+  const variantCount = scopeCounts?.variant?.total_count ?? data?.total_count ?? null
+  const geneScope = scopeCounts?.gene ?? null
+  const geneCount = geneScope?.total_count ?? null
+  const geneQuery = geneScope?.query ?? null
+  const genePubMedUrl = geneQuery
+    ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(geneQuery)}`
+    : geneSymbol
+      ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(geneSymbol)}%5BGene+Name%5D`
+      : null
+  const geneLabel = geneSymbol ? `the ${geneSymbol} gene` : 'this gene'
 
   return (
     <div
@@ -80,9 +96,30 @@ export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutP
                   marginRight: 6,
                 }}
               >
-                {data.total_count.toLocaleString()} publications
+                {variantCount != null ? `${variantCount.toLocaleString()} publications` : '— publications'}
               </span>
-              {data.blurb}
+              {data?.blurb}
+            </p>
+          ) : geneCount != null ? (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13.5,
+                lineHeight: 1.55,
+                color: 'var(--ink-2)',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--mono)',
+                  fontWeight: 600,
+                  color: 'var(--ink)',
+                  marginRight: 6,
+                }}
+              >
+                {geneCount.toLocaleString()} publications
+              </span>
+              across {geneLabel} (PubMed source count).
             </p>
           ) : (
             <p
@@ -97,18 +134,19 @@ export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutP
                 style={{
                   fontFamily: 'var(--mono)',
                   fontWeight: 600,
-                  color: 'var(--ink-3)',
+                  color: 'var(--ink-4)',
                   marginRight: 6,
                 }}
+                aria-label="Not available"
               >
-                Gene publication count:
+                —
               </span>
-              Loading...
+              Gene-wide publication count not available right now.
             </p>
           )}
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {scope === 'variant' && (
+          {scope === 'variant' && data?.scholar_url && (
             <a
               href={data.scholar_url}
               target="_blank"
@@ -121,6 +159,21 @@ export function PublicationsCallout({ data, onAskSummary }: PublicationsCalloutP
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               Google Scholar ↗
+            </a>
+          )}
+          {scope === 'gene' && genePubMedUrl && (
+            <a
+              href={genePubMedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="eamos-toggle-btn"
+              style={{ textDecoration: 'none' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              PubMed (gene) ↗
             </a>
           )}
           {onAskSummary && (

@@ -550,9 +550,15 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
           <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
           <CuratedVariantsGrid data={payload.curated_variants_distribution} />
           <AssociatedConditions data={payload.associated_conditions} />
-          {!payload.publications_literature && (
-            <PublicationsCallout data={payload.publications_callout} />
-          )}
+          <PublicationsCallout
+            data={payload.publications_callout}
+            scopeCounts={
+              payload.publications_callout?.scope_counts ??
+              payload.publications_literature?.scope_counts ??
+              null
+            }
+            geneSymbol={payload.report_profile?.header?.gene ?? null}
+          />
         </Card>
 
         {/* 5 · Publication literature. */}
