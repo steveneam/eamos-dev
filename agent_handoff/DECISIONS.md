@@ -2,13 +2,17 @@
 
 ## 2026-05-29: CLI First For External Services
 
-Section edited: 2026-05-29 01:34 +1000 - Codex.
+Section edited: 2026-05-29 01:47 +1000 - Codex.
 
 Decision (Claude/Steven handoff, 2026-05-29): for any external-service action
 against Vercel, Render, Supabase, Stripe, GitHub, PostHog, Resend, Porkbun, or
-similar services, try the official CLI first. Fall back to MCP, REST API, or
-dashboard only when the CLI cannot perform the required action or no CLI exists
-for that service/action.
+similar services, try the official CLI first. If no CLI command exists for the
+action, use the REST API with a short-lived token and revoke it afterward. If
+neither works, fall back to MCP, preferably read-oriented tools only. Last
+resort is a dashboard click run by Steven.
+
+Do not use community-maintained wrapper CLIs or write reverse-engineered
+scraper CLIs without explicit Steven approval.
 
 Practical notes:
 
@@ -22,11 +26,29 @@ Practical notes:
   WSL-native reader proofs, keep external-service CLI work in Windows
   PowerShell and do not install Vercel/Supabase/Stripe/Render CLIs inside WSL
   unless a separate Linux-specific need is approved.
+- Vercel MCP stays available for logs, deployments, and project metadata, but
+  writes/config changes should use the official `vercel` CLI first.
+- Project `.mcp.json` remains acceptable with Supabase, Render, Vercel, and
+  chrome-devtools. Claude-side claude.ai Connectors are a separate token budget
+  concern; unused Gmail, Google Calendar, and Google Drive connectors should be
+  disconnected by Steven. PubMed is optional because the backend already wraps
+  PubMed via E-utilities.
+- Printing Press / `printingpress.dev` is not adopted for Eamos now. It is
+  directionally aligned with the CLI-first rule, but Eamos should prefer
+  official APIs, FTP/indexed files, and official CLIs. Reverse-engineered CLIs
+  are too ToS-fragile for regulated bioinformatics work and too new to become a
+  load-bearing dependency.
+- Repeated multi-step Eamos workflows may get repo-local scripts such as
+  `scripts/eamos-*.ps1` that wrap official CLIs in sequence. These are allowed
+  because they live in the repo and avoid third-party CLI drift.
 
 Reasoning: Phase 2 branch coordination showed Vercel project branch config was
 resolved cleanly by `vercel git disconnect` / `vercel git connect`, after
 MCP/REST/dashboard exploration burned time on unsupported endpoints. The
-preferred escalation order is CLI -> MCP/REST -> dashboard.
+preferred escalation order is official CLI -> REST API -> MCP -> dashboard.
+Claude's Printing Press follow-up also reinforced the token-economy rationale:
+MCP tool schemas and large raw API payloads are expensive; local CLI
+summarization keeps context smaller and tends to be more reliable.
 
 ## 2026-05-27: DL-019 Explicit Git Staging Rule
 
