@@ -16,12 +16,14 @@
 
 - **Claude:** IDLE @ post 2026-05-28 ~22:30 +1000 (anchor: robocopy end 22:19:25; this commit hash = authoritative per [[feedback_no_clock_timestamps]]) — **E:\eamos → D:\eamos RELOCATION COMPLETE.** Two pushes landed pre-move: `1b2e99c` (Claude FGV-003 FE proof slice · git 21:45:25 +1000) + `5797f9d` (Codex CAR #3 ClinGen VCEP expert panel · git ~22:00 +1000). Tree on D:\eamos verified: HEAD == origin == `5797f9d`, git fsck clean (dangling blobs only, cosmetic), 43,314 files copied (2.432 GB / 0 failed), 2 supabase-skill junctions recreated to point at `D:\eamos\.agents\skills\...`, Claude memory dir copied to `C:\Users\seamegdool\.claude\projects\D--eamos\` (466 files / 198.62 MB / parity OK). 5 Claude-owned files sed-ed for path correction (`.claude/settings.json` hook + `.claude/settings.local.json` permission + `agent_handoff/README.md` + `plans/README.md` + `app/web/app/layout.tsx` comment); `plans/v2-design-overhaul/*.json` intentionally NOT sed-ed (frozen May-20 planner artifact, historical truth like `archive/`). Pre-move Claude Active Status detail (CAR #3, FGV-002 consumer rules, audit-trail correction note re fabricated timestamps) archived verbatim at `agent_handoff/archive/2026-05-28-claude-section-pre-D-move.md`. E:\ stays in place untouched as cold backup until D:\ verified across both agents for at least one full session. **Next priority queue — Phase 1 (post-move verify):** (1) FGV-003 browser-verify on D:\ first action next session (Turbopack should compile fast on internal/USB without the E:\ thrash); (2) Codex WSL remount /mnt/e → /mnt/d + re-run focused indexed-source pytest; (3) M-005 live-wire (consume `report_profile.expert_panel` from API → swap `<ExpertPanelSection data={...} />`); (4) CAR #4 (M-006 / M10a gene-scoped pub count) at slice start per DL-002. **Phase 2 (after Phase 1 verified clean across both agents):** branch rename `checkpoint/v2-batches-2026-05-17` → `main` + external service coord (Vercel production branch + Render web service git branch + Supabase branch coupling check via mcp__supabase__list_branches + PostHog/Stripe/Resend/Porkbun verify-only — none are git-branch-coupled, just confirm post-rename). No `.github/workflows/` exists so no CI to update. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
 
-- **Codex:** IDLE @ 2026-05-28 21:58 +1000 - relocation option **A**
-  selected. Rechecked CAR #3 + native indexed-reader dirty set, reran focused
-  verification, removed disposable `.tmp`, and prepared the explicit Codex
-  commit/push handoff so Claude can move the repo from failing removable `E:`
-  to internal `D:`. `E:` repair is not required for Eamos after the move; it is
-  simply no longer a suitable repo/worktree drive.
+- **Codex:** IDLE @ 2026-05-28 23:02 +1000 - Windows-only post-crash audit
+  complete. User reported `vmmemWSL` exhausted host RAM after the D-drive WSL
+  mount/proof path; do not launch WSL/Linux for routine Eamos work. Wrote
+  `%USERPROFILE%\.wslconfig` with `memory=4GB` and `guiApplications=false`,
+  force-stopped the already-running WSL VM from Windows, reran focused
+  indexed-source pytest on Windows only, and prepared this safe handoff
+  commit/push. This supersedes older handoff text that said to remount WSL at
+  `/mnt/d`.
 
 ## Log Edit-Lock
 
@@ -31,7 +33,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-28 ~22:35 +1000 - Claude (E:\eamos -> D:\eamos relocation closeout; Claude Active Status replaced + pre-D-move snapshot archived; commit hash on next push = authoritative anchor)
+UNLOCKED - 2026-05-28 23:02 +1000 - Codex (Windows-only post-crash audit + WSL memory cap handoff)
 
 ## Shared File Locks
 
@@ -1702,64 +1704,41 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-28 21:58 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-28 23:02 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-28 21:58 +1000 - Codex):**
-Selected relocation option A: commit and push the verified Codex CAR #3
-ClinGen VCEP backend contract plus WSL/Docker native indexed-reader proof
-before Claude performs the local `E:\eamos` to `D:\eamos` move. Disposable
-`E:\eamos\.tmp` was removed after resolving it under the repo root.
+**Latest Codex update (2026-05-28 23:02 +1000 - Codex):**
+Performed a Windows-only post-crash audit after the D-drive WSL mount/proof
+path caused `vmmemWSL` to exhaust host RAM and crash the computer. This session
+did not start a Linux shell. `%USERPROFILE%\.wslconfig` now caps WSL2 at
+`memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`; an
+already-running `vmmemWSL` instance was force-stopped from Windows.
 
 **State:**
-- Docker Desktop 4.49.0 / Engine 28.5.1 is functional on the `desktop-linux`
-  context. It is not the latest Desktop release, but it is sufficient for the
-  current Eamos native-proof work; upgrading remains an IT/security patch
-  decision rather than a blocker.
-- `Ubuntu-24.04` is installed as the default WSL2 distro. Verified Ubuntu
-  24.04.4 LTS and Python 3.12.3.
-- Ubuntu needed `python3.12-venv`; installed it through apt, then created a
-  persistent proof venv at `/root/eamos-native-proof`.
-- The proof venv installed backend requirements, including native Linux wheels
-  for `pysam==0.24.0` and `pyBigWig==0.3.25`.
-- The repo's removable `E:` drive does not reliably automount in Ubuntu.
-  Windows reports it as `Full Repair Needed`; manual `drvfs` mount at `/mnt/e`
-  works for short WSL runs. The coordinated path is now relocation to internal
-  `D:`, not repairing `E:` for Eamos.
-- Native `tests/test_indexed_source_readers.py` initially exposed a Linux-only
-  pyBigWig error-detail mismatch (`chr1` vs canonical `1`). Codex fixed
-  `app/backend/app/services/indexed_sources.py` to canonicalize
-  `out_of_bounds` error-detail contigs.
-- CAR #3 remains closed. The additive expert-panel backend contract and
-  byte-identical TypeScript mirrors are still present. Claude-owned FGV-003
+- Repo root for Codex is now `D:\eamos`; do not use `E:\eamos` for active work.
+- Do not launch WSL/Linux for routine Eamos work. Use Windows-native checks
+  first. Any future WSL-native proof requires explicit user approval, the
+  `%USERPROFILE%\.wslconfig` cap in place, and immediate shutdown afterward.
+- The last WSL native proof path was `/mnt/d/eamos`; treat that as historical
+  until the user explicitly re-opens Linux work.
+- CAR #3 remains closed on origin. The additive expert-panel backend contract
+  and byte-identical TypeScript mirrors are present; Claude-owned FGV-003
   Workbench files were not edited by Codex.
-- Pre-relocation path selected: **A** (commit + push Codex CAR #3/native-proof
-  work so origin is the clean truth before robocopy).
+- `E:\` still reports the unresolved Full Repair Needed media flag and should
+  be treated only as cold backup until both agents verify a full D-drive
+  session.
 
 **Verification:**
 - Windows focused pytest passed:
   `python -m pytest tests/test_indexed_source_readers.py -q`
-  (`.ss...ss...`, expected native-reader skips).
-- WSL Ubuntu focused pytest passed:
-  `PYTHONPATH=/mnt/e/eamos/app/backend /root/eamos-native-proof/bin/python -m
-  pytest tests/test_indexed_source_readers.py -q` (`11 passed`).
-- `python -m ruff check app/services/indexed_sources.py
-  tests/test_indexed_source_readers.py` passed.
-- `python -m black --check --target-version py310
-  app/services/indexed_sources.py tests/test_indexed_source_readers.py`
-  passed.
-- `git diff --check -- app/backend/app/services/indexed_sources.py` passed with
-  the usual LF-to-CRLF warning only.
-- Pre-relocation rerun passed:
-  `python -m pytest tests/test_lookup_section_fetch_contract.py
-  tests/test_source_cache.py tests/test_tool_invariants.py
-  tests/test_variant_report_orchestration.py tests/test_frontend_contract.py
-  tests/test_indexed_source_readers.py -q`;
-  `python -m ruff check ...`; `python -m black --check --target-version py310
-  ...`; `git diff --check`; `app/web` `tsc --noEmit`; and `app/frontend`
-  `tsc --noEmit`.
-- No lingering WSL pytest process remains.
+  from `D:\eamos\app\backend` (`.ss...ss...`, expected native-reader skips).
+- `git diff --check` passed for the handoff/doc files with line-ending
+  warnings only.
+- Changed-file secret scan found historical environment variable names and
+  documentation references only; no committed secret values.
+- Process check after the elevated force-stop showed no `vmmemWSL`; only
+  Windows `wslservice` remained.
 
 **Next-session direction:**
 - If directed, Claude/frontend can live-wire `ExpertPanelSection` to the new
@@ -1768,25 +1747,24 @@ before Claude performs the local `E:\eamos` to `D:\eamos` move. Disposable
   publication count starts.
 - FGV-003 is active in Claude's lane; Codex did not inspect or verify it beyond
   `git status`.
-- Native Task 15 indexed-reader proof is no longer blocked by missing
-  WSL/Docker/Linux. Remaining infrastructure issue: move the repo off the
-  removable `E:` drive; after the planned `D:` relocation, Eamos does not need
-  `E:` repaired.
+- Native Task 15 has a historical WSL proof, but WSL is now gated by the
+  crash/RAM guardrail above.
 - A separate WSL smoke is still needed before marking UCSC `isPcr` primer
-  specificity as verified.
+  specificity as verified; do not run it unless the user explicitly approves
+  reopening WSL.
 
-**Clear-safe:** yes; option A selected for the D-drive relocation handoff,
-focused checks passed, `.tmp` is removed, and no Codex test processes or
-servers are running. No frontend renderer live-wire, production source
+**Clear-safe:** yes; Windows-only audit checks passed, `vmmemWSL` was
+force-stopped, and no Codex test processes or servers are running. No Linux
+shell, WSL mount, Docker start, frontend renderer live-wire, production source
 imports/downloads, live Supabase writes/resources/migrations, uploads/imports,
 env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
 restricted predictor unlocks, destructive git, stash, reset, or clean was
 performed.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-28 21:58 +1000 · Codex pre-D-drive relocation option A`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 75, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: Codex selected option A for the coordinated E:\\eamos -> D:\\eamos move: commit and push verified CAR #3 backend + WSL/Docker native-proof work first, with origin as truth before robocopy. Disposable E:\\eamos\\.tmp was removed.`
-`Verification: focused CAR #3/indexed-reader pytest passed; Ruff, Black --check, git diff --check, app/web tsc --noEmit, and app/frontend tsc --noEmit passed. Prior WSL Ubuntu indexed-source proof passed (11 passed).`
-`Next: after this commit reaches origin, Claude can relocate the repo to D:. E: repair is not required for Eamos after relocation. Re-root at D:\\eamos and remount WSL at /mnt/d before long native runs.`
-`Guardrails: no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`
+`# Resume prompt · 2026-05-28 23:02 +1000 · Codex Windows-only WSL crash guardrail audit`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 78, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
+`Delta: D-drive post-move docs audited after host crash; WSL/Linux is no longer routine for Eamos. %USERPROFILE%\\.wslconfig caps WSL2 at memory=4GB/processors=2/swap=2GB/guiApplications=false, and vmmemWSL was force-stopped from Windows.`
+`Verification: Windows D:\\eamos\\app\\backend python -m pytest tests/test_indexed_source_readers.py -q passed with expected native skips; git diff --check passed with line-ending warnings only; changed-file secret scan found docs/env-name references only.`
+`Next: commit/push this safe handoff if not already pushed; then Claude can proceed on D:\\eamos with Windows/browser work. Do not run WSL, rename branch, or open CAR #4 unless explicitly directed.`
+`Guardrails: no WSL/Linux routine work, no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy, env mutation, live Supabase writes/resources/migrations, uploads/imports, production source imports/downloads, restricted predictor unlocks, or push unless explicitly approved. End clear-safe.`

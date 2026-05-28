@@ -1,5 +1,76 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 78 - 28 May 2026 - Windows-only WSL crash guardrail audit
+
+Performed the post-crash audit after the D-drive WSL mount path caused
+`vmmemWSL` to consume host RAM and crash the computer. This session stayed on
+Windows and did not start a Linux shell.
+
+Completed:
+- Added `%USERPROFILE%\.wslconfig` outside the repo with a conservative WSL2
+  cap: `memory=4GB`, `processors=2`, `swap=2GB`,
+  `guiApplications=false`.
+- Found `vmmemWSL` already resident after the crash recovery at about 700 MB
+  and shut it down with Windows-side `wsl.exe --shutdown`. It restarted via
+  WSLg-related host processes, so the VM process was force-stopped from
+  Windows; only `wslservice` remained afterward.
+- Updated Codex/handoff/backend notes to treat WSL/Linux as non-routine for
+  Eamos: use Windows-native checks first, and require explicit user approval
+  plus the memory cap before any future WSL-native proof.
+
+Verification:
+- Windows-native: `python -m pytest tests/test_indexed_source_readers.py -q`
+  passed from `D:\eamos\app\backend` (`.ss...ss...`, expected native-reader
+  skips).
+- `git diff --check -- CODEX.md PROGRESS.md agent_handoff/CURRENT.md
+  agent_handoff/RISKS.md plans/v2-backend.md` passed with line-ending warnings
+  only.
+- Changed-file secret scan found only historical environment variable names
+  and documentation references, not committed secret values.
+- Process check after the elevated force-stop showed no `vmmemWSL`; only Windows
+  `wslservice` remained.
+
+Out of scope:
+- No Linux shell, WSL mount, Docker start, branch rename, frontend renderer
+  live-wire, production source imports/downloads, live Supabase
+  writes/resources/migrations, uploads/imports, env/deploy mutation, `/runs`,
+  AlphaMissense public display/runtime scoring, restricted predictor unlocks,
+  destructive git, stash, reset, or clean.
+
+## Session 77 - 28 May 2026 - D-drive post-move verification
+
+Completed the Codex side of the post-relocation check after Claude moved the
+repo from removable `E:` to internal `D:`.
+
+Completed:
+- Re-rooted the Codex shell at `D:\eamos`; branch
+  `checkpoint/v2-batches-2026-05-17` was even with
+  `origin/checkpoint/v2-batches-2026-05-17` and the worktree was clean before
+  this doc update.
+- Remounted WSL for native proof work by unmounting stale `/mnt/e` and
+  confirming `/mnt/d/eamos` is available.
+- Confirmed the focused indexed-source reader parity check passes from both
+  Windows-native Python and WSL Ubuntu after the D-drive relocation.
+- Recorded the residual E-drive risk: the `E:\` Full Repair Needed flag was
+  never resolved; Eamos now works from `D:\eamos`, with `E:\` retained only as
+  cold backup until both agents verify a full D-drive session.
+
+Verification:
+- Windows-native: `python -m pytest tests/test_indexed_source_readers.py -q`
+  passed from `D:\eamos\app\backend` (`.ss...ss...`, expected native-reader
+  skips).
+- WSL Ubuntu: `PYTHONPATH=/mnt/d/eamos/app/backend
+  /root/eamos-native-proof/bin/python -m pytest
+  tests/test_indexed_source_readers.py -q` passed from
+  `/mnt/d/eamos/app/backend` (`11 passed`).
+
+Out of scope:
+- No branch rename, frontend renderer live-wire, production source
+  imports/downloads, live Supabase writes/resources/migrations,
+  uploads/imports, env/deploy mutation, `/runs`, AlphaMissense public
+  display/runtime scoring, restricted predictor unlocks, destructive git,
+  stash, reset, or clean.
+
 ## Session 76 - 28 May 2026 - pre-D-drive relocation option A
 
 Selected the coordinated relocation path **A**: commit and push the verified

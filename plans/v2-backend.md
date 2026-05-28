@@ -24,6 +24,23 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-28, Codex):
+- WSL-CRASH-GUARDRAIL is now active. After the D-drive WSL `/mnt/d` proof path,
+  `vmmemWSL` consumed host RAM and crashed the computer. Routine Eamos
+  verification should stay Windows-native. This session wrote
+  `%USERPROFILE%\.wslconfig` outside the repo with `memory=4GB`,
+  `processors=2`, `swap=2GB`, and `guiApplications=false`, found `vmmemWSL`
+  already resident after recovery, then force-stopped it from Windows when it
+  restarted after `wsl.exe --shutdown`. No Linux shell was started. Future
+  WSL-native proof requires explicit user approval, the memory cap in place,
+  and immediate shutdown afterward.
+- POST-D-DRIVE-RELOCATION verification is complete on the Codex side. The repo
+  is rooted at `D:\eamos`; the last WSL native proof used `/mnt/d/eamos`, but
+  future WSL runs are gated by the WSL-CRASH-GUARDRAIL above. Focused
+  indexed-source pytest passed on Windows from
+  `D:\eamos\app\backend` (`.ss...ss...`, expected native-reader skips) and in
+  WSL Ubuntu from `/mnt/d/eamos/app/backend` (`11 passed`). The unresolved
+  `E:\` Full Repair Needed flag remains a media risk only; `E:\` is retained as
+  cold backup until both agents verify at least one full D-drive session.
 - PRE-D-DRIVE-RELOCATION option A selected. Codex rechecked the dirty tree and
   verified the CAR #3 ClinGen VCEP backend contract plus native
   indexed-reader proof before committing/pushing for Claude's local
@@ -38,10 +55,10 @@ Recent backend status notes (2026-05-28, Codex):
   context; `Ubuntu-24.04` is installed as the default WSL2 distro; and a
   persistent proof venv at `/root/eamos-native-proof` installed backend
   requirements including native Linux wheels for `pysam==0.24.0` and
-  `pyBigWig==0.3.25`. The repo's removable `E:` drive required a manual
-  `drvfs` mount at `/mnt/e` and Windows reports that volume as `Full Repair
-  Needed`, so do not rely on WSL automount until the repo moves to a stable
-  disk. WSL native
+  `pyBigWig==0.3.25`. Before relocation, the repo's removable `E:` drive
+  required a manual `drvfs` mount at `/mnt/e` and Windows reported that volume
+  as `Full Repair Needed`; if WSL is explicitly approved again after the crash
+  guardrail above, the native path is `/mnt/d/eamos`. WSL native
   `tests/test_indexed_source_readers.py -q` passed (`11 passed`) after a
   one-line backend fix canonicalized pyBigWig `out_of_bounds` error-detail
   contigs from raw `chr1` to canonical `1`. Windows focused pytest still

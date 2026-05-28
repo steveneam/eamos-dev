@@ -23,12 +23,18 @@ follow that brief before older context.
 
 ## Direct Codex Role
 
-Direct Codex has verified full `E:\eamos` read/write, outbound network, and
+Direct Codex has verified full `D:\eamos` read/write, outbound network, and
 local frontend/backend verification. The old "Codex only does grunt work /
 can't run vitest/server" model was plugin-era history. Direct Codex can own
 substantive backend/API/pipeline/tool/test work when scoped, and runs its own
 backend verification (`pytest`, live smoke). Claude Code remains the default
 owner for UI/product/design-heavy frontend and browser/pixel iteration.
+
+Do not launch WSL/Linux for routine Eamos work. After the 2026-05-28 D-drive
+relocation, `vmmemWSL` exhausted host RAM and crashed the computer. Use
+Windows-native checks first; WSL-native proof work requires explicit user
+approval and the `%USERPROFILE%\.wslconfig` cap (`memory=4GB`,
+`guiApplications=false`) to remain in place.
 
 Codex lane: `app/backend/**` + `plans/v2-backend.md` + the
 `## Codex — Last Task & Resume` / Active Status / Risks / Tasks sections Codex

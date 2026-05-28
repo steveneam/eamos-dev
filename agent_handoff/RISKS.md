@@ -138,13 +138,29 @@ Guardrail:
 
 ## Repo Drive Relocation
 
-Section edited: 2026-05-28 21:58 +1000 - Codex.
+Section edited: 2026-05-28 23:02 +1000 - Codex.
 
 The removable `E:` drive reports `HealthStatus=Warning` /
 `OperationalStatus=Full Repair Needed` and should not remain the Eamos repo
 drive. The coordinated mitigation is relocation to internal `D:`. Once the
 repo is moved and verified on `D:`, Eamos does not require `E:` repair; leave
 `E:` as an unresolved hardware/media issue outside the repo workflow.
+
+Residual risk: `E:\` removable drive Full Repair Needed flag never resolved;
+repo relocated 2026-05-28 to `D:\` to avoid working off failing media. `E:\`
+retained as cold backup until both agents verified on `D:\` across at least
+one full session.
+
+## WSL / Linux RAM Guardrail
+
+Section edited: 2026-05-28 23:02 +1000 - Codex.
+
+The post-move WSL `/mnt/d` proof path triggered a host crash when `vmmemWSL`
+consumed available RAM. Do not launch WSL/Linux for routine Eamos work.
+Windows-native checks are the default. If WSL-native proof work is explicitly
+approved later, first confirm `%USERPROFILE%\.wslconfig` still caps WSL2 at
+`memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`; shut
+WSL down immediately after the run.
 
 ## Gated Work
 
