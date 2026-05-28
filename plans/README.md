@@ -44,7 +44,7 @@ When a backend payload field changes, both files update. The pre-existing `app/b
 
 > **Workflow note (2026-05-17).** The plugin-mediated `/codex:rescue` flow
 > described below is the **historical** delegation path. Direct Codex app
-> sessions now have verified full `E:\eamos` workspace (read/write/delete) +
+> sessions now have verified full `D:\eamos` workspace (read/write/delete) +
 > outbound network access and can own substantive backend/API/pipeline/tool/
 > test work directly — not only grunt work. Live cross-agent coordination is in
 > `agent_handoff/` (read `agent_handoff/CURRENT.md` + `RISKS.md` before

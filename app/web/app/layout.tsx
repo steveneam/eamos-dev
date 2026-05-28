@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     url: siteUrl.toString(),
     siteName: 'Eamos',
     // NOTE: og-image.png (1200×630) must be placed at
-    // E:\eamos\app\web\public\og-image.png — the human supplies this file.
+    // D:\eamos\app\web\public\og-image.png — the human supplies this file.
     images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     type: 'website',
     locale: 'en_AU',

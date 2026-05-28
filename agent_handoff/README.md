@@ -196,7 +196,7 @@ Project history (NOT this folder):
 The earlier split treated Claude as the driver and Codex as a
 backend/grunt/review delegate via a Claude Code plugin with constrained
 network/verification. **That changed:** direct Codex app sessions have verified
-full `E:\eamos` read/write, outbound network, and local frontend/backend
+full `D:\eamos` read/write, outbound network, and local frontend/backend
 verification. The old split is now a *coordination convention, not a technical
 limit* — direct Codex can own substantive backend/API/pipeline/tool/test work
 when scoped. Claude remains the default owner for UI/product/design-heavy
