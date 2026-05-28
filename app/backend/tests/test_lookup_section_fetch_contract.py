@@ -57,6 +57,11 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     publications = sections["publications"]
     assert publications["status"] == "available"
     assert publications["payload"]["total_count"] == 3
+    assert publications["payload"]["scope"] == "variant"
+    assert publications["payload"]["scope_counts"]["variant"]["total_count"] == 3
+    assert publications["payload"]["scope_counts"]["variant"]["count_kind"] == "deduped_pmids"
+    assert publications["payload"]["scope_counts"]["gene"]["total_count"] == 816
+    assert publications["payload"]["scope_counts"]["gene"]["count_kind"] == "gene_wide_source_count"
     assert publications["payload"]["articles"][0]["pmid"] == "38191234"
     assert set(publications["freshness"]) == {
         "fetched_at",

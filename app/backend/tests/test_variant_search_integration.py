@@ -388,6 +388,10 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     literature = payload["report_payload"]["publications_literature"]
     assert literature["total_count"] == 3
     assert literature["shown_count"] == 3
+    assert literature["scope"] == "variant"
+    assert literature["scope_counts"]["variant"]["total_count"] == 3
+    assert literature["scope_counts"]["gene"]["total_count"] == 816
+    assert literature["scope_counts"]["gene"]["count_kind"] == "gene_wide_source_count"
     assert literature["publication_timeline"] == {
         "publications_by_year": [
             {"year": 2022, "count": 1},
@@ -398,6 +402,10 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
         "total_without_year": 0,
     }
     assert payload["report_payload"]["publications_callout"]["total_count"] == 3
+    assert (
+        payload["report_payload"]["publications_callout"]["scope_counts"]
+        == literature["scope_counts"]
+    )
     locus_context = payload["report_payload"]["locus_context"]
     query_nearby_variant = next(
         item for item in locus_context["nearby_variants"] if item["hgvs"] == "c.260A>G"
@@ -561,6 +569,9 @@ def test_lookup_publications_endpoint_pages_deduped_ep_vlex_rows(client) -> None
     payload = response.json()
     assert payload["total_count"] == 3
     assert payload["shown_count"] == 2
+    assert payload["scope"] == "variant"
+    assert payload["scope_counts"]["variant"]["total_count"] == 3
+    assert payload["scope_counts"]["gene"]["total_count"] == 816
     assert payload["offset"] == 1
     assert payload["limit"] == 2
     assert [article["pmid"] for article in payload["articles"]] == ["37042101", "35901234"]
@@ -581,3 +592,19 @@ def test_lookup_publications_endpoint_enforces_bounded_limit(client) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_lookup_publications_endpoint_supports_gene_scope_count(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/publications",
+        json={"gene": "RPE65", "cdna": "c.260A>G", "scope": "gene"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scope"] == "gene"
+    assert payload["total_count"] == 816
+    assert payload["shown_count"] == 0
+    assert payload["articles"] == []
+    assert payload["scope_counts"]["variant"]["total_count"] == 3
+    assert payload["scope_counts"]["gene"]["total_count"] == 816

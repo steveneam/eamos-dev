@@ -2,7 +2,7 @@
 
 Status: Draft for user review
 Owner: Codex/backend
-Last updated: 2026-05-29 01:08 +1000 - Codex
+Last updated: 2026-05-29 01:57 +1000 - Codex
 
 ## What
 
@@ -145,7 +145,7 @@ InterVar implementation notes:
 | `biopython` | already in backend requirements | DNA strings, reverse complements, CRISPR patterning, alignment | existing runtime dependency |
 | `pysam` | not installed by this spec | indexed VCF/BCF/TSV access | prove Windows/Linux compatibility before adding |
 | `twobitreader` / `py2bit` | not installed by this spec | random access to `hg38.2bit` | choose after compatibility proof |
-| `pyBigWig` | not installed by this spec | random access to PhyloP bigWig | prove deployed runtime compatibility before adding |
+| `pyBigWig` | not installed by this spec | random access to PhyloP bigWig | Linux import requires NumPy; focused WSL pytest passed with NumPy present |
 | `duckdb` / `pyarrow` | not installed by this spec | optional local gnomAD/columnar slices | add only after store design is approved |
 
 ### Tier 3: Supabase Postgres Tables
@@ -226,10 +226,12 @@ an explicitly approved Linux/Render-style environment.
 
 Gate status: passed 2026-05-29 in explicitly approved WSL Ubuntu from
 `/mnt/d/eamos` using generated tiny VCF/tabix and bigWig fixtures with
-`pysam==0.24.0` and `pyBigWig==0.3.25`. This proves the native reader classes
-only; runtime wiring into web-server providers, source cache, Supabase/object
-storage flows, startup downloads, production report providers, or Workbench
-providers remains a separate implementation approval.
+`pysam==0.24.0` and `pyBigWig==0.3.25`. Follow-up focused WSL pytest passed
+all 11 indexed-reader tests after fixing import side effects and adding NumPy
+for `pyBigWig` import. This proves the native reader classes only; runtime
+wiring into web-server providers, source cache, Supabase/object storage flows,
+startup downloads, production report providers, or Workbench providers remains
+a separate implementation approval.
 
 The gate covers:
 

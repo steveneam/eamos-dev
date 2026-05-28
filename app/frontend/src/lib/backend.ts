@@ -501,9 +501,15 @@ export interface PublicationsCallout {
   scholar_url: string
   blurb?: string
   ai_summary_prompt: string
+  scope_counts?: PublicationScopeCounts | null
 }
 
 export type PublicationSourceTag = 'litvar2' | 'pubmed' | 'clinvar' | 'clingen'
+export type PublicationScope = 'variant' | 'gene'
+export type PublicationCountKind =
+  | 'deduped_pmids'
+  | 'gene_wide_source_count'
+  | 'unavailable'
 export type PublicationSnippetConfidence =
   | 'exact_variant'
   | 'variant_alias'
@@ -537,15 +543,32 @@ export interface PublicationTimeline {
   total_without_year: number
 }
 
+export interface PublicationScopeCount {
+  scope: PublicationScope
+  total_count?: number | null
+  count_kind: PublicationCountKind
+  query?: string | null
+  source_status?: string | null
+  source_breakdown: PublicationSourceBreakdown
+  warnings: string[]
+}
+
+export interface PublicationScopeCounts {
+  variant: PublicationScopeCount
+  gene: PublicationScopeCount
+}
+
 export interface PublicationLiterature {
   total_count: number
   shown_count: number
   offset: number
   limit: number
+  scope?: PublicationScope
   sort: string
   variant_terms: string[]
   source_breakdown: PublicationSourceBreakdown
   publication_timeline: PublicationTimeline
+  scope_counts?: PublicationScopeCounts | null
   articles: PubMedArticle[]
   warnings: string[]
 }

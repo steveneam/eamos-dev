@@ -58,6 +58,11 @@ def test_variant_literature_terms_build_one_letter_alias_for_user_ush2a_variant(
 def test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets() -> None:
     evidence_map = {
         "pubmed": {
+            "gene_scope": {
+                "query": "RPE65[Gene Name]",
+                "total_count": 816,
+                "source_status": "fixture",
+            },
             "articles": [
                 {
                     "pmid": "37042101",
@@ -75,7 +80,7 @@ def test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets() -> N
                     "year": "2024",
                     "abstract": "The c.260A>G (p.Asp87Gly) missense variant was recurrent.",
                 },
-            ]
+            ],
         },
         "litvar2": {
             "articles": [
@@ -98,6 +103,13 @@ def test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets() -> N
     assert literature.source_breakdown.pubmed == 2
     assert literature.source_breakdown.litvar2 == 2
     assert literature.source_breakdown.clinvar == 1
+    assert literature.scope == "variant"
+    assert literature.scope_counts is not None
+    assert literature.scope_counts.variant.total_count == 3
+    assert literature.scope_counts.variant.count_kind == "deduped_pmids"
+    assert literature.scope_counts.gene.total_count == 816
+    assert literature.scope_counts.gene.count_kind == "gene_wide_source_count"
+    assert literature.scope_counts.gene.source_breakdown.pubmed == 816
     assert [item.model_dump() for item in literature.publication_timeline.publications_by_year] == [
         {"year": 2023, "count": 1},
         {"year": 2024, "count": 1},
@@ -225,6 +237,10 @@ def test_ep_vlex_skips_failed_live_source_fallback_fixture_rows() -> None:
     assert literature.total_count == 1
     assert [article.pmid for article in literature.articles] == ["41234567"]
     assert literature.source_breakdown.pubmed == 0
+    assert literature.scope_counts is not None
+    assert literature.scope_counts.gene.total_count is None
+    assert literature.scope_counts.gene.count_kind == "unavailable"
+    assert "gene_scope_count_unavailable:pubmed_failed" in literature.scope_counts.gene.warnings
 
 
 def test_ep_vlex_skips_failed_clinvar_citation_rows() -> None:
@@ -253,3 +269,29 @@ def test_ep_vlex_clinvar_pmid_extraction_ignores_reference_allele_numbers() -> N
     assert literature.total_count == 2
     assert {article.pmid for article in literature.articles} == {"12345678", "23456789"}
     assert "68444869" not in {article.pmid for article in literature.articles}
+
+
+def test_ep_vlex_gene_scope_returns_source_count_without_articles() -> None:
+    literature = EamosProprietaryVariantLiteratureExtractor().build_for_lookup(
+        _variant(),
+        {
+            "pubmed": {
+                "gene_scope": {
+                    "query": "RPE65[Gene Name]",
+                    "total_count": 816,
+                    "source_status": "fixture",
+                },
+                "articles": [{"pmid": "38191234", "title": "RPE65 c.260A>G"}],
+            }
+        },
+        scope="gene",
+    )
+
+    assert literature.scope == "gene"
+    assert literature.total_count == 816
+    assert literature.shown_count == 0
+    assert literature.articles == []
+    assert literature.source_breakdown.pubmed == 816
+    assert literature.scope_counts is not None
+    assert literature.scope_counts.variant.total_count == 1
+    assert literature.scope_counts.gene.total_count == 816

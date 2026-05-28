@@ -29,6 +29,36 @@ def _identifier_term(identifier: str) -> str:
     return f'"{identifier}"[Title/Abstract]'
 
 
+def _gene_scope_query(gene: str) -> str:
+    return f"{gene}[Gene Name]"
+
+
+def _gene_scope_url(gene: str) -> str:
+    return f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]"
+
+
+def _source_reported_count(value) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
+
+
+def _gene_scope_from_esearch(gene: str, search_result: dict, *, status: str) -> dict | None:
+    total_count = _source_reported_count(search_result.get("count"))
+    if total_count is None:
+        return None
+    return {
+        "query": _gene_scope_query(gene),
+        "total_count": total_count,
+        "source_status": status,
+        "source_url": _gene_scope_url(gene),
+    }
+
+
 def _fixture_matches_variant(variant, fixture: dict) -> bool:
     if variant is None:
         return True
@@ -51,7 +81,7 @@ def _fixture_matches_variant(variant, fixture: dict) -> bool:
 def _empty_result(variant, *, status: str, warnings: list[str]) -> ToolResult:
     gene = str(getattr(variant, "gene", "") or "")
     cdna = _extract_cdna(getattr(variant, "transcript_hgvs", None))
-    term = f"{gene}[Gene Name]"
+    term = _gene_scope_query(gene)
     if cdna:
         term = f"{gene}[Gene Name] AND {_identifier_term(cdna)}"
     return ToolResult(
@@ -61,7 +91,7 @@ def _empty_result(variant, *, status: str, warnings: list[str]) -> ToolResult:
         summary={"articles": [], "total": 0},
         warnings=warnings,
         raw={},
-        source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None,
+        source_url=_gene_scope_url(gene) if gene else None,
     )
 
 
@@ -74,7 +104,7 @@ class PubmedTool(FixtureBackedTool):
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
             gene = (variant.gene if variant is not None else None) or ""
-            fallback_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            fallback_url = _gene_scope_url(gene) if gene else None
             if variant is not None and not _fixture_matches_variant(variant, fixture):
                 return _empty_result(
                     variant,
@@ -89,7 +119,7 @@ class PubmedTool(FixtureBackedTool):
         except Exception as exc:
             fixture = self.load_fixture()
             gene = variant.gene or ""
-            fallback_url = f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]" if gene else None
+            fallback_url = _gene_scope_url(gene) if gene else None
             if not _fixture_matches_variant(variant, fixture):
                 return _empty_result(
                     variant,
@@ -118,7 +148,7 @@ class PubmedTool(FixtureBackedTool):
             or_group = " OR ".join(_identifier_term(item) for item in identifiers)
             term = f"{gene}[Gene Name] AND ({or_group})"
         else:
-            term = f"{gene}[Gene Name]"
+            term = _gene_scope_query(gene)
 
         search_response = httpx.get(
             f"{self.settings.clinvar_base_url}/esearch.fcgi",
@@ -132,10 +162,16 @@ class PubmedTool(FixtureBackedTool):
             timeout=10.0,
         )
         search_response.raise_for_status()
-        id_list = search_response.json().get("esearchresult", {}).get("idlist", [])
+        search_result = search_response.json().get("esearchresult", {})
+        id_list = search_result.get("idlist", [])
+        gene_scope = (
+            _gene_scope_from_esearch(gene, search_result, status="live")
+            if term == _gene_scope_query(gene)
+            else None
+        )
 
         if not id_list:
-            term = f"{gene}[Gene Name]"
+            term = _gene_scope_query(gene)
             search_response = httpx.get(
                 f"{self.settings.clinvar_base_url}/esearch.fcgi",
                 params={
@@ -148,17 +184,25 @@ class PubmedTool(FixtureBackedTool):
                 timeout=10.0,
             )
             search_response.raise_for_status()
-            id_list = search_response.json().get("esearchresult", {}).get("idlist", [])
+            search_result = search_response.json().get("esearchresult", {})
+            id_list = search_result.get("idlist", [])
+            gene_scope = _gene_scope_from_esearch(gene, search_result, status="live")
 
             if not id_list:
+                summary = {"articles": [], "total": 0}
+                if gene_scope is not None:
+                    summary["gene_scope"] = gene_scope
                 return ToolResult(
                     source=self.source,
                     status="live",
                     request_identity={"term": term},
-                    summary={"articles": [], "total": 0},
+                    summary=summary,
                     raw={},
-                    source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]",
+                    source_url=_gene_scope_url(gene),
                 )
+
+        if gene_scope is None:
+            gene_scope = self._fetch_gene_scope_count(gene)
 
         pmid_str = ",".join(id_list)
         with httpx.Client(timeout=12.0) as client:
@@ -200,14 +244,36 @@ class PubmedTool(FixtureBackedTool):
                 }
             )
 
+        summary = {"articles": articles, "total": len(articles)}
+        if gene_scope is not None:
+            summary["gene_scope"] = gene_scope
+
         return ToolResult(
             source=self.source,
             status="live",
             request_identity={"term": term},
-            summary={"articles": articles, "total": len(articles)},
+            summary=summary,
             raw=result,
-            source_url=f"https://pubmed.ncbi.nlm.nih.gov/?term={gene}[gene]",
+            source_url=_gene_scope_url(gene),
         )
+
+    def _fetch_gene_scope_count(self, gene: str) -> dict | None:
+        try:
+            response = httpx.get(
+                f"{self.settings.clinvar_base_url}/esearch.fcgi",
+                params={
+                    "db": "pubmed",
+                    "term": _gene_scope_query(gene),
+                    "retmax": 0,
+                    "retmode": "json",
+                },
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            search_result = response.json().get("esearchresult", {})
+        except Exception:
+            return None
+        return _gene_scope_from_esearch(gene, search_result, status="live")
 
 
 def _parse_abstracts_xml(xml_text: str) -> dict[str, str]:

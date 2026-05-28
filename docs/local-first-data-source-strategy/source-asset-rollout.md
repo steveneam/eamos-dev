@@ -2,7 +2,7 @@
 
 Status: Draft for review
 Owner: Codex/backend
-Last updated: 2026-05-29 01:08 +1000 - Codex
+Last updated: 2026-05-29 01:57 +1000 - Codex
 
 Source plan: `docs/local-first-data-source-strategy/plan.md`
 
@@ -129,15 +129,18 @@ mutation, provider wiring, and frontend work.
 
 ## Task 9 - Indexed Reader Compatibility Proofs
 
-Status: NATIVE PROOF PASSED 2026-05-29 01:08 +1000 - Codex, after explicit
-Steven approval for the gated WSL run. Earlier Windows-compatible boundary
-work remains implemented. The proof ran from `/mnt/d/eamos` in WSL Ubuntu with
-`pysam==0.24.0` and `pyBigWig==0.3.25`, generated tiny VCF/tabix and bigWig
-fixtures, queried by contig alias/range, and checked structured fail-closed
-behavior. WSL was shut down immediately afterward. No production assets were
-downloaded or imported, and this does not approve request-time provider,
-Supabase/object-storage, startup download, source-cache, report, or Workbench
-runtime wiring.
+Status: NATIVE PROOF PASSED 2026-05-29 01:08 +1000 - Codex; ACTUAL FOCUSED
+WSL PYTEST PASSED 2026-05-29 01:57 +1000 - Codex. After the initial direct
+reader proof, Codex fixed the test collection side effect (`app.services`
+eager imports plus `tests/conftest.py` app imports) and reran
+`tests/test_indexed_source_readers.py` in WSL Ubuntu from `/mnt/d/eamos`; all
+11 focused tests passed with `pysam==0.24.0`, `pyBigWig==0.3.25`, and NumPy.
+Earlier Windows-compatible boundary work remains implemented. The WSL proof
+generated tiny VCF/tabix and bigWig fixtures, queried by contig alias/range,
+and checked structured fail-closed behavior. WSL was shut down immediately
+afterward. No production assets were downloaded or imported, and this does not
+approve request-time provider, Supabase/object-storage, startup download,
+source-cache, report, or Workbench runtime wiring.
 
 ### Goal
 
@@ -166,7 +169,9 @@ conversion path for RepeatMasker. Tests use generated temporary fixtures or
 tiny checked-in fixtures only. Current PyPI metadata for `pysam==0.24.0` and
 `pyBigWig==0.3.25` has Linux/mac wheels but no Windows wheels, so native
 reader tests are expected to skip on this Windows host and run on Linux/Render
-or another environment with the native modules installed.
+or another environment with the native modules installed. The actual WSL pytest
+also showed `pyBigWig==0.3.25` needs NumPy present to import on Linux; backend
+requirements now include `numpy>=2,<3; platform_system != "Windows"`.
 
 ### Acceptance Criteria
 
@@ -501,8 +506,9 @@ Supabase Storage.
 
 ## Task 15 - phyloP Conservation Reader Proof
 
-Status: TINY NATIVE READER PROOF PASSED 2026-05-29 01:08 +1000 - Codex.
-Hardening pass 2026-05-27 23:57 +1000 added missing-bigWig fail-closed
+Status: TINY NATIVE READER PROOF PASSED 2026-05-29 01:08 +1000 - Codex;
+focused WSL pytest passed all indexed-reader tests 2026-05-29 01:57 +1000 -
+Codex. Hardening pass 2026-05-27 23:57 +1000 added missing-bigWig fail-closed
 coverage before `pyBigWig` import and a manifest gate proving phyloP remains
 reader-proof/download-approval gated. The approved WSL proof generated a tiny
 bigWig fixture with `pyBigWig==0.3.25`, queried position/window summaries

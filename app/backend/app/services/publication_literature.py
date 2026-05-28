@@ -7,6 +7,9 @@ from typing import Any
 from app.schemas.run import (
     PublicationLiterature,
     PublicationSnippet,
+    PublicationScope,
+    PublicationScopeCount,
+    PublicationScopeCounts,
     PublicationSourceBreakdown,
     PublicationSourceTag,
     PublicationTimeline,
@@ -237,6 +240,83 @@ def _source_failed(source: str, source_statuses: dict[str, str] | None) -> bool:
     return source_statuses.get(source) in {"fallback", "error", "failed"}
 
 
+def _source_status(source: str, source_statuses: dict[str, str] | None) -> str | None:
+    return source_statuses.get(source) if source_statuses else None
+
+
+def _aggregate_source_status(
+    breakdown: PublicationSourceBreakdown,
+    source_statuses: dict[str, str] | None,
+) -> str | None:
+    if not source_statuses:
+        return None
+    statuses = [
+        source_statuses.get(source)
+        for source, count in (
+            ("pubmed", breakdown.pubmed),
+            ("litvar2", breakdown.litvar2),
+            ("clinvar", breakdown.clinvar),
+            ("clingen", breakdown.clingen),
+        )
+        if count > 0 and source_statuses.get(source)
+    ]
+    if not statuses:
+        return None
+    if len(set(statuses)) == 1:
+        return statuses[0]
+    return "mixed"
+
+
+def _optional_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
+
+
+def _gene_scope_count(
+    evidence_map: dict[str, dict[str, Any]],
+    source_statuses: dict[str, str] | None,
+    gene: str,
+) -> PublicationScopeCount:
+    pubmed_status = _source_status("pubmed", source_statuses)
+    default_query = f"{gene}[Gene Name]" if gene else None
+    if _source_failed("pubmed", source_statuses):
+        return PublicationScopeCount(
+            scope="gene",
+            total_count=None,
+            count_kind="unavailable",
+            query=default_query,
+            source_status=pubmed_status,
+            warnings=["gene_scope_count_unavailable:pubmed_failed"],
+        )
+
+    gene_scope = evidence_map.get("pubmed", {}).get("gene_scope")
+    if isinstance(gene_scope, dict):
+        total_count = _optional_int(gene_scope.get("total_count"))
+        if total_count is not None:
+            return PublicationScopeCount(
+                scope="gene",
+                total_count=total_count,
+                count_kind="gene_wide_source_count",
+                query=str(gene_scope.get("query") or default_query or ""),
+                source_status=str(gene_scope.get("source_status") or pubmed_status or ""),
+                source_breakdown=PublicationSourceBreakdown(pubmed=total_count),
+            )
+
+    return PublicationScopeCount(
+        scope="gene",
+        total_count=None,
+        count_kind="unavailable",
+        query=default_query,
+        source_status=pubmed_status,
+        warnings=["gene_scope_count_unavailable:source_count_missing"],
+    )
+
+
 def _normalize_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
@@ -428,6 +508,7 @@ class EamosProprietaryVariantLiteratureExtractor:
         source_statuses: dict[str, str] | None = None,
         limit: int = 5,
         offset: int = 0,
+        scope: PublicationScope = "variant",
     ) -> PublicationLiterature:
         bounded_limit = max(1, min(limit, 50))
         bounded_offset = max(0, offset)
@@ -441,14 +522,41 @@ class EamosProprietaryVariantLiteratureExtractor:
         articles.sort(key=_date_sort_key, reverse=True)
         publication_timeline = _build_publication_timeline(articles)
         page = articles[bounded_offset : bounded_offset + bounded_limit]
+        variant_count = PublicationScopeCount(
+            scope="variant",
+            total_count=len(articles),
+            count_kind="deduped_pmids",
+            query=" ".join(terms.terms),
+            source_status=_aggregate_source_status(breakdown, source_statuses),
+            source_breakdown=breakdown,
+        )
+        gene_count = _gene_scope_count(evidence_map, source_statuses, terms.gene)
+        scope_counts = PublicationScopeCounts(variant=variant_count, gene=gene_count)
+        if scope == "gene":
+            return PublicationLiterature(
+                total_count=gene_count.total_count or 0,
+                shown_count=0,
+                offset=0,
+                limit=bounded_limit,
+                scope="gene",
+                variant_terms=[terms.gene] if terms.gene else [],
+                source_breakdown=gene_count.source_breakdown,
+                publication_timeline=PublicationTimeline(),
+                scope_counts=scope_counts,
+                articles=[],
+                warnings=list(gene_count.warnings),
+            )
+
         return PublicationLiterature(
             total_count=len(articles),
             shown_count=len(page),
             offset=bounded_offset,
             limit=bounded_limit,
+            scope="variant",
             variant_terms=list(terms.terms),
             source_breakdown=breakdown,
             publication_timeline=publication_timeline,
+            scope_counts=scope_counts,
             articles=page,
             warnings=[],
         )

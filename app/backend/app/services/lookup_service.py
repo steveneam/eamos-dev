@@ -842,6 +842,11 @@ class LookupService:
             scholar_url=scholar_url,
             blurb=blurb,
             ai_summary_prompt=ai_summary_prompt,
+            scope_counts=(
+                base_payload.publications_literature.scope_counts
+                if base_payload.publications_literature is not None
+                else None
+            ),
         )
         gnomad_evidence = next((item for item in evidence if item.source == "gnomad"), None)
         base_payload.population_frequency_detail = build_population_frequency_detail(
@@ -1026,6 +1031,7 @@ class LookupService:
             source_statuses=evidence_statuses,
             limit=request.limit,
             offset=request.offset,
+            scope=request.scope,
         )
         literature.warnings.extend(warnings)
         return literature

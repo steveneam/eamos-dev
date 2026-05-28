@@ -16,28 +16,16 @@
 
 - **Claude:** IDLE @ 2026-05-29 01:25 +1000 (anchor: `c83b8c6` on `origin/main`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
 
-- **Codex:** IDLE @ 2026-05-29 01:08 +1000 - Steven approved the gated WSL
-  native-reader proof. Confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at
-  `memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`;
-  launched `Ubuntu-24.04` only for the proof; manually mounted `D:` to
-  `/mnt/d`; used `/mnt/d/eamos` only; and shut WSL down after each attempt.
-  Final proof passed through the real `app/backend/app/services/indexed_sources.py`
-  reader classes loaded directly from the repo: `pysam==0.24.0` opened and
-  queried a generated bgzip/tabix VCF by `NC_000001.11` and `chr1`, and
-  `pyBigWig==0.3.25` opened and queried a generated bigWig conservation fixture.
-  The proof also checked missing index/file, unknown contig, invalid window,
-  and out-of-bounds fail-closed codes. Post-check: `Ubuntu-24.04` and
-  `docker-desktop` are stopped, no `vmmemWSL` process is running, and only
-  Windows `wslservice` remains. Scope held: no local indexed assets were wired
-  into web-server request paths, Supabase/object-storage runtime flows, startup
-  downloads, source cache, production report/Workbench providers, or the
-  `a23a324` full_gene fixture fallback. No branch rename, Supabase writes,
-  uploads/imports, production source downloads, env/deploy mutation, `/runs`,
-  AlphaMissense work, restricted predictor unlocks, destructive git, stash,
-  reset, clean, commit, or push by Codex. The disposable
-  `.scratch/native-reader-proof/` workspace was removed after the user asked
-  about the unnecessary partial dependency install; recreate a minimal scratch
-  env only if the native proof must be rerun.
+- **Codex:** IDLE @ 2026-05-29 02:19 +1000 - M-006 / CAR #4
+  backend-led gene-scoped publication count contract complete and verified.
+  Additive `scope_counts` now separates variant deduped PMID counts from
+  gene-wide source-reported PubMed counts; `/lookup/publications` accepts
+  `scope: "variant" | "gene"`; both `backend.ts` mirrors carry the contract.
+  Focused backend/contract pytest, Ruff, Black check, both frontend
+  `tsc --noEmit`, and `git diff --check` passed. No FE renderer live-wire,
+  runtime local-source wiring, Supabase/object-storage/startup download/
+  report/Workbench provider rewiring, `/runs`, AlphaMissense, WSL, Docker,
+  destructive git, stash, reset, or clean.
 
 ## Log Edit-Lock
 
@@ -47,12 +35,39 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-29 01:48 +1000 - Codex (Printing Press/MCP audit addendum recorded in DECISIONS)
+UNLOCKED - 2026-05-29 02:19 +1000 - Codex (M-006 CAR #4 contract verified)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED M-006 / CAR #4 gene-scoped publication count contract**
+  (2026-05-29 02:19 +1000)
+  - Scope: `app/backend/app/schemas/run.py`,
+    `app/backend/app/schemas/lookup.py`,
+    `app/backend/app/services/publication_literature.py`,
+    `app/backend/app/services/lookup_service.py`,
+    `app/backend/app/services/lookup_sections.py`,
+    `app/backend/tests/*publication*`,
+    `app/backend/tests/test_lookup_section_fetch_contract.py`,
+    `app/backend/tests/test_frontend_contract.py`,
+    `app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: additive `PublicationScopeCount` / `PublicationScopeCounts`
+    contract; variant count remains deduped PMIDs; gene count is a separate
+    PubMed source-reported count when available and fail-closed null when the
+    PubMed source fails or omits count metadata; `/lookup/publications`
+    accepts `scope`; RPE65 fixture now exposes variant `3` and gene `816`;
+    callout and literature payloads share `scope_counts`; both frontend
+    `backend.ts` mirrors updated.
+  - Verification: focused publication/lookup/frontend-contract pytest plus
+    PubMed no-hit invariant, Ruff, Black check, app/web `tsc --noEmit`,
+    app/frontend `tsc --noEmit`, and `git diff --check` passed.
+  - Guardrails held: additive contract only; no frontend renderer live-wire,
+    Supabase/object-storage/runtime local-source wiring, production source
+    downloads/imports, `/runs`, AlphaMissense display/runtime scoring, WSL,
+    Docker, destructive git, stash, reset, or clean.
 
 - **Codex RELEASED WSL/Docker native indexed-reader proof**
   (2026-05-28 20:49 +1000)
@@ -710,6 +725,27 @@ Rule 4); release when done.
 
 Append-only. Format: `[OPEN|DONE] <from>Ã¢â€ â€™<to> (date): <ask> Ã‚Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
+
+- [DONE] Claude->Codex (2026-05-29 02:05 +1000; delivered 2026-05-29
+  02:19 +1000): **CAR #4 - M-006 / M10a gene-scoped publication count
+  contract.** Backend-led contract now exposes additive `scope_counts` on
+  `PublicationLiterature` and `PublicationsCallout`. `variant` remains the
+  existing EP-VLEx deduped PMID count; `gene` is a separate PubMed
+  source-reported gene-wide count when available, and fails closed to
+  `total_count=null` / `count_kind="unavailable"` with scoped warnings when
+  PubMed fails or omits count metadata. `/api/v1/lookup/publications` accepts
+  `scope: "variant" | "gene"`; gene scope returns a count-only response with
+  no article rows. Both `backend.ts` mirrors are byte-identical and include
+  `PublicationScopeCount` / `PublicationScopeCounts`; frontend rendering is
+  still Claude-owned. Verification passed: focused publication/lookup/
+  frontend-contract pytest + PubMed no-hit invariant, Ruff, Black check,
+  app/web `tsc --noEmit`, app/frontend `tsc --noEmit`, and `git diff --check`.
+  - `app/backend/app/schemas/run.py`, `app/backend/app/schemas/lookup.py`,
+    `app/backend/app/services/publication_literature.py`,
+    `app/backend/app/services/lookup_service.py`,
+    `app/backend/app/tools/pubmed.py`, publication tests,
+    `app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`,
+    `app/web/lib/api.ts`, `PROGRESS.md`, `plans/v2-backend.md`.
 
 - [OPEN] Codexâ†’Claude (2026-05-27 00:47 +1000): **FYI before next
   Workbench/report-data pass:** Codex completed the approved local-first
@@ -1718,86 +1754,75 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-29 01:08 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-29 02:19 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-29 01:08 +1000 - Codex):**
-Completed the explicitly approved WSL-native indexed-reader proof after
-re-reading the handoff/source-gate docs and pulling latest origin. The run
-confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at `memory=4GB`,
-`processors=2`, `swap=2GB`, and `guiApplications=false`; `Ubuntu-24.04` was
-started only for this proof and shut down after each attempt. Because WSL did
-not auto-mount `D:`, the proof manually mounted `D:` to `/mnt/d` and used only
-`/mnt/d/eamos`.
+**Latest Codex update (2026-05-29 02:19 +1000 - Codex):**
+Completed M-006 / CAR #4, the backend-led gene-scoped publication count
+contract slice. Claude can now consume a stable additive contract for the
+`PublicationsCallout` variant/gene toggle.
 
 **State:**
-- Repo root for Codex is now `D:\eamos`; do not use `E:\eamos` for active work.
-- The native `pysam` / `pyBigWig` gate is now proven on WSL against generated
-  tiny fixtures, but WSL/Linux remains non-routine for Eamos. Future WSL use
-  still requires explicit approval, the cap in place, `/mnt/d/eamos`, and
-  immediate shutdown afterward.
-- The proof used a scratch venv and script under ignored
-  `.scratch/native-reader-proof/`; this disposable workspace has now been
-  removed. It did not change tracked source files or wire any runtime provider
-  path.
-- Branch status is now the intended `main` rename state from the Claude/Steven
-  branch coordination: current local branch reports as `main` tracking
-  `origin/main`, and reflog records
-  `Branch: renamed refs/heads/checkpoint/v2-batches-2026-05-17 to refs/heads/main`
-  at 2026-05-29 01:17:44 +1000. Codex did not run the rename/switch command.
+- Repo root remains `D:\eamos`; current branch is the intended `main` tracking
+  `origin/main`.
+- `PublicationLiterature` and `PublicationsCallout` now expose
+  `scope_counts`.
+- `scope_counts.variant` is the existing EP-VLEx deduped PMID inventory
+  (`count_kind="deduped_pmids"`). This preserves the variant count semantics.
+- `scope_counts.gene` is a separate PubMed source-reported gene-wide count
+  (`count_kind="gene_wide_source_count"`) when available. PubMed failures or
+  missing count metadata fail closed to `total_count=null` with scoped
+  warnings.
+- `/api/v1/lookup/publications` accepts `scope: "variant" | "gene"`. Gene
+  scope returns a count-only response with no article rows.
+- The RPE65 fixture is explicit: variant publication count remains `3`; gene
+  source count is fixture `816`.
+- Both frontend `backend.ts` mirrors are byte-identical and include
+  `PublicationScopeCount` / `PublicationScopeCounts`. `app/web/lib/api.ts`
+  mirrors the request `scope` field.
+- The earlier indexed-reader pytest cleanup remains part of this Codex
+  worktree: lazy `app.services.__init__`, lazy app/TestClient/reportlab imports
+  in `tests/conftest.py`, and non-Windows NumPy in backend requirements for
+  pyBigWig on Linux.
 - The `a23a324` `SourceBackedGeneViewerProvider.viewer()` full_gene fallback
   for the curated stress matrix remains preserved.
 
 **Verification:**
-- WSL scratch proof passed before cleanup:
-  `/mnt/d/eamos/.scratch/native-reader-proof/venv/bin/python /mnt/d/eamos/.scratch/native-reader-proof/native_reader_proof.py`
-  -> `native indexed reader proof passed`, `pysam=0.24.0`,
-  `pyBigWig=0.3.25`.
-- The proof loaded the real `app/backend/app/services/indexed_sources.py`
-  module directly and exercised `PysamIndexedVcfReader` plus
-  `PyBigWigConservationReader` against generated tiny VCF/tabix and bigWig
-  fixtures. It checked alias normalization (`NC_000001.11`/`chr1`) and
-  fail-closed errors for missing index/file, unknown contig, invalid window,
-  and out-of-bounds intervals.
-- Full `pytest tests/test_indexed_source_readers.py` was attempted inside WSL
-  but blocked by unrelated import-time app dependencies from
-  `tests/conftest.py` / `app.services.__init__`; the direct proof script avoided
-  those unrelated imports while testing the real reader classes.
-- Post-proof check before handoff edits showed `wsl -l -v` with
-  `Ubuntu-24.04` and `docker-desktop` stopped; process check showed no
-  `vmmemWSL`, only Windows `wslservice`; and git was clean at that point.
-  Final worktree now has only handoff/progress/source-gate doc edits from this
-  closeout plus an unrelated `.gitignore` `.vercel` ignore-line change not made
-  by Codex.
+- `python -m pytest app/backend/tests/test_publication_literature.py app/backend/tests/test_lookup_section_fetch_contract.py app/backend/tests/test_variant_report_publication_functional_integration.py app/backend/tests/test_variant_search_integration.py app/backend/tests/test_frontend_contract.py app/backend/tests/test_tool_invariants.py::test_pubmed_no_hit_miss_uses_empty_raw -q`
+  passed.
+- `python -m ruff check app/backend/app app/backend/tests` passed.
+- `python -m black --check --target-version py310 app/backend/app app/backend/tests`
+  passed after formatting two touched tests.
+- `cd app/web && .\node_modules\.bin\tsc.cmd --noEmit` passed.
+- `cd app/frontend && .\node_modules\.bin\tsc.cmd --noEmit` passed.
+- `git diff --check` passed with only existing CRLF conversion warnings.
 
 **Next-session direction:**
-- With the native-reader gate proven, the next backend source work can update
-  the source rollout status and proceed to fixture-first local source follow-up
-  only when explicitly scoped. Do not jump straight into runtime wiring.
+- Claude owns the FE renderer consumption of `scope_counts` for the
+  `PublicationsCallout` gene toggle.
+- Docker/container parity for the earlier indexed-reader focused test remains
+  optional; do not start Docker unless Steven explicitly asks for Render-like
+  container proof.
 - Still do not wire local indexed assets into web-server request paths,
   Supabase/object-storage runtime flows, startup local-cache downloads, source
   cache, production report providers, or Workbench providers without a separate
   approved implementation slice.
-- CAR #4 remains unopened; open it only when M-006 / M10a gene-scoped
-  publication count starts.
 - A separate WSL smoke is still needed before marking UCSC `isPcr` primer
   specificity as verified; do not run it unless the user explicitly approves
   reopening WSL for that separate provider.
 
-**Clear-safe:** yes; WSL was shut down immediately after the proof, no
-`vmmemWSL` remains, and no Codex dev servers are running. The worktree is not
-clean because the closeout docs are modified and `.gitignore` has an unrelated
-`.vercel` ignore-line change not made by Codex. No local indexed asset runtime
-wiring, production source imports/downloads, live Supabase writes/resources/
-migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
-display/runtime scoring, restricted predictor unlocks, destructive git, stash,
-reset, clean, commit, or push was performed by Codex.
+**Clear-safe:** yes. No Codex dev servers are running. No WSL or Docker was
+started for CAR #4. No local indexed asset runtime wiring, production source
+imports/downloads, live Supabase writes/resources/migrations, uploads/imports,
+env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
+restricted predictor unlocks, destructive git, stash, reset, or clean was
+performed by Codex.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-29 01:08 +1000 · Codex native-reader proof gate passed`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 80, plans/v2-backend.md Recent backend notes, plans/data-source-registry/spec.md, docs/local-first-data-source-strategy/source-asset-rollout.md, then git status --short --branch.`
-`Delta: Steven approved the WSL gate; Codex confirmed the WSL2 cap, manually mounted D: to /mnt/d, ran the native pysam/pyBigWig tiny-fixture proof from /mnt/d/eamos, and shut WSL down immediately.`
-`Verification: scratch native proof passed with pysam=0.24.0 and pyBigWig=0.3.25 against generated tiny VCF/tabix and bigWig fixtures; disposable .scratch/native-reader-proof was removed afterward; post-check shows Ubuntu/docker stopped, no vmmemWSL, only wslservice; current branch is the intended main rename state.`
-`Next: update source rollout/task status or start the next fixture-first backend source slice only if explicitly scoped. Do not wire local indexed assets into request-time web-server paths, Supabase/object-storage runtime flows, startup downloads, source cache, production report providers, or Workbench providers in the same pickup.`
-`Guardrails: WSL remains non-routine/approval-only; preserve a23a324 full_gene fixture fallback; no branch rename by Codex, no CAR #4 until M-006 starts, no /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, production source downloads, restricted predictor unlocks, commit, or push unless explicitly approved. End clear-safe.`
+`# Resume prompt · 2026-05-29 02:19 +1000 · Codex M-006 CAR #4 gene-scoped publication contract`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 82, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
+`Delta: Codex delivered CAR #4 for M-006/M10a. PublicationLiterature/PublicationsCallout now expose scope_counts; variant keeps deduped PMID semantics; gene carries a PubMed source-reported gene-wide count when available and fails closed to null warnings when unavailable. /lookup/publications accepts scope=variant|gene. RPE65 fixture: variant=3, gene=816. backend.ts mirrors and app/web API request type updated.`
+`Verification: focused publication/lookup/frontend-contract pytest plus PubMed no-hit invariant, Ruff, Black check, app/web tsc, app/frontend tsc, and git diff --check passed.`
+`Next: Claude can render PublicationsCallout against scope_counts. Optional Docker parity for the earlier indexed-reader proof remains Steven-approval-only. Keep WSL approval-only.`
+`Guardrails: preserve a23a324 full_gene fixture fallback; no runtime local-source wiring, Supabase/object-storage/startup download/report/Workbench provider wiring, /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, production source downloads, or restricted predictor unlocks. End clear-safe.`

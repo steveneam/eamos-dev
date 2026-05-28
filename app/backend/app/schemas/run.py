@@ -70,6 +70,8 @@ PublicationSnippetConfidence = Literal[
     "reported_no_text",
 ]
 PublicationSourceTag = Literal["litvar2", "pubmed", "clinvar", "clingen"]
+PublicationScope = Literal["variant", "gene"]
+PublicationCountKind = Literal["deduped_pmids", "gene_wide_source_count", "unavailable"]
 FunctionalEvidenceSourceTag = Literal["clingen", "clinvar", "pubmed"]
 FunctionalEvidenceCode = Literal["PS3", "BS3"]
 ReportCallCardId = Literal[
@@ -126,15 +128,32 @@ class PublicationTimeline(BaseModel):
     total_without_year: int = 0
 
 
+class PublicationScopeCount(BaseModel):
+    scope: PublicationScope
+    total_count: int | None = None
+    count_kind: PublicationCountKind
+    query: str | None = None
+    source_status: str | None = None
+    source_breakdown: PublicationSourceBreakdown = Field(default_factory=PublicationSourceBreakdown)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PublicationScopeCounts(BaseModel):
+    variant: PublicationScopeCount
+    gene: PublicationScopeCount
+
+
 class PublicationLiterature(BaseModel):
     total_count: int
     shown_count: int
     offset: int = 0
     limit: int = 5
+    scope: PublicationScope = "variant"
     sort: Literal["publication_date_desc"] = "publication_date_desc"
     variant_terms: list[str] = Field(default_factory=list)
     source_breakdown: PublicationSourceBreakdown = Field(default_factory=PublicationSourceBreakdown)
     publication_timeline: PublicationTimeline = Field(default_factory=PublicationTimeline)
+    scope_counts: PublicationScopeCounts | None = None
     articles: list[PubMedArticle] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
@@ -364,6 +383,7 @@ class PublicationsCallout(BaseModel):
     scholar_url: str
     blurb: str = ""
     ai_summary_prompt: str
+    scope_counts: PublicationScopeCounts | None = None
 
 
 SourceStatus = Literal[

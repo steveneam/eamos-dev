@@ -56,6 +56,12 @@ def test_lookup_keeps_publication_inventory_and_functional_count_distinct(
     assert publications["shown_count"] == min(publications["total_count"], 5)
     assert len(publications["articles"]) == publications["shown_count"]
     assert payload["publications_callout"]["total_count"] == publications["total_count"]
+    assert publications["scope"] == "variant"
+    assert publications["scope_counts"]["variant"]["total_count"] == 3
+    assert publications["scope_counts"]["variant"]["count_kind"] == "deduped_pmids"
+    assert publications["scope_counts"]["gene"]["total_count"] == 816
+    assert publications["scope_counts"]["gene"]["count_kind"] == "gene_wide_source_count"
+    assert payload["publications_callout"]["scope_counts"] == publications["scope_counts"]
 
     assert functional["total_count"] == 1
     assert functional["total_count"] != publications["total_count"]
@@ -261,3 +267,25 @@ def test_publication_expansion_endpoint_paginates_epvlex_inventory(client) -> No
     assert page["offset"] == 1
     assert [article["pmid"] for article in page["articles"]] == ["37042101"]
     assert page["articles"][0]["url"] == "https://pubmed.ncbi.nlm.nih.gov/37042101/"
+
+
+def test_publication_expansion_endpoint_returns_gene_scope_count(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/publications",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "protein_change": "p.Asp87Gly",
+            "scope": "gene",
+        },
+    )
+
+    assert response.status_code == 200
+    page = response.json()
+    assert page["scope"] == "gene"
+    assert page["total_count"] == 816
+    assert page["shown_count"] == 0
+    assert page["articles"] == []
+    assert page["scope_counts"]["variant"]["total_count"] == 3
+    assert page["scope_counts"]["gene"]["total_count"] == 816
+    assert page["scope_counts"]["gene"]["count_kind"] == "gene_wide_source_count"

@@ -4,6 +4,12 @@
   },
   "summary": {
     "total": 3,
+    "gene_scope": {
+      "query": "RPE65[Gene Name]",
+      "total_count": 816,
+      "source_status": "fixture",
+      "source_url": "https://pubmed.ncbi.nlm.nih.gov/?term=RPE65[gene]"
+    },
     "articles": [
       {
         "pmid": "38191234",

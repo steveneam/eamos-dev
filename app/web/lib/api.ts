@@ -75,6 +75,7 @@ export interface PublicationPageRequest {
   transcript?: string | null
   protein_change?: string | null
   species?: 'human' | 'mouse'
+  scope?: 'variant' | 'gene'
   limit?: number
   offset?: number
 }

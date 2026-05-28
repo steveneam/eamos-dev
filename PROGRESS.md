@@ -1,5 +1,105 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 82 - 29 May 2026 - M-006 CAR #4 gene-scoped publication count contract
+
+Completed the backend-led CAR #4 contract slice for M-006 / M10a. Publication
+payloads now expose an additive scope-count contract so Claude can render the
+variant-vs-gene toggle without changing variant publication semantics.
+
+Completed:
+- Added `PublicationScopeCount` / `PublicationScopeCounts` to the backend
+  report schemas and both byte-identical `backend.ts` mirrors.
+- Kept `PublicationLiterature.total_count` as the existing variant-level
+  deduped PMID inventory, and added `scope_counts.variant` with
+  `count_kind="deduped_pmids"`.
+- Added `scope_counts.gene` as a separate gene-wide source-reported count.
+  Healthy PubMed fixture/live responses can provide
+  `count_kind="gene_wide_source_count"`; failed PubMed statuses fail closed to
+  `total_count=null`, `count_kind="unavailable"`, and scoped warnings.
+- Added fixture PubMed gene-scope metadata for RPE65 (`816`) while leaving the
+  RPE65 variant EP-VLEx count at `3`.
+- Added `scope: "variant" | "gene"` to `/api/v1/lookup/publications`. Gene
+  scope returns the source count and no article rows; variant scope preserves
+  paginated EP-VLEx articles.
+- Wired `ReportPayload.publications_callout.scope_counts` from the literature
+  payload so the FE callout and expansion endpoint share the same contract.
+- Updated contract tests, lookup-section tests, publication expansion tests,
+  and frontend field-parity tests.
+
+Verification:
+- `python -m pytest app/backend/tests/test_publication_literature.py app/backend/tests/test_lookup_section_fetch_contract.py app/backend/tests/test_variant_report_publication_functional_integration.py app/backend/tests/test_variant_search_integration.py app/backend/tests/test_frontend_contract.py app/backend/tests/test_tool_invariants.py::test_pubmed_no_hit_miss_uses_empty_raw -q`
+  -> passed.
+- `python -m ruff check app/backend/app app/backend/tests` -> passed.
+- `python -m black --check --target-version py310 app/backend/app app/backend/tests`
+  -> passed after formatting two touched tests.
+- `cd app/web && .\node_modules\.bin\tsc.cmd --noEmit` -> passed.
+- `cd app/frontend && .\node_modules\.bin\tsc.cmd --noEmit` -> passed.
+- `git diff --check` -> passed with only existing CRLF conversion warnings.
+
+Guardrails held:
+- No frontend renderer live-wire; Claude can consume the contract in the FE
+  lane.
+- No WSL, Docker, Supabase/object-storage/startup download/report/Workbench
+  provider wiring, runtime local-source wiring, production source downloads,
+  `/runs`, AlphaMissense display/runtime scoring, destructive git, stash,
+  reset, or clean.
+- Preserved the `a23a324` full_gene fixture fallback.
+
+## Session 81 - 29 May 2026 - Indexed-reader Linux pytest cleanup
+
+Completed the native-reader proof cleanup from the follow-up resume prompt:
+`tests/test_indexed_source_readers.py` now collects without importing the
+whole FastAPI app or unrelated service modules, and the actual focused pytest
+passed in WSL.
+
+Completed:
+- Changed `app.services.__init__` from eager imports of the workflow/report
+  service stack to lazy `__getattr__` exports, so importing
+  `app.services.indexed_sources` does not import unrelated app services.
+- Moved `tests/conftest.py` FastAPI, app startup, `Settings`, `TestClient`,
+  `reportlab`, and `BytesIO` imports into the fixtures that need them. This
+  keeps focused non-app tests collectible in a minimal environment while still
+  preserving the normal app/client/pdf fixtures.
+- Added `numpy>=2,<3; platform_system != "Windows"` to backend requirements
+  after the WSL pytest run proved `pyBigWig==0.3.25` raises
+  `ImportError('numpy._core.multiarray failed to import')` without NumPy.
+
+Verification:
+- Windows focused reader test:
+  `cd app/backend && python -m pytest tests/test_indexed_source_readers.py -q`
+  -> passed (`.ss...ss...`, native skips expected on Windows).
+- Windows fixture-regression smoke:
+  `cd app/backend && python -m pytest tests/test_indexed_source_readers.py tests/test_run_flow.py -q`
+  -> passed (`13 passed, 4 skipped`; known JWT short-key warnings only).
+- Ruff/Black:
+  `python -m ruff check app/services/__init__.py tests/conftest.py tests/test_indexed_source_readers.py`
+  and
+  `python -m black --check --target-version py310 app/services/__init__.py tests/conftest.py tests/test_indexed_source_readers.py`
+  -> passed.
+- WSL native focused pytest:
+  confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at `memory=4GB`,
+  `processors=2`, `swap=2GB`, `guiApplications=false`; confirmed
+  `Ubuntu-24.04` and `docker-desktop` stopped before the run; manually mounted
+  `D:` to `/mnt/d`; created a throwaway venv under
+  `/tmp/eamos-indexed-pytest-20260529015437`; installed pytest,
+  `pysam==0.24.0`, `pyBigWig==0.3.25`, then NumPy for pyBigWig import; and ran
+  `/tmp/eamos-indexed-pytest-20260529015437/bin/python -m pytest tests/test_indexed_source_readers.py -q`
+  from `/mnt/d/eamos/app/backend` -> `11 passed`.
+- Post-check: `wsl --shutdown`; `wsl -l -v` shows `Ubuntu-24.04` and
+  `docker-desktop` stopped; no `vmmemWSL`; only Windows `wslservice`.
+
+Guardrails held:
+- No runtime local-source wiring into request-time web-server paths,
+  Supabase/object-storage runtime flows, startup downloads, source cache,
+  production Variant Evidence Report providers, or Workbench providers.
+- No Docker/container parity run; Docker remains optional and was not started.
+- No production source downloads/imports, live Supabase writes/resources/
+  migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+  display/runtime scoring, restricted predictor unlocks, branch surgery,
+  destructive git, stash, reset, clean, commit, or push by Codex.
+- Preserved the `a23a324` full_gene fixture fallback for the curated stress
+  matrix.
+
 ## Session 80 - 29 May 2026 - Native indexed-reader proof gate
 
 Completed the explicitly approved WSL-native `pysam` / `pyBigWig` proof gate

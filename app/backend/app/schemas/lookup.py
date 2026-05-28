@@ -270,6 +270,7 @@ class PublicationPageRequest(BaseModel):
     transcript: str | None = Field(default=None, max_length=64)
     protein_change: str | None = Field(default=None, max_length=128)
     species: Literal["human", "mouse"] = "human"
+    scope: Literal["variant", "gene"] = "variant"
     limit: int = Field(default=20, ge=1, le=50)
     offset: int = Field(default=0, ge=0)
 

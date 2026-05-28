@@ -1,23 +1,20 @@
 from __future__ import annotations
 
 import sys
-from io import BytesIO
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-from reportlab.pdfgen import canvas
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.core.config import Settings  # noqa: E402
-from app.main import create_app  # noqa: E402
-
 
 @pytest.fixture()
 def app(tmp_path: Path):
+    from app.core.config import Settings
+    from app.main import create_app
+
     settings = Settings(
         upload_dir=tmp_path / "uploads",
         final_report_dir=tmp_path / "final_reports",
@@ -36,12 +33,16 @@ def app(tmp_path: Path):
 
 @pytest.fixture()
 def client(app):
+    from fastapi.testclient import TestClient
+
     with TestClient(app) as test_client:
         yield test_client
 
 
 @pytest.fixture()
 def auth_client(app):
+    from fastapi.testclient import TestClient
+
     with TestClient(app) as test_client:
         response = test_client.post(
             "/api/v1/auth/register",
@@ -55,6 +56,10 @@ def auth_client(app):
 
 @pytest.fixture()
 def pdf_bytes() -> bytes:
+    from io import BytesIO
+
+    from reportlab.pdfgen import canvas
+
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer)
     pdf.drawString(72, 720, "HSIL demo PDF fixture")

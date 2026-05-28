@@ -24,6 +24,34 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-29, Codex):
+- M-006-CAR-4-GENE-SCOPED-PUBLICATION-COUNT is implemented and verified
+  backend-side. `PublicationLiterature` and `PublicationsCallout` now expose
+  additive `scope_counts`: `variant` preserves the existing deduped PMID count
+  (`count_kind="deduped_pmids"`), while `gene` carries a PubMed
+  source-reported gene-wide count when available
+  (`count_kind="gene_wide_source_count"`). PubMed failures/timeouts fail
+  closed to `scope_counts.gene.total_count=null` with scoped warnings rather
+  than falling back to stale/fixture gene counts. `/api/v1/lookup/publications`
+  now accepts `scope: "variant" | "gene"`; gene scope returns the count-only
+  payload with no article rows. RPE65 fixture semantics are now explicit:
+  variant EP-VLEx count remains `3`, gene-source count is fixture `816`. Both
+  `backend.ts` mirrors carry the new types, and focused publication/lookup/
+  frontend-contract tests plus Ruff, Black, both frontend `tsc --noEmit`
+  checks, and `git diff --check` passed. No FE renderer live-wire was done.
+- NATIVE-INDEXED-READER-PYTEST-CLEANUP is implemented and verified. The
+  focused indexed-reader pytest no longer collects unrelated FastAPI app
+  dependencies: `app.services.__init__` now exposes legacy service names lazily,
+  and `tests/conftest.py` imports app/TestClient/reportlab dependencies only
+  inside fixtures that need them. Windows focused reader pytest still passes
+  with expected native skips; a small normal-app fixture smoke also passes.
+  In WSL Ubuntu, a minimal scratch venv under `/tmp` ran the actual
+  `tests/test_indexed_source_readers.py` focused pytest from `/mnt/d/eamos` and
+  passed all 11 tests with `pysam==0.24.0`, `pyBigWig==0.3.25`, and NumPy. The
+  run discovered pyBigWig's undeclared Linux import dependency on NumPy, so
+  backend requirements now include `numpy>=2,<3; platform_system != "Windows"`.
+  WSL was shut down afterward; Docker/container parity was not run because it
+  remains optional, and no runtime local-source wiring or production asset path
+  was touched.
 - NATIVE-INDEXED-READER-PROOF-GATE passed after explicit Steven approval on
   2026-05-29. Codex confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at
   `memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`;
