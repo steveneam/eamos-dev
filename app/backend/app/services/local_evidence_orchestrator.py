@@ -177,6 +177,18 @@ class LocalEvidenceOrchestrator:
         repeatmasker_flank_bp: int = 25,
         sequence_flank_bp: int | None = None,
     ) -> LocalEvidenceBundle:
+        normalized_requested_alt = None
+        if requested_alt is not None:
+            normalized_requested_alt = _normalize_local_allele(requested_alt)
+            if normalized_requested_alt is None:
+                return LocalEvidenceBundle(
+                    query_kind="rsid",
+                    submitted_query=rsid,
+                    variant_identity=None,
+                    warnings=("local_evidence_invalid_allele",),
+                    unavailable_reason="invalid_allele",
+                )
+
         dbsnp_lookup = self.dbsnp_store.lookup_rsid(rsid)
         if not dbsnp_lookup.available or dbsnp_lookup.record is None:
             return LocalEvidenceBundle(
@@ -191,17 +203,27 @@ class LocalEvidenceOrchestrator:
 
         allele_identity = _single_allele_identity(
             dbsnp_lookup.record,
-            requested_alt=requested_alt,
+            requested_alt=normalized_requested_alt,
         )
         if allele_identity is None:
+            unavailable_reason = (
+                "rsid_allele_mismatch"
+                if normalized_requested_alt is not None
+                else "ambiguous_rsid_alleles"
+            )
+            warning = (
+                "local_evidence_rsid_allele_mismatch"
+                if normalized_requested_alt is not None
+                else "local_evidence_ambiguous_rsid_alleles"
+            )
             return LocalEvidenceBundle(
                 query_kind="rsid",
                 submitted_query=rsid,
                 variant_identity=None,
                 dbsnp=dbsnp_lookup,
                 provenance=_dbsnp_provenance(dbsnp_lookup),
-                warnings=("local_evidence_ambiguous_rsid_alleles",),
-                unavailable_reason="ambiguous_rsid_alleles",
+                warnings=(warning,),
+                unavailable_reason=unavailable_reason,
             )
 
         return self._resolve_identity(
@@ -408,9 +430,8 @@ def _single_allele_identity(
     requested_alt: str | None,
 ) -> DbSnpAlleleIdentity | None:
     if requested_alt is not None:
-        normalized_alt = requested_alt.strip().upper()
         for identity in record.allele_identities:
-            if identity.alt == normalized_alt:
+            if identity.alt == requested_alt:
                 return identity
         return None
     if len(record.allele_identities) != 1:

@@ -111,6 +111,81 @@ def test_multiallelic_rsid_requires_explicit_allele_before_orchestration() -> No
     assert bundle.warnings == ("local_evidence_ambiguous_rsid_alleles",)
 
 
+def test_unknown_rsid_stops_before_downstream_local_composition() -> None:
+    bundle = LocalEvidenceOrchestrator().resolve_rsid("rs999999999")
+
+    assert bundle.available is False
+    assert bundle.unavailable_reason == "rsid_not_found"
+    assert bundle.variant_identity is None
+    assert bundle.dbsnp is not None
+    assert bundle.dbsnp.available is False
+    assert bundle.dbsnp.unavailable_reason == "rsid_not_found"
+    assert bundle.clinvar is None
+    assert bundle.transcript_coordinate is None
+    assert bundle.repeatmasker is None
+    assert bundle.sequence_context is None
+    assert bundle.warnings == ("dbsnp_local_rsid_not_found",)
+    assert bundle.provenance == (f"{DBSNP_SOURCE_ID}:no_record",)
+
+
+def test_rsid_requested_allele_mismatch_stops_before_downstream_composition() -> None:
+    bundle = LocalEvidenceOrchestrator().resolve_rsid("rs1645931040", requested_alt="A")
+
+    assert bundle.available is False
+    assert bundle.unavailable_reason == "rsid_allele_mismatch"
+    assert bundle.variant_identity is None
+    assert bundle.dbsnp is not None
+    assert bundle.dbsnp.available is True
+    assert bundle.clinvar is None
+    assert bundle.transcript_coordinate is None
+    assert bundle.repeatmasker is None
+    assert bundle.sequence_context is None
+    assert bundle.warnings == ("local_evidence_rsid_allele_mismatch",)
+    assert bundle.provenance == (f"{DBSNP_SOURCE_ID}:rs1645931040",)
+
+
+def test_rsid_malformed_requested_allele_fails_before_any_local_source_lookup() -> None:
+    bundle = LocalEvidenceOrchestrator().resolve_rsid("rs1645931040", requested_alt="<DEL>")
+
+    assert bundle.available is False
+    assert bundle.unavailable_reason == "invalid_allele"
+    assert bundle.variant_identity is None
+    assert bundle.dbsnp is None
+    assert bundle.clinvar is None
+    assert bundle.transcript_coordinate is None
+    assert bundle.repeatmasker is None
+    assert bundle.sequence_context is None
+    assert bundle.warnings == ("local_evidence_invalid_allele",)
+    assert bundle.provenance == ()
+
+
+def test_multiallelic_rsid_explicit_alt_allowlist_composes_selected_allele() -> None:
+    bundle = LocalEvidenceOrchestrator().resolve_rsid("rs1801133", requested_alt="c")
+
+    assert bundle.available is True
+    assert bundle.unavailable_reason is None
+    assert bundle.variant_identity == LocalEvidenceVariantIdentity(
+        chrom="1",
+        position=11796321,
+        ref="G",
+        alt="C",
+        variant_id="1-11796321-G-C",
+        genomic_hgvs="NC_000001.11:g.11796321G>C",
+        rsid="rs1801133",
+        source=DBSNP_SOURCE_ID,
+    )
+    assert bundle.dbsnp is not None
+    assert bundle.dbsnp.available is True
+    assert bundle.clinvar is not None
+    assert bundle.clinvar.available is False
+    assert bundle.clinvar.unavailable_reason == "variant_not_found"
+    assert bundle.transcript_coordinate is None
+    assert bundle.repeatmasker is not None
+    assert bundle.repeatmasker.available is True
+    assert bundle.sequence_context is None
+    assert "local_evidence_gene_required_for_transcript_model" in bundle.warnings
+
+
 def test_no_hit_local_sources_remain_visible_and_do_not_substitute_fixture_records() -> None:
     bundle = LocalEvidenceOrchestrator().resolve_variant(
         gene="RPE65",
@@ -133,6 +208,38 @@ def test_no_hit_local_sources_remain_visible_and_do_not_substitute_fixture_recor
     assert "dbsnp_local_allele_mismatch" in bundle.warnings
     assert "clinvar_local_allele_mismatch" in bundle.warnings
     assert any(token == f"{CLINVAR_SOURCE_ID}:no_record" for token in bundle.provenance)
+
+
+def test_true_no_hit_variant_does_not_substitute_any_local_fixture_record() -> None:
+    bundle = LocalEvidenceOrchestrator().resolve_variant(
+        gene="RPE65",
+        chrom="1",
+        position=70000000,
+        ref="A",
+        alt="G",
+    )
+
+    assert bundle.available is True
+    assert bundle.variant_identity is not None
+    assert bundle.variant_identity.variant_id == "1-70000000-A-G"
+    assert bundle.dbsnp is not None
+    assert bundle.dbsnp.available is False
+    assert bundle.dbsnp.unavailable_reason == "variant_not_found"
+    assert bundle.clinvar is not None
+    assert bundle.clinvar.available is False
+    assert bundle.clinvar.record is None
+    assert bundle.clinvar.unavailable_reason == "variant_not_found"
+    assert bundle.transcript_coordinate is not None
+    assert bundle.transcript_coordinate.available is False
+    assert bundle.transcript_coordinate.unavailable_reason == "coordinate_outside_transcript"
+    assert bundle.repeatmasker is not None
+    assert bundle.repeatmasker.available is True
+    assert bundle.sequence_context is None
+    assert "dbsnp_local_variant_not_found" in bundle.warnings
+    assert "clinvar_local_variant_not_found" in bundle.warnings
+    assert "transcript_model_coordinate_outside_transcript" in bundle.warnings
+    assert f"{CLINVAR_SOURCE_ID}:no_record" in bundle.provenance
+    assert f"{DBSNP_SOURCE_ID}:no_record" in bundle.provenance
 
 
 def test_malformed_variant_alleles_fail_closed_before_local_source_composition() -> None:
