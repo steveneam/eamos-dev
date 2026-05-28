@@ -12,6 +12,7 @@ import { EvidenceTable } from '@/components/report/EvidenceTable'
 import { DiseaseSection } from '@/components/report/DiseaseSection'
 import { TrialsSection } from '@/components/report/TrialsSection'
 import { PubMedSection } from '@/components/report/PubMedSection'
+import { LazySection } from '@/components/report/LazySection'
 import { LocusContext } from '@/components/report/LocusContext'
 import { CalibratedInSilicoTable } from '@/components/report/CalibratedInSilicoTable'
 import { CompositeVerdictBar } from '@/components/report/CompositeVerdictBar'
@@ -54,6 +55,7 @@ import { SOURCES } from '@/lib/sources'
 import type {
   LookupRequest,
   LookupResponse,
+  PublicationLiterature,
   SearchInputCandidate,
   SearchInputInterpretation,
 } from '@/lib/backend'
@@ -562,21 +564,35 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
         </Card>
 
         {/* 5 · Publication literature. */}
+        {/* LazySection v1: when the backend ships `publications_literature`
+            inline (today: offline demo + eager live), we render the existing
+            PubMedSection immediately via `eagerData`. When the eager payload
+            is trimmed (M-007 / M11 follow-up), the IntersectionObserver path
+            kicks in and lazy-fetches via /api/v1/lookup/sections. */}
         <div id="publications" className="scroll-mt-24" />
-        <PubMedSection
+        <LazySection<PublicationLiterature>
           key={`pubs-${variantKey}`}
-          payload={payload}
-          number={5}
-          actions={
-            <CopyButton
-              text={{
-                html: htmlPublications(payload, payload.publications_literature),
-                text: tsvPublications(payload, payload.publications_literature),
-              }}
-              label="Copy publications (paste into Excel for formatted table)"
+          eagerData={payload.publications_literature}
+          sectionId="publications"
+          request={summaryRequest ?? null}
+          unwrap={(env) => (env.payload as PublicationLiterature | null) ?? null}
+        >
+          {(lit) => (
+            <PubMedSection
+              payload={{ ...payload, publications_literature: lit }}
+              number={5}
+              actions={
+                <CopyButton
+                  text={{
+                    html: htmlPublications(payload, lit),
+                    text: tsvPublications(payload, lit),
+                  }}
+                  label="Copy publications (paste into Excel for formatted table)"
+                />
+              }
             />
-          }
-        />
+          )}
+        </LazySection>
 
         {/* 6 · Active trials & approved therapies. */}
         <div id="trials" className="scroll-mt-24" />
