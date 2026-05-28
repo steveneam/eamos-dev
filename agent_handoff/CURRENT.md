@@ -14,9 +14,9 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ post 2026-05-28 ~22:30 +1000 (anchor: robocopy end 22:19:25; this commit hash = authoritative per [[feedback_no_clock_timestamps]]) — **E:\eamos → D:\eamos RELOCATION COMPLETE.** Two pushes landed pre-move: `1b2e99c` (Claude FGV-003 FE proof slice · git 21:45:25 +1000) + `5797f9d` (Codex CAR #3 ClinGen VCEP expert panel · git ~22:00 +1000). Tree on D:\eamos verified: HEAD == origin == `5797f9d`, git fsck clean (dangling blobs only, cosmetic), 43,314 files copied (2.432 GB / 0 failed), 2 supabase-skill junctions recreated to point at `D:\eamos\.agents\skills\...`, Claude memory dir copied to `C:\Users\seamegdool\.claude\projects\D--eamos\` (466 files / 198.62 MB / parity OK). 5 Claude-owned files sed-ed for path correction (`.claude/settings.json` hook + `.claude/settings.local.json` permission + `agent_handoff/README.md` + `plans/README.md` + `app/web/app/layout.tsx` comment); `plans/v2-design-overhaul/*.json` intentionally NOT sed-ed (frozen May-20 planner artifact, historical truth like `archive/`). Pre-move Claude Active Status detail (CAR #3, FGV-002 consumer rules, audit-trail correction note re fabricated timestamps) archived verbatim at `agent_handoff/archive/2026-05-28-claude-section-pre-D-move.md`. E:\ stays in place untouched as cold backup until D:\ verified across both agents for at least one full session. **Next priority queue — Phase 1 (post-move verify):** (1) FGV-003 browser-verify on D:\ first action next session (Turbopack should compile fast on internal/USB without the E:\ thrash); (2) Codex WSL remount /mnt/e → /mnt/d + re-run focused indexed-source pytest; (3) M-005 live-wire (consume `report_profile.expert_panel` from API → swap `<ExpertPanelSection data={...} />`); (4) CAR #4 (M-006 / M10a gene-scoped pub count) at slice start per DL-002. **Phase 2 (after Phase 1 verified clean across both agents):** branch rename `checkpoint/v2-batches-2026-05-17` → `main` + external service coord (Vercel production branch + Render web service git branch + Supabase branch coupling check via mcp__supabase__list_branches + PostHog/Stripe/Resend/Porkbun verify-only — none are git-branch-coupled, just confirm post-rename). No `.github/workflows/` exists so no CI to update. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
+- **Claude:** IDLE @ 2026-05-29 post-`a23a324` (anchor: Render deploy `dep-d8c4rvp9rddc73f8jsu0` + `.scratch/{fgv003-rpe65,fgv003-abca4,m005-expert-panel}-*-ready.png`) — **Phase 1 (post-move verify) COMPLETE.** Codex pushed `a23a324` (M-005 ExpertPanelSection live-wire + `SourceBackedGeneViewerProvider.viewer()` full_gene fixture-fallback so the curated stress matrix renders without flipping Render `USE_REAL_APIS`). Claude triggered Render redeploy via `.render-deploy-hook` and chrome-devtools-MCP-verified through the live `eamos-dev.onrender.com` proxy: (i) **FGV-003 Full gene "ready" branch** — RPE65 c.260A>G = 21,139 bp · 265 rows · 80 bp/row · chr1:68,428,820–68,449,958 GRCh38; ABCA4 c.5435T>A = 128,315 bp · 1,604 rows · 80 bp/row · chr1:93,992,834–94,121,148 GRCh38; both with no Unsupported banner and no `Sequence unavailable` state. (ii) **M-005 ExpertPanelSection** on `/report?gene=RPE65&cdna=c.260A%3EG` rendered live `payload.report_profile.expert_panel` — IRD VCEP curation `CA189146`, Likely benign, fetched 2026-05-27, ACMG chips BS1_Strong + BS2_Supporting§ + PM2_Supporting§ + PP3_Moderate§ from ClinGen Evidence Repo 2024.06 (i.e. NOT the prior inline fixture). Dev-server cleanup: killed two orphan Next dev PIDs holding port 3000 (PID 19616 from a prior Claude session + PID 28620 left running by Codex per their "intentionally left running" note — port 3000 now free); Codex's backend `python` on PID 28252 left untouched ([[feedback_background_process_cleanup]]). **Phase 2 (now actionable):** branch rename `checkpoint/v2-batches-2026-05-17` → `main` + external service coord (Vercel production branch + Render web service git branch + Supabase `mcp__supabase__list_branches` check + PostHog/Stripe/Resend/Porkbun verify-only — none are git-branch-coupled). No `.github/workflows/` to update. **Open follow-ups:** (a) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (b) Render `mcp__render__*` MCP now connecting after this session's restart — usable next session for managed redeploys. **Standing flags:** AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); WSL/Linux still gated pending Steven's explicit approval per `cadaf49` guardrail; no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]).
 
-- **Codex:** IDLE @ 2026-05-29 00:05 +1000 - User redirected to the three
+- **Codex:** IDLE @ 2026-05-29 00:15 +1000 - User redirected to the three
   post-move tasks, then Claude handed off the FGV-003 full-gene live-mode
   blocker. Windows-only. Completed the small M-005 report live-wire in
   `app/web/components/report/ReportClient.tsx` so `ExpertPanelSection` now
@@ -43,7 +43,16 @@
   `http://127.0.0.1:8000` (python PID 28252). No WSL/Linux, Supabase writes,
   uploads/imports, production source imports/downloads, env/deploy mutation,
   restricted predictor unlocks, branch rename, CAR #4, stash/reset/clean, or
-  destructive git.
+  destructive git. Follow-up clarification recorded in
+  `plans/data-source-registry/spec.md` and
+  `docs/local-first-data-source-strategy/source-asset-rollout.md`: after
+  Steven explicitly approves Linux/Render work, finish the native `pysam` /
+  `pyBigWig` proof before wiring local indexed assets into web-server request
+  paths, Supabase/object-storage runtime flows, startup local-cache downloads,
+  or production report/Workbench providers. Claude is not blocked on this
+  Codex proof for frontend/autonomous work; Claude's immediate dependency is
+  the already-pushed `a23a324` hosted redeploy/browser verification of the
+  FGV-003 ready branch.
 
 ## Log Edit-Lock
 
@@ -53,7 +62,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-29 00:05 +1000 - Codex (report live-wire + FGV-003 real-mode fallback + browser verify + local data-footprint checks)
+UNLOCKED - 2026-05-29 post-`a23a324` Render deploy `dep-d8c4rvp9rddc73f8jsu0` - Claude (Phase 1 visual sign-off: FGV-003 ready branch + M-005 ExpertPanel; Phase 2 now actionable)
 
 ## Shared File Locks
 

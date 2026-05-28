@@ -1,5 +1,66 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 79 - 29 May 2026 - FGV-003 + M-005 visual sign-off on Render
+
+Phase 1 (post-move verify) closeout. Codex pushed `a23a324`
+(M-005 `ExpertPanelSection` live-wire + `SourceBackedGeneViewerProvider.viewer()`
+full_gene fixture-fallback). Claude triggered the Render redeploy via the
+gitignored `.render-deploy-hook` and chrome-devtools-MCP-verified the live
+`eamos-dev.onrender.com` surface end-to-end. No code change in this session —
+backend + frontend ship was already on `a23a324`.
+
+Completed:
+- Triggered Render deploy `dep-d8c4rvp9rddc73f8jsu0` of `a23a324` via
+  `curl -fsS -X POST $(grep ^https:// .render-deploy-hook)` (HTTP 200), polled
+  `POST /api/v1/viewer` with `window.kind=full_gene` until the 422
+  `workbench_unsupported_input:full_gene` was replaced by a 200 carrying the
+  `full_locus` payload.
+- Restarted `app/web` Next dev server (Turbopack 16.2.6) with
+  `API_PROXY_TARGET=https://eamos-dev.onrender.com`, killed two orphan Next
+  processes holding port 3000 (PID 19616 from a prior Claude session +
+  PID 28620 left running by Codex per their "intentionally left running" note).
+  Codex's backend `python` on PID 28252 was left untouched.
+
+Verification (chrome-devtools MCP against the live proxy):
+- `/workbench?gene=RPE65&cdna=c.260A%3EG` → Full gene toggle → ready branch:
+  `21,139 bp · 265 rows · 80 bp/row · chr1:68,428,820–68,449,958 (-)` GRCh38.
+  `.scratch/fgv003-rpe65-fullgene-ready.png`.
+- `/workbench?gene=ABCA4&cdna=c.5435T%3EA` → Full gene toggle → ready branch:
+  `128,315 bp · 1,604 rows · 80 bp/row · chr1:93,992,834–94,121,148 (-)`
+  GRCh38. DOM at 1,604 rows is too large for `take_snapshot` /
+  `wait_for` text matching, but `document.querySelector('.fl-viewer')` and the
+  rendered header confirm the ready branch. `.scratch/fgv003-abca4-fullgene-ready.png`.
+- `/report?gene=RPE65&cdna=c.260A%3EG` → `#expert_panel` anchor →
+  `ExpertPanelSection` rendering live `payload.report_profile.expert_panel`:
+  Inherited Retinal Dystrophies VCEP curation `CA189146`, Likely benign,
+  fetched 2026-05-27, ACMG chips `BS1_Strong + BS2_Supporting§ +
+  PM2_Supporting§ + PP3_Moderate§`, source attribution
+  `ClinGen Evidence Repo 2024.06` linking to
+  `https://erepo.clinicalgenome.org/evrepo/api/classifications/CA189146`.
+  i.e. NOT the prior inline IRD VCEP fixture. `.scratch/m005-expert-panel-live.png`.
+- Probed `eamos-dev.onrender.com` ABCA4 full_gene payload directly:
+  `full_locus.locus.start=93992834`, `end=94121148`,
+  `sequence` length `128,315` — confirms backend hydration is contract-correct.
+
+Guardrails held:
+- No `app/backend/**` edits (Codex lane); no AlphaMissense display; no `/runs`;
+  no WSL/Linux work; no production source imports/downloads; no Supabase
+  writes/resources/migrations; no env mutation; no destructive git; no stash;
+  no reset; no clean.
+- Did not touch Codex's two uncommitted in-lane docs
+  (`docs/local-first-data-source-strategy/source-asset-rollout.md`,
+  `plans/data-source-registry/spec.md`) per the dual-agent no-delete +
+  own-section-only rules.
+
+Open follow-ups:
+- Phase 2 (now actionable): branch rename
+  `checkpoint/v2-batches-2026-05-17` → `main` + Vercel/Render production-branch
+  + Supabase `list_branches` + PostHog/Stripe/Resend/Porkbun verify-only.
+- CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002.
+- Render `mcp__render__*` MCP is now connecting (started surfacing during this
+  session post-restart) — usable next session for managed redeploys instead of
+  raw `curl` on the gitignored hook.
+
 ## Session 78 - 28 May 2026 - Windows-only WSL crash guardrail audit
 
 Performed the post-crash audit after the D-drive WSL mount path caused
