@@ -207,7 +207,7 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
       >
         Per-source detail
       </div>
-      <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+      <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
         <tbody>
           {rows.map((ev, i) => {
             const meta = getSourceMeta(ev.source)
@@ -273,6 +273,8 @@ export function EvidenceTable({ evidence, number, embedded }: EvidenceTableProps
                     fontSize: 12.5,
                     color: 'var(--ink)',
                     verticalAlign: 'top',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {isClinVarRow(ev.source) && <ClinVarHeader summary={ev.summary} />}

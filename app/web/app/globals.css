@@ -683,6 +683,21 @@ textarea {
   .locus-track,
   .vardist-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vardist {
+    min-width: 540px;
+  }
+
+  .eamos-disclosure__summary {
+    white-space: normal;
+    text-align: right;
+  }
+
+  .eamos-disclosure__trigger {
+    flex-wrap: wrap;
+    row-gap: 4px;
   }
 
   .locus-row.variants,

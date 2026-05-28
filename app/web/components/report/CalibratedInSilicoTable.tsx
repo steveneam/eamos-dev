@@ -80,12 +80,14 @@ export function CalibratedInSilicoTable({ predictors }: CalibratedInSilicoTableP
         style={{
           border: '0.5px solid var(--line)',
           borderRadius: 'var(--r-md)',
-          overflow: 'hidden',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         <table
           style={{
             width: '100%',
+            minWidth: 560,
             borderCollapse: 'collapse',
             fontVariantNumeric: 'tabular-nums',
           }}
