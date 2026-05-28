@@ -2,7 +2,7 @@
 
 Status: Draft for review
 Owner: Codex/backend
-Last updated: 2026-05-29 00:14 +1000 - Codex
+Last updated: 2026-05-29 01:08 +1000 - Codex
 
 Source plan: `docs/local-first-data-source-strategy/plan.md`
 
@@ -129,18 +129,15 @@ mutation, provider wiring, and frontend work.
 
 ## Task 9 - Indexed Reader Compatibility Proofs
 
-Status: IMPLEMENTED to Windows-compatible boundary 2026-05-27 03:33 +1000 -
-Codex. Native Linux VCF/bigWig proof attempted again 2026-05-27 18:26 +1000:
-WSL is not installed, Docker Desktop local engine returned HTTP 500 on both
-contexts after start/restart attempts, and user will seek IT approval for
-Docker on 2026-05-28. No production assets were downloaded or imported.
-Native proof retry 2026-05-28 01:24 +1000 with user approval is still blocked:
-WSL remains uninstalled, Docker engines return HTTP 500, and starting the
-Docker service is not permitted from this session. Hardening added shared
-`NC_` RefSeq contig canonicalization plus duplicate alias-map coverage without
-native readers. Update 2026-05-29: after the WSL RAM crash guardrail, this
-proof must wait for Steven's explicit Linux/Render approval and must complete
-before any web-server/database wiring for local indexed source serving.
+Status: NATIVE PROOF PASSED 2026-05-29 01:08 +1000 - Codex, after explicit
+Steven approval for the gated WSL run. Earlier Windows-compatible boundary
+work remains implemented. The proof ran from `/mnt/d/eamos` in WSL Ubuntu with
+`pysam==0.24.0` and `pyBigWig==0.3.25`, generated tiny VCF/tabix and bigWig
+fixtures, queried by contig alias/range, and checked structured fail-closed
+behavior. WSL was shut down immediately afterward. No production assets were
+downloaded or imported, and this does not approve request-time provider,
+Supabase/object-storage, startup download, source-cache, report, or Workbench
+runtime wiring.
 
 ### Goal
 
@@ -504,14 +501,14 @@ Supabase Storage.
 
 ## Task 15 - phyloP Conservation Reader Proof
 
-Status: PLANNED / native proof blocked on this Windows host. Hardening pass
-2026-05-27 23:57 +1000 added missing-bigWig fail-closed coverage before
-`pyBigWig` import and a manifest gate proving phyloP remains
-reader-proof/download-approval gated. No production phyloP download/upload or
-native `pyBigWig` proof was performed.
-Retry 2026-05-28 01:24 +1000 with user approval remains infrastructure-blocked:
-WSL is not installed, Docker engines return HTTP 500, and starting the Docker
-service is not permitted from this session.
+Status: TINY NATIVE READER PROOF PASSED 2026-05-29 01:08 +1000 - Codex.
+Hardening pass 2026-05-27 23:57 +1000 added missing-bigWig fail-closed
+coverage before `pyBigWig` import and a manifest gate proving phyloP remains
+reader-proof/download-approval gated. The approved WSL proof generated a tiny
+bigWig fixture with `pyBigWig==0.3.25`, queried position/window summaries
+through the real `PyBigWigConservationReader`, and checked unknown-contig and
+out-of-bounds fail-closed behavior. No production phyloP download/upload,
+source-cache wiring, or provider replacement was performed.
 
 ### Goal
 

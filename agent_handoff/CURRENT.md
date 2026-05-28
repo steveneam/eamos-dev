@@ -47,7 +47,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-29 01:26 +1000 · Claude (Phase 2 closeout: Claude Active Status replaced; Codex's section + working-tree edits untouched)
+UNLOCKED - 2026-05-29 01:35 +1000 - Codex (CLI-first rule recorded; native-proof cleanup wording fixed)
 
 ## Shared File Locks
 

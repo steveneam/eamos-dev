@@ -1,5 +1,57 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 80 - 29 May 2026 - Native indexed-reader proof gate
+
+Completed the explicitly approved WSL-native `pysam` / `pyBigWig` proof gate
+from the relocated `D:\eamos` repo.
+
+Completed:
+- Re-read the Codex/handoff/source-gate docs, ran `git pull --ff-only`
+  (`Already up to date` at session start), and confirmed
+  `%USERPROFILE%\.wslconfig` still caps WSL2 at `memory=4GB`,
+  `processors=2`, `swap=2GB`, and `guiApplications=false`.
+- Confirmed `Ubuntu-24.04` was stopped before the run. WSL did not auto-mount
+  `D:`, so the proof manually mounted `D:` to `/mnt/d` and used
+  `/mnt/d/eamos` only.
+- Created a scratch proof venv under ignored
+  `.scratch/native-reader-proof/venv` with native Linux wheels for
+  `pysam==0.24.0` and `pyBigWig==0.3.25`. After the user asked about the
+  unnecessary partial dependency install, the disposable
+  `.scratch/native-reader-proof/` workspace was removed.
+- Added a scratch-only proof script at
+  `.scratch/native-reader-proof/native_reader_proof.py` that loads the real
+  `app/backend/app/services/indexed_sources.py` module directly and exercises
+  the native reader classes without importing unrelated FastAPI app modules.
+  The script was removed with the disposable proof workspace after verification.
+
+Verification:
+- Native proof passed in WSL:
+  `/mnt/d/eamos/.scratch/native-reader-proof/venv/bin/python /mnt/d/eamos/.scratch/native-reader-proof/native_reader_proof.py`
+  -> `native indexed reader proof passed`, `pysam=0.24.0`,
+  `pyBigWig=0.3.25`.
+- The proof generated tiny VCF/tabix and bigWig fixtures, queried by
+  `NC_000001.11` and `chr1`, and checked fail-closed behavior for missing
+  index/file, unknown contig, invalid window, and out-of-bounds intervals.
+- Full WSL `pytest tests/test_indexed_source_readers.py` was attempted but
+  blocked by unrelated import-time dependencies from `tests/conftest.py` and
+  `app.services.__init__`; the scratch direct proof isolated the native reader
+  gate while still testing the real reader classes.
+- WSL was shut down after every attempt. Final post-check showed
+  `Ubuntu-24.04` and `docker-desktop` stopped, no `vmmemWSL`, and only Windows
+  `wslservice` present.
+- `git diff --stat` was empty and `git status --short --branch` was clean.
+
+Guardrails held:
+- No local indexed assets were wired into web-server request paths,
+  Supabase/object-storage runtime flows, startup local-cache downloads, source
+  cache, production report providers, or Workbench providers.
+- No production source downloads/imports, live Supabase writes/resources/
+  migrations, uploads/imports, env/deploy mutation, `/runs`, AlphaMissense
+  display/runtime scoring, restricted predictor unlocks, branch rename,
+  destructive git, stash, reset, clean, commit, or push by Codex.
+- Preserved the `a23a324` full_gene fixture fallback for the curated stress
+  matrix.
+
 ## Session 79 - 29 May 2026 - FGV-003 + M-005 visual sign-off on Render
 
 Phase 1 (post-move verify) closeout. Codex pushed `a23a324`

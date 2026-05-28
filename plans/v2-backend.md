@@ -23,7 +23,26 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-28, Codex):
+Recent backend status notes (2026-05-29, Codex):
+- NATIVE-INDEXED-READER-PROOF-GATE passed after explicit Steven approval on
+  2026-05-29. Codex confirmed `%USERPROFILE%\.wslconfig` still caps WSL2 at
+  `memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`;
+  manually mounted `D:` to `/mnt/d` because WSL did not auto-mount it; used
+  `/mnt/d/eamos` only; and shut WSL down after each attempt. A disposable
+  scratch venv under ignored `.scratch/native-reader-proof/venv` installed
+  `pysam==0.24.0` and `pyBigWig==0.3.25`; after the user asked about the
+  unnecessary partial dependency install, the whole
+  `.scratch/native-reader-proof/` workspace was removed. The scratch proof
+  loaded the real
+  `app/backend/app/services/indexed_sources.py` module directly, generated tiny
+  VCF/tabix and bigWig fixtures, proved alias queries for `NC_000001.11` and
+  `chr1`, and checked fail-closed missing index/file, unknown contig, invalid
+  window, and out-of-bounds behavior. Post-check showed `Ubuntu-24.04` and
+  `docker-desktop` stopped, no `vmmemWSL`, only `wslservice`, and a clean git
+  status. This completes the native reader proof gate only; it does not approve
+  wiring local indexed assets into request-time providers, source cache,
+  Supabase/object-storage runtime flows, startup downloads, or production
+  report/Workbench paths.
 - WSL-CRASH-GUARDRAIL is now active. After the D-drive WSL `/mnt/d` proof path,
   `vmmemWSL` consumed host RAM and crashed the computer. Routine Eamos
   verification should stay Windows-native. This session wrote

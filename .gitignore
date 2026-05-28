@@ -42,3 +42,5 @@ node_modules_temp/
 
 # Agent scratch workspace (Codex native-reader proof venv, Claude .scratch screenshots, etc.)
 .scratch/
+
+.vercel

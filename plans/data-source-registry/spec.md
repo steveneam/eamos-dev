@@ -2,7 +2,7 @@
 
 Status: Draft for user review
 Owner: Codex/backend
-Last updated: 2026-05-29 00:14 +1000 - Codex
+Last updated: 2026-05-29 01:08 +1000 - Codex
 
 ## What
 
@@ -223,6 +223,13 @@ Recommended search identity order after local stores land:
 Do not wire local indexed assets into request-time web-server paths or
 database/object-storage runtime flows until the native reader proof passes in
 an explicitly approved Linux/Render-style environment.
+
+Gate status: passed 2026-05-29 in explicitly approved WSL Ubuntu from
+`/mnt/d/eamos` using generated tiny VCF/tabix and bigWig fixtures with
+`pysam==0.24.0` and `pyBigWig==0.3.25`. This proves the native reader classes
+only; runtime wiring into web-server providers, source cache, Supabase/object
+storage flows, startup downloads, production report providers, or Workbench
+providers remains a separate implementation approval.
 
 The gate covers:
 

@@ -1,5 +1,33 @@
 # Agent Coordination Decisions
 
+## 2026-05-29: CLI First For External Services
+
+Section edited: 2026-05-29 01:34 +1000 - Codex.
+
+Decision (Claude/Steven handoff, 2026-05-29): for any external-service action
+against Vercel, Render, Supabase, Stripe, GitHub, PostHog, Resend, Porkbun, or
+similar services, try the official CLI first. Fall back to MCP, REST API, or
+dashboard only when the CLI cannot perform the required action or no CLI exists
+for that service/action.
+
+Practical notes:
+
+- Installed/authenticated on Windows: Vercel CLI via `npx vercel@latest`
+  (auth at `%USERPROFILE%\.vercel\auth.json`, Steven logged in as `steveneam`).
+- Installed on Windows PATH: Supabase CLI at
+  `C:\Users\seamegdool\AppData\Roaming\npm\supabase`; it still needs
+  `supabase login` before use.
+- Pending installs if needed: Stripe CLI and Render CLI.
+- Windows and WSL Ubuntu do not share CLI binaries or auth state. For current
+  WSL-native reader proofs, keep external-service CLI work in Windows
+  PowerShell and do not install Vercel/Supabase/Stripe/Render CLIs inside WSL
+  unless a separate Linux-specific need is approved.
+
+Reasoning: Phase 2 branch coordination showed Vercel project branch config was
+resolved cleanly by `vercel git disconnect` / `vercel git connect`, after
+MCP/REST/dashboard exploration burned time on unsupported endpoints. The
+preferred escalation order is CLI -> MCP/REST -> dashboard.
+
 ## 2026-05-27: DL-019 Explicit Git Staging Rule
 
 Section edited: 2026-05-27 23:27 +1000 - Codex.
