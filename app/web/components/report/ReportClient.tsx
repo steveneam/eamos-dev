@@ -495,7 +495,7 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
             renumbering the existing sections. Swaps from inline RPE65 IRD VCEP fixture to live
             payload data once Codex closes CAR #3 (additive `report_profile.expert_panel`). */}
         <div id="expert_panel" className="scroll-mt-24" />
-        <ExpertPanelSection />
+        <ExpertPanelSection data={payload.report_profile?.expert_panel} />
 
         {/* 3 · Gene context snapshot (Locus context merged in). */}
         <GeneContextSnapshotSection

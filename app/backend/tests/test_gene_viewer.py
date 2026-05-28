@@ -1015,6 +1015,26 @@ def test_source_backed_provider_builds_rpe65_viewer_from_mocked_official_sources
     )
 
 
+def test_source_backed_provider_uses_curated_fixture_for_full_gene_until_live_hydration() -> None:
+    provider = SourceBackedGeneViewerProvider(source_client=ExplodingGeneViewerSourceClient())
+
+    response = provider.viewer(
+        GeneViewerRequest(
+            gene="ABCA4",
+            cdna="c.5435T>A",
+            transcript="NM_000350.3",
+            window=ViewerWindowRequest(kind="full_gene"),
+        )
+    )
+
+    assert response.identity.gene == "ABCA4"
+    assert response.window.kind == "full_gene"
+    assert response.window.basis == "genomic_locus"
+    assert response.full_locus is not None
+    assert response.window.total_locus_bases == 128315
+    assert "full_gene_fixture_hydrated" in response.provenance.warnings
+
+
 def test_source_backed_provider_uses_ensembl_transcript_for_non_rpe65_request() -> None:
     source_client = MockGenericGeneViewerSourceClient()
     provider = SourceBackedGeneViewerProvider(source_client=source_client)
@@ -1263,6 +1283,32 @@ def test_viewer_endpoint_uses_injected_live_provider_when_real_mode_is_enabled(c
     assert {"chrom": "chr1", "start": 970, "end": 999, "strand": "-"} in (
         source_client.sequence_calls
     )
+
+
+def test_viewer_endpoint_full_gene_uses_fixture_fallback_in_real_mode(client) -> None:
+    client.app.state.gene_viewer_service = GeneViewerService(
+        settings=Settings(jwt_secret="test-secret", use_real_apis=True),
+        live_provider=SourceBackedGeneViewerProvider(
+            source_client=ExplodingGeneViewerSourceClient()
+        ),
+    )
+
+    response = client.post(
+        "/api/v1/viewer",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "transcript": "NM_000329.3",
+            "window": {"kind": "full_gene"},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["window"]["kind"] == "full_gene"
+    assert body["window"]["basis"] == "genomic_locus"
+    assert body["full_locus"]["basis"] == "genomic_locus"
+    assert "full_gene_fixture_hydrated" in body["provenance"]["warnings"]
 
 
 def test_window_builder_reference_mode_preserves_reference_sequence() -> None:

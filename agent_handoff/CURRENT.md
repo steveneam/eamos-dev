@@ -16,14 +16,34 @@
 
 - **Claude:** IDLE @ post 2026-05-28 ~22:30 +1000 (anchor: robocopy end 22:19:25; this commit hash = authoritative per [[feedback_no_clock_timestamps]]) — **E:\eamos → D:\eamos RELOCATION COMPLETE.** Two pushes landed pre-move: `1b2e99c` (Claude FGV-003 FE proof slice · git 21:45:25 +1000) + `5797f9d` (Codex CAR #3 ClinGen VCEP expert panel · git ~22:00 +1000). Tree on D:\eamos verified: HEAD == origin == `5797f9d`, git fsck clean (dangling blobs only, cosmetic), 43,314 files copied (2.432 GB / 0 failed), 2 supabase-skill junctions recreated to point at `D:\eamos\.agents\skills\...`, Claude memory dir copied to `C:\Users\seamegdool\.claude\projects\D--eamos\` (466 files / 198.62 MB / parity OK). 5 Claude-owned files sed-ed for path correction (`.claude/settings.json` hook + `.claude/settings.local.json` permission + `agent_handoff/README.md` + `plans/README.md` + `app/web/app/layout.tsx` comment); `plans/v2-design-overhaul/*.json` intentionally NOT sed-ed (frozen May-20 planner artifact, historical truth like `archive/`). Pre-move Claude Active Status detail (CAR #3, FGV-002 consumer rules, audit-trail correction note re fabricated timestamps) archived verbatim at `agent_handoff/archive/2026-05-28-claude-section-pre-D-move.md`. E:\ stays in place untouched as cold backup until D:\ verified across both agents for at least one full session. **Next priority queue — Phase 1 (post-move verify):** (1) FGV-003 browser-verify on D:\ first action next session (Turbopack should compile fast on internal/USB without the E:\ thrash); (2) Codex WSL remount /mnt/e → /mnt/d + re-run focused indexed-source pytest; (3) M-005 live-wire (consume `report_profile.expert_panel` from API → swap `<ExpertPanelSection data={...} />`); (4) CAR #4 (M-006 / M10a gene-scoped pub count) at slice start per DL-002. **Phase 2 (after Phase 1 verified clean across both agents):** branch rename `checkpoint/v2-batches-2026-05-17` → `main` + external service coord (Vercel production branch + Render web service git branch + Supabase branch coupling check via mcp__supabase__list_branches + PostHog/Stripe/Resend/Porkbun verify-only — none are git-branch-coupled, just confirm post-rename). No `.github/workflows/` exists so no CI to update. AlphaMissense stays hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); mobile-nav no-blur preserved.
 
-- **Codex:** IDLE @ 2026-05-28 23:02 +1000 - Windows-only post-crash audit
-  complete. User reported `vmmemWSL` exhausted host RAM after the D-drive WSL
-  mount/proof path; do not launch WSL/Linux for routine Eamos work. Wrote
-  `%USERPROFILE%\.wslconfig` with `memory=4GB` and `guiApplications=false`,
-  force-stopped the already-running WSL VM from Windows, reran focused
-  indexed-source pytest on Windows only, and prepared this safe handoff
-  commit/push. This supersedes older handoff text that said to remount WSL at
-  `/mnt/d`.
+- **Codex:** IDLE @ 2026-05-29 00:05 +1000 - User redirected to the three
+  post-move tasks, then Claude handed off the FGV-003 full-gene live-mode
+  blocker. Windows-only. Completed the small M-005 report live-wire in
+  `app/web/components/report/ReportClient.tsx` so `ExpertPanelSection` now
+  consumes `payload.report_profile?.expert_panel` with its existing fixture
+  fallback. Extended `SourceBackedGeneViewerProvider.viewer()` so
+  `window.kind=full_gene` uses the curated FGV-002 fixture provider while live
+  source-backed full-gene assets are not hydrated, unblocking the real-mode
+  ready branch for the curated stress matrix without flipping Render env.
+  Added focused backend tests for source-backed full-gene fixture fallback and
+  the `/api/v1/viewer` real-mode endpoint fallback. Browser-verified locally
+  through the Chrome extension backend: RPE65 c.260A>G full gene renders
+  21,139 bp / 80 bp-row with no unsupported or sequence-unavailable state;
+  ABCA4 c.5435T>A renders 128,315 bp / 80 bp-row with no unsupported or
+  sequence-unavailable state; screenshots in `.scratch/fgv003-*-fullgene-ready.png`.
+  Also verified `/report?demo=1` renders the live ClinGen VCEP expert-panel
+  data. Read the two Total Data Footprint DOCX files from Steven's Desktop,
+  mapped them to the existing local-first source plan, and verified the local
+  source manifest/registry/policy/orchestrator/adapters/parsers with focused
+  pytest, Ruff, and Black. Installed/configured user-scoped Codex
+  `chrome-devtools` MCP for next sessions in
+  `C:\Users\seamegdool\.codex\config.toml`; current usable browser path was
+  the extension backend, not `iab`. Dev servers intentionally left running:
+  Next app `http://localhost:3000` (node PID 28620) and backend
+  `http://127.0.0.1:8000` (python PID 28252). No WSL/Linux, Supabase writes,
+  uploads/imports, production source imports/downloads, env/deploy mutation,
+  restricted predictor unlocks, branch rename, CAR #4, stash/reset/clean, or
+  destructive git.
 
 ## Log Edit-Lock
 
@@ -33,7 +53,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-28 23:02 +1000 - Codex (Windows-only post-crash audit + WSL memory cap handoff)
+UNLOCKED - 2026-05-29 00:05 +1000 - Codex (report live-wire + FGV-003 real-mode fallback + browser verify + local data-footprint checks)
 
 ## Shared File Locks
 

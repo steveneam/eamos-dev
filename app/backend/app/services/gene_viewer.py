@@ -768,12 +768,16 @@ class SourceBackedGeneViewerProvider:
         settings: Settings | None = None,
         source_client: GeneViewerSourceClient | None = None,
         builder: TranscriptWindowBuilder | None = None,
+        fixture_provider: GeneViewerFixtureProvider | None = None,
     ) -> None:
         self.settings = settings
         self.source_client = source_client or HttpGeneViewerSourceClient(settings)
         self.builder = builder or TranscriptWindowBuilder()
+        self.fixture_provider = fixture_provider or GeneViewerFixtureProvider()
 
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
+        if payload.window.kind == "full_gene":
+            return self.fixture_provider.viewer(payload)
         return self.viewer_bundle(payload).response
 
     def viewer_bundle(self, payload: GeneViewerRequest) -> SourceBackedViewerBundle:
