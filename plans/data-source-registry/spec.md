@@ -2,7 +2,7 @@
 
 Status: Draft for user review
 Owner: Codex/backend
-Last updated: 2026-05-26 21:05 +1000 - Codex
+Last updated: 2026-05-29 00:14 +1000 - Codex
 
 ## What
 
@@ -217,6 +217,28 @@ Recommended search identity order after local stores land:
 3. Local transcript/reference stores.
 4. Source cache.
 5. External providers for cache miss, freshness, or validation.
+
+## Runtime Wiring Gate
+
+Do not wire local indexed assets into request-time web-server paths or
+database/object-storage runtime flows until the native reader proof passes in
+an explicitly approved Linux/Render-style environment.
+
+The gate covers:
+
+- `pysam` opening and querying tiny bgzip/tabix VCF fixtures for ClinVar/dbSNP
+  style records.
+- `pyBigWig` opening and querying a tiny bigWig fixture for phyloP-style
+  conservation reads.
+- Structured fail-closed behavior for missing indexes, malformed records,
+  unknown contigs, out-of-range intervals, and contig alias normalization.
+- Confirmation that the target runtime can install/import the selected native
+  packages before they are used by backend providers.
+
+Registry rows, manifest readiness checks, and Windows-compatible parser tests
+may continue before this gate. Actual local source serving from the web server,
+Supabase/object-storage range reads, startup local-cache downloads, and
+production report/Workbench provider wiring wait until this gate is complete.
 
 ## Implementation Phases
 

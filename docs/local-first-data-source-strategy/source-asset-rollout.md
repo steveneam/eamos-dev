@@ -2,7 +2,7 @@
 
 Status: Draft for review
 Owner: Codex/backend
-Last updated: 2026-05-27 03:31 +1000 - Codex
+Last updated: 2026-05-29 00:14 +1000 - Codex
 
 Source plan: `docs/local-first-data-source-strategy/plan.md`
 
@@ -23,6 +23,12 @@ conservation, and repeat context should land before deeper Workbench wiring.
   version, checksum plan, storage target, and terms status are recorded.
 - No Supabase bucket, migration, upload, policy, import, or env mutation is
   approved by this plan.
+- Native reader verification is the gate before web-server/database wiring:
+  finish the approved Linux/Render-style `pysam` + `pyBigWig` proof against
+  tiny fixtures before connecting local source assets to request-time backend
+  providers, object-storage range reads, Supabase-backed metadata flows, or
+  production report/Workbench paths. Registry/manifest tests may continue on
+  Windows, but runtime source serving waits for the native proof.
 - Assets larger than 10 GB stage on `C:` before any object-storage promotion.
   User also directed dbSNP/GCF and phyloP to `C:` staging on 2026-05-27;
   reviewed smaller assets can stay on `E:` after safety/space checks.
@@ -132,7 +138,9 @@ Native proof retry 2026-05-28 01:24 +1000 with user approval is still blocked:
 WSL remains uninstalled, Docker engines return HTTP 500, and starting the
 Docker service is not permitted from this session. Hardening added shared
 `NC_` RefSeq contig canonicalization plus duplicate alias-map coverage without
-native readers.
+native readers. Update 2026-05-29: after the WSL RAM crash guardrail, this
+proof must wait for Steven's explicit Linux/Render approval and must complete
+before any web-server/database wiring for local indexed source serving.
 
 ### Goal
 
