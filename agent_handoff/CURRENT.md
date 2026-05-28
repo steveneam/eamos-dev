@@ -35,7 +35,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-05-29 03:14 +1000 - Codex (full-gene coordinate ruler correction logged)
+UNLOCKED - 2026-05-29 03:29 +1000 - Claude (Hard Rule 10 raise-the-bar added to README)
 
 ## Shared File Locks
 

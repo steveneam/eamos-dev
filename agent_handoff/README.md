@@ -95,6 +95,27 @@ verbatim under `agent_handoff/archive/2026-05-18-*`._
    - "Major" = a verified milestone (an FE-x unit, an M-00x slice, a
      checkpoint commit, a reviewable plan set), or a user-visible state change.
      A trivial turn, a doc tidy, or a partial step is not major.
+10. **Raise the bar each session — ship something net-new, not just
+    maintenance.** (User-mandated 2026-05-29.) Every Claude or Codex session
+    must land at least one of:
+    - a new user-visible capability,
+    - a proprietary Eamos tool/script,
+    - a measurable performance improvement (load time, bundle size, cache
+      hit-rate, query latency — name the metric in your commit/section), or
+    - a stronger verification layer (new test surface, new contract canary,
+      new preflight check).
+
+    Patches, lint sweeps, doc tidies, and pure refactors do not satisfy this
+    rule on their own — pair them with something net-new. Aim bigger than
+    patching: think faster data loading, smarter cache/preflight tooling,
+    proprietary validation scripts, or sharper user-facing surfaces.
+    *Exception:* explicit user-constrained sessions (e.g. "just commit",
+    "just clean up", "just verify", "rescue-only") — write the constraint
+    into your `## Active Status` so the next session sees why the bar was
+    lowered. All existing guardrails still apply: no runtime local-source
+    wiring, no Supabase / object-storage / startup downloads, no production
+    downloads, no restricted predictor unlocks, no destructive git.
+    Local-source runtime wiring stays approval-only.
 
 ## Idle / Usage-Exhaustion Protocol
 
