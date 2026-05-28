@@ -9,7 +9,7 @@ const DEFAULT_GENE = 'RPE65'
 const DEFAULT_CDNA = 'c.260A>G'
 
 const RPE65_CTX = {
-  sub: 'p.Asp87Gly · NM_000329.3 · chr1:68,444,869 T>C · GRCh38 · 21,138 bp gene',
+  sub: 'p.Asp87Gly · NM_000329.3 · chr1:68,444,869 T>C · GRCh38 · 21,139 bp gene',
 }
 
 /** Parse "GENE c.123A>G" / "GENE NM_000000.0 c.123A>G", else null. */

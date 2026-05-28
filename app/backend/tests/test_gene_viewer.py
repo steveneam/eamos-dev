@@ -141,7 +141,7 @@ class MockOfficialGeneViewerSourceClient:
             transcript_aliases=("ENST00000262340", "MANE Select"),
             gene_start=68428820,
             gene_end=68449958,
-            gene_length=21138,
+            gene_length=21139,
             cds_length=1602,
             protein_length=533,
             utr5_length=89,

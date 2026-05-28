@@ -22,7 +22,7 @@ export const RPE65_V2: GeneWindowData = {
   chrom: 'chr1',
   nativeStrand: 'reverse',
 
-  geneLength: 21138,
+  geneLength: 21139,
   totalExons: 14,
   cdsLength: 1602,
   proteinLength: 533,

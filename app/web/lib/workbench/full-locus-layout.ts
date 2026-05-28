@@ -3,12 +3,9 @@
    Input:  ViewerFullLocus straight off the backend.
    Output: row-keyed structure consumed by FullLocusViewer.
 
-   Coordinate convention: row coordinates and feature/codon positions are
-   relayed verbatim from the backend payload. The renderer treats
-   `locus.sequence` as `sequence.length === locus.end - locus.start` and
-   maps any genomic position `p` to a sequence offset by `p - locus.start`.
-   Row labels are reported as absolute backend positions so a user can copy
-   them straight into a coordinate search. */
+   Coordinate convention: feature/codon positions are relayed from the backend
+   payload as genomic coordinates. Each row also carries local 1-based sequence
+   coordinates so the viewer can read like a FASTA ruler by default. */
 
 import type {
   ViewerFeatureInterval,
@@ -47,6 +44,8 @@ export interface FullLocusVariantPin {
 
 export interface FullLocusRow {
   rowIndex: number
+  sequenceStart: number
+  sequenceEnd: number
   genomicStart: number
   genomicEnd: number
   bases: string
@@ -147,6 +146,8 @@ export function buildFullLocusRows(
     const offsetEnd = Math.min(offsetStart + basesPerRow, totalBases)
     rows.push({
       rowIndex,
+      sequenceStart: offsetStart + 1,
+      sequenceEnd: offsetEnd,
       genomicStart: locus.start + offsetStart,
       genomicEnd: locus.start + offsetEnd - 1,
       bases: locus.sequence.slice(offsetStart, offsetEnd),

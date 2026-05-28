@@ -32,7 +32,7 @@ export const GENE_VIEWER_SAMPLE: GeneViewerResponse = {
     strand: '-',
   },
   summary: {
-    gene_length: 21138,
+    gene_length: 21139,
     total_exons: 14,
     cds_length: 1602,
     protein_length: 533,

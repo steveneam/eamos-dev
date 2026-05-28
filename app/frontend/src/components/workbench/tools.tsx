@@ -17,7 +17,7 @@ export const TOOL_META: Record<WorkbenchTool, ToolMeta> = {
   viewer: {
     rail: 'Sequence',
     title: 'Sequence viewer',
-    sub: 'RPE65 (ENSG00000116745) · 21,138 bp · exon 4 around c.260',
+    sub: 'RPE65 (ENSG00000116745) · 21,139 bp · exon 4 around c.260',
     tracks: true,
   },
   primer: {

@@ -6,7 +6,7 @@
    minimap, or color schemes this slice — those land in FGV-004+ once we
    know what the row model actually feels like on RPE65/ABCA4. */
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   FullLocusRow,
   FullLocusRows,
@@ -17,6 +17,7 @@ interface FullLocusViewerProps {
   model: Extract<FullLocusViewModel, { kind: 'ready' }>
 }
 
+type CoordinateMode = 'sequence' | 'genomic'
 type BaseKind = 'exon' | 'intron' | 'utr5' | 'utr3' | 'cds' | 'unknown'
 
 function bandKindAtCol(row: FullLocusRow, col: number): BaseKind {
@@ -47,9 +48,10 @@ function formatCoord(n: number): string {
 interface RowDOMProps {
   row: FullLocusRow
   basesPerRow: number
+  coordinateMode: CoordinateMode
 }
 
-function RowDOM({ row, basesPerRow }: RowDOMProps) {
+function RowDOM({ row, basesPerRow, coordinateMode }: RowDOMProps) {
   const codonStartCols = new Set<number>()
   for (const mark of row.codonMarks) codonStartCols.add(mark.col)
 
@@ -61,11 +63,13 @@ function RowDOM({ row, basesPerRow }: RowDOMProps) {
   const variantCol = row.variantPin?.col ?? -1
   const fresh = rowStartsNewBand(row)
   const padLength = basesPerRow - row.bases.length
+  const rowStart = coordinateMode === 'sequence' ? row.sequenceStart : row.genomicStart
+  const rowEnd = coordinateMode === 'sequence' ? row.sequenceEnd : row.genomicEnd
 
   return (
     <div className={`fl-row${row.variantPin ? ' fl-row--has-variant' : ''}`}>
       <div className="fl-row-coord">
-        <span className="fl-row-coord-start">{formatCoord(row.genomicStart)}</span>
+        <span className="fl-row-coord-start">{formatCoord(rowStart)}</span>
         {fresh ? <span className="fl-row-band-label">{fresh}</span> : null}
       </div>
       <div className="fl-row-bases">
@@ -102,12 +106,22 @@ function RowDOM({ row, basesPerRow }: RowDOMProps) {
             ))
           : null}
       </div>
-      <div className="fl-row-end">{formatCoord(row.genomicEnd)}</div>
+      <div className="fl-row-end">{formatCoord(rowEnd)}</div>
     </div>
   )
 }
 
-function LocusHeader({ rows, gene }: { rows: FullLocusRows; gene: string }) {
+function LocusHeader({
+  rows,
+  gene,
+  coordinateMode,
+  onCoordinateMode,
+}: {
+  rows: FullLocusRows
+  gene: string
+  coordinateMode: CoordinateMode
+  onCoordinateMode: (mode: CoordinateMode) => void
+}) {
   return (
     <div className="fl-header">
       <div className="fl-header-left">
@@ -125,6 +139,22 @@ function LocusHeader({ rows, gene }: { rows: FullLocusRows; gene: string }) {
         <span className="fl-header-stat">{formatCoord(rows.rowCount)} rows</span>
         <span className="fl-header-sep">·</span>
         <span className="fl-header-stat">{rows.basesPerRow} bp/row</span>
+        <div className="fl-coord-toggle" aria-label="Full-gene coordinate mode">
+          <button
+            type="button"
+            className={coordinateMode === 'sequence' ? 'active' : ''}
+            onClick={() => onCoordinateMode('sequence')}
+          >
+            1-based
+          </button>
+          <button
+            type="button"
+            className={coordinateMode === 'genomic' ? 'active' : ''}
+            onClick={() => onCoordinateMode('genomic')}
+          >
+            Genomic
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -133,6 +163,7 @@ function LocusHeader({ rows, gene }: { rows: FullLocusRows; gene: string }) {
 export function FullLocusViewer({ model }: FullLocusViewerProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const variantRowRef = useRef<HTMLDivElement>(null)
+  const [coordinateMode, setCoordinateMode] = useState<CoordinateMode>('sequence')
 
   const rows = model.rows
 
@@ -153,17 +184,22 @@ export function FullLocusViewer({ model }: FullLocusViewerProps) {
           ref={row.rowIndex === rows.variantRowIndex ? variantRowRef : undefined}
           className="fl-row-anchor"
         >
-          <RowDOM row={row} basesPerRow={rows.basesPerRow} />
+          <RowDOM row={row} basesPerRow={rows.basesPerRow} coordinateMode={coordinateMode} />
         </div>
       )),
-    [rows],
+    [coordinateMode, rows],
   )
 
   const warnings = model.warnings
 
   return (
     <div className="fl-viewer">
-      <LocusHeader rows={rows} gene={model.gene} />
+      <LocusHeader
+        rows={rows}
+        gene={model.gene}
+        coordinateMode={coordinateMode}
+        onCoordinateMode={setCoordinateMode}
+      />
       <div className="fl-scroller" ref={scrollerRef}>
         <div className="fl-rows">{renderedRows}</div>
       </div>
