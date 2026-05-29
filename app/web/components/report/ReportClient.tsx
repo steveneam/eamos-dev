@@ -8,7 +8,7 @@ import { EamosSearch } from '@/components/landing/EamosSearch'
 import { VariantHeader } from '@/components/report/VariantHeader'
 import { VariantDecoder } from '@/components/report/VariantDecoder'
 import { AIStack } from '@/components/aistack/AIStack'
-import { EvidenceTable } from '@/components/report/EvidenceTable'
+import { ClinVarBlock } from '@/components/report/ClinVarBlock'
 import { DiseaseSection } from '@/components/report/DiseaseSection'
 import { TrialsSection } from '@/components/report/TrialsSection'
 import { PubMedSection } from '@/components/report/PubMedSection'
@@ -511,12 +511,18 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           </Card>
         )}
 
-        {/* 2 · Evidence by source (in-silico + per-source detail + ACMG) */}
+        {/* 2 · Evidence by source (in-silico + ClinVar + ACMG).
+            Per Steven 2026-05-29: per-source detail trimmed to ClinVar only —
+            every other source (variant_validator, gnomad, ensembl, spliceai,
+            clingen, gene_disease, molecular_context, computational_annotations,
+            pubmed, litvar2, clinical_trials, vep) already has — or will have —
+            its own home in §1/§3/§4/§5/§6 or in the variant header. The copy
+            payload mirrors what's visible: in-silico + ClinVar + ACMG. */}
         <div id="evidence_by_source" className="scroll-mt-24" />
         <Card
           number={2}
           title="Evidence by source"
-          meta="in-silico · per-source detail · ACMG"
+          meta="in-silico · ClinVar · ACMG"
           verdict={verdict}
           actions={
             <CopyButton
@@ -525,13 +531,17 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
                   payload,
                   payload.in_silico_predictions,
                   payload.acmg_criteria_scaffold,
-                  data.evidence.map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
+                  data.evidence
+                    .filter((e) => e.source?.toLowerCase() === 'clinvar')
+                    .map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
                 ),
                 text: tsvEvidenceBySource(
                   payload,
                   payload.in_silico_predictions,
                   payload.acmg_criteria_scaffold,
-                  data.evidence.map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
+                  data.evidence
+                    .filter((e) => e.source?.toLowerCase() === 'clinvar')
+                    .map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
                 ),
               }}
               label="Copy evidence (paste into Excel for formatted table)"
@@ -540,7 +550,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
         >
           <CompositeVerdictBar predictors={payload.report_profile?.computational_deep_dive?.predictors} />
           <CalibratedInSilicoTable predictors={payload.report_profile?.computational_deep_dive?.predictors} />
-          <EvidenceTable evidence={data.evidence} embedded />
+          <ClinVarBlock evidence={data.evidence} />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
