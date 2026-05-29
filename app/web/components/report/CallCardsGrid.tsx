@@ -8,10 +8,10 @@ interface CallCardsGridProps {
 }
 
 const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; color: string }> = {
-  acmg: { bg: 'var(--teal-tint)', border: '#cbe3d8', color: 'var(--teal-deep)' },
+  acmg: { bg: 'var(--teal-tint)', border: 'var(--teal-bdr)', color: 'var(--teal-deep)' },
   metric: { bg: 'var(--bg-soft)', border: 'var(--line)', color: 'var(--ink-2)' },
-  source: { bg: '#eef6ff', border: '#c9ddf5', color: '#1d4f7a' },
-  warning: { bg: 'var(--warn-tint)', border: 'var(--warn-bdr)', color: '#633806' },
+  source: { bg: 'var(--bg-soft2)', border: 'var(--line-2)', color: 'var(--ink-2)' },
+  warning: { bg: 'var(--warn-tint)', border: 'var(--warn-bdr)', color: 'var(--warn-text)' },
   neutral: { bg: 'var(--bg-soft)', border: 'var(--line)', color: 'var(--ink-3)' },
 }
 
@@ -64,15 +64,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
           const cardWarnings = (card.warnings ?? []).filter((w) => !SUPPRESSED_WARNINGS.has(w))
           const cardBody = (
             <>
-              <div
-                className="uppercase"
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  color: 'var(--ink-4)',
-                }}
-              >
+              <div className="eamos-kicker">
                 {card.title}
               </div>
               <div
@@ -128,7 +120,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                   minHeight: 28,
                   fontSize: 10.5,
                   lineHeight: 1.35,
-                  color: cardWarnings.length > 0 ? '#7a4b10' : 'var(--ink-4)',
+                  color: cardWarnings.length > 0 ? 'var(--warn-text)' : 'var(--ink-4)',
                   overflowWrap: 'anywhere',
                 }}
               >

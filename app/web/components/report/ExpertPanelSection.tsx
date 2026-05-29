@@ -1,7 +1,7 @@
 'use client'
 
-import { Card, type Verdict } from '@/components/ui/Card'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
+import { resolveClassificationConfig } from '@/lib/classification'
 import type {
   ExpertPanelClassification,
   ExpertPanelCriterion,
@@ -20,16 +20,6 @@ const CLASSIFICATION_DISPLAY: Record<ExpertPanelClassification, string> = {
   benign: 'Benign',
   conflicting: 'Conflicting',
   not_classified: 'Not classified',
-}
-
-const RAMP_TO_VERDICT: Record<ExpertPanelClassification, Verdict | null> = {
-  pathogenic: 'Pathogenic',
-  likely_pathogenic: 'Likely pathogenic',
-  vus: 'VUS',
-  likely_benign: 'Likely benign',
-  benign: 'Benign',
-  conflicting: null,
-  not_classified: null,
 }
 
 const CRITERION_STATE_TINT: Record<ExpertPanelCriterion['state'], { bg: string; bd: string; ink: string }> = {
@@ -132,16 +122,52 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
   // LazySection, callers that have no data render nothing.
   if (!dataProp) return null
   const data = dataProp
-  const verdict = RAMP_TO_VERDICT[data.final_classification]
   const classificationText = CLASSIFICATION_DISPLAY[data.final_classification]
+  // Per-source verdict dot — lets a clinician read the Expert Panel's own call
+  // at a glance, distinct from the headline §3 verdict.
+  const dotColor = resolveClassificationConfig(classificationText).dot
 
+  // Flattened block (no nested Card): lives inside the §3 Clinical evidence
+  // section alongside ClinVarBlock + AcmgCriteriaFold, sharing the same
+  // bg-soft block treatment so §3 reads as one card, not cards-in-a-card.
   return (
-    <Card
-      title="Expert Panel"
-      meta={data.vcep.name}
-      verdict={verdict}
-      actions={<FreshnessChip data={data} />}
+    <div
+      style={{
+        marginTop: 18,
+        padding: '14px 16px',
+        background: 'var(--bg-soft)',
+        border: '0.5px solid var(--line)',
+        borderRadius: 'var(--r-md)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
     >
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="eamos-kicker" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          <span
+            aria-hidden="true"
+            style={{ width: 8, height: 8, borderRadius: 9999, background: dotColor, flex: '0 0 auto' }}
+          />
+          ClinGen
+          <span
+            style={{
+              textTransform: 'none',
+              letterSpacing: 'normal',
+              fontWeight: 500,
+              fontSize: 10.5,
+              color: 'var(--ink-4)',
+            }}
+          >
+            expert panel
+          </span>
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>{data.vcep.name}</span>
+          <FreshnessChip data={data} />
+        </div>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <ClassificationBadge classification={classificationText} />
@@ -168,16 +194,7 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
         </p>
 
         <div>
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              color: 'var(--ink-4)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              marginBottom: 8,
-            }}
-          >
+          <div className="eamos-kicker" style={{ marginBottom: 8 }}>
             ACMG criteria applied (VCEP-specific strengths)
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -217,6 +234,6 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
           <span>Fetched {formatFetchedAt(data.provenance.fetched_at)}</span>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }

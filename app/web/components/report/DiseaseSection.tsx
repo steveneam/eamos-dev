@@ -71,15 +71,7 @@ export function DiseaseSection({ payload, number, embedded, sectionTarget }: Dis
     <>
       {classification && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <span
-            className="uppercase"
-            style={{
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              color: 'var(--ink-4)',
-            }}
-          >
+          <span className="eamos-kicker">
             ACMG classification
           </span>
           <ClassificationBadge classification={classification} />
@@ -118,7 +110,7 @@ export function DiseaseSection({ payload, number, embedded, sectionTarget }: Dis
               style={{
                 border: '0.5px solid var(--warn-bdr)',
                 background: 'var(--warn-tint)',
-                color: '#633806',
+                color: 'var(--warn-text)',
                 borderRadius: 999,
                 padding: '3px 8px',
                 fontSize: 10.5,
@@ -173,7 +165,7 @@ export function DiseaseSection({ payload, number, embedded, sectionTarget }: Dis
               style={{
                 border: '0.5px solid var(--warn-bdr)',
                 background: 'var(--warn-tint)',
-                color: '#633806',
+                color: 'var(--warn-text)',
                 borderRadius: 7,
                 padding: '5px 8px',
                 fontSize: 10.5,

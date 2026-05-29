@@ -144,7 +144,7 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
                   style={{
                     border: '0.5px solid var(--warn-bdr)',
                     background: 'var(--warn-tint)',
-                    color: '#633806',
+                    color: 'var(--warn-text)',
                     borderRadius: 7,
                     padding: '5px 8px',
                     fontSize: 10.5,
@@ -310,10 +310,7 @@ function AncestryFrequencyTab({
           padding: 12,
         }}
       >
-        <div
-          className="uppercase"
-          style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-4)' }}
-        >
+        <div className="eamos-kicker">
           Allele frequency by gnomAD group
         </div>
         {activeGroup && (
@@ -627,10 +624,7 @@ function AgeDistributionTab({
           padding: 12,
         }}
       >
-        <div
-          className="uppercase"
-          style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-4)' }}
-        >
+        <div className="eamos-kicker">
           Source age distribution
         </div>
         <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.45, color: 'var(--ink-4)' }}>

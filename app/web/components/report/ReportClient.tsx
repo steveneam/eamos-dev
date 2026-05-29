@@ -346,6 +346,7 @@ export function ReportClient() {
             query={`${gene} ${cdna}`.trim() || state.data.query}
             summaryRequest={summaryRequest}
             lazyOverrides={lazyOverrides}
+            demo={demo}
           />
         )}
       </main>
@@ -358,9 +359,13 @@ interface ReportBodyProps {
   query: string
   summaryRequest?: LookupRequest
   lazyOverrides: Set<LookupSectionId>
+  /** Offline sample mode (?demo) — render the gene viewer from the bundled
+   *  GENE_VIEWER_SAMPLE rather than fetching, matching the rest of the
+   *  demo report's offline behaviour. */
+  demo?: boolean
 }
 
-function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyProps) {
+function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }: ReportBodyProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const payload = data.report_payload
@@ -545,14 +550,15 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           <CalibratedInSilicoTable predictors={payload.report_profile?.computational_deep_dive?.predictors} />
         </Card>
 
-        {/* 3 · Clinical evidence — ClinVar + Expert panel + ACMG together.
-            ExpertPanelSection stops being unnumbered; the verdict accent
-            (derived from ACMG classification) moves here with it. */}
+        {/* 3 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
+            ClinGen leads (highest weight for classification), then ClinVar,
+            then the ACMG criteria fold. Verdict accent shows as the header
+            leading dot (Card verdict prop). */}
         <div id="clinical_evidence" className="scroll-mt-24" />
         <Card
           number={3}
           title="Clinical evidence"
-          meta="ClinVar · Expert panel · ACMG"
+          meta="ClinGen · ClinVar · ACMG"
           verdict={verdict}
           actions={
             <CopyButton
@@ -578,8 +584,8 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
             />
           }
         >
-          <ClinVarBlock evidence={data.evidence} />
           <ExpertPanelSection data={payload.report_profile?.expert_panel} />
+          <ClinVarBlock evidence={data.evidence} />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
@@ -622,22 +628,13 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
               gene={header.gene}
               cdna={header.cdna}
               transcript={header.transcript ?? null}
+              demo={demo}
             />
           )}
 
           {payload.locus_context && (
             <div style={{ marginTop: 18 }}>
-              <h3
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: 'var(--ink-4)',
-                  margin: '0 0 10px',
-                  fontFamily: 'var(--mono)',
-                }}
-              >
+              <h3 className="eamos-kicker" style={{ margin: '0 0 10px', fontFamily: 'var(--mono)' }}>
                 Locus context — ClinVar ±40bp window
               </h3>
               <LocusContext data={payload.locus_context} />

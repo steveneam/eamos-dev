@@ -2,13 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { getGeneViewer } from '@/lib/api'
-import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
+import { adaptGeneViewer, geneViewerScaffoldWarnings } from '@/lib/workbench/gene-viewer-adapter'
+import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
+import { ProvenanceNote } from '@/components/report/ProvenanceNote'
 
 interface ReportGeneViewerProps {
   gene: string
   cdna: string
   transcript?: string | null
+  /** Offline sample mode — render from the bundled GENE_VIEWER_SAMPLE without
+   *  a network call, matching the rest of the ?demo report. */
+  demo?: boolean
 }
 
 // Slice B build 1 — read-only "report mode" genomic track for §4.
@@ -118,12 +123,28 @@ function formatInt(n: number): string {
   return n.toLocaleString('en-US')
 }
 
-export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerProps) {
-  const [data, setData] = useState<GeneWindowData | null>(null)
+export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: ReportGeneViewerProps) {
+  // Demo/offline mode renders the bundled sample synchronously — no network,
+  // no loading flash — so the demo report never depends on a live backend.
+  const [data, setData] = useState<GeneWindowData | null>(() =>
+    demo ? adaptGeneViewer(GENE_VIEWER_SAMPLE) : null,
+  )
+  // Provenance warnings (sample-bounded / not-live-hydrated / RPE65 scaffold)
+  // surfaced as a per-section note so non-live data is never silent.
+  const [warnings, setWarnings] = useState<string[]>(() =>
+    demo ? geneViewerScaffoldWarnings(GENE_VIEWER_SAMPLE) : [],
+  )
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!demo)
 
   useEffect(() => {
+    if (demo) {
+      setData(adaptGeneViewer(GENE_VIEWER_SAMPLE))
+      setWarnings(geneViewerScaffoldWarnings(GENE_VIEWER_SAMPLE))
+      setError(null)
+      setLoading(false)
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -136,6 +157,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
       .then((resp) => {
         if (cancelled) return
         setData(adaptGeneViewer(resp))
+        setWarnings(geneViewerScaffoldWarnings(resp))
         setLoading(false)
       })
       .catch((err: Error) => {
@@ -146,7 +168,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
     return () => {
       cancelled = true
     }
-  }, [gene, cdna, transcript])
+  }, [gene, cdna, transcript, demo])
 
   const segments = useMemo(() => (data ? buildSegments(data) : []), [data])
   const variantPct = useMemo(() => {
@@ -224,7 +246,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
           y1={TRACK_Y + EXON_H / 2}
           x2={TRACK_LEFT + TRACK_W}
           y2={TRACK_Y + EXON_H / 2}
-          stroke="#cbd5e1"
+          stroke="var(--line-2)"
           strokeWidth="1.5"
         />
 
@@ -239,7 +261,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
                 y1={TRACK_Y + EXON_H / 2}
                 x2={x + w}
                 y2={TRACK_Y + EXON_H / 2}
-                stroke="#94a3b8"
+                stroke="var(--ink-5)"
                 strokeWidth="1.5"
               />
             )
@@ -262,7 +284,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight="700"
-                  fill="#fff"
+                  fill="var(--bg)"
                   fontFamily="var(--mono)"
                 >
                   {seg.num}
@@ -280,7 +302,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
             <polygon
               key={`cv-${i}`}
               points={`${x - 3.5},${y + 7} ${x + 3.5},${y + 7} ${x},${y}`}
-              fill={CLASS_COLOR[m.cls] ?? '#94a3b8'}
+              fill={CLASS_COLOR[m.cls] ?? 'var(--cls-na-dot)'}
               opacity="0.85"
             >
               <title>{`${m.label} — ${m.cv}`}</title>
@@ -330,7 +352,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
           x={TRACK_LEFT}
           y={VIEW_H - 14}
           fontSize="10.5"
-          fill="#64748b"
+          fill="var(--ink-4)"
           fontWeight="700"
         >
           5′
@@ -340,7 +362,7 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
           y={VIEW_H - 14}
           textAnchor="end"
           fontSize="10.5"
-          fill="#64748b"
+          fill="var(--ink-4)"
           fontWeight="700"
         >
           3′
@@ -355,6 +377,8 @@ export function ReportGeneViewer({ gene, cdna, transcript }: ReportGeneViewerPro
         <LegendDot color={CLASS_COLOR.lb} label={`LB (${clinvarCounts.lb})`} />
         <LegendDot color={CLASS_COLOR.b} label={`B (${clinvarCounts.b})`} />
       </div>
+
+      <ProvenanceNote warnings={warnings} />
     </div>
   )
 }

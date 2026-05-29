@@ -22,6 +22,7 @@
   --color-teal: var(--teal);
   --color-teal-deep: var(--teal-deep);
   --color-teal-tint: var(--teal-tint);
+  --color-teal-bdr: var(--teal-bdr);
 
   --color-line: var(--line);
   --color-line-2: var(--line-2);
@@ -29,6 +30,7 @@
   --color-warn: var(--warn);
   --color-warn-tint: var(--warn-tint);
   --color-warn-bdr: var(--warn-bdr);
+  --color-warn-text: var(--warn-text);
 
   /* backward-compat tokens for old App.tsx */
   --color-canvas: var(--canvas);
@@ -64,11 +66,13 @@
   --teal:      #1D9E75;
   --teal-deep: #156b50;
   --teal-tint: oklch(96% 0.018 165);
+  --teal-bdr:  #cbe3d8;   /* border partner for --teal-tint surfaces */
 
   /* Predictor/status scale — FROZEN clinical language (SpliceAI/REVEL thresholds). */
   --warn:      #BA7517;
   --warn-tint: #FAEEDA;
   --warn-bdr:  #FAC775;
+  --warn-text: #633806;   /* dark-amber text on --warn-tint (AA on the tint) */
 
   /* === Classification ramp — Steven's mandate (2026-05-26): one ordered ACMG ramp,
      red -> orange -> yellow -> lime -> green. Grey (--cls-na-*) is reserved for
@@ -357,7 +361,7 @@ textarea {
 .v-tool { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg); border: 0.5px solid var(--line); border-radius: var(--r-md); font-size: 12px; font-weight: 600; color: var(--ink-2); cursor: pointer; transition: all .15s ease; font-family: inherit; }
 .v-tool:hover { border-color: var(--ink-2); }
 .v-tool svg { width: 13px; height: 13px; }
-.v-tool.followed { color: var(--teal-deep); border-color: #cbe3d8; background: var(--teal-tint); }
+.v-tool.followed { color: var(--teal-deep); border-color: var(--teal-bdr); background: var(--teal-tint); }
 
 .v-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 0.5px solid var(--line); margin-top: 22px; padding-top: 18px; position: relative; }
 .v-stat { padding: 0 18px; border-left: 0.5px solid var(--line); }
@@ -592,8 +596,8 @@ textarea {
 .pred-bar-threshold { position: absolute; top: -2px; bottom: -2px; width: 0.5px; background: var(--ink-3); }
 .pred-meta { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-4); font-family: var(--mono); }
 .pred-verdict { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; width: fit-content; text-transform: uppercase; letter-spacing: 0.04em; }
-.pred-verdict.warn { background: var(--warn-tint); color: #633806; border: 0.5px solid var(--warn-bdr); }
-.pred-verdict.ok { background: var(--teal-tint); color: var(--teal-deep); border: 0.5px solid #cbe3d8; }
+.pred-verdict.warn { background: var(--warn-tint); color: var(--warn-text); border: 0.5px solid var(--warn-bdr); }
+.pred-verdict.ok { background: var(--teal-tint); color: var(--teal-deep); border: 0.5px solid var(--teal-bdr); }
 .pred-verdict.neutral { background: var(--bg-soft); color: var(--ink-3); border: 0.5px solid var(--line); }
 .pred-disagree { margin-top: 10px; padding: 10px 12px; background: var(--teal-tint); border: 0.5px solid var(--line); border-radius: var(--r-md); font-size: 12px; color: var(--ink-2); line-height: 1.55; }
 .pred-disagree strong { color: var(--ink); }
@@ -602,6 +606,16 @@ textarea {
 @media (max-width: 480px) {
   .eamos-ribbon-btn { padding: 5px 7px !important; }
   .eamos-ribbon-btn-label { display: none; }
+}
+
+/* ─── Shared section kicker — the uppercase micro-label above report blocks.
+   One canonical scale (was drifting 9.5–11px / 600–700 across components). ─── */
+.eamos-kicker {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
 }
 
 /* ─── ACMG criteria grid (rendered inside a shared Disclosure) ─── */

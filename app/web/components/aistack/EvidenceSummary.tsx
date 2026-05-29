@@ -69,7 +69,7 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
         style={{
           padding: '10px 12px',
           background: 'var(--teal-tint)',
-          border: '0.5px solid #cbe3d8',
+          border: '0.5px solid var(--teal-bdr)',
           borderRadius: 10,
           fontSize: 12,
           color: 'var(--teal-deep)',
@@ -110,7 +110,7 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
               style={{
                 border: '0.5px solid var(--warn-bdr)',
                 background: 'var(--warn-tint)',
-                color: '#633806',
+                color: 'var(--warn-text)',
                 borderRadius: 7,
                 padding: '5px 8px',
                 fontSize: 10.5,

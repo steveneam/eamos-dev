@@ -63,16 +63,7 @@ export function CalibratedInSilicoTable({ predictors }: CalibratedInSilicoTableP
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div
-        style={{
-          fontSize: 10.5,
-          fontWeight: 700,
-          color: 'var(--ink-4)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          marginBottom: 10,
-        }}
-      >
+      <div className="eamos-kicker" style={{ marginBottom: 10 }}>
         In-silico predictions
       </div>
 

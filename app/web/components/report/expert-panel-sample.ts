@@ -1,7 +1,10 @@
-// Inline RPE65 IRD VCEP fixture for the M-005 ExpertPanelSection
-// (mock-first per CAR #3 — opened 2026-05-28 03:18 +1000).
-// Component falls back to this when the real `payload.report_profile.expert_panel`
-// field isn't yet emitted by the backend. Swaps out once Codex closes CAR #3.
+// ClinGen expert-panel (VCEP) type definitions for ExpertPanelSection.
+//
+// Type-only. The RPE65 fixture that used to live here was removed 2026-05-30:
+// the component no longer falls back to a hardcoded panel (it renders null
+// when `payload.report_profile.expert_panel` is absent), so sample data can
+// never paint onto a non-RPE65 query. Live data comes from the backend
+// expert-panel contract (Codex CAR #3).
 
 export type ExpertPanelClassification =
   | 'pathogenic'
@@ -53,68 +56,4 @@ export interface ExpertPanelData {
   provenance: ExpertPanelProvenance
   freshness: ExpertPanelFreshness
   freshness_reason?: ExpertPanelFreshnessReason | null
-}
-
-export const EXPERT_PANEL_RPE65_FIXTURE: ExpertPanelData = {
-  vcep: {
-    id: 'ClinGen:IRD',
-    name: 'Inherited Retinal Dystrophies VCEP',
-    affiliation_id: '50039',
-    last_curated_date: '2023-08-14',
-    vcep_url:
-      'https://erepo.clinicalgenome.org/evrepo/ui/classifications/CA189146',
-  },
-  final_classification: 'likely_benign',
-  narrative:
-    'The Inherited Retinal Dystrophies VCEP classified RPE65 c.260A>G p.(Asp87Gly) as Likely benign for autosomal recessive Leber congenital amaurosis 2 (MIM 204100). The variant is observed at low but non-trivial frequency in gnomAD (NFE: 4 alleles; no homozygotes) and lacks definitive segregation or case-level support. Per ClinGen SVI specifications applied by this VCEP, BS1_Strong + BS2_Supporting + PM2_Supporting + PP3_Moderate offsets yield a Likely benign final call.',
-  criteria: [
-    {
-      code: 'BS1',
-      applied_strength: 'BS1_Strong',
-      default_strength: 'BS1_Strong',
-      state: 'met',
-      rationale:
-        'Allele frequency in gnomAD v4 exceeds the IRD-specific BS1 threshold (4 alleles / ~251,490 NFE).',
-      evidence_refs: ['gnomad_v4'],
-    },
-    {
-      code: 'BS2',
-      applied_strength: 'BS2_Supporting',
-      default_strength: 'BS2_Strong',
-      state: 'met',
-      rationale:
-        'Observed in a single hemizygous-state individual >50y without LCA phenotype; downgraded from Strong to Supporting per ClinGen IRD VCEP rules.',
-      evidence_refs: ['humgen_uk'],
-    },
-    {
-      code: 'PM2',
-      applied_strength: 'PM2_Supporting',
-      default_strength: 'PM2_Moderate',
-      state: 'met',
-      rationale:
-        'Rare in controls but not absent; downgraded from Moderate to Supporting per ClinGen IRD VCEP specs.',
-      evidence_refs: ['gnomad_v4'],
-    },
-    {
-      code: 'PP3',
-      applied_strength: 'PP3_Moderate',
-      default_strength: 'PP3_Supporting',
-      state: 'met',
-      rationale:
-        'REVEL 0.78 + SpliceAI 0.32 cross-engine support; upgraded from Supporting to Moderate per VCEP-specific computational threshold.',
-      evidence_refs: ['revel', 'spliceai'],
-    },
-  ],
-  source_scope:
-    'ClinGen Evidence Repository — IRD VCEP curation for RPE65 c.260A>G',
-  provenance: {
-    source_url:
-      'https://erepo.clinicalgenome.org/evrepo/api/classifications/CA189146',
-    fetched_at: '2026-05-27T22:14:00Z',
-    source_version: 'ClinGen Evidence Repo 2024.06',
-    cache_record_id: 'expertpanel:CA189146',
-    raw_jsonld_ref: '/source-cache/clingen-evrepo/CA189146.jsonld',
-  },
-  freshness: 'fresh',
-  freshness_reason: 'cache_hit',
 }

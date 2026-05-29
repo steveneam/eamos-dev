@@ -104,15 +104,7 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
       }}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            color: 'var(--ink-4)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
-        >
+        <span className="eamos-kicker">
           ClinGen gene-disease validity
         </span>
         {validity && (
@@ -174,16 +166,7 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
 
       {conditions.length > 0 && (
         <div>
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              color: 'var(--ink-4)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              marginBottom: 6,
-            }}
-          >
+          <div className="eamos-kicker" style={{ marginBottom: 6 }}>
             Curated conditions ({conditions.length})
           </div>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>

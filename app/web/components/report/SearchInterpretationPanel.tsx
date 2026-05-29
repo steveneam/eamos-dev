@@ -181,7 +181,7 @@ export function SearchInterpretationPanel({
                 border: '0.5px solid var(--warn-bdr)',
                 borderRadius: 7,
                 background: 'var(--warn-tint)',
-                color: '#633806',
+                color: 'var(--warn-text)',
                 padding: '5px 8px',
                 fontSize: 10.5,
                 fontWeight: 600,

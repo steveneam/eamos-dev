@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { LookupSummaryTile } from '@/lib/backend'
+import { hasClassificationTier, resolveClassificationConfig } from '@/lib/classification'
 
 interface MatrixTileProps {
   tile: LookupSummaryTile
@@ -11,11 +12,13 @@ interface MatrixTileProps {
 /**
  * MatrixTile — one tile inside the MatrixOverture lookahead grid.
  *
- * Three visual states (DL-017): a `source_status` of `"premium_gated"` (or a
+ * Visual states (DL-017): a `source_status` of `"premium_gated"` (or a
  * `"premium"` support badge) MUST NOT render identical grey to a no-data tile.
- * Premium uses a distinct treatment (lock glyph + warm teal-tint surface);
- * no-data falls back to grey-NA tokens; otherwise the tile renders its
- * primary_label + first support badge.
+ * Premium uses a neutral surface PLUS the lock glyph as its distinguisher
+ * (the glyph, not colour, separates it from no-data — teal-tint was retired
+ * 2026-05-30 because green premium clashed with the benign verdict tier).
+ * No-data falls back to grey-NA tokens; classification tiles colour by tier;
+ * otherwise the tile renders its primary_label + first support badge.
  */
 
 const PREMIUM_STATUSES = new Set(['premium_gated', 'gated', 'premium'])
@@ -38,13 +41,24 @@ export function MatrixTile({ tile, onNavigate }: MatrixTileProps) {
   const noData = isNoData(tile)
   const clickable = !noData && !premium
 
+  // Classification fill: tiles the backend themes `classification` AND whose
+  // primary_label resolves to a real ACMG tier get coloured in by verdict, so
+  // a clinician scans pathogenicity at a glance. Count-only / non-pathogenicity
+  // tiles stay `neutral` and never colour.
+  const classified =
+    !premium && !noData && tile.ui_color_theme === 'classification' && hasClassificationTier(tile.primary_label)
+  const clsCfg = classified ? resolveClassificationConfig(tile.primary_label) : null
+
   // Visual register — distinct per DL-017. Premium uses warm teal-tint (not
-  // grey); no-data uses --cls-na tokens; default uses neutral card surface.
+  // grey); no-data uses --cls-na tokens; classification uses the verdict ramp;
+  // default uses neutral card surface.
   const surface = premium
-    ? { background: 'var(--teal-tint)', border: '0.5px solid #cbe3d8', color: 'var(--ink)' }
+    ? { background: 'var(--bg-soft2)', border: '0.5px solid var(--line-2)', color: 'var(--ink-3)' }
     : noData
       ? { background: 'var(--cls-na-bg, var(--bg-soft))', border: '0.5px solid var(--cls-na-bdr, var(--line))', color: 'var(--cls-na-text, var(--ink-4))' }
-      : { background: 'var(--bg)', border: '0.5px solid var(--line)', color: 'var(--ink)' }
+      : clsCfg
+        ? { background: clsCfg.bg, border: `0.5px solid ${clsCfg.border}`, color: 'var(--ink)' }
+        : { background: 'var(--bg)', border: '0.5px solid var(--line)', color: 'var(--ink)' }
 
   const handleClick = () => {
     if (clickable) onNavigate(tile)
@@ -103,7 +117,7 @@ export function MatrixTile({ tile, onNavigate }: MatrixTileProps) {
             height="11"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="var(--teal-deep)"
+            stroke="var(--ink-4)"
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -122,7 +136,7 @@ export function MatrixTile({ tile, onNavigate }: MatrixTileProps) {
           fontSize: 15,
           fontWeight: 600,
           lineHeight: 1.2,
-          color: noData ? 'var(--cls-na-text, var(--ink-4))' : 'var(--ink)',
+          color: premium ? 'var(--ink-3)' : noData ? 'var(--cls-na-text, var(--ink-4))' : clsCfg ? clsCfg.text : 'var(--ink)',
           minHeight: 36,
           overflow: 'hidden',
           display: '-webkit-box',

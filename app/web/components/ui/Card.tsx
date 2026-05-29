@@ -10,14 +10,6 @@ export type Verdict =
   | 'Likely benign'
   | 'Benign'
 
-const VERDICT_DOT: Record<Verdict, string> = {
-  'Pathogenic': 'var(--cls-path-dot)',
-  'Likely pathogenic': 'var(--cls-lpath-dot)',
-  'VUS': 'var(--cls-vus-dot)',
-  'Likely benign': 'var(--cls-lben-dot)',
-  'Benign': 'var(--cls-ben-dot)',
-}
-
 interface CardProps {
   number?: number
   title: string
@@ -51,10 +43,8 @@ export function Card({
   children,
   className,
   defaultOpen = true,
-  verdict,
 }: CardProps) {
   const [open, setOpen] = useState(defaultOpen)
-  const accentColor = verdict ? VERDICT_DOT[verdict] : undefined
 
   return (
     <div
@@ -65,7 +55,6 @@ export function Card({
       style={{
         borderWidth: '0.5px',
         boxShadow: 'var(--elev-1)',
-        ...(accentColor && { borderLeftWidth: '3px', borderLeftColor: accentColor }),
       }}
     >
       <div

@@ -83,15 +83,7 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
       }}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            color: 'var(--ink-4)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
-        >
+        <span className="eamos-kicker">
           {meta?.label ?? 'ClinVar'}
         </span>
         {link && (

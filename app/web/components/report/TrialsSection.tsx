@@ -46,7 +46,7 @@ export function TrialsSection({ payload, number, actions }: TrialsSectionProps) 
               style={{
                 border: '0.5px solid var(--warn-bdr)',
                 background: 'var(--warn-tint)',
-                color: '#633806',
+                color: 'var(--warn-text)',
                 borderRadius: 7,
                 padding: '5px 8px',
                 fontSize: 10.5,
@@ -186,9 +186,9 @@ function StatusPill({ status }: { status: string }) {
 function statusTone(status: string): { bg: string; fg: string; border: string } {
   switch (status.toUpperCase()) {
     case 'RECRUITING':
-      return { bg: 'var(--teal-tint)', fg: 'var(--teal-deep)', border: '#cbe3d8' }
+      return { bg: 'var(--teal-tint)', fg: 'var(--teal-deep)', border: 'var(--teal-bdr)' }
     case 'NOT_YET_RECRUITING':
-      return { bg: 'var(--warn-tint)', fg: '#633806', border: 'var(--warn-bdr)' }
+      return { bg: 'var(--warn-tint)', fg: 'var(--warn-text)', border: 'var(--warn-bdr)' }
     case 'ACTIVE_NOT_RECRUITING':
       return { bg: 'var(--err-tint)', fg: 'var(--err)', border: 'var(--err)' }
     default:

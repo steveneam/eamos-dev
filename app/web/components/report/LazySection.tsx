@@ -231,7 +231,7 @@ function DefaultErrorView({ message, onRetry }: { message: string; onRetry: () =
         borderRadius: 8,
         padding: '12px 14px',
         background: 'var(--warn-tint)',
-        color: '#633806',
+        color: 'var(--warn-text)',
         fontSize: 12,
         display: 'flex',
         alignItems: 'center',

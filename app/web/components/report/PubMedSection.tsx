@@ -193,7 +193,7 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
               style={{
                 border: '0.5px solid var(--warn-bdr)',
                 background: 'var(--warn-tint)',
-                color: '#633806',
+                color: 'var(--warn-text)',
                 borderRadius: 7,
                 padding: '5px 8px',
                 fontSize: 10.5,

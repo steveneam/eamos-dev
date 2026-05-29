@@ -12,11 +12,11 @@ const STYLES: Record<PillVariant, React.CSSProperties> = {
   recruit: {
     background: 'var(--teal-tint)',
     color: 'var(--teal-deep)',
-    borderColor: '#cbe3d8',
+    borderColor: 'var(--teal-bdr)',
   },
   active: {
     background: 'var(--warn-tint)',
-    color: '#633806',
+    color: 'var(--warn-text)',
     borderColor: 'var(--warn-bdr)',
   },
   phase: {
