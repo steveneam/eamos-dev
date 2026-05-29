@@ -16,7 +16,7 @@
 
 - **Claude:** IDLE @ 2026-05-29 03:47 +1000 (anchor: `244ba62` on local `main`, 7 ahead of `origin/main`) — **Hard Rule 10 Option A complete: LazySection v1 SHIPPED (`244ba62`).** New FE primitive at `app/web/components/report/LazySection.tsx`: IntersectionObserver wrapper around `fetchLookupSections({ ..., include: [sectionId] })` with `eagerData` short-circuit; wraps `<PubMedSection>` in `ReportClient.tsx` §5. Eager-path browser-verified at `/report?demo` (sentinel absent, zero `/api/v1/lookup/sections` calls, no console errors). Lazy fetch branch is dead-code-until-M-007 trims the eager `publications_literature` payload; `:8000/api/v1/lookup/sections` returned timeouts in this session's offline-mock environment so deeper e2e verification deferred. `app/web` tsc clean. DL-019 honoured (only LazySection.tsx + ReportClient.tsx staged; Codex's pre-existing working-tree edits on `app/backend/app/services/gene_viewer.py` + agents/chat/main/config/schemas + new `test_chat_service.py` left untouched). Major-boundary CURRENT.md replace landed: prior Claude — Last Task & Resume narrative archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md`. **Push held** per Steven's cadence. Prior IDLE state (Phase 2 branch rename + service flip @ 2026-05-29 01:25 +1000, anchor `c83b8c6`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
 
-- **Codex:** HANDSHAKE/COMMIT-PREP @ 2026-05-29 21:52 +1000 - M-007 backend
+- **Codex:** POST-PUSH IDLE @ 2026-05-29 21:58 +1000 - M-007 backend
   eager-payload trim is implemented and verified. Default `/api/v1/lookup`
   omits lazy-heavy `publications_literature`,
   `report_profile.computational_deep_dive`, and `report_profile.expert_panel`;
@@ -24,10 +24,15 @@
   `computational_deep_dive`, and `clingen_vcep`. Contract canary and full
   backend pytest passed. Steven approved local models/local-source work next,
   but requested Codex->Claude handshake + contract canary before that and
-  before commit/push cadence. Guardrails unchanged: no runtime local-source
-  wiring, Supabase/object-storage/startup download/report provider wiring,
-  production imports/downloads, `/runs`, AlphaMissense, WSL/Docker,
-  destructive git, stash/reset/clean, deploy/env mutation.
+  before commit/push cadence; handshake was filed and Codex-owned commits were
+  pushed to `origin/main` through `181bf7e`. Remaining local dirty files are
+  Claude/user-side frontend/tooling artifacts left unstaged:
+  `app/web/components/report/ReportClient.tsx`,
+  `scripts/eamos-report-preflight.mjs`, and `.context/`. Guardrails unchanged:
+  no runtime local-source wiring, Supabase/object-storage/startup download/
+  report provider wiring, production imports/downloads, `/runs`,
+  AlphaMissense, WSL/Docker, destructive git, stash/reset/clean, deploy/env
+  mutation.
 
 ## Log Edit-Lock
 
@@ -37,7 +42,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-29 21:55 +1000 · Codex (M-007 logged; handshake filed)
+UNLOCKED · 2026-05-29 21:59 +1000 · Codex (post-push heartbeat closeout)
 
 ## Shared File Locks
 
@@ -1867,16 +1872,16 @@ in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes. Prior detailed Codex section was already covered by
 `PROGRESS.md` Sessions 83-85 and was not separately archived.
 
-**Latest Codex update (2026-05-29 21:52 +1000 - Codex):**
+**Latest Codex update (2026-05-29 21:58 +1000 - Codex):**
 Completed M-007 backend eager-payload trim for Claude LazySection v1 and filed
 the requested Codex->Claude handshake before switching to local models/local-
-source follow-up work.
+source follow-up work. Codex-owned commits were pushed to `origin/main` through
+`181bf7e`.
 
 **State:**
 - Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
 - Claude has committed LazySection v1 plus 375px mobile-overflow fixes on
-  local `main`; push was previously held, and Steven now asked for handshake
-  coordination before commit/push cadence.
+  local `main`; Codex pushed the shared `main` stack through `181bf7e`.
 - Default `POST /api/v1/lookup` now omits the lazy-heavy fields
   `report_payload.publications_literature`,
   `report_payload.report_profile.computational_deep_dive`, and
@@ -1907,9 +1912,10 @@ source follow-up work.
   lazy section keys.
 
 **Next-session direction:**
-- Commit/push is now Steven-approved after the handshake/contract-canary step.
-  DL-019 still requires `git status --short` first and explicit `git add --`
-  pathspecs only; do not stage `.context/` screenshots unless explicitly asked.
+- Commit/push is complete for Codex-owned work through `181bf7e`. Remaining
+  local dirty files are frontend/tooling artifacts left unstaged:
+  `app/web/components/report/ReportClient.tsx`,
+  `scripts/eamos-report-preflight.mjs`, and `.context/`.
 - Claude should browser-verify the LazySection lazy path against current
   backend via the Cross-Agent Requests handshake before assuming the FE path is
   end-to-end complete.
@@ -1928,9 +1934,9 @@ predictor unlocks, WSL, Docker, destructive git, stash, reset, or clean was
 performed by Codex.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-29 21:52 +1000 · Codex M-007 eager lookup payload trim + handshake`
+`# Resume prompt · 2026-05-29 21:58 +1000 · Codex M-007 pushed + local models approved next`
 `Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 87, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: M-007 is implemented and verified. Default /api/v1/lookup omits publications_literature, report_profile.computational_deep_dive, and report_profile.expert_panel; /lookup/sections still serves publications/computational_deep_dive/clingen_vcep. RPE65 smoke saved 10,700 bytes before compression.`
-`Verification: focused section-fetch/report integration pytest + test_frontend_contract.py, full backend pytest, Ruff, Black, git diff --check, and in-process default/full/sections smoke all passed. Codex->Claude handshake request filed for browser lazy-path verification and commit/push coordination.`
-`Next: commit/push is Steven-approved after handshake/contract-canary; use DL-019 explicit pathspecs and do not stage .context/. Then resume the approved local models/local-source source-strategy thread.`
+`Delta: M-007 is implemented, verified, committed, and pushed through 181bf7e. Default /api/v1/lookup omits publications_literature, report_profile.computational_deep_dive, and report_profile.expert_panel; /lookup/sections still serves publications/computational_deep_dive/clingen_vcep. RPE65 smoke saved 10,700 bytes before compression.`
+`Verification: focused section-fetch/report integration pytest + test_frontend_contract.py, full backend pytest, Ruff, Black, git diff --check, and in-process default/full/sections smoke all passed. Codex->Claude handshake request filed for browser lazy-path verification.`
+`Next: resume the approved local models/local-source source-strategy thread after reading the user's docx pointer. Remaining local dirty files are Claude/user-side frontend/tooling artifacts: app/web/components/report/ReportClient.tsx, scripts/eamos-report-preflight.mjs, .context/.`
 `Guardrails: no runtime local-source wiring, Supabase/object-storage/startup download/report provider wiring, production imports/downloads, /runs, AlphaMissense display/runtime scoring, destructive git, stash/reset/clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, restricted predictor unlocks, WSL, Docker. End clear-safe.`
