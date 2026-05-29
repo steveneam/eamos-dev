@@ -13,7 +13,6 @@ import { DiseaseSection } from '@/components/report/DiseaseSection'
 import { TrialsSection } from '@/components/report/TrialsSection'
 import { PubMedSection } from '@/components/report/PubMedSection'
 import { LazySection } from '@/components/report/LazySection'
-import { LocusContext } from '@/components/report/LocusContext'
 import { CalibratedInSilicoTable } from '@/components/report/CalibratedInSilicoTable'
 import { CompositeVerdictBar } from '@/components/report/CompositeVerdictBar'
 import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
@@ -632,14 +631,26 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           )}
 
-          {payload.locus_context && (
-            <div style={{ marginTop: 18 }}>
-              <h3 className="eamos-kicker" style={{ margin: '0 0 10px', fontFamily: 'var(--mono)' }}>
-                Locus context — ClinVar ±40bp window
-              </h3>
-              <LocusContext data={payload.locus_context} />
-            </div>
-          )}
+          {/* Protein-domain viewer slot — reserved for Slice B build 2 (the
+              UniProt domain track, pending Codex's protein-annotation backend).
+              The old locus ±40bp codon picture sat here; removed 2026-05-30 as
+              redundant with the genomic viewer above. Its data still flows to
+              the Copy-gene-context export via payload.locus_context. */}
+          <div
+            style={{
+              marginTop: 18,
+              border: '0.5px dashed var(--line-2)',
+              borderRadius: 'var(--r-md)',
+              background: 'var(--bg-soft)',
+              padding: '28px 16px',
+              textAlign: 'center',
+            }}
+          >
+            <div className="eamos-kicker" style={{ marginBottom: 6 }}>Protein domains</div>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-4)' }}>
+              Protein-domain viewer wiring in progress.
+            </p>
+          </div>
 
           <MolecularContextBlock evidence={data.evidence} />
         </Card>
