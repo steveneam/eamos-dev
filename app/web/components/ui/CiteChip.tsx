@@ -52,6 +52,20 @@ export function CiteChip() {
     setDate(formatDate(new Date()))
   }, [])
 
+  // Feedback intake — mailto to sales@eamos.com.au with the current report
+  // URL + variant prefilled so the user only types the message body. Subject
+  // includes the variant display (when on /report) so triage can route it.
+  const openFeedback = useCallback(() => {
+    const subjectVariant = variantDisplay ? ` — ${variantDisplay}` : ''
+    const subject = `Eamos feedback${subjectVariant}`
+    const url = typeof window !== 'undefined' ? window.location.href : ''
+    const body = `\n\n--\nPage: ${url}${variantDisplay ? `\nVariant: ${variantDisplay}` : ''}\nReport version: ${REPORT_VERSION}`
+    const href = `mailto:sales@eamos.com.au?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    if (typeof window !== 'undefined') {
+      window.location.href = href
+    }
+  }, [variantDisplay])
+
   const closeCite = useCallback(() => {
     setCiteOpen(false)
     // Optionally strip the param — best-effort; ignore if router not available
@@ -72,11 +86,10 @@ export function CiteChip() {
 
   return (
     <>
-      {/* Bottom-left fixed Feedback chip. The Cite action moved into the
-          right-side ReportRail (xl+) — see app/web/components/report/
-          ReportRail.tsx. CiteChip still owns the modal mount + the `?cite=1`
-          URL-param listener so the rail button (and any deep link) opens it
-          through the same path. */}
+      {/* Bottom-left fixed Cite + Feedback chip. Both actions live here now
+          that the right-side TOC rail was removed — CiteChip owns the modal
+          mount + the `?cite=1` URL-param listener so the Cite button and any
+          deep link open the modal through the same path. */}
       <div
         ref={citeButtonRef}
         style={{
@@ -94,9 +107,14 @@ export function CiteChip() {
           padding: '2px',
         }}
       >
+        <button onClick={openCite} aria-label="Cite this report" style={chipBtnStyle}>
+          <CiteIcon />
+          Cite
+        </button>
+        <span style={{ width: '0.5px', alignSelf: 'stretch', background: 'var(--line-2)', margin: '2px 0' }} />
         <button
-          onClick={() => console.log('TODO: feedback')}
-          aria-label="Send feedback"
+          onClick={openFeedback}
+          aria-label="Send feedback to sales@eamos.com.au"
           style={chipBtnStyle}
         >
           <FeedbackIcon />

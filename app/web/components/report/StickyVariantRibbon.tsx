@@ -181,7 +181,7 @@ interface RibbonBtnProps {
 function RibbonBtn({ label, icon, onClick }: RibbonBtnProps) {
   return (
     <button
-      className="eamos-toggle-btn"
+      className="eamos-toggle-btn eamos-ribbon-btn"
       style={{ padding: '5px 10px', gap: 5, fontSize: 12 }}
       onClick={onClick}
       disabled={!onClick}
@@ -189,7 +189,7 @@ function RibbonBtn({ label, icon, onClick }: RibbonBtnProps) {
       title={label}
     >
       {icon}
-      {label}
+      <span className="eamos-ribbon-btn-label">{label}</span>
     </button>
   )
 }

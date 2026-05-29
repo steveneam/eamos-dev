@@ -22,13 +22,12 @@ import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
-import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnapshotSection'
+import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { MatrixOverture } from '@/components/report/MatrixOverture'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
 import { GeneDiseaseBlock } from '@/components/report/GeneDiseaseBlock'
-import { ReportRail } from '@/components/report/ReportRail'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
@@ -296,19 +295,10 @@ export function ReportClient() {
         </div>
       </TopNav>
 
-      <div
+      <main
         className="mx-auto"
         style={{
-          maxWidth: 'var(--shell-w)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 'var(--rail-gap)',
-        }}
-      >
-      <main
-        style={{
-          flex: '1 1 auto',
-          minWidth: 0,
+          width: '100%',
           maxWidth: 'var(--maxw-report-frame)',
           padding: '32px 32px 80px',
         }}
@@ -359,18 +349,6 @@ export function ReportClient() {
           />
         )}
       </main>
-      <aside
-        className="hidden xl:block"
-        style={{
-          width: 'var(--rail-w)',
-          flexShrink: 0,
-          paddingTop: 32,
-          paddingRight: 16,
-        }}
-      >
-        <ReportRail reportVersion="2026.05" />
-      </aside>
-      </div>
     </div>
   )
 }
@@ -605,18 +583,22 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
-        {/* 4 · Gene & locus context — gene snapshot + locus diagram + the
-            new MolecularContextBlock (gnomAD constraint, ClinGen dosage,
-            overlapping CNVs) read from the `molecular_context` evidence row.
-            (Renamed from old §3 "Gene context snapshot".) */}
+        {/* 4 · Gene & locus context — Slice B build 1 swaps the gene-snapshot
+            SVG + expandable transcript figures for the new ReportGeneViewer
+            (compressed exon track + queried variant lollipop + ClinVar
+            variant density). Locus ±40 bp window + MolecularContextBlock
+            (gnomAD constraint / ClinGen dosage / overlapping CNVs) stay.
+            Protein-domain track lands in build 2 once Codex's UniProt
+            backend ships. */}
         <div id="gene_context" className="scroll-mt-24" />
-        <GeneContextSnapshotSection
+        <Card
           number={4}
           title="Gene & locus context"
-          snapshot={payload.report_profile?.gene_context_snapshot}
-          sectionTarget={targetFor('gene_context_snapshot')}
-          locus={payload.locus_context}
-          extraContent={<MolecularContextBlock evidence={data.evidence} />}
+          meta={
+            header?.gene && header?.transcript
+              ? `${header.gene} · ${header.transcript}`
+              : header?.gene || 'Gene context'
+          }
           actions={
             <CopyButton
               text={{
@@ -634,7 +616,36 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
               label="Copy gene context (paste into Excel for formatted table)"
             />
           }
-        />
+        >
+          {header?.gene && header?.cdna && (
+            <ReportGeneViewer
+              gene={header.gene}
+              cdna={header.cdna}
+              transcript={header.transcript ?? null}
+            />
+          )}
+
+          {payload.locus_context && (
+            <div style={{ marginTop: 18 }}>
+              <h3
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--ink-4)',
+                  margin: '0 0 10px',
+                  fontFamily: 'var(--mono)',
+                }}
+              >
+                Locus context — ClinVar ±40bp window
+              </h3>
+              <LocusContext data={payload.locus_context} />
+            </div>
+          )}
+
+          <MolecularContextBlock evidence={data.evidence} />
+        </Card>
 
         {/* 5 · Disease & curated variants — disease mechanism + curated
             variant distribution + associated conditions + the new

@@ -73,8 +73,17 @@ export function Card({
         // actions slot doesn't end up as a nested interactive control.
         role="button"
         tabIndex={0}
-        className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors select-none"
+        className="text-left transition-colors select-none"
         style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          columnGap: 12,
+          rowGap: 4,
+          width: '100%',
+          padding: '16px 24px',
+          minWidth: 0,
           borderBottom: open ? '0.5px solid var(--line)' : 'none',
           background: 'transparent',
           cursor: 'pointer',
@@ -94,7 +103,16 @@ export function Card({
           e.currentTarget.style.background = 'transparent'
         }}
       >
-        <div className="flex items-center gap-3">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            minWidth: 0,
+            flex: '1 1 180px',
+            overflow: 'hidden',
+          }}
+        >
           <span
             aria-hidden="true"
             className="inline-flex h-4 w-4 shrink-0 items-center justify-center"
@@ -102,6 +120,7 @@ export function Card({
               color: 'var(--ink-3)',
               transition: 'transform .2s ease',
               transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+              flex: '0 0 auto',
             }}
           >
             <svg
@@ -120,21 +139,37 @@ export function Card({
           {number !== undefined && (
             <span
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-              style={{ background: 'var(--teal)', fontFamily: 'var(--mono)' }}
+              style={{ background: 'var(--teal)', fontFamily: 'var(--mono)', flex: '0 0 auto' }}
             >
               {number}
             </span>
           )}
           <h2
             className="text-[18px] font-normal tracking-[-0.01em]"
-            style={{ color: 'var(--ink)', fontFamily: 'var(--display)' }}
+            style={{
+              color: 'var(--ink)',
+              fontFamily: 'var(--display)',
+              overflowWrap: 'anywhere',
+              minWidth: 0,
+              flex: '1 1 auto',
+            }}
           >
             {title}
           </h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            columnGap: 12,
+            rowGap: 4,
+            minWidth: 0,
+            maxWidth: '100%',
+          }}
+        >
           {meta && (
-            <span className="text-[12px]" style={{ color: 'var(--ink-4)' }}>
+            <span className="text-[12px]" style={{ color: 'var(--ink-4)', overflowWrap: 'anywhere' }}>
               {meta}
             </span>
           )}

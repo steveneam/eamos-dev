@@ -142,7 +142,7 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
           style={{
             margin: 0,
             display: 'grid',
-            gridTemplateColumns: 'auto 1fr',
+            gridTemplateColumns: 'auto minmax(0, 1fr)',
             columnGap: 12,
             rowGap: 4,
             fontSize: 12.5,
@@ -152,13 +152,13 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
           {conditions && (
             <>
               <dt style={{ color: 'var(--ink-4)' }}>Conditions</dt>
-              <dd style={{ margin: 0 }}>{conditions}</dd>
+              <dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{conditions}</dd>
             </>
           )}
           {consequence && (
             <>
               <dt style={{ color: 'var(--ink-4)' }}>Consequence</dt>
-              <dd style={{ margin: 0, fontFamily: 'var(--mono)' }}>{consequence}</dd>
+              <dd style={{ margin: 0, fontFamily: 'var(--mono)', overflowWrap: 'anywhere' }}>{consequence}</dd>
             </>
           )}
         </dl>

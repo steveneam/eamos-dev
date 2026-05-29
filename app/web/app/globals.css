@@ -142,14 +142,8 @@
   --maxw-workbench-rail: 64px;
   --maxw-workbench-side: 360px;
 
-  /* Report shell — reading column + (optional) right rail.
-     At < xl breakpoints the shell width equals --maxw-report-frame and the
-     rail is hidden (handled in ReportRail.tsx via `hidden xl:block`). At xl+
-     the shell expands to include rail + gap so the page reads as one bound
-     surface rather than a centered column floating in cream. */
-  --rail-w: 240px;
-  --rail-gap: 32px;
-  --shell-w: var(--maxw-report-frame);
+  /* Report shell — single centered reading column. The right TOC rail was
+     removed; the report centers `--maxw-report-frame` directly. */
 
   /* === Dashboard Interaction Language — elevation + motion ===
      DESIGN.md "Dashboard Interaction Language". Depth tied to --ink
@@ -205,19 +199,12 @@
   background: var(--bg-soft);
 }
 
-/* Report shell — responsive widths.
-   xl (≥1280): rail enabled; shell = reading column + rail + gap.
-   2xl (≥1536): reading column can breathe; rail gets a touch wider so the
-                rail/column ratio stays journal-like, not skinny-with-poster. */
-@media (min-width: 1280px) {
-  :root {
-    --shell-w: calc(var(--maxw-report-frame) + var(--rail-w) + var(--rail-gap));
-  }
-}
+/* Report shell — responsive reading-column width. The reading column can
+   breathe a little wider on large displays now that there is no rail beside
+   it. */
 @media (min-width: 1536px) {
   :root {
     --maxw-report-frame: 1240px;
-    --rail-w: 280px;
   }
 }
 @media (min-width: 1920px) {
@@ -611,6 +598,12 @@ textarea {
 .pred-disagree { margin-top: 10px; padding: 10px 12px; background: var(--teal-tint); border: 0.5px solid var(--line); border-radius: var(--r-md); font-size: 12px; color: var(--ink-2); line-height: 1.55; }
 .pred-disagree strong { color: var(--ink); }
 
+/* ─── Sticky variant ribbon — icon-only at narrow widths ─── */
+@media (max-width: 480px) {
+  .eamos-ribbon-btn { padding: 5px 7px !important; }
+  .eamos-ribbon-btn-label { display: none; }
+}
+
 /* ─── ACMG criteria grid (rendered inside a shared Disclosure) ─── */
 .acmg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
 .acmg-cell { padding: 8px 10px; border: 0.5px solid var(--line); border-radius: 6px; background: var(--bg-soft); font-family: var(--mono); font-size: 11px; color: var(--ink-4); display: flex; flex-direction: column; gap: 2px; }
@@ -723,11 +716,21 @@ textarea {
   .eamos-disclosure__summary {
     white-space: normal;
     text-align: right;
+    flex-shrink: 1;
+    flex-basis: 100%;
+    margin-left: 0;
+    overflow-wrap: anywhere;
   }
 
   .eamos-disclosure__trigger {
     flex-wrap: wrap;
     row-gap: 4px;
+    min-width: 0;
+  }
+
+  .eamos-disclosure__label-stack {
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   .locus-row.variants,

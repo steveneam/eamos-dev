@@ -73,7 +73,7 @@ function readClinGenDosage(raw: unknown): ClinGenDosage | null {
 
 function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
       <span
         style={{
           fontSize: 10.5,
@@ -81,12 +81,12 @@ function ChipRow({ label, children }: { label: string; children: React.ReactNode
           color: 'var(--ink-4)',
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          minWidth: 120,
+          flex: '0 0 auto',
         }}
       >
         {label}
       </span>
-      <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>{children}</span>
+      <span style={{ fontSize: 12.5, color: 'var(--ink-2)', minWidth: 0, overflowWrap: 'anywhere' }}>{children}</span>
     </div>
   )
 }
@@ -208,7 +208,7 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
       )}
 
       {row.warnings && row.warnings.length > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>
+        <div style={{ fontSize: 11, color: 'var(--ink-4)', overflowWrap: 'anywhere' }}>
           {row.warnings.join(' · ')}
         </div>
       )}
