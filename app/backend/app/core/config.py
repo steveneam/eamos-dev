@@ -74,6 +74,16 @@ class Settings(BaseSettings):
     hg38_2bit_runtime_asset_mode: str = "local_path"
     hg38_2bit_runtime_asset_path: Path = Path("./data/bio_assets/genomes/hg38.2bit")
     hg38_2bit_runtime_asset_object_uri: str | None = None
+    protein_annotation_enabled: bool = False
+    protein_annotation_hmmscan_path: Path = Path("hmmscan")
+    protein_annotation_pfam_hmm_path: Path = Path("./data/bio_assets/protein_annotation/Pfam-A.hmm")
+    protein_annotation_hmmscan_timeout_seconds: float = 30.0
+    protein_annotation_require_pfam_indexes: bool = True
+    protein_annotation_uniprot_features_enabled: bool = False
+    protein_annotation_uniprot_dat_path: Path = Path(
+        "./data/bio_assets/protein_annotation/downloads/uniprot_sprot.dat.gz"
+    )
+    protein_annotation_uniprot_scan_timeout_seconds: float = 20.0
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"

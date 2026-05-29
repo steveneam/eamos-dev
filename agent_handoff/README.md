@@ -96,7 +96,16 @@ verbatim under `agent_handoff/archive/2026-05-18-*`._
      checkpoint commit, a reviewable plan set), or a user-visible state change.
      A trivial turn, a doc tidy, or a partial step is not major.
 10. **Raise the bar each session — ship something net-new, not just
-    maintenance.** (User-mandated 2026-05-29.) Every Claude or Codex session
+    maintenance.** (User-mandated 2026-05-29.)
+    The active plan and the user's decisions outrank this rule. "Net-new" is
+    satisfied by deepening the moat *within* the plan — never by inventing
+    scope. Building unrequested structure (layout chrome, navigation, new
+    persistent UI) or deviating from the plan to satisfy this rule is a
+    *violation* of it, not a satisfaction. Removing, simplifying, fixing, or
+    hardening what the plan already calls for fully counts. Any durable
+    structural/visual/architectural change needs the user's explicit OK
+    *before* it ships, whatever the source of the idea.
+    Every Claude or Codex session
     must land at least one of:
     - a new user-visible capability,
     - a proprietary Eamos tool/script,

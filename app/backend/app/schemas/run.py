@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.gene_viewer import ViewerSegment, ViewerSequences, ViewerWindow
+from app.schemas.protein_annotation import ProteinDomainTrack
 
 
 class RunStatus(str, Enum):
@@ -541,6 +542,7 @@ class MolecularContextSection(BaseModel):
     loeuf: float | None = None
     clingen_haploinsufficiency: str | None = None
     overlapping_cnvs: list[str] = Field(default_factory=list)
+    protein_domain_track: ProteinDomainTrack | None = None
     provenance: list[SourceProvenance] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
@@ -765,6 +767,7 @@ class GeneContextSnapshot(BaseModel):
     zoom_window: ViewerWindow | None = None
     zoom_segments: list[ViewerSegment] = Field(default_factory=list)
     zoom_sequences: ViewerSequences | None = None
+    protein_domain_track: ProteinDomainTrack | None = None
     render_hints: GeneContextRenderHints = Field(default_factory=GeneContextRenderHints)
     workbench_link: GeneContextWorkbenchLink | None = None
     provenance: list[SourceProvenance] = Field(default_factory=list)

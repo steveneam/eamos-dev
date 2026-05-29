@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from app.schemas.lookup import SearchInputInterpretation
+from app.schemas.protein_annotation import ProteinDomainTrack
 from app.schemas.run import (
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
@@ -292,6 +293,12 @@ def _build_molecular_context(
     loeuf = _optional_float(gnomad_constraint.get("loeuf"))
     haploinsufficiency = _optional_text(clingen_dosage.get("haploinsufficiency"))
     overlapping_cnvs = _string_list(molecular_context.get("overlapping_cnvs"))
+    protein_position = _protein_position_from_vep(vep) or _protein_position(row.protein_change)
+    protein_domain_track = _protein_domain_track_from_evidence(evidence_map)
+    protein_domain_label = _protein_domain_label_at_position(
+        protein_domain_track,
+        protein_position,
+    )
 
     if loeuf is None:
         warnings.append("constraint_source_not_hydrated")
@@ -299,12 +306,9 @@ def _build_molecular_context(
         warnings.append("clingen_dosage_source_not_hydrated")
     if not overlapping_cnvs:
         warnings.append("structural_cnv_overlap_source_not_hydrated")
-    warnings.extend(
-        [
-            "protein_domain_source_not_hydrated",
-            "hotspot_source_not_hydrated",
-        ]
-    )
+    if protein_domain_label is None:
+        warnings.append("protein_domain_source_not_hydrated")
+    warnings.append("hotspot_source_not_hydrated")
 
     return MolecularContextSection(
         chromosome=_chromosome(row.genomic_hg38)
@@ -318,12 +322,13 @@ def _build_molecular_context(
         codon_change=_codon_change_from_sequence_context(sequence_context)
         or _codon_change(query_codon)
         or _codon_change_from_vep(vep),
-        protein_position=_protein_position_from_vep(vep) or _protein_position(row.protein_change),
-        domain=None,
+        protein_position=protein_position,
+        domain=protein_domain_label,
         hotspot_flag=None,
         loeuf=loeuf,
         clingen_haploinsufficiency=haploinsufficiency,
         overlapping_cnvs=overlapping_cnvs,
+        protein_domain_track=protein_domain_track,
         provenance=_dedupe_provenance(
             [
                 *_filter_provenance(provenance, {"vep", "variant_validator", "gnomad"}),
@@ -336,6 +341,44 @@ def _build_molecular_context(
         ),
         warnings=_dedupe_text(warnings),
     )
+
+
+def _protein_domain_track_from_evidence(
+    evidence_map: dict[str, dict[str, Any]],
+) -> ProteinDomainTrack | None:
+    raw_track = evidence_map.get("protein_domain_track")
+    raw_snapshot = evidence_map.get("gene_context_snapshot")
+    if raw_track is None and isinstance(raw_snapshot, dict):
+        raw_track = raw_snapshot.get("protein_domain_track")
+    if not isinstance(raw_track, dict):
+        return None
+    try:
+        return ProteinDomainTrack.model_validate(raw_track)
+    except Exception:
+        return None
+
+
+def _protein_domain_label_at_position(
+    track: ProteinDomainTrack | None,
+    protein_position: str | None,
+) -> str | None:
+    if track is None or track.status not in {"available", "cache_hit"}:
+        return None
+    position = _optional_int(protein_position)
+    if position is None:
+        return None
+    feature = next(
+        (
+            item
+            for item in track.features
+            if item.aa_start <= position <= item.aa_end
+            and item.kind in {"domain", "family", "motif", "repeat", "region", "site"}
+        ),
+        None,
+    )
+    if feature is None:
+        return None
+    return feature.short_label or feature.label
 
 
 def _build_computational_deep_dive(
@@ -780,6 +823,16 @@ def _optional_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    text = str(value).strip()
+    match = re.search(r"\d+", text)
+    if match is None:
+        return None
+    return int(match.group(0))
 
 
 def _chromosome(genomic_hg38: str | None) -> str | None:

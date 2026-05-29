@@ -102,3 +102,21 @@ def test_supabase_rls_profile_update_policy_preserves_new_row_ownership_check() 
 
     assert "using ((select auth.uid()) = id)" in body
     assert "with check ((select auth.uid()) = id)" in body
+
+
+def test_protein_annotation_cache_migration_is_backend_only_private_schema() -> None:
+    sql = _migration_sql("0008_protein_annotation_metadata_cache.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "create schema if not exists eamos_private" in normalized
+    assert "public.protein_annotation" not in normalized
+    assert "storage.buckets" not in normalized
+    assert "enable row level security" in normalized
+    assert "grant usage on schema eamos_private to service_role" in normalized
+    assert "grant select, insert, update, delete on eamos_private.protein_annotation_cache" in (
+        normalized
+    )
+    assert "to anon" not in normalized
+    assert "to authenticated" not in normalized
+    assert "protein_accession" in normalized
+    assert "uniprot_release" in normalized

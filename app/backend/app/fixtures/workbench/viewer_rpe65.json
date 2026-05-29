@@ -184,7 +184,8 @@
       "palmitoylation": [
         { "aa": 231, "residue": "C", "label": "S-palmitoyl cysteine (membrane anchor)" },
         { "aa": 329, "residue": "C", "label": "S-palmitoyl cysteine (membrane anchor)" }
-      ]
+      ],
+      "domain_track": null
     },
     "conservation_values": [],
     "restriction_sites": [

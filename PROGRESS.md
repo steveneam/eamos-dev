@@ -1,5 +1,167 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 89 - 30 May 2026 - Protein annotation super tool local worker
+
+Completed the first local/offline build of the proprietary Eamos Protein
+Annotation Super Tool. This is the Eamos-owned orchestration, parser,
+normalized contract, cache, provenance, and live-wire policy layer on top of
+upstream data/tools; it does not relicense or claim ownership of UniProtKB,
+Pfam/InterPro, HMMER, or InterProScan.
+
+Completed:
+- Added protein asset inspection for the staged ignored Swiss-Prot/Pfam/HMMER/
+  InterProScan bundle, including expected size/hash verification and focused
+  preflight CLI output.
+- Added the additive `ProteinDomainTrack` contract for domains, sites, motifs,
+  topology, variant markers, AA coordinates, accessions, scores/e-values,
+  source releases, checksums, cache status, and fail-closed states.
+- Added a local HMMER/Pfam worker interface, `domtblout` parser, DNA/protein
+  normalization and translation, and sequence-hash caching keyed by Pfam,
+  HMMER, and UniProt release metadata.
+- Added local UniProtKB/Swiss-Prot flatfile feature parsing for source-specific
+  protein features with raw labels, compact display abbreviations, functional
+  legend descriptions, provenance, lanes, and source checksums.
+- Wired the backend-only annotation route at `/api/v1/protein/annotate`, kept
+  runtime fail-closed with no live UniProt/InterPro/Pfam API fallback, and
+  allowed Workbench/report paths to hydrate cached protein tracks without
+  forcing runtime external calls.
+- Added private Supabase migration scaffolding for protein source versions,
+  annotation jobs, and cached annotation results under `eamos_private` with
+  RLS enabled, service-role-only grants, and no public storage bucket.
+- Applied Steven-approved Hard Rule 10 precedence wording to
+  `agent_handoff/README.md`: the active plan and Steven's decisions outrank
+  the rule, and unrequested durable structure is a violation, not compliance.
+
+Reference-control stack now covered:
+- RPE65: Pfam/InterPro carotenoid oxygenase/RPE65 catalytic family domain,
+  UniProt iron-binding sites, and UniProt palmitoylation sites annotated as
+  membrane-form features. No signal peptide is fabricated; one is shown only
+  when a source has `SIGNAL`.
+- USH2A: laminin N-terminal, laminin EGF-like, laminin G-like, fibronectin
+  type-III, and collagen/fibronectin interaction features.
+- PCARE `NM_001029883`: helical/coiled-coil, WH2, proline-rich, and nuclear
+  localization signal features, preserving specific names rather than generic
+  "domain" markers.
+- DNM1/dynamin-1: GTPase, middle/stalk, PH, GED, and proline-rich region.
+- FZD5: signal peptide, WNT-binding Frizzled/FZ cysteine-rich domain displayed
+  as `CRD`, alternating topology, seven transmembrane helices (`TM1`-`TM7`),
+  and PDZ-related motifs.
+
+Verification:
+- `python -m pytest tests/test_protein_annotation_service.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m pytest tests/test_protein_annotation_service.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py tests/test_supabase_migrations.py tests/test_franklin_removed.py -q`
+  -> passed.
+- `python -m pytest -q` from `app/backend` -> passed with the existing PyJWT
+  short test-secret warnings only.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check app tests` -> passed.
+- `git diff --check` -> passed; only Windows LF-to-CRLF notices were emitted.
+
+Guardrails held:
+- No live UniProt/InterPro/Pfam API dependency, startup downloads, optional
+  InterProScan licensed apps, SignalP/Phobius/DeepTMHMM unlocks, AlphaMissense
+  runtime/display scoring, InterVar/ANNOVAR/OMIM production use, public genomic
+  buckets, direct frontend SQL over source tables, unrestricted uploads, env or
+  deploy mutation, WSL/Docker, destructive git, stash, reset, clean, commit, or
+  push.
+- Unrelated Claude/frontend report work already present in the worktree was left
+  untouched except for generated backend contract mirrors.
+
+## Session 88 - 29 May 2026 - DOCX 38-line source matrix preflight
+
+Completed the first safe slice of Steven's 38-line `Data and sources 1.docx`
+directive: a backend-owned, executable source matrix that maps every extracted
+DOCX line to the current Eamos implementation state.
+
+Completed:
+- Added `app/backend/app/data_sources/docx_blueprint.py`, which records all 38
+  DOCX lines as structured rows with status, source IDs, implementation
+  references, blockers, and next actions.
+- Wired the matrix into `python -m app.cli.eamos_source_asset_preflight` under
+  `docx_blueprint.task_matrix`.
+- Added tests proving:
+  - the matrix has exactly 38 rows,
+  - non-commercial unresolved gap count is `0`,
+  - commercial-gated rows are limited to InterVar/ANNOVAR/OMIM and restricted
+    predictor unlocks,
+  - existing backend fixture/local-source slices cover the already-built rows:
+    hg38/twobitreader, dbSNP/pysam fixture adapter, ClinVar/pysam fixture
+    adapter, RepeatMasker, phyloP reader proof, MANE/GENCODE transcript model,
+    Mondo/HPO/ClinGen/GenCC clinical source parsers, and MyVariant gnomAD-only
+    restricted-field policy.
+
+Result:
+- The current matrix reports:
+  - `line_count=38`
+  - `non_commercial_line_count=35`
+  - `non_commercial_unresolved_gap_count=0`
+  - `commercial_gated_line_numbers=[16, 33, 38]`
+  - status counts: 17 covered by fixture/tooling, 4 corrected by registry
+    policy, 3 covered by policy lock, 4 approval-required-before-runtime,
+    7 narrative/table rows, 3 commercial-license-blocked rows.
+- No Supabase schema/storage changes, production imports/downloads, runtime
+  local-source wiring, startup downloads, object-storage setup, or restricted
+  predictor unlocks were performed.
+- Follow-up user correction: rich Workbench/report protein annotation is not
+  covered by the original DOCX 38 rows and is not done. Added
+  `docx_blueprint.supplemental_requests.S1` plus registry rows for
+  `uniprotkb_reviewed_swissprot`, `interpro_pfam_protein_matches`,
+  `interproscan_standalone`, `interproscan_optional_licensed_apps`, and
+  `hmmer_pfam_a`. After source review, the core stack is now recorded as
+  commercially usable with terms: UniProtKB is CC BY 4.0, InterPro/Pfam
+  downloadable data is CC0, InterProScan core is Apache licensed, and HMMER is
+  BSD 3-clause. `download_approved=false` and no live API runtime dependency
+  is approved. Optional InterProScan apps `SignalP`, `Phobius`, and
+  `DeepTMHMM` remain component-license blocked.
+- Steven approved staging the core tools/assets for the next local-worker
+  buildout. Downloaded to ignored local data under
+  `app/backend/data/bio_assets/protein_annotation/downloads/`:
+  `uniprot_sprot.dat.gz` (692,563,345 bytes, MD5
+  `d6bd6e9435cd819b64cd888068530a45`), `Pfam-A.hmm.gz` (384,357,362 bytes,
+  MD5 `dc814cc181ece09102c09c4e6c19f2fd`), `Pfam-A.hmm.dat.gz` sidecar
+  (718,721 bytes, MD5 `41a8fb4c9391e814795587fcdc8baa33`), `hmmer.tar.gz`
+  (19,669,667 bytes, MD5 `b1ed21ceea33930222c84f8c4d9f4240`), and
+  `interproscan6-main.zip` (58,031,205 bytes, MD5
+  `97d76552a7886ebe6ac944786fae4363`). Registry rows now record local paths,
+  sizes, MD5, and SHA256 checksum plans. No extraction, package install,
+  Docker/WSL, InterProScan optional licensed apps, Supabase mutation, or
+  runtime wiring was performed.
+
+Steven asked when the held-back live runtime pieces become safe. Current
+answer: the next feasible live step is a narrow backend-only Supabase perimeter
+for private source metadata/status/cache and then small non-commercial table
+imports; public genomic buckets, frontend SQL over source tables, startup
+downloads, unrestricted uploads, and restricted predictor/InterVar/OMIM runtime
+use are only safe after their own RLS/storage/license/product-gate checks pass.
+
+Verification:
+- `python -m pytest tests/test_source_asset_preflight_cli.py tests/test_source_asset_manifest.py tests/test_data_source_registry.py tests/test_source_field_policy.py tests/test_clinical_source_tables.py tests/test_local_evidence_orchestrator.py -q`
+  -> 52 passed.
+- `python -m app.cli.eamos_source_asset_preflight --compact` -> passed and
+  emitted the 38-line matrix.
+- `python -m ruff check app/data_sources/docx_blueprint.py app/data_sources/__init__.py app/cli/eamos_source_asset_preflight.py tests/test_source_asset_preflight_cli.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/data_sources/docx_blueprint.py app/data_sources/__init__.py app/cli/eamos_source_asset_preflight.py tests/test_source_asset_preflight_cli.py`
+  -> passed after formatting the new module and tests.
+- `git diff --check -- app/backend/app/data_sources/docx_blueprint.py app/backend/app/data_sources/__init__.py app/backend/app/cli/eamos_source_asset_preflight.py app/backend/tests/test_source_asset_preflight_cli.py`
+  -> passed.
+- Protein-annotation supplement verification:
+  `python -m pytest tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
+  -> 18 passed after the license/download update; Ruff and Black checks passed
+  for the updated registry/matrix files and tests; preflight CLI emits
+  `supplemental_requests.S1` with
+  `status=local_offline_implementation_pending`; `git diff --check` passed.
+
+Guardrails held:
+- No frontend edits by Codex; unrelated `app/web/components/report/*` changes
+  and untracked frontend components were left untouched.
+- No runtime local-source route/provider/source-cache wiring, Supabase/object-
+  storage/startup downloads, production source downloads/imports, uploads/
+  imports, env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
+  restricted predictor unlocks, InterVar/ANNOVAR/OMIM production use, WSL,
+  Docker, destructive git, stash, reset, clean, commit, or push.
+
 ## Session 87 - 29 May 2026 - M-007 eager lookup payload trim
 
 Completed the M-007 backend perf slice for Claude LazySection v1. The default

@@ -14,30 +14,14 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-29 22:57 +1000 (anchor: `1a6e680` on local `main`, synced with `origin/main`) — **4 FE commits shipped + pushed this session.** `8b2b1a8` fix(report) mobile-overflow at 375 on PublicationsCallout + AskEamos + new proprietary CLI `scripts/eamos-report-preflight.mjs` (dep-free Node 24 + CDP + native WebSocket headless scanner). `9ccae51` feat(report) M11/M-007 lazy-section contract canary — `?lazy=<csv>` URL hatch in `ReportClient.tsx` forces LazySection lazy branch; demo mode synthesises `summaryRequest` from `payload.report_profile.header` so the lazy fetch hits live `/api/v1/lookup/sections`; preflight CLI gets matching `--lazy=<csv>` flag with polling termination + Network domain capture + per-section terminal-state probe; verified end-to-end against live BE. `56c8782` refactor(report) §2 cleanup — replaced 12-row `EvidenceTable` with focused `ClinVarBlock` (classification + review-stars + submitter-count bar + conditions + consequence + ClinVar VCV link); orphaned `EvidenceTable.tsx` deleted. `1a6e680` feat(report) responsive shell + right rail with TOC + Cite — new `ReportRail.tsx` with IntersectionObserver scroll-spy TOC + Cite button (sets `?cite=1` so existing CiteChip modal listener fires); new CSS tokens `--rail-w`/`--rail-gap`/`--shell-w` with media queries at 1280/1536/1920; CiteChip simplified to bottom-left Feedback-only; addresses Steven's asymmetric-layout complaint (architect Option 1 + Option 3 combined). DL-019 honoured every commit. tsc clean. Mobile preflight green (375/768, only pre-existing CalibratedInSilicoTable +16px offender remains — queued for Slice A). Subagents used (ui-ux-consultant + architect) per Steven's explicit "deploy subagents" instruction for the spacing diagnosis. Codex confirmed push readiness + acknowledged Claude's flag on `ExpertPanelSection.tsx:133` RPE65 fixture-fallback (post-M-007 bug) as Claude-owned FE fix. **Next session plan written to `~/.claude/plans/next-session-eamos.md`** (Slice A = section restructure: ACMG+ClinVar+ExpertPanel into new §3 Clinical evidence card; §2 to in-silico only; gut RPE65 fixture-fallback + wrap §3 in LazySection; rename old §3→"Gene & locus context" + old §4→"Disease & curated variants"; wire molecular_context into §4 + gene_disease into §5; move PublicationsCallout to §6; ~2-3 hrs. Slice B = §4 viewer overhaul: embed Workbench gene viewer + build new ProteinDomainTrack with UniProt-style domains + ClinVar variant overlay per Steven's 3 reference screenshots; CAR for Codex on protein-domain data source; ~1-2 days). Prior CURRENT.md Claude section archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-spacing-slice.md`. Codex starts the 38-line `Data and sources 1.docx` backend buildout next session per Steven's directive. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents on Eamos integration/UI work — explicit "deploy subagents" requests override ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); Hard Rule 10 met (responsive shell + rail = net-new UI capability, ClinVarBlock + lazy canary = net-new tooling/verification).
+- **Claude:** IDLE @ 2026-05-29 23:16 +1000 (anchor: `cb1bfbd` on local `main` + `origin/main`) — Slice A shipped + pushed this session: `cb1bfbd` refactor(report) restructure §2..§8 around new Clinical evidence card. §2 strips to in-silico (CompositeVerdictBar + CalibratedInSilicoTable); NEW §3 Clinical evidence hosts ClinVarBlock + ExpertPanelSection (no longer unnumbered) + AcmgCriteriaFold; §4 renamed "Gene & locus context" + new `MolecularContextBlock.tsx` (gnomAD constraint + ClinGen dosage + overlapping CNVs from `evidence[molecular_context].summary`); §5 renamed "Disease & curated variants" + new `GeneDiseaseBlock.tsx` (ClinGen Gene-Disease Validity from `evidence[gene_disease].summary` — gene/condition/inheritance/validity/mechanism + curated conditions with MONDO/OMIM/ORPHA chips); PublicationsCallout moved into PubMedSection §6 header so the variant↔gene scope toggle lives with the section it controls; Publications/Trials/AI summary renumber → §6/§7/§8. `ExpertPanelSection.tsx:133` RPE65 fixture-fallback gutted — was painting RPE65 data onto every non-RPE65 query post-M-007. `ReportRail.tsx` DEFAULT_SECTIONS rewired; standalone Expert-panel rail entry removed. `MatrixOverture.tsx` ACMG + ClinVar tiles repointed to new `clinical_evidence` anchor. DL-019 honoured (explicit 8-file pathspec; Codex's dirty backend tree untouched). tsc clean; preflight `0 px` overflow at 375 + 768 (prior +16 px CalibratedInSilicoTable offender incidentally gone); lazy publications canary → `200 ready` against live BE at 1440. No backend contract change. ExpertPanelSection / CalibratedInSilicoTable LazySection wrapping intentionally deferred (would have shipped a half-wired lazy path while Codex was active on DOCX work). **Next session plan written to `~/.claude/plans/next-session-eamos.md`** (Slice B = §4 viewer overhaul: kill the gene-snapshot picture's gene/exon/codon toggle + expandable transcript figure per Steven's redundancy flag; embed Workbench `SequenceViewerV2` + `gene-window` adapter in a read-only "report mode" variant for the genomic track; build new `ProteinDomainTrack.tsx` with UniProt-style protein domain rectangles + patient variant marker + optional ClinVar variant-density toggle (frameshift/nonsense red triangles above with HGVS labels, missense yellow circles below); CAR for Codex on UniProt features API protein-domain endpoint; ~1-2 days). **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents on Eamos integration/UI work ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); real-clock stamps only via `date +"%F %H:%M %z"` ([[feedback_no_clock_timestamps]]); lock protocol per [[feedback_handoff_lock_protocol]]; Hard Rule 10 met (NEW MolecularContextBlock + GeneDiseaseBlock components = net-new capability; section restructure resolves the 11 EvidenceTable orphans + the post-M-007 RPE65 fixture-fallback bug).
 
-- **Codex:** PAUSED @ 2026-05-29 22:20 +1000 - User's next-session directive:
-  work through all 38 extracted `Data and sources 1.docx` lines until every
-  non-commercial-gated item is implemented, verified, or explicitly converted
-  into a current repo blocker. Commercial/licensing-gated items stay gated:
-  InterVar/ANNOVAR/OMIM production use, restricted predictors
-  (SpliceAI/CADD/REVEL/PrimateAI-3D/raw dbNSFP), AlphaMissense display/runtime
-  scoring, and any unreviewed commercial source rights. Current audit state:
-  Mondo fixture/parser exists with OMIM/Orphanet cross-references but no
-  licensed OMIM/Orphanet import; InterVar is a blocked registry/policy row
-  only, while current ACMG work is an Eamos worksheet/source-asserted
-  consensus path rather than InterVar/ANNOVAR. Uncommitted Codex preflight
-  files remain `app/backend/app/cli/eamos_source_asset_preflight.py` and
-  `app/backend/tests/test_source_asset_preflight_cli.py`; `.context/` remains
-  untracked. A Codex->Claude coordination request for the long DOCX 38-line
-  backend buildout was filed at 2026-05-29 22:24 +1000. Focused preflight/
-  source tests, Ruff, Black, `git diff --check`, and the preflight CLI passed;
-  full backend `python -m pytest -q` timed out at 304s before result.
-  Claude acknowledged the 38-line coordination request and pushed the frontend
-  stack through `1a6e680`; Codex fetched and confirmed local `main` equals
-  `origin/main` at `1a6e680`. Claude also flagged the post-M-007
-  `ExpertPanelSection` fixture fallback as a Claude-owned frontend fix; Codex
-  should not spend backend time on it unless a later contract issue is filed.
+- **Codex:** IDLE @ 2026-05-30 01:38 +1000 - Protein Annotation Super Tool
+  local/offline backend slice implemented and verified: asset preflight,
+  ProteinDomainTrack, HMMER/Pfam parser/runner interface, UniProt feature
+  parser, sequence-hash cache, fail-closed API, Workbench/report cache hooks,
+  private Supabase metadata/cache migration scaffolding, and Hard Rule 10
+  precedence amendment. No commit made.
 
 ## Log Edit-Lock
 
@@ -47,7 +31,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-29 22:58 +1000 · Claude (major-boundary Claude section replace + Hard Rule 1 archive; next session = Slice A section restructure)
+UNLOCKED · 2026-05-30 01:42 +1000 · Codex (README amendment, protein annotation logs, RPE65 source-provenance correction, and resume prompt updated)
 
 ## Shared File Locks
 
@@ -78,7 +62,41 @@ Rule 4); release when done.
     Supabase/object-storage/startup downloads, production source imports/
     downloads, uploads/imports, `/runs`, AlphaMissense display/runtime scoring,
     restricted predictor unlocks, WSL, Docker, destructive git, stash, reset,
-    or clean.
+  or clean.
+
+- **Codex RELEASED protein annotation super tool**
+  (2026-05-30 00:08 +1000)
+  - Scope: `app/backend/app/data_sources/**`,
+    `app/backend/app/cli/eamos_source_asset_preflight.py`,
+    `app/backend/app/schemas/**`, `app/backend/app/services/**`,
+    backend tests, `PROGRESS.md`, `plans/v2-backend.md`, `ROADMAP.md`, and
+    Codex-owned handoff updates.
+  - Completed: local/offline protein asset preflight, additive
+    `ProteinDomainTrack` contract, DNA/protein normalization and translation,
+    HMMER/Pfam runner interface, `domtblout` parser, UniProtKB/Swiss-Prot
+    feature parser with raw labels plus display abbreviations plus functional
+    legend descriptions, sequence-hash cache, fail-closed
+    `/api/v1/protein/annotate`, Workbench/report cache hydration hooks, and
+    private Supabase metadata/cache migration scaffolding.
+  - Reference controls: RPE65, USH2A, PCARE `NM_001029883`, DNM1, and FZD5.
+    RPE65 has Pfam/InterPro carotenoid oxygenase/RPE65 family, UniProt
+    iron-binding sites, and UniProt palmitoylation/membrane-form features
+    without a fabricated signal peptide. FZD5 has `SIGNAL`, WNT-binding
+    Frizzled/FZ `CRD`, topology, `TM1`-`TM7`, and PDZ motifs.
+  - Verification: focused protein/contract tests, broader
+    source-preflight/registry/viewer/report/migration/removed-tool suite, full
+    backend `python -m pytest -q`, Ruff, Black, and `git diff --check` passed.
+  - Guardrails held: no live UniProt/InterPro/Pfam API fallback, startup
+    downloads, public buckets, direct frontend SQL, optional InterProScan
+    licensed apps, restricted predictor unlocks, AlphaMissense runtime/display,
+    live Supabase mutation/deploy/env change, WSL/Docker, destructive git,
+    stash, reset, clean, commit, or push.
+
+- **Codex RELEASED README Hard Rule 10 precedence amendment**
+  (2026-05-30 00:42 +1000)
+  - Scope: `agent_handoff/README.md`, `agent_handoff/CURRENT.md`.
+  - Completed: Steven-approved precedence clause inserted immediately under
+    Hard Rule 10; the existing list and exception text were left unchanged.
 
 - **Codex RELEASED lookup-chat adapter + Workbench preflight**
   (2026-05-29 03:58 +1000)
@@ -1902,94 +1920,94 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-29 22:49 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-30 01:38 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
-backend notes. Prior detailed Codex section was already covered by
-`PROGRESS.md` Sessions 83-85 and was not separately archived.
+backend notes. Prior detailed Codex section was covered by `PROGRESS.md`
+Session 88 and replaced at this major boundary.
 
-**Latest Codex update (2026-05-29 22:49 +1000 - Codex):**
-Completed M-007 earlier, pushed through `9ccae51` after Claude's lazy-section
-canary, then started the approved local models/local-source follow-up. Steven
-redirected the work to a line-by-line audit of `Data and sources 1.docx` and
-set the next-session directive: work through all 38 extracted DOCX lines until
-every non-commercial-gated item is implemented, verified, or explicitly
-recorded as blocked by current repo constraints. Claude then pushed the
-frontend stack through `1a6e680`; Codex fetched and confirmed local `main`
-equals `origin/main` at `1a6e680`.
+**Latest Codex update (2026-05-30 01:38 +1000 - Codex):**
+Implemented the first local/offline backend slice of the proprietary Eamos
+Protein Annotation Super Tool. The build covers protein asset preflight for
+the staged ignored Swiss-Prot/Pfam/HMMER/InterProScan bundle, the additive
+`ProteinDomainTrack` contract, DNA/protein normalization and translation,
+HMMER/Pfam runner interface, `domtblout` parser, UniProtKB/Swiss-Prot flatfile
+feature parser, sequence-hash cache, fail-closed `/api/v1/protein/annotate`,
+Workbench/report cache hydration hooks, and private Supabase metadata/cache
+migration scaffolding.
+
+The annotation model now keeps raw upstream labels, compact block
+abbreviations, and functional legend descriptions separate. That handles
+gene/protein-specific cases like FZD5: the raw UniProt feature can remain `FZ`
+while the renderer sees `CRD` and a WNT-binding Frizzled cysteine-rich domain
+description. RPE65 is corrected the same way: carotenoid oxygenase/RPE65 family
+comes from Pfam/InterPro/HMMER provenance, while UniProt supplies Fe-binding
+and palmitoylation/membrane-form sites; no signal peptide is fabricated unless
+local source data has a `SIGNAL` feature.
 
 **State:**
 - Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
-- Claude has committed LazySection v1 plus report shell/right-rail frontend
-  follow-ups; shared `main` is pushed through `1a6e680`.
-- Default `POST /api/v1/lookup` now omits the lazy-heavy fields
-  `report_payload.publications_literature`,
-  `report_payload.report_profile.computational_deep_dive`, and
-  `report_payload.report_profile.expert_panel`.
-- The backend service still builds the full report internally. A full
-  diagnostic `/lookup?include_lazy_sections=true` path remains available for
-  backend regression tests, and `/api/v1/lookup/sections` still serves
-  `publications`, `computational_deep_dive`, and `clingen_vcep` envelopes.
-- RPE65 in-process smoke measured default lookup at `76,197` bytes versus
-  `86,897` bytes for the full diagnostic response, saving `10,700` bytes
-  before compression.
-- Current local-source audit result: Mondo fixture/parser exists with
-  OMIM/Orphanet cross-references, but licensed OMIM/Orphanet import is not
-  built; InterVar is a blocked registry/policy row only, and the current ACMG
-  path is Eamos-owned worksheet/source-asserted consensus, not InterVar/
-  ANNOVAR.
-- Uncommitted Codex files from the paused preflight slice remain
-  `app/backend/app/cli/eamos_source_asset_preflight.py` and
-  `app/backend/tests/test_source_asset_preflight_cli.py`; `.context/` remains
-  untracked.
+- New Codex-owned backend paths include:
+  `app/backend/app/data_sources/protein_assets.py`,
+  `app/backend/app/schemas/protein_annotation.py`,
+  `app/backend/app/services/protein_annotation.py`,
+  `app/backend/app/repos/protein_annotation_cache_repo.py`,
+  `app/backend/app/api/routes/protein_annotation.py`,
+  `app/backend/tests/test_protein_annotation_service.py`, and
+  `supabase/migrations/0008_protein_annotation_metadata_cache.sql`.
+- Updated contracts and integrations include backend config/db/main route
+  wiring, source registry/preflight tests, gene viewer/report molecular context
+  schemas/services, `app/web/lib/backend.ts`, and
+  `app/frontend/src/lib/backend.ts`.
+- Reference-control stack is RPE65, USH2A, PCARE `NM_001029883`, DNM1, and
+  FZD5.
+- Hard Rule 10 precedence amendment is applied in `agent_handoff/README.md`.
+  The active plan and Steven's decisions outrank the rule; unrequested durable
+  structure is a violation, not a satisfaction.
+- No commit was made. Unrelated Claude/frontend report work already present in
+  the worktree was left untouched except for generated backend contract mirrors.
 
 **Verification:**
-- `python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+- `python -m pytest tests/test_protein_annotation_service.py tests/test_frontend_contract.py -q`
   passed.
-- `python -m pytest -q` from `app/backend` passed with known JWT short-key
-  warnings only.
-- `python -m ruff check app/api/routes/lookup.py tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py`
+- `python -m pytest tests/test_protein_annotation_service.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py tests/test_supabase_migrations.py tests/test_franklin_removed.py -q`
   passed.
-- `python -m black --check --target-version py310 app/api/routes/lookup.py tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py`
-  passed after formatting `lookup.py`.
-- `git diff --check` passed.
-- In-process smoke returned HTTP 200 for default `/lookup`, full diagnostic
-  `/lookup?include_lazy_sections=true`, and `/lookup/sections` with all three
-  lazy section keys.
-- For the paused source-preflight slice: focused source-preflight/manifest/
-  hg38/local-evidence pytest, Ruff, Black, `git diff --check`, and
-  `python -m app.cli.eamos_source_asset_preflight --compact` passed.
-- Full backend `python -m pytest -q` during the paused source-preflight slice
-  timed out at 304s before result.
+- `python -m pytest -q` from `app/backend` passed with existing PyJWT short
+  test-secret warnings only.
+- `python -m ruff check app tests` passed.
+- `python -m black --check app tests` passed.
+- `git diff --check` passed; Windows LF-to-CRLF notices only.
 
 **Next-session direction:**
-- Primary next task is no longer a narrow preflight-only slice. Work through
-  all 38 extracted lines from
-  `C:\Users\seamegdool\Desktop\Claude code and website tips\EAMOS Web Tool\sources\database\Data and sources 1.docx`
-  until each non-commercial-gated item is implemented and verified, or has a
-  concrete repo blocker. Keep the audit table current as implementation moves.
-- Commercial/licensing-gated items stay gated unless Steven gives separate
-  explicit approval and the rights are resolved: InterVar/ANNOVAR/OMIM
-  production use, restricted predictors (SpliceAI/CADD/REVEL/PrimateAI-3D/raw
-  dbNSFP), AlphaMissense display/runtime scoring, and unreviewed commercial
-  source rights.
-- Runtime local-source wiring, Supabase/object-storage/startup downloads,
-  production imports/downloads, uploads/imports, env/deploy mutation, WSL, and
-  Docker remain approval-gated. pm-tools remains research-only; do not install,
-  vendor, or shell out to it without review.
+- Frontend/report renderer can now consume `ProteinDomainTrack`: draw compact
+  abbreviation blocks (`CRD`, `TM1`, `Fe`, `Palm`, `PH`, `GED`, etc.) and put
+  expanded abbreviation plus functional biology in the legend.
+- Keep annotation runtime local/offline and fail-closed. Do not add live
+  UniProt/InterPro/Pfam API fallback, startup downloads, public buckets, or
+  direct frontend SQL.
+- Next backend hardening should extract/index the local Pfam/HMMER bundle only
+  when explicitly approved, add cache leak tests around restricted fields, and
+  run Supabase advisor checks only if/when the user approves applying the
+  migration to a real project.
 
-**Clear-safe:** yes for handoff. M-007 and Claude's lazy-section canary are
-pushed. The local-source preflight files are uncommitted and paused in favor of
-the DOCX 38-line completion directive. No runtime local-source wiring,
-Supabase/object-storage/startup download/report provider wiring, production
-source imports/downloads, live Supabase writes/resources/migrations, uploads/
-imports, env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
-restricted predictor unlocks, InterVar/ANNOVAR/OMIM production use, WSL,
-Docker, destructive git, stash, reset, or clean was performed by Codex.
+**Clear-safe:** yes for handoff. The local/offline protein annotation backend
+slice is implemented and verified. No live third-party protein API dependency,
+startup downloads, optional InterProScan licensed apps, SignalP/Phobius/
+DeepTMHMM unlocks, AlphaMissense runtime/display scoring, InterVar/ANNOVAR/
+OMIM production use, public genomic buckets, direct frontend SQL over source
+tables, unrestricted uploads, env/deploy mutation, live Supabase mutation,
+WSL/Docker, destructive git, stash, reset, clean, commit, or push was performed
+by Codex.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-29 22:49 +1000 · Codex DOCX 38-line buildout ready from 1a6e680`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 87, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: Claude pushed frontend commits through 1a6e680 and Codex fetched/confirmed local main == origin/main, so the next session can start the 38-line Data and sources 1.docx buildout without rebase noise. Mondo exists only as fixture/parser + OMIM/Orphanet crossrefs; InterVar is blocked only, not built.`
-`Current dirty files: agent_handoff/CURRENT.md, app/backend/app/cli/eamos_source_asset_preflight.py, app/backend/tests/test_source_asset_preflight_cli.py, plus untracked .context/. Preflight focused tests/Ruff/Black/diff-check/CLI passed; full backend pytest timed out at 304s.`
-`Next: build a task matrix from the 38 DOCX lines and implement non-commercial-gated gaps across backend fixture/local-source/tooling slices until complete, committing only explicit Codex-owned paths if asked.`
-`Guardrails: no InterVar/ANNOVAR/OMIM production use, restricted predictor unlocks, AlphaMissense display/runtime scoring, runtime local-source wiring, Supabase/object-storage/startup downloads, production imports/downloads, uploads/imports, deploy/env mutation, WSL/Docker, destructive git, stash/reset/clean without explicit approval. End clear-safe.`
+```
+# Resume prompt · 2026-05-30 01:38 +1000 · Codex protein annotation local worker complete
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 89, plans/v2-backend.md Recent backend notes, ROADMAP.md Protein Annotation Roadmap, then git status --short --branch.
+
+Delta: Codex implemented the first local/offline Eamos Protein Annotation Super Tool backend slice. Added staged protein-asset preflight, ProteinDomainTrack contract, DNA/protein normalization + translation, HMMER/Pfam runner interface, domtblout parser, UniProtKB/Swiss-Prot flatfile feature parser, sequence-hash cache, fail-closed /api/v1/protein/annotate, Workbench/report cache hydration hooks, and private Supabase metadata/cache migration scaffolding. Reference controls now cover RPE65, USH2A, PCARE (NM_001029883), DNM1, and FZD5. RPE65 has Pfam/InterPro carotenoid oxygenase/RPE65 family provenance plus UniProt Fe-binding and palmitoylation/membrane-form sites, with no fabricated signal peptide. FZD5 has SIGNAL, WNT-binding Frizzled/FZ CRD, topology, TM1-TM7, and PDZ motifs. The renderer contract separates raw source label, compact abbreviation, and functional legend description.
+
+Verification: focused protein/contract tests, broader source-preflight/registry/viewer/report/migration/removed-tool suite, full backend pytest, Ruff, Black, and git diff --check all passed. Black emits the existing Python 3.10 vs target-version warning but exits clean. git diff --check only emitted Windows LF-to-CRLF notices.
+
+Next build: frontend/report renderer can consume ProteinDomainTrack using compact blocks plus a legend that expands abbreviation and functional biology. Backend next hardening is local bundle extraction/indexing only with explicit approval, cache/leak tests, and Supabase advisor checks only if applying the migration to a real project is approved.
+
+Guardrails: no live UniProt/InterPro/Pfam API fallback, no startup downloads, no direct frontend SQL over source tables, no public genomic buckets, no unrestricted uploads, no InterVar/ANNOVAR/OMIM production use, no optional InterProScan licensed apps, no restricted predictor unlocks, no AlphaMissense display/runtime scoring, no deploy/env mutation without explicit approval, no WSL/Docker, no destructive git, no stash/reset/clean without explicit approval. End clear-safe.
+```

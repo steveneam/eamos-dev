@@ -22,6 +22,7 @@ from app.repos.evidence_submissions_repo import (
     EvidenceSubmissionsRepo,
     SupabaseEvidenceSubmissionsRepo,
 )
+from app.repos.protein_annotation_cache_repo import ProteinAnnotationCacheRepo
 from app.repos.run_repo import RunRepo
 from app.repos.subscriptions_repo import SubscriptionsRepo
 from app.repos.source_cache_repo import SourceCacheRepo
@@ -37,6 +38,7 @@ from app.services.gene_viewer import GeneViewerService
 from app.services.intake import IntakeService
 from app.services.lookup_service import LookupService
 from app.services.payments import PaymentsService
+from app.services.protein_annotation import ProteinAnnotationService
 from app.services.recommendation import RecommendationService
 from app.services.report_draft import ReportDraftService
 from app.services.run_chat import RunChatService
@@ -78,6 +80,11 @@ def create_app(settings=None) -> FastAPI:
     users_repo = UsersRepo(db_session_factory)
     variant_cache_repo = VariantCacheRepo(db_session_factory)
     source_cache_repo = SourceCacheRepo(db_session_factory)
+    protein_annotation_cache_repo = ProteinAnnotationCacheRepo(db_session_factory)
+    protein_annotation_service = ProteinAnnotationService(
+        settings=settings,
+        cache_repo=protein_annotation_cache_repo,
+    )
     report_pdf_tool = ReportPdfTool()
     extraction_chain = build_extraction_chain(settings)
     draft_chain = build_draft_chain(settings)
@@ -100,6 +107,8 @@ def create_app(settings=None) -> FastAPI:
     app.state.users_repo = users_repo
     app.state.variant_cache_repo = variant_cache_repo
     app.state.source_cache_repo = source_cache_repo
+    app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
+    app.state.protein_annotation_service = protein_annotation_service
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(
         settings=settings,
@@ -131,7 +140,10 @@ def create_app(settings=None) -> FastAPI:
     app.state.chat_service = ChatService(settings=settings, llm_client=lookup_chat_chain)
     app.state.final_report_service = FinalReportService(settings, run_repo)
     app.state.sequence_context_service = sequence_context_service
-    app.state.gene_viewer_service = GeneViewerService(settings=settings)
+    app.state.gene_viewer_service = GeneViewerService(
+        settings=settings,
+        protein_annotation_service=protein_annotation_service,
+    )
     app.state.workbench_design_service = WorkbenchDesignService(
         settings=settings,
         sequence_context_service=sequence_context_service,

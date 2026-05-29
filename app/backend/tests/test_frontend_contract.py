@@ -38,6 +38,13 @@ from app.schemas.lookup import (
     SearchInputParseResponse,
     SearchInputSourceInputs,
 )
+from app.schemas.protein_annotation import (
+    ProteinAnnotationRequest,
+    ProteinDomainTrack,
+    ProteinDomainTrackFeature,
+    ProteinTrackProvenance,
+    ProteinTrackVariantMarker,
+)
 from app.schemas.gene_viewer import (
     AppliedVariant,
     ClinvarVariant,
@@ -161,6 +168,11 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     SearchInputParseRequest: "SearchInputParseRequest",
     SearchInputParseResponse: "SearchInputParseResponse",
     SearchInputSourceInputs: "SearchInputSourceInputs",
+    ProteinAnnotationRequest: "ProteinAnnotationRequest",
+    ProteinTrackProvenance: "ProteinTrackProvenance",
+    ProteinDomainTrackFeature: "ProteinDomainTrackFeature",
+    ProteinTrackVariantMarker: "ProteinTrackVariantMarker",
+    ProteinDomainTrack: "ProteinDomainTrack",
     RunChatRequest: "RunChatRequest",
     RunChatResponse: "RunChatResponse",
     ReportPayload: "ReportPayload",

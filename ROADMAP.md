@@ -31,6 +31,100 @@
 
 ---
 
+## Backend data live-wire roadmap
+
+The site can move to full live data in staged backend-owned phases, not by
+opening every source at once.
+
+1. **Supabase perimeter first:** private source metadata/status/cache schemas,
+   RLS enabled, no broad anon/authenticated grants, server-only credentials,
+   and advisor/policy checks.
+2. **Small non-commercial imports:** Mondo, HPO, ClinGen gene validity, and
+   GenCC imported through backend jobs with source version, checksum, row-count,
+   provenance, and backend API smoke tests.
+3. **Private large-asset storage:** immutable Supabase Storage objects with
+   checksum manifests, no public bucket listing or raw genomic object reads,
+   and backend local-cache verification.
+4. **Bounded local-source runtime reads:** enable request-time dbSNP/ClinVar/
+   RepeatMasker/phyloP/reference reads only after cache/materialization,
+   timeouts, rate limits, stale/fallback behavior, and live smoke tests pass.
+5. **Licensed/pro-tier sources last:** InterVar/ANNOVAR/OMIM and restricted
+   predictors (SpliceAI/CADD/REVEL/PrimateAI-3D/raw dbNSFP) require commercial
+   rights, product-tier gates, `licensed_enabled` policy rows, and leak tests
+   proving public/free payloads cannot expose restricted fields.
+
+Unsafe defaults: direct frontend SQL over source tables, public genomic buckets,
+startup downloads on Render, unrestricted storage uploads, and request-time
+restricted predictor or InterVar/OMIM use before the gates above.
+
+---
+
+## Protein Annotation Roadmap
+
+The Workbench protein view needs a local/offline protein-annotation track before
+it can match UniProt/Pfam-style references safely.
+
+1. **Terms recorded:** UniProtKB is CC BY 4.0, InterPro/Pfam downloadable data
+   is CC0, InterProScan core is Apache licensed, and HMMER is BSD 3-clause.
+   Core commercial/local use is feasible with attribution, citation,
+   retained notices, checksum/version manifests, and no endorsement claims.
+2. **Core bundle staged locally:** ignored downloads are staged under
+   `app/backend/data/bio_assets/protein_annotation/downloads/` for
+   Swiss-Prot, Pfam-A HMM/metadata, HMMER source, and InterProScan source.
+   They are not installed, extracted, imported, or runtime-wired yet.
+3. **Local annotation engine:** annotate user protein sequences by translating
+   coding DNA to protein and running InterProScan standalone, or HMMER
+   `hmmscan` against a local Pfam-A bundle, in a bounded backend worker with
+   `--no-matches-api` or a local match lookup service.
+4. **Reviewed static mirrors:** mirror only approved, release-pinned UniProtKB
+   reviewed/Swiss-Prot and InterPro/Pfam data with source version, checksum,
+   license/attribution text, and release metadata.
+5. **ProteinDomainTrack contract:** feed protein-coordinate domain/site ranges,
+   Pfam/InterPro accessions, labels, scores, and provenance into the Workbench
+   protein track. Ensembl translation overlap remains a fallback, not the rich
+   source of record.
+
+Still gated: live UniProt/InterPro/Pfam API dependency, startup downloads,
+runtime enablement before the local worker/import path exists, and optional
+InterProScan licensed apps (`SignalP`, `Phobius`, `DeepTMHMM`) until separate
+provider licenses and leak tests are recorded.
+
+### Eamos Protein Annotation Super Tool
+
+This is the proprietary Eamos layer built on top of upstream licensed/open data
+and tools. Eamos can own the worker orchestration, parsers, normalized schema,
+cache, provenance model, UI contract, and live-wire policy. Eamos does not
+relicense UniProtKB, Pfam/InterPro, HMMER, or InterProScan themselves.
+
+Current implementation status (2026-05-30): the first local/offline backend
+slice is implemented and verified. It includes asset preflight,
+`ProteinDomainTrack`, HMMER/Pfam `domtblout` parsing, UniProtKB/Swiss-Prot
+flatfile feature parsing, fail-closed runtime behavior, sequence-hash caching,
+Workbench/report cache hydration hooks, and private Supabase metadata/cache
+migration scaffolding. The renderer contract intentionally separates source
+label, compact abbreviation, and functional legend description so gene/protein-
+specific biology can be shown without falsifying upstream provenance.
+
+1. **Asset preflight:** verify staged Swiss-Prot, Pfam-A, HMMER, and
+   InterProScan files by expected size/hash and report usable/missing status.
+2. **ProteinDomainTrack contract:** define a backend contract for domains,
+   sites, motifs, accession IDs, AA ranges, scores/e-values, release metadata,
+   checksum provenance, and fail-closed states.
+3. **Lean local worker:** translate coding DNA/protein input, run a configured
+   local HMMER/Pfam interface, parse `domtblout`, normalize AA-coordinate
+   features, and cache by sequence hash plus Pfam/HMMER release.
+4. **Fail-closed runtime gate:** expose no live API fallback; if `hmmscan`,
+   Pfam indexes, or provenance are missing, return explicit unavailable states
+   rather than external calls or fabricated domains.
+5. **Workbench/report read path:** feed cached local domain/site features into
+   Workbench and report protein tracks with UniProt/Pfam-style provenance.
+6. **Backend live wiring:** after local preflight, parser, cache, and leak
+   tests pass, add private Supabase metadata/cache tables for source versions,
+   checksums, jobs, and annotation results; keep frontend direct SQL and public
+   buckets blocked.
+
+---
+
 ## Workbench v1 (active)
 
 Source: `Eamos Workbench v1.html` + `Workbench/*.{js,css}`. Plan: `plans/v2-frontend.md`.

@@ -47,13 +47,52 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 23
+    assert len(source_ids) == 28
     assert {
         "myvariant_gnomad_only",
         "intervar_pipeline_config",
         "ncbi_clinvar_vcf",
         "mondo_disease_ontology",
+        "uniprotkb_reviewed_swissprot",
+        "interpro_pfam_protein_matches",
+        "interproscan_standalone",
+        "interproscan_optional_licensed_apps",
+        "hmmer_pfam_a",
     } <= source_ids
+
+
+def test_protein_annotation_rows_are_commercial_allowed_but_not_runtime_approved() -> None:
+    registry = DEFAULT_DATA_SOURCE_REGISTRY
+    source_ids = (
+        "uniprotkb_reviewed_swissprot",
+        "interpro_pfam_protein_matches",
+        "interproscan_standalone",
+        "hmmer_pfam_a",
+    )
+
+    for source_id in source_ids:
+        record = registry.get(source_id)
+        assert record.license_status is LicenseStatus.COMMERCIAL_ALLOWED
+        assert record.download_approved is False
+        assert record.terms_url
+        assert "allowed" in (record.terms_status or "").lower()
+
+    assert "CC BY 4.0" in (registry.get("uniprotkb_reviewed_swissprot").terms_status or "")
+    assert "CC0" in (registry.get("interpro_pfam_protein_matches").terms_status or "")
+    assert "Apache" in (registry.get("interproscan_standalone").terms_status or "")
+    assert "BSD 3-clause" in (registry.get("hmmer_pfam_a").terms_status or "")
+    assert registry.get("interproscan_standalone").adapter == (
+        "offline_sequence_to_interpro_features_worker"
+    )
+    assert registry.get("hmmer_pfam_a").adapter == "offline_hmmscan_pfam_domain_worker"
+    assert "API" in (registry.get("uniprotkb_reviewed_swissprot").notes or "")
+
+    optional_apps = registry.get("interproscan_optional_licensed_apps")
+    assert optional_apps.license_status is LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED
+    assert optional_apps.allowed_fields == ()
+    assert optional_apps.restricted_fields
+    assert optional_apps.download_approved is False
+    assert "SignalP" in (optional_apps.terms_status or "")
 
 
 def test_restricted_predictor_rows_are_present_and_unlicensed() -> None:

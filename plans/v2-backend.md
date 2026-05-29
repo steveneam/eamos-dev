@@ -23,7 +23,101 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-29, Codex):
+Recent backend status notes (2026-05-30, Codex):
+- PROTEIN-ANNOTATION-SUPER-TOOL-LOCAL is implemented and verified. The backend
+  now has a local/offline protein annotation path: staged Swiss-Prot/Pfam/
+  HMMER/InterProScan asset preflight, additive `ProteinDomainTrack` contract,
+  coding-DNA/protein normalization and translation, HMMER/Pfam runner
+  interface, `domtblout` parser, UniProtKB/Swiss-Prot flatfile feature parser,
+  sequence-hash cache keyed by Pfam/HMMER/UniProt release, backend-only
+  `/api/v1/protein/annotate`, and Workbench/report cache-only hydration hooks.
+  Runtime stays fail-closed with no live UniProt/InterPro/Pfam API fallback
+  when local tools, indexes, provenance, or cache are missing. The parser keeps
+  raw source labels separate from compact display abbreviations and functional
+  legend descriptions, so terse source terms such as FZD5 `FZ` can render as
+  `CRD` with a WNT-binding Frizzled cysteine-rich description while provenance
+  remains truthful. Reference controls now cover RPE65, USH2A, PCARE
+  `NM_001029883`, DNM1, and FZD5; RPE65's family/domain comes from
+  Pfam/InterPro/HMMER provenance, UniProt supplies Fe-binding and
+  palmitoylation/membrane-form sites, and RPE65 is explicitly not given a
+  signal peptide unless a source supplies `SIGNAL`. Added private Supabase migration
+  scaffolding for protein source versions, annotation jobs, and cached results
+  under `eamos_private` with RLS and service-role-only grants. Focused protein/
+  registry/viewer/report/migration tests, full backend pytest, Ruff, Black, and
+  `git diff --check` passed. No live Supabase mutation/deploy/env change was
+  performed.
+- DOCX-38-SOURCE-MATRIX-PREFLIGHT is implemented and verified. The backend
+  now has `app/backend/app/data_sources/docx_blueprint.py`, a structured
+  38-line matrix for `Data and sources 1.docx`, exposed through
+  `python -m app.cli.eamos_source_asset_preflight` as
+  `docx_blueprint.task_matrix`. Current matrix result:
+  `line_count=38`, `non_commercial_line_count=35`,
+  `non_commercial_unresolved_gap_count=0`, and
+  `commercial_gated_line_numbers=[16, 33, 38]` for InterVar/ANNOVAR/OMIM and
+  restricted predictor unlocks. Existing backend fixture/local-source/tooling
+  slices cover or correct the non-commercial rows: hg38/twobitreader, dbSNP,
+  ClinVar, RepeatMasker, phyloP proof, MANE/GENCODE transcript models,
+  Mondo/HPO/ClinGen/GenCC clinical source parsers, and MyVariant gnomAD-only
+  restricted-field policy. Focused source/preflight pytest, preflight CLI,
+  Ruff, Black, and diff-check passed. No Supabase writes/storage/imports,
+  runtime local-source wiring, production downloads, startup downloads,
+  InterVar/OMIM production use, or restricted predictor unlocks were done.
+- SUPABASE-LIVE-WIRE-ROADMAP is the next safe path to full live runtime:
+  1. backend-only Supabase perimeter for private source metadata/status/cache
+     tables, with migrations, RLS enabled, no broad anon/authenticated access,
+     server-only secret/service credentials, and advisor/policy verification;
+  2. small non-commercial table imports (Mondo, HPO, ClinGen gene validity,
+     GenCC) through backend-owned import jobs with source version, checksum,
+     row-count, provenance, and API smoke tests;
+  3. private Storage objects for large assets, with immutable object paths,
+     checksum manifests, no public bucket listing/object reads, and backend
+     local-cache verification;
+  4. bounded request-time local-source reads only after cache/materialization,
+     timeouts, rate limits, stale/fallback behavior, and live smoke tests are
+     green;
+  5. InterVar/OMIM/restricted predictor runtime use only after commercial
+     rights, product-tier gates, `licensed_enabled` policy rows, and leak tests
+     prove public/free payloads cannot serialize restricted fields. Public
+     genomic buckets, direct frontend SQL over source tables, startup downloads
+     on Render, and unrestricted uploads are not safe defaults.
+- PROTEIN-ANNOTATION-SUPPLEMENT is now explicit in the DOCX matrix output.
+  The original 38 DOCX rows did not cover the richer Workbench/report protein
+  annotation Steven wants. `docx_blueprint.supplemental_requests.S1` records
+  UniProtKB reviewed Swiss-Prot, InterPro/Pfam protein matches, InterProScan
+  standalone, InterProScan optional licensed apps, and HMMER/Pfam-A. Core terms
+  are now recorded: UniProtKB is CC BY 4.0, InterPro/Pfam downloadable data is
+  CC0, InterProScan core is Apache licensed, and HMMER is BSD 3-clause. Core
+  commercial/local use is feasible with attribution/citation/notices, but
+  `download_approved=false`, no live API runtime use is approved, and optional
+  `SignalP`/`Phobius`/`DeepTMHMM` apps remain component-license blocked. Steven
+  approved staging the core offline bundle; ignored local downloads now exist
+  under `app/backend/data/bio_assets/protein_annotation/downloads/` for
+  `uniprot_sprot.dat.gz`, `Pfam-A.hmm.gz`, `Pfam-A.hmm.dat.gz`,
+  `hmmer.tar.gz`, and `interproscan6-main.zip`, with sizes and checksum plans
+  recorded in the registry. Next backend path is local/offline: translate the
+  submitted coding sequence to protein, run InterProScan standalone or HMMER
+  `hmmscan` against the local Pfam-A/InterPro bundle, parse protein-coordinate
+  domains/sites, cache by sequence hash and data/tool release, then feed the
+  Workbench `ProteinDomainTrack`. Eamos still cannot locally generate
+  UniProtKB-level expert curation.
+- EAMOS-PROTEIN-SUPER-TOOL is the next planned backend buildout. It is the
+  proprietary Eamos layer over upstream licensed/open assets, not a relicensing
+  of UniProtKB/Pfam/HMMER/InterProScan. Sequence:
+  1. add a protein-asset preflight for the staged Swiss-Prot/Pfam/HMMER/
+     InterProScan bundle;
+  2. define the `ProteinDomainTrack` backend contract for domains/sites/motifs,
+     AA coordinates, accessions, scores/e-values, source release, checksum, and
+     fail-closed states;
+  3. build the lean local worker first: DNA/protein input -> protein sequence
+     -> configured HMMER/Pfam runner -> `domtblout` parser -> normalized
+     domain features -> cache by sequence hash plus Pfam/HMMER release;
+  4. keep runtime fail-closed with no live API fallback when `hmmscan`, Pfam
+     indexes, provenance, or cache rows are missing;
+  5. feed cached local domain/site features into Workbench/report protein
+     tracks;
+  6. only after local preflight/parser/cache/leak tests pass, add backend-only
+     Supabase metadata/cache tables for source versions, checksums, jobs, and
+     annotation results. Direct frontend SQL and public buckets stay blocked.
 - M-007-EAGER-PAYLOAD-TRIM is implemented and verified. Default
   `POST /api/v1/lookup` now omits the M11 lazy-heavy fields
   `report_payload.publications_literature`,

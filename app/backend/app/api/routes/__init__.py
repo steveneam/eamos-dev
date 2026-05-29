@@ -7,6 +7,7 @@ from app.api.routes.gene_viewer import router as gene_viewer_router
 from app.api.routes.health import router as health_router
 from app.api.routes.lookup import router as lookup_router
 from app.api.routes.payments import router as payments_router
+from app.api.routes.protein_annotation import router as protein_annotation_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.reviews import router as reviews_router
 from app.api.routes.runs import router as runs_router
@@ -22,6 +23,7 @@ def build_api_router() -> APIRouter:
     router.include_router(gene_viewer_router)
     router.include_router(lookup_router)
     router.include_router(payments_router)
+    router.include_router(protein_annotation_router)
     router.include_router(reports_router)
     router.include_router(reviews_router)
     router.include_router(runs_router)

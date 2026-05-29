@@ -825,6 +825,7 @@ export interface MolecularContextSection {
   loeuf?: number | null
   clingen_haploinsufficiency?: string | null
   overlapping_cnvs: string[]
+  protein_domain_track?: ProteinDomainTrack | null
   provenance: SourceProvenance[]
   warnings: string[]
 }
@@ -1043,6 +1044,7 @@ export interface GeneContextSnapshot {
   zoom_window?: ViewerWindow | null
   zoom_segments: ViewerSegment[]
   zoom_sequences?: ViewerSequences | null
+  protein_domain_track?: ProteinDomainTrack | null
   render_hints: GeneContextRenderHints
   workbench_link?: GeneContextWorkbenchLink | null
   provenance: SourceProvenance[]
@@ -1437,6 +1439,112 @@ export interface ProteinProductEffect {
   exon_effects: ProteinProductExonEffect[]
 }
 
+export type ProteinAnnotationInputType = 'auto' | 'protein' | 'coding_dna'
+export type ProteinAnnotationStatus =
+  | 'available'
+  | 'cache_hit'
+  | 'unavailable'
+  | 'failed'
+  | 'partial'
+export type ProteinDomainFeatureKind =
+  | 'domain'
+  | 'site'
+  | 'motif'
+  | 'repeat'
+  | 'region'
+  | 'family'
+  | 'epitope'
+  | 'coiled_coil'
+  | 'low_complexity'
+  | 'signal_peptide'
+  | 'transmembrane'
+  | 'topological_domain'
+export type ProteinVariantMarkerShape = 'triangle' | 'circle' | 'star' | 'pin'
+
+export interface ProteinAnnotationRequest {
+  sequence: string
+  input_type: ProteinAnnotationInputType
+  sequence_label?: string | null
+  gene_symbol?: string | null
+  transcript?: string | null
+  protein_accession?: string | null
+  use_cache: boolean
+  allow_run: boolean
+}
+
+export interface ProteinTrackProvenance {
+  source_id: string
+  source_name: string
+  source_url?: string | null
+  source_release?: string | null
+  checksum_md5?: string | null
+  checksum_sha256?: string | null
+  license_status?: string | null
+  warnings: string[]
+}
+
+export interface ProteinDomainTrackFeature {
+  feature_id: string
+  kind: ProteinDomainFeatureKind
+  label: string
+  short_label?: string | null
+  aa_start: number
+  aa_end: number
+  accession?: string | null
+  interpro_accession?: string | null
+  source: string
+  source_accession?: string | null
+  source_release?: string | null
+  source_checksum_md5?: string | null
+  source_checksum_sha256?: string | null
+  score?: number | null
+  e_value?: number | null
+  hmm_start?: number | null
+  hmm_end?: number | null
+  envelope_start?: number | null
+  envelope_end?: number | null
+  description?: string | null
+  lane: string
+  warnings: string[]
+}
+
+export interface ProteinTrackVariantMarker {
+  marker_id: string
+  aa_start: number
+  aa_end: number
+  label: string
+  hgvs_c?: string | null
+  hgvs_p?: string | null
+  variant_class?: string | null
+  classification?: string | null
+  marker_shape: ProteinVariantMarkerShape
+  is_query: boolean
+  source?: string | null
+  warnings: string[]
+}
+
+export interface ProteinDomainTrack {
+  status: ProteinAnnotationStatus
+  fail_closed_reason?: string | null
+  sequence_label?: string | null
+  gene_symbol?: string | null
+  transcript?: string | null
+  protein_accession?: string | null
+  protein_sequence_hash?: string | null
+  sequence_hash_algorithm: 'sha256'
+  protein_length?: number | null
+  translated_from: 'protein' | 'coding_dna' | 'unknown'
+  cache_key?: string | null
+  cache_status: 'cache_hit' | 'cache_miss' | 'stored' | 'not_used'
+  pfam_release?: string | null
+  hmmer_release?: string | null
+  uniprot_release?: string | null
+  features: ProteinDomainTrackFeature[]
+  variant_markers: ProteinTrackVariantMarker[]
+  provenance: ProteinTrackProvenance[]
+  warnings: string[]
+}
+
 export interface ProteinFeatures {
   signal_peptide?: ProteinRangeFeature | null
   transmembrane: ProteinRangeFeature[]
@@ -1444,6 +1552,7 @@ export interface ProteinFeatures {
   active_sites: ProteinActiveSite[]
   membrane_binding: ProteinRangeFeature[]
   palmitoylation: ProteinPointFeature[]
+  domain_track?: ProteinDomainTrack | null
 }
 
 export interface RestrictionSite {

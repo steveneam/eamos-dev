@@ -202,6 +202,35 @@ class SourceCacheRecord(Base):
     )
 
 
+class ProteinAnnotationCacheRecord(Base):
+    __tablename__ = "protein_annotation_cache"
+    __table_args__ = (
+        Index(
+            "ix_protein_annotation_cache_sequence_release",
+            "sequence_hash",
+            "pfam_release",
+            "hmmer_release",
+            "uniprot_release",
+            unique=True,
+        ),
+    )
+
+    cache_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sequence_hash: Mapped[str] = mapped_column(String(64), index=True)
+    protein_length: Mapped[int] = mapped_column(Integer)
+    pfam_release: Mapped[str] = mapped_column(String(160), index=True)
+    hmmer_release: Mapped[str] = mapped_column(String(160), index=True)
+    uniprot_release: Mapped[str | None] = mapped_column(String(160), index=True, nullable=True)
+    cache_key: Mapped[str] = mapped_column(String(512), index=True)
+    track: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
 def _build_search_documents_fts_expression(search_documents_table):
     simple_cfg = text("'simple'")
     english_cfg = text("'english'")
@@ -275,6 +304,7 @@ def initialize_database(session_factory) -> None:
     engine = session_factory.kw["bind"]
     Base.metadata.create_all(engine)
     _ensure_user_evidence_submission_payload_column(engine)
+    _ensure_protein_annotation_cache_uniprot_release_column(engine)
     _ensure_postgres_search_indexes(engine)
 
 
@@ -297,6 +327,18 @@ def _ensure_user_evidence_submission_payload_column(engine) -> None:
             "ALTER TABLE user_evidence_submissions "
             "ADD COLUMN submission_payload JSON DEFAULT '{}'"
         )
+    with engine.begin() as connection:
+        connection.execute(text(statement))
+
+
+def _ensure_protein_annotation_cache_uniprot_release_column(engine) -> None:
+    if "protein_annotation_cache" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("protein_annotation_cache")}
+    if "uniprot_release" in columns:
+        return
+
+    statement = "ALTER TABLE protein_annotation_cache ADD COLUMN uniprot_release VARCHAR(160)"
     with engine.begin() as connection:
         connection.execute(text(statement))
 

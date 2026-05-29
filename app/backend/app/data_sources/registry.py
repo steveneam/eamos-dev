@@ -1035,6 +1035,261 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         terms_status="GenCC CC0/disclaimer terms recorded; backend approval still required",
     ),
     DataSourceRecord(
+        source_id="uniprotkb_reviewed_swissprot",
+        display_name="UniProtKB reviewed Swiss-Prot protein annotations",
+        priority="p5_protein_annotation_terms_recorded",
+        tier="tier_3_5_protein_annotation_asset",
+        day1_status="candidate_terms_recorded_not_enabled",
+        files_or_api=(
+            "UniProtKB reviewed Swiss-Prot canonical entries",
+            "optional human reviewed subset",
+        ),
+        upstream_source="UniProt Consortium",
+        source_url="https://www.uniprot.org/help/downloads",
+        source_url_status="official_download_docs_recorded_no_runtime_api_dependency",
+        expected_size="download/subset size to be recorded during approved staging",
+        storage_target="object_storage_or_mounted_volume_after_import_approval",
+        temporary_staging="check_actual_size_stage_on_C_if_greater_than_10gb",
+        adapter="local_uniprotkb_feature_store",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_and_commercial_after_import_approval",),
+        allowed_fields=(
+            "protein_accession",
+            "protein_name",
+            "sequence_length",
+            "curated_feature_ranges",
+            "active_sites",
+            "binding_sites",
+            "ptm_sites",
+            "cross_references",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="local_static_release_with_manifest_checksum",
+        download_approved=False,
+        actual_size_bytes_local=692563345,
+        current_local_path=(
+            "app/backend/data/bio_assets/protein_annotation/downloads/" "uniprot_sprot.dat.gz"
+        ),
+        current_local_md5="d6bd6e9435cd819b64cd888068530a45",
+        source_version="UniProtKB/Swiss-Prot current_release downloaded 2026-05-29",
+        checksum_plan=(
+            "Local staged SHA256 "
+            "bb3815e7b6445566ad9c8479f659033aa2115ed3cf2b06e61ae37c1dabc60438; "
+            "record upstream release notes before production import."
+        ),
+        terms_url="https://www.uniprot.org/help/license",
+        terms_status=(
+            "UniProt databases are CC BY 4.0 for copyrightable database "
+            "content. Commercial use is allowed with attribution, license "
+            "link, change notices when applicable, no endorsement implication, "
+            "and UniProt disclaimer/patent caveats recorded."
+        ),
+        notes=(
+            "Use as the curated protein-feature source via release-pinned "
+            "local import/mirror only. Live UniProt API calls are not an "
+            "approved runtime dependency."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="interpro_pfam_protein_matches",
+        display_name="InterPro/Pfam protein-domain matches",
+        priority="p5_protein_annotation_terms_recorded",
+        tier="tier_3_5_protein_annotation_asset",
+        day1_status="candidate_terms_recorded_not_enabled",
+        files_or_api=("InterPro/Pfam protein match data", "Pfam protein-coordinate ranges"),
+        upstream_source="EMBL-EBI InterPro / Pfam",
+        source_url="https://interpro-documentation.readthedocs.io/en/latest/license.html",
+        source_url_status="official_license_docs_recorded_no_runtime_api_dependency",
+        expected_size="download/subset size to be recorded during approved staging",
+        storage_target="object_storage_or_mounted_volume_after_import_approval",
+        temporary_staging="check_actual_size_stage_on_C_if_greater_than_10gb",
+        adapter="local_interpro_pfam_match_store",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_and_commercial_after_import_approval",),
+        allowed_fields=(
+            "pfam_accession",
+            "interpro_accession",
+            "domain_name",
+            "aa_start",
+            "aa_end",
+            "match_score",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="local_static_release_with_manifest_checksum",
+        download_approved=False,
+        actual_size_bytes_local=384357362,
+        current_local_path=(
+            "app/backend/data/bio_assets/protein_annotation/downloads/" "Pfam-A.hmm.gz"
+        ),
+        current_local_md5="dc814cc181ece09102c09c4e6c19f2fd",
+        source_version="Pfam current_release downloaded 2026-05-29",
+        checksum_plan=(
+            "Local staged Pfam-A.hmm.gz SHA256 "
+            "d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591; "
+            "Pfam-A.hmm.dat.gz sidecar size 718721 bytes, MD5 "
+            "41a8fb4c9391e814795587fcdc8baa33, SHA256 "
+            "4da981816a630fd77171cc5d369716bbe16e58dae8be8047ac1118e0bd64ebe4."
+        ),
+        terms_url="https://www.ebi.ac.uk/about/terms-of-use/",
+        terms_status=(
+            "InterPro, Pfam, PRINTS, and SFLD downloadable data on the "
+            "InterPro website are CC0; no special commercial license is "
+            "required, so commercial use is allowed. Citations and bundled "
+            "copyright statements still need to be retained."
+        ),
+        notes=(
+            "Preferred domain-architecture source for the richer protein "
+            "view. Use local release data only; API access is not approved by "
+            "this row."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="interproscan_standalone",
+        display_name="InterProScan standalone sequence annotator",
+        priority="p5_local_sequence_annotation_terms_recorded",
+        tier="tier_2_5_local_annotation_engine",
+        day1_status="candidate_terms_recorded_not_enabled",
+        files_or_api=("InterProScan standalone package", "InterProScan data bundle"),
+        upstream_source="EMBL-EBI InterPro",
+        source_url="https://interproscan-docs.readthedocs.io/en/v6/HowToInstall.html",
+        source_url_status="official_install_docs_recorded_no_runtime_api_dependency",
+        expected_size="large local tool/data bundle; exact size to be recorded before staging",
+        storage_target="mounted_volume_or_worker_image_after_import_approval",
+        temporary_staging="check_actual_size_stage_on_C_if_greater_than_10gb",
+        adapter="offline_sequence_to_interpro_features_worker",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_and_commercial_after_import_approval",),
+        allowed_fields=(
+            "local_sequence_domain_predictions",
+            "families",
+            "domains",
+            "functional_sites",
+            "go_terms_if_available",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="offline_job_cache_by_sequence_hash_and_tool_release",
+        download_approved=False,
+        actual_size_bytes_local=58031205,
+        current_local_path=(
+            "app/backend/data/bio_assets/protein_annotation/downloads/" "interproscan6-main.zip"
+        ),
+        current_local_md5="97d76552a7886ebe6ac944786fae4363",
+        source_version="ebi-pf-team/interproscan6 main zip downloaded 2026-05-29",
+        checksum_plan=(
+            "Local staged SHA256 "
+            "80ed03963f9f313c1e717b53fae54f063938e30bfaf415801599df18cab670e5; "
+            "pin a tagged InterProScan release before production worker image build."
+        ),
+        terms_url="https://interproscan-docs.readthedocs.io/en/v6/index.html",
+        terms_status=(
+            "InterProScan software is Apache licensed. Core local processing "
+            "is allowed, but included tools/signature collections can have "
+            "different terms; SignalP, Phobius, and DeepTMHMM remain disabled "
+            "unless separately licensed."
+        ),
+        notes=(
+            "This is the no-API path for annotating novel user sequences. It "
+            "should run as a bounded backend job with --no-matches-api or a "
+            "local MLS, not a Render startup download."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="interproscan_optional_licensed_apps",
+        display_name="InterProScan optional licensed apps",
+        priority="p5_optional_protein_annotation_licensed_apps",
+        tier="tier_2_5_local_annotation_engine",
+        day1_status="blocked_until_component_licenses",
+        files_or_api=("SignalP", "Phobius", "DeepTMHMM"),
+        upstream_source="SignalP, Phobius, and DeepTMHMM providers",
+        source_url="https://interproscan-docs.readthedocs.io/en/v6/InstallingLicensedApps.html",
+        source_url_status="official_docs_recorded_separate_licenses_required",
+        expected_size="component-specific licensed downloads",
+        storage_target="not_enabled_until_license_proof",
+        temporary_staging="not_applicable_until_licensed",
+        adapter="disabled_optional_interproscan_apps_policy",
+        license_status=LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED,
+        allowed_product_tiers=("blocked_until_licensed",),
+        allowed_fields=(),
+        restricted_fields=(
+            "signal_peptide_predictions",
+            "transmembrane_topology_predictions",
+        ),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="disabled_until_component_license_and_version_record",
+        download_approved=False,
+        terms_url="https://interproscan-docs.readthedocs.io/en/v6/InstallingLicensedApps.html",
+        terms_status=(
+            "InterProScan docs state SignalP, Phobius, and DeepTMHMM analyses "
+            "are deactivated by default due to licensing and require licenses "
+            "and files from their respective providers."
+        ),
+        notes=(
+            "Not required for the core Pfam/InterPro domain track. Keep these "
+            "apps disabled until component licenses, checksums, and leak tests "
+            "are recorded."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="hmmer_pfam_a",
+        display_name="HMMER hmmscan with Pfam-A profiles",
+        priority="p5_local_sequence_annotation_terms_recorded",
+        tier="tier_2_5_local_annotation_engine",
+        day1_status="candidate_terms_recorded_not_enabled",
+        files_or_api=("hmmscan", "Pfam-A.hmm", "hmmpress indexes"),
+        upstream_source="HMMER / EMBL-EBI Pfam",
+        source_url="http://hmmer.org/",
+        source_url_status="official_source_docs_recorded_no_runtime_api_dependency",
+        expected_size="Pfam-A profile database is large; exact size to be recorded before staging",
+        storage_target="mounted_volume_or_worker_image_after_import_approval",
+        temporary_staging="check_actual_size_stage_on_C_if_greater_than_10gb",
+        adapter="offline_hmmscan_pfam_domain_worker",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_and_commercial_after_import_approval",),
+        allowed_fields=(
+            "pfam_accession",
+            "domain_name",
+            "aa_start",
+            "aa_end",
+            "e_value",
+            "bit_score",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="offline_job_cache_by_sequence_hash_and_pfam_release",
+        download_approved=False,
+        actual_size_bytes_local=19669667,
+        current_local_path=(
+            "app/backend/data/bio_assets/protein_annotation/downloads/" "hmmer.tar.gz"
+        ),
+        current_local_md5="b1ed21ceea33930222c84f8c4d9f4240",
+        source_version="HMMER source tarball 3.4 downloaded 2026-05-29",
+        checksum_plan=(
+            "Local staged SHA256 "
+            "ca70d94fd0cf271bd7063423aabb116d42de533117343a9b27a65c17ff06fbf3; "
+            "build/install step remains explicit and is not performed by "
+            "download staging."
+        ),
+        terms_url="https://raw.githubusercontent.com/EddyRivasLab/hmmer/master/LICENSE",
+        terms_status=(
+            "HMMER source is BSD 3-clause licensed. Pfam is CC0 through the "
+            "InterPro/Pfam docs. Commercial local hmmscan use is allowed when "
+            "notices and citations are retained."
+        ),
+        notes=(
+            "Lean fallback if full InterProScan is too heavy. This predicts "
+            "Pfam domains locally, but it is not a substitute for UniProtKB "
+            "expert curation."
+        ),
+    ),
+    DataSourceRecord(
         source_id="myvariant_gnomad_only",
         display_name="MyVariant gnomAD-only API adapter",
         priority="p2_day1_api_after_policy",

@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.protein_annotation import ProteinDomainTrack
+
 AlleleMode = Literal["reference", "variant"]
 GenomeStrand = Literal["+", "-", "unknown"]
 ViewerTrack = Literal[
@@ -258,6 +260,7 @@ class ProteinFeatures(BaseModel):
     active_sites: list[ProteinActiveSite] = Field(default_factory=list)
     membrane_binding: list[ProteinRangeFeature] = Field(default_factory=list)
     palmitoylation: list[ProteinPointFeature] = Field(default_factory=list)
+    domain_track: ProteinDomainTrack | None = None
 
 
 class RestrictionSite(BaseModel):

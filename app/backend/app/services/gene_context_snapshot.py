@@ -178,6 +178,7 @@ def _snapshot_from_source_bundle(
         zoom_window=response.window,
         zoom_segments=response.segments,
         zoom_sequences=response.sequences,
+        protein_domain_track=response.tracks.protein_features.domain_track,
         render_hints=_render_hints(exons=exons, introns=introns, zoom_flank_bp=120),
         workbench_link=_workbench_link(
             gene=response.identity.gene,
@@ -221,6 +222,7 @@ def _snapshot_from_rpe65_fixture(response: GeneViewerResponse) -> GeneContextSna
         zoom_window=response.window,
         zoom_segments=response.segments,
         zoom_sequences=response.sequences,
+        protein_domain_track=response.tracks.protein_features.domain_track,
         render_hints=_render_hints(exons=exons, introns=introns, zoom_flank_bp=120),
         workbench_link=_workbench_link(
             gene=response.identity.gene,

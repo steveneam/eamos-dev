@@ -40,10 +40,15 @@ from app.schemas.gene_viewer import (
     ViewerWindow,
     ViewerWindowRequest,
 )
+from app.schemas.protein_annotation import ProteinAnnotationRequest
 from app.services.sequence_context import (
     NormalizedVariantQuery,
     normalize_sequence_query,
     unsupported_input_warning,
+)
+from app.services.protein_annotation import (
+    ProteinAnnotationService,
+    protein_features_from_domain_track,
 )
 from app.services.workbench_design import (
     WORKBENCH_PROVIDER_FAILED_PREFIX,
@@ -149,10 +154,16 @@ class GeneViewerError(Exception):
 class GeneViewerFixtureProvider:
     curated_fixture_name = "gene_viewer_transcript_models.json"
 
-    def __init__(self, fixtures_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        fixtures_dir: Path | None = None,
+        *,
+        protein_annotation_service: ProteinAnnotationService | None = None,
+    ) -> None:
         self.fixtures_dir = fixtures_dir or (
             Path(__file__).resolve().parents[1] / "fixtures" / "workbench"
         )
+        self.protein_annotation_service = protein_annotation_service
         self._fixture_cache: dict[str, dict[str, Any]] = {}
 
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
@@ -190,7 +201,12 @@ class GeneViewerFixtureProvider:
     ) -> SourceBackedViewerBundle:
         query = query or normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
         fixture = self._load(self.curated_fixture_name)
-        return _curated_fixture_viewer_bundle(payload=payload, query=query, fixture=fixture)
+        return _curated_fixture_viewer_bundle(
+            payload=payload,
+            query=query,
+            fixture=fixture,
+            protein_annotation_service=self.protein_annotation_service,
+        )
 
     def _load(self, name: str) -> dict[str, Any]:
         cached = self._fixture_cache.get(name)
@@ -219,12 +235,18 @@ class GeneViewerService:
         self,
         *,
         settings: Settings | None = None,
+        protein_annotation_service: ProteinAnnotationService | None = None,
         fixture_provider: GeneViewerFixtureProvider | None = None,
         live_provider: GeneViewerProvider | None = None,
     ) -> None:
         self.settings = settings
-        self.fixture_provider = fixture_provider or GeneViewerFixtureProvider()
-        self.live_provider = live_provider or SourceBackedGeneViewerProvider(settings=settings)
+        self.fixture_provider = fixture_provider or GeneViewerFixtureProvider(
+            protein_annotation_service=protein_annotation_service,
+        )
+        self.live_provider = live_provider or SourceBackedGeneViewerProvider(
+            settings=settings,
+            protein_annotation_service=protein_annotation_service,
+        )
 
     def build_viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
         if self.settings is not None and self.settings.use_real_apis:
@@ -775,11 +797,13 @@ class SourceBackedGeneViewerProvider:
         source_client: GeneViewerSourceClient | None = None,
         builder: TranscriptWindowBuilder | None = None,
         fixture_provider: GeneViewerFixtureProvider | None = None,
+        protein_annotation_service: ProteinAnnotationService | None = None,
     ) -> None:
         self.settings = settings
         self.source_client = source_client or HttpGeneViewerSourceClient(settings)
         self.builder = builder or TranscriptWindowBuilder()
         self.fixture_provider = fixture_provider or GeneViewerFixtureProvider()
+        self.protein_annotation_service = protein_annotation_service
 
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
         if payload.window.kind == "full_gene":
@@ -1080,6 +1104,7 @@ def _curated_fixture_viewer_bundle(
     payload: GeneViewerRequest,
     query: NormalizedVariantQuery,
     fixture: dict[str, Any],
+    protein_annotation_service: ProteinAnnotationService | None = None,
 ) -> SourceBackedViewerBundle:
     record = _curated_fixture_record(fixture=fixture, query=query)
     if record is None:
@@ -1125,6 +1150,11 @@ def _curated_fixture_viewer_bundle(
         reference_protein_length=source.protein_length,
         exons=source.exons,
     )
+    _hydrate_response_with_record_protein_track(
+        response=response,
+        record=record,
+        protein_annotation_service=protein_annotation_service,
+    )
     exon_number = next(
         (exon.number for exon in source.exons if exon.cds_start <= variant.cds_pos <= exon.cds_end),
         None,
@@ -1139,6 +1169,55 @@ def _curated_fixture_viewer_bundle(
         transcript_source=source,
         response=response,
     )
+
+
+def _hydrate_response_with_record_protein_track(
+    *,
+    response: GeneViewerResponse,
+    record: dict[str, Any],
+    protein_annotation_service: ProteinAnnotationService | None,
+) -> None:
+    if protein_annotation_service is None:
+        return
+    coding_dna = _coding_dna_from_record(record)
+    if coding_dna is None:
+        return
+    track = protein_annotation_service.annotate(
+        ProteinAnnotationRequest(
+            sequence=coding_dna,
+            input_type="coding_dna",
+            sequence_label=(
+                f"{str(record.get('gene') or '').upper()} "
+                f"{str(record.get('transcript') or '').strip()} reference"
+            ).strip(),
+            gene_symbol=str(record.get("gene") or "").upper() or None,
+            transcript=str(record.get("transcript") or "").strip() or None,
+            use_cache=True,
+            allow_run=False,
+        )
+    )
+    if track.status not in {"available", "cache_hit"}:
+        return
+    response.tracks.protein_features = protein_features_from_domain_track(
+        response.tracks.protein_features,
+        track,
+    )
+    response.provenance.warnings = _dedupe_warnings(
+        [*response.provenance.warnings, "protein_domain_track_from_local_cache"]
+    )
+
+
+def _coding_dna_from_record(record: dict[str, Any]) -> str | None:
+    sequence = "".join(
+        str(exon.get("sequence") or "")
+        for exon in sorted(
+            [item for item in record.get("exons") or [] if isinstance(item, dict)],
+            key=lambda item: int(item["cds_start"]),
+        )
+    ).upper()
+    if not sequence or not re.fullmatch(r"[ACGTUN]+", sequence):
+        return None
+    return sequence
 
 
 def _full_gene_fixture_response(
