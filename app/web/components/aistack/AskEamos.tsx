@@ -80,7 +80,7 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
       }}
     >
       <header
-        className="flex items-center gap-2.5"
+        className="flex flex-wrap items-center gap-2.5"
         style={{
           padding: '14px 26px',
           background: 'var(--teal-tint)',

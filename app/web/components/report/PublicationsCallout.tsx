@@ -78,7 +78,7 @@ export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummar
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           {scope === 'variant' ? (
             <p
               style={{
