@@ -1,6 +1,6 @@
 # Database / Webserver Current State
 
-Last updated: 2026-05-30 04:14 +1000 by Codex.
+Last updated: 2026-05-30 05:14 +1000 by Codex.
 
 ## Supabase Project
 
@@ -10,6 +10,21 @@ Last updated: 2026-05-30 04:14 +1000 by Codex.
 - Status at discovery: `ACTIVE_HEALTHY`
 - Guardrail: Codex performed no Render deploy/env mutation. Claude/Steven are
   coordinating Render env/deploy after code push.
+
+## Render Services
+
+- Current target backend: `eamos-dev-sg`
+  - Service id: `srv-d8ctvoh9rddc73a27nb0`
+  - Region: Singapore
+  - Plan: Starter
+  - URL: `https://eamos-dev-sg.onrender.com`
+  - Docker root: `app/backend`
+  - Auto-deploy: off
+  - Last reported live commit before this debug patch: `a94ec37`
+- Old backend still running: `eamos-dev`
+  - Service id: `srv-d896ie77f7vs73brs140`
+  - Region: Oregon
+  - FE/Vercel was still pointed here at Claude handoff time.
 
 ## Applied Private Migrations
 
@@ -49,10 +64,9 @@ Tier 1/Tier 2 source asset metadata:
 - `eamos_private.source_asset_objects`
 - `eamos_private.source_asset_materializations`
 
-Current row counts after rollback smokes: all new private tables remain empty.
-The cache wiring code is pushed to `main` in `e7f8ab6`, but it is not live on
-Render until the service is redeployed with a real private Supabase Postgres DB
-URL.
+Current row counts after rollback smokes and real-API lookup attempts: cache
+tables remain empty. The cache wiring code was pushed to `main` in `e7f8ab6`;
+the cache write observability/fail-fast fix was pushed in `3412d91`.
 
 ## Advisor Status
 
@@ -68,6 +82,13 @@ URL.
 - Clinical source table DDL advisor checks passed; rows remain empty.
 - Source-asset metadata rollback smoke inserted one `source_asset_objects` row and one verified `source_asset_materializations` row, proved RLS enabled, proved public-access and ready-without-verification constraints reject bad rows, then rolled back.
 - Follow-up count query showed `source_asset_objects=0`, `source_asset_materializations=0`, `clinical_mondo_diseases=0`, `clinical_hpo_terms=0`, and `local_source_versions=0`.
+- Codex direct SQL smoke against `eamos_private.local_model_cache_entries` on
+  2026-05-30 validated the same insert/upsert shape used by the app; the smoke
+  row was deleted immediately. This indicates the table DDL/upsert SQL is not
+  the blocker.
+- Codex SSH attempt to `srv-d8ctvoh9rddc73a27nb0@ssh.singapore.render.com`
+  timed out locally before producing a banner or command output, so Codex did
+  not run the Render one-off job.
 
 ## Frontend / Claude Boundary
 
@@ -91,13 +112,20 @@ Current decision:
 
 ## Next Safe Steps
 
-1. In Render backend env only, use `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true`, a real private Supabase Postgres DB URL with SSL required, and `SUPABASE_LOCAL_MODEL_CACHE_SCHEMA=eamos_private`; do not put these values in Vercel or `NEXT_PUBLIC_*`.
-2. Redeploy/restart Render onto `main` at or after `e7f8ab6`.
-3. Run `python -m app.cli.warm_source_cache --real-apis` against the deployed backend environment, then verify durable rows in `eamos_private.local_model_cache_entries`.
-4. Add/import job code for Tier 3 source tables using existing parsers, with source-version rows and idempotent upserts.
-5. Load dev fixture rows first, then consider real MONDO/HPO/ClinGen/GenCC imports only after explicit download/import approval.
-6. Add metadata-only source rows for Tier 1/Tier 2 assets from the DOCX matrix.
-7. Decide whether `hg38.2bit` or ClinVar VCF is the first private Storage pilot.
+1. Deploy `main` at or after `3412d91` to `eamos-dev-sg`.
+2. Run `python -m app.cli.warm_source_cache --real-apis` on `eamos-dev-sg`.
+   The CLI now performs a Supabase cache write/read/delete smoke first and
+   should fail loudly if the session-pooler URL, password, SSL, schema, or
+   privileges are wrong.
+3. If the web lookup path still falls back locally, check Render logs for
+   `Supabase local model cache write failed; using local fallback`. The log
+   includes cache family/source and sanitized DB error details, but not raw
+   cache keys.
+4. Verify durable rows in `eamos_private.local_model_cache_entries`.
+5. Add/import job code for Tier 3 source tables using existing parsers, with source-version rows and idempotent upserts.
+6. Load dev fixture rows first, then consider real MONDO/HPO/ClinGen/GenCC imports only after explicit download/import approval.
+7. Add metadata-only source rows for Tier 1/Tier 2 assets from the DOCX matrix.
+8. Decide whether `hg38.2bit` or ClinVar VCF is the first private Storage pilot.
 
 ## Claude Coordination Note
 
