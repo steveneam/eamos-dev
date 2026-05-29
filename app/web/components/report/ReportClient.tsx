@@ -27,6 +27,7 @@ import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnaps
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { MatrixOverture } from '@/components/report/MatrixOverture'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
+import { ReportRail } from '@/components/report/ReportRail'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
@@ -294,7 +295,23 @@ export function ReportClient() {
         </div>
       </TopNav>
 
-      <main className="mx-auto" style={{ maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}>
+      <div
+        className="mx-auto"
+        style={{
+          maxWidth: 'var(--shell-w)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 'var(--rail-gap)',
+        }}
+      >
+      <main
+        style={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          maxWidth: 'var(--maxw-report-frame)',
+          padding: '32px 32px 80px',
+        }}
+      >
         {state.kind === 'loading' && <LoadingBlock query={queryLabel} />}
         {state.kind === 'error' && (
           <ErrorBlock
@@ -341,6 +358,18 @@ export function ReportClient() {
           />
         )}
       </main>
+      <aside
+        className="hidden xl:block"
+        style={{
+          width: 'var(--rail-w)',
+          flexShrink: 0,
+          paddingTop: 32,
+          paddingRight: 16,
+        }}
+      >
+        <ReportRail reportVersion="2026.05" />
+      </aside>
+      </div>
     </div>
   )
 }
@@ -492,6 +521,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
         <CallCardsGrid payload={payload} />
 
         {/* 1 · Population frequency (gnomAD) */}
+        <div id="population_frequency" className="scroll-mt-24" />
         {populationSection && (
           <Card
             number={1}
@@ -562,6 +592,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
         <ExpertPanelSection data={payload.report_profile?.expert_panel} />
 
         {/* 3 · Gene context snapshot (Locus context merged in). */}
+        <div id="gene_context" className="scroll-mt-24" />
         <GeneContextSnapshotSection
           number={3}
           snapshot={payload.report_profile?.gene_context_snapshot}

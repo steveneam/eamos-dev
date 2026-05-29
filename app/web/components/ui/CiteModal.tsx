@@ -4,7 +4,7 @@ import { useEffect, useRef, type RefObject } from 'react'
 
 interface CiteModalProps {
   onClose: () => void
-  returnFocusRef: RefObject<HTMLButtonElement | null>
+  returnFocusRef: RefObject<HTMLElement | null>
   /** Resolved by parent on /report routes; falls back to template tokens off-report. */
   variantDisplay?: string | null
   date?: string | null

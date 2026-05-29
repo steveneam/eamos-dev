@@ -16,7 +16,10 @@ function formatDate(d: Date): string {
 
 export function CiteChip() {
   const [citeOpen, setCiteOpen] = useState(false)
-  const citeButtonRef = useRef<HTMLButtonElement>(null)
+  // Ref is on the bottom-left Feedback chip wrapper now — the modal's
+  // return-focus target lands on a stable on-screen element regardless of
+  // viewport (the rail's Cite button is hidden < xl).
+  const citeButtonRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -69,8 +72,13 @@ export function CiteChip() {
 
   return (
     <>
-      {/* Bottom-left fixed chip */}
+      {/* Bottom-left fixed Feedback chip. The Cite action moved into the
+          right-side ReportRail (xl+) — see app/web/components/report/
+          ReportRail.tsx. CiteChip still owns the modal mount + the `?cite=1`
+          URL-param listener so the rail button (and any deep link) opens it
+          through the same path. */}
       <div
+        ref={citeButtonRef}
         style={{
           position: 'fixed',
           bottom: '16px',
@@ -86,7 +94,6 @@ export function CiteChip() {
           padding: '2px',
         }}
       >
-        {/* Feedback */}
         <button
           onClick={() => console.log('TODO: feedback')}
           aria-label="Send feedback"
@@ -94,28 +101,6 @@ export function CiteChip() {
         >
           <FeedbackIcon />
           Feedback
-        </button>
-
-        {/* Divider */}
-        <div
-          aria-hidden="true"
-          style={{
-            width: '0.5px',
-            height: '18px',
-            background: 'var(--line)',
-            flexShrink: 0,
-          }}
-        />
-
-        {/* Cite */}
-        <button
-          ref={citeButtonRef}
-          onClick={openCite}
-          aria-label="How to cite Eamos"
-          style={chipBtnStyle}
-        >
-          <CiteIcon />
-          Cite
         </button>
       </div>
 

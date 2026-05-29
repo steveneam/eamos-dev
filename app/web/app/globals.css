@@ -134,13 +134,22 @@
 
   /* Surface width helpers */
   --maxw-report: 920px;            /* legacy single-column measure */
-  --maxw-report-frame: 1140px;     /* v2 report outer frame — aligns with nav; dense modules span this */
+  --maxw-report-frame: 1140px;     /* v2 report reading column — body content max-width */
   --maxw-prose: 720px;             /* readable prose measure inside the ruled column */
   --maxw-nav: 1180px;
   --maxw-landing: 1180px;
   --maxw-workbench: 1440px;
   --maxw-workbench-rail: 64px;
   --maxw-workbench-side: 360px;
+
+  /* Report shell — reading column + (optional) right rail.
+     At < xl breakpoints the shell width equals --maxw-report-frame and the
+     rail is hidden (handled in ReportRail.tsx via `hidden xl:block`). At xl+
+     the shell expands to include rail + gap so the page reads as one bound
+     surface rather than a centered column floating in cream. */
+  --rail-w: 240px;
+  --rail-gap: 32px;
+  --shell-w: var(--maxw-report-frame);
 
   /* === Dashboard Interaction Language — elevation + motion ===
      DESIGN.md "Dashboard Interaction Language". Depth tied to --ink
@@ -194,6 +203,27 @@
   font-family: var(--body);
   color: var(--ink);
   background: var(--bg-soft);
+}
+
+/* Report shell — responsive widths.
+   xl (≥1280): rail enabled; shell = reading column + rail + gap.
+   2xl (≥1536): reading column can breathe; rail gets a touch wider so the
+                rail/column ratio stays journal-like, not skinny-with-poster. */
+@media (min-width: 1280px) {
+  :root {
+    --shell-w: calc(var(--maxw-report-frame) + var(--rail-w) + var(--rail-gap));
+  }
+}
+@media (min-width: 1536px) {
+  :root {
+    --maxw-report-frame: 1240px;
+    --rail-w: 280px;
+  }
+}
+@media (min-width: 1920px) {
+  :root {
+    --maxw-report-frame: 1360px;
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════════ */
