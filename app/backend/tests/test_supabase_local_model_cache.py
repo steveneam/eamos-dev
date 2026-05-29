@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from app.core.config import Settings
@@ -60,6 +61,22 @@ class FakeLocalModelCacheStore:
             raise SupabaseLocalModelCacheError("job write failed")
         self.jobs.append(kwargs)
 
+    def smoke_test(self) -> None:
+        entry = LocalModelCacheEntry(
+            cache_family="supabase_cache_smoke",
+            source_id="warm_source_cache",
+            cache_key="smoke:test",
+            status="smoke",
+            payload={"ok": True},
+        )
+        self.upsert_entry(entry)
+        assert self.get_entry(
+            cache_family=entry.cache_family,
+            source_id=entry.source_id,
+            cache_key=entry.cache_key,
+        )
+        del self.entries[(entry.cache_family, entry.source_id, entry.cache_key)]
+
 
 def _session_factory(tmp_path: Path):
     session_factory = build_session_factory(
@@ -93,7 +110,9 @@ def test_variant_cache_reads_supabase_dev_cache_on_local_miss(tmp_path: Path) ->
 
 def test_variant_cache_write_through_keeps_local_cache_when_supabase_fails(
     tmp_path: Path,
+    caplog,
 ) -> None:
+    caplog.set_level(logging.WARNING, logger="app.repos.supabase_local_model_cache_repo")
     local_repo = VariantCacheRepo(_session_factory(tmp_path))
     store = FakeLocalModelCacheStore()
     store.fail_write = True
@@ -114,6 +133,9 @@ def test_variant_cache_write_through_keeps_local_cache_when_supabase_fails(
     assert hit is not None
     assert hit["strict_genomic_cache"]["variant"]["genomic_hg38"] == "1-216247118-C-A"
     assert store.entries == {}
+    assert "Supabase local model cache write failed; using local fallback" in caplog.text
+    assert "cache_family=variant_report" in caplog.text
+    assert "USH2A:c.2276G>T" not in caplog.text
 
 
 def test_source_cache_remote_round_trip_preserves_freshness_and_warnings() -> None:
@@ -305,12 +327,12 @@ def test_landing_example_warmer_uses_supabase_hybrid_cache_when_enabled(
         supabase_local_model_cache_enabled=True,
         supabase_local_model_cache_database_url="postgresql+psycopg://unused",
     )
-    variant_repo, source_repo, enabled = warm_source_cache._build_cache_repos(
+    variant_repo, source_repo, supabase_store = warm_source_cache._build_cache_repos(
         settings,
         _session_factory(tmp_path),
     )
 
-    assert enabled is True
+    assert supabase_store is store
     assert isinstance(variant_repo, HybridVariantCacheRepo)
     assert isinstance(source_repo, HybridSourceCacheRepo)
 
@@ -337,3 +359,11 @@ def test_landing_example_warmer_uses_supabase_hybrid_cache_when_enabled(
 
     assert ("source_cache", "pubmed", "RPE65:c.260A>G") in store.entries
     assert ("variant_report", "variant_cache", "RPE65:c.260A>G") in store.entries
+
+
+def test_supabase_cache_store_smoke_test_round_trip_cleans_up() -> None:
+    store = FakeLocalModelCacheStore()
+
+    store.smoke_test()
+
+    assert store.entries == {}

@@ -34,16 +34,24 @@ def main() -> int:
         action="store_true",
         help="Allow fresh cache hits instead of forcing live refresh.",
     )
+    parser.add_argument(
+        "--skip-supabase-smoke",
+        action="store_true",
+        help="Skip the fail-fast Supabase cache write/read/delete smoke.",
+    )
     args = parser.parse_args()
 
     settings = Settings(use_real_apis=True) if args.real_apis else Settings()
     ensure_runtime_dirs(settings)
     session_factory = build_session_factory(settings.database_url)
     initialize_database(session_factory)
-    variant_cache_repo, source_cache_repo, supabase_cache_enabled = _build_cache_repos(
+    variant_cache_repo, source_cache_repo, supabase_store = _build_cache_repos(
         settings,
         session_factory,
     )
+    supabase_cache_enabled = supabase_store is not None
+    if supabase_store is not None and not args.skip_supabase_smoke:
+        supabase_store.smoke_test()
 
     service = LookupService(
         tool_registry=build_tool_registry(settings),
@@ -71,7 +79,7 @@ def _build_cache_repos(settings: Settings, session_factory):
     source_cache_repo = SourceCacheRepo(session_factory)
     supabase_store = build_supabase_local_model_cache_store(settings)
     if supabase_store is None:
-        return variant_cache_repo, source_cache_repo, False
+        return variant_cache_repo, source_cache_repo, None
     return (
         HybridVariantCacheRepo(
             local_repo=variant_cache_repo,
@@ -81,7 +89,7 @@ def _build_cache_repos(settings: Settings, session_factory):
             local_repo=source_cache_repo,
             remote_repo=SupabaseSourceCacheRepo(supabase_store),
         ),
-        True,
+        supabase_store,
     )
 
 

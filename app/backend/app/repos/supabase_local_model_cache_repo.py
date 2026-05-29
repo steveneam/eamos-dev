@@ -3,14 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 import re
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import text
 
 from app.core.db import build_session_factory, session_scope
 from app.repos.source_cache_repo import SourceCachePayload
 from app.schemas.protein_annotation import ProteinDomainTrack
+
+logger = logging.getLogger(__name__)
 
 
 class SupabaseLocalModelCacheError(RuntimeError):
@@ -103,7 +107,9 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                     .one_or_none()
                 )
         except Exception as exc:
-            raise SupabaseLocalModelCacheError("Supabase cache read failed.") from exc
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase cache read failed.", exc)
+            ) from exc
         if row is None:
             return None
         return LocalModelCacheEntry(
@@ -203,7 +209,75 @@ class SqlAlchemySupabaseLocalModelCacheStore:
             with session_scope(self.session_factory) as session:
                 session.execute(statement, params)
         except Exception as exc:
-            raise SupabaseLocalModelCacheError("Supabase cache write failed.") from exc
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase cache write failed.", exc)
+            ) from exc
+
+    def delete_entry(
+        self,
+        *,
+        cache_family: str,
+        source_id: str,
+        cache_key: str,
+    ) -> None:
+        statement = text(f"""
+            delete from {self.cache_table}
+            where cache_family = :cache_family
+              and source_id = :source_id
+              and cache_key = :cache_key
+            """)
+        try:
+            with session_scope(self.session_factory) as session:
+                session.execute(
+                    statement,
+                    {
+                        "cache_family": cache_family,
+                        "source_id": source_id,
+                        "cache_key": cache_key,
+                    },
+                )
+        except Exception as exc:
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase cache delete failed.", exc)
+            ) from exc
+
+    def smoke_test(self) -> None:
+        cache_family = "supabase_cache_smoke"
+        source_id = "warm_source_cache"
+        cache_key = f"smoke:{uuid4().hex}"
+        try:
+            self.upsert_entry(
+                LocalModelCacheEntry(
+                    cache_family=cache_family,
+                    source_id=source_id,
+                    cache_key=cache_key,
+                    normalized_identity={"smoke": True},
+                    request_identity={"smoke": True},
+                    status="smoke",
+                    payload={"ok": True},
+                    provenance={"repo": "SqlAlchemySupabaseLocalModelCacheStore.smoke_test"},
+                    warnings=[],
+                    fetched_at=_now(),
+                )
+            )
+            hit = self.get_entry(
+                cache_family=cache_family,
+                source_id=source_id,
+                cache_key=cache_key,
+            )
+            if hit is None:
+                raise SupabaseLocalModelCacheError(
+                    "Supabase cache smoke failed: write returned no readable row."
+                )
+        finally:
+            try:
+                self.delete_entry(
+                    cache_family=cache_family,
+                    source_id=source_id,
+                    cache_key=cache_key,
+                )
+            except SupabaseLocalModelCacheError as exc:
+                logger.warning("Supabase cache smoke cleanup failed: %s", exc)
 
     def record_source_version(
         self,
@@ -284,7 +358,9 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                     },
                 )
         except Exception as exc:
-            raise SupabaseLocalModelCacheError("Supabase source version write failed.") from exc
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase source version write failed.", exc)
+            ) from exc
 
     def record_job(
         self,
@@ -342,7 +418,9 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                     },
                 )
         except Exception as exc:
-            raise SupabaseLocalModelCacheError("Supabase local model job write failed.") from exc
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase local model job write failed.", exc)
+            ) from exc
 
 
 class SupabaseVariantCacheRepo:
@@ -593,14 +671,26 @@ class HybridVariantCacheRepo:
             return hit
         try:
             return self.remote_repo.get_fresh(query_string, ttl_days)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="read",
+                cache_family="variant_report",
+                source_id="variant_cache",
+                error=exc,
+            )
             return None
 
     def upsert(self, query_string: str, **kwargs) -> None:
         self.local_repo.upsert(query_string, **kwargs)
         try:
             self.remote_repo.upsert(query_string, **kwargs)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="write",
+                cache_family="variant_report",
+                source_id="variant_cache",
+                error=exc,
+            )
             return
 
 
@@ -615,7 +705,13 @@ class HybridSourceCacheRepo:
             return hit
         try:
             return self.remote_repo.get_fresh(source, cache_key)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="read",
+                cache_family="source_cache",
+                source_id=source,
+                error=exc,
+            )
             return None
 
     def get_stale(self, source: str, cache_key: str) -> SourceCachePayload | None:
@@ -624,7 +720,13 @@ class HybridSourceCacheRepo:
             return hit
         try:
             return self.remote_repo.get_stale(source, cache_key)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="stale_read",
+                cache_family="source_cache",
+                source_id=source,
+                error=exc,
+            )
             return None
 
     def get_any(self, source: str, cache_key: str) -> SourceCachePayload | None:
@@ -633,14 +735,26 @@ class HybridSourceCacheRepo:
             return hit
         try:
             return self.remote_repo.get_any(source, cache_key)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="read_any",
+                cache_family="source_cache",
+                source_id=source,
+                error=exc,
+            )
             return None
 
     def upsert(self, source: str, cache_key: str, **kwargs) -> None:
         self.local_repo.upsert(source, cache_key, **kwargs)
         try:
             self.remote_repo.upsert(source, cache_key, **kwargs)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="write",
+                cache_family="source_cache",
+                source_id=source,
+                error=exc,
+            )
             return
 
     def health_summary(self) -> dict[str, Any]:
@@ -677,14 +791,26 @@ class HybridProteinAnnotationCacheRepo:
                 hmmer_release=hmmer_release,
                 uniprot_release=uniprot_release,
             )
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="read",
+                cache_family="protein_annotation",
+                source_id="eamos_protein_annotation_super_tool",
+                error=exc,
+            )
             return None
 
     def upsert(self, track: ProteinDomainTrack) -> None:
         self.local_repo.upsert(track)
         try:
             self.remote_repo.upsert(track)
-        except SupabaseLocalModelCacheError:
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="write",
+                cache_family="protein_annotation",
+                source_id="eamos_protein_annotation_super_tool",
+                error=exc,
+            )
             return
 
 
@@ -728,3 +854,39 @@ def _aware_or_none(value: Any) -> datetime | None:
     if not isinstance(value, datetime):
         return None
     return _as_aware(value)
+
+
+def _safe_error_message(prefix: str, exc: Exception) -> str:
+    original = getattr(exc, "orig", None)
+    if original is not None:
+        detail = f"{type(original).__name__}: {_redact_secret_text(str(original))}"
+    else:
+        first_line = str(exc).splitlines()[0] if str(exc) else ""
+        detail = f"{type(exc).__name__}: {_redact_secret_text(first_line)}"
+    return f"{prefix} {detail}".strip()
+
+
+def _redact_secret_text(value: str) -> str:
+    value = re.sub(r"(?i)(password=)[^\\s&]+", r"\1<redacted>", value)
+    return re.sub(
+        r"(postgres(?:ql)?(?:\\+psycopg)?://[^:\\s/@]+:)[^@\\s]+(@)",
+        r"\1<redacted>\2",
+        value,
+    )
+
+
+def _log_remote_cache_fallback(
+    *,
+    operation: str,
+    cache_family: str,
+    source_id: str,
+    error: SupabaseLocalModelCacheError,
+) -> None:
+    logger.warning(
+        "Supabase local model cache %s failed; using local fallback "
+        "(cache_family=%s, source_id=%s): %s",
+        operation,
+        cache_family,
+        source_id,
+        error,
+    )
