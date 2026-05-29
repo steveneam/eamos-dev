@@ -19,10 +19,18 @@ interface GeneContextSnapshotSectionProps {
   sectionTarget?: ReportExtractionSectionTarget | null
   /** Optional section number rendered in the Card header (1–7). */
   number?: number
+  /** Override the Card title — defaults to the snapshot's own title or
+   *  "Gene context snapshot". Slice A renames this card to "Gene & locus
+   *  context" at the call site. */
+  title?: string
   /** Optional Locus context (variant ±40bp) shown inside this card — the
    *  former standalone Locus card was merged in for tighter "gene context"
    *  grouping. */
   locus?: LocusContextData | null
+  /** Extra content rendered between the locus block and the transcript-
+   *  figures Disclosure. Used by Slice A to drop the MolecularContextBlock
+   *  into the same card. */
+  extraContent?: ReactNode
   /** Optional action slot (CopyButton) forwarded to the Card header. */
   actions?: ReactNode
 }
@@ -49,7 +57,9 @@ export function GeneContextSnapshotSection({
   snapshot,
   sectionTarget,
   number,
+  title,
   locus,
+  extraContent,
   actions,
 }: GeneContextSnapshotSectionProps) {
   const allWarnings = useMemo(() => {
@@ -80,7 +90,7 @@ export function GeneContextSnapshotSection({
     <section id={snapshot.section_id} className="scroll-mt-24">
       <Card
         number={number}
-        title={snapshot.title || 'Gene context snapshot'}
+        title={title || snapshot.title || 'Gene context snapshot'}
         meta={meta}
         actions={actions}
       >
@@ -116,6 +126,8 @@ export function GeneContextSnapshotSection({
             <LocusContext data={locus} />
           </div>
         )}
+
+        {extraContent}
 
         <Disclosure
           id={snapshot.panel_id}

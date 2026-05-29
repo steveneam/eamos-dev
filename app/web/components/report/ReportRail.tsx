@@ -25,13 +25,13 @@ export interface RailSection {
 
 const DEFAULT_SECTIONS: RailSection[] = [
   { id: 'population_frequency', num: 1, label: 'Population frequency' },
-  { id: 'evidence_by_source', num: 2, label: 'Evidence by source' },
-  { id: 'expert_panel', num: null, label: 'Expert panel' },
-  { id: 'gene_context', num: 3, label: 'Gene context' },
-  { id: 'associated_conditions', num: 4, label: 'Disease & conditions' },
-  { id: 'publications', num: 5, label: 'Publications' },
-  { id: 'trials', num: 6, label: 'Trials & therapies' },
-  { id: 'ai_summary', num: 7, label: 'AI summary' },
+  { id: 'evidence_by_source', num: 2, label: 'In-silico predictions' },
+  { id: 'clinical_evidence', num: 3, label: 'Clinical evidence' },
+  { id: 'gene_context', num: 4, label: 'Gene & locus context' },
+  { id: 'associated_conditions', num: 5, label: 'Disease & curated variants' },
+  { id: 'publications', num: 6, label: 'Publications' },
+  { id: 'trials', num: 7, label: 'Trials & therapies' },
+  { id: 'ai_summary', num: 8, label: 'AI summary' },
 ]
 
 interface ReportRailProps {

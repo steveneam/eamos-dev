@@ -19,7 +19,6 @@ import { CompositeVerdictBar } from '@/components/report/CompositeVerdictBar'
 import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
 import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
 import { AssociatedConditions } from '@/components/report/AssociatedConditions'
-import { PublicationsCallout } from '@/components/report/PublicationsCallout'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
@@ -27,6 +26,8 @@ import { GeneContextSnapshotSection } from '@/components/report/GeneContextSnaps
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { MatrixOverture } from '@/components/report/MatrixOverture'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
+import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
+import { GeneDiseaseBlock } from '@/components/report/GeneDiseaseBlock'
 import { ReportRail } from '@/components/report/ReportRail'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
@@ -541,25 +542,46 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           </Card>
         )}
 
-        {/* 2 · Evidence by source (in-silico + ClinVar + ACMG).
-            Per Steven 2026-05-29: per-source detail trimmed to ClinVar only —
-            every other source (variant_validator, gnomad, ensembl, spliceai,
-            clingen, gene_disease, molecular_context, computational_annotations,
-            pubmed, litvar2, clinical_trials, vep) already has — or will have —
-            its own home in §1/§3/§4/§5/§6 or in the variant header. The copy
-            payload mirrors what's visible: in-silico + ClinVar + ACMG. */}
+        {/* 2 · In-silico predictions — engines + calibrated buckets only.
+            Verdict accent and ClinVar/ACMG moved to §3 Clinical evidence in
+            Slice A; per-source data for variant_validator/gnomad/ensembl/
+            spliceai/clingen/gene_disease/molecular_context/computational_
+            annotations/pubmed/litvar2/clinical_trials/vep is already rendered
+            elsewhere or in the variant header. */}
         <div id="evidence_by_source" className="scroll-mt-24" />
         <Card
           number={2}
-          title="Evidence by source"
-          meta="in-silico · ClinVar · ACMG"
+          title="In-silico predictions"
+          meta="engines · calibrated"
+          actions={
+            <CopyButton
+              text={{
+                html: htmlEvidenceBySource(payload, payload.in_silico_predictions, null, []),
+                text: tsvEvidenceBySource(payload, payload.in_silico_predictions, null, []),
+              }}
+              label="Copy in-silico (paste into Excel for formatted table)"
+            />
+          }
+        >
+          <CompositeVerdictBar predictors={payload.report_profile?.computational_deep_dive?.predictors} />
+          <CalibratedInSilicoTable predictors={payload.report_profile?.computational_deep_dive?.predictors} />
+        </Card>
+
+        {/* 3 · Clinical evidence — ClinVar + Expert panel + ACMG together.
+            ExpertPanelSection stops being unnumbered; the verdict accent
+            (derived from ACMG classification) moves here with it. */}
+        <div id="clinical_evidence" className="scroll-mt-24" />
+        <Card
+          number={3}
+          title="Clinical evidence"
+          meta="ClinVar · Expert panel · ACMG"
           verdict={verdict}
           actions={
             <CopyButton
               text={{
                 html: htmlEvidenceBySource(
                   payload,
-                  payload.in_silico_predictions,
+                  null,
                   payload.acmg_criteria_scaffold,
                   data.evidence
                     .filter((e) => e.source?.toLowerCase() === 'clinvar')
@@ -567,37 +589,34 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
                 ),
                 text: tsvEvidenceBySource(
                   payload,
-                  payload.in_silico_predictions,
+                  null,
                   payload.acmg_criteria_scaffold,
                   data.evidence
                     .filter((e) => e.source?.toLowerCase() === 'clinvar')
                     .map((e) => ({ source: e.source, status: e.status, summary: e.summary })),
                 ),
               }}
-              label="Copy evidence (paste into Excel for formatted table)"
+              label="Copy clinical evidence (paste into Excel for formatted table)"
             />
           }
         >
-          <CompositeVerdictBar predictors={payload.report_profile?.computational_deep_dive?.predictors} />
-          <CalibratedInSilicoTable predictors={payload.report_profile?.computational_deep_dive?.predictors} />
           <ClinVarBlock evidence={data.evidence} />
+          <ExpertPanelSection data={payload.report_profile?.expert_panel} />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
-        {/* Expert Panel (ClinGen VCEP) — mock-first per CAR #3 (opened 2026-05-28 03:18 +1000).
-            Sits between §2 Evidence by source and §3 Gene context snapshot, unnumbered to avoid
-            renumbering the existing sections. Swaps from inline RPE65 IRD VCEP fixture to live
-            payload data once Codex closes CAR #3 (additive `report_profile.expert_panel`). */}
-        <div id="expert_panel" className="scroll-mt-24" />
-        <ExpertPanelSection data={payload.report_profile?.expert_panel} />
-
-        {/* 3 · Gene context snapshot (Locus context merged in). */}
+        {/* 4 · Gene & locus context — gene snapshot + locus diagram + the
+            new MolecularContextBlock (gnomAD constraint, ClinGen dosage,
+            overlapping CNVs) read from the `molecular_context` evidence row.
+            (Renamed from old §3 "Gene context snapshot".) */}
         <div id="gene_context" className="scroll-mt-24" />
         <GeneContextSnapshotSection
-          number={3}
+          number={4}
+          title="Gene & locus context"
           snapshot={payload.report_profile?.gene_context_snapshot}
           sectionTarget={targetFor('gene_context_snapshot')}
           locus={payload.locus_context}
+          extraContent={<MolecularContextBlock evidence={data.evidence} />}
           actions={
             <CopyButton
               text={{
@@ -617,12 +636,16 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           }
         />
 
-        {/* 4 · Gene context & associated conditions. */}
+        {/* 5 · Disease & curated variants — disease mechanism + curated
+            variant distribution + associated conditions + the new
+            GeneDiseaseBlock (ClinGen Gene-Disease Validity from the
+            `gene_disease` evidence row). PublicationsCallout moved to §6.
+            (Renamed from old §4 "Gene context & associated conditions".) */}
         <div id="associated_conditions" className="scroll-mt-24" />
         <div id="curated_variants" className="scroll-mt-24" />
         <Card
-          number={4}
-          title="Gene context & associated conditions"
+          number={5}
+          title="Disease & curated variants"
           meta={geneContextMeta}
           actions={
             <CopyButton
@@ -645,18 +668,10 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
           <CuratedVariantsGrid data={payload.curated_variants_distribution} />
           <AssociatedConditions data={payload.associated_conditions} />
-          <PublicationsCallout
-            data={payload.publications_callout}
-            scopeCounts={
-              payload.publications_callout?.scope_counts ??
-              payload.publications_literature?.scope_counts ??
-              null
-            }
-            geneSymbol={payload.report_profile?.header?.gene ?? null}
-          />
+          <GeneDiseaseBlock evidence={data.evidence} />
         </Card>
 
-        {/* 5 · Publication literature. */}
+        {/* 6 · Publication literature. */}
         {/* LazySection v1: when the backend ships `publications_literature`
             inline (today: offline demo + eager live), we render the existing
             PubMedSection immediately via `eagerData`. When the eager payload
@@ -682,7 +697,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           {(lit) => (
             <PubMedSection
               payload={{ ...payload, publications_literature: lit }}
-              number={5}
+              number={6}
               actions={
                 <CopyButton
                   text={{
@@ -696,12 +711,12 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           )}
         </LazySection>
 
-        {/* 6 · Active trials & approved therapies. */}
+        {/* 7 · Active trials & approved therapies. */}
         <div id="trials" className="scroll-mt-24" />
         <TrialsSection
           key={`trials-${variantKey}`}
           payload={payload}
-          number={6}
+          number={7}
           actions={
             <CopyButton
               text={{
@@ -719,11 +734,11 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyPr
           }
         />
 
-        {/* 7 · AI evidence summary — last so the deterministic source rows
+        {/* 8 · AI evidence summary — last so the deterministic source rows
             anchor the read before the synthesised summary. */}
         <div id="ai_summary" className="scroll-mt-24" />
         <Card
-          number={7}
+          number={8}
           title="AI evidence summary"
           meta="deterministic · cited"
           actions={

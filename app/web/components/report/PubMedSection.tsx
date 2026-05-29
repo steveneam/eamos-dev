@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { PublicationTimelineChart } from '@/components/report/PublicationTimelineChart'
 import { PublicationModal, usePublicationUrl } from '@/components/report/PublicationModal'
+import { PublicationsCallout } from '@/components/report/PublicationsCallout'
 import { lookupPublications } from '@/lib/api'
 import type { PublicationSnippet, PubMedArticle, ReportPayload } from '@/lib/backend'
 
@@ -118,11 +119,25 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
 
   const moreCount = Math.min(PAGE_SIZE, total - shownCount)
 
+  // Variant ↔ gene scope callout migrated up from old §4 so the scope toggle
+  // lives with the publications section it actually controls. URL param
+  // `?pubScope=variant|gene` continues to drive it; clicks on the toggle do
+  // NOT push to URL (per M-001 scope).
+  const calloutScopeCounts =
+    payload.publications_callout?.scope_counts ??
+    payload.publications_literature?.scope_counts ??
+    null
+
   return (
     <Card number={number} title="Publication literature" meta={meta} actions={actions}>
       <style>{pubStyles}</style>
+      <PublicationsCallout
+        data={payload.publications_callout}
+        scopeCounts={calloutScopeCounts}
+        geneSymbol={gene || null}
+      />
       {articles.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: 0 }}>
+        <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '14px 0 0' }}>
           No publication rows available for this lookup.
         </p>
       ) : (

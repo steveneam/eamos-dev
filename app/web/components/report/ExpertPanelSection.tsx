@@ -2,11 +2,10 @@
 
 import { Card, type Verdict } from '@/components/ui/Card'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
-import {
-  EXPERT_PANEL_RPE65_FIXTURE,
-  type ExpertPanelClassification,
-  type ExpertPanelCriterion,
-  type ExpertPanelData,
+import type {
+  ExpertPanelClassification,
+  ExpertPanelCriterion,
+  ExpertPanelData,
 } from './expert-panel-sample'
 
 interface ExpertPanelSectionProps {
@@ -127,10 +126,12 @@ function CriterionChip({ criterion }: { criterion: ExpertPanelCriterion }) {
 }
 
 export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) {
-  // Mock-first: until CAR #3 backend lands, fall back to the inline RPE65
-  // IRD VCEP fixture. Once `payload.report_profile.expert_panel` is emitted,
-  // ReportClient passes it in and this falls through.
-  const data = dataProp ?? EXPERT_PANEL_RPE65_FIXTURE
+  // No fixture-fallback: M-007 trim ships `report_profile.expert_panel` as
+  // null by default, so a fallback would paint RPE65 fixture data onto every
+  // non-RPE65 query. Until the lazy clingen_vcep section is wired through
+  // LazySection, callers that have no data render nothing.
+  if (!dataProp) return null
+  const data = dataProp
   const verdict = RAMP_TO_VERDICT[data.final_classification]
   const classificationText = CLASSIFICATION_DISPLAY[data.final_classification]
 

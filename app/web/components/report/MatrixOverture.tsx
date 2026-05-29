@@ -137,7 +137,7 @@ function synthesizeTilesFromPayload(payload: ReportPayload): LookupSummaryTile[]
     warnings: [],
   })
 
-  // 2. ClinVar classification
+  // 2. ClinVar classification — lives in §3 Clinical evidence after Slice A.
   const classification = payload.report_profile?.header?.classification ?? payload.acmg_classification ?? ''
   tiles.push({
     tile_id: 'clinvar_classification',
@@ -146,7 +146,7 @@ function synthesizeTilesFromPayload(payload: ReportPayload): LookupSummaryTile[]
     support_badges: ['ClinVar'],
     source_status: classification ? 'available' : 'unavailable',
     ui_color_theme: 'classification',
-    target_section_id: 'gene_context_snapshot',
+    target_section_id: 'clinical_evidence',
     target_panel_id: null,
     fetch_section_id: null,
     warnings: [],
@@ -247,7 +247,8 @@ function synthesizeTilesFromPayload(payload: ReportPayload): LookupSummaryTile[]
     warnings: [],
   })
 
-  // 9. ACMG criteria
+  // 9. ACMG criteria — lives in §3 Clinical evidence after Slice A
+  // restructure.
   const acmg = payload.acmg_criteria_scaffold
   const acmgCount = acmg?.criteria?.length ?? 0
   tiles.push({
@@ -257,7 +258,7 @@ function synthesizeTilesFromPayload(payload: ReportPayload): LookupSummaryTile[]
     support_badges: ['Eamos scaffold'],
     source_status: acmgCount ? 'available' : 'unavailable',
     ui_color_theme: 'neutral',
-    target_section_id: 'evidence_by_source',
+    target_section_id: 'clinical_evidence',
     target_panel_id: null,
     fetch_section_id: null,
     warnings: [],
