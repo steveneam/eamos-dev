@@ -153,6 +153,7 @@ class GeneViewerFixtureProvider:
         self.fixtures_dir = fixtures_dir or (
             Path(__file__).resolve().parents[1] / "fixtures" / "workbench"
         )
+        self._fixture_cache: dict[str, dict[str, Any]] = {}
 
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
         query = normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
@@ -192,8 +193,11 @@ class GeneViewerFixtureProvider:
         return _curated_fixture_viewer_bundle(payload=payload, query=query, fixture=fixture)
 
     def _load(self, name: str) -> dict[str, Any]:
+        cached = self._fixture_cache.get(name)
+        if cached is not None:
+            return cached
         try:
-            return json.loads((self.fixtures_dir / name).read_text(encoding="utf-8"))
+            payload = json.loads((self.fixtures_dir / name).read_text(encoding="utf-8"))
         except OSError as exc:
             raise GeneViewerError(
                 code=GENE_VIEWER_PROVIDER_UNAVAILABLE,
@@ -206,6 +210,8 @@ class GeneViewerFixtureProvider:
                 message=f"Gene viewer fixture is malformed: {name}",
                 status_code=status.HTTP_502_BAD_GATEWAY,
             ) from exc
+        self._fixture_cache[name] = payload
+        return payload
 
 
 class GeneViewerService:
