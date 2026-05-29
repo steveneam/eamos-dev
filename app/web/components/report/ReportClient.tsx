@@ -55,10 +55,33 @@ import { SOURCES } from '@/lib/sources'
 import type {
   LookupRequest,
   LookupResponse,
+  LookupSectionId,
   PublicationLiterature,
   SearchInputCandidate,
   SearchInputInterpretation,
 } from '@/lib/backend'
+
+// LazySection lazy-branch hatch: section IDs that ReportBody will treat as
+// `eagerData={null}` even when the payload ships them inline. Demo mode
+// synthesises a `summaryRequest` from `payload.report_profile.header` so the
+// lazy fetch actually hits `/api/v1/lookup/sections`. This is the M11/M-007
+// contract canary — same in dev and prod.
+const LAZY_OVERRIDE_VALID_IDS: readonly LookupSectionId[] = [
+  'publications',
+  'computational_deep_dive',
+  'clingen_vcep',
+]
+
+function parseLazyOverrides(raw: string | null): Set<LookupSectionId> {
+  const out = new Set<LookupSectionId>()
+  if (!raw) return out
+  for (const token of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+    if ((LAZY_OVERRIDE_VALID_IDS as readonly string[]).includes(token)) {
+      out.add(token as LookupSectionId)
+    }
+  }
+  return out
+}
 
 type LoadState =
   | { kind: 'idle' }
@@ -79,6 +102,8 @@ export function ReportClient() {
   const proteinChange = params.get('protein_change')?.trim() ?? ''
   const q = params.get('q')?.trim() ?? ''
   const demo = params.get('demo') !== null
+  const lazyParam = params.get('lazy')
+  const lazyOverrides = useMemo(() => parseLazyOverrides(lazyParam), [lazyParam])
 
   const [state, setState] = useState<LoadState>({ kind: 'idle' })
   const [attempt, setAttempt] = useState(0)
@@ -312,6 +337,7 @@ export function ReportClient() {
             data={state.data}
             query={`${gene} ${cdna}`.trim() || state.data.query}
             summaryRequest={summaryRequest}
+            lazyOverrides={lazyOverrides}
           />
         )}
       </main>
@@ -323,9 +349,10 @@ interface ReportBodyProps {
   data: LookupResponse
   query: string
   summaryRequest?: LookupRequest
+  lazyOverrides: Set<LookupSectionId>
 }
 
-function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
+function ReportBody({ data, query, summaryRequest, lazyOverrides }: ReportBodyProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const payload = data.report_payload
@@ -342,6 +369,31 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
   // expand/fetch state resets when the rendered variant changes.
   const header = payload.report_profile?.header
   const variantKey = header ? `${header.gene}|${header.cdna}` : query
+
+  // Lazy-hatch synthesised request: if demo mode (`summaryRequest` undefined)
+  // but a `?lazy=` override is present, synthesise a request from the report's
+  // own header so `<LazySection>` can fire its IntersectionObserver-driven
+  // `/api/v1/lookup/sections` fetch against the live backend even from the
+  // offline-sample path.
+  const effectiveSummaryRequest = useMemo<LookupRequest | undefined>(() => {
+    if (summaryRequest) return summaryRequest
+    if (lazyOverrides.size === 0) return undefined
+    if (!header?.gene || !header?.cdna) return undefined
+    return {
+      gene: header.gene,
+      cdna: header.cdna,
+      transcript: header.transcript ?? null,
+      protein_change: header.protein_change ?? null,
+      species: 'human',
+    }
+  }, [
+    summaryRequest,
+    lazyOverrides,
+    header?.gene,
+    header?.cdna,
+    header?.transcript,
+    header?.protein_change,
+  ])
 
   // Ribbon facts — header is the authoritative split; row0 carries the
   // already-formatted strings (transcript_hgvs is "NM_...:c.260A>G"; split off
@@ -568,14 +620,23 @@ function ReportBody({ data, query, summaryRequest }: ReportBodyProps) {
             inline (today: offline demo + eager live), we render the existing
             PubMedSection immediately via `eagerData`. When the eager payload
             is trimmed (M-007 / M11 follow-up), the IntersectionObserver path
-            kicks in and lazy-fetches via /api/v1/lookup/sections. */}
+            kicks in and lazy-fetches via /api/v1/lookup/sections.
+
+            `?lazy=publications` forces eagerData=null AND forceLoad=true so
+            the lazy fetch fires immediately today against Codex's already-
+            shipped /lookup/sections endpoint — the M11/M-007 contract canary.
+            Bypassing IntersectionObserver makes the hatch deterministic in
+            headless preflight runs; IO timing is exercised separately via
+            vitest. Key suffix forces a clean remount on toggle so
+            LazyFetchSection state resets. */}
         <div id="publications" className="scroll-mt-24" />
         <LazySection<PublicationLiterature>
-          key={`pubs-${variantKey}`}
-          eagerData={payload.publications_literature}
+          key={`pubs-${variantKey}${lazyOverrides.has('publications') ? '-lazy' : ''}`}
+          eagerData={lazyOverrides.has('publications') ? null : payload.publications_literature}
           sectionId="publications"
-          request={summaryRequest ?? null}
+          request={effectiveSummaryRequest ?? null}
           unwrap={(env) => (env.payload as PublicationLiterature | null) ?? null}
+          forceLoad={lazyOverrides.has('publications')}
         >
           {(lit) => (
             <PubMedSection

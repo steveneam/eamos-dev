@@ -20,8 +20,15 @@
 //                                                                  # 1px-wide
 //                                                                  # variant
 //                                                                  # anchor
+//   node scripts/eamos-report-preflight.mjs --lazy=publications   # M11/M-007
+//     # contract canary: appends `&lazy=<csv>` so ReportClient forces the
+//     # matching LazySection wrappers into their lazy branch, then auto-scrolls
+//     # to drive IntersectionObserver and reports each section's terminal
+//     # state (sentinel-stuck / ready / error). Works today against Codex's
+//     # already-shipped /api/v1/lookup/sections endpoint.
 //
-// Exit codes: 0 if no fixable offenders + no console errors, 1 otherwise.
+// Exit codes: 0 if no fixable offenders + no console errors + all forced lazy
+// sections resolved to `ready`. Non-zero otherwise.
 
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, existsSync } from 'node:fs'
@@ -37,7 +44,7 @@ const args = Object.fromEntries(
     return [k, v]
   }),
 )
-const URL_ = args.url ?? 'http://localhost:3000/report?demo'
+const URL_BASE = args.url ?? 'http://localhost:3000/report?demo'
 const WIDTHS = String(args.widths ?? '375,768')
   .split(',')
   .map((n) => Number.parseInt(n, 10))
@@ -46,6 +53,18 @@ const JSON_OUT = args.json === 'true'
 const IGNORE_LOCUS_MARKER = args['ignore-locus-marker'] === 'true'
 const REMOTE_PORT = args.port ? Number.parseInt(args.port, 10) : null
 const TIMEOUT_MS = Number.parseInt(args.timeout ?? '15000', 10)
+const LAZY_FORCE = String(args.lazy ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+const LAZY_SETTLE_MS = Number.parseInt(args['lazy-settle'] ?? '30000', 10)
+const LAZY_POLL_MS = Number.parseInt(args['lazy-poll'] ?? '500', 10)
+
+function buildUrl(width) {
+  if (LAZY_FORCE.length === 0) return URL_BASE
+  const sep = URL_BASE.includes('?') ? '&' : '?'
+  return `${URL_BASE}${sep}lazy=${encodeURIComponent(LAZY_FORCE.join(','))}`
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chrome discovery
@@ -237,11 +256,73 @@ async function spawnChrome() {
   return { port, cleanup }
 }
 
+// In-browser scroll driver: first explicitly bring every `[data-lazy-section]`
+// into view so IntersectionObserver fires deterministically in headless,
+// THEN walk down the page so any non-lazy below-the-fold sections paint.
+// scrollIntoView is the reliable trigger in --headless=new; paginated scroll
+// alone can race the observer's first cycle on a cold page.
+const SCROLL_FN = `
+async () => {
+  const log = { sentinels: 0, scrolledTo: 0, contentHeight: 0 };
+  const sentinels = Array.from(document.querySelectorAll('[data-lazy-section]'));
+  log.sentinels = sentinels.length;
+  for (const s of sentinels) {
+    s.scrollIntoView({ block: 'center', behavior: 'instant' });
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const step = Math.max(200, Math.floor(window.innerHeight * 0.75));
+  const max = document.documentElement.scrollHeight;
+  log.contentHeight = max;
+  let y = window.scrollY;
+  while (y < max) {
+    window.scrollTo(0, y);
+    await new Promise((r) => setTimeout(r, 120));
+    y += step;
+  }
+  window.scrollTo(0, max);
+  await new Promise((r) => setTimeout(r, 200));
+  log.scrolledTo = y;
+  return log;
+}
+`
+
+// LazySection terminal-state probe — for each forced section ID, report
+// whether the wrapper is still showing a sentinel (idle/loading), has rendered
+// its DefaultErrorView (error), or has resolved into children (ready).
+function buildLazyProbeFn(sectionIds) {
+  return `
+  (() => {
+    const ids = ${JSON.stringify(sectionIds)};
+    const out = {};
+    for (const id of ids) {
+      const sentinel = document.querySelector('[data-lazy-section="' + id + '"]');
+      if (sentinel) {
+        out[id] = {
+          state: sentinel.getAttribute('aria-busy') === 'true' ? 'loading' : 'idle',
+          text: (sentinel.textContent || '').slice(0, 100).trim(),
+        };
+        continue;
+      }
+      // Sentinel gone: either resolved into children or rendered DefaultErrorView.
+      const alerts = Array.from(document.querySelectorAll('[role="alert"]'))
+        .filter((el) => /Could not load section/i.test(el.textContent || ''));
+      if (alerts.length) {
+        out[id] = { state: 'error', text: (alerts[0].textContent || '').slice(0, 200).trim() };
+        continue;
+      }
+      out[id] = { state: 'ready' };
+    }
+    return out;
+  })()
+  `
+}
+
 async function runAtWidth(host, port, width) {
   const tab = await newPageWS(host, port)
   const cdp = new CDP(tab.webSocketDebuggerUrl)
   await cdp.ready
   const consoleErrors = []
+  const sectionFetches = []
   cdp.on((evt) => {
     if (evt.method === 'Runtime.exceptionThrown') {
       consoleErrors.push({
@@ -251,17 +332,28 @@ async function runAtWidth(host, port, width) {
     } else if (evt.method === 'Runtime.consoleAPICalled' && evt.params?.type === 'error') {
       const args = (evt.params.args ?? []).map((a) => a.value ?? a.description ?? '')
       consoleErrors.push({ kind: 'console.error', text: args.join(' ') })
+    } else if (evt.method === 'Network.requestWillBeSent') {
+      const url = evt.params?.request?.url ?? ''
+      if (url.includes('/api/v1/lookup/sections')) {
+        sectionFetches.push({ url, requestId: evt.params.requestId, status: null })
+      }
+    } else if (evt.method === 'Network.responseReceived') {
+      const id = evt.params?.requestId
+      const found = sectionFetches.find((f) => f.requestId === id)
+      if (found) found.status = evt.params?.response?.status ?? null
     }
   })
   await cdp.send('Page.enable')
   await cdp.send('Runtime.enable')
+  await cdp.send('Network.enable')
   await cdp.send('Emulation.setDeviceMetricsOverride', {
     width,
     height: 900,
     deviceScaleFactor: 2,
     mobile: width <= 480,
   })
-  await cdp.send('Page.navigate', { url: URL_ })
+  const navUrl = buildUrl(width)
+  await cdp.send('Page.navigate', { url: navUrl })
   // Wait for load + a settle frame
   await new Promise((resolve) => {
     const stop = cdp.on((evt) => {
@@ -275,18 +367,45 @@ async function runAtWidth(host, port, width) {
       resolve()
     }, TIMEOUT_MS)
   })
+
+  // Lazy mode: drive the scroll so IntersectionObserver fires, then poll the
+  // terminal-state probe until every forced section has resolved or we've
+  // burned the settle budget. Polling beats a fixed sleep because backend
+  // latency is workload-dependent (cold cache, real-API mode, or Codex
+  // mid-edit can stretch /lookup/sections well past a static budget).
+  let lazyResults = null
+  if (LAZY_FORCE.length > 0) {
+    await cdp.send('Runtime.evaluate', {
+      expression: SCROLL_FN + '()',
+      awaitPromise: true,
+      returnByValue: true,
+    })
+    const deadline = Date.now() + LAZY_SETTLE_MS
+    const probeExpr = buildLazyProbeFn(LAZY_FORCE)
+    while (Date.now() < deadline) {
+      const probeRes = await cdp.send('Runtime.evaluate', {
+        expression: probeExpr,
+        returnByValue: true,
+      })
+      lazyResults = probeRes?.result?.value ?? null
+      const terminal = lazyResults
+        && Object.values(lazyResults).every((info) => info.state === 'ready' || info.state === 'error')
+      if (terminal) break
+      await new Promise((r) => setTimeout(r, LAZY_POLL_MS))
+    }
+  }
+
   const evalRes = await cdp.send('Runtime.evaluate', {
     expression: SCAN_FN,
     returnByValue: true,
     awaitPromise: false,
   })
   cdp.close()
-  // Best-effort tab close
   try {
     await fetch(`http://${host}:${port}/json/close/${tab.id}`)
   } catch {}
   const result = evalRes?.result?.value ?? null
-  return { width, scan: result, consoleErrors }
+  return { width, navUrl, scan: result, consoleErrors, sectionFetches, lazyResults }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -299,11 +418,14 @@ function isFixable(o) {
 
 function formatHuman(report) {
   const lines = []
-  lines.push(`eamos-report-preflight · ${report.url}`)
+  lines.push(`eamos-report-preflight · ${report.urlBase}`)
+  if (report.lazyForced.length) {
+    lines.push(`  lazy-forced sections: ${report.lazyForced.join(', ')}`)
+  }
   for (const r of report.results) {
     const fixable = r.scan?.offenders?.filter(isFixable) ?? []
     lines.push('')
-    lines.push(`▸ ${r.width}px viewport`)
+    lines.push(`▸ ${r.width}px viewport  (${r.navUrl})`)
     lines.push(`  html overflow: ${r.scan?.htmlOverflow ?? '?'}px`)
     lines.push(`  body overflow: ${r.scan?.bodyOverflow ?? '?'}px`)
     lines.push(`  fixable offenders: ${fixable.length}`)
@@ -323,6 +445,18 @@ function formatHuman(report) {
       lines.push(
         `  LazySection: mode=${mode} · lazy-sentinels=[${wrapped.join(', ')}] · eligible=[${eligible.join(', ')}]`,
       )
+    }
+    if (r.lazyResults) {
+      lines.push(`  lazy-resolution:`)
+      for (const [id, info] of Object.entries(r.lazyResults)) {
+        lines.push(`    ${id}: ${info.state}` + (info.text ? `  «${info.text.slice(0, 80)}»` : ''))
+      }
+    }
+    if (r.sectionFetches?.length) {
+      lines.push(`  /api/v1/lookup/sections fetches: ${r.sectionFetches.length}`)
+      for (const f of r.sectionFetches) {
+        lines.push(`    ${f.status ?? 'pending'}  ${f.url.split('?')[0]}`)
+      }
     }
     if (r.consoleErrors.length) {
       lines.push(`  console errors:`)
@@ -360,6 +494,12 @@ try {
     const fixable = (r.scan?.offenders ?? []).filter(isFixable)
     if (fixable.length > 0) exit = 1
     if (r.consoleErrors.length > 0) exit = 1
+    // Lazy mode: any forced section that did not resolve to 'ready' is a fail.
+    if (r.lazyResults) {
+      for (const info of Object.values(r.lazyResults)) {
+        if (info.state !== 'ready') exit = 1
+      }
+    }
   }
 } finally {
   cleanup()
@@ -367,7 +507,8 @@ try {
 
 const report = {
   tool: 'eamos-report-preflight',
-  url: URL_,
+  urlBase: URL_BASE,
+  lazyForced: LAZY_FORCE,
   widths: WIDTHS,
   results,
 }
