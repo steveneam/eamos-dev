@@ -1,5 +1,82 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 90 - 30 May 2026 - Supabase local-model cache perimeter and landing warmer hardening
+
+Started backend-owned Supabase dev wiring for local models, local source/cache
+outputs, source metadata, source versions/checksums, annotation jobs/results,
+and the Protein Annotation Super Tool. This hardening slice intentionally keeps
+all source/model data private and backend-only.
+
+Completed:
+- Discovered the existing dev Supabase project used by Eamos:
+  `eamos-dev` / `cpdjxsgasaesysvxkpmi` in `ap-southeast-2`.
+- Applied private backend-only migrations:
+  - `0009_local_model_cache_perimeter`
+  - `0010_private_cache_advisor_hardening`
+  - `0011_private_clinical_source_tables`
+  - `0012_private_source_asset_storage_metadata`
+- Added private `eamos_private` tables for local source versions, cache
+  entries, model jobs, Tier 3 clinical source tables, and metadata-only Tier
+  1/Tier 2 asset storage/materialization records. All have RLS enabled,
+  service-role-only policies, browser-role revokes/deny policies, and no public
+  genomic bucket.
+- Added Supabase read-through/write-through repo wrappers for variant report
+  cache, source cache, and protein annotation cache, while preserving local
+  SQLite fallback and fail-closed behavior on remote cache failures.
+- Wired the backend app to enable the Supabase hybrid cache only when
+  `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true` and a private backend DB URL is
+  provided. Actual deploy/env values were not changed.
+- Added tests for cache hit/miss behavior, stale-on-failure source cache,
+  provenance/warnings retention, protein annotation cache round trip, no
+  frontend private-schema/service-role leakage, and private migration/RLS
+  invariants.
+- Designed the private large-binary storage path in
+  `docs/private-source-storage/design.md`: private bucket, immutable
+  checksum-based object paths, backend verified local materialization, no
+  frontend direct Storage reads, and no startup downloads.
+- Added `agent_handoff/database_webserver/` for database/webserver integration
+  state under the main handoff lock.
+- Hardened the landing-example warm CLI so
+  `python -m app.cli.warm_source_cache` uses the same Supabase hybrid cache
+  wiring as the web server when enabled. Before this fix the CLI only warmed
+  local SQLite rows.
+
+Current cache caveat:
+- The dev schema and backend wrappers are ready, but durable cache warming is
+  not active yet. `SUPABASE_LOCAL_MODEL_CACHE_ENABLED` remains false by default,
+  no private backend DB URL was installed into deploy/env, and all remote smoke
+  rows were rolled back. That means the landing-page example pills and web-tool
+  searches are not faster from Supabase yet. They become faster only after the
+  dev backend env is explicitly enabled and the landing/source/model warm job
+  writes durable rows.
+
+Advisor / smoke results:
+- Supabase security advisors after DDL: no lints.
+- Supabase performance advisors: INFO-only unused-index notices on empty/new
+  tables plus the existing Auth DB connection-strategy note.
+- Rollback smokes proved source-asset public-access constraints, ready-state
+  verification constraints, and RLS status; follow-up row counts were zero for
+  the new private tables tested.
+
+Verification:
+- `python -m pytest tests/test_supabase_migrations.py tests/test_supabase_local_model_cache.py -q`
+  -> passed.
+- `python -m pytest tests/test_supabase_local_model_cache.py tests/test_source_cache.py::test_source_cache_warmer_scope_is_landing_hero_examples -q`
+  -> passed after landing warmer hardening.
+- `python -m pytest -q` from `app/backend` -> passed with existing PyJWT short
+  test-secret warnings only.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check --target-version py310 app tests` -> passed after
+  formatting the touched migration test file.
+- `git diff --check` -> passed; only Windows LF-to-CRLF notices were emitted.
+
+Guardrails held:
+- No public genomic buckets, frontend direct SQL over private source/cache
+  tables, broad anon/authenticated grants, unrestricted uploads, deploy/env
+  mutation, Vercel mutation, live third-party protein API dependency, startup
+  downloads, restricted predictor unlocks, AlphaMissense runtime/display,
+  WSL/Docker, destructive git, stash, reset, clean, commit, or push.
+
 ## Session 89 - 30 May 2026 - Protein annotation super tool local worker
 
 Completed the first local/offline build of the proprietary Eamos Protein

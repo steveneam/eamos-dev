@@ -26,6 +26,15 @@ from app.repos.protein_annotation_cache_repo import ProteinAnnotationCacheRepo
 from app.repos.run_repo import RunRepo
 from app.repos.subscriptions_repo import SubscriptionsRepo
 from app.repos.source_cache_repo import SourceCacheRepo
+from app.repos.supabase_local_model_cache_repo import (
+    HybridProteinAnnotationCacheRepo,
+    HybridSourceCacheRepo,
+    HybridVariantCacheRepo,
+    SupabaseProteinAnnotationCacheRepo,
+    SupabaseSourceCacheRepo,
+    SupabaseVariantCacheRepo,
+    build_supabase_local_model_cache_store,
+)
 from app.repos.users_repo import UsersRepo
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
@@ -81,6 +90,20 @@ def create_app(settings=None) -> FastAPI:
     variant_cache_repo = VariantCacheRepo(db_session_factory)
     source_cache_repo = SourceCacheRepo(db_session_factory)
     protein_annotation_cache_repo = ProteinAnnotationCacheRepo(db_session_factory)
+    supabase_local_model_cache_store = build_supabase_local_model_cache_store(settings)
+    if supabase_local_model_cache_store is not None:
+        variant_cache_repo = HybridVariantCacheRepo(
+            local_repo=variant_cache_repo,
+            remote_repo=SupabaseVariantCacheRepo(supabase_local_model_cache_store),
+        )
+        source_cache_repo = HybridSourceCacheRepo(
+            local_repo=source_cache_repo,
+            remote_repo=SupabaseSourceCacheRepo(supabase_local_model_cache_store),
+        )
+        protein_annotation_cache_repo = HybridProteinAnnotationCacheRepo(
+            local_repo=protein_annotation_cache_repo,
+            remote_repo=SupabaseProteinAnnotationCacheRepo(supabase_local_model_cache_store),
+        )
     protein_annotation_service = ProteinAnnotationService(
         settings=settings,
         cache_repo=protein_annotation_cache_repo,
@@ -108,6 +131,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.variant_cache_repo = variant_cache_repo
     app.state.source_cache_repo = source_cache_repo
     app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
+    app.state.supabase_local_model_cache_store = supabase_local_model_cache_store
     app.state.protein_annotation_service = protein_annotation_service
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(

@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     supabase_rest_timeout_seconds: float = 10.0
+    supabase_local_model_cache_enabled: bool = False
+    supabase_local_model_cache_database_url: str | None = None
+    supabase_local_model_cache_schema: str = "eamos_private"
     rate_limit_enabled: bool = True
     rate_limit_window_seconds: int = 60
     rate_limit_default_max_requests: int = 60

@@ -6,6 +6,13 @@ import json
 from app.core.config import Settings, ensure_runtime_dirs
 from app.core.db import build_session_factory, initialize_database
 from app.repos.source_cache_repo import SourceCacheRepo
+from app.repos.supabase_local_model_cache_repo import (
+    HybridSourceCacheRepo,
+    HybridVariantCacheRepo,
+    SupabaseSourceCacheRepo,
+    SupabaseVariantCacheRepo,
+    build_supabase_local_model_cache_store,
+)
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
 from app.services.lookup_service import LookupService
@@ -33,17 +40,49 @@ def main() -> int:
     ensure_runtime_dirs(settings)
     session_factory = build_session_factory(settings.database_url)
     initialize_database(session_factory)
+    variant_cache_repo, source_cache_repo, supabase_cache_enabled = _build_cache_repos(
+        settings,
+        session_factory,
+    )
 
     service = LookupService(
         tool_registry=build_tool_registry(settings),
         rule_engine=ClinicRules(),
-        variant_cache_repo=VariantCacheRepo(session_factory),
-        source_cache_repo=SourceCacheRepo(session_factory),
+        variant_cache_repo=variant_cache_repo,
+        source_cache_repo=source_cache_repo,
         settings=settings,
     )
     results = HeroExampleSourceCacheWarmer(service).warm(refresh=not args.no_refresh)
-    print(json.dumps({"use_real_apis": settings.use_real_apis, "results": results}, indent=2))
+    print(
+        json.dumps(
+            {
+                "use_real_apis": settings.use_real_apis,
+                "supabase_local_model_cache_enabled": supabase_cache_enabled,
+                "results": results,
+            },
+            indent=2,
+        )
+    )
     return 0
+
+
+def _build_cache_repos(settings: Settings, session_factory):
+    variant_cache_repo = VariantCacheRepo(session_factory)
+    source_cache_repo = SourceCacheRepo(session_factory)
+    supabase_store = build_supabase_local_model_cache_store(settings)
+    if supabase_store is None:
+        return variant_cache_repo, source_cache_repo, False
+    return (
+        HybridVariantCacheRepo(
+            local_repo=variant_cache_repo,
+            remote_repo=SupabaseVariantCacheRepo(supabase_store),
+        ),
+        HybridSourceCacheRepo(
+            local_repo=source_cache_repo,
+            remote_repo=SupabaseSourceCacheRepo(supabase_store),
+        ),
+        True,
+    )
 
 
 if __name__ == "__main__":

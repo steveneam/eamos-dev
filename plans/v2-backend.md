@@ -24,6 +24,25 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-30, Codex):
+- SUPABASE-LOCAL-MODEL-CACHE-PERIMETER is implemented and verified locally,
+  and the dev Supabase migrations are applied. Project `eamos-dev`
+  (`cpdjxsgasaesysvxkpmi`, `ap-southeast-2`) now has backend-only
+  `eamos_private` tables for local source versions, local model cache entries,
+  local model jobs, protein annotation metadata/cache, Tier 3 clinical source
+  rows, and metadata-only Tier 1/Tier 2 source asset objects/materializations.
+  All new private tables have RLS enabled, browser-role revokes/deny policies,
+  and service-role-only DML. Backend repo wrappers now read-through/write-
+  through Supabase for variant report cache, source cache, and protein
+  annotation cache while preserving local SQLite fallback and fail-closed remote
+  cache failure behavior. `python -m app.cli.warm_source_cache` now uses the
+  same hybrid cache wiring as the web server when enabled. Security advisors
+  report no lints; performance advisors are INFO-only unused-index notes on
+  empty/new private tables plus the existing Auth connection strategy note.
+  Current caveat: no durable cache rows are warmed yet unless the Render
+  backend has `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true` and a real private
+  Supabase Postgres DB URL, the new code is pushed/deployed, and the warmer is
+  run. Do not redeploy Render expecting this cache behavior until the commit is
+  pushed; uncommitted local code is not in the deployed backend.
 - PROTEIN-ANNOTATION-SUPER-TOOL-LOCAL is implemented and verified. The backend
   now has a local/offline protein annotation path: staged Swiss-Prot/Pfam/
   HMMER/InterProScan asset preflight, additive `ProteinDomainTrack` contract,

@@ -36,6 +36,14 @@
 The site can move to full live data in staged backend-owned phases, not by
 opening every source at once.
 
+Current status (2026-05-30): phase 1 is underway. The dev Supabase project has
+private `eamos_private` cache/source/job tables, RLS, service-role-only DML,
+advisor checks, and backend hybrid cache wrappers for variant reports, source
+cache, and protein annotation. The code still must be committed/pushed and the
+Render backend must be redeployed with a real private Supabase Postgres DB URL
+before the landing examples or web searches can get faster from the shared
+cache.
+
 1. **Supabase perimeter first:** private source metadata/status/cache schemas,
    RLS enabled, no broad anon/authenticated grants, server-only credentials,
    and advisor/policy checks.
