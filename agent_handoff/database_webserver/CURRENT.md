@@ -1,6 +1,6 @@
 # Database / Webserver Current State
 
-Last updated: 2026-05-30 03:34 +1000 by Codex.
+Last updated: 2026-05-30 04:14 +1000 by Codex.
 
 ## Supabase Project
 
@@ -8,7 +8,8 @@ Last updated: 2026-05-30 03:34 +1000 by Codex.
 - Project ref/id: `cpdjxsgasaesysvxkpmi`
 - Region: `ap-southeast-2`
 - Status at discovery: `ACTIVE_HEALTHY`
-- Guardrail: no deploy/env mutation was performed. Backend DB URL/service-role wiring still requires explicit env approval.
+- Guardrail: Codex performed no Render deploy/env mutation. Claude/Steven are
+  coordinating Render env/deploy after code push.
 
 ## Applied Private Migrations
 
@@ -49,8 +50,9 @@ Tier 1/Tier 2 source asset metadata:
 - `eamos_private.source_asset_materializations`
 
 Current row counts after rollback smokes: all new private tables remain empty.
-The cache wiring is not live on Render until the local code is committed,
-pushed, and redeployed with a real private Supabase Postgres DB URL.
+The cache wiring code is pushed to `main` in `e7f8ab6`, but it is not live on
+Render until the service is redeployed with a real private Supabase Postgres DB
+URL.
 
 ## Advisor Status
 
@@ -89,14 +91,13 @@ Current decision:
 
 ## Next Safe Steps
 
-1. Commit/push the backend Supabase local-model cache hardening before any Render redeploy.
-2. In Render backend env only, use `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true`, a real private Supabase Postgres DB URL with SSL required, and `SUPABASE_LOCAL_MODEL_CACHE_SCHEMA=eamos_private`; do not put these values in Vercel or `NEXT_PUBLIC_*`.
-3. Redeploy/restart Render after the commit is on the deployed branch.
-4. Run `python -m app.cli.warm_source_cache --real-apis` against the deployed backend environment, then verify durable rows in `eamos_private.local_model_cache_entries`.
-5. Add/import job code for Tier 3 source tables using existing parsers, with source-version rows and idempotent upserts.
-6. Load dev fixture rows first, then consider real MONDO/HPO/ClinGen/GenCC imports only after explicit download/import approval.
-7. Add metadata-only source rows for Tier 1/Tier 2 assets from the DOCX matrix.
-8. Decide whether `hg38.2bit` or ClinVar VCF is the first private Storage pilot.
+1. In Render backend env only, use `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true`, a real private Supabase Postgres DB URL with SSL required, and `SUPABASE_LOCAL_MODEL_CACHE_SCHEMA=eamos_private`; do not put these values in Vercel or `NEXT_PUBLIC_*`.
+2. Redeploy/restart Render onto `main` at or after `e7f8ab6`.
+3. Run `python -m app.cli.warm_source_cache --real-apis` against the deployed backend environment, then verify durable rows in `eamos_private.local_model_cache_entries`.
+4. Add/import job code for Tier 3 source tables using existing parsers, with source-version rows and idempotent upserts.
+5. Load dev fixture rows first, then consider real MONDO/HPO/ClinGen/GenCC imports only after explicit download/import approval.
+6. Add metadata-only source rows for Tier 1/Tier 2 assets from the DOCX matrix.
+7. Decide whether `hg38.2bit` or ClinVar VCF is the first private Storage pilot.
 
 ## Claude Coordination Note
 
@@ -105,10 +106,8 @@ explanation was confusing.
 
 Plain-language state:
 
-- It is **not safe/useful to redeploy Render yet** if the goal is faster
-  Supabase-backed search/example pills. The new cache code is still local and
-  uncommitted/unpushed, so a Render redeploy would restart the old deployed
-  backend with new env vars.
+- It is now safe to proceed to the Render env/deploy step from a code-state
+  perspective. The cache wiring code is on `main` in `e7f8ab6`.
 - The screenshot shows `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true` and
   `SUPABASE_LOCAL_MODEL_CACHE_SCHEMA=eamos_private`, which is conceptually
   correct for the backend only.
@@ -122,9 +121,9 @@ Plain-language state:
   `postgresql+psycopg://postgres.<project-ref>:<db-password>@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres?sslmode=require`
 - Direct DB form also works only if Render can reach it:
   `postgresql+psycopg://postgres:<db-password>@db.cpdjxsgasaesysvxkpmi.supabase.co:5432/postgres?sslmode=require`
-- After code is committed/pushed and Render is redeployed with the real DB URL,
-  run/wire `python -m app.cli.warm_source_cache --real-apis`; then verify rows
-  in `eamos_private.local_model_cache_entries`.
+- After Render is redeployed with the real DB URL, run/wire
+  `python -m app.cli.warm_source_cache --real-apis`; then verify rows in
+  `eamos_private.local_model_cache_entries`.
 
 Do not ask Steven to paste secrets in chat. If he is in the Render dashboard,
 he can paste the DB URL directly into Render's masked env field.

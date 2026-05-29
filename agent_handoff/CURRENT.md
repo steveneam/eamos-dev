@@ -16,12 +16,12 @@
 
 - **Claude:** IDLE @ 2026-05-29 23:16 +1000 (anchor: `cb1bfbd` on local `main` + `origin/main`) — Slice A shipped + pushed this session: `cb1bfbd` refactor(report) restructure §2..§8 around new Clinical evidence card. §2 strips to in-silico (CompositeVerdictBar + CalibratedInSilicoTable); NEW §3 Clinical evidence hosts ClinVarBlock + ExpertPanelSection (no longer unnumbered) + AcmgCriteriaFold; §4 renamed "Gene & locus context" + new `MolecularContextBlock.tsx` (gnomAD constraint + ClinGen dosage + overlapping CNVs from `evidence[molecular_context].summary`); §5 renamed "Disease & curated variants" + new `GeneDiseaseBlock.tsx` (ClinGen Gene-Disease Validity from `evidence[gene_disease].summary` — gene/condition/inheritance/validity/mechanism + curated conditions with MONDO/OMIM/ORPHA chips); PublicationsCallout moved into PubMedSection §6 header so the variant↔gene scope toggle lives with the section it controls; Publications/Trials/AI summary renumber → §6/§7/§8. `ExpertPanelSection.tsx:133` RPE65 fixture-fallback gutted — was painting RPE65 data onto every non-RPE65 query post-M-007. `ReportRail.tsx` DEFAULT_SECTIONS rewired; standalone Expert-panel rail entry removed. `MatrixOverture.tsx` ACMG + ClinVar tiles repointed to new `clinical_evidence` anchor. DL-019 honoured (explicit 8-file pathspec; Codex's dirty backend tree untouched). tsc clean; preflight `0 px` overflow at 375 + 768 (prior +16 px CalibratedInSilicoTable offender incidentally gone); lazy publications canary → `200 ready` against live BE at 1440. No backend contract change. ExpertPanelSection / CalibratedInSilicoTable LazySection wrapping intentionally deferred (would have shipped a half-wired lazy path while Codex was active on DOCX work). **Next session plan written to `~/.claude/plans/next-session-eamos.md`** (Slice B = §4 viewer overhaul: kill the gene-snapshot picture's gene/exon/codon toggle + expandable transcript figure per Steven's redundancy flag; embed Workbench `SequenceViewerV2` + `gene-window` adapter in a read-only "report mode" variant for the genomic track; build new `ProteinDomainTrack.tsx` with UniProt-style protein domain rectangles + patient variant marker + optional ClinVar variant-density toggle (frameshift/nonsense red triangles above with HGVS labels, missense yellow circles below); CAR for Codex on UniProt features API protein-domain endpoint; ~1-2 days). **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents on Eamos integration/UI work ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); real-clock stamps only via `date +"%F %H:%M %z"` ([[feedback_no_clock_timestamps]]); lock protocol per [[feedback_handoff_lock_protocol]]; Hard Rule 10 met (NEW MolecularContextBlock + GeneDiseaseBlock components = net-new capability; section restructure resolves the 11 EvidenceTable orphans + the post-M-007 RPE65 fixture-fallback bug).
 
-- **Codex:** IDLE @ 2026-05-30 01:38 +1000 - Protein Annotation Super Tool
-  local/offline backend slice implemented and verified: asset preflight,
-  ProteinDomainTrack, HMMER/Pfam parser/runner interface, UniProt feature
-  parser, sequence-hash cache, fail-closed API, Workbench/report cache hooks,
-  private Supabase metadata/cache migration scaffolding, and Hard Rule 10
-  precedence amendment. No commit made.
+- **Codex:** IDLE @ 2026-05-30 04:14 +1000 - Supabase local-model/cache
+  perimeter committed and pushed to `main` at `e7f8ab6`. Focused Supabase/cache
+  tests, Ruff, Black, and diff-check passed; interrupted full backend pytest
+  was stopped and not used as verification. Render deploy/env handoff is now
+  back to Steven + Claude: set the three backend-only cache env vars, deploy
+  onto `e7f8ab6` or later, run the warmer, then verify durable cache rows.
 
 ## Log Edit-Lock
 
@@ -31,7 +31,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-30 01:42 +1000 · Codex (README amendment, protein annotation logs, RPE65 source-provenance correction, and resume prompt updated)
+UNLOCKED · 2026-05-30 04:14 +1000 · Codex (Supabase cache wiring pushed; Render env/deploy handed to Claude/Steven)
 
 ## Shared File Locks
 
