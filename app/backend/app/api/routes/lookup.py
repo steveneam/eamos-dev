@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 from app.core.rate_limit import RATE_LIMIT_LOOKUP, enforce_rate_limit
 from app.schemas.lookup import (
@@ -21,13 +23,24 @@ from app.services.lookup_sections import (
 
 router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
 
+LOOKUP_EAGER_RESPONSE_EXCLUDE = {
+    "report_payload": {
+        "publications_literature": True,
+        "report_profile": {
+            "computational_deep_dive": True,
+            "expert_panel": True,
+        },
+    }
+}
+
 
 @router.post("", response_model=LookupResponse)
 def variant_lookup(
     payload: LookupRequest,
     request: Request,
     refresh: bool = False,
-) -> LookupResponse:
+    include_lazy_sections: bool = False,
+) -> LookupResponse | JSONResponse:
     enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=_lookup_subject(payload))
     service = getattr(request.app.state, "lookup_service", None)
     if service is None:
@@ -35,7 +48,10 @@ def variant_lookup(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Lookup service is unavailable.",
         )
-    return service.lookup(payload, refresh=refresh)
+    response = service.lookup(payload, refresh=refresh)
+    if include_lazy_sections:
+        return response
+    return JSONResponse(content=jsonable_encoder(response, exclude=LOOKUP_EAGER_RESPONSE_EXCLUDE))
 
 
 @router.post("/summary", response_model=LookupInitialSummaryResponse)

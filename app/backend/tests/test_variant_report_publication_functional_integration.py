@@ -41,7 +41,7 @@ def test_lookup_keeps_publication_inventory_and_functional_count_distinct(
     client,
 ) -> None:
     response = client.post(
-        "/api/v1/lookup",
+        "/api/v1/lookup?include_lazy_sections=true",
         json={"gene": "RPE65", "cdna": "c.260A>G"},
     )
 
@@ -203,7 +203,10 @@ def test_lookup_non_rpe65_publication_and_functional_sections_do_not_use_rpe65_c
     gene: str,
     cdna: str,
 ) -> None:
-    response = client.post("/api/v1/lookup", json={"gene": gene, "cdna": cdna})
+    response = client.post(
+        "/api/v1/lookup?include_lazy_sections=true",
+        json={"gene": gene, "cdna": cdna},
+    )
 
     assert response.status_code == 200
     payload = response.json()["report_payload"]
@@ -225,7 +228,7 @@ def test_report_profile_references_publication_and_functional_sections_without_r
     client,
 ) -> None:
     response = client.post(
-        "/api/v1/lookup",
+        "/api/v1/lookup?include_lazy_sections=true",
         json={"gene": "RPE65", "cdna": "c.260A>G"},
     )
 

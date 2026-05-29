@@ -3,6 +3,37 @@ from __future__ import annotations
 import json
 
 
+def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
+    response = client.post(
+        "/api/v1/lookup",
+        json={"gene": "RPE65", "cdna": "c.260A>G"},
+    )
+    full_response = client.post(
+        "/api/v1/lookup?include_lazy_sections=true",
+        json={"gene": "RPE65", "cdna": "c.260A>G"},
+    )
+
+    assert response.status_code == 200
+    assert full_response.status_code == 200
+    body = response.json()
+    full_payload = full_response.json()["report_payload"]
+    payload = body["report_payload"]
+    profile = payload["report_profile"]
+
+    assert payload["publications_callout"]["total_count"] == 3
+    assert payload["publications_callout"]["scope_counts"]["gene"]["total_count"] == 816
+    assert "publications_literature" not in payload
+    assert "computational_deep_dive" not in profile
+    assert "expert_panel" not in profile
+    assert profile["acmg_worksheet"]["classification"] == "Likely pathogenic"
+    assert full_payload["publications_literature"]["total_count"] == 3
+    assert full_payload["report_profile"]["computational_deep_dive"]["predictors"]
+    assert full_payload["report_profile"]["expert_panel"]["final_classification"] == (
+        "likely_pathogenic"
+    )
+    assert len(response.content) < len(full_response.content)
+
+
 def test_lookup_summary_returns_m7_tile_contract_without_heavy_sections(client) -> None:
     response = client.post(
         "/api/v1/lookup/summary",

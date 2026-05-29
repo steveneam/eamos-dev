@@ -377,7 +377,7 @@ def test_lookup_protein_multiple_high_confidence_candidates_need_selection(clien
 
 def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> None:
     response = client.post(
-        "/api/v1/lookup",
+        "/api/v1/lookup?include_lazy_sections=true",
         json={"gene": "RPE65", "cdna": "c.260A>G"},
     )
 

@@ -21,7 +21,10 @@ _FORBIDDEN_ACMG_POPULATION_METRICS = re.compile(
 
 
 def _lookup_payload(client, gene: str, cdna: str) -> dict:
-    response = client.post("/api/v1/lookup", json={"gene": gene, "cdna": cdna})
+    response = client.post(
+        "/api/v1/lookup?include_lazy_sections=true",
+        json={"gene": gene, "cdna": cdna},
+    )
     assert response.status_code == 200
     return response.json()["report_payload"]
 
@@ -83,7 +86,7 @@ def _assert_no_population_metrics_in_section_2_or_acmg(profile: dict) -> None:
 
 def test_lookup_returns_typed_variant_report_profile(client) -> None:
     response = client.post(
-        "/api/v1/lookup",
+        "/api/v1/lookup?include_lazy_sections=true",
         json={"gene": "RPE65", "cdna": "c.260A>G"},
     )
 
