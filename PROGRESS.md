@@ -1,5 +1,121 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 87 - 29 May 2026 - M-007 eager lookup payload trim
+
+Completed the M-007 backend perf slice for Claude LazySection v1. The default
+`POST /api/v1/lookup` response now omits the M11 lazy-heavy detail fields while
+keeping the backend service object full for cache building, summaries, chat
+context, and section hydration.
+
+Completed:
+- Added a route-level eager serializer exclusion for
+  `report_payload.publications_literature`,
+  `report_payload.report_profile.computational_deep_dive`, and
+  `report_payload.report_profile.expert_panel`.
+- Preserved a full-response `include_lazy_sections=true` escape hatch for
+  backend regression tests and diagnostics, while the default browser path is
+  trimmed.
+- Kept `/api/v1/lookup/sections` unchanged for the v1 lazy set:
+  `publications`, `computational_deep_dive`, and `clingen_vcep`.
+- Added contract coverage proving default `/lookup` omits the heavy fields,
+  the full diagnostic path still carries them, and the section endpoint still
+  returns all three lazy envelopes with their freshness data.
+
+Measured:
+- In-process RPE65 smoke: default `/api/v1/lookup` serialized `76,197` bytes
+  versus `86,897` bytes for the full diagnostic response, saving `10,700`
+  bytes before compression for the current fixture payload.
+- The same smoke returned HTTP 200 for `/api/v1/lookup/sections` with section
+  keys `clingen_vcep`, `computational_deep_dive`, and `publications`.
+
+Verification:
+- `python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m pytest -q` from `app/backend` -> passed with known JWT short-key
+  warnings only.
+- `python -m ruff check app/api/routes/lookup.py tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/api/routes/lookup.py tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py`
+  -> passed after formatting `lookup.py`.
+- `git diff --check` -> passed.
+
+Coordination:
+- Contract canary passed. A Codex->Claude handshake request was filed in
+  `agent_handoff/CURRENT.md` before moving to the next local models/local-source
+  task or commit/push cadence.
+- Steven approved returning to the local models/local-source source-strategy
+  thread after M-007, but requested this handshake and contract canary first.
+
+Guardrails held:
+- No frontend edits, runtime local-source wiring, Supabase/object-storage/
+  startup download/report provider wiring, production imports/downloads,
+  uploads/imports, `/runs`, AlphaMissense display/runtime scoring, restricted
+  predictor unlocks, WSL, Docker, destructive git, stash, reset, or clean.
+
+## Session 86 - 29 May 2026 - Lookup chat adapter + Workbench preflight
+
+Completed the backend adapter work first, then shipped the Hard Rule 10
+deliverable for this session: a proprietary fixture-only Workbench/evidence
+preflight CLI with cache freshness and full-gene timing measurements.
+
+Completed:
+- Replaced the live `/api/v1/chat` path's stale `.complete(...)` expectation
+  with a dedicated lookup-chat `invoke(...)` chain builder wired from
+  `create_app()`.
+- Added a bounded lookup-chat prompt and context builder that sends only
+  current variant, evidence, source-status, and Workbench facts to the model.
+  It excludes patient context and filters AlphaMissense from computational
+  predictor context.
+- Preserved mock chat output exactly, preserved word-chunk streaming behavior,
+  and added a fail-closed 503 when a live chat model is unavailable or is not
+  an `invoke(...)` adapter.
+- Added a simple safety gate for diagnosis/prescribing/treatment questions so
+  those return a bounded refusal before any model call.
+- Added `python -m app.cli.eamos_workbench_preflight`, a fixture-only JSON
+  preflight that reports selected fixture age/checksum/size, SQLite
+  variant/source cache freshness, and RPE65/ABCA4 full-gene viewer
+  load/serialization timing. The CLI explicitly records that network,
+  Supabase, production downloads, and runtime local-source wiring are not used.
+- Cached parsed gene-viewer fixture JSON inside `GeneViewerFixtureProvider` so
+  repeated full-gene fixture hydrations do not re-read/reparse the large
+  transcript model fixture.
+- Smoke-checked Claude's reported local `/api/v1/lookup/sections` timeout with
+  an in-process backend client. Current code returned 200 with a publications
+  section envelope, so the timeout appears tied to the local `:8000` process
+  state rather than the backend route code.
+
+Measured:
+- `python -m app.cli.eamos_workbench_preflight --iterations 5 --compact`
+  reported local cache state: source cache 3 rows / 3 fresh, variant cache 1
+  row; ABCA4 full-gene fixture payload `128,315 bp`, estimated 1,604 rows at
+  the 80 bp hint, and average hydrate time `149.656 ms`; RPE65 `21,139 bp`,
+  estimated 265 rows, average hydrate time `35.505 ms`.
+- Direct ABCA4 comparison after the fixture-cache change: repeated warm
+  provider hydration averaged `148.255 ms` after the first run versus
+  `164.975 ms` for cold-style new-provider hydration, a `16.72 ms` warm-path
+  improvement on this machine.
+
+Verification:
+- `python -m pytest tests/test_chat_service.py tests/test_workbench_preflight_cli.py tests/test_gene_viewer.py tests/test_rate_limits.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m ruff check app/agents/client.py app/agents/prompts.py app/core/config.py app/main.py app/services/chat_service.py app/services/gene_viewer.py app/schemas/chat.py app/cli/eamos_workbench_preflight.py tests/test_chat_service.py tests/test_workbench_preflight_cli.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/agents/client.py app/agents/prompts.py app/core/config.py app/main.py app/services/chat_service.py app/services/gene_viewer.py app/schemas/chat.py app/cli/eamos_workbench_preflight.py tests/test_chat_service.py tests/test_workbench_preflight_cli.py`
+  -> passed after formatting the new CLI/test files.
+- `python -m pytest -q` from `app/backend` -> passed on rerun with a longer
+  timeout. The first 5-minute attempt timed out before reporting results; the
+  10-minute rerun passed with known JWT short-key warnings only.
+- In-process `/api/v1/lookup/sections` smoke for RPE65 publications returned
+  HTTP 200 and a `LookupSectionEnvelope`.
+
+Guardrails held:
+- No M-007 eager-payload trim, frontend edits, runtime local-source wiring,
+  source-cache/provider rewiring, Supabase/object-storage/startup downloads,
+  production source downloads/imports, live Supabase writes/resources/
+  migrations, uploads/imports, `/runs`, AlphaMissense display/runtime scoring,
+  restricted predictor unlocks, WSL, Docker, destructive git, stash, reset,
+  clean, commit, or push.
+
 ## Session 85 - 29 May 2026 - Full-gene viewer local coordinate ruler
 
 Corrected the actual full-gene viewer numbers issue Steven meant: row labels

@@ -62,6 +62,11 @@ Codex-specific reminders that follow from it:
   Append+archive prior section content verbatim to
   `agent_handoff/archive/<date>-<slug>.md` before replacing if it has
   detail not yet recorded elsewhere (README Hard Rule 1).
+- Start each session by naming the README Hard Rule 10 deliverable: a net-new
+  capability, proprietary Eamos tool/script, measurable performance
+  improvement, or stronger verification layer. If the user explicitly
+  constrains the session to commit/verify/cleanup/rescue-only work, record
+  that lowered bar in `## Active Status` and the resume prompt.
 - Every session still: update the `## Active Status` heartbeat, claim/release
   the single `## Log Edit-Lock` (stamp real local time from `date`), and end
   **clear-safe** — the final chat message ends with a labeled

@@ -24,6 +24,43 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-29, Codex):
+- M-007-EAGER-PAYLOAD-TRIM is implemented and verified. Default
+  `POST /api/v1/lookup` now omits the M11 lazy-heavy fields
+  `report_payload.publications_literature`,
+  `report_payload.report_profile.computational_deep_dive`, and
+  `report_payload.report_profile.expert_panel`; the backend service object
+  stays full internally, `include_lazy_sections=true` remains available for
+  backend diagnostics/regression tests, and `/api/v1/lookup/sections` continues
+  to serve `publications`, `computational_deep_dive`, and `clingen_vcep`
+  envelopes. RPE65 in-process smoke measured `76,197` bytes for default lookup
+  versus `86,897` bytes for the full diagnostic response (`10,700` bytes saved
+  before compression). Focused section-fetch/report integration pytest,
+  `test_frontend_contract.py`, full backend pytest, Ruff, Black check, and
+  `git diff --check` passed. Codex->Claude handshake was filed before the next
+  local models/local-source task per Steven's request.
+- LOOKUP-CHAT-ADAPTER-M002G is implemented and verified backend-side. The
+  public `/api/v1/chat` live path now uses a dedicated `invoke(...)` lookup
+  chat chain from `build_lookup_chat_chain()` instead of incorrectly wiring
+  the report draft chain and calling `.complete(...)`. Mock mode is unchanged;
+  live mode builds a bounded variant/evidence/Workbench context, excludes
+  patient context, filters AlphaMissense from computational context, blocks
+  diagnosis/prescribing/treatment questions before model invocation, and fails
+  closed with 503 when no compatible adapter is configured. Focused chat tests,
+  route wiring tests, rate-limit tests, contract canary, Ruff, Black, and full
+  backend pytest passed.
+- WORKBENCH-EVIDENCE-PREFLIGHT-HR10 is implemented as
+  `python -m app.cli.eamos_workbench_preflight`. The fixture-only preflight
+  reports selected fixture age/checksum/size, SQLite variant/source cache
+  freshness, and RPE65/ABCA4 full-gene viewer load/serialization timing while
+  explicitly recording no network, Supabase, production downloads, or runtime
+  local-source wiring. A fixture-provider JSON cache avoids re-reading/
+  reparsing large full-gene fixtures on repeated hydrations. Measured on this
+  machine: ABCA4 warm repeated hydration averaged `148.255 ms` after the first
+  run versus `164.975 ms` for cold-style new-provider hydration (`16.72 ms`
+  improvement); the preflight itself reported ABCA4 `128,315 bp` / 1,604
+  estimated rows and RPE65 `21,139 bp` / 265 estimated rows. Claude's
+  reported local `:8000` `/api/v1/lookup/sections` timeout did not reproduce
+  in-process: current backend returned 200 for RPE65 publications.
 - FULL-GENE-VIEWER-LOCAL-COORDINATE-RULER is implemented and browser-verified
   in `app/web`. The full-gene row model now carries local 1-based sequence
   start/end positions, and the viewer defaults to FASTA-style row labels

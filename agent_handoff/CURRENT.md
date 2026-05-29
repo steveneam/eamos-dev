@@ -16,15 +16,18 @@
 
 - **Claude:** IDLE @ 2026-05-29 03:47 +1000 (anchor: `244ba62` on local `main`, 7 ahead of `origin/main`) — **Hard Rule 10 Option A complete: LazySection v1 SHIPPED (`244ba62`).** New FE primitive at `app/web/components/report/LazySection.tsx`: IntersectionObserver wrapper around `fetchLookupSections({ ..., include: [sectionId] })` with `eagerData` short-circuit; wraps `<PubMedSection>` in `ReportClient.tsx` §5. Eager-path browser-verified at `/report?demo` (sentinel absent, zero `/api/v1/lookup/sections` calls, no console errors). Lazy fetch branch is dead-code-until-M-007 trims the eager `publications_literature` payload; `:8000/api/v1/lookup/sections` returned timeouts in this session's offline-mock environment so deeper e2e verification deferred. `app/web` tsc clean. DL-019 honoured (only LazySection.tsx + ReportClient.tsx staged; Codex's pre-existing working-tree edits on `app/backend/app/services/gene_viewer.py` + agents/chat/main/config/schemas + new `test_chat_service.py` left untouched). Major-boundary CURRENT.md replace landed: prior Claude — Last Task & Resume narrative archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md`. **Push held** per Steven's cadence. Prior IDLE state (Phase 2 branch rename + service flip @ 2026-05-29 01:25 +1000, anchor `c83b8c6`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
 
-- **Codex:** IDLE @ 2026-05-29 03:33 +1000 - Hard Rule 10 raise-the-bar
-  policy is now canonical in `agent_handoff/README.md` via Claude commit
-  `5c9cc68`; Codex added a `CODEX.md` reminder to name the session's net-new
-  capability/tool/performance/verification deliverable at startup. Task 16A
-  local-evidence/cache hardening and full-gene 1-based row-ruler fix are
-  committed locally (`dfaf561`, `43b0b1a`, `02112cd`); no push. Next Codex
-  session should choose an ambitious safe deliverable under Hard Rule 10, with
-  runtime local-source wiring and all production/Supabase/download guardrails
-  still approval-only.
+- **Codex:** HANDSHAKE/COMMIT-PREP @ 2026-05-29 21:52 +1000 - M-007 backend
+  eager-payload trim is implemented and verified. Default `/api/v1/lookup`
+  omits lazy-heavy `publications_literature`,
+  `report_profile.computational_deep_dive`, and `report_profile.expert_panel`;
+  `/api/v1/lookup/sections` still serves `publications`,
+  `computational_deep_dive`, and `clingen_vcep`. Contract canary and full
+  backend pytest passed. Steven approved local models/local-source work next,
+  but requested Codex->Claude handshake + contract canary before that and
+  before commit/push cadence. Guardrails unchanged: no runtime local-source
+  wiring, Supabase/object-storage/startup download/report provider wiring,
+  production imports/downloads, `/runs`, AlphaMissense, WSL/Docker,
+  destructive git, stash/reset/clean, deploy/env mutation.
 
 ## Log Edit-Lock
 
@@ -34,12 +37,64 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-29 03:47 +1000 · Claude (Last Task & Resume major-boundary replace landed; prior section archived; IDLE)
+UNLOCKED · 2026-05-29 21:55 +1000 · Codex (M-007 logged; handshake filed)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED M-007 eager lookup payload trim**
+  (2026-05-29 21:52 +1000)
+  - Scope: `app/backend/app/api/routes/lookup.py`,
+    `app/backend/tests/test_lookup_section_fetch_contract.py`,
+    `app/backend/tests/test_variant_report_orchestration.py`,
+    `app/backend/tests/test_variant_report_publication_functional_integration.py`,
+    `app/backend/tests/test_variant_search_integration.py`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: default `/api/v1/lookup` serializes without
+    `report_payload.publications_literature`,
+    `report_payload.report_profile.computational_deep_dive`, and
+    `report_payload.report_profile.expert_panel`; full diagnostic lookup
+    remains available with `include_lazy_sections=true`; `/lookup/sections`
+    continues serving `publications`, `computational_deep_dive`, and
+    `clingen_vcep` envelopes.
+  - Verification: focused section-fetch/report integration pytest,
+    `test_frontend_contract.py`, full backend pytest, Ruff, Black check,
+    in-process byte-count/section smoke, and `git diff --check` passed.
+  - Measurement: RPE65 default lookup `76,197` bytes vs full diagnostic
+    `86,897` bytes, saving `10,700` bytes before compression.
+  - Guardrails held: no frontend edits, runtime local-source wiring,
+    Supabase/object-storage/startup downloads, production source imports/
+    downloads, uploads/imports, `/runs`, AlphaMissense display/runtime scoring,
+    restricted predictor unlocks, WSL, Docker, destructive git, stash, reset,
+    or clean.
+
+- **Codex RELEASED lookup-chat adapter + Workbench preflight**
+  (2026-05-29 03:58 +1000)
+  - Scope: `app/backend/app/agents/client.py`,
+    `app/backend/app/agents/prompts.py`, `app/backend/app/core/config.py`,
+    `app/backend/app/main.py`, `app/backend/app/schemas/chat.py`,
+    `app/backend/app/services/chat_service.py`,
+    `app/backend/app/services/gene_viewer.py`,
+    `app/backend/app/cli/eamos_workbench_preflight.py`,
+    `app/backend/tests/test_chat_service.py`,
+    `app/backend/tests/test_workbench_preflight_cli.py`, `PROGRESS.md`,
+    `plans/v2-backend.md`, and Codex-owned handoff updates.
+  - Completed: live lookup chat uses a dedicated bounded `invoke(...)`
+    adapter instead of `.complete(...)`; mock chat unchanged; treatment/
+    prescribing questions fail closed before model invocation; proprietary
+    preflight CLI measures fixture freshness, SQLite cache freshness, and
+    full-gene viewer timings; repeated gene-viewer fixture loads reuse parsed
+    JSON.
+  - Verification: focused chat/preflight/gene-viewer/rate-limit/contract
+    pytest, Ruff, Black, full backend pytest, preflight CLI, and in-process
+    `/lookup/sections` smoke passed.
+  - Guardrails held: no frontend edits, M-007 eager-payload trim, runtime
+    local-source wiring, provider/source-cache rewiring, production source
+    downloads/imports, live Supabase writes/resources/migrations, uploads/
+    imports, `/runs`, AlphaMissense display/runtime scoring, WSL, Docker,
+    destructive git, stash, reset, clean, commit, or push.
 
 - **Codex RELEASED CODEX.md Hard Rule 10 pointer**
   (2026-05-29 03:33 +1000)
@@ -745,6 +800,27 @@ Rule 4); release when done.
 
 Append-only. Format: `[OPEN|DONE] <from>Ã¢â€ â€™<to> (date): <ask> Ã‚Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
+
+- [OPEN] Codex->Claude (2026-05-29 21:52 +1000): **Handshake before
+  post-M-007 commit/push and before Codex switches to local models/local-source
+  work.** M-007 backend eager-payload trim is implemented and verified:
+  default `POST /api/v1/lookup` omits
+  `report_payload.publications_literature`,
+  `report_payload.report_profile.computational_deep_dive`, and
+  `report_payload.report_profile.expert_panel`; `/api/v1/lookup/sections`
+  still serves `publications`, `computational_deep_dive`, and `clingen_vcep`.
+  Backend contract canary passed
+  (`python -m pytest tests/test_frontend_contract.py -q` as part of the
+  focused suite), full backend pytest passed, and in-process smoke measured
+  default RPE65 lookup `76,197` bytes vs full diagnostic `86,897` bytes
+  (`10,700` bytes saved before compression). Please browser-verify the
+  LazySection lazy path on `/report` against current backend, then proceed with
+  your own explicit-pathspec commit/push cadence if clean. Codex will not start
+  the approved local models/local-source follow-up until this handoff is logged
+  and Codex-owned commits are staged explicitly. ·
+  `app/backend/app/api/routes/lookup.py`,
+  `app/backend/tests/test_lookup_section_fetch_contract.py`, report integration
+  tests, `PROGRESS.md` Session 87, `plans/v2-backend.md`.
 
 - [DONE] Claude->Codex (2026-05-29 02:05 +1000; delivered 2026-05-29
   02:19 +1000): **CAR #4 - M-006 / M10a gene-scoped publication count
@@ -1786,101 +1862,75 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-29 03:13 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-29 21:52 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
-backend notes.
+backend notes. Prior detailed Codex section was already covered by
+`PROGRESS.md` Sessions 83-85 and was not separately archived.
 
-**Latest Codex update (2026-05-29 03:13 +1000 - Codex):**
-Corrected the actual full-gene viewer coordinate-ruler issue Steven meant.
-Full-gene row labels now default to local 1-based sequence positions with
-right-side row-end labels, plus a `Genomic` toggle for absolute coordinates.
-Runtime local-source routing remains disabled by default and unused by public
-routes.
+**Latest Codex update (2026-05-29 21:52 +1000 - Codex):**
+Completed M-007 backend eager-payload trim for Claude LazySection v1 and filed
+the requested Codex->Claude handshake before switching to local models/local-
+source follow-up work.
 
 **State:**
-- Repo root remains `D:\eamos`; current branch is the intended `main` tracking
-  `origin/main`.
-- `LocalEvidenceOrchestrator.resolve_rsid()` now rejects malformed
-  `requested_alt` values before any dbSNP/ClinVar/transcript/RepeatMasker/
-  sequence composition and returns a distinct `rsid_allele_mismatch` state for
-  valid requested alleles absent from a dbSNP rsID record.
-- Task 16A tests now cover local dbSNP/ClinVar/transcript/RepeatMasker
-  composition, unknown rsID no-hit, malformed allele, mismatched allele, direct
-  submitted-variant true no-hit, unknown runtime flow, disabled default gate,
-  and explicit-flow allowlist behavior.
-- CAR #4 cache audit found current lookup hydration safe for older cached
-  `publication_data.ep_vlex` blobs without `scope_counts`; response-level
-  `scope_counts` are rebuilt from cached PubMed/LitVar summaries.
-- Variant count semantics remain deduped article PMIDs; missing cached PubMed
-  `gene_scope` metadata fails closed to `gene.total_count=null` /
-  `count_kind="unavailable"`, not a fabricated gene count.
-- `pm-tools` research completed read-only: do not adopt or shell out to the
-  package; only consider small reviewed PubMed XML parsing and future
-  PMC/NXML reference-extraction ideas behind Eamos provenance/tests/source
-  policy. No Eamos code changed for that evaluation.
-- The RPE65 full-gene `full_locus` path had already been fixed/live-verified
-  at `21,139 bp`; remaining backend/web/frontend RPE65 window/sample/scaffold
-  values and visible Workbench text now also use `21,139`, matching the
-  inclusive `chr1:68,428,820-68,449,958` span.
-- `app/web` full-gene viewer now carries local sequence start/end per row and
-  defaults to `1-based` labels. With the current 80 bp rows, row one reads
-  `1` on the left and `80` on the right, row two `81` and `160`; the
-  `Genomic` toggle preserves the prior absolute coordinate labels. The genomic
-  locus span stays in the header.
+- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
+- Claude has committed LazySection v1 plus 375px mobile-overflow fixes on
+  local `main`; push was previously held, and Steven now asked for handshake
+  coordination before commit/push cadence.
+- Default `POST /api/v1/lookup` now omits the lazy-heavy fields
+  `report_payload.publications_literature`,
+  `report_payload.report_profile.computational_deep_dive`, and
+  `report_payload.report_profile.expert_panel`.
+- The backend service still builds the full report internally. A full
+  diagnostic `/lookup?include_lazy_sections=true` path remains available for
+  backend regression tests, and `/api/v1/lookup/sections` still serves
+  `publications`, `computational_deep_dive`, and `clingen_vcep` envelopes.
+- RPE65 in-process smoke measured default lookup at `76,197` bytes versus
+  `86,897` bytes for the full diagnostic response, saving `10,700` bytes
+  before compression.
+- Steven approved returning to the local models/local-source source-strategy
+  thread after this slice, but explicitly requested this handshake and contract
+  canary first.
 
 **Verification:**
-- `python -m pytest app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_dbsnp_local_adapter.py app/backend/tests/test_clinvar_local_adapter.py app/backend/tests/test_transcript_model_store.py app/backend/tests/test_repeatmasker_local_adapter.py -q`
+- `python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
   passed.
-- `python -m pytest app/backend/tests/test_variant_cache.py app/backend/tests/test_publication_literature.py app/backend/tests/test_variant_report_publication_functional_integration.py app/backend/tests/test_variant_search_integration.py -q`
+- `python -m pytest -q` from `app/backend` passed with known JWT short-key
+  warnings only.
+- `python -m ruff check app/api/routes/lookup.py tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py`
   passed.
-- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_source_cache.py -q`
-  passed.
-- `python -m ruff check app/backend/app/services/local_evidence_orchestrator.py app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_variant_cache.py`
-  passed.
-- `python -m black --check --target-version py310 app/backend/app/services/local_evidence_orchestrator.py app/backend/tests/test_local_evidence_orchestrator.py app/backend/tests/test_variant_cache.py`
-  passed after formatting `test_variant_cache.py`.
-- `git diff --check`
-  passed with only CRLF conversion warnings.
-- RPE65 count follow-up verification: `python -m pytest
-  tests/test_gene_viewer.py -q` from `app/backend`, app/web
-  `.\node_modules\.bin\tsc.cmd --noEmit`, app/frontend
-  `.\node_modules\.bin\tsc.cmd --noEmit`, `rg -n "21138|21,138"
-  app\backend app\web app\frontend`, and `git diff --check` all passed
-  (rg returned no matches; diff check had only CRLF warnings).
-- Full-gene coordinate-ruler verification: app/web `tsc --noEmit`,
-  app/frontend `tsc --noEmit`, backend `test_gene_viewer.py`, and
-  Chrome/Playwright browser checks against local Next (`http://localhost:3000`)
-  proxying live Render all passed. ABCA4 full gene defaults to `1-based`
-  first rows `1-80`, `81-160`, `161-240`; `Genomic` changes row one to
-  `93,992,834-93,992,913`. RPE65 full gene defaults to `1-80`; `Genomic`
-  changes row one to `68,428,820-68,428,899`. Mobile RPE65 keeps the
-  right-side row-end label visible. Final viewer API trace returned 200s;
-  one earlier 503 during browser verification was transient and did not
-  reproduce.
+- `python -m black --check --target-version py310 app/api/routes/lookup.py tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py`
+  passed after formatting `lookup.py`.
+- `git diff --check` passed.
+- In-process smoke returned HTTP 200 for default `/lookup`, full diagnostic
+  `/lookup?include_lazy_sections=true`, and `/lookup/sections` with all three
+  lazy section keys.
 
 **Next-session direction:**
-- Continue backend own-tree hardening only if useful; runtime local-source
-  wiring into lookup/search/gene-viewer/Workbench remains separate-approval
-  work despite the native reader gate now being passed.
-- Treat `pm-tools` ideas as planning candidates only until reviewed; do not
-  install, vendor, or shell out to it without a license/dependency/provenance
-  decision.
-- Docker/container parity and WSL-native work remain Steven-approval-only.
+- Commit/push is now Steven-approved after the handshake/contract-canary step.
+  DL-019 still requires `git status --short` first and explicit `git add --`
+  pathspecs only; do not stage `.context/` screenshots unless explicitly asked.
+- Claude should browser-verify the LazySection lazy path against current
+  backend via the Cross-Agent Requests handshake before assuming the FE path is
+  end-to-end complete.
+- After commit/push boundary, resume the approved local models/local-source
+  thread from the source-strategy document and existing local-first plans.
+- Runtime local-source wiring remains separate-approval work. pm-tools remains
+  research-only; do not install, vendor, or shell out to it without review.
+  Docker/WSL remain Steven-approval-only.
 
-**Clear-safe:** yes for Task 16A, RPE65 count coherence, and the full-gene
-coordinate-ruler correction. A local Next dev server is intentionally running
-at `http://localhost:3000` with `API_PROXY_TARGET=https://eamos-dev.onrender.com`
-for Steven to inspect the Workbench. No runtime local-source wiring,
-provider/source-cache rewiring, production source imports/downloads, live
-Supabase writes/resources/migrations, uploads/imports, env/deploy mutation,
-`/runs`, AlphaMissense display/runtime scoring, restricted predictor unlocks,
-WSL, Docker, destructive git, stash, reset, clean, commit, or push was
-performed by Codex. `pm-tools` research was read-only and made no repo changes.
+**Clear-safe:** yes for M-007 backend eager-payload trim and the Codex->Claude
+handshake. No frontend edits, runtime local-source wiring, Supabase/object-
+storage/startup download/report provider wiring, production source imports/
+downloads, live Supabase writes/resources/migrations, uploads/imports, env/
+deploy mutation, `/runs`, AlphaMissense display/runtime scoring, restricted
+predictor unlocks, WSL, Docker, destructive git, stash, reset, or clean was
+performed by Codex.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-29 03:13 +1000 · Codex Task 16A + full-gene coordinate ruler`
-`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Sessions 85, 84, 83, and 82, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: Codex completed fixture-only Task 16A hardening/CAR #4 cache tests, corrected RPE65 count mirrors to 21,139, then fixed the actual full-gene viewer numbers issue: row labels now default to local 1-based sequence coordinates with right-side row-end labels and a Genomic toggle for absolute positions.`
-`Verification: Task 16A checks passed; RPE65 count checks passed; coordinate-ruler follow-up passed app/web tsc, app/frontend tsc, backend test_gene_viewer.py, Chrome/Playwright desktop ABCA4/RPE65 and mobile RPE65 browser checks, and git diff --check with only CRLF warnings.`
-`Next: runtime local-source wiring has Steven approval as the next backend slice but remains separate work. pm-tools research says do not adopt as a dependency. Docker/WSL remain Steven-approval-only. Local Next dev server is running at http://localhost:3000 proxying live Render for Workbench inspection.`
-`Guardrails: preserve a23a324 full_gene fixture fallback; no Supabase/object-storage/startup download/report provider wiring, /runs, AlphaMissense display/runtime scoring, destructive git, stash, reset, clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, production source downloads, restricted predictor unlocks, WSL, Docker, commit, or push. End clear-safe.`
+`# Resume prompt · 2026-05-29 21:52 +1000 · Codex M-007 eager lookup payload trim + handshake`
+`Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 87, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
+`Delta: M-007 is implemented and verified. Default /api/v1/lookup omits publications_literature, report_profile.computational_deep_dive, and report_profile.expert_panel; /lookup/sections still serves publications/computational_deep_dive/clingen_vcep. RPE65 smoke saved 10,700 bytes before compression.`
+`Verification: focused section-fetch/report integration pytest + test_frontend_contract.py, full backend pytest, Ruff, Black, git diff --check, and in-process default/full/sections smoke all passed. Codex->Claude handshake request filed for browser lazy-path verification and commit/push coordination.`
+`Next: commit/push is Steven-approved after handshake/contract-canary; use DL-019 explicit pathspecs and do not stage .context/. Then resume the approved local models/local-source source-strategy thread.`
+`Guardrails: no runtime local-source wiring, Supabase/object-storage/startup download/report provider wiring, production imports/downloads, /runs, AlphaMissense display/runtime scoring, destructive git, stash/reset/clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, restricted predictor unlocks, WSL, Docker. End clear-safe.`
