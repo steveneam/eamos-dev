@@ -14,25 +14,30 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-29 03:47 +1000 (anchor: `244ba62` on local `main`, 7 ahead of `origin/main`) — **Hard Rule 10 Option A complete: LazySection v1 SHIPPED (`244ba62`).** New FE primitive at `app/web/components/report/LazySection.tsx`: IntersectionObserver wrapper around `fetchLookupSections({ ..., include: [sectionId] })` with `eagerData` short-circuit; wraps `<PubMedSection>` in `ReportClient.tsx` §5. Eager-path browser-verified at `/report?demo` (sentinel absent, zero `/api/v1/lookup/sections` calls, no console errors). Lazy fetch branch is dead-code-until-M-007 trims the eager `publications_literature` payload; `:8000/api/v1/lookup/sections` returned timeouts in this session's offline-mock environment so deeper e2e verification deferred. `app/web` tsc clean. DL-019 honoured (only LazySection.tsx + ReportClient.tsx staged; Codex's pre-existing working-tree edits on `app/backend/app/services/gene_viewer.py` + agents/chat/main/config/schemas + new `test_chat_service.py` left untouched). Major-boundary CURRENT.md replace landed: prior Claude — Last Task & Resume narrative archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md`. **Push held** per Steven's cadence. Prior IDLE state (Phase 2 branch rename + service flip @ 2026-05-29 01:25 +1000, anchor `c83b8c6`) — **Phase 2 (branch rename + service flip) COMPLETE.** Fast-forwarded `origin/main` 149 commits from `e0f1763` (was 11 total) to `b44e38b`, then `c83b8c6` (added `.scratch/` to `.gitignore` so VSCode no longer counts Codex's WSL native-reader-proof venv's 2,392 files as pending changes). **Vercel `eamos-dev`** reconnected via CLI `vercel git disconnect` → `vercel git connect` (the official CLI was the right escalation after MCP returned read-only and PATCH `/v9/projects` rejected the `link` field; saved as [[feedback_cli_first_over_mcp]]): `link.productionBranch=main` confirmed via `mcp__vercel__get_project`. **Render `srv-d896ie77f7vs73brs140`** flipped via Steven's dashboard click: `branch=main`, `autoDeploy=no`, `autoDeployTrigger=off` confirmed via `mcp__render__get_service`. **Local branch** renamed `checkpoint/v2-batches-2026-05-17` → `main` tracking `origin/main`. **Remote `checkpoint/v2-batches-2026-05-17` deleted from origin** — only `main` remains; GitHub default already was `main` (origin/HEAD → origin/main pre-rename) so no GitHub-side flip needed. PostHog/Stripe/Resend/Porkbun: zero git-branch coupling, no action needed. Supabase Sydney project also not git-branch-coupled (hosted, no preview-branching enabled). **Supabase CLI installed** (`npm i -g supabase` → `C:\Users\seamegdool\AppData\Roaming\npm\supabase`) for future migration/branching work. **Open follow-ups:** (a) revoke the `eamos-branch-flip` Vercel token at https://vercel.com/account/tokens (used during failed REST-API exploration, no longer needed); (b) Stripe + Render CLIs pending install (Windows: Stripe via scoop/.exe from stripe-cli releases, Render via .exe from `github.com/render-oss/cli/releases`); (c) CAR #4 (M-006 / M10a gene-scoped pub count) at next slice start per DL-002; (d) Codex's PROGRESS.md/plans/docs uncommitted working-tree edits left untouched per Hard Rule 1 — Codex to commit on their next turn. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); **CLI > MCP > dashboard** ([[feedback_cli_first_over_mcp]]).
+- **Claude:** IDLE @ 2026-05-29 22:57 +1000 (anchor: `1a6e680` on local `main`, synced with `origin/main`) — **4 FE commits shipped + pushed this session.** `8b2b1a8` fix(report) mobile-overflow at 375 on PublicationsCallout + AskEamos + new proprietary CLI `scripts/eamos-report-preflight.mjs` (dep-free Node 24 + CDP + native WebSocket headless scanner). `9ccae51` feat(report) M11/M-007 lazy-section contract canary — `?lazy=<csv>` URL hatch in `ReportClient.tsx` forces LazySection lazy branch; demo mode synthesises `summaryRequest` from `payload.report_profile.header` so the lazy fetch hits live `/api/v1/lookup/sections`; preflight CLI gets matching `--lazy=<csv>` flag with polling termination + Network domain capture + per-section terminal-state probe; verified end-to-end against live BE. `56c8782` refactor(report) §2 cleanup — replaced 12-row `EvidenceTable` with focused `ClinVarBlock` (classification + review-stars + submitter-count bar + conditions + consequence + ClinVar VCV link); orphaned `EvidenceTable.tsx` deleted. `1a6e680` feat(report) responsive shell + right rail with TOC + Cite — new `ReportRail.tsx` with IntersectionObserver scroll-spy TOC + Cite button (sets `?cite=1` so existing CiteChip modal listener fires); new CSS tokens `--rail-w`/`--rail-gap`/`--shell-w` with media queries at 1280/1536/1920; CiteChip simplified to bottom-left Feedback-only; addresses Steven's asymmetric-layout complaint (architect Option 1 + Option 3 combined). DL-019 honoured every commit. tsc clean. Mobile preflight green (375/768, only pre-existing CalibratedInSilicoTable +16px offender remains — queued for Slice A). Subagents used (ui-ux-consultant + architect) per Steven's explicit "deploy subagents" instruction for the spacing diagnosis. Codex confirmed push readiness + acknowledged Claude's flag on `ExpertPanelSection.tsx:133` RPE65 fixture-fallback (post-M-007 bug) as Claude-owned FE fix. **Next session plan written to `~/.claude/plans/next-session-eamos.md`** (Slice A = section restructure: ACMG+ClinVar+ExpertPanel into new §3 Clinical evidence card; §2 to in-silico only; gut RPE65 fixture-fallback + wrap §3 in LazySection; rename old §3→"Gene & locus context" + old §4→"Disease & curated variants"; wire molecular_context into §4 + gene_disease into §5; move PublicationsCallout to §6; ~2-3 hrs. Slice B = §4 viewer overhaul: embed Workbench gene viewer + build new ProteinDomainTrack with UniProt-style domains + ClinVar variant overlay per Steven's 3 reference screenshots; CAR for Codex on protein-domain data source; ~1-2 days). Prior CURRENT.md Claude section archived verbatim to `agent_handoff/archive/2026-05-29-claude-section-pre-spacing-slice.md`. Codex starts the 38-line `Data and sources 1.docx` backend buildout next session per Steven's directive. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents on Eamos integration/UI work — explicit "deploy subagents" requests override ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); no fabricated h:mm timestamps ([[feedback_no_clock_timestamps]]); Hard Rule 10 met (responsive shell + rail = net-new UI capability, ClinVarBlock + lazy canary = net-new tooling/verification).
 
-- **Codex:** POST-PUSH IDLE @ 2026-05-29 21:58 +1000 - M-007 backend
-  eager-payload trim is implemented and verified. Default `/api/v1/lookup`
-  omits lazy-heavy `publications_literature`,
-  `report_profile.computational_deep_dive`, and `report_profile.expert_panel`;
-  `/api/v1/lookup/sections` still serves `publications`,
-  `computational_deep_dive`, and `clingen_vcep`. Contract canary and full
-  backend pytest passed. Steven approved local models/local-source work next,
-  but requested Codex->Claude handshake + contract canary before that and
-  before commit/push cadence; handshake was filed and Codex-owned commits were
-  pushed to `origin/main` through `181bf7e`. Remaining local dirty files are
-  Claude/user-side frontend/tooling artifacts left unstaged:
-  `app/web/components/report/ReportClient.tsx`,
-  `scripts/eamos-report-preflight.mjs`, and `.context/`. Guardrails unchanged:
-  no runtime local-source wiring, Supabase/object-storage/startup download/
-  report provider wiring, production imports/downloads, `/runs`,
-  AlphaMissense, WSL/Docker, destructive git, stash/reset/clean, deploy/env
-  mutation.
+- **Codex:** PAUSED @ 2026-05-29 22:20 +1000 - User's next-session directive:
+  work through all 38 extracted `Data and sources 1.docx` lines until every
+  non-commercial-gated item is implemented, verified, or explicitly converted
+  into a current repo blocker. Commercial/licensing-gated items stay gated:
+  InterVar/ANNOVAR/OMIM production use, restricted predictors
+  (SpliceAI/CADD/REVEL/PrimateAI-3D/raw dbNSFP), AlphaMissense display/runtime
+  scoring, and any unreviewed commercial source rights. Current audit state:
+  Mondo fixture/parser exists with OMIM/Orphanet cross-references but no
+  licensed OMIM/Orphanet import; InterVar is a blocked registry/policy row
+  only, while current ACMG work is an Eamos worksheet/source-asserted
+  consensus path rather than InterVar/ANNOVAR. Uncommitted Codex preflight
+  files remain `app/backend/app/cli/eamos_source_asset_preflight.py` and
+  `app/backend/tests/test_source_asset_preflight_cli.py`; `.context/` remains
+  untracked. A Codex->Claude coordination request for the long DOCX 38-line
+  backend buildout was filed at 2026-05-29 22:24 +1000. Focused preflight/
+  source tests, Ruff, Black, `git diff --check`, and the preflight CLI passed;
+  full backend `python -m pytest -q` timed out at 304s before result.
+  Claude acknowledged the 38-line coordination request and pushed the frontend
+  stack through `1a6e680`; Codex fetched and confirmed local `main` equals
+  `origin/main` at `1a6e680`. Claude also flagged the post-M-007
+  `ExpertPanelSection` fixture fallback as a Claude-owned frontend fix; Codex
+  should not spend backend time on it unless a later contract issue is filed.
 
 ## Log Edit-Lock
 
@@ -42,7 +47,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-29 21:59 +1000 · Codex (post-push heartbeat closeout)
+UNLOCKED · 2026-05-29 22:58 +1000 · Claude (major-boundary Claude section replace + Hard Rule 1 archive; next session = Slice A section restructure)
 
 ## Shared File Locks
 
@@ -805,6 +810,36 @@ Rule 4); release when done.
 
 Append-only. Format: `[OPEN|DONE] <from>Ã¢â€ â€™<to> (date): <ask> Ã‚Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
+
+- [OPEN] Codex->Claude (2026-05-29 22:24 +1000): **Coordination before
+  Codex starts the long DOCX 38-line local-source buildout.** Steven directed
+  Codex to work through all 38 extracted lines from `Data and sources 1.docx`
+  until every non-commercial-gated item is implemented and verified, or has a
+  concrete repo blocker. Codex will own backend/local-source/data-source
+  registry, adapters, fixture-first models, preflight tooling, tests, and any
+  backend contract canaries for this push. Claude should avoid independent
+  backend/local-source/runtime wiring and should not read local source assets
+  directly from frontend code. If Codex reaches a frontend-visible contract or
+  browser-verification point, Codex will file a specific CAR with exact schema,
+  route, and verification asks before touching Claude-owned UI. Commercial/
+  licensing-gated items remain out of scope unless Steven gives separate
+  explicit approval: InterVar/ANNOVAR/OMIM production use, restricted
+  predictors (SpliceAI/CADD/REVEL/PrimateAI-3D/raw dbNSFP), AlphaMissense
+  display/runtime scoring, and unreviewed commercial source rights. Current
+  dirty Codex files from the paused preflight slice are
+  `app/backend/app/cli/eamos_source_asset_preflight.py` and
+  `app/backend/tests/test_source_asset_preflight_cli.py`; `.context/` remains
+  untracked. ·
+  `Data and sources 1.docx`, `app/backend/app/data_sources/**`,
+  `app/backend/app/services/*local*.py`, `app/backend/tests/**`,
+  `docs/local-first-data-source-strategy/**`, `plans/v2-backend.md`.
+  Claude ACK received via Steven at 2026-05-29 22:39 +1000: scope is clean.
+  Codex agrees Claude should push `56c8782` before Codex starts to keep
+  `origin/main` current. ExpertPanelSection fixture fallback is Claude-owned
+  FE work; no backend action unless a later contract issue appears.
+  Follow-up via Steven at 2026-05-29 22:49 +1000: Claude pushed both
+  `56c8782` and `1a6e680`; Codex fetched and confirmed `main == origin/main`
+  at `1a6e680`, so Codex can start the 38-line buildout without rebase noise.
 
 - [OPEN] Codex->Claude (2026-05-29 21:52 +1000): **Handshake before
   post-M-007 commit/push and before Codex switches to local models/local-source
@@ -1867,21 +1902,25 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-29 21:52 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-29 22:49 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes. Prior detailed Codex section was already covered by
 `PROGRESS.md` Sessions 83-85 and was not separately archived.
 
-**Latest Codex update (2026-05-29 21:58 +1000 - Codex):**
-Completed M-007 backend eager-payload trim for Claude LazySection v1 and filed
-the requested Codex->Claude handshake before switching to local models/local-
-source follow-up work. Codex-owned commits were pushed to `origin/main` through
-`181bf7e`.
+**Latest Codex update (2026-05-29 22:49 +1000 - Codex):**
+Completed M-007 earlier, pushed through `9ccae51` after Claude's lazy-section
+canary, then started the approved local models/local-source follow-up. Steven
+redirected the work to a line-by-line audit of `Data and sources 1.docx` and
+set the next-session directive: work through all 38 extracted DOCX lines until
+every non-commercial-gated item is implemented, verified, or explicitly
+recorded as blocked by current repo constraints. Claude then pushed the
+frontend stack through `1a6e680`; Codex fetched and confirmed local `main`
+equals `origin/main` at `1a6e680`.
 
 **State:**
 - Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
-- Claude has committed LazySection v1 plus 375px mobile-overflow fixes on
-  local `main`; Codex pushed the shared `main` stack through `181bf7e`.
+- Claude has committed LazySection v1 plus report shell/right-rail frontend
+  follow-ups; shared `main` is pushed through `1a6e680`.
 - Default `POST /api/v1/lookup` now omits the lazy-heavy fields
   `report_payload.publications_literature`,
   `report_payload.report_profile.computational_deep_dive`, and
@@ -1893,9 +1932,15 @@ source follow-up work. Codex-owned commits were pushed to `origin/main` through
 - RPE65 in-process smoke measured default lookup at `76,197` bytes versus
   `86,897` bytes for the full diagnostic response, saving `10,700` bytes
   before compression.
-- Steven approved returning to the local models/local-source source-strategy
-  thread after this slice, but explicitly requested this handshake and contract
-  canary first.
+- Current local-source audit result: Mondo fixture/parser exists with
+  OMIM/Orphanet cross-references, but licensed OMIM/Orphanet import is not
+  built; InterVar is a blocked registry/policy row only, and the current ACMG
+  path is Eamos-owned worksheet/source-asserted consensus, not InterVar/
+  ANNOVAR.
+- Uncommitted Codex files from the paused preflight slice remain
+  `app/backend/app/cli/eamos_source_asset_preflight.py` and
+  `app/backend/tests/test_source_asset_preflight_cli.py`; `.context/` remains
+  untracked.
 
 **Verification:**
 - `python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
@@ -1910,33 +1955,41 @@ source follow-up work. Codex-owned commits were pushed to `origin/main` through
 - In-process smoke returned HTTP 200 for default `/lookup`, full diagnostic
   `/lookup?include_lazy_sections=true`, and `/lookup/sections` with all three
   lazy section keys.
+- For the paused source-preflight slice: focused source-preflight/manifest/
+  hg38/local-evidence pytest, Ruff, Black, `git diff --check`, and
+  `python -m app.cli.eamos_source_asset_preflight --compact` passed.
+- Full backend `python -m pytest -q` during the paused source-preflight slice
+  timed out at 304s before result.
 
 **Next-session direction:**
-- Commit/push is complete for Codex-owned work through `181bf7e`. Remaining
-  local dirty files are frontend/tooling artifacts left unstaged:
-  `app/web/components/report/ReportClient.tsx`,
-  `scripts/eamos-report-preflight.mjs`, and `.context/`.
-- Claude should browser-verify the LazySection lazy path against current
-  backend via the Cross-Agent Requests handshake before assuming the FE path is
-  end-to-end complete.
-- After commit/push boundary, resume the approved local models/local-source
-  thread from the source-strategy document and existing local-first plans.
-- Runtime local-source wiring remains separate-approval work. pm-tools remains
-  research-only; do not install, vendor, or shell out to it without review.
-  Docker/WSL remain Steven-approval-only.
+- Primary next task is no longer a narrow preflight-only slice. Work through
+  all 38 extracted lines from
+  `C:\Users\seamegdool\Desktop\Claude code and website tips\EAMOS Web Tool\sources\database\Data and sources 1.docx`
+  until each non-commercial-gated item is implemented and verified, or has a
+  concrete repo blocker. Keep the audit table current as implementation moves.
+- Commercial/licensing-gated items stay gated unless Steven gives separate
+  explicit approval and the rights are resolved: InterVar/ANNOVAR/OMIM
+  production use, restricted predictors (SpliceAI/CADD/REVEL/PrimateAI-3D/raw
+  dbNSFP), AlphaMissense display/runtime scoring, and unreviewed commercial
+  source rights.
+- Runtime local-source wiring, Supabase/object-storage/startup downloads,
+  production imports/downloads, uploads/imports, env/deploy mutation, WSL, and
+  Docker remain approval-gated. pm-tools remains research-only; do not install,
+  vendor, or shell out to it without review.
 
-**Clear-safe:** yes for M-007 backend eager-payload trim and the Codex->Claude
-handshake. No frontend edits, runtime local-source wiring, Supabase/object-
-storage/startup download/report provider wiring, production source imports/
-downloads, live Supabase writes/resources/migrations, uploads/imports, env/
-deploy mutation, `/runs`, AlphaMissense display/runtime scoring, restricted
-predictor unlocks, WSL, Docker, destructive git, stash, reset, or clean was
-performed by Codex.
+**Clear-safe:** yes for handoff. M-007 and Claude's lazy-section canary are
+pushed. The local-source preflight files are uncommitted and paused in favor of
+the DOCX 38-line completion directive. No runtime local-source wiring,
+Supabase/object-storage/startup download/report provider wiring, production
+source imports/downloads, live Supabase writes/resources/migrations, uploads/
+imports, env/deploy mutation, `/runs`, AlphaMissense display/runtime scoring,
+restricted predictor unlocks, InterVar/ANNOVAR/OMIM production use, WSL,
+Docker, destructive git, stash, reset, or clean was performed by Codex.
 
 **Latest resume prompt:**
-`# Resume prompt · 2026-05-29 21:58 +1000 · Codex M-007 pushed + local models approved next`
+`# Resume prompt · 2026-05-29 22:49 +1000 · Codex DOCX 38-line buildout ready from 1a6e680`
 `Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 87, plans/v2-backend.md Recent backend notes, then git status --short --branch.`
-`Delta: M-007 is implemented, verified, committed, and pushed through 181bf7e. Default /api/v1/lookup omits publications_literature, report_profile.computational_deep_dive, and report_profile.expert_panel; /lookup/sections still serves publications/computational_deep_dive/clingen_vcep. RPE65 smoke saved 10,700 bytes before compression.`
-`Verification: focused section-fetch/report integration pytest + test_frontend_contract.py, full backend pytest, Ruff, Black, git diff --check, and in-process default/full/sections smoke all passed. Codex->Claude handshake request filed for browser lazy-path verification.`
-`Next: resume the approved local models/local-source source-strategy thread after reading the user's docx pointer. Remaining local dirty files are Claude/user-side frontend/tooling artifacts: app/web/components/report/ReportClient.tsx, scripts/eamos-report-preflight.mjs, .context/.`
-`Guardrails: no runtime local-source wiring, Supabase/object-storage/startup download/report provider wiring, production imports/downloads, /runs, AlphaMissense display/runtime scoring, destructive git, stash/reset/clean, deploy/env mutation, live Supabase writes/resources/migrations, uploads/imports, restricted predictor unlocks, WSL, Docker. End clear-safe.`
+`Delta: Claude pushed frontend commits through 1a6e680 and Codex fetched/confirmed local main == origin/main, so the next session can start the 38-line Data and sources 1.docx buildout without rebase noise. Mondo exists only as fixture/parser + OMIM/Orphanet crossrefs; InterVar is blocked only, not built.`
+`Current dirty files: agent_handoff/CURRENT.md, app/backend/app/cli/eamos_source_asset_preflight.py, app/backend/tests/test_source_asset_preflight_cli.py, plus untracked .context/. Preflight focused tests/Ruff/Black/diff-check/CLI passed; full backend pytest timed out at 304s.`
+`Next: build a task matrix from the 38 DOCX lines and implement non-commercial-gated gaps across backend fixture/local-source/tooling slices until complete, committing only explicit Codex-owned paths if asked.`
+`Guardrails: no InterVar/ANNOVAR/OMIM production use, restricted predictor unlocks, AlphaMissense display/runtime scoring, runtime local-source wiring, Supabase/object-storage/startup downloads, production imports/downloads, uploads/imports, deploy/env mutation, WSL/Docker, destructive git, stash/reset/clean without explicit approval. End clear-safe.`
