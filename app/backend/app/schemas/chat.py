@@ -39,6 +39,10 @@ class ChatResponse(BaseModel):
     answer: str
 
 
+class LookupChatAnswerDraft(BaseModel):
+    answer: str
+
+
 class RunChatRequest(BaseModel):
     question: str = Field(min_length=1)
 

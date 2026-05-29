@@ -8,10 +8,11 @@ from app.agents.prompts import (
     current_run_chat_prompt,
     draft_prompt,
     extraction_prompt,
+    lookup_chat_prompt,
     search_input_extraction_prompt,
 )
 from app.core.config import Settings
-from app.schemas.chat import RunChatAnswerDraft
+from app.schemas.chat import LookupChatAnswerDraft, RunChatAnswerDraft
 from app.schemas.draft import DraftPayload
 from app.schemas.lookup import SearchInputAiExtraction
 from app.schemas.report import ExtractedCase
@@ -162,6 +163,41 @@ def build_run_chat_chain(settings: Settings):
             return dict(result)
 
     return LiveRunChatChain()
+
+
+def build_lookup_chat_chain(settings: Settings):
+    if settings.llm_provider == "mock" or not settings.openai_api_key:
+        return None
+    from langchain_openai import ChatOpenAI
+
+    model = ChatOpenAI(
+        model=settings.openai_model,
+        api_key=SecretStr(settings.openai_api_key),
+        temperature=0,
+        timeout=settings.lookup_chat_timeout_seconds,
+    )
+
+    class LiveLookupChatChain:
+        def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
+            from langchain_core.prompts import ChatPromptTemplate
+
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", lookup_chat_prompt()),
+                    (
+                        "human",
+                        "Question:\n{question}\n\n"
+                        "Bounded Eamos lookup and Workbench context:\n{bounded_context}",
+                    ),
+                ]
+            )
+            chain = prompt | model.with_structured_output(LookupChatAnswerDraft)
+            result = chain.invoke(payload)
+            if isinstance(result, LookupChatAnswerDraft):
+                return result.model_dump(mode="json")
+            return dict(result)
+
+    return LiveLookupChatChain()
 
 
 def build_search_input_ai_chain(settings: Settings):

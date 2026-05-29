@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_embeddings_model: str = "text-embedding-3-small"
+    lookup_chat_timeout_seconds: float = 10.0
     search_input_ai_enabled: bool = False
     search_input_ai_timeout_seconds: float = 8.0
     run_chat_top_k: int = 4
