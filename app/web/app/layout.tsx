@@ -36,7 +36,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
   : new URL('https://eamos.com.au')
 
-const defaultTitle = 'Eamos — Genomic Intelligence Platform'
+const defaultTitle = 'Eamos: Genomic Intelligence Platform'
 const defaultDescription =
   'Aggregates ClinVar, Ensembl, SpliceAI, gnomAD and PubMed for genomic variant evidence. Research use only.'
 

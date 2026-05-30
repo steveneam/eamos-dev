@@ -370,7 +370,7 @@ function AncestryFrequencyTab({
                     style={{
                       fontSize: 10.8,
                       fontWeight: 700,
-                      color: isActive ? '#111827' : 'var(--ink-2)',
+                      color: isActive ? 'var(--ink)' : 'var(--ink-2)',
                       textShadow: isActive ? `0 0 11px ${barColor}99` : 'none',
                     }}
                   >

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 
 interface CiteModalProps {
   onClose: () => void
@@ -28,6 +28,15 @@ export function CiteModal({
 }: CiteModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = 'cite-modal-title'
+
+  const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<number | null>(null)
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current)
+    },
+    [],
+  )
 
   // Focus-trap + ESC
   useEffect(() => {
@@ -81,6 +90,44 @@ export function CiteModal({
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose()
+  }
+
+  // Plain-text citation built from the same fields the modal renders. No
+  // placeholder DOI — it stays pending until a real one is minted.
+  function buildCitation() {
+    let cite = 'Eamegdool, S. S. (2026). Eamos: clinical-grade variant interpretation. https://eamos.com.au'
+    if (variantDisplay) {
+      cite += ` Variant: ${variantDisplay}.`
+      if (date) cite += ` Accessed ${date}.`
+      if (reportVersion) cite += ` Report v${reportVersion}.`
+    }
+    return cite
+  }
+
+  async function handleCopyCitation() {
+    const cite = buildCitation()
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(cite)
+      } else {
+        // Legacy fallback for insecure contexts (mirrors CopyButton).
+        const ta = document.createElement('textarea')
+        ta.value = cite
+        ta.setAttribute('readonly', '')
+        ta.style.position = 'absolute'
+        ta.style.left = '-9999px'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setCopied(true)
+      if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard blocked (permission denied / patched API). Leave the label
+      // unchanged rather than fake a success — honest per the lynchpin.
+    }
   }
 
   return (
@@ -235,18 +282,33 @@ export function CiteModal({
         {/* Hairline */}
         <div style={{ borderTop: '0.5px solid var(--line)', margin: '20px 0' }} />
 
-        {/* Copy buttons */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {(['citation', 'bibtex', 'ris'] as const).map((fmt) => (
-            <button
-              key={fmt}
-              onClick={() => console.log(`TODO: wire ${fmt}`)}
-              style={copyBtnStyle}
-            >
-              Copy {fmt === 'citation' ? 'citation' : fmt === 'bibtex' ? 'BibTeX' : 'RIS'}
-            </button>
-          ))}
+        {/* Copy buttons — plain-text citation copies for real; the structured
+            BibTeX/RIS exports are honestly disabled until they are built. */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={handleCopyCitation}
+            aria-label={copied ? 'Citation copied to clipboard' : 'Copy citation'}
+            style={copied ? { ...copyBtnStyle, ...copiedBtnStyle } : copyBtnStyle}
+          >
+            {copied ? 'Copied' : 'Copy citation'}
+          </button>
+          <button type="button" disabled aria-disabled="true" style={disabledBtnStyle}>
+            Copy BibTeX
+          </button>
+          <button type="button" disabled aria-disabled="true" style={disabledBtnStyle}>
+            Copy RIS
+          </button>
         </div>
+        <p
+          style={{
+            margin: '10px 0 0',
+            fontSize: '11px',
+            color: 'var(--ink-4)',
+          }}
+        >
+          Structured BibTeX and RIS export are coming soon.
+        </p>
       </div>
     </div>
   )
@@ -305,4 +367,20 @@ const copyBtnStyle: React.CSSProperties = {
   cursor: 'pointer',
   boxShadow: 'var(--elev-1)',
   transition: 'background 120ms ease, border-color 120ms ease, box-shadow 200ms ease',
+}
+
+// Confirmation state for the citation button — teal tint reads as success
+// while staying on-token (no new hard-coded greens).
+const copiedBtnStyle: React.CSSProperties = {
+  background: 'var(--teal-tint)',
+  color: 'var(--teal-deep)',
+  borderColor: 'var(--teal)',
+}
+
+// Honest non-interactive state for the unbuilt structured exports.
+const disabledBtnStyle: React.CSSProperties = {
+  ...copyBtnStyle,
+  opacity: 0.5,
+  cursor: 'not-allowed',
+  boxShadow: 'none',
 }

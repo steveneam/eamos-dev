@@ -1,8 +1,8 @@
 ﻿/* ═══════════════════════════════════════════════════════════════════════
    EAMOS WORKBENCH — STYLES
    Inherits the design vocabulary of the Report page:
-     - Plus Jakarta Sans (body), Syne (display), JetBrains Mono (sequence)
-     - Teal #1D9E75 accent, navy #1e3a5f ink, 0.5px hairlines
+     - Inter (body), Spectral (display), JetBrains Mono (sequence)
+     - Teal #1D9E75 accent, warm near-black ink, 0.5px hairlines
    Adds a wider 1440px layout with a main canvas and right contextual
    side panel. Sequence-related color vocabulary is
    muted (no saturated rainbow) so it reads as Eamos, not Benchling.
@@ -21,9 +21,10 @@
 /* ─────────────────── NAV (matches Report) ─────────────────── */
 .nav-wrap {
   position: sticky; top: 0; z-index: 50;
-  background: rgba(255,255,255,0.9);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  /* Opaque warm-paper, matching TopNav/LandingNav. No backdrop-filter:blur on a
+     sticky bar — this one holds a search input, so a blur repaints on every
+     keystroke (mobile typing lag). Use the shared --nav-bg token instead. */
+  background: var(--nav-bg);
   border-bottom: 0.5px solid var(--line);
 }
 .nav {
