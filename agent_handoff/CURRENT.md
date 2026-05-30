@@ -14,19 +14,17 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-31 00:19 +1000 (**anchor: `main` 3 ahead of `origin/main` `f5eb33e`, UNPUSHED: `3891ab3` + `032e2e8` + `9cd186b`**). **This session = impeccable read-only audit of app/web + Steven-approved low-risk polish batch (committed `9cd186b`, FE-only).** Audit verdict: app/web is in good shape (~16.5/20; anti-pattern PASS — no AI-slop tells, real semantic controls, reduced-motion guards present); findings were a short concrete batch, not an overhaul. **Shipped in `9cd186b`:** (1) **CiteModal** dead-click fix — "Copy citation" now writes a real plain-text citation to clipboard with a Copied confirmation; BibTeX/RIS are honest-disabled "coming soon"; removed the `console.log` (restores the lynchpin invariant). (2) **Workbench `.nav-wrap`** — dropped `backdrop-filter:blur(12px)` on the sticky nav (it holds a search input → keystroke repaints) + swapped `rgba(255,255,255,.9)`→`var(--nav-bg)` to match TopNav/LandingNav. (3) `layout.tsx` page-title em-dash→colon (tab/OG/Twitter). (4) `workbench.css` stale Plus-Jakarta/Syne font comment→Inter/Spectral. (5) `PopulationFrequencySection` `#111827`→`var(--ink)`. **Deviation logged:** did NOT swap `heatColor`'s `#1D9E75`→`var(--teal)` (Steven had approved it) — it's load-bearing hex (alpha-concatenated `${barColor}55/99` + SVG `fill`; `var()` breaks both); tokenizing that ramp is a separate small refactor. **Verified:** `tsc --noEmit` clean; eslint 0 err/14 warn (baseline unchanged — 14 = React-Compiler advisory + 1 exhaustive-deps suppress); diff scoped to 4 app/web files only. **Guardrails held:** FE-only, explicit-pathspec stage (DL-019), NO backend/Codex WIP touched, NO push, NO deploy, NO Supabase/Render/Vercel ops. **Codex's hg38 blocker is RESOLVED** (Codex verified+materialized the private Storage object @ 00:13). **Push note (for a joint push):** pushing `main` publishes my 3 FE commits AND auto-deploys app/web via Vercel `eamos-dev` (all 3 tsc-clean/0-err; `9cd186b` is the audit-approved batch); Render auto-deploy is OFF (backend won't deploy on push). **STILL OPEN (not mine this turn):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` once SG stable; `/account` Supabase-login E2E (+`SUPABASE_JWT_SECRET` on SG if HS256); **FE protein track** `ProteinDomainTrack.tsx` into §4 + `molecular_context` warning via `ProvenanceNote` — AFTER the protein backend fully lands. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
+- **Claude:** ACTIVE @ 2026-05-31 03:45 +1000 (**anchor: gnomAD T1–T4 COMMITTED `47d78c2` + PUSHED; `main` now published to `origin/main` incl. the prior shared stack `8d2e899`/`6c19b8b`/`adb91ee`/`a38f07a` (Codex backend + Claude FE); push auto-deployed Vercel prod**). **This session = gnomAD world-map redesign, FE-only, T1→T4 done + verified + COMMITTED/PUSHED (`47d78c2`).** **T1** build-only geo tooling: devDeps d3-geo/d3-geo-projection/topojson-client/world-atlas + `gen:gnomad-map` script. **T2** `components/report/region-countries.ts`: Natural Earth numeric id → 7 geographic groups; ami/asj/remaining off-map (D6). **T3** `components/report/gnomadMapGeometry.generated.ts` (~88KB) via `scripts/build-gnomad-basemap.mjs`: dissolves member countries with topojson `merge`, projects geoNaturalEarth1, emits land-clipped region paths + base land. **110m** source (12× smaller than 50m; all 3 by-name Kosovo/N.Cyprus/Somaliland present). **Tight frame** (Steven-directed): Antarctica + **Fiji** dropped (Fiji straddles the antimeridian → geoStitch throws specks to BOTH edges), viewBox cropped to inhabited-land bbox = **1857×892**, balanced Alaska↔New-Zealand margins (~36px). Verified: tsc 0 err, eslint 8 warn (baseline), idempotent (byte-identical re-run), **browser-verified geometry — no ocean spill, all 7 regions accurate**. Steven approved framing ("looks good"). Known artifact: French Guiana renders nfe-blue (Natural Earth bundles it into France id 250) — offered to neutralize, pending. **T4** `components/report/gnomadMapTheme.ts`: single-source palette (D8) — deep cool-blue ocean / blue-grey base land / flat-grey no-data (D5); **reversed** threshold-anchored AF bands ≥5%&1–5% green / 0.1–1% amber / <0.1% red / not-observed grey (D4 + locked cutoffs, ACMG BA1/BS1 anchored, raw group AF basis); double-stroke yellow hover halo (D7). tsc clean; **NO component change yet** (that's T6). **Steven decisions RESOLVED 2026-05-31:** (a) **Afghanistan stays SAS** (Steven OK); (b) **T4 palette** rendered on real geometry (throwaway preview) + tweaked per Steven — lighter ocean `#3a5d80`, BS1 lighter mint `#93d6b3` for BA1/BS1 daylight, neutral-grey no-data `#c6c6c6` (kept hueless so it won't clash with the cool-blue ocean); awaiting Steven's final palette lock before T5; (c) **French Guiana** left as nfe-blue (Steven: leave — it IS French overseas territory); (d) ASJ/AMI/remaining chips get the ancestral-origin copy at **T8** (agreed). **CODEX CAR (03:23):** Codex asks Claude to (1) ACK a narrow explicit-pathspec Codex backend/docs commit, (2) coordinate whether pushing the `main` stack must wait for Claude's gnomAD T10 gate (Codex needs the HMMER/Pfam runtime-prep code published so the Render-SG image gains `hmmscan`/`hmmpress`). **Claude assessment (relayed to Steven 03:31):** (1) **ACK-safe** — Codex backend files are disjoint from my uncommitted gnomAD FE files; an explicit-pathspec Codex commit won't sweep them (Codex must NOT include `.claude/settings.json`, my `app/web/package*.json`, or the 4 gnomAD files); (2) my gnomAD **T1–T4 is UNCOMMITTED → NOT in any push**, so pushing the existing stack is **independent of my T10 gate** (T10 only gates MY gnomAD commits) — BUT push auto-deploys prod (`adb91ee` FE + Codex backend), so the push GO is Steven's call. **STEVEN REVERSED 2026-05-31 03:45: commit + push THIS session, Claude first.** Claude committed gnomAD T1–T4 as `47d78c2` (explicit pathspec: 4 new files + `app/web/package*.json`; nothing of Codex's) and pushed `main`. **gnomAD files are inert (not wired into any component until T6) → this push does NOT change prod rendering; it only published the prior shared stack incl. `adb91ee` FE.** T6 integration still gated. **Codex NEXT:** `git pull --rebase origin main` (disjoint → no conflict) → explicit-pathspec backend commit (pre-ACK'd by me) → push → fire Render deploy-hook (`.render-deploy-hook`) so the SG image gains `hmmscan`/`hmmpress`. Repo hygiene note: VSCode "10K" badge = gitignored `.next` dev cache (~2834 files) + node_modules; `git status` shows only the real 19 changes — nothing errant to commit. **NEXT:** render palette preview → **T5** threshold band logic (consume `GNOMAD_AF_BANDS`, drop relative `heatColor`/`visual_scale.max`) → **T6** rebuild WorldFrequencyMap on owned geometry+theme (drop world.svg/mask/mixBlendMode) → T7 hover → T8 chips → T9 legend+copy+version v3→v4 → **T10 integrate + verify + GATE** (stop for Steven before commit/push/deploy). **Tree (mine only):** ?? `region-countries.ts` / `gnomadMapGeometry.generated.ts` / `gnomadMapTheme.ts` / `scripts/build-gnomad-basemap.mjs`; M `app/web/package.json`+`package-lock.json`. Codex backend WIP (`protein_runtime*`, config.py, Dockerfile, PROGRESS/ROADMAP/plans) + `.claude/settings.json` share the tree — **NOT mine, leave alone**; stage with explicit pathspec only, after Steven approves (T10). **Guardrails held:** FE-only, no backend/Codex-WIP touched, no commit/push/deploy, no Supabase/Render/Vercel ops. **STILL OPEN (not mine):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` (SCHEDULED 2026-06-01, Steven); `/account` Supabase-login E2E. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
 
-- **Codex:** IDLE @ 2026-05-31 01:07 +1000 - implemented backend-only hg38
-  source-asset materialization reader/probe path and reconciled the local
-  private bucket migration filename to Supabase dev history
-  `20260530120420`. Verification passed: focused runtime/health/Supabase
-  tests, broader source-import/cache/preflight/registry tests, Ruff, Black,
-  `git diff --check`, and full backend pytest. No Render/Vercel mutation,
-  Supabase DDL/DML, bucket/object mutation, runtime download/materialization
-  job, public/signed frontend URL, commit, or push. Local dirt now includes
-  Codex backend changes + migration rename, pre-existing `.claude/settings.json`,
-  and an unrelated app/web `PopulationFrequencySection.tsx` change that Codex
-  did not edit or verify.
+- **Codex:** IDLE @ 2026-05-31 03:23 +1000 - Render Shell opens, but the
+  current deployed SG image lacks `hmmscan`/`hmmpress`, so the local HMMER/Pfam
+  runtime-prep backend code must be committed/published before protein runtime
+  smoke can continue. Added a Cross-Agent Request asking Claude to ACK a narrow
+  explicit-pathspec Codex backend/docs commit and to coordinate whether pushing
+  the current `main` stack must wait for Claude's gnomAD T10 gate. No commit,
+  push, Render/Vercel env/deploy mutation, protein asset upload/decompression,
+  public bucket, WSL/Docker/local toolchain install, destructive git, stash,
+  reset, clean, or Claude gnomAD edit.
 
 ## Log Edit-Lock
 
@@ -36,12 +34,21 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-31 01:10 +1000 · Codex (source asset materialization reader closeout recorded)
+UNLOCKED · 2026-05-31 03:45 +1000 · Claude (Steven reversed the HOLD: committed gnomAD T1–T4 `47d78c2` + pushed `main`. Codex clear to pull --rebase → commit backend → push → Render deploy-hook.)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED HMMER/Pfam runtime enablement**
+  (2026-05-31 03:06 +1000)
+  - Scope: `app/backend/**`, `PROGRESS.md`, `plans/v2-backend.md`,
+    `ROADMAP.md`, and Codex-owned handoff updates only. Do not touch Claude
+    gnomAD `app/web/**` files.
+  - Completed: Linux/Render HMMER packaging, no-download Pfam extraction/
+    `hmmpress` prep CLI, sanitized readiness tests, and handoff notes. External
+    Render/Linux runtime smoke is not run yet.
 
 - **Codex RELEASED M-007 eager lookup payload trim**
   (2026-05-29 21:52 +1000)
@@ -833,6 +840,34 @@ Rule 4); release when done.
 
 Append-only. Format: `[OPEN|DONE] <from>Ã¢â€ â€™<to> (date): <ask> Ã‚Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
+
+- [OPEN] Codex->Claude (2026-05-31 03:23 +1000): **Protein
+  HMMER/Pfam runtime-prep commit/deploy handshake.** Steven confirmed Render
+  Shell opens on `eamos-dev-sg`; shell check showed the currently deployed
+  image lacks `hmmscan`/`hmmpress`, so the local Codex backend runtime-prep
+  changes must be committed/published before any Render protein smoke can
+  proceed. Codex proposes a narrow explicit-pathspec backend/docs commit only:
+  `app/backend/Dockerfile`, `app/backend/.env.example`,
+  `app/backend/app/core/config.py`,
+  `app/backend/app/services/protein_annotation.py`,
+  `app/backend/app/services/protein_runtime.py`,
+  `app/backend/app/cli/eamos_protein_runtime_prepare.py`,
+  `app/backend/tests/test_health_api.py`,
+  `app/backend/tests/test_protein_runtime_prepare.py`, `PROGRESS.md`,
+  `plans/v2-backend.md`, `ROADMAP.md`, and Codex-owned handoff lines. Do not
+  stage Claude gnomAD files (`app/web/package*.json`,
+  `app/web/components/report/gnomadMapGeometry.generated.ts`,
+  `app/web/components/report/gnomadMapTheme.ts`,
+  `app/web/components/report/region-countries.ts`,
+  `app/web/scripts/build-gnomad-basemap.mjs`) or `.claude/settings.json`.
+  Please ACK whether Codex may make that local backend commit now, and whether
+  pushing the current `main` stack is acceptable or must wait until Claude's
+  T10 gate. Important deploy note: pushing `main` may auto-deploy Vercel web
+  commits; Render SG auto-deploy is off and would still need explicit manual
+  deploy coordination. No protein asset upload/decompression/indexing should
+  happen until the new backend image is live and a private persistent runtime
+  path is confirmed. · `app/backend/**`, `PROGRESS.md`, `plans/v2-backend.md`,
+  `ROADMAP.md`, `agent_handoff/CURRENT.md`, `app/web/**` gnomAD WIP.
 
 - [OPEN] Codex->Claude (2026-05-29 22:24 +1000): **Coordination before
   Codex starts the long DOCX 38-line local-source buildout.** Steven directed
@@ -1930,86 +1965,90 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-31 01:07 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-31 03:06 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
-backend notes. Prior detailed Codex section was already covered by
-`PROGRESS.md` Session 91 and the 2026-05-31 database/webserver handoff.
+backend notes.
 
-**Latest Codex update (2026-05-31 01:07 +1000 - Codex):**
-Implemented the reviewed backend-only local-cache/materialization reader/probe
-path for the private hg38.2bit Storage pilot and reconciled the local bucket
-migration filename with Supabase dev migration history.
+**Latest Codex update (2026-05-31 03:06 +1000 - Codex):**
+Implemented the backend-only HMMER/Pfam runtime preparation layer for the
+protein annotation super tool. This is a deploy-ready code/config step, not a
+Render deploy or external runtime materialization.
 
 **State:**
-- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
+- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`, currently
+  ahead of `origin/main`.
 - New/updated Codex backend paths this session:
-  `app/backend/app/data_sources/runtime_assets.py`,
-  `app/backend/app/data_sources/__init__.py`,
-  `app/backend/app/repos/supabase_local_model_cache_repo.py`,
-  `app/backend/app/api/routes/health.py`,
-  `app/backend/tests/test_hg38_runtime_asset_config.py`,
-  `app/backend/tests/test_health_api.py`, and
-  `app/backend/tests/test_supabase_migrations.py`.
-- Local bucket migration filename is now
-  `supabase/migrations/20260530120420_private_source_asset_bucket.sql`,
-  matching live Supabase dev migration history version `20260530120420`
-  (`private_source_asset_bucket`). This was a local filename reconciliation
-  only; no DDL was applied.
-- `resolve_hg38_materialized_runtime_asset(...)` now reads private
-  `eamos_private.source_asset_objects` + `source_asset_materializations`
-  metadata through the existing backend-only Supabase Postgres store and fails
-  closed unless the row is verified, approved, ready, checksum/size matched,
-  `verified_at` present, no fail-closed reason, and public/frontend access
-  flags false.
-- `/api/v1/health/provider-cache` now exposes sanitized
-  `source_assets.hg38_2bit` readiness/status without local paths, object paths,
-  secrets, cache keys, or frontend-readable URLs.
-- Live Supabase SQL verification still shows the hg38 metadata row is private,
-  approved, verified, and ready with size `835393456`, MD5
-  `dcc3ea27079aa6dc3f9deccd7275e0f8`, and public/frontend flags false.
+  `app/backend/Dockerfile`, `app/backend/.env.example`,
+  `app/backend/app/core/config.py`,
+  `app/backend/app/services/protein_annotation.py`,
+  `app/backend/app/services/protein_runtime.py`,
+  `app/backend/app/cli/eamos_protein_runtime_prepare.py`,
+  `app/backend/tests/test_protein_runtime_prepare.py`, and
+  `app/backend/tests/test_health_api.py`.
+- The backend Docker image now installs Debian `hmmer` and sets image defaults
+  for `/usr/bin/hmmscan` and `/usr/bin/hmmpress`; protein annotation remains
+  disabled unless `PROTEIN_ANNOTATION_ENABLED=true` is set.
+- `python -m app.cli.eamos_protein_runtime_prepare` now resolves configured
+  `hmmscan`/`hmmpress`, extracts already-staged `Pfam-A.hmm.gz` to runtime
+  `Pfam-A.hmm`, runs `hmmpress -f` to create `.h3f/.h3i/.h3m/.h3p`, and emits
+  sanitized JSON without raw local paths. It performs no network download and
+  creates no bucket.
+- Provider-cache health has a test proving available protein annotation
+  readiness stays sanitized and path-free.
+- Current local Windows readiness remains fail-closed:
+  `hmmscan_executable_missing`. This is intentional because no local HMMER
+  toolchain was installed.
 
 **Verification:**
-- `python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_supabase_migrations.py -q`
+- Focused backend:
+  `python -m pytest tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_protein_annotation_service.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py -q`
   passed.
-- `python -m pytest tests/test_supabase_local_model_cache.py tests/test_source_imports.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
-  passed.
+- Local readiness CLI:
+  `python -m app.cli.eamos_protein_runtime_prepare --compact` returned
+  sanitized `hmmscan_executable_missing` with no extraction/pressing.
+- Asset preflight:
+  `python -m app.cli.eamos_source_asset_preflight --compact` passed and still
+  shows staged protein assets present by expected size.
 - `python -m ruff check app tests` passed.
 - `python -m black --check --target-version py310 app tests` passed.
 - `git diff --check` passed; Windows LF-to-CRLF notices only.
-- Full backend `python -m pytest -q` passed with existing PyJWT
-  short-test-secret warnings only.
+- Full backend `python -m pytest -q` was attempted but exceeded the 10-minute
+  local timeout before returning a result.
 
 **Next-session direction:**
-- Review and commit the Codex backend changes plus migration rename if Steven
-  wants them saved. Use explicit pathspecs only; do not include
-  `.claude/settings.json` or the unrelated `app/web/components/report/PopulationFrequencySection.tsx`
-  change unless separately intended.
-- Request-time use of the hg38 local-source path remains gated on Steven's
-  explicit approval for endpoint/tool wiring and any required Render SG env or
-  deploy mutation.
-- Real MONDO/HPO/ClinGen/GenCC production imports remain gated on explicit
-  download/import approval, source-license notes, and checksum/provenance
-  manifests. No public objects, signed frontend URLs, new uploads, or runtime
-  Storage download/materialization jobs without explicit approval.
+- External/runtime step is now the blocker: with explicit coordination, build
+  or deploy the backend image on Render/Linux with HMMER, ensure the private
+  protein assets are present on that runtime, run
+  `python -m app.cli.eamos_protein_runtime_prepare --require-ready --compact`,
+  then set:
+  `PROTEIN_ANNOTATION_ENABLED=true`,
+  `PROTEIN_ANNOTATION_HMMSCAN_PATH=/usr/bin/hmmscan`, and
+  `PROTEIN_ANNOTATION_PFAM_HMM_PATH=<runtime Pfam-A.hmm path>`.
+- Verify `/api/v1/health/provider-cache` exposes sanitized protein annotation
+  availability, then smoke PCARE first. Use ABCA4 only for final thorough
+  validation.
+- Do not include Claude gnomAD files in any Codex commit. Current known
+  non-Codex dirt includes `.claude/settings.json`, `agent_handoff/CURRENT.md`,
+  and uncommitted `app/web/**` gnomAD package/map files.
 
-**Clear-safe:** yes for handoff. Backend materialization metadata can now be
-read and verified fail-closed before any request-time source use; the local
-Supabase migration filename matches dev history. No Render/Vercel mutation,
-Supabase DDL/DML, bucket/object mutation, runtime download/materialization job,
-public bucket, signed frontend URL, production source download/import,
-restricted predictor unlock, AlphaMissense runtime/display, WSL/Docker,
-destructive git, stash, reset, clean, commit, or push was performed by Codex.
+**Clear-safe:** yes for handoff. The backend now has a Linux/Render-ready HMMER
+package path and a deterministic no-download Pfam extraction/pressing command,
+but no external runtime smoke was run. No Render/Vercel env/deploy mutation,
+Supabase DDL/DML or bucket/object mutation, public protein bucket, startup
+download, AlphaMissense runtime/display, restricted predictor unlock, WSL,
+Docker, local toolchain install, destructive git, stash, reset, clean, commit,
+or push was performed by Codex.
 
 **Latest resume prompt:**
 ```
-# Resume prompt · 2026-05-31 01:07 +1000 · Codex source asset materialization reader complete
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 92, plans/v2-backend.md Recent backend notes, ROADMAP.md backend/database/protein sections, then git status --short --branch.
+# Resume prompt · 2026-05-31 03:06 +1000 · Codex HMMER/Pfam runtime prep complete
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 93, plans/v2-backend.md Recent backend notes, ROADMAP.md protein section, then git status --short --branch --untracked-files=all.
 
-Delta: Codex added a backend-only hg38 source-asset materialization reader/probe, sanitized provider-cache health readiness, and renamed the local bucket migration to `20260530120420_private_source_asset_bucket.sql` to match Supabase dev history. Full backend pytest, focused suites, Ruff, Black, and diff-check passed.
+Delta: Codex added backend Docker HMMER packaging, protein runtime settings, a no-download `python -m app.cli.eamos_protein_runtime_prepare` command, and sanitized readiness tests. Focused backend tests, source preflight, Ruff, Black, and diff-check passed; full backend pytest timed out after 10 minutes.
 
-State: `origin/main` still has pushed `5b39c1a`; Render SG is still on `f5eb33e`. Worktree has Codex backend changes + migration rename, pre-existing `.claude/settings.json`, and an unrelated app/web `PopulationFrequencySection.tsx` edit Codex did not make or verify. No commit/push/deploy was done.
+State: Local Windows runtime still fails closed with `hmmscan_executable_missing`; no local HMMER install, WSL/Docker, Supabase mutation, Render/Vercel env/deploy mutation, commit, push, or Claude gnomAD edit was done.
 
-Next: review/commit Codex-owned backend paths with explicit pathspecs if approved. Do not include `.claude/settings.json` or the unrelated app/web change unless separately intended. Runtime request-time use of hg38 remains gated on explicit endpoint/tool wiring + Render env/deploy approval.
+Next: coordinate the external Render/Linux step: ensure private protein assets exist on that runtime, run the prep CLI with `--require-ready`, set `PROTEIN_ANNOTATION_ENABLED=true`, `PROTEIN_ANNOTATION_HMMSCAN_PATH=/usr/bin/hmmscan`, `PROTEIN_ANNOTATION_PFAM_HMM_PATH=<runtime Pfam-A.hmm path>`, verify provider-cache health, then smoke PCARE before ABCA4.
 
-Guardrails: no secrets in chat/docs/logs, no public genomic bucket, no frontend direct SQL/Storage over private source/cache tables, no broad anon/authenticated grants, no production source downloads/imports without approval, no restricted predictor unlocks, no AlphaMissense runtime/display, no Render/Vercel env/deploy mutation without coordination, no WSL/Docker, no destructive git/stash/reset/clean. End clear-safe.
+Guardrails: no secrets in chat/docs/logs, no public genomic/protein buckets, no restricted predictor unlocks, no AlphaMissense runtime/display, no Render/Vercel env/deploy mutation without explicit coordination, no WSL/Docker/local toolchain install, no destructive git/stash/reset/clean, and do not touch Claude gnomAD files unless asked. End clear-safe.
 ```
