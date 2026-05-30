@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -190,9 +192,55 @@ def test_provider_cache_health_reports_sanitized_source_asset_materialization(
     assert object_path not in encoded
 
 
+def test_provider_cache_health_reports_available_protein_annotation_without_paths(
+    tmp_path: Path,
+) -> None:
+    hmmscan = _fake_executable(tmp_path, "hmmscan")
+    pfam_hmm = tmp_path / "protein" / "Pfam-A.hmm"
+    pfam_hmm.parent.mkdir()
+    pfam_hmm.write_text("HMMER3/f [test]\n//\n", encoding="utf-8")
+    for suffix in (".h3f", ".h3i", ".h3m", ".h3p"):
+        pfam_hmm.with_suffix(pfam_hmm.suffix + suffix).write_text("", encoding="utf-8")
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        protein_annotation_enabled=True,
+        protein_annotation_hmmscan_path=hmmscan,
+        protein_annotation_pfam_hmm_path=pfam_hmm,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    protein = response.json()["providers"]["protein_annotation"]
+    assert protein["enabled"] is True
+    assert protein["available"] is True
+    assert protein["status"] == "available"
+    assert protein["hmmer"] == {
+        "ready": True,
+        "reason": None,
+        "missing_index_count": 0,
+    }
+    assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
+
+
 class FakeMaterializationStore:
     def __init__(self, record: SourceAssetMaterializationRecord | None) -> None:
         self.record = record
 
     def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord | None:
         return self.record
+
+
+def _fake_executable(tmp_path: Path, name: str) -> Path:
+    suffix = ".cmd" if os.name == "nt" else ""
+    path = tmp_path / f"{name}{suffix}"
+    if os.name == "nt":
+        path.write_text("@echo off\r\nexit /b 0\r\n", encoding="utf-8")
+    else:
+        path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+    return path

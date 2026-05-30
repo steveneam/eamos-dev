@@ -79,8 +79,13 @@ class Settings(BaseSettings):
     hg38_2bit_runtime_asset_object_uri: str | None = None
     protein_annotation_enabled: bool = False
     protein_annotation_hmmscan_path: Path = Path("hmmscan")
+    protein_annotation_hmmpress_path: Path = Path("hmmpress")
     protein_annotation_pfam_hmm_path: Path = Path("./data/bio_assets/protein_annotation/Pfam-A.hmm")
+    protein_annotation_pfam_hmm_gz_path: Path = Path(
+        "./data/bio_assets/protein_annotation/downloads/Pfam-A.hmm.gz"
+    )
     protein_annotation_hmmscan_timeout_seconds: float = 30.0
+    protein_annotation_hmmpress_timeout_seconds: float = 900.0
     protein_annotation_require_pfam_indexes: bool = True
     protein_annotation_uniprot_features_enabled: bool = False
     protein_annotation_uniprot_dat_path: Path = Path(

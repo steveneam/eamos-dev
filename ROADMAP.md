@@ -36,7 +36,7 @@
 The site can move to full live data in staged backend-owned phases, not by
 opening every source at once.
 
-Current status (2026-05-30): phase 1 is underway. The dev Supabase project has
+Current status (2026-05-31): phase 1 is underway. The dev Supabase project has
 private `eamos_private` cache/source/job tables, RLS, service-role-only DML,
 advisor checks, and backend hybrid cache wrappers for variant reports, source
 cache, and protein annotation. The code still must be committed/pushed and the
@@ -79,7 +79,8 @@ it can match UniProt/Pfam-style references safely.
 2. **Core bundle staged locally:** ignored downloads are staged under
    `app/backend/data/bio_assets/protein_annotation/downloads/` for
    Swiss-Prot, Pfam-A HMM/metadata, HMMER source, and InterProScan source.
-   They are not installed, extracted, imported, or runtime-wired yet.
+   They are not committed or public; Pfam extraction/pressing is now a
+   backend prep step, but it has not been run on Render.
 3. **Local annotation engine:** annotate user protein sequences by translating
    coding DNA to protein and running InterProScan standalone, or HMMER
    `hmmscan` against a local Pfam-A bundle, in a bounded backend worker with
@@ -93,9 +94,9 @@ it can match UniProt/Pfam-style references safely.
    source of record.
 
 Still gated: live UniProt/InterPro/Pfam API dependency, startup downloads,
-runtime enablement before the local worker/import path exists, and optional
-InterProScan licensed apps (`SignalP`, `Phobius`, `DeepTMHMM`) until separate
-provider licenses and leak tests are recorded.
+Render env/deploy mutation, external protein-asset materialization, and
+optional InterProScan licensed apps (`SignalP`, `Phobius`, `DeepTMHMM`) until
+separate provider licenses and leak tests are recorded.
 
 ### Eamos Protein Annotation Super Tool
 
@@ -104,12 +105,15 @@ and tools. Eamos can own the worker orchestration, parsers, normalized schema,
 cache, provenance model, UI contract, and live-wire policy. Eamos does not
 relicense UniProtKB, Pfam/InterPro, HMMER, or InterProScan themselves.
 
-Current implementation status (2026-05-30): the first local/offline backend
+Current implementation status (2026-05-31): the first local/offline backend
 slice is implemented and verified. It includes asset preflight,
 `ProteinDomainTrack`, HMMER/Pfam `domtblout` parsing, UniProtKB/Swiss-Prot
 flatfile feature parsing, fail-closed runtime behavior, sequence-hash caching,
 Workbench/report cache hydration hooks, and private Supabase metadata/cache
-migration scaffolding. The renderer contract intentionally separates source
+migration scaffolding. A follow-up runtime-prep slice added Linux/Render HMMER
+packaging plus a no-download `Pfam-A.hmm.gz` extraction and `hmmpress` command;
+the actual external Linux smoke remains gated on coordinated Render/runtime
+asset materialization. The renderer contract intentionally separates source
 label, compact abbreviation, and functional legend description so gene/protein-
 specific biology can be shown without falsifying upstream provenance.
 

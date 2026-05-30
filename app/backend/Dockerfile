@@ -4,6 +4,13 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends hmmer \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PROTEIN_ANNOTATION_HMMSCAN_PATH=/usr/bin/hmmscan \
+    PROTEIN_ANNOTATION_HMMPRESS_PATH=/usr/bin/hmmpress
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 

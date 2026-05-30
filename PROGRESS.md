@@ -1,5 +1,65 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 93 - 31 May 2026 - HMMER/Pfam runtime preparation gate
+
+Implemented the backend-only Linux/Render preparation layer needed to turn the
+existing protein annotation worker from `hmmscan_executable_missing` toward a
+real Pfam runtime, without installing toolchains locally, using WSL/Docker,
+creating public buckets, mutating Render/Vercel env/deploy state, or touching
+Claude's gnomAD files.
+
+Completed:
+- Updated the backend Docker image to install Debian `hmmer`, exposing
+  `/usr/bin/hmmscan` and `/usr/bin/hmmpress` through protein annotation env
+  defaults. `PROTEIN_ANNOTATION_ENABLED` still defaults false.
+- Added protein runtime settings for `hmmpress`, staged `Pfam-A.hmm.gz`, and
+  the `hmmpress` timeout.
+- Added `python -m app.cli.eamos_protein_runtime_prepare`, a no-download,
+  no-bucket prep command that:
+  - resolves configured `hmmscan` and `hmmpress`;
+  - extracts already-staged private `Pfam-A.hmm.gz` to runtime `Pfam-A.hmm`;
+  - runs `hmmpress -f` to create `.h3f/.h3i/.h3m/.h3p`;
+  - emits sanitized JSON without raw local paths; and
+  - exits non-zero with `--require-ready` if runtime readiness fails.
+- Tightened executable resolution so configured HMMER paths must resolve as
+  executable commands rather than merely existing as files.
+- Added focused tests for the prep flow, fail-closed missing-`hmmpress` state,
+  sanitized CLI output, and sanitized provider-cache readiness when protein
+  annotation is available.
+
+Verification:
+- `python -m pytest tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_protein_annotation_service.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m app.cli.eamos_protein_runtime_prepare --compact` on this Windows
+  host -> sanitized fail-closed status `hmmscan_executable_missing`; no
+  extraction, pressing, network, download, bucket, secret, AlphaMissense, or
+  restricted-predictor path was used.
+- `python -m app.cli.eamos_source_asset_preflight --compact` -> passed;
+  staged protein assets are present by expected size.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check --target-version py310 app tests` -> passed.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+- Full backend `python -m pytest -q` was attempted but exceeded the 10-minute
+  local timeout before returning a result.
+
+Residual / next:
+- No actual Render/Linux runtime smoke was run because this session did not
+  mutate Render env/deploy state and did not materialize the large protein
+  assets on an external Linux runtime. The next coordinated external step is:
+  deploy/build the backend image with HMMER, ensure the private/staged Pfam
+  bundle is present on that runtime, run
+  `python -m app.cli.eamos_protein_runtime_prepare --require-ready --compact`,
+  set `PROTEIN_ANNOTATION_ENABLED=true`,
+  `PROTEIN_ANNOTATION_HMMSCAN_PATH=/usr/bin/hmmscan`, and
+  `PROTEIN_ANNOTATION_PFAM_HMM_PATH=<runtime Pfam-A.hmm path>`, then verify
+  `/api/v1/health/provider-cache` and smoke PCARE before ABCA4.
+
+Guardrails held:
+- No repo-local toolchain install, WSL, Docker, public genomic/protein bucket,
+  secret logging, AlphaMissense runtime/display, restricted predictor unlock,
+  Render/Vercel env/deploy mutation, Supabase mutation, push, deploy,
+  destructive git, stash, reset, clean, or Claude gnomAD file edit.
+
 ## Session 92 - 31 May 2026 - Source asset materialization reader and migration history reconciliation
 
 Implemented the backend-only reader/probe path needed before request-time use

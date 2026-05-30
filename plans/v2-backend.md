@@ -23,7 +23,24 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-30, Codex):
+Recent backend status notes (2026-05-31, Codex):
+- PROTEIN-HMMER-PFAM-RUNTIME-PREP is implemented and verified locally
+  (2026-05-31, Codex). The backend Docker image now installs Debian `hmmer`
+  and sets image defaults for `/usr/bin/hmmscan` and `/usr/bin/hmmpress`;
+  `PROTEIN_ANNOTATION_ENABLED` remains false by default and no deploy/env
+  mutation was performed. Added
+  `python -m app.cli.eamos_protein_runtime_prepare`, which performs no
+  downloads and creates no buckets: it resolves configured `hmmscan` /
+  `hmmpress`, extracts already-staged `Pfam-A.hmm.gz` to runtime
+  `Pfam-A.hmm`, runs `hmmpress -f` to create `.h3f/.h3i/.h3m/.h3p`, and emits
+  sanitized JSON without raw local paths. Focused prep/health/protein/source/
+  registry/contract tests, Ruff, Black, and `git diff --check` passed; full
+  backend pytest was attempted but exceeded the 10-minute local timeout. The
+  current Windows workstation still reports `hmmscan_executable_missing`, as
+  intended: no repo-local HMMER install, WSL, Docker, Render/Vercel mutation,
+  Supabase/bucket mutation, public protein bucket, AlphaMissense, or restricted
+  predictor unlock was performed. Next external step is coordinated
+  Render/Linux materialization plus PCARE smoke before ABCA4.
 - SOURCE-ASSET-MATERIALIZATION-READER is implemented and verified locally
   (2026-05-31, Codex). The backend now has a strict local-cache/materialization
   resolver for the private hg38.2bit Storage pilot:

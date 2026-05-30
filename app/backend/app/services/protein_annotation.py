@@ -26,7 +26,7 @@ from app.schemas.protein_annotation import (
 PROTEIN_ANNOTATION_SOURCE = "eamos_protein_annotation_super_tool"
 _PROTEIN_ALPHABET_RE = re.compile(r"^[ABCDEFGHIKLMNPQRSTVWXYZUO*]+$")
 _DNA_RE = re.compile(r"^[ACGTUNacgtun]+$")
-_HMMPRESS_SUFFIXES = (".h3f", ".h3i", ".h3m", ".h3p")
+HMMPRESS_SUFFIXES = (".h3f", ".h3i", ".h3m", ".h3p")
 _UNIPROT_FEATURE_KIND_MAP = {
     "DOMAIN": "domain",
     "REGION": "region",
@@ -160,14 +160,14 @@ class LocalHmmerRunner:
         self.settings = settings
 
     def status(self) -> HmmerRuntimeStatus:
-        hmmscan = _resolve_executable(self.settings.protein_annotation_hmmscan_path)
-        pfam_hmm = _resolve_backend_path(
+        hmmscan = resolve_executable(self.settings.protein_annotation_hmmscan_path)
+        pfam_hmm = resolve_protein_runtime_path(
             self.settings,
             self.settings.protein_annotation_pfam_hmm_path,
         )
         missing_indexes = tuple(
             str(pfam_hmm.with_suffix(pfam_hmm.suffix + suffix))
-            for suffix in _HMMPRESS_SUFFIXES
+            for suffix in HMMPRESS_SUFFIXES
             if not pfam_hmm.with_suffix(pfam_hmm.suffix + suffix).is_file()
         )
         if hmmscan is None:
@@ -253,7 +253,7 @@ class UniProtFlatfileFeatureProvider:
         if not request.gene_symbol and not request.protein_accession:
             return ProteinFeatureProviderResult()
 
-        path = _resolve_backend_path(
+        path = resolve_protein_runtime_path(
             self.settings,
             self.settings.protein_annotation_uniprot_dat_path,
         )
@@ -1064,13 +1064,9 @@ def _sha256_text(value: str) -> str:
     return sha256(value.encode("ascii")).hexdigest()
 
 
-def _resolve_backend_path(settings: Settings, path: Path) -> Path:
+def resolve_protein_runtime_path(settings: Settings, path: Path) -> Path:
     return path if path.is_absolute() else settings.backend_root / path
 
 
-def _resolve_executable(path: Path) -> str | None:
-    raw = str(path)
-    has_directory = path.parent != Path(".") or path.is_absolute()
-    if has_directory:
-        return raw if path.is_file() else None
-    return shutil.which(raw)
+def resolve_executable(path: Path) -> str | None:
+    return shutil.which(str(path))
