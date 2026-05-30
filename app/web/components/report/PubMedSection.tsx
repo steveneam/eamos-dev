@@ -54,8 +54,6 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   const [openArticle, setOpenArticle] = useState<PubMedArticle | null>(null)
   const searchParams = useSearchParams()
 
-  if (!hasTypedLiterature && initialArticles.length === 0) return null
-
   const articles = [...initialArticles, ...extra]
 
   // Hydrate openArticle from ?pub=PMID:N on mount + whenever articles change
@@ -127,6 +125,10 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
     payload.publications_callout?.scope_counts ??
     payload.publications_literature?.scope_counts ??
     null
+
+  // All hooks are above this line — the empty-state early return must stay below
+  // them so hook call order is identical on every render (rules-of-hooks).
+  if (!hasTypedLiterature && initialArticles.length === 0) return null
 
   return (
     <Card number={number} title="Publication literature" meta={meta} actions={actions}>

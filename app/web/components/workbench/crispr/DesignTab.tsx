@@ -340,7 +340,7 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Guide 5' to 3' + PAM</th>
+                  <th>Guide 5′ to 3′ + PAM</th>
                   <th>Cut</th>
                   <th>Strand</th>
                   <th>On-target</th>
