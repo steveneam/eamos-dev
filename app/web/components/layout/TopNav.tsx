@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import Link from 'next/link'
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { cn } from '@/lib/utils'
 
@@ -23,14 +24,14 @@ export function TopNav({ children, right, className }: TopNavProps) {
         className="mx-auto flex flex-wrap items-center gap-3 px-4 py-2 sm:flex-nowrap sm:gap-6 sm:px-8"
         style={{ maxWidth: 1180, minHeight: 56 }}
       >
-        <a
+        <Link
           href="/"
           aria-label="Eamos home"
           className="flex shrink-0 items-center"
           style={{ textDecoration: 'none' }}
         >
           <EamosLogo size={18} />
-        </a>
+        </Link>
         {children && <div className="order-3 min-w-full flex-1 sm:order-none sm:min-w-0">{children}</div>}
         <div className="flex shrink-0 items-center gap-2">
           {right ?? (

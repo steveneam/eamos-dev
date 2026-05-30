@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Link from 'next/link'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import type { ReportPayload, VariantSummaryRow } from '@/lib/backend'
 
@@ -91,9 +92,9 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
         className="mb-4 flex items-center gap-2"
         style={{ fontSize: 12, color: 'var(--ink-4)' }}
       >
-        <a href="/" style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
+        <Link href="/" style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
           Search
-        </a>
+        </Link>
         <span style={{ color: 'var(--ink-5)' }}>/</span>
         <span>Variant report</span>
         <span style={{ color: 'var(--ink-5)' }}>/</span>

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import Link from 'next/link'
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { AuthMenu } from '@/components/auth/AuthMenu'
@@ -122,9 +123,9 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
               pointerEvents: expanded ? 'none' : 'auto',
             }}
           >
-            <a href="/" aria-label="Eamos home" className="lnav-home-link flex shrink-0 items-center">
+            <Link href="/" aria-label="Eamos home" className="lnav-home-link flex shrink-0 items-center">
               <EamosLogo size={18} tone="light" />
-            </a>
+            </Link>
             <button
               ref={upRef}
               type="button"

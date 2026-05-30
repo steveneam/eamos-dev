@@ -258,7 +258,7 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
             key={m}
             type="button"
             role="tab"
-            aria-pressed={pressed}
+            aria-selected={pressed}
             onClick={() => onChange(m)}
             className="inline-flex items-center gap-1 rounded-full border-none transition-colors"
             style={{
