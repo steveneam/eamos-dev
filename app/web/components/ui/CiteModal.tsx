@@ -81,10 +81,12 @@ export function CiteModal({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  // Return focus on unmount
+  // Return focus on unmount. Capture the node when the effect runs so cleanup
+  // doesn't read a ref that may have changed by the time the modal unmounts.
   useEffect(() => {
+    const returnTarget = returnFocusRef.current
     return () => {
-      returnFocusRef.current?.focus()
+      returnTarget?.focus()
     }
   }, [returnFocusRef])
 

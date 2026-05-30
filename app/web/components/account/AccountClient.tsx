@@ -294,6 +294,9 @@ function Dashboard({ userId, email }: { userId: string; email: string }) {
   }, [])
 
   useEffect(() => {
+    // False positive: refresh() only setState()s after an awaited fetch, so this
+    // is the standard load-on-mount sync, not a synchronous cascading render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh()
   }, [refresh])
 

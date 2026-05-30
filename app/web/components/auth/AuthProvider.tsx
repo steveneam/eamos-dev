@@ -66,13 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Only "loading" when there's a client to wait on; with no client we're
+  // settled at mount (avoids flipping loading off via setState in the effect).
+  const [loading, setLoading] = useState(() => client != null)
 
   useEffect(() => {
-    if (!client) {
-      setLoading(false)
-      return
-    }
+    if (!client) return
     let active = true
     client.auth.getSession().then(({ data }) => {
       if (!active) return

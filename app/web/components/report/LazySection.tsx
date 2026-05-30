@@ -191,6 +191,9 @@ function LazyFetchSection<T>({
       fetchedRef.current = false
       runFetch()
     }
+    // False positive: `retry` reads fetchedRef.current only when invoked (a
+    // click handler), never during render.
+    // eslint-disable-next-line react-hooks/refs
     if (errorView) return <>{errorView(state.message, retry)}</>
     return <DefaultErrorView message={state.message} onRetry={retry} />
   }

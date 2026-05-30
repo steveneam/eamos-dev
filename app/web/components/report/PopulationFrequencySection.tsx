@@ -47,13 +47,26 @@ function heatRatio(value: number | null | undefined, maxFrequency: number): numb
   return Math.max(0, Math.min(1, value / maxFrequency))
 }
 
+// gnomAD allele-frequency heat ramp, low → high. Kept as hex (not var() tokens)
+// because these values are alpha-concatenated for glows (`${color}55`/`99`) and
+// passed as SVG `fill` presentation attributes — neither of which resolves CSS
+// custom properties. `low` is the brand teal --teal (#1D9E75); keep in sync with
+// globals.css. Single source for both heatColor() and the legend gradient.
+const FREQ_RAMP = {
+  unavailable: '#cbd5e1',
+  low: '#1D9E75',
+  mid: '#d6b649',
+  high: '#e89241',
+  max: '#d84f3f',
+} as const
+
 function heatColor(value: number | null | undefined, maxFrequency: number, dataState?: string): string {
-  if (dataState === 'zero_observed' || !value || value <= 0) return '#cbd5e1'
+  if (dataState === 'zero_observed' || !value || value <= 0) return FREQ_RAMP.unavailable
   const ratio = heatRatio(value, maxFrequency)
-  if (ratio >= 0.82) return '#d84f3f'
-  if (ratio >= 0.55) return '#e89241'
-  if (ratio >= 0.25) return '#d6b649'
-  return '#1D9E75'
+  if (ratio >= 0.82) return FREQ_RAMP.max
+  if (ratio >= 0.55) return FREQ_RAMP.high
+  if (ratio >= 0.25) return FREQ_RAMP.mid
+  return FREQ_RAMP.low
 }
 
 function maxGroupFrequency(groups: PopulationFrequencyVisualGroup[]): number {
@@ -557,7 +570,7 @@ function WorldFrequencyMap({
                 width: 96,
                 height: 7,
                 borderRadius: 999,
-                background: 'linear-gradient(90deg, #1D9E75 0%, #d6b649 38%, #e89241 68%, #d84f3f 100%)',
+                background: `linear-gradient(90deg, ${FREQ_RAMP.low} 0%, ${FREQ_RAMP.mid} 38%, ${FREQ_RAMP.high} 68%, ${FREQ_RAMP.max} 100%)`,
                 border: '0.5px solid rgba(148,163,184,0.8)',
               }}
             />

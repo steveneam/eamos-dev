@@ -387,6 +387,9 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
   // own header so `<LazySection>` can fire its IntersectionObserver-driven
   // `/api/v1/lookup/sections` fetch against the live backend even from the
   // offline-sample path.
+  // Manual deps are intentional (header fields drive the fallback request). The
+  // React Compiler infers a narrower set and skips optimizing — advisory only.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const effectiveSummaryRequest = useMemo<LookupRequest | undefined>(() => {
     if (summaryRequest) return summaryRequest
     if (lazyOverrides.size === 0) return undefined
