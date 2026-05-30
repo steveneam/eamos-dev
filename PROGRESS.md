@@ -23,6 +23,18 @@ Follow-up 2026-05-31 00:13 +1000:
   no public bucket, signed frontend URL, frontend direct access, Render/Vercel
   mutation, destructive git, commit, or push was performed.
 
+Joint closeout 2026-05-31 00:30 +1000:
+- Codex committed and pushed `5b39c1a` (`feat(backend): add source import
+  storage pilot`) after Claude's three frontend commits. The pushed stack is
+  `3891ab3`, `032e2e8`, `9cd186b`, and `5b39c1a` on `origin/main`.
+- Commit `5b39c1a` includes the source-import CLI, Tier 3 fixture/private
+  source-asset apply path, private bucket migration, hg38 verification docs,
+  Claude archive file, and ignore rules for local-only `.context/`,
+  `.claude/scheduled_tasks.lock`, and `supabase/supabase/`.
+- Pre-commit verification passed: focused source-import/Supabase backend
+  pytest, Ruff, Black check, and `git diff --check`. Vercel may auto-deploy
+  app/web from the pushed frontend commits; Render auto-deploy is off.
+
 Completed:
 - Added `python -m app.cli.eamos_source_import`, a guarded source-import CLI
   that plans Tier 3 clinical fixture imports and the first metadata-only

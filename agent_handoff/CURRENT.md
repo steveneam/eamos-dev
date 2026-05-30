@@ -16,17 +16,18 @@
 
 - **Claude:** IDLE @ 2026-05-31 00:19 +1000 (**anchor: `main` 3 ahead of `origin/main` `f5eb33e`, UNPUSHED: `3891ab3` + `032e2e8` + `9cd186b`**). **This session = impeccable read-only audit of app/web + Steven-approved low-risk polish batch (committed `9cd186b`, FE-only).** Audit verdict: app/web is in good shape (~16.5/20; anti-pattern PASS — no AI-slop tells, real semantic controls, reduced-motion guards present); findings were a short concrete batch, not an overhaul. **Shipped in `9cd186b`:** (1) **CiteModal** dead-click fix — "Copy citation" now writes a real plain-text citation to clipboard with a Copied confirmation; BibTeX/RIS are honest-disabled "coming soon"; removed the `console.log` (restores the lynchpin invariant). (2) **Workbench `.nav-wrap`** — dropped `backdrop-filter:blur(12px)` on the sticky nav (it holds a search input → keystroke repaints) + swapped `rgba(255,255,255,.9)`→`var(--nav-bg)` to match TopNav/LandingNav. (3) `layout.tsx` page-title em-dash→colon (tab/OG/Twitter). (4) `workbench.css` stale Plus-Jakarta/Syne font comment→Inter/Spectral. (5) `PopulationFrequencySection` `#111827`→`var(--ink)`. **Deviation logged:** did NOT swap `heatColor`'s `#1D9E75`→`var(--teal)` (Steven had approved it) — it's load-bearing hex (alpha-concatenated `${barColor}55/99` + SVG `fill`; `var()` breaks both); tokenizing that ramp is a separate small refactor. **Verified:** `tsc --noEmit` clean; eslint 0 err/14 warn (baseline unchanged — 14 = React-Compiler advisory + 1 exhaustive-deps suppress); diff scoped to 4 app/web files only. **Guardrails held:** FE-only, explicit-pathspec stage (DL-019), NO backend/Codex WIP touched, NO push, NO deploy, NO Supabase/Render/Vercel ops. **Codex's hg38 blocker is RESOLVED** (Codex verified+materialized the private Storage object @ 00:13). **Push note (for a joint push):** pushing `main` publishes my 3 FE commits AND auto-deploys app/web via Vercel `eamos-dev` (all 3 tsc-clean/0-err; `9cd186b` is the audit-approved batch); Render auto-deploy is OFF (backend won't deploy on push). **STILL OPEN (not mine this turn):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` once SG stable; `/account` Supabase-login E2E (+`SUPABASE_JWT_SECRET` on SG if HS256); **FE protein track** `ProteinDomainTrack.tsx` into §4 + `molecular_context` warning via `ProvenanceNote` — AFTER the protein backend fully lands. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
 
-- **Codex:** IDLE @ 2026-05-31 00:13 +1000 - hg38.2bit private Storage
-  pilot is now verified/materialized in dev metadata. Steven moved the
-  Dashboard-uploaded object to the clean private key
-  `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`;
-  Codex verified bucket `public=false`, size `835393456`, and MD5/ETag
-  `dcc3ea27079aa6dc3f9deccd7275e0f8`, then updated
-  `eamos_private.source_asset_objects.upload_status='verified'` and
-  `source_asset_materializations.materialization_status='ready'` with
-  frontend/public access still blocked. No S3 tooling was recreated; no
-  secrets, Render/Vercel mutation, public bucket, signed frontend URL,
-  destructive git, commit, or push.
+- **Codex:** IDLE @ 2026-05-31 00:30 +1000 - joint closeout committed and
+  pushed to `origin/main` at `5b39c1a` after Claude's three FE commits
+  (`3891ab3`, `032e2e8`, `9cd186b`). Codex commit:
+  `feat(backend): add source import storage pilot`, containing the backend
+  source-import CLI, Tier 3 fixture/source-asset private-table apply path,
+  private bucket migration, hg38 private Storage verification/materialization
+  docs, Claude archive file, and ignore rules for local-only `.context/`,
+  `.claude/scheduled_tasks.lock`, and `supabase/supabase/`. Verification before
+  commit: focused source-import/Supabase backend pytest passed, Ruff passed,
+  Black check passed, and `git diff --check` passed. Push consequence:
+  Vercel app/web auto-deploy may run; Render auto-deploy is off. Remaining
+  local dirt: `.claude/settings.json` only, intentionally unstaged.
 
 ## Log Edit-Lock
 
@@ -36,7 +37,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-31 00:22 +1000 · Claude (impeccable-polish closeout: heartbeat + Last Task note refreshed; `9cd186b` committed FE-only)
+UNLOCKED · 2026-05-31 00:30 +1000 · Codex (recorded joint commit/push closeout)
 
 ## Shared File Locks
 
@@ -1930,7 +1931,7 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-30 21:47 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-31 00:30 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes. Prior detailed Codex section was covered by `PROGRESS.md`
 Session 89 and replaced at this major backend/import boundary.
@@ -2004,26 +2005,27 @@ access remains blocked.
 - Frontend protein track remains unstarted unless Steven redirects.
 
 **Clear-safe:** yes for handoff. The backend Tier 3 fixture rows and hg38
-private Storage pilot are implemented, tested, and live-verified in dev. The
+private Storage pilot are implemented, tested, live-verified in dev, committed
+as `5b39c1a`, and pushed to `origin/main` after Claude's three FE commits. The
 hg38 object is private, checksum/size verified, and private metadata now marks
 it verified/ready with frontend/public access blocked. No S3 tooling was
 recreated, no secrets were exposed, and no Render/Vercel env/deploy mutation,
 public bucket, signed frontend URL, production source download/import,
 restricted predictor unlock, AlphaMissense runtime/display, WSL/Docker,
-destructive git, stash, reset, clean, commit, or push was performed by Codex.
+destructive git, stash, reset, or clean was performed by Codex.
 
 **Latest resume prompt:**
 ```
-# Resume prompt · 2026-05-31 00:13 +1000 · Codex hg38 private Storage verified/materialized
+# Resume prompt · 2026-05-31 00:30 +1000 · Codex joint source-import commit/push complete
 Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 91, plans/v2-backend.md Recent backend notes, ROADMAP.md backend/database/protein sections, then git status --short --branch.
 
-Delta: Steven uploaded/moved hg38.2bit in private Supabase Storage; Codex verified `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit` exists with size `835393456` and MD5/ETag `dcc3ea27079aa6dc3f9deccd7275e0f8`, bucket `public=false`, then updated private source-asset metadata to `upload_status=verified` and materialization `ready`.
+Delta: Codex committed and pushed `5b39c1a` (`feat(backend): add source import storage pilot`) after Claude's three FE commits. The pushed stack is now `3891ab3`, `032e2e8`, `9cd186b`, `5b39c1a` on `origin/main`; Vercel may auto-deploy app/web, Render auto-deploy is off.
 
-Context: Tier 3 fixture import CLI/source-table work from Session 91 remains in the dirty backend tree and private dev tables. Direct Postgres egress from this workstation previously timed out on 5432/6543, but Supabase HTTPS/SQL connector worked. The hg38 object/metadata verification was done through the connector only; no S3 tooling was recreated.
+Context: `5b39c1a` includes `python -m app.cli.eamos_source_import`, Tier 3 fixture/private source-asset upserts, the private bucket migration, the Claude archive file, local-artifact `.gitignore` rules, and handoff/progress updates. hg38.2bit is verified in private Storage at `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`, size `835393456`, MD5/ETag `dcc3ea27079aa6dc3f9deccd7275e0f8`, bucket `public=false`, metadata `upload_status=verified`, materialization `ready`.
 
-Verification: final SQL check showed Storage, `source_asset_objects`, and `source_asset_materializations` all agree on the clean object path, byte size, and MD5; bucket and metadata public/frontend access flags remain false. Earlier Session 91 focused backend suites, CLI dry-run, Ruff, Black, diff-check, and one full backend pytest passed.
+Verification: before commit, focused source-import/Supabase backend pytest passed, Ruff passed, Black check passed, and `git diff --check` passed. Final SQL check showed Storage, `source_asset_objects`, and `source_asset_materializations` all agree on clean object path, byte size, and MD5; bucket and metadata public/frontend access flags remain false.
 
-Next: do not create public objects, signed frontend URLs, new uploads, Render/Vercel env/deploy changes, or runtime materialization/download jobs without explicit approval. A reviewed backend local-cache/materialization reader path is still needed before request-time use of the Storage asset.
+Next: working tree should only show `.claude/settings.json` modified. Do not create public objects, signed frontend URLs, new uploads, Render/Vercel env/deploy changes, or runtime materialization/download jobs without explicit approval. A reviewed backend local-cache/materialization reader path is still needed before request-time use of the Storage asset.
 
 Guardrails: no secrets in chat/docs/logs, no public genomic bucket, no frontend direct SQL/Storage over private source/cache tables, no broad anon/authenticated grants, no production source downloads/imports without approval, no restricted predictor unlocks, no AlphaMissense runtime/display, no Render/Vercel env/deploy mutation without coordination, no WSL/Docker, no destructive git/stash/reset/clean, no commit/push unless asked. End clear-safe.
 ```
