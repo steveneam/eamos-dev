@@ -1,5 +1,65 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 94 - 31 May 2026 - Private Pfam storage and materialization CLI
+
+Built and verified the backend-owned bridge from the private Pfam Storage
+object to a Render-executable protein runtime prep command, without making the
+asset public, exposing secrets, mutating Vercel, using WSL/Docker/local HMMER,
+or touching Claude's frontend files.
+
+Completed:
+- Verified the SG Render image through a one-off job:
+  `python -m app.cli.eamos_protein_runtime_prepare --compact` succeeded and
+  reported `hmmscan_available=true`, `hmmpress_available=true`,
+  `status=pfam_hmm_source_missing`. This proves the `40d754a` image has
+  HMMER and the remaining blocker is Pfam asset materialization.
+- Uploaded the checksum-scoped `Pfam-A.hmm.gz` bundle to the existing private
+  Supabase Storage bucket `eamos-source-assets` with byte size `384357362`,
+  MD5 `dc814cc181ece09102c09c4e6c19f2fd`, and SHA256
+  `d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591`.
+  The bucket remains `public=false`; no signed/raw frontend URL was created.
+- Recorded private backend-only metadata for the Pfam object in
+  `eamos_private.local_source_versions`, `source_asset_objects`, and
+  `source_asset_materializations`. The object is `verified` and `approved`;
+  the SG web-service materialization row remains `download_pending` with
+  `service_runtime_materialization_not_yet_run` so an ephemeral one-off job
+  is not misrepresented as persistent service readiness.
+- Added `python -m app.cli.eamos_pfam_runtime_materialize`, backed by
+  `app.services.pfam_materialization`, to download the private Pfam gz through
+  backend-only Supabase service-role credentials, verify size/MD5/SHA256,
+  atomically stage the gz, optionally run the existing extraction/`hmmpress`
+  prep flow, and optionally run a bounded PCARE smoke before ABCA4. CLI output
+  is sanitized: no service-role key, local filesystem path, signed URL, or raw
+  object path is emitted.
+
+Verification:
+- Local Pfam checksum proof:
+  `python -m app.cli.eamos_pfam_runtime_materialize --source-object-uri <private Pfam object> --compact --require-ready`
+  -> ready from the existing local staged gz, no download needed.
+- `python -m pytest tests/test_pfam_materialization_cli.py tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check --target-version py310 app tests` -> passed.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+
+Residual / next:
+- Commit/push/deploy this backend-only CLI slice, then run a Render one-off job
+  with the new CLI. If `hmmpress` exceeds the starter job memory, rerun the
+  one-off on a larger temporary Render job plan. This does not require a
+  Supabase size increase for the gzipped Pfam bundle.
+- A one-off job can prove materialize -> extract -> `hmmpress` -> PCARE smoke
+  inside the job container, but it does not persist files into the already
+  running web-service filesystem. Public `/api/v1/health/provider-cache` will
+  stay fail-closed until the actual service instance has the materialized
+  Pfam runtime files through Render Shell, a persistent disk, or an approved
+  service startup/runtime materialization design.
+
+Guardrails held:
+- No public genomic/protein bucket, frontend direct Storage access, signed
+  raw-source URL, secret logging, restricted predictor unlock, AlphaMissense
+  runtime/display, Vercel mutation, WSL/Docker/local HMMER install,
+  destructive git, stash, reset, clean, or Claude gnomAD file edit.
+
 ## Session 93 - 31 May 2026 - HMMER/Pfam runtime preparation gate
 
 Implemented the backend-only Linux/Render preparation layer needed to turn the

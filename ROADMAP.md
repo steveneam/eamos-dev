@@ -110,12 +110,17 @@ slice is implemented and verified. It includes asset preflight,
 `ProteinDomainTrack`, HMMER/Pfam `domtblout` parsing, UniProtKB/Swiss-Prot
 flatfile feature parsing, fail-closed runtime behavior, sequence-hash caching,
 Workbench/report cache hydration hooks, and private Supabase metadata/cache
-migration scaffolding. A follow-up runtime-prep slice added Linux/Render HMMER
-packaging plus a no-download `Pfam-A.hmm.gz` extraction and `hmmpress` command;
-the actual external Linux smoke remains gated on coordinated Render/runtime
-asset materialization. The renderer contract intentionally separates source
-label, compact abbreviation, and functional legend description so gene/protein-
-specific biology can be shown without falsifying upstream provenance.
+migration scaffolding. Follow-up runtime-prep work added Linux/Render HMMER
+packaging plus `Pfam-A.hmm.gz` extraction and `hmmpress`; SG one-off proof now
+confirms `hmmscan`/`hmmpress` are present in the image. The Pfam gz bundle is
+verified in private Supabase Storage and a backend-only materialization CLI can
+download, checksum, prep, and PCARE-smoke it from service-role credentials.
+The actual web-service provider-cache ready state still requires persistent
+service-instance materialization through Render Shell, a persistent disk, or an
+approved startup/runtime materialization design. The renderer contract
+intentionally separates source label, compact abbreviation, and functional
+legend description so gene/protein-specific biology can be shown without
+falsifying upstream provenance.
 
 1. **Asset preflight:** verify staged Swiss-Prot, Pfam-A, HMMER, and
    InterProScan files by expected size/hash and report usable/missing status.

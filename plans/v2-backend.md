@@ -24,6 +24,24 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-31, Codex):
+- PFAM-PRIVATE-STORAGE-MATERIALIZATION-CLI is implemented and verified
+  locally (2026-05-31, Codex). The existing private Supabase bucket
+  `eamos-source-assets` now contains the verified Pfam gz bundle
+  `Pfam-A.hmm.gz` (384,357,362 bytes; MD5
+  `dc814cc181ece09102c09c4e6c19f2fd`; SHA256
+  `d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591`).
+  Private metadata records it as verified/approved and keeps the SG web-service
+  materialization state `download_pending`, not ready, because an ephemeral
+  one-off job must not imply persistent web-service filesystem readiness.
+  Added `python -m app.cli.eamos_pfam_runtime_materialize`, which downloads
+  the private Storage object only through backend service-role credentials,
+  verifies size/MD5/SHA256, atomically stages the gz, can invoke the existing
+  extraction/`hmmpress` prep command, and can run a bounded PCARE smoke before
+  ABCA4. Output is sanitized: no service-role key, local path, signed URL, or
+  raw object path. Render one-off `python -m app.cli.eamos_protein_runtime_prepare --compact`
+  already proved the SG image has `hmmscan` and `hmmpress`; it failed closed at
+  `pfam_hmm_source_missing`, so the remaining external proof is private Pfam
+  materialize -> prep -> PCARE smoke after this CLI is deployed.
 - PROTEIN-HMMER-PFAM-RUNTIME-PREP is implemented and verified locally
   (2026-05-31, Codex). The backend Docker image now installs Debian `hmmer`
   and sets image defaults for `/usr/bin/hmmscan` and `/usr/bin/hmmpress`;

@@ -1,6 +1,6 @@
 # Database / Webserver Current State
 
-Last updated: 2026-05-31 01:07 +1000 by Codex.
+Last updated: 2026-05-31 04:15 +1000 by Codex.
 Cache-fix + Oregon→SG cutover verified: 2026-05-30 19:45 +1000 by Claude (see
 Smoke Results / Render Services / Next Safe Steps below).
 
@@ -129,6 +129,22 @@ local paths, object paths, secrets, or frontend-readable URLs. This is a reader
 and verification layer only: no runtime Storage download/materialization job,
 request-time local-source wiring, new object, public URL, Render/Vercel change,
 or Supabase DDL/DML was performed.
+
+**Private Pfam Storage object applied 2026-05-31 04:15 +1000 (Codex).** Codex
+uploaded the verified `Pfam-A.hmm.gz` bundle to the existing private bucket
+`eamos-source-assets` and recorded backend-only private metadata. Storage
+verification: bucket `public=false`, object size `384357362`, MD5
+`dc814cc181ece09102c09c4e6c19f2fd`, and content type
+`application/octet-stream`. Private metadata now has
+`source_asset_objects.upload_status='verified'`, `approval_status='approved'`,
+`public_access_allowed=false`, and `frontend_direct_access_allowed=false`.
+The SG web-service materialization row intentionally remains
+`download_pending` with
+`fail_closed_reason='service_runtime_materialization_not_yet_run'`; an
+ephemeral Render one-off job must not be treated as persistent web-service
+filesystem readiness. No public bucket, signed raw-source URL, frontend direct
+access, Render/Vercel env mutation, or restricted predictor unlock was
+performed.
 
 ## Advisor Status
 

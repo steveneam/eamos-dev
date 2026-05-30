@@ -84,6 +84,8 @@ class Settings(BaseSettings):
     protein_annotation_pfam_hmm_gz_path: Path = Path(
         "./data/bio_assets/protein_annotation/downloads/Pfam-A.hmm.gz"
     )
+    protein_annotation_pfam_hmm_gz_object_uri: str | None = None
+    protein_annotation_pfam_materialize_timeout_seconds: float = 1200.0
     protein_annotation_hmmscan_timeout_seconds: float = 30.0
     protein_annotation_hmmpress_timeout_seconds: float = 900.0
     protein_annotation_require_pfam_indexes: bool = True
