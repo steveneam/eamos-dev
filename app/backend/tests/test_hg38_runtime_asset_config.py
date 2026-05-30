@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 from hashlib import md5
 from pathlib import Path
+
+import pytest
 
 from app.core.config import Settings
 from app.data_sources import (
@@ -11,8 +14,11 @@ from app.data_sources import (
     DataSourceRegistry,
     RuntimeAssetMode,
     RuntimeAssetStatus,
+    SourceAssetMaterializationError,
+    SourceAssetMaterializationRecord,
     build_hg38_runtime_asset_plan,
     inspect_hg38_runtime_asset,
+    resolve_hg38_materialized_runtime_asset,
 )
 from app.services.reference_genome import ReferenceGenomeStore
 
@@ -166,6 +172,105 @@ def test_hg38_runtime_asset_reports_invalid_mode_as_config_error(tmp_path: Path)
     assert "unsupported" in inspection.message
 
 
+def test_hg38_materialized_reader_resolves_verified_private_metadata(
+    tmp_path: Path,
+) -> None:
+    payload = b"small-test-2bit"
+    asset_path = tmp_path / "hg38.2bit"
+    asset_path.write_bytes(payload)
+    settings = Settings(jwt_secret="test-secret", hg38_2bit_runtime_asset_path=asset_path)
+    store = FakeMaterializationStore(_materialization_record(payload, asset_path))
+
+    resolved = resolve_hg38_materialized_runtime_asset(
+        settings,
+        store,
+        registry=_tiny_registry(payload),
+        verify_checksum=True,
+    )
+
+    assert resolved.source_id == "ucsc_hg38_2bit"
+    assert resolved.path == asset_path
+    assert resolved.bucket_id == "eamos-source-assets"
+    assert resolved.byte_size == len(payload)
+    assert resolved.checksum_value == _md5(payload)
+    assert resolved.inspection.ready is True
+
+
+def test_hg38_materialized_reader_fails_closed_on_public_metadata(
+    tmp_path: Path,
+) -> None:
+    payload = b"small-test-2bit"
+    asset_path = tmp_path / "hg38.2bit"
+    asset_path.write_bytes(payload)
+    settings = Settings(jwt_secret="test-secret", hg38_2bit_runtime_asset_path=asset_path)
+    record = replace(
+        _materialization_record(payload, asset_path),
+        public_access_allowed=True,
+    )
+
+    with pytest.raises(SourceAssetMaterializationError) as exc_info:
+        resolve_hg38_materialized_runtime_asset(
+            settings,
+            FakeMaterializationStore(record),
+            registry=_tiny_registry(payload),
+        )
+
+    assert exc_info.value.code == "materialization_public_access_blocked"
+
+
+def test_hg38_materialized_reader_fails_closed_on_checksum_mismatch(
+    tmp_path: Path,
+) -> None:
+    payload = b"small-test-2bit"
+    asset_path = tmp_path / "hg38.2bit"
+    asset_path.write_bytes(payload)
+    settings = Settings(jwt_secret="test-secret", hg38_2bit_runtime_asset_path=asset_path)
+    record = replace(
+        _materialization_record(payload, asset_path),
+        checksum_value="0" * 32,
+    )
+
+    with pytest.raises(SourceAssetMaterializationError) as exc_info:
+        resolve_hg38_materialized_runtime_asset(
+            settings,
+            FakeMaterializationStore(record),
+            registry=_tiny_registry(payload),
+        )
+
+    assert exc_info.value.code == "materialization_checksum_mismatch"
+
+
+def test_hg38_materialized_reader_filters_configured_object_uri(
+    tmp_path: Path,
+) -> None:
+    payload = b"small-test-2bit"
+    asset_path = tmp_path / "hg38.2bit"
+    asset_path.write_bytes(payload)
+    object_path = "ucsc_hg38_2bit/hg38/md5-test/hg38.2bit"
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=asset_path,
+        hg38_2bit_runtime_asset_object_uri=f"supabase://eamos-source-assets/{object_path}",
+    )
+    store = FakeMaterializationStore(_materialization_record(payload, asset_path, object_path))
+
+    resolve_hg38_materialized_runtime_asset(
+        settings,
+        store,
+        registry=_tiny_registry(payload),
+    )
+
+    assert store.calls == [
+        {
+            "source_id": "ucsc_hg38_2bit",
+            "asset_role": "reference_genome_2bit",
+            "bucket_id": "eamos-source-assets",
+            "object_path": object_path,
+            "environment": None,
+        }
+    ]
+
+
 def _tiny_registry(
     payload: bytes,
     *,
@@ -192,3 +297,65 @@ def _tiny_registry(
 
 def _md5(payload: bytes) -> str:
     return md5(payload).hexdigest()
+
+
+class FakeMaterializationStore:
+    def __init__(self, record: SourceAssetMaterializationRecord | None) -> None:
+        self.record = record
+        self.calls: list[dict[str, object]] = []
+
+    def get_source_asset_materialization(
+        self,
+        *,
+        source_id: str,
+        asset_role: str,
+        bucket_id: str | None = None,
+        object_path: str | None = None,
+        environment: str | None = None,
+    ) -> SourceAssetMaterializationRecord | None:
+        self.calls.append(
+            {
+                "source_id": source_id,
+                "asset_role": asset_role,
+                "bucket_id": bucket_id,
+                "object_path": object_path,
+                "environment": environment,
+            }
+        )
+        if self.record is None:
+            return None
+        if bucket_id is not None and self.record.bucket_id != bucket_id:
+            return None
+        if object_path is not None and self.record.object_path != object_path:
+            return None
+        if environment is not None and self.record.environment != environment:
+            return None
+        return self.record
+
+
+def _materialization_record(
+    payload: bytes,
+    asset_path: Path,
+    object_path: str = "ucsc_hg38_2bit/hg38/md5-test/hg38.2bit",
+) -> SourceAssetMaterializationRecord:
+    return SourceAssetMaterializationRecord(
+        source_id="ucsc_hg38_2bit",
+        asset_role="reference_genome_2bit",
+        bucket_id="eamos-source-assets",
+        object_path=object_path,
+        upload_status="verified",
+        approval_status="approved",
+        public_access_allowed=False,
+        frontend_direct_access_allowed=False,
+        environment="dev-local",
+        backend_runtime="render_backend",
+        local_cache_path=str(asset_path),
+        materialization_status="ready",
+        byte_size=len(payload),
+        checksum_algorithm="md5",
+        checksum_value=_md5(payload),
+        verified_at=datetime(2026, 5, 30, tzinfo=timezone.utc),
+        fail_closed_reason=None,
+        metadata={"fixture": True},
+        warnings=[],
+    )

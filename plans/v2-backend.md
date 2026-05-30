@@ -24,6 +24,27 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-30, Codex):
+- SOURCE-ASSET-MATERIALIZATION-READER is implemented and verified locally
+  (2026-05-31, Codex). The backend now has a strict local-cache/materialization
+  resolver for the private hg38.2bit Storage pilot:
+  `resolve_hg38_materialized_runtime_asset(...)` reads backend-only
+  `eamos_private.source_asset_objects` + `source_asset_materializations`
+  metadata through `SqlAlchemySupabaseLocalModelCacheStore`, then fails closed
+  unless the object is `verified`, `approved`, materialization is `ready`,
+  `verified_at` exists, public/frontend access flags are false, no
+  fail-closed reason is present, and local file size/checksum match the
+  registry. `/api/v1/health/provider-cache` now includes sanitized
+  `source_assets.hg38_2bit` readiness without exposing local paths, object
+  paths, cache keys, secrets, or frontend-readable URLs. The local bucket
+  migration filename was reconciled to
+  `20260530120420_private_source_asset_bucket.sql`, matching the Supabase dev
+  migration history version. Live SQL verification confirmed the dev metadata
+  row remains private/approved/verified/ready with size `835393456` and MD5
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`. Focused runtime/health/Supabase tests,
+  broader source-import/cache/preflight/registry tests, full backend pytest,
+  Ruff, Black, and `git diff --check` passed. No Render/Vercel mutation,
+  runtime download/materialization job, public object, signed frontend URL, or
+  Supabase DDL/DML was performed.
 - SOURCE-IMPORT-CLI-TIER3-STORAGE-PILOT is implemented and verified locally;
   hg38 private Storage is now verified/materialized in dev metadata
   (2026-05-31, Codex + Steven).

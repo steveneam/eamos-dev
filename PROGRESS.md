@@ -1,5 +1,60 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 92 - 31 May 2026 - Source asset materialization reader and migration history reconciliation
+
+Implemented the backend-only reader/probe path needed before request-time use
+of the private hg38.2bit Storage pilot, without adding any runtime download,
+public URL, frontend Storage access, or Render/Vercel mutation.
+
+Completed:
+- Reconciled the local private bucket migration filename with Supabase dev
+  migration history by renaming the committed local file from
+  `20260530120018_private_source_asset_bucket.sql` to
+  `20260530120420_private_source_asset_bucket.sql`. Live Supabase migration
+  history reports the bucket migration as version `20260530120420`, so strict
+  timestamp-based CLI comparisons now have the matching local filename.
+- Added `SourceAssetMaterializationRecord` / `ResolvedRuntimeAsset` and
+  `resolve_hg38_materialized_runtime_asset(...)` in the backend runtime asset
+  layer. The resolver accepts only private metadata that is
+  `upload_status=verified`, `approval_status=approved`,
+  `materialization_status=ready`, `verified_at` present, no fail-closed reason,
+  public/frontend access flags false, and byte-size/checksum matched to the
+  registry and local cache file.
+- Added `SqlAlchemySupabaseLocalModelCacheStore.get_source_asset_materialization`
+  to read the private `eamos_private.source_asset_objects` +
+  `source_asset_materializations` join through the existing backend-only
+  Supabase Postgres store.
+- Extended public provider-cache health with sanitized `source_assets.hg38_2bit`
+  readiness. It reports status, size, checksum algorithm, and private-access
+  posture without exposing local filesystem paths, object paths, cache keys,
+  secrets, or frontend-readable URLs.
+- Verified live dev Supabase metadata still reports the hg38 object as private,
+  approved, verified, and materialized ready at the clean object path with size
+  `835393456`, MD5 `dcc3ea27079aa6dc3f9deccd7275e0f8`, and public/frontend
+  flags false.
+
+Verification:
+- `python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_supabase_migrations.py -q`
+  -> passed.
+- `python -m pytest tests/test_supabase_local_model_cache.py tests/test_source_imports.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
+  -> passed.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check --target-version py310 app tests` -> passed.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+- Full backend `python -m pytest -q` -> passed with existing PyJWT
+  short-test-secret warnings only.
+
+Guardrails held:
+- No Render redeploy, no Vercel env/deploy mutation, no new Supabase DDL/DML,
+  no bucket/object mutation, no public bucket, no signed frontend URL, no
+  runtime download/materialization job, no frontend direct SQL/Storage access,
+  no production imports/downloads, no restricted predictor unlock,
+  AlphaMissense runtime/display, WSL/Docker, destructive git, stash, reset,
+  clean, commit, or push.
+- Note: while this session was running, an unrelated uncommitted frontend change
+  appeared in `app/web/components/report/PopulationFrequencySection.tsx`; Codex
+  did not edit or verify it.
+
 ## Session 91 - 30 May 2026 - Tier 3 fixture import and private Storage pilot CLI
 
 Implemented the next backend-only source live-wire slice after Claude/Steven

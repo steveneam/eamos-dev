@@ -1,6 +1,6 @@
 # Database / Webserver Current State
 
-Last updated: 2026-05-31 00:13 +1000 by Codex.
+Last updated: 2026-05-31 01:07 +1000 by Codex.
 Cache-fix + Oregon→SG cutover verified: 2026-05-30 19:45 +1000 by Claude (see
 Smoke Results / Render Services / Next Safe Steps below).
 
@@ -45,6 +45,9 @@ Remote migration list now includes:
 - `0010_private_cache_advisor_hardening`
 - `0011_private_clinical_source_tables`
 - `0012_private_source_asset_storage_metadata`
+- `private_source_asset_bucket` (`20260530120420` in Supabase dev history; local
+  migration filename reconciled to
+  `20260530120420_private_source_asset_bucket.sql`)
 
 All private tables are under `eamos_private`, have RLS enabled, revoke browser roles, and grant DML only to `service_role`.
 
@@ -113,6 +116,19 @@ verified the clean object key
 `fail_closed_reason=null`. No signed raw-source URL, public bucket, frontend
 direct access, browser-role grant, Render/Vercel mutation, or S3 tooling
 recreation was performed.
+
+**Backend materialization reader/probe path implemented 2026-05-31 01:07 +1000
+(Codex).** The backend now has a fail-closed
+`resolve_hg38_materialized_runtime_asset(...)` path that reads private
+`eamos_private.source_asset_objects` + `source_asset_materializations` metadata
+through the existing backend-only Supabase Postgres store and accepts only
+`verified` + `approved` + `ready` rows whose size/checksum match the registry
+and local cache file while public/frontend access flags remain false. Public
+provider-cache health now exposes only sanitized hg38 readiness/status, not
+local paths, object paths, secrets, or frontend-readable URLs. This is a reader
+and verification layer only: no runtime Storage download/materialization job,
+request-time local-source wiring, new object, public URL, Render/Vercel change,
+or Supabase DDL/DML was performed.
 
 ## Advisor Status
 
@@ -203,6 +219,11 @@ direct CLI apply proof if needed. The hg38 Storage pilot is now verified in the
 private bucket and marked ready in private metadata. Runtime object
 materialization/download jobs and request-time reader wiring remain approval
 gated.
+
+Codex update 2026-05-31 01:07 +1000: the reviewed local-cache/materialization
+reader/probe path now exists and is tested. Request-time use remains gated until
+Steven explicitly approves wiring a live endpoint/tool flow to this local source
+path and, separately, any Render env/deploy mutation needed to use it on SG.
 
 ## Claude Coordination Note (Historical / Resolved)
 

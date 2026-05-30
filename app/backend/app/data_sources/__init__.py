@@ -21,12 +21,17 @@ from app.data_sources.policy import (
     SourceFieldPolicy,
 )
 from app.data_sources.runtime_assets import (
+    ResolvedRuntimeAsset,
     RuntimeAssetInspection,
     RuntimeAssetMode,
     RuntimeAssetPlan,
     RuntimeAssetStatus,
+    SourceAssetMaterializationError,
+    SourceAssetMaterializationRecord,
+    SourceAssetMaterializationStore,
     build_hg38_runtime_asset_plan,
     inspect_hg38_runtime_asset,
+    resolve_hg38_materialized_runtime_asset,
 )
 from app.data_sources.protein_assets import (
     PROTEIN_ANNOTATION_ASSETS,
@@ -78,10 +83,14 @@ __all__ = [
     "ProductTier",
     "POST_REFERENCE_DAY1_SOURCE_IDS",
     "RegistryValidationError",
+    "ResolvedRuntimeAsset",
     "RuntimeAssetInspection",
     "RuntimeAssetMode",
     "RuntimeAssetPlan",
     "RuntimeAssetStatus",
+    "SourceAssetMaterializationError",
+    "SourceAssetMaterializationRecord",
+    "SourceAssetMaterializationStore",
     "SourceFieldPolicy",
     "SourceAssetReadiness",
     "build_docx_task_matrix",
@@ -94,6 +103,7 @@ __all__ = [
     "inspect_hg38_runtime_asset",
     "inspect_protein_annotation_asset",
     "inspect_protein_annotation_assets",
+    "resolve_hg38_materialized_runtime_asset",
     "resolve_local_asset_path",
     "source_asset_readiness",
 ]

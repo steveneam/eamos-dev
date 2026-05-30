@@ -9,6 +9,11 @@ from typing import Any
 from fastapi import APIRouter, Request
 
 from app.core.db import ping_database
+from app.data_sources.runtime_assets import (
+    SourceAssetMaterializationError,
+    inspect_hg38_runtime_asset,
+    resolve_hg38_materialized_runtime_asset,
+)
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
@@ -46,9 +51,55 @@ def provider_cache_health(request: Request) -> dict[str, object]:
         "status": "ok",
         "database": "ok",
         "source_cache": source_cache,
+        "source_assets": _source_asset_health(
+            settings,
+            getattr(request.app.state, "supabase_local_model_cache_store", None),
+        ),
         "providers": {
             "crispr": _crispr_provider_health(settings),
         },
+    }
+
+
+def _source_asset_health(settings, materialization_store) -> dict[str, object]:
+    inspection = inspect_hg38_runtime_asset(settings, verify_checksum=False)
+    metadata: dict[str, object] = {"enabled": materialization_store is not None}
+    if materialization_store is not None:
+        try:
+            resolved = resolve_hg38_materialized_runtime_asset(
+                settings,
+                materialization_store,
+                verify_checksum=False,
+            )
+            metadata.update(
+                {
+                    "ready": True,
+                    "status": "ready",
+                    "environment": resolved.environment,
+                    "backend_runtime": resolved.backend_runtime,
+                    "byte_size": resolved.byte_size,
+                    "checksum_algorithm": resolved.checksum_algorithm,
+                    "public_access_allowed": False,
+                    "frontend_direct_access_allowed": False,
+                }
+            )
+        except SourceAssetMaterializationError as exc:
+            metadata.update({"ready": False, "status": exc.code})
+        except Exception:
+            metadata.update({"ready": False, "status": "materialization_probe_failed"})
+
+    return {
+        "hg38_2bit": {
+            "source_id": inspection.source_id,
+            "mode": inspection.mode,
+            "local_cache_ready": inspection.ready,
+            "local_cache_status": inspection.status.value,
+            "expected_size_bytes": inspection.expected_size_bytes,
+            "actual_size_bytes": inspection.actual_size_bytes,
+            "checksum_verified": False,
+            "reader_requires_local_path": inspection.reader_requires_local_path,
+            "materialization_metadata": metadata,
+        }
     }
 
 

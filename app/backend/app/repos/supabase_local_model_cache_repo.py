@@ -11,6 +11,7 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from app.core.db import build_session_factory, session_scope
+from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.repos.source_cache_repo import SourceCachePayload
 from app.schemas.protein_annotation import ProteinDomainTrack
 
@@ -899,6 +900,93 @@ class SqlAlchemySupabaseLocalModelCacheStore:
             raise SupabaseLocalModelCacheError(
                 _safe_error_message("Supabase source asset materialization write failed.", exc)
             ) from exc
+
+    def get_source_asset_materialization(
+        self,
+        *,
+        source_id: str,
+        asset_role: str,
+        bucket_id: str | None = None,
+        object_path: str | None = None,
+        environment: str | None = None,
+    ) -> SourceAssetMaterializationRecord | None:
+        statement = text(f"""
+            select
+                o.source_id,
+                o.asset_role,
+                o.bucket_id,
+                o.object_path,
+                o.upload_status,
+                o.approval_status,
+                o.public_access_allowed,
+                o.frontend_direct_access_allowed,
+                m.environment,
+                m.backend_runtime,
+                m.local_cache_path,
+                m.materialization_status,
+                m.byte_size,
+                m.checksum_algorithm,
+                m.checksum_value,
+                m.verified_at,
+                m.fail_closed_reason,
+                m.metadata,
+                m.warnings
+            from {self.source_asset_objects_table} as o
+            join {self.source_asset_materializations_table} as m
+              on m.source_asset_object_id = o.source_asset_object_id
+            where o.source_id = :source_id
+              and o.asset_role = :asset_role
+              and (:bucket_id is null or o.bucket_id = :bucket_id)
+              and (:object_path is null or o.object_path = :object_path)
+              and (:environment is null or m.environment = :environment)
+            order by
+                case when m.materialization_status = 'ready' then 0 else 1 end,
+                m.updated_at desc
+            limit 1
+            """)
+        try:
+            with session_scope(self.session_factory) as session:
+                row = (
+                    session.execute(
+                        statement,
+                        {
+                            "source_id": source_id,
+                            "asset_role": asset_role,
+                            "bucket_id": bucket_id,
+                            "object_path": object_path,
+                            "environment": environment,
+                        },
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+        except Exception as exc:
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase source asset materialization read failed.", exc)
+            ) from exc
+        if row is None:
+            return None
+        return SourceAssetMaterializationRecord(
+            source_id=str(row["source_id"]),
+            asset_role=str(row["asset_role"]),
+            bucket_id=str(row["bucket_id"]),
+            object_path=str(row["object_path"]),
+            upload_status=str(row["upload_status"]),
+            approval_status=str(row["approval_status"]),
+            public_access_allowed=bool(row["public_access_allowed"]),
+            frontend_direct_access_allowed=bool(row["frontend_direct_access_allowed"]),
+            environment=str(row["environment"]),
+            backend_runtime=str(row["backend_runtime"]),
+            local_cache_path=str(row["local_cache_path"]),
+            materialization_status=str(row["materialization_status"]),
+            byte_size=int(row["byte_size"]) if row["byte_size"] is not None else None,
+            checksum_algorithm=row["checksum_algorithm"],
+            checksum_value=row["checksum_value"],
+            verified_at=_aware_or_none(row["verified_at"]),
+            fail_closed_reason=row["fail_closed_reason"],
+            metadata=dict(row["metadata"] or {}),
+            warnings=list(row["warnings"] or []),
+        )
 
     def record_job(
         self,

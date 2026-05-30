@@ -236,7 +236,7 @@ def test_private_source_asset_storage_metadata_blocks_public_access() -> None:
 
 
 def test_private_source_asset_bucket_is_private_and_bounded() -> None:
-    sql = _migration_sql("20260530120018_private_source_asset_bucket.sql")
+    sql = _migration_sql("20260530120420_private_source_asset_bucket.sql")
     normalized = re.sub(r"\s+", " ", sql.lower())
 
     assert "insert into storage.buckets" in normalized

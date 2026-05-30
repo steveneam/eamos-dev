@@ -16,18 +16,17 @@
 
 - **Claude:** IDLE @ 2026-05-31 00:19 +1000 (**anchor: `main` 3 ahead of `origin/main` `f5eb33e`, UNPUSHED: `3891ab3` + `032e2e8` + `9cd186b`**). **This session = impeccable read-only audit of app/web + Steven-approved low-risk polish batch (committed `9cd186b`, FE-only).** Audit verdict: app/web is in good shape (~16.5/20; anti-pattern PASS — no AI-slop tells, real semantic controls, reduced-motion guards present); findings were a short concrete batch, not an overhaul. **Shipped in `9cd186b`:** (1) **CiteModal** dead-click fix — "Copy citation" now writes a real plain-text citation to clipboard with a Copied confirmation; BibTeX/RIS are honest-disabled "coming soon"; removed the `console.log` (restores the lynchpin invariant). (2) **Workbench `.nav-wrap`** — dropped `backdrop-filter:blur(12px)` on the sticky nav (it holds a search input → keystroke repaints) + swapped `rgba(255,255,255,.9)`→`var(--nav-bg)` to match TopNav/LandingNav. (3) `layout.tsx` page-title em-dash→colon (tab/OG/Twitter). (4) `workbench.css` stale Plus-Jakarta/Syne font comment→Inter/Spectral. (5) `PopulationFrequencySection` `#111827`→`var(--ink)`. **Deviation logged:** did NOT swap `heatColor`'s `#1D9E75`→`var(--teal)` (Steven had approved it) — it's load-bearing hex (alpha-concatenated `${barColor}55/99` + SVG `fill`; `var()` breaks both); tokenizing that ramp is a separate small refactor. **Verified:** `tsc --noEmit` clean; eslint 0 err/14 warn (baseline unchanged — 14 = React-Compiler advisory + 1 exhaustive-deps suppress); diff scoped to 4 app/web files only. **Guardrails held:** FE-only, explicit-pathspec stage (DL-019), NO backend/Codex WIP touched, NO push, NO deploy, NO Supabase/Render/Vercel ops. **Codex's hg38 blocker is RESOLVED** (Codex verified+materialized the private Storage object @ 00:13). **Push note (for a joint push):** pushing `main` publishes my 3 FE commits AND auto-deploys app/web via Vercel `eamos-dev` (all 3 tsc-clean/0-err; `9cd186b` is the audit-approved batch); Render auto-deploy is OFF (backend won't deploy on push). **STILL OPEN (not mine this turn):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` once SG stable; `/account` Supabase-login E2E (+`SUPABASE_JWT_SECRET` on SG if HS256); **FE protein track** `ProteinDomainTrack.tsx` into §4 + `molecular_context` warning via `ProvenanceNote` — AFTER the protein backend fully lands. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
 
-- **Codex:** IDLE @ 2026-05-31 00:30 +1000 - joint closeout committed and
-  pushed to `origin/main` at `5b39c1a` after Claude's three FE commits
-  (`3891ab3`, `032e2e8`, `9cd186b`). Codex commit:
-  `feat(backend): add source import storage pilot`, containing the backend
-  source-import CLI, Tier 3 fixture/source-asset private-table apply path,
-  private bucket migration, hg38 private Storage verification/materialization
-  docs, Claude archive file, and ignore rules for local-only `.context/`,
-  `.claude/scheduled_tasks.lock`, and `supabase/supabase/`. Verification before
-  commit: focused source-import/Supabase backend pytest passed, Ruff passed,
-  Black check passed, and `git diff --check` passed. Push consequence:
-  Vercel app/web auto-deploy may run; Render auto-deploy is off. Remaining
-  local dirt: `.claude/settings.json` only, intentionally unstaged.
+- **Codex:** IDLE @ 2026-05-31 01:07 +1000 - implemented backend-only hg38
+  source-asset materialization reader/probe path and reconciled the local
+  private bucket migration filename to Supabase dev history
+  `20260530120420`. Verification passed: focused runtime/health/Supabase
+  tests, broader source-import/cache/preflight/registry tests, Ruff, Black,
+  `git diff --check`, and full backend pytest. No Render/Vercel mutation,
+  Supabase DDL/DML, bucket/object mutation, runtime download/materialization
+  job, public/signed frontend URL, commit, or push. Local dirt now includes
+  Codex backend changes + migration rename, pre-existing `.claude/settings.json`,
+  and an unrelated app/web `PopulationFrequencySection.tsx` change that Codex
+  did not edit or verify.
 
 ## Log Edit-Lock
 
@@ -37,7 +36,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-31 00:30 +1000 · Codex (recorded joint commit/push closeout)
+UNLOCKED · 2026-05-31 01:10 +1000 · Codex (source asset materialization reader closeout recorded)
 
 ## Shared File Locks
 
@@ -1931,101 +1930,86 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-31 00:30 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-31 01:07 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
-backend notes. Prior detailed Codex section was covered by `PROGRESS.md`
-Session 89 and replaced at this major backend/import boundary.
+backend notes. Prior detailed Codex section was already covered by
+`PROGRESS.md` Session 91 and the 2026-05-31 database/webserver handoff.
 
-**Latest Codex update (2026-05-31 00:13 +1000 - Codex):**
-Verified Steven's private Supabase Storage upload for the hg38.2bit pilot and
-updated dev metadata from upload-pending/failed to verified/ready. The bucket is
-private, the object key is now the clean intended path, and frontend/public
-access remains blocked.
+**Latest Codex update (2026-05-31 01:07 +1000 - Codex):**
+Implemented the reviewed backend-only local-cache/materialization reader/probe
+path for the private hg38.2bit Storage pilot and reconciled the local bucket
+migration filename with Supabase dev migration history.
 
 **State:**
 - Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
-- New Codex-owned backend paths:
-  `app/backend/app/services/source_imports.py`,
-  `app/backend/app/cli/eamos_source_import.py`, and
-  `app/backend/tests/test_source_imports.py`.
-- Updated backend paths:
-  `app/backend/app/services/clinical_source_tables.py` and
-  `app/backend/app/repos/supabase_local_model_cache_repo.py`.
-- Live dev Supabase DML was applied through the Supabase SQL connector because
-  this workstation can reach Supabase over HTTPS but direct Postgres egress to
-  the pooler timed out on `5432` and `6543`. No Render/Vercel deploy/env
-  mutation was performed, and no secrets were printed or written to docs/env
-  files.
-- Verified private-table rows now exist in `eamos_private`: 7
-  `local_source_versions`, 2 MONDO diseases, 3 HPO terms, 2 HPO disease
-  phenotype rows, 3 HPO gene phenotype rows, 2 ClinGen validity rows, 2 GenCC
-  assertions, 1 `source_asset_objects`, and 1
-  `source_asset_materializations`.
-- The Storage pilot is now verified in dev: bucket `eamos-source-assets` exists
-  with `public=false` and `file_size_limit=1073741824`; object
-  `ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`
-  exists with size `835393456` and MD5/ETag
-  `dcc3ea27079aa6dc3f9deccd7275e0f8`.
-- `eamos_private.source_asset_objects` now records `upload_status=verified`,
-  `public_access_allowed=false`, and `frontend_direct_access_allowed=false`.
-  `eamos_private.source_asset_materializations` now records
-  `materialization_status=ready`, `fail_closed_reason=null`, and the same
-  checksum/size. This is metadata/materialization status only; no frontend raw
-  source URL or public object access was created.
+- New/updated Codex backend paths this session:
+  `app/backend/app/data_sources/runtime_assets.py`,
+  `app/backend/app/data_sources/__init__.py`,
+  `app/backend/app/repos/supabase_local_model_cache_repo.py`,
+  `app/backend/app/api/routes/health.py`,
+  `app/backend/tests/test_hg38_runtime_asset_config.py`,
+  `app/backend/tests/test_health_api.py`, and
+  `app/backend/tests/test_supabase_migrations.py`.
+- Local bucket migration filename is now
+  `supabase/migrations/20260530120420_private_source_asset_bucket.sql`,
+  matching live Supabase dev migration history version `20260530120420`
+  (`private_source_asset_bucket`). This was a local filename reconciliation
+  only; no DDL was applied.
+- `resolve_hg38_materialized_runtime_asset(...)` now reads private
+  `eamos_private.source_asset_objects` + `source_asset_materializations`
+  metadata through the existing backend-only Supabase Postgres store and fails
+  closed unless the row is verified, approved, ready, checksum/size matched,
+  `verified_at` present, no fail-closed reason, and public/frontend access
+  flags false.
+- `/api/v1/health/provider-cache` now exposes sanitized
+  `source_assets.hg38_2bit` readiness/status without local paths, object paths,
+  secrets, cache keys, or frontend-readable URLs.
+- Live Supabase SQL verification still shows the hg38 metadata row is private,
+  approved, verified, and ready with size `835393456`, MD5
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, and public/frontend flags false.
 
 **Verification:**
-- `python -m pytest tests/test_source_imports.py tests/test_clinical_source_tables.py tests/test_supabase_local_model_cache.py tests/test_supabase_migrations.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
+- `python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_supabase_migrations.py -q`
   passed.
-- `python -m app.cli.eamos_source_import --compact` passed.
+- `python -m pytest tests/test_supabase_local_model_cache.py tests/test_source_imports.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
+  passed.
 - `python -m ruff check app tests` passed.
 - `python -m black --check --target-version py310 app tests` passed.
 - `git diff --check` passed; Windows LF-to-CRLF notices only.
-- Full backend `python -m pytest -q` passed once after implementation with
-  existing PyJWT short test-secret warnings. A second full-suite rerun exceeded
-  the 10-minute local timeout; impacted suites were rerun and passed.
-- Live Supabase verification confirmed the row counts above, private bucket
-  posture, clean object path, size/MD5 match, object public/frontend flags
-  false, and hg38 materialization ready.
-- Local direct `--apply-supabase` after ephemeral Render-env configuration
-  failed at TCP connection timeout to the Supabase pooler; PostgREST access to
-  `eamos_private` is not exposed, which is the intended private-schema posture.
+- Full backend `python -m pytest -q` passed with existing PyJWT
+  short-test-secret warnings only.
 
 **Next-session direction:**
-- For a direct CLI apply proof, run `python -m app.cli.eamos_source_import --apply-supabase --compact`
-  from an environment with Postgres egress to the Supabase pooler (Render SG is
-  the likely place). This should be coordinated before any Render command/env
-  mutation.
+- Review and commit the Codex backend changes plus migration rename if Steven
+  wants them saved. Use explicit pathspecs only; do not include
+  `.claude/settings.json` or the unrelated `app/web/components/report/PopulationFrequencySection.tsx`
+  change unless separately intended.
+- Request-time use of the hg38 local-source path remains gated on Steven's
+  explicit approval for endpoint/tool wiring and any required Render SG env or
+  deploy mutation.
 - Real MONDO/HPO/ClinGen/GenCC production imports remain gated on explicit
   download/import approval, source-license notes, and checksum/provenance
-  manifests.
-- Next Storage step is gated: do not add public access, signed frontend URLs,
-  new buckets, new uploads, or runtime object materialization/download jobs
-  without explicit approval. Backend readers still need a reviewed runtime
-  local-cache/materialization path before request-time use.
-- Frontend protein track remains unstarted unless Steven redirects.
+  manifests. No public objects, signed frontend URLs, new uploads, or runtime
+  Storage download/materialization jobs without explicit approval.
 
-**Clear-safe:** yes for handoff. The backend Tier 3 fixture rows and hg38
-private Storage pilot are implemented, tested, live-verified in dev, committed
-as `5b39c1a`, and pushed to `origin/main` after Claude's three FE commits. The
-hg38 object is private, checksum/size verified, and private metadata now marks
-it verified/ready with frontend/public access blocked. No S3 tooling was
-recreated, no secrets were exposed, and no Render/Vercel env/deploy mutation,
+**Clear-safe:** yes for handoff. Backend materialization metadata can now be
+read and verified fail-closed before any request-time source use; the local
+Supabase migration filename matches dev history. No Render/Vercel mutation,
+Supabase DDL/DML, bucket/object mutation, runtime download/materialization job,
 public bucket, signed frontend URL, production source download/import,
 restricted predictor unlock, AlphaMissense runtime/display, WSL/Docker,
-destructive git, stash, reset, or clean was performed by Codex.
+destructive git, stash, reset, clean, commit, or push was performed by Codex.
 
 **Latest resume prompt:**
 ```
-# Resume prompt · 2026-05-31 00:30 +1000 · Codex joint source-import commit/push complete
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 91, plans/v2-backend.md Recent backend notes, ROADMAP.md backend/database/protein sections, then git status --short --branch.
+# Resume prompt · 2026-05-31 01:07 +1000 · Codex source asset materialization reader complete
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 92, plans/v2-backend.md Recent backend notes, ROADMAP.md backend/database/protein sections, then git status --short --branch.
 
-Delta: Codex committed and pushed `5b39c1a` (`feat(backend): add source import storage pilot`) after Claude's three FE commits. The pushed stack is now `3891ab3`, `032e2e8`, `9cd186b`, `5b39c1a` on `origin/main`; Vercel may auto-deploy app/web, Render auto-deploy is off.
+Delta: Codex added a backend-only hg38 source-asset materialization reader/probe, sanitized provider-cache health readiness, and renamed the local bucket migration to `20260530120420_private_source_asset_bucket.sql` to match Supabase dev history. Full backend pytest, focused suites, Ruff, Black, and diff-check passed.
 
-Context: `5b39c1a` includes `python -m app.cli.eamos_source_import`, Tier 3 fixture/private source-asset upserts, the private bucket migration, the Claude archive file, local-artifact `.gitignore` rules, and handoff/progress updates. hg38.2bit is verified in private Storage at `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`, size `835393456`, MD5/ETag `dcc3ea27079aa6dc3f9deccd7275e0f8`, bucket `public=false`, metadata `upload_status=verified`, materialization `ready`.
+State: `origin/main` still has pushed `5b39c1a`; Render SG is still on `f5eb33e`. Worktree has Codex backend changes + migration rename, pre-existing `.claude/settings.json`, and an unrelated app/web `PopulationFrequencySection.tsx` edit Codex did not make or verify. No commit/push/deploy was done.
 
-Verification: before commit, focused source-import/Supabase backend pytest passed, Ruff passed, Black check passed, and `git diff --check` passed. Final SQL check showed Storage, `source_asset_objects`, and `source_asset_materializations` all agree on clean object path, byte size, and MD5; bucket and metadata public/frontend access flags remain false.
+Next: review/commit Codex-owned backend paths with explicit pathspecs if approved. Do not include `.claude/settings.json` or the unrelated app/web change unless separately intended. Runtime request-time use of hg38 remains gated on explicit endpoint/tool wiring + Render env/deploy approval.
 
-Next: working tree should only show `.claude/settings.json` modified. Do not create public objects, signed frontend URLs, new uploads, Render/Vercel env/deploy changes, or runtime materialization/download jobs without explicit approval. A reviewed backend local-cache/materialization reader path is still needed before request-time use of the Storage asset.
-
-Guardrails: no secrets in chat/docs/logs, no public genomic bucket, no frontend direct SQL/Storage over private source/cache tables, no broad anon/authenticated grants, no production source downloads/imports without approval, no restricted predictor unlocks, no AlphaMissense runtime/display, no Render/Vercel env/deploy mutation without coordination, no WSL/Docker, no destructive git/stash/reset/clean, no commit/push unless asked. End clear-safe.
+Guardrails: no secrets in chat/docs/logs, no public genomic bucket, no frontend direct SQL/Storage over private source/cache tables, no broad anon/authenticated grants, no production source downloads/imports without approval, no restricted predictor unlocks, no AlphaMissense runtime/display, no Render/Vercel env/deploy mutation without coordination, no WSL/Docker, no destructive git/stash/reset/clean. End clear-safe.
 ```
