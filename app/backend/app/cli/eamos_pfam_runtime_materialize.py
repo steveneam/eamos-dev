@@ -13,7 +13,22 @@ from app.services.pfam_materialization import materialize_pfam_hmm_gz_from_priva
 from app.services.protein_annotation import ProteinAnnotationService
 from app.services.protein_runtime import prepare_protein_annotation_runtime
 
-PCARE_SMOKE_SEQUENCE = "M" + "P" * 719
+SMOKE_CONTROLS = {
+    "PCARE": {
+        "sequence": "M" + "P" * 719,
+        "label": "PCARE NM_001029883 reference smoke",
+        "gene_symbol": "PCARE",
+        "transcript": "NM_001029883",
+        "interpretation": "runtime_control_not_domain_truth",
+    },
+    "ABCA4": {
+        "sequence": "M" + "A" * 2272,
+        "label": "ABCA4 NM_000350.3 length-control smoke",
+        "gene_symbol": "ABCA4",
+        "transcript": "NM_000350.3",
+        "interpretation": "synthetic_length_control_not_domain_truth",
+    },
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,6 +53,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--require-ready", action="store_true", help="exit non-zero unless ready")
     parser.add_argument(
         "--smoke-pcare", action="store_true", help="run a bounded PCARE HMMER smoke"
+    )
+    parser.add_argument(
+        "--smoke-control",
+        action="append",
+        choices=tuple(SMOKE_CONTROLS),
+        help="run a named bounded HMMER runtime smoke control",
     )
     parser.add_argument("--hmmscan-timeout-seconds", type=float)
     parser.add_argument("--hmmpress-timeout-seconds", type=float)
@@ -68,9 +89,16 @@ def main(argv: list[str] | None = None) -> int:
     prepared = None
     if args.prepare and materialized.ready:
         prepared = prepare_protein_annotation_runtime(settings, force_hmmpress=args.force_hmmpress)
-    smoke = None
-    if args.smoke_pcare:
-        smoke = _pcare_smoke(settings, prepared_ready=bool(prepared and prepared.ready))
+    smoke_controls = list(args.smoke_control or [])
+    if args.smoke_pcare and "PCARE" not in smoke_controls:
+        smoke_controls.append("PCARE")
+    smokes = []
+    for control in smoke_controls:
+        smokes.append(
+            _protein_smoke(
+                settings, control=control, prepared_ready=bool(prepared and prepared.ready)
+            )
+        )
 
     report = {
         "mode": "pfam_runtime_materialize",
@@ -86,37 +114,40 @@ def main(argv: list[str] | None = None) -> int:
         },
         "materialization": asdict(materialized),
         "runtime_prepare": asdict(prepared) if prepared is not None else None,
-        "pcare_smoke": smoke,
+        "protein_smokes": smokes,
     }
     print(json.dumps(report, indent=None if args.compact else 2, sort_keys=True))
 
     ready = materialized.ready and (prepared is None or prepared.ready)
-    if args.smoke_pcare:
-        ready = ready and bool(smoke and smoke.get("status") in {"available", "cache_hit"})
+    if smoke_controls:
+        ready = ready and all(smoke.get("status") in {"available", "cache_hit"} for smoke in smokes)
     return 0 if ready or not args.require_ready else 2
 
 
-def _pcare_smoke(settings: Settings, *, prepared_ready: bool) -> dict[str, object]:
+def _protein_smoke(settings: Settings, *, control: str, prepared_ready: bool) -> dict[str, object]:
+    smoke_config = SMOKE_CONTROLS[control]
     if not prepared_ready:
-        return {"status": "skipped", "reason": "runtime_prepare_not_ready"}
+        return {"control": control, "status": "skipped", "reason": "runtime_prepare_not_ready"}
 
     smoke_settings = settings.model_copy(update={"protein_annotation_enabled": True})
     service = ProteinAnnotationService(settings=smoke_settings, cache_repo=None)
     track = service.annotate(
         ProteinAnnotationRequest(
-            sequence=PCARE_SMOKE_SEQUENCE,
+            sequence=smoke_config["sequence"],
             input_type="protein",
-            sequence_label="PCARE NM_001029883 reference smoke",
-            gene_symbol="PCARE",
-            transcript="NM_001029883",
+            sequence_label=smoke_config["label"],
+            gene_symbol=smoke_config["gene_symbol"],
+            transcript=smoke_config["transcript"],
             use_cache=False,
             allow_run=True,
         )
     )
     return {
+        "control": control,
         "status": track.status,
         "gene_symbol": track.gene_symbol,
         "transcript": track.transcript,
+        "interpretation": smoke_config["interpretation"],
         "feature_count": len(track.features),
         "warning_count": len(track.warnings),
         "fail_closed_reason": track.fail_closed_reason,
