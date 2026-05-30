@@ -61,6 +61,38 @@ class SqlAlchemySupabaseLocalModelCacheStore:
     def jobs_table(self) -> str:
         return f"{self.schema}.local_model_jobs"
 
+    @property
+    def clinical_mondo_table(self) -> str:
+        return f"{self.schema}.clinical_mondo_diseases"
+
+    @property
+    def clinical_hpo_terms_table(self) -> str:
+        return f"{self.schema}.clinical_hpo_terms"
+
+    @property
+    def clinical_hpo_disease_table(self) -> str:
+        return f"{self.schema}.clinical_hpo_disease_phenotypes"
+
+    @property
+    def clinical_hpo_gene_table(self) -> str:
+        return f"{self.schema}.clinical_hpo_gene_phenotypes"
+
+    @property
+    def clinical_clingen_table(self) -> str:
+        return f"{self.schema}.clinical_clingen_gene_validity"
+
+    @property
+    def clinical_gencc_table(self) -> str:
+        return f"{self.schema}.clinical_gencc_assertions"
+
+    @property
+    def source_asset_objects_table(self) -> str:
+        return f"{self.schema}.source_asset_objects"
+
+    @property
+    def source_asset_materializations_table(self) -> str:
+        return f"{self.schema}.source_asset_materializations"
+
     def get_entry(
         self,
         *,
@@ -293,7 +325,7 @@ class SqlAlchemySupabaseLocalModelCacheStore:
         asset_path: str | None = None,
         row_count: int | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> str | None:
         statement = text(f"""
             insert into {self.source_versions_table} (
                 source_id,
@@ -338,10 +370,11 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                 row_count = excluded.row_count,
                 metadata = excluded.metadata,
                 updated_at = timezone('utc'::text, now())
+            returning source_version_id
             """)
         try:
             with session_scope(self.session_factory) as session:
-                session.execute(
+                source_version_id = session.execute(
                     statement,
                     {
                         "source_id": source_id,
@@ -356,10 +389,515 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                         "row_count": row_count,
                         "metadata": _json_param(metadata or {}),
                     },
-                )
+                ).scalar_one()
         except Exception as exc:
             raise SupabaseLocalModelCacheError(
                 _safe_error_message("Supabase source version write failed.", exc)
+            ) from exc
+        return str(source_version_id) if source_version_id is not None else None
+
+    def upsert_clinical_source_records(
+        self,
+        *,
+        mondo_rows: tuple[dict[str, Any], ...],
+        hpo_term_rows: tuple[dict[str, Any], ...],
+        hpo_disease_rows: tuple[dict[str, Any], ...],
+        hpo_gene_rows: tuple[dict[str, Any], ...],
+        clingen_rows: tuple[dict[str, Any], ...],
+        gencc_rows: tuple[dict[str, Any], ...],
+    ) -> dict[str, int]:
+        try:
+            with session_scope(self.session_factory) as session:
+                _execute_many(
+                    session,
+                    text(f"""
+                        insert into {self.clinical_mondo_table} (
+                            source_version_id,
+                            mondo_id,
+                            name,
+                            xrefs,
+                            definition,
+                            provenance,
+                            raw_payload,
+                            updated_at
+                        )
+                        values (
+                            :source_version_id,
+                            :mondo_id,
+                            :name,
+                            :xrefs,
+                            :definition,
+                            cast(:provenance as jsonb),
+                            cast(:raw_payload as jsonb),
+                            timezone('utc'::text, now())
+                        )
+                        on conflict (mondo_id)
+                        do update set
+                            source_version_id = excluded.source_version_id,
+                            name = excluded.name,
+                            xrefs = excluded.xrefs,
+                            definition = excluded.definition,
+                            provenance = excluded.provenance,
+                            raw_payload = excluded.raw_payload,
+                            updated_at = timezone('utc'::text, now())
+                        """),
+                    [
+                        {
+                            **row,
+                            "xrefs": list(row.get("xrefs") or []),
+                            "provenance": _json_param(row.get("provenance") or {}),
+                            "raw_payload": _json_param(row.get("raw_payload")),
+                        }
+                        for row in mondo_rows
+                    ],
+                )
+                _execute_many(
+                    session,
+                    text(f"""
+                        insert into {self.clinical_hpo_terms_table} (
+                            source_version_id,
+                            hpo_id,
+                            label,
+                            provenance,
+                            updated_at
+                        )
+                        values (
+                            :source_version_id,
+                            :hpo_id,
+                            :label,
+                            cast(:provenance as jsonb),
+                            timezone('utc'::text, now())
+                        )
+                        on conflict (hpo_id)
+                        do update set
+                            source_version_id = excluded.source_version_id,
+                            label = excluded.label,
+                            provenance = excluded.provenance,
+                            updated_at = timezone('utc'::text, now())
+                        """),
+                    [
+                        {
+                            **row,
+                            "provenance": _json_param(row.get("provenance") or {}),
+                        }
+                        for row in hpo_term_rows
+                    ],
+                )
+                _execute_many(
+                    session,
+                    text(f"""
+                        insert into {self.clinical_hpo_disease_table} (
+                            source_version_id,
+                            disease_id,
+                            disease_name,
+                            hpo_id,
+                            hpo_label,
+                            evidence,
+                            frequency,
+                            provenance,
+                            raw_payload,
+                            updated_at
+                        )
+                        values (
+                            :source_version_id,
+                            :disease_id,
+                            :disease_name,
+                            :hpo_id,
+                            :hpo_label,
+                            :evidence,
+                            :frequency,
+                            cast(:provenance as jsonb),
+                            cast(:raw_payload as jsonb),
+                            timezone('utc'::text, now())
+                        )
+                        on conflict (disease_id, hpo_id)
+                        do update set
+                            source_version_id = excluded.source_version_id,
+                            disease_name = excluded.disease_name,
+                            hpo_label = excluded.hpo_label,
+                            evidence = excluded.evidence,
+                            frequency = excluded.frequency,
+                            provenance = excluded.provenance,
+                            raw_payload = excluded.raw_payload,
+                            updated_at = timezone('utc'::text, now())
+                        """),
+                    [
+                        {
+                            **row,
+                            "provenance": _json_param(row.get("provenance") or {}),
+                            "raw_payload": _json_param(row.get("raw_payload")),
+                        }
+                        for row in hpo_disease_rows
+                    ],
+                )
+                _execute_many(
+                    session,
+                    text(f"""
+                        insert into {self.clinical_hpo_gene_table} (
+                            source_version_id,
+                            gene_symbol,
+                            gene_id,
+                            hpo_id,
+                            hpo_label,
+                            provenance,
+                            raw_payload,
+                            updated_at
+                        )
+                        values (
+                            :source_version_id,
+                            :gene_symbol,
+                            :gene_id,
+                            :hpo_id,
+                            :hpo_label,
+                            cast(:provenance as jsonb),
+                            cast(:raw_payload as jsonb),
+                            timezone('utc'::text, now())
+                        )
+                        on conflict (gene_symbol, hpo_id)
+                        do update set
+                            source_version_id = excluded.source_version_id,
+                            gene_id = excluded.gene_id,
+                            hpo_label = excluded.hpo_label,
+                            provenance = excluded.provenance,
+                            raw_payload = excluded.raw_payload,
+                            updated_at = timezone('utc'::text, now())
+                        """),
+                    [
+                        {
+                            **row,
+                            "provenance": _json_param(row.get("provenance") or {}),
+                            "raw_payload": _json_param(row.get("raw_payload")),
+                        }
+                        for row in hpo_gene_rows
+                    ],
+                )
+                _execute_many(
+                    session,
+                    text(f"""
+                        insert into {self.clinical_clingen_table} (
+                            source_version_id,
+                            gene_symbol,
+                            gene_hgnc_id,
+                            disease_label,
+                            disease_id,
+                            mode_of_inheritance,
+                            classification,
+                            source_date,
+                            report_url,
+                            provenance,
+                            raw_payload,
+                            updated_at
+                        )
+                        values (
+                            :source_version_id,
+                            :gene_symbol,
+                            :gene_hgnc_id,
+                            :disease_label,
+                            :disease_id,
+                            :mode_of_inheritance,
+                            :classification,
+                            :source_date,
+                            :report_url,
+                            cast(:provenance as jsonb),
+                            cast(:raw_payload as jsonb),
+                            timezone('utc'::text, now())
+                        )
+                        on conflict (gene_symbol, disease_id, classification)
+                        do update set
+                            source_version_id = excluded.source_version_id,
+                            gene_hgnc_id = excluded.gene_hgnc_id,
+                            disease_label = excluded.disease_label,
+                            mode_of_inheritance = excluded.mode_of_inheritance,
+                            source_date = excluded.source_date,
+                            report_url = excluded.report_url,
+                            provenance = excluded.provenance,
+                            raw_payload = excluded.raw_payload,
+                            updated_at = timezone('utc'::text, now())
+                        """),
+                    [
+                        {
+                            **row,
+                            "provenance": _json_param(row.get("provenance") or {}),
+                            "raw_payload": _json_param(row.get("raw_payload")),
+                        }
+                        for row in clingen_rows
+                    ],
+                )
+                _execute_many(
+                    session,
+                    text(f"""
+                        insert into {self.clinical_gencc_table} (
+                            source_version_id,
+                            gene_symbol,
+                            gene_curie,
+                            disease_title,
+                            disease_curie,
+                            assertion,
+                            submitter,
+                            source_date,
+                            report_url,
+                            provenance,
+                            raw_payload,
+                            updated_at
+                        )
+                        values (
+                            :source_version_id,
+                            :gene_symbol,
+                            :gene_curie,
+                            :disease_title,
+                            :disease_curie,
+                            :assertion,
+                            :submitter,
+                            :source_date,
+                            :report_url,
+                            cast(:provenance as jsonb),
+                            cast(:raw_payload as jsonb),
+                            timezone('utc'::text, now())
+                        )
+                        on conflict (gene_symbol, disease_curie, submitter, assertion)
+                        do update set
+                            source_version_id = excluded.source_version_id,
+                            gene_curie = excluded.gene_curie,
+                            disease_title = excluded.disease_title,
+                            source_date = excluded.source_date,
+                            report_url = excluded.report_url,
+                            provenance = excluded.provenance,
+                            raw_payload = excluded.raw_payload,
+                            updated_at = timezone('utc'::text, now())
+                        """),
+                    [
+                        {
+                            **row,
+                            "provenance": _json_param(row.get("provenance") or {}),
+                            "raw_payload": _json_param(row.get("raw_payload")),
+                        }
+                        for row in gencc_rows
+                    ],
+                )
+        except Exception as exc:
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase clinical source import failed.", exc)
+            ) from exc
+        return {
+            "clinical_mondo_diseases": len(mondo_rows),
+            "clinical_hpo_terms": len(hpo_term_rows),
+            "clinical_hpo_disease_phenotypes": len(hpo_disease_rows),
+            "clinical_hpo_gene_phenotypes": len(hpo_gene_rows),
+            "clinical_clingen_gene_validity": len(clingen_rows),
+            "clinical_gencc_assertions": len(gencc_rows),
+        }
+
+    def upsert_source_asset_object(
+        self,
+        *,
+        source_version_id: str | None,
+        source_id: str,
+        asset_role: str,
+        bucket_id: str,
+        object_path: str,
+        object_version: str | None,
+        content_type: str | None,
+        byte_size: int | None,
+        checksum_algorithm: str,
+        checksum_value: str,
+        upload_status: str,
+        approval_status: str,
+        license_status: str,
+        materialization_required: bool,
+        metadata: dict[str, Any] | None = None,
+        warnings: list[str] | None = None,
+    ) -> str | None:
+        statement = text(f"""
+            insert into {self.source_asset_objects_table} (
+                source_version_id,
+                source_id,
+                asset_role,
+                bucket_id,
+                object_path,
+                object_version,
+                content_type,
+                byte_size,
+                checksum_algorithm,
+                checksum_value,
+                upload_status,
+                approval_status,
+                license_status,
+                public_access_allowed,
+                frontend_direct_access_allowed,
+                materialization_required,
+                metadata,
+                warnings,
+                updated_at
+            )
+            values (
+                :source_version_id,
+                :source_id,
+                :asset_role,
+                :bucket_id,
+                :object_path,
+                :object_version,
+                :content_type,
+                :byte_size,
+                :checksum_algorithm,
+                :checksum_value,
+                :upload_status,
+                :approval_status,
+                :license_status,
+                false,
+                false,
+                :materialization_required,
+                cast(:metadata as jsonb),
+                cast(:warnings as jsonb),
+                timezone('utc'::text, now())
+            )
+            on conflict (bucket_id, object_path)
+            do update set
+                source_version_id = excluded.source_version_id,
+                source_id = excluded.source_id,
+                asset_role = excluded.asset_role,
+                object_version = excluded.object_version,
+                content_type = excluded.content_type,
+                byte_size = excluded.byte_size,
+                checksum_algorithm = excluded.checksum_algorithm,
+                checksum_value = excluded.checksum_value,
+                upload_status = excluded.upload_status,
+                approval_status = excluded.approval_status,
+                license_status = excluded.license_status,
+                public_access_allowed = false,
+                frontend_direct_access_allowed = false,
+                materialization_required = excluded.materialization_required,
+                metadata = excluded.metadata,
+                warnings = excluded.warnings,
+                updated_at = timezone('utc'::text, now())
+            returning source_asset_object_id
+            """)
+        try:
+            with session_scope(self.session_factory) as session:
+                source_asset_object_id = session.execute(
+                    statement,
+                    {
+                        "source_version_id": source_version_id,
+                        "source_id": source_id,
+                        "asset_role": asset_role,
+                        "bucket_id": bucket_id,
+                        "object_path": object_path,
+                        "object_version": object_version,
+                        "content_type": content_type,
+                        "byte_size": byte_size,
+                        "checksum_algorithm": checksum_algorithm,
+                        "checksum_value": checksum_value,
+                        "upload_status": upload_status,
+                        "approval_status": approval_status,
+                        "license_status": license_status,
+                        "materialization_required": materialization_required,
+                        "metadata": _json_param(metadata or {}),
+                        "warnings": _json_param(warnings or []),
+                    },
+                ).scalar_one()
+        except Exception as exc:
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase source asset object write failed.", exc)
+            ) from exc
+        return str(source_asset_object_id) if source_asset_object_id is not None else None
+
+    def upsert_source_asset_materialization(
+        self,
+        *,
+        source_asset_object_id: str | None,
+        environment: str,
+        backend_runtime: str,
+        local_cache_path: str,
+        materialization_status: str,
+        byte_size: int | None,
+        checksum_algorithm: str | None,
+        checksum_value: str | None,
+        ready_marker: str | None,
+        verified_at: str | None,
+        fail_closed_reason: str | None,
+        metadata: dict[str, Any] | None = None,
+        warnings: list[str] | None = None,
+    ) -> None:
+        if source_asset_object_id is None:
+            raise SupabaseLocalModelCacheError(
+                "Supabase source asset materialization write failed. "
+                "source_asset_object_id is required."
+            )
+        statement = text(f"""
+            insert into {self.source_asset_materializations_table} (
+                source_asset_object_id,
+                environment,
+                backend_runtime,
+                local_cache_path,
+                materialization_status,
+                byte_size,
+                checksum_algorithm,
+                checksum_value,
+                ready_marker,
+                verified_at,
+                last_attempt_at,
+                fail_closed_reason,
+                stale_allowed,
+                metadata,
+                warnings,
+                updated_at
+            )
+            values (
+                :source_asset_object_id,
+                :environment,
+                :backend_runtime,
+                :local_cache_path,
+                :materialization_status,
+                :byte_size,
+                :checksum_algorithm,
+                :checksum_value,
+                :ready_marker,
+                :verified_at,
+                timezone('utc'::text, now()),
+                :fail_closed_reason,
+                false,
+                cast(:metadata as jsonb),
+                cast(:warnings as jsonb),
+                timezone('utc'::text, now())
+            )
+            on conflict (source_asset_object_id, environment, local_cache_path)
+            do update set
+                backend_runtime = excluded.backend_runtime,
+                materialization_status = excluded.materialization_status,
+                byte_size = excluded.byte_size,
+                checksum_algorithm = excluded.checksum_algorithm,
+                checksum_value = excluded.checksum_value,
+                ready_marker = excluded.ready_marker,
+                verified_at = excluded.verified_at,
+                last_attempt_at = timezone('utc'::text, now()),
+                fail_closed_reason = excluded.fail_closed_reason,
+                stale_allowed = false,
+                metadata = excluded.metadata,
+                warnings = excluded.warnings,
+                updated_at = timezone('utc'::text, now())
+            """)
+        try:
+            with session_scope(self.session_factory) as session:
+                session.execute(
+                    statement,
+                    {
+                        "source_asset_object_id": source_asset_object_id,
+                        "environment": environment,
+                        "backend_runtime": backend_runtime,
+                        "local_cache_path": local_cache_path,
+                        "materialization_status": materialization_status,
+                        "byte_size": byte_size,
+                        "checksum_algorithm": checksum_algorithm,
+                        "checksum_value": checksum_value,
+                        "ready_marker": ready_marker,
+                        "verified_at": verified_at,
+                        "fail_closed_reason": fail_closed_reason,
+                        "metadata": _json_param(metadata or {}),
+                        "warnings": _json_param(warnings or []),
+                    },
+                )
+        except Exception as exc:
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase source asset materialization write failed.", exc)
             ) from exc
 
     def record_job(
@@ -836,6 +1374,12 @@ def _protein_annotation_cache_key(
     if uniprot_release:
         key = f"{key}:uniprot:{uniprot_release}"
     return key
+
+
+def _execute_many(session, statement, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    session.execute(statement, rows)
 
 
 def _json_param(value: Any) -> str:

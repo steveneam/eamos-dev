@@ -24,6 +24,38 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-30, Codex):
+- SOURCE-IMPORT-CLI-TIER3-STORAGE-PILOT is implemented and verified locally;
+  hg38 private Storage is now verified/materialized in dev metadata
+  (2026-05-31, Codex + Steven).
+  Added `python -m app.cli.eamos_source_import`, which plans/applies backend-
+  only Tier 3 fixture imports and the first metadata-only private Storage
+  pilot. The Tier 3 bundle writes source-version rows plus idempotent
+  MONDO/HPO/ClinGen/GenCC rows into the existing `eamos_private` tables when a
+  configured Supabase store is provided. The first Storage pilot is `hg38.2bit`
+  because the registry already has verified local size and MD5; ClinVar VCF
+  fails closed until an approved downloaded checksum/materialization exists.
+  The CLI initially records metadata under `source_asset_objects` /
+  `source_asset_materializations`; the first approved pilot object is now
+  present in private Storage at
+  `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`.
+  Codex verified bucket `public=false`, object size `835393456`, and MD5/ETag
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, then updated private metadata to
+  `upload_status=verified` and `materialization_status=ready`; public/frontend
+  access remains false and no signed frontend URL was created. Local dry-run passed. After
+  Steven asked to configure the shell, Codex sourced the required Render env
+  values only into the current PowerShell process; direct Postgres egress from
+  this workstation to the Supabase pooler still timed out on `5432`/`6543`, and
+  PostgREST access to `eamos_private` is not exposed. Codex therefore applied
+  the backend-only dev fixture/source-asset DML through the Supabase SQL
+  connector and verified: `local_source_versions=7`, 2 MONDO, 3 HPO terms, 2
+  HPO disease phenotype rows, 3 HPO gene phenotype rows, 2 ClinGen validity
+  rows, 2 GenCC assertion rows, 1 `source_asset_objects`, and 1
+  `source_asset_materializations`. The hg38 Storage object and private metadata
+  now agree on the clean path, size, and checksum; object public/frontend flags
+  are false and materialization is ready. Focused impacted suites, Ruff, Black, CLI dry-run, and
+  `git diff --check` passed. Full backend pytest passed once after
+  implementation; a second post-cleanup full-suite rerun exceeded the
+  10-minute local timeout, then impacted suites passed.
 - SUPABASE-LOCAL-MODEL-CACHE-PERIMETER is implemented and verified locally,
   and the dev Supabase migrations are applied. Project `eamos-dev`
   (`cpdjxsgasaesysvxkpmi`, `ap-southeast-2`) now has backend-only
@@ -38,11 +70,11 @@ Recent backend status notes (2026-05-30, Codex):
   same hybrid cache wiring as the web server when enabled. Security advisors
   report no lints; performance advisors are INFO-only unused-index notes on
   empty/new private tables plus the existing Auth connection strategy note.
-  Current caveat: no durable cache rows are warmed yet unless the Render
-  backend has `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true` and a real private
-  Supabase Postgres DB URL, the new code is pushed/deployed, and the warmer is
-  run. Do not redeploy Render expecting this cache behavior until the commit is
-  pushed; uncommitted local code is not in the deployed backend.
+  Claude/Steven resolved the SG session-pooler credential on 2026-05-30; a
+  clean real-API RPE65 lookup wrote 9 durable
+  `local_model_cache_entries` rows with zero cache warnings. The web lookup
+  path does not write `local_source_versions`; those are now populated by the
+  source-import apply above.
 - PROTEIN-ANNOTATION-SUPER-TOOL-LOCAL is implemented and verified. The backend
   now has a local/offline protein annotation path: staged Swiss-Prot/Pfam/
   HMMER/InterProScan asset preflight, additive `ProteinDomainTrack` contract,

@@ -1,4 +1,4 @@
-﻿# Current Agent State
+# Current Agent State
 
 > **Live state only.** The coordination protocol (hard rules, locks, idle,
 > stop/break, resume-prompt format, read order) lives once in
@@ -14,18 +14,19 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** IDLE @ 2026-05-30 05:05 +1000 (anchor: `a94ec37` on `origin/main`; **no Claude code commits this session — Render/Supabase ops with Steven**). Tree clean except pre-existing `.claude/settings.json`. (1) **Supabase cache deploy (Oregon):** set the 3 cache env vars on `eamos-dev` via Render MCP — corrected a mangled scheme Steven pasted → `postgresql+psycopg://…@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres?sslmode=require`; env change auto-deployed `a94ec37`, live + healthy. (2) **Cache write path UNVERIFIED / silently FAILING:** `eamos_private.local_model_cache_entries` stays EMPTY after real-API lookups (Oregon 69s + Singapore 53s, both HTTP 200). `main.py` wires Hybrid repos when ENABLED+DATABASE_URL set (confirmed); `lookup_service.py` upserts source_cache(L505)+variant_cache(L908) on miss → so the remote write is failing **silently** (Hybrid repos swallow `SupabaseLocalModelCacheError`, no log). Steven's local `psycopg` connect to the pooler timed out = his work-wifi blocking 5432 (DNS resolved, TCP blocked) — NOT a Render-side issue. (3) **Region migration Oregon→Singapore DONE** (Steven's call — closer to Supabase Sydney; ~150→~90ms): new service **`eamos-dev-sg` (`srv-d8ctvoh9rddc73a27nb0`)**, region singapore, plan **starter** (SSH + one-off jobs enabled), Docker, live on `a94ec37`, healthy. Claude set **8/10** env vars via MCP (cache trio, SUPABASE_URL, USE_REAL_APIS=true, LLM_PROVIDER=mock[assumed], DEBUG=false[assumed], JWT_SECRET[OCR'd from screenshot — needs char-for-char verify]). **OPEN — Codex:** debug the silent cache-write fail (SSH the SG box `srv-d8ctvoh9rddc73a27nb0@ssh.singapore.render.com`, run `python -m app.cli.warm_source_cache --real-apis` to surface the real error — likely pooler auth/SSL/creds; consider logging the swallow points). **OPEN — Steven+Claude:** add `SUPABASE_SERVICE_ROLE_KEY`+`SUPABASE_JWT_ALGORITHM` + verify `JWT_SECRET` on `eamos-dev-sg`; then Claude does the **Vercel FE cutover** (`NEXT_PUBLIC_API_BASE_URL` → `https://eamos-dev-sg.onrender.com` + redeploy); then teardown Oregon `eamos-dev` + repoint `.render-deploy-hook`. **FE protein track (build `ProteinDomainTrack.tsx` into §4 slot + route `molecular_context` warning through `ProvenanceNote`) NOT started — still queued** against the committed contract in `app/web/lib/backend.ts`. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents on Eamos UI work ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); real-clock stamps via `date +"%F %H:%M %z"` ([[feedback_real_clock_timestamps]]); lock protocol per [[feedback_handoff_lock_protocol]].
+- **Claude:** IDLE @ 2026-05-31 00:19 +1000 (**anchor: `main` 3 ahead of `origin/main` `f5eb33e`, UNPUSHED: `3891ab3` + `032e2e8` + `9cd186b`**). **This session = impeccable read-only audit of app/web + Steven-approved low-risk polish batch (committed `9cd186b`, FE-only).** Audit verdict: app/web is in good shape (~16.5/20; anti-pattern PASS — no AI-slop tells, real semantic controls, reduced-motion guards present); findings were a short concrete batch, not an overhaul. **Shipped in `9cd186b`:** (1) **CiteModal** dead-click fix — "Copy citation" now writes a real plain-text citation to clipboard with a Copied confirmation; BibTeX/RIS are honest-disabled "coming soon"; removed the `console.log` (restores the lynchpin invariant). (2) **Workbench `.nav-wrap`** — dropped `backdrop-filter:blur(12px)` on the sticky nav (it holds a search input → keystroke repaints) + swapped `rgba(255,255,255,.9)`→`var(--nav-bg)` to match TopNav/LandingNav. (3) `layout.tsx` page-title em-dash→colon (tab/OG/Twitter). (4) `workbench.css` stale Plus-Jakarta/Syne font comment→Inter/Spectral. (5) `PopulationFrequencySection` `#111827`→`var(--ink)`. **Deviation logged:** did NOT swap `heatColor`'s `#1D9E75`→`var(--teal)` (Steven had approved it) — it's load-bearing hex (alpha-concatenated `${barColor}55/99` + SVG `fill`; `var()` breaks both); tokenizing that ramp is a separate small refactor. **Verified:** `tsc --noEmit` clean; eslint 0 err/14 warn (baseline unchanged — 14 = React-Compiler advisory + 1 exhaustive-deps suppress); diff scoped to 4 app/web files only. **Guardrails held:** FE-only, explicit-pathspec stage (DL-019), NO backend/Codex WIP touched, NO push, NO deploy, NO Supabase/Render/Vercel ops. **Codex's hg38 blocker is RESOLVED** (Codex verified+materialized the private Storage object @ 00:13). **Push note (for a joint push):** pushing `main` publishes my 3 FE commits AND auto-deploys app/web via Vercel `eamos-dev` (all 3 tsc-clean/0-err; `9cd186b` is the audit-approved batch); Render auto-deploy is OFF (backend won't deploy on push). **STILL OPEN (not mine this turn):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` once SG stable; `/account` Supabase-login E2E (+`SUPABASE_JWT_SECRET` on SG if HS256); **FE protein track** `ProteinDomainTrack.tsx` into §4 + `molecular_context` warning via `ProvenanceNote` — AFTER the protein backend fully lands. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
 
-- **Codex:** IDLE @ 2026-05-30 05:14 +1000 - Supabase cache write
-  observability fix committed and pushed to `main` at `3412d91`. The private
-  table upsert SQL was validated directly against Supabase and a smoke row was
-  deleted. Render SSH from this workstation timed out before auth/banner, so no
-  one-off job was run by Codex. The fix logs swallowed remote-cache failures
-  without raw cache keys and makes `python -m app.cli.warm_source_cache
-  --real-apis` fail fast on a Supabase write/read/delete smoke unless
-  `--skip-supabase-smoke` is passed. Focused tests, Ruff, Black, and
-  diff-check passed. Next: deploy `3412d91` to `eamos-dev-sg`, run the warmer,
-  read the logged/smoke error, fix env/credentials if needed, and verify rows.
+- **Codex:** IDLE @ 2026-05-31 00:13 +1000 - hg38.2bit private Storage
+  pilot is now verified/materialized in dev metadata. Steven moved the
+  Dashboard-uploaded object to the clean private key
+  `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`;
+  Codex verified bucket `public=false`, size `835393456`, and MD5/ETag
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, then updated
+  `eamos_private.source_asset_objects.upload_status='verified'` and
+  `source_asset_materializations.materialization_status='ready'` with
+  frontend/public access still blocked. No S3 tooling was recreated; no
+  secrets, Render/Vercel mutation, public bucket, signed frontend URL,
+  destructive git, commit, or push.
 
 ## Log Edit-Lock
 
@@ -35,7 +36,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-30 05:14 +1000 · Codex (Supabase cache write logging/smoke pushed; Render deploy/run handed back)
+UNLOCKED · 2026-05-31 00:22 +1000 · Claude (impeccable-polish closeout: heartbeat + Last Task note refreshed; `9cd186b` committed FE-only)
 
 ## Shared File Locks
 
@@ -1841,14 +1842,19 @@ DONE entries older than the last major boundary into the relevant plan/log.
 ## Claude — Last Task & Resume
 
 Owner-written by **Claude only**. Codex: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-05-29 03:47 +1000 · Claude. Prior section
-(2026-05-28 02:56 +1000 · M-004 / M8 SHIPPED end-to-end) archived verbatim to
-`agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md` per
-Hard Rule 9. Full incremental detail in
-`~/.claude/plans/next-session-eamos.md`. The intervening sessions
-(2026-05-28 mobile sweep + M-005 + M-006 + Phase 2 branch rename +
-Hard Rule 10 codification) did not refresh this narrative; their authority
-lives in the per-commit messages + the `## Active Status` heartbeat history.
+Narrative below last fully written 2026-05-29 03:47 +1000 · Claude (LazySection
+v1). Its prior section is archived at
+`agent_handoff/archive/2026-05-29-claude-section-pre-lazysection-v1.md`; a
+redundant copy of the LazySection narrative is also at
+`agent_handoff/archive/2026-05-31-claude-section-pre-impeccable-polish.md`. Full
+incremental detail in `~/.claude/plans/next-session-eamos.md`. **Per the
+established pattern, the intervening sessions refreshed only the `## Active
+Status` heartbeat + their commits, not this LazySection body:** 2026-05-28
+(mobile sweep + M-005 + M-006 + Phase 2 rename + Hard Rule 10); 2026-05-30
+(app/web ESLint gate — `3891ab3` + `032e2e8`); 2026-05-31 (impeccable audit +
+polish batch — `9cd186b`: CiteModal copy wiring + Workbench nav de-blur +
+title/comment/token fixes). Authority for those lives in their commit messages
++ the heartbeat above.
 
 **Session 2026-05-29 (very early) — Hard Rule 10 slice **Option A**: LazySection v1 SHIPPED (`244ba62`). New FE primitive: IntersectionObserver-driven section loader with `eagerData` short-circuit; wraps PubMedSection so today's offline demo + eager live keep rendering with zero fetches, and the same call site flips to lazy-fetch via `/api/v1/lookup/sections` the moment Codex's M-007 thins the eager payload. Local `main` now 7 ahead of `origin/main` (244ba62 stack tip).**
 
@@ -1924,94 +1930,100 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-30 01:38 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-30 21:47 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes. Prior detailed Codex section was covered by `PROGRESS.md`
-Session 88 and replaced at this major boundary.
+Session 89 and replaced at this major backend/import boundary.
 
-**Latest Codex update (2026-05-30 01:38 +1000 - Codex):**
-Implemented the first local/offline backend slice of the proprietary Eamos
-Protein Annotation Super Tool. The build covers protein asset preflight for
-the staged ignored Swiss-Prot/Pfam/HMMER/InterProScan bundle, the additive
-`ProteinDomainTrack` contract, DNA/protein normalization and translation,
-HMMER/Pfam runner interface, `domtblout` parser, UniProtKB/Swiss-Prot flatfile
-feature parser, sequence-hash cache, fail-closed `/api/v1/protein/annotate`,
-Workbench/report cache hydration hooks, and private Supabase metadata/cache
-migration scaffolding.
-
-The annotation model now keeps raw upstream labels, compact block
-abbreviations, and functional legend descriptions separate. That handles
-gene/protein-specific cases like FZD5: the raw UniProt feature can remain `FZ`
-while the renderer sees `CRD` and a WNT-binding Frizzled cysteine-rich domain
-description. RPE65 is corrected the same way: carotenoid oxygenase/RPE65 family
-comes from Pfam/InterPro/HMMER provenance, while UniProt supplies Fe-binding
-and palmitoylation/membrane-form sites; no signal peptide is fabricated unless
-local source data has a `SIGNAL` feature.
+**Latest Codex update (2026-05-31 00:13 +1000 - Codex):**
+Verified Steven's private Supabase Storage upload for the hg38.2bit pilot and
+updated dev metadata from upload-pending/failed to verified/ready. The bucket is
+private, the object key is now the clean intended path, and frontend/public
+access remains blocked.
 
 **State:**
 - Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
-- New Codex-owned backend paths include:
-  `app/backend/app/data_sources/protein_assets.py`,
-  `app/backend/app/schemas/protein_annotation.py`,
-  `app/backend/app/services/protein_annotation.py`,
-  `app/backend/app/repos/protein_annotation_cache_repo.py`,
-  `app/backend/app/api/routes/protein_annotation.py`,
-  `app/backend/tests/test_protein_annotation_service.py`, and
-  `supabase/migrations/0008_protein_annotation_metadata_cache.sql`.
-- Updated contracts and integrations include backend config/db/main route
-  wiring, source registry/preflight tests, gene viewer/report molecular context
-  schemas/services, `app/web/lib/backend.ts`, and
-  `app/frontend/src/lib/backend.ts`.
-- Reference-control stack is RPE65, USH2A, PCARE `NM_001029883`, DNM1, and
-  FZD5.
-- Hard Rule 10 precedence amendment is applied in `agent_handoff/README.md`.
-  The active plan and Steven's decisions outrank the rule; unrequested durable
-  structure is a violation, not a satisfaction.
-- No commit was made. Unrelated Claude/frontend report work already present in
-  the worktree was left untouched except for generated backend contract mirrors.
+- New Codex-owned backend paths:
+  `app/backend/app/services/source_imports.py`,
+  `app/backend/app/cli/eamos_source_import.py`, and
+  `app/backend/tests/test_source_imports.py`.
+- Updated backend paths:
+  `app/backend/app/services/clinical_source_tables.py` and
+  `app/backend/app/repos/supabase_local_model_cache_repo.py`.
+- Live dev Supabase DML was applied through the Supabase SQL connector because
+  this workstation can reach Supabase over HTTPS but direct Postgres egress to
+  the pooler timed out on `5432` and `6543`. No Render/Vercel deploy/env
+  mutation was performed, and no secrets were printed or written to docs/env
+  files.
+- Verified private-table rows now exist in `eamos_private`: 7
+  `local_source_versions`, 2 MONDO diseases, 3 HPO terms, 2 HPO disease
+  phenotype rows, 3 HPO gene phenotype rows, 2 ClinGen validity rows, 2 GenCC
+  assertions, 1 `source_asset_objects`, and 1
+  `source_asset_materializations`.
+- The Storage pilot is now verified in dev: bucket `eamos-source-assets` exists
+  with `public=false` and `file_size_limit=1073741824`; object
+  `ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`
+  exists with size `835393456` and MD5/ETag
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`.
+- `eamos_private.source_asset_objects` now records `upload_status=verified`,
+  `public_access_allowed=false`, and `frontend_direct_access_allowed=false`.
+  `eamos_private.source_asset_materializations` now records
+  `materialization_status=ready`, `fail_closed_reason=null`, and the same
+  checksum/size. This is metadata/materialization status only; no frontend raw
+  source URL or public object access was created.
 
 **Verification:**
-- `python -m pytest tests/test_protein_annotation_service.py tests/test_frontend_contract.py -q`
+- `python -m pytest tests/test_source_imports.py tests/test_clinical_source_tables.py tests/test_supabase_local_model_cache.py tests/test_supabase_migrations.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
   passed.
-- `python -m pytest tests/test_protein_annotation_service.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_gene_viewer.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py tests/test_supabase_migrations.py tests/test_franklin_removed.py -q`
-  passed.
-- `python -m pytest -q` from `app/backend` passed with existing PyJWT short
-  test-secret warnings only.
+- `python -m app.cli.eamos_source_import --compact` passed.
 - `python -m ruff check app tests` passed.
-- `python -m black --check app tests` passed.
+- `python -m black --check --target-version py310 app tests` passed.
 - `git diff --check` passed; Windows LF-to-CRLF notices only.
+- Full backend `python -m pytest -q` passed once after implementation with
+  existing PyJWT short test-secret warnings. A second full-suite rerun exceeded
+  the 10-minute local timeout; impacted suites were rerun and passed.
+- Live Supabase verification confirmed the row counts above, private bucket
+  posture, clean object path, size/MD5 match, object public/frontend flags
+  false, and hg38 materialization ready.
+- Local direct `--apply-supabase` after ephemeral Render-env configuration
+  failed at TCP connection timeout to the Supabase pooler; PostgREST access to
+  `eamos_private` is not exposed, which is the intended private-schema posture.
 
 **Next-session direction:**
-- Frontend/report renderer can now consume `ProteinDomainTrack`: draw compact
-  abbreviation blocks (`CRD`, `TM1`, `Fe`, `Palm`, `PH`, `GED`, etc.) and put
-  expanded abbreviation plus functional biology in the legend.
-- Keep annotation runtime local/offline and fail-closed. Do not add live
-  UniProt/InterPro/Pfam API fallback, startup downloads, public buckets, or
-  direct frontend SQL.
-- Next backend hardening should extract/index the local Pfam/HMMER bundle only
-  when explicitly approved, add cache leak tests around restricted fields, and
-  run Supabase advisor checks only if/when the user approves applying the
-  migration to a real project.
+- For a direct CLI apply proof, run `python -m app.cli.eamos_source_import --apply-supabase --compact`
+  from an environment with Postgres egress to the Supabase pooler (Render SG is
+  the likely place). This should be coordinated before any Render command/env
+  mutation.
+- Real MONDO/HPO/ClinGen/GenCC production imports remain gated on explicit
+  download/import approval, source-license notes, and checksum/provenance
+  manifests.
+- Next Storage step is gated: do not add public access, signed frontend URLs,
+  new buckets, new uploads, or runtime object materialization/download jobs
+  without explicit approval. Backend readers still need a reviewed runtime
+  local-cache/materialization path before request-time use.
+- Frontend protein track remains unstarted unless Steven redirects.
 
-**Clear-safe:** yes for handoff. The local/offline protein annotation backend
-slice is implemented and verified. No live third-party protein API dependency,
-startup downloads, optional InterProScan licensed apps, SignalP/Phobius/
-DeepTMHMM unlocks, AlphaMissense runtime/display scoring, InterVar/ANNOVAR/
-OMIM production use, public genomic buckets, direct frontend SQL over source
-tables, unrestricted uploads, env/deploy mutation, live Supabase mutation,
-WSL/Docker, destructive git, stash, reset, clean, commit, or push was performed
-by Codex.
+**Clear-safe:** yes for handoff. The backend Tier 3 fixture rows and hg38
+private Storage pilot are implemented, tested, and live-verified in dev. The
+hg38 object is private, checksum/size verified, and private metadata now marks
+it verified/ready with frontend/public access blocked. No S3 tooling was
+recreated, no secrets were exposed, and no Render/Vercel env/deploy mutation,
+public bucket, signed frontend URL, production source download/import,
+restricted predictor unlock, AlphaMissense runtime/display, WSL/Docker,
+destructive git, stash, reset, clean, commit, or push was performed by Codex.
 
 **Latest resume prompt:**
 ```
-# Resume prompt · 2026-05-30 01:38 +1000 · Codex protein annotation local worker complete
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/RISKS.md, PROGRESS.md Session 89, plans/v2-backend.md Recent backend notes, ROADMAP.md Protein Annotation Roadmap, then git status --short --branch.
+# Resume prompt · 2026-05-31 00:13 +1000 · Codex hg38 private Storage verified/materialized
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Cross-Agent Requests, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 91, plans/v2-backend.md Recent backend notes, ROADMAP.md backend/database/protein sections, then git status --short --branch.
 
-Delta: Codex implemented the first local/offline Eamos Protein Annotation Super Tool backend slice. Added staged protein-asset preflight, ProteinDomainTrack contract, DNA/protein normalization + translation, HMMER/Pfam runner interface, domtblout parser, UniProtKB/Swiss-Prot flatfile feature parser, sequence-hash cache, fail-closed /api/v1/protein/annotate, Workbench/report cache hydration hooks, and private Supabase metadata/cache migration scaffolding. Reference controls now cover RPE65, USH2A, PCARE (NM_001029883), DNM1, and FZD5. RPE65 has Pfam/InterPro carotenoid oxygenase/RPE65 family provenance plus UniProt Fe-binding and palmitoylation/membrane-form sites, with no fabricated signal peptide. FZD5 has SIGNAL, WNT-binding Frizzled/FZ CRD, topology, TM1-TM7, and PDZ motifs. The renderer contract separates raw source label, compact abbreviation, and functional legend description.
+Delta: Steven uploaded/moved hg38.2bit in private Supabase Storage; Codex verified `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit` exists with size `835393456` and MD5/ETag `dcc3ea27079aa6dc3f9deccd7275e0f8`, bucket `public=false`, then updated private source-asset metadata to `upload_status=verified` and materialization `ready`.
 
-Verification: focused protein/contract tests, broader source-preflight/registry/viewer/report/migration/removed-tool suite, full backend pytest, Ruff, Black, and git diff --check all passed. Black emits the existing Python 3.10 vs target-version warning but exits clean. git diff --check only emitted Windows LF-to-CRLF notices.
+Context: Tier 3 fixture import CLI/source-table work from Session 91 remains in the dirty backend tree and private dev tables. Direct Postgres egress from this workstation previously timed out on 5432/6543, but Supabase HTTPS/SQL connector worked. The hg38 object/metadata verification was done through the connector only; no S3 tooling was recreated.
 
-Next build: frontend/report renderer can consume ProteinDomainTrack using compact blocks plus a legend that expands abbreviation and functional biology. Backend next hardening is local bundle extraction/indexing only with explicit approval, cache/leak tests, and Supabase advisor checks only if applying the migration to a real project is approved.
+Verification: final SQL check showed Storage, `source_asset_objects`, and `source_asset_materializations` all agree on the clean object path, byte size, and MD5; bucket and metadata public/frontend access flags remain false. Earlier Session 91 focused backend suites, CLI dry-run, Ruff, Black, diff-check, and one full backend pytest passed.
 
-Guardrails: no live UniProt/InterPro/Pfam API fallback, no startup downloads, no direct frontend SQL over source tables, no public genomic buckets, no unrestricted uploads, no InterVar/ANNOVAR/OMIM production use, no optional InterProScan licensed apps, no restricted predictor unlocks, no AlphaMissense display/runtime scoring, no deploy/env mutation without explicit approval, no WSL/Docker, no destructive git, no stash/reset/clean without explicit approval. End clear-safe.
+Next: do not create public objects, signed frontend URLs, new uploads, Render/Vercel env/deploy changes, or runtime materialization/download jobs without explicit approval. A reviewed backend local-cache/materialization reader path is still needed before request-time use of the Storage asset.
+
+Guardrails: no secrets in chat/docs/logs, no public genomic bucket, no frontend direct SQL/Storage over private source/cache tables, no broad anon/authenticated grants, no production source downloads/imports without approval, no restricted predictor unlocks, no AlphaMissense runtime/display, no Render/Vercel env/deploy mutation without coordination, no WSL/Docker, no destructive git/stash/reset/clean, no commit/push unless asked. End clear-safe.
 ```

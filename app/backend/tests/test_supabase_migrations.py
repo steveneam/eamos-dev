@@ -233,3 +233,19 @@ def test_private_source_asset_storage_metadata_blocks_public_access() -> None:
     assert "stale_allowed = false" in normalized
     assert "idx_source_asset_objects_unique_path" in normalized
     assert "idx_source_asset_materializations_unique_env_path" in normalized
+
+
+def test_private_source_asset_bucket_is_private_and_bounded() -> None:
+    sql = _migration_sql("20260530120018_private_source_asset_bucket.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "insert into storage.buckets" in normalized
+    assert "'eamos-source-assets'" in normalized
+    assert "public, file_size_limit, allowed_mime_types" in normalized
+    assert "false, 1073741824" in normalized
+    assert "array['application/octet-stream']::text[]" in normalized
+    assert "on conflict (id)" in normalized
+    assert "public = false" in normalized
+    assert "create policy" not in normalized
+    assert "using (true)" not in normalized
+    assert "with check (true)" not in normalized

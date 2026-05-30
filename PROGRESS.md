@@ -1,5 +1,94 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 91 - 30 May 2026 - Tier 3 fixture import and private Storage pilot CLI
+
+Implemented the next backend-only source live-wire slice after Claude/Steven
+resolved the Supabase cache credential issue and cut over Vercel to the
+Singapore backend.
+
+Follow-up 2026-05-31 00:13 +1000:
+- Steven uploaded/moved the hg38.2bit object in private Supabase Storage.
+  Codex verified the clean key
+  `eamos-source-assets/ucsc_hg38_2bit/hg38/md5-dcc3ea27079aa6dc3f9deccd7275e0f8/hg38.2bit`,
+  bucket `public=false`, size `835393456`, and MD5/ETag
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`.
+- Codex updated private dev metadata through the Supabase SQL connector:
+  `source_asset_objects.upload_status=verified`,
+  `public_access_allowed=false`, `frontend_direct_access_allowed=false`, and
+  `source_asset_materializations.materialization_status=ready` with
+  `fail_closed_reason=null`.
+- Final verification showed Storage, `source_asset_objects`, and
+  `source_asset_materializations` all agree on the clean object path, byte
+  size, and checksum. No S3 tooling was recreated, no secrets were exposed, and
+  no public bucket, signed frontend URL, frontend direct access, Render/Vercel
+  mutation, destructive git, commit, or push was performed.
+
+Completed:
+- Added `python -m app.cli.eamos_source_import`, a guarded source-import CLI
+  that plans Tier 3 clinical fixture imports and the first metadata-only
+  private Storage pilot by default.
+- Added `app/backend/app/services/source_imports.py` to convert existing
+  MONDO/HPO/ClinGen/GenCC fixture parsers into private-table import bundles
+  with source-version rows, checksums, row counts, provenance, idempotent row
+  keys, and explicit guardrails.
+- Extended the Supabase SQLAlchemy store with backend-only upserts for:
+  `clinical_mondo_diseases`, `clinical_hpo_terms`,
+  `clinical_hpo_disease_phenotypes`, `clinical_hpo_gene_phenotypes`,
+  `clinical_clingen_gene_validity`, `clinical_gencc_assertions`,
+  `source_asset_objects`, and `source_asset_materializations`.
+- Selected `hg38.2bit` as the first private Storage pilot because the registry
+  already has verified local size and MD5. ClinVar VCF intentionally fails
+  closed until an approved downloaded checksum/materialization exists.
+- The Storage pilot remains metadata-only: no bucket creation, no object
+  upload, no signed/raw frontend URL, no public bucket, and materialization is
+  recorded as `not_materialized` with a fail-closed reason until a private
+  object is uploaded and verified.
+- Added focused tests for planning/apply behavior, idempotent fixture rows,
+  hg38 pilot metadata, ClinVar checksum failure, CLI dry-run output, and the
+  configured-store apply path.
+
+Live apply / local connectivity status:
+- `python -m app.cli.eamos_source_import --compact` passed and reported a
+  planned import: 2 MONDO rows, 3 HPO terms, 2 HPO disease phenotype rows, 3
+  HPO gene phenotype rows, 2 ClinGen validity rows, 2 GenCC assertion rows,
+  and an hg38 metadata-only object path under `eamos-source-assets`.
+- After Steven asked to configure the shell, Codex sourced the required Render
+  env values only into the current PowerShell process. Direct Postgres egress
+  from this workstation to the Supabase pooler still timed out on `5432` and
+  `6543`; HTTPS to Supabase works. PostgREST access to `eamos_private` is not
+  exposed, which is the intended private-schema posture.
+- Codex applied the backend-only dev fixture/source-asset DML through the
+  Supabase SQL connector and verified private row counts:
+  `local_source_versions=7`, `clinical_mondo_diseases=2`,
+  `clinical_hpo_terms=3`, `clinical_hpo_disease_phenotypes=2`,
+  `clinical_hpo_gene_phenotypes=3`, `clinical_clingen_gene_validity=2`,
+  `clinical_gencc_assertions=2`, `source_asset_objects=1`, and
+  `source_asset_materializations=1`.
+- Verified no `storage.buckets` row exists for `eamos-source-assets`; no bucket
+  creation, object upload, signed raw-source URL, or frontend access was
+  created. The source asset object remains `metadata_only`, public/frontend
+  flags are false, and materialization is fail-closed `not_materialized`.
+
+Verification:
+- `python -m pytest tests/test_source_imports.py tests/test_clinical_source_tables.py tests/test_supabase_local_model_cache.py tests/test_supabase_migrations.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
+  -> passed.
+- `python -m app.cli.eamos_source_import --compact` -> passed.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check --target-version py310 app tests` -> passed.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+- Full backend `python -m pytest -q` passed once after the implementation
+  (existing PyJWT short test-secret warnings only). A second post-cleanup
+  full-suite rerun exceeded the 10-minute local timeout without a final report;
+  impacted suites were rerun and passed after the cleanup.
+
+Guardrails held:
+- No production downloads, DDL changes, bucket creation, object upload, public
+  genomic buckets, signed raw-source URLs, frontend direct SQL, broad browser
+  grants, restricted predictor unlocks, AlphaMissense runtime/display,
+  Render/Vercel env/deploy mutation, WSL/Docker, destructive git, stash, reset,
+  clean, commit, or push. Live Supabase mutation was limited to backend-only
+  private-table DML for the verified dev fixture/source-asset rows above.
+
 ## Session 90 - 30 May 2026 - Supabase local-model cache perimeter and landing warmer hardening
 
 Started backend-owned Supabase dev wiring for local models, local source/cache

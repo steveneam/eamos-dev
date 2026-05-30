@@ -181,6 +181,24 @@ class ClinicalSourceTableStore:
     def provenance(self) -> tuple[ClinicalTableProvenance, ...]:
         return tuple(self._provenance_by_path.values())
 
+    def mondo_records(self) -> tuple[MondoDisease, ...]:
+        return self._mondo_records
+
+    def hpo_terms(self) -> Mapping[str, str]:
+        return dict(self._hpo_terms)
+
+    def hpo_disease_records(self) -> tuple[HpoDiseasePhenotype, ...]:
+        return self._hpo_disease_records
+
+    def hpo_gene_records(self) -> tuple[HpoGenePhenotype, ...]:
+        return self._hpo_gene_records
+
+    def clingen_records(self) -> tuple[ClinGenGeneValidityRecord, ...]:
+        return self._clingen_records
+
+    def gencc_records(self) -> tuple[GenCcAssertionRecord, ...]:
+        return self._gencc_records
+
     def mondo_by_id(self, mondo_id: str) -> MondoDisease | None:
         return self._mondo_by_id.get(_normalize_curie(mondo_id))
 
