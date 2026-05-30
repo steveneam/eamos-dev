@@ -31,6 +31,26 @@ Completed:
   prep flow, and optionally run a bounded PCARE smoke before ABCA4. CLI output
   is sanitized: no service-role key, local filesystem path, signed URL, or raw
   object path is emitted.
+- Deployed the materialization CLI to SG and proved the full path in a Render
+  one-off job on the larger temporary job plan:
+  materialization ready, Pfam gz downloaded from private Storage, size/MD5/SHA256
+  verified, `hmmscan` and `hmmpress` available, `hmmpress` ran, all Pfam HMM
+  indexes present, and runtime status `ready`.
+- Replaced the temporary ABCA4 length-control smoke with a real coding-DNA
+  smoke loaded from
+  `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
+  (`NM_000350.3`, `ENSP00000359245`, CDS length `6822`, translated protein
+  length `2273`). The Render one-off job reported ABCA4
+  `input_type=coding_dna`, `translated_from=coding_dna`,
+  `sequence_source=workbench_gene_viewer_transcript_model_cds`, status
+  `available`, and `38` Pfam features. PCARE also remained `available`.
+- Checked the existing Supabase Storage bucket size posture: project is on Pro,
+  bucket `eamos-source-assets` remains private, per-bucket file limit is
+  `1073741824` bytes, object count is `2`, total object bytes are
+  `1219750818`, and largest object is `835393456` bytes. The current Pfam gz
+  does not require increasing the Supabase per-object GB limit; persistent web
+  service runtime readiness is a Render filesystem/startup design issue, not a
+  Supabase capacity blocker.
 
 Verification:
 - Local Pfam checksum proof:
@@ -38,21 +58,27 @@ Verification:
   -> ready from the existing local staged gz, no download needed.
 - `python -m pytest tests/test_pfam_materialization_cli.py tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py -q`
   -> passed.
+- `python -m pytest tests/test_pfam_materialization_cli.py tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py tests/test_protein_annotation_service.py -q`
+  -> passed after switching ABCA4 to the real fixture CDS.
 - `python -m ruff check app tests` -> passed.
 - `python -m black --check --target-version py310 app tests` -> passed.
 - `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+- SG deploy hook returned HTTP 200 for `4b17ce4`; Render reported that commit
+  live before the one-off job was started.
+- Render one-off job `job-d8dip14p3tds73flcc7g` succeeded and emitted sanitized
+  JSON only: no service-role key, signed URL, local path, or raw object path.
+- Public SG `/api/v1/health/provider-cache` still fails closed for the web
+  service instance: `protein_annotation.enabled=false`,
+  `status=disabled`, and `hmmer.reason=pfam_hmm_database_missing`.
 
 Residual / next:
-- Commit/push/deploy this backend-only CLI slice, then run a Render one-off job
-  with the new CLI. If `hmmpress` exceeds the starter job memory, rerun the
-  one-off on a larger temporary Render job plan. This does not require a
-  Supabase size increase for the gzipped Pfam bundle.
-- A one-off job can prove materialize -> extract -> `hmmpress` -> PCARE smoke
-  inside the job container, but it does not persist files into the already
-  running web-service filesystem. Public `/api/v1/health/provider-cache` will
-  stay fail-closed until the actual service instance has the materialized
-  Pfam runtime files through Render Shell, a persistent disk, or an approved
-  service startup/runtime materialization design.
+- A one-off job now proves materialize -> extract -> `hmmpress` -> PCARE ->
+  real ABCA4 fixture CDS smoke inside the job container, but it does not
+  persist files into the already running web-service filesystem. Public
+  `/api/v1/health/provider-cache` will stay fail-closed until the actual
+  service instance has the materialized Pfam runtime files through Render
+  Shell, a persistent disk, or an approved service startup/runtime
+  materialization design and coordinated Render env enablement.
 
 Guardrails held:
 - No public genomic/protein bucket, frontend direct Storage access, signed

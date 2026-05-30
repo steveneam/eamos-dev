@@ -16,12 +16,15 @@
 
 - **Claude:** ACTIVE @ 2026-05-31 03:45 +1000 (**anchor: gnomAD T1–T4 COMMITTED `47d78c2` + PUSHED; `main` now published to `origin/main` incl. the prior shared stack `8d2e899`/`6c19b8b`/`adb91ee`/`a38f07a` (Codex backend + Claude FE); push auto-deployed Vercel prod**). **This session = gnomAD world-map redesign, FE-only, T1→T4 done + verified + COMMITTED/PUSHED (`47d78c2`).** **T1** build-only geo tooling: devDeps d3-geo/d3-geo-projection/topojson-client/world-atlas + `gen:gnomad-map` script. **T2** `components/report/region-countries.ts`: Natural Earth numeric id → 7 geographic groups; ami/asj/remaining off-map (D6). **T3** `components/report/gnomadMapGeometry.generated.ts` (~88KB) via `scripts/build-gnomad-basemap.mjs`: dissolves member countries with topojson `merge`, projects geoNaturalEarth1, emits land-clipped region paths + base land. **110m** source (12× smaller than 50m; all 3 by-name Kosovo/N.Cyprus/Somaliland present). **Tight frame** (Steven-directed): Antarctica + **Fiji** dropped (Fiji straddles the antimeridian → geoStitch throws specks to BOTH edges), viewBox cropped to inhabited-land bbox = **1857×892**, balanced Alaska↔New-Zealand margins (~36px). Verified: tsc 0 err, eslint 8 warn (baseline), idempotent (byte-identical re-run), **browser-verified geometry — no ocean spill, all 7 regions accurate**. Steven approved framing ("looks good"). Known artifact: French Guiana renders nfe-blue (Natural Earth bundles it into France id 250) — offered to neutralize, pending. **T4** `components/report/gnomadMapTheme.ts`: single-source palette (D8) — deep cool-blue ocean / blue-grey base land / flat-grey no-data (D5); **reversed** threshold-anchored AF bands ≥5%&1–5% green / 0.1–1% amber / <0.1% red / not-observed grey (D4 + locked cutoffs, ACMG BA1/BS1 anchored, raw group AF basis); double-stroke yellow hover halo (D7). tsc clean; **NO component change yet** (that's T6). **Steven decisions RESOLVED 2026-05-31:** (a) **Afghanistan stays SAS** (Steven OK); (b) **T4 palette** rendered on real geometry (throwaway preview) + tweaked per Steven — lighter ocean `#3a5d80`, BS1 lighter mint `#93d6b3` for BA1/BS1 daylight, neutral-grey no-data `#c6c6c6` (kept hueless so it won't clash with the cool-blue ocean); awaiting Steven's final palette lock before T5; (c) **French Guiana** left as nfe-blue (Steven: leave — it IS French overseas territory); (d) ASJ/AMI/remaining chips get the ancestral-origin copy at **T8** (agreed). **CODEX CAR (03:23):** Codex asks Claude to (1) ACK a narrow explicit-pathspec Codex backend/docs commit, (2) coordinate whether pushing the `main` stack must wait for Claude's gnomAD T10 gate (Codex needs the HMMER/Pfam runtime-prep code published so the Render-SG image gains `hmmscan`/`hmmpress`). **Claude assessment (relayed to Steven 03:31):** (1) **ACK-safe** — Codex backend files are disjoint from my uncommitted gnomAD FE files; an explicit-pathspec Codex commit won't sweep them (Codex must NOT include `.claude/settings.json`, my `app/web/package*.json`, or the 4 gnomAD files); (2) my gnomAD **T1–T4 is UNCOMMITTED → NOT in any push**, so pushing the existing stack is **independent of my T10 gate** (T10 only gates MY gnomAD commits) — BUT push auto-deploys prod (`adb91ee` FE + Codex backend), so the push GO is Steven's call. **STEVEN REVERSED 2026-05-31 03:45: commit + push THIS session, Claude first.** Claude committed gnomAD T1–T4 as `47d78c2` (explicit pathspec: 4 new files + `app/web/package*.json`; nothing of Codex's) and pushed `main`. **gnomAD files are inert (not wired into any component until T6) → this push does NOT change prod rendering; it only published the prior shared stack incl. `adb91ee` FE.** T6 integration still gated. **Codex NEXT:** `git pull --rebase origin main` (disjoint → no conflict) → explicit-pathspec backend commit (pre-ACK'd by me) → push → fire Render deploy-hook (`.render-deploy-hook`) so the SG image gains `hmmscan`/`hmmpress`. Repo hygiene note: VSCode "10K" badge = gitignored `.next` dev cache (~2834 files) + node_modules; `git status` shows only the real 19 changes — nothing errant to commit. **NEXT:** render palette preview → **T5** threshold band logic (consume `GNOMAD_AF_BANDS`, drop relative `heatColor`/`visual_scale.max`) → **T6** rebuild WorldFrequencyMap on owned geometry+theme (drop world.svg/mask/mixBlendMode) → T7 hover → T8 chips → T9 legend+copy+version v3→v4 → **T10 integrate + verify + GATE** (stop for Steven before commit/push/deploy). **Tree (mine only):** ?? `region-countries.ts` / `gnomadMapGeometry.generated.ts` / `gnomadMapTheme.ts` / `scripts/build-gnomad-basemap.mjs`; M `app/web/package.json`+`package-lock.json`. Codex backend WIP (`protein_runtime*`, config.py, Dockerfile, PROGRESS/ROADMAP/plans) + `.claude/settings.json` share the tree — **NOT mine, leave alone**; stage with explicit pathspec only, after Steven approves (T10). **Guardrails held:** FE-only, no backend/Codex-WIP touched, no commit/push/deploy, no Supabase/Render/Vercel ops. **STILL OPEN (not mine):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` (SCHEDULED 2026-06-01, Steven); `/account` Supabase-login E2E. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
 
-- **Codex:** ACTIVE @ 2026-05-31 03:49 +1000 - User-constrained commit/push +
-  Render deploy-hook session for the already-verified HMMER/Pfam runtime-prep
-  backend slice. Hard Rule 10 net-new bar is explicitly lowered for this
-  coordination-only turn. Scope is the narrow explicit backend/docs pathspec
-  pre-ACK'd by Claude plus Codex-owned handoff updates only; `.claude/settings.json`
-  and Claude gnomAD `app/web/**` files remain untouched.
+- **Codex:** IDLE @ 2026-05-31 04:32 +1000 - Private Pfam materialization CLI
+  and real ABCA4 fixture CDS smoke shipped. Commits pushed: `4eecffc`,
+  `d22b02f`, `4b17ce4`; SG deploy hook returned HTTP 200 and `4b17ce4` is live.
+  Render one-off job `job-d8dip14p3tds73flcc7g` proved private Pfam download,
+  checksum verification, extraction, `hmmpress`, PCARE smoke, and real ABCA4
+  `NM_000350.3` coding-DNA smoke (`ENSP00000359245`, `38` Pfam features).
+  Public provider-cache still correctly fails closed for the web service
+  instance until persistent Render runtime materialization/env enablement is
+  coordinated. Guardrails held.
 
 ## Log Edit-Lock
 
@@ -31,7 +34,7 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-31 03:50 +1000 · Codex (explicit backend/docs commit handoff staged; push + Render deploy-hook authorized next.)
+UNLOCKED · 2026-05-31 04:32 +1000 · Codex (protein runtime Render/Pfam smoke recorded)
 
 ## Shared File Locks
 
@@ -1962,83 +1965,93 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-31 03:50 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-31 04:32 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-31 03:50 +1000 - Codex):**
-Steven/Claude cleared the prior HOLD. Codex re-read the coordination state,
-fetched `origin`, confirmed local `HEAD` equals `origin/main` at `01aab79`,
-and re-ran the focused HMMER/Pfam runtime-prep verification. The requested
-`git pull --rebase origin main` was attempted but Git refused because the
-backend slice was still unstaged; no stash/reset/clean was used. Because
-`HEAD` and `origin/main` are identical, the explicit-pathspec commit can be
-made directly from this synced base.
+**Latest Codex update (2026-05-31 04:32 +1000 - Codex):**
+Codex completed the private Pfam runtime proof and corrected the ABCA4 smoke to
+use real fixture coding DNA. Backend commits pushed this session after
+`40d754a`: `4eecffc` (`feat(backend): add private pfam materialization cli`),
+`d22b02f` (temporary ABCA4 length-control smoke; superseded), and `4b17ce4`
+(`test(backend): use real abca4 fixture for protein smoke`). `.render-deploy-hook`
+returned HTTP 200 and SG service `eamos-dev-sg` is live at `4b17ce4`.
 
 **State:**
-- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
-- Commit scope is the narrow explicit backend/docs pathspec only:
-  `app/backend/Dockerfile`, `app/backend/.env.example`,
-  `app/backend/app/core/config.py`,
-  `app/backend/app/services/protein_annotation.py`,
-  `app/backend/app/services/protein_runtime.py`,
-  `app/backend/app/cli/eamos_protein_runtime_prepare.py`,
-  `app/backend/tests/test_protein_runtime_prepare.py`,
-  `app/backend/tests/test_health_api.py`, `PROGRESS.md`,
-  `plans/v2-backend.md`, `ROADMAP.md`, and this Codex handoff update.
-- `.claude/settings.json` remains unstaged and untouched; Claude gnomAD
-  `app/web/**` files remain untouched.
-- The backend Docker image now installs Debian `hmmer` and sets image defaults
-  for `/usr/bin/hmmscan` and `/usr/bin/hmmpress`; protein annotation remains
-  disabled unless `PROTEIN_ANNOTATION_ENABLED=true` is set.
-- `python -m app.cli.eamos_protein_runtime_prepare` now resolves configured
-  `hmmscan`/`hmmpress`, extracts already-staged `Pfam-A.hmm.gz` to runtime
-  `Pfam-A.hmm`, runs `hmmpress -f` to create `.h3f/.h3i/.h3m/.h3p`, and emits
-  sanitized JSON without raw local paths. It performs no network download and
-  creates no bucket.
-- Provider-cache health has a test proving available protein annotation
-  readiness stays sanitized and path-free.
-- Current local Windows readiness remains fail-closed:
-  `hmmscan_executable_missing`. This is intentional because no local HMMER
-  toolchain was installed.
+- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`. Backend
+  code deployed to SG is `4b17ce4`. This handoff/doc update may sit after that
+  code commit; do not assume SG redeployed unless the deploy hook is fired.
+- Private bucket `eamos-source-assets` remains `public=false`. Pfam gz is
+  uploaded, verified, and approved in backend-only metadata with byte size
+  `384357362`, MD5 `dc814cc181ece09102c09c4e6c19f2fd`, and SHA256
+  `d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591`.
+  Storage summary: 2 objects, total `1219750818` bytes, largest `835393456`
+  bytes, per-bucket object limit `1073741824` bytes, org plan Pro. No Supabase
+  GB/file-size increase is needed for the current Pfam gz.
+- New CLI `python -m app.cli.eamos_pfam_runtime_materialize` downloads the
+  private Pfam gz through backend-only Supabase service-role credentials,
+  verifies size/MD5/SHA256, atomically stages it, can run extraction/`hmmpress`,
+  and emits sanitized JSON with no service-role key, signed URL, local path, or
+  raw object path.
+- Render one-off job `job-d8dip14p3tds73flcc7g` on the larger temporary job
+  plan succeeded: materialization `ready`, downloaded `true`, checksum checks
+  true, `hmmscan_available=true`, `hmmpress_available=true`,
+  `hmmpress_ran=true`, `pfam_hmm_extracted=true`, `missing_index_count=0`, and
+  runtime status `ready`.
+- Protein smokes in that job: PCARE `available`; ABCA4 `available` using real
+  committed fixture CDS from
+  `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
+  (`NM_000350.3`, `ENSP00000359245`, CDS length `6822`, translated protein
+  length `2273`). ABCA4 reported `input_type=coding_dna`,
+  `translated_from=coding_dna`,
+  `sequence_source=workbench_gene_viewer_transcript_model_cds`, and `38` Pfam
+  features.
+- Public SG `/api/v1/health/provider-cache` still correctly fails closed for
+  the web service instance: `protein_annotation.enabled=false`,
+  `status=disabled`, and `hmmer.reason=pfam_hmm_database_missing`. One-off job
+  files do not persist into the web-service filesystem.
+- `.claude/settings.json` and Claude/user `app/web/**` gnomAD files remain
+  unstaged and untouched by Codex.
 
-**Verification refreshed before commit:**
-- `python -m pytest tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_protein_annotation_service.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py -q`
+**Verification refreshed:**
+- `python -m pytest tests/test_pfam_materialization_cli.py tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py tests/test_protein_annotation_service.py -q`
   passed.
 - `python -m ruff check app tests` passed.
 - `python -m black --check --target-version py310 app tests` passed.
-- `git diff --check` passed; Windows LF-to-CRLF notices only.
-- Earlier local readiness CLI remained intentionally fail-closed with
-  `hmmscan_executable_missing` because no local HMMER install, WSL, or Docker
-  path was used.
-- Full backend `python -m pytest -q` was attempted in the prior slice and
-  exceeded the 10-minute local timeout before returning a result.
+- `git diff --check -- app/backend/app/cli/eamos_pfam_runtime_materialize.py app/backend/tests/test_pfam_materialization_cli.py`
+  passed; Windows LF-to-CRLF notices only.
+- Render deploy poll confirmed `4b17ce4` live before one-off job start.
+- Render logs for `job-d8dip14p3tds73flcc7g` confirmed sanitized runtime JSON
+  and real ABCA4 fixture CDS smoke.
 
 **Next-session direction:**
-- Commit and push this explicit backend/docs slice, then fire
-  `.render-deploy-hook` so the SG backend image rebuilds with HMMER.
-- In Render Shell, verify `hmmscan`/`hmmpress`, materialize the private Pfam
-  asset, run
-  `python -m app.cli.eamos_protein_runtime_prepare --require-ready --compact`,
-  verify sanitized `/api/v1/health/provider-cache`, then smoke PCARE before
-  ABCA4.
+- If the goal is public provider-cache readiness, coordinate a Render
+  web-service materialization design first: Render Shell/persistent disk or a
+  guarded startup/runtime materialization path, plus env enablement
+  (`PROTEIN_ANNOTATION_ENABLED=true`, private Pfam object URI, HMMER/Pfam paths).
+  Do not claim provider-cache ready from one-off jobs.
+- Supabase Storage does not need a size increase for the current Pfam gz. Only
+  revisit if a future single object exceeds the current 1 GiB bucket limit or
+  if billing/quota warnings appear.
 - Do not add public genomic/protein buckets, expose secrets, unlock restricted
   predictors, enable AlphaMissense runtime/display, use WSL/Docker/local
   toolchain installs, run destructive git, or touch Claude gnomAD files unless
   explicitly asked.
 
-**Clear-safe:** pending commit/push/deploy-hook completion in this chat turn.
+**Clear-safe:** yes. Private Pfam CLI, real ABCA4 fixture smoke, deploy, and
+Render one-off proof are complete. Remaining web readiness work is a separate
+coordinated Render runtime/env step.
 
 **Latest resume prompt:**
 ```
-# Resume prompt · 2026-05-31 03:50 +1000 · Codex protein runtime prep publish
+# Resume prompt · 2026-05-31 04:32 +1000 · Codex private Pfam runtime proof complete
 Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 93, plans/v2-backend.md Recent backend notes, ROADMAP.md protein section, then git status --short --branch --untracked-files=all.
 
-Delta: Steven/Claude cleared the HOLD; Codex fetched origin, confirmed HEAD == origin/main at 01aab79, refreshed focused HMMER/Pfam runtime-prep tests, and is publishing the explicit backend/docs slice only.
+Delta: Codex pushed `4eecffc` (private Pfam materialization CLI), `d22b02f` (temporary ABCA4 length control), then `4b17ce4` (real ABCA4 fixture CDS smoke). SG deploy hook returned HTTP 200 and `4b17ce4` is live. Render one-off `job-d8dip14p3tds73flcc7g` succeeded on the larger temporary job plan: private Pfam gz downloaded from Supabase Storage, size/MD5/SHA256 verified, extracted, `hmmpress` ran, HMMER runtime ready, PCARE smoke available, and ABCA4 real fixture CDS smoke available with `38` Pfam features.
 
-State: `git pull --rebase origin main` was attempted but refused because unstaged backend work existed; no stash/reset/clean was used. `.claude/settings.json` remains unstaged, and Claude gnomAD app/web files remain untouched.
+State: Public SG `/api/v1/health/provider-cache` still intentionally fails closed for the web service instance (`protein_annotation.enabled=false`, `hmmer.reason=pfam_hmm_database_missing`) because one-off job files do not persist into the web-service filesystem. Private bucket `eamos-source-assets` remains `public=false`; current Pfam gz is 384,357,362 bytes and does not require a Supabase GB/file-size increase. `.claude/settings.json` and Claude/user gnomAD `app/web/**` changes remain untouched by Codex.
 
-Next: push the HMMER/Pfam runtime-prep commit if not already pushed, fire `.render-deploy-hook`, verify HMMER in Render Shell, materialize private Pfam, run the prep CLI with `--require-ready`, verify provider-cache, then smoke PCARE before ABCA4.
+Next: If provider-cache should become ready on the public web service, coordinate a Render runtime materialization design first: Render Shell/persistent disk or guarded startup/runtime materialization, plus env enablement (`PROTEIN_ANNOTATION_ENABLED=true`, private Pfam object URI, HMMER/Pfam paths). Do not claim web readiness from one-off jobs. No Supabase Storage increase is needed unless a future object exceeds the current 1 GiB bucket limit or quota warnings appear.
 
 Guardrails: no secrets in chat/docs/logs, no public genomic/protein buckets, no restricted predictor unlocks, no AlphaMissense runtime/display, no uncoordinated Render/Vercel env mutation, no WSL/Docker/local toolchain install, no destructive git/stash/reset/clean, and do not touch Claude gnomAD files unless asked. End clear-safe.
 ```

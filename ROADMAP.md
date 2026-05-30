@@ -115,9 +115,14 @@ packaging plus `Pfam-A.hmm.gz` extraction and `hmmpress`; SG one-off proof now
 confirms `hmmscan`/`hmmpress` are present in the image. The Pfam gz bundle is
 verified in private Supabase Storage and a backend-only materialization CLI can
 download, checksum, prep, and PCARE-smoke it from service-role credentials.
-The actual web-service provider-cache ready state still requires persistent
-service-instance materialization through Render Shell, a persistent disk, or an
-approved startup/runtime materialization design. The renderer contract
+Render one-off proof on `4b17ce4` now confirms the full private Pfam
+materialize -> extract -> `hmmpress` -> PCARE -> real ABCA4 fixture CDS smoke
+path; ABCA4 is loaded from the committed transcript-model fixture
+(`NM_000350.3`, `ENSP00000359245`, CDS `6822`, translated protein length
+`2273`) and produced `38` Pfam features. The actual web-service provider-cache
+ready state still requires persistent service-instance materialization through
+Render Shell, a persistent disk, or an approved startup/runtime materialization
+design plus coordinated Render env enablement. The renderer contract
 intentionally separates source label, compact abbreviation, and functional
 legend description so gene/protein-specific biology can be shown without
 falsifying upstream provenance.

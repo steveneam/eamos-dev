@@ -39,9 +39,15 @@ Recent backend status notes (2026-05-31, Codex):
   extraction/`hmmpress` prep command, and can run a bounded PCARE smoke before
   ABCA4. Output is sanitized: no service-role key, local path, signed URL, or
   raw object path. Render one-off `python -m app.cli.eamos_protein_runtime_prepare --compact`
-  already proved the SG image has `hmmscan` and `hmmpress`; it failed closed at
-  `pfam_hmm_source_missing`, so the remaining external proof is private Pfam
-  materialize -> prep -> PCARE smoke after this CLI is deployed.
+  first proved the SG image has `hmmscan` and `hmmpress`; a later one-off on
+  deployed commit `4b17ce4` proved private Pfam materialize -> extract ->
+  `hmmpress` -> PCARE -> real ABCA4 fixture CDS smoke. The ABCA4 smoke is now
+  sourced from `workbench/gene_viewer_transcript_models.json` (`NM_000350.3`,
+  `ENSP00000359245`, CDS `6822`, translated protein length `2273`) and reported
+  `38` Pfam features. Public SG provider-cache still correctly fails closed
+  because the one-off container does not persist runtime files into the web
+  service instance; web readiness needs Render Shell, persistent disk, or an
+  approved startup/runtime materialization design plus coordinated env enablement.
 - PROTEIN-HMMER-PFAM-RUNTIME-PREP is implemented and verified locally
   (2026-05-31, Codex). The backend Docker image now installs Debian `hmmer`
   and sets image defaults for `/usr/bin/hmmscan` and `/usr/bin/hmmpress`;

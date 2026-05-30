@@ -1,6 +1,6 @@
 # Database / Webserver Current State
 
-Last updated: 2026-05-31 04:15 +1000 by Codex.
+Last updated: 2026-05-31 04:32 +1000 by Codex.
 Cache-fix + Oregon→SG cutover verified: 2026-05-30 19:45 +1000 by Claude (see
 Smoke Results / Render Services / Next Safe Steps below).
 
@@ -24,7 +24,7 @@ Smoke Results / Render Services / Next Safe Steps below).
   - URL: `https://eamos-dev-sg.onrender.com`
   - Docker root: `app/backend`
   - Auto-deploy: off
-  - Live commit: `f5eb33e`. **FE/Vercel cutover DONE 2026-05-30** — the live
+  - Live commit: `4b17ce4`. **FE/Vercel cutover DONE 2026-05-30** — the live
     `eamos-dev.vercel.app` now proxies `/api/*` here (via Vercel env
     `API_PROXY_TARGET`, set in `app/web/next.config.mjs` rewrites — not
     `NEXT_PUBLIC_API_BASE_URL`). `SUPABASE_SERVICE_ROLE_KEY` now set.
@@ -146,6 +146,22 @@ filesystem readiness. No public bucket, signed raw-source URL, frontend direct
 access, Render/Vercel env mutation, or restricted predictor unlock was
 performed.
 
+**Render one-off Pfam runtime proof 2026-05-31 04:30 +1000 (Codex).** Deployed
+`4b17ce4` to `eamos-dev-sg` and ran one-off job `job-d8dip14p3tds73flcc7g` on
+the larger temporary job plan. Sanitized job output reported private Storage
+materialization `ready`, byte size `384357362`, MD5/SHA256 verified,
+`hmmscan_available=true`, `hmmpress_available=true`, `hmmpress_ran=true`,
+`pfam_hmm_extracted=true`, `missing_index_count=0`, and runtime status
+`ready`. Protein smokes: PCARE `available`; ABCA4 `available` using
+`input_type=coding_dna`, `translated_from=coding_dna`,
+`sequence_source=workbench_gene_viewer_transcript_model_cds`,
+`protein_accession=ENSP00000359245`, and `38` Pfam features. This proves the
+job-container runtime path only. Public SG provider-cache still correctly
+fails closed for the web service instance with `protein_annotation.enabled=false`
+and `hmmer.reason=pfam_hmm_database_missing`; persistent web readiness needs
+Render Shell, persistent disk, or an approved startup/runtime materialization
+design plus coordinated env enablement.
+
 ## Advisor Status
 
 - Security advisors after latest DDL: no lints.
@@ -170,7 +186,8 @@ performed.
   the blocker.
 - Codex SSH attempt to `srv-d8ctvoh9rddc73a27nb0@ssh.singapore.render.com`
   timed out locally before producing a banner or command output, so Codex did
-  not run the Render one-off job.
+  not use Render Shell. Codex later used Render API one-off jobs for HMMER and
+  Pfam runtime proof.
 - Codex added `python -m app.cli.eamos_source_import` on 2026-05-30 21:28
   +1000. Local dry-run passed and plans 2 MONDO rows, 3 HPO terms, 2 HPO
   disease phenotype rows, 3 HPO gene phenotype rows, 2 ClinGen validity rows,
