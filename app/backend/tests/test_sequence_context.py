@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from app.core.config import Settings
+from app.services.reference_genome import ReferenceWindow
 from app.services.sequence_context import (
     EnsemblVariantSequenceResolver,
+    MaterializedHg38SequenceResolver,
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     NormalizedVariantQuery,
     SequenceContext,
@@ -165,3 +169,63 @@ def test_ensembl_resolver_builds_context_from_variant_validator_and_sequence(
     assert context.source == "resolver"
     assert "VariantValidator" in calls[0]
     assert "sequence/region/human/1:8..12:1" in calls[1]
+
+
+def test_materialized_hg38_resolver_reads_private_runtime_asset(monkeypatch) -> None:
+    class ReferenceStore:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def get_sequence(self, chrom: str, start: int, end: int, build: str | None = None):
+            assert (chrom, start, end, build) == ("1", 8, 12, "GRCh38")
+            return ReferenceWindow(
+                requested_chrom=chrom,
+                chrom="1",
+                start=start,
+                end=end,
+                zero_based_start=7,
+                zero_based_end_exclusive=12,
+                sequence="AACGT",
+                genome_build="GRCh38",
+                source_id="ucsc_hg38_2bit",
+            )
+
+        def close(self) -> None:
+            self.closed = True
+
+    resolved = SimpleNamespace(
+        source_id="ucsc_hg38_2bit",
+        asset_role="reference_genome_2bit",
+        byte_size=835393456,
+        checksum_algorithm="md5",
+        checksum_value="dcc3ea27079aa6dc3f9deccd7275e0f8",
+    )
+    store = ReferenceStore()
+
+    monkeypatch.setattr(
+        "app.services.sequence_context.resolve_hg38_materialized_runtime_asset",
+        lambda *_args, **_kwargs: resolved,
+    )
+    monkeypatch.setattr(
+        EnsemblVariantSequenceResolver,
+        "_variant_validator_summary",
+        lambda self, query: {"vcf": {"chr": "chr1", "pos": "10", "ref": "T", "alt": "C"}},
+    )
+    resolver = MaterializedHg38SequenceResolver(
+        _settings(use_real_apis=True),
+        materialization_store=object(),
+        flank_bp=2,
+        reference_store_factory=lambda _resolved: store,
+    )
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+
+    context = resolver.resolve(query, "human")
+
+    assert context is not None
+    assert context.genomic_hg38 == "1-10-T-C"
+    assert context.window_sequence == "AACGT"
+    assert context.source_metadata["sequence_source"] == "ucsc_hg38_2bit_materialized"
+    assert context.source_metadata["checksum_value"] == resolved.checksum_value
+    assert "object_path" not in context.source_metadata
+    assert "path" not in context.source_metadata
+    assert store.closed is True

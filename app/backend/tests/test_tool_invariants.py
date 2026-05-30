@@ -236,6 +236,55 @@ def test_clinvar_fixture_exposes_submitter_counts() -> None:
     assert result.summary["submitter_counts"] == {"VUS": 1}
 
 
+def test_gene_disease_real_mode_prefers_private_clinical_source_tables() -> None:
+    class ClinicalSourceStore:
+        def get_gene_disease_summary(self, *, gene: str):
+            assert gene == "RPE65"
+            return {
+                "gene": "RPE65",
+                "approved_symbol": "RPE65",
+                "hgnc_id": "HGNC:10294",
+                "primary_condition": "Leber congenital amaurosis 2",
+                "disease_ids": ["MONDO:0008765", "OMIM:204100"],
+                "inheritance": "Autosomal recessive inheritance",
+                "penetrance": None,
+                "gene_disease_validity": "Definitive",
+                "mechanism": None,
+                "conditions": [
+                    {
+                        "name": "Leber congenital amaurosis 2",
+                        "disease_ids": ["MONDO:0008765", "OMIM:204100"],
+                        "inheritance": "Autosomal recessive inheritance",
+                        "validity": "Definitive",
+                        "source_urls": [
+                            "https://search.clinicalgenome.org/kb/gene-validity/example"
+                        ],
+                    }
+                ],
+                "provenance": [
+                    {
+                        "source": "ClinGen Gene-Disease Validity",
+                        "status": "source_table",
+                        "source_url": (
+                            "https://search.clinicalgenome.org/kb/gene-validity/example"
+                        ),
+                    }
+                ],
+                "warnings": ["private_clinical_source_tables"],
+            }
+
+    variant = SimpleNamespace(gene="RPE65")
+    result = GeneDiseaseTool(
+        _settings(use_real_apis=True),
+        clinical_source_store=ClinicalSourceStore(),
+    ).get_evidence(variant)
+
+    assert result.status == "source_table"
+    assert result.summary["primary_condition"] == "Leber congenital amaurosis 2"
+    assert result.summary["gene_disease_validity"] == "Definitive"
+    assert result.source_url == "https://search.clinicalgenome.org/kb/gene-validity/example"
+
+
 def test_clinvar_live_derives_submitter_counts_from_supporting_scvs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

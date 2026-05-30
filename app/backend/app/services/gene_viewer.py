@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 from urllib.parse import quote
 
 from fastapi import status
@@ -12,6 +12,12 @@ import httpx
 from pydantic import ValidationError
 
 from app.core.config import Settings
+from app.data_sources.runtime_assets import (
+    ResolvedRuntimeAsset,
+    SourceAssetMaterializationError,
+    SourceAssetMaterializationStore,
+    resolve_hg38_materialized_runtime_asset,
+)
 from app.schemas.gene_viewer import (
     AppliedVariant,
     ClinvarVariant,
@@ -41,6 +47,11 @@ from app.schemas.gene_viewer import (
     ViewerWindowRequest,
 )
 from app.schemas.protein_annotation import ProteinAnnotationRequest
+from app.services.reference_genome import (
+    ReferenceGenomeStoreError,
+    ReferenceWindow,
+    TwoBitReferenceGenomeStore,
+)
 from app.services.sequence_context import (
     NormalizedVariantQuery,
     normalize_sequence_query,
@@ -350,6 +361,28 @@ class GeneViewerSourceClient(Protocol):
     ) -> list[ViewerProvenanceSource]: ...
 
 
+class GeneViewerReferenceReader(Protocol):
+    def get_sequence(
+        self,
+        chrom: str,
+        start: int,
+        end: int,
+        build: str | None = None,
+    ) -> ReferenceWindow: ...
+
+
+def _materialized_hg38_gene_viewer_store(
+    resolved: ResolvedRuntimeAsset,
+) -> TwoBitReferenceGenomeStore:
+    return TwoBitReferenceGenomeStore(
+        resolved.path,
+        source_id=resolved.source_id,
+        expected_size_bytes=resolved.byte_size,
+        expected_md5=resolved.checksum_value,
+        verify_checksum=False,
+    )
+
+
 class HttpGeneViewerSourceClient:
     """HTTP source client boundary for future live viewer hydration.
 
@@ -363,9 +396,17 @@ class HttpGeneViewerSourceClient:
         self,
         settings: Settings | None,
         *,
+        materialization_store: SourceAssetMaterializationStore | None = None,
+        reference_store_factory: (
+            Callable[[ResolvedRuntimeAsset], GeneViewerReferenceReader] | None
+        ) = None,
         timeout_seconds: float = 15.0,
     ) -> None:
         self.settings = settings
+        self.materialization_store = materialization_store
+        self.reference_store_factory = (
+            reference_store_factory or _materialized_hg38_gene_viewer_store
+        )
         self.timeout_seconds = timeout_seconds
 
     def resolve_variant(
@@ -467,6 +508,13 @@ class HttpGeneViewerSourceClient:
                 message="Gene viewer live source client is not configured.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        if self.materialization_store is not None:
+            return self._fetch_materialized_hg38_sequence(
+                chrom=chrom,
+                start=start,
+                end=end,
+                strand=strand,
+            )
         strand_value = "-1" if strand == "-" else "1"
         region = f"{chrom.removeprefix('chr')}:{start}..{end}:{strand_value}"
         url = f"{self.settings.vep_base_url}/sequence/region/human/{region}"
@@ -477,6 +525,59 @@ class HttpGeneViewerSourceClient:
         )
         response.raise_for_status()
         return _clean_dna(response.text)
+
+    def _fetch_materialized_hg38_sequence(
+        self,
+        *,
+        chrom: str,
+        start: int,
+        end: int,
+        strand: str,
+    ) -> str:
+        if self.settings is None:
+            raise GeneViewerError(
+                code=GENE_VIEWER_PROVIDER_UNAVAILABLE,
+                message="Gene viewer live source client is not configured.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        try:
+            resolved = resolve_hg38_materialized_runtime_asset(
+                self.settings,
+                self.materialization_store,
+                verify_checksum=False,
+            )
+            reference_store = self.reference_store_factory(resolved)
+            try:
+                sequence = reference_store.get_sequence(
+                    chrom,
+                    start,
+                    end,
+                    build="GRCh38",
+                ).sequence
+            finally:
+                close = getattr(reference_store, "close", None)
+                if callable(close):
+                    close()
+        except SourceAssetMaterializationError as exc:
+            code = f"{GENE_VIEWER_PROVIDER_UNAVAILABLE}:{exc.code}"
+            raise GeneViewerError(
+                code=code,
+                message="Materialized hg38 source asset is not ready for gene viewer hydration.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                warnings=[code],
+            ) from exc
+        except (ReferenceGenomeStoreError, OSError) as exc:
+            detail = getattr(exc, "code", type(exc).__name__)
+            code = f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:{detail}"
+            raise GeneViewerError(
+                code=code,
+                message="Materialized hg38 reader failed while hydrating the gene viewer.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                warnings=[code],
+            ) from exc
+
+        cleaned = _clean_dna(sequence)
+        return _reverse_complement(cleaned) if strand == "-" else cleaned
 
     def fetch_protein_features(
         self,
@@ -528,7 +629,7 @@ class HttpGeneViewerSourceClient:
         transcript: SourceTranscriptModel,
         variant: VariantProjection,
     ) -> list[ViewerProvenanceSource]:
-        return [
+        sources = [
             ViewerProvenanceSource(
                 name="variant_validator",
                 identifier=query.resolver_transcript_hgvs,
@@ -544,6 +645,15 @@ class HttpGeneViewerSourceClient:
                 url=self.settings.vep_base_url if self.settings is not None else None,
             ),
         ]
+        if self.materialization_store is not None:
+            sources.append(
+                ViewerProvenanceSource(
+                    name="ucsc_hg38_2bit_materialized",
+                    identifier=transcript.genome_build,
+                    url=None,
+                )
+            )
+        return sources
 
     def _variant_validator_url(
         self,

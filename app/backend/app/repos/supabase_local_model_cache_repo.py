@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 import json
@@ -8,7 +9,7 @@ import re
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from app.core.db import build_session_factory, session_scope
 from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
@@ -687,6 +688,146 @@ class SqlAlchemySupabaseLocalModelCacheStore:
             "clinical_clingen_gene_validity": len(clingen_rows),
             "clinical_gencc_assertions": len(gencc_rows),
         }
+
+    def get_gene_disease_summary(self, *, gene: str) -> dict[str, Any] | None:
+        normalized_gene = gene.strip().upper()
+        if not normalized_gene:
+            return None
+        clingen_statement = text(f"""
+            select
+                gene_symbol,
+                gene_hgnc_id,
+                disease_label,
+                disease_id,
+                mode_of_inheritance,
+                classification,
+                source_date,
+                report_url,
+                provenance
+            from {self.clinical_clingen_table}
+            where upper(gene_symbol) = :gene
+            order by source_date desc nulls last, disease_label asc
+            limit 50
+            """)
+        gencc_statement = text(f"""
+            select
+                gene_symbol,
+                gene_curie,
+                disease_title,
+                disease_curie,
+                assertion,
+                submitter,
+                source_date,
+                report_url,
+                provenance
+            from {self.clinical_gencc_table}
+            where upper(gene_symbol) = :gene
+            order by source_date desc nulls last, disease_title asc
+            limit 50
+            """)
+        mondo_statement = text(f"""
+                select
+                    mondo_id,
+                    name,
+                    xrefs,
+                    definition,
+                    provenance
+                from {self.clinical_mondo_table}
+                where mondo_id in :disease_ids
+                order by name asc
+                limit 50
+                """).bindparams(bindparam("disease_ids", expanding=True))
+        hpo_statement = text(f"""
+                select distinct
+                    d.disease_id,
+                    d.disease_name,
+                    d.hpo_id,
+                    d.hpo_label,
+                    d.evidence,
+                    d.frequency,
+                    d.provenance as disease_provenance,
+                    g.gene_id,
+                    g.provenance as gene_provenance
+                from {self.clinical_hpo_gene_table} g
+                join {self.clinical_hpo_disease_table} d
+                  on d.hpo_id = g.hpo_id
+                where upper(g.gene_symbol) = :gene
+                  and d.disease_id in :disease_ids
+                order by d.disease_name asc, d.hpo_label asc
+                limit 200
+                """).bindparams(bindparam("disease_ids", expanding=True))
+
+        try:
+            with session_scope(self.session_factory) as session:
+                clingen_rows = [
+                    dict(row)
+                    for row in session.execute(
+                        clingen_statement,
+                        {"gene": normalized_gene},
+                    )
+                    .mappings()
+                    .all()
+                ]
+                gencc_rows = [
+                    dict(row)
+                    for row in session.execute(
+                        gencc_statement,
+                        {"gene": normalized_gene},
+                    )
+                    .mappings()
+                    .all()
+                ]
+                disease_ids = _clinical_disease_ids(
+                    clingen_rows=clingen_rows,
+                    gencc_rows=gencc_rows,
+                )
+                mondo_rows = (
+                    [
+                        dict(row)
+                        for row in session.execute(
+                            mondo_statement,
+                            {"disease_ids": tuple(disease_ids)},
+                        )
+                        .mappings()
+                        .all()
+                    ]
+                    if disease_ids
+                    else []
+                )
+                expanded_disease_ids = _dedupe_text(
+                    [
+                        *disease_ids,
+                        *(xref for row in mondo_rows for xref in _text_list(row.get("xrefs"))),
+                    ]
+                )
+                hpo_rows = (
+                    [
+                        dict(row)
+                        for row in session.execute(
+                            hpo_statement,
+                            {
+                                "gene": normalized_gene,
+                                "disease_ids": tuple(expanded_disease_ids),
+                            },
+                        )
+                        .mappings()
+                        .all()
+                    ]
+                    if expanded_disease_ids
+                    else []
+                )
+        except Exception as exc:
+            raise SupabaseLocalModelCacheError(
+                _safe_error_message("Supabase clinical source read failed.", exc)
+            ) from exc
+
+        return _clinical_gene_disease_summary(
+            gene=normalized_gene,
+            clingen_rows=clingen_rows,
+            gencc_rows=gencc_rows,
+            mondo_rows=mondo_rows,
+            hpo_rows=hpo_rows,
+        )
 
     def upsert_source_asset_object(
         self,
@@ -1449,6 +1590,264 @@ def build_supabase_local_model_cache_store(settings):
         build_session_factory(settings.supabase_local_model_cache_database_url),
         schema=settings.supabase_local_model_cache_schema,
     )
+
+
+def _clinical_disease_ids(
+    *,
+    clingen_rows: list[dict[str, Any]],
+    gencc_rows: list[dict[str, Any]],
+) -> list[str]:
+    return _dedupe_text(
+        [
+            *(_row_text(row, "disease_id") for row in clingen_rows),
+            *(_row_text(row, "disease_curie") for row in gencc_rows),
+        ]
+    )
+
+
+def _clinical_gene_disease_summary(
+    *,
+    gene: str,
+    clingen_rows: list[dict[str, Any]],
+    gencc_rows: list[dict[str, Any]],
+    mondo_rows: list[dict[str, Any]],
+    hpo_rows: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not clingen_rows and not gencc_rows and not mondo_rows and not hpo_rows:
+        return None
+
+    mondo_by_id = {
+        mondo_id: row for row in mondo_rows if (mondo_id := _row_text(row, "mondo_id")) is not None
+    }
+    conditions_by_key: dict[str, dict[str, Any]] = {}
+
+    def condition_for(disease_id: str | None, name: str | None) -> dict[str, Any]:
+        key = disease_id or name or "unspecified"
+        condition = conditions_by_key.get(key)
+        if condition is not None:
+            return condition
+        mondo = mondo_by_id.get(disease_id or "")
+        disease_ids = _dedupe_text(
+            [
+                disease_id,
+                *(_text_list(mondo.get("xrefs")) if mondo is not None else []),
+            ]
+        )
+        condition = {
+            "name": name or _row_text(mondo or {}, "name") or "",
+            "disease_ids": disease_ids,
+            "inheritance": None,
+            "validity": None,
+            "mechanism": None,
+            "source_urls": [],
+            "phenotypes": [],
+        }
+        conditions_by_key[key] = condition
+        return condition
+
+    for row in clingen_rows:
+        disease_id = _row_text(row, "disease_id")
+        condition = condition_for(disease_id, _row_text(row, "disease_label"))
+        condition["inheritance"] = condition["inheritance"] or _row_text(
+            row,
+            "mode_of_inheritance",
+        )
+        condition["validity"] = condition["validity"] or _row_text(row, "classification")
+        _append_unique(condition["source_urls"], _row_text(row, "report_url"))
+
+    for row in gencc_rows:
+        disease_id = _row_text(row, "disease_curie")
+        condition = condition_for(disease_id, _row_text(row, "disease_title"))
+        condition["validity"] = condition["validity"] or _row_text(row, "assertion")
+        _append_unique(condition["source_urls"], _row_text(row, "report_url"))
+
+    for row in hpo_rows:
+        disease_id = _row_text(row, "disease_id")
+        condition = _condition_matching_disease_id(conditions_by_key.values(), disease_id)
+        if condition is None:
+            condition = condition_for(disease_id, _row_text(row, "disease_name"))
+        phenotype = {
+            "hpo_id": _row_text(row, "hpo_id"),
+            "label": _row_text(row, "hpo_label"),
+            "evidence": _row_text(row, "evidence"),
+            "frequency": _row_text(row, "frequency"),
+        }
+        if phenotype["hpo_id"] and phenotype not in condition["phenotypes"]:
+            condition["phenotypes"].append(phenotype)
+
+    conditions = list(conditions_by_key.values())
+    for condition in conditions:
+        condition["disease_ids"] = _dedupe_text(condition["disease_ids"])
+        condition["source_urls"] = _dedupe_text(condition["source_urls"])
+        condition["phenotypes"] = sorted(
+            condition["phenotypes"],
+            key=lambda item: (item.get("label") or "", item.get("hpo_id") or ""),
+        )
+
+    primary = conditions[0] if conditions else {}
+    hgnc_id = next(
+        (
+            value
+            for value in (
+                *(_row_text(row, "gene_hgnc_id") for row in clingen_rows),
+                *(_row_text(row, "gene_curie") for row in gencc_rows),
+            )
+            if value
+        ),
+        None,
+    )
+    warnings = ["private_clinical_source_tables", "penetrance_not_source_backed"]
+    if not primary.get("mechanism"):
+        warnings.append("mechanism_not_source_backed")
+
+    return {
+        "gene": gene,
+        "approved_symbol": gene,
+        "hgnc_id": hgnc_id,
+        "gene_name": None,
+        "primary_condition": primary.get("name"),
+        "disease_ids": _dedupe_text(
+            disease_id for condition in conditions for disease_id in condition["disease_ids"]
+        ),
+        "inheritance": primary.get("inheritance"),
+        "penetrance": None,
+        "gene_disease_validity": primary.get("validity"),
+        "mechanism": primary.get("mechanism"),
+        "conditions": conditions,
+        "provenance": _clinical_gene_disease_provenance(
+            gene=gene,
+            clingen_rows=clingen_rows,
+            gencc_rows=gencc_rows,
+            mondo_rows=mondo_rows,
+            hpo_rows=hpo_rows,
+        ),
+        "warnings": warnings,
+    }
+
+
+def _clinical_gene_disease_provenance(
+    *,
+    gene: str,
+    clingen_rows: list[dict[str, Any]],
+    gencc_rows: list[dict[str, Any]],
+    mondo_rows: list[dict[str, Any]],
+    hpo_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    provenance: list[dict[str, Any]] = []
+    if clingen_rows:
+        provenance.append(
+            {
+                "source": "ClinGen Gene-Disease Validity",
+                "status": "source_table",
+                "query": {"gene": gene},
+                "source_url": _first_row_text(clingen_rows, "report_url"),
+                "version": "private_clinical_source_table",
+                "warnings": [],
+            }
+        )
+    if gencc_rows:
+        provenance.append(
+            {
+                "source": "GenCC",
+                "status": "source_table",
+                "query": {"gene": gene},
+                "source_url": _first_row_text(gencc_rows, "report_url"),
+                "version": "private_clinical_source_table",
+                "warnings": [],
+            }
+        )
+    if mondo_rows:
+        provenance.append(
+            {
+                "source": "MONDO",
+                "status": "source_table",
+                "query": {
+                    "disease_ids": _dedupe_text(_row_text(row, "mondo_id") for row in mondo_rows)
+                },
+                "source_url": None,
+                "version": "private_clinical_source_table",
+                "warnings": [],
+            }
+        )
+    if hpo_rows:
+        provenance.append(
+            {
+                "source": "Human Phenotype Ontology",
+                "status": "source_table",
+                "query": {"gene": gene},
+                "source_url": None,
+                "version": "private_clinical_source_table",
+                "warnings": [],
+            }
+        )
+    return provenance
+
+
+def _condition_matching_disease_id(
+    conditions: Iterable[dict[str, Any]],
+    disease_id: str | None,
+) -> dict[str, Any] | None:
+    if not disease_id:
+        return None
+    for condition in conditions:
+        if disease_id in _text_list(condition.get("disease_ids")):
+            return condition
+    return None
+
+
+def _append_unique(values: list[str], value: str | None) -> None:
+    if value and value not in values:
+        values.append(value)
+
+
+def _first_row_text(rows: list[dict[str, Any]], key: str) -> str | None:
+    return next((_row_text(row, key) for row in rows if _row_text(row, key)), None)
+
+
+def _row_text(row: dict[str, Any], key: str) -> str | None:
+    value = row.get(key)
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    text_value = str(value).strip()
+    return text_value or None
+
+
+def _text_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text_value = value.strip()
+        if text_value.startswith("["):
+            try:
+                decoded = json.loads(text_value)
+            except ValueError:
+                return [text_value] if text_value else []
+            return _text_list(decoded)
+        return [text_value] if text_value else []
+    if isinstance(value, Iterable):
+        return [text for item in value if (text := _row_scalar_text(item))]
+    return [text] if (text := _row_scalar_text(value)) else []
+
+
+def _row_scalar_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text_value = str(value).strip()
+    return text_value or None
+
+
+def _dedupe_text(items: Iterable[str | None]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        text_value = (item or "").strip()
+        if not text_value or text_value in seen:
+            continue
+        seen.add(text_value)
+        result.append(text_value)
+    return result
 
 
 def _protein_annotation_cache_key(

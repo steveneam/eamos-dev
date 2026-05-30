@@ -282,6 +282,8 @@ class LookupService:
         settings=None,
         functional_evidence_extractor=None,
         clinical_consensus_builder=None,
+        sequence_context_service=None,
+        gene_context_snapshot=None,
     ) -> None:
         self.tool_registry = tool_registry
         self.rule_engine = rule_engine
@@ -298,8 +300,12 @@ class LookupService:
         )
         self.search_input_resolver = EamosSearchInputResolver(settings=settings)
         self.search_input_interpreter = SearchInputInterpreter(settings=settings)
-        self.sequence_context = SequenceContextService(settings=settings)
-        self.gene_context_snapshot = GeneContextSnapshotService(settings=settings)
+        self.sequence_context = sequence_context_service or SequenceContextService(
+            settings=settings
+        )
+        self.gene_context_snapshot = gene_context_snapshot or GeneContextSnapshotService(
+            settings=settings
+        )
         self.report_orchestrator = VariantReportDataOrchestrator()
 
     def parse_search_input(self, request: SearchInputParseRequest) -> SearchInputParseResponse:

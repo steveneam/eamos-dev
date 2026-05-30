@@ -44,6 +44,13 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert crispr["available"] is True
     assert crispr["providers"]["local_deterministic"]["available"] is True
     assert crispr["providers"]["crisprscore_r"]["status"] == "disabled"
+    protein = body["providers"]["protein_annotation"]
+    assert protein["enabled"] is False
+    assert protein["available"] is False
+    assert protein["status"] == "disabled"
+    assert protein["cache_enabled"] is True
+    assert protein["hmmer"]["ready"] is False
+    assert "path" not in json.dumps(protein).lower()
 
 
 def test_provider_cache_health_summarizes_source_cache_without_identity_leaks(client) -> None:

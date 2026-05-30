@@ -16,6 +16,7 @@ from app.repos.supabase_local_model_cache_repo import (
     SupabaseProteinAnnotationCacheRepo,
     SupabaseSourceCacheRepo,
     SupabaseVariantCacheRepo,
+    _clinical_gene_disease_summary,
 )
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.schemas.protein_annotation import (
@@ -286,6 +287,62 @@ def test_hybrid_protein_cache_uses_local_first_and_ignores_remote_read_failure(
         )
         is None
     )
+
+
+def test_clinical_gene_disease_summary_merges_private_source_rows() -> None:
+    summary = _clinical_gene_disease_summary(
+        gene="RPE65",
+        clingen_rows=[
+            {
+                "gene_symbol": "RPE65",
+                "gene_hgnc_id": "HGNC:10294",
+                "disease_label": "Leber congenital amaurosis 2",
+                "disease_id": "MONDO:0008765",
+                "mode_of_inheritance": "Autosomal recessive inheritance",
+                "classification": "Definitive",
+                "report_url": "https://search.clinicalgenome.org/kb/gene-validity/example",
+            }
+        ],
+        gencc_rows=[
+            {
+                "gene_symbol": "RPE65",
+                "gene_curie": "HGNC:10294",
+                "disease_title": "Leber congenital amaurosis 2",
+                "disease_curie": "MONDO:0008765",
+                "assertion": "Definitive",
+                "submitter": "ClinGen",
+                "report_url": "https://search.thegencc.org/submissions/example",
+            }
+        ],
+        mondo_rows=[
+            {
+                "mondo_id": "MONDO:0008765",
+                "name": "Leber congenital amaurosis 2",
+                "xrefs": ["OMIM:204100"],
+            }
+        ],
+        hpo_rows=[
+            {
+                "disease_id": "OMIM:204100",
+                "disease_name": "Leber congenital amaurosis 2",
+                "hpo_id": "HP:0000510",
+                "hpo_label": "Rod-cone dystrophy",
+                "evidence": "IEA",
+                "frequency": "Frequent",
+            }
+        ],
+    )
+
+    assert summary is not None
+    assert summary["hgnc_id"] == "HGNC:10294"
+    assert summary["disease_ids"] == ["MONDO:0008765", "OMIM:204100"]
+    assert summary["conditions"][0]["phenotypes"][0]["hpo_id"] == "HP:0000510"
+    assert {item["source"] for item in summary["provenance"]} == {
+        "ClinGen Gene-Disease Validity",
+        "GenCC",
+        "MONDO",
+        "Human Phenotype Ontology",
+    }
 
 
 def test_frontend_code_does_not_reference_private_cache_schema_or_service_role() -> None:

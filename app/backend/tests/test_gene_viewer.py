@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import status
@@ -16,6 +17,7 @@ from app.schemas.gene_viewer import (
     ViewerWindow,
     ViewerWindowRequest,
 )
+from app.services.reference_genome import ReferenceWindow
 from app.services.sequence_context import normalize_sequence_query, unsupported_input_warning
 from app.services.gene_viewer import (
     GENE_VIEWER_PROVIDER_FAILED_PREFIX,
@@ -283,6 +285,50 @@ class StaticHttpGeneViewerSourceClient(HttpGeneViewerSourceClient):
             if key in url:
                 return payload
         raise AssertionError(f"Unexpected URL: {url}")
+
+
+def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeypatch) -> None:
+    class ReferenceStore:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def get_sequence(self, chrom: str, start: int, end: int, build: str | None = None):
+            assert (chrom, start, end, build) == ("chr7", 10, 13, "GRCh38")
+            return ReferenceWindow(
+                requested_chrom=chrom,
+                chrom="7",
+                start=start,
+                end=end,
+                zero_based_start=9,
+                zero_based_end_exclusive=13,
+                sequence="AAGC",
+                genome_build="GRCh38",
+                source_id="ucsc_hg38_2bit",
+            )
+
+        def close(self) -> None:
+            self.closed = True
+
+    resolved = SimpleNamespace(
+        source_id="ucsc_hg38_2bit",
+        byte_size=835393456,
+        checksum_value="dcc3ea27079aa6dc3f9deccd7275e0f8",
+    )
+    store = ReferenceStore()
+    monkeypatch.setattr(
+        "app.services.gene_viewer.resolve_hg38_materialized_runtime_asset",
+        lambda *_args, **_kwargs: resolved,
+    )
+    client = HttpGeneViewerSourceClient(
+        Settings(jwt_secret="test-secret"),
+        materialization_store=object(),
+        reference_store_factory=lambda _resolved: store,
+    )
+
+    sequence = client.fetch_sequence(chrom="chr7", start=10, end=13, strand="-")
+
+    assert sequence == "GCTT"
+    assert store.closed is True
 
 
 def _ensembl_rpe65_lookup_payload() -> dict:

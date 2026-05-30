@@ -43,7 +43,12 @@ from app.services.chat_service import ChatService
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
 from app.services.evidence_submissions import EvidenceSubmissionService
-from app.services.gene_viewer import GeneViewerService
+from app.services.gene_context_snapshot import GeneContextSnapshotService
+from app.services.gene_viewer import (
+    GeneViewerService,
+    HttpGeneViewerSourceClient,
+    SourceBackedGeneViewerProvider,
+)
 from app.services.intake import IntakeService
 from app.services.lookup_service import LookupService
 from app.services.payments import PaymentsService
@@ -51,7 +56,11 @@ from app.services.protein_annotation import ProteinAnnotationService
 from app.services.recommendation import RecommendationService
 from app.services.report_draft import ReportDraftService
 from app.services.run_chat import RunChatService
-from app.services.sequence_context import EnsemblVariantSequenceResolver, SequenceContextService
+from app.services.sequence_context import (
+    EnsemblVariantSequenceResolver,
+    MaterializedHg38SequenceResolver,
+    SequenceContextService,
+)
 from app.services.source_cache import HeroExampleSourceCacheWarmer
 from app.services.workbench_design import WorkbenchDesignService
 from app.services.workflow import WorkflowService
@@ -114,10 +123,34 @@ def create_app(settings=None) -> FastAPI:
     lookup_chat_chain = build_lookup_chat_chain(settings)
     run_chat_chain = build_run_chat_chain(settings)
     embeddings_model = build_embeddings_model(settings)
-    tool_registry = build_tool_registry(settings)
+    tool_registry = build_tool_registry(
+        settings,
+        clinical_source_store=supabase_local_model_cache_store,
+    )
+    sequence_context_resolver = (
+        MaterializedHg38SequenceResolver(
+            settings,
+            supabase_local_model_cache_store,
+        )
+        if supabase_local_model_cache_store is not None
+        else EnsemblVariantSequenceResolver(settings)
+    )
     sequence_context_service = SequenceContextService(
         settings=settings,
-        resolver=EnsemblVariantSequenceResolver(settings),
+        resolver=sequence_context_resolver,
+    )
+    gene_viewer_source_client = HttpGeneViewerSourceClient(
+        settings,
+        materialization_store=supabase_local_model_cache_store,
+    )
+    gene_viewer_source_provider = SourceBackedGeneViewerProvider(
+        settings=settings,
+        source_client=gene_viewer_source_client,
+        protein_annotation_service=protein_annotation_service,
+    )
+    gene_context_snapshot_service = GeneContextSnapshotService(
+        settings=settings,
+        source_provider=gene_viewer_source_provider if settings.use_real_apis else None,
     )
 
     app.state.settings = settings
@@ -133,6 +166,9 @@ def create_app(settings=None) -> FastAPI:
     app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
     app.state.supabase_local_model_cache_store = supabase_local_model_cache_store
     app.state.protein_annotation_service = protein_annotation_service
+    app.state.gene_viewer_source_client = gene_viewer_source_client
+    app.state.gene_viewer_source_provider = gene_viewer_source_provider
+    app.state.gene_context_snapshot_service = gene_context_snapshot_service
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(
         settings=settings,
@@ -167,6 +203,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.gene_viewer_service = GeneViewerService(
         settings=settings,
         protein_annotation_service=protein_annotation_service,
+        live_provider=gene_viewer_source_provider,
     )
     app.state.workbench_design_service = WorkbenchDesignService(
         settings=settings,
@@ -179,6 +216,8 @@ def create_app(settings=None) -> FastAPI:
         variant_cache_repo=variant_cache_repo,
         source_cache_repo=source_cache_repo,
         settings=settings,
+        sequence_context_service=sequence_context_service,
+        gene_context_snapshot=gene_context_snapshot_service,
     )
     app.state.hero_example_source_cache_warmer = HeroExampleSourceCacheWarmer(
         app.state.lookup_service

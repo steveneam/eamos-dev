@@ -57,6 +57,10 @@ def provider_cache_health(request: Request) -> dict[str, object]:
         ),
         "providers": {
             "crispr": _crispr_provider_health(settings),
+            "protein_annotation": _protein_annotation_health(
+                settings,
+                getattr(request.app.state, "protein_annotation_service", None),
+            ),
         },
     }
 
@@ -134,6 +138,57 @@ def _crispr_provider_health(settings) -> dict[str, object]:
         "providers": providers,
         "platform_gated_models": ["DeepHF", "DeepCpf1", "enPAM+GB"],
     }
+
+
+def _protein_annotation_health(settings, service) -> dict[str, object]:
+    enabled = bool(settings.protein_annotation_enabled)
+    result: dict[str, object] = {
+        "enabled": enabled,
+        "available": False,
+        "status": "disabled" if not enabled else "unavailable",
+        "cache_enabled": bool(getattr(service, "cache_repo", None) is not None),
+        "uniprot_features_enabled": bool(settings.protein_annotation_uniprot_features_enabled),
+        "hmmer": {
+            "ready": False,
+            "reason": "protein_annotation_disabled" if not enabled else "runner_unconfigured",
+            "missing_index_count": 0,
+        },
+    }
+    if service is None:
+        result["status"] = "service_unavailable"
+        result["hmmer"] = {
+            "ready": False,
+            "reason": "service_unavailable",
+            "missing_index_count": 0,
+        }
+        return result
+
+    runner = getattr(service, "runner", None)
+    if runner is None:
+        return result
+    try:
+        runtime = runner.status()
+    except Exception:
+        result["hmmer"] = {
+            "ready": False,
+            "reason": "runtime_probe_failed",
+            "missing_index_count": 0,
+        }
+        return result
+
+    available = bool(enabled and runtime.ready)
+    result.update(
+        {
+            "available": available,
+            "status": "available" if available else ("disabled" if not enabled else "unavailable"),
+            "hmmer": {
+                "ready": bool(runtime.ready),
+                "reason": runtime.reason,
+                "missing_index_count": len(runtime.missing_indexes),
+            },
+        }
+    )
+    return result
 
 
 def _crisprscore_r_health(settings, configured_provider: str) -> dict[str, object]:

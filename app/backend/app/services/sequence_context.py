@@ -4,13 +4,24 @@ import json
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Callable, Literal, Protocol
 from urllib.parse import quote
 
 import httpx
 from pydantic import BaseModel, Field
 
 from app.core.config import Settings
+from app.data_sources.runtime_assets import (
+    ResolvedRuntimeAsset,
+    SourceAssetMaterializationError,
+    SourceAssetMaterializationStore,
+    resolve_hg38_materialized_runtime_asset,
+)
+from app.services.reference_genome import (
+    ReferenceGenomeStoreError,
+    ReferenceWindow,
+    TwoBitReferenceGenomeStore,
+)
 
 CANONICAL_TRANSCRIPTS: dict[str, str] = {
     "RPE65": "NM_000329.3",
@@ -301,6 +312,16 @@ class SequenceContextResolver(Protocol):
         """Return a source-backed sequence context for a normalized query."""
 
 
+class ReferenceSequenceReader(Protocol):
+    def get_sequence(
+        self,
+        chrom: str,
+        start: int,
+        end: int,
+        build: str | None = None,
+    ) -> ReferenceWindow: ...
+
+
 class EnsemblVariantSequenceResolver:
     """Resolve a cDNA variant to a GRCh38 sequence window for local design engines."""
 
@@ -404,6 +425,105 @@ class EnsemblVariantSequenceResolver:
         if not sequence:
             return "", url
         return sequence, url
+
+
+def _materialized_hg38_reference_store(
+    resolved: ResolvedRuntimeAsset,
+) -> TwoBitReferenceGenomeStore:
+    return TwoBitReferenceGenomeStore(
+        resolved.path,
+        source_id=resolved.source_id,
+        expected_size_bytes=resolved.byte_size,
+        expected_md5=resolved.checksum_value,
+        verify_checksum=False,
+    )
+
+
+class MaterializedHg38SequenceResolver:
+    """Resolve cDNA coordinates, then read the requested window from private hg38.2bit."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        materialization_store: SourceAssetMaterializationStore,
+        *,
+        flank_bp: int = 1000,
+        timeout_seconds: float = 15.0,
+        reference_store_factory: (
+            Callable[[ResolvedRuntimeAsset], ReferenceSequenceReader] | None
+        ) = None,
+    ) -> None:
+        self.settings = settings
+        self.materialization_store = materialization_store
+        self.flank_bp = flank_bp
+        self.coordinate_resolver = EnsemblVariantSequenceResolver(
+            settings,
+            flank_bp=flank_bp,
+            timeout_seconds=timeout_seconds,
+        )
+        self.reference_store_factory = reference_store_factory or _materialized_hg38_reference_store
+
+    def resolve(self, query: NormalizedVariantQuery, species: str) -> SequenceContext | None:
+        if species != "human" or query.kind != "cdna" or not query.resolver_transcript_hgvs:
+            return None
+
+        summary = self.coordinate_resolver._variant_validator_summary(query)
+        vcf = summary.get("vcf") if isinstance(summary, dict) else None
+        if not isinstance(vcf, dict):
+            return None
+
+        chrom = str(vcf.get("chr") or "").removeprefix("chr")
+        pos_text = str(vcf.get("pos") or "")
+        ref = str(vcf.get("ref") or "").upper()
+        alt = str(vcf.get("alt") or "").upper()
+        if not chrom or not pos_text.isdigit() or not ref or not alt:
+            return None
+
+        pos = int(pos_text)
+        start = max(1, pos - self.flank_bp)
+        end = pos + self.flank_bp
+        try:
+            resolved = resolve_hg38_materialized_runtime_asset(
+                self.settings,
+                self.materialization_store,
+                verify_checksum=False,
+            )
+            reference_store = self.reference_store_factory(resolved)
+            try:
+                window = reference_store.get_sequence(chrom, start, end, build="GRCh38")
+            finally:
+                close = getattr(reference_store, "close", None)
+                if callable(close):
+                    close()
+        except (SourceAssetMaterializationError, ReferenceGenomeStoreError, OSError):
+            return None
+
+        return SequenceContext(
+            gene=query.gene,
+            cdna=query.hgvs,
+            transcript=query.resolver_transcript,
+            transcript_hgvs=query.resolver_transcript_hgvs,
+            query_kind=query.kind,
+            species=species,
+            genome_build=window.genome_build,
+            genomic_hg38=f"{chrom}-{pos}-{ref}-{alt}",
+            strand="unknown",
+            window_sequence=window.sequence,
+            target_offset=pos - start,
+            reference_base=ref,
+            alternate_base=alt,
+            source="resolver",
+            source_metadata={
+                "coordinate_source": "variant_validator",
+                "sequence_source": "ucsc_hg38_2bit_materialized",
+                "source_id": resolved.source_id,
+                "asset_role": resolved.asset_role,
+                "byte_size": str(resolved.byte_size),
+                "checksum_algorithm": resolved.checksum_algorithm,
+                "checksum_value": resolved.checksum_value,
+                "variant_validator_url": self.coordinate_resolver._variant_validator_url(query),
+            },
+        )
 
 
 @lru_cache(maxsize=1)

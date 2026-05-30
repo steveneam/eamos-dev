@@ -21,7 +21,7 @@ coordinates are absent rather than resolving transcript HGVS themselves.
 """
 
 
-def build_tool_registry(settings):
+def build_tool_registry(settings, *, clinical_source_store=None):
     return {
         "clinvar": ClinvarTool(settings),
         "vep": EnsemblVepTool(settings),
@@ -32,7 +32,10 @@ def build_tool_registry(settings):
         "litvar2": LitVar2Tool(settings),
         "clinical_trials": ClinicalTrialsTool(settings),
         "clingen": ClingenTool(settings),
-        "gene_disease": GeneDiseaseTool(settings),
+        "gene_disease": GeneDiseaseTool(
+            settings,
+            clinical_source_store=clinical_source_store,
+        ),
         "molecular_context": MolecularContextTool(settings),
         "computational_annotations": ComputationalAnnotationsTool(settings),
     }

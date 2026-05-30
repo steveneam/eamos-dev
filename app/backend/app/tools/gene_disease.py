@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import quote
 
 import httpx
@@ -26,9 +26,22 @@ def _unavailable_summary(gene: str | None, warnings: list[str] | None = None) ->
     }
 
 
+class ClinicalGeneDiseaseStore(Protocol):
+    def get_gene_disease_summary(self, *, gene: str) -> dict[str, Any] | None: ...
+
+
 class GeneDiseaseTool(FixtureBackedTool):
     source = "gene_disease"
     fixture_name = "gene_disease_fixtures.json"
+
+    def __init__(
+        self,
+        settings,
+        *,
+        clinical_source_store: ClinicalGeneDiseaseStore | None = None,
+    ) -> None:
+        super().__init__(settings)
+        self.clinical_source_store = clinical_source_store
 
     def get_evidence(self, variant=None) -> ToolResult:
         gene = str(getattr(variant, "gene", "") if variant is not None else "").strip().upper()
@@ -53,6 +66,20 @@ class GeneDiseaseTool(FixtureBackedTool):
             )
 
         warnings: list[str] = []
+        if self.clinical_source_store is not None:
+            try:
+                source_summary = self.clinical_source_store.get_gene_disease_summary(gene=gene)
+            except Exception as exc:
+                warnings.append(f"gene_disease_source_table_failed:{type(exc).__name__}")
+            else:
+                if source_summary is not None:
+                    return _result_from_source_table_summary(
+                        request_identity=request_identity,
+                        summary=source_summary,
+                        gene=gene,
+                        extra_warnings=warnings,
+                    )
+
         record = deepcopy(fixture_record) if fixture_record else {"gene": gene, "conditions": []}
         try:
             hgnc_record = self._fetch_hgnc(gene)
@@ -95,6 +122,29 @@ class GeneDiseaseTool(FixtureBackedTool):
             return None
         first = docs[0]
         return first if isinstance(first, dict) else None
+
+
+def _result_from_source_table_summary(
+    *,
+    request_identity: dict[str, Any],
+    summary: dict[str, Any],
+    gene: str,
+    extra_warnings: list[str] | None = None,
+) -> ToolResult:
+    normalized = _unavailable_summary(gene)
+    normalized.update(summary)
+    normalized["warnings"] = _dedupe(
+        [*_string_list(summary.get("warnings")), *list(extra_warnings or [])]
+    )
+    return ToolResult(
+        source=GeneDiseaseTool.source,
+        status="source_table",
+        request_identity=request_identity,
+        summary=normalized,
+        warnings=list(extra_warnings or []),
+        raw=summary,
+        source_url=_primary_source_url(normalized) or _gene_search_url(gene),
+    )
 
 
 def _fixture_record(fixture: dict[str, Any], gene: str) -> dict[str, Any] | None:
