@@ -13,20 +13,35 @@ from app.services.pfam_materialization import materialize_pfam_hmm_gz_from_priva
 from app.services.protein_annotation import ProteinAnnotationService
 from app.services.protein_runtime import prepare_protein_annotation_runtime
 
+TRANSCRIPT_MODELS_FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "workbench"
+    / "gene_viewer_transcript_models.json"
+)
+
 SMOKE_CONTROLS = {
     "PCARE": {
         "sequence": "M" + "P" * 719,
+        "input_type": "protein",
         "label": "PCARE NM_001029883 reference smoke",
         "gene_symbol": "PCARE",
         "transcript": "NM_001029883",
+        "protein_accession": None,
+        "sequence_source": "runtime_length_control",
         "interpretation": "runtime_control_not_domain_truth",
     },
     "ABCA4": {
-        "sequence": "M" + "A" * 2272,
-        "label": "ABCA4 NM_000350.3 length-control smoke",
+        "fixture_gene": "ABCA4",
+        "expected_cds_length": 6822,
+        "expected_protein_length": 2273,
+        "input_type": "coding_dna",
+        "label": "ABCA4 NM_000350.3 fixture CDS smoke",
         "gene_symbol": "ABCA4",
         "transcript": "NM_000350.3",
-        "interpretation": "synthetic_length_control_not_domain_truth",
+        "protein_accession": "ENSP00000359245",
+        "sequence_source": "workbench_gene_viewer_transcript_model_cds",
+        "interpretation": "real_fixture_coding_dna_not_domain_truth",
     },
 }
 
@@ -129,15 +144,21 @@ def _protein_smoke(settings: Settings, *, control: str, prepared_ready: bool) ->
     if not prepared_ready:
         return {"control": control, "status": "skipped", "reason": "runtime_prepare_not_ready"}
 
+    try:
+        sequence = _resolve_smoke_sequence(smoke_config)
+    except ValueError as exc:
+        return {"control": control, "status": "failed", "reason": str(exc)}
+
     smoke_settings = settings.model_copy(update={"protein_annotation_enabled": True})
     service = ProteinAnnotationService(settings=smoke_settings, cache_repo=None)
     track = service.annotate(
         ProteinAnnotationRequest(
-            sequence=smoke_config["sequence"],
-            input_type="protein",
+            sequence=sequence,
+            input_type=smoke_config["input_type"],
             sequence_label=smoke_config["label"],
             gene_symbol=smoke_config["gene_symbol"],
             transcript=smoke_config["transcript"],
+            protein_accession=smoke_config["protein_accession"],
             use_cache=False,
             allow_run=True,
         )
@@ -147,11 +168,124 @@ def _protein_smoke(settings: Settings, *, control: str, prepared_ready: bool) ->
         "status": track.status,
         "gene_symbol": track.gene_symbol,
         "transcript": track.transcript,
+        "protein_accession": track.protein_accession,
+        "input_type": smoke_config["input_type"],
+        "translated_from": track.translated_from,
+        "sequence_source": smoke_config["sequence_source"],
         "interpretation": smoke_config["interpretation"],
         "feature_count": len(track.features),
         "warning_count": len(track.warnings),
         "fail_closed_reason": track.fail_closed_reason,
     }
+
+
+def _resolve_smoke_sequence(smoke_config: dict[str, object]) -> str:
+    sequence = smoke_config.get("sequence")
+    if isinstance(sequence, str) and sequence:
+        return sequence
+    fixture_gene = smoke_config.get("fixture_gene")
+    if isinstance(fixture_gene, str) and fixture_gene:
+        return _load_fixture_coding_dna(
+            gene=fixture_gene,
+            transcript=_required_str(smoke_config.get("transcript")),
+            expected_cds_length=_required_int(smoke_config.get("expected_cds_length")),
+            expected_protein_length=_required_int(smoke_config.get("expected_protein_length")),
+        )
+    raise ValueError("smoke_sequence_unconfigured")
+
+
+def _load_fixture_coding_dna(
+    *,
+    gene: str,
+    transcript: str,
+    expected_cds_length: int,
+    expected_protein_length: int,
+    fixture_path: Path = TRANSCRIPT_MODELS_FIXTURE,
+) -> str:
+    try:
+        payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("smoke_fixture_unavailable") from exc
+
+    records = payload.get("records")
+    if not isinstance(records, list):
+        raise ValueError("smoke_fixture_records_missing")
+
+    record = next(
+        (
+            item
+            for item in records
+            if isinstance(item, dict)
+            and str(item.get("gene") or "").upper() == gene.upper()
+            and item.get("transcript") == transcript
+        ),
+        None,
+    )
+    if record is None:
+        raise ValueError("smoke_fixture_record_missing")
+
+    if _required_int(record.get("cds_length")) != expected_cds_length:
+        raise ValueError("smoke_fixture_record_cds_length_mismatch")
+    if _required_int(record.get("protein_length")) != expected_protein_length:
+        raise ValueError("smoke_fixture_record_protein_length_mismatch")
+
+    exons = record.get("exons")
+    if not isinstance(exons, list) or not exons:
+        raise ValueError("smoke_fixture_exons_missing")
+
+    next_cds_start = 1
+    sequence_parts: list[str] = []
+    try:
+        sorted_exons = sorted(exons, key=_fixture_cds_start_for_sort)
+    except (AttributeError, ValueError) as exc:
+        raise ValueError("smoke_fixture_exon_invalid") from exc
+    for exon in sorted_exons:
+        if not isinstance(exon, dict):
+            raise ValueError("smoke_fixture_exon_invalid")
+        cds_start = _required_int(exon.get("cds_start"))
+        cds_end = _required_int(exon.get("cds_end"))
+        sequence = _required_str(exon.get("sequence")).upper()
+        if cds_start != next_cds_start:
+            raise ValueError("smoke_fixture_cds_gap")
+        if cds_end < cds_start:
+            raise ValueError("smoke_fixture_cds_interval_invalid")
+        if cds_end - cds_start + 1 != len(sequence):
+            raise ValueError("smoke_fixture_exon_length_mismatch")
+        if set(sequence) - {"A", "C", "G", "T", "N"}:
+            raise ValueError("smoke_fixture_invalid_coding_dna")
+        sequence_parts.append(sequence)
+        next_cds_start = cds_end + 1
+
+    coding_dna = "".join(sequence_parts)
+    if len(coding_dna) != expected_cds_length:
+        raise ValueError("smoke_fixture_cds_length_mismatch")
+    if len(coding_dna) % 3 != 0:
+        raise ValueError("smoke_fixture_cds_not_codon_aligned")
+    if not coding_dna.startswith("ATG"):
+        raise ValueError("smoke_fixture_missing_start_codon")
+    if coding_dna[-3:] not in {"TAA", "TAG", "TGA"}:
+        raise ValueError("smoke_fixture_missing_terminal_stop")
+    if (len(coding_dna) // 3) - 1 != expected_protein_length:
+        raise ValueError("smoke_fixture_translation_length_mismatch")
+    return coding_dna
+
+
+def _required_str(value: object) -> str:
+    if isinstance(value, str) and value:
+        return value
+    raise ValueError("smoke_fixture_value_missing")
+
+
+def _fixture_cds_start_for_sort(value: object) -> int:
+    if not isinstance(value, dict):
+        raise ValueError("smoke_fixture_exon_invalid")
+    return _required_int(value.get("cds_start"))
+
+
+def _required_int(value: object) -> int:
+    if isinstance(value, int) and value > 0:
+        return value
+    raise ValueError("smoke_fixture_value_missing")
 
 
 if __name__ == "__main__":
