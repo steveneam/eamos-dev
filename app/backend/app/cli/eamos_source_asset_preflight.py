@@ -10,16 +10,20 @@ from typing import Any
 from app.core.config import Settings
 from app.data_sources import (
     DEFAULT_DATA_SOURCE_REGISTRY,
+    HG38_MATERIALIZATION_FAILURE_BOUNDARIES,
     PROTEIN_ANNOTATION_SOURCE_IDS,
     POST_REFERENCE_DAY1_SOURCE_IDS,
     ProteinAssetInspection,
     SourceAssetReadiness,
+    SourceAssetMaterializationStore,
     docx_blueprint_summary,
     inspect_hg38_runtime_asset,
     inspect_protein_annotation_assets,
+    probe_hg38_materialization_status,
 )
 from app.data_sources.registry import RESTRICTED_PREDICTOR_SOURCE_IDS, DataSourceRegistry
 from app.data_sources.source_manifest import build_post_reference_source_readiness
+from app.repos.supabase_local_model_cache_repo import build_supabase_local_model_cache_store
 from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
     LocalEvidenceRuntimeGate,
@@ -85,17 +89,32 @@ def main(argv: list[str] | None = None) -> int:
             "omitted by default because the bundle is large"
         ),
     )
+    parser.add_argument(
+        "--probe-supabase-materialization",
+        action="store_true",
+        help=(
+            "perform a read-only private Supabase materialization metadata probe. "
+            "No uploads, imports, bucket changes, or secrets are emitted."
+        ),
+    )
     args = parser.parse_args(argv)
 
     settings_kwargs: dict[str, Any] = {"jwt_secret": "source-preflight-local"}
     if args.hg38_path is not None:
         settings_kwargs["hg38_2bit_runtime_asset_path"] = args.hg38_path
     settings = Settings(**settings_kwargs)
+    materialization_store = (
+        build_supabase_local_model_cache_store(settings)
+        if args.probe_supabase_materialization
+        else None
+    )
 
     report = build_source_asset_preflight_report(
         settings=settings,
         verify_hg38_checksum=args.verify_hg38_checksum,
         verify_protein_checksums=args.verify_protein_checksums,
+        probe_materialization=args.probe_supabase_materialization,
+        materialization_store=materialization_store,
     )
     print(json.dumps(report, indent=None if args.compact else 2, sort_keys=True))
     return 0
@@ -107,6 +126,8 @@ def build_source_asset_preflight_report(
     registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
     verify_hg38_checksum: bool = False,
     verify_protein_checksums: bool = False,
+    probe_materialization: bool = False,
+    materialization_store: SourceAssetMaterializationStore | None = None,
 ) -> dict[str, Any]:
     readiness = build_post_reference_source_readiness(registry=registry)
     gate = LocalEvidenceRuntimeGate.from_settings(settings)
@@ -133,8 +154,12 @@ def build_source_asset_preflight_report(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "docx_blueprint": docx_blueprint_summary(registry=registry),
         "guardrails": {
-            "network": "not_used",
-            "supabase": "not_used",
+            "network": (
+                "read_only_supabase_materialization_probe" if probe_materialization else "not_used"
+            ),
+            "supabase": (
+                "read_only_materialization_probe" if probe_materialization else "not_used"
+            ),
             "production_downloads": "not_used",
             "runtime_local_source_wiring": "not_used",
             "uploads_or_imports": "not_used",
@@ -145,6 +170,13 @@ def build_source_asset_preflight_report(
         "reader_compatibility_proofs": _reader_compatibility_proof_summary(),
         "private_storage_upload_plan": _private_storage_upload_plan_summary(),
         "hg38_runtime_asset": hg38_summary,
+        "runtime_materialization_probe": _runtime_materialization_probe_summary(
+            settings=settings,
+            materialization_store=materialization_store,
+            registry=registry,
+            probe_materialization=probe_materialization,
+            verify_checksum=verify_hg38_checksum,
+        ),
         "protein_annotation_assets": protein_summary,
         "render_persistent_disk_gate": _render_persistent_disk_gate_summary(
             readiness=readiness,
@@ -292,6 +324,42 @@ def _runtime_asset_summary(inspection: Any, *, checksum_verified: bool) -> dict[
         "object_uri": inspection.object_uri,
         "reader_requires_local_path": inspection.reader_requires_local_path,
         "message": inspection.message,
+    }
+
+
+def _runtime_materialization_probe_summary(
+    *,
+    settings: Settings,
+    materialization_store: SourceAssetMaterializationStore | None,
+    registry: DataSourceRegistry,
+    probe_materialization: bool,
+    verify_checksum: bool,
+) -> dict[str, Any]:
+    common = {
+        "read_only": True,
+        "mutations_performed": False,
+        "secret_values_emitted": False,
+        "local_path_values_emitted": False,
+        "object_uri_values_emitted": False,
+    }
+    if not probe_materialization:
+        return {
+            "enabled": materialization_store is not None,
+            "probe_performed": False,
+            "ready": False,
+            "status": "not_requested",
+            "failure_boundaries": dict(HG38_MATERIALIZATION_FAILURE_BOUNDARIES),
+            **common,
+        }
+
+    return {
+        **probe_hg38_materialization_status(
+            settings,
+            materialization_store,
+            registry=registry,
+            verify_checksum=verify_checksum,
+        ),
+        **common,
     }
 
 

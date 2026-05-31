@@ -9,10 +9,10 @@ from typing import Any
 from fastapi import APIRouter, Request
 
 from app.core.db import ping_database
+from app.data_sources.local_inventory import LOCAL_HG38_2BIT_SOURCE_ID
 from app.data_sources.runtime_assets import (
-    SourceAssetMaterializationError,
     inspect_hg38_runtime_asset,
-    resolve_hg38_materialized_runtime_asset,
+    probe_hg38_materialization_status,
 )
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
@@ -66,42 +66,40 @@ def provider_cache_health(request: Request) -> dict[str, object]:
 
 
 def _source_asset_health(settings, materialization_store) -> dict[str, object]:
-    inspection = inspect_hg38_runtime_asset(settings, verify_checksum=False)
-    metadata: dict[str, object] = {"enabled": materialization_store is not None}
-    if materialization_store is not None:
-        try:
-            resolved = resolve_hg38_materialized_runtime_asset(
-                settings,
-                materialization_store,
-                verify_checksum=False,
-            )
-            metadata.update(
-                {
-                    "ready": True,
-                    "status": "ready",
-                    "environment": resolved.environment,
-                    "backend_runtime": resolved.backend_runtime,
-                    "byte_size": resolved.byte_size,
-                    "checksum_algorithm": resolved.checksum_algorithm,
-                    "public_access_allowed": False,
-                    "frontend_direct_access_allowed": False,
-                }
-            )
-        except SourceAssetMaterializationError as exc:
-            metadata.update({"ready": False, "status": exc.code})
-        except Exception:
-            metadata.update({"ready": False, "status": "materialization_probe_failed"})
+    try:
+        inspection = inspect_hg38_runtime_asset(settings, verify_checksum=False)
+        source_id = inspection.source_id
+        mode = inspection.mode
+        local_cache_ready = inspection.ready
+        local_cache_status = inspection.status.value
+        expected_size_bytes = inspection.expected_size_bytes
+        actual_size_bytes = inspection.actual_size_bytes
+        reader_requires_local_path = inspection.reader_requires_local_path
+    except Exception:
+        source_id = LOCAL_HG38_2BIT_SOURCE_ID
+        mode = settings.hg38_2bit_runtime_asset_mode
+        local_cache_ready = False
+        local_cache_status = "runtime_asset_probe_failed"
+        expected_size_bytes = None
+        actual_size_bytes = None
+        reader_requires_local_path = True
+
+    metadata = probe_hg38_materialization_status(
+        settings,
+        materialization_store,
+        verify_checksum=False,
+    )
 
     return {
         "hg38_2bit": {
-            "source_id": inspection.source_id,
-            "mode": inspection.mode,
-            "local_cache_ready": inspection.ready,
-            "local_cache_status": inspection.status.value,
-            "expected_size_bytes": inspection.expected_size_bytes,
-            "actual_size_bytes": inspection.actual_size_bytes,
+            "source_id": source_id,
+            "mode": mode,
+            "local_cache_ready": local_cache_ready,
+            "local_cache_status": local_cache_status,
+            "expected_size_bytes": expected_size_bytes,
+            "actual_size_bytes": actual_size_bytes,
             "checksum_verified": False,
-            "reader_requires_local_path": inspection.reader_requires_local_path,
+            "reader_requires_local_path": reader_requires_local_path,
             "materialization_metadata": metadata,
         }
     }

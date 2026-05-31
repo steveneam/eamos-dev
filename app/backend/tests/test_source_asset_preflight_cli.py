@@ -4,12 +4,18 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from app.cli.eamos_source_asset_preflight import _render_persistent_disk_gate_summary, main
+from app.cli.eamos_source_asset_preflight import (
+    _render_persistent_disk_gate_summary,
+    build_source_asset_preflight_report,
+    main,
+)
+from app.core.config import Settings
 from app.data_sources import (
     DOCX_BLUEPRINT_LINES,
     DOCX_SUPPLEMENTAL_REQUESTS,
     build_post_reference_source_readiness,
     build_docx_task_matrix,
+    SourceAssetMaterializationRecord,
 )
 
 
@@ -64,6 +70,21 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert output["reader_compatibility_proofs"]["network_used"] is False
     assert output["reader_compatibility_proofs"]["runtime_mutation_performed"] is False
     assert "status_counts" in output["reader_compatibility_proofs"]
+    probe = output["runtime_materialization_probe"]
+    assert probe["enabled"] is False
+    assert probe["probe_performed"] is False
+    assert probe["ready"] is False
+    assert probe["status"] == "not_requested"
+    assert probe["read_only"] is True
+    assert probe["mutations_performed"] is False
+    assert probe["secret_values_emitted"] is False
+    assert probe["local_path_values_emitted"] is False
+    assert probe["object_uri_values_emitted"] is False
+    assert probe["failure_boundaries"] == {
+        "health_and_preflight_probe": "sanitized_status_no_exception",
+        "lookup_sequence_context_runtime": "fail_open",
+        "metadata_and_local_cache_resolution": "fail_closed",
+    }
     assert "terms_review" not in manifest["missing_requirement_counts"]
 
     render_gate = output["render_persistent_disk_gate"]
@@ -179,6 +200,38 @@ def test_source_asset_preflight_records_docx_reconciliation_and_policy(
     assert "spliceai" in output["myvariant_policy"]["restricted_fields"]
 
 
+def test_source_asset_preflight_can_run_sanitized_materialization_probe(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=tmp_path / "missing-hg38.2bit",
+    )
+
+    output = build_source_asset_preflight_report(
+        settings=settings,
+        probe_materialization=True,
+        materialization_store=ExplodingMaterializationStore(),
+    )
+
+    assert output["guardrails"]["network"] == "read_only_supabase_materialization_probe"
+    assert output["guardrails"]["supabase"] == "read_only_materialization_probe"
+    assert output["guardrails"]["uploads_or_imports"] == "not_used"
+    probe = output["runtime_materialization_probe"]
+    assert probe["enabled"] is True
+    assert probe["probe_performed"] is True
+    assert probe["ready"] is False
+    assert probe["status"] == "materialization_probe_failed"
+    assert probe["read_only"] is True
+    assert probe["mutations_performed"] is False
+    assert probe["secret_values_emitted"] is False
+    assert probe["local_path_values_emitted"] is False
+    assert probe["object_uri_values_emitted"] is False
+    encoded = json.dumps(probe).lower()
+    assert "private.example" not in encoded
+    assert str(tmp_path).lower() not in encoded
+
+
 def test_docx_task_matrix_maps_every_noncommercial_line_to_coverage_or_blocker() -> None:
     matrix = build_docx_task_matrix()
 
@@ -248,3 +301,8 @@ def test_docx_supplement_records_local_protein_annotation_gap_without_api_depend
     assert "without depending on live third-party APIs" in supplement.request_text
     assert "HMMER hmmscan" in supplement.next_action
     assert "commercially usable" in (supplement.blocker or "")
+
+
+class ExplodingMaterializationStore:
+    def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord:
+        raise RuntimeError("database unavailable at postgresql://private.example/path")

@@ -18,6 +18,7 @@ from app.data_sources import (
     SourceAssetMaterializationRecord,
     build_hg38_runtime_asset_plan,
     inspect_hg38_runtime_asset,
+    probe_hg38_materialization_status,
     resolve_hg38_materialized_runtime_asset,
 )
 from app.data_sources.runtime_assets import _resolve_materialization_path
@@ -272,6 +273,49 @@ def test_hg38_materialized_reader_filters_configured_object_uri(
     ]
 
 
+def test_hg38_materialization_probe_reports_ready_without_sensitive_paths(
+    tmp_path: Path,
+) -> None:
+    payload = b"small-test-2bit"
+    asset_path = tmp_path / "hg38.2bit"
+    asset_path.write_bytes(payload)
+    settings = Settings(jwt_secret="test-secret", hg38_2bit_runtime_asset_path=asset_path)
+
+    summary = probe_hg38_materialization_status(
+        settings,
+        FakeMaterializationStore(_materialization_record(payload, asset_path)),
+        registry=_tiny_registry(payload),
+        verify_checksum=True,
+    )
+
+    assert summary["enabled"] is True
+    assert summary["probe_performed"] is True
+    assert summary["ready"] is True
+    assert summary["status"] == "ready"
+    assert summary["byte_size"] == len(payload)
+    assert summary["checksum_algorithm"] == "md5"
+    assert summary["failure_boundaries"] == {
+        "health_and_preflight_probe": "sanitized_status_no_exception",
+        "lookup_sequence_context_runtime": "fail_open",
+        "metadata_and_local_cache_resolution": "fail_closed",
+    }
+    encoded = str(summary).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "ucsc_hg38_2bit/hg38/md5-test/hg38.2bit" not in encoded
+    assert _md5(payload) not in encoded
+
+
+def test_hg38_materialization_probe_catches_unexpected_errors() -> None:
+    settings = Settings(jwt_secret="test-secret")
+
+    summary = probe_hg38_materialization_status(settings, ExplodingMaterializationStore())
+
+    assert summary["enabled"] is True
+    assert summary["probe_performed"] is True
+    assert summary["ready"] is False
+    assert summary["status"] == "materialization_probe_failed"
+
+
 def test_materialization_path_strips_app_backend_prefix_under_shallow_backend_root(
     monkeypatch,
 ) -> None:
@@ -347,6 +391,11 @@ class FakeMaterializationStore:
         if environment is not None and self.record.environment != environment:
             return None
         return self.record
+
+
+class ExplodingMaterializationStore:
+    def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord:
+        raise RuntimeError("database unavailable at postgresql://private.example/path")
 
 
 def _materialization_record(

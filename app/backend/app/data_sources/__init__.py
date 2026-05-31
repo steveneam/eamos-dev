@@ -21,6 +21,7 @@ from app.data_sources.policy import (
     SourceFieldPolicy,
 )
 from app.data_sources.runtime_assets import (
+    HG38_MATERIALIZATION_FAILURE_BOUNDARIES,
     ResolvedRuntimeAsset,
     RuntimeAssetInspection,
     RuntimeAssetMode,
@@ -31,6 +32,7 @@ from app.data_sources.runtime_assets import (
     SourceAssetMaterializationStore,
     build_hg38_runtime_asset_plan,
     inspect_hg38_runtime_asset,
+    probe_hg38_materialization_status,
     resolve_hg38_materialized_runtime_asset,
 )
 from app.data_sources.protein_assets import (
@@ -70,6 +72,7 @@ __all__ = [
     "DocxBlueprintLine",
     "DocxSupplementalRequest",
     "FieldPolicyDecision",
+    "HG38_MATERIALIZATION_FAILURE_BOUNDARIES",
     "LOCAL_HG38_2BIT_SOURCE_ID",
     "LicenseStatus",
     "LocalAssetInventory",
@@ -103,6 +106,7 @@ __all__ = [
     "inspect_hg38_runtime_asset",
     "inspect_protein_annotation_asset",
     "inspect_protein_annotation_assets",
+    "probe_hg38_materialization_status",
     "resolve_hg38_materialized_runtime_asset",
     "resolve_local_asset_path",
     "source_asset_readiness",

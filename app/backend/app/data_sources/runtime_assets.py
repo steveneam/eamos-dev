@@ -121,6 +121,13 @@ class SourceAssetMaterializationStore(Protocol):
     ) -> SourceAssetMaterializationRecord | None: ...
 
 
+HG38_MATERIALIZATION_FAILURE_BOUNDARIES: dict[str, str] = {
+    "metadata_and_local_cache_resolution": "fail_closed",
+    "lookup_sequence_context_runtime": "fail_open",
+    "health_and_preflight_probe": "sanitized_status_no_exception",
+}
+
+
 def build_hg38_runtime_asset_plan(
     settings: Settings,
     registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
@@ -307,6 +314,60 @@ def resolve_hg38_materialized_runtime_asset(
         verified_at=record.verified_at,
         inspection=inspection,
     )
+
+
+def probe_hg38_materialization_status(
+    settings: Settings,
+    materialization_store: SourceAssetMaterializationStore | None,
+    registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+    *,
+    verify_checksum: bool = False,
+    environment: str | None = None,
+) -> dict[str, object]:
+    """Return a sanitized materialization readiness probe for health/preflight.
+
+    The underlying resolver stays fail-closed because direct local-source reads
+    must not proceed with uncertain metadata. This probe and the sequence-context
+    caller are non-throwing so operational checks and lookups do not 500 when a
+    private Storage materialization is absent or misconfigured.
+    """
+
+    metadata: dict[str, object] = {
+        "enabled": materialization_store is not None,
+        "probe_performed": materialization_store is not None,
+        "ready": False,
+        "status": "materialization_store_unavailable",
+        "failure_boundaries": dict(HG38_MATERIALIZATION_FAILURE_BOUNDARIES),
+    }
+    if materialization_store is None:
+        return metadata
+
+    try:
+        resolved = resolve_hg38_materialized_runtime_asset(
+            settings,
+            materialization_store,
+            registry=registry,
+            verify_checksum=verify_checksum,
+            environment=environment,
+        )
+    except SourceAssetMaterializationError as exc:
+        metadata.update({"ready": False, "status": exc.code})
+    except Exception:
+        metadata.update({"ready": False, "status": "materialization_probe_failed"})
+    else:
+        metadata.update(
+            {
+                "ready": True,
+                "status": "ready",
+                "environment": resolved.environment,
+                "backend_runtime": resolved.backend_runtime,
+                "byte_size": resolved.byte_size,
+                "checksum_algorithm": resolved.checksum_algorithm,
+                "public_access_allowed": False,
+                "frontend_direct_access_allowed": False,
+            }
+        )
+    return metadata
 
 
 def _inspection(

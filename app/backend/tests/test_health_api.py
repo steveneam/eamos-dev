@@ -40,7 +40,17 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "latest_fetched_at": None,
         "sources": {},
     }
-    assert body["source_assets"]["hg38_2bit"]["materialization_metadata"] == {"enabled": False}
+    assert body["source_assets"]["hg38_2bit"]["materialization_metadata"] == {
+        "enabled": False,
+        "failure_boundaries": {
+            "health_and_preflight_probe": "sanitized_status_no_exception",
+            "lookup_sequence_context_runtime": "fail_open",
+            "metadata_and_local_cache_resolution": "fail_closed",
+        },
+        "probe_performed": False,
+        "ready": False,
+        "status": "materialization_store_unavailable",
+    }
     crispr = body["providers"]["crispr"]
     assert crispr["configured_provider"] == "local_deterministic"
     assert crispr["available"] is True
@@ -183,6 +193,12 @@ def test_provider_cache_health_reports_sanitized_source_asset_materialization(
     source_asset = response.json()["source_assets"]["hg38_2bit"]
     assert source_asset["materialization_metadata"] == {
         "enabled": True,
+        "failure_boundaries": {
+            "health_and_preflight_probe": "sanitized_status_no_exception",
+            "lookup_sequence_context_runtime": "fail_open",
+            "metadata_and_local_cache_resolution": "fail_closed",
+        },
+        "probe_performed": True,
         "ready": False,
         "status": "runtime_asset_size_mismatch",
     }
@@ -190,6 +206,27 @@ def test_provider_cache_health_reports_sanitized_source_asset_materialization(
     encoded = json.dumps(response.json()).lower()
     assert str(tmp_path).lower() not in encoded
     assert object_path not in encoded
+
+
+def test_provider_cache_health_survives_source_asset_probe_failure(
+    client,
+    monkeypatch,
+) -> None:
+    def fail_probe(*args, **kwargs):
+        raise RuntimeError("private filesystem permission error")
+
+    monkeypatch.setattr("app.api.routes.health.inspect_hg38_runtime_asset", fail_probe)
+
+    response = client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    source_asset = response.json()["source_assets"]["hg38_2bit"]
+    assert source_asset["source_id"] == "ucsc_hg38_2bit"
+    assert source_asset["local_cache_ready"] is False
+    assert source_asset["local_cache_status"] == "runtime_asset_probe_failed"
+    assert source_asset["materialization_metadata"]["status"] == (
+        "materialization_store_unavailable"
+    )
 
 
 def test_provider_cache_health_reports_available_protein_annotation_without_paths(
