@@ -6,8 +6,12 @@ from app.schemas.run import (
     PopulationAgeHistogram,
     PopulationAgeHistogramView,
     PopulationFrequencyAncestryGroup,
+    PopulationFrequencyDatasetCell,
     PopulationFrequencyDetail,
+    PopulationFrequencyOverall,
+    PopulationFrequencyOverallTotalCell,
     PopulationFrequencyReportSection,
+    PopulationFrequencySexCell,
     PopulationFrequencySourceRow,
     PopulationFrequencyVisualGroup,
     PopulationFrequencyVisualScale,
@@ -51,6 +55,7 @@ def build_population_frequency_section(
     detail: PopulationFrequencyDetail | None,
     *,
     source_status: str = "missing",
+    gnomad_summary: dict | None = None,
 ) -> PopulationFrequencyReportSection:
     """Project canonical gnomAD detail into the Section 3 render model."""
 
@@ -67,7 +72,7 @@ def build_population_frequency_section(
             ],
         )
 
-    groups = _visual_groups(detail)
+    groups = _visual_groups(detail, gnomad_summary=gnomad_summary)
     warnings = _section_warnings(detail, groups)
     return PopulationFrequencyReportSection(
         source_status=source_status or "missing",
@@ -76,6 +81,7 @@ def build_population_frequency_section(
         sequencing_type=detail.sequencing_type,
         visual_scale=_visual_scale(detail, groups),
         visual_groups=groups,
+        overall=_overall_frequency(detail, gnomad_summary=gnomad_summary),
         age_histograms=_age_histograms(detail),
         source_rows=_source_rows(groups),
         source_url=detail.source_url,
@@ -96,8 +102,14 @@ def build_population_frequency_section(
     )
 
 
-def _visual_groups(detail: PopulationFrequencyDetail) -> list[PopulationFrequencyVisualGroup]:
+def _visual_groups(
+    detail: PopulationFrequencyDetail,
+    *,
+    gnomad_summary: dict | None = None,
+) -> list[PopulationFrequencyVisualGroup]:
     popmax_id = (detail.popmax_population or "").strip().lower()
+    sex_splits = _sex_splits_by_group(gnomad_summary)
+    dataset_splits = _dataset_splits_by_group(gnomad_summary)
     sorted_groups = sorted(
         detail.genetic_ancestry_groups,
         key=lambda group: (
@@ -116,10 +128,164 @@ def _visual_groups(detail: PopulationFrequencyDetail) -> list[PopulationFrequenc
             is_popmax=group.id.lower() == popmax_id,
             data_state=_data_state(group),
             sort_order=index + 1,
+            xx=sex_splits.get(group.id, {}).get("xx"),
+            xy=sex_splits.get(group.id, {}).get("xy"),
+            exome=dataset_splits.get(group.id, {}).get("exome"),
+            genome=dataset_splits.get(group.id, {}).get("genome"),
             warnings=_group_warnings(group),
         )
         for index, group in enumerate(sorted_groups)
     ]
+
+
+def _overall_frequency(
+    detail: PopulationFrequencyDetail,
+    *,
+    gnomad_summary: dict | None = None,
+) -> PopulationFrequencyOverall | None:
+    raw_overall = _dict_or_empty((gnomad_summary or {}).get("overall"))
+    total = _total_cell(raw_overall.get("total")) or _detail_total_cell(detail)
+    overall = PopulationFrequencyOverall(
+        total=total,
+        xx=_sex_cell(raw_overall.get("xx")),
+        xy=_sex_cell(raw_overall.get("xy")),
+    )
+    if overall.total is None and overall.xx is None and overall.xy is None:
+        return None
+    return overall
+
+
+def _sex_splits_by_group(
+    gnomad_summary: dict | None,
+) -> dict[str, dict[str, PopulationFrequencySexCell]]:
+    groups = (gnomad_summary or {}).get("genetic_ancestry_groups")
+    if not isinstance(groups, list):
+        return {}
+    splits: dict[str, dict[str, PopulationFrequencySexCell]] = {}
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        group_id = str(group.get("id") or "").strip()
+        if not group_id:
+            continue
+        xx = _sex_cell(group.get("xx"))
+        xy = _sex_cell(group.get("xy"))
+        if xx is not None:
+            splits.setdefault(group_id, {})["xx"] = xx
+        if xy is not None:
+            splits.setdefault(group_id, {})["xy"] = xy
+    return splits
+
+
+def _dataset_splits_by_group(
+    gnomad_summary: dict | None,
+) -> dict[str, dict[str, PopulationFrequencyDatasetCell]]:
+    groups = (gnomad_summary or {}).get("genetic_ancestry_groups")
+    if not isinstance(groups, list):
+        return {}
+    splits: dict[str, dict[str, PopulationFrequencyDatasetCell]] = {}
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        group_id = str(group.get("id") or "").strip()
+        if not group_id:
+            continue
+        exome = _dataset_cell(group.get("exome"))
+        genome = _dataset_cell(group.get("genome"))
+        if exome is not None:
+            splits.setdefault(group_id, {})["exome"] = exome
+        if genome is not None:
+            splits.setdefault(group_id, {})["genome"] = genome
+    return splits
+
+
+def _sex_cell(value: object) -> PopulationFrequencySexCell | None:
+    if not isinstance(value, dict):
+        return None
+    cell = PopulationFrequencySexCell(
+        allele_frequency=_optional_float(value.get("allele_frequency")),
+        allele_count=_optional_int(value.get("allele_count")),
+        allele_number=_optional_int(value.get("allele_number")),
+        homozygote_count=_optional_int(value.get("homozygote_count")),
+    )
+    if (
+        cell.allele_frequency is None
+        and cell.allele_count is None
+        and cell.allele_number is None
+        and cell.homozygote_count is None
+    ):
+        return None
+    return cell
+
+
+def _dataset_cell(value: object) -> PopulationFrequencyDatasetCell | None:
+    if not isinstance(value, dict):
+        return None
+    cell = PopulationFrequencyDatasetCell(
+        allele_frequency=_optional_float(value.get("allele_frequency")),
+        allele_count=_optional_int(value.get("allele_count")),
+        allele_number=_optional_int(value.get("allele_number")),
+        homozygote_count=_optional_int(value.get("homozygote_count")),
+    )
+    if (
+        cell.allele_frequency is None
+        and cell.allele_count is None
+        and cell.allele_number is None
+        and cell.homozygote_count is None
+    ):
+        return None
+    return cell
+
+
+def _total_cell(value: object) -> PopulationFrequencyOverallTotalCell | None:
+    if not isinstance(value, dict):
+        return None
+    cell = PopulationFrequencyOverallTotalCell(
+        allele_frequency=_optional_float(value.get("allele_frequency")),
+        allele_count=_optional_int(value.get("allele_count")),
+        allele_number=_optional_int(value.get("allele_number")),
+        homozygote_count=_optional_int(value.get("homozygote_count")),
+        exome=_dataset_cell(value.get("exome")),
+        genome=_dataset_cell(value.get("genome")),
+    )
+    if (
+        cell.allele_frequency is None
+        and cell.allele_count is None
+        and cell.allele_number is None
+        and cell.homozygote_count is None
+        and cell.exome is None
+        and cell.genome is None
+    ):
+        return None
+    return cell
+
+
+def _detail_total_cell(
+    detail: PopulationFrequencyDetail,
+) -> PopulationFrequencyOverallTotalCell | None:
+    return _nonempty_total_cell(
+        PopulationFrequencyOverallTotalCell(
+            allele_frequency=detail.allele_frequency,
+            allele_count=detail.allele_count,
+            allele_number=detail.allele_number,
+            homozygote_count=detail.homozygote_count,
+        )
+    )
+
+
+def _nonempty_total_cell(
+    cell: PopulationFrequencyOverallTotalCell,
+) -> PopulationFrequencyOverallTotalCell | None:
+    if (
+        cell.allele_frequency is None
+        and cell.allele_count is None
+        and cell.allele_number is None
+        and cell.homozygote_count is None
+        and cell.exome is None
+        and cell.genome is None
+    ):
+        return None
+    return cell
 
 
 def _visual_scale(
@@ -314,3 +480,25 @@ def _dedupe(items: list[str]) -> list[str]:
         if item and item not in result:
             result.append(item)
     return result
+
+
+def _dict_or_empty(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _optional_float(value: object) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_int(value: object) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None

@@ -63,6 +63,9 @@ CORE_GENETIC_ANCESTRY_GROUPS = {
     "sas",
 }
 
+SEX_SPLIT_SUFFIXES = {"XX": "xx", "XY": "xy"}
+DATASET_CELL_KEYS = ("exome", "genome")
+
 
 def _variant_source_url(variant_id: str | None) -> str | None:
     if not variant_id:
@@ -91,6 +94,23 @@ def _allele_frequency(data: dict) -> float | None:
     if ac is None or not an:
         return None
     return ac / an
+
+
+def _frequency_cell(data: dict | None) -> dict | None:
+    if not isinstance(data, dict):
+        return None
+    ac = data.get("ac")
+    an = data.get("an")
+    hom = data.get("homozygote_count")
+    af = _allele_frequency(data)
+    if ac is None and an is None and hom is None and af is None:
+        return None
+    return {
+        "allele_frequency": af,
+        "allele_count": ac,
+        "allele_number": an,
+        "homozygote_count": hom,
+    }
 
 
 def _select_sequencing_type(data: dict) -> tuple[str, dict]:
@@ -131,9 +151,16 @@ def _age_distributions_by_sequencing_type(data: dict) -> list[dict]:
     return distributions
 
 
-def _genetic_ancestry_groups(source_data: dict) -> list[dict]:
+def _population_by_id(source_data: dict) -> dict[str, dict]:
+    populations = [item for item in source_data.get("populations") or [] if isinstance(item, dict)]
+    return {str(item.get("id") or "").strip(): item for item in populations}
+
+
+def _genetic_ancestry_groups(source_data: dict, data: dict) -> list[dict]:
     groups = []
-    for item in source_data.get("populations") or []:
+    by_id = _population_by_id(source_data)
+    dataset_populations = {key: _population_by_id(data.get(key) or {}) for key in DATASET_CELL_KEYS}
+    for item in by_id.values():
         if not isinstance(item, dict):
             continue
         group_id = str(item.get("id") or "").strip()
@@ -141,16 +168,43 @@ def _genetic_ancestry_groups(source_data: dict) -> list[dict]:
             continue
         ac = item.get("ac")
         an = item.get("an")
-        groups.append(
-            {
-                "id": group_id,
-                "allele_count": ac,
-                "allele_number": an,
-                "allele_frequency": (ac / an) if ac is not None and an else None,
-                "homozygote_count": item.get("homozygote_count"),
-            }
-        )
+        group = {
+            "id": group_id,
+            "allele_count": ac,
+            "allele_number": an,
+            "allele_frequency": (ac / an) if ac is not None and an else None,
+            "homozygote_count": item.get("homozygote_count"),
+        }
+        for suffix, field_name in SEX_SPLIT_SUFFIXES.items():
+            sex_cell = _frequency_cell(by_id.get(f"{group_id}_{suffix}"))
+            if sex_cell is not None:
+                group[field_name] = sex_cell
+        for dataset_key, populations_by_id in dataset_populations.items():
+            dataset_cell = _frequency_cell(populations_by_id.get(group_id))
+            if dataset_cell is not None:
+                group[dataset_key] = dataset_cell
+        groups.append(group)
     return groups
+
+
+def _overall_frequency(source_data: dict, data: dict) -> dict | None:
+    by_id = _population_by_id(source_data)
+    total = _frequency_cell(source_data)
+    for dataset_key in DATASET_CELL_KEYS:
+        dataset_cell = _frequency_cell(data.get(dataset_key))
+        if dataset_cell is not None:
+            total = total or {
+                "allele_frequency": None,
+                "allele_count": None,
+                "allele_number": None,
+                "homozygote_count": None,
+            }
+            total[dataset_key] = dataset_cell
+    xx = _frequency_cell(by_id.get("XX"))
+    xy = _frequency_cell(by_id.get("XY"))
+    if total is None and xx is None and xy is None:
+        return None
+    return {"total": total, "xx": xx, "xy": xy}
 
 
 def _fixture_matches_variant(variant, fixture: dict) -> bool:
@@ -318,7 +372,8 @@ class GnomadTool(FixtureBackedTool):
             "homozygote_count": source_data.get("homozygote_count"),
             "popmax_frequency": faf.get("popmax"),
             "popmax_population": faf.get("popmax_population"),
-            "genetic_ancestry_groups": _genetic_ancestry_groups(source_data),
+            "genetic_ancestry_groups": _genetic_ancestry_groups(source_data, data),
+            "overall": _overall_frequency(source_data, data),
             "age_distribution": _age_distribution_for(data, source_data),
             "age_distributions": _age_distributions_by_sequencing_type(data),
             "flags": data.get("flags", []),

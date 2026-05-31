@@ -618,6 +618,28 @@ class PopulationFrequencyVisualScale(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class PopulationFrequencyDatasetCell(BaseModel):
+    allele_frequency: float | None = None
+    allele_count: int | None = None
+    allele_number: int | None = None
+    homozygote_count: int | None = None
+
+
+class PopulationFrequencySexCell(PopulationFrequencyDatasetCell):
+    pass
+
+
+class PopulationFrequencyOverallTotalCell(PopulationFrequencyDatasetCell):
+    exome: PopulationFrequencyDatasetCell | None = None
+    genome: PopulationFrequencyDatasetCell | None = None
+
+
+class PopulationFrequencyOverall(BaseModel):
+    total: PopulationFrequencyOverallTotalCell | None = None
+    xx: PopulationFrequencySexCell | None = None
+    xy: PopulationFrequencySexCell | None = None
+
+
 class PopulationFrequencyVisualGroup(BaseModel):
     id: str
     label: str
@@ -628,6 +650,10 @@ class PopulationFrequencyVisualGroup(BaseModel):
     is_popmax: bool = False
     data_state: Literal["observed", "zero_observed", "not_reported", "filtered"] = "observed"
     sort_order: int | None = None
+    xx: PopulationFrequencySexCell | None = None
+    xy: PopulationFrequencySexCell | None = None
+    exome: PopulationFrequencyDatasetCell | None = None
+    genome: PopulationFrequencyDatasetCell | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -679,6 +705,7 @@ class PopulationFrequencyReportSection(BaseModel):
     sequencing_type: PopulationSequencingType = "unknown"
     visual_scale: PopulationFrequencyVisualScale | None = None
     visual_groups: list[PopulationFrequencyVisualGroup] = Field(default_factory=list)
+    overall: PopulationFrequencyOverall | None = None
     age_histograms: list[PopulationAgeHistogramView] = Field(default_factory=list)
     source_rows: list[PopulationFrequencySourceRow] = Field(default_factory=list)
     source_url: str | None = None

@@ -439,6 +439,13 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     assert section3["section_id"] == "section-3-population-frequency"
     assert section3["panel_id"] == "gnomad-expansion"
     assert section3["visual_groups"][0]["label"] == "Non-Finnish European genetic ancestry"
+    assert section3["visual_groups"][0]["xx"]["allele_count"] == 1
+    assert section3["visual_groups"][0]["xy"]["allele_number"] == 17902
+    assert section3["visual_groups"][0]["exome"]["allele_count"] == 2
+    assert section3["visual_groups"][0]["genome"]["allele_number"] == 11152
+    assert section3["overall"]["total"]["allele_number"] == 125748
+    assert section3["overall"]["total"]["exome"]["allele_count"] == 2
+    assert section3["overall"]["total"]["genome"]["allele_number"] == 52248
     assert section3["age_histograms"][0]["scope"] == "overall_release_samples"
     histograms_by_key = {
         (hist["sequencing_type"], hist["series_kind"]): hist for hist in section3["age_histograms"]

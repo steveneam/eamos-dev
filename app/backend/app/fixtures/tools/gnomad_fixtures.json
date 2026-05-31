@@ -20,7 +20,31 @@
         "allele_count": 2,
         "allele_number": 41152,
         "allele_frequency": 0.0000486,
-        "homozygote_count": 0
+        "homozygote_count": 0,
+        "xx": {
+          "allele_frequency": 0.000043,
+          "allele_count": 1,
+          "allele_number": 23250,
+          "homozygote_count": 0
+        },
+        "xy": {
+          "allele_frequency": 0.0000559,
+          "allele_count": 1,
+          "allele_number": 17902,
+          "homozygote_count": 0
+        },
+        "exome": {
+          "allele_frequency": 0.0000667,
+          "allele_count": 2,
+          "allele_number": 30000,
+          "homozygote_count": 0
+        },
+        "genome": {
+          "allele_frequency": 0.0,
+          "allele_count": 0,
+          "allele_number": 11152,
+          "homozygote_count": 0
+        }
       },
       {
         "id": "afr",
@@ -86,6 +110,38 @@
         "homozygote_count": 0
       }
     ],
+    "overall": {
+      "total": {
+        "allele_frequency": 0.0000159,
+        "allele_count": 2,
+        "allele_number": 125748,
+        "homozygote_count": 0,
+        "exome": {
+          "allele_frequency": 0.0000272,
+          "allele_count": 2,
+          "allele_number": 73500,
+          "homozygote_count": 0
+        },
+        "genome": {
+          "allele_frequency": 0.0,
+          "allele_count": 0,
+          "allele_number": 52248,
+          "homozygote_count": 0
+        }
+      },
+      "xx": {
+        "allele_frequency": 0.0000148,
+        "allele_count": 1,
+        "allele_number": 67488,
+        "homozygote_count": 0
+      },
+      "xy": {
+        "allele_frequency": 0.0000172,
+        "allele_count": 1,
+        "allele_number": 58260,
+        "homozygote_count": 0
+      }
+    },
     "age_distribution": {
       "het": {
         "bin_edges": [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],

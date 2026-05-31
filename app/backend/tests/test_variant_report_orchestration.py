@@ -52,6 +52,15 @@ def _assert_section_3_population_frequency(profile: dict, payload: dict) -> None
     ]
     assert all("genetic ancestry" in group["label"] for group in population["visual_groups"])
     assert population["visual_groups"][0]["is_popmax"] is True
+    assert population["visual_groups"][0]["xx"]["allele_count"] == 1
+    assert population["visual_groups"][0]["xy"]["allele_number"] == 17902
+    assert population["visual_groups"][0]["exome"]["allele_count"] == 2
+    assert population["visual_groups"][0]["genome"]["allele_number"] == 11152
+    assert population["overall"]["total"]["allele_count"] == 2
+    assert population["overall"]["total"]["exome"]["allele_number"] == 73500
+    assert population["overall"]["total"]["genome"]["allele_count"] == 0
+    assert population["overall"]["xx"]["allele_number"] == 67488
+    assert population["overall"]["xy"]["allele_frequency"] == 0.0000172
     assert population["visual_groups"][1]["data_state"] == "zero_observed"
     assert population["source_rows"][0]["group_id"] == "nfe"
     assert {hist["scope"] for hist in population["age_histograms"]} == {"overall_release_samples"}

@@ -72,6 +72,7 @@ class VariantReportDataOrchestrator:
             population_frequency=build_population_frequency_section(
                 payload.population_frequency_detail,
                 source_status=evidence_statuses.get("gnomad", "missing"),
+                gnomad_summary=evidence_map.get("gnomad"),
             ),
             molecular_context=_build_molecular_context(
                 payload=payload,

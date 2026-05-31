@@ -24,6 +24,18 @@ class _FakeResponse:
                         "homozygote_count": 226,
                         "populations": [
                             {
+                                "id": "XX",
+                                "ac": 12400,
+                                "an": 790000,
+                                "homozygote_count": 118,
+                            },
+                            {
+                                "id": "XY",
+                                "ac": 11100,
+                                "an": 790590,
+                                "homozygote_count": 108,
+                            },
+                            {
                                 "id": "remaining",
                                 "ac": 813,
                                 "an": 61242,
@@ -90,6 +102,12 @@ class _FakeResponse:
                                 "homozygote_count": 75,
                             },
                             {
+                                "id": "nfe_XY",
+                                "ac": 9150,
+                                "an": 558378,
+                                "homozygote_count": 84,
+                            },
+                            {
                                 "id": "1kg:gbr",
                                 "ac": 4,
                                 "an": 174,
@@ -104,7 +122,14 @@ class _FakeResponse:
                         "an": 1428186,
                         "homozygote_count": 209,
                         "af": 0.015147886899885589,
-                        "populations": [],
+                        "populations": [
+                            {
+                                "id": "nfe",
+                                "ac": 18000,
+                                "an": 1050000,
+                                "homozygote_count": 150,
+                            },
+                        ],
                         "age_distribution": {
                             "het": {
                                 "bin_edges": [30, 35, 40],
@@ -126,7 +151,14 @@ class _FakeResponse:
                         "an": 152404,
                         "homozygote_count": 3,
                         "af": 0.012243772,
-                        "populations": [],
+                        "populations": [
+                            {
+                                "id": "nfe",
+                                "ac": 1432,
+                                "an": 114182,
+                                "homozygote_count": 9,
+                            },
+                        ],
                         "age_distribution": {
                             "het": {
                                 "bin_edges": [30, 35, 40],
@@ -253,8 +285,64 @@ def test_gnomad_live_summary_keeps_ancestry_and_age_distribution(monkeypatch, tm
             "allele_number": 1164182,
             "allele_frequency": 19432 / 1164182,
             "homozygote_count": 159,
+            "xx": {
+                "allele_count": 10282,
+                "allele_number": 605804,
+                "allele_frequency": 10282 / 605804,
+                "homozygote_count": 75,
+            },
+            "xy": {
+                "allele_count": 9150,
+                "allele_number": 558378,
+                "allele_frequency": 9150 / 558378,
+                "homozygote_count": 84,
+            },
+            "exome": {
+                "allele_count": 18000,
+                "allele_number": 1050000,
+                "allele_frequency": 18000 / 1050000,
+                "homozygote_count": 150,
+            },
+            "genome": {
+                "allele_count": 1432,
+                "allele_number": 114182,
+                "allele_frequency": 1432 / 114182,
+                "homozygote_count": 9,
+            },
         },
     ]
+    assert result.summary["overall"] == {
+        "total": {
+            "allele_count": 23500,
+            "allele_number": 1580590,
+            "allele_frequency": 23500 / 1580590,
+            "homozygote_count": 226,
+            "exome": {
+                "allele_count": 21634,
+                "allele_number": 1428186,
+                "allele_frequency": 0.015147886899885589,
+                "homozygote_count": 209,
+            },
+            "genome": {
+                "allele_count": 1866,
+                "allele_number": 152404,
+                "allele_frequency": 0.012243772,
+                "homozygote_count": 3,
+            },
+        },
+        "xx": {
+            "allele_count": 12400,
+            "allele_number": 790000,
+            "allele_frequency": 12400 / 790000,
+            "homozygote_count": 118,
+        },
+        "xy": {
+            "allele_count": 11100,
+            "allele_number": 790590,
+            "allele_frequency": 11100 / 790590,
+            "homozygote_count": 108,
+        },
+    }
     assert result.summary["age_distribution"]["het"]["bin_edges"] == [30, 35, 40]
     assert result.summary["age_distribution"]["het"]["bin_freq"] == [58, 79]
     assert [item["sequencing_type"] for item in result.summary["age_distributions"]] == [

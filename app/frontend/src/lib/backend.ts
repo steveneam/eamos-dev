@@ -901,6 +901,40 @@ export interface PopulationFrequencyVisualScale {
   warnings: string[]
 }
 
+export interface PopulationFrequencyDatasetCell {
+  allele_frequency?: number | null
+  allele_count?: number | null
+  allele_number?: number | null
+  homozygote_count?: number | null
+}
+
+// Per-group sex split (gnomAD XX/XY). Optional: present only once the backend
+// surfaces the sex-disaggregated populations (see Codex contract). Same metric
+// shape as the group's own Overall row.
+export interface PopulationFrequencySexCell {
+  allele_frequency?: number | null
+  allele_count?: number | null
+  allele_number?: number | null
+  homozygote_count?: number | null
+}
+
+export interface PopulationFrequencyOverallTotalCell {
+  allele_frequency?: number | null
+  allele_count?: number | null
+  allele_number?: number | null
+  homozygote_count?: number | null
+  exome?: PopulationFrequencyDatasetCell | null
+  genome?: PopulationFrequencyDatasetCell | null
+}
+
+// Whole-cohort aggregate (gnomAD's Total row + cohort-wide XX/XY), independent of
+// any single ancestry group. Optional until the backend surfaces it.
+export interface PopulationFrequencyOverall {
+  total?: PopulationFrequencyOverallTotalCell | null
+  xx?: PopulationFrequencySexCell | null
+  xy?: PopulationFrequencySexCell | null
+}
+
 export interface PopulationFrequencyVisualGroup {
   id: string
   label: string
@@ -911,6 +945,10 @@ export interface PopulationFrequencyVisualGroup {
   is_popmax: boolean
   data_state: 'observed' | 'zero_observed' | 'not_reported' | 'filtered'
   sort_order?: number | null
+  xx?: PopulationFrequencySexCell | null
+  xy?: PopulationFrequencySexCell | null
+  exome?: PopulationFrequencyDatasetCell | null
+  genome?: PopulationFrequencyDatasetCell | null
   warnings: string[]
 }
 
@@ -957,6 +995,7 @@ export interface PopulationFrequencyReportSection {
   sequencing_type: PopulationSequencingType
   visual_scale?: PopulationFrequencyVisualScale | null
   visual_groups: PopulationFrequencyVisualGroup[]
+  overall?: PopulationFrequencyOverall | null
   age_histograms: PopulationAgeHistogramView[]
   source_rows: PopulationFrequencySourceRow[]
   source_url?: string | null
