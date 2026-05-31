@@ -38,15 +38,16 @@ export interface GnomadAfBand {
   color: string
   /** Legend label. */
   label: string
-  /** ACMG benign criterion this cutoff anchors, if any. */
-  acmg: 'BA1' | 'BS1' | null
+  /** ACMG frequency criterion this cutoff anchors, if any (benign BA1/BS1 at the
+   *  common end; supporting-pathogenic PM2 at the rare end). */
+  acmg: 'BA1' | 'BS1' | 'PM2' | null
 }
 
 export const GNOMAD_AF_BANDS: readonly GnomadAfBand[] = [
   { id: 'common', min: 0.05, color: '#1aa06d', label: '≥ 5%', acmg: 'BA1' }, // full green
   { id: 'frequent', min: 0.01, color: '#93d6b3', label: '1–5%', acmg: 'BS1' }, // lighter mint — clear daylight from the full BA1 green
   { id: 'uncommon', min: 0.001, color: '#e0a23a', label: '0.1–1%', acmg: null }, // amber (~--warn, lifted for the dark map)
-  { id: 'rare', min: 0, color: '#dc5b4f', label: '< 0.1%', acmg: null }, // red (~--danger, lifted)
+  { id: 'rare', min: 0, color: '#dc5b4f', label: '< 0.1%', acmg: 'PM2' }, // red (~--danger, lifted); very-rare/absent leans pathogenic-supporting
 ] as const
 
 // ── Hover / active cross-highlight (D7) ─────────────────────────────────────
