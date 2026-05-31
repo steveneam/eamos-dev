@@ -229,3 +229,25 @@ def test_materialized_hg38_resolver_reads_private_runtime_asset(monkeypatch) -> 
     assert "object_path" not in context.source_metadata
     assert "path" not in context.source_metadata
     assert store.closed is True
+
+
+def test_materialized_hg38_resolver_fails_open_on_runtime_asset_path_error(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.sequence_context.resolve_hg38_materialized_runtime_asset",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(IndexError("shallow root")),
+    )
+    monkeypatch.setattr(
+        EnsemblVariantSequenceResolver,
+        "_variant_validator_summary",
+        lambda self, query: {"vcf": {"chr": "chr1", "pos": "10", "ref": "T", "alt": "C"}},
+    )
+    resolver = MaterializedHg38SequenceResolver(
+        _settings(use_real_apis=True),
+        materialization_store=object(),
+        flank_bp=2,
+    )
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+
+    assert resolver.resolve(query, "human") is None

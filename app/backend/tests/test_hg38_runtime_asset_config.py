@@ -20,6 +20,7 @@ from app.data_sources import (
     inspect_hg38_runtime_asset,
     resolve_hg38_materialized_runtime_asset,
 )
+from app.data_sources.runtime_assets import _resolve_materialization_path
 from app.services.reference_genome import ReferenceGenomeStore
 
 
@@ -269,6 +270,21 @@ def test_hg38_materialized_reader_filters_configured_object_uri(
             "environment": None,
         }
     ]
+
+
+def test_materialization_path_strips_app_backend_prefix_under_shallow_backend_root(
+    monkeypatch,
+) -> None:
+    shallow_root = Path("/app")
+    monkeypatch.setattr(Settings, "backend_root", property(lambda self: shallow_root))
+    settings = Settings(jwt_secret="test-secret")
+
+    resolved = _resolve_materialization_path(
+        settings,
+        "app/backend/data/bio_assets/genomes/hg38.2bit",
+    )
+
+    assert resolved == shallow_root / "data" / "bio_assets" / "genomes" / "hg38.2bit"
 
 
 def _tiny_registry(

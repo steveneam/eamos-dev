@@ -342,7 +342,7 @@ def _resolve_materialization_path(settings: Settings, value: str) -> Path:
         return path
     parts = tuple(path.parts)
     if len(parts) >= 2 and parts[:2] == ("app", "backend"):
-        return settings.backend_root.parents[1] / path
+        return settings.backend_root / Path(*parts[2:])
     return settings.backend_root / path
 
 

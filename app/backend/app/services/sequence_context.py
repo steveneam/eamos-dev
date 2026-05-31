@@ -495,7 +495,13 @@ class MaterializedHg38SequenceResolver:
                 close = getattr(reference_store, "close", None)
                 if callable(close):
                     close()
-        except (SourceAssetMaterializationError, ReferenceGenomeStoreError, OSError):
+        except (
+            SourceAssetMaterializationError,
+            ReferenceGenomeStoreError,
+            OSError,
+            IndexError,
+            ValueError,
+        ):
             return None
 
         return SequenceContext(
