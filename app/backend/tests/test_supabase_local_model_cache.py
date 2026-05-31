@@ -12,6 +12,7 @@ from app.repos.supabase_local_model_cache_repo import (
     HybridSourceCacheRepo,
     HybridVariantCacheRepo,
     LocalModelCacheEntry,
+    SqlAlchemySupabaseLocalModelCacheStore,
     SupabaseLocalModelCacheError,
     SupabaseProteinAnnotationCacheRepo,
     SupabaseSourceCacheRepo,
@@ -85,6 +86,22 @@ def _session_factory(tmp_path: Path):
     )
     initialize_database(session_factory)
     return session_factory
+
+
+def test_source_asset_materialization_query_casts_nullable_text_filters() -> None:
+    store = SqlAlchemySupabaseLocalModelCacheStore(lambda: None)
+
+    statement_text = str(store._source_asset_materialization_select_statement())
+
+    assert "cast(:bucket_id as text) is null" in statement_text
+    assert "o.bucket_id = cast(:bucket_id as text)" in statement_text
+    assert "cast(:object_path as text) is null" in statement_text
+    assert "o.object_path = cast(:object_path as text)" in statement_text
+    assert "cast(:environment as text) is null" in statement_text
+    assert "m.environment = cast(:environment as text)" in statement_text
+    assert ":bucket_id is null" not in statement_text
+    assert ":object_path is null" not in statement_text
+    assert ":environment is null" not in statement_text
 
 
 def test_variant_cache_reads_supabase_dev_cache_on_local_miss(tmp_path: Path) -> None:

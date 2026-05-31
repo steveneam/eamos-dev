@@ -1051,40 +1051,7 @@ class SqlAlchemySupabaseLocalModelCacheStore:
         object_path: str | None = None,
         environment: str | None = None,
     ) -> SourceAssetMaterializationRecord | None:
-        statement = text(f"""
-            select
-                o.source_id,
-                o.asset_role,
-                o.bucket_id,
-                o.object_path,
-                o.upload_status,
-                o.approval_status,
-                o.public_access_allowed,
-                o.frontend_direct_access_allowed,
-                m.environment,
-                m.backend_runtime,
-                m.local_cache_path,
-                m.materialization_status,
-                m.byte_size,
-                m.checksum_algorithm,
-                m.checksum_value,
-                m.verified_at,
-                m.fail_closed_reason,
-                m.metadata,
-                m.warnings
-            from {self.source_asset_objects_table} as o
-            join {self.source_asset_materializations_table} as m
-              on m.source_asset_object_id = o.source_asset_object_id
-            where o.source_id = :source_id
-              and o.asset_role = :asset_role
-              and (:bucket_id is null or o.bucket_id = :bucket_id)
-              and (:object_path is null or o.object_path = :object_path)
-              and (:environment is null or m.environment = :environment)
-            order by
-                case when m.materialization_status = 'ready' then 0 else 1 end,
-                m.updated_at desc
-            limit 1
-            """)
+        statement = self._source_asset_materialization_select_statement()
         try:
             with session_scope(self.session_factory) as session:
                 row = (
@@ -1128,6 +1095,48 @@ class SqlAlchemySupabaseLocalModelCacheStore:
             metadata=dict(row["metadata"] or {}),
             warnings=list(row["warnings"] or []),
         )
+
+    def _source_asset_materialization_select_statement(self):
+        return text(f"""
+            select
+                o.source_id,
+                o.asset_role,
+                o.bucket_id,
+                o.object_path,
+                o.upload_status,
+                o.approval_status,
+                o.public_access_allowed,
+                o.frontend_direct_access_allowed,
+                m.environment,
+                m.backend_runtime,
+                m.local_cache_path,
+                m.materialization_status,
+                m.byte_size,
+                m.checksum_algorithm,
+                m.checksum_value,
+                m.verified_at,
+                m.fail_closed_reason,
+                m.metadata,
+                m.warnings
+            from {self.source_asset_objects_table} as o
+            join {self.source_asset_materializations_table} as m
+              on m.source_asset_object_id = o.source_asset_object_id
+            where o.source_id = :source_id
+              and o.asset_role = :asset_role
+              and (cast(:bucket_id as text) is null or o.bucket_id = cast(:bucket_id as text))
+              and (
+                cast(:object_path as text) is null
+                or o.object_path = cast(:object_path as text)
+              )
+              and (
+                cast(:environment as text) is null
+                or m.environment = cast(:environment as text)
+              )
+            order by
+                case when m.materialization_status = 'ready' then 0 else 1 end,
+                m.updated_at desc
+            limit 1
+            """)
 
     def record_job(
         self,
