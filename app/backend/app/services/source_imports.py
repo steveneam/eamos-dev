@@ -587,10 +587,10 @@ def _storage_checksum(record: DataSourceRecord) -> tuple[str, str | None]:
 
 
 def _storage_source_release(record: DataSourceRecord) -> str:
-    if record.source_version:
-        return record.source_version
     if record.source_id == "ucsc_hg38_2bit":
         return "hg38"
+    if record.source_version:
+        return record.source_version
     return "unversioned"
 
 

@@ -151,9 +151,37 @@ repo relocated 2026-05-28 to `D:\` to avoid working off failing media. `E:\`
 retained as cold backup until both agents verified on `D:\` across at least
 one full session.
 
+## Private Source Storage Upload Limits
+
+Section edited: 2026-06-01 01:31 +1000 - Codex.
+
+The prior source Storage blockers are resolved for the staged dbSNP/phyloP
+objects: Steven raised the Supabase project/global and private bucket limits to
+50 GiB, configured local server-side S3 credentials, and explicitly approved
+uploads. Codex uploaded dbSNP and phyloP through backend-owned S3 multipart
+tooling and verified remote sizes match local sizes.
+
+Current guardrails:
+
+- Keep `eamos-source-assets` private. Do not use a public genomic/protein
+  bucket, signed frontend raw-source URLs, direct frontend Storage reads, or
+  browser-role grants for genomic/protein source assets.
+- Local S3 credentials are server-side only and must remain in ignored `.env`
+  or deployment secrets, never committed or emitted in logs/docs.
+- Large source uploads should use the hardened S3 multipart path, not ordinary
+  browser-style upload: path-style addressing, long connect/read timeouts,
+  retries, TCP keepalive, and large multipart chunks. The current implementation
+  uses 120s connect timeout, 300s read timeout, 10 retry attempts, 128 MiB
+  chunks, and concurrency 3.
+- Supabase `ListMultipartUploads` still reports stale upload IDs from failed
+  attempts, but `AbortMultipartUpload` returns "The specified upload does not
+  exist." Completed objects are size-matched and visible. Treat those stale IDs
+  as non-actionable Supabase listing residue unless they persist beyond the
+  provider cleanup window or block future operations.
+
 ## WSL / Linux RAM Guardrail
 
-Section edited: 2026-05-28 23:02 +1000 - Codex.
+Section edited: 2026-05-31 19:49 +1000 - Codex.
 
 The post-move WSL `/mnt/d` proof path triggered a host crash when `vmmemWSL`
 consumed available RAM. Do not launch WSL/Linux for routine Eamos work.
@@ -161,6 +189,10 @@ Windows-native checks are the default. If WSL-native proof work is explicitly
 approved later, first confirm `%USERPROFILE%\.wslconfig` still caps WSL2 at
 `memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`; shut
 WSL down immediately after the run.
+
+Codex used this guarded path on 2026-05-31 for the dbSNP/ClinVar/phyloP native
+reader proof after Steven's explicit approval. The cap was confirmed first, the
+proof completed, and `wsl.exe --shutdown` was run afterward.
 
 ## Gated Work
 

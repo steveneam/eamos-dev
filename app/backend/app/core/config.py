@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     supabase_rest_timeout_seconds: float = 10.0
+    supabase_storage_s3_endpoint_url: str | None = None
+    supabase_storage_s3_region: str | None = None
+    supabase_storage_s3_access_key_id: str | None = None
+    supabase_storage_s3_secret_access_key: str | None = None
     supabase_local_model_cache_enabled: bool = False
     supabase_local_model_cache_database_url: str | None = None
     supabase_local_model_cache_schema: str = "eamos_private"

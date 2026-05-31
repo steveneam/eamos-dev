@@ -36,13 +36,21 @@
 The site can move to full live data in staged backend-owned phases, not by
 opening every source at once.
 
-Current status (2026-05-31): phase 1 is underway. The dev Supabase project has
-private `eamos_private` cache/source/job tables, RLS, service-role-only DML,
-advisor checks, and backend hybrid cache wrappers for variant reports, source
-cache, and protein annotation. The code still must be committed/pushed and the
-Render backend must be redeployed with a real private Supabase Postgres DB URL
-before the landing examples or web searches can get faster from the shared
-cache.
+Current status (2026-06-01): phases 1-3 are partially implemented in the local
+backend tree and dev Supabase, and the post-reference source reader-proof gate
+is now closed locally. The dev Supabase project has private `eamos_private`
+cache/source/job tables, RLS, service-role-only DML, advisor checks, and
+backend hybrid cache wrappers for variant reports, source cache, and protein
+annotation. Approved Tier 1/2/3 source downloads are locally staged, static
+source readiness is `10/10`, and capped Linux native proof returned `10 proven /
+0 native pending` for dbSNP, ClinVar, RepeatMasker, phyloP, hg38, MANE,
+GENCODE, MONDO, HPO, ClinGen, and GenCC. The private source bucket now contains
+the large dbSNP and phyloP source assets plus checksum manifests, uploaded via
+hardened backend S3 multipart tooling after the 50 GiB Storage limit increase;
+remote sizes match local staged files. The code still must be
+committed/pushed and the Render backend must be redeployed with coordinated
+private Supabase/Postgres and source-asset runtime materialization before web
+searches can use the shared cache and local source reads.
 
 1. **Supabase perimeter first:** private source metadata/status/cache schemas,
    RLS enabled, no broad anon/authenticated grants, server-only credentials,

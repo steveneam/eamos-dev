@@ -31,16 +31,21 @@ def test_default_registry_exposes_expected_priority_sources() -> None:
         "object_storage_local_cache",
         "mounted_volume",
     )
-    assert hg38.download_approved is False
+    assert hg38.download_approved is True
 
     dbsnp = registry.get("ncbi_dbsnp_gcf_000001405_40")
     assert dbsnp.day1_status == "active_day1"
-    assert dbsnp.download_approved is False
+    assert dbsnp.download_approved is True
     assert dbsnp.temporary_staging == "stage_on_C_drive"
+    assert dbsnp.reader_compatibility_proofed is True
+
+    clinvar = registry.get("ncbi_clinvar_vcf")
+    assert clinvar.reader_compatibility_proofed is True
 
     phylop = registry.get("ucsc_phylop100way_hg38")
     assert phylop.expected_size == "9.2 GB in UCSC phyloP100way listing"
     assert phylop.temporary_staging == "stage_on_C_drive"
+    assert phylop.reader_compatibility_proofed is True
 
 
 def test_default_registry_contains_reviewed_seed_rows() -> None:

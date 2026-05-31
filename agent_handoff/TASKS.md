@@ -29,7 +29,116 @@ Section edited: 2026-05-18 12:06 +1000 · Codex.
 | M-002 real engines | Direct Codex | M-002A/B/C + optional local isPcr specificity + M-002D local deterministic CRISPR DONE 2026-05-17; M-002I planned/gated | Sequence context boundary, Workbench service extraction, real Primer3 primer provider, exact resolved-template specificity screen, opt-in local UCSC `isPcr` whole-genome specificity provider, and backend-only local deterministic SpCas9 CRISPR provider are implemented and backend-verified. M-002I post-CRISPR TIDE analytics, DeepHF weights, genome-wide Bowtie/BWA off-targets, raw sequence/genomic-region fields, and persistence remain separate approvals. |
 | Gene viewer real-data contract | Direct Codex first, Claude for frontend integration | Planned/gated | Draft design/spec/plan live in `plans/gene-viewer/`. Goal: backend-owned, gene-agnostic viewer payload with reference/control vs variant-applied mode; RPE65 is the first live acceptance example, not a hard-coded service assumption. Implementation waits for user approval. |
 | Backend/API/pipeline task | Direct Codex | Available when scoped | Direct Codex now has verified access and can own meaningful backend work. |
+| gnomAD population-frequency backend (CAR — Claude→Codex 2026-05-31 18:18 +1000) | Direct Codex | BACKEND DONE 2026-05-31; Claude FE migration DONE 2026-05-31 23:14; ready for Steven's commit gate | Codex delivered items 1/2 plus item 4/5 alignment backend-side, then item 3 after Claude finalized field names: per-group XX/XY, cohort overall total/XX/XY, optional per-group `exome`/`genome`, optional `overall.total.exome`/`.genome`, schema/report builder, RPE65 fixture, tests, and both `backend.ts` mirrors. Parallel-safe boundary remains: Codex owns `app/backend/**`; Claude owns `app/web/**`. |
+| Source asset private Storage upload | Direct Codex | DONE 2026-06-01; commit pending | Steven raised the Supabase project/global and private bucket limits to 50 GiB and configured local S3 credentials. Codex added hardened S3 multipart upload tooling, uploaded dbSNP and phyloP assets plus manifests to private `eamos-source-assets`, and verified remote sizes match local files. Next safe step is commit of the held source/download/storage backend work plus docs; later runtime materialization/Render wiring remains separate. |
 | Cross-agent review | Opposite of implementer | Available when useful | One agent implements; the other reviews for regressions, missing tests, and contract drift. |
+
+## gnomAD PopFreq — Codex Action Required (Claude→Codex, 2026-05-31 18:18 +1000)
+
+The `/report` gnomAD PopulationFrequencySection FE redesign is complete and UNCOMMITTED
+(Claude owns `app/web/**`). It is built + seeded against data the backend doesn't expose
+yet. FE contract types for 1–2 are already in `app/web/lib/backend.ts` — MATCH names in
+`app/backend/app/schemas/run.py`. Full detail in Claude's `~/.claude/plans/next-session-eamos.md`
+("BACKEND / CODEX COORDINATION"). Parallel-safe (disjoint: backend vs `app/web`).
+
+1. **Per-group XX/XY.** `PopulationFrequencySexCell {allele_frequency, allele_count,
+   allele_number, homozygote_count}`; `PopulationFrequencyVisualGroup.xx?/.xy?`. `gnomad.py`:
+   XX/XY are already in the GraphQL `populations` array (ids `XX`,`XY`,`afr_XX`…) but dropped
+   by `CORE_GENETIC_ANCESTRY_GROUPS` (`_genetic_ancestry_groups`, ~line 140). Parse
+   `<grp>_XX`/`<grp>_XY` → `group.xx/xy`. Do NOT add XX/XY rows to `visual_groups` (drives the
+   map). Add XX/XY to `fixtures/tools/gnomad_fixtures.json`.
+2. **Cohort overall.** `PopulationFrequencyReportSection.overall? : {total?, xx?, xy?}`
+   (`PopulationFrequencyOverall`). Parse cohort `XX`/`XY` + top-level ac/an/af/homozygote_count.
+3. **Exome/Genome "Include" checkboxes on the group-frequency table/map** (gnomAD-style). FE
+   not built yet; backend-gated. Stop collapsing via `_select_sequencing_type`; expose per-group
+   exome AND genome cells separately `{af,ac,an,hom}` + per-dataset cohort totals. Claude will
+   finalize the FE contract names before wiring.
+4. **Age distribution — carriers, both tracks.** FE renders 4 charts (exome/genome × variant
+   carriers/all individuals). Confirm `gnomad.py` fills `detail.age_distributions` with BOTH
+   exome AND genome carrier histograms (all-individuals already via
+   `GNOMAD_V4_ALL_INDIVIDUAL_AGE_DISTRIBUTIONS`); FE degrades to "not reported" per missing track.
+5. **Warning-key alignment (minor).** FE has plain-language copy for the real keys
+   (`allele_number_unavailable`, `genetic_ancestry_groups_unavailable`,
+   `age_distribution_unavailable`, `age_distribution_scope:*`,
+   `per_genetic_ancestry_age_distribution_not_available`, `allele_frequency_unavailable`,
+   `population_frequency_detail_unavailable`) PLUS a seeded-only `low_allele_number_cohorts`
+   (NOT emitted today — emit that exact key if you want a low-AN note). Unmapped keys fall back
+   to prettified text.
+6. **(Parked follow-up) Gene-specific BS1/PM2 thresholds (FAF95)** — Franklin-style per-gene
+   thresholds vs the current fixed bands (5/1/0.1%). Steven chose "plan as follow-up." Not now.
+
+Ping field names; Claude re-verifies the FE renders. (Heads-up: Claude's heartbeat in
+`CURRENT.md ## Active Status` is stale at the `47d78c2` T1–T4 anchor — current state is this
+PopFreq redesign, FE-complete/uncommitted, next = `/impeccable` on the world map.)
+
+Codex update 2026-05-31 19:49 +1000: backend delivered items 1 and 2, verified
+item 4 remains populated for both exome/genome carrier tracks where source data
+exists, aligned warning keys without adding a low-AN emission, and mirrored the
+additive TypeScript contract in `app/frontend/src/lib/backend.ts`. Item 3 is
+not implemented because Claude explicitly deferred final field names for the
+exome/genome include-checkbox contract; item 6 remains a parked follow-up.
+
+Claude update 2026-05-31 22:08 +1000 — CAR item 3 field names FINALIZED (ready for Codex).
+Steven's commit is HELD at the gate until item 3 lands, so the whole gnomAD PopFreq contract
+(backend schema + BOTH `backend.ts` mirrors + FE) ships as ONE coordinated commit. The FE
+(`PopulationFrequencySection.tsx`) is already built for item 3 but uses LOCAL types; it
+migrates to the shared contract once Codex lands the names below.
+
+Contract (additive, all optional; backend-led — Codex authors into `schemas/run.py` + BOTH
+`backend.ts` mirrors, kept byte-identical):
+- New cell type, reusing the existing 4-field shape (same as `PopulationFrequencySexCell`):
+  `PopulationFrequencyDatasetCell { allele_frequency, allele_count, allele_number,
+  homozygote_count }`.
+- Per group — `PopulationFrequencyVisualGroup` gains optional `exome?` and `genome?` (each a
+  `PopulationFrequencyDatasetCell`). The EXISTING flat group fields (af/ac/an/hom) STAY =
+  joint (exome+genome combined). Do NOT add exome/genome rows to `visual_groups`.
+- Cohort overall — `PopulationFrequencyOverall.total` gains optional `exome?` / `genome?`
+  (same cell shape). `total` flat fields STAY = joint.
+- NOT in scope: per-dataset XX/XY sex split (separate follow-up — inspector XX/XY stay joint).
+
+Backend (`gnomad.py`): stop collapsing to one sequencing type via `_select_sequencing_type`
+for these cells — emit per-group exome AND genome cells separately + per-dataset cohort
+totals; keep the flat fields = joint. Add exome/genome cells to the RPE65 entry in
+`fixtures/tools/gnomad_fixtures.json` so offline/demo renders. Update `test_gnomad_tool.py`
+and `test_frontend_contract.py`.
+
+FE consumer behavior (so the contract matches): "Include ☐ Exomes ☐ Genomes" — both on →
+joint (flat); only exome → `group.exome` (fall back to flat if absent); only genome →
+`group.genome`; at least one always on.
+
+Lane/guardrails: Codex owns `app/backend/**` + BOTH `backend.ts` mirrors (keep
+`test_frontend_backend_ts_mirrors_are_byte_identical` green). Do NOT touch
+`app/web/components/**` or any `app/web/**` renderer (Claude's). Additive only; don't regress
+items 1/2/4/5. No commit/push (Steven's gate). Verify: focused gnomAD/contract pytest + full
+backend pytest, Ruff, Black, both `tsc --noEmit` (app/web + app/frontend), the mirror
+byte-identical test, and `git diff --check`. Ping the field names as implemented → Claude
+migrates the FE off LOCAL types and re-verifies the render at `/pf-preview`.
+
+Codex update 2026-05-31 22:32 +1000: item 3 is implemented and verified.
+Field names shipped exactly as requested: `PopulationFrequencyDatasetCell`,
+`PopulationFrequencyVisualGroup.exome`, `PopulationFrequencyVisualGroup.genome`,
+`PopulationFrequencyOverall.total.exome`, and
+`PopulationFrequencyOverall.total.genome`. Flat group and cohort-total fields
+remain joint, and no exome/genome rows were added to `visual_groups`. Existing
+XX/XY inspector cells remain joint-only; per-dataset XX/XY was not added.
+Live PopFreq values are sourced by backend gnomAD GraphQL, not MyVariant.
+Verification passed: focused gnomAD/report/contract pytest, full backend
+pytest, Ruff, Black, `app/web` and `app/frontend` `tsc --noEmit`, byte-identical
+backend.ts mirror check, and `git diff --check`.
+
+Claude update 2026-05-31 23:17 +1000 - FE item-3 MIGRATION DONE + polish.
+`PopulationFrequencySection.tsx` now consumes the shared contract
+(`PopulationFrequencyDatasetCell`; `selectDatasetCell` base =
+`PopulationFrequencyOverallTotalCell`; group/total `.exome`/`.genome`), local
+item-3 types removed. Exome/Genome Include toggle verified recomputing distinctly
+across joint/exome/genome at `/pf-preview`. Plus 3 Steven-approved polish items:
+(1) numerals switched to Inter + `tabular-nums`, mono reserved for codes/IDs only
+(fixes dotted-"0"-reads-as-"8"); (2) duplicate cohort Total/XX/XY box removed from
+the World-map tab footer (kept on Ancestry; non-geographic cohorts stay on the
+map); (3) World-map deselect by clicking ocean/base-land OR anywhere outside the
+component. `app/web` `tsc` 0, `lint` 8-baseline; all 3 tabs reverified in-browser.
+FE-only; no backend/mirror files touched. Whole PopFreq set ready for Steven's ONE
+coordinated commit (DELETE `app/web/app/pf-preview/` first).
 
 ## Parallel Work Rule
 
@@ -41,6 +150,3 @@ Examples:
   `app/backend/app/tools/**` and backend tests.
 - Risky: both agents editing `app/frontend/src/lib/backend.ts`,
   `plans/v2-frontend.md`, or shared docs at the same time.
-
-
-

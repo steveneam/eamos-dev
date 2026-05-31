@@ -24,6 +24,46 @@
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
 Recent backend status notes (2026-05-31, Codex):
+- SOURCE-ASSET-PRIVATE-STORAGE-UPLOAD is implemented and verified locally
+  (2026-06-01, Codex + Steven). Steven raised the Supabase project/global and
+  private `eamos-source-assets` bucket limits to 50 GiB and configured local
+  server-side S3 credentials. Codex added explicit S3 multipart upload mode to
+  the guarded source uploader, kept dry-run planning as the default, added
+  backend S3 env config placeholders, aligned the object-size guard to
+  `53687091200` bytes, and hardened the transfer path for the local network:
+  path-style addressing, 120s connect timeout, 300s read timeout, 10 retry
+  attempts, TCP keepalive, 128 MiB multipart chunks, and concurrency 3. Live
+  private Storage uploads completed for dbSNP (`GCF_000001405.40.gz`
+  `29,552,227,779` bytes plus `.tbi`/`.md5` and manifests) and phyloP
+  (`hg38.phyloP100way.bw` `9,870,053,206` bytes plus `md5sum.txt` and
+  manifests). Read-only S3 `HeadObject` verification confirmed every uploaded
+  remote size matches the local staged file. The bucket remains private; no
+  signed raw-source URL, public object, frontend direct access, browser-role
+  grant, Render/Vercel mutation, restricted predictor unlock, or push was
+  performed. Stale multipart upload IDs from failed first attempts still list,
+  but `AbortMultipartUpload` reports they do not exist; the uploader does not
+  store or resume upload IDs.
+- SOURCE-NATIVE-READER-PROOF-AND-GNOMAD-POPFREQ-CAR is implemented and
+  verified locally (2026-05-31, Codex). The remaining native source reader
+  blockers were closed in capped `Ubuntu-24.04` WSL using the existing
+  `/root/eamos-native-proof` environment (`pysam 0.24.0`, `pyBigWig 0.3.25`);
+  WSL was shut down after the run. The proof harness now requires real bounded
+  native reads for indexed VCF and bigWig assets, and the Linux proof returned
+  `10 proven / 0 native pending / 0 missing / 0 partial / 0 failed`. dbSNP
+  returned rs1570391677 at `NC_000001.11:10001`, ClinVar returned variation
+  `3385321` at chr1:66926, and phyloP returned a finite chr1 score. Static
+  source readiness is now `10/10`; Windows preflight remains expected to report
+  native pending unless run with Linux `pysam`/`pyBigWig`. Supabase Storage was
+  checked but not mutated: bucket `eamos-source-assets` remains private with a
+  1 GiB limit, two current objects, no security-advisor lints, and unchanged
+  large-object upload blockers for dbSNP and phyloP. Claude's gnomAD PopFreq
+  backend CAR items 1, 2, 3, and 4/5 alignment are delivered backend-side:
+  per-ancestry XX/XY cells, cohort overall total/XX/XY, additive exome/genome
+  dataset cells for per-group and cohort-total include checkboxes,
+  schemas/report builder, RPE65 fixture, tests, and both `backend.ts` mirrors.
+  For item 3, flat group and cohort-total fields stay joint; optional
+  `exome`/`genome` cells carry per-dataset values. Live PopFreq metrics are
+  sourced by backend gnomAD GraphQL, not MyVariant.
 - PFAM-PRIVATE-STORAGE-MATERIALIZATION-CLI is implemented and verified
   locally (2026-05-31, Codex). The existing private Supabase bucket
   `eamos-source-assets` now contains the verified Pfam gz bundle

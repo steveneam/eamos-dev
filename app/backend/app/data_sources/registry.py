@@ -61,6 +61,8 @@ class DataSourceRecord:
     terms_status: str | None = None
     runtime_delivery_modes: tuple[str, ...] = ()
     reader_requires_local_path: bool = False
+    storage_policy_reviewed: bool = False
+    reader_compatibility_proofed: bool = False
     notes: str | None = None
 
     @classmethod
@@ -113,6 +115,13 @@ class DataSourceRecord:
             runtime_delivery_modes=_as_optional_string_tuple(raw.get("runtime_delivery_modes")),
             reader_requires_local_path=_require_bool(
                 raw.get("reader_requires_local_path", False), "reader_requires_local_path"
+            ),
+            storage_policy_reviewed=_require_bool(
+                raw.get("storage_policy_reviewed", False), "storage_policy_reviewed"
+            ),
+            reader_compatibility_proofed=_require_bool(
+                raw.get("reader_compatibility_proofed", False),
+                "reader_compatibility_proofed",
             ),
             notes=_optional_string(raw.get("notes")),
         )
@@ -257,8 +266,6 @@ class DataSourceRegistry:
         dbsnp = by_id.get("ncbi_dbsnp_gcf_000001405_40")
         if dbsnp is None:
             errors.append("ncbi_dbsnp_gcf_000001405_40 must be present")
-        elif dbsnp.download_approved:
-            errors.append("ncbi_dbsnp_gcf_000001405_40 must not be download-approved")
 
         missing_restricted = sorted(RESTRICTED_PREDICTOR_SOURCE_IDS - by_id.keys())
         if missing_restricted:
@@ -365,23 +372,31 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_storage_after_review",
         temporary_staging="not_expected",
         adapter="twobitreader_or_py2bit_after_compatibility_proof",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("reference_sequence_windows",),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="static_asset_with_manifest_checksum",
-        download_approved=False,
+        download_approved=True,
         actual_size_bytes_local=835393456,
         current_local_path="app/backend/data/bio_assets/genomes/hg38.2bit",
         current_local_md5="dcc3ea27079aa6dc3f9deccd7275e0f8",
+        source_version="UCSC hg38.2bit initial GRCh38 release / GCA_000001405.15",
+        terms_url="https://genome.ucsc.edu/license/",
+        terms_status=(
+            "Reviewed 2026-05-31: UCSC raw binary data are freely available "
+            "for public and commercial use with UCSC citation/credit and "
+            "source/version notices."
+        ),
         runtime_delivery_modes=(
             "local_path",
             "object_storage_local_cache",
             "mounted_volume",
         ),
         reader_requires_local_path=True,
+        storage_policy_reviewed=True,
         notes=(
             "Runtime readers require a local filesystem path. Hosted deployments "
             "should use object storage plus checksum-validated local cache, or a "
@@ -402,7 +417,7 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_storage_after_review",
         temporary_staging="stage_on_C_drive",
         adapter="pysam_tabix_after_compatibility_proof",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=(
             "rsid",
@@ -416,14 +431,20 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         checksum_required=True,
         source_version_required=True,
         cache_policy="local_identity_store_plus_source_cache",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="dbSNP latest_release GRCh38 GCF_000001405.40",
         checksum_plan=(
             "Use NCBI CHECKSUMS plus GCF_000001405.40.gz.md5 and "
             "GCF_000001405.40.gz.tbi.md5 before any approved download."
         ),
         terms_url="https://www.ncbi.nlm.nih.gov/home/about/policies/",
-        terms_status="NCBI data-usage policy URL recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: NCBI places no restrictions on use or "
+            "distribution of molecular data it provides, with standard "
+            "third-party-rights caveats, attribution, and disclaimer display."
+        ),
         notes=(
             "Day 1 large asset. Preserve upstream GCF_000001405.40 naming even "
             "if a local alias later adds a .vcf.gz suffix."
@@ -443,7 +464,7 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_storage_after_review",
         temporary_staging="not_expected",
         adapter="pysam_tabix_after_compatibility_proof",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=(
             "variation_id",
@@ -456,14 +477,20 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         checksum_required=True,
         source_version_required=True,
         cache_policy="local_variant_classification_store_plus_source_cache",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523",
         checksum_plan=(
             "Use upstream clinvar.vcf.gz.md5; record index size/checksum and "
             "VCF header fileDate during approved staging."
         ),
         terms_url="https://www.ncbi.nlm.nih.gov/clinvar/docs/maintenance_use/",
-        terms_status="ClinVar disclaimer/attribution policy recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: ClinVar is a freely accessible public NCBI "
+            "archive; use requires source/submission attribution, release "
+            "labeling, and medical-use disclaimers."
+        ),
     ),
     DataSourceRecord(
         source_id="repeatmasker_rmsk_bb",
@@ -479,21 +506,27 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_storage_after_review",
         temporary_staging="not_expected",
         adapter="bigbed_reader_or_conversion_path_after_proof",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("repeat_overlap", "repeat_family", "design_warning"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="static_indexed_asset",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="UCSC hg38 rmsk table dump 2022-10-18",
         checksum_plan=(
             "No verified UCSC per-table md5 sidecar found for rmsk.txt.gz; "
             "record downloaded source SHA256 and derived rmsk.bb SHA256 in manifest."
         ),
         terms_url="https://genome.ucsc.edu/FAQ/FAQdownloads.html",
-        terms_status="UCSC download guidance recorded; RepeatMasker/library terms still require review",
+        terms_status=(
+            "Reviewed 2026-05-31: UCSC raw table data are freely available "
+            "for public and commercial use with citation/credit; preserve "
+            "RepeatMasker/RepBase provenance."
+        ),
     ),
     DataSourceRecord(
         source_id="ucsc_phylop100way_hg38",
@@ -509,18 +542,24 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_storage_after_review",
         temporary_staging="stage_on_C_drive",
         adapter="pyBigWig_after_compatibility_proof",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("conservation_score",),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="static_indexed_asset_plus_small_window_cache",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="UCSC hg38 100-way phyloP bigWig 2015-05-08",
         checksum_plan="Use UCSC md5sum.txt plus manifest SHA256/size before any approved download.",
         terms_url="https://genome.ucsc.edu/goldenPath/credits.html",
-        terms_status="UCSC public-use note recorded; underlying assembly restrictions still require review",
+        terms_status=(
+            "Reviewed 2026-05-31: UCSC phyloP100way files are available for "
+            "public use and UCSC data terms allow commercial use with citation, "
+            "credits, and derived-genome provenance."
+        ),
         notes=(
             "Listed size is below the original 10 GB automatic C-drive rule, "
             "but user directed phyloP to C-drive staging with dbSNP/GCF on "
@@ -649,21 +688,27 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="render_repo_candidate_after_review",
         temporary_staging="not_expected",
         adapter="transcript_model_parser",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("mane_select_transcripts", "gene_transcript_mapping", "exon_cds_model"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="static_repo_asset_or_object_asset_manifest",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version=("MANE v1.4; RefSeq GCF_000001405.40-RS_2024_08; Ensembl release 114"),
         checksum_plan=(
             "Record upstream FTP size/date plus manifest SHA256; use an upstream "
             "checksum sidecar if present during approved staging."
         ),
         terms_url="https://www.ncbi.nlm.nih.gov/refseq/MANE/",
-        terms_status="NCBI MANE access page recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: MANE bulk FTP use appears allowed under "
+            "NCBI molecular-data policy; retain NCBI/EMBL-EBI attribution, "
+            "release identity, retrieval date, and disclaimer."
+        ),
         notes=(
             "Official v1.4 GTF observed as ensembl_genomic; select rows must be "
             "extracted by MANE Select tags rather than assuming a separate "
@@ -687,21 +732,27 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="render_repo_candidate_after_review",
         temporary_staging="not_expected",
         adapter="transcript_model_parser",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("gene_transcript_mapping", "exon_cds_model"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="static_repo_asset_or_object_asset_manifest",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="GENCODE v45; GRCh38.p14; Ensembl release 111; released 2024-01",
         checksum_plan=(
             "Use GENCODE/EBI FTP checksum metadata if present plus manifest "
             "SHA256/size before approved staging."
         ),
         terms_url="https://www.ebi.ac.uk/about/terms-of-use/",
-        terms_status="EMBL-EBI terms recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: GENCODE data are open access and EMBL-EBI "
+            "adds no extra redistribution restrictions beyond original-owner "
+            "terms; retain attribution and exact release metadata."
+        ),
     ),
     DataSourceRecord(
         source_id="intervar_pipeline_config",
@@ -921,21 +972,27 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="disease_ontology_table",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("disease_ids", "disease_names", "cross_references"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="Mondo stable release; latest observed release 2026-05-05",
         checksum_plan=(
             "Record release version IRI and local SHA256/size for mondo.json; "
             "record derived TSV checksum if generated."
         ),
         terms_url="https://mondo.monarchinitiative.org/pages/download/",
-        terms_status="Mondo CC BY 4.0 download terms recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: Mondo is CC BY 4.0; commercial use and "
+            "redistribution are allowed with attribution, license link, "
+            "change notices, and release/version display."
+        ),
         notes=(
             "DOCX label says OMIM and Orphanet combined, but listed files are "
             "Mondo. Do not import OMIM-derived files without separate review."
@@ -948,6 +1005,7 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         tier="tier_3_supabase_postgres_table",
         day1_status="active_day1",
         files_or_api=(
+            "hp.json",
             "phenotype.hpoa",
             "genes_to_phenotype.txt",
             "phenotype_to_genes.txt",
@@ -960,21 +1018,28 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="phenotype_annotation_table",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("phenotype_ids", "phenotype_terms", "gene_or_disease_links"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="HPO release 2026-02-16 observed; record annotation file headers at import",
         checksum_plan=(
             "Use GitHub release SHA256 assets where available; otherwise record "
-            "local SHA256/size for approved HPO annotation files before import."
+            "local SHA256/size for approved HPO ontology and annotation files "
+            "before import."
         ),
         terms_url="https://human-phenotype-ontology.github.io/license.html",
-        terms_status="HPO license/acknowledgement/version-display terms recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: HPO files are freely available with required "
+            "HPO acknowledgement/citation and file date/version display; do "
+            "not alter HPO meanings in transformed tables."
+        ),
         notes=(
             "The draft hp.gpad path was not verified at the expected OBO PURL; "
             "start from the official HPO annotation files documented by HPO."
@@ -988,24 +1053,30 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         day1_status="active_day1",
         files_or_api=("clingen_gene_validity.csv",),
         upstream_source="ClinGen",
-        source_url="https://search.clinicalgenome.org/kb/downloads",
+        source_url="https://search.clinicalgenome.org/kb/gene-validity/download",
         source_url_status="verified_official_download_page_2026_05_27",
         expected_size="real-time generated CSV; exact size recorded at import approval",
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="gene_disease_validity_table",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("gene", "disease", "validity_classification", "source_date"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="ClinGen Gene-Disease Validity real-time CSV export",
         checksum_plan="Record export timestamp, source URL, local SHA256, and row count before import.",
         terms_url="https://clinicalgenome.org/docs/terms-of-use/",
-        terms_status="ClinGen download/medical disclaimer terms recorded; backend approval still required",
+        terms_status=(
+            "Reviewed 2026-05-31: ClinGen curated content is available under "
+            "CC0 with requested attribution/date accessed and medical-use "
+            "disclaimer display."
+        ),
     ),
     DataSourceRecord(
         source_id="gencc_download",
@@ -1021,18 +1092,24 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         storage_target="supabase_postgres_after_review",
         temporary_staging="not_expected",
         adapter="gene_disease_assertion_table",
-        license_status=LicenseStatus.PENDING_TERMS_RECORD,
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
         allowed_product_tiers=("public_day1_after_review",),
         allowed_fields=("gene", "disease", "assertion", "submitter", "source_date"),
         restricted_fields=(),
         checksum_required=True,
         source_version_required=True,
         cache_policy="postgres_import_with_source_version",
-        download_approved=False,
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
         source_version="GenCC live submissions export; version by export date",
         checksum_plan="Record export timestamp, local SHA256, row count, and source statistics before import.",
-        terms_url="https://search.thegencc.org/statistics",
-        terms_status="GenCC CC0/disclaimer terms recorded; backend approval still required",
+        terms_url="https://search.thegencc.org/terms",
+        terms_status=(
+            "Reviewed 2026-05-31: GenCC download data are CC0 with requested "
+            "GenCC/contributor attribution and access date; OMIM-derived data "
+            "are excluded and must not be added without separate license."
+        ),
     ),
     DataSourceRecord(
         source_id="uniprotkb_reviewed_swissprot",

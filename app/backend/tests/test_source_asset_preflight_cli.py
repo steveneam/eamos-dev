@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
-from app.cli.eamos_source_asset_preflight import main
+from app.cli.eamos_source_asset_preflight import _render_persistent_disk_gate_summary, main
 from app.data_sources import (
     DOCX_BLUEPRINT_LINES,
     DOCX_SUPPLEMENTAL_REQUESTS,
+    build_post_reference_source_readiness,
     build_docx_task_matrix,
 )
 
@@ -42,15 +44,49 @@ def test_source_asset_preflight_reports_guarded_readiness(
 
     manifest = output["source_manifest"]
     assert manifest["total_sources"] == 10
-    assert manifest["download_approved_count"] == 0
-    assert manifest["ready_for_download_or_import_count"] == 0
+    assert manifest["download_approved_count"] == 10
+    assert manifest["ready_for_download_or_import_count"] == 10
     assert manifest["backend_owned_storage_count"] == 10
     assert manifest["requires_c_drive_staging"] == [
         "ncbi_dbsnp_gcf_000001405_40",
         "ucsc_phylop100way_hg38",
     ]
-    assert manifest["missing_requirement_counts"]["explicit_download_or_import_approval"] == 10
-    assert manifest["missing_requirement_counts"]["backend_storage_policy_review"] == 10
+    assert "explicit_download_or_import_approval" not in manifest["missing_requirement_counts"]
+    assert "backend_storage_policy_review" not in manifest["missing_requirement_counts"]
+    assert "reader_compatibility_proof" not in manifest["missing_requirement_counts"]
+
+    assert output["download_staging"]["network_used"] is False
+    assert output["download_staging"]["download_performed"] is False
+    assert "status_counts" in output["download_staging"]
+    assert output["private_storage_upload_plan"]["network_used"] is False
+    assert output["private_storage_upload_plan"]["upload_performed"] is False
+    assert output["private_storage_upload_plan"]["planned_count"] >= 0
+    assert output["reader_compatibility_proofs"]["network_used"] is False
+    assert output["reader_compatibility_proofs"]["runtime_mutation_performed"] is False
+    assert "status_counts" in output["reader_compatibility_proofs"]
+    assert "terms_review" not in manifest["missing_requirement_counts"]
+
+    render_gate = output["render_persistent_disk_gate"]
+    assert render_gate["mutations_performed"] is False
+    assert render_gate["network_used"] is False
+    assert render_gate["secret_values_emitted"] is False
+    assert render_gate["object_uri_values_emitted"] is False
+    assert render_gate["status"] == "full_tier_stack_ready_for_paid_render_disk"
+
+    current_runtime = render_gate["current_hg38_pfam_web_runtime"]
+    assert current_runtime["ready_for_paid_render_disk_decision"] is False
+    assert current_runtime["recommended_disk_gb"] == 15
+    assert current_runtime["disk_mount_required_before_env_enablement"] is True
+    assert "PROTEIN_ANNOTATION_ENABLED" in current_runtime["required_env_names"]
+    assert "hg38_runtime_asset_ready" in current_runtime["remaining_before_runtime_enablement"]
+
+    full_stack = render_gate["full_noncommercial_tier_stack"]
+    assert full_stack["ready_for_paid_render_disk_decision"] is True
+    assert full_stack["recommended_disk_gb_after_unpaid_readiness"] == 60
+    assert full_stack["ready_for_download_or_import_count"] == 10
+    assert full_stack["total_sources"] == 10
+    assert full_stack["blocking_requirement_counts"] == {}
+    assert "AlphaMissense" in render_gate["excluded_from_disk_estimates"]
 
     hg38 = output["hg38_runtime_asset"]
     assert hg38["status"] == "missing"
@@ -161,6 +197,27 @@ def test_docx_task_matrix_maps_every_noncommercial_line_to_coverage_or_blocker()
             assert line["blocker"]
         elif line["status"] != "narrative_or_table_structure":
             assert line["implementation_refs"] or line["blocker"] or line["next_action"]
+
+
+def test_render_disk_gate_separates_current_runtime_from_full_stack() -> None:
+    gate = _render_persistent_disk_gate_summary(
+        readiness=build_post_reference_source_readiness(),
+        hg38=SimpleNamespace(ready=True),
+        protein_assets=(SimpleNamespace(asset_id="pfam_a_hmm_gz", present=True),),
+        verify_hg38_checksum=True,
+        verify_protein_checksums=True,
+    )
+
+    current_runtime = gate["current_hg38_pfam_web_runtime"]
+    assert current_runtime["ready_for_paid_render_disk_decision"] is True
+    assert current_runtime["remaining_before_runtime_enablement"] == []
+    assert current_runtime["next_paid_step_if_approved"] == "provision_render_persistent_disk"
+
+    full_stack = gate["full_noncommercial_tier_stack"]
+    assert full_stack["ready_for_paid_render_disk_decision"] is True
+    assert full_stack["ready_for_download_or_import_count"] == 10
+    assert full_stack["total_sources"] == 10
+    assert full_stack["blocked_by"] == []
 
 
 def test_docx_task_matrix_keeps_restricted_predictors_locked() -> None:

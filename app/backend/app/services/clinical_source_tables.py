@@ -286,11 +286,14 @@ def parse_mondo_json(
             if metadata is not None:
                 definition = _definition_from_metadata(metadata)
                 xrefs = _xrefs_from_metadata(metadata)
+            label = _row_text(node_payload.get("lbl"))
+            if label is None and _is_deprecated(metadata):
+                continue
             records.append(
                 MondoDisease(
                     mondo_id=mondo_id,
                     name=_required_string(
-                        node_payload.get("lbl"),
+                        label,
                         "node.lbl",
                         code="malformed_mondo_node",
                         details={"mondo_id": mondo_id},
@@ -331,6 +334,37 @@ def parse_hpo_terms_tsv(path: Path) -> Mapping[str, str]:
     return terms
 
 
+def parse_hpo_terms_json(path: Path) -> Mapping[str, str]:
+    payload = _load_json(path)
+    graphs = _required_list(payload.get("graphs"), "graphs", code="malformed_hpo_terms_json")
+    terms: dict[str, str] = {}
+    for graph in graphs:
+        nodes = _required_list(
+            _required_mapping(graph, "graphs[]", code="malformed_hpo_terms_json").get("nodes"),
+            "graphs[].nodes",
+            code="malformed_hpo_terms_json",
+        )
+        for node in nodes:
+            node_payload = _required_mapping(node, "graphs[].nodes[]", code="malformed_hpo_node")
+            raw_id = _required_string(node_payload.get("id"), "node.id", code="malformed_hpo_node")
+            hpo_id = _hpo_id_from_iri(raw_id)
+            if hpo_id is None:
+                continue
+            terms[hpo_id] = _required_string(
+                node_payload.get("lbl"),
+                "node.lbl",
+                code="malformed_hpo_node",
+                details={"hpo_id": hpo_id},
+            )
+    if not terms:
+        raise ClinicalSourceTableError(
+            "empty_hpo_terms_json",
+            "HPO ontology JSON must contain at least one HP node",
+            {"path": str(path)},
+        )
+    return terms
+
+
 def parse_phenotype_hpoa(
     path: Path,
     *,
@@ -339,11 +373,16 @@ def parse_phenotype_hpoa(
 ) -> tuple[HpoDiseasePhenotype, ...]:
     records: list[HpoDiseasePhenotype] = []
     for row_number, row in enumerate(_dict_rows(path, delimiter="\t"), start=2):
-        qualifier = _row_value(row, "Qualifier")
+        qualifier = _row_value_any(row, ("Qualifier", "qualifier"))
         if qualifier and qualifier.upper() == "NOT":
             continue
         hpo_id = _normalize_curie(
-            _required_row_value(row, "HPO_ID", code="malformed_hpoa_row", row_number=row_number)
+            _required_any_row_value(
+                row,
+                ("HPO_ID", "hpo_id"),
+                code="malformed_hpoa_row",
+                row_number=row_number,
+            )
         )
         hpo_label = hpo_terms.get(hpo_id)
         if hpo_label is None:
@@ -355,23 +394,23 @@ def parse_phenotype_hpoa(
         records.append(
             HpoDiseasePhenotype(
                 disease_id=_normalize_curie(
-                    _required_row_value(
+                    _required_any_row_value(
                         row,
-                        "DatabaseID",
+                        ("DatabaseID", "database_id"),
                         code="malformed_hpoa_row",
                         row_number=row_number,
                     )
                 ),
-                disease_name=_required_row_value(
+                disease_name=_required_any_row_value(
                     row,
-                    "DiseaseName",
+                    ("DiseaseName", "disease_name"),
                     code="malformed_hpoa_row",
                     row_number=row_number,
                 ),
                 hpo_id=hpo_id,
                 hpo_label=hpo_label,
-                evidence=_row_value(row, "Evidence"),
-                frequency=_row_value(row, "Frequency"),
+                evidence=_row_value_any(row, ("Evidence", "evidence")),
+                frequency=_row_value_any(row, ("Frequency", "frequency")),
                 provenance=provenance,
             )
         )
@@ -432,7 +471,14 @@ def parse_clingen_gene_validity_csv(
     provenance: ClinicalTableProvenance,
 ) -> tuple[ClinGenGeneValidityRecord, ...]:
     records: list[ClinGenGeneValidityRecord] = []
-    for row_number, row in enumerate(_dict_rows(path, delimiter=","), start=2):
+    for row_number, row in enumerate(
+        _dict_rows(
+            path,
+            delimiter=",",
+            header_contains=("GENE SYMBOL", "DISEASE LABEL", "CLASSIFICATION"),
+        ),
+        start=2,
+    ):
         records.append(
             ClinGenGeneValidityRecord(
                 gene_symbol=_required_any_row_value(
@@ -597,9 +643,14 @@ def _load_json(path: Path) -> Mapping[str, Any]:
         ) from exc
 
 
-def _dict_rows(path: Path, *, delimiter: str) -> Iterable[Mapping[str, str]]:
+def _dict_rows(
+    path: Path,
+    *,
+    delimiter: str,
+    header_contains: tuple[str, ...] = (),
+) -> Iterable[Mapping[str, str]]:
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
+        file = path.open("r", encoding="utf-8", errors="replace", newline="")
     except OSError as exc:
         raise ClinicalSourceTableError(
             "fixture_unavailable",
@@ -607,38 +658,55 @@ def _dict_rows(path: Path, *, delimiter: str) -> Iterable[Mapping[str, str]]:
             {"path": str(path)},
         ) from exc
     header: list[str] | None = None
-    rows: list[str] = []
-    for line in lines:
-        if not line.strip():
-            continue
-        if line.startswith("#"):
-            candidate = line[1:]
-            if delimiter in candidate:
-                header = next(csv.reader([candidate], delimiter=delimiter))
-            continue
-        rows.append(line)
-    if header is None and rows:
-        header = next(csv.reader([rows.pop(0)], delimiter=delimiter))
+    with file:
+        reader = csv.reader(file, delimiter=delimiter)
+        for row_number, values in enumerate(reader, start=1):
+            if not values or not any(value.strip() for value in values):
+                continue
+            if values[0].startswith("#"):
+                candidate_header = [values[0][1:], *values[1:]]
+                if len(candidate_header) > 1 and (
+                    not header_contains or _header_matches(candidate_header, header_contains)
+                ):
+                    header = candidate_header
+                continue
+            if _is_divider_row(values):
+                continue
+            if header is None:
+                if header_contains:
+                    if _header_matches(values, header_contains):
+                        header = values
+                    continue
+                header = values
+                continue
+            if len(values) != len(header):
+                raise ClinicalSourceTableError(
+                    "malformed_table_row",
+                    "clinical source table row field count does not match header",
+                    {
+                        "path": str(path),
+                        "row": row_number,
+                        "field_count": len(values),
+                        "header_count": len(header),
+                    },
+                )
+            yield dict(zip(header, values, strict=True))
     if header is None:
         raise ClinicalSourceTableError(
             "fixture_missing_header",
             "clinical source table fixture must include a header row",
             {"path": str(path)},
         )
-    for row_number, raw_row in enumerate(rows, start=2):
-        values = next(csv.reader([raw_row], delimiter=delimiter))
-        if len(values) != len(header):
-            raise ClinicalSourceTableError(
-                "malformed_table_row",
-                "clinical source table row field count does not match header",
-                {
-                    "path": str(path),
-                    "row": row_number,
-                    "field_count": len(values),
-                    "header_count": len(header),
-                },
-            )
-        yield dict(zip(header, values, strict=True))
+
+
+def _header_matches(header: Iterable[str], required_columns: tuple[str, ...]) -> bool:
+    normalized = {value.strip().lower() for value in header}
+    return all(column.strip().lower() in normalized for column in required_columns)
+
+
+def _is_divider_row(values: Iterable[str]) -> bool:
+    non_empty = [value.strip() for value in values if value.strip()]
+    return bool(non_empty) and all(set(value) <= {"+"} for value in non_empty)
 
 
 def _required_mapping(
@@ -746,6 +814,15 @@ def _mondo_id_from_iri(value: str) -> str | None:
     return suffix.replace("_", ":", 1)
 
 
+def _hpo_id_from_iri(value: str) -> str | None:
+    if value.startswith("HP:"):
+        return _normalize_curie(value)
+    suffix = value.rsplit("/", 1)[-1]
+    if not suffix.startswith("HP_"):
+        return None
+    return suffix.replace("_", ":", 1)
+
+
 def _xrefs_from_metadata(metadata: Mapping[str, Any]) -> tuple[str, ...]:
     raw_xrefs = metadata.get("xrefs")
     if not isinstance(raw_xrefs, list):
@@ -766,6 +843,10 @@ def _definition_from_metadata(metadata: Mapping[str, Any]) -> str | None:
     if isinstance(raw_definition, Mapping):
         return _row_text(raw_definition.get("val"))
     return _row_text(raw_definition)
+
+
+def _is_deprecated(metadata: Mapping[str, Any] | None) -> bool:
+    return bool(metadata and metadata.get("deprecated") is True)
 
 
 def _row_text(value: object) -> str | None:

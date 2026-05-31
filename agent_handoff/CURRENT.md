@@ -14,17 +14,19 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** ACTIVE @ 2026-05-31 03:45 +1000 (**anchor: gnomAD T1–T4 COMMITTED `47d78c2` + PUSHED; `main` now published to `origin/main` incl. the prior shared stack `8d2e899`/`6c19b8b`/`adb91ee`/`a38f07a` (Codex backend + Claude FE); push auto-deployed Vercel prod**). **This session = gnomAD world-map redesign, FE-only, T1→T4 done + verified + COMMITTED/PUSHED (`47d78c2`).** **T1** build-only geo tooling: devDeps d3-geo/d3-geo-projection/topojson-client/world-atlas + `gen:gnomad-map` script. **T2** `components/report/region-countries.ts`: Natural Earth numeric id → 7 geographic groups; ami/asj/remaining off-map (D6). **T3** `components/report/gnomadMapGeometry.generated.ts` (~88KB) via `scripts/build-gnomad-basemap.mjs`: dissolves member countries with topojson `merge`, projects geoNaturalEarth1, emits land-clipped region paths + base land. **110m** source (12× smaller than 50m; all 3 by-name Kosovo/N.Cyprus/Somaliland present). **Tight frame** (Steven-directed): Antarctica + **Fiji** dropped (Fiji straddles the antimeridian → geoStitch throws specks to BOTH edges), viewBox cropped to inhabited-land bbox = **1857×892**, balanced Alaska↔New-Zealand margins (~36px). Verified: tsc 0 err, eslint 8 warn (baseline), idempotent (byte-identical re-run), **browser-verified geometry — no ocean spill, all 7 regions accurate**. Steven approved framing ("looks good"). Known artifact: French Guiana renders nfe-blue (Natural Earth bundles it into France id 250) — offered to neutralize, pending. **T4** `components/report/gnomadMapTheme.ts`: single-source palette (D8) — deep cool-blue ocean / blue-grey base land / flat-grey no-data (D5); **reversed** threshold-anchored AF bands ≥5%&1–5% green / 0.1–1% amber / <0.1% red / not-observed grey (D4 + locked cutoffs, ACMG BA1/BS1 anchored, raw group AF basis); double-stroke yellow hover halo (D7). tsc clean; **NO component change yet** (that's T6). **Steven decisions RESOLVED 2026-05-31:** (a) **Afghanistan stays SAS** (Steven OK); (b) **T4 palette** rendered on real geometry (throwaway preview) + tweaked per Steven — lighter ocean `#3a5d80`, BS1 lighter mint `#93d6b3` for BA1/BS1 daylight, neutral-grey no-data `#c6c6c6` (kept hueless so it won't clash with the cool-blue ocean); awaiting Steven's final palette lock before T5; (c) **French Guiana** left as nfe-blue (Steven: leave — it IS French overseas territory); (d) ASJ/AMI/remaining chips get the ancestral-origin copy at **T8** (agreed). **CODEX CAR (03:23):** Codex asks Claude to (1) ACK a narrow explicit-pathspec Codex backend/docs commit, (2) coordinate whether pushing the `main` stack must wait for Claude's gnomAD T10 gate (Codex needs the HMMER/Pfam runtime-prep code published so the Render-SG image gains `hmmscan`/`hmmpress`). **Claude assessment (relayed to Steven 03:31):** (1) **ACK-safe** — Codex backend files are disjoint from my uncommitted gnomAD FE files; an explicit-pathspec Codex commit won't sweep them (Codex must NOT include `.claude/settings.json`, my `app/web/package*.json`, or the 4 gnomAD files); (2) my gnomAD **T1–T4 is UNCOMMITTED → NOT in any push**, so pushing the existing stack is **independent of my T10 gate** (T10 only gates MY gnomAD commits) — BUT push auto-deploys prod (`adb91ee` FE + Codex backend), so the push GO is Steven's call. **STEVEN REVERSED 2026-05-31 03:45: commit + push THIS session, Claude first.** Claude committed gnomAD T1–T4 as `47d78c2` (explicit pathspec: 4 new files + `app/web/package*.json`; nothing of Codex's) and pushed `main`. **gnomAD files are inert (not wired into any component until T6) → this push does NOT change prod rendering; it only published the prior shared stack incl. `adb91ee` FE.** T6 integration still gated. **Codex NEXT:** `git pull --rebase origin main` (disjoint → no conflict) → explicit-pathspec backend commit (pre-ACK'd by me) → push → fire Render deploy-hook (`.render-deploy-hook`) so the SG image gains `hmmscan`/`hmmpress`. Repo hygiene note: VSCode "10K" badge = gitignored `.next` dev cache (~2834 files) + node_modules; `git status` shows only the real 19 changes — nothing errant to commit. **NEXT:** render palette preview → **T5** threshold band logic (consume `GNOMAD_AF_BANDS`, drop relative `heatColor`/`visual_scale.max`) → **T6** rebuild WorldFrequencyMap on owned geometry+theme (drop world.svg/mask/mixBlendMode) → T7 hover → T8 chips → T9 legend+copy+version v3→v4 → **T10 integrate + verify + GATE** (stop for Steven before commit/push/deploy). **Tree (mine only):** ?? `region-countries.ts` / `gnomadMapGeometry.generated.ts` / `gnomadMapTheme.ts` / `scripts/build-gnomad-basemap.mjs`; M `app/web/package.json`+`package-lock.json`. Codex backend WIP (`protein_runtime*`, config.py, Dockerfile, PROGRESS/ROADMAP/plans) + `.claude/settings.json` share the tree — **NOT mine, leave alone**; stage with explicit pathspec only, after Steven approves (T10). **Guardrails held:** FE-only, no backend/Codex-WIP touched, no commit/push/deploy, no Supabase/Render/Vercel ops. **STILL OPEN (not mine):** delete Oregon `eamos-dev` `srv-d896ie77f7vs73brs140` (SCHEDULED 2026-06-01, Steven); `/account` Supabase-login E2E. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional — do NOT commit/flag ([[reference_context_folder]]); `.claude/scheduled_tasks.lock` is a stray harness artifact — do NOT commit.
+- **Claude:** INACTIVE @ 2026-05-31 23:17 +1000 - gnomAD PopFreq FE done + UNCOMMITTED at Steven's commit gate. This session: migrated `PopulationFrequencySection.tsx` off LOCAL item-3 types onto Codex's shared contract (`PopulationFrequencyDatasetCell`, group/total `.exome`/`.genome`, `PopulationFrequencyOverallTotalCell`); Exome/Genome Include toggle verified recomputing distinctly (joint/exome/genome) at `/pf-preview`. Plus 3 Steven-approved polish items: (1) numerals -> Inter + tabular-nums (mono reserved for codes/IDs only) so the dotted "0" no longer reads as "8"; (2) removed the duplicate Total/XX/XY box from the World-map tab footer (kept on Ancestry; non-geographic cohorts stay on the map); (3) World-map deselect by clicking ocean/base-land OR anywhere outside the component (pointerdown listener). `tsc` 0, `lint` 8-baseline. The whole PopFreq set (Codex backend + both byte-identical `backend.ts` mirrors + my FE) is coherent and ready for ONE coordinated commit (DELETE `app/web/app/pf-preview/` first). Detail in `~/.claude/plans/next-session-eamos.md` + TASKS.md. [Prior 21:02 session detail archived below.] ACTIVE @ 2026-05-31 21:02 +1000. Big FE session on the **/report gnomAD PopulationFrequencySection** (all 3 tabs), verified in-browser at `http://localhost:3000/pf-preview` across 390(mobile)-1600px. FE-only, UNCOMMITTED, at Steven's commit gate. **Ancestry-tab interaction model reworked (Steven-directed):** inspector is now CLICK-driven only (hover never populates it, only a different click replaces it; click the selected group again to clear); hover and select are separate states; the **yellow double halo shows on hover AND select** (the lively look Steven likes) - SELECTION is told apart by the **dim** (selecting a region makes it stand out and fades the rest of the map to 0.45; hover never dims) plus the bar ring/scale + the inspector; select/de-select animate symmetrically via transitions (no bounce); inspector + cohort boxes shrank (note 1 line) and `alignItems: stretch` lines the two column feet up exactly (measured gap 0); select/de-select jitter fixed (`minHeight` 192 == populated, measured resting==populated==192); copy buttons (shared `@/components/ui/CopyButton`) on the selected-group + whole-variant-totals boxes. **World-map TAB only:** clicking a region pops a small card (`MapSelectionPopover`) near it with the full group name + joint AF (no XX/XY). **Two-click bug FIXED:** the interactive region fills no longer reorder on hover/select (was sorting the active region last, which moved its DOM node and dropped the click - only the array's last region, SAS, was unaffected, hence "only SAS worked"); halos now render in a separate non-interactive top layer so they still sit above neighbours. Default region focus box removed (halo is the focus indicator). The map popover floats on hand-picked OCEAN anchors near each region (not over land) and shows the full group name + joint AF; Data notes is now an ⓘ popover (was an inline expandable). Mobile (390px) verified. `tsc` 0, `lint` 8-baseline. **`/impeccable` polish:** Age tab was the only design-system drift - FIXED: clean y-axis ticks (new `niceAxis()` 1/2/5x10^n, was 0/13/25/38/50 -> 0/10/20/30/40/50), and warm design tokens replacing hard-coded cool slate hex + "JetBrains Mono" (`--ink-3/4/5`,`--line`,`var(--mono)`). **Then Steven requested + I built (all done + verified):** (1) **Hover jitter FIXED** in the Ancestry inspector - root cause was the title (and column-header) having no fixed height, so long names wrapping at narrow widths grew the box and shoved the "All gnomAD samples" readout; fixed with a fixed two-line title slot + fixed two-line header slot + `minHeight` 198->210; MEASURED resting==pinned==210 and cohort-top unchanged at 760/1024/1280/1600px. (2) **Two stat tables column-aligned** - inspector + cohort grids now use a fixed `58px` label column (was `auto`) so columns line up to the pixel. (3) **Exome/Genome "Include" filter** built in the Ancestry tab (gnomAD-style checkboxes) - recomputes every group's AF/AC/AN/hom + map colours + bars + inspector + cohort Total for the selected dataset(s); at least one stays on. (4) **Age y-axis label** "# variant carriers" / "# individuals" (was "Count"); widened `padLeft` 44->56 so labels clear the thousands ticks (MEASURED +6.37px). (5) **Age bars hover** shows the count above a brightened bar + column highlight. (6) **Copy buttons** (shared `@/components/ui/CopyButton`) top-right of the Age box and the Allele-frequency box - copy Excel-pasteable TSV (verified output). `tsc` 0 err, `lint` 8-warn baseline (all pre-existing, none mine). **Files touched: `PopulationFrequencySection.tsx` (+ import of shared CopyButton); `app/web/app/pf-preview/page.tsx` seed (THROWAWAY - delete before commit).** **BACKEND/CODEX (flagged by Steven - all this data must be LIVE):** the Exome/Genome split (`group.exome`/`group.genome` + `overall.total.exome/genome` proposed cells), per-group XX/XY, age histograms (both carrier tracks exome+genome), and the copy-data all need real backend data. Codex completed the PopFreq CAR (items 1-2: XX/XY + overall) @ 19:49 - **CONTRACT RECONCILE NEEDED:** confirm Codex's contract field names vs my proposed `exome`/`genome` per-dataset cells (item 3, the biggest piece), and keep the two `backend.ts` mirrors byte-identical. I did NOT touch `lib/backend.ts` this session (proposed dataset types are local to the component + seed to avoid colliding with Codex's in-flight contract). Paste-ready Codex handoff in chat. **NEXT = Steven's commit/push gate** (stage explicit pathspec; DELETE `app/web/app/pf-preview/` first). MINE (stage at GATE): `PopulationFrequencySection.tsx`, `gnomadMapTheme.ts`, `gnomadAncestryMap.ts`, `gnomadMapGeometry.generated.ts`, `lib/backend.ts`, `scripts/build-gnomad-basemap.mjs`. NOT mine: `.claude/settings.json`, `PROGRESS.md`, `agent_handoff/**`, all `app/backend/**` (Codex). **Guardrails:** FE-only, no backend/Codex files touched, no commit/push/deploy until Steven's gate. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional - do NOT commit/flag ([[reference_context_folder]]).
 
-- **Codex:** IDLE @ 2026-05-31 04:32 +1000 - Private Pfam materialization CLI
-  and real ABCA4 fixture CDS smoke shipped. Commits pushed: `4eecffc`,
-  `d22b02f`, `4b17ce4`; SG deploy hook returned HTTP 200 and `4b17ce4` is live.
-  Render one-off job `job-d8dip14p3tds73flcc7g` proved private Pfam download,
-  checksum verification, extraction, `hmmpress`, PCARE smoke, and real ABCA4
-  `NM_000350.3` coding-DNA smoke (`ENSP00000359245`, `38` Pfam features).
-  Public provider-cache still correctly fails closed for the web service
-  instance until persistent Render runtime materialization/env enablement is
-  coordinated. Guardrails held.
+- **Codex:** INACTIVE @ 2026-06-01 01:35 +1000 - completed the held
+  source-asset/download/storage work after Steven approved Supabase Storage
+  upload. New capability this session: backend source-storage uploader now has
+  explicit Supabase S3 multipart mode with private-bucket guardrails,
+  50 GiB object limit alignment, long S3 timeouts/retries, TCP keepalive, and
+  checksum-addressed manifest sidecars. Live Storage mutation performed with
+  Steven approval: phyloP and dbSNP large assets plus sidecars uploaded to the
+  private `eamos-source-assets` bucket; remote sizes match local sizes. Focused
+  source-storage/download/proof/preflight tests, Ruff, Black check, and
+  diff-check passed. No public bucket, frontend raw-source URL, Render/Vercel
+  mutation, restricted predictor unlock, or push.
 
 ## Log Edit-Lock
 
@@ -34,12 +36,43 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED · 2026-05-31 04:32 +1000 · Codex (protein runtime Render/Pfam smoke recorded)
+UNLOCKED - 2026-06-01 01:35 +1000 - Codex (recorded source Storage upload completion and prepared local commit)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED gnomAD PopFreq dataset contract**
+  (2026-05-31 22:32 +1000)
+  - Scope: `app/backend/app/tools/gnomad.py`,
+    `app/backend/app/schemas/run.py`,
+    `app/backend/app/services/population_frequency_section.py`,
+    `app/backend/app/fixtures/tools/gnomad_fixtures.json`,
+    `app/backend/tests/test_gnomad_tool.py`,
+    `app/backend/tests/test_frontend_contract.py`,
+    `app/frontend/src/lib/backend.ts`, and `app/web/lib/backend.ts`.
+  - Completed: added optional `PopulationFrequencyDatasetCell`,
+    `group.exome`/`group.genome`, and `overall.total.exome`/`.genome`, while
+    preserving flat fields as joint and leaving Claude-owned renderers alone.
+    Live source remains backend gnomAD GraphQL, not MyVariant.
+  - Verification: focused gnomAD/report/contract pytest, full backend pytest,
+    Ruff, Black, both TypeScript checks, byte-identical `backend.ts` mirror
+    check, and `git diff --check`.
+
+- **Codex RELEASED native source proof + gnomAD PopFreq backend CAR**
+  (2026-05-31 19:49 +1000)
+  - Scope: `app/backend/app/services/source_reader_proofs.py`,
+    `app/backend/app/data_sources/registry.py`, gnomAD/report backend schema
+    and builder files, backend tests, `app/frontend/src/lib/backend.ts`,
+    `PROGRESS.md`, `plans/v2-backend.md`, and Codex-owned handoff updates.
+    Claude continues to own `app/web/**` gnomAD renderer files.
+  - Completed: Linux native proof for dbSNP/ClinVar/phyloP, static source
+    readiness `10/10`, Supabase Storage blocker clarification, additive
+    gnomAD per-group XX/XY and cohort overall contract. Exome/genome include
+    checkboxes remain parked pending Claude field names.
+  - Verification: native Linux proof, focused backend pytest, compact source
+    preflight, full backend pytest, Ruff, Black, and `git diff --check`.
 
 - **Codex RELEASED HMMER/Pfam runtime enablement**
   (2026-05-31 03:06 +1000)
@@ -1965,93 +1998,80 @@ Earlier narratives:
 ## Codex — Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-31 04:32 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-05-31 22:32 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-31 04:32 +1000 - Codex):**
-Codex completed the private Pfam runtime proof and corrected the ABCA4 smoke to
-use real fixture coding DNA. Backend commits pushed this session after
-`40d754a`: `4eecffc` (`feat(backend): add private pfam materialization cli`),
-`d22b02f` (temporary ABCA4 length-control smoke; superseded), and `4b17ce4`
-(`test(backend): use real abca4 fixture for protein smoke`). `.render-deploy-hook`
-returned HTTP 200 and SG service `eamos-dev-sg` is live at `4b17ce4`.
+**Latest Codex update (2026-05-31 22:32 +1000 - Codex):**
+Codex completed Claude-finalized gnomAD PopFreq CAR item 3. No Supabase
+Storage, Render, Vercel, bucket, env, deploy, commit, MyVariant rewiring, or
+Claude-owned `app/web/**` renderer mutation was performed.
 
 **State:**
 - Repo root is `D:\eamos`; branch is `main` tracking `origin/main`. Backend
-  code deployed to SG is `4b17ce4`. This handoff/doc update may sit after that
-  code commit; do not assume SG redeployed unless the deploy hook is fired.
-- Private bucket `eamos-source-assets` remains `public=false`. Pfam gz is
-  uploaded, verified, and approved in backend-only metadata with byte size
-  `384357362`, MD5 `dc814cc181ece09102c09c4e6c19f2fd`, and SHA256
-  `d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591`.
-  Storage summary: 2 objects, total `1219750818` bytes, largest `835393456`
-  bytes, per-bucket object limit `1073741824` bytes, org plan Pro. No Supabase
-  GB/file-size increase is needed for the current Pfam gz.
-- New CLI `python -m app.cli.eamos_pfam_runtime_materialize` downloads the
-  private Pfam gz through backend-only Supabase service-role credentials,
-  verifies size/MD5/SHA256, atomically stages it, can run extraction/`hmmpress`,
-  and emits sanitized JSON with no service-role key, signed URL, local path, or
-  raw object path.
-- Render one-off job `job-d8dip14p3tds73flcc7g` on the larger temporary job
-  plan succeeded: materialization `ready`, downloaded `true`, checksum checks
-  true, `hmmscan_available=true`, `hmmpress_available=true`,
-  `hmmpress_ran=true`, `pfam_hmm_extracted=true`, `missing_index_count=0`, and
-  runtime status `ready`.
-- Protein smokes in that job: PCARE `available`; ABCA4 `available` using real
-  committed fixture CDS from
-  `app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json`
-  (`NM_000350.3`, `ENSP00000359245`, CDS length `6822`, translated protein
-  length `2273`). ABCA4 reported `input_type=coding_dna`,
-  `translated_from=coding_dna`,
-  `sequence_source=workbench_gene_viewer_transcript_model_cds`, and `38` Pfam
-  features.
-- Public SG `/api/v1/health/provider-cache` still correctly fails closed for
-  the web service instance: `protein_annotation.enabled=false`,
-  `status=disabled`, and `hmmer.reason=pfam_hmm_database_missing`. One-off job
-  files do not persist into the web-service filesystem.
-- `.claude/settings.json` and Claude/user `app/web/**` gnomAD files remain
-  unstaged and untouched by Codex.
+  code deployed to SG is still `4b17ce4`; do not assume this local backend/doc
+  work is deployed unless the deploy hook is fired.
+- Native source reader proof remains complete: `10 proven / 0 native pending /
+  0 missing / 0 partial / 0 failed`. Static source readiness remains `10/10`;
+  Windows dynamic preflight still reports native pending unless run in a Linux
+  runtime with `pysam` and `pyBigWig`.
+- Supabase state is unchanged: private bucket `eamos-source-assets` remains
+  `public=false` with 1 GiB file limit and two current objects. dbSNP `.gz`
+  and phyloP `.bw` still exceed the current object limit; upload remains
+  blocked locally because upload credentials are not configured.
+- gnomAD PopFreq backend CAR items 1/2/3 and 4/5 alignment are implemented:
+  per-group XX/XY, cohort overall total/XX/XY, optional per-group
+  `exome`/`genome`, optional `overall.total.exome`/`.genome`, schemas/report
+  builder, RPE65 fixture, tests, and both `backend.ts` mirrors.
+- Field names implemented for Claude: `PopulationFrequencyDatasetCell`,
+  `PopulationFrequencyVisualGroup.exome`,
+  `PopulationFrequencyVisualGroup.genome`,
+  `PopulationFrequencyOverall.total.exome`, and
+  `PopulationFrequencyOverall.total.genome`. Flat group and cohort-total
+  fields stay joint; no exome/genome rows were added to `visual_groups`.
+  Per-dataset XX/XY is not in scope.
+- Live PopFreq metrics for this section are sourced by backend gnomAD GraphQL,
+  not MyVariant. Fixtures are offline/demo/test data, and backend cache rows
+  may store gnomAD tool results for repeated lookups.
 
 **Verification refreshed:**
-- `python -m pytest tests/test_pfam_materialization_cli.py tests/test_protein_runtime_prepare.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_frontend_contract.py tests/test_protein_annotation_service.py -q`
-  passed.
-- `python -m ruff check app tests` passed.
-- `python -m black --check --target-version py310 app tests` passed.
-- `git diff --check -- app/backend/app/cli/eamos_pfam_runtime_materialize.py app/backend/tests/test_pfam_materialization_cli.py`
-  passed; Windows LF-to-CRLF notices only.
-- Render deploy poll confirmed `4b17ce4` live before one-off job start.
-- Render logs for `job-d8dip14p3tds73flcc7g` confirmed sanitized runtime JSON
-  and real ABCA4 fixture CDS smoke.
+- Focused gnomAD/report/contract pytest passed.
+- Full backend `python -m pytest -q` passed with existing short test-JWT
+  warnings only.
+- Ruff and Black checks passed.
+- `app/web` and `app/frontend` `npx tsc --noEmit` passed.
+- `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts` compare
+  byte-identical.
+- `git diff --check` passed; Windows LF-to-CRLF notices only.
 
 **Next-session direction:**
-- If the goal is public provider-cache readiness, coordinate a Render
-  web-service materialization design first: Render Shell/persistent disk or a
-  guarded startup/runtime materialization path, plus env enablement
-  (`PROTEIN_ANNOTATION_ENABLED=true`, private Pfam object URI, HMMER/Pfam paths).
-  Do not claim provider-cache ready from one-off jobs.
-- Supabase Storage does not need a size increase for the current Pfam gz. Only
-  revisit if a future single object exceeds the current 1 GiB bucket limit or
-  if billing/quota warnings appear.
-- Do not add public genomic/protein buckets, expose secrets, unlock restricted
-  predictors, enable AlphaMissense runtime/display, use WSL/Docker/local
-  toolchain installs, run destructive git, or touch Claude gnomAD files unless
-  explicitly asked.
+- Claude can migrate the gnomAD FE off local item-3 types to the shared
+  contract and reverify `/pf-preview`.
+- Decide whether to pursue private Storage upload for small staged source
+  objects first, or decide the large-object path for dbSNP/phyloP. Raising
+  Supabase Storage limits or switching to resumable/S3 multipart upload is an
+  explicit mutation/design decision.
+- If moving toward public provider-cache/source-read readiness, coordinate the
+  Render web-service materialization design first. Do not claim web-service
+  provider-cache ready from one-off jobs or local source downloads.
+- Stop and ask before any Render paid disk, env, deploy, Supabase bucket-limit,
+  Storage upload, or production source import mutation.
 
-**Clear-safe:** yes. Private Pfam CLI, real ABCA4 fixture smoke, deploy, and
-Render one-off proof are complete. Remaining web readiness work is a separate
-coordinated Render runtime/env step.
+**Clear-safe:** yes. gnomAD PopFreq backend item 3 is implemented and verified;
+Claude FE migration and Steven's coordinated commit gate remain next.
 
 **Latest resume prompt:**
-```
-# Resume prompt · 2026-05-31 04:32 +1000 · Codex private Pfam runtime proof complete
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Active Status, Locks, Codex section), agent_handoff/database_webserver/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md Session 93, plans/v2-backend.md Recent backend notes, ROADMAP.md protein section, then git status --short --branch --untracked-files=all.
+```text
+# Resume prompt - 2026-05-31 22:32 +1000 - Codex gnomAD PopFreq item 3 complete
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, agent_handoff/TASKS.md, PROGRESS.md latest sessions, plans/v2-backend.md Recent backend notes, then git status --short --branch --untracked-files=all.
 
-Delta: Codex pushed `4eecffc` (private Pfam materialization CLI), `d22b02f` (temporary ABCA4 length control), then `4b17ce4` (real ABCA4 fixture CDS smoke). SG deploy hook returned HTTP 200 and `4b17ce4` is live. Render one-off `job-d8dip14p3tds73flcc7g` succeeded on the larger temporary job plan: private Pfam gz downloaded from Supabase Storage, size/MD5/SHA256 verified, extracted, `hmmpress` ran, HMMER runtime ready, PCARE smoke available, and ABCA4 real fixture CDS smoke available with `38` Pfam features.
+Latest Codex state: gnomAD PopFreq CAR item 3 is implemented and verified. Field names: PopulationFrequencyDatasetCell, PopulationFrequencyVisualGroup.exome/genome, and PopulationFrequencyOverall.total.exome/genome. Flat group and cohort-total fields stay joint; no exome/genome rows were added to visual_groups; per-dataset XX/XY is out of scope.
 
-State: Public SG `/api/v1/health/provider-cache` still intentionally fails closed for the web service instance (`protein_annotation.enabled=false`, `hmmer.reason=pfam_hmm_database_missing`) because one-off job files do not persist into the web-service filesystem. Private bucket `eamos-source-assets` remains `public=false`; current Pfam gz is 384,357,362 bytes and does not require a Supabase GB/file-size increase. `.claude/settings.json` and Claude/user gnomAD `app/web/**` changes remain untouched by Codex.
+Source boundary: live PopFreq metrics are backend gnomAD GraphQL, not MyVariant. Fixtures are offline/demo/test data; backend caches may store gnomAD results for repeated lookups. No Supabase/Render/Vercel/env/deploy/storage mutation, no WSL/Docker, no commit/push.
 
-Next: If provider-cache should become ready on the public web service, coordinate a Render runtime materialization design first: Render Shell/persistent disk or guarded startup/runtime materialization, plus env enablement (`PROTEIN_ANNOTATION_ENABLED=true`, private Pfam object URI, HMMER/Pfam paths). Do not claim web readiness from one-off jobs. No Supabase Storage increase is needed unless a future object exceeds the current 1 GiB bucket limit or quota warnings appear.
+Verification: focused gnomAD/report/contract pytest, full backend pytest, Ruff, Black, app/web and app/frontend tsc --noEmit, backend.ts mirror byte-compare, and git diff --check all passed. Full pytest warnings are existing short test-JWT warnings only.
 
-Guardrails: no secrets in chat/docs/logs, no public genomic/protein buckets, no restricted predictor unlocks, no AlphaMissense runtime/display, no uncoordinated Render/Vercel env mutation, no WSL/Docker/local toolchain install, no destructive git/stash/reset/clean, and do not touch Claude gnomAD files unless asked. End clear-safe.
+Coordination: Claude owns app/web/** gnomAD renderer files. Codex updated backend/schema/tests/fixtures plus both backend.ts mirrors only. Next: Claude migrates FE off local item-3 types and re-verifies /pf-preview; Steven holds the coordinated commit gate.
+
+Guardrails: no secrets in chat/docs/logs, no public genomic/protein buckets, no restricted predictor unlocks, no AlphaMissense runtime/display, no uncoordinated Render/Vercel env mutation, no WSL/Docker/local toolchain install without explicit approval and WSL cap check, no destructive git/stash/reset/clean, and no Claude app/web renderer edits unless explicitly asked. End clear-safe.
 ```

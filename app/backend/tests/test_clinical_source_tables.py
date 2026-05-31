@@ -15,6 +15,7 @@ from app.services.clinical_source_tables import (
     ClinicalTableProvenance,
     parse_clingen_gene_validity_csv,
     parse_gencc_download_csv,
+    parse_hpo_terms_json,
     parse_mondo_json,
     parse_phenotype_hpoa,
 )
@@ -54,6 +55,36 @@ def test_mondo_fixture_resolves_disease_name_and_cross_references_without_omim_i
     assert disease.xrefs == ("OMIM:204100", "ORPHANET:65", "MEDGEN:C1859844")
     assert disease.provenance.source_id == MONDO_SOURCE_ID
     assert disease.provenance.relative_path.endswith("mondo_tiny.json")
+
+
+def test_mondo_parser_skips_deprecated_unlabeled_nodes_from_real_exports(tmp_path: Path) -> None:
+    provenance = _test_provenance(tmp_path / "mondo.json")
+    path = tmp_path / "mondo.json"
+    path.write_text(
+        """
+        {
+          "graphs": [
+            {
+              "nodes": [
+                {
+                  "id": "http://purl.obolibrary.org/obo/MONDO_0002393",
+                  "meta": {"deprecated": true}
+                },
+                {
+                  "id": "http://purl.obolibrary.org/obo/MONDO_0008765",
+                  "lbl": "Leber congenital amaurosis 2"
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    records = parse_mondo_json(path, provenance=provenance)
+
+    assert [record.mondo_id for record in records] == ["MONDO:0008765"]
 
 
 def test_hpo_fixture_links_disease_and_gene_context_to_hpo_ids_and_labels() -> None:
@@ -103,6 +134,26 @@ def test_gencc_fixture_returns_assertion_submitter_disease_gene_and_source_date(
     assert record.provenance.source_id == GENCC_SOURCE_ID
 
 
+def test_gencc_parser_handles_quoted_multiline_real_export_notes(tmp_path: Path) -> None:
+    provenance = _test_provenance(tmp_path / "gencc-download.csv")
+    path = tmp_path / "gencc-download.csv"
+    path.write_text(
+        (
+            "uuid,gene_curie,gene_symbol,disease_curie,disease_title,classification_title,"
+            "submitter_title,submitted_as_date,submitted_as_notes\n"
+            'GENCC_1,HGNC:10294,RPE65,MONDO:0008765,"Disease, with comma",Definitive,'
+            'ClinGen,2024-03-14,"line one\nline two"\n'
+        ),
+        encoding="utf-8",
+    )
+
+    records = parse_gencc_download_csv(path, provenance=provenance)
+
+    assert len(records) == 1
+    assert records[0].disease_title == "Disease, with comma"
+    assert records[0].submitter == "ClinGen"
+
+
 def test_hpoa_parser_skips_not_qualifiers_without_dropping_positive_rows(tmp_path: Path) -> None:
     provenance = _test_provenance(tmp_path / "phenotype.hpoa")
     hpoa = tmp_path / "phenotype.hpoa"
@@ -131,6 +182,87 @@ def test_hpoa_parser_skips_not_qualifiers_without_dropping_positive_rows(tmp_pat
     assert records[0].disease_id == "OMIM:2"
     assert records[0].hpo_id == "HP:0000001"
     assert records[0].frequency == "1/2"
+
+
+def test_hpo_json_and_lowercase_hpoa_headers_match_real_exports(tmp_path: Path) -> None:
+    provenance = _test_provenance(tmp_path / "phenotype.hpoa")
+    hp_json = tmp_path / "hp.json"
+    hp_json.write_text(
+        """
+        {
+          "graphs": [
+            {
+              "nodes": [
+                {
+                  "id": "http://purl.obolibrary.org/obo/HP_0000001",
+                  "lbl": "All"
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    hpoa = tmp_path / "phenotype.hpoa"
+    hpoa.write_text(
+        "\n".join(
+            [
+                "#version: 2026-02-16",
+                "database_id\tdisease_name\tqualifier\thpo_id\treference\tevidence\tonset\t"
+                "frequency\tsex\tmodifier\taspect\tbiocuration",
+                "OMIM:2\tKept disease\t\tHP:0000001\tPMID:2\tPCS\t\t1/2\t\t\tP\tHPO:test",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    terms = parse_hpo_terms_json(hp_json)
+    records = parse_phenotype_hpoa(hpoa, hpo_terms=terms, provenance=provenance)
+
+    assert terms == {"HP:0000001": "All"}
+    assert records[0].disease_id == "OMIM:2"
+    assert records[0].hpo_label == "All"
+
+
+def test_clingen_parser_skips_real_export_banner_and_divider_rows(tmp_path: Path) -> None:
+    provenance = _test_provenance(tmp_path / "clingen_gene_validity.csv")
+    path = tmp_path / "clingen_gene_validity.csv"
+    path.write_text(
+        "\n".join(
+            [
+                '"CLINGEN GENE DISEASE VALIDITY CURATIONS","","","","","","","","",""',
+                '"FILE CREATED: 2026-05-31","","","","","","","","",""',
+                (
+                    '"+++++++++++","++++++++++++++","+++++++++++++","++++++++++++++++++",'
+                    '"+++++++++","+++++++++","++++++++++++++","+++++++++++++",'
+                    '"+++++++++++++++++++","+++++++++++++++++++"'
+                ),
+                (
+                    '"GENE SYMBOL","GENE ID (HGNC)","DISEASE LABEL","DISEASE ID (MONDO)",'
+                    '"MOI","SOP","CLASSIFICATION","ONLINE REPORT","CLASSIFICATION DATE","GCEP"'
+                ),
+                (
+                    '"+++++++++++","++++++++++++++","+++++++++++++","++++++++++++++++++",'
+                    '"+++++++++","+++++++++","++++++++++++++","+++++++++++++",'
+                    '"+++++++++++++++++++","+++++++++++++++++++"'
+                ),
+                (
+                    '"RPE65","HGNC:10294","Leber congenital amaurosis 2","MONDO:0008765",'
+                    '"AR","SOP10","Definitive","https://example.test","2024-03-14","Panel"'
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    records = parse_clingen_gene_validity_csv(path, provenance=provenance)
+
+    assert len(records) == 1
+    assert records[0].gene_symbol == "RPE65"
+    assert records[0].classification == "Definitive"
 
 
 def test_hpoa_parser_rejects_unknown_hpo_terms(tmp_path: Path) -> None:

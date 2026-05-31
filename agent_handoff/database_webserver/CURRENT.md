@@ -1,6 +1,6 @@
 # Database / Webserver Current State
 
-Last updated: 2026-05-31 04:32 +1000 by Codex.
+Last updated: 2026-06-01 01:31 +1000 by Codex.
 Cache-fix + Oregon→SG cutover verified: 2026-05-30 19:45 +1000 by Claude (see
 Smoke Results / Render Services / Next Safe Steps below).
 
@@ -161,6 +161,68 @@ fails closed for the web service instance with `protein_annotation.enabled=false
 and `hmmer.reason=pfam_hmm_database_missing`; persistent web readiness needs
 Render Shell, persistent disk, or an approved startup/runtime materialization
 design plus coordinated env enablement.
+
+**Post-reference source staging/proof 2026-05-31 18:30 +1000 (Codex).** User
+approved public post-reference source downloads. Codex added guarded download,
+private Storage upload-plan, and reader-proof tooling without mutating Supabase,
+Render, Vercel, buckets, or env. Small real files are staged locally under
+ignored backend data: ClinVar VCF/index/md5, RepeatMasker `rmsk.txt.gz`, MANE
+v1.4 GTF, GENCODE v45 GTF, MONDO JSON, HPO `hp.json` plus annotation tables,
+ClinGen gene-validity CSV, and GenCC CSV. Large real files are now staged under
+`C:\EamosDataStaging`: dbSNP `GCF_000001405.40.gz` size `29,552,227,779`
+bytes plus `.tbi`/`.md5`/manifests, and UCSC phyloP `hg38.phyloP100way.bw`
+size `9,870,053,206` bytes plus `md5sum.txt`/manifests. phyloP local MD5
+matches UCSC: `43858006bdf98145b6fd239490bd0478`. Preflight has no missing or
+partial source downloads. Real-source reader proof is
+`7 proven / 3 native pending / 0 partial / 0 missing / 0 failed`; static source
+readiness remains `7/10` because dbSNP and ClinVar still need Linux `pysam`
+proof and phyloP still needs Linux `pyBigWig` proof. The private Storage upload
+plan has 17 planned/under-limit objects, but actual upload is blocked locally
+because this workstation has no Supabase URL/service-role key and the Supabase
+CLI is not logged in. Large dbSNP `.gz` and phyloP `.bw` objects exceed the
+current 1 GiB bucket object limit and need a limit/sharding decision before
+Storage upload.
+
+**Native source reader proof + Supabase Storage check 2026-05-31 19:49 +1000
+(Codex).** Steven approved a Docker/Linux run if needed; Docker Desktop's
+Linux engine was not running, so Codex used capped `Ubuntu-24.04` WSL after
+confirming `%USERPROFILE%\.wslconfig` still limits WSL2 to 4 GB RAM, 2 CPUs,
+2 GB swap, and no GUI apps. The existing native proof environment had
+`pysam 0.24.0` and `pyBigWig 0.3.25`. The proof harness now requires bounded
+native reads, not just module imports. Linux proof result:
+`10 proven / 0 native pending / 0 missing / 0 partial / 0 failed`; dbSNP
+queried rs1570391677 from `NC_000001.11:10001`, ClinVar queried variation
+`3385321` from chr1:66926, and phyloP returned a finite chr1 score. Static
+source readiness is now 10/10 and the full noncommercial tier stack is ready
+for the paid Render disk decision from the source-readiness perspective. WSL
+was shut down after verification.
+
+Supabase Storage was checked but not mutated. Bucket `eamos-source-assets`
+remains private (`public=false`) with `file_size_limit=1073741824` and
+`allowed_mime_types=["application/octet-stream"]`; current object count is 2
+and total bytes are 1,219,750,818. Security advisors still report no lints;
+performance advisors remain INFO-only unused-index/auth-connection notes. The
+large-source Storage blocker is unchanged and exact: planned small objects are
+uploadable after local credentials are configured, but dbSNP `.gz` and phyloP
+`.bw` exceed the current 1 GiB object limit. MCP SQL access is not binary
+Storage upload; raising project/bucket limits and using resumable/S3 multipart
+upload would need an explicit Storage mutation decision.
+
+**Large source Storage upload applied 2026-06-01 01:20 +1000 (Codex + Steven).**
+Steven raised the Supabase project/global and private `eamos-source-assets`
+bucket object limits to 50 GiB and configured local server-side S3 credentials.
+Codex added/hardened backend-owned S3 multipart upload tooling and uploaded the
+large post-reference source assets to the private bucket. Uploaded and verified:
+dbSNP `GCF_000001405.40.gz` size `29,552,227,779`, dbSNP `.tbi` size
+`3,140,346`, dbSNP `.md5` size `54`, phyloP `hg38.phyloP100way.bw` size
+`9,870,053,206`, phyloP `md5sum.txt` size `156`, and checksum manifest sidecars
+for each. Read-only S3 `HeadObject` verification confirmed every remote size
+matches the local staged file. Bucket remains private; no signed raw-source URL,
+public object, frontend direct access, browser-role grant, Render/Vercel
+mutation, or restricted predictor unlock was performed. Failed initial attempts
+left stale multipart upload IDs listed by Supabase, but `AbortMultipartUpload`
+reports those IDs do not exist; completed objects are present and size-matched,
+and the uploader does not store/reuse upload IDs.
 
 ## Advisor Status
 

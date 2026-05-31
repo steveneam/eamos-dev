@@ -24,6 +24,39 @@ from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
     LocalEvidenceRuntimeGate,
 )
+from app.services.source_downloads import (
+    SourceDownloadStatus,
+    build_source_download_items,
+    execute_source_downloads,
+)
+from app.services.source_reader_proofs import execute_source_reader_proofs
+from app.services.source_storage_uploads import (
+    SourceStorageUploadStatus,
+    build_source_storage_upload_items,
+    execute_source_storage_uploads,
+)
+
+CURRENT_WEB_RUNTIME_RENDER_DISK_GB = 15
+FULL_NONCOMMERCIAL_RENDER_DISK_GB = 60
+
+_RENDER_RUNTIME_ENV_NAMES = (
+    "HG38_2BIT_RUNTIME_ASSET_MODE",
+    "HG38_2BIT_RUNTIME_ASSET_PATH",
+    "HG38_2BIT_RUNTIME_ASSET_OBJECT_URI",
+    "PROTEIN_ANNOTATION_ENABLED",
+    "PROTEIN_ANNOTATION_HMMSCAN_PATH",
+    "PROTEIN_ANNOTATION_HMMPRESS_PATH",
+    "PROTEIN_ANNOTATION_PFAM_HMM_PATH",
+    "PROTEIN_ANNOTATION_PFAM_HMM_GZ_PATH",
+    "PROTEIN_ANNOTATION_PFAM_HMM_GZ_OBJECT_URI",
+)
+
+_FULL_STACK_RENDER_BLOCKERS = (
+    "terms_review",
+    "backend_storage_policy_review",
+    "reader_compatibility_proof",
+    "explicit_download_or_import_approval",
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -86,6 +119,15 @@ def build_source_asset_preflight_report(
         registry=registry,
         verify_checksums=verify_protein_checksums,
     )
+    source_manifest = _readiness_summary(readiness)
+    hg38_summary = _runtime_asset_summary(
+        hg38,
+        checksum_verified=verify_hg38_checksum,
+    )
+    protein_summary = _protein_asset_summary(
+        protein_assets,
+        checksum_verified=verify_protein_checksums,
+    )
     return {
         "mode": "source_asset_readiness",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -98,14 +140,18 @@ def build_source_asset_preflight_report(
             "uploads_or_imports": "not_used",
             "restricted_predictor_unlocks": "not_used",
         },
-        "source_manifest": _readiness_summary(readiness),
-        "hg38_runtime_asset": _runtime_asset_summary(
-            hg38,
-            checksum_verified=verify_hg38_checksum,
-        ),
-        "protein_annotation_assets": _protein_asset_summary(
-            protein_assets,
-            checksum_verified=verify_protein_checksums,
+        "source_manifest": source_manifest,
+        "download_staging": _download_staging_summary(),
+        "reader_compatibility_proofs": _reader_compatibility_proof_summary(),
+        "private_storage_upload_plan": _private_storage_upload_plan_summary(),
+        "hg38_runtime_asset": hg38_summary,
+        "protein_annotation_assets": protein_summary,
+        "render_persistent_disk_gate": _render_persistent_disk_gate_summary(
+            readiness=readiness,
+            hg38=hg38,
+            protein_assets=protein_assets,
+            verify_hg38_checksum=verify_hg38_checksum,
+            verify_protein_checksums=verify_protein_checksums,
         ),
         "local_evidence_gate": _local_evidence_gate_summary(gate),
         "restricted_predictors": _restricted_predictor_summary(registry),
@@ -151,6 +197,83 @@ def _source_summary(item: SourceAssetReadiness) -> dict[str, Any]:
         "ready_for_download_or_import": item.ready_for_download_or_import,
         "backend_owned_storage": item.backend_owned_storage,
         "missing_requirements": list(item.missing_requirements),
+    }
+
+
+def _download_staging_summary() -> dict[str, Any]:
+    result = execute_source_downloads(
+        build_source_download_items(include_large=True),
+        download=False,
+    )
+    status_counts = Counter(item.status.value for item in result.items)
+    return {
+        "network_used": False,
+        "download_performed": False,
+        "present_count": result.present_count,
+        "downloaded_count": result.downloaded_count,
+        "skipped_large_count": result.skipped_large_count,
+        "partial_count": status_counts.get(SourceDownloadStatus.PARTIAL_DOWNLOAD.value, 0),
+        "planned_count": status_counts.get(SourceDownloadStatus.PLANNED.value, 0),
+        "status_counts": dict(sorted(status_counts.items())),
+        "items": [
+            {
+                "source_id": item.source_id,
+                "asset_id": item.asset_id,
+                "role": item.role,
+                "status": item.status.value,
+                "large_asset": item.large_asset,
+                "actual_size_bytes": item.actual_size_bytes,
+                "expected_size_bytes": item.expected_size_bytes,
+                "destination": str(item.destination),
+                "message": item.message,
+            }
+            for item in result.items
+        ],
+    }
+
+
+def _private_storage_upload_plan_summary() -> dict[str, Any]:
+    result = execute_source_storage_uploads(
+        build_source_storage_upload_items(),
+        upload=False,
+    )
+    status_counts = Counter(item.status.value for item in result.items)
+    return {
+        "network_used": False,
+        "upload_performed": False,
+        "planned_count": result.planned_count,
+        "uploaded_count": result.uploaded_count,
+        "blocked_count": result.blocked_count,
+        "failed_count": result.failed_count,
+        "eligible_private_upload_count": status_counts.get(
+            SourceStorageUploadStatus.PLANNED.value,
+            0,
+        ),
+        "status_counts": dict(sorted(status_counts.items())),
+        "items": [
+            {
+                "source_id": item.source_id,
+                "asset_id": item.asset_id,
+                "role": item.role,
+                "status": item.status.value,
+                "byte_size": item.byte_size,
+                "bucket_id": item.bucket_id,
+                "object_path": item.object_path,
+                "manifest_object_path": item.manifest_object_path,
+                "message": item.message,
+            }
+            for item in result.items
+        ],
+    }
+
+
+def _reader_compatibility_proof_summary() -> dict[str, Any]:
+    result = execute_source_reader_proofs()
+    status_counts = Counter(item.status.value for item in result.items)
+    return result.to_dict() | {
+        "network_used": False,
+        "runtime_mutation_performed": False,
+        "status_counts": dict(sorted(status_counts.items())),
     }
 
 
@@ -205,6 +328,95 @@ def _protein_asset_summary(
                 "message": item.message,
             }
             for item in inspections
+        ],
+    }
+
+
+def _render_persistent_disk_gate_summary(
+    *,
+    readiness: tuple[SourceAssetReadiness, ...],
+    hg38: Any,
+    protein_assets: tuple[ProteinAssetInspection, ...],
+    verify_hg38_checksum: bool,
+    verify_protein_checksums: bool,
+) -> dict[str, Any]:
+    ready_for_import_count = sum(1 for item in readiness if item.ready_for_download_or_import)
+    full_stack_ready_for_payment = ready_for_import_count == len(readiness)
+    missing_requirement_counts = Counter(
+        requirement for item in readiness for requirement in item.missing_requirements
+    )
+    full_stack_blockers = [
+        requirement
+        for requirement in _FULL_STACK_RENDER_BLOCKERS
+        if missing_requirement_counts.get(requirement, 0)
+    ]
+
+    pfam_profile = next(
+        (item for item in protein_assets if item.asset_id == "pfam_a_hmm_gz"),
+        None,
+    )
+    current_runtime_ready_for_payment = bool(hg38.ready and pfam_profile and pfam_profile.present)
+    current_runtime_missing = []
+    if not hg38.ready:
+        current_runtime_missing.append("hg38_runtime_asset_ready")
+    if pfam_profile is None or not pfam_profile.present:
+        current_runtime_missing.append("pfam_a_hmm_gz_present")
+    if not verify_hg38_checksum:
+        current_runtime_missing.append("hg38_checksum_verification_before_runtime_enablement")
+    if not verify_protein_checksums:
+        current_runtime_missing.append(
+            "protein_asset_checksum_verification_before_runtime_enablement"
+        )
+
+    return {
+        "status": (
+            "full_tier_stack_ready_for_paid_render_disk"
+            if full_stack_ready_for_payment
+            else "full_tier_stack_not_ready_for_paid_render_disk"
+        ),
+        "summary": (
+            "The narrow hg38+Pfam web-runtime proof can reach a paid Render disk "
+            "decision separately from the larger Tier 1/2/3 source rollout."
+        ),
+        "mutations_performed": False,
+        "network_used": False,
+        "secret_values_emitted": False,
+        "object_uri_values_emitted": False,
+        "current_hg38_pfam_web_runtime": {
+            "scope": "hg38_2bit_plus_local_hmmer_pfam_runtime",
+            "ready_for_paid_render_disk_decision": current_runtime_ready_for_payment,
+            "next_paid_step_if_approved": "provision_render_persistent_disk",
+            "recommended_disk_gb": CURRENT_WEB_RUNTIME_RENDER_DISK_GB,
+            "disk_mount_required_before_env_enablement": True,
+            "required_env_names": list(_RENDER_RUNTIME_ENV_NAMES),
+            "remaining_before_runtime_enablement": current_runtime_missing,
+            "notes": (
+                "Do not enable PROTEIN_ANNOTATION_ENABLED on the public web service "
+                "until the Pfam HMM has a persistent mounted path and the startup or "
+                "runtime materialization path has verified size and checksums."
+            ),
+        },
+        "full_noncommercial_tier_stack": {
+            "scope": "tier_1_2_3_sources_excluding_commercial_gated_predictors",
+            "ready_for_paid_render_disk_decision": full_stack_ready_for_payment,
+            "recommended_disk_gb_after_unpaid_readiness": FULL_NONCOMMERCIAL_RENDER_DISK_GB,
+            "ready_for_download_or_import_count": ready_for_import_count,
+            "total_sources": len(readiness),
+            "blocking_requirement_counts": {
+                requirement: missing_requirement_counts[requirement]
+                for requirement in full_stack_blockers
+            },
+            "blocked_by": full_stack_blockers,
+        },
+        "excluded_from_disk_estimates": [
+            "SpliceAI",
+            "CADD",
+            "REVEL",
+            "PrimateAI-3D",
+            "InterVar/ANNOVAR/OMIM restricted production use",
+            "AlphaMissense",
+            "InterProScan optional licensed apps",
+            "future local LLM or transformer weights",
         ],
     }
 

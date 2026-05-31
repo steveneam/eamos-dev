@@ -1,5 +1,288 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 99 - 1 Jun 2026 - Source asset private Storage upload
+
+Completed the held post-reference source Storage lane after Steven raised the
+Supabase project/global and `eamos-source-assets` bucket limits to 50 GiB and
+provided local server-side S3 credentials. The bucket remains private.
+
+Completed:
+- Added explicit `s3_multipart` support to the guarded source Storage uploader
+  while keeping dry-run planning as the default and preserving the existing REST
+  path for smaller service-role uploads.
+- Added backend S3 env config fields and `.env.example` placeholders for
+  `SUPABASE_STORAGE_S3_ENDPOINT_URL`, `SUPABASE_STORAGE_S3_REGION`,
+  `SUPABASE_STORAGE_S3_ACCESS_KEY_ID`, and
+  `SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY`. `.env` contains local secrets and
+  was not touched for commit.
+- Aligned the uploader's default object-size guard with the approved 50 GiB
+  limit (`53687091200` bytes).
+- Hardened S3 transfer settings for the local network before the final dbSNP
+  retry: path-style addressing, 120s connect timeout, 300s read timeout,
+  10 retry attempts, TCP keepalive, 128 MiB multipart chunks, and concurrency
+  3.
+- Uploaded the large phyloP source through S3 multipart:
+  `hg38.phyloP100way.bw` (`9,870,053,206` bytes) plus `md5sum.txt` and both
+  manifest sidecars.
+- Uploaded the large dbSNP source through S3 multipart:
+  `GCF_000001405.40.gz` (`29,552,227,779` bytes), `.tbi`
+  (`3,140,346` bytes), `.md5` (`54` bytes), and all manifest sidecars.
+- Verified by read-only S3 `HeadObject` that dbSNP and phyloP remote sizes
+  match local sizes for every uploaded asset and manifest.
+
+Operational notes:
+- The first phyloP attempt failed on one multipart TLS part; retry succeeded
+  after larger chunks. The first dbSNP attempt failed on S3 initiation/read
+  timeouts; retry succeeded after explicit long timeouts/retries.
+- Supabase `ListMultipartUploads` still reports stale upload IDs from failed
+  attempts, but `AbortMultipartUpload` returns "The specified upload does not
+  exist." The completed objects are present and size-matched; stale IDs are not
+  resumable by this uploader because upload IDs are not stored or reused, and
+  Supabase should clear non-actionable multipart listings automatically.
+
+Verification:
+- `python -m app.cli.eamos_source_storage_upload --upload-mode s3_multipart --compact`
+  -> `planned_count=19`, `blocked_count=0`, S3 credentials detected.
+- Read-only S3 `HeadBucket` against `eamos-source-assets` -> HTTP `200`.
+- phyloP upload command -> `uploaded_count=2`, `failed_count=0`.
+- dbSNP upload command -> `uploaded_count=3`, `failed_count=0`.
+- Read-only S3 `HeadObject` verification for dbSNP and phyloP assets/manifests
+  -> all remote sizes matched local sizes.
+- `python -m pytest tests/test_source_storage_uploads.py -q` -> passed.
+- `python -m pytest tests/test_source_storage_uploads.py tests/test_source_asset_preflight_cli.py -q`
+  -> passed before the final dbSNP retry.
+- Full backend `python -m pytest` -> passed earlier in this source-storage
+  session (`861 passed, 12 skipped`).
+- `python -m ruff check app/services/source_storage_uploads.py tests/test_source_storage_uploads.py`
+  -> passed.
+- `git diff --check` -> passed earlier; Windows LF-to-CRLF notices only.
+
+Guardrails held:
+- No public genomic bucket, signed frontend raw-source URL, direct frontend
+  Storage read, browser-role grant, Render/Vercel env/deploy mutation,
+  restricted predictor unlock, AlphaMissense runtime/display, WSL/Docker,
+  destructive git, stash, reset, clean, or push.
+
+## Session 98 - 31 May 2026 - gnomAD PopFreq exome/genome dataset contract
+
+Delivered Claude-finalized gnomAD PopFreq CAR item 3 on top of the existing
+uncommitted backend PopFreq work, without touching Claude-owned report
+renderers, mutating Supabase/Render/Vercel, or committing.
+
+Completed:
+- Added additive `PopulationFrequencyDatasetCell` and
+  `PopulationFrequencyOverallTotalCell` schema types. `PopulationFrequencyVisualGroup`
+  now exposes optional `exome` and `genome` cells, while flat group
+  `allele_frequency` / `allele_count` / `allele_number` / `homozygote_count`
+  fields stay joint. `PopulationFrequencyOverall.total` now carries optional
+  nested `exome` / `genome` cells while its flat fields stay joint.
+- Kept per-dataset XX/XY out of scope. Existing group `xx` / `xy` and cohort
+  `overall.xx` / `overall.xy` remain joint-only.
+- Updated the backend gnomAD parser so live PopFreq data still selects joint as
+  the flat summary, but separately emits per-group exome/genome cells from
+  `variant.exome.populations` / `variant.genome.populations` and cohort totals
+  from `variant.exome` / `variant.genome`.
+- Updated the Section 3 population-frequency projection to copy those cells
+  into `visual_groups[*].exome`, `visual_groups[*].genome`, and
+  `overall.total.exome` / `overall.total.genome` without adding extra
+  `visual_groups` rows.
+- Updated the RPE65 gnomAD fixture with exome/genome dataset cells so offline
+  and demo rendering have data for Claude's include checkboxes.
+- Mirrored the contract into both TypeScript mirrors:
+  `app/frontend/src/lib/backend.ts` and `app/web/lib/backend.ts`, kept
+  byte-identical.
+
+Source boundary:
+- Live PopFreq metrics for this section are sourced by the backend
+  `GnomadTool` from the official gnomAD GraphQL API. MyVariant is not used for
+  these Section 3 PopFreq metrics. Fixtures remain offline/demo/test data, and
+  backend cache rows may store gnomAD tool results for repeated lookups.
+
+Verification:
+- `python -m pytest tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- Full backend `python -m pytest -q` -> passed, with existing short test-JWT
+  warnings only.
+- `python -m ruff check app tests` -> passed.
+- `python -m black --check --target-version py310 app tests` -> passed after
+  formatting `app/tools/gnomad.py` and `app/services/population_frequency_section.py`.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- `cd app/frontend && npx tsc --noEmit` -> passed.
+- `fc.exe /b app\frontend\src\lib\backend.ts app\web\lib\backend.ts` -> no
+  differences.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+
+Guardrails held:
+- No `app/web/**` renderer edits by Codex, no Supabase Storage mutation,
+  Render/Vercel env or deploy mutation, MyVariant rewiring, restricted
+  predictor unlock, AlphaMissense runtime/display, WSL/Docker/toolchain
+  install, destructive git, stash, reset, clean, commit, or push.
+
+## Session 97 - 31 May 2026 - Native source reader proof and gnomAD PopFreq backend CAR
+
+Closed the remaining native reader-proof blockers for the approved Tier 1/2/3
+source stack and delivered the backend half of Claude's gnomAD population
+frequency CAR, without mutating Supabase Storage, Render, Vercel, buckets, env,
+or Claude-owned `app/web/**` renderer files.
+
+Completed:
+- Ran the Linux native reader proof in capped `Ubuntu-24.04` WSL after verifying
+  `.wslconfig` still limits WSL2 to `memory=4GB`, `processors=2`, `swap=2GB`,
+  and `guiApplications=false`. `C:\EamosDataStaging\source_assets` was used
+  for large source staging, and WSL was shut down after the run.
+- Hardened `app.services.source_reader_proofs` so dbSNP/ClinVar VCFs require a
+  bounded `pysam.VariantFile(...).fetch(...)` record query and phyloP requires
+  a bounded `pyBigWig` finite-value query, instead of treating native module
+  import alone as sufficient proof.
+- Proved `10/10` source reader compatibility: dbSNP returned rs1570391677 from
+  `NC_000001.11:10001`, ClinVar returned variation `3385321` from chr1:66926,
+  and phyloP returned a finite chr1 score at a bounded probe position.
+- Marked dbSNP, ClinVar, and phyloP `reader_compatibility_proofed=true` in the
+  static registry. Static source readiness is now `10/10`; Windows dynamic
+  preflight still reports native pending unless run in the Linux runtime with
+  `pysam` and `pyBigWig` installed.
+- Checked Supabase state through the Supabase connector: private bucket
+  `eamos-source-assets` remains `public=false`, file limit remains 1 GiB,
+  current objects are still hg38.2bit and Pfam, security advisors have no
+  lints, and performance advisors are INFO-only. No Supabase mutation was
+  performed.
+- Confirmed the Storage upload blocker is exact: small objects are plannable,
+  but dbSNP `.gz` and phyloP `.bw` exceed the current 1 GiB per-bucket object
+  limit; actual upload remains blocked locally because upload credentials are
+  not configured. MCP SQL access is not binary Storage upload.
+- Delivered the backend portion of Claude's gnomAD PopFreq CAR: per-ancestry
+  XX/XY cells are parsed from `<group>_XX` / `<group>_XY`, cohort `overall`
+  total/XX/XY is exposed, report section schemas and builder output include
+  those additive fields, RPE65 fixtures seed the new values, backend tests were
+  updated, and `app/frontend/src/lib/backend.ts` was mirrored. The exome/genome
+  include-checkbox contract remains parked for Claude's final field names.
+
+Verification:
+- Linux native proof: `10 proven / 0 native pending / 0 missing / 0 partial /
+  0 failed`.
+- `python -m pytest tests/test_gnomad_tool.py tests/test_variant_report_orchestration.py tests/test_variant_search_integration.py tests/test_frontend_contract.py tests/test_source_reader_proofs.py tests/test_source_asset_manifest.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py -q`
+  -> passed.
+- `python -m app.cli.eamos_source_asset_preflight --compact` -> source manifest
+  ready/import count `10`, no static missing requirements, and full
+  noncommercial tier stack ready for the paid Render disk decision; private
+  Storage upload blockers remain unchanged.
+- `python -m ruff check ...` over touched backend source/tests -> passed.
+- `python -m black --check --target-version py310 ...` over touched backend
+  source/tests -> passed.
+- Full backend `python -m pytest -q` completed to 100% in the hidden-process log
+  with no failure/error output; warning summary only for existing short test
+  JWT keys.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+
+Guardrails held:
+- No secrets emitted, public genomic/protein bucket, Supabase Storage mutation,
+  Render/Vercel env or deploy mutation, restricted predictor unlock,
+  AlphaMissense runtime/display, Docker/toolchain install, destructive git,
+  stash, reset, clean, commit, push, or Claude-owned `app/web/**` renderer edit.
+
+## Session 96 - 31 May 2026 - Post-reference source download/readiness proof
+
+Moved the Tier 1/2/3 post-reference rollout from policy-only planning to
+guarded local staging and real-source reader proof, without mutating Render,
+Vercel, Supabase, buckets, env, or frontend files.
+
+Completed:
+- Added `python -m app.cli.eamos_source_download`, backed by
+  `app.services.source_downloads`, to plan/download approved source assets into
+  ignored staging roots, verify expected sizes, compute MD5/SHA256, write
+  sanitized manifests, and resume large `.part` downloads with HTTP Range.
+- Staged the small approved real source files locally: ClinVar VCF/index/md5,
+  UCSC RepeatMasker `rmsk.txt.gz`, MANE v1.4 GTF, GENCODE v45 GTF, MONDO JSON,
+  HPO `hp.json` plus annotation tables, ClinGen gene-validity CSV, and GenCC
+  CSV.
+- Added `python -m app.cli.eamos_source_storage_upload`, backed by
+  `app.services.source_storage_uploads`, to plan private Storage uploads using
+  hash-addressed object paths and manifest sidecars. Plan mode now shows 17
+  planned/under-limit private objects; real upload correctly blocks locally
+  because no Supabase URL/service-role key or logged-in Supabase CLI is
+  available. The large dbSNP `.gz` and phyloP `.bw` objects exceed the current
+  1 GiB private bucket object limit.
+- Added `app.services.source_reader_proofs` and wired it into
+  `eamos_source_asset_preflight`. Final real-source proof status after the
+  large downloads is `7 proven / 3 native pending / 0 partial / 0 missing /
+  0 failed`.
+- Hardened clinical source parsers for real exports: HPO JSON terms, lower-case
+  HPOA headers, ClinGen banner/divider rows, deprecated unlabeled MONDO nodes,
+  and GenCC quoted multiline CSV fields.
+- Updated the registry/readiness gate so post-reference readiness is now
+  `7/10` ready for download/import. The three remaining source blockers are
+  native reader proofs only: dbSNP and ClinVar need Linux `pysam`, and phyloP
+  needs Linux `pyBigWig`.
+- Restored the hg38 storage-pilot release segment to `hg38` so metadata-only
+  planning remains aligned with the already verified private object path.
+- Completed the approved large dbSNP/phyloP downloads on C-drive staging.
+  dbSNP `GCF_000001405.40.gz` is present at `29,552,227,779` bytes plus
+  `.tbi`/`.md5`/manifests. UCSC phyloP `hg38.phyloP100way.bw` is present at
+  `9,870,053,206` bytes plus `md5sum.txt`/manifests, and local MD5 matches
+  UCSC: `43858006bdf98145b6fd239490bd0478`. No download process remains
+  running.
+
+Verification:
+- `python -m pytest tests/test_clinical_source_tables.py tests/test_source_reader_proofs.py tests/test_source_asset_manifest.py tests/test_source_asset_preflight_cli.py tests/test_source_downloads.py tests/test_source_storage_uploads.py tests/test_source_imports.py tests/test_data_source_registry.py -q`
+  -> passed (`56` tests).
+- `python -m ruff check ...` over touched backend source/tests -> passed.
+- `python -m black --check --target-version py310 ...` over touched backend
+  source/tests -> passed.
+- Full backend `python -m pytest -q` has one known non-Codex failure:
+  `tests/test_frontend_contract.py::test_frontend_backend_ts_mirrors_are_byte_identical`
+  due to untouched Claude/user `app/web/**` changes diverging from
+  `app/frontend/src/lib/backend.ts`.
+
+Guardrails held:
+- No secrets emitted, public genomic/protein bucket, Supabase mutation,
+  Render/Vercel env or deploy mutation, restricted predictor unlock,
+  AlphaMissense runtime/display, WSL/Docker/local toolchain install,
+  destructive git, stash, reset, clean, or Claude/user frontend edit.
+
+## Session 95 - 31 May 2026 - Render disk readiness gate
+
+Added a read-only backend preflight gate that makes the Render paid-disk
+boundary explicit without mutating Render, Supabase, Vercel, buckets, env, or
+runtime files.
+
+Completed:
+- Extended `python -m app.cli.eamos_source_asset_preflight` with
+  `render_persistent_disk_gate`, separating the narrow hg38+Pfam web-runtime
+  readiness decision from the broader Tier 1/2/3 rollout.
+- The narrow hg38+Pfam web-runtime gate reports
+  `ready_for_paid_render_disk_decision=true` after local checksum verification,
+  with recommended disk size `15` GB and next paid step
+  `provision_render_persistent_disk`.
+- The full Tier 1/2/3 non-commercial gate reports
+  `ready_for_paid_render_disk_decision=false`: `0/10` post-reference sources
+  are ready for download/import, and all 10 still require terms review,
+  backend storage policy review, reader compatibility proof, and explicit
+  download/import approval. Its later planning estimate remains `60` GB after
+  those unpaid gates are closed.
+- Public `/healthz` on `https://eamos-dev.onrender.com` responded OK, but the
+  current public `/api/v1/health/provider-cache` response shape exposed only
+  `source_cache` and CRISPR provider status; it did not include the local
+  backend's `source_assets` or `protein_annotation` blocks. Do not treat the
+  public service as provider-cache/protein ready from the one-off Render proof
+  or from this local preflight gate.
+
+Verification:
+- `python -m pytest tests/test_source_asset_preflight_cli.py tests/test_protein_runtime_prepare.py tests/test_hg38_runtime_asset_config.py tests/test_source_imports.py tests/test_data_source_registry.py -q`
+  -> passed.
+- `python -m ruff check app/cli/eamos_source_asset_preflight.py tests/test_source_asset_preflight_cli.py`
+  -> passed.
+- `python -m compileall app/cli/eamos_source_asset_preflight.py` -> passed.
+- `python -m app.cli.eamos_source_asset_preflight --compact --verify-hg38-checksum --verify-protein-checksums`
+  -> narrow hg38+Pfam runtime ready for paid disk decision; full Tier 1/2/3
+  not ready for paid disk decision.
+
+Guardrails held:
+- No secrets emitted, public genomic/protein bucket, Supabase mutation, Render
+  env/deploy mutation, Vercel mutation, production source downloads/imports,
+  restricted predictor unlocks, AlphaMissense runtime/display, WSL/Docker/local
+  toolchain install, destructive git, stash, reset, clean, or Claude/user
+  frontend edit.
+
 ## Session 94 - 31 May 2026 - Private Pfam storage and materialization CLI
 
 Built and verified the backend-owned bridge from the private Pfam Storage

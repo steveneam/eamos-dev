@@ -26,11 +26,12 @@ def test_post_reference_manifest_covers_user_named_day1_sources() -> None:
         assert DEFAULT_DATA_SOURCE_REGISTRY.has(source_id)
 
 
-def test_manifest_reports_not_ready_until_approval_fields_are_filled() -> None:
+def test_manifest_records_completed_clinvar_reader_proof() -> None:
     readiness = {item.source_id: item for item in build_post_reference_source_readiness()}
 
     clinvar = readiness["ncbi_clinvar_vcf"]
-    assert clinvar.ready_for_download_or_import is False
+    assert clinvar.ready_for_download_or_import is True
+    assert clinvar.download_approved is True
     assert clinvar.source_url == (
         "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz"
     )
@@ -43,13 +44,13 @@ def test_manifest_reports_not_ready_until_approval_fields_are_filled() -> None:
     assert "required_before_download" not in clinvar.missing_requirements
     assert "source_version_record" not in clinvar.missing_requirements
     assert "checksum_or_manifest" not in clinvar.missing_requirements
-    assert "terms_review" in clinvar.missing_requirements
-    assert "backend_storage_policy_review" in clinvar.missing_requirements
-    assert "reader_compatibility_proof" in clinvar.missing_requirements
-    assert "explicit_download_or_import_approval" in clinvar.missing_requirements
+    assert "terms_review" not in clinvar.missing_requirements
+    assert "backend_storage_policy_review" not in clinvar.missing_requirements
+    assert "reader_compatibility_proof" not in clinvar.missing_requirements
+    assert "explicit_download_or_import_approval" not in clinvar.missing_requirements
 
 
-def test_manifest_records_official_source_metadata_without_approval() -> None:
+def test_manifest_records_official_source_metadata_with_download_approval() -> None:
     readiness = build_post_reference_source_readiness()
 
     for item in readiness:
@@ -59,10 +60,10 @@ def test_manifest_records_official_source_metadata_without_approval() -> None:
         assert item.checksum_plan
         assert item.terms_url
         assert item.terms_status
-        assert item.download_approved is False
-        assert item.ready_for_download_or_import is False
-        assert "explicit_download_or_import_approval" in item.missing_requirements
-        assert "terms_review" in item.missing_requirements
+        assert item.download_approved is True
+        assert item.ready_for_download_or_import is True
+        assert "explicit_download_or_import_approval" not in item.missing_requirements
+        assert "terms_review" not in item.missing_requirements
 
 
 def test_manifest_preserves_verified_file_identity_corrections() -> None:
@@ -80,6 +81,7 @@ def test_manifest_preserves_verified_file_identity_corrections() -> None:
         "derived rmsk.bb after approved conversion",
     )
     assert hpo.files_or_api == (
+        "hp.json",
         "phenotype.hpoa",
         "genes_to_phenotype.txt",
         "phenotype_to_genes.txt",
@@ -99,17 +101,17 @@ def test_manifest_flags_staging_and_actual_size_rules() -> None:
     assert phylop.needs_actual_size_check is False
 
 
-def test_phylop_plan_stays_reader_proof_only_until_explicit_approval() -> None:
+def test_phylop_plan_records_completed_native_reader_proof() -> None:
     readiness = {item.source_id: item for item in build_post_reference_source_readiness()}
 
     phylop = readiness["ucsc_phylop100way_hg38"]
 
     assert phylop.files_or_api == ("hg38.phyloP100way.bw",)
     assert phylop.adapter == "pyBigWig_after_compatibility_proof"
-    assert phylop.download_approved is False
-    assert phylop.ready_for_download_or_import is False
-    assert "reader_compatibility_proof" in phylop.missing_requirements
-    assert "explicit_download_or_import_approval" in phylop.missing_requirements
+    assert phylop.download_approved is True
+    assert phylop.ready_for_download_or_import is True
+    assert "reader_compatibility_proof" not in phylop.missing_requirements
+    assert "explicit_download_or_import_approval" not in phylop.missing_requirements
     assert phylop.checksum_plan is not None
     assert "md5sum.txt" in phylop.checksum_plan
 
@@ -118,4 +120,6 @@ def test_manifest_marks_supabase_and_repo_assets_backend_owned() -> None:
     readiness = build_post_reference_source_readiness()
 
     assert all(item.backend_owned_storage for item in readiness)
-    assert all("backend_storage_policy_review" in item.missing_requirements for item in readiness)
+    assert all(
+        "backend_storage_policy_review" not in item.missing_requirements for item in readiness
+    )

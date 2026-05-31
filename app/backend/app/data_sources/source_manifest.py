@@ -97,7 +97,7 @@ def _missing_requirements(record: DataSourceRecord) -> tuple[str, ...]:
         missing.append("terms_status")
     if record.license_status is LicenseStatus.PENDING_TERMS_RECORD:
         missing.append("terms_review")
-    if _is_backend_owned_storage(record):
+    if _is_backend_owned_storage(record) and not record.storage_policy_reviewed:
         missing.append("backend_storage_policy_review")
     if _needs_reader_proof(record):
         missing.append("reader_compatibility_proof")
@@ -114,6 +114,8 @@ def _is_backend_owned_storage(record: DataSourceRecord) -> bool:
 
 
 def _needs_reader_proof(record: DataSourceRecord) -> bool:
+    if record.reader_compatibility_proofed:
+        return False
     adapter = record.adapter.lower()
     return any(
         token in adapter
