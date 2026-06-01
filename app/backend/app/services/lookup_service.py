@@ -75,6 +75,9 @@ GENE_THERAPY_MAP: dict[str, str] = {
 SOURCE_CACHE_PERSIST_STATUSES = {"live", "cache"}
 SOURCE_CACHE_FAILURE_STATUSES = {"fallback", "degraded", "error", "failed"}
 SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
+PUBLICATION_DATA_CACHE_VERSION = 2
+STRICT_GENOMIC_CACHE_VERSION = 2
+FUNCTIONAL_EVIDENCE_CACHE_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -122,6 +125,76 @@ def _result_to_evidence(result: ToolResult) -> EvidenceSourceSummary:
         fetched_at=result.fetched_at,
         source_version=result.source_version,
         cache_status=result.cache_status,
+    )
+
+
+def _cached_functional_evidence_is_current(
+    publication_cache: dict[str, Any],
+    cached_functional_evidence: dict[str, Any],
+) -> bool:
+    if publication_cache.get("functional_evidence_cache_version") != (
+        FUNCTIONAL_EVIDENCE_CACHE_VERSION
+    ):
+        return False
+
+    metrics = cached_functional_evidence.get("display_metrics")
+    if not isinstance(metrics, dict):
+        return False
+    required_metric_fields = {
+        "state",
+        "primary_label",
+        "acmg_badge_text",
+        "verdict_source",
+        "study_count_badge_text",
+        "conflict_split",
+        "code_rests_on",
+        "ui_color_theme",
+    }
+    if not required_metric_fields.issubset(metrics):
+        return False
+
+    state = metrics.get("state")
+    verdict_source = metrics.get("verdict_source")
+    total_count = cached_functional_evidence.get("total_count")
+    has_codes = bool(
+        cached_functional_evidence.get("evidence_codes")
+        or cached_functional_evidence.get("source_asserted_codes")
+    )
+    if state == "none":
+        return (
+            total_count == 0
+            and verdict_source == "none"
+            and not has_codes
+            and metrics.get("acmg_badge_text") == "None"
+            and metrics.get("ui_color_theme") == "neutral_slate_state"
+        )
+    if state in {"strong_deficit", "emerging_deficit", "normal"}:
+        code_rests_on = metrics.get("code_rests_on")
+        return verdict_source in {"clingen", "clinvar", "clingen+clinvar"} and (
+            code_rests_on is None or isinstance(code_rests_on, dict)
+        )
+    if state == "conflict":
+        return verdict_source == "conflict"
+    if state == "uncurated":
+        return (
+            isinstance(total_count, int)
+            and total_count > 0
+            and verdict_source == "uncurated"
+            and metrics.get("acmg_badge_text") == "No code asserted"
+        )
+    return False
+
+
+def _publication_data_cache_is_current(publication_cache: dict[str, Any]) -> bool:
+    return publication_cache.get("publication_data_cache_version") == PUBLICATION_DATA_CACHE_VERSION
+
+
+def _strict_genomic_cache_is_current(cached_strict: dict[str, Any]) -> bool:
+    if cached_strict.get("strict_genomic_cache_version") != STRICT_GENOMIC_CACHE_VERSION:
+        return False
+    return isinstance(cached_strict.get("variant"), dict) and isinstance(
+        cached_strict.get("evidence"),
+        dict,
     )
 
 
@@ -581,6 +654,11 @@ class LookupService:
         publication_cache = (
             cache_hit.get("publication_data", {}) if isinstance(cache_hit, dict) else {}
         )
+        rebuild_publication_cache = bool(
+            publication_cache and not _publication_data_cache_is_current(publication_cache)
+        )
+        if rebuild_publication_cache:
+            publication_cache = {}
 
         def record_result(name: str, result: ToolResult) -> None:
             evidence.append(_result_to_evidence(result))
@@ -591,6 +669,9 @@ class LookupService:
 
         # Phase 1 resolves coordinates. VEP and VariantValidator may mutate the shared variant.
         cached_strict = (cache_hit or {}).get("strict_genomic_cache", {})
+        if isinstance(cached_strict, dict) and cached_strict:
+            if not _strict_genomic_cache_is_current(cached_strict):
+                cached_strict = {}
         cached_evidence = (
             cached_strict.get("evidence", {}) if isinstance(cached_strict, dict) else {}
         )
@@ -834,8 +915,19 @@ class LookupService:
             if isinstance(publication_cache, dict)
             else None
         )
+        rebuild_functional_evidence_cache = (
+            isinstance(publication_cache, dict)
+            and isinstance(cached_functional_evidence, dict)
+            and not _cached_functional_evidence_is_current(
+                publication_cache,
+                cached_functional_evidence,
+            )
+        )
         try:
-            if isinstance(cached_functional_evidence, dict):
+            if (
+                isinstance(cached_functional_evidence, dict)
+                and not rebuild_functional_evidence_cache
+            ):
                 functional_evidence = FunctionalEvidenceSummary.model_validate(
                     cached_functional_evidence
                 )
@@ -942,7 +1034,11 @@ class LookupService:
             self.settings is not None
             and self.settings.use_real_apis
             and self.variant_cache_repo is not None
-            and not cached_evidence
+            and (
+                not cached_evidence
+                or rebuild_publication_cache
+                or rebuild_functional_evidence_cache
+            )
             and variant.genomic_hg38
         ):
             cached_names = ("vep", "variant_validator", *STRICT_GENOMIC_PLUGINS)
@@ -957,6 +1053,7 @@ class LookupService:
                 litvar_id=litvar_summary.get("litvar_id"),
                 total_publications=total_count,
                 publication_data={
+                    "publication_data_cache_version": PUBLICATION_DATA_CACHE_VERSION,
                     "request_identity": litvar_result.request_identity,
                     "summary": litvar_result.summary,
                     "raw": litvar_result.raw,
@@ -968,6 +1065,7 @@ class LookupService:
                     "pubmed_raw": evidence_raw.get("pubmed"),
                     "pubmed_source_url": evidence_by_source.get("pubmed", {}).get("source_url"),
                     "ep_vlex": ep_vlex_cache,
+                    "functional_evidence_cache_version": FUNCTIONAL_EVIDENCE_CACHE_VERSION,
                     "functional_evidence": (
                         base_payload.functional_evidence.model_dump(mode="json")
                         if base_payload.functional_evidence is not None
@@ -975,6 +1073,7 @@ class LookupService:
                     ),
                 },
                 strict_genomic_cache={
+                    "strict_genomic_cache_version": STRICT_GENOMIC_CACHE_VERSION,
                     "variant": {
                         "genomic_hg38": variant.genomic_hg38,
                         "genomic_hgvs": variant.genomic_hgvs,

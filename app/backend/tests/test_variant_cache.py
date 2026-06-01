@@ -16,12 +16,18 @@ from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
 from app.schemas.lookup import LookupRequest
 from app.schemas.run import (
+    FunctionalEvidenceCodeRestsOn,
     FunctionalEvidenceDisplayMetrics,
     FunctionalEvidenceSourceBreakdown,
     FunctionalEvidenceSummary,
     FunctionalStudy,
 )
-from app.services.lookup_service import LookupService
+from app.services.lookup_service import (
+    FUNCTIONAL_EVIDENCE_CACHE_VERSION,
+    PUBLICATION_DATA_CACHE_VERSION,
+    STRICT_GENOMIC_CACHE_VERSION,
+    LookupService,
+)
 from app.tools.base import ToolResult
 
 
@@ -252,10 +258,12 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
             evidence_codes=["PS3"],
             source_asserted_codes=["PS3_Supporting"],
             display_metrics=FunctionalEvidenceDisplayMetrics(
+                state="emerging_deficit",
                 primary_label="Functional Deficit",
                 acmg_badge_text="PS3_Supporting",
+                verdict_source="clingen",
                 study_count_badge_text="1 Unique",
-                ui_color_theme="danger_red_state",
+                ui_color_theme="risk_red_state",
             ),
             studies=[
                 FunctionalStudy(
@@ -322,7 +330,224 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
     assert hit["publication_data"]["ep_vlex"]["scope_counts"]["gene"]["count_kind"] == (
         "unavailable"
     )
+    assert (
+        hit["publication_data"]["publication_data_cache_version"] == PUBLICATION_DATA_CACHE_VERSION
+    )
+    assert (
+        hit["publication_data"]["functional_evidence_cache_version"]
+        == FUNCTIONAL_EVIDENCE_CACHE_VERSION
+    )
     assert hit["publication_data"]["functional_evidence"]["total_count"] == 1
+
+
+def test_legacy_cached_functional_evidence_rebuilds_and_refreshes_cache(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    repo.upsert(
+        "RPE65:c.260A>G",
+        litvar_id="litvar-rpe65-c260ag",
+        total_publications=1,
+        publication_data={
+            "functional_evidence": {
+                "total_count": 3,
+                "source_breakdown": {"clingen": 0, "clinvar": 1, "pubmed": 2},
+                "evidence_codes": ["PS3"],
+                "source_asserted_codes": ["PS3_Supporting"],
+                "display_metrics": {
+                    "primary_label": "Functional Deficit",
+                    "acmg_badge_text": "PS3_Supporting",
+                    "study_count_badge_text": "3 Unique",
+                    "ui_color_theme": "danger_red_state",
+                },
+                "studies": [],
+                "warnings": [],
+            },
+        },
+        strict_genomic_cache={
+            "strict_genomic_cache_version": STRICT_GENOMIC_CACHE_VERSION,
+            "variant": {
+                "genomic_hg38": "1-68444869-T-C",
+                "genomic_hgvs": "NC_000001.11:g.68444869T>C",
+                "variation_type": "single nucleotide variant",
+                "consequence": "missense variant",
+            },
+            "evidence": {
+                "vep": _cached_evidence("vep", {"most_severe_consequence": "missense_variant"}),
+                "variant_validator": _cached_evidence("variant_validator"),
+                "gnomad": _cached_evidence("gnomad"),
+                "spliceai": _cached_evidence(
+                    "spliceai",
+                    {
+                        "acceptor_loss": 0.0,
+                        "donor_loss": 0.0,
+                        "acceptor_gain": 0.0,
+                        "donor_gain": 0.0,
+                    },
+                ),
+            },
+        },
+    )
+    rebuilt_summary = FunctionalEvidenceSummary(
+        total_count=3,
+        source_breakdown=FunctionalEvidenceSourceBreakdown(clinvar=1, pubmed=2),
+        evidence_codes=["PS3"],
+        source_asserted_codes=["PS3_Supporting"],
+        display_metrics=FunctionalEvidenceDisplayMetrics(
+            state="emerging_deficit",
+            primary_label="Functional Deficit",
+            acmg_badge_text="PS3_Supporting",
+            verdict_source="clinvar",
+            study_count_badge_text="3 Unique",
+            code_rests_on=FunctionalEvidenceCodeRestsOn(cited=1, total=3),
+            ui_color_theme="risk_red_state",
+        ),
+        studies=[
+            FunctionalStudy(
+                id="functional-study-1",
+                citation="Guan et al., 2024",
+                source_tags=["clinvar"],
+                evidence_codes=["PS3"],
+                asserted_codes=["PS3_Supporting"],
+            )
+        ],
+    )
+    functional_evidence = _NoopFunctionalEvidenceExtractor(rebuilt_summary)
+    tools = {
+        "vep": _StaticTool("vep"),
+        "variant_validator": _StaticTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
+        "clinical_trials": _ClinicalTrialsTool(),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        settings=settings,
+        functional_evidence_extractor=functional_evidence,
+    )
+
+    first = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+    second = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    first_functional = first.report_payload.functional_evidence
+    second_functional = second.report_payload.functional_evidence
+    assert first_functional is not None
+    assert second_functional is not None
+    assert first_functional.display_metrics.state == "emerging_deficit"
+    assert first_functional.display_metrics.verdict_source == "clinvar"
+    assert second_functional.display_metrics.state == "emerging_deficit"
+    assert functional_evidence.calls == 1
+
+    hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    assert hit is not None
+    assert (
+        hit["publication_data"]["functional_evidence_cache_version"]
+        == FUNCTIONAL_EVIDENCE_CACHE_VERSION
+    )
+    cached_functional = hit["publication_data"]["functional_evidence"]
+    assert cached_functional["display_metrics"]["state"] == "emerging_deficit"
+    assert cached_functional["display_metrics"]["verdict_source"] == "clinvar"
+    assert cached_functional["display_metrics"]["code_rests_on"] == {"cited": 1, "total": 3}
+
+
+def test_legacy_strict_genomic_cache_rebuilds_and_refreshes_cache(tmp_path: Path) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    repo.upsert(
+        "RPE65:c.260A>G",
+        litvar_id=None,
+        total_publications=0,
+        publication_data={},
+        strict_genomic_cache={
+            "variant": {
+                "genomic_hg38": "legacy-coordinate",
+                "variation_type": "legacy type",
+                "consequence": "legacy consequence",
+            },
+            "evidence": {
+                "vep": _cached_evidence("vep", {"most_severe_consequence": "legacy"}),
+                "variant_validator": _cached_evidence("variant_validator"),
+            },
+        },
+    )
+    vep_tool = _StaticTool("vep", {"most_severe_consequence": "missense_variant"})
+    variant_validator_tool = _MutatingVariantValidatorTool("variant_validator")
+    tools = {
+        "vep": vep_tool,
+        "variant_validator": variant_validator_tool,
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool(
+            "spliceai",
+            {
+                "acceptor_loss": 0.0,
+                "donor_loss": 0.0,
+                "acceptor_gain": 0.0,
+                "donor_gain": 0.0,
+            },
+        ),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
+        "clinical_trials": _ClinicalTrialsTool(),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    first = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+    second = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    assert first.report_payload.variant_summary_rows[0].genomic_hg38 == "1-68444869-T-C"
+    assert vep_tool.calls == 1
+    assert variant_validator_tool.calls == 1
+    assert second.report_payload.variant_summary_rows[0].genomic_hg38 == "1-68444869-T-C"
+    assert vep_tool.calls == 1
+    assert variant_validator_tool.calls == 1
+
+    hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    assert hit is not None
+    assert (
+        hit["strict_genomic_cache"]["strict_genomic_cache_version"] == STRICT_GENOMIC_CACHE_VERSION
+    )
+    assert hit["strict_genomic_cache"]["variant"]["genomic_hg38"] == "1-68444869-T-C"
 
 
 def test_legacy_cached_ep_vlex_without_scope_counts_rebuilds_response_counts(
@@ -352,6 +577,7 @@ def test_legacy_cached_ep_vlex_without_scope_counts_rebuilds_response_counts(
         litvar_id="litvar-rpe65-c260ag",
         total_publications=999,
         publication_data={
+            "publication_data_cache_version": PUBLICATION_DATA_CACHE_VERSION,
             "request_identity": {},
             "summary": {
                 "litvar_id": "litvar-rpe65-c260ag",
@@ -386,6 +612,7 @@ def test_legacy_cached_ep_vlex_without_scope_counts_rebuilds_response_counts(
             },
         },
         strict_genomic_cache={
+            "strict_genomic_cache_version": STRICT_GENOMIC_CACHE_VERSION,
             "variant": {
                 "genomic_hg38": "1-68444869-T-C",
                 "genomic_hgvs": "NC_000001.11:g.68444869T>C",
