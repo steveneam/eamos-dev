@@ -54,7 +54,6 @@ def clingen_vcep_source_cache_key(
 
 
 HERO_EXAMPLE_VARIANTS: tuple[HeroExampleVariant, ...] = (
-    HeroExampleVariant(label="RPE65 c.260A>G", gene="RPE65", cdna="c.260A>G"),
     HeroExampleVariant(label="RPE65 c.11+5G>A", gene="RPE65", cdna="c.11+5G>A"),
     HeroExampleVariant(label="USH2A c.2276G>T", gene="USH2A", cdna="c.2276G>T"),
     HeroExampleVariant(label="BRCA1 c.5266dupC", gene="BRCA1", cdna="c.5266dupC"),

@@ -306,6 +306,8 @@ def parse_clinicaltrials_v2_study(
     interventions = tuple(_intervention_names(interventions_module))
     locations = tuple(_location_summaries(locations_module))
     match_level, matched_terms, match_warnings = _match_level(study, query)
+    if query is not None and match_level == "unavailable":
+        return None
 
     warnings = [DISCOVERY_ONLY_WARNING, *match_warnings]
     if match_level == "gene_level":
@@ -412,8 +414,6 @@ def _match_level(
     if disease_matches:
         return "disease_level", disease_matches, []
 
-    if query.requested_match_level in {"gene_level", "disease_level"}:
-        return query.requested_match_level, [], [QUERY_SCOPE_WARNING]
     return "unavailable", [], [QUERY_SCOPE_WARNING]
 
 

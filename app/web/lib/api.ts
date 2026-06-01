@@ -35,7 +35,10 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function variantLookup(payload: LookupRequest): Promise<LookupResponse> {
+export async function variantLookup(
+  payload: LookupRequest,
+  init: { signal?: AbortSignal } = {},
+): Promise<LookupResponse> {
   // One retry with backoff on transient failure only: network errors
   // (fetch throws TypeError) and 5xx. 4xx is a terminal client error — never
   // retried (it would just fail identically).
@@ -47,6 +50,7 @@ export async function variantLookup(payload: LookupRequest): Promise<LookupRespo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: init.signal,
       })
       if (response.status >= 500 && attempt === 0) {
         lastError = new Error(`Request failed with status ${response.status}`)

@@ -11,8 +11,8 @@ interface ReportGeneViewerProps {
   gene: string
   cdna: string
   transcript?: string | null
-  /** Offline sample mode — render from the bundled GENE_VIEWER_SAMPLE without
-   *  a network call, matching the rest of the ?demo report. */
+  /** Offline fixture mode — render from the bundled GENE_VIEWER_SAMPLE without
+   *  a network call, matching the explicit fixture report. */
   demo?: boolean
 }
 
@@ -124,8 +124,8 @@ function formatInt(n: number): string {
 }
 
 export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: ReportGeneViewerProps) {
-  // Demo/offline mode renders the bundled sample synchronously — no network,
-  // no loading flash — so the demo report never depends on a live backend.
+  // Fixture/offline mode renders the bundled sample synchronously, so the
+  // explicit negative-control fixture never depends on a live backend.
   const [data, setData] = useState<GeneWindowData | null>(() =>
     demo ? adaptGeneViewer(GENE_VIEWER_SAMPLE) : null,
   )
@@ -138,16 +138,24 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
   const [loading, setLoading] = useState(!demo)
 
   useEffect(() => {
-    if (demo) {
-      setData(adaptGeneViewer(GENE_VIEWER_SAMPLE))
-      setWarnings(geneViewerScaffoldWarnings(GENE_VIEWER_SAMPLE))
-      setError(null)
-      setLoading(false)
-      return
-    }
     let cancelled = false
-    setLoading(true)
-    setError(null)
+    if (demo) {
+      void Promise.resolve().then(() => {
+        if (cancelled) return
+        setData(adaptGeneViewer(GENE_VIEWER_SAMPLE))
+        setWarnings(geneViewerScaffoldWarnings(GENE_VIEWER_SAMPLE))
+        setError(null)
+        setLoading(false)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    void Promise.resolve().then(() => {
+      if (cancelled) return
+      setLoading(true)
+      setError(null)
+    })
     getGeneViewer({
       gene,
       cdna,

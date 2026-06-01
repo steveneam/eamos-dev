@@ -71,8 +71,10 @@ def test_clingen_ps3_supporting_counts_source_native_functional_study() -> None:
     assert summary.source_breakdown.clingen == 1
     assert summary.evidence_codes == ["PS3"]
     assert summary.source_asserted_codes == ["PS3_Supporting"]
+    assert summary.display_metrics.state == "emerging_deficit"
     assert summary.display_metrics.primary_label == "Functional Deficit"
     assert summary.display_metrics.acmg_badge_text == "PS3_Supporting"
+    assert summary.display_metrics.verdict_source == "clingen"
     assert summary.display_metrics.study_count_badge_text == "1 Unique"
     assert summary.studies[0].pmid is None
     assert summary.studies[0].citation == "Guan et al., 2024"
@@ -107,8 +109,10 @@ def test_clingen_bs3_supporting_counts_unique_pubmed_functional_studies() -> Non
     assert summary.source_breakdown.clingen == 2
     assert summary.evidence_codes == ["BS3"]
     assert summary.source_asserted_codes == ["BS3_Supporting"]
+    assert summary.display_metrics.state == "normal"
     assert summary.display_metrics.primary_label == "Normal Function"
     assert summary.display_metrics.acmg_badge_text == "BS3_Supporting"
+    assert summary.display_metrics.verdict_source == "clingen"
     assert summary.display_metrics.study_count_badge_text == "2 Unique"
     assert {study.pmid for study in summary.studies} == {"16150724", "19431183"}
 
@@ -216,8 +220,10 @@ def test_pubmed_functional_screen_requires_variant_alias_not_gene_only() -> None
     assert summary.total_count == 1
     assert summary.source_breakdown.pubmed == 1
     assert summary.evidence_codes == []
-    assert summary.display_metrics.primary_label == "Functional Evidence Found"
-    assert summary.display_metrics.acmg_badge_text == "Review Required"
+    assert summary.display_metrics.state == "uncurated"
+    assert summary.display_metrics.primary_label == "Functional Work Found - Not ACMG-graded"
+    assert summary.display_metrics.acmg_badge_text == "No code asserted"
+    assert summary.display_metrics.verdict_source == "uncurated"
     assert summary.display_metrics.study_count_badge_text == "1 Unique"
     assert summary.studies[0].pmid == "23456789"
 
@@ -228,8 +234,10 @@ def test_no_functional_evidence_has_neutral_call_card_metrics() -> None:
     assert summary.total_count == 0
     assert summary.evidence_codes == []
     assert summary.source_asserted_codes == []
+    assert summary.display_metrics.state == "none"
     assert summary.display_metrics.primary_label == "No Functional Data Available"
     assert summary.display_metrics.acmg_badge_text == "None"
+    assert summary.display_metrics.verdict_source == "none"
     assert summary.display_metrics.study_count_badge_text == "0 Unique"
 
 
@@ -262,8 +270,10 @@ def test_conflicting_ps3_bs3_sources_flag_review_without_using_count_as_category
     assert summary.total_count == 2
     assert summary.evidence_codes == ["PS3", "BS3"]
     assert summary.source_asserted_codes == ["PS3_Supporting", "BS3_Supporting"]
+    assert summary.display_metrics.state == "conflict"
     assert summary.display_metrics.primary_label == "Conflicting Functional Data"
     assert summary.display_metrics.acmg_badge_text == "Review Required"
+    assert summary.display_metrics.verdict_source == "conflict"
     assert summary.display_metrics.study_count_badge_text == "2 Unique"
 
 

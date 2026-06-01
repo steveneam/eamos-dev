@@ -257,10 +257,15 @@ def _lab_functional_card(
         )
 
     metrics = functional.display_metrics
+    acmg_badge_kind: str = "acmg"
+    if metrics.acmg_badge_text == "Review Required":
+        acmg_badge_kind = "warning"
+    elif metrics.acmg_badge_text in {"None", "No code asserted"}:
+        acmg_badge_kind = "neutral"
     badges = [
         ReportCallBadge(
             text=metrics.acmg_badge_text,
-            kind="warning" if metrics.acmg_badge_text == "Review Required" else "acmg",
+            kind=acmg_badge_kind,  # type: ignore[arg-type]
         ),
         ReportCallBadge(text=metrics.study_count_badge_text, kind="metric"),
     ]

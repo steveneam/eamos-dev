@@ -579,10 +579,24 @@ export interface FunctionalEvidenceSourceBreakdown {
   pubmed: number
 }
 
+export interface FunctionalEvidenceConflictSplit {
+  deficit: number
+  normal: number
+}
+
+export interface FunctionalEvidenceCodeRestsOn {
+  cited: number
+  total: number
+}
+
 export interface FunctionalEvidenceDisplayMetrics {
+  state: string
   primary_label: string
   acmg_badge_text: string
+  verdict_source: string
   study_count_badge_text: string
+  conflict_split?: FunctionalEvidenceConflictSplit | null
+  code_rests_on?: FunctionalEvidenceCodeRestsOn | null
   ui_color_theme: string
 }
 

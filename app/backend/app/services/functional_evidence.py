@@ -11,6 +11,7 @@ import httpx
 from app.core.config import Settings
 from app.schemas.run import (
     FunctionalEvidenceCode,
+    FunctionalEvidenceCodeRestsOn,
     FunctionalEvidenceDisplayMetrics,
     FunctionalEvidenceSourceBreakdown,
     FunctionalEvidenceSourceTag,
@@ -66,6 +67,9 @@ class _FunctionalHit:
     source_tags: set[FunctionalEvidenceSourceTag] = field(default_factory=set)
     evidence_codes: set[FunctionalEvidenceCode] = field(default_factory=set)
     asserted_codes: set[str] = field(default_factory=set)
+    asserted_codes_by_source: dict[FunctionalEvidenceSourceTag, set[str]] = field(
+        default_factory=dict
+    )
     snippets: list[str] = field(default_factory=list)
 
 
@@ -105,6 +109,7 @@ class _FunctionalEvidenceCollector:
             hit.evidence_codes.add(code)
         for code in asserted_codes or []:
             hit.asserted_codes.add(code)
+            hit.asserted_codes_by_source.setdefault(source, set()).add(code)
         if snippet:
             normalized = _normalize_space(snippet)
             if normalized and normalized not in hit.snippets:
@@ -138,6 +143,25 @@ class _FunctionalEvidenceCollector:
             {code for hit in self.by_pmid.values() for code in hit.asserted_codes},
             key=_asserted_code_sort_key,
         )
+        source_asserted_codes_by_source = {
+            source: sorted(
+                {
+                    code
+                    for hit in self.by_pmid.values()
+                    for code in hit.asserted_codes_by_source.get(source, set())
+                },
+                key=_asserted_code_sort_key,
+            )
+            for source in ("clingen", "clinvar")
+        }
+        curator_cited_count = len(
+            {
+                hit.id
+                for hit in self.by_pmid.values()
+                if hit.asserted_codes_by_source.get("clingen")
+                or hit.asserted_codes_by_source.get("clinvar")
+            }
+        )
         return FunctionalEvidenceSummary(
             total_count=len(studies),
             source_breakdown=FunctionalEvidenceSourceBreakdown(
@@ -149,8 +173,8 @@ class _FunctionalEvidenceCollector:
             source_asserted_codes=source_asserted_codes,
             display_metrics=_display_metrics(
                 total_count=len(studies),
-                evidence_codes=evidence_codes,
-                asserted_codes=source_asserted_codes,
+                source_asserted_codes_by_source=source_asserted_codes_by_source,
+                curator_cited_count=curator_cited_count,
             ),
             studies=studies,
             warnings=warnings,
@@ -481,39 +505,95 @@ def _asserted_functional_codes_from_text(text: str) -> list[str]:
 def _display_metrics(
     *,
     total_count: int,
-    evidence_codes: list[FunctionalEvidenceCode],
-    asserted_codes: list[str],
+    source_asserted_codes_by_source: dict[FunctionalEvidenceSourceTag, list[str]],
+    curator_cited_count: int,
 ) -> FunctionalEvidenceDisplayMetrics:
     study_count_badge_text = f"{total_count} Unique"
-    code_set = set(evidence_codes)
-    if total_count == 0:
-        return FunctionalEvidenceDisplayMetrics(study_count_badge_text=study_count_badge_text)
-    if {"PS3", "BS3"} <= code_set:
+    clingen_codes = source_asserted_codes_by_source.get("clingen", [])
+    clinvar_codes = source_asserted_codes_by_source.get("clinvar", [])
+
+    if _has_functional_direction_conflict(clingen_codes, clinvar_codes):
         return FunctionalEvidenceDisplayMetrics(
+            state="conflict",
             primary_label="Conflicting Functional Data",
             acmg_badge_text="Review Required",
+            verdict_source="conflict",
             study_count_badge_text=study_count_badge_text,
-            ui_color_theme="caution_orange_state",
+            conflict_split=None,
+            ui_color_theme="caution_yellow_state",
         )
-    if "PS3" in code_set:
+
+    clingen_direction = _single_functional_direction(clingen_codes)
+    clinvar_direction = _single_functional_direction(clinvar_codes)
+
+    if clingen_direction is not None:
+        code = _preferred_asserted_code(clingen_direction, clingen_codes)
+        source = "clingen+clinvar" if clinvar_direction == clingen_direction else "clingen"
+        return _curator_backed_display_metrics(
+            total_count=total_count,
+            study_count_badge_text=study_count_badge_text,
+            code=code,
+            direction=clingen_direction,
+            verdict_source=source,
+            curator_cited_count=curator_cited_count,
+        )
+
+    if clinvar_direction is not None:
+        code = _preferred_asserted_code(clinvar_direction, clinvar_codes)
+        return _curator_backed_display_metrics(
+            total_count=total_count,
+            study_count_badge_text=study_count_badge_text,
+            code=code,
+            direction=clinvar_direction,
+            verdict_source="clinvar",
+            curator_cited_count=curator_cited_count,
+        )
+
+    if total_count == 0:
         return FunctionalEvidenceDisplayMetrics(
+            state="none",
+            study_count_badge_text=study_count_badge_text,
+            verdict_source="none",
+        )
+
+    return FunctionalEvidenceDisplayMetrics(
+        state="uncurated",
+        primary_label="Functional Work Found - Not ACMG-graded",
+        acmg_badge_text="No code asserted",
+        verdict_source="uncurated",
+        study_count_badge_text=study_count_badge_text,
+        ui_color_theme="info_blue_state",
+    )
+
+
+def _curator_backed_display_metrics(
+    *,
+    total_count: int,
+    study_count_badge_text: str,
+    code: str,
+    direction: FunctionalEvidenceCode,
+    verdict_source: str,
+    curator_cited_count: int,
+) -> FunctionalEvidenceDisplayMetrics:
+    if direction == "PS3":
+        state = "strong_deficit" if code.upper().endswith("_STRONG") else "emerging_deficit"
+        return FunctionalEvidenceDisplayMetrics(
+            state=state,
             primary_label="Functional Deficit",
-            acmg_badge_text=_preferred_asserted_code("PS3", asserted_codes),
+            acmg_badge_text=code,
+            verdict_source=verdict_source,  # type: ignore[arg-type]
             study_count_badge_text=study_count_badge_text,
-            ui_color_theme="danger_red_state",
-        )
-    if "BS3" in code_set:
-        return FunctionalEvidenceDisplayMetrics(
-            primary_label="Normal Function",
-            acmg_badge_text=_preferred_asserted_code("BS3", asserted_codes),
-            study_count_badge_text=study_count_badge_text,
-            ui_color_theme="safe_green_state",
+            code_rests_on=_code_rests_on(curator_cited_count, total_count),
+            ui_color_theme="danger_red_state" if state == "strong_deficit" else "risk_red_state",
         )
     return FunctionalEvidenceDisplayMetrics(
-        primary_label="Functional Evidence Found",
-        acmg_badge_text="Review Required",
+        state="normal",
+        primary_label="Normal Function",
+        acmg_badge_text=code,
+        verdict_source=verdict_source,  # type: ignore[arg-type]
         study_count_badge_text=study_count_badge_text,
-        ui_color_theme="caution_orange_state",
+        code_rests_on=_code_rests_on(curator_cited_count, total_count),
+        ui_color_theme="safe_green_state",
     )
 
 
@@ -522,6 +602,48 @@ def _preferred_asserted_code(base_code: FunctionalEvidenceCode, asserted_codes: 
         if code.upper().startswith(base_code):
             return code
     return base_code
+
+
+def _has_functional_direction_conflict(
+    clingen_codes: list[str],
+    clinvar_codes: list[str],
+) -> bool:
+    clingen_directions = _functional_directions(clingen_codes)
+    clinvar_directions = _functional_directions(clinvar_codes)
+    if len(clingen_directions) > 1 or len(clinvar_directions) > 1:
+        return True
+    return bool(
+        clingen_directions and clinvar_directions and clingen_directions != clinvar_directions
+    )
+
+
+def _functional_directions(codes: list[str]) -> set[FunctionalEvidenceCode]:
+    return {direction for direction in (_functional_direction(code) for code in codes) if direction}
+
+
+def _single_functional_direction(codes: list[str]) -> FunctionalEvidenceCode | None:
+    directions = _functional_directions(codes)
+    if len(directions) == 1:
+        return next(iter(directions))
+    return None
+
+
+def _functional_direction(code: str) -> FunctionalEvidenceCode | None:
+    upper = code.upper()
+    if upper.startswith("PS3"):
+        return "PS3"
+    if upper.startswith("BS3"):
+        return "BS3"
+    return None
+
+
+def _code_rests_on(
+    curator_cited_count: int,
+    total_count: int,
+) -> FunctionalEvidenceCodeRestsOn | None:
+    if curator_cited_count <= 0 or total_count <= curator_cited_count:
+        return None
+    return FunctionalEvidenceCodeRestsOn(cited=curator_cited_count, total=total_count)
 
 
 def _asserted_code_sort_key(code: str) -> tuple[int, str]:

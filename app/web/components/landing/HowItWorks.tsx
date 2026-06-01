@@ -16,7 +16,7 @@ const STEPS: Step[] = [
     title: 'Enter a variant',
     description:
       'Type a gene plus HGVS, rsID, or genomic coordinate into the zero-trust search. Eamos normalises whatever you paste.',
-    visual: { lines: ['> RPE65 c.260A>G', 'parsed: NM_000329.3', 'normalised: chr1:g.68894…'] },
+    visual: { lines: ['> USH2A c.2276G>T', 'parsed: NM_206933.4', 'normalised: 1-216247118-C-A'] },
   },
   {
     num: 2,

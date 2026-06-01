@@ -14,19 +14,36 @@
 
 ## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
 
-- **Claude:** INACTIVE @ 2026-05-31 23:17 +1000 - gnomAD PopFreq FE done + UNCOMMITTED at Steven's commit gate. This session: migrated `PopulationFrequencySection.tsx` off LOCAL item-3 types onto Codex's shared contract (`PopulationFrequencyDatasetCell`, group/total `.exome`/`.genome`, `PopulationFrequencyOverallTotalCell`); Exome/Genome Include toggle verified recomputing distinctly (joint/exome/genome) at `/pf-preview`. Plus 3 Steven-approved polish items: (1) numerals -> Inter + tabular-nums (mono reserved for codes/IDs only) so the dotted "0" no longer reads as "8"; (2) removed the duplicate Total/XX/XY box from the World-map tab footer (kept on Ancestry; non-geographic cohorts stay on the map); (3) World-map deselect by clicking ocean/base-land OR anywhere outside the component (pointerdown listener). `tsc` 0, `lint` 8-baseline. The whole PopFreq set (Codex backend + both byte-identical `backend.ts` mirrors + my FE) is coherent and ready for ONE coordinated commit (DELETE `app/web/app/pf-preview/` first). Detail in `~/.claude/plans/next-session-eamos.md` + TASKS.md. [Prior 21:02 session detail archived below.] ACTIVE @ 2026-05-31 21:02 +1000. Big FE session on the **/report gnomAD PopulationFrequencySection** (all 3 tabs), verified in-browser at `http://localhost:3000/pf-preview` across 390(mobile)-1600px. FE-only, UNCOMMITTED, at Steven's commit gate. **Ancestry-tab interaction model reworked (Steven-directed):** inspector is now CLICK-driven only (hover never populates it, only a different click replaces it; click the selected group again to clear); hover and select are separate states; the **yellow double halo shows on hover AND select** (the lively look Steven likes) - SELECTION is told apart by the **dim** (selecting a region makes it stand out and fades the rest of the map to 0.45; hover never dims) plus the bar ring/scale + the inspector; select/de-select animate symmetrically via transitions (no bounce); inspector + cohort boxes shrank (note 1 line) and `alignItems: stretch` lines the two column feet up exactly (measured gap 0); select/de-select jitter fixed (`minHeight` 192 == populated, measured resting==populated==192); copy buttons (shared `@/components/ui/CopyButton`) on the selected-group + whole-variant-totals boxes. **World-map TAB only:** clicking a region pops a small card (`MapSelectionPopover`) near it with the full group name + joint AF (no XX/XY). **Two-click bug FIXED:** the interactive region fills no longer reorder on hover/select (was sorting the active region last, which moved its DOM node and dropped the click - only the array's last region, SAS, was unaffected, hence "only SAS worked"); halos now render in a separate non-interactive top layer so they still sit above neighbours. Default region focus box removed (halo is the focus indicator). The map popover floats on hand-picked OCEAN anchors near each region (not over land) and shows the full group name + joint AF; Data notes is now an ⓘ popover (was an inline expandable). Mobile (390px) verified. `tsc` 0, `lint` 8-baseline. **`/impeccable` polish:** Age tab was the only design-system drift - FIXED: clean y-axis ticks (new `niceAxis()` 1/2/5x10^n, was 0/13/25/38/50 -> 0/10/20/30/40/50), and warm design tokens replacing hard-coded cool slate hex + "JetBrains Mono" (`--ink-3/4/5`,`--line`,`var(--mono)`). **Then Steven requested + I built (all done + verified):** (1) **Hover jitter FIXED** in the Ancestry inspector - root cause was the title (and column-header) having no fixed height, so long names wrapping at narrow widths grew the box and shoved the "All gnomAD samples" readout; fixed with a fixed two-line title slot + fixed two-line header slot + `minHeight` 198->210; MEASURED resting==pinned==210 and cohort-top unchanged at 760/1024/1280/1600px. (2) **Two stat tables column-aligned** - inspector + cohort grids now use a fixed `58px` label column (was `auto`) so columns line up to the pixel. (3) **Exome/Genome "Include" filter** built in the Ancestry tab (gnomAD-style checkboxes) - recomputes every group's AF/AC/AN/hom + map colours + bars + inspector + cohort Total for the selected dataset(s); at least one stays on. (4) **Age y-axis label** "# variant carriers" / "# individuals" (was "Count"); widened `padLeft` 44->56 so labels clear the thousands ticks (MEASURED +6.37px). (5) **Age bars hover** shows the count above a brightened bar + column highlight. (6) **Copy buttons** (shared `@/components/ui/CopyButton`) top-right of the Age box and the Allele-frequency box - copy Excel-pasteable TSV (verified output). `tsc` 0 err, `lint` 8-warn baseline (all pre-existing, none mine). **Files touched: `PopulationFrequencySection.tsx` (+ import of shared CopyButton); `app/web/app/pf-preview/page.tsx` seed (THROWAWAY - delete before commit).** **BACKEND/CODEX (flagged by Steven - all this data must be LIVE):** the Exome/Genome split (`group.exome`/`group.genome` + `overall.total.exome/genome` proposed cells), per-group XX/XY, age histograms (both carrier tracks exome+genome), and the copy-data all need real backend data. Codex completed the PopFreq CAR (items 1-2: XX/XY + overall) @ 19:49 - **CONTRACT RECONCILE NEEDED:** confirm Codex's contract field names vs my proposed `exome`/`genome` per-dataset cells (item 3, the biggest piece), and keep the two `backend.ts` mirrors byte-identical. I did NOT touch `lib/backend.ts` this session (proposed dataset types are local to the component + seed to avoid colliding with Codex's in-flight contract). Paste-ready Codex handoff in chat. **NEXT = Steven's commit/push gate** (stage explicit pathspec; DELETE `app/web/app/pf-preview/` first). MINE (stage at GATE): `PopulationFrequencySection.tsx`, `gnomadMapTheme.ts`, `gnomadAncestryMap.ts`, `gnomadMapGeometry.generated.ts`, `lib/backend.ts`, `scripts/build-gnomad-basemap.mjs`. NOT mine: `.claude/settings.json`, `PROGRESS.md`, `agent_handoff/**`, all `app/backend/**` (Codex). **Guardrails:** FE-only, no backend/Codex files touched, no commit/push/deploy until Steven's gate. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional - do NOT commit/flag ([[reference_context_folder]]).
+- **Claude:** ACTIVE @ 2026-06-01 23:56 +1000 - **functional-card dual-badge FE DONE + browser-verified.** The whole `lab_functional` call card is now colour-coded by functional STATE (Steven directive - scan the report, read the wet-lab call at a glance): red strong-deficit / soft-red emerging / green normal / yellow conflict / blue uncurated / grey none. Verdict chip carries curator attribution (`PS3_Strong · via ClinGen`, `· via ClinVar`, `· via ClinGen + ClinVar`); `code_rests_on` "Code rests on N of M studies" micro-note; new `--info-*` blue token in `globals.css` (off the red->green ACMG ramp + off grey NA so "uncurated" never reads as a tier or as no-data). Wired to Codex's `display_metrics.state`/`verdict_source`/`code_rests_on`. Files: `app/web/app/globals.css` + `app/web/components/report/CallCardsGrid.tsx` (FE-only). VERIFIED: app/web `tsc --noEmit` clean, `eslint --max-warnings=0` clean, all 6 states rendered through the real `CallCardsGrid` (blue via runtime token-injection ONLY because Codex's running `next dev` PID 30744 served STALE `globals.css` and never HMR'd the new `:root` tokens - on-disk tokens confirmed correct; prod `next build` / a fresh `next dev` compiles them natively, so NOT a code bug and NOT a commit blocker), affected backend pytest = 60 passed. Throwaway `app/web/app/cc-preview/` verification page DELETED. **COMMIT-COORDINATION (Steven-directed, 2026-06-01):** Steven approved committing the FULL cross-agent worktree to **main** in ONE push, but ONLY after **Codex green-lights its backend lane as commit-ready**; message-Codex-first. Sequence: (1) Codex confirms backend (`functional_evidence`/`clinical_trials`/`source_cache`/`report_call_cards`/`schemas/run`/`lookup_service` + the `eamos_press` CLI `eamos_press.py`/`claim_provenance.py`/`test_claim_provenance.py`) is verified + commit-ready; (2) Claude commits everything to main + pushes (Vercel auto-deploys FE); (3) **Codex owns the SG Render redeploy + live verify** (Render SG auto-deploy is OFF; until SG redeploys, the new `display_metrics` fields aren't served and the card degrades gracefully - no tint/attribution, no crash); (4) DELETE Oregon (`eamos-dev.onrender.com`, ~`srv-d896ie77f7vs73brs140`) ONLY after SG-verify confirms SG is the sole live backend. Paste-ready Codex message delivered to Steven in chat. [Everything from 'session = TWO specs designed' below is SUPERSEDED prior narrative - durable in commits + `~/.claude/plans/next-session-eamos.md`.] PRIOR (19:55, superseded): session = TWO specs designed, NO Claude code shipped, nothing committed. (A) `eamos_press` truth-printer/claim-provenance contract `plans/eamos-press-truth-printer/spec.md` — **CLI NOT built yet** (no `app/backend/app/cli/eamos_press.py` / `services/claim_provenance.py`); Codex implements, harness-first USH2A red→green. (B) Lab & Functional card `plans/functional-card/spec.md` — dual-badge curator verdict (ClinGen→ClinVar) + Eamos 3-stream deduped count, 6 states incl NEW uncurated/info_blue; **Codex SHIPPED the backend slice (uncommitted)**; conflict rule = single-source 'PS3 via ClinVar' (Steven-confirmed). functional-card **FE = Claude NEXT SESSION** (tokens caution_yellow_state/info_blue_state + dual-badge render + browser-verify, after backend slice commits); E1 dedicated Stream-3 PubMed functional query tracked (depends on protein_change resolution). (A) `eamos_press` detail: Per-claim {rendered text, source facts, source_status, provenance PMIDs/NCT/accessions, claim_level variant/gene/disease/unsupported, verdict supported/downgraded/unsupported/contradicted/unverifiable, warnings}; modes `--explain-pill`/`--assert-source-backed-pills`(exit 2)/`--audit-demo-sample`. Codex's a/b/c answers folded in: in-process orchestrator tap; PS3_Supporting = `eamos_functional_literature:publication_functional_evidence` (red if shown as VCEP); `stale` from source-cache `fetched_at`. Worked example USH2A:c.2276G>T exposes the real bug = PopFreq pill PM2 (rare) vs ClinGen VCEP BS1 met (too common) + gnomAD AC 2357/popmax 0.18%/5 hom; + matched_terms=[] cardiac trials; + protein p.Cys759Phe derivable-not-surfaced. Steven OK'd Codex's frontend example-pill cleanup (RPE65 c.260A>G out of hero chips, USH2A promoted; trials matched_terms=[] fix landed) - all uncommitted. No code/commit from Claude. NOTE: USH2A is now primary demo but its live PopFreq pill still shows the contradictory PM2 until the badge-filter fix lands (harness goes red→green). [Everything below is SUPERSEDED prior narrative - durable in commits `d60a748`/`7305fab`/`189a01b`/`7d1d654`/`59614e3` + `~/.claude/plans/next-session-eamos.md`.] PROD INCIDENT relay (02:50): Pushed Codex's cast hotfix `d60a748` to origin/main, fired the SG Render deploy (now live on `d60a748`), verified: the original Postgres AmbiguousParameter is GONE, but `/api/v1/lookup` now 500s one layer deeper - `IndexError` at `app/backend/app/data_sources/runtime_assets.py:345` `_resolve_materialization_path` (`settings.backend_root.parents[1]` overflows: on Render `backend_root=/app` has only one ancestor; only fires on SG where `USE_REAL_APIS=true` + Postgres holds source-asset materialization records, and the IndexError isn't in the resolver's fail-open except). Diagnosed via live Render logs (RENDER_API_KEY); handed the full fix->commit->push->redeploy->verify loop to **Codex** (Steven: "codex owns it"). **RESOLVED @ 03:02:** Codex's `7305fab` (resolve materialized paths under shallow `backend_root` + resolver now fails OPEN on future path-math errors) is LIVE on SG and verified by Codex - SG `/healthz` 200 and SG + Vercel-proxy `/api/v1/lookup` 200 for gnomAD-positive `USH2A:c.2276G>T` (AF, 10 visual groups, XX/XY, exome/genome cells). NOTE: `RPE65:c.260A>G` is NOT in gnomAD - bad PopFreq-positive smoke; use `USH2A:c.2276G>T`. Prod is UP; Oregon (`srv-d896ie77f7vs73brs140`) untouched as fallback; no Vercel change (FE already -> SG). New durable decision (`agent_handoff/DECISIONS.md`): after Codex owns a backend commit/push, **Codex also owns the Render redeploy + live verification loop**; Claude is NOT expected to redeploy/verify backend Render services after Codex backend pushes unless Steven explicitly redirects. Detail + resume prompt in `~/.claude/plans/next-session-eamos.md`. [Prior 2026-05-31 23:17 PopFreq FE session detail - now COMMITTED in `7d1d654`/`59614e3` - archived below.] This session: migrated `PopulationFrequencySection.tsx` off LOCAL item-3 types onto Codex's shared contract (`PopulationFrequencyDatasetCell`, group/total `.exome`/`.genome`, `PopulationFrequencyOverallTotalCell`); Exome/Genome Include toggle verified recomputing distinctly (joint/exome/genome) at `/pf-preview`. Plus 3 Steven-approved polish items: (1) numerals -> Inter + tabular-nums (mono reserved for codes/IDs only) so the dotted "0" no longer reads as "8"; (2) removed the duplicate Total/XX/XY box from the World-map tab footer (kept on Ancestry; non-geographic cohorts stay on the map); (3) World-map deselect by clicking ocean/base-land OR anywhere outside the component (pointerdown listener). `tsc` 0, `lint` 8-baseline. The whole PopFreq set (Codex backend + both byte-identical `backend.ts` mirrors + my FE) is coherent and ready for ONE coordinated commit (DELETE `app/web/app/pf-preview/` first). Detail in `~/.claude/plans/next-session-eamos.md` + TASKS.md. [Prior 21:02 session detail archived below.] ACTIVE @ 2026-05-31 21:02 +1000. Big FE session on the **/report gnomAD PopulationFrequencySection** (all 3 tabs), verified in-browser at `http://localhost:3000/pf-preview` across 390(mobile)-1600px. FE-only, UNCOMMITTED, at Steven's commit gate. **Ancestry-tab interaction model reworked (Steven-directed):** inspector is now CLICK-driven only (hover never populates it, only a different click replaces it; click the selected group again to clear); hover and select are separate states; the **yellow double halo shows on hover AND select** (the lively look Steven likes) - SELECTION is told apart by the **dim** (selecting a region makes it stand out and fades the rest of the map to 0.45; hover never dims) plus the bar ring/scale + the inspector; select/de-select animate symmetrically via transitions (no bounce); inspector + cohort boxes shrank (note 1 line) and `alignItems: stretch` lines the two column feet up exactly (measured gap 0); select/de-select jitter fixed (`minHeight` 192 == populated, measured resting==populated==192); copy buttons (shared `@/components/ui/CopyButton`) on the selected-group + whole-variant-totals boxes. **World-map TAB only:** clicking a region pops a small card (`MapSelectionPopover`) near it with the full group name + joint AF (no XX/XY). **Two-click bug FIXED:** the interactive region fills no longer reorder on hover/select (was sorting the active region last, which moved its DOM node and dropped the click - only the array's last region, SAS, was unaffected, hence "only SAS worked"); halos now render in a separate non-interactive top layer so they still sit above neighbours. Default region focus box removed (halo is the focus indicator). The map popover floats on hand-picked OCEAN anchors near each region (not over land) and shows the full group name + joint AF; Data notes is now an ⓘ popover (was an inline expandable). Mobile (390px) verified. `tsc` 0, `lint` 8-baseline. **`/impeccable` polish:** Age tab was the only design-system drift - FIXED: clean y-axis ticks (new `niceAxis()` 1/2/5x10^n, was 0/13/25/38/50 -> 0/10/20/30/40/50), and warm design tokens replacing hard-coded cool slate hex + "JetBrains Mono" (`--ink-3/4/5`,`--line`,`var(--mono)`). **Then Steven requested + I built (all done + verified):** (1) **Hover jitter FIXED** in the Ancestry inspector - root cause was the title (and column-header) having no fixed height, so long names wrapping at narrow widths grew the box and shoved the "All gnomAD samples" readout; fixed with a fixed two-line title slot + fixed two-line header slot + `minHeight` 198->210; MEASURED resting==pinned==210 and cohort-top unchanged at 760/1024/1280/1600px. (2) **Two stat tables column-aligned** - inspector + cohort grids now use a fixed `58px` label column (was `auto`) so columns line up to the pixel. (3) **Exome/Genome "Include" filter** built in the Ancestry tab (gnomAD-style checkboxes) - recomputes every group's AF/AC/AN/hom + map colours + bars + inspector + cohort Total for the selected dataset(s); at least one stays on. (4) **Age y-axis label** "# variant carriers" / "# individuals" (was "Count"); widened `padLeft` 44->56 so labels clear the thousands ticks (MEASURED +6.37px). (5) **Age bars hover** shows the count above a brightened bar + column highlight. (6) **Copy buttons** (shared `@/components/ui/CopyButton`) top-right of the Age box and the Allele-frequency box - copy Excel-pasteable TSV (verified output). `tsc` 0 err, `lint` 8-warn baseline (all pre-existing, none mine). **Files touched: `PopulationFrequencySection.tsx` (+ import of shared CopyButton); `app/web/app/pf-preview/page.tsx` seed (THROWAWAY - delete before commit).** **BACKEND/CODEX (flagged by Steven - all this data must be LIVE):** the Exome/Genome split (`group.exome`/`group.genome` + `overall.total.exome/genome` proposed cells), per-group XX/XY, age histograms (both carrier tracks exome+genome), and the copy-data all need real backend data. Codex completed the PopFreq CAR (items 1-2: XX/XY + overall) @ 19:49 - **CONTRACT RECONCILE NEEDED:** confirm Codex's contract field names vs my proposed `exome`/`genome` per-dataset cells (item 3, the biggest piece), and keep the two `backend.ts` mirrors byte-identical. I did NOT touch `lib/backend.ts` this session (proposed dataset types are local to the component + seed to avoid colliding with Codex's in-flight contract). Paste-ready Codex handoff in chat. **NEXT = Steven's commit/push gate** (stage explicit pathspec; DELETE `app/web/app/pf-preview/` first). MINE (stage at GATE): `PopulationFrequencySection.tsx`, `gnomadMapTheme.ts`, `gnomadAncestryMap.ts`, `gnomadMapGeometry.generated.ts`, `lib/backend.ts`, `scripts/build-gnomad-basemap.mjs`. NOT mine: `.claude/settings.json`, `PROGRESS.md`, `agent_handoff/**`, all `app/backend/**` (Codex). **Guardrails:** FE-only, no backend/Codex files touched, no commit/push/deploy until Steven's gate. **Standing flags:** AlphaMissense hidden ([[project_alphamissense_plan]]); AskEamos COMING SOON ([[feedback_askeamos_parked]]); inline > sub-agents ([[feedback_inline_over_subagents_eamos]]); CLI > MCP > dashboard ([[feedback_cli_first_over_mcp]]); lock protocol [[feedback_handoff_lock_protocol]]; durable structural/visual change needs Steven's OK first ([[feedback_subagent_recommendations_not_authorization]]); real-clock timestamps ([[feedback_real_clock_timestamps]]). `.context/` intentional - do NOT commit/flag ([[reference_context_folder]]).
 
-- **Codex:** INACTIVE @ 2026-06-01 01:35 +1000 - completed the held
-  source-asset/download/storage work after Steven approved Supabase Storage
-  upload. New capability this session: backend source-storage uploader now has
-  explicit Supabase S3 multipart mode with private-bucket guardrails,
-  50 GiB object limit alignment, long S3 timeouts/retries, TCP keepalive, and
-  checksum-addressed manifest sidecars. Live Storage mutation performed with
-  Steven approval: phyloP and dbSNP large assets plus sidecars uploaded to the
-  private `eamos-source-assets` bucket; remote sizes match local sizes. Focused
-  source-storage/download/proof/preflight tests, Ruff, Black check, and
-  diff-check passed. No public bucket, frontend raw-source URL, Render/Vercel
-  mutation, restricted predictor unlock, or push.
+- **Codex:** INACTIVE @ 2026-06-01 23:21 +1000 - Report route/cache hardening and demo/live split completed locally and verified. `/report` state is request-keyed with stale fetch aborts and bounded post-hydration session cache; `?demo=1`/bare report redirect to live `USH2A c.2276G>T`; old `RPE65 c.260A>G` JSON is explicit `?fixture=rpe65-negative` only; MatrixOverture ignores 4-tile summary payloads so the report shows 12 matrix tiles + 4 call cards, not duplicate 4-card strips. Verified `app/web` tsc, targeted eslint `--max-warnings=0`, focused backend claim/report/frontend pytest, `git diff --check` (LF warnings only), fixture desktop/mobile browser counts. Deployed Vercel proxy was verified already pointing to SG: Vercel USH2A warning shape matches `https://eamos-dev-sg.onrender.com` and not Oregon; all three visible chips (`USH2A c.2276G>T`, `RPE65 c.11+5G>A`, `BRCA1 c.5266dupC`) return 200 through Vercel. Important trap for Claude/Codex: do not diagnose production routing from `localhost:3000` unless that dev server was launched with `API_PROXY_TARGET=https://eamos-dev-sg.onrender.com`; the stale 500 seen this session came from a local Next server still proxying to Oregon (`https://eamos-dev.onrender.com`), not deployed Vercel. No commit, push, deploy, Supabase/Render/Vercel mutation, Oregon touch, stash, reset, or clean. Previous state:
+  Steven redirected from the planned gnomAD CLI implementation to a
+  printing-press CLI question, then ran a read-only USH2A forensic pass. Likely
+  current culprit: ClinicalTrials.gov gene fallback accepts rows with
+  `matched_terms=[]` as gene-level due only to query scope, so unrelated
+  cardiology/heart-failure trials can appear under the USH2A trials text/pill.
+  Secondary QA target: the population-frequency call card can show a PM2 badge
+  from source-asserted consensus while the live gnomAD max AF reads as low
+  frequency; the future press CLI should distinguish source-asserted ACMG
+  badges from Eamos threshold-derived frequency labels. No backend source files
+  were edited in this slice. Previous state: pushed backend
+  hardening commit `189a01b` to `origin/main`, triggered SG Render deploy
+  `dep-d8ejlu42m8qs7390a0tg`, and verified it live on commit
+  `189a01b96dbd17c55bd3b5dc11b51109e29c02b1`. SG `/healthz` is OK;
+  provider-cache is OK with 10 fresh source-cache rows, hg38 local runtime
+  asset still `runtime_asset_missing`, and protein annotation disabled/fail
+  closed. SG and Vercel proxy lookups for gnomAD-positive `USH2A:c.2276G>T`
+  returned AF `0.0014603125824794708`, 10 visual/detail groups, XX/XY, and
+  exome/genome cells. Gene Viewer route `POST /api/v1/viewer` works locally
+  and live for RPE65 full-gene payloads; Vercel Workbench renders the RPE65
+  `full_locus` Full gene mode on desktop, but window mode falls back when SG
+  returns `workbench_provider_unavailable:runtime_asset_missing` and mobile
+  Full gene view has body-level horizontal overflow. Protein route
+  `POST /api/v1/protein/annotate` correctly returns unavailable /
+  `protein_annotation_disabled` on SG. Windows preflight with checksums and
+  Linux WSL native proof validated all 10 Tier 1/2/3 noncommercial sources to
+  the persistent-disk gate; WSL was shut down. No Supabase/Vercel config
+  mutation, no Render env mutation, and Oregon fallback untouched.
 
 ## Log Edit-Lock
 
@@ -36,12 +53,22 @@ Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
 takeover, proceed.
 
-UNLOCKED - 2026-06-01 01:35 +1000 - Codex (recorded source Storage upload completion and prepared local commit)
+UNLOCKED - 2026-06-01 23:57 +1000 - Claude (functional-card FE done + verified; commit-coordination CAR for Codex recorded; awaiting Codex backend green light)
 
 ## Shared File Locks
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+- **Codex RELEASED Lab & Functional additive contract mirrors**
+  (2026-06-01 19:37 +1000)
+  - Scope: `app/backend/app/schemas/run.py`,
+    `app/frontend/src/lib/backend.ts`, and `app/web/lib/backend.ts`.
+  - Completed: additive `FunctionalEvidenceDisplayMetrics` fields from
+    `plans/functional-card/spec.md`, curator-sourced verdict resolver, neutral
+    uncurated state, and frontend mirror alignment.
+  - Verification: focused backend pytest, Ruff, Black, `app/web` typecheck, and
+    `app/frontend` typecheck passed.
 
 - **Codex RELEASED gnomAD PopFreq dataset contract**
   (2026-05-31 22:32 +1000)
@@ -873,6 +900,20 @@ Rule 4); release when done.
 
 Append-only. Format: `[OPEN|DONE] <from>Ã¢â€ â€™<to> (date): <ask> Ã‚Â· <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
+
+- [OPEN] Codex->Claude (2026-06-01 23:21 +1000): **SG proxy audit caution.**
+  Deployed Vercel already proxies `/api/*` to Singapore: direct checks showed
+  `https://eamos-dev.vercel.app/api/v1/lookup` for `USH2A c.2276G>T` matches
+  `https://eamos-dev-sg.onrender.com` warning shape and not Oregon
+  `https://eamos-dev.onrender.com`; all three visible chips returned 200 via
+  Vercel. Do not diagnose production routing from `localhost:3000` unless that
+  local Next dev server was launched with
+  `API_PROXY_TARGET=https://eamos-dev-sg.onrender.com`. The browser 500 Codex
+  saw this session was from a local server still proxying to Oregon, not a
+  deployed Vercel/SG failure. If Claude restarts local web for verification,
+  either use the SG target explicitly or verify deployed Vercel directly before
+  escalating env/redeploy work. - `app/web/next.config.*`,
+  Vercel `API_PROXY_TARGET`, local dev server startup.
 
 - [OPEN] Codex->Claude (2026-05-31 03:23 +1000): **Protein
   HMMER/Pfam runtime-prep commit/deploy handshake.** Steven confirmed Render
@@ -1995,83 +2036,116 @@ Earlier narratives:
 - 2026-05-28 00:41 +1000 (M-003 live-wire + ClinVar surface + M3.6 submitter half) → `agent_handoff/archive/2026-05-28-claude-section-pre-car2-landing.md`
 - 2026-05-27 23:55 /planner persist + 2026-05-27 21:50 rich-HTML copy + Workbench pass-2 slice 2 → `agent_handoff/archive/2026-05-28-claude-section-pre-m3-live-wire.md`
 
-## Codex — Last Task & Resume
+## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule
-1/2). Section last edited: 2026-05-31 22:32 +1000 - Codex. Detailed history is
+1/2). Section last edited: 2026-06-01 18:13 +1000 - Codex. Detailed history is
 in `PROGRESS.md`; backend status is summarized in `plans/v2-backend.md` Recent
 backend notes.
 
-**Latest Codex update (2026-05-31 22:32 +1000 - Codex):**
-Codex completed Claude-finalized gnomAD PopFreq CAR item 3. No Supabase
-Storage, Render, Vercel, bucket, env, deploy, commit, MyVariant rewiring, or
-Claude-owned `app/web/**` renderer mutation was performed.
+**Latest Codex update (2026-06-01 18:13 +1000 - Codex):**
+Codex pushed, deployed, and live-verified backend commit `189a01b`
+(`feat(source-assets): add sanitized materialization preflight`) on SG, then
+completed the smallest backend-owned Gene View / Protein View / source-layout
+readiness slice.
 
 **State:**
-- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`. Backend
-  code deployed to SG is still `4b17ce4`; do not assume this local backend/doc
-  work is deployed unless the deploy hook is fired.
-- Native source reader proof remains complete: `10 proven / 0 native pending /
-  0 missing / 0 partial / 0 failed`. Static source readiness remains `10/10`;
-  Windows dynamic preflight still reports native pending unless run in a Linux
-  runtime with `pysam` and `pyBigWig`.
-- Supabase state is unchanged: private bucket `eamos-source-assets` remains
-  `public=false` with 1 GiB file limit and two current objects. dbSNP `.gz`
-  and phyloP `.bw` still exceed the current object limit; upload remains
-  blocked locally because upload credentials are not configured.
-- gnomAD PopFreq backend CAR items 1/2/3 and 4/5 alignment are implemented:
-  per-group XX/XY, cohort overall total/XX/XY, optional per-group
-  `exome`/`genome`, optional `overall.total.exome`/`.genome`, schemas/report
-  builder, RPE65 fixture, tests, and both `backend.ts` mirrors.
-- Field names implemented for Claude: `PopulationFrequencyDatasetCell`,
-  `PopulationFrequencyVisualGroup.exome`,
-  `PopulationFrequencyVisualGroup.genome`,
-  `PopulationFrequencyOverall.total.exome`, and
-  `PopulationFrequencyOverall.total.genome`. Flat group and cohort-total
-  fields stay joint; no exome/genome rows were added to `visual_groups`.
-  Per-dataset XX/XY is not in scope.
-- Live PopFreq metrics for this section are sourced by backend gnomAD GraphQL,
-  not MyVariant. Fixtures are offline/demo/test data, and backend cache rows
-  may store gnomAD tool results for repeated lookups.
+- Repo root is `D:\eamos`; branch is `main` tracking `origin/main`.
+- Local `main` and `origin/main` are both `189a01b`.
+- SG (`https://eamos-dev-sg.onrender.com`) is live on commit
+  `189a01b96dbd17c55bd3b5dc11b51109e29c02b1` via Render deploy
+  `dep-d8ejlu42m8qs7390a0tg`.
+- SG provider-cache is OK with database OK, 10 fresh source-cache rows,
+  `source_assets.hg38_2bit.local_cache_ready=false`,
+  `source_assets.hg38_2bit.status=runtime_asset_missing`, and
+  `providers.protein_annotation.status=disabled`.
+- `189a01b` adds a reusable sanitized hg38 materialization probe for private
+  Storage/local-cache metadata. Direct materialized asset resolution remains
+  fail-closed; lookup sequence-context runtime remains fail-open; health and
+  preflight probes return sanitized no-exception status.
+- `/api/v1/health/provider-cache` now survives local hg38 inspection failures.
+- Oregon fallback (`eamos-dev` / `srv-d896ie77f7vs73brs140`) was not touched.
 
 **Verification refreshed:**
-- Focused gnomAD/report/contract pytest passed.
-- Full backend `python -m pytest -q` passed with existing short test-JWT
-  warnings only.
-- Ruff and Black checks passed.
-- `app/web` and `app/frontend` `npx tsc --noEmit` passed.
-- `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts` compare
-  byte-identical.
-- `git diff --check` passed; Windows LF-to-CRLF notices only.
+- Pushed `189a01b` to `origin/main`, triggered SG deploy
+  `dep-d8ejlu42m8qs7390a0tg`, and polled it to `live`.
+- SG `/healthz` -> `{"status":"ok"}`.
+- SG `/api/v1/health/provider-cache` -> status OK, source cache 10/10 fresh,
+  hg38 runtime asset missing as expected until persistent/runtime
+  materialization, protein annotation disabled/fail-closed.
+- SG lookup and Vercel proxy lookup for `USH2A:c.2276G>T` -> 200 with gnomAD AF
+  `0.0014603125824794708`, 10 visual/detail groups, XX/XY, and exome/genome
+  cells. `RPE65:c.260A>G` remains invalid as a PopFreq-positive smoke.
+- Focused local backend slice:
+  `python -m pytest tests/test_gene_viewer.py
+  tests/test_protein_annotation_service.py tests/test_health_api.py -q` passed.
+- SG `POST /api/v1/viewer` for `RPE65:c.260A>G`,
+  `window.kind="full_gene"` -> 200 with `full_locus`,
+  `basis=genomic_locus`, and fixture warnings
+  `offline_fixture_not_live_source_backed`,
+  `rpe65_full_gene_synthetic_fixture_scaffold`,
+  `full_gene_fixture_hydrated`, and
+  `full_gene_intronic_sequence_is_deterministic_fixture`.
+- SG `POST /api/v1/protein/annotate` -> 200 fail-closed response with
+  `status=unavailable` and `fail_closed_reason=protein_annotation_disabled`.
+- Windows preflight with `--verify-hg38-checksum --verify-protein-checksums`
+  passed; full noncommercial tier stack and current hg38+Pfam runtime gate are
+  ready for a paid persistent-disk decision.
+- Capped `Ubuntu-24.04` WSL direct proof against
+  `C:\EamosDataStaging\source_assets` returned
+  `10 proven / 0 native pending / 0 missing / 0 partial / 0 failed`; WSL was
+  shut down afterward.
+- InterVar pipeline configuration remains represented as
+  `intervar_pipeline_config` in registry/preflight reconciliation, but it is
+  commercial-gated/blocked pending InterVar, ANNOVAR, and OMIM rights; it was
+  not installed or runtime-enabled.
+- Live Vercel Workbench RPE65 smoke: Full gene mode sends
+  `window.kind="full_gene"` and renders `full_locus` on desktop with no body
+  horizontal overflow. Mobile Full gene still has body-level horizontal
+  overflow, and default window mode currently receives SG
+  `workbench_provider_unavailable:runtime_asset_missing` before falling back to
+  the bundled sample.
 
 **Next-session direction:**
-- Claude can migrate the gnomAD FE off local item-3 types to the shared
-  contract and reverify `/pf-preview`.
-- Decide whether to pursue private Storage upload for small staged source
-  objects first, or decide the large-object path for dbSNP/phyloP. Raising
-  Supabase Storage limits or switching to resumable/S3 multipart upload is an
-  explicit mutation/design decision.
-- If moving toward public provider-cache/source-read readiness, coordinate the
-  Render web-service materialization design first. Do not claim web-service
-  provider-cache ready from one-off jobs or local source downloads.
-- Stop and ask before any Render paid disk, env, deploy, Supabase bucket-limit,
-  Storage upload, or production source import mutation.
+- Variant lookup is launch-ready for the SG/Vercel USH2A smoke, but hg38
+  source-asset runtime materialization is not complete on the SG web service.
+- Gene View backend full-gene contract is live for curated RPE65 payloads and
+  Workbench renders it, but general/window-mode Gene Viewer depends on hg38
+  runtime materialization; mobile Full gene overflow is frontend-owned.
+- Protein View is not launch-ready. Keep
+  `PROTEIN_ANNOTATION_ENABLED=false` until SG has approved persistent/runtime
+  Pfam materialization, checksum/index verification, and coordinated env
+  enablement.
+- Operational path: preferred is Render persistent disk (current hg38+Pfam gate
+  recommends 15 GB; full noncommercial tier stack recommends 60 GB), then run
+  private-source materialization/prep, verify provider-cache ready, enable
+  protein annotation, and re-smoke. Startup/runtime materialization without a
+  persistent disk remains higher cold-start risk; keeping Protein disabled is
+  safest until disk approval.
+- Keep Oregon untouched until Steven explicitly approves fallback deletion or
+  repointing decisions.
 
-**Clear-safe:** yes. gnomAD PopFreq backend item 3 is implemented and verified;
-Claude FE migration and Steven's coordinated commit gate remain next.
+**Clear-safe:** yes. Backend commit `189a01b` is pushed to `origin/main` and
+live on SG. Approved SG deploy was performed; no Render env mutation, Vercel
+config mutation, Supabase mutation, public bucket/object change, Oregon touch,
+destructive git, stash, reset, or clean was performed. WSL was used only for
+read-only source proof and then shut down. Shared docs remain dirty for handoff
+state; `.claude/settings.json` was preserved.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-05-31 22:32 +1000 - Codex gnomAD PopFreq item 3 complete
-Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, agent_handoff/TASKS.md, PROGRESS.md latest sessions, plans/v2-backend.md Recent backend notes, then git status --short --branch --untracked-files=all.
+# Resume prompt - 2026-06-01 18:13 +1000 - Codex SG hardening live + launch readiness
+Eamos. Read CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, agent_handoff/TASKS.md, PROGRESS.md latest sessions, plans/v2-backend.md Recent backend notes, then run git status --short --branch --untracked-files=all and git log -4 --oneline --decorate.
 
-Latest Codex state: gnomAD PopFreq CAR item 3 is implemented and verified. Field names: PopulationFrequencyDatasetCell, PopulationFrequencyVisualGroup.exome/genome, and PopulationFrequencyOverall.total.exome/genome. Flat group and cohort-total fields stay joint; no exome/genome rows were added to visual_groups; per-dataset XX/XY is out of scope.
+Latest Codex state: local `main` and `origin/main` are both `189a01b` (`feat(source-assets): add sanitized materialization preflight`). SG Render deploy `dep-d8ejlu42m8qs7390a0tg` is live on commit `189a01b96dbd17c55bd3b5dc11b51109e29c02b1`; Oregon was not touched.
 
-Source boundary: live PopFreq metrics are backend gnomAD GraphQL, not MyVariant. Fixtures are offline/demo/test data; backend caches may store gnomAD results for repeated lookups. No Supabase/Render/Vercel/env/deploy/storage mutation, no WSL/Docker, no commit/push.
+Verified live: SG `/healthz`; SG `/api/v1/health/provider-cache`; SG and Vercel proxy lookup for gnomAD-positive `USH2A:c.2276G>T` with AF `0.0014603125824794708`, 10 visual/detail groups, XX/XY, exome/genome cells. Do not use `RPE65:c.260A>G` as a PopFreq-positive smoke.
 
-Verification: focused gnomAD/report/contract pytest, full backend pytest, Ruff, Black, app/web and app/frontend tsc --noEmit, backend.ts mirror byte-compare, and git diff --check all passed. Full pytest warnings are existing short test-JWT warnings only.
+Gene View: backend route `POST /api/v1/viewer` works locally and live for curated RPE65 full-gene payloads (`window.kind="full_gene"`, `full_locus` present). Vercel Workbench renders Full gene RPE65 on desktop, but mobile full-gene has body-level horizontal overflow and default window mode falls back when SG returns `workbench_provider_unavailable:runtime_asset_missing`. General/window Gene Viewer still needs SG hg38 runtime materialization.
 
-Coordination: Claude owns app/web/** gnomAD renderer files. Codex updated backend/schema/tests/fixtures plus both backend.ts mirrors only. Next: Claude migrates FE off local item-3 types and re-verifies /pf-preview; Steven holds the coordinated commit gate.
+Protein View: backend route `POST /api/v1/protein/annotate` exists and correctly fails closed on SG with `status=unavailable`, `fail_closed_reason=protein_annotation_disabled`. Treat Protein View as not launch-ready until approved Render persistent/runtime Pfam materialization and `PROTEIN_ANNOTATION_ENABLED` enablement.
 
-Guardrails: no secrets in chat/docs/logs, no public genomic/protein buckets, no restricted predictor unlocks, no AlphaMissense runtime/display, no uncoordinated Render/Vercel env mutation, no WSL/Docker/local toolchain install without explicit approval and WSL cap check, no destructive git/stash/reset/clean, and no Claude app/web renderer edits unless explicitly asked. End clear-safe.
+Source layout: Windows checksum preflight passed for hg38+protein assets; WSL native proof against `C:\EamosDataStaging\source_assets` returned `10 proven / 0 native pending / 0 missing / 0 partial / 0 failed`, including dbSNP `GCF_000001405.40`, ClinVar VCF, rmsk, phyloP, MANE/Gencode, MONDO/HPO, ClinGen, and GenCC. InterVar is registry/preflight-reconciled but commercial-gated pending InterVar/ANNOVAR/OMIM rights; it is not installed or runtime-enabled. Current hg38+Pfam gate is ready for a 15 GB persistent-disk decision; full noncommercial tier stack is ready for a 60 GB persistent-disk decision.
+
+Next: if Steven approves Render persistent disk/env work, implement the operational materialization path; otherwise keep Protein disabled and document frontend-owned mobile Full gene overflow/window-mode fallback. Guardrails: no secrets in chat/docs/logs, no public genomic/protein buckets, no direct frontend Storage reads, no restricted predictor unlocks, no AlphaMissense runtime/display, no unapproved Render/Vercel/Supabase mutation, no Oregon touching, no destructive git/stash/reset/clean, and no frontend edits unless explicitly asked. End clear-safe.
 ```

@@ -144,6 +144,54 @@ def test_parser_labels_gene_and_disease_level_rows_without_variant_claims() -> N
     assert DISCOVERY_ONLY_WARNING in disease_rows[0].warnings
 
 
+def test_parser_filters_gene_scope_rows_without_matched_terms() -> None:
+    payload = {
+        "studies": [
+            _study(
+                nct_id="NCT05919342",
+                title="SYMPHONY-HF heart failure trial",
+                conditions=["Heart Failure"],
+                interventions=[{"type": "DRUG", "name": "sotagliflozin"}],
+            )
+        ]
+    }
+
+    rows = parse_clinicaltrials_v2_studies(
+        payload,
+        query=ClinicalTrialQuery(
+            query_term="USH2A",
+            requested_match_level="gene_level",
+            gene_terms=("USH2A",),
+        ),
+    )
+
+    assert rows == []
+
+
+def test_parser_filters_brca_query_scope_rows_without_exact_gene_match() -> None:
+    payload = {
+        "studies": [
+            _study(
+                nct_id="NCT07156253",
+                title="Study of SYN818 With Olaparib for advanced solid tumors",
+                conditions=["Metastatic Solid Tumor", "BRCA 1 /2 and / or HRD"],
+                interventions=[{"type": "DRUG", "name": "SYN818 and Olaparib"}],
+            )
+        ]
+    }
+
+    rows = parse_clinicaltrials_v2_studies(
+        payload,
+        query=ClinicalTrialQuery(
+            query_term="BRCA1",
+            requested_match_level="gene_level",
+            gene_terms=("BRCA1",),
+        ),
+    )
+
+    assert rows == []
+
+
 def test_tool_queries_variant_aliases_before_gene_disease_fallback(monkeypatch) -> None:
     calls: list[str] = []
 

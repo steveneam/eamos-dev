@@ -1,5 +1,271 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## Session 104 - 1 Jun 2026 - report route/cache hardening and SG proxy audit
+
+Continued the uncommitted Codex slice after a usage interruption. No commit,
+push, deploy, Supabase/Render/Vercel mutation, Oregon touch, stash, reset, or
+clean was performed.
+
+Completed:
+- Hardened `/report` lookup state against stale example-chip/back-navigation
+  renders by keying report load state to the current request and aborting stale
+  fetches.
+- Added a bounded `sessionStorage` report cache for successful live lookups so
+  returning to a previously viewed report in the same tab can render from the
+  cached response while live revalidation runs. Cache reads happen after
+  hydration to avoid React mismatches.
+- Split live sample/demo from the explicit old RPE65 negative-control fixture:
+  `?demo=1` and bare `/report` now redirect to live
+  `USH2A c.2276G>T`; the old `RPE65 c.260A>G` JSON is only exposed as the
+  explicit `?fixture=rpe65-negative` missing-data/negative-control fixture.
+- Fixed the duplicated report header card stack by ignoring 4-tile
+  `lookupSummary` responses in `MatrixOverture`; the overture keeps the
+  10-12-tile report matrix while the call-card strip remains 4 cards.
+- Updated stale public sample/citation text away from the old RPE65 demo path.
+
+Verification:
+- `app/web`: `npx tsc --noEmit` -> passed.
+- `app/web`: targeted `npx eslint ... --max-warnings=0` for touched report/API
+  files -> passed.
+- `app/backend`: `python -m pytest tests\test_claim_provenance.py tests\test_report_call_cards.py tests\test_frontend_contract.py -q`
+  -> passed.
+- `git diff --check` -> clean except existing LF-to-CRLF warnings.
+- Browser-verified explicit `?fixture=rpe65-negative` at desktop and mobile
+  emulation: 12 matrix tiles, 4 call cards, no horizontal overflow.
+- Verified deployed Vercel proxy directly:
+  `https://eamos-dev.vercel.app/api/v1/lookup` for `USH2A c.2276G>T` matches
+  `https://eamos-dev-sg.onrender.com` warning shape and does not match Oregon
+  `https://eamos-dev.onrender.com`.
+- Verified the three visible example chips through deployed Vercel all return
+  HTTP 200 with 4 call cards: `USH2A c.2276G>T`, `RPE65 c.11+5G>A`, and
+  `BRCA1 c.5266dupC`.
+
+Operational note for Claude/Codex:
+- Do not diagnose production routing from `localhost:3000` unless that dev
+  server was started with `API_PROXY_TARGET=https://eamos-dev-sg.onrender.com`.
+  The stale 500 observed this session came from a local Next dev server still
+  proxying to Oregon (`https://eamos-dev.onrender.com`), while deployed Vercel
+  was already proxying to Singapore.
+
+## Session 103 - 1 Jun 2026 - eamos_press truth-printer CLI
+
+Implemented the backend truth-printer / claim-provenance harness from
+`plans/eamos-press-truth-printer/spec.md` without committing, pushing,
+deploying, or mutating external services.
+
+Completed:
+- Added `app/backend/app/services/claim_provenance.py`, a pure
+  `evaluate_claims(payload, evidence_map, statuses)` evaluator that emits
+  per-claim rendered text, source facts, source status, provenance, claim level,
+  verdict, and warnings.
+- Added `app/backend/app/cli/eamos_press.py`, runnable as
+  `python -m app.cli.eamos_press`, with `--sections`, `--explain-pill`,
+  `--assert-source-backed-pills`, `--assert-no-overclaim`,
+  `--audit-demo-sample`, `--base-url`, `--refresh`, fixture/live mode switches,
+  compact JSON, and Windows-tolerant `--input-file` batch mode for 100-variant
+  stacks. Batch output is `{"count": N, "mode": ..., "results": [...]}` and
+  exits 2 if any query fails the selected assertion.
+- Added a thin in-process evidence tap on `LookupService` via
+  `lookup_with_evidence_context(...)`, preserving the normal lookup path while
+  exposing the existing `report_payload`, `evidence_map`, and
+  `evidence_statuses` to the CLI.
+- Made the current contradictions assertable in focused tests:
+  `popfreq.pm2_badge` contradicted by VCEP `BS1` + gnomAD facts,
+  `trials.NCT05919342` unsupported when `matched_terms=[]`, and
+  `protein.protein_change` contradicted when `p.Cys759Phe` is derivable but not
+  surfaced.
+
+Verification:
+- `python -m pytest tests\test_claim_provenance.py -q` -> passed.
+- `python -m app.cli.eamos_press --fixture-mode --input-file <temp stack> --sections popfreq --compact`
+  -> passed and returned per-query `results[]`.
+- `python -m ruff check app\services\claim_provenance.py app\cli\eamos_press.py app\services\lookup_service.py tests\test_claim_provenance.py`
+  -> passed.
+- `python -m black --check --target-version py310 app\services\claim_provenance.py app\cli\eamos_press.py app\services\lookup_service.py tests\test_claim_provenance.py`
+  -> passed after formatting the new files.
+- `python -m pytest tests\test_claim_provenance.py tests\test_report_call_cards.py tests\test_variant_search_integration.py tests\test_frontend_contract.py -q`
+  -> passed.
+- Reconciled broader source-cache hero-example expectations with the current
+  example-pill cleanup: source-cache hero tests now use `RPE65 c.11+5G>A`
+  instead of removed `RPE65 c.260A>G`.
+- `python -m pytest tests\test_source_cache.py tests\test_frontend_contract.py -q`
+  -> passed.
+
+Operational notes:
+- `USH2A:c.2276G>T --fixture-mode` reports unverifiable claims because fixture
+  mode has no USH2A gnomAD/ClinGen/molecular-context fixture. Live/cache mode
+  is the path intended to expose the PM2-vs-BS1 and protein-change gaps.
+- No frontend edits, Supabase/Render/Vercel mutation, Oregon touch,
+  destructive git, stash, reset, clean, commit, or push was performed.
+
+## Session 102 - 1 Jun 2026 - SG hardening live and launch readiness slice
+
+Pushed and deployed backend hardening commit `189a01b`
+(`feat(source-assets): add sanitized materialization preflight`) after Steven's
+approval and completed the backend-owned Gene View, Protein View, and source
+layout readiness check.
+
+Completed:
+- Pushed `189a01b` to `origin/main`.
+- Triggered SG Render deploy `dep-d8ejlu42m8qs7390a0tg` and polled it to live
+  on commit `189a01b96dbd17c55bd3b5dc11b51109e29c02b1`.
+- Verified SG `/healthz` -> `{"status":"ok"}`.
+- Verified SG `/api/v1/health/provider-cache` -> status OK, database OK, 10
+  fresh source-cache rows, hg38 local runtime asset still
+  `runtime_asset_missing`, and protein annotation disabled/fail-closed.
+- Verified SG and Vercel proxy `/api/v1/lookup` for gnomAD-positive
+  `USH2A:c.2276G>T` -> AF `0.0014603125824794708`, 10 visual/detail groups,
+  XX/XY cells, and exome/genome cells. `RPE65:c.260A>G` remains invalid as a
+  PopFreq-positive smoke.
+- Located and verified backend Gene Viewer route `POST /api/v1/viewer` in
+  `app/backend/app/api/routes/gene_viewer.py` with service/schema coverage in
+  `app/backend/app/services/gene_viewer.py` and
+  `app/backend/app/schemas/gene_viewer.py`.
+- Verified SG Gene Viewer full-gene smoke for `RPE65:c.260A>G`,
+  `window.kind="full_gene"` -> 200 with `full_locus`,
+  `basis=genomic_locus`, and explicit fixture warnings.
+- Located and verified backend Protein Annotation route
+  `POST /api/v1/protein/annotate`; SG correctly fail-closes with
+  `status=unavailable` and `fail_closed_reason=protein_annotation_disabled`.
+- Browser-smoked live Vercel Workbench RPE65: Full gene mode sends
+  `window.kind="full_gene"` and renders `full_locus` on desktop. Default window
+  mode currently receives SG
+  `workbench_provider_unavailable:runtime_asset_missing` before falling back to
+  the bundled sample; mobile Full gene view has body-level horizontal overflow.
+- Ran Windows source/protein preflight with checksum verification. Current
+  hg38+Pfam runtime gate is ready for a 15 GB persistent-disk decision; the
+  full noncommercial tier stack is ready for a 60 GB persistent-disk decision.
+- Ran capped `Ubuntu-24.04` WSL native proof against
+  `C:\EamosDataStaging\source_assets`: all 10 Tier 1/2/3 noncommercial sources
+  are proven, with `0` native-pending, missing, partial, or failed. Proven
+  sources include dbSNP `GCF_000001405.40`, ClinVar VCF, rmsk, phyloP, MANE,
+  GENCODE, MONDO/HPO, ClinGen, and GenCC. WSL was shut down afterward.
+- InterVar pipeline configuration remains represented in the source registry
+  and preflight reconciliation as `intervar_pipeline_config`, but it is
+  commercial-gated/blocked until InterVar, ANNOVAR, and OMIM rights are
+  resolved. It was not installed, bundled for production, or runtime-enabled.
+
+Launch-readiness status:
+- Variant lookup: ready for the SG/Vercel USH2A smoke.
+- Gene View: backend RPE65 full-gene contract is live and Workbench renders it;
+  general/window-mode Gene Viewer still needs SG hg38 runtime materialization,
+  and mobile Full gene overflow is frontend-owned.
+- Protein View: not launch-ready until SG has approved persistent/runtime Pfam
+  materialization and `PROTEIN_ANNOTATION_ENABLED` is safely enabled.
+- SG backend health/provider-cache: healthy for current launch, with source
+  asset/protein runtime gaps reported explicitly.
+- Vercel proxy: lookup proxy verified; Workbench full-gene path renders; window
+  viewer fallback remains tied to SG runtime asset readiness.
+- Browser/Workbench rendering: partial. Desktop RPE65 Full gene renders; mobile
+  full-gene overflow needs frontend follow-up.
+
+Operational notes:
+- Preferred Protein View path is Render persistent disk, then private-source
+  materialization/prep, checksum/index verification, provider-cache ready
+  check, coordinated env enablement, and live re-smoke.
+- Startup/runtime materialization without a persistent disk remains higher
+  cold-start risk; keeping Protein disabled is safest until disk approval.
+- No Supabase mutation, Vercel config mutation, Render env mutation, public
+  bucket/object change, Oregon touch, direct frontend Storage read, destructive
+  git, stash, reset, or clean was performed.
+- The SG Render deploy was the only infrastructure mutation and was within the
+  approved backend push/deploy/verify loop.
+
+## Session 101 - 1 Jun 2026 - Source asset runtime health/preflight hardening
+
+Built the next backend-owned source-asset runtime hardening slice after the SG
+production hotfix. Commit `189a01b` adds a stronger verification layer for
+private Storage materialization without changing live infrastructure.
+
+Completed:
+- Added a reusable sanitized hg38 materialization probe that wraps the strict
+  private Storage/local-cache resolver without throwing to health or preflight
+  callers.
+- Made `/api/v1/health/provider-cache` more resilient: local hg38 inspection
+  failures now return sanitized source-asset status instead of risking a health
+  500, and materialization metadata reports explicit failure boundaries.
+- Added `python -m app.cli.eamos_source_asset_preflight
+  --probe-supabase-materialization` for opt-in, read-only Supabase
+  materialization verification. Default preflight remains offline/read-only and
+  reports the probe as `not_requested`.
+- Kept direct materialized asset resolution fail-closed, while documenting the
+  lookup sequence-context boundary as fail-open and the health/preflight probe
+  as sanitized no-exception status.
+- Added regression coverage for ready probes, unexpected store errors,
+  provider-cache probe failures, and preflight sanitization. Probe output does
+  not emit secrets, local paths, object URIs, raw object paths, or checksum
+  values.
+
+Verification:
+- `python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py -q`
+  -> passed.
+- `python -m ruff check app/data_sources/runtime_assets.py app/data_sources/__init__.py app/api/routes/health.py app/cli/eamos_source_asset_preflight.py tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/data_sources/runtime_assets.py app/data_sources/__init__.py app/api/routes/health.py app/cli/eamos_source_asset_preflight.py tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py`
+  -> passed after formatting the preflight CLI.
+- `python -m pytest tests/test_supabase_local_model_cache.py tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_sequence_context.py tests/test_source_asset_preflight_cli.py tests/test_variant_search_integration.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q`
+  -> passed.
+- `python -m app.cli.eamos_source_asset_preflight --compact` -> new
+  `runtime_materialization_probe.status` is `not_requested`.
+- `python -m app.cli.eamos_source_asset_preflight --compact
+  --probe-supabase-materialization` -> local shell without Supabase cache env
+  enabled reports sanitized `materialization_store_unavailable`.
+- Full backend `python -m pytest -q` -> passed with existing short test-JWT
+  warnings.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+
+Operational notes:
+- This slice performed no Supabase DDL/DML, Storage upload/download, Render or
+  Vercel mutation, public bucket/public object change, frontend raw-source
+  access, restricted predictor unlock, AlphaMissense runtime/display,
+  WSL/Docker, destructive git, stash, reset, or clean work.
+- Oregon fallback was not touched.
+
+## Session 100 - 1 Jun 2026 - SG source-asset hotfix live
+
+Completed the production SG source-asset lookup hotfix loop after Steven
+approved push and redeploy.
+
+Completed:
+- Added `7305fab` (`fix(source-assets): resolve materialized paths under
+  shallow backend root`) on top of `d60a748`.
+- Fixed `_resolve_materialization_path()` so persisted
+  `app/backend/...` materialization paths strip that prefix and anchor under
+  `settings.backend_root`, which works for Render's shallow `/app` root and
+  local `D:\eamos\app\backend`.
+- Made `MaterializedHg38SequenceResolver` fail open on future `IndexError` and
+  `ValueError` path/config errors instead of returning a lookup 500.
+- Added regression coverage for shallow `/app` backend roots and for
+  fail-open handling of runtime asset path errors.
+- Pushed `7305fab` to `origin/main`, fired the SG Render deploy hook, and
+  verified Render deploy `dep-d8e6gsgjs32c7386tp80` reached `live` on commit
+  `7305fab0a75b05dbba43e140b85eec52e9955271`.
+
+Verification:
+- `python -m pytest tests/test_hg38_runtime_asset_config.py tests/test_sequence_context.py -q`
+  -> passed.
+- `python -m pytest tests/test_supabase_local_model_cache.py tests/test_hg38_runtime_asset_config.py tests/test_health_api.py tests/test_sequence_context.py tests/test_variant_search_integration.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py tests/test_source_imports.py tests/test_supabase_migrations.py -q`
+  -> passed.
+- `python -m ruff check app/data_sources/runtime_assets.py app/services/sequence_context.py tests/test_hg38_runtime_asset_config.py tests/test_sequence_context.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/data_sources/runtime_assets.py app/services/sequence_context.py tests/test_hg38_runtime_asset_config.py tests/test_sequence_context.py`
+  -> passed.
+- `git diff --check` -> passed; Windows LF-to-CRLF notices only.
+- SG `/healthz` -> 200.
+- SG `/api/v1/lookup?refresh=true&include_lazy_sections=true` for
+  `USH2A:c.2276G>T` -> 200 with gnomAD PopFreq AF
+  `0.0014603125824794708`, 10 visual groups, XX/XY, and exome/genome cells.
+- Vercel proxy `https://eamos-dev.vercel.app/api/v1/lookup` for
+  `USH2A:c.2276G>T` -> 200 with the same PopFreq fields.
+
+Operational notes:
+- The original prompt's `RPE65:c.260A>G` is not reported in gnomAD, so the
+  positive-control PopFreq verification used `USH2A:c.2276G>T`.
+- Oregon fallback (`eamos-dev` / `srv-d896ie77f7vs73brs140`) was not touched.
+- No Supabase DDL/DML, Render env, Vercel env, public bucket, frontend raw
+  source access, restricted predictor unlock, WSL/Docker, destructive git,
+  stash, reset, or clean work was performed.
+
 ## Session 99 - 1 Jun 2026 - Source asset private Storage upload
 
 Completed the held post-reference source Storage lane after Steven raised the
@@ -5069,6 +5335,85 @@ Coordination:
   reset, or clean work.
 - Post-checkpoint backend changes remain uncommitted unless the user asks for
   another commit.
+
+## 2026-06-01 18:51 +1000 - Codex - Example-pill cleanup and ClinicalTrials match hardening
+
+Implemented the safe parallel slice while Claude works on the printing-press
+CLI.
+
+Completed:
+- Changed ClinicalTrials.gov parsing so gene/disease fallback rows are only
+  retained when the study text actually matches a variant, gene, or disease
+  term. Query scope alone no longer promotes rows with `matched_terms=[]` to
+  `gene_level` or `disease_level`.
+- Added regression tests for the USH2A cardiology/heart-failure false-positive
+  shape and the BRCA1 empty-`matched_terms` trial shape.
+- Removed `RPE65 c.260A>G` from the backend landing hero warmer list.
+- Moved visible web examples and fallback links toward `USH2A c.2276G>T`:
+  landing try pills, search chips, search placeholder, malformed/error sample
+  links, footer sample report link, and How It Works specimen text.
+- Converted the landing MetricBelt specimen away from the stale RPE65 demo JSON
+  to a source-backed USH2A lookup-summary specimen.
+- Kept the old `rpe65-sample.json` only as an explicit `?demo=1`
+  missing-data/negative-control fixture, and changed bare `/report` to redirect
+  to the live USH2A sample route.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_clinical_trials_tool.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests/test_source_cache.py::test_source_cache_warmer_scope_is_landing_hero_examples -q`
+  -> passed.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- `git diff --check` -> no whitespace errors; only LF-to-CRLF warnings.
+
+Notes:
+- Full `tests/test_source_cache.py` was attempted but timed out at 120s, so the
+  focused source-cache warmer test was run instead.
+- Legacy `app/frontend/**` RPE65 samples were not touched because that is the
+  frontend/Claude lane.
+- No commit, push, deploy, Render/Vercel/Supabase mutation, stash, reset, or
+  clean was performed.
+
+## 2026-06-01 19:37 +1000 - Codex - Lab & Functional curator-sourced verdict contract
+
+Implemented the backend half of `plans/functional-card/spec.md` so the Lab &
+Functional card no longer lets Eamos functional-literature counts self-classify
+the ACMG verdict.
+
+Completed:
+- Extended `FunctionalEvidenceDisplayMetrics` additively with `state`,
+  `verdict_source`, `conflict_split`, and `code_rests_on`, and mirrored the new
+  fields in both frontend TypeScript backend contracts.
+- Changed `functional_evidence._display_metrics` so PS3/BS3 verdicts resolve
+  from curator asserted functional codes only: ClinGen first, then ClinVar.
+  PubMed-only or otherwise ungraded functional studies now render as
+  `uncurated` with `No code asserted` instead of `Functional Evidence Found` /
+  `Review Required`.
+- Added the six-state backend matrix: `strong_deficit`, `emerging_deficit`,
+  `normal`, `conflict`, `uncurated`, and `none`. Conflict split remains null in
+  v1 unless per-paper direction extraction lands later.
+- Preserved the existing deduped functional-study count path across available
+  ClinGen, ClinVar, and PubMed evidence; the count remains separate from the
+  verdict and never promotes PS3/BS3.
+- Updated Lab & Functional call-card badge kind handling so `No code asserted`
+  is neutral and `Review Required` is warning.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_clinical_trials_tool.py tests/test_functional_evidence.py tests/test_report_call_cards.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_variant_report_orchestration.py::test_lookup_rpe65_splice_functional_prior_is_source_scoped tests/test_source_cache.py::test_source_cache_warmer_scope_is_landing_hero_examples tests/test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app/services/functional_evidence.py app/services/report_call_cards.py app/schemas/run.py tests/test_functional_evidence.py tests/test_variant_search_integration.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/functional_evidence.py app/services/report_call_cards.py app/schemas/run.py tests/test_functional_evidence.py tests/test_variant_search_integration.py`
+  -> passed.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- `cd app/frontend && npx tsc --noEmit` -> passed.
+
+Notes:
+- No separate new live PubMed keyword query was added in this slice; the current
+  count path dedupes the functional hits already available from the payload and
+  evidence maps.
+- No commit, push, deploy, Render/Vercel/Supabase mutation, stash, reset, or
+  clean was performed.
 
 ## 2026-05-23 19:14 +1000 - Codex - Section 3 gnomAD expansion planning
 

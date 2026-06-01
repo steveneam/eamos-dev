@@ -120,7 +120,7 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         placeholder={
-          isHero ? 'Gene, variant, or a plain question, e.g. RPE65 c.260A>G' : 'Gene, variant, e.g. RPE65 c.260A>G'
+          isHero ? 'Gene, variant, or a plain question, e.g. USH2A c.2276G>T' : 'Gene, variant, e.g. USH2A c.2276G>T'
         }
         autoComplete="off"
         spellCheck={false}

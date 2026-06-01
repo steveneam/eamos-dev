@@ -23,7 +23,103 @@
 
 FE-3.5 (frontend contract sync + component wiring) is ✅ Done as of 2026-05-15: `backend.ts` interfaces added, `RPE65_SAMPLE` populated, the 6 components wired to `payload.*`. `tsc --noEmit` clean. This exposed the fidelity gap BE-6 closes.
 
-Recent backend status notes (2026-05-31, Codex):
+Recent backend status notes (2026-06-01, Codex):
+- EAMOS-PRESS-TRUTH-PRINTER-CLI is implemented locally (2026-06-01, Codex).
+  Added the pure `claim_provenance.evaluate_claims(payload, evidence_map,
+  statuses)` evaluator, `python -m app.cli.eamos_press`, and a thin
+  `LookupService.lookup_with_evidence_context(...)` in-process tap so the CLI
+  verifies the same report payload and evidence objects the user-facing lookup
+  path assembles. The CLI supports section selection, assertion exits,
+  demo-sample audit, HTTP degraded mode, fixture/live switches, compact JSON,
+  and Windows-tolerant `--input-file` batch mode for 100-variant stacks with
+  per-query `results[]`. Focused tests assert the current PM2-vs-BS1 PopFreq
+  contradiction, `matched_terms=[]` trial unsupported claims, and
+  protein-change-derivable-not-surfaced gap. Focused claim/report/lookup/
+  frontend-contract pytest, source-cache/frontend-contract pytest, Ruff, Black,
+  and a batch CLI smoke passed. The source-cache hero-example tests now align
+  with the current `RPE65 c.11+5G>A` hero-cache variant instead of removed
+  `RPE65 c.260A>G`. No commit, push, deploy, or external mutation was
+  performed.
+- LAB-FUNCTIONAL-CURATOR-SOURCED-VERDICT-CONTRACT is implemented locally
+  (2026-06-01, Codex). `FunctionalEvidenceDisplayMetrics` now has additive
+  `state`, `verdict_source`, `conflict_split`, and `code_rests_on` fields, with
+  both TypeScript backend mirrors updated. Lab & Functional verdicts now resolve
+  from curator asserted functional codes only, preferring ClinGen VCEP over
+  ClinVar; Eamos functional-literature counts no longer promote PS3/BS3. The
+  backend supports the six states `strong_deficit`, `emerging_deficit`,
+  `normal`, `conflict`, `uncurated`, and `none`; ungraded functional studies now
+  render as `uncurated` / `No code asserted`, while the deduped count remains a
+  separate aggregate. Focused backend pytest, Ruff, Black, `app/web` typecheck,
+  and `app/frontend` typecheck passed. No commit, push, deploy, or external
+  mutation was performed.
+- EXAMPLE-PILL-SOURCE-QUALITY-CLEANUP is implemented locally (2026-06-01,
+  Codex). ClinicalTrials.gov parsing now drops gene/disease fallback rows that
+  have no actual matched variant/gene/disease terms, preventing query-scope-only
+  `matched_terms=[]` rows from being promoted to source-backed trials. Focused
+  regression tests cover the USH2A heart-failure/cardiology false-positive
+  shape and the BRCA1 empty-match trial shape. `RPE65 c.260A>G` was removed
+  from backend hero source-cache warming and visible web sample surfaces were
+  moved toward live `USH2A c.2276G>T`; the old RPE65 demo JSON remains only as
+  explicit `?demo=1` missing-data/negative-control fixture. Verification:
+  focused clinical-trials pytest passed, source-cache warmer test passed,
+  `app/web` `npx tsc --noEmit` passed, and `git diff --check` had no whitespace
+  errors beyond LF-to-CRLF warnings. No commit, push, deploy, or external
+  mutation was performed.
+- SG-HARDENING-LIVE-AND-LAUNCH-READINESS-SLICE is complete (2026-06-01,
+  Codex). Commit `189a01b` is pushed to `origin/main` and live on SG Render
+  deploy `dep-d8ejlu42m8qs7390a0tg` at commit
+  `189a01b96dbd17c55bd3b5dc11b51109e29c02b1`. SG `/healthz` is OK; SG
+  provider-cache is OK with 10 fresh source-cache rows, hg38 local runtime
+  asset still `runtime_asset_missing`, and protein annotation disabled/fail
+  closed. SG and Vercel proxy lookups for `USH2A:c.2276G>T` returned gnomAD AF
+  `0.0014603125824794708`, 10 visual/detail groups, XX/XY, and exome/genome
+  cells. Gene Viewer backend route `POST /api/v1/viewer` is verified locally
+  and live for curated RPE65 full-gene payloads; Vercel Workbench Full gene mode
+  renders `full_locus` on desktop, but default window mode still falls back when
+  SG reports `workbench_provider_unavailable:runtime_asset_missing`, and mobile
+  Full gene has body-level horizontal overflow. Protein route
+  `POST /api/v1/protein/annotate` is verified fail-closed on SG with
+  `protein_annotation_disabled`; Protein View is not launch-ready until SG has
+  persistent/runtime Pfam materialization and approved
+  `PROTEIN_ANNOTATION_ENABLED` enablement. Windows checksum preflight and WSL
+  native proof validated the Tier 1/2/3 source layout: 10 proven, 0 native
+  pending, 0 missing, 0 partial, 0 failed. Current hg38+Pfam gate is ready for
+  a 15 GB persistent-disk decision; full noncommercial tier stack is ready for
+  a 60 GB decision. InterVar is represented as
+  `intervar_pipeline_config` in registry/preflight reconciliation but remains
+  commercial-gated/blocked pending InterVar, ANNOVAR, and OMIM rights; it was
+  not installed or runtime-enabled. No Supabase mutation, Vercel config
+  mutation, Render env mutation, public bucket/object change, Oregon touch, or
+  frontend edit was performed.
+- SOURCE-ASSET-RUNTIME-HEALTH-PREFLIGHT-HARDENING is implemented and verified
+  locally in commit `189a01b` (2026-06-01, Codex). The backend now has a
+  reusable sanitized hg38 materialization probe for private Storage/local-cache
+  metadata. Direct materialized asset resolution remains fail-closed, lookup
+  sequence-context runtime remains fail-open, and health/preflight callers receive
+  no-exception sanitized status. `/api/v1/health/provider-cache` now survives
+  local hg38 inspection failures and reports materialization failure
+  boundaries. `python -m app.cli.eamos_source_asset_preflight
+  --probe-supabase-materialization` adds opt-in read-only Supabase
+  materialization verification; default preflight remains offline and reports
+  the probe as `not_requested`. Focused health/runtime/preflight tests, an
+  adjacent backend slice, full backend pytest, Ruff, Black check, compact CLI
+  smokes, and `git diff --check` passed. No Supabase DDL/DML, Storage
+  mutation, Render/Vercel mutation, frontend raw-source access, WSL/Docker, or
+  Oregon touching was performed.
+- SG-SOURCE-ASSET-HOTFIX-LIVE is implemented, pushed, deployed, and verified
+  (2026-06-01, Codex + Steven approval). Commit `7305fab` fixes
+  `_resolve_materialization_path()` for persisted `app/backend/...`
+  materialization paths when Render's `settings.backend_root` is the shallow
+  container root `/app`, and makes `MaterializedHg38SequenceResolver` fail open
+  on future `IndexError`/`ValueError` path/config errors. `origin/main` is at
+  `7305fab`; SG Render deploy `dep-d8e6gsgjs32c7386tp80` is live on commit
+  `7305fab0a75b05dbba43e140b85eec52e9955271`. Local focused and broader
+  backend pytest slices, Ruff, Black check, and `git diff --check` passed. SG
+  `/healthz` returned 200, and both SG plus Vercel proxy `/api/v1/lookup`
+  returned 200 for gnomAD-positive `USH2A:c.2276G>T` with PopFreq AF, 10 visual
+  groups, XX/XY, and exome/genome cells. The earlier `RPE65:c.260A>G` prompt
+  variant is not reported in gnomAD, so it is not a positive-control PopFreq
+  verification variant. Oregon fallback was not touched.
 - SOURCE-ASSET-PRIVATE-STORAGE-UPLOAD is implemented and verified locally
   (2026-06-01, Codex + Steven). Steven raised the Supabase project/global and
   private `eamos-source-assets` bucket limits to 50 GiB and configured local

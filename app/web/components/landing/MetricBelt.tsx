@@ -3,18 +3,74 @@
 /**
  * Specimen strip — the "open page" of an Eamos variant report on the landing.
  *
- * Drives off the SAME report payload the live `CallCardsGrid` consumes
- * (`RPE65_SAMPLE.report_payload.call_cards.cards`), captured verbatim from a
- * real RPE65 c.260A>G lookup on eamos-dev. The cream landing is the journal
- * cover; this inset is an open page from inside.
- *
- * Static (compile-time JSON import) but no longer hand-crafted: any change to
- * the call-card backend now flows through here automatically.
+ * Source-backed USH2A c.2276G>T specimen captured from live lookup-summary
+ * output on 2026-06-01. The cream landing is the journal cover; this inset is
+ * an open page from inside.
  */
 
 import { LandingH2 } from '@/components/landing/ui/LandingHeading'
-import { RPE65_SAMPLE } from '@/lib/sample-report'
 import type { ReportCallBadgeKind, ReportCallCard } from '@/lib/backend'
+
+type SpecimenCard = Pick<
+  ReportCallCard,
+  'card_id' | 'title' | 'primary_label' | 'support_badges' | 'warnings' | 'provenance' | 'source_status'
+>
+
+const SPECIMEN_HEADER = {
+  gene: 'USH2A',
+  transcript_hgvs: 'c.2276G>T',
+  protein_change: null,
+  genomic_hg38: '1-216247118-C-A',
+}
+
+const SPECIMEN_CARDS: SpecimenCard[] = [
+  {
+    card_id: 'clinical_consensus',
+    title: 'Clinical Consensus',
+    primary_label: 'Pathogenic',
+    support_badges: [
+      { kind: 'source', text: 'ClinGen/VCEP' },
+      { kind: 'source', text: 'Expert panel' },
+    ],
+    provenance: ['ClinGen', 'ClinVar'],
+    source_status: 'cache',
+    warnings: [],
+  },
+  {
+    card_id: 'population_frequency',
+    title: 'Population Frequency',
+    primary_label: 'Low Frequency',
+    support_badges: [
+      { kind: 'metric', text: 'Max AMR 0.182%' },
+      { kind: 'metric', text: 'AC 2357' },
+      { kind: 'source', text: 'gnomAD v4' },
+    ],
+    provenance: ['gnomAD v4'],
+    source_status: 'cache',
+    warnings: [],
+  },
+  {
+    card_id: 'computational',
+    title: 'Computational',
+    primary_label: 'No Computational Data',
+    support_badges: [{ kind: 'warning', text: 'Missing source' }],
+    provenance: [],
+    source_status: 'missing',
+    warnings: ['computational_annotations_not_found'],
+  },
+  {
+    card_id: 'lab_functional',
+    title: 'Lab & Functional',
+    primary_label: 'Functional Deficit',
+    support_badges: [
+      { kind: 'acmg', text: 'PS3 Supporting' },
+      { kind: 'metric', text: '3 Unique' },
+    ],
+    provenance: ['functional evidence'],
+    source_status: 'cache',
+    warnings: [],
+  },
+]
 
 const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; color: string }> = {
   acmg:    { bg: 'var(--teal-tint)',   border: '#cbe3d8', color: 'var(--teal-deep)' },
@@ -33,16 +89,15 @@ function formatWarning(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
 }
 
-function cardMeta(card: ReportCallCard): string {
+function cardMeta(card: SpecimenCard): string {
   const provenance = card.provenance ?? []
   if (provenance.length > 0) return provenance.slice(0, 2).join(' · ')
   return card.source_status ? formatWarning(card.source_status) : 'Source status unavailable'
 }
 
 export function MetricBelt() {
-  const payload = RPE65_SAMPLE.report_payload
-  const cards: ReportCallCard[] = payload.call_cards?.cards ?? []
-  const header = payload.variant_summary_rows[0] ?? null
+  const cards = SPECIMEN_CARDS
+  const header = SPECIMEN_HEADER
 
   if (cards.length === 0) return null
 
@@ -222,8 +277,8 @@ export function MetricBelt() {
         </div>
 
         <p className="mt-5 text-[11.5px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Captured from a live RPE65 c.260A&gt;G lookup · every value cites its source
-          (ClinVar · gnomAD v4 · SpliceAI · REVEL · ClinGen · PubMed).
+          Captured from a live USH2A c.2276G&gt;T lookup summary · every value is source-scoped
+          (ClinGen · ClinVar · gnomAD v4 · functional evidence).
         </p>
       </div>
     </section>

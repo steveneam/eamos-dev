@@ -1,5 +1,28 @@
 # Agent Coordination Decisions
 
+## 2026-06-01: Codex Owns Backend Render Redeploys And Verification
+
+Section edited: 2026-06-01 03:07 +1000 - Codex.
+
+Decision (user-mandated, 2026-06-01): after Codex owns a backend commit and
+push, Codex should also own the Render redeploy and live verification loop.
+
+Operational default:
+
+- Codex pushes backend commits when explicitly approved.
+- Codex triggers the relevant Render deploy hook or official Render API/CLI
+  deploy path.
+- Codex polls Render until the target commit's deploy is live.
+- Codex verifies backend health and the relevant live API smoke directly,
+  including Vercel proxy checks when frontend traffic depends on that backend.
+- Claude should not be expected to redeploy or verify backend Render services
+  after a Codex backend push unless Steven explicitly redirects ownership.
+
+Guardrails remain unchanged: no unapproved Render/Vercel/Supabase mutation,
+no secret output in chat/docs/logs, keep Oregon or other fallback services
+untouched unless Steven explicitly approves, and record live verification in
+the handoff/progress notes.
+
 ## 2026-05-29: CLI First For External Services
 
 Section edited: 2026-05-29 01:47 +1000 - Codex.

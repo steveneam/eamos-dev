@@ -107,9 +107,8 @@ export function LandingClient() {
               Try
             </span>
             {[
-              'RPE65 c.260A>G',
-              'RPE65 c.11+5G>A',
               'USH2A c.2276G>T',
+              'RPE65 c.11+5G>A',
               'BRCA1 c.5266dupC',
             ].map((chip) => (
               <Pill

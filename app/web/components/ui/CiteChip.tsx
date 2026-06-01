@@ -31,9 +31,11 @@ export function CiteChip() {
     const cdna = searchParams.get('cdna')?.trim()
     const protein = searchParams.get('protein_change')?.trim()
     const q = searchParams.get('q')?.trim()
+    const fixture = searchParams.get('fixture')?.trim()
     if (gene && cdna) return [gene, cdna, protein ? `(${protein})` : ''].filter(Boolean).join(' ').trim()
     if (q) return q
-    return 'RPE65 c.260A>G' // demo route fallback (matches RPE65_SAMPLE)
+    if (fixture === 'rpe65-negative') return 'RPE65 c.260A>G'
+    return 'USH2A c.2276G>T'
   }, [pathname, searchParams])
 
   // {date} resolved per-open so it reflects the actual access moment.
@@ -42,9 +44,17 @@ export function CiteChip() {
   // Open on ?cite=1
   useEffect(() => {
     if (searchParams.get('cite') === '1') {
-      setCiteOpen(true)
-      setDate(formatDate(new Date()))
+      let cancelled = false
+      void Promise.resolve().then(() => {
+        if (cancelled) return
+        setCiteOpen(true)
+        setDate(formatDate(new Date()))
+      })
+      return () => {
+        cancelled = true
+      }
     }
+    return undefined
   }, [searchParams])
 
   const openCite = useCallback(() => {

@@ -416,10 +416,14 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     assert functional["total_count"] == 1
     assert functional["source_breakdown"] == {"clingen": 0, "clinvar": 0, "pubmed": 1}
     assert functional["display_metrics"] == {
-        "primary_label": "Functional Evidence Found",
-        "acmg_badge_text": "Review Required",
+        "state": "uncurated",
+        "primary_label": "Functional Work Found - Not ACMG-graded",
+        "acmg_badge_text": "No code asserted",
+        "verdict_source": "uncurated",
         "study_count_badge_text": "1 Unique",
-        "ui_color_theme": "caution_orange_state",
+        "conflict_split": None,
+        "code_rests_on": None,
+        "ui_color_theme": "info_blue_state",
     }
     assert [study["pmid"] for study in functional["studies"]] == ["35901234"]
     population = payload["report_payload"]["population_frequency_detail"]
@@ -478,9 +482,9 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
         "PM2",
         "AC 2",
     }
-    assert call_cards[2]["primary_label"] == "Functional Evidence Found"
+    assert call_cards[2]["primary_label"] == "Functional Work Found - Not ACMG-graded"
     assert [badge["text"] for badge in call_cards[2]["support_badges"]] == [
-        "Review Required",
+        "No code asserted",
         "1 Unique",
     ]
     assert call_cards[3]["primary_label"] == "Likely Pathogenic"

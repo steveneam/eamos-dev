@@ -15,7 +15,7 @@ Each task should name:
 
 ## Current Candidate Tasks
 
-Section edited: 2026-05-18 12:06 +1000 · Codex.
+Section edited: 2026-06-01 19:50 +1000 · Codex.
 
 | Task | Suggested owner | Status | Notes |
 | ---- | --------------- | ------ | ----- |
@@ -27,11 +27,39 @@ Section edited: 2026-05-18 12:06 +1000 · Codex.
 | FE-7 Alignment + Comparator | Claude Code | Gated | Stub data exists; wait for user direction. |
 | FE-8 AskEamos pill | Claude Code, possible small Codex backend review | Gated | Can ship against mock `/api/v1/chat`; live chat is M-002. |
 | M-002 real engines | Direct Codex | M-002A/B/C + optional local isPcr specificity + M-002D local deterministic CRISPR DONE 2026-05-17; M-002I planned/gated | Sequence context boundary, Workbench service extraction, real Primer3 primer provider, exact resolved-template specificity screen, opt-in local UCSC `isPcr` whole-genome specificity provider, and backend-only local deterministic SpCas9 CRISPR provider are implemented and backend-verified. M-002I post-CRISPR TIDE analytics, DeepHF weights, genome-wide Bowtie/BWA off-targets, raw sequence/genomic-region fields, and persistence remain separate approvals. |
-| Gene viewer real-data contract | Direct Codex first, Claude for frontend integration | Planned/gated | Draft design/spec/plan live in `plans/gene-viewer/`. Goal: backend-owned, gene-agnostic viewer payload with reference/control vs variant-applied mode; RPE65 is the first live acceptance example, not a hard-coded service assumption. Implementation waits for user approval. |
+| Gene viewer real-data contract | Direct Codex first, Claude for frontend integration | BACKEND/LIVE PARTIAL 2026-06-01 | Backend route `POST /api/v1/viewer` is verified locally and live for curated RPE65 full-gene `full_locus` payloads. Vercel Workbench Full gene mode renders RPE65 on desktop, but default window mode still falls back while SG hg38 runtime materialization is missing, and mobile Full gene has body-level horizontal overflow. Frontend/mobile polish remains Claude-owned unless Steven redirects. |
 | Backend/API/pipeline task | Direct Codex | Available when scoped | Direct Codex now has verified access and can own meaningful backend work. |
 | gnomAD population-frequency backend (CAR — Claude→Codex 2026-05-31 18:18 +1000) | Direct Codex | BACKEND DONE 2026-05-31; Claude FE migration DONE 2026-05-31 23:14; ready for Steven's commit gate | Codex delivered items 1/2 plus item 4/5 alignment backend-side, then item 3 after Claude finalized field names: per-group XX/XY, cohort overall total/XX/XY, optional per-group `exome`/`genome`, optional `overall.total.exome`/`.genome`, schema/report builder, RPE65 fixture, tests, and both `backend.ts` mirrors. Parallel-safe boundary remains: Codex owns `app/backend/**`; Claude owns `app/web/**`. |
-| Source asset private Storage upload | Direct Codex | DONE 2026-06-01; commit pending | Steven raised the Supabase project/global and private bucket limits to 50 GiB and configured local S3 credentials. Codex added hardened S3 multipart upload tooling, uploaded dbSNP and phyloP assets plus manifests to private `eamos-source-assets`, and verified remote sizes match local files. Next safe step is commit of the held source/download/storage backend work plus docs; later runtime materialization/Render wiring remains separate. |
+| Source asset private Storage upload/runtime gate | Direct Codex | DONE TO PERSISTENT-DISK GATE 2026-06-01; pushed in `0f9396f` + hotfixed in `d60a748`/`7305fab` + hardened in live `189a01b` | Steven raised the Supabase project/global and private bucket limits to 50 GiB and configured local S3 credentials. Codex added hardened S3 multipart upload tooling, uploaded dbSNP and phyloP assets plus manifests to private `eamos-source-assets`, verified remote sizes match local files, and fixed/deployed SG source-asset lookup regressions. Windows checksum preflight and Linux WSL native proof now validate all 10 Tier 1/2/3 noncommercial sources to the persistent-disk gate. Current hg38+Pfam gate recommends 15 GB; full noncommercial tier stack recommends 60 GB. |
+| Protein View runtime enablement | Direct Codex + Steven ops approval | GATED | Backend route `POST /api/v1/protein/annotate` exists and SG fail-closes with `protein_annotation_disabled`. Treat Protein View as not launch-ready until Render persistent/runtime Pfam materialization is approved, checksums/indexes are verified in the SG web-service runtime, provider-cache reports ready, and `PROTEIN_ANNOTATION_ENABLED` is enabled in a coordinated deploy. |
+| Functional Evidence E1 dedicated PubMed stream | Direct Codex | PLANNED after current uncommitted slice settles | Add a dedicated USE_REAL_APIS-gated, cached, bounded, fail-closed Entrez search for functional assay PMIDs and feed results into `_FunctionalEvidenceCollector`. Dependency: surface resolved protein changes such as USH2A `p.Cys759Phe` before firing the strongest query term. E1 is recall-only and must not change `state`/verdict logic. |
+| `eamos_press` truth-printer CLI | Direct Codex | DONE 2026-06-01, uncommitted | Implemented pure claim-provenance evaluator, `python -m app.cli.eamos_press`, in-process lookup evidence tap, assertion exits, demo audit, and `--input-file` batch output for 100-variant stacks. Verification logged in `PROGRESS.md` Session 103. |
 | Cross-agent review | Opposite of implementer | Available when useful | One agent implements; the other reviews for regressions, missing tests, and contract drift. |
+
+## Functional Evidence E1 - Dedicated Stream-3 PubMed Functional Query
+
+Claude relay accepted by Codex 2026-06-01 19:50 +1000. Steven confirmed the
+current conflict rule: ClinVar is a valid standalone source, so
+`PS3 - via ClinVar` is not a conflict. Conflict only means ClinGen and ClinVar
+actively disagree. Current `_display_metrics` behavior already matches this;
+no code change is needed for the accepted six-state slice.
+
+Planned enhancement E1, tracked in `plans/functional-card/spec.md`:
+- Today Stream 3 re-filters PubMed articles already present in the payload or
+  evidence map. That makes the functional-study count an honest floor because
+  functional-assay papers that rank low in the general publication query can be
+  missed.
+- Add a dedicated live PubMed functional query using bounded Entrez `esearch`:
+  `"{GENE} AND {aa_change} AND (functional assay OR luciferase OR western blot OR activity OR expression OR patch-clamp OR splicing OR minigene OR enzyme activity OR in vitro OR rescue)"`.
+- Feed returned PMIDs into the same `_FunctionalEvidenceCollector` so they
+  dedupe by PMID against ClinGen/ClinVar and existing PubMed hits.
+- Requirements: bounded result size, cached with provenance, fail-closed,
+  `USE_REAL_APIS` gated, and reuse EP-VLEx fetch plumbing.
+- Dependency first: surface resolved protein changes already derivable from
+  `molecular_context`; USH2A currently derives `p.Cys759Phe` but renders
+  `protein_change=null`, which weakens the E1 query.
+- E1 is recall-only. It can raise `study_count_badge_text`, but it must not
+  change `state`, `verdict_source`, PS3/BS3 choice, or conflict logic.
 
 ## gnomAD PopFreq — Codex Action Required (Claude→Codex, 2026-05-31 18:18 +1000)
 

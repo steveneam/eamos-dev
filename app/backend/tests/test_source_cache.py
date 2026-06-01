@@ -247,15 +247,15 @@ def test_hero_example_lookup_uses_fresh_source_cache(tmp_path: Path) -> None:
     pubmed_tool = _StaticTool("pubmed", {"articles": [], "total": 0})
     repo.upsert(
         "pubmed",
-        "RPE65:c.260A>G",
-        normalized_identity={"gene": "RPE65", "cdna": "c.260A>G"},
-        request_identity={"query": "cached RPE65 c.260A>G"},
+        "RPE65:c.11+5G>A",
+        normalized_identity={"gene": "RPE65", "cdna": "c.11+5G>A"},
+        request_identity={"query": "cached RPE65 c.11+5G>A"},
         status="live",
         summary={
             "articles": [
                 {
                     "pmid": "38191234",
-                    "title": "Cached RPE65 c.260A>G report",
+                    "title": "Cached RPE65 c.11+5G>A report",
                     "authors": "Eamos",
                     "journal": "Cache",
                     "year": "2026",
@@ -266,12 +266,12 @@ def test_hero_example_lookup_uses_fresh_source_cache(tmp_path: Path) -> None:
         },
         raw={"cached": True},
         warnings=[],
-        source_url="https://pubmed.ncbi.nlm.nih.gov/?term=RPE65+c.260A%3EG",
+        source_url="https://pubmed.ncbi.nlm.nih.gov/?term=RPE65+c.11%2B5G%3EA",
         ttl_days=30,
     )
     service = _service(tmp_path, repo, pubmed_tool=pubmed_tool)
 
-    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.11+5G>A"))
 
     pubmed = next(item for item in response.evidence if item.source == "pubmed")
     assert pubmed_tool.calls == 0
@@ -279,7 +279,7 @@ def test_hero_example_lookup_uses_fresh_source_cache(tmp_path: Path) -> None:
     assert pubmed.cache_status == "cache_hit"
     assert pubmed.fetched_at is not None
     assert pubmed.summary["total"] == 1
-    assert response.report_payload.pubmed_articles[0].title == "Cached RPE65 c.260A>G report"
+    assert response.report_payload.pubmed_articles[0].title == "Cached RPE65 c.11+5G>A report"
 
 
 def test_hero_example_lookup_serves_stale_cache_when_live_source_fails(
@@ -294,15 +294,15 @@ def test_hero_example_lookup_serves_stale_cache_when_live_source_fails(
     )
     repo.upsert(
         "pubmed",
-        "RPE65:c.260A>G",
-        normalized_identity={"gene": "RPE65", "cdna": "c.260A>G"},
-        request_identity={"query": "cached RPE65 c.260A>G"},
+        "RPE65:c.11+5G>A",
+        normalized_identity={"gene": "RPE65", "cdna": "c.11+5G>A"},
+        request_identity={"query": "cached RPE65 c.11+5G>A"},
         status="live",
         summary={
             "articles": [
                 {
                     "pmid": "38191234",
-                    "title": "Stale RPE65 c.260A>G report",
+                    "title": "Stale RPE65 c.11+5G>A report",
                     "authors": "Eamos",
                     "journal": "Cache",
                     "year": "2026",
@@ -313,12 +313,12 @@ def test_hero_example_lookup_serves_stale_cache_when_live_source_fails(
         },
         raw={"cached": True},
         warnings=["cached_warning"],
-        source_url="https://pubmed.ncbi.nlm.nih.gov/?term=RPE65+c.260A%3EG",
+        source_url="https://pubmed.ncbi.nlm.nih.gov/?term=RPE65+c.11%2B5G%3EA",
         ttl_days=-1,
     )
     service = _service(tmp_path, repo, pubmed_tool=pubmed_tool)
 
-    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.11+5G>A"))
 
     pubmed = next(item for item in response.evidence if item.source == "pubmed")
     assert pubmed_tool.calls == 1
@@ -327,10 +327,10 @@ def test_hero_example_lookup_serves_stale_cache_when_live_source_fails(
     assert pubmed.fetched_at is not None
     assert pubmed.summary["total"] == 1
     assert "source_cache_stale_on_failure:pubmed" in pubmed.warnings
-    assert response.report_payload.pubmed_articles[0].title == "Stale RPE65 c.260A>G report"
-    stored = repo.get_any("pubmed", "RPE65:c.260A>G")
+    assert response.report_payload.pubmed_articles[0].title == "Stale RPE65 c.11+5G>A report"
+    stored = repo.get_any("pubmed", "RPE65:c.11+5G>A")
     assert stored is not None
-    assert stored.summary["articles"][0]["title"] == "Stale RPE65 c.260A>G report"
+    assert stored.summary["articles"][0]["title"] == "Stale RPE65 c.11+5G>A report"
 
 
 def test_arbitrary_lookup_uses_fresh_source_cache_for_selected_sources(tmp_path: Path) -> None:
@@ -596,7 +596,7 @@ def test_refresh_bypasses_fresh_source_cache_and_rewrites_on_success(tmp_path: P
             "articles": [
                 {
                     "pmid": "39999999",
-                    "title": "Fresh live RPE65 report",
+                    "title": "Fresh live RPE65 c.11+5G>A report",
                     "authors": "Eamos",
                     "journal": "Live",
                     "year": "2026",
@@ -608,27 +608,27 @@ def test_refresh_bypasses_fresh_source_cache_and_rewrites_on_success(tmp_path: P
     )
     repo.upsert(
         "pubmed",
-        "RPE65:c.260A>G",
-        normalized_identity={"gene": "RPE65", "cdna": "c.260A>G"},
-        request_identity={"query": "cached RPE65 c.260A>G"},
+        "RPE65:c.11+5G>A",
+        normalized_identity={"gene": "RPE65", "cdna": "c.11+5G>A"},
+        request_identity={"query": "cached RPE65 c.11+5G>A"},
         status="live",
         summary={"articles": [], "total": 0},
         raw={"cached": True},
         warnings=[],
-        source_url="https://pubmed.ncbi.nlm.nih.gov/?term=RPE65+c.260A%3EG",
+        source_url="https://pubmed.ncbi.nlm.nih.gov/?term=RPE65+c.11%2B5G%3EA",
         ttl_days=30,
     )
     service = _service(tmp_path, repo, pubmed_tool=pubmed_tool)
 
-    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"), refresh=True)
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.11+5G>A"), refresh=True)
 
     pubmed = next(item for item in response.evidence if item.source == "pubmed")
     assert pubmed_tool.calls == 1
     assert pubmed.status == "live"
-    assert pubmed.summary["articles"][0]["title"] == "Fresh live RPE65 report"
-    stored = repo.get_fresh("pubmed", "RPE65:c.260A>G")
+    assert pubmed.summary["articles"][0]["title"] == "Fresh live RPE65 c.11+5G>A report"
+    stored = repo.get_fresh("pubmed", "RPE65:c.11+5G>A")
     assert stored is not None
-    assert stored.summary["articles"][0]["title"] == "Fresh live RPE65 report"
+    assert stored.summary["articles"][0]["title"] == "Fresh live RPE65 c.11+5G>A report"
 
 
 def test_source_cache_warmer_scope_is_landing_hero_examples() -> None:

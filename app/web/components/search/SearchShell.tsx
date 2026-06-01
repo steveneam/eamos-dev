@@ -28,7 +28,8 @@ interface SearchShellProps {
 }
 
 const SAMPLE_CHIPS = [
-  'RPE65 c.260A>G',
+  'USH2A c.2276G>T',
+  'RPE65 c.11+5G>A',
   'BRCA1 c.5266dupC',
   'rs6025',
   'NM_000277.3:c.1315C>T',

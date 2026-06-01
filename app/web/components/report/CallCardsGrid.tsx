@@ -15,6 +15,37 @@ const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; col
   neutral: { bg: 'var(--bg-soft)', border: 'var(--line)', color: 'var(--ink-3)' },
 }
 
+// Functional-evidence state → badge colour. The Lab & Functional verdict badge
+// is coloured by the functional STATE (curator's PS3/BS3 direction, conflict,
+// uncurated, or none) rather than the generic "acmg" teal, so a clinician reads
+// the wet-lab call at a glance. Maps onto the design-system ACMG ramp + grey NA,
+// plus the off-ramp info-blue for "uncurated". See plans/functional-card/spec.md.
+const STATE_THEME: Record<string, { bg: string; border: string; color: string }> = {
+  danger_red_state: { bg: 'var(--cls-path-bg)', border: 'var(--cls-path-bdr)', color: 'var(--cls-path-text)' },
+  risk_red_state: { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', color: 'var(--cls-lpath-text)' },
+  caution_yellow_state: { bg: 'var(--cls-vus-bg)', border: 'var(--cls-vus-bdr)', color: 'var(--cls-vus-text)' },
+  safe_green_state: { bg: 'var(--cls-ben-bg)', border: 'var(--cls-ben-bdr)', color: 'var(--cls-ben-text)' },
+  info_blue_state: { bg: 'var(--info-bg)', border: 'var(--info-bdr)', color: 'var(--info-text)' },
+  neutral_slate_state: { bg: 'var(--cls-na-bg)', border: 'var(--cls-na-bdr)', color: 'var(--cls-na-text)' },
+}
+
+// "via ClinGen / ClinVar / ClinGen + ClinVar" — the authority of a PS3/BS3 hinges
+// on whether a VCEP or a lone submitter asserted it, so the verdict badge always
+// names its curator source. Conflict / uncurated / none carry no curator code and
+// so get no attribution.
+function verdictAttribution(verdictSource: string | undefined): string | null {
+  switch (verdictSource) {
+    case 'clingen':
+      return 'via ClinGen'
+    case 'clinvar':
+      return 'via ClinVar'
+    case 'clingen+clinvar':
+      return 'via ClinGen + ClinVar'
+    default:
+      return null
+  }
+}
+
 function formatWarning(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
 }
@@ -62,6 +93,39 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
           const navigates = cardCanNavigate(card)
           const badges = card.support_badges ?? []
           const cardWarnings = (card.warnings ?? []).filter((w) => !SUPPRESSED_WARNINGS.has(w))
+          // Lab & Functional is colour-coded by functional STATE across the WHOLE
+          // card surface (scan the report, read the wet-lab call at a glance):
+          // red deficit / green normal / yellow conflict / blue uncurated / grey
+          // none. The verdict badge also names its curator source ("via ClinGen/
+          // ClinVar") and a "code rests on N of M studies" micro-note surfaces when
+          // the count dwarfs the cited papers. Source attribution + note come from
+          // functional_evidence.display_metrics, which the generic ReportCallCard
+          // contract doesn't carry. plans/functional-card/spec.md.
+          const isFunctionalCard = card.card_id === 'lab_functional'
+          const fnTheme = isFunctionalCard ? STATE_THEME[card.ui_color_theme] ?? null : null
+          const fnMetrics = isFunctionalCard
+            ? payload.functional_evidence?.display_metrics ?? null
+            : null
+          const verdictAttr = verdictAttribution(fnMetrics?.verdict_source)
+          // On a state-tinted card the badges become crisp chips on the page-white
+          // surface so they stay legible: the verdict chip keeps the state colour
+          // (text + border), the rest go neutral.
+          const renderBadges = badges.slice(0, 3).map((badge, i) => {
+            let tone = BADGE_TONES[badge.kind] ?? BADGE_TONES.neutral
+            if (fnTheme) {
+              tone =
+                i === 0
+                  ? { bg: 'var(--bg)', border: fnTheme.border, color: fnTheme.color }
+                  : { bg: 'var(--bg)', border: 'var(--line)', color: 'var(--ink-2)' }
+            }
+            const text =
+              fnTheme && i === 0 && verdictAttr ? `${badge.text} · ${verdictAttr}` : badge.text
+            return { key: `${card.card_id}-${i}`, text, tone }
+          })
+          const fnNote =
+            fnMetrics?.code_rests_on != null
+              ? `Code rests on ${fnMetrics.code_rests_on.cited} of ${fnMetrics.code_rests_on.total} studies`
+              : null
           const cardBody = (
             <>
               <div className="eamos-kicker">
@@ -81,16 +145,14 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                 {card.primary_label || 'No source data'}
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {badges.length > 0 ? (
-                  badges.slice(0, 3).map((badge) => {
-                    const tone = BADGE_TONES[badge.kind] ?? BADGE_TONES.neutral
-                    return (
+                {renderBadges.length > 0 ? (
+                  renderBadges.map((badge) => (
                       <span
-                        key={`${card.card_id}-${badge.text}`}
+                        key={badge.key}
                         style={{
-                          border: `0.5px solid ${tone.border}`,
-                          background: tone.bg,
-                          color: tone.color,
+                          border: `0.5px solid ${badge.tone.border}`,
+                          background: badge.tone.bg,
+                          color: badge.tone.color,
                           borderRadius: 7,
                           padding: '4px 7px',
                           fontSize: 10.5,
@@ -101,8 +163,7 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                       >
                         {badge.text}
                       </span>
-                    )
-                  })
+                  ))
                 ) : (
                   <span
                     style={{
@@ -124,7 +185,9 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                   overflowWrap: 'anywhere',
                 }}
               >
-                {cardWarnings.length > 0 ? formatWarning(cardWarnings[0]) : cardMeta(card)}
+                {cardWarnings.length > 0
+                  ? formatWarning(cardWarnings[0])
+                  : fnNote ?? cardMeta(card)}
               </div>
             </>
           )
@@ -136,9 +199,9 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
                 className="w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
                 style={{
                   minHeight: 158,
-                  border: '0.5px solid var(--line)',
+                  border: `0.5px solid ${fnTheme ? fnTheme.border : 'var(--line)'}`,
                   borderRadius: 10,
-                  background: 'var(--bg)',
+                  background: fnTheme ? fnTheme.bg : 'var(--bg)',
                   padding: '15px 16px',
                   boxShadow: 'var(--elev-1)',
                 }}

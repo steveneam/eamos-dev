@@ -32,7 +32,7 @@ import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
 import { reportHrefForQuery } from '@/lib/variant-search'
-import { RPE65_SAMPLE } from '@/lib/sample-report'
+import { RPE65_NEGATIVE_CONTROL_SAMPLE } from '@/lib/sample-report'
 import {
   tsvAISummary,
   tsvDiseaseAndConditions,
@@ -62,7 +62,7 @@ import type {
 } from '@/lib/backend'
 
 // LazySection lazy-branch hatch: section IDs that ReportBody will treat as
-// `eagerData={null}` even when the payload ships them inline. Demo mode
+// `eagerData={null}` even when the payload ships them inline. Fixture mode
 // synthesises a `summaryRequest` from `payload.report_profile.header` so the
 // lazy fetch actually hits `/api/v1/lookup/sections`. This is the M11/M-007
 // contract canary — same in dev and prod.
@@ -85,13 +85,105 @@ function parseLazyOverrides(raw: string | null): Set<LookupSectionId> {
 
 type LoadState =
   | { kind: 'idle' }
-  | { kind: 'loading' }
-  | { kind: 'ready'; data: LookupResponse }
-  | { kind: 'malformed'; query: string; detail?: string }
-  | { kind: 'unresolved'; query: string }
-  | { kind: 'interpretation'; query: string; interpretation: SearchInputInterpretation; detail?: string | null }
-  | { kind: 'error'; message: string }
-  | { kind: 'offline' }
+  | { kind: 'loading'; requestKey: string }
+  | { kind: 'ready'; requestKey: string; data: LookupResponse }
+  | { kind: 'malformed'; requestKey: string; query: string; detail?: string }
+  | { kind: 'unresolved'; requestKey: string; query: string }
+  | {
+      kind: 'interpretation'
+      requestKey: string
+      query: string
+      interpretation: SearchInputInterpretation
+      detail?: string | null
+    }
+  | { kind: 'error'; requestKey: string; message: string }
+  | { kind: 'offline'; requestKey: string }
+
+const REPORT_CACHE_PREFIX = 'eamos.report.lookup.v1:'
+const REPORT_CACHE_MAX_AGE_MS = 30 * 60 * 1000
+const LIVE_SAMPLE_REPORT_HREF = '/report?gene=USH2A&cdna=c.2276G%3ET'
+
+function reportRequestKey({
+  cdna,
+  demo,
+  fixture,
+  gene,
+  proteinChange,
+  q,
+  transcript,
+}: {
+  cdna: string
+  demo: boolean
+  fixture: boolean
+  gene: string
+  proteinChange: string
+  q: string
+  transcript: string
+}) {
+  if (fixture) return 'fixture:rpe65-negative'
+  if (demo) return 'demo:live-redirect'
+  if (!gene && !cdna && q) return `q:${q}`
+  if (gene || cdna) {
+    return ['lookup', gene.toUpperCase(), cleanQuery(cdna), transcript, proteinChange].join('|')
+  }
+  return 'empty'
+}
+
+function isAbortError(err: unknown) {
+  return err instanceof Error && err.name === 'AbortError'
+}
+
+function readCachedReport(requestKey: string): LookupResponse | null {
+  if (
+    typeof window === 'undefined' ||
+    requestKey === 'empty' ||
+    requestKey.startsWith('demo:') ||
+    requestKey.startsWith('fixture:')
+  ) {
+    return null
+  }
+  const key = `${REPORT_CACHE_PREFIX}${requestKey}`
+  try {
+    const raw = window.sessionStorage.getItem(key)
+    if (!raw) return null
+    const cached = JSON.parse(raw) as { savedAt?: unknown; data?: unknown }
+    if (typeof cached.savedAt !== 'number' || !cached.data) {
+      window.sessionStorage.removeItem(key)
+      return null
+    }
+    if (Date.now() - cached.savedAt > REPORT_CACHE_MAX_AGE_MS) {
+      window.sessionStorage.removeItem(key)
+      return null
+    }
+    return cached.data as LookupResponse
+  } catch {
+    try {
+      window.sessionStorage.removeItem(key)
+    } catch {
+      // Ignore storage APIs that are unavailable in private contexts.
+    }
+    return null
+  }
+}
+
+function writeCachedReport(requestKey: string, data: LookupResponse) {
+  if (
+    typeof window === 'undefined' ||
+    requestKey === 'empty' ||
+    requestKey.startsWith('demo:') ||
+    requestKey.startsWith('fixture:')
+  ) {
+    return
+  }
+  try {
+    window.sessionStorage.setItem(
+      `${REPORT_CACHE_PREFIX}${requestKey}`,
+      JSON.stringify({ savedAt: Date.now(), data }),
+    )
+  } catch {
+    // Quota/private-mode failures should never block rendering the report.
+  }
+}
 
 export function ReportClient() {
   const params = useSearchParams()
@@ -102,8 +194,13 @@ export function ReportClient() {
   const proteinChange = params.get('protein_change')?.trim() ?? ''
   const q = params.get('q')?.trim() ?? ''
   const demo = params.get('demo') !== null
+  const negativeFixture = params.get('fixture') === 'rpe65-negative'
   const lazyParam = params.get('lazy')
   const lazyOverrides = useMemo(() => parseLazyOverrides(lazyParam), [lazyParam])
+  const requestKey = useMemo(
+    () => reportRequestKey({ cdna, demo, fixture: negativeFixture, gene, proteinChange, q, transcript }),
+    [cdna, demo, negativeFixture, gene, proteinChange, q, transcript],
+  )
 
   const [state, setState] = useState<LoadState>({ kind: 'idle' })
   const [attempt, setAttempt] = useState(0)
@@ -114,9 +211,9 @@ export function ReportClient() {
 
   // M7 live-wire: mirror the LookupRequest the report itself uses so the
   // MatrixOverture can call lookupSummary() and upgrade its mock tiles.
-  // Demo / sample mode leaves request undefined → overture stays mock-only.
+  // Redirect and fixture modes leave request undefined so no live lookup runs.
   const summaryRequest = useMemo<LookupRequest | undefined>(() => {
-    if (demo) return undefined
+    if (demo || negativeFixture) return undefined
     if (!gene && !cdna && q) {
       return { search_text: q, species: 'human' }
     }
@@ -130,21 +227,36 @@ export function ReportClient() {
       }
     }
     return undefined
-  }, [demo, gene, cdna, transcript, proteinChange, q])
+  }, [demo, negativeFixture, gene, cdna, transcript, proteinChange, q])
 
   useEffect(() => {
     let cancelled = false
+    const controller = new AbortController()
 
-    if (demo || (!gene && !cdna && !q)) {
-      setState({ kind: 'ready', data: RPE65_SAMPLE })
-      return
+    if (demo) {
+      router.replace(LIVE_SAMPLE_REPORT_HREF)
+      return () => controller.abort()
+    }
+
+    if (negativeFixture) {
+      return () => controller.abort()
+    }
+
+    if (!gene && !cdna && !q) {
+      router.replace(LIVE_SAMPLE_REPORT_HREF)
+      return () => controller.abort()
     }
 
     if (!gene && !cdna && q) {
       // Raw searches resolve through the backend parser/candidate gate before
       // any report payload is rendered.
-      setState({ kind: 'loading' })
-      variantLookup({ search_text: q, species: 'human' })
+      const cachedData = readCachedReport(requestKey)
+      if (cachedData) {
+        void Promise.resolve().then(() => {
+          if (!cancelled) setState({ kind: 'ready', requestKey, data: cachedData })
+        })
+      }
+      variantLookup({ search_text: q, species: 'human' }, { signal: controller.signal })
         .then((data) => {
           if (cancelled) return
           const interpretation = data.search_interpretation ?? null
@@ -154,6 +266,7 @@ export function ReportClient() {
           if (interpretation && !responseGene) {
             setState({
               kind: 'interpretation',
+              requestKey,
               query: q,
               interpretation,
               detail: data.report_payload.limitations,
@@ -163,31 +276,40 @@ export function ReportClient() {
           if (responseGene && interpretation?.gene && responseGene.toUpperCase() !== interpretation.gene.toUpperCase()) {
             setState({
               kind: 'error',
+              requestKey,
               message: `Lookup returned data for ${responseGene}, but the search resolved to ${interpretation.gene}. The report was not rendered to avoid showing stale variant facts.`,
             })
             return
           }
-          setState({ kind: 'ready', data })
+          writeCachedReport(requestKey, data)
+          setState({ kind: 'ready', requestKey, data })
         })
         .catch((err: Error) => {
-          if (cancelled) return
+          if (cancelled || isAbortError(err)) return
+          if (cachedData) return
           if (err instanceof TypeError) {
-            setState({ kind: 'offline' })
+            setState({ kind: 'offline', requestKey })
           } else {
-            setState({ kind: 'error', message: err.message })
+            setState({ kind: 'error', requestKey, message: err.message })
           }
         })
       return () => {
         cancelled = true
+        controller.abort()
       }
     }
 
     if (!gene || !cdna) {
-      setState({
-        kind: 'error',
-        message: 'Both a gene and a cDNA (or HGVS) change are required.',
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setState({
+            kind: 'error',
+            requestKey,
+            message: 'Both a gene and a cDNA (or HGVS) change are required.',
+          })
+        }
       })
-      return
+      return () => controller.abort()
     }
 
     // BE-8 mirror: clean before building the request (never lowercases HGVS).
@@ -199,18 +321,25 @@ export function ReportClient() {
     // must NOT be blocked here). The backend is authoritative and emits
     // `input_unparseable:<kind>` for the cases this guard lets through.
     if (isLikelyUnparseable(gene, cdna)) {
-      setState({ kind: 'malformed', query: probe })
-      return
+      void Promise.resolve().then(() => {
+        if (!cancelled) setState({ kind: 'malformed', requestKey, query: probe })
+      })
+      return () => controller.abort()
     }
 
-    setState({ kind: 'loading' })
+    const cachedData = readCachedReport(requestKey)
+    if (cachedData) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) setState({ kind: 'ready', requestKey, data: cachedData })
+      })
+    }
     variantLookup({
       gene,
       cdna: cleanedCdna,
       transcript: transcript || null,
       protein_change: proteinChange || null,
       species: 'human',
-    })
+    }, { signal: controller.signal })
       .then((data) => {
         if (cancelled) return
         // BE-12 frozen warning codes — see plans/v2-backend.md.
@@ -218,13 +347,14 @@ export function ReportClient() {
         if (warnings.some((c) => c.startsWith('input_unparseable:'))) {
           setState({
             kind: 'malformed',
+            requestKey,
             query: probe,
             detail: data.report_payload.limitations ?? undefined,
           })
           return
         }
         if (warnings.includes('no_genomic_resolution')) {
-          setState({ kind: 'unresolved', query: probe })
+          setState({ kind: 'unresolved', requestKey, query: probe })
           return
         }
         const responseGene =
@@ -233,29 +363,33 @@ export function ReportClient() {
         if (responseGene && responseGene.toUpperCase() !== gene.toUpperCase()) {
           setState({
             kind: 'error',
+            requestKey,
             message: `Lookup returned data for ${responseGene}, but the URL requested ${gene}. The report was not rendered to avoid showing stale variant facts.`,
           })
           return
         }
-        setState({ kind: 'ready', data })
+        writeCachedReport(requestKey, data)
+        setState({ kind: 'ready', requestKey, data })
       })
       .catch((err: Error) => {
-        if (cancelled) return
+        if (cancelled || isAbortError(err)) return
+        if (cachedData) return
         // fetch() throws TypeError for connection-refused / DNS / CORS — i.e.
         // the dev backend isn't running. 4xx/5xx responses come through
         // parseResponse as a plain Error and route to the generic branch.
         // (variantLookup already retried once with backoff for network/5xx.)
         if (err instanceof TypeError) {
-          setState({ kind: 'offline' })
+          setState({ kind: 'offline', requestKey })
         } else {
-          setState({ kind: 'error', message: err.message })
+          setState({ kind: 'error', requestKey, message: err.message })
         }
       })
 
     return () => {
       cancelled = true
+      controller.abort()
     }
-  }, [gene, cdna, transcript, proteinChange, q, demo, attempt])
+  }, [gene, cdna, transcript, proteinChange, q, demo, negativeFixture, attempt, router, requestKey])
 
   // Same freeform behaviour as the landing hero search (shared util): structured
   // "GENE c.…/p.…/rs…" → lookup; anything else → raw query for the resolver.
@@ -273,6 +407,12 @@ export function ReportClient() {
   }
 
   const queryLabel = `${gene} ${cdna}`.trim() || q
+  let activeState: LoadState = { kind: 'loading', requestKey }
+  if (negativeFixture) {
+    activeState = { kind: 'ready', requestKey, data: RPE65_NEGATIVE_CONTROL_SAMPLE }
+  } else if (state.kind !== 'idle' && state.requestKey === requestKey) {
+    activeState = state
+  }
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
@@ -302,17 +442,17 @@ export function ReportClient() {
           padding: '32px 32px 80px',
         }}
       >
-        {state.kind === 'loading' && <LoadingBlock query={queryLabel} />}
-        {state.kind === 'error' && (
+        {activeState.kind === 'loading' && <LoadingBlock query={queryLabel} />}
+        {activeState.kind === 'error' && (
           <ErrorBlock
             variant="generic"
-            message={state.message}
+            message={activeState.message}
             query={queryLabel}
             canRetry={Boolean((gene && cdna) || q)}
             onRetry={() => setAttempt((n) => n + 1)}
           />
         )}
-        {state.kind === 'offline' && (
+        {activeState.kind === 'offline' && (
           <ErrorBlock
             variant="offline"
             query={queryLabel}
@@ -320,32 +460,33 @@ export function ReportClient() {
             onRetry={() => setAttempt((n) => n + 1)}
           />
         )}
-        {state.kind === 'malformed' && (
-          <MalformedBlock query={state.query} detail={state.detail} />
+        {activeState.kind === 'malformed' && (
+          <MalformedBlock query={activeState.query} detail={activeState.detail} />
         )}
-        {state.kind === 'unresolved' && (
+        {activeState.kind === 'unresolved' && (
           <ErrorBlock
             variant="unresolved"
-            query={state.query}
+            query={activeState.query}
             canRetry
             onRetry={() => setAttempt((n) => n + 1)}
           />
         )}
-        {state.kind === 'interpretation' && (
+        {activeState.kind === 'interpretation' && (
           <SearchInterpretationPanel
-            query={state.query}
-            interpretation={state.interpretation}
-            limitations={state.detail}
+            query={activeState.query}
+            interpretation={activeState.interpretation}
+            limitations={activeState.detail}
             onSelectCandidate={handleSelectCandidate}
           />
         )}
-        {state.kind === 'ready' && (
+        {activeState.kind === 'ready' && (
           <ReportBody
-            data={state.data}
-            query={`${gene} ${cdna}`.trim() || state.data.query}
+            key={activeState.requestKey}
+            data={activeState.data}
+            query={`${gene} ${cdna}`.trim() || activeState.data.query}
             summaryRequest={summaryRequest}
             lazyOverrides={lazyOverrides}
-            demo={demo}
+            demo={negativeFixture}
           />
         )}
       </main>
@@ -358,9 +499,9 @@ interface ReportBodyProps {
   query: string
   summaryRequest?: LookupRequest
   lazyOverrides: Set<LookupSectionId>
-  /** Offline sample mode (?demo) — render the gene viewer from the bundled
+  /** Offline fixture mode (?fixture=rpe65-negative) — render the gene viewer from the bundled
    *  GENE_VIEWER_SAMPLE rather than fetching, matching the rest of the
-   *  demo report's offline behaviour. */
+   *  fixture report's offline behaviour. */
   demo?: boolean
 }
 
@@ -382,7 +523,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
   const header = payload.report_profile?.header
   const variantKey = header ? `${header.gene}|${header.cdna}` : query
 
-  // Lazy-hatch synthesised request: if demo mode (`summaryRequest` undefined)
+  // Lazy-hatch synthesised request: if fixture mode (`summaryRequest` undefined)
   // but a `?lazy=` override is present, synthesise a request from the report's
   // own header so `<LazySection>` can fire its IntersectionObserver-driven
   // `/api/v1/lookup/sections` fetch against the live backend even from the
@@ -497,8 +638,8 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
       {/* M7 lookahead — 10-12 tiles that deep-link to each numbered section
           below. Live-wired to lookupSummary(); falls back to tiles synthesized
           from the existing ReportPayload when the backend is unreachable
-          (TypeError) or when no request shape is available (demo mode). */}
-      <MatrixOverture payload={payload} request={summaryRequest} />
+          (TypeError) or when no request shape is available (fixture mode). */}
+      <MatrixOverture key={`matrix-${variantKey}`} payload={payload} request={summaryRequest} />
 
       <div className="flex flex-col gap-3.5">
         {/* Call cards sit just under the header as the at-a-glance verdicts.
@@ -695,7 +836,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
 
         {/* 6 · Publication literature. */}
         {/* LazySection v1: when the backend ships `publications_literature`
-            inline (today: offline demo + eager live), we render the existing
+            inline (today: offline fixture + eager live), we render the existing
             PubMedSection immediately via `eagerData`. When the eager payload
             is trimmed (M-007 / M11 follow-up), the IntersectionObserver path
             kicks in and lazy-fetches via /api/v1/lookup/sections.
@@ -1044,7 +1185,7 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
             </Link>
             {!isOffline && (
               <Link
-                href="/report?demo=1"
+                href="/report?gene=USH2A&cdna=c.2276G%3ET"
                 style={{
                   fontSize: 12,
                   color: 'var(--ink-3)',
@@ -1053,7 +1194,7 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
                   marginLeft: 4,
                 }}
               >
-                View the RPE65 sample report instead
+                View the USH2A sample report instead
               </Link>
             )}
           </div>
@@ -1135,10 +1276,10 @@ function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
         }}
       >
         {[
-          ['Gene + cDNA', 'RPE65 c.260A>G'],
-          ['Transcript HGVS', 'NM_000329.3:c.260A>G'],
-          ['Protein', 'RPE65 p.Asp87Gly'],
-          ['dbSNP', 'rs61752871'],
+          ['Gene + cDNA', 'USH2A c.2276G>T'],
+          ['Transcript HGVS', 'NM_206933.4:c.2276G>T'],
+          ['Genomic hg38', '1-216247118-C-A'],
+          ['dbSNP', 'rs80338902'],
         ].map(([label, example]) => (
           <li
             key={label}
@@ -1173,7 +1314,7 @@ function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
           Back to search
         </Link>
         <Link
-          href="/report?demo=1"
+          href="/report?gene=USH2A&cdna=c.2276G%3ET"
           style={{
             fontSize: 12,
             color: 'var(--ink-3)',
@@ -1182,7 +1323,7 @@ function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
             marginLeft: 4,
           }}
         >
-          View the RPE65 sample report instead
+          View the USH2A sample report instead
         </Link>
       </div>
     </section>

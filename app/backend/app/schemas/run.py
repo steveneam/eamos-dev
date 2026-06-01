@@ -75,6 +75,22 @@ PublicationScope = Literal["variant", "gene"]
 PublicationCountKind = Literal["deduped_pmids", "gene_wide_source_count", "unavailable"]
 FunctionalEvidenceSourceTag = Literal["clingen", "clinvar", "pubmed"]
 FunctionalEvidenceCode = Literal["PS3", "BS3"]
+FunctionalEvidenceState = Literal[
+    "strong_deficit",
+    "emerging_deficit",
+    "normal",
+    "conflict",
+    "uncurated",
+    "none",
+]
+FunctionalEvidenceVerdictSource = Literal[
+    "clingen",
+    "clinvar",
+    "clingen+clinvar",
+    "conflict",
+    "uncurated",
+    "none",
+]
 ReportCallCardId = Literal[
     "population_frequency",
     "computational",
@@ -165,10 +181,24 @@ class FunctionalEvidenceSourceBreakdown(BaseModel):
     pubmed: int = 0
 
 
+class FunctionalEvidenceConflictSplit(BaseModel):
+    deficit: int = 0
+    normal: int = 0
+
+
+class FunctionalEvidenceCodeRestsOn(BaseModel):
+    cited: int = 0
+    total: int = 0
+
+
 class FunctionalEvidenceDisplayMetrics(BaseModel):
+    state: FunctionalEvidenceState = "none"
     primary_label: str = "No Functional Data Available"
     acmg_badge_text: str = "None"
+    verdict_source: FunctionalEvidenceVerdictSource = "none"
     study_count_badge_text: str = "0 Unique"
+    conflict_split: FunctionalEvidenceConflictSplit | None = None
+    code_rests_on: FunctionalEvidenceCodeRestsOn | None = None
     ui_color_theme: str = "neutral_slate_state"
 
 

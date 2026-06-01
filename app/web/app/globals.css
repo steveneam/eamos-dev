@@ -108,6 +108,15 @@
   --cls-na-bdr:     var(--line);
   --cls-na-dot:     var(--ink-4);
 
+  /* Functional-evidence "uncurated" state — info blue. Muted ~system chroma, sits
+     OFF the red->green ACMG ramp and OFF grey NA so "studies exist, not yet
+     ACMG-graded" never reads as a pathogenicity tier or as no-data. (Functional
+     card, plans/functional-card/spec.md state matrix; CVD-checked vs the ramp.) */
+  --info-bg:        oklch(96% 0.032 245);
+  --info-text:      oklch(45% 0.110 250);
+  --info-bdr:       oklch(87% 0.062 245);
+  --info-dot:       oklch(60% 0.145 250);
+
   /* Workbench-only canvas wash */
   --bg-canvas: #fbfcfd;
 

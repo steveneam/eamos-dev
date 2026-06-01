@@ -27,6 +27,10 @@ interface MatrixOvertureProps {
 
 const SCROLL_OFFSET = 68 // matches CallCardsGrid — clears the 60px sticky nav.
 
+// The matrix is a section overview. A four-item summary is the call-card shape,
+// so do not swap it in here or the report top renders duplicate summaries.
+const MIN_MATRIX_TILE_COUNT = 8
+
 function scrollToTile(tile: LookupSummaryTile) {
   const targetId = tile.target_panel_id ?? tile.target_section_id
   if (!targetId || typeof document === 'undefined') return
@@ -50,20 +54,21 @@ function scrollToTile(tile: LookupSummaryTile) {
  */
 export function MatrixOverture({ tiles, payload, request }: MatrixOvertureProps) {
   const synthesized = useMemo(() => synthesizeTilesFromPayload(payload), [payload])
-  const [liveTiles, setLiveTiles] = useState<LookupSummaryTile[] | null>(null)
+  const requestKey = useMemo(() => (request ? JSON.stringify(request) : ''), [request])
+  const [liveTiles, setLiveTiles] = useState<{
+    requestKey: string
+    tiles: LookupSummaryTile[]
+  } | null>(null)
 
   useEffect(() => {
     // Parent already resolved tiles, or we have no request to send — stay mock.
-    if (tiles || !request) {
-      setLiveTiles(null)
-      return
-    }
+    if (tiles || !request) return
     let cancelled = false
     lookupSummary(request)
       .then((response) => {
         if (cancelled) return
-        if (response.tiles && response.tiles.length > 0) {
-          setLiveTiles(response.tiles)
+        if (response.tiles && response.tiles.length >= MIN_MATRIX_TILE_COUNT) {
+          setLiveTiles({ requestKey, tiles: response.tiles })
         }
       })
       .catch((err: unknown) => {
@@ -77,9 +82,10 @@ export function MatrixOverture({ tiles, payload, request }: MatrixOvertureProps)
     return () => {
       cancelled = true
     }
-  }, [request, tiles])
+  }, [request, requestKey, tiles])
 
-  const effectiveTiles = tiles ?? liveTiles ?? synthesized
+  const effectiveTiles =
+    tiles ?? (request && liveTiles?.requestKey === requestKey ? liveTiles.tiles : null) ?? synthesized
 
   if (effectiveTiles.length === 0) return null
 

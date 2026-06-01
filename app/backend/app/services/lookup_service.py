@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
@@ -75,6 +75,19 @@ GENE_THERAPY_MAP: dict[str, str] = {
 SOURCE_CACHE_PERSIST_STATUSES = {"live", "cache"}
 SOURCE_CACHE_FAILURE_STATUSES = {"fallback", "degraded", "error", "failed"}
 SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
+
+
+@dataclass(frozen=True)
+class LookupEvidenceContext:
+    evidence_map: dict[str, dict[str, Any]]
+    evidence_statuses: dict[str, str]
+
+
+@dataclass(frozen=True)
+class LookupWithEvidenceContext:
+    response: LookupResponse
+    evidence_map: dict[str, dict[str, Any]]
+    evidence_statuses: dict[str, str]
 
 
 def _format_clinical_trials_summary(gene: str, rows: list[dict[str, Any]]) -> str:
@@ -308,6 +321,28 @@ class LookupService:
         )
         self.report_orchestrator = VariantReportDataOrchestrator()
 
+    def lookup_with_evidence_context(
+        self,
+        request: LookupRequest,
+        refresh: bool = False,
+    ) -> LookupWithEvidenceContext:
+        """Run the normal lookup path and expose the in-process evidence tap."""
+        context_sink: list[LookupEvidenceContext] = []
+        response = self.lookup(request, refresh=refresh, _evidence_context_sink=context_sink)
+        context = (
+            context_sink[0]
+            if context_sink
+            else LookupEvidenceContext(
+                evidence_map={},
+                evidence_statuses={item.source: item.status for item in response.evidence},
+            )
+        )
+        return LookupWithEvidenceContext(
+            response=response,
+            evidence_map=context.evidence_map,
+            evidence_statuses=context.evidence_statuses,
+        )
+
     def parse_search_input(self, request: SearchInputParseRequest) -> SearchInputParseResponse:
         return SearchInputParseResponse(
             interpretation=self.search_input_interpreter.interpret(
@@ -318,7 +353,13 @@ class LookupService:
             )
         )
 
-    def lookup(self, request: LookupRequest, refresh: bool = False) -> LookupResponse:
+    def lookup(
+        self,
+        request: LookupRequest,
+        refresh: bool = False,
+        *,
+        _evidence_context_sink: list[LookupEvidenceContext] | None = None,
+    ) -> LookupResponse:
         search_interpretation: SearchInputInterpretation | None = None
         if request.selected_candidate_id:
             search_interpretation = self.search_input_interpreter.from_selected_candidate(
@@ -975,7 +1016,7 @@ class LookupService:
             evidence_statuses=evidence_statuses,
         )
 
-        return LookupResponse(
+        response = LookupResponse(
             query=f"{gene}:{cdna}",
             species=request.species,
             report_payload=base_payload,
@@ -983,6 +1024,14 @@ class LookupService:
             warnings=[*warnings, *decision.warnings],
             search_interpretation=search_interpretation,
         )
+        if _evidence_context_sink is not None:
+            _evidence_context_sink.append(
+                LookupEvidenceContext(
+                    evidence_map=dict(evidence_map),
+                    evidence_statuses=dict(evidence_statuses),
+                )
+            )
+        return response
 
     def page_publications(self, request: PublicationPageRequest) -> PublicationLiterature:
         input_resolution = self.search_input_resolver.resolve(
