@@ -8,7 +8,6 @@
 // getMockPanel for a real `lib/panels.ts` API client. Gene lists, HGNC ids, validity, and
 // confidences below are ILLUSTRATIVE subsets, not curated panels.
 import type { Panel, PanelConfidence, PanelGene, PanelSource, PanelSummary } from './backend'
-import type { ParsedVariant } from './variant-file'
 
 function g(symbol: string, hgnc_id: string, moi: string, confidence: PanelConfidence = 'green'): PanelGene {
   return { symbol, hgnc_id, confidence, moi, provenance: [], warnings: [] }
@@ -114,34 +113,117 @@ export const PANEL_SOURCE_LABEL: Record<PanelSource, string> = {
   custom: 'Custom',
 }
 
-export interface PanelScope {
-  total: number
-  /** Gene known (CSV/list path) and in the panel. */
-  matched: ParsedVariant[]
-  /** Gene known but not in the panel — filtered out. */
-  excluded: ParsedVariant[]
-  /** Genomic-only (VCF) variants — gene unknown client-side; require the server-side
-   *  interval filter (MANE→hg38 BED, Codex P2). Not droppable client-side. */
-  intervalPending: ParsedVariant[]
+/** Colored per-row provenance tag: which panel a variant matched. */
+export interface PanelBadge {
+  short: string
+  bg: string
+  text: string
+  border: string
+}
+
+// Categorical palette (DESIGN tokens). Stable color per panel so a variant in
+// two panels reads as two consistent tags.
+const BADGE_PALETTE: Omit<PanelBadge, 'short'>[] = [
+  { bg: 'var(--teal-tint)', text: 'var(--teal-deep)', border: 'var(--teal-bdr)' },
+  { bg: 'var(--warn-tint)', text: 'var(--warn-text)', border: 'var(--warn-bdr)' },
+  { bg: 'var(--info-bg)', text: 'var(--info-text)', border: 'var(--info-bdr)' },
+  { bg: 'var(--danger-faint)', text: 'var(--danger)', border: 'var(--danger-border)' },
+]
+
+// Explicit, distinct colors for the launch panels (so IRD/Cardiac/Cancer never collide).
+const KNOWN_BADGES: Record<string, PanelBadge> = {
+  'inherited-retinal-disease': { short: 'IRD', ...BADGE_PALETTE[0] },
+  'cardiomyopathy-arrhythmia': { short: 'Cardiac', ...BADGE_PALETTE[1] },
+  'hereditary-cancer': { short: 'Cancer', ...BADGE_PALETTE[2] },
+}
+
+function deriveShort(name: string): string {
+  const words = name.replace(/\(.*?\)/g, '').split(/[\s/&]+/).filter((w) => w.length > 2)
+  if (words.length >= 2) return words.map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 4)
+  return (words[0] ?? name).slice(0, 8)
+}
+
+function hashSlug(slug: string): number {
+  let h = 0
+  for (let i = 0; i < slug.length; i += 1) h = (h * 31 + slug.charCodeAt(i)) >>> 0
+  return h
+}
+
+export function panelBadge(panel: Panel): PanelBadge {
+  return KNOWN_BADGES[panel.slug] ?? { short: deriveShort(panel.name), ...BADGE_PALETTE[hashSlug(panel.slug) % BADGE_PALETTE.length] }
+}
+
+// Deterministic MOCK resolver for the custom-panel builder (spec §6.3.1 Tier A).
+// Maps a free-text disease query to genes by keyword. Stands in for the real
+// ClinGen/GenCC resolution behind POST /api/v1/panels/resolve (Codex) — the
+// conversational/LLM front-end (Tier B) is COMING SOON until AskEamos is funded.
+const KEYWORD_PRESETS: { match: RegExp; slug: string }[] = [
+  { match: /retin|eye|vision|blind|macular|\brod\b|\bcone\b|\brp\b|dystroph/i, slug: 'inherited-retinal-disease' },
+  { match: /heart|cardi|arrhythm|myopath|qt\b/i, slug: 'cardiomyopathy-arrhythmia' },
+  { match: /cancer|tumou?r|breast|ovarian|lynch|brca|onco/i, slug: 'hereditary-cancer' },
+]
+
+// Symbol → gene index across all preset panels, for resolving pasted/attached gene lists.
+const GENE_INDEX: Map<string, PanelGene> = (() => {
+  const idx = new Map<string, PanelGene>()
+  for (const panel of PANELS) for (const gene of panel.genes) if (!idx.has(gene.symbol)) idx.set(gene.symbol, gene)
+  return idx
+})()
+
+export interface CustomPanelDraft {
+  panel: Panel
+  /** Human note on what resolved: preset names and/or "N gene symbols". */
+  sources: string[]
 }
 
 /**
- * Client-side preview of a panel ∩ cohort intersection by GENE SYMBOL only.
- * This is the small-file path (spec §4); the authoritative interval-first filter
- * (§6.4) runs server-side once Codex's hg38 BED resource lands.
+ * Resolve free text (typed keywords, gene symbols, or an attached list) into a
+ * draft custom panel: union of (a) genes from keyword-matched preset panels and
+ * (b) directly-named genes recognised in the index. Mock stand-in for
+ * ClinGen/GenCC + HGNC resolution behind POST /panels/resolve.
  */
-export function scopeVariantsToPanel(variants: ParsedVariant[], panel: Panel | null): PanelScope {
-  if (!panel) {
-    return { total: variants.length, matched: variants, excluded: [], intervalPending: [] }
+export function buildCustomPanel(query: string): CustomPanelDraft | null {
+  const q = query.trim()
+  if (!q) return null
+
+  const matchedPresets = KEYWORD_PRESETS.filter((p) => p.match.test(q))
+    .map((p) => getMockPanel(p.slug))
+    .filter((p): p is Panel => Boolean(p))
+
+  const seen = new Set<string>()
+  const genes: PanelGene[] = []
+  const pushGene = (gene: PanelGene) => {
+    if (seen.has(gene.symbol)) return
+    seen.add(gene.symbol)
+    genes.push(gene)
   }
-  const symbols = new Set(panel.genes.map((gene) => gene.symbol.toUpperCase()))
-  const matched: ParsedVariant[] = []
-  const excluded: ParsedVariant[] = []
-  const intervalPending: ParsedVariant[] = []
-  for (const v of variants) {
-    if (!v.gene) intervalPending.push(v)
-    else if (symbols.has(v.gene.toUpperCase())) matched.push(v)
-    else excluded.push(v)
+  for (const panel of matchedPresets) for (const gene of panel.genes) pushGene(gene)
+
+  let symbolHits = 0
+  for (const token of q.split(/[\s,;|\t\r\n]+/)) {
+    const gene = GENE_INDEX.get(token.trim().toUpperCase())
+    if (gene && !seen.has(gene.symbol)) {
+      symbolHits += 1
+      pushGene(gene)
+    }
   }
-  return { total: variants.length, matched, excluded, intervalPending }
+
+  if (genes.length === 0) return null
+  const id = `custom-${Date.now()}`
+  const sources = matchedPresets.map((p) => p.name)
+  if (symbolHits > 0) sources.push(`${symbolHits} gene symbol${symbolHits === 1 ? '' : 's'}`)
+  return {
+    sources,
+    panel: {
+      id,
+      slug: id,
+      name: q.length > 42 ? `${q.slice(0, 42).trim()}…` : q,
+      source: 'custom',
+      version: 'draft',
+      provenance_url: undefined,
+      intervals_ref: 'hg38',
+      genes,
+      warnings: ['Mock deterministic resolution — wires to ClinGen/GenCC + HGNC via /panels/resolve when live.'],
+    },
+  }
 }

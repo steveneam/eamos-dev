@@ -591,6 +591,9 @@ textarea {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes eamos-spin {
+  to { transform: rotate(360deg); }
+}
 
 /* ─── In-silico predictions deep-dive ─── */
 .pred-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 0.5px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
