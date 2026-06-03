@@ -52,9 +52,11 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 28
+    assert len(source_ids) == 30
     assert {
         "myvariant_gnomad_only",
+        "google_deepmind_alphamissense_hg38",
+        "esm1b_hg38_assembled_scores",
         "intervar_pipeline_config",
         "ncbi_clinvar_vcf",
         "mondo_disease_ontology",
@@ -98,6 +100,25 @@ def test_protein_annotation_rows_are_commercial_allowed_but_not_runtime_approved
     assert optional_apps.restricted_fields
     assert optional_apps.download_approved is False
     assert "SignalP" in (optional_apps.terms_status or "")
+
+
+def test_modern_ai_predictor_rows_record_alpha_ready_and_esm1b_gated() -> None:
+    registry = DEFAULT_DATA_SOURCE_REGISTRY
+
+    alphamissense = registry.get("google_deepmind_alphamissense_hg38")
+    assert alphamissense.license_status is LicenseStatus.COMMERCIAL_ALLOWED
+    assert alphamissense.download_approved is True
+    assert alphamissense.allowed_product_tiers == ("public_day1_after_review",)
+    assert "9fd167735f16a1b87da6eb3e4c25fcb5" in (alphamissense.checksum_plan or "")
+    assert "CC BY 4.0" in (alphamissense.terms_status or "")
+    assert alphamissense.reader_compatibility_proofed is True
+
+    esm1b = registry.get("esm1b_hg38_assembled_scores")
+    assert esm1b.license_status is LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED
+    assert esm1b.download_approved is False
+    assert esm1b.allowed_product_tiers == ("internal_fixture_only",)
+    assert "regeneration from the MIT model" in (esm1b.terms_status or "")
+    assert esm1b.reader_compatibility_proofed is True
 
 
 def test_restricted_predictor_rows_are_present_and_unlicensed() -> None:

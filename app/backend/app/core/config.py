@@ -98,6 +98,16 @@ class Settings(BaseSettings):
         "./data/bio_assets/protein_annotation/downloads/uniprot_sprot.dat.gz"
     )
     protein_annotation_uniprot_scan_timeout_seconds: float = 20.0
+    alphamissense_hg38_runtime_asset_path: Path = Path(
+        "./data/bio_assets/predictors/alphamissense/AlphaMissense_hg38.tsv.gz"
+    )
+    alphamissense_hg38_runtime_asset_mode: str = "local_path"
+    alphamissense_hg38_runtime_asset_object_uri: str | None = None
+    esm1b_hg38_runtime_asset_path: Path = Path(
+        "./data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz"
+    )
+    esm1b_hg38_runtime_asset_mode: str = "local_path"
+    esm1b_hg38_runtime_asset_object_uri: str | None = None
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"

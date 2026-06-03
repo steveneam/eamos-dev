@@ -88,6 +88,29 @@ def test_commercial_review_sources_deny_public_serialization() -> None:
     assert decision.reason == "commercial_license_review_required"
 
 
+def test_modern_ai_predictor_policy_allows_alpha_and_gates_esm1b_publicly() -> None:
+    policy = SourceFieldPolicy()
+
+    alpha = policy.can_serialize(
+        "google_deepmind_alphamissense_hg38",
+        "am_pathogenicity",
+    )
+    esm1b_public = policy.can_serialize(
+        "esm1b_hg38_assembled_scores",
+        "esm1b_llr",
+    )
+    esm1b_fixture = policy.can_serialize(
+        "esm1b_hg38_assembled_scores",
+        "esm1b_llr",
+        product_tier=ProductTier.INTERNAL_FIXTURE,
+    )
+
+    assert alpha.allowed is True
+    assert esm1b_public.allowed is False
+    assert esm1b_public.reason == "commercial_license_review_required"
+    assert esm1b_fixture.allowed is True
+
+
 def test_internal_fixture_can_preserve_warning_labeled_restricted_examples() -> None:
     policy = SourceFieldPolicy()
     payload = {

@@ -72,6 +72,24 @@ def test_source_download_cli_plans_without_network(
     assert {item["status"] for item in output["result"]["items"]} == {"planned"}
 
 
+def test_alphamissense_download_plan_uses_approved_runtime_path(
+    tmp_path: Path,
+) -> None:
+    [item] = build_source_download_items(
+        source_ids=("google_deepmind_alphamissense_hg38",),
+        small_staging_root=tmp_path / "small",
+        large_staging_root=tmp_path / "large",
+    )
+
+    assert item.source_id == "google_deepmind_alphamissense_hg38"
+    assert item.asset_id == "alphamissense_hg38_tsv_gz"
+    assert item.download_allowed is True
+    assert item.large_asset is False
+    assert item.destination == (
+        tmp_path / "small" / "google_deepmind_alphamissense_hg38" / "AlphaMissense_hg38.tsv.gz"
+    )
+
+
 def test_source_download_execute_writes_manifest_with_sanitized_final_url(
     tmp_path: Path,
 ) -> None:

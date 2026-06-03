@@ -6,6 +6,8 @@ import pytest
 
 from app.services.indexed_sources import (
     IndexedSourceError,
+    TabixTsvPredictorColumns,
+    TabixTsvPredictorReader,
     PysamIndexedVcfReader,
     PyBigWigConservationReader,
     RepeatMaskerIndexedTable,
@@ -71,6 +73,77 @@ def test_pysam_reader_unknown_contig_and_invalid_window_fail_closed(tmp_path: Pa
     assert unknown_exc.value.details == {"requested_chrom": "chr7"}
     assert coordinate_exc.value.code == "invalid_coordinates"
     assert coordinate_exc.value.details == {"chrom": "1", "start": 102, "end": 101}
+
+
+def test_tabix_predictor_reader_reports_missing_index_before_opening_tsv(tmp_path: Path) -> None:
+    tsv_path = tmp_path / "scores.tsv.gz"
+    tsv_path.write_bytes(b"not a real bgzip tsv")
+
+    with pytest.raises(IndexedSourceError) as exc_info:
+        TabixTsvPredictorReader(tsv_path, source_id="google_deepmind_alphamissense_hg38")
+
+    assert exc_info.value.code == "missing_index"
+    assert exc_info.value.details == {
+        "path": str(tsv_path),
+        "index_path": str(tsv_path) + ".tbi",
+    }
+
+
+def test_tabix_predictor_reader_queries_exact_variant_match(tmp_path: Path) -> None:
+    pysam = pytest.importorskip("pysam")
+    tsv_path = _write_tiny_indexed_predictor_tsv(tmp_path, pysam)
+
+    with TabixTsvPredictorReader(
+        tsv_path,
+        source_id="google_deepmind_alphamissense_hg38",
+        columns=TabixTsvPredictorColumns(
+            score=4,
+            extra_columns=(("protein_variant", 5), ("source_class", 6)),
+        ),
+    ) as reader:
+        matches = reader.query_variant("NC_000001.11", 101, "A", "G")
+        position_rows = reader.query_position("chr1", 101)
+        metadata = reader.metadata()
+
+    assert metadata.reader == "pysam.TabixFile"
+    assert len(matches) == 1
+    assert len(position_rows) == 2
+    assert matches[0].chrom == "1"
+    assert matches[0].position == 101
+    assert matches[0].ref == "A"
+    assert matches[0].alt == "G"
+    assert matches[0].score == pytest.approx(0.792)
+    assert matches[0].extra == {
+        "protein_variant": "V1M",
+        "source_class": "likely_pathogenic",
+    }
+
+
+def test_tabix_predictor_reader_unknown_contig_and_bad_schema_fail_closed(
+    tmp_path: Path,
+) -> None:
+    pysam = pytest.importorskip("pysam")
+    tsv_path = _write_tiny_indexed_predictor_tsv(tmp_path, pysam)
+
+    with TabixTsvPredictorReader(
+        tsv_path,
+        source_id="esm1b_hg38_assembled_scores",
+        columns=TabixTsvPredictorColumns(),
+    ) as reader:
+        with pytest.raises(IndexedSourceError) as unknown_exc:
+            reader.query_position("chr7", 101)
+
+    assert unknown_exc.value.code == "unknown_contig"
+    assert unknown_exc.value.details == {"requested_chrom": "chr7"}
+
+    with pytest.raises(IndexedSourceError) as schema_exc:
+        TabixTsvPredictorReader(
+            tsv_path,
+            source_id="esm1b_hg38_assembled_scores",
+            columns=TabixTsvPredictorColumns(score=-1),
+        )
+
+    assert schema_exc.value.code == "invalid_predictor_tsv_schema"
 
 
 def test_pybigwig_reader_rejects_missing_file_before_import(tmp_path: Path) -> None:
@@ -214,6 +287,31 @@ def _write_tiny_indexed_vcf(tmp_path: Path, pysam: object) -> Path:
     )
     pysam.tabix_compress(str(vcf_path), str(bgzip_path), force=True)
     pysam.tabix_index(str(bgzip_path), preset="vcf", force=True)
+    return bgzip_path
+
+
+def _write_tiny_indexed_predictor_tsv(tmp_path: Path, pysam: object) -> Path:
+    tsv_path = tmp_path / "scores.tsv"
+    bgzip_path = tmp_path / "scores.tsv.gz"
+    tsv_path.write_text(
+        "\n".join(
+            [
+                "chr1\t101\tA\tG\t0.792\tV1M\tlikely_pathogenic",
+                "chr1\t101\tA\tT\t0.100\tV1L\tambiguous",
+                "chr1\t102\tC\tT\t-14.0\tV2M\tPP3_Strong",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    pysam.tabix_compress(str(tsv_path), str(bgzip_path), force=True)
+    pysam.tabix_index(
+        str(bgzip_path),
+        seq_col=0,
+        start_col=1,
+        end_col=1,
+        force=True,
+    )
     return bgzip_path
 
 

@@ -567,6 +567,106 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         ),
     ),
     DataSourceRecord(
+        source_id="google_deepmind_alphamissense_hg38",
+        display_name="AlphaMissense hg38 canonical predictions",
+        priority="p6_free_tier_modern_ai_predictor",
+        tier="tier_1_object_storage_asset",
+        day1_status="approved_not_materialized",
+        files_or_api=("AlphaMissense_hg38.tsv.gz", "derived AlphaMissense_hg38.tsv.gz.tbi"),
+        upstream_source="Google DeepMind / Zenodo 10813168",
+        source_url="https://zenodo.org/records/10813168/files/AlphaMissense_hg38.tsv.gz?download=1",
+        source_url_status="verified_official_zenodo_record_2026_06_03",
+        expected_size="643.0 MB in Zenodo 10813168 v3 listing",
+        storage_target="object_storage_or_mounted_volume_after_download_approval",
+        temporary_staging="stage_under_backend_data_or_runtime_volume",
+        adapter="tabix_tsv_predictor_reader",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_day1_after_review",),
+        allowed_fields=(
+            "am_pathogenicity",
+            "am_class",
+            "protein_variant",
+            "uniprot_id",
+            "transcript_id",
+            "calibrated_label",
+            "calibration_bucket",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="static_indexed_asset_with_manifest_checksum",
+        download_approved=True,
+        source_version="AlphaMissense Zenodo 10813168 v3 / record modified 2024-03-13",
+        checksum_plan=(
+            "Verify Zenodo MD5 9fd167735f16a1b87da6eb3e4c25fcb5 for "
+            "AlphaMissense_hg38.tsv.gz, then create and checksum the derived .tbi."
+        ),
+        terms_url="https://creativecommons.org/licenses/by/4.0/legalcode",
+        terms_status=(
+            "Reviewed 2026-06-03: Zenodo 10813168 states all materials are "
+            "licensed under CC BY 4.0; commercial use is allowed with "
+            "attribution, licence link, and no-endorsement/disclaimer handling."
+        ),
+        runtime_delivery_modes=("local_path", "object_storage_local_cache", "mounted_volume"),
+        reader_requires_local_path=True,
+        reader_compatibility_proofed=True,
+        notes=(
+            "Primary Free-tier PP3/BP4 activator once materialized. Use "
+            "Bergquist 2025 bands, not the AlphaMissense developer class "
+            "thresholds, for ACMG evidence activation."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="esm1b_hg38_assembled_scores",
+        display_name="ESM1b hg38 assembled missense LLR scores",
+        priority="p6_free_tier_modern_ai_predictor",
+        tier="tier_1_object_storage_asset",
+        day1_status="buildable_score_file_terms_pending",
+        files_or_api=("esm1b_hg38.tsv.gz", "esm1b_hg38.tsv.gz.tbi", "manifest.json"),
+        upstream_source="EAMOS MANE assembly from ESM1b missense LLR scores",
+        source_url="https://huggingface.co/spaces/ntranoslab/esm_variants/tree/main",
+        source_url_status="score_zip_terms_unconfirmed_2026_06_03",
+        expected_size="about 2-4 GB compressed assembled MANE Select hg38 table",
+        storage_target="mounted_volume_or_object_storage_after_score_terms_or_regeneration",
+        temporary_staging="offline_build_workspace",
+        adapter="tabix_tsv_predictor_reader",
+        license_status=LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED,
+        allowed_product_tiers=("internal_fixture_only",),
+        allowed_fields=(
+            "esm1b_llr",
+            "aa_sub",
+            "uniprot_isoform",
+            "mane_tx",
+            "calibrated_label",
+            "calibration_bucket",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="static_indexed_asset_with_manifest_checksum",
+        download_approved=False,
+        source_version="ESM1b assembly target v1; MANE/score-source versions recorded in manifest",
+        checksum_plan=(
+            "Record source score SHA256, MANE release, GRCh38 reference checksum, "
+            "assembly code version, bgzip SHA256, and tabix index SHA256."
+        ),
+        terms_url=None,
+        terms_status=(
+            "The ESM1b model and ntranoslab/esm-variants code are MIT, but the "
+            "precomputed ALL_hum_isoforms_ESM1b_LLR.zip score-file terms are "
+            "unconfirmed. Commercial ship requires confirmed score-file terms "
+            "or regeneration from the MIT model."
+        ),
+        runtime_delivery_modes=("local_path", "object_storage_local_cache", "mounted_volume"),
+        reader_requires_local_path=True,
+        reader_compatibility_proofed=True,
+        notes=(
+            "Pure-code assembly and runtime adapter are buildable now. Public "
+            "serialization stays gated until the assembled score provenance is "
+            "commercial-safe."
+        ),
+    ),
+    DataSourceRecord(
         source_id="illumina_spliceai_precomputed_hg38",
         display_name="SpliceAI masked SNV hg38 precomputed scores",
         priority="p6_restricted_predictor",

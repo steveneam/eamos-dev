@@ -9,6 +9,8 @@ PEJAVER_METHOD = "Pejaver 2022 / ClinGen SVI PP3/BP4"
 PEJAVER_VERSION = "PMID:36413997"
 SPLICE_METHOD = "Walker 2023 / ClinGen SVI splicing"
 SPLICE_VERSION = "PMID:37352859"
+BERGQUIST_METHOD = "Bergquist 2025 / ClinGen SVI PP3/BP4"
+BERGQUIST_VERSION = "PMID:40084623"
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,10 @@ def calibrate_predictor(name: Any, score: Any) -> PredictorCalibration | None:
         return _calibrate_primateai(numeric_score)
     if normalized_name == "spliceai":
         return _calibrate_spliceai(numeric_score)
+    if normalized_name == "alphamissense":
+        return _calibrate_alphamissense(numeric_score)
+    if normalized_name in {"esm1b", "esm1bllr"}:
+        return _calibrate_esm1b(numeric_score)
     return None
 
 
@@ -119,8 +125,42 @@ def _calibrate_spliceai(score: float) -> PredictorCalibration:
     return PredictorCalibration("Indeterminate", "VUS", SPLICE_METHOD, SPLICE_VERSION)
 
 
+def _calibrate_alphamissense(score: float) -> PredictorCalibration:
+    if score <= 0.070:
+        return _bergquist("BP4_Strong", "Benign")
+    if score <= 0.099:
+        return _bergquist("BP4_Moderate", "Likely benign")
+    if score < 0.100:
+        return _bergquist("Indeterminate", "VUS")
+    if score <= 0.169:
+        return _bergquist("PP3_Supporting", "Likely pathogenic")
+    if score <= 0.791:
+        return _bergquist("PP3_Moderate", "Likely pathogenic")
+    if score <= 0.989:
+        return _bergquist("PP3_Strong", "Pathogenic")
+    return _bergquist("Indeterminate", "VUS")
+
+
+def _calibrate_esm1b(score: float) -> PredictorCalibration:
+    if score <= -14.0:
+        return _bergquist("PP3_Strong", "Pathogenic")
+    if score <= -12.2:
+        return _bergquist("PP3_Moderate", "Likely pathogenic")
+    if score <= -10.7:
+        return _bergquist("PP3_Supporting", "Likely pathogenic")
+    if score <= -6.4:
+        return _bergquist("Indeterminate", "VUS")
+    if score <= -3.2:
+        return _bergquist("BP4_Supporting", "Likely benign")
+    return _bergquist("BP4_Moderate", "Likely benign")
+
+
 def _pejaver(label: str, bucket: RampVerdict) -> PredictorCalibration:
     return PredictorCalibration(label, bucket, PEJAVER_METHOD, PEJAVER_VERSION)
+
+
+def _bergquist(label: str, bucket: RampVerdict) -> PredictorCalibration:
+    return PredictorCalibration(label, bucket, BERGQUIST_METHOD, BERGQUIST_VERSION)
 
 
 def _normalize_name(value: Any) -> str | None:

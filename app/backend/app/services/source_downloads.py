@@ -160,6 +160,14 @@ SOURCE_DOWNLOAD_FILE_SPECS: tuple[SourceDownloadFileSpec, ...] = (
         role="upstream_checksum",
     ),
     SourceDownloadFileSpec(
+        source_id="google_deepmind_alphamissense_hg38",
+        asset_id="alphamissense_hg38_tsv_gz",
+        url="https://zenodo.org/records/10813168/files/AlphaMissense_hg38.tsv.gz?download=1",
+        file_name="AlphaMissense_hg38.tsv.gz",
+        expected_size_bytes=None,
+        role="alphamissense_bgzip_tsv",
+    ),
+    SourceDownloadFileSpec(
         source_id="ncbi_mane_grch38_v1_4_select_ensembl",
         asset_id="mane_grch38_v1_4_ensembl_gtf_gz",
         url=(

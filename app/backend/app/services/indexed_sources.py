@@ -63,6 +63,29 @@ class ConservationWindowSummary:
 
 
 @dataclass(frozen=True)
+class TabixTsvPredictorColumns:
+    chrom: int = 0
+    position: int = 1
+    ref: int = 2
+    alt: int = 3
+    score: int = 4
+    extra_columns: tuple[tuple[str, int], ...] = ()
+
+
+@dataclass(frozen=True)
+class IndexedPredictorScore:
+    requested_chrom: str
+    chrom: str
+    position: int
+    ref: str
+    alt: str
+    score: float | str
+    source_id: str
+    raw_fields: tuple[str, ...]
+    extra: Mapping[str, str]
+
+
+@dataclass(frozen=True)
 class RepeatMaskerInterval:
     chrom: str
     start: int
@@ -183,6 +206,168 @@ class PysamIndexedVcfReader:
                 "tabix index path is not a file",
                 {"path": str(self._path), "index_path": str(self._index_path)},
             )
+
+
+class TabixTsvPredictorReader:
+    """pysam-backed tabix TSV reader for coordinate-keyed predictor scores."""
+
+    def __init__(
+        self,
+        path: Path,
+        *,
+        source_id: str,
+        columns: TabixTsvPredictorColumns = TabixTsvPredictorColumns(),
+        index_path: Path | None = None,
+        delimiter: str = "\t",
+    ) -> None:
+        self._path = path
+        self._index_path = index_path or Path(f"{path}.tbi")
+        self._source_id = source_id
+        self._columns = columns
+        self._delimiter = delimiter
+        self._validate_indexed_file()
+        self._validate_columns()
+        self._pysam = _load_pysam()
+        self._tabix = self._pysam.TabixFile(str(path))
+        self._contigs = tuple(str(contig) for contig in self._tabix.contigs)
+        self._alias_to_contig = _build_alias_map(self._contigs)
+        self._metadata = IndexedReaderMetadata(
+            source_id=source_id,
+            path=path,
+            reader="pysam.TabixFile",
+            version=_package_version("pysam"),
+        )
+
+    def close(self) -> None:
+        self._tabix.close()
+
+    def __enter__(self) -> TabixTsvPredictorReader:
+        return self
+
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        self.close()
+
+    def metadata(self) -> IndexedReaderMetadata:
+        return self._metadata
+
+    def query_variant(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> tuple[IndexedPredictorScore, ...]:
+        requested_ref = ref.strip().upper()
+        requested_alt = alt.strip().upper()
+        return tuple(
+            score
+            for score in self.query_position(chrom, position)
+            if score.ref.upper() == requested_ref and score.alt.upper() == requested_alt
+        )
+
+    def query_position(self, chrom: str, position: int) -> tuple[IndexedPredictorScore, ...]:
+        contig = self._normalize_contig(chrom)
+        _validate_interval(contig, position, position)
+        try:
+            lines = self._tabix.fetch(contig, position - 1, position)
+        except ValueError as exc:
+            raise IndexedSourceError(
+                "indexed_query_failed",
+                "pysam failed to query indexed predictor TSV",
+                {"chrom": contig, "position": position},
+            ) from exc
+        return tuple(
+            score
+            for line in lines
+            if line and not line.startswith("#")
+            for score in (self._to_score(chrom, line),)
+            if score.position == position
+        )
+
+    def _to_score(self, requested_chrom: str, line: str) -> IndexedPredictorScore:
+        fields = tuple(line.rstrip("\n").split(self._delimiter))
+        max_column = self._max_column_index()
+        if len(fields) <= max_column:
+            raise IndexedSourceError(
+                "malformed_predictor_tsv_row",
+                "indexed predictor TSV row has fewer fields than the configured schema",
+                {"field_count": len(fields), "required_index": max_column},
+            )
+        try:
+            position = int(fields[self._columns.position])
+        except ValueError as exc:
+            raise IndexedSourceError(
+                "malformed_predictor_tsv_row",
+                "indexed predictor TSV row has a non-integer position",
+                {"position": fields[self._columns.position]},
+            ) from exc
+        return IndexedPredictorScore(
+            requested_chrom=requested_chrom,
+            chrom=_normalize_contig_alias(fields[self._columns.chrom]),
+            position=position,
+            ref=fields[self._columns.ref],
+            alt=fields[self._columns.alt],
+            score=_float_or_text(fields[self._columns.score]),
+            source_id=self._source_id,
+            raw_fields=fields,
+            extra={
+                name: fields[index]
+                for name, index in self._columns.extra_columns
+                if index < len(fields)
+            },
+        )
+
+    def _normalize_contig(self, chrom: str) -> str:
+        alias = _normalize_contig_alias(chrom)
+        try:
+            return self._alias_to_contig[alias]
+        except KeyError as exc:
+            raise IndexedSourceError(
+                "unknown_contig",
+                "contig is not present in indexed predictor TSV",
+                {"requested_chrom": chrom},
+            ) from exc
+
+    def _validate_indexed_file(self) -> None:
+        _validate_file(self._path, code_prefix="indexed_predictor_tsv")
+        if not self._index_path.exists():
+            raise IndexedSourceError(
+                "missing_index",
+                "indexed predictor TSV requires a tabix .tbi index",
+                {"path": str(self._path), "index_path": str(self._index_path)},
+            )
+        if not self._index_path.is_file():
+            raise IndexedSourceError(
+                "index_not_file",
+                "tabix index path is not a file",
+                {"path": str(self._path), "index_path": str(self._index_path)},
+            )
+
+    def _validate_columns(self) -> None:
+        for name, index in (
+            ("chrom", self._columns.chrom),
+            ("position", self._columns.position),
+            ("ref", self._columns.ref),
+            ("alt", self._columns.alt),
+            ("score", self._columns.score),
+            *self._columns.extra_columns,
+        ):
+            if index < 0:
+                raise IndexedSourceError(
+                    "invalid_predictor_tsv_schema",
+                    "indexed predictor TSV column indexes must be non-negative",
+                    {"column": name, "index": index},
+                )
+
+    def _max_column_index(self) -> int:
+        return max(
+            self._columns.chrom,
+            self._columns.position,
+            self._columns.ref,
+            self._columns.alt,
+            self._columns.score,
+            *(index for _, index in self._columns.extra_columns),
+        )
 
 
 class PyBigWigConservationReader:
@@ -493,3 +678,10 @@ def _vcf_info_value(value: object) -> object:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return str(value)
+
+
+def _float_or_text(value: str) -> float | str:
+    try:
+        return float(value)
+    except ValueError:
+        return value
