@@ -1740,3 +1740,159 @@ export interface GeneViewerResponse {
   full_locus?: ViewerFullLocus | null
   provenance: ViewerProvenance
 }
+
+// ---------------------------------------------------------------------------
+// Batch VCF + gene panels (spec plans/batch-vcf-and-panels).
+// Mirrors app/backend/app/schemas/panels.py + batch.py — keep in sync; the
+// field-name parity is enforced by tests/test_frontend_contract.py.
+// ---------------------------------------------------------------------------
+
+export type PanelSource = 'panelapp-au' | 'panelapp-gel' | 'clingen-gencc' | 'custom'
+export type PanelConfidence = 'green' | 'amber' | 'red'
+export type PanelValidity =
+  | 'definitive'
+  | 'strong'
+  | 'moderate'
+  | 'limited'
+  | 'disputed'
+  | 'refuted'
+  | 'animal_model_only'
+  | 'no_known_disease_relationship'
+export type PanelMinimumValidity = 'definitive' | 'strong'
+
+export interface PanelGene {
+  symbol: string
+  hgnc_id?: string | null
+  confidence?: PanelConfidence | null
+  moi?: string | null
+  disease?: string | null
+  mondo_id?: string | null
+  validity?: PanelValidity | null
+  provenance: string[]
+  warnings: string[]
+}
+
+export interface PanelSummary {
+  id: string
+  name: string
+  slug: string
+  source: PanelSource
+  version: string
+  provenance_url?: string | null
+  gene_count: number
+  intervals_ref: 'hg38'
+  warnings: string[]
+}
+
+export interface Panel {
+  id: string
+  name: string
+  slug: string
+  source: PanelSource
+  version: string
+  provenance_url?: string | null
+  genes: PanelGene[]
+  intervals_ref: 'hg38'
+  warnings: string[]
+}
+
+export interface PanelListResponse {
+  panels: PanelSummary[]
+}
+
+export interface PanelResolveRequest {
+  disease_mondo?: string | null
+  symbols?: string[] | null
+  upload_ref?: string | null
+  min_validity?: PanelMinimumValidity
+}
+
+export type BatchJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+export type BatchVariantState =
+  | 'queued'
+  | 'filtered_pre_lookup'
+  | 'lookup_pending'
+  | 'running'
+  | 'completed'
+  | 'filtered_post_lookup'
+  | 'failed'
+
+export interface ParsedVariant {
+  raw?: string | null
+  query: string
+  gene?: string | null
+  variant?: string | null
+  chrom?: string | null
+  pos?: number | null
+  ref?: string | null
+  alt?: string | null
+  filter?: string | null
+  info_af?: number | null
+  source_index?: number | null
+  sample_id?: string | null
+  genotype?: string | null
+  warnings: string[]
+}
+
+export interface BatchFilters {
+  panel_slug?: string | null
+  pass_only?: boolean
+  regions?: string[]
+  max_af?: number | null
+}
+
+export interface BatchUploadResponse {
+  upload_ref: string
+}
+
+export interface BatchCreateRequest {
+  variants?: ParsedVariant[] | null
+  upload_ref?: string | null
+  filters?: BatchFilters
+}
+
+export interface BatchCreateResponse {
+  job_id: string
+  n_input: number
+  n_to_lookup: number
+  est_seconds: number
+}
+
+export interface BatchPage {
+  limit: number
+  next_cursor?: string | null
+  total: number
+}
+
+export interface BatchJobQuery {
+  limit?: number
+  cursor?: string | null
+}
+
+export interface BatchResult {
+  variant_key: string
+  state: BatchVariantState
+  gene?: string | null
+  hgvs_c?: string | null
+  hgvs_p?: string | null
+  clinvar_verdict?: string | null
+  gnomad_af?: number | null
+  predictor_ensemble: Record<string, unknown>
+  acmg_classification?: string | null
+  report_href?: string | null
+  warnings: string[]
+}
+
+export interface BatchJob {
+  job_id: string
+  status: BatchJobStatus
+  n_input: number
+  n_to_lookup: number
+  n_after_filters?: number | null
+  est_seconds: number
+  done: number
+  total: number
+  results: BatchResult[]
+  page: BatchPage
+  warnings: string[]
+}

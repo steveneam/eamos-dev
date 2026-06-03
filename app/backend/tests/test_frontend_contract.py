@@ -162,6 +162,24 @@ from app.schemas.workbench import (
     PrimerResponse,
     TraceChannel,
 )
+from app.schemas.panels import (
+    Panel,
+    PanelGene,
+    PanelListResponse,
+    PanelResolveRequest,
+    PanelSummary,
+)
+from app.schemas.batch import (
+    BatchCreateRequest,
+    BatchCreateResponse,
+    BatchFilters,
+    BatchJob,
+    BatchJobQuery,
+    BatchPage,
+    BatchResult,
+    BatchUploadResponse,
+    ParsedVariant,
+)
 
 MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     LookupResponse: "LookupResponse",
@@ -295,6 +313,20 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     GeneContextRenderHints: "GeneContextRenderHints",
     GeneContextWorkbenchLink: "GeneContextWorkbenchLink",
     GeneContextSnapshot: "GeneContextSnapshot",
+    PanelGene: "PanelGene",
+    PanelSummary: "PanelSummary",
+    Panel: "Panel",
+    PanelListResponse: "PanelListResponse",
+    PanelResolveRequest: "PanelResolveRequest",
+    ParsedVariant: "ParsedVariant",
+    BatchFilters: "BatchFilters",
+    BatchUploadResponse: "BatchUploadResponse",
+    BatchCreateRequest: "BatchCreateRequest",
+    BatchCreateResponse: "BatchCreateResponse",
+    BatchPage: "BatchPage",
+    BatchJobQuery: "BatchJobQuery",
+    BatchResult: "BatchResult",
+    BatchJob: "BatchJob",
 }
 
 
