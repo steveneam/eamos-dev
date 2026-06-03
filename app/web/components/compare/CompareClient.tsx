@@ -6,6 +6,9 @@ import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import { readCompareVariants, type CompareStash } from '@/lib/variant-file'
+import { ScopeGate } from './ScopeGate'
+import type { Panel } from '@/lib/backend'
+import { PANEL_SOURCE_LABEL, scopeVariantsToPanel } from '@/lib/panels.mock'
 
 /**
  * Multi-variant view (`/compare`). Slice 1: renders the variant list parsed
@@ -17,6 +20,8 @@ import { readCompareVariants, type CompareStash } from '@/lib/variant-file'
 export function CompareClient() {
   const [stash, setStash] = useState<CompareStash | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [selectedPanel, setSelectedPanel] = useState<Panel | null>(null)
+  const [applied, setApplied] = useState(false)
 
   useEffect(() => {
     setStash(readCompareVariants())
@@ -24,6 +29,9 @@ export function CompareClient() {
   }, [])
 
   const variants = stash?.variants ?? []
+  const activePanel = applied ? selectedPanel : null
+  const scope = scopeVariantsToPanel(variants, activePanel)
+  const shownVariants = activePanel ? scope.matched : variants
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
@@ -61,6 +69,9 @@ export function CompareClient() {
             <p style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-3)', margin: '6px 0 0' }}>
               {variants.length} variant{variants.length === 1 ? '' : 's'}
               {stash?.source ? ` · from ${stash.source}` : ''}
+              {activePanel
+                ? ` · scoped to ${activePanel.name} (${PANEL_SOURCE_LABEL[activePanel.source]} ${activePanel.version})`
+                : ''}
             </p>
           )}
         </header>
@@ -69,6 +80,29 @@ export function CompareClient() {
           <EmptyState />
         ) : (
           <>
+            <ScopeGate
+              variants={variants}
+              selectedPanel={selectedPanel}
+              onSelectPanel={(p) => {
+                setSelectedPanel(p)
+                if (!p) setApplied(false)
+              }}
+              applied={applied}
+              onApply={() => setApplied(true)}
+              onClear={() => {
+                setApplied(false)
+                setSelectedPanel(null)
+              }}
+            />
+            {shownVariants.length === 0 ? (
+              <EmptyScope
+                onClear={() => {
+                  setApplied(false)
+                  setSelectedPanel(null)
+                }}
+              />
+            ) : (
+            <>
             <section
               style={{
                 background: 'var(--bg)',
@@ -88,7 +122,7 @@ export function CompareClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {variants.map((v, i) => {
+                  {shownVariants.map((v, i) => {
                     const href = reportHrefForQuery(v.query)
                     return (
                       <tr key={`${v.query}-${i}`} style={{ borderTop: '0.5px solid var(--line)' }}>
@@ -129,6 +163,8 @@ export function CompareClient() {
               Per-variant key metrics (gnomAD AF, predictors, classification) and in-place expansion
               are coming. For now, open each variant&apos;s full report from its row.
             </p>
+            </>
+            )}
           </>
         )}
       </main>
@@ -171,6 +207,46 @@ function EmptyState() {
       >
         Back to search
       </Link>
+    </section>
+  )
+}
+
+function EmptyScope({ onClear }: { onClear: () => void }) {
+  return (
+    <section
+      style={{
+        background: 'var(--bg)',
+        border: '0.5px solid var(--line)',
+        borderRadius: 14,
+        padding: '24px 24px',
+        color: 'var(--ink-2)',
+      }}
+    >
+      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 15, margin: 0, color: 'var(--ink)' }}>
+        No variants in this panel
+      </h2>
+      <p style={{ fontSize: 13, lineHeight: 1.6, margin: '8px 0 0' }}>
+        None of the named-gene variants fall in this panel. Genomic variants without a gene symbol are
+        filtered server-side (interval intersection) once the batch engine lands — pick a different panel
+        or clear the scope to see the full cohort.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        style={{
+          marginTop: 14,
+          padding: '7px 14px',
+          borderRadius: 10,
+          border: '0.5px solid var(--line-2)',
+          background: 'var(--bg)',
+          color: 'var(--ink-2)',
+          fontSize: 12.5,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        Clear scope
+      </button>
     </section>
   )
 }
