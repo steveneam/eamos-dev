@@ -1,5 +1,33 @@
 # Agent Coordination Decisions
 
+## 2026-06-02: Render Plan Layout For Live Local-First Assets
+
+Section edited: 2026-06-02 01:44 +1000 - Claude (Steven-decided; Codex-verified).
+
+Decision (Steven, 2026-06-02) for wiring the local-first source adapters to the
+live SG backend. Render has THREE separate billing layers (workspace plan /
+runtime instance / build pipeline) plus disk — keep them straight:
+
+- **Workspace plan = Hobby ($0).** DONE 2026-06-02. A persistent disk needs a
+  paid *instance*, NOT the Pro workspace; Steven is solo so the Pro perks (team
+  seats, horizontal autoscaling — moot once a disk is attached, audit/compliance,
+  preview envs) aren't needed. Saves $25/mo.
+- **SG runtime instance = Standard (~$25/mo, 2 GB RAM / 1 CPU).** PENDING (Steven
+  bumps 2026-06-03). Starter's 512 MB is too tight: expected peak ~350-550 MB RSS
+  for FastAPI + dbSNP (pysam/tabix) + phyloP (pyBigWig), with no margin for
+  concurrency / allocator spikes / Pfam. SG is the SOLE backend, so don't gamble.
+- **Persistent disk = 60 GB at mount path `/var/data`** (~$15/mo @ $0.25/GB).
+  PENDING (2026-06-03). dbSNP ~29.55 GB + phyloP ~9.87 GB ≈ 40 GB of downloads
+  alone, before hg38.2bit / protein / Pfam / HMMER indexes / temp / headroom;
+  repo preflight encodes 60 GB. 10 GB impossible, 50 GB tight. Eamos assets live
+  under `/var/data/eamos/...`.
+- **Build pipeline = Starter (1,000 free min).** Unchanged; Performance not needed.
+
+Provisioning (workspace / instance / disk toggles) = Steven's dashboard/billing.
+Seeding + env wiring + the dbSNP/phyloP adapter materialization = Codex's backend
+lane. Operational reality, env vars, and the seeding sequence: see RISKS.md
+"Render Persistent Disk + Local-First Asset Seeding".
+
 ## 2026-06-01: Codex Owns Backend Render Redeploys And Verification
 
 Section edited: 2026-06-01 03:07 +1000 - Codex.

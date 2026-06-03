@@ -1,6 +1,6 @@
 # On-Hold And Pause Register
 
-Last updated: 2026-05-26 20:29 +1000 - Codex (Codex next-task queue paused)
+Last updated: 2026-06-03 22:54 +1000 - Claude (Tier-3 report visuals parked: AlphaFold 3D + PDBe-Molstar)
 
 This is a pickup aid, not a replacement for `DECISIONS.md`, `RISKS.md`, or the
 active plans. Keep the list sorted by priority so resume prompts can point here
@@ -92,6 +92,24 @@ when the detail lives here.
   API contract surface.
 
 ## 3. Workbench And Later Build Queue
+
+### Tier-3 report visuals - AlphaFold 3D structure + PDBe-Molstar viewer
+
+- Added: 2026-06-03 22:54 +1000 - Claude
+- Last touched: 2026-06-03 22:54 +1000 - Claude
+- Owner/next reviewer: user, then Claude (frontend) once lifted.
+- Resume condition: explicit user approval to build the in-report 3D structure view.
+- Source of truth: `plans/predictor-visuals-contracts/spec.md`; vault
+  `Wiki/product/predictor-visuals-build-spec.md` (Visual 3) and
+  `Wiki/syntheses/predictor-build-roadmap.md` (Tier 3).
+- Notes: dropped from the active visuals set 2026-06-03 (user). PDBe-Molstar is a
+  frontend-only 3D viewer (Mol* wrapper) with NO backend/adapter integration; its sole
+  job was rendering an AlphaFold structure, so it parks with AlphaFold. Both are Tier-3
+  (the roadmap defers 3D behind the 1-D protein-domain track). Accuracy note: the planned
+  path used the AlphaFold DB API (one ~1-5 MB precomputed .cif per UniProt accession,
+  cached) - NOT hosting the 1 TB model. Still parked. The other predictor visuals
+  (splice-outcome SVG, the §4 Nightingale domain track, the per-gene confidence badge)
+  are NOT affected and remain the active FE visuals lane.
 
 ### Workbench real-engine follow-ups
 

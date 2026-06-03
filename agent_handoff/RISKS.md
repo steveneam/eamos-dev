@@ -21,6 +21,50 @@ Guardrails:
   uncommitted work and origin/main, not Claude specifically.
 - Do not treat untracked files as junk.
 
+## Sole Live Backend — No Oregon Fallback
+
+Section edited: 2026-06-02 01:01 +1000 - Claude.
+
+The Oregon Render service (`srv-d896ie77f7vs73brs140` / `eamos-dev.onrender.com`)
+was DELETED 2026-06-02 (Steven-approved, after Codex's SG live-verify on commit
+`8290312`). Singapore (`srv-d8ctvoh9rddc73a27nb0` / `eamos-dev-sg.onrender.com`)
+is now the SOLE live backend and Vercel proxies to it. There is no longer a
+standby Render service to fail over to — if SG is down, prod has no backend.
+Deletion is irreversible; recreate a standby/region service if a fallback is
+wanted again.
+
+## Render Persistent Disk + Local-First Asset Seeding — Operational Reality
+
+Section edited: 2026-06-02 01:44 +1000 - Claude (from Codex's verified provisioning brief).
+
+Setup decided 2026-06-02 (see `agent_handoff/DECISIONS.md`): Hobby workspace +
+Standard SG instance + 60 GB disk at `/var/data`. When actually wiring the
+dbSNP/phyloP/Pfam local-first adapters to live SG, these operational constraints
+hold:
+
+- **Render disks are RUNTIME-ONLY** — not mounted during build / predeploy /
+  one-off jobs. Do NOT download ~40 GB of assets during deploy/startup.
+- **Pre-seed, do not startup-download.** Sequence: attach disk → deploy with the
+  local adapters STILL DISABLED → seed assets onto the disk via Render Shell /
+  SCP / a controlled runtime CLI → verify size/checksum/materialization metadata
+  → THEN set the env paths/flags and redeploy.
+- **Attaching a disk disables zero-downtime deploys and forces single-instance.**
+  SG is the SOLE backend (Oregon deleted), so every disk-backed deploy is a brief
+  prod blip — do the attach + seeding in an OFF-PEAK / maintenance window.
+- **Env vars (Codex-specified):**
+  - `HG38_2BIT_RUNTIME_ASSET_MODE=mounted_volume`
+  - `HG38_2BIT_RUNTIME_ASSET_PATH=/var/data/eamos/bio_assets/genomes/hg38.2bit`
+  - `PROTEIN_ANNOTATION_PFAM_HMM_GZ_PATH=/var/data/eamos/bio_assets/protein_annotation/downloads/Pfam-A.hmm.gz`
+  - `PROTEIN_ANNOTATION_PFAM_HMM_PATH=/var/data/eamos/bio_assets/protein_annotation/Pfam-A.hmm`
+- **Keep `PROTEIN_ANNOTATION_ENABLED=false`** until Pfam is materialized +
+  extracted, `hmmpress` indexes are present, and runtime preflight is green.
+- **No committed dbSNP/phyloP asset-root env/wiring yet** — current code has the
+  hg38/Pfam env paths but NOT a global dbSNP/phyloP asset-root env. That adapter/
+  materialization path wiring is still uncommitted Codex backend work; don't
+  assume those env vars exist until it lands. So "adapters wired to live web" is a
+  follow-on Codex task AFTER the disk is provisioned + seeded, not an immediate
+  consequence of attaching the disk.
+
 ## Backend Launch Security Findings
 
 Section edited: 2026-05-26 20:23 +1000 - Codex.
