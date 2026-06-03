@@ -195,6 +195,9 @@ export function ReportClient() {
   const proteinChange = params.get('protein_change')?.trim() ?? ''
   const q = params.get('q')?.trim() ?? ''
   const demo = params.get('demo') !== null
+  const fromCompare = params.get('from') === 'compare'
+  const backHref = fromCompare ? '/compare' : '/'
+  const backLabel = fromCompare ? 'Back to filters' : 'Back to search'
   const negativeFixture = params.get('fixture') === 'rpe65-negative'
   const lazyParam = params.get('lazy')
   const lazyOverrides = useMemo(() => parseLazyOverrides(lazyParam), [lazyParam])
@@ -451,27 +454,39 @@ export function ReportClient() {
             variant="generic"
             message={activeState.message}
             query={queryLabel}
-            canRetry={Boolean((gene && cdna) || q)}
             onRetry={() => setAttempt((n) => n + 1)}
+            backHref={backHref}
+            backLabel={backLabel}
+            showDemo={!fromCompare}
           />
         )}
         {activeState.kind === 'offline' && (
           <ErrorBlock
             variant="offline"
             query={queryLabel}
-            canRetry={Boolean((gene && cdna) || q)}
             onRetry={() => setAttempt((n) => n + 1)}
+            backHref={backHref}
+            backLabel={backLabel}
+            showDemo={!fromCompare}
           />
         )}
         {activeState.kind === 'malformed' && (
-          <MalformedBlock query={activeState.query} detail={activeState.detail} />
+          <MalformedBlock
+            query={activeState.query}
+            detail={activeState.detail}
+            backHref={backHref}
+            backLabel={backLabel}
+            showDemo={!fromCompare}
+          />
         )}
         {activeState.kind === 'unresolved' && (
           <ErrorBlock
             variant="unresolved"
             query={activeState.query}
-            canRetry
             onRetry={() => setAttempt((n) => n + 1)}
+            backHref={backHref}
+            backLabel={backLabel}
+            showDemo={!fromCompare}
           />
         )}
         {activeState.kind === 'interpretation' && (
@@ -933,11 +948,13 @@ interface ErrorBlockProps {
   variant: 'generic' | 'offline' | 'unresolved'
   message?: string
   query: string
-  canRetry: boolean
   onRetry: () => void
+  backHref: string
+  backLabel: string
+  showDemo: boolean
 }
 
-function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockProps) {
+function ErrorBlock({ variant, message, query, onRetry, backHref, backLabel, showDemo }: ErrorBlockProps) {
   const isOffline = variant === 'offline'
   const isUnresolved = variant === 'unresolved'
   const title = isOffline
@@ -1055,7 +1072,7 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
           )}
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            {canRetry && (
+            {isOffline && (
               <button
                 type="button"
                 onClick={onRetry}
@@ -1075,7 +1092,7 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
               </button>
             )}
             <Link
-              href="/"
+              href={backHref}
               style={{
                 padding: '7px 14px',
                 borderRadius: 10,
@@ -1087,9 +1104,9 @@ function ErrorBlock({ variant, message, query, canRetry, onRetry }: ErrorBlockPr
                 textDecoration: 'none',
               }}
             >
-              Back to search
+              {backLabel}
             </Link>
-            {!isOffline && (
+            {showDemo && !isOffline && (
               <Link
                 href="/report?gene=USH2A&cdna=c.2276G%3ET"
                 style={{
@@ -1129,7 +1146,19 @@ function deriveClassificationVerdict(acmg: string | null | undefined): Verdict |
 // Deliberately NOT styled like ErrorBlock's amber failure panel — this is a
 // neutral, user-actionable hint, and there is no retry (re-sending identical
 // malformed input would fail identically).
-function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
+function MalformedBlock({
+  query,
+  detail,
+  backHref,
+  backLabel,
+  showDemo,
+}: {
+  query: string
+  detail?: string
+  backHref: string
+  backLabel: string
+  showDemo: boolean
+}) {
   return (
     <section
       role="alert"
@@ -1205,7 +1234,7 @@ function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
       </ul>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link
-          href="/"
+          href={backHref}
           style={{
             padding: '7px 14px',
             borderRadius: 10,
@@ -1217,20 +1246,22 @@ function MalformedBlock({ query, detail }: { query: string; detail?: string }) {
             textDecoration: 'none',
           }}
         >
-          Back to search
+          {backLabel}
         </Link>
-        <Link
-          href="/report?gene=USH2A&cdna=c.2276G%3ET"
-          style={{
-            fontSize: 12,
-            color: 'var(--ink-3)',
-            textDecoration: 'underline',
-            textUnderlineOffset: 3,
-            marginLeft: 4,
-          }}
-        >
-          View the USH2A sample report instead
-        </Link>
+        {showDemo && (
+          <Link
+            href="/report?gene=USH2A&cdna=c.2276G%3ET"
+            style={{
+              fontSize: 12,
+              color: 'var(--ink-3)',
+              textDecoration: 'underline',
+              textUnderlineOffset: 3,
+              marginLeft: 4,
+            }}
+          >
+            View the USH2A sample report instead
+          </Link>
+        )}
       </div>
     </section>
   )
