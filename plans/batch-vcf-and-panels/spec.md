@@ -120,7 +120,10 @@ interval intersection is the correctness floor.
 ### 5.1 Upload & parse (FE — extends `variant-file.ts`)
 - Current parser caps at 50 variants and is sync/in-memory. v2:
   - Raise the client-parse cap (e.g. 2k) for the small-file path; above the size/line
-    threshold, **stream the raw file to `POST /api/v1/batch` and let the backend parse**.
+    threshold, **negotiate a raw-file upload via `POST /api/v1/batch/uploads` (returns
+    `upload_ref`), then submit the job via `POST /api/v1/batch` referencing that ref — the
+    backend parses + filters server-side**. (Upload negotiation is split from job creation
+    per Codex, 2026-06-04; see §8.)
   - Keep VCF + CSV/TSV/plain-list support (already built + browser-verified this session).
   - Surface parse diagnostics: lines parsed, skipped (malformed/headers), multi-allelic
     sites split count, deduped count.
@@ -133,7 +136,9 @@ Applied **before** any lookup. Order: panel → FILTER → region → AF.
 - **Allele frequency:** drop common variants (`INFO/AF` or post-lookup gnomAD AF >
   threshold, default e.g. 5% — clinically these are rarely the answer). Note: pre-lookup
   AF only works if INFO carries it; otherwise this is a *post-lookup* filter on the
-  results table.
+  results table. Count consequence: the scope gate (§5.3) shows `n_to_lookup` (post
+  pre-lookup filters); `n_after_filters` is only final once gnomAD-AF post-filtering runs
+  at completion. (§8.)
 
 ### 5.3 Scope-confirmation gate (FE) — the guardrail
 Before a job runs, show: **N variants after filters · estimated time · quota/tier impact**,
@@ -154,7 +159,9 @@ launching a 50k-variant job.
 
 ### 5.4 Async batch job engine (BE / Codex — contract in §8)
 - `POST /api/v1/batch` → creates a job (`status=queued`), returns `job_id`. Body carries
-  either the parsed variant list (small path) or a file upload + filter spec (large path).
+  either the parsed variant list (small path, inline) or an `upload_ref` + filter spec
+  (large path — the ref comes from a prior `POST /api/v1/batch/uploads`, not an inline
+  file in the job-create body).
 - Engine: **filter → normalise/dedup → concurrency-limited worker pool calling the
   existing `lookup_service.lookup()` per unique variant → cache by variant key.**
   Reuse the eager/lazy split (`LOOKUP_EAGER_RESPONSE_EXCLUDE`) — batch only needs the
@@ -344,14 +351,22 @@ POST /api/v1/panels/resolve                 // custom: disease|symbols|upload ->
 
 // Batch — upload negotiation split from job creation (Codex, 2026-06-04)
 POST /api/v1/batch/uploads                  -> { upload_ref }  // large path: negotiate raw-VCF upload first
-POST /api/v1/batch                          -> { job_id, n_input, n_after_filters, est_seconds }
+POST /api/v1/batch                          -> { job_id, n_input, n_to_lookup, est_seconds }
   body: { variants?: ParsedVariant[];      // small path (inline list)
           upload_ref?: string;             // large path (from /batch/uploads)
           filters: { panel_slug?: string; pass_only?: bool; regions?: string[]; max_af?: number } }
-GET  /api/v1/batch/{job_id}                 -> BatchJob        // status + results, PAGED from day one
+  // n_to_lookup = count surviving PRE-lookup filters (panel/PASS/region/INFO-AF) — drives
+  //   est_seconds + quota. n_after_filters is NOT returned here because when max_af depends on
+  //   gnomAD (not VCF INFO) the AF filter is post-lookup, so the final count is only known at
+  //   completion → it lives on BatchJob (below).
+GET  /api/v1/batch/{job_id}?limit&cursor    -> BatchJob        // status + PAGED results (day one)
 GET  /api/v1/batch/{job_id}/stream         -> SSE progress    // optional, AFTER polling works
-// BatchJob.results[i]: { variant_key, gene, hgvs_c, hgvs_p, clinvar_verdict,
-//                        gnomad_af, predictor_ensemble, acmg_classification, report_href }
+// BatchJob: { job_id, status, n_input, n_to_lookup, n_after_filters?, est_seconds,
+//             results: BatchResult[], page: { limit, next_cursor?: string, total: number } }
+//   n_after_filters is null until the job completes (post-lookup AF filter); page.total counts
+//   the post-filter result set. Backend lands this Pydantic page schema FIRST (Codex, 2026-06-04).
+// BatchResult: { variant_key, gene, hgvs_c, hgvs_p, clinvar_verdict,
+//                gnomad_af, predictor_ensemble, acmg_classification, report_href }
 ```
 
 FE adds: `app/web/lib/batch.ts` (job client), `app/web/lib/panels.ts`, extends
