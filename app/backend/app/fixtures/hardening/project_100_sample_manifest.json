@@ -4,7 +4,8 @@
   "purpose": "Project-wide landing/report/workbench hardening cohort manifest.",
   "sources": {
     "challenge_stack": "app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json",
-    "control_transcript_models": "app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json"
+    "control_queries": "project_100_sample_manifest.genes[*].control_sample",
+    "coordinate_resolver": "app/backend/app/services/eamos_coordinate_resolver.py"
   },
   "selection_policy": {
     "gene_count": 10,
@@ -36,9 +37,12 @@
       "control_sample": {
         "sample_id": "HC-ABCA4-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000350.3",
         "cdna": "c.5435T>A",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV004536993",
+        "clinvar_variation_id": "4536993",
         "query": {
           "gene": "ABCA4",
           "cdna": "c.5435T>A",
@@ -61,9 +65,12 @@
       "control_sample": {
         "sample_id": "HC-APC-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000038.6",
         "cdna": "c.7884G>C",
+        "clinical_significance": "Uncertain significance",
+        "accession": "VCV004801525",
+        "clinvar_variation_id": "4801525",
         "query": {
           "gene": "APC",
           "cdna": "c.7884G>C",
@@ -86,9 +93,12 @@
       "control_sample": {
         "sample_id": "HC-BRCA1-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_007294.4",
         "cdna": "c.2858G>T",
+        "clinical_significance": "Uncertain significance",
+        "accession": "VCV004799584",
+        "clinvar_variation_id": "4799584",
         "query": {
           "gene": "BRCA1",
           "cdna": "c.2858G>T",
@@ -111,9 +121,12 @@
       "control_sample": {
         "sample_id": "HC-BRCA2-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000059.4",
         "cdna": "c.7751G>T",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV004826880",
+        "clinvar_variation_id": "4826880",
         "query": {
           "gene": "BRCA2",
           "cdna": "c.7751G>T",
@@ -136,9 +149,12 @@
       "control_sample": {
         "sample_id": "HC-CFTR-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000492.4",
         "cdna": "c.199C>T",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV004818493",
+        "clinvar_variation_id": "4818493",
         "query": {
           "gene": "CFTR",
           "cdna": "c.199C>T",
@@ -161,9 +177,12 @@
       "control_sample": {
         "sample_id": "HC-HBB-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000518.5",
         "cdna": "c.327C>G",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV003336287",
+        "clinvar_variation_id": "3336287",
         "query": {
           "gene": "HBB",
           "cdna": "c.327C>G",
@@ -186,9 +205,12 @@
       "control_sample": {
         "sample_id": "HC-LDLR-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000527.5",
         "cdna": "c.155G>T",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV004812851",
+        "clinvar_variation_id": "4812851",
         "query": {
           "gene": "LDLR",
           "cdna": "c.155G>T",
@@ -211,9 +233,12 @@
       "control_sample": {
         "sample_id": "HC-MLH1-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000249.4",
         "cdna": "c.83C>G",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV004683074",
+        "clinvar_variation_id": "4683074",
         "query": {
           "gene": "MLH1",
           "cdna": "c.83C>G",
@@ -236,9 +261,12 @@
       "control_sample": {
         "sample_id": "HC-PAH-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000277.3",
         "cdna": "c.877T>A",
+        "clinical_significance": "Likely pathogenic",
+        "accession": "VCV004540589",
+        "clinvar_variation_id": "4540589",
         "query": {
           "gene": "PAH",
           "cdna": "c.877T>A",
@@ -261,9 +289,12 @@
       "control_sample": {
         "sample_id": "HC-TP53-CTRL",
         "sample_kind": "reference_control",
-        "source_fixture": "control_transcript_models",
+        "source_fixture": "control_queries",
         "transcript": "NM_000546.6",
         "cdna": "c.440T>G",
+        "clinical_significance": "Pathogenic/Likely pathogenic",
+        "accession": "VCV003602769",
+        "clinvar_variation_id": "3602769",
         "query": {
           "gene": "TP53",
           "cdna": "c.440T>G",

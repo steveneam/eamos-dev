@@ -41,7 +41,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--resolve-coordinates",
         action="store_true",
-        help="Use VariantValidator during live mode to add GRCh38 coordinates before printing.",
+        help=(
+            "Resolve GRCh38 coordinates with the local Eamos resolver first. "
+            "Live mode may fall back to VariantValidator only when local resolution misses."
+        ),
     )
     parser.add_argument(
         "--compact",
@@ -112,6 +115,8 @@ def _resolution_to_dict(query: str, resolver: EamosSearchInputResolver, args: ar
             "genomic_hg38": resolution.genomic_hg38,
             "genomic_hgvs": resolution.genomic_hgvs,
         },
+        "local_coordinate_summary": resolution.local_coordinate_summary,
+        "coordinate_resolution_audit": asdict(resolution.coordinate_resolution_audit),
         "source_inputs": asdict(resolution.source_inputs),
         "rsid_candidates": [asdict(candidate) for candidate in resolution.rsid_candidates],
         "warnings": warnings,

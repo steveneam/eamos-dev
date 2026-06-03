@@ -7,7 +7,6 @@ from pathlib import Path
 FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 MANIFEST_PATH = FIXTURE_ROOT / "hardening" / "project_100_sample_manifest.json"
 STACK_PATH = FIXTURE_ROOT / "tools" / "clinvar_gene_agnostic_report_stack.json"
-TRANSCRIPT_MODELS_PATH = FIXTURE_ROOT / "workbench" / "gene_viewer_transcript_models.json"
 
 
 def _json(path: Path) -> dict:
@@ -31,23 +30,19 @@ def test_project_hardening_manifest_declares_correct_100_sample_shape() -> None:
     assert set(manifest["surfaces"]) == {"landing", "variant_report", "workbench"}
     assert manifest["sources"] == {
         "challenge_stack": "app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json",
-        "control_transcript_models": (
-            "app/backend/app/fixtures/workbench/gene_viewer_transcript_models.json"
-        ),
+        "control_queries": "project_100_sample_manifest.genes[*].control_sample",
+        "coordinate_resolver": "app/backend/app/services/eamos_coordinate_resolver.py",
     }
 
 
 def test_project_hardening_manifest_resolves_to_stack_plus_controls() -> None:
     manifest = _json(MANIFEST_PATH)
     stack = _json(STACK_PATH)
-    transcript_models = _json(TRANSCRIPT_MODELS_PATH)
 
     stack_by_gene = {entry["gene"]: entry["variants"] for entry in stack["stack_genes"]}
-    controls_by_gene = {record["gene"]: record for record in transcript_models["records"]}
     manifest_genes = manifest["genes"]
     manifest_gene_names = [entry["gene"] for entry in manifest_genes]
 
-    assert manifest_gene_names == transcript_models["selection_policy"]["genes"]
     assert set(manifest_gene_names) == set(stack_by_gene)
     assert "RPE65" not in manifest_gene_names
 
@@ -57,7 +52,6 @@ def test_project_hardening_manifest_resolves_to_stack_plus_controls() -> None:
     for gene_entry in manifest_genes:
         gene = gene_entry["gene"]
         control = gene_entry["control_sample"]
-        source_control = controls_by_gene[gene]
 
         assert control["sample_id"] == f"HC-{gene}-CTRL"
         assert control["sample_id"] not in sample_ids
@@ -65,15 +59,18 @@ def test_project_hardening_manifest_resolves_to_stack_plus_controls() -> None:
         sample_kinds[control["sample_kind"]] += 1
 
         assert control["sample_kind"] == "reference_control"
-        assert control["source_fixture"] == "control_transcript_models"
+        assert control["source_fixture"] == "control_queries"
         assert control["workbench_viewer_mode"] == "reference"
-        assert control["transcript"] == source_control["transcript"]
-        assert control["cdna"] == source_control["cdna"]
+        assert control["transcript"].startswith("NM_")
+        assert control["cdna"].startswith("c.")
+        assert control["accession"].startswith("VCV")
+        assert control["clinvar_variation_id"].isdigit()
+        assert control["clinical_significance"]
         assert control["query"] == {
             "gene": gene,
-            "cdna": source_control["cdna"],
-            "transcript_hgvs": f"{source_control['transcript']}:{source_control['cdna']}",
-            "raw_text": f"{gene} {source_control['transcript']}:{source_control['cdna']}",
+            "cdna": control["cdna"],
+            "transcript_hgvs": f"{control['transcript']}:{control['cdna']}",
+            "raw_text": f"{gene} {control['transcript']}:{control['cdna']}",
         }
 
         challenge = gene_entry["challenge_samples"]

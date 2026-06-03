@@ -52,11 +52,13 @@ per-variant loop.** Three levers, in priority order:
    workers process a concurrency-limited pool → dedup identical variants → cache hits
    across jobs (ClinVar/gnomAD recur heavily in cohorts) → stream progress → results page.
 
-3. **Local-first assets (Codex, in-flight).** Once dbSNP/phyloP/ClinVar are local disk
-   assets (the SG rollout), per-variant cost drops from a network fan-out toward a
-   disk read — the difference between "minutes" and "tens of seconds" for a filtered
-   panel result. **Large-VCF feasibility is gated on this rollout; small batches work
-   on the current backend.**
+3. **Local-first assets (Codex, in-flight).** Once dbSNP/phyloP/ClinVar and the
+   Eamos coordinate stack are local/private backend assets, per-variant cost drops
+   from a network fan-out toward disk/index reads. Coordinate identity is especially
+   non-negotiable: batch VCF cannot call ClinVar or VariantValidator once per row.
+   The hot path is the Eamos local coordinate resolver over MANE/RefSeq transcript
+   geometry plus `hg38.2bit`; ClinVar/SPDI and VariantValidator are offline
+   validation/debug oracles only.
 
 **Design consequence:** the canonical flow is **Drop VCF → Filter (panel first) →
 Confirm scope (N + est. time) → Async job → Results dashboard.** A "whole-VCF, no panel"
@@ -325,6 +327,32 @@ fixtures, which the population simulators don't give and which a ~150-line scrip
   meaningful), `--mix p/lp/vus/lb/b` (classification spread), `--multiallelic`,
   `--with-genotypes` (FORMAT + sample columns), `--chr-prefix`, `--malformed` (edge-case
   lines for parser robustness), `--seed` (deterministic).
+- canonical stack mode: `--stack project-100` emits the existing 100-test hardening stack
+  in two deterministic forms from
+  `app/backend/app/fixtures/hardening/project_100_sample_manifest.json` (10 genes x 10
+  samples: one control + nine ClinVar challenge variants per gene):
+  - a coordinate-complete VCF fixture whose rows have real GRCh38 `CHROM/POS/REF/ALT`;
+  - a coordinate-missing source fixture (HGVS/ClinVar/transcript-oriented input) that must
+    pass through the Eamos resolver before batch processing.
+  This is the best use of the 100-test stack for batch smoke/regression because it proves
+  both ingestion paths converge on the same landing/report/workbench hardening cohort.
+- coordinate rule for `--stack project-100`: the VCF output requires real GRCh38
+  `CHROM/POS/REF/ALT`, but coordinate completeness is **not** a client-input requirement for
+  the source fixture. The 10 control samples and 90 challenge rows must resolve through the
+  Eamos-owned local resolver path (`EamosLocalCoordinateResolver` via
+  `EamosSearchInputResolver` / `app.cli.eamos_search_input` with coordinate resolution
+  enabled). ClinVar/SPDI and VariantValidator validate the resulting coordinates offline;
+  they are not required primary resolvers for each HGVS row and must not sit in the batch
+  hot path. If any challenge row cannot resolve locally, the generator fails and records the
+  unresolved IDs in the manifest. **Do not fabricate coordinates.** Keep
+  `clinvar_gene_agnostic_report_stack.json` immutable.
+- resolver acceptance for `--stack project-100`: the coordinate-missing fixture and the
+  generated VCF must produce the same canonical variant identities and truth manifest after
+  normalization. The manifest includes coordinate-resolution audit fields so backend
+  troubleshooting can prove whether a row used `eamos_local`, submitted genomic
+  coordinates, VariantValidator fallback, or no coordinate resolver. This is the regression
+  that proves a client can hand us HGVS/ClinVar-style rows without GRCh38
+  `CHROM/POS/REF/ALT` and still reach the VCF-tested batch engine.
 - emits a **truth manifest** alongside (expected gene/classification per variant) so
   pipeline tests assert outcomes.
 - small fixtures committed under `app/backend/tests/fixtures/vcf/`; large fixtures
@@ -412,6 +440,11 @@ VCFs run as sequential single lookups behind a progress bar).
   (file size / line-count cutoff; raw-VCF upload endpoint + storage).
 - **D-4 (Codex): batch concurrency + caching model** and how hard it leans on the
   local-first asset rollout (P7 gate). What's a safe pool size on SG Standard (2GB)?
+- **D-7 (Codex): private source-asset registry + storage.** MANE RefSeq GFF,
+  all-RefSeq GRCh38.p14 GFF, `hg38.2bit`, and the future compact Eamos transcript
+  projection index need private backend asset storage. Supabase/Postgres should keep
+  source/version/checksum/object-path/readiness metadata; raw genomic files stay in
+  private object storage or backend local cache, never frontend-accessible tables.
 - **D-5 (Steven/Codex): genotype / multi-sample VCFs** — v1 treats one VCF = one specimen
   (ignore per-sample GT). Confirm that's acceptable for launch.
 

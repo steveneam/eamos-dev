@@ -4,7 +4,7 @@ Status: Active backend prototype
 Type: Source-model workflow / local adapter pattern
 Owner: Codex backend
 Added: 2026-05-27 22:11 +1000 - Codex
-Last updated: 2026-05-28 01:24 +1000 - Codex
+Last updated: 2026-06-04 02:53 +1000 - Codex
 
 ## What It Does
 
@@ -18,6 +18,8 @@ Current first-slice adapters and workflows include:
 
 - Reference and sequence window model over a local `hg38.2bit` reader path.
 - MANE/GENCODE transcript model store with exon/CDS geometry.
+- Eamos Local Coordinate Resolver over local MANE/RefSeq transcript geometry and
+  local hg38 reference sequence.
 - Transcript coordinate map helper for exon/intron checks.
 - ClinVar local VCF adapter.
 - dbSNP GCF local rsID identity adapter.
@@ -27,6 +29,12 @@ Current first-slice adapters and workflows include:
 - Internal local evidence orchestrator that composes local source-model outputs
   without changing public API contracts.
 - Disabled-by-default runtime gate for future local-store preference decisions.
+
+The coordinate resolver is the shared coordinate identity layer. Workbench
+fixtures, report normalization, search-bar resolution, and batch VCF input
+normalization should depend on this resolver rather than each keeping a separate
+coordinate script. Existing Workbench fixtures are validation/render fixtures,
+not an alternate source of truth.
 
 ## Why It Is Eamos-Original
 
@@ -69,6 +77,11 @@ novel unless a separate prior-art review is performed.
   - `app/backend/app/services/sequence_window_model.py`
   - `app/backend/tests/test_reference_genome_store.py`
   - `app/backend/tests/test_sequence_window_model.py`
+- Eamos local coordinate resolver:
+  - `app/backend/app/services/eamos_coordinate_resolver.py`
+  - `app/backend/app/services/search_input_resolver.py`
+  - `app/backend/scripts/validate_project_100_coordinates.py`
+  - `app/backend/tests/test_eamos_coordinate_resolver.py`
 - Transcript/source model layer:
   - `app/backend/app/services/transcript_model.py`
   - `app/backend/app/fixtures/transcript_models/mane_gencode_tiny.json`
@@ -119,6 +132,11 @@ novel unless a separate prior-art review is performed.
   no-public-contract behavior. ClinVar and dbSNP VCF fixture parsing also fails
   closed on duplicate INFO keys and duplicate source identities instead of
   silently overwriting local records.
+- Local coordinate resolution:
+  Project-100 now resolves 100/100 rows locally from MANE/RefSeq GFF plus
+  `hg38.2bit` and validates 100/100 against ClinVar/SPDI and VariantValidator in
+  the oracle harness. External providers are validators/debug fallbacks, not
+  batch runtime coordinate dependencies.
 - dbSNP:
   `rs1645931040` resolves to `1-68444869-T-C`; multiallelic `rs1801133`
   returns both allele identities instead of choosing one.
@@ -154,9 +172,8 @@ must run in an approved Linux/Docker/WSL environment.
   Supabase storage/imports, and production indexed assets still require
   explicit URL, version, checksum, storage, terms, and approval gates.
 - No restricted predictors are enabled by this workflow.
-- `gffutils`, BioMart clients, and other annotation libraries are not installed
-  in the current backend environment. The current coordinate-map helper uses the
-  checked-in transcript fixture; a future `gffutils` path can be reviewed when
-  MANE/GENCODE production ingestion is approved.
+- Production runtime should materialize a compact Eamos transcript projection
+  index from MANE/RefSeq GFF plus checksums. Cold parsing the full RefSeq GFF is
+  acceptable for validation but not the final request-path shape.
 - Do not wire frontend or tool runtime behavior directly to these adapters until
   the backend API contract and source orchestration task explicitly approve it.

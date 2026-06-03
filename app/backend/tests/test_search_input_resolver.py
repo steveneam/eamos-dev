@@ -20,6 +20,11 @@ class _Response:
         return self.payload
 
 
+class _NoLocalCoordinateResolver:
+    def resolve(self, **_kwargs):
+        return None
+
+
 def test_eamos_search_input_resolver_accepts_gnomad_variant_id() -> None:
     resolution = EamosSearchInputResolver(_settings(use_real_apis=True)).resolve(
         gene="USH2A",
@@ -34,6 +39,9 @@ def test_eamos_search_input_resolver_accepts_gnomad_variant_id() -> None:
     assert resolution.source_inputs.variant_validator == "NC_000001.11:g.216247118C>A"
     assert resolution.source_inputs.ensembl_vep == "NC_000001.11:g.216247118C>A"
     assert resolution.source_inputs.clinvar == "NC_000001.11:g.216247118C>A"
+    assert resolution.coordinate_resolution_audit.resolver_path == "submitted_genomic"
+    assert resolution.coordinate_resolution_audit.used_submitted_genomic is True
+    assert resolution.coordinate_resolution_audit.used_clinvar_for_coordinates is False
 
 
 def test_eamos_search_input_resolver_accepts_refseq_genomic_hgvs() -> None:
@@ -78,6 +86,8 @@ def test_eamos_search_input_resolver_uses_fixture_rsid_candidates() -> None:
     assert resolution.rsid_candidates[0].cdna == "c.271C>T"
     assert resolution.rsid_candidates[0].transcript == "NM_000329.3"
     assert resolution.rsid_candidates[0].genomic_hg38 == "1-68444858-G-A"
+    assert resolution.coordinate_resolution_audit.resolver_path == "rsid_candidates"
+    assert resolution.coordinate_resolution_audit.used_rsid_candidates is True
 
 
 def test_search_input_interpreter_auto_resolves_fixture_rsid() -> None:
@@ -317,6 +327,7 @@ def test_eamos_search_input_resolver_can_resolve_coordinates_when_enabled(
     resolution = EamosSearchInputResolver(
         _settings(use_real_apis=True),
         resolve_coordinates=True,
+        local_coordinate_resolver=_NoLocalCoordinateResolver(),
     ).resolve(gene="USH2A", cdna="c.2276G>T")
 
     assert resolution.resolver_transcript_hgvs == "NM_206933.4:c.2276G>T"
@@ -325,6 +336,10 @@ def test_eamos_search_input_resolver_can_resolve_coordinates_when_enabled(
     assert resolution.source_inputs.gnomad == "1-216247118-C-A"
     assert resolution.variant_validator_summary is not None
     assert resolution.variant_validator_summary["variant_id"] == "1-216247118-C-A"
+    assert resolution.coordinate_resolution_audit.resolver_path == "variant_validator_fallback"
+    assert resolution.coordinate_resolution_audit.used_eamos_local is False
+    assert resolution.coordinate_resolution_audit.used_variant_validator is True
+    assert resolution.coordinate_resolution_audit.used_clinvar_for_coordinates is False
 
 
 def test_eamos_search_input_resolver_covers_rpgrip1_cdna_stack(
@@ -377,6 +392,7 @@ def test_eamos_search_input_resolver_covers_rpgrip1_cdna_stack(
     resolution = EamosSearchInputResolver(
         _settings(use_real_apis=True),
         resolve_coordinates=True,
+        local_coordinate_resolver=_NoLocalCoordinateResolver(),
     ).resolve(gene="RPGRIP1", cdna="c.1997C>T")
 
     assert resolution.resolver_transcript == "NM_020366.4"
@@ -439,6 +455,7 @@ def test_eamos_search_input_resolver_covers_brca1_duplication_stack(
     resolution = EamosSearchInputResolver(
         _settings(use_real_apis=True),
         resolve_coordinates=True,
+        local_coordinate_resolver=_NoLocalCoordinateResolver(),
     ).resolve(gene="brca1", cdna="c.5266dupC")
 
     assert resolution.gene == "BRCA1"
@@ -507,6 +524,7 @@ def test_eamos_search_input_resolver_covers_brca1_duplication_stack_without_inse
     resolution = EamosSearchInputResolver(
         _settings(use_real_apis=True),
         resolve_coordinates=True,
+        local_coordinate_resolver=_NoLocalCoordinateResolver(),
     ).resolve(gene="brca1", cdna="c.5266dup")
 
     assert resolution.gene == "BRCA1"

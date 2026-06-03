@@ -4,13 +4,13 @@ Status: Active backend prototype
 Type: Parser/resolver plus developer CLI
 Owner: Codex backend
 Added: 2026-05-21 17:54 +1000 - Codex
-Last updated: 2026-05-23 18:00 +1000 - Codex
+Last updated: 2026-06-04 02:53 +1000 - Codex
 
 ## What It Does
 
 The Eamos Search Input Resolver converts user-supplied variant text into
-normalized internal fields and source-specific query inputs for Variant
-Validator, Ensembl VEP, gnomAD, SpliceAI, ClinVar, and literature lookup.
+normalized internal fields, local coordinate identity when requested, and
+source-specific query inputs for downstream evidence providers.
 
 The developer CLI exposes that parser from the command line:
 
@@ -34,10 +34,15 @@ The custom part is the Eamos-specific resolver/orchestrator:
 - Converts supported genomic IDs into source-appropriate identifiers.
 - Emits separate source inputs instead of sending one brittle string to every
   provider.
+- Emits `coordinate_resolution_audit` for backend troubleshooting, including
+  whether coordinate identity came from submitted genomic fields, the Eamos local
+  resolver, VariantValidator fallback, rsID candidates, or no coordinate path.
 
 ## Source Of Truth
 
 - Resolver: `app/backend/app/services/search_input_resolver.py`
+- Local coordinate resolver:
+  `app/backend/app/services/eamos_coordinate_resolver.py`
 - CLI: `app/backend/app/cli/eamos_search_input.py`
 - Shared helpers: `app/backend/app/services/sequence_context.py`
 - Tests:
@@ -56,10 +61,28 @@ The resolver and CLI were verified with focused backend tests and direct CLI
 fixture-mode runs against the user-supplied variant test stack. Later full
 backend verification also passed after the web search-input layer was added.
 
+Backend troubleshooting command:
+
+```powershell
+cd app/backend
+python -m app.cli.eamos_search_input --fixture-mode --resolve-coordinates "ABCA4 NM_000350.3:c.5435T>A"
+```
+
+Read `results[0].coordinate_resolution_audit`:
+
+- `resolver_path="eamos_local"` means Eamos local transcript/reference logic
+  supplied the coordinate identity.
+- `resolver_path="variant_validator_fallback"` means local resolution missed and
+  live VariantValidator supplied the coordinate identity.
+- `used_clinvar_for_coordinates` should be `false` for normal search/batch
+  resolution. ClinVar may still appear as a downstream `source_inputs.clinvar`
+  evidence query.
+
 ## Caveats
 
 - This layer is deterministic. It does not perform AI extraction.
-- Live transcript and coordinate hydration depend on configured external
-  source availability.
+- Live transcript lookup can still be used when no local/canonical transcript is
+  known. Coordinate hydration is Eamos-local first; live VariantValidator is a
+  fallback/debug path only when enabled.
 - Exact source calls still use downstream provider adapters and their own
   availability/fallback rules.

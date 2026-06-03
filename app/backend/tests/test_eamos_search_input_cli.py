@@ -28,6 +28,14 @@ def test_eamos_search_input_cli_prints_source_bundle_for_file(tmp_path, capsys) 
     assert output["results"][0]["normalized"]["hgvs"] == "c.1622T>C"
     assert output["results"][1]["source_inputs"]["gnomad"] == "8-140300616-T-G"
     assert (
+        output["results"][1]["coordinate_resolution_audit"]["resolver_path"]
+        == "submitted_genomic"
+    )
+    assert (
+        output["results"][1]["coordinate_resolution_audit"]["used_clinvar_for_coordinates"]
+        is False
+    )
+    assert (
         output["results"][2]["source_inputs"]["clinvar"] == "NC_000001.11:g.1042601_1042602insGAGAG"
     )
 

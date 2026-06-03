@@ -11,6 +11,8 @@ Source spec: `plans/batch-vcf-and-panels/spec.md`
 - `GET /api/v1/batch/{job_id}` must be paged from day one using `limit` and `cursor`. SSE is optional and waits until polling is correct.
 - Panel filtering correctness is interval-first: resolve symbols through HGNC normalization into MANE Select GFF3-derived hg38 BED intervals. VCF INFO gene symbols are only an optimization.
 - AF filtering has two phases: INFO-AF can run before lookup; gnomAD-AF can only run after lookup. Use `n_to_lookup` for pre-lookup scope/quota estimates and `n_after_filters` only once final post-lookup filtering is known.
+- Coordinate resolution for source-style variant inputs is Eamos-local first. Search, Workbench, report normalization, Project-100 VCF generation, and batch ingestion should share `EamosLocalCoordinateResolver`; ClinVar/SPDI and VariantValidator are validation/debug oracles, not batch hot-path coordinate providers.
+- Add a backend-private Supabase/object-storage asset registry task for MANE RefSeq GFF, all-RefSeq GRCh38.p14 GFF, `hg38.2bit`, and the future compact Eamos transcript projection index. Postgres stores version/checksum/object-path/status metadata; raw assets stay in private storage or backend local cache and are never exposed to the frontend.
 - Do not open or depend on WSL without explicit user approval. Native Windows verification is acceptable for repo tests; WSL bio tools are available only by approval.
 
 ## Task 1 - Batch And Panel Schemas
@@ -56,15 +58,44 @@ Relevant files or references:
 - `plans/batch-vcf-and-panels/spec.md` section 7
 - `app/backend/scripts/make_test_vcf.py`
 - `app/backend/tests/fixtures/vcf/`
+- `app/backend/app/fixtures/hardening/project_100_sample_manifest.json`
+- `app/backend/app/fixtures/tools/clinvar_gene_agnostic_report_stack.json`
+- `app/backend/app/services/eamos_coordinate_resolver.py`
+- `app/backend/scripts/validate_project_100_coordinates.py`
 - `app/web/lib/variant-file.ts`
 
 Proposed approach:
 - Build `make_test_vcf.py` with deterministic `--seed`, `--n`, `--panel`, `--mix`, `--multiallelic`, `--with-genotypes`, `--chr-prefix`, and `--malformed` flags.
+- Add `--stack project-100` to emit the existing 100-test hardening stack as canonical
+  batch fixtures. Source it from `project_100_sample_manifest.json`: 10 genes x 10 samples,
+  with one transcript-model control and nine ClinVar challenge variants per gene.
+- Emit two `project-100` forms: a coordinate-complete VCF with real GRCh38
+  `CHROM/POS/REF/ALT`, and a coordinate-missing source fixture that contains the same
+  HGVS/ClinVar/transcript-oriented inputs a client may provide before Eamos resolves them.
+- Resolve real GRCh38 VCF coordinates for every stack row before writing the VCF using the
+  Eamos local coordinate resolver over MANE/RefSeq GFF plus `hg38.2bit`. The 10 controls and
+  90 ClinVar challenge rows must all resolve locally. ClinVar/SPDI and VariantValidator can
+  validate the generated identities offline, but they must not be required to generate each
+  runtime row. If any row cannot resolve to `CHROM/POS/REF/ALT`, fail the generator and write
+  unresolved IDs into the manifest. Do not fabricate coordinates or mutate
+  `clinvar_gene_agnostic_report_stack.json`.
 - Emit a manifest next to each generated fixture with expected gene, classification bucket, filter behavior, and known malformed-line counts.
 - Keep committed fixtures small. Generate larger fixtures during tests.
 
 Acceptance criteria:
 - Fixture generation is deterministic for the same seed.
+- The canonical `project-100` fixtures contain exactly 100 source rows, exactly 100 resolved
+  VCF rows, and a truth manifest with sample_id, gene, transcript, cDNA, classification
+  bucket, source fixture, expected panel membership, and filter behavior.
+- `project-100` generation fails closed on unresolved GRCh38 coordinates and never invents
+  synthetic loci for ClinVar challenge rows.
+- The coordinate-missing source fixture and coordinate-complete VCF resolve to the same
+  canonical variant identities and truth manifest, proving the proprietary resolver path can
+  handle client inputs that do not arrive with GRCh38 `CHROM/POS/REF/ALT`.
+- The generator/test manifest includes `coordinate_resolution_audit.resolver_path` so backend
+  troubleshooting can prove whether a row used `eamos_local`, `variant_validator_fallback`,
+  submitted genomic coordinates, or no coordinate resolver.
+- The existing 90-variant ClinVar challenge stack remains immutable.
 - Truth manifests can assert expected panel membership and parsed variant counts.
 - Multi-allelic, chr-prefix, malformed, header, duplicate, and genotype cases are covered.
 
@@ -85,6 +116,7 @@ Context: Large-VCF feasibility depends on panel filtering. The core source layer
 Relevant files or references:
 - `plans/batch-vcf-and-panels/spec.md` sections 6.1-6.4
 - `app/backend/app/services/transcript_model.py`
+- `app/backend/app/services/eamos_coordinate_resolver.py`
 - Local ClinGen/GenCC/MONDO/HGNC assets already referenced by the source registry
 - MANE Select GFF3-derived gene intervals
 
@@ -92,6 +124,8 @@ Proposed approach:
 - Implement panel source loaders for local ClinGen/GenCC/MONDO/HGNC.
 - Normalize gene symbols through HGNC IDs and aliases.
 - Produce a versioned hg38 BED-like interval map from MANE Select GFF3.
+- Materialize/register the raw MANE/RefSeq/hg38 assets and compact interval/transcript indexes
+  through backend-private object storage plus Postgres metadata before production deployment.
 - Add `/api/v1/panels`, `/api/v1/panels/{slug}`, and `/api/v1/panels/resolve`.
 - Make interval intersection the correctness path; use INFO symbols only as a short-circuit when trustworthy.
 

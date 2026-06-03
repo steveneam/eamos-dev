@@ -10,6 +10,10 @@ from urllib.parse import quote
 
 import httpx
 
+from app.services.eamos_coordinate_resolver import (
+    EamosCoordinateResolution,
+    EamosLocalCoordinateResolver,
+)
 from app.services.sequence_context import (
     CANONICAL_TRANSCRIPTS,
     QueryKind,
@@ -27,6 +31,24 @@ class SourceSpecificInputs:
     spliceai: str | None = None
     clinvar: str | None = None
     literature_terms: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CoordinateResolutionAudit:
+    resolver_path: str
+    coordinate_resolution_requested: bool
+    used_eamos_local: bool
+    used_variant_validator: bool
+    used_clinvar_for_coordinates: bool
+    used_submitted_genomic: bool
+    used_rsid_candidates: bool
+    canonical_variant_id: str | None = None
+    genomic_hgvs: str | None = None
+    local_source: str | None = None
+    variant_validator_url: str | None = None
+    clinvar_role: str | None = None
+    provenance: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -73,6 +95,18 @@ class SearchInputResolution:
     variant_validator_summary: dict[str, Any] | None = None
     variant_validator_raw: dict[str, Any] | None = None
     variant_validator_url: str | None = None
+    local_coordinate_summary: dict[str, Any] | None = None
+    coordinate_resolution_audit: CoordinateResolutionAudit = field(
+        default_factory=lambda: CoordinateResolutionAudit(
+            resolver_path="unknown",
+            coordinate_resolution_requested=False,
+            used_eamos_local=False,
+            used_variant_validator=False,
+            used_clinvar_for_coordinates=False,
+            used_submitted_genomic=False,
+            used_rsid_candidates=False,
+        )
+    )
     rsid_candidates: tuple[RsidResolutionCandidate, ...] = ()
 
 
@@ -85,10 +119,12 @@ class EamosSearchInputResolver:
         *,
         timeout_seconds: float = 15.0,
         resolve_coordinates: bool = False,
+        local_coordinate_resolver: EamosLocalCoordinateResolver | None = None,
     ) -> None:
         self.settings = settings
         self.timeout_seconds = timeout_seconds
         self.resolve_coordinates = resolve_coordinates
+        self._local_coordinate_resolver = local_coordinate_resolver
 
     def resolve_text(
         self,
@@ -152,6 +188,7 @@ class EamosSearchInputResolver:
         variant_validator_summary = None
         variant_validator_raw = None
         variant_validator_url = None
+        local_coordinate_summary = None
         rsid_candidates: tuple[RsidResolutionCandidate, ...] = ()
 
         if genomic_hg38 is not None:
@@ -163,17 +200,32 @@ class EamosSearchInputResolver:
             warnings.extend(rsid_warnings)
             provenance.extend(rsid_provenance)
         elif self.resolve_coordinates and kind == "cdna" and resolver_transcript is not None:
-            (
-                genomic_hg38,
-                genomic_hgvs,
-                variant_validator_summary,
-                variant_validator_raw,
-                variant_validator_url,
-                coordinate_warnings,
-            ) = self._resolve_variant_validator_coordinates(resolver_transcript_hgvs)
-            warnings.extend(coordinate_warnings)
+            local_coordinate = self._resolve_eamos_local_coordinates(
+                gene=normalized_gene,
+                cdna=hgvs,
+                transcript=resolver_transcript,
+            )
+            if local_coordinate is not None:
+                genomic_hg38 = local_coordinate.genomic_hg38
+                genomic_hgvs = local_coordinate.genomic_hgvs
+                local_coordinate_summary = _local_coordinate_summary(local_coordinate)
+                warnings.extend(local_coordinate.warnings)
+                provenance.append("eamos_local_coordinate_resolver")
+            else:
+                (
+                    genomic_hg38,
+                    genomic_hgvs,
+                    variant_validator_summary,
+                    variant_validator_raw,
+                    variant_validator_url,
+                    coordinate_warnings,
+                ) = self._resolve_variant_validator_coordinates(resolver_transcript_hgvs)
+                warnings.extend(coordinate_warnings)
+                if genomic_hg38 is None:
+                    warnings.append("eamos_local_coordinate_unresolved")
             if genomic_hg38 is not None:
-                provenance.append("variant_validator_grch38_vcf")
+                if variant_validator_summary is not None:
+                    provenance.append("variant_validator_grch38_vcf")
 
         source_inputs = SourceSpecificInputs(
             variant_validator=(
@@ -203,6 +255,19 @@ class EamosSearchInputResolver:
                 protein_change,
             ),
         )
+        audit = _coordinate_resolution_audit(
+            kind=kind,
+            coordinate_resolution_requested=self.resolve_coordinates,
+            genomic_hg38=genomic_hg38,
+            genomic_hgvs=genomic_hgvs,
+            source_inputs=source_inputs,
+            provenance=tuple(provenance),
+            warnings=tuple(warnings),
+            local_coordinate_summary=local_coordinate_summary,
+            variant_validator_summary=variant_validator_summary,
+            variant_validator_url=variant_validator_url,
+            rsid_candidates=rsid_candidates,
+        )
 
         return SearchInputResolution(
             gene=normalized_gene,
@@ -221,8 +286,23 @@ class EamosSearchInputResolver:
             variant_validator_summary=variant_validator_summary,
             variant_validator_raw=variant_validator_raw,
             variant_validator_url=variant_validator_url,
+            local_coordinate_summary=local_coordinate_summary,
+            coordinate_resolution_audit=audit,
             rsid_candidates=rsid_candidates,
         )
+
+    def _resolve_eamos_local_coordinates(
+        self,
+        *,
+        gene: str,
+        cdna: str,
+        transcript: str,
+    ) -> EamosCoordinateResolution | None:
+        resolver = self._local_coordinate_resolver
+        if resolver is None:
+            resolver = EamosLocalCoordinateResolver()
+            self._local_coordinate_resolver = resolver
+        return resolver.resolve(gene=gene, cdna=cdna, transcript=transcript)
 
     def _resolve_mane_transcript(self, gene: str) -> tuple[str | None, list[str]]:
         if self.settings is None or not getattr(self.settings, "use_real_apis", False):
@@ -634,6 +714,12 @@ _TRANSCRIPT_SEARCH_RE = re.compile(
     r"(?P<hgvs>.+)$",
     flags=re.IGNORECASE,
 )
+_GENE_TRANSCRIPT_SEARCH_RE = re.compile(
+    r"^(?P<gene>[A-Z][A-Z0-9-]*)\s+"
+    r"(?P<transcript>(?:N[MR]_|ENST)[A-Z0-9_.]+):"
+    r"(?P<hgvs>.+)$",
+    flags=re.IGNORECASE,
+)
 _GENE_PREFIX_SEARCH_RE = re.compile(
     r"^(?P<gene>[A-Z][A-Z0-9-]*)\s*:\s*" r"(?P<hgvs>(?:[CGMNP]\..+|rs\d+))$",
     flags=re.IGNORECASE,
@@ -672,15 +758,21 @@ def parse_search_text(
         parsed_gene = parsed_gene or transcript_match.group("gene") or ""
         parsed_cdna = transcript_match.group("hgvs")
     else:
-        gene_prefix_match = _GENE_PREFIX_SEARCH_RE.fullmatch(working)
-        if gene_prefix_match is not None:
-            parsed_gene = parsed_gene or gene_prefix_match.group("gene")
-            parsed_cdna = gene_prefix_match.group("hgvs")
+        gene_transcript_match = _GENE_TRANSCRIPT_SEARCH_RE.fullmatch(working)
+        if gene_transcript_match is not None:
+            parsed_gene = parsed_gene or gene_transcript_match.group("gene")
+            parsed_transcript = parsed_transcript or gene_transcript_match.group("transcript")
+            parsed_cdna = gene_transcript_match.group("hgvs")
         else:
-            gene_space_match = _GENE_SPACE_SEARCH_RE.fullmatch(working)
-            if gene_space_match is not None:
-                parsed_gene = parsed_gene or gene_space_match.group("gene")
-                parsed_cdna = gene_space_match.group("hgvs")
+            gene_prefix_match = _GENE_PREFIX_SEARCH_RE.fullmatch(working)
+            if gene_prefix_match is not None:
+                parsed_gene = parsed_gene or gene_prefix_match.group("gene")
+                parsed_cdna = gene_prefix_match.group("hgvs")
+            else:
+                gene_space_match = _GENE_SPACE_SEARCH_RE.fullmatch(working)
+                if gene_space_match is not None:
+                    parsed_gene = parsed_gene or gene_space_match.group("gene")
+                    parsed_cdna = gene_space_match.group("hgvs")
 
     normalized_gene, _, _, kind = normalize_variant_query(
         parsed_gene,
@@ -755,6 +847,85 @@ def _variant_validator_summary(payload: dict[str, Any]) -> dict[str, Any]:
         "exon": _exon_from_variant_validator_payload(variant_payload),
         "selected_assembly": variant_payload.get("selected_assembly"),
     }
+
+
+def _local_coordinate_summary(resolution: EamosCoordinateResolution) -> dict[str, Any]:
+    return {
+        "gene": resolution.gene,
+        "hgvs_transcript_variant": f"{resolution.transcript}:{resolution.cdna}",
+        "hgvs_genomic_description": resolution.genomic_hgvs,
+        "vcf": {
+            "chr": resolution.chrom,
+            "pos": str(resolution.pos),
+            "ref": resolution.ref,
+            "alt": resolution.alt,
+        },
+        "variant_id": resolution.genomic_hg38,
+        "source": resolution.source,
+        "confidence": resolution.confidence,
+        "provenance": list(resolution.provenance),
+    }
+
+
+def _coordinate_resolution_audit(
+    *,
+    kind: QueryKind,
+    coordinate_resolution_requested: bool,
+    genomic_hg38: str | None,
+    genomic_hgvs: str | None,
+    source_inputs: SourceSpecificInputs,
+    provenance: tuple[str, ...],
+    warnings: tuple[str, ...],
+    local_coordinate_summary: dict[str, Any] | None,
+    variant_validator_summary: dict[str, Any] | None,
+    variant_validator_url: str | None,
+    rsid_candidates: tuple[RsidResolutionCandidate, ...],
+) -> CoordinateResolutionAudit:
+    used_submitted_genomic = "submitted_genomic_variant_id" in provenance
+    used_eamos_local = local_coordinate_summary is not None
+    used_variant_validator = variant_validator_summary is not None
+    used_rsid_candidates = bool(rsid_candidates)
+    used_clinvar_for_coordinates = False
+
+    if used_submitted_genomic:
+        resolver_path = "submitted_genomic"
+    elif used_eamos_local:
+        resolver_path = "eamos_local"
+    elif used_variant_validator:
+        resolver_path = "variant_validator_fallback"
+    elif used_rsid_candidates:
+        resolver_path = "rsid_candidates"
+    elif coordinate_resolution_requested and kind == "cdna":
+        resolver_path = "unresolved"
+    elif kind == "cdna":
+        resolver_path = "not_requested"
+    else:
+        resolver_path = "not_applicable"
+
+    clinvar_role = None
+    if source_inputs.clinvar:
+        clinvar_role = "source_query_input_not_coordinate_provider"
+
+    return CoordinateResolutionAudit(
+        resolver_path=resolver_path,
+        coordinate_resolution_requested=coordinate_resolution_requested,
+        used_eamos_local=used_eamos_local,
+        used_variant_validator=used_variant_validator,
+        used_clinvar_for_coordinates=used_clinvar_for_coordinates,
+        used_submitted_genomic=used_submitted_genomic,
+        used_rsid_candidates=used_rsid_candidates,
+        canonical_variant_id=genomic_hg38,
+        genomic_hgvs=genomic_hgvs,
+        local_source=(
+            str(local_coordinate_summary.get("source"))
+            if local_coordinate_summary and local_coordinate_summary.get("source")
+            else None
+        ),
+        variant_validator_url=variant_validator_url,
+        clinvar_role=clinvar_role,
+        provenance=provenance,
+        warnings=warnings,
+    )
 
 
 def _exon_from_variant_validator_payload(variant_payload: dict[str, Any]) -> str | None:
