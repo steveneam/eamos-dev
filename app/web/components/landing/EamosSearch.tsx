@@ -1,6 +1,9 @@
 'use client'
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { parseVariantFile, stashCompareVariants, type ParsedVariant } from '@/lib/variant-file'
+import { reportHrefForQuery } from '@/lib/variant-search'
 
 interface EamosSearchProps {
   size?: 'hero' | 'compact'
@@ -63,13 +66,63 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
   const [hovered, setHovered] = useState(false)
   const [sendHover, setSendHover] = useState(false)
   const [attachHover, setAttachHover] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const isHero = size === 'hero'
   const t = TONES[tone]
+  const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const q = value.trim()
     if (q) onSubmit(q)
+  }
+
+  // Attach a variant file (paperclip or drag-drop): parse it client-side into a
+  // variant list, then route — a single variant goes straight to its report, a
+  // list goes to /compare. Full VCF normalization is the batch backend's job.
+  const routeVariants = (variants: ParsedVariant[], source: string) => {
+    if (variants.length === 0) return
+    if (variants.length === 1) {
+      const href = reportHrefForQuery(variants[0].query)
+      if (href) {
+        router.push(href)
+        return
+      }
+    }
+    stashCompareVariants(variants, source)
+    router.push('/compare')
+  }
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const seen = new Set<string>()
+    const variants: ParsedVariant[] = []
+    for (const file of Array.from(files)) {
+      try {
+        const text = await file.text()
+        for (const v of parseVariantFile(text, file.name)) {
+          const key = v.query.toLowerCase()
+          if (seen.has(key)) continue
+          seen.add(key)
+          variants.push(v)
+        }
+      } catch {
+        // Unreadable file — skip it; any other dropped files still parse.
+      }
+    }
+    routeVariants(variants, Array.from(files).map((f) => f.name).join(', '))
+  }
+
+  const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    void handleFiles(e.target.files)
+    e.target.value = ''
+  }
+
+  const onDrop = (e: DragEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setDragActive(false)
+    void handleFiles(e.dataTransfer.files)
   }
 
   return (
@@ -81,23 +134,42 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
       className={cn('flex items-center', className)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onDragOver={(e) => {
+        e.preventDefault()
+        if (!dragActive) setDragActive(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragActive(false)
+      }}
+      onDrop={onDrop}
       style={{
         gap: isHero ? 8 : 6,
         background: t.bg,
-        border: `0.5px solid ${focused ? t.borderFocus : hovered ? t.borderHover : t.border}`,
+        border: `0.5px solid ${focused || dragActive ? t.borderFocus : hovered ? t.borderHover : t.border}`,
         borderRadius: isHero ? 18 : 999,
         padding: isHero ? '8px 8px 8px 12px' : '5px 5px 5px 12px',
-        boxShadow: focused ? t.glowFocus : hovered ? t.glowHover : isHero ? t.glowHero : 'none',
+        boxShadow: focused || dragActive ? t.glowFocus : hovered ? t.glowHover : isHero ? t.glowHero : 'none',
         backdropFilter: t.backdrop,
         transition:
           'border-color var(--dur-2) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard)',
       }}
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".vcf,.csv,.tsv,.txt,text/plain"
+        multiple
+        onChange={onInputChange}
+        style={{ display: 'none' }}
+        aria-hidden
+        tabIndex={-1}
+      />
       <button
         type="button"
-        aria-label="Attach a file"
-        title="Attach a VCF (coming soon)"
+        aria-label="Attach a variant file"
+        title="Attach a variant list — VCF, CSV, TSV, or one variant per line"
         className="inline-flex shrink-0 items-center justify-center transition-colors"
+        onClick={() => fileInputRef.current?.click()}
         onMouseEnter={() => setAttachHover(true)}
         onMouseLeave={() => setAttachHover(false)}
         style={{
@@ -120,7 +192,11 @@ export function EamosSearch({ size = 'hero', tone = 'dark', onSubmit, className 
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         placeholder={
-          isHero ? 'Gene, variant, or a plain question, e.g. USH2A c.2276G>T' : 'Gene, variant, e.g. USH2A c.2276G>T'
+          dragActive
+            ? 'Drop a variant file to compare'
+            : isHero
+              ? 'Gene, variant, or a plain question, e.g. USH2A c.2276G>T'
+              : 'Gene, variant, e.g. USH2A c.2276G>T'
         }
         autoComplete="off"
         spellCheck={false}

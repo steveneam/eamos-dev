@@ -12,6 +12,8 @@ export interface StickyVariantRibbonProps {
   onExport?: () => void
   onSave?: () => void
   onCite?: () => void
+  /** When provided, replaces the plain Export button (e.g. the ExportMenu dropdown). */
+  exportSlot?: React.ReactNode
   className?: string
 }
 
@@ -63,6 +65,7 @@ export function StickyVariantRibbon({
   onExport,
   onSave,
   onCite,
+  exportSlot,
   className,
 }: StickyVariantRibbonProps) {
   const [pinned, setPinned] = useState(false)
@@ -163,7 +166,7 @@ export function StickyVariantRibbon({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <RibbonBtn label="Copy" icon={<IconCopy />} onClick={onCopy} />
           <RibbonBtn label="Share" icon={<IconShare />} onClick={onShare} />
-          <RibbonBtn label="Export" icon={<IconExport />} onClick={onExport} />
+          {exportSlot ?? <RibbonBtn label="Export" icon={<IconExport />} onClick={onExport} />}
           <RibbonBtn label="Save" icon={<IconSave />} onClick={onSave} />
           <RibbonBtn label="Cite" icon={<IconCite />} onClick={onCite} />
         </div>

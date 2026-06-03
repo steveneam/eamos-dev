@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Spectral, Inter, JetBrains_Mono } from 'next/font/google'
+import { Spectral, Inter, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
@@ -21,7 +21,11 @@ const inter = Inter({
   variable: '--body',
   fallback: ['system-ui', 'sans-serif'],
 })
-const jetbrainsMono = JetBrains_Mono({
+// IBM Plex Mono replaces JetBrains Mono (2026-06-03, Steven): JetBrains ships a
+// dotted zero that reads as "8" at 11-14px on HGVS/coords. IBM Plex Mono has a
+// clear zero and pairs with Inter. Single-token swap; all `var(--mono)` consumers
+// inherit it (report + account + pricing + Workbench sequence viewer).
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
   weight: ['400', '500'],
   display: 'swap',
@@ -72,7 +76,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${spectral.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${spectral.variable} ${inter.variable} ${ibmPlexMono.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>

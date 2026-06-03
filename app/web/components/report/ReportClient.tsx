@@ -20,6 +20,8 @@ import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
 import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
+import { ReportLoadingState } from '@/components/report/ReportLoadingState'
+import { ExportMenu } from '@/components/report/ExportMenu'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
@@ -51,7 +53,6 @@ import {
   htmlPublications,
   htmlTrials,
 } from '@/lib/report-html'
-import { SOURCES } from '@/lib/sources'
 import type {
   LookupRequest,
   LookupResponse,
@@ -442,7 +443,9 @@ export function ReportClient() {
           padding: '32px 32px 80px',
         }}
       >
-        {activeState.kind === 'loading' && <LoadingBlock query={queryLabel} />}
+        {activeState.kind === 'loading' && (
+          <ReportLoadingState query={queryLabel} gene={gene} cdna={cdna} />
+        )}
         {activeState.kind === 'error' && (
           <ErrorBlock
             variant="generic"
@@ -582,9 +585,6 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
       void navigator.clipboard.writeText(window.location.href)
     }
   }
-  const handleExport = () => {
-    if (typeof window !== 'undefined') window.print()
-  }
   const handleCite = () => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('cite', '1')
@@ -630,10 +630,14 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         hgvsP={ribbonHgvsP}
         onCopy={handleCopy}
         onShare={handleShare}
-        onExport={handleExport}
+        exportSlot={<ExportMenu data={data} variant="ribbon" />}
         onCite={handleCite}
       />
-      <VariantHeader payload={payload} query={query} />
+      <VariantHeader
+        payload={payload}
+        query={query}
+        exportSlot={<ExportMenu data={data} variant="header" />}
+      />
 
       {/* M7 lookahead — 10-12 tiles that deep-link to each numbered section
           below. Live-wired to lookupSummary(); falls back to tiles synthesized
@@ -924,104 +928,6 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
   )
 }
 
-function LoadingBlock({ query }: { query: string }) {
-  return (
-    <section
-      aria-busy="true"
-      aria-live="polite"
-      style={{
-        background: 'var(--bg)',
-        border: '0.5px solid var(--line)',
-        borderRadius: 14,
-        padding: '28px 32px',
-      }}
-    >
-      <header className="flex items-center gap-3">
-        <span
-          aria-hidden
-          style={{
-            width: 18,
-            height: 18,
-            border: '2px solid var(--line)',
-            borderTopColor: 'var(--teal)',
-            borderRadius: '50%',
-            animation: 'eamos-spin 0.9s linear infinite',
-          }}
-        />
-        <div>
-          <div
-            className="uppercase"
-            style={{
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: '0.1em',
-              color: 'var(--ink-4)',
-            }}
-          >
-            Looking up variant
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 14,
-              color: 'var(--ink)',
-              marginTop: 2,
-            }}
-          >
-            {query || '—'}
-          </div>
-        </div>
-      </header>
-
-      <ul
-        className="mt-5 grid gap-2"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', listStyle: 'none', padding: 0, margin: 0 }}
-      >
-        {SOURCES.map((src, i) => (
-          <li
-            key={src.key}
-            className="flex items-center gap-2"
-            style={{
-              padding: '8px 12px',
-              background: 'var(--bg-soft)',
-              border: '0.5px solid var(--line)',
-              borderRadius: 10,
-              fontSize: 12.5,
-              color: 'var(--ink-3)',
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 999,
-                background: 'var(--teal)',
-                animation: `eamos-pulse 1.6s ease-in-out ${i * 0.18}s infinite`,
-              }}
-            />
-            {src.label}
-          </li>
-        ))}
-      </ul>
-
-      <p
-        className="mt-5"
-        style={{ fontSize: 12, color: 'var(--ink-4)', margin: '20px 0 0' }}
-      >
-        Aggregating evidence across multiple databases — this can take up to ~15 seconds.
-      </p>
-
-      <style>{`
-        @keyframes eamos-spin { to { transform: rotate(360deg); } }
-        @keyframes eamos-pulse {
-          0%, 100% { opacity: 0.35; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.25); }
-        }
-      `}</style>
-    </section>
-  )
-}
 
 interface ErrorBlockProps {
   variant: 'generic' | 'offline' | 'unresolved'

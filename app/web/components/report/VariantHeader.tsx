@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import type { ReportPayload, VariantSummaryRow } from '@/lib/backend'
@@ -6,6 +6,8 @@ import type { ReportPayload, VariantSummaryRow } from '@/lib/backend'
 interface VariantHeaderProps {
   payload: ReportPayload
   query?: string
+  /** When provided, replaces the plain "Export PDF" button (e.g. the ExportMenu dropdown). */
+  exportSlot?: ReactNode
 }
 
 interface CrossDbChip {
@@ -69,7 +71,7 @@ function deriveClassificationLabel(acmg: string | null | undefined): string | nu
   return first
 }
 
-export function VariantHeader({ payload, query }: VariantHeaderProps) {
+export function VariantHeader({ payload, query, exportSlot }: VariantHeaderProps) {
   const row = payload.variant_summary_rows[0]
   const gene = row?.gene ?? '—'
   const proteinChange = row?.protein_change ?? null
@@ -205,14 +207,16 @@ export function VariantHeader({ payload, query }: VariantHeaderProps) {
                 </svg>
                 <span>{followed ? 'Following' : 'Follow'}</span>
               </button>
-              <button type="button" className="v-tool" onClick={() => window.print()} aria-label="Export PDF">
-                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>Export PDF</span>
-              </button>
+              {exportSlot ?? (
+                <button type="button" className="v-tool" onClick={() => window.print()} aria-label="Export PDF">
+                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Export PDF</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="v-tool"
