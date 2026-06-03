@@ -1,4 +1,15 @@
 from .auth import AuthUser, LoginRequest, RegisterRequest, TokenResponse
+from .batch import (
+    BatchCreateRequest,
+    BatchCreateResponse,
+    BatchFilters,
+    BatchJob,
+    BatchJobQuery,
+    BatchPage,
+    BatchResult,
+    BatchUploadResponse,
+    ParsedVariant,
+)
 from .chat import RunChatAnswerDraft, RunChatCitation, RunChatRequest, RunChatResponse
 from .draft import (
     ApproveResult,
@@ -15,6 +26,13 @@ from .report import (
     ExtractionIssue,
     ReportUploadResponse,
     UploadedReport,
+)
+from .panels import (
+    Panel,
+    PanelGene,
+    PanelListResponse,
+    PanelResolveRequest,
+    PanelSummary,
 )
 from .run import (
     EvidenceSourceSummary,
@@ -39,6 +57,14 @@ from .search import (
 __all__ = [
     "ApproveResult",
     "AuthUser",
+    "BatchCreateRequest",
+    "BatchCreateResponse",
+    "BatchFilters",
+    "BatchJob",
+    "BatchJobQuery",
+    "BatchPage",
+    "BatchResult",
+    "BatchUploadResponse",
     "ClinicianReviewPayload",
     "DraftPayload",
     "DropResult",
@@ -47,6 +73,12 @@ __all__ = [
     "ExtractedVariant",
     "ExtractionIssue",
     "LoginRequest",
+    "Panel",
+    "PanelGene",
+    "PanelListResponse",
+    "PanelResolveRequest",
+    "PanelSummary",
+    "ParsedVariant",
     "RegisterRequest",
     "ReportDraftUpdatePayload",
     "ReportPayload",
