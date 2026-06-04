@@ -81,6 +81,13 @@ class Settings(BaseSettings):
     hg38_2bit_runtime_asset_mode: str = "local_path"
     hg38_2bit_runtime_asset_path: Path = Path("./data/bio_assets/genomes/hg38.2bit")
     hg38_2bit_runtime_asset_object_uri: str | None = None
+    coordinate_resolver_mane_gff_path: Path = Path(
+        "./data/bio_assets/transcripts/MANE.GRCh38.v1.5.refseq_genomic.gff.gz"
+    )
+    coordinate_resolver_refseq_gff_path: Path = Path(
+        "./data/bio_assets/transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz"
+    )
+    coordinate_resolver_hg38_2bit_path: Path | None = None
     protein_annotation_enabled: bool = False
     protein_annotation_hmmscan_path: Path = Path("hmmscan")
     protein_annotation_hmmpress_path: Path = Path("hmmpress")

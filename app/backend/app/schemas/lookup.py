@@ -125,6 +125,23 @@ class SearchInputSourceInputs(BaseModel):
     literature_terms: list[str] = Field(default_factory=list)
 
 
+class SearchInputCoordinateResolutionAudit(BaseModel):
+    resolver_path: str
+    coordinate_resolution_requested: bool
+    used_eamos_local: bool
+    used_variant_validator: bool
+    used_clinvar_for_coordinates: bool
+    used_submitted_genomic: bool
+    used_rsid_candidates: bool
+    canonical_variant_id: str | None = None
+    genomic_hgvs: str | None = None
+    local_source: str | None = None
+    variant_validator_url: str | None = None
+    clinvar_role: str | None = None
+    provenance: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class SearchInputCandidate(BaseModel):
     candidate_id: str
     display_label: str
@@ -155,6 +172,7 @@ class SearchInputInterpretation(BaseModel):
     genomic_hg38: str | None = None
     genomic_hgvs: str | None = None
     source_inputs: SearchInputSourceInputs | None = None
+    coordinate_resolution_audit: SearchInputCoordinateResolutionAudit | None = None
     requires_confirmation: bool = False
     exact_variant_available: bool = True
     auto_selected_candidate_id: str | None = None

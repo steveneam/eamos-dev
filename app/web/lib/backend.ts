@@ -223,6 +223,23 @@ export interface SearchInputSourceInputs {
   literature_terms: string[]
 }
 
+export interface SearchInputCoordinateResolutionAudit {
+  resolver_path: string
+  coordinate_resolution_requested: boolean
+  used_eamos_local: boolean
+  used_variant_validator: boolean
+  used_clinvar_for_coordinates: boolean
+  used_submitted_genomic: boolean
+  used_rsid_candidates: boolean
+  canonical_variant_id?: string | null
+  genomic_hgvs?: string | null
+  local_source?: string | null
+  variant_validator_url?: string | null
+  clinvar_role?: string | null
+  provenance: string[]
+  warnings: string[]
+}
+
 export interface SearchInputCandidate {
   candidate_id: string
   display_label: string
@@ -253,6 +270,7 @@ export interface SearchInputInterpretation {
   genomic_hg38?: string | null
   genomic_hgvs?: string | null
   source_inputs?: SearchInputSourceInputs | null
+  coordinate_resolution_audit?: SearchInputCoordinateResolutionAudit | null
   requires_confirmation: boolean
   exact_variant_available: boolean
   auto_selected_candidate_id?: string | null

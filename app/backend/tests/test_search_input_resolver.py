@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.core.config import Settings
 from app.services.search_input_interpreter import SearchInputInterpreter
-from app.services.search_input_resolver import EamosSearchInputResolver, parse_search_text
+from app.services.search_input_resolver import (
+    EamosSearchInputResolver,
+    _local_coordinate_resolver_settings,
+    parse_search_text,
+)
 
 
 def _settings(**overrides) -> Settings:
@@ -23,6 +29,20 @@ class _Response:
 class _NoLocalCoordinateResolver:
     def resolve(self, **_kwargs):
         return None
+
+
+def test_local_coordinate_resolver_settings_use_backend_runtime_paths() -> None:
+    settings = _settings(
+        coordinate_resolver_mane_gff_path=Path("custom/MANE.gff.gz"),
+        coordinate_resolver_refseq_gff_path=Path("custom/refseq.gff.gz"),
+        hg38_2bit_runtime_asset_path=Path("custom/hg38.2bit"),
+    )
+
+    kwargs = _local_coordinate_resolver_settings(settings)
+
+    assert kwargs["mane_gff_path"] == settings.backend_root / "custom/MANE.gff.gz"
+    assert kwargs["refseq_gff_path"] == settings.backend_root / "custom/refseq.gff.gz"
+    assert "reference_store_factory" in kwargs
 
 
 def test_eamos_search_input_resolver_accepts_gnomad_variant_id() -> None:

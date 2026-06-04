@@ -5,6 +5,7 @@ from dataclasses import replace
 from app.schemas.lookup import (
     SearchInputAiExtraction,
     SearchInputCandidate,
+    SearchInputCoordinateResolutionAudit,
     SearchInputInterpretation,
     SearchInputSourceInputs,
 )
@@ -339,6 +340,7 @@ class SearchInputInterpreter:
             genomic_hg38=resolution.genomic_hg38,
             genomic_hgvs=resolution.genomic_hgvs,
             source_inputs=_source_inputs_schema(resolution.source_inputs),
+            coordinate_resolution_audit=_coordinate_audit_schema(resolution),
             warnings=list(resolution.warnings),
             provenance=["deterministic_parser", *resolution.provenance],
         )
@@ -400,6 +402,7 @@ class SearchInputInterpreter:
             normalized_query=resolution.hgvs,
             query_kind=resolution.kind,
             source_inputs=_source_inputs_schema(resolution.source_inputs),
+            coordinate_resolution_audit=_coordinate_audit_schema(resolution),
             requires_confirmation=True,
             exact_variant_available=False,
             candidates=[
@@ -436,6 +439,7 @@ class SearchInputInterpreter:
             genomic_hg38=candidate.genomic_hg38 or resolution.genomic_hg38,
             genomic_hgvs=candidate.genomic_hgvs or resolution.genomic_hgvs,
             source_inputs=_source_inputs_schema(resolution.source_inputs),
+            coordinate_resolution_audit=_coordinate_audit_schema(resolution),
             exact_variant_available=True,
             auto_selected_candidate_id=candidate.candidate_id,
             candidates=[candidate],
@@ -468,6 +472,7 @@ class SearchInputInterpreter:
             genomic_hg38=resolution.genomic_hg38,
             genomic_hgvs=resolution.genomic_hgvs,
             source_inputs=_source_inputs_schema(resolution.source_inputs),
+            coordinate_resolution_audit=_coordinate_audit_schema(resolution),
             warnings=list(resolution.warnings),
             assumptions=list(extraction.assumptions),
             provenance=[
@@ -521,6 +526,7 @@ class SearchInputInterpreter:
                 genomic_hg38=resolution.genomic_hg38,
                 genomic_hgvs=resolution.genomic_hgvs,
                 source_inputs=_source_inputs_schema(resolution.source_inputs),
+                coordinate_resolution_audit=_coordinate_audit_schema(resolution),
                 requires_confirmation=True,
                 exact_variant_available=False,
                 candidates=candidates,
@@ -601,6 +607,7 @@ class SearchInputInterpreter:
             genomic_hg38=resolution.genomic_hg38,
             genomic_hgvs=resolution.genomic_hgvs,
             source_inputs=_source_inputs_schema(resolution.source_inputs),
+            coordinate_resolution_audit=_coordinate_audit_schema(resolution),
             requires_confirmation=True,
             exact_variant_available=False,
             ui_prompt=ui_prompt,
@@ -618,6 +625,28 @@ def _source_inputs_schema(source_inputs: SourceSpecificInputs) -> SearchInputSou
         spliceai=source_inputs.spliceai,
         clinvar=source_inputs.clinvar,
         literature_terms=list(source_inputs.literature_terms),
+    )
+
+
+def _coordinate_audit_schema(
+    resolution: SearchInputResolution,
+) -> SearchInputCoordinateResolutionAudit:
+    audit = resolution.coordinate_resolution_audit
+    return SearchInputCoordinateResolutionAudit(
+        resolver_path=audit.resolver_path,
+        coordinate_resolution_requested=audit.coordinate_resolution_requested,
+        used_eamos_local=audit.used_eamos_local,
+        used_variant_validator=audit.used_variant_validator,
+        used_clinvar_for_coordinates=audit.used_clinvar_for_coordinates,
+        used_submitted_genomic=audit.used_submitted_genomic,
+        used_rsid_candidates=audit.used_rsid_candidates,
+        canonical_variant_id=audit.canonical_variant_id,
+        genomic_hgvs=audit.genomic_hgvs,
+        local_source=audit.local_source,
+        variant_validator_url=audit.variant_validator_url,
+        clinvar_role=audit.clinvar_role,
+        provenance=list(audit.provenance),
+        warnings=list(audit.warnings),
     )
 
 

@@ -14,6 +14,7 @@ from app.services.eamos_coordinate_resolver import (
     EamosCoordinateResolution,
     EamosLocalCoordinateResolver,
 )
+from app.services.reference_genome import TwoBitReferenceGenomeStore
 from app.services.sequence_context import (
     CANONICAL_TRANSCRIPTS,
     QueryKind,
@@ -300,7 +301,9 @@ class EamosSearchInputResolver:
     ) -> EamosCoordinateResolution | None:
         resolver = self._local_coordinate_resolver
         if resolver is None:
-            resolver = EamosLocalCoordinateResolver()
+            resolver = EamosLocalCoordinateResolver(
+                **_local_coordinate_resolver_settings(self.settings)
+            )
             self._local_coordinate_resolver = resolver
         return resolver.resolve(gene=gene, cdna=cdna, transcript=transcript)
 
@@ -865,6 +868,50 @@ def _local_coordinate_summary(resolution: EamosCoordinateResolution) -> dict[str
         "confidence": resolution.confidence,
         "provenance": list(resolution.provenance),
     }
+
+
+def _local_coordinate_resolver_settings(settings) -> dict[str, Any]:
+    if settings is None:
+        return {}
+
+    mane_path = _settings_path(
+        settings,
+        getattr(settings, "coordinate_resolver_mane_gff_path", None),
+    )
+    refseq_path = _settings_path(
+        settings,
+        getattr(settings, "coordinate_resolver_refseq_gff_path", None),
+    )
+    reference_path = _settings_path(
+        settings,
+        getattr(settings, "coordinate_resolver_hg38_2bit_path", None)
+        or getattr(settings, "hg38_2bit_runtime_asset_path", None),
+    )
+    kwargs: dict[str, Any] = {
+        "mane_gff_path": mane_path,
+        "refseq_gff_path": refseq_path,
+    }
+    if reference_path is not None:
+        kwargs["reference_store_factory"] = (
+            lambda path=reference_path: TwoBitReferenceGenomeStore(
+                path,
+                source_version="UCSC hg38.2bit",
+                verify_checksum=False,
+            )
+        )
+    return kwargs
+
+
+def _settings_path(settings, path: Path | str | None) -> Path | None:
+    if path is None:
+        return None
+    resolved = Path(path)
+    if resolved.is_absolute():
+        return resolved
+    backend_root = getattr(settings, "backend_root", None)
+    if backend_root is None:
+        return resolved
+    return Path(backend_root) / resolved
 
 
 def _coordinate_resolution_audit(

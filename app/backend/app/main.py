@@ -39,6 +39,7 @@ from app.repos.users_repo import UsersRepo
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
 from app.services.auth import AuthService
+from app.services.batch import BatchService
 from app.services.chat_service import ChatService
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
@@ -51,6 +52,7 @@ from app.services.gene_viewer import (
 )
 from app.services.intake import IntakeService
 from app.services.lookup_service import LookupService
+from app.services.panels import PanelService
 from app.services.payments import PaymentsService
 from app.services.protein_annotation import ProteinAnnotationService
 from app.services.recommendation import RecommendationService
@@ -153,6 +155,12 @@ def create_app(settings=None) -> FastAPI:
         source_provider=gene_viewer_source_provider if settings.use_real_apis else None,
     )
 
+    panel_service = PanelService()
+    batch_service = BatchService(
+        upload_dir=settings.upload_dir,
+        panel_service=panel_service,
+    )
+
     app.state.settings = settings
     app.state.db_session_factory = db_session_factory
     app.state.rate_limiter = InMemoryRateLimiter()
@@ -169,6 +177,8 @@ def create_app(settings=None) -> FastAPI:
     app.state.gene_viewer_source_client = gene_viewer_source_client
     app.state.gene_viewer_source_provider = gene_viewer_source_provider
     app.state.gene_context_snapshot_service = gene_context_snapshot_service
+    app.state.panel_service = panel_service
+    app.state.batch_service = batch_service
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(
         settings=settings,
