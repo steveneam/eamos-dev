@@ -41,6 +41,9 @@ from app.rules.clinic_rules import ClinicRules
 from app.services.auth import AuthService
 from app.services.batch import BatchService
 from app.services.chat_service import ChatService
+from app.services.coordinate_asset_materialization import (
+    materialize_coordinate_resolver_assets,
+)
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
 from app.services.evidence_submissions import EvidenceSubmissionService
@@ -80,6 +83,11 @@ def create_app(settings=None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if settings.coordinate_resolver_asset_materialization_enabled:
+            result = materialize_coordinate_resolver_assets(settings)
+            logger.info("Coordinate resolver asset materialization: %s", result.to_dict())
+            if not result.ready:
+                raise RuntimeError("coordinate resolver asset materialization failed")
         initialize_database(db_session_factory)
         logger.info("Eamos backend ready at %s:%s", settings.host, settings.port)
         yield

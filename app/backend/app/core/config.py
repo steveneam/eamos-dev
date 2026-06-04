@@ -88,6 +88,16 @@ class Settings(BaseSettings):
         "./data/bio_assets/transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz"
     )
     coordinate_resolver_hg38_2bit_path: Path | None = None
+    coordinate_resolver_asset_materialization_enabled: bool = False
+    coordinate_resolver_asset_materialization_timeout_seconds: float = 1200.0
+    coordinate_resolver_asset_bucket_id: str = "eamos-source-assets"
+    coordinate_resolver_mane_gff_object_path: str = (
+        "transcripts/mane_refseq_gff/MANE.GRCh38.v1.5.refseq_genomic.gff.gz"
+    )
+    coordinate_resolver_refseq_gff_object_path: str = (
+        "transcripts/refseq_grch38_p14_gff/" "GCF_000001405.40_GRCh38.p14_genomic.gff.gz"
+    )
+    coordinate_resolver_hg38_2bit_object_path: str = "genomes/ucsc_hg38_2bit/hg38.2bit"
     protein_annotation_enabled: bool = False
     protein_annotation_hmmscan_path: Path = Path("hmmscan")
     protein_annotation_hmmpress_path: Path = Path("hmmpress")
