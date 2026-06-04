@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from hashlib import md5
 from pathlib import Path
 
+from app.core.paths import find_project_root
 from app.data_sources.registry import (
     DEFAULT_DATA_SOURCE_REGISTRY,
     DataSourceRecord,
@@ -102,7 +103,7 @@ def compute_md5(path: Path) -> str:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return find_project_root(__file__)
 
 
 def _required_string(value: str | None, field_name: str) -> str:

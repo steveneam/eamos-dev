@@ -6,6 +6,7 @@ from hashlib import md5, sha256
 from pathlib import Path
 from typing import Iterable
 
+from app.core.paths import find_project_root
 from app.data_sources.local_inventory import resolve_local_asset_path
 from app.data_sources.registry import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
 
@@ -231,7 +232,7 @@ def _asset_path(asset: ProteinAssetSpec, *, registry: DataSourceRegistry) -> Pat
     path = Path(asset.relative_path)
     if path.is_absolute():
         return path
-    return Path(__file__).resolve().parents[4] / path
+    return find_project_root(__file__) / path
 
 
 def _inspection(

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from app.core.paths import find_project_root, repo_relative_path
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
 
 MONDO_SOURCE_ID = "mondo_disease_ontology"
@@ -874,11 +875,8 @@ def _sha256_file(path: Path) -> str:
 
 
 def _repo_relative_path(path: Path) -> str:
-    try:
-        return path.resolve().relative_to(_repo_root()).as_posix()
-    except ValueError:
-        return str(path)
+    return repo_relative_path(path, anchor=__file__)
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return find_project_root(__file__)

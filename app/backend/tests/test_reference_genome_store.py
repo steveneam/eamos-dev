@@ -9,6 +9,7 @@ import pytest
 
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, LOCAL_HG38_2BIT_SOURCE_ID
 from app.data_sources.local_inventory import compute_md5
+import app.services.reference_genome as reference_genome_module
 from app.services.reference_genome import (
     ReferenceGenomeStore,
     ReferenceGenomeStoreError,
@@ -221,6 +222,19 @@ def test_twobit_store_rejects_checksum_mismatch(tmp_path: Path) -> None:
     assert exc_info.value.code == "reference_asset_checksum_mismatch"
     assert exc_info.value.details["expected_md5"] == "0" * 32
     assert exc_info.value.details["actual_md5"] == compute_md5(fixture_path)
+
+
+def test_repo_relative_path_tolerates_shallow_docker_layout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module_path = tmp_path / "image" / "app" / "services" / "reference_genome.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text("", encoding="utf-8")
+    external_asset = tmp_path / "var" / "data" / "eamos" / "bio_assets" / "hg38.2bit"
+
+    monkeypatch.setattr(reference_genome_module, "__file__", str(module_path))
+
+    assert reference_genome_module._repo_relative_path(external_asset) == str(external_asset)
 
 
 def test_twobit_store_unknown_chromosome_and_out_of_bounds_fail_closed(
