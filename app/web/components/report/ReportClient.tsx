@@ -1,9 +1,11 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
+import { WorkRail } from '@/components/layout/WorkRail'
+import { VariantLibraryRail, SaveCurrentButton } from '@/components/report/VariantLibraryRail'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { VariantHeader } from '@/components/report/VariantHeader'
 import { VariantDecoder } from '@/components/report/VariantDecoder'
@@ -438,77 +440,101 @@ export function ReportClient() {
         </div>
       </TopNav>
 
-      <main
-        className="mx-auto"
-        style={{
-          width: '100%',
-          maxWidth: 'var(--maxw-report-frame)',
-          padding: '32px 32px 80px',
-        }}
-      >
-        {activeState.kind === 'loading' && (
-          <ReportLoadingState query={queryLabel} gene={gene} cdna={cdna} />
-        )}
-        {activeState.kind === 'error' && (
-          <ErrorBlock
-            variant="generic"
-            message={activeState.message}
-            query={queryLabel}
-            onRetry={() => setAttempt((n) => n + 1)}
-            backHref={backHref}
-            backLabel={backLabel}
-            showDemo={!fromCompare}
-          />
-        )}
-        {activeState.kind === 'offline' && (
-          <ErrorBlock
-            variant="offline"
-            query={queryLabel}
-            onRetry={() => setAttempt((n) => n + 1)}
-            backHref={backHref}
-            backLabel={backLabel}
-            showDemo={!fromCompare}
-          />
-        )}
-        {activeState.kind === 'malformed' && (
-          <MalformedBlock
-            query={activeState.query}
-            detail={activeState.detail}
-            backHref={backHref}
-            backLabel={backLabel}
-            showDemo={!fromCompare}
-          />
-        )}
-        {activeState.kind === 'unresolved' && (
-          <ErrorBlock
-            variant="unresolved"
-            query={activeState.query}
-            onRetry={() => setAttempt((n) => n + 1)}
-            backHref={backHref}
-            backLabel={backLabel}
-            showDemo={!fromCompare}
-          />
-        )}
-        {activeState.kind === 'interpretation' && (
-          <SearchInterpretationPanel
-            query={activeState.query}
-            interpretation={activeState.interpretation}
-            limitations={activeState.detail}
-            onSelectCandidate={handleSelectCandidate}
-          />
-        )}
-        {activeState.kind === 'ready' && (
-          <ReportBody
-            key={activeState.requestKey}
-            data={activeState.data}
-            query={`${gene} ${cdna}`.trim() || activeState.data.query}
-            summaryRequest={summaryRequest}
-            lazyOverrides={lazyOverrides}
-            demo={negativeFixture}
-          />
-        )}
-      </main>
+      {activeState.kind === 'ready' ? (
+        // Ready report → controls-left <WorkRail surface="report">: the variant
+        // library rail sits flush-left, the --maxw-report-frame reading column
+        // passes through as the centered output verbatim (reading room intact).
+        <WorkRail
+          surface="report"
+          title="Library"
+          action={<SaveCurrentButton data={activeState.data} />}
+          output={
+            <CenteredMain>
+              <ReportBody
+                key={activeState.requestKey}
+                data={activeState.data}
+                query={`${gene} ${cdna}`.trim() || activeState.data.query}
+                summaryRequest={summaryRequest}
+                lazyOverrides={lazyOverrides}
+                demo={negativeFixture}
+              />
+            </CenteredMain>
+          }
+        >
+          <VariantLibraryRail data={activeState.data} query={queryLabel} />
+        </WorkRail>
+      ) : (
+        // Loading / error / offline / malformed / unresolved / interpretation:
+        // full-width centered column, no rail (never a rail over a non-report).
+        <CenteredMain>
+          {activeState.kind === 'loading' && (
+            <ReportLoadingState query={queryLabel} gene={gene} cdna={cdna} />
+          )}
+          {activeState.kind === 'error' && (
+            <ErrorBlock
+              variant="generic"
+              message={activeState.message}
+              query={queryLabel}
+              onRetry={() => setAttempt((n) => n + 1)}
+              backHref={backHref}
+              backLabel={backLabel}
+              showDemo={!fromCompare}
+            />
+          )}
+          {activeState.kind === 'offline' && (
+            <ErrorBlock
+              variant="offline"
+              query={queryLabel}
+              onRetry={() => setAttempt((n) => n + 1)}
+              backHref={backHref}
+              backLabel={backLabel}
+              showDemo={!fromCompare}
+            />
+          )}
+          {activeState.kind === 'malformed' && (
+            <MalformedBlock
+              query={activeState.query}
+              detail={activeState.detail}
+              backHref={backHref}
+              backLabel={backLabel}
+              showDemo={!fromCompare}
+            />
+          )}
+          {activeState.kind === 'unresolved' && (
+            <ErrorBlock
+              variant="unresolved"
+              query={activeState.query}
+              onRetry={() => setAttempt((n) => n + 1)}
+              backHref={backHref}
+              backLabel={backLabel}
+              showDemo={!fromCompare}
+            />
+          )}
+          {activeState.kind === 'interpretation' && (
+            <SearchInterpretationPanel
+              query={activeState.query}
+              interpretation={activeState.interpretation}
+              limitations={activeState.detail}
+              onSelectCandidate={handleSelectCandidate}
+            />
+          )}
+        </CenteredMain>
+      )}
     </div>
+  )
+}
+
+/** The report's reading column wrapper (the --maxw-report-frame centered
+ *  <main>). Shared by every load state and the ready WorkRail output so the
+ *  column geometry is defined in exactly one place. */
+function CenteredMain({ children }: { children: ReactNode }) {
+  return (
+    <main
+      className="mx-auto"
+      style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}
+    >
+      {children}
+    </main>
   )
 }
 
