@@ -1,0 +1,585 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Variant library — saved worklist, folders, compare tray, related lanes.
+   Lives inside <WorkRail> (work-rail.css). Reading Room vocabulary: --bg
+   surface, 0.5px --line hairlines, one teal accent, --cls-* dots, short
+   honest motion. Matches /compare's VariantTable + ScopeGate so the rail
+   and the compare table read as one family. No new global tokens.
+   Spec: docs/workspace-rail/phase-3-4-design.md.
+═════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────── §1  VariantCardRow — the shared atom ─────────────── */
+.lib-row {
+  flex: 1 1 auto;          /* fills its card/lane slot */
+  display: flex;
+  flex-wrap: wrap;         /* the full-HGVS row drops below the identity line */
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.lib-row-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.lib-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--bg);   /* ring lifts the dot off the warm page */
+  transform: translateY(1px);    /* optical center on the baseline text */
+  background: var(--cls-na-dot);
+}
+.lib-dot.cls-path  { background: var(--cls-path-dot); }
+.lib-dot.cls-lpath { background: var(--cls-lpath-dot); }
+.lib-dot.cls-vus   { background: var(--cls-vus-dot); }
+.lib-dot.cls-lben  { background: var(--cls-lben-dot); }
+.lib-dot.cls-ben   { background: var(--cls-ben-dot); }
+.lib-dot.cls-na    { background: var(--cls-na-dot); }
+.lib-gene {
+  flex: 0 0 auto;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.lib-sep { flex: 0 0 auto; color: var(--ink-5); font-size: 12px; }
+.lib-hgvs {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lib-row-caret {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.lib-row-caret:hover { color: var(--ink-2); }
+.lib-row-caret svg {
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+.lib-row-caret[aria-expanded='true'] svg { transform: rotate(90deg); color: var(--teal-deep); }
+
+/* Disclosed full transcript HGVS — grid-rows reveal (the sanctioned height
+   technique). Closed = 0fr (no height); open = 1fr. Full-width via flex-basis
+   so it wraps below the identity line. */
+.lib-row-full {
+  flex: 0 0 100%;
+  width: 100%;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-2) var(--ease-emphasized);
+}
+.lib-row[data-open='true'] .lib-row-full,
+.lib-card:hover .lib-row-full,        /* hover-peek (pointer only, see media query) */
+.lib-related-row:hover .lib-row-full {
+  grid-template-rows: 1fr;
+}
+.lib-row-full > .lib-hgvs-full {
+  overflow: hidden;
+  min-height: 0;
+  margin: 4px 0 1px 16px;            /* indent under the dot+gene */
+  padding-top: 4px;
+  border-top: 0.5px solid transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  user-select: text;                 /* copyable */
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--dur-2) var(--ease-standard),
+              transform var(--dur-2) var(--ease-standard);
+}
+.lib-row[data-open='true'] .lib-hgvs-full,
+.lib-card:hover .lib-hgvs-full,
+.lib-related-row:hover .lib-hgvs-full {
+  opacity: 1;
+  transform: translateY(0);
+  border-top-color: var(--line);
+}
+/* Hover-peek only on true hover devices; touch uses the caret. */
+@media (hover: none) {
+  .lib-card:hover .lib-row-full,
+  .lib-related-row:hover .lib-row-full { grid-template-rows: 0fr; }
+  .lib-card:hover .lib-hgvs-full,
+  .lib-related-row:hover .lib-hgvs-full { opacity: 0; }
+}
+
+/* ─────────────── §2  SavedVariantCard — worklist chrome ─────────────── */
+.lib-list { display: flex; flex-direction: column; gap: 2px; }
+.lib-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  border: 0.5px solid transparent;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-standard),
+              border-color var(--dur-1) var(--ease-standard);
+  /* enter animation */
+  animation: lib-row-in var(--dur-2) var(--ease-standard) both;
+}
+@keyframes lib-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lib-card:hover,
+.lib-card:focus-within {
+  background: var(--bg-soft);
+  border-color: var(--line);
+}
+.lib-card[data-here='true'] {
+  background: var(--bg-soft);
+  box-shadow: inset 2px 0 0 var(--ink-4);   /* "you are here" position cue */
+}
+.lib-card[data-selected='true'] {
+  background: var(--teal-tint);
+  border-color: var(--teal-bdr);
+  box-shadow: inset 3px 0 0 var(--teal-deep);   /* VariantTable selected-row bar */
+}
+.lib-card-check {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: var(--teal-deep);
+}
+.lib-card-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-standard);
+}
+.lib-card:hover .lib-card-actions,
+.lib-card:focus-within .lib-card-actions,
+.lib-card[data-pinned='true'] .lib-card-actions { opacity: 1; }
+.lib-card-pin,
+.lib-card-remove {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-4);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard);
+}
+.lib-card-pin:hover,
+.lib-card-remove:hover { background: var(--bg-soft2); color: var(--ink-2); }
+.lib-card-pin[aria-pressed='true'] { color: var(--teal-deep); opacity: 1; }
+
+/* ─────────────── §3.1  Saved section: secondary bar + count + empty ─────────────── */
+.lib-secbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -2px 0 6px;
+}
+.lib-secbar a {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  text-decoration: none;
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.lib-secbar a:hover { color: var(--teal-deep); }
+.lib-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: var(--bg-soft2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.lib-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 14px;
+  border: 0.5px dashed var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--bg-soft);
+  text-align: center;
+}
+.lib-empty .lib-empty-glyph { font-size: 16px; color: var(--ink-5); line-height: 1; }
+.lib-empty strong { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.lib-empty p { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-4); }
+.lib-empty a { color: var(--teal-deep); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+/* ─────────────── §3.2  Folders ─────────────── */
+.lib-folder { border-radius: var(--r-md); }
+.lib-folder + .lib-folder { margin-top: 2px; }
+.lib-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+  outline: 1.5px solid transparent;          /* drag-over uses outline (no layout shift) */
+  background: transparent;
+  transition: background .15s ease, outline-color .15s ease, color .15s ease, transform .15s ease;
+}
+.lib-folder-head:hover { background: var(--bg-soft); }
+.lib-folder-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.lib-folder-chev {
+  width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  transition: transform var(--dur-2) var(--ease-emphasized);
+  flex: 0 0 auto;
+}
+.lib-folder[data-open='false'] .lib-folder-chev { transform: rotate(-90deg); }
+.lib-folder-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lib-folder-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-standard);
+}
+.lib-folder-head:hover .lib-folder-actions { opacity: 1; }
+.lib-folder-actions button {
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; border-radius: 5px;
+  background: none; color: var(--ink-4); cursor: pointer; font-size: 12px;
+  transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard);
+}
+.lib-folder-actions button:hover { background: var(--bg-soft2); color: var(--ink-2); }
+.lib-folder-actions button.danger:hover { color: var(--err); }
+
+/* Drag-over a folder — MATCHES ScopeGate's drop zone (teal solid edge,
+   teal-tint fill, teal-deep text, subtle scale). */
+.lib-folder[data-dragover='true'] .lib-folder-head {
+  outline-color: var(--teal);
+  background: var(--teal-tint);
+  transform: scale(1.012);
+}
+.lib-folder[data-dragover='true'] .lib-folder-name { color: var(--teal-deep); }
+
+/* Folder body — collapsible, left-ruled to tie the nested cards to their head. */
+.lib-folder-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-2) var(--ease-emphasized);
+}
+.lib-folder[data-open='false'] .lib-folder-body { grid-template-rows: 0fr; }
+.lib-folder-body > .lib-folder-cards {
+  overflow: hidden;
+  min-height: 0;
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 0.5px solid var(--line);
+}
+
+/* New-folder affordance + inline input */
+.lib-newfolder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--ink-4);
+  font-family: var(--body);
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard);
+}
+.lib-newfolder:hover { color: var(--ink-2); background: var(--bg-soft); }
+.lib-folder-input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  border: 0.5px solid var(--line-2);
+  background: var(--bg);
+  font-family: var(--body);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.lib-folder-input:focus-visible {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.18);
+}
+
+/* Inline delete-confirm row */
+.lib-folder-confirm {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; font-size: 11.5px; color: var(--ink-3);
+}
+.lib-folder-confirm span { flex: 1 1 auto; }
+.lib-folder-confirm button { font-size: 11.5px; font-weight: 600; cursor: pointer; background: none; border: none; padding: 0; }
+.lib-folder-confirm .confirm-cancel { color: var(--ink-4); }
+.lib-folder-confirm .confirm-del { color: var(--err); }
+
+/* ─────────────── §3.3  Selection toolbar ─────────────── */
+.lib-seltoolbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  border: 0.5px solid var(--teal-bdr);
+  background: var(--teal-tint);
+  box-shadow: var(--elev-1);
+}
+.lib-seltoolbar-count { font-size: 11.5px; font-weight: 600; color: var(--teal-deep); white-space: nowrap; }
+.lib-seltoolbar-actions { position: relative; display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.lib-seltoolbar button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 7px;
+  border: 0.5px solid var(--teal-bdr); background: var(--bg);
+  color: var(--teal-deep); font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard);
+}
+.lib-seltoolbar button:hover { background: var(--bg-soft); }
+.lib-seltoolbar .seltoolbar-clear { border: none; background: none; color: var(--teal-deep); padding: 4px 6px; }
+
+/* Move-to-folder popover (the one --elev-3 overlay in the rail) */
+.lib-folder-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  box-shadow: var(--elev-3);
+  animation: lib-overlay-in var(--dur-2) var(--ease-standard) both;
+}
+@keyframes lib-overlay-in {
+  from { opacity: 0; transform: scale(.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.lib-folder-menu button {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; text-align: left;
+  padding: 8px 9px; border-radius: var(--r-sm);
+  border: none; background: transparent; color: var(--ink);
+  font-size: 12.5px; cursor: pointer;
+}
+.lib-folder-menu button:hover { background: var(--bg-soft); }
+
+/* ─────────────── §3.4  Compare tray ─────────────── */
+.lib-tray { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-pin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 7px;
+  border-radius: 9px;
+  border: 0.5px solid var(--teal-bdr);
+  background: var(--teal-tint);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--teal-deep);
+}
+.lib-pin-chip button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; padding: 0;
+  border: none; border-radius: 4px; background: none;
+  color: var(--teal-deep); opacity: .7; font-size: 11px; line-height: 1; cursor: pointer;
+}
+.lib-pin-chip button:hover { opacity: 1; }
+.lib-tray-empty { font-size: 11.5px; color: var(--ink-4); line-height: 1.5; }
+.lib-tray-open {
+  display: inline-flex; align-items: center; gap: 6px;
+  width: 100%; justify-content: center;
+  margin-top: 8px; padding: 8px 14px;
+  border-radius: var(--r-md);
+  border: 0.5px solid var(--teal-bdr);
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background var(--dur-1) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard);
+}
+.lib-tray-open:hover { background: var(--bg-soft); box-shadow: var(--elev-1); }
+.lib-tray-open:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+/* ─────────────── §4  Related variants lanes ─────────────── */
+.lib-lane + .lib-lane { margin-top: 2px; }
+.lib-lane-head {
+  display: flex; align-items: center; gap: 7px;
+  width: 100%; padding: 7px 8px;
+  border: none; border-radius: var(--r-sm);
+  background: transparent; cursor: pointer; text-align: left;
+  font-family: var(--body); font-size: 11.5px; font-weight: 600; color: var(--ink-3);
+  transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
+}
+.lib-lane-head:hover { background: var(--bg-soft); color: var(--ink-2); }
+.lib-lane-chev {
+  width: 14px; height: 14px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+.lib-lane[data-open='false'] .lib-lane-chev { transform: rotate(-90deg); }
+.lib-lane-label { flex: 1 1 auto; }
+.lib-lane-body {
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-2) var(--ease-emphasized);
+}
+.lib-lane[data-open='false'] .lib-lane-body { grid-template-rows: 0fr; }
+.lib-lane-body > .lib-lane-rows { overflow: hidden; min-height: 0; padding-left: 6px; }
+
+.lib-related-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-standard);
+}
+.lib-related-row:hover { background: var(--bg-soft); }
+.lib-related-add {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; border-radius: 5px;
+  background: none; color: var(--ink-4); cursor: pointer; font-size: 14px; line-height: 1;
+  opacity: 0;
+  transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard), opacity var(--dur-1) var(--ease-standard);
+}
+.lib-related-row:hover .lib-related-add { opacity: 1; }
+.lib-related-add:hover { color: var(--teal-deep); background: var(--bg-soft2); }
+
+/* Same-condition informational row (echoes report .cond at rail scale) */
+.lib-cond-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; font-size: 12px; color: var(--ink-2);
+}
+.lib-cond-row .cond-n { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--teal-deep); }
+.lib-cond-row .cond-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-cond-row .cond-ev { flex: 0 0 auto; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-4); }
+
+/* Same-panel row */
+.lib-panel-row { display: flex; flex-direction: column; gap: 6px; padding: 7px 8px; }
+.lib-panel-link {
+  font-size: 11.5px; font-weight: 600; color: var(--teal-deep);
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
+  cursor: pointer;
+  transition: text-decoration-color var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
+}
+.lib-panel-link:hover { color: var(--teal); text-decoration-color: var(--teal); }
+
+.lib-guardrail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--line);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-4);
+}
+
+/* ─────────────── Section nav (On this page) ─────────────── */
+.lib-pagenav { display: flex; flex-direction: column; gap: 1px; }
+.lib-pagenav-item {
+  display: block; width: 100%; text-align: left;
+  padding: 6px 10px; border: none; border-radius: var(--r-sm);
+  background: none; cursor: pointer;
+  font-family: var(--body); font-size: 12px; color: var(--ink-4);
+  border-left: 2px solid transparent;
+  transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard),
+              border-color var(--dur-1) var(--ease-standard);
+}
+.lib-pagenav-item:hover { background: var(--bg-soft); color: var(--ink-2); }
+.lib-pagenav-item[aria-current='true'] { color: var(--teal-deep); border-left-color: var(--teal-deep); font-weight: 600; }
+
+/* ─────────────── §5  Rail head Save action ─────────────── */
+.lib-save-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 0.5px solid var(--teal-bdr);
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+  font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: background var(--dur-1) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard);
+}
+.lib-save-btn:hover { box-shadow: var(--elev-1); }
+.lib-save-btn[data-saved='true'] { cursor: default; opacity: .85; }
+.lib-save-btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+/* ─────────────── Reduced-motion (belt-and-braces; global guard also covers) ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .lib-card,
+  .lib-row-full,
+  .lib-hgvs-full,
+  .lib-folder-body,
+  .lib-folder-head,
+  .lib-lane-body,
+  .lib-row-caret svg,
+  .lib-folder-chev,
+  .lib-lane-chev,
+  .lib-folder-menu {
+    transition: none;
+    animation: none;
+  }
+}
