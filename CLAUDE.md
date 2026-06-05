@@ -68,6 +68,12 @@ cd app/frontend && npm run dev
 # Node.js (Windows): IT-managed system install at C:\Program Files\nodejs\node.exe (already on PATH)
 # Backend root: app/backend/
 # LLM default: provider=mock (offline dev) — never assume use_real_apis=True
+
+# R (headless data analysis, BOTH agents — no RStudio GUI needed). Working area is
+#   GLOBAL at D:\r-scratch (outside this repo; see its README + demo.R template).
+#   Run via: C:\Users\seamegdool\AppData\Local\Programs\R\R-4.6.0\bin\x64\Rscript.exe  (R 4.6.0)
+#   Stack: readr/readxl/dplyr/tidyr/stringr/lubridate/ggplot2/scales/data.table/janitor/knitr/rmarkdown.
+#   Graphs via ggsave() (PNG/PDF/SVG, no display device). Not on PATH — use the absolute path.
 ```
 
 ## Coding Guidelines
