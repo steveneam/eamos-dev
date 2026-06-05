@@ -179,7 +179,11 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
           }}
         >
           <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
-            {res.activePanels.length > 0 ? `${res.shown.length} / ${res.total} in scope` : `${res.total} variants`}
+            {res.activePanels.length === 0
+              ? `${res.total} variants`
+              : res.shown.length === 0 && res.intervalPending > 0
+                ? `${res.total} variants · scoped server-side`
+                : `${res.shown.length} / ${res.total} in scope`}
           </span>
           <Dot />
           <span>{formatDuration(res.estSeconds)} est.</span>
@@ -192,8 +196,8 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
           {res.intervalPending > 0 && (
             <>
               <Dot />
-              <span title="Genomic variants without a gene symbol — filtered server-side via the MANE→hg38 BED interval map.">
-                {res.intervalPending} need interval filter
+              <span title="Genomic variants (no gene symbol) — the panel's gene match runs server-side via the MANE→hg38 BED interval map when you generate. Pending, not excluded.">
+                {res.intervalPending} pending server-side gene match
               </span>
             </>
           )}

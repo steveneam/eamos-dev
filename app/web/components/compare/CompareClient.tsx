@@ -189,7 +189,11 @@ export function CompareClient() {
                 ) : results && results.length > 0 ? (
                   <BatchResultsTable results={results} />
                 ) : res.shown.length === 0 ? (
-                  <EmptyScope onClear={() => changeFilters([])} />
+                  <EmptyScope
+                    onClear={() => changeFilters([])}
+                    intervalPending={res.intervalPending}
+                    total={res.total}
+                  />
                 ) : (
                   <VariantTable rows={res.shown} activePanels={res.activePanels} />
                 )}
@@ -357,7 +361,16 @@ function EmptyState() {
   )
 }
 
-function EmptyScope({ onClear }: { onClear: () => void }) {
+function EmptyScope({
+  onClear,
+  intervalPending,
+  total,
+}: {
+  onClear: () => void
+  intervalPending: number
+  total: number
+}) {
+  const pending = intervalPending > 0
   return (
     <section
       style={{
@@ -369,12 +382,20 @@ function EmptyScope({ onClear }: { onClear: () => void }) {
       }}
     >
       <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 15, margin: 0, color: 'var(--ink)' }}>
-        No variants match these filters
+        {pending ? 'These variants are scoped server-side' : 'No variants match these filters'}
       </h2>
       <p style={{ fontSize: 13, lineHeight: 1.6, margin: '8px 0 0' }}>
-        None of the named-gene variants fall in the active panel(s). Genomic variants without a gene
-        symbol are filtered server-side (interval intersection) once the batch engine lands — widen the
-        scope or clear the filters to see the full cohort.
+        {pending ? (
+          <>
+            {intervalPending === total ? `All ${total}` : `${intervalPending} of ${total}`} variant
+            {intervalPending === 1 ? '' : 's'} are genomic coordinates with no gene symbol, so the panel’s
+            gene match runs on the server (MANE→hg38 interval intersection) — they’re pending, not
+            excluded. The offline preview can’t map coordinates to panel genes; generate against the live
+            backend to resolve them.
+          </>
+        ) : (
+          'None of the named-gene variants fall in the active panel(s). Widen the scope or clear the filters to see the full cohort.'
+        )}
       </p>
       <button
         type="button"
