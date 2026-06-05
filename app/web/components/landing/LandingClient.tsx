@@ -13,6 +13,8 @@ import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
 import { Pill, PillStyles } from '@/components/landing/ui/Pill'
 import { reportHrefForQuery } from '@/lib/variant-search'
+import { parseVariantFile, stashCompareVariants } from '@/lib/variant-file'
+import { SAMPLE_VCF, SAMPLE_VCF_NAME } from '@/lib/sample-vcf'
 
 export function LandingClient() {
   const router = useRouter()
@@ -121,6 +123,24 @@ export function LandingClient() {
                 {chip}
               </Pill>
             ))}
+            <span
+              className="mx-1 text-[10px]"
+              style={{ color: 'var(--hero-ink-3)', opacity: 0.5 }}
+              aria-hidden
+            >
+              |
+            </span>
+            <Pill
+              as="button"
+              onClick={() => {
+                const parsed = parseVariantFile(SAMPLE_VCF, SAMPLE_VCF_NAME)
+                stashCompareVariants(parsed, SAMPLE_VCF_NAME)
+                router.push('/compare?demo=1')
+              }}
+              style={{ fontSize: 11 }}
+            >
+              Sample VCF →
+            </Pill>
           </div>
         </div>
       </section>

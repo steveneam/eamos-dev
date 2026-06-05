@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { buildCustomPanel, type CustomPanelDraft } from '@/lib/panels.mock'
+import { resolvePanel } from '@/lib/panels'
+import { type CustomPanelDraft } from '@/lib/panels.mock'
 import type { Panel } from '@/lib/backend'
 
 /**
@@ -15,13 +16,29 @@ export function KeywordPanelBuilder({ onCreate }: { onCreate: (panel: Panel) => 
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState<CustomPanelDraft | null>(null)
   const [missed, setMissed] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const generate = () => {
-    const result = buildCustomPanel(query)
-    setDraft(result)
-    setMissed(!result && query.trim().length > 0)
+  // POST /panels/resolve (falls back to the deterministic mock resolver when
+  // offline). Tokens go out as `symbols`; the disease-keyword → MONDO path
+  // lands with the backend resolver.
+  const generate = async () => {
+    const q = query.trim()
+    if (!q) return
+    setBusy(true)
+    setMissed(false)
+    setDraft(null)
+    try {
+      const symbols = q.split(/[\s,;|\t\r\n]+/).filter(Boolean)
+      const panel = await resolvePanel({ symbols })
+      if (panel.genes.length > 0) setDraft({ panel, sources: ['/panels/resolve'] })
+      else setMissed(true)
+    } catch {
+      setMissed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const accept = () => {
@@ -115,21 +132,21 @@ export function KeywordPanelBuilder({ onCreate }: { onCreate: (panel: Panel) => 
       <button
         type="button"
         onClick={generate}
-        disabled={!query.trim()}
+        disabled={!query.trim() || busy}
         style={{
           marginTop: 8,
           width: '100%',
           padding: '7px 12px',
           borderRadius: 8,
           border: '0.5px solid var(--ink-2)',
-          background: query.trim() ? 'var(--ink-2)' : 'var(--bg-soft)',
-          color: query.trim() ? '#fff' : 'var(--ink-5)',
+          background: query.trim() && !busy ? 'var(--ink-2)' : 'var(--bg-soft)',
+          color: query.trim() && !busy ? '#fff' : 'var(--ink-5)',
           fontSize: 12,
           fontWeight: 600,
-          cursor: query.trim() ? 'pointer' : 'not-allowed',
+          cursor: query.trim() && !busy ? 'pointer' : 'not-allowed',
         }}
       >
-        Generate panel
+        {busy ? 'Resolving…' : 'Generate panel'}
       </button>
 
       {draft && (

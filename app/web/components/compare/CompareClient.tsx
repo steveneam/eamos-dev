@@ -1,13 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
+import { WorkRail } from '@/components/layout/WorkRail'
 import { readCompareVariants, type CompareStash } from '@/lib/variant-file'
-import { applyFilters, type ActiveFilter } from '@/lib/compare-filters'
+import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
+import { getPanel } from '@/lib/panels'
+import { createBatch, getBatchJob } from '@/lib/batch'
+import type { BatchFilters, ParsedVariant as BatchVariant } from '@/lib/backend'
 import { ScopeGate } from './ScopeGate'
 import { VariantTable } from './VariantTable'
+import './compare.css'
 
 /**
  * Multi-variant view (`/compare`). Parse a dropped file into a cohort, scope it
@@ -19,24 +25,85 @@ import { VariantTable } from './VariantTable'
  */
 type RunStatus = 'idle' | 'running' | 'done'
 
+/** Map a browser-parsed cohort row to the backend batch variant shape. */
+function toBatchVariant(v: { raw: string; gene: string | null; variant: string | null; query: string }): BatchVariant {
+  return { raw: v.raw, query: v.query, gene: v.gene, variant: v.variant, warnings: [] }
+}
+
+/** Translate the active scope chips into the batch filter payload. */
+function toBatchFilters(filters: ActiveFilter[]): BatchFilters {
+  const out: BatchFilters = {}
+  const panel = filters.find((f) => f.kind === 'panel' && f.panelSlug)
+  if (panel?.panelSlug) out.panel_slug = panel.panelSlug
+  if (filters.some((f) => f.kind === 'pass')) out.pass_only = true
+  const regions = filters.filter((f) => f.kind === 'region' && f.region).map((f) => f.region as string)
+  if (regions.length) out.regions = regions
+  const af = filters.find((f) => f.kind === 'af')
+  if (af?.maxAf != null) out.max_af = af.maxAf
+  return out
+}
+
 export function CompareClient() {
+  const searchParams = useSearchParams()
   const [stash, setStash] = useState<CompareStash | null>(null)
   const [hydrated, setHydrated] = useState(false)
   const [filters, setFilters] = useState<ActiveFilter[]>([])
   const [status, setStatus] = useState<RunStatus>('idle')
+  // Bumped when a panel's full gene list resolves so applyFilters re-runs.
+  const [, bumpCache] = useState(0)
+  const loadedSlugs = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     setStash(readCompareVariants())
     setHydrated(true)
   }, [])
 
-  // Mock run: hold a "running" state briefly so the loading affordance shows.
-  // Codex's engine replaces this with real job submit + done/total progress.
+  const variants = useMemo(() => stash?.variants ?? [], [stash])
+  const res = applyFilters(variants, filters)
+
+  // Resolve full panels (genes) for active preset chips → the shared cache, so
+  // client-side membership uses real panel genes (mock fallback when offline).
   useEffect(() => {
-    if (status !== 'running') return
-    const t = setTimeout(() => setStatus('done'), 900)
-    return () => clearTimeout(t)
-  }, [status])
+    for (const f of filters) {
+      if (f.kind === 'panel' && f.panelSlug && !loadedSlugs.current.has(f.panelSlug)) {
+        const slug = f.panelSlug
+        loadedSlugs.current.add(slug)
+        getPanel(slug).then((p) => {
+          if (p) {
+            cacheResolvedPanel(p)
+            bumpCache((v) => v + 1)
+          }
+        })
+      }
+    }
+  }, [filters])
+
+  // Generate = submit a batch job + poll to completion. The backend's immediate
+  // in-memory summary path returns done==total at once; offline it falls back to
+  // a mock job and the client-side table (already computed) stands in.
+  const runBatch = useCallback(
+    async (runFilters: ActiveFilter[]) => {
+      setStatus('running')
+      try {
+        const job = await createBatch({
+          variants: variants.map(toBatchVariant),
+          filters: toBatchFilters(runFilters),
+        })
+        if (!job.job_id.startsWith('mock-')) {
+          for (let i = 0; i < 30; i++) {
+            const j = await getBatchJob(job.job_id)
+            if (j.status !== 'queued' && j.status !== 'running') break
+            if (j.total > 0 && j.done >= j.total) break
+            await new Promise((r) => setTimeout(r, 500))
+          }
+        }
+      } catch {
+        // Offline / network — the mock job + client-side table already cover it.
+      }
+      setStatus('done')
+    },
+    [variants],
+  )
 
   // Changing the scope invalidates output — you re-run, like resubmitting a job.
   const changeFilters = (next: ActiveFilter[]) => {
@@ -44,87 +111,112 @@ export function CompareClient() {
     setStatus('idle')
   }
 
-  const variants = stash?.variants ?? []
-  const res = applyFilters(variants, filters)
+  // Sample-VCF deep link (/compare?demo=1) — auto-generate the dropped cohort
+  // once it hydrates so the landing pill lands on a populated result.
+  const autoRan = useRef(false)
+  useEffect(() => {
+    if (autoRan.current || searchParams.get('demo') !== '1' || !hydrated || variants.length === 0) return
+    autoRan.current = true
+    runBatch([])
+  }, [searchParams, hydrated, variants.length, runBatch])
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
       <TopNav right={<ModePill current="report" />} />
-      <main
-        className="mx-auto"
-        style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}
-      >
-        <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-2" style={{ fontSize: 12, color: 'var(--ink-4)' }}>
-          <Link href="/" style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
-            Search
-          </Link>
-          <span style={{ color: 'var(--ink-5)' }}>/</span>
-          <span>Compare variants</span>
-        </nav>
 
-        <header
-          className="mb-5"
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}
+      {!hydrated ? null : variants.length === 0 ? (
+        <main
+          className="mx-auto"
+          style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}
         >
-          <div>
-            <h1
-              style={{
-                fontFamily: 'var(--display)',
-                fontWeight: 400,
-                fontSize: 30,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink)',
-                margin: 0,
-              }}
-            >
-              Compare variants
-            </h1>
-            {hydrated && variants.length > 0 && (
-              <p style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-3)', margin: '6px 0 0' }}>
-                {variants.length} variant{variants.length === 1 ? '' : 's'}
-                {stash?.source ? ` · from ${stash.source}` : ''}
-              </p>
-            )}
-          </div>
-
-          {hydrated && variants.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setStatus('running')}
-              disabled={status === 'running'}
-              style={generateBtn(status)}
-            >
-              {status === 'running' ? (
-                <>
-                  <Spinner /> Generating…
-                </>
-              ) : status === 'done' ? (
-                'Regenerate →'
-              ) : (
-                'Generate results →'
-              )}
-            </button>
-          )}
-        </header>
-
-        {!hydrated ? null : variants.length === 0 ? (
+          <Breadcrumb />
+          <PageHeader count={0} />
           <EmptyState />
-        ) : (
-          <>
+        </main>
+      ) : (
+        <div style={{ maxWidth: 'var(--maxw-workbench)', margin: '0 auto', padding: '28px 24px 80px' }}>
+          <Breadcrumb />
+          <PageHeader count={variants.length} source={stash?.source} />
+          <WorkRail
+            surface="compare"
+            title="Scope"
+            output={
+              <div style={{ padding: '0 0 0 24px' }}>
+                {/* The idle GeneratePrompt card already carries the CTA — only show
+                    the top Generate/Regenerate control once there's output to re-run,
+                    so the idle state doesn't leave a lone button over empty space. */}
+                {status !== 'idle' && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+                    <button
+                      type="button"
+                      onClick={() => runBatch(filters)}
+                      disabled={status === 'running'}
+                      className={`cmp-cta ${status === 'done' ? 'cmp-cta--done' : 'cmp-cta--solid'}${status === 'running' ? ' cmp-cta--running' : ''}`}
+                    >
+                      {status === 'running' ? (
+                        <>
+                          <Spinner /> Generating…
+                        </>
+                      ) : (
+                        'Regenerate →'
+                      )}
+                    </button>
+                  </div>
+                )}
+                {status === 'idle' ? (
+                  <GeneratePrompt scoped={res.activePanels.length > 0} onGenerate={() => runBatch(filters)} />
+                ) : status === 'running' ? (
+                  <LoadingCard />
+                ) : res.shown.length === 0 ? (
+                  <EmptyScope onClear={() => changeFilters([])} />
+                ) : (
+                  <VariantTable rows={res.shown} activePanels={res.activePanels} />
+                )}
+              </div>
+            }
+          >
             <ScopeGate variants={variants} filters={filters} onChange={changeFilters} />
-            {status === 'idle' ? (
-              <GeneratePrompt scoped={res.activePanels.length > 0} onGenerate={() => setStatus('running')} />
-            ) : status === 'running' ? (
-              <LoadingCard />
-            ) : res.shown.length === 0 ? (
-              <EmptyScope onClear={() => changeFilters([])} />
-            ) : (
-              <VariantTable rows={res.shown} activePanels={res.activePanels} />
-            )}
-          </>
-        )}
-      </main>
+          </WorkRail>
+        </div>
+      )}
     </div>
+  )
+}
+
+function Breadcrumb() {
+  return (
+    <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-2" style={{ fontSize: 12, color: 'var(--ink-4)' }}>
+      <Link href="/" style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
+        Search
+      </Link>
+      <span style={{ color: 'var(--ink-5)' }}>/</span>
+      <span>Compare variants</span>
+    </nav>
+  )
+}
+
+function PageHeader({ count, source }: { count: number; source?: string }) {
+  return (
+    <header className="mb-5">
+      <h1
+        style={{
+          fontFamily: 'var(--display)',
+          fontWeight: 400,
+          fontSize: 30,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink)',
+          margin: 0,
+        }}
+      >
+        Compare variants
+      </h1>
+      {count > 0 && (
+        <p style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-3)', margin: '6px 0 0' }}>
+          {count} variant{count === 1 ? '' : 's'}
+          {source ? ` · from ${source}` : ''}
+        </p>
+      )}
+    </header>
   )
 }
 
@@ -184,22 +276,7 @@ function GeneratePrompt({ scoped, onGenerate }: { scoped: boolean; onGenerate: (
         Large VCFs aren’t filtered in real time. Set your scope above
         {scoped ? ' (filters applied)' : ''}, then generate to run the per-variant lookup.
       </p>
-      <button
-        type="button"
-        onClick={onGenerate}
-        style={{
-          marginTop: 18,
-          padding: '11px 26px',
-          borderRadius: 12,
-          border: '0.5px solid var(--teal-deep)',
-          background: 'var(--teal-deep)',
-          color: '#fff',
-          fontSize: 14,
-          fontWeight: 700,
-          cursor: 'pointer',
-          boxShadow: '0 6px 18px -8px rgba(21,107,80,0.5)',
-        }}
-      >
+      <button type="button" onClick={onGenerate} className="cmp-cta cmp-cta--solid" style={{ marginTop: 18 }}>
         Generate results →
       </button>
     </section>

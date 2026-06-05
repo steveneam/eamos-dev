@@ -1,0 +1,60 @@
+/* /compare CTA — the Generate / Regenerate button. Class-based so :hover can
+   lift the button (inline styles can't carry a hover state). Reading Room
+   motion tokens; reduced-motion guard drops the transform. */
+.cmp-cta {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--dur-1, 120ms) var(--ease-standard),
+    box-shadow var(--dur-2, 200ms) var(--ease-standard),
+    background var(--dur-1, 120ms) ease,
+    border-color var(--dur-1, 120ms) ease;
+}
+
+.cmp-cta--solid {
+  padding: 11px 24px;
+  border: 0.5px solid var(--teal-deep);
+  background: var(--teal-deep);
+  color: #fff;
+  box-shadow: 0 6px 18px -8px rgba(21, 107, 80, 0.5);
+}
+.cmp-cta--solid:hover {
+  transform: translateY(-1px);
+  background: var(--teal);
+  box-shadow: 0 12px 26px -10px rgba(21, 107, 80, 0.6);
+}
+.cmp-cta--solid:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px -8px rgba(21, 107, 80, 0.5);
+}
+
+.cmp-cta--done {
+  padding: 11px 24px;
+  border: 0.5px solid var(--teal-bdr);
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+  box-shadow: none;
+}
+.cmp-cta--done:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elev-1);
+}
+
+.cmp-cta--running {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-cta {
+    transition: background var(--dur-1, 120ms) ease, border-color var(--dur-1, 120ms) ease;
+  }
+  .cmp-cta:hover,
+  .cmp-cta:active {
+    transform: none;
+  }
+}

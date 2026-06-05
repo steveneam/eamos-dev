@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { WorkRailSection } from '@/components/layout/WorkRail'
 import { MOCK_PANELS, PANEL_SOURCE_LABEL } from '@/lib/panels.mock'
+import { getPanels } from '@/lib/panels'
 import type { ParsedVariant } from '@/lib/variant-file'
-import type { Panel } from '@/lib/backend'
+import type { Panel, PanelSummary } from '@/lib/backend'
 import {
   applyFilters,
   DEFAULT_MAX_AF,
@@ -18,10 +20,11 @@ import {
 import { KeywordPanelBuilder, LlmPanelComingSoon } from './CustomPanelBuilder'
 
 /**
- * P3 scope bar (spec §5.3 + §6.5). Left column: active filters as removable chips
- * + a slim summary. Right rail: a tabbed box — "Presets" (panel list + quality /
- * region / frequency) and "Custom panel" (the scratchpad builder). Panel chips
- * filter live (mock); PASS/Region/AF apply server-side. Filtering is live.
+ * Scope controls for /compare, rendered as <WorkRail> content (left rail).
+ * "Active scope" holds the applied filters as removable chips + a slim summary;
+ * "Add a filter" is the tabbed builder — Gene panels (preset list + quality /
+ * region / frequency), Keywords (the custom-panel builder), and LLM (coming
+ * soon). Panel chips filter live (mock); PASS/Region/AF apply server-side.
  */
 const DT = 'text/plain'
 type DragPayload = { t: 'new'; kind: FilterKind; panelSlug?: string } | { t: 'chip'; index: number }
@@ -42,15 +45,29 @@ function move<T>(arr: T[], from: number, to: number): T[] {
 
 export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
   const [tab, setTab] = useState<RailTab>('panels')
-  // The builder rail minimises once a filter is applied (output generated), and
-  // re-expands when the scope is cleared. The user can also toggle it manually.
-  const [railOpen, setRailOpen] = useState(true)
-  const prevCount = useRef(0)
+  const [dragOver, setDragOver] = useState(false)
+  // Panel catalog for the preset list — mock-first, replaced by the live
+  // GET /panels catalogue once it loads (falls back to mocks when offline).
+  const [catalog, setCatalog] = useState<PanelSummary[]>(MOCK_PANELS)
   useEffect(() => {
-    if (prevCount.current === 0 && filters.length > 0) setRailOpen(false)
-    else if (filters.length === 0) setRailOpen(true)
-    prevCount.current = filters.length
-  }, [filters.length])
+    let stale = false
+    getPanels().then((p) => {
+      if (!stale) setCatalog(p)
+    })
+    return () => {
+      stale = true
+    }
+  }, [])
+
+  // Shared drag-over tracking for the scope drop zone. Guard dragLeave against
+  // child elements so the highlight doesn't flicker as you move across chips.
+  const enterZone = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+  const leaveZone = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false)
+  }
 
   const add = (kind: FilterKind, init?: Partial<ActiveFilter>) => onChange([...filters, makeFilter(kind, init)])
   const remove = (id: string) => onChange(filters.filter((f) => f.id !== id))
@@ -75,180 +92,170 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
   const res = applyFilters(variants, filters)
 
   return (
-    <section aria-label="Scope this cohort" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-        {/* LEFT: active filters + summary */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {filters.length === 0 ? (
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => onDropPayload(e.dataTransfer.getData(DT), null)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                minHeight: 44,
-                padding: '0 14px',
-                borderRadius: 11,
-                border: '1px dashed var(--line-2)',
-                background: 'var(--bg-soft)',
-                color: 'var(--ink-4)',
-                fontSize: 12.5,
-              }}
-            >
-              <span aria-hidden style={{ fontSize: 14 }}>⌬</span>
-              Add a filter from the right, or drag one here, to scope this cohort.
-            </div>
-          ) : (
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => onDropPayload(e.dataTransfer.getData(DT), filters.length)}
-              style={{ display: 'flex', flexWrap: 'wrap', gap: 8, minHeight: 36, alignContent: 'center' }}
-            >
-              {filters.map((f, i) => (
-                <FilterChip
-                  key={f.id}
-                  filter={f}
-                  index={i}
-                  onRemove={() => remove(f.id)}
-                  onUpdate={(patch) => update(f.id, patch)}
-                  onReorderDrop={(raw) => onDropPayload(raw, i)}
-                />
-              ))}
-            </div>
-          )}
-
+    <>
+      <WorkRailSection title="Active scope">
+        {filters.length === 0 ? (
           <div
+            onDragOver={enterZone}
+            onDragEnter={enterZone}
+            onDragLeave={leaveZone}
+            onDrop={(e) => {
+              setDragOver(false)
+              onDropPayload(e.dataTransfer.getData(DT), null)
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              gap: 8,
+              minHeight: 60,
+              padding: '12px 14px',
+              borderRadius: 12,
+              border: dragOver ? '1.5px solid var(--teal)' : '1.5px dashed var(--line-2)',
+              background: dragOver ? 'var(--teal-tint)' : 'var(--bg-soft)',
+              color: dragOver ? 'var(--teal-deep)' : 'var(--ink-4)',
+              fontSize: 12.5,
+              fontWeight: dragOver ? 600 : 400,
+              lineHeight: 1.4,
+              transform: dragOver ? 'scale(1.015)' : 'scale(1)',
+              transition: 'border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease',
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 15 }}>{dragOver ? '⤓' : '⌬'}</span>
+            {dragOver ? 'Drop to add this filter' : 'Pick a filter below, or drag one here, to scope this cohort.'}
+          </div>
+        ) : (
+          <div
+            onDragOver={enterZone}
+            onDragEnter={enterZone}
+            onDragLeave={leaveZone}
+            onDrop={(e) => {
+              setDragOver(false)
+              onDropPayload(e.dataTransfer.getData(DT), filters.length)
+            }}
             style={{
               display: 'flex',
               flexWrap: 'wrap',
-              gap: 10,
+              gap: 8,
+              minHeight: 40,
+              alignContent: 'center',
               alignItems: 'center',
-              marginTop: 10,
-              fontSize: 12,
-              color: 'var(--ink-3)',
-              fontFamily: 'var(--mono)',
+              padding: 6,
+              borderRadius: 10,
+              border: dragOver ? '1.5px dashed var(--teal)' : '1.5px dashed transparent',
+              background: dragOver ? 'var(--teal-tint)' : 'transparent',
+              transition: 'border-color .15s ease, background .15s ease',
             }}
           >
-            <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
-              {res.activePanels.length > 0 ? `${res.shown.length} / ${res.total} in scope` : `${res.total} variants`}
-            </span>
-            <Dot />
-            <span>{formatDuration(res.estSeconds)} est. lookup</span>
-            {res.serverSideCount > 0 && (
-              <>
-                <Dot />
-                <span>
-                  {res.serverSideCount} server-side filter{res.serverSideCount === 1 ? '' : 's'}
-                </span>
-              </>
-            )}
-            {res.intervalPending > 0 && (
-              <>
-                <Dot />
-                <span title="Genomic variants without a gene symbol — filtered server-side via the MANE→hg38 BED interval map.">
-                  {res.intervalPending} need interval filter
-                </span>
-              </>
-            )}
-            {filters.length > 0 && (
-              <button
-                type="button"
-                onClick={() => onChange([])}
-                style={{
-                  marginLeft: 'auto',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--ink-4)',
-                  fontSize: 11.5,
-                  fontFamily: 'var(--mono)',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-              >
-                Clear all
-              </button>
+            {filters.map((f, i) => (
+              <FilterChip
+                key={f.id}
+                filter={f}
+                index={i}
+                onRemove={() => remove(f.id)}
+                onUpdate={(patch) => update(f.id, patch)}
+                onReorderDrop={(raw) => onDropPayload(raw, i)}
+              />
+            ))}
+            {dragOver && (
+              <span style={{ fontSize: 11.5, fontFamily: 'var(--mono)', color: 'var(--teal-deep)', fontWeight: 600 }}>
+                + drop to add
+              </span>
             )}
           </div>
-        </div>
+        )}
 
-        {/* RIGHT: builder rail — minimises once filters are applied */}
-        <div style={{ flexShrink: 0, width: railOpen ? 320 : 'auto' }}>
-          {railOpen ? (
-            <div style={{ background: 'var(--bg)', border: '0.5px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '0.5px solid var(--line)' }}>
-                <div role="tablist" aria-label="Add a filter" style={{ display: 'flex', flex: 1 }}>
-                  <TabButton active={tab === 'panels'} onClick={() => setTab('panels')}>
-                    Gene panels
-                  </TabButton>
-                  <TabButton active={tab === 'keywords'} onClick={() => setTab('keywords')}>
-                    Keywords
-                  </TabButton>
-                  <TabButton active={tab === 'llm'} onClick={() => setTab('llm')}>
-                    LLM
-                  </TabButton>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Minimize filter builder"
-                  title="Hide"
-                  onClick={() => setRailOpen(false)}
-                  style={{
-                    padding: '0 12px',
-                    border: 'none',
-                    borderLeft: '0.5px solid var(--line)',
-                    background: 'var(--bg-soft)',
-                    color: 'var(--ink-4)',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ▴
-                </button>
-              </div>
-              <div style={{ padding: 10 }}>
-                {tab === 'panels' && <PresetList filters={filters} onAdd={add} />}
-                {tab === 'keywords' && <KeywordPanelBuilder onCreate={addCustom} />}
-                {tab === 'llm' && <LlmPanelComingSoon />}
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setRailOpen(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '9px 14px',
-                borderRadius: 10,
-                border: '0.5px solid var(--line-2)',
-                background: 'var(--bg)',
-                color: 'var(--ink-2)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              + Add or edit filters{filters.length ? ` · ${filters.length}` : ''}{' '}
-              <span aria-hidden style={{ fontSize: 10, opacity: 0.7 }}>▾</span>
-            </button>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            alignItems: 'center',
+            marginTop: 10,
+            fontSize: 11.5,
+            color: 'var(--ink-3)',
+            fontFamily: 'var(--mono)',
+          }}
+        >
+          <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
+            {res.activePanels.length > 0 ? `${res.shown.length} / ${res.total} in scope` : `${res.total} variants`}
+          </span>
+          <Dot />
+          <span>{formatDuration(res.estSeconds)} est.</span>
+          {res.serverSideCount > 0 && (
+            <>
+              <Dot />
+              <span>{res.serverSideCount} server-side</span>
+            </>
+          )}
+          {res.intervalPending > 0 && (
+            <>
+              <Dot />
+              <span title="Genomic variants without a gene symbol — filtered server-side via the MANE→hg38 BED interval map.">
+                {res.intervalPending} need interval filter
+              </span>
+            </>
           )}
         </div>
-      </div>
-    </section>
+
+        {filters.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            style={{
+              marginTop: 8,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'var(--ink-4)',
+              fontSize: 11.5,
+              fontFamily: 'var(--mono)',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            Clear all filters
+          </button>
+        )}
+      </WorkRailSection>
+
+      <WorkRailSection title="Add a filter">
+        <div role="tablist" aria-label="Add a filter" style={{ display: 'flex', gap: 2, marginBottom: 10 }}>
+          <TabButton active={tab === 'panels'} onClick={() => setTab('panels')}>
+            Gene panels
+          </TabButton>
+          <TabButton active={tab === 'keywords'} onClick={() => setTab('keywords')}>
+            Keywords
+          </TabButton>
+          <TabButton active={tab === 'llm'} onClick={() => setTab('llm')}>
+            LLM
+          </TabButton>
+        </div>
+        {tab === 'panels' && <PresetList filters={filters} catalog={catalog} onAdd={add} />}
+        {tab === 'keywords' && <KeywordPanelBuilder onCreate={addCustom} />}
+        {tab === 'llm' && <LlmPanelComingSoon />}
+      </WorkRailSection>
+    </>
   )
 }
 
-function PresetList({ filters, onAdd }: { filters: ActiveFilter[]; onAdd: (kind: FilterKind, init?: Partial<ActiveFilter>) => void }) {
+function PresetList({
+  filters,
+  catalog,
+  onAdd,
+}: {
+  filters: ActiveFilter[]
+  catalog: PanelSummary[]
+  onAdd: (kind: FilterKind, init?: Partial<ActiveFilter>) => void
+}) {
   const activePanelSlugs = new Set(filters.filter((f) => f.kind === 'panel').map((f) => f.panelSlug))
   const hasPass = filters.some((f) => f.kind === 'pass')
   const hasAf = filters.some((f) => f.kind === 'af')
   return (
     <div>
       <MenuLabel>Gene panel</MenuLabel>
-      {MOCK_PANELS.map((p) => {
+      {catalog.map((p) => {
         const taken = activePanelSlugs.has(p.slug)
         return (
           <MenuItem

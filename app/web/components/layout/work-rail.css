@@ -1,0 +1,285 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   <WorkRail> — shared controls-left / output-right shell.
+   Used by /compare, /workbench, /report. Reading Room vocabulary
+   (DESIGN.md): --bg surface, 0.5px --line hairlines, --elev-1 rest,
+   --dur-2 / --ease-emphasized motion. Self-contained — no workbench.css.
+   Spec: docs/workspace-rail/spec.md §3 + §6.
+═════════════════════════════════════════════════════════════════════════ */
+
+.work-shell {
+  /* Surfaces with a taller sticky header (e.g. workbench nav + ctx strip)
+     override --rail-top; default clears a single 60px TopNav. */
+  --rail-top: var(--nav-h, 60px);
+  --rail-w: 336px;
+  --rail-w-collapsed: 48px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+}
+
+/* ── Rail (left controls) ── */
+.work-rail {
+  flex: 0 0 var(--rail-w);
+  width: var(--rail-w);
+  background: var(--bg);
+  border-right: 0.5px solid var(--line);
+  box-shadow: var(--elev-1);
+  align-self: flex-start;
+  position: sticky;
+  top: var(--rail-top);
+  max-height: calc(100vh - var(--rail-top));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: flex-basis var(--dur-2) var(--ease-emphasized),
+    width var(--dur-2) var(--ease-emphasized);
+}
+
+.work-rail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 10px;
+  border-bottom: 0.5px solid var(--line);
+  flex: 0 0 auto;
+}
+.work-rail-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--dur-1, 120ms) ease, border-color var(--dur-1, 120ms) ease,
+    background var(--dur-1, 120ms) ease;
+}
+.work-rail-toggle:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+  background: var(--bg-soft);
+}
+.work-rail-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.work-rail-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.work-rail-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px 16px;
+  min-height: 0;
+}
+
+/* ── Output (right, dominant) ── */
+.work-output {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── Inline collapsed → 48px icon rail ── */
+.work-shell.is-collapsed .work-rail {
+  flex-basis: var(--rail-w-collapsed);
+  width: var(--rail-w-collapsed);
+}
+.work-shell.is-collapsed .work-rail-head {
+  padding: 12px 0 10px;
+  justify-content: center;
+}
+.work-shell.is-collapsed .work-rail-title,
+.work-shell.is-collapsed .work-rail-action,
+.work-shell.is-collapsed .work-rail-body {
+  display: none;
+}
+.work-rail-stub {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 14px 0;
+  min-height: 160px;
+}
+.work-rail-stub span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.work-rail-stub:hover span {
+  color: var(--ink-2);
+}
+
+/* ── Drawer mode (<1200px) ── output goes full-width; rail overlays. ── */
+.work-shell.mode-drawer .work-rail {
+  position: fixed;
+  left: 0;
+  top: var(--rail-top);
+  bottom: 0;
+  max-height: none;
+  width: min(var(--rail-w), 86vw);
+  flex-basis: auto;
+  z-index: 60;
+  border-right: 0.5px solid var(--line);
+  box-shadow: var(--elev-3);
+  transform: translateX(-100%);
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+.work-shell.mode-drawer.is-open .work-rail {
+  transform: translateX(0);
+}
+.work-rail-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  border: none;
+  padding: 0;
+  background: rgba(11, 26, 43, 0.32);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity var(--dur-2) var(--ease-emphasized);
+}
+.work-shell.mode-drawer.is-open .work-rail-scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
+.work-rail-fab {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px 9px 11px;
+  border-radius: 100px;
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  box-shadow: var(--elev-2);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.work-rail-fab span {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10.5px;
+}
+.work-rail-fab:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+/* ─────────────── Rail section (collapsible) ───────────────
+   Each section is a distinct group: a header band sits clearly above its
+   content, and a hairline + spacing separate one section from the next
+   (Supabase/Vercel/Render sidebar grammar). Mirrors .side-section-head. */
+.wr-section {
+  margin: 0 -4px; /* let the header band + divider span the full rail width */
+  padding: 0 4px;
+}
+.wr-section + .wr-section {
+  margin-top: 6px;
+  border-top: 0.5px solid var(--line);
+  padding-top: 6px;
+}
+.wr-section-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-align: left;
+  transition: background var(--dur-1, 120ms) ease, color var(--dur-1, 120ms) ease;
+}
+.wr-section-head:hover {
+  background: var(--bg-soft);
+  color: var(--ink);
+}
+.wr-section-head:focus-visible {
+  outline: 2px solid var(--brand, var(--teal));
+  outline-offset: 2px;
+}
+.wr-section-head[aria-expanded='false'] {
+  color: var(--ink-4);
+}
+.wr-section-chev {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  transition: transform var(--dur-2) ease;
+  flex: 0 0 auto;
+}
+.wr-section-head[aria-expanded='false'] .wr-section-chev {
+  transform: rotate(-90deg);
+}
+.wr-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.wr-section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  flex: 0 0 auto;
+}
+.wr-section-body {
+  padding: 4px 4px 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work-rail,
+  .work-shell.mode-drawer .work-rail,
+  .work-rail-scrim,
+  .wr-section-chev {
+    transition: none;
+  }
+}

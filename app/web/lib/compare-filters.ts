@@ -21,10 +21,26 @@ export interface ActiveFilter {
   maxAf?: number // kind=af
 }
 
-/** A panel filter resolves to a preset (by slug) or a builder-generated custom panel. */
-export function resolveFilterPanel(f: ActiveFilter): Panel | null {
+/** Resolves a panel-filter chip to its full Panel (with genes). Preset chips
+ *  resolve through `resolve` (default = live cache → mock); custom chips carry
+ *  their genes inline. */
+export type PanelResolver = (slug: string) => Panel | null
+
+// Live per-slug cache of fully-resolved panels (from GET /panels/{slug}).
+// CompareClient fills it as panel chips are added; the default resolver checks
+// it before the bundled mocks, so once a real panel's genes load every
+// applyFilters/chip render picks them up.
+const RESOLVED_PANELS = new Map<string, Panel>()
+export function cacheResolvedPanel(panel: Panel): void {
+  RESOLVED_PANELS.set(panel.slug, panel)
+}
+function defaultResolve(slug: string): Panel | null {
+  return RESOLVED_PANELS.get(slug) ?? getMockPanel(slug)
+}
+
+export function resolveFilterPanel(f: ActiveFilter, resolve: PanelResolver = defaultResolve): Panel | null {
   if (f.customPanel) return f.customPanel
-  if (f.panelSlug) return getMockPanel(f.panelSlug)
+  if (f.panelSlug) return resolve(f.panelSlug)
   return null
 }
 
@@ -63,10 +79,14 @@ export interface FilterResult {
 /** Apply the active filters. Panel chips union their genes (a row matches if it
  *  is in ANY active panel); non-panel chips are server-side and don't change the
  *  client row set, only the server-side tally. */
-export function applyFilters(variants: ParsedVariant[], filters: ActiveFilter[]): FilterResult {
+export function applyFilters(
+  variants: ParsedVariant[],
+  filters: ActiveFilter[],
+  resolve: PanelResolver = defaultResolve,
+): FilterResult {
   const activePanels = filters
     .filter((f) => f.kind === 'panel')
-    .map(resolveFilterPanel)
+    .map((f) => resolveFilterPanel(f, resolve))
     .filter((p): p is Panel => Boolean(p))
   const serverSideCount = filters.filter((f) => f.kind !== 'panel').length
 
@@ -107,10 +127,10 @@ export function formatDuration(seconds: number): string {
 }
 
 /** Short human label for a chip. */
-export function filterChipLabel(f: ActiveFilter): string {
+export function filterChipLabel(f: ActiveFilter, resolve: PanelResolver = defaultResolve): string {
   switch (f.kind) {
     case 'panel':
-      return resolveFilterPanel(f)?.name ?? 'Panel'
+      return resolveFilterPanel(f, resolve)?.name ?? 'Panel'
     case 'pass':
       return 'PASS only'
     case 'region':
