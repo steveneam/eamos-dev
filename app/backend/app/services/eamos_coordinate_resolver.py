@@ -176,10 +176,9 @@ class EamosLocalCoordinateResolver:
         self.refseq_gff_path = refseq_gff_path
         self.reference_store_factory = reference_store_factory or _default_reference_store
         self._catalog = _load_coordinate_catalog(coordinate_catalog_path)
-        self._transcripts = _merge_transcript_sources(
-            _load_mane_gff_transcript_models(mane_gff_path),
-            _load_mane_gff_transcript_models(refseq_gff_path),
-        )
+        self._transcript_cache: dict[str, tuple[_TranscriptRecord, ...]] = {}
+        self._mane_loaded_genes: set[str] = set()
+        self._refseq_loaded_genes: set[str] = set()
         self._reference_store: _ReferenceStore | None = None
 
     def resolve(
@@ -238,18 +237,72 @@ class EamosLocalCoordinateResolver:
         gene: str,
         transcript: str | None,
     ) -> _TranscriptRecord | None:
-        candidates = self._transcripts.get(gene, ())
-        if not candidates:
-            return None
-        if transcript is None:
-            return candidates[0]
+        candidates = self._records_for_gene(gene)
+        selected = _select_transcript_record(candidates, transcript)
+        if selected is not None:
+            return selected
 
-        requested = _versionless(transcript)
-        for candidate in candidates:
-            aliases = (candidate.transcript, *candidate.transcript_aliases)
-            if any(_versionless(alias) == requested for alias in aliases):
-                return candidate
+        if transcript is not None:
+            candidates = self._records_for_gene(gene, include_refseq=True)
+            return _select_transcript_record(candidates, transcript)
         return None
+
+    def _records_for_gene(
+        self,
+        gene: str,
+        *,
+        include_refseq: bool = False,
+    ) -> tuple[_TranscriptRecord, ...]:
+        normalized_gene = gene.strip().upper()
+        if not normalized_gene:
+            return ()
+
+        if normalized_gene not in self._mane_loaded_genes:
+            self._preload_gene_source(
+                (normalized_gene,),
+                self.mane_gff_path,
+                self._mane_loaded_genes,
+            )
+
+        candidates = self._transcript_cache.get(normalized_gene, ())
+        if not candidates:
+            include_refseq = True
+
+        if include_refseq and normalized_gene not in self._refseq_loaded_genes:
+            self._preload_gene_source(
+                (normalized_gene,),
+                self.refseq_gff_path,
+                self._refseq_loaded_genes,
+            )
+        return self._transcript_cache.get(normalized_gene, ())
+
+    def _preload_gene_source(
+        self,
+        genes: tuple[str, ...],
+        path: Path | None,
+        loaded_genes: set[str],
+    ) -> None:
+        pending_genes = tuple(gene for gene in genes if gene not in loaded_genes)
+        if not pending_genes:
+            return
+        loaded_genes.update(pending_genes)
+        if path is None:
+            for gene in pending_genes:
+                self._transcript_cache.setdefault(gene, ())
+            return
+
+        records_by_gene = _load_gff_transcript_models_for_genes(path, pending_genes)
+        for gene in pending_genes:
+            self._cache_transcript_records(gene, records_by_gene.get(gene, ()))
+
+    def _cache_transcript_records(
+        self,
+        gene: str,
+        records: tuple[_TranscriptRecord, ...],
+    ) -> None:
+        existing = self._transcript_cache.get(gene, ())
+        merged = _merge_transcript_sources({gene: existing}, {gene: records})
+        self._transcript_cache[gene] = merged.get(gene, ())
 
     def _resolve_from_transcript_model(
         self,
@@ -684,9 +737,20 @@ def _intronic_position(
     return anchor_position - offset if strand == "+" else anchor_position + offset
 
 
-@lru_cache(maxsize=8)
-def _load_mane_gff_transcript_models(path: Path | None) -> dict[str, tuple[_TranscriptRecord, ...]]:
+@lru_cache(maxsize=32)
+def _load_gff_transcript_models_for_genes(
+    path: Path | None,
+    genes: tuple[str, ...],
+) -> dict[str, tuple[_TranscriptRecord, ...]]:
     if path is None or not path.exists():
+        return {}
+
+    normalized_genes = frozenset(gene.strip().upper() for gene in genes if gene.strip())
+    if not normalized_genes:
+        return {}
+
+    transcript_ids = _gff_transcript_ids_for_genes(path, normalized_genes)
+    if not transcript_ids:
         return {}
 
     source_label = _gff_source_label(path)
@@ -701,15 +765,10 @@ def _load_mane_gff_transcript_models(path: Path | None) -> dict[str, tuple[_Tran
                 continue
             chrom, _source, feature_type, start, end, _score, strand, _phase, raw_attrs = columns
             attrs = _parse_gff_attributes(raw_attrs)
-            parent = attrs.get("Parent", "")
-            transcript_id = attrs.get("transcript_id")
-            if feature_type != "mRNA" and parent.startswith("rna-"):
-                transcript_id = parent.removeprefix("rna-")
+            transcript_id = _gff_transcript_id(feature_type, attrs)
             if not transcript_id:
-                transcript_id = attrs.get("Name")
-            if not transcript_id and parent.startswith("rna-"):
-                transcript_id = parent.removeprefix("rna-")
-            if not transcript_id:
+                continue
+            if transcript_id not in transcript_ids:
                 continue
 
             record = transcripts.setdefault(
@@ -803,6 +862,52 @@ def _load_mane_gff_transcript_models(path: Path | None) -> dict[str, tuple[_Tran
     return {gene: tuple(records) for gene, records in by_gene.items()}
 
 
+def _gff_transcript_ids_for_genes(path: Path, genes: frozenset[str]) -> frozenset[str]:
+    transcript_ids: set[str] = set()
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            if not line.strip() or line.startswith("#"):
+                continue
+            columns = line.rstrip("\n").split("\t")
+            if len(columns) != 9:
+                continue
+            (
+                _chrom,
+                _source,
+                feature_type,
+                _start,
+                _end,
+                _score,
+                _strand,
+                _phase,
+                raw_attrs,
+            ) = columns
+            attrs = _parse_gff_attributes(raw_attrs)
+            if str(attrs.get("gene") or "").upper() not in genes:
+                continue
+            transcript_id = _gff_transcript_id(feature_type, attrs)
+            if transcript_id:
+                transcript_ids.add(transcript_id)
+    return frozenset(transcript_ids)
+
+
+def _gff_transcript_id(feature_type: str, attrs: Mapping[str, str]) -> str | None:
+    parent = attrs.get("Parent", "")
+    transcript_id = attrs.get("transcript_id")
+    if feature_type != "mRNA" and parent.startswith("rna-"):
+        transcript_id = parent.removeprefix("rna-")
+    if not transcript_id and feature_type == "mRNA":
+        raw_id = attrs.get("ID", "")
+        if raw_id.startswith("rna-"):
+            transcript_id = raw_id.removeprefix("rna-")
+    if not transcript_id:
+        transcript_id = attrs.get("Name")
+    if not transcript_id and parent.startswith("rna-"):
+        transcript_id = parent.removeprefix("rna-")
+    return transcript_id or None
+
+
 def _gff_source_label(path: Path) -> str:
     name = path.name.lower()
     if "mane" in name:
@@ -825,6 +930,23 @@ def _merge_transcript_sources(
                     existing.append(record)
                     existing_keys.add(_versionless(record.transcript))
     return {gene: tuple(records) for gene, records in merged.items()}
+
+
+def _select_transcript_record(
+    candidates: tuple[_TranscriptRecord, ...],
+    transcript: str | None,
+) -> _TranscriptRecord | None:
+    if not candidates:
+        return None
+    if transcript is None:
+        return candidates[0]
+
+    requested = _versionless(transcript)
+    for candidate in candidates:
+        aliases = (candidate.transcript, *candidate.transcript_aliases)
+        if any(_versionless(alias) == requested for alias in aliases):
+            return candidate
+    return None
 
 
 def _parse_gff_attributes(raw: str) -> dict[str, str]:

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import app.services.eamos_coordinate_resolver as coordinate_resolver_module
 from app.data_sources import (
     DEFAULT_DATA_SOURCE_REGISTRY,
     LOCAL_HG38_2BIT_SOURCE_ID,
@@ -26,23 +27,29 @@ def _missing_reference_store():
     raise OSError("reference asset intentionally unavailable in this unit test")
 
 
-def _tiny_refseq_gff(tmp_path: Path) -> Path:
-    path = tmp_path / "tiny_refseq.gff"
+def _tiny_gff(
+    tmp_path: Path,
+    name: str,
+    *,
+    gene: str = "TEST",
+    transcript: str = "NM_TEST.1",
+) -> Path:
+    path = tmp_path / name
     path.write_text(
         "\n".join(
             [
                 "##gff-version 3",
                 (
                     "NC_000001.11\tRefSeq\tmRNA\t100\t108\t.\t+\t.\t"
-                    "ID=rna-NM_TEST.1;transcript_id=NM_TEST.1;gene=TEST"
+                    f"ID=rna-{transcript};transcript_id={transcript};gene={gene}"
                 ),
                 (
                     "NC_000001.11\tRefSeq\texon\t100\t108\t.\t+\t.\t"
-                    "ID=exon-NM_TEST.1-1;Parent=rna-NM_TEST.1;gene=TEST"
+                    f"ID=exon-{transcript}-1;Parent=rna-{transcript};gene={gene}"
                 ),
                 (
                     "NC_000001.11\tRefSeq\tCDS\t100\t108\t.\t+\t0\t"
-                    "ID=cds-NM_TEST.1-1;Parent=rna-NM_TEST.1;gene=TEST"
+                    f"ID=cds-{transcript}-1;Parent=rna-{transcript};gene={gene}"
                 ),
             ]
         )
@@ -50,6 +57,10 @@ def _tiny_refseq_gff(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def _tiny_refseq_gff(tmp_path: Path) -> Path:
+    return _tiny_gff(tmp_path, "tiny_refseq.gff")
 
 
 def test_eamos_local_coordinate_resolver_maps_local_refseq_gff_without_live_api(
@@ -116,6 +127,117 @@ def test_search_input_resolver_uses_eamos_local_coordinates_before_live_api(
     )
     assert resolution.variant_validator_summary is None
     assert resolution.provenance == ("eamos_local_coordinate_resolver",)
+
+
+def test_eamos_local_coordinate_resolver_loads_only_requested_gene_lazily(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    refseq_gff = _tiny_refseq_gff(tmp_path)
+    calls: list[tuple[Path | None, tuple[str, ...]]] = []
+    original = coordinate_resolver_module._load_gff_transcript_models_for_genes
+
+    def spy(path: Path | None, genes: tuple[str, ...]):
+        calls.append((path, genes))
+        return original(path, genes)
+
+    monkeypatch.setattr(
+        coordinate_resolver_module,
+        "_load_gff_transcript_models_for_genes",
+        spy,
+    )
+
+    resolver = EamosLocalCoordinateResolver(
+        mane_gff_path=None,
+        refseq_gff_path=refseq_gff,
+        coordinate_catalog_path=None,
+        reference_store_factory=_missing_reference_store,
+    )
+
+    assert calls == []
+
+    resolved = resolver.resolve(
+        gene="TEST",
+        transcript="NM_TEST.1",
+        cdna="c.3G>T",
+    )
+
+    assert resolved is not None
+    assert calls == [(refseq_gff, ("TEST",))]
+
+
+def test_eamos_local_coordinate_resolver_does_not_load_refseq_when_mane_matches(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    mane_gff = _tiny_gff(tmp_path, "tiny_mane.gff", transcript="NM_TEST.1")
+    refseq_gff = _tiny_gff(tmp_path, "tiny_refseq.gff", transcript="NM_OTHER.1")
+    calls: list[tuple[Path | None, tuple[str, ...]]] = []
+    original = coordinate_resolver_module._load_gff_transcript_models_for_genes
+
+    def spy(path: Path | None, genes: tuple[str, ...]):
+        calls.append((path, genes))
+        return original(path, genes)
+
+    monkeypatch.setattr(
+        coordinate_resolver_module,
+        "_load_gff_transcript_models_for_genes",
+        spy,
+    )
+
+    resolver = EamosLocalCoordinateResolver(
+        mane_gff_path=mane_gff,
+        refseq_gff_path=refseq_gff,
+        coordinate_catalog_path=None,
+        reference_store_factory=_missing_reference_store,
+    )
+
+    resolved = resolver.resolve(
+        gene="TEST",
+        transcript="NM_TEST.1",
+        cdna="c.3G>T",
+    )
+
+    assert resolved is not None
+    assert resolved.transcript == "NM_TEST.1"
+    assert calls == [(mane_gff, ("TEST",))]
+
+
+def test_eamos_local_coordinate_resolver_loads_refseq_when_mane_lacks_requested_transcript(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    mane_gff = _tiny_gff(tmp_path, "tiny_mane.gff", transcript="NM_MANE.1")
+    refseq_gff = _tiny_gff(tmp_path, "tiny_refseq.gff", transcript="NM_REFSEQ.1")
+    calls: list[tuple[Path | None, tuple[str, ...]]] = []
+    original = coordinate_resolver_module._load_gff_transcript_models_for_genes
+
+    def spy(path: Path | None, genes: tuple[str, ...]):
+        calls.append((path, genes))
+        return original(path, genes)
+
+    monkeypatch.setattr(
+        coordinate_resolver_module,
+        "_load_gff_transcript_models_for_genes",
+        spy,
+    )
+
+    resolver = EamosLocalCoordinateResolver(
+        mane_gff_path=mane_gff,
+        refseq_gff_path=refseq_gff,
+        coordinate_catalog_path=None,
+        reference_store_factory=_missing_reference_store,
+    )
+
+    resolved = resolver.resolve(
+        gene="TEST",
+        transcript="NM_REFSEQ.1",
+        cdna="c.3G>T",
+    )
+
+    assert resolved is not None
+    assert resolved.transcript == "NM_REFSEQ.1"
+    assert calls == [(mane_gff, ("TEST",)), (refseq_gff, ("TEST",))]
 
 
 @pytest.mark.skipif(
