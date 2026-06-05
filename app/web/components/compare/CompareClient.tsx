@@ -10,9 +10,10 @@ import { readCompareVariants, type CompareStash } from '@/lib/variant-file'
 import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
 import { getPanel } from '@/lib/panels'
 import { createBatch, getBatchJob } from '@/lib/batch'
-import type { BatchFilters, ParsedVariant as BatchVariant } from '@/lib/backend'
+import type { BatchFilters, BatchResult, ParsedVariant as BatchVariant } from '@/lib/backend'
 import { ScopeGate } from './ScopeGate'
 import { VariantTable } from './VariantTable'
+import { BatchResultsTable } from './BatchResultsTable'
 import './compare.css'
 
 /**
@@ -49,6 +50,8 @@ export function CompareClient() {
   const [hydrated, setHydrated] = useState(false)
   const [filters, setFilters] = useState<ActiveFilter[]>([])
   const [status, setStatus] = useState<RunStatus>('idle')
+  // Server-computed batch results (real backend); null = none yet / mock-offline.
+  const [results, setResults] = useState<BatchResult[] | null>(null)
   // Bumped when a panel's full gene list resolves so applyFilters re-runs.
   const [, bumpCache] = useState(0)
   const loadedSlugs = useRef<Set<string>>(new Set())
@@ -84,18 +87,35 @@ export function CompareClient() {
   const runBatch = useCallback(
     async (runFilters: ActiveFilter[]) => {
       setStatus('running')
+      setResults(null)
       try {
         const job = await createBatch({
           variants: variants.map(toBatchVariant),
           filters: toBatchFilters(runFilters),
         })
         if (!job.job_id.startsWith('mock-')) {
-          for (let i = 0; i < 30; i++) {
-            const j = await getBatchJob(job.job_id)
-            if (j.status !== 'queued' && j.status !== 'running') break
-            if (j.total > 0 && j.done >= j.total) break
+          // Poll to completion, then page through the server-computed results.
+          let final = await getBatchJob(job.job_id, { limit: 200 })
+          for (
+            let i = 0;
+            i < 30 &&
+            final.status !== 'completed' &&
+            final.status !== 'failed' &&
+            final.status !== 'cancelled' &&
+            !(final.total > 0 && final.done >= final.total);
+            i++
+          ) {
             await new Promise((r) => setTimeout(r, 500))
+            final = await getBatchJob(job.job_id, { limit: 200 })
           }
+          const collected = [...final.results]
+          let cursor = final.page?.next_cursor ?? null
+          for (let guard = 0; cursor && guard < 20; guard++) {
+            const page = await getBatchJob(job.job_id, { limit: 200, cursor })
+            collected.push(...page.results)
+            cursor = page.page?.next_cursor ?? null
+          }
+          if (collected.length > 0) setResults(collected)
         }
       } catch {
         // Offline / network — the mock job + client-side table already cover it.
@@ -109,6 +129,7 @@ export function CompareClient() {
   const changeFilters = (next: ActiveFilter[]) => {
     setFilters(next)
     setStatus('idle')
+    setResults(null)
   }
 
   // Sample-VCF deep link (/compare?demo=1) — auto-generate the dropped cohort
@@ -165,6 +186,8 @@ export function CompareClient() {
                   <GeneratePrompt scoped={res.activePanels.length > 0} onGenerate={() => runBatch(filters)} />
                 ) : status === 'running' ? (
                   <LoadingCard />
+                ) : results && results.length > 0 ? (
+                  <BatchResultsTable results={results} />
                 ) : res.shown.length === 0 ? (
                   <EmptyScope onClear={() => changeFilters([])} />
                 ) : (
