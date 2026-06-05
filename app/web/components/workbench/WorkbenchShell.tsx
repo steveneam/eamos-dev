@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
@@ -28,6 +29,9 @@ import {
   type TrackState,
 } from './viewer/viewer-types'
 import { WorkRail } from '@/components/layout/WorkRail'
+import { LibrarySection } from '@/components/library/LibrarySection'
+import { reportHrefForQuery } from '@/lib/variant-search'
+import type { SavedVariant } from '@/lib/variant-library'
 
 export type { ScratchEntry }
 
@@ -134,10 +138,28 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
 
   const viewerRef = useRef<SequenceViewerHandle>(null)
   const collapsed = viewerCollapsed(tool)
+  const router = useRouter()
 
   const toggleTrack = useCallback(
     (key: keyof TrackState) => setTrackOn((t) => ({ ...t, [key]: !t[key] })),
     [],
+  )
+
+  // Opening a saved variant on /workbench loads it into the sequence viewer
+  // (a new URL → WorkbenchClient re-reads gene/cdna), not the report. Rows with
+  // no gene (some VCF cohorts) can't drive the viewer, so they fall back to the
+  // report — the shared LibrarySection's default behaviour.
+  const openInViewer = useCallback(
+    (v: SavedVariant) => {
+      if (v.gene) {
+        const params = new URLSearchParams({ gene: v.gene, cdna: v.variant ?? v.query })
+        router.push(`/workbench?${params.toString()}`)
+        return
+      }
+      const href = reportHrefForQuery(v.query)
+      if (href) router.push(href)
+    },
+    [router],
   )
 
   // The rail content: tool switcher + SidePanel (or loading stub).
@@ -280,6 +302,7 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
         className="wb-work-shell"
       >
         {railContent}
+        <LibrarySection onOpen={openInViewer} currentQuery={`${gene} ${cdna}`} openLabel="Open in viewer" />
       </WorkRail>
     </div>
   )
