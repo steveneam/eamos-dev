@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { WorkRailSection } from '@/components/layout/WorkRail'
+import { IconDropInto, IconRemove } from '@/components/icons/Icon'
 import { MOCK_PANELS, PANEL_SOURCE_LABEL } from '@/lib/panels.mock'
 import { getPanels } from '@/lib/panels'
 import type { ParsedVariant } from '@/lib/variant-file'
@@ -122,7 +123,7 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
               transition: 'border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease',
             }}
           >
-            <span aria-hidden style={{ fontSize: 15 }}>{dragOver ? '⤓' : '⌬'}</span>
+            <IconDropInto size={15} />
             {dragOver ? 'Drop to add this filter' : 'Pick a filter below, or drag one here, to scope this cohort.'}
           </div>
         ) : (
@@ -419,7 +420,7 @@ function FilterChip({
           cursor: 'pointer',
         }}
       >
-        ✕
+        <IconRemove size={13} />
       </button>
     </span>
   )

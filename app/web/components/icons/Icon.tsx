@@ -123,6 +123,15 @@ export function IconCheck(p: IconProps) {
   )
 }
 
+/** A four-point sparkle — the AI / natural-language affordance (✦). */
+export function IconSparkle(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M12 3l1.8 7.2L21 12l-7.2 1.8L12 21l-1.8-7.2L3 12l7.2-1.8z" />
+    </Icon>
+  )
+}
+
 /** A single down-chevron — disclosure for sections / lanes / folders / the row
  *  caret (folds in the old <Chevron>/<Caret>). Rotated via CSS per open state.
  *  A lone polyline needs more presence than the multi-stroke glyphs, so it keeps

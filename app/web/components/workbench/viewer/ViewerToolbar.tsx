@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
+import { IconChevron, IconRemove } from '@/components/icons/Icon'
 
 interface ViewerToolbarProps {
   searchQuery: string
@@ -73,7 +74,7 @@ export function ViewerToolbar({
         />
         {searchQuery && (
           <button type="button" className="sv-find-clear" onClick={onClearSearch} aria-label="Clear">
-            ×
+            <IconRemove size={14} />
           </button>
         )}
         {jumpError && (
@@ -93,7 +94,7 @@ export function ViewerToolbar({
           disabled={variantCount === 0}
           onClick={() => onStepVariant('prev')}
         >
-          ‹
+          <IconChevron size={14} style={{ transform: 'rotate(90deg)' }} />
         </button>
         <span className="sv-vnav-count">{variantCount}</span>
         <button
@@ -104,7 +105,7 @@ export function ViewerToolbar({
           disabled={variantCount === 0}
           onClick={() => onStepVariant('next')}
         >
-          ›
+          <IconChevron size={14} style={{ transform: 'rotate(-90deg)' }} />
         </button>
       </div>
 
@@ -143,7 +144,8 @@ export function ViewerToolbar({
               aria-expanded={showHistory}
               onClick={onToggleHistory}
             >
-              {editCount} edit{editCount === 1 ? '' : 's'} {showHistory ? '▾' : '▸'}
+              {editCount} edit{editCount === 1 ? '' : 's'}{' '}
+              <IconChevron size={12} style={{ transform: showHistory ? undefined : 'rotate(-90deg)' }} />
             </button>
             <button type="button" className="sv-hist-reset" onClick={onReset}>
               Reset

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { resolvePanel } from '@/lib/panels'
 import { type CustomPanelDraft } from '@/lib/panels.mock'
 import type { Panel } from '@/lib/backend'
+import { IconDropInto, IconSparkle } from '@/components/icons/Icon'
 
 /**
  * Custom gene-panel builders (spec §6.3). Two tabs in the scope rail:
@@ -115,7 +116,7 @@ export function KeywordPanelBuilder({ onCreate }: { onCreate: (panel: Panel) => 
           cursor: 'pointer',
         }}
       >
-        <span aria-hidden>⤓</span> Drag or attach a gene/keyword list (CSV, TSV, text)
+        <IconDropInto size={13} /> Drag or attach a gene/keyword list (CSV, TSV, text)
       </div>
       <input
         ref={fileRef}
@@ -221,7 +222,7 @@ export function LlmPanelComingSoon() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span aria-hidden>✦</span>
+        <IconSparkle size={13} />
         <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--warn-text)' }}>Describe it in plain language</span>
       </div>
       <p style={{ fontSize: 11.5, lineHeight: 1.55, color: 'var(--ink-2)', margin: '8px 0 0' }}>
