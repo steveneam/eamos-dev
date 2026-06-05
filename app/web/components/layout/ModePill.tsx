@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-type Surface = 'report' | 'workbench'
+type Surface = 'report' | 'workbench' | 'compare'
 
 interface ModePillProps {
   current: Surface
@@ -13,6 +13,7 @@ interface ModePillProps {
 const ITEMS: Array<{ key: Surface; label: string; path: string }> = [
   { key: 'report',    label: 'Report',    path: '/report' },
   { key: 'workbench', label: 'Workbench', path: '/workbench' },
+  { key: 'compare',   label: 'Compare',   path: '/compare' },
 ]
 
 export function ModePill({ current, className }: ModePillProps) {
@@ -34,10 +35,13 @@ export function ModePill({ current, className }: ModePillProps) {
     >
       {ITEMS.map((item) => {
         const active = item.key === current
+        // Report/Workbench preserve the active variant (qs); Compare is the
+        // multi-variant surface, so it doesn't carry the single-variant query.
+        const href = item.key === 'compare' ? item.path : `${item.path}${qs}`
         return (
           <Link
             key={item.key}
-            href={`${item.path}${qs}`}
+            href={href}
             aria-current={active ? 'page' : undefined}
             className="inline-flex items-center gap-1.5 font-semibold transition-colors"
             style={{

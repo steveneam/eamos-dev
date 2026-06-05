@@ -122,21 +122,19 @@ export function CompareClient() {
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
-      <TopNav right={<ModePill current="report" />} />
+      <TopNav right={<ModePill current="compare" />}>
+        <NavContext count={hydrated ? variants.length : 0} source={stash?.source} />
+      </TopNav>
 
       {!hydrated ? null : variants.length === 0 ? (
         <main
           className="mx-auto"
-          style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}
+          style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '40px 32px 80px' }}
         >
-          <Breadcrumb />
-          <PageHeader count={0} />
           <EmptyState />
         </main>
       ) : (
-        <div style={{ maxWidth: 'var(--maxw-workbench)', margin: '0 auto', padding: '28px 24px 80px' }}>
-          <Breadcrumb />
-          <PageHeader count={variants.length} source={stash?.source} />
+        <div style={{ maxWidth: 'var(--maxw-workbench)', margin: '0 auto', padding: '16px 24px 80px' }}>
           <WorkRail
             surface="compare"
             title="Scope"
@@ -183,40 +181,32 @@ export function CompareClient() {
   )
 }
 
-function Breadcrumb() {
+/** Page context shown in the nav center (breadcrumb + title + cohort size) so
+ *  the body leads straight with the output — no tall header band above it. */
+function NavContext({ count, source }: { count: number; source?: string }) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-2" style={{ fontSize: 12, color: 'var(--ink-4)' }}>
-      <Link href="/" style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+      <Link href="/" style={{ fontSize: 12.5, color: 'var(--ink-4)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
         Search
       </Link>
       <span style={{ color: 'var(--ink-5)' }}>/</span>
-      <span>Compare variants</span>
-    </nav>
-  )
-}
-
-function PageHeader({ count, source }: { count: number; source?: string }) {
-  return (
-    <header className="mb-5">
-      <h1
-        style={{
-          fontFamily: 'var(--display)',
-          fontWeight: 400,
-          fontSize: 30,
-          letterSpacing: '-0.02em',
-          color: 'var(--ink)',
-          margin: 0,
-        }}
-      >
-        Compare variants
-      </h1>
+      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>Compare variants</span>
       {count > 0 && (
-        <p style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-3)', margin: '6px 0 0' }}>
-          {count} variant{count === 1 ? '' : 's'}
-          {source ? ` · from ${source}` : ''}
-        </p>
+        <span
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: 11.5,
+            color: 'var(--ink-4)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          · {count} variant{count === 1 ? '' : 's'}
+          {source ? ` · ${source}` : ''}
+        </span>
       )}
-    </header>
+    </div>
   )
 }
 
