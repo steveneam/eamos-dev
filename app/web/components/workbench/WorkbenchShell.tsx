@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
@@ -8,6 +8,7 @@ import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader, type ViewerMode } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
+import { ToolBar } from './ToolBar'
 import { viewerCollapsed } from './tools'
 import { PrimerPanel } from './primer/PrimerPanel'
 import { CrisprPanel } from './crispr/CrisprPanel'
@@ -26,17 +27,19 @@ import {
   type StrandMode,
   type TrackState,
 } from './viewer/viewer-types'
+import { WorkRail } from '@/components/layout/WorkRail'
 
 export type { ScratchEntry }
 
 interface WorkbenchShellProps {
   tool: WorkbenchTool
+  onSelectTool: (tool: WorkbenchTool) => void
   gene: string
   cdna: string
   transcript?: string
 }
 
-const PANEL_TOOLS: WorkbenchTool[] = ['primer', 'crispr', 'align', 'compare']
+const PANEL_TOOLS: WorkbenchTool[] = ['primer', 'crispr', 'align']
 
 function renderToolPanel(
   tool: WorkbenchTool,
@@ -51,9 +54,6 @@ function renderToolPanel(
       return <CrisprPanel gene={gene} cdna={cdna} />
     case 'align':
       return <AlignPanel data={data} cdna={cdna} />
-    case 'compare':
-      // Compare tool is still pending — keeps the placeholder.
-      return <div className="viewer-loading">Compare tool — coming soon</div>
     default:
       return null
   }
@@ -67,21 +67,12 @@ function isDefaultViewerRequest(gene: string, cdna: string, transcript?: string)
   )
 }
 
-function readSideCollapsed(): boolean {
-  try {
-    return localStorage.getItem('eamos-side-collapsed') === '1'
-  } catch {
-    return false
-  }
-}
-
-export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellProps) {
+export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: WorkbenchShellProps) {
   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)
   const [strandMode, setStrandMode] = useState<StrandMode>('both')
   const [baseW, setBaseW] = useState<number>(ZOOM_PRESETS.exon)
   const [navCollapsed, setNavCollapsed] = useState(false)
   const [exonTableOpen, setExonTableOpen] = useState(false)
-  const [sideCollapsed, setSideCollapsed] = useState(readSideCollapsed)
   const [scratch, setScratch] = useState<ScratchEntry[]>([])
   const [selSummary, setSelSummary] = useState<SelectionSummary | null>(null)
   const [activeExon, setActiveExon] = useState(4)
@@ -148,137 +139,148 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
     (key: keyof TrackState) => setTrackOn((t) => ({ ...t, [key]: !t[key] })),
     [],
   )
-  const toggleSide = useCallback(() => {
-    setSideCollapsed((c) => {
-      const next = !c
-      try {
-        localStorage.setItem('eamos-side-collapsed', next ? '1' : '0')
-      } catch {
-        /* private mode — ignore */
-      }
-      return next
-    })
-  }, [])
+
+  // The rail content: tool switcher + SidePanel (or loading stub).
+  const railContent = data ? (
+    <>
+      {/* Tool switcher lives at the top of the rail body. */}
+      <div className="wb-rail-tools">
+        <ToolBar active={tool} onSelect={onSelectTool} />
+      </div>
+      <SidePanel
+        tool={tool}
+        data={data}
+        scratch={scratch}
+        selection={selSummary}
+        collapsed={false}
+        exonTableOpen={exonTableOpen}
+        activeExon={activeExon}
+        onToggleCollapsed={() => { /* collapse is handled by WorkRail */ }}
+        onToggleExonTable={() => setExonTableOpen((o) => !o)}
+        onResetAll={() => viewerRef.current?.resetEdits()}
+        onJumpToExon={(n) => viewerRef.current?.jumpToExon(n)}
+        onDelSelection={() => viewerRef.current?.delSelection()}
+        onReplaceSelection={(seq) => viewerRef.current?.replaceSelection(seq)}
+        onClearSelection={() => viewerRef.current?.clearSelection()}
+      />
+    </>
+  ) : (
+    <>
+      <div className="wb-rail-tools">
+        <ToolBar active={tool} onSelect={onSelectTool} />
+      </div>
+      <div className="side-section">
+        <div className="side-h">Viewer request</div>
+        <div className="side-info">
+          <b>{gene}</b>
+          <br />
+          {cdna}
+          {transcript ? (
+            <>
+              <br />
+              {transcript}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </>
+  )
+
+  // Canvas output — the dominant right pane.
+  const canvasOutput = (
+    <main className="canvas">
+      <CanvasHeader
+        tool={tool}
+        gene={gene}
+        variant={cdna}
+        trackOn={trackOn}
+        onToggleTrack={toggleTrack}
+        strandMode={strandMode}
+        onStrand={setStrandMode}
+        alleleMode={alleleMode}
+        onAlleleMode={setAlleleMode}
+        viewerMode={viewerMode}
+        onViewerMode={setViewerMode}
+      />
+
+      <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
+        {viewerMode === 'locus' && locusModel?.kind === 'ready' ? (
+          <FullLocusViewer model={locusModel} />
+        ) : viewerMode === 'locus' && locusModel?.kind === 'unsupported' ? (
+          <>
+            <FullLocusUnsupportedBanner
+              gene={locusModel.gene}
+              onBackToWindow={() => setViewerMode('window')}
+            />
+            {data ? (
+              <SequenceViewerV2
+                ref={viewerRef}
+                data={data}
+                trackOn={trackOn}
+                strandMode={strandMode}
+                baseW={baseW}
+                onBaseW={setBaseW}
+                navCollapsed={navCollapsed}
+                onToggleMinimap={() => setNavCollapsed((c) => !c)}
+                alleleMode={alleleMode}
+                onScratchChange={setScratch}
+                onSelectionChange={setSelSummary}
+                onActiveExonChange={setActiveExon}
+              />
+            ) : null}
+          </>
+        ) : data ? (
+          <SequenceViewerV2
+            ref={viewerRef}
+            data={data}
+            trackOn={trackOn}
+            strandMode={strandMode}
+            baseW={baseW}
+            onBaseW={setBaseW}
+            navCollapsed={navCollapsed}
+            onToggleMinimap={() => setNavCollapsed((c) => !c)}
+            alleleMode={alleleMode}
+            onScratchChange={setScratch}
+            onSelectionChange={setSelSummary}
+            onActiveExonChange={setActiveExon}
+          />
+        ) : (
+          <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>
+            {viewerError ?? 'Loading sequence...'}
+          </div>
+        )}
+      </section>
+
+      <section className="tool-panels">
+        {data ? (
+          PANEL_TOOLS.map((p) => (
+            <div
+              key={p}
+              className={p === tool ? 'tool-panel active' : 'tool-panel'}
+              data-panel={p}
+            >
+              {p === tool && renderToolPanel(p, gene, cdna, data)}
+            </div>
+          ))
+        ) : (
+          <div className="tool-panel active" data-panel={tool}>
+            <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>
+          </div>
+        )}
+      </section>
+    </main>
+  )
 
   return (
-    <div className={`wb${sideCollapsed && data ? ' side-collapsed' : ''}`}>
-      <main className="canvas">
-        <CanvasHeader
-          tool={tool}
-          gene={gene}
-          variant={cdna}
-          trackOn={trackOn}
-          onToggleTrack={toggleTrack}
-          strandMode={strandMode}
-          onStrand={setStrandMode}
-          alleleMode={alleleMode}
-          onAlleleMode={setAlleleMode}
-          viewerMode={viewerMode}
-          onViewerMode={setViewerMode}
-        />
-
-        <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
-          {viewerMode === 'locus' && locusModel?.kind === 'ready' ? (
-            <FullLocusViewer model={locusModel} />
-          ) : viewerMode === 'locus' && locusModel?.kind === 'unsupported' ? (
-            <>
-              <FullLocusUnsupportedBanner
-                gene={locusModel.gene}
-                onBackToWindow={() => setViewerMode('window')}
-              />
-              {data ? (
-                <SequenceViewerV2
-                  ref={viewerRef}
-                  data={data}
-                  trackOn={trackOn}
-                  strandMode={strandMode}
-                  baseW={baseW}
-                  onBaseW={setBaseW}
-                  navCollapsed={navCollapsed}
-                  onToggleMinimap={() => setNavCollapsed((c) => !c)}
-                  alleleMode={alleleMode}
-                  onScratchChange={setScratch}
-                  onSelectionChange={setSelSummary}
-                  onActiveExonChange={setActiveExon}
-                />
-              ) : null}
-            </>
-          ) : data ? (
-            <SequenceViewerV2
-              ref={viewerRef}
-              data={data}
-              trackOn={trackOn}
-              strandMode={strandMode}
-              baseW={baseW}
-              onBaseW={setBaseW}
-              navCollapsed={navCollapsed}
-              onToggleMinimap={() => setNavCollapsed((c) => !c)}
-              alleleMode={alleleMode}
-              onScratchChange={setScratch}
-              onSelectionChange={setSelSummary}
-              onActiveExonChange={setActiveExon}
-            />
-          ) : (
-            <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>
-              {viewerError ?? 'Loading sequence...'}
-            </div>
-          )}
-        </section>
-
-        <section className="tool-panels">
-          {data ? (
-            PANEL_TOOLS.map((p) => (
-              <div
-                key={p}
-                className={p === tool ? 'tool-panel active' : 'tool-panel'}
-                data-panel={p}
-              >
-                {p === tool && renderToolPanel(p, gene, cdna, data)}
-              </div>
-            ))
-          ) : (
-            <div className="tool-panel active" data-panel={tool}>
-              <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>
-            </div>
-          )}
-        </section>
-      </main>
-
-      {data ? (
-        <SidePanel
-          tool={tool}
-          data={data}
-          scratch={scratch}
-          selection={selSummary}
-          collapsed={sideCollapsed}
-          exonTableOpen={exonTableOpen}
-          activeExon={activeExon}
-          onToggleCollapsed={toggleSide}
-          onToggleExonTable={() => setExonTableOpen((o) => !o)}
-          onResetAll={() => viewerRef.current?.resetEdits()}
-          onJumpToExon={(n) => viewerRef.current?.jumpToExon(n)}
-          onDelSelection={() => viewerRef.current?.delSelection()}
-          onReplaceSelection={(seq) => viewerRef.current?.replaceSelection(seq)}
-          onClearSelection={() => viewerRef.current?.clearSelection()}
-        />
-      ) : (
-        <aside className="side">
-          <div className="side-section">
-            <div className="side-h">Viewer request</div>
-            <div className="side-info">
-              <b>{gene}</b>
-              <br />
-              {cdna}
-              {transcript ? (
-                <>
-                  <br />
-                  {transcript}
-                </>
-              ) : null}
-            </div>
-          </div>
-        </aside>
-      )}
+    <div className="wb-work-shell-wrap" style={{ '--rail-top': 'calc(var(--nav-h) + var(--ctx-h))' } as CSSProperties}>
+      <WorkRail
+        surface="workbench"
+        title="Workbench"
+        output={canvasOutput}
+        className="wb-work-shell"
+      >
+        {railContent}
+      </WorkRail>
     </div>
   )
 }

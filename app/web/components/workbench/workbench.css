@@ -166,6 +166,43 @@
   min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
 }
 
+/* Phase 2: WorkRail-based layout. The outer wrapper sets --rail-top so the
+   rail's sticky positioning clears the nav + context strip. */
+.wb-work-shell-wrap {
+  /* --rail-top is set inline by WorkbenchShell */
+  min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
+}
+/* The WorkRail shell takes full width inside the wrapper. */
+.wb-work-shell {
+  min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
+}
+
+/* Tool switcher block inside the rail — vertical stack of icon+label buttons. */
+.wb-rail-tools {
+  padding: 8px 0 12px;
+  border-bottom: 0.5px solid var(--line);
+  margin-bottom: 4px;
+}
+/* In the rail, render the toolbar as a vertical stack that fills available width. */
+.wb-rail-tools .toolbar-seg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  width: 100%;
+}
+.wb-rail-tools .toolbar-seg-btn {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+}
+/* When the rail is collapsed to icon-only (48px), WorkRail hides .work-rail-body
+   entirely via display:none, so no further override is needed. */
+
 /* ── Canvas (center) ── */
 .canvas {
   padding: 18px 22px 80px;
@@ -1371,6 +1408,21 @@
   position: sticky;
   top: calc(var(--nav-h) + var(--ctx-h));
   max-height: calc(100vh - var(--nav-h) - var(--ctx-h));
+}
+/* When SidePanel is rendered inside the WorkRail body, the rail handles
+   scrolling and sticky positioning — reset the panel's own overrides. */
+.work-rail-body .side {
+  position: static;
+  max-height: none;
+  overflow-y: visible;
+  border-left: none;
+  padding: 0;
+  background: transparent;
+}
+/* Hide the collapse toggle row when the panel is embedded in the rail —
+   WorkRail provides its own collapse mechanism. */
+.work-rail-body .side-collapse-row {
+  display: none;
 }
 .side-section { margin-bottom: 14px; }
 .side-section:last-child { margin-bottom: 0; }

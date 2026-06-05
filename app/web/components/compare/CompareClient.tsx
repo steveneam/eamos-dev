@@ -190,7 +190,7 @@ function NavContext({ count, source }: { count: number; source?: string }) {
         Search
       </Link>
       <span style={{ color: 'var(--ink-5)' }}>/</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>Compare variants</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>Batch</span>
       {count > 0 && (
         <span
           style={{
@@ -307,7 +307,7 @@ function EmptyState() {
       }}
     >
       <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 16, margin: 0, color: 'var(--ink)' }}>
-        No variants to compare yet
+        No variants loaded yet
       </h2>
       <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '10px 0 0' }}>
         Attach a variant file from the search bar — a VCF, or a CSV/TSV/plain-text list with one

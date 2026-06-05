@@ -1,6 +1,6 @@
 import type { WorkbenchTool } from '@/lib/backend'
 
-export const TOOL_ORDER: WorkbenchTool[] = ['viewer', 'primer', 'crispr', 'align', 'compare']
+export const TOOL_ORDER: WorkbenchTool[] = ['viewer', 'primer', 'crispr', 'align']
 
 interface ToolMeta {
   /** Rail label (short) */
@@ -46,7 +46,7 @@ export const TOOL_META: Record<WorkbenchTool, ToolMeta> = {
   },
 }
 
-/** Viewer collapses (canvas replaced) for alignment + comparator. */
+/** Viewer collapses (canvas replaced) for alignment. */
 export function viewerCollapsed(tool: WorkbenchTool): boolean {
-  return tool === 'align' || tool === 'compare'
+  return tool === 'align'
 }

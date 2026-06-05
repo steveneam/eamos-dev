@@ -13,7 +13,7 @@ interface ModePillProps {
 const ITEMS: Array<{ key: Surface; label: string; path: string }> = [
   { key: 'report',    label: 'Report',    path: '/report' },
   { key: 'workbench', label: 'Workbench', path: '/workbench' },
-  { key: 'compare',   label: 'Compare',   path: '/compare' },
+  { key: 'compare',   label: 'Batch',     path: '/compare' },
 ]
 
 export function ModePill({ current, className }: ModePillProps) {
