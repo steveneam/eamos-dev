@@ -11,6 +11,7 @@ import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compa
 import { getPanel } from '@/lib/panels'
 import { createBatch, getBatchJob } from '@/lib/batch'
 import type { BatchFilters, BatchResult, ParsedVariant as BatchVariant } from '@/lib/backend'
+import { LibrarySection } from '@/components/library/LibrarySection'
 import { ScopeGate } from './ScopeGate'
 import { VariantTable } from './VariantTable'
 import { BatchResultsTable } from './BatchResultsTable'
@@ -201,6 +202,7 @@ export function CompareClient() {
             }
           >
             <ScopeGate variants={variants} filters={filters} onChange={changeFilters} />
+            <LibrarySection />
           </WorkRail>
         </div>
       )}
