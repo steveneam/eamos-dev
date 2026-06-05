@@ -269,6 +269,47 @@ def test_hg38_materialized_reader_filters_configured_object_uri(
             "bucket_id": "eamos-source-assets",
             "object_path": object_path,
             "environment": None,
+            "local_cache_path": str(asset_path),
+        }
+    ]
+
+
+def test_hg38_materialized_reader_filters_configured_local_cache_path(
+    tmp_path: Path,
+) -> None:
+    payload = b"small-test-2bit"
+    stale_path = tmp_path / "old" / "hg38.2bit"
+    stale_path.parent.mkdir()
+    stale_path.write_bytes(payload)
+    asset_path = tmp_path / "current" / "hg38.2bit"
+    asset_path.parent.mkdir()
+    asset_path.write_bytes(payload)
+    object_path = "genomes/ucsc_hg38_2bit/hg38.2bit"
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=asset_path,
+        hg38_2bit_runtime_asset_object_uri=f"supabase://eamos-source-assets/{object_path}",
+    )
+    store = FakeMaterializationStore(
+        _materialization_record(payload, stale_path, object_path),
+        _materialization_record(payload, asset_path, object_path),
+    )
+
+    resolved = resolve_hg38_materialized_runtime_asset(
+        settings,
+        store,
+        registry=_tiny_registry(payload),
+    )
+
+    assert resolved.path == asset_path
+    assert store.calls == [
+        {
+            "source_id": "ucsc_hg38_2bit",
+            "asset_role": "reference_genome_2bit",
+            "bucket_id": "eamos-source-assets",
+            "object_path": object_path,
+            "environment": None,
+            "local_cache_path": str(asset_path),
         }
     ]
 
@@ -360,8 +401,8 @@ def _md5(payload: bytes) -> str:
 
 
 class FakeMaterializationStore:
-    def __init__(self, record: SourceAssetMaterializationRecord | None) -> None:
-        self.record = record
+    def __init__(self, *records: SourceAssetMaterializationRecord | None) -> None:
+        self.records = tuple(record for record in records if record is not None)
         self.calls: list[dict[str, object]] = []
 
     def get_source_asset_materialization(
@@ -372,6 +413,7 @@ class FakeMaterializationStore:
         bucket_id: str | None = None,
         object_path: str | None = None,
         environment: str | None = None,
+        local_cache_path: str | None = None,
     ) -> SourceAssetMaterializationRecord | None:
         self.calls.append(
             {
@@ -380,17 +422,22 @@ class FakeMaterializationStore:
                 "bucket_id": bucket_id,
                 "object_path": object_path,
                 "environment": environment,
+                "local_cache_path": local_cache_path,
             }
         )
-        if self.record is None:
-            return None
-        if bucket_id is not None and self.record.bucket_id != bucket_id:
-            return None
-        if object_path is not None and self.record.object_path != object_path:
-            return None
-        if environment is not None and self.record.environment != environment:
-            return None
-        return self.record
+        for record in self.records:
+            if record.source_id != source_id or record.asset_role != asset_role:
+                continue
+            if bucket_id is not None and record.bucket_id != bucket_id:
+                continue
+            if object_path is not None and record.object_path != object_path:
+                continue
+            if environment is not None and record.environment != environment:
+                continue
+            if local_cache_path is not None and record.local_cache_path != local_cache_path:
+                continue
+            return record
+        return None
 
 
 class ExplodingMaterializationStore:

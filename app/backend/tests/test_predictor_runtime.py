@@ -14,9 +14,13 @@ from app.data_sources import (
 from app.services.predictor_runtime import (
     ALPHAMISSENSE_ASSET_ROLE,
     ALPHAMISSENSE_SOURCE_ID,
+    ESM1B_ASSET_ROLE,
+    ESM1B_SOURCE_ID,
     PredictorRuntimeStatus,
     build_alphamissense_runtime_plan,
+    build_esm1b_runtime_plan,
     inspect_alphamissense_runtime_asset,
+    inspect_esm1b_runtime_asset,
 )
 
 
@@ -42,6 +46,22 @@ def test_alphamissense_runtime_plan_records_source_md5_and_bucket_limit() -> Non
     assert plan.reader_requires_local_path is True
 
 
+def test_esm1b_runtime_plan_is_gated_indexed_predictor_asset() -> None:
+    settings = Settings(jwt_secret="test-secret")
+
+    plan = build_esm1b_runtime_plan(settings)
+
+    assert plan.source_id == ESM1B_SOURCE_ID
+    assert plan.asset_role == ESM1B_ASSET_ROLE
+    assert plan.path == (
+        settings.backend_root / "data" / "bio_assets" / "predictors" / "esm1b" / "esm1b_hg38.tsv.gz"
+    )
+    assert plan.index_path == Path(f"{plan.path}.tbi")
+    assert plan.manifest_path.name == "esm1b_hg38.tsv.gz.manifest.json"
+    assert plan.expected_md5 is None
+    assert plan.reader_requires_local_path is True
+
+
 def test_alphamissense_preflight_reports_missing_file(tmp_path: Path) -> None:
     settings = Settings(
         jwt_secret="test-secret",
@@ -50,6 +70,20 @@ def test_alphamissense_preflight_reports_missing_file(tmp_path: Path) -> None:
 
     inspection = inspect_alphamissense_runtime_asset(settings)
 
+    assert inspection.ready is False
+    assert inspection.status is PredictorRuntimeStatus.MISSING_SOURCE_FILE
+    assert inspection.actual_size_bytes is None
+
+
+def test_esm1b_preflight_reports_missing_file(tmp_path: Path) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        esm1b_hg38_runtime_asset_path=tmp_path / "missing.tsv.gz",
+    )
+
+    inspection = inspect_esm1b_runtime_asset(settings)
+
+    assert inspection.source_id == ESM1B_SOURCE_ID
     assert inspection.ready is False
     assert inspection.status is PredictorRuntimeStatus.MISSING_SOURCE_FILE
     assert inspection.actual_size_bytes is None
@@ -222,15 +256,72 @@ def test_alphamissense_materialization_reports_ready_without_sensitive_checksum(
     assert inspection.bucket_file_size_limit == 50 * 1024 * 1024 * 1024
 
 
+def test_alphamissense_materialization_filters_runtime_local_cache_path(
+    tmp_path: Path,
+) -> None:
+    payload = b"tiny-alphamissense"
+    stale_asset = _write_materialized_asset(tmp_path / "old", payload)
+    asset = _write_materialized_asset(tmp_path / "current", payload)
+    object_path = "google_deepmind_alphamissense_hg38/md5-test/AlphaMissense_hg38.tsv.gz"
+    settings = Settings(
+        jwt_secret="test-secret",
+        alphamissense_hg38_runtime_asset_path=asset,
+        alphamissense_hg38_runtime_asset_object_uri=f"supabase://eamos-source-assets/{object_path}",
+    )
+    store = FakeMaterializationStore(
+        _materialization_record(payload, stale_asset, object_path),
+        _materialization_record(payload, asset, object_path),
+    )
+
+    inspection = inspect_alphamissense_runtime_asset(
+        settings,
+        registry=_tiny_registry(payload),
+        materialization_store=store,
+    )
+
+    assert inspection.ready is True
+    assert store.calls == [
+        {
+            "source_id": ALPHAMISSENSE_SOURCE_ID,
+            "asset_role": ALPHAMISSENSE_ASSET_ROLE,
+            "bucket_id": "eamos-source-assets",
+            "object_path": object_path,
+            "environment": None,
+            "local_cache_path": str(asset),
+        }
+    ]
+
+
 class FakeMaterializationStore:
-    def __init__(self, record: SourceAssetMaterializationRecord | None) -> None:
-        self.record = record
+    def __init__(self, *records: SourceAssetMaterializationRecord | None) -> None:
+        self.records = tuple(record for record in records if record is not None)
+        self.calls: list[dict[str, object]] = []
 
     def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord | None:
-        return self.record
+        self.calls.append(dict(kwargs))
+        for record in self.records:
+            if record.source_id != kwargs.get("source_id"):
+                continue
+            if record.asset_role != kwargs.get("asset_role"):
+                continue
+            bucket_id = kwargs.get("bucket_id")
+            if bucket_id is not None and record.bucket_id != bucket_id:
+                continue
+            object_path = kwargs.get("object_path")
+            if object_path is not None and record.object_path != object_path:
+                continue
+            environment = kwargs.get("environment")
+            if environment is not None and record.environment != environment:
+                continue
+            local_cache_path = kwargs.get("local_cache_path")
+            if local_cache_path is not None and record.local_cache_path != local_cache_path:
+                continue
+            return record
+        return None
 
 
 def _write_materialized_asset(tmp_path: Path, payload: bytes) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     asset = tmp_path / "AlphaMissense_hg38.tsv.gz"
     asset.write_bytes(payload)
     Path(f"{asset}.tbi").write_bytes(b"index")

@@ -14,6 +14,10 @@ from app.data_sources.runtime_assets import (
     inspect_hg38_runtime_asset,
     probe_hg38_materialization_status,
 )
+from app.services.predictor_runtime import (
+    inspect_alphamissense_runtime_asset,
+    inspect_esm1b_runtime_asset,
+)
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
@@ -57,6 +61,10 @@ def provider_cache_health(request: Request) -> dict[str, object]:
         ),
         "providers": {
             "crispr": _crispr_provider_health(settings),
+            "indexed_predictors": _indexed_predictor_health(
+                settings,
+                getattr(request.app.state, "supabase_local_model_cache_store", None),
+            ),
             "protein_annotation": _protein_annotation_health(
                 settings,
                 getattr(request.app.state, "protein_annotation_service", None),
@@ -102,6 +110,59 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
             "reader_requires_local_path": reader_requires_local_path,
             "materialization_metadata": metadata,
         }
+    }
+
+
+def _indexed_predictor_health(settings, materialization_store) -> dict[str, object]:
+    return {
+        "alphamissense": _predictor_inspection_health(
+            inspect_alphamissense_runtime_asset(
+                settings,
+                materialization_store=materialization_store,
+                verify_checksum=False,
+            )
+        ),
+        "esm1b": _predictor_inspection_health(
+            inspect_esm1b_runtime_asset(
+                settings,
+                materialization_store=materialization_store,
+                verify_checksum=False,
+            )
+        ),
+        "ci_spliceai": {
+            "available": False,
+            "status": "restricted_unlicensed",
+            "runtime_wired": False,
+            "public_serialization_allowed": False,
+        },
+        "pvs1_nmd": {
+            "available": True,
+            "status": "pure_code_available",
+            "runtime_wired": True,
+            "public_serialization_allowed": True,
+        },
+        "mavedb": {
+            "available": False,
+            "status": "cc0_import_not_materialized",
+            "runtime_wired": False,
+            "public_serialization_allowed": False,
+        },
+    }
+
+
+def _predictor_inspection_health(inspection) -> dict[str, object]:
+    return {
+        "available": inspection.ready,
+        "status": inspection.status.value,
+        "source_id": inspection.source_id,
+        "asset_role": inspection.asset_role,
+        "mode": inspection.mode,
+        "local_cache_ready": inspection.ready,
+        "local_cache_status": inspection.status.value,
+        "actual_size_bytes": inspection.actual_size_bytes,
+        "reader_requires_local_path": inspection.reader_requires_local_path,
+        "materialization_status": inspection.materialization_status,
+        "public_serialization_allowed": False,
     }
 
 

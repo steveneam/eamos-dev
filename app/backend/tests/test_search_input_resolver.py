@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.core.config import Settings
 from app.services.search_input_interpreter import SearchInputInterpreter
+from app.services.eamos_coordinate_resolver import EamosCoordinateResolution
 from app.services.search_input_resolver import (
     EamosSearchInputResolver,
     _local_coordinate_resolver_settings,
@@ -29,6 +30,16 @@ class _Response:
 class _NoLocalCoordinateResolver:
     def resolve(self, **_kwargs):
         return None
+
+
+class _StaticLocalCoordinateResolver:
+    def __init__(self, resolution: EamosCoordinateResolution) -> None:
+        self.resolution = resolution
+        self.calls: list[dict[str, str]] = []
+
+    def resolve(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.resolution
 
 
 def test_local_coordinate_resolver_settings_use_backend_runtime_paths() -> None:
@@ -360,6 +371,48 @@ def test_eamos_search_input_resolver_can_resolve_coordinates_when_enabled(
     assert resolution.coordinate_resolution_audit.used_eamos_local is False
     assert resolution.coordinate_resolution_audit.used_variant_validator is True
     assert resolution.coordinate_resolution_audit.used_clinvar_for_coordinates is False
+
+
+def test_live_coordinate_resolution_uses_eamos_local_before_variant_validator(
+    monkeypatch,
+) -> None:
+    def fail_http(url: str, **_kwargs):
+        raise AssertionError(f"live coordinate resolution should stay local, got {url}")
+
+    monkeypatch.setattr("app.services.search_input_resolver.httpx.get", fail_http)
+    local_resolver = _StaticLocalCoordinateResolver(
+        EamosCoordinateResolution(
+            gene="USH2A",
+            transcript="NM_206933.4",
+            cdna="c.2276G>T",
+            chrom="1",
+            pos=216247118,
+            ref="C",
+            alt="A",
+            genomic_hg38="1-216247118-C-A",
+            genomic_hgvs="NC_000001.11:g.216247118C>A",
+            source="eamos_local_transcript_reference",
+            provenance=("eamos_refseq_grch38p14_gff", "ucsc_hg38_2bit_reference_base"),
+        )
+    )
+
+    resolution = EamosSearchInputResolver(
+        _settings(use_real_apis=True),
+        resolve_coordinates=True,
+        local_coordinate_resolver=local_resolver,
+    ).resolve_text("USH2A NM_206933.4:c.2276G>T")
+
+    assert local_resolver.calls == [
+        {"gene": "USH2A", "cdna": "c.2276G>T", "transcript": "NM_206933.4"}
+    ]
+    assert resolution.genomic_hg38 == "1-216247118-C-A"
+    assert resolution.variant_validator_summary is None
+    assert resolution.variant_validator_url is None
+    assert resolution.coordinate_resolution_audit.resolver_path == "eamos_local"
+    assert resolution.coordinate_resolution_audit.used_eamos_local is True
+    assert resolution.coordinate_resolution_audit.used_variant_validator is False
+    assert resolution.coordinate_resolution_audit.variant_validator_url is None
+    assert resolution.provenance == ("eamos_local_coordinate_resolver",)
 
 
 def test_eamos_search_input_resolver_covers_rpgrip1_cdna_stack(

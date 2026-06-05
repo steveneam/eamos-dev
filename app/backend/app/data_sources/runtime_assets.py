@@ -118,6 +118,7 @@ class SourceAssetMaterializationStore(Protocol):
         bucket_id: str | None = None,
         object_path: str | None = None,
         environment: str | None = None,
+        local_cache_path: str | None = None,
     ) -> SourceAssetMaterializationRecord | None: ...
 
 
@@ -252,6 +253,7 @@ def resolve_hg38_materialized_runtime_asset(
         bucket_id=bucket_id,
         object_path=object_path,
         environment=environment,
+        local_cache_path=str(plan.path),
     )
     if record is None:
         raise SourceAssetMaterializationError(

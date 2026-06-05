@@ -56,6 +56,14 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert crispr["available"] is True
     assert crispr["providers"]["local_deterministic"]["available"] is True
     assert crispr["providers"]["crisprscore_r"]["status"] == "disabled"
+    indexed = body["providers"]["indexed_predictors"]
+    assert indexed["alphamissense"]["status"] == "missing_source_file"
+    assert indexed["alphamissense"]["public_serialization_allowed"] is False
+    assert indexed["esm1b"]["status"] == "missing_source_file"
+    assert indexed["esm1b"]["public_serialization_allowed"] is False
+    assert indexed["ci_spliceai"]["status"] == "restricted_unlicensed"
+    assert indexed["pvs1_nmd"]["status"] == "pure_code_available"
+    assert indexed["mavedb"]["status"] == "cc0_import_not_materialized"
     protein = body["providers"]["protein_annotation"]
     assert protein["enabled"] is False
     assert protein["available"] is False

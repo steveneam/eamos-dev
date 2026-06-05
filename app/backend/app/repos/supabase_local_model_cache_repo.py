@@ -1050,6 +1050,7 @@ class SqlAlchemySupabaseLocalModelCacheStore:
         bucket_id: str | None = None,
         object_path: str | None = None,
         environment: str | None = None,
+        local_cache_path: str | None = None,
     ) -> SourceAssetMaterializationRecord | None:
         statement = self._source_asset_materialization_select_statement()
         try:
@@ -1063,6 +1064,7 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                             "bucket_id": bucket_id,
                             "object_path": object_path,
                             "environment": environment,
+                            "local_cache_path": local_cache_path,
                         },
                     )
                     .mappings()
@@ -1131,6 +1133,10 @@ class SqlAlchemySupabaseLocalModelCacheStore:
               and (
                 cast(:environment as text) is null
                 or m.environment = cast(:environment as text)
+              )
+              and (
+                cast(:local_cache_path as text) is null
+                or m.local_cache_path = cast(:local_cache_path as text)
               )
             order by
                 case when m.materialization_status = 'ready' then 0 else 1 end,

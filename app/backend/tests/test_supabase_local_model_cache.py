@@ -99,9 +99,12 @@ def test_source_asset_materialization_query_casts_nullable_text_filters() -> Non
     assert "o.object_path = cast(:object_path as text)" in statement_text
     assert "cast(:environment as text) is null" in statement_text
     assert "m.environment = cast(:environment as text)" in statement_text
+    assert "cast(:local_cache_path as text) is null" in statement_text
+    assert "m.local_cache_path = cast(:local_cache_path as text)" in statement_text
     assert ":bucket_id is null" not in statement_text
     assert ":object_path is null" not in statement_text
     assert ":environment is null" not in statement_text
+    assert ":local_cache_path is null" not in statement_text
 
 
 def test_variant_cache_reads_supabase_dev_cache_on_local_miss(tmp_path: Path) -> None:

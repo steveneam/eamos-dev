@@ -20,6 +20,8 @@ from app.services.source_storage_uploads import DEFAULT_SOURCE_ASSET_BUCKET_FILE
 
 ALPHAMISSENSE_SOURCE_ID = "google_deepmind_alphamissense_hg38"
 ALPHAMISSENSE_ASSET_ROLE = "predictor_tabix_tsv"
+ESM1B_SOURCE_ID = "esm1b_hg38_assembled_scores"
+ESM1B_ASSET_ROLE = "predictor_tabix_tsv"
 
 
 class PredictorRuntimeStatus(str, Enum):
@@ -49,6 +51,7 @@ class PredictorRuntimeStatus(str, Enum):
 class PredictorRuntimePlan:
     source_id: str
     asset_role: str
+    display_name: str
     mode: str
     path: Path
     index_path: Path
@@ -95,12 +98,38 @@ def build_alphamissense_runtime_plan(
     return PredictorRuntimePlan(
         source_id=record.source_id,
         asset_role=ALPHAMISSENSE_ASSET_ROLE,
+        display_name=record.display_name,
         mode=settings.alphamissense_hg38_runtime_asset_mode.strip().lower(),
         path=path,
         index_path=Path(f"{path}.tbi"),
         manifest_path=path.with_suffix(path.suffix + ".manifest.json"),
         source_url=record.source_url,
         object_uri=settings.alphamissense_hg38_runtime_asset_object_uri,
+        expected_md5=_expected_md5(record.current_local_md5, record.checksum_plan),
+        reader_requires_local_path=True,
+        supported_modes=record.runtime_delivery_modes,
+        bucket_file_size_limit=bucket_file_size_limit,
+    )
+
+
+def build_esm1b_runtime_plan(
+    settings: Settings,
+    registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+    *,
+    bucket_file_size_limit: int = DEFAULT_SOURCE_ASSET_BUCKET_FILE_SIZE_LIMIT,
+) -> PredictorRuntimePlan:
+    record = registry.get(ESM1B_SOURCE_ID)
+    path = _resolve_backend_path(settings, settings.esm1b_hg38_runtime_asset_path)
+    return PredictorRuntimePlan(
+        source_id=record.source_id,
+        asset_role=ESM1B_ASSET_ROLE,
+        display_name=record.display_name,
+        mode=settings.esm1b_hg38_runtime_asset_mode.strip().lower(),
+        path=path,
+        index_path=Path(f"{path}.tbi"),
+        manifest_path=path.with_suffix(path.suffix + ".manifest.json"),
+        source_url=record.source_url,
+        object_uri=settings.esm1b_hg38_runtime_asset_object_uri,
         expected_md5=_expected_md5(record.current_local_md5, record.checksum_plan),
         reader_requires_local_path=True,
         supported_modes=record.runtime_delivery_modes,
@@ -173,6 +202,71 @@ def inspect_alphamissense_runtime_asset(
     )
 
 
+def inspect_esm1b_runtime_asset(
+    settings: Settings,
+    registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+    *,
+    verify_checksum: bool = False,
+    require_manifest: bool = True,
+    materialization_store: SourceAssetMaterializationStore | None = None,
+    environment: str | None = None,
+    bucket_file_size_limit: int = DEFAULT_SOURCE_ASSET_BUCKET_FILE_SIZE_LIMIT,
+) -> PredictorRuntimeInspection:
+    plan = build_esm1b_runtime_plan(
+        settings,
+        registry=registry,
+        bucket_file_size_limit=bucket_file_size_limit,
+    )
+    base = _inspect_predictor_local_files(
+        plan,
+        verify_checksum=verify_checksum,
+        require_manifest=require_manifest,
+    )
+    if not base.ready:
+        return base
+    if materialization_store is None:
+        if plan.mode == RuntimeAssetMode.OBJECT_STORAGE_LOCAL_CACHE.value:
+            return _inspection(
+                plan,
+                PredictorRuntimeStatus.MATERIALIZATION_STORE_UNAVAILABLE,
+                f"{plan.display_name} object-storage mode requires materialization metadata",
+                actual_size_bytes=base.actual_size_bytes,
+                actual_md5=base.actual_md5,
+                materialization_status="metadata_store_unavailable",
+            )
+        return base
+
+    try:
+        _validate_materialization_record(
+            settings,
+            plan,
+            materialization_store,
+            environment=environment,
+        )
+    except SourceAssetMaterializationError as exc:
+        status = _MATERIALIZATION_ERROR_STATUS.get(
+            exc.code,
+            PredictorRuntimeStatus.CONFIG_ERROR,
+        )
+        return _inspection(
+            plan,
+            status,
+            str(exc),
+            actual_size_bytes=base.actual_size_bytes,
+            actual_md5=base.actual_md5,
+            materialization_status=exc.code,
+        )
+
+    return _inspection(
+        plan,
+        PredictorRuntimeStatus.READY,
+        f"{plan.display_name} runtime asset is ready",
+        actual_size_bytes=base.actual_size_bytes,
+        actual_md5=base.actual_md5,
+        materialization_status="ready",
+    )
+
+
 def _inspect_predictor_local_files(
     plan: PredictorRuntimePlan,
     *,
@@ -184,38 +278,38 @@ def _inspect_predictor_local_files(
         return _inspection(
             plan,
             PredictorRuntimeStatus.CONFIG_ERROR,
-            f"unsupported AlphaMissense runtime asset mode: {plan.mode}",
+            f"unsupported {plan.display_name} runtime asset mode: {plan.mode}",
         )
     if plan.mode not in set(plan.supported_modes):
         return _inspection(
             plan,
             PredictorRuntimeStatus.CONFIG_ERROR,
-            f"registry does not support AlphaMissense runtime asset mode: {plan.mode}",
+            f"registry does not support {plan.display_name} runtime asset mode: {plan.mode}",
         )
     if plan.mode == RuntimeAssetMode.OBJECT_STORAGE_LOCAL_CACHE.value and not plan.object_uri:
         return _inspection(
             plan,
             PredictorRuntimeStatus.CONFIG_ERROR,
-            "object_storage_local_cache mode requires an object URI for AlphaMissense",
+            f"object_storage_local_cache mode requires an object URI for {plan.display_name}",
         )
     if plan.reader_requires_local_path and not plan.path:
         return _inspection(
             plan,
             PredictorRuntimeStatus.CONFIG_ERROR,
-            "AlphaMissense reader requires a configured local filesystem path",
+            f"{plan.display_name} reader requires a configured local filesystem path",
         )
 
     if not plan.path.exists():
         return _inspection(
             plan,
             PredictorRuntimeStatus.MISSING_SOURCE_FILE,
-            "AlphaMissense source TSV is missing",
+            f"{plan.display_name} source TSV is missing",
         )
     if not plan.path.is_file():
         return _inspection(
             plan,
             PredictorRuntimeStatus.SOURCE_PATH_NOT_FILE,
-            "AlphaMissense runtime asset path is not a file",
+            f"{plan.display_name} runtime asset path is not a file",
         )
     actual_size = plan.path.stat().st_size
 
@@ -223,14 +317,14 @@ def _inspect_predictor_local_files(
         return _inspection(
             plan,
             PredictorRuntimeStatus.MISSING_INDEX,
-            "AlphaMissense tabix index is missing",
+            f"{plan.display_name} tabix index is missing",
             actual_size_bytes=actual_size,
         )
     if not plan.index_path.is_file():
         return _inspection(
             plan,
             PredictorRuntimeStatus.INDEX_PATH_NOT_FILE,
-            "AlphaMissense tabix index path is not a file",
+            f"{plan.display_name} tabix index path is not a file",
             actual_size_bytes=actual_size,
         )
 
@@ -238,7 +332,7 @@ def _inspect_predictor_local_files(
         return _inspection(
             plan,
             PredictorRuntimeStatus.MISSING_MANIFEST,
-            "AlphaMissense checksum manifest is missing",
+            f"{plan.display_name} checksum manifest is missing",
             actual_size_bytes=actual_size,
         )
 
@@ -247,7 +341,7 @@ def _inspect_predictor_local_files(
         return _inspection(
             plan,
             PredictorRuntimeStatus.CHECKSUM_MISMATCH,
-            "AlphaMissense source TSV checksum does not match registry metadata",
+            f"{plan.display_name} source TSV checksum does not match registry metadata",
             actual_size_bytes=actual_size,
             actual_md5=actual_md5,
         )
@@ -255,7 +349,7 @@ def _inspect_predictor_local_files(
     return _inspection(
         plan,
         PredictorRuntimeStatus.READY,
-        "AlphaMissense runtime asset is ready",
+        f"{plan.display_name} runtime asset is ready",
         actual_size_bytes=actual_size,
         actual_md5=actual_md5,
     )
@@ -275,41 +369,42 @@ def _validate_materialization_record(
         bucket_id=bucket_id,
         object_path=object_path,
         environment=environment,
+        local_cache_path=str(plan.path),
     )
     if record is None:
         raise SourceAssetMaterializationError(
             "materialization_metadata_missing",
-            "no AlphaMissense materialization metadata is available",
+            f"no {plan.display_name} materialization metadata is available",
             {"source_id": plan.source_id, "asset_role": plan.asset_role},
         )
     if record.source_id != plan.source_id or record.asset_role != plan.asset_role:
         raise SourceAssetMaterializationError(
             "materialization_source_mismatch",
-            "AlphaMissense materialization metadata is for the wrong source asset",
+            f"{plan.display_name} materialization metadata is for the wrong source asset",
             {"source_id": plan.source_id},
         )
     if record.public_access_allowed or record.frontend_direct_access_allowed:
         raise SourceAssetMaterializationError(
             "materialization_public_access_blocked",
-            "AlphaMissense materialization metadata allows public or frontend access",
+            f"{plan.display_name} materialization metadata allows public or frontend access",
             {"source_id": plan.source_id},
         )
     if record.upload_status != "verified":
         raise SourceAssetMaterializationError(
             "materialization_upload_not_verified",
-            "AlphaMissense source object is not verified",
+            f"{plan.display_name} source object is not verified",
             {"source_id": plan.source_id, "upload_status": record.upload_status},
         )
     if record.approval_status != "approved":
         raise SourceAssetMaterializationError(
             "materialization_not_approved",
-            "AlphaMissense source object is not approved for backend use",
+            f"{plan.display_name} source object is not approved for backend use",
             {"source_id": plan.source_id, "approval_status": record.approval_status},
         )
     if record.materialization_status != "ready":
         raise SourceAssetMaterializationError(
             "materialization_not_ready",
-            "AlphaMissense materialization is not ready",
+            f"{plan.display_name} materialization is not ready",
             {
                 "source_id": plan.source_id,
                 "materialization_status": record.materialization_status,
@@ -318,50 +413,50 @@ def _validate_materialization_record(
     if record.fail_closed_reason is not None:
         raise SourceAssetMaterializationError(
             "materialization_fail_closed",
-            "AlphaMissense materialization has a fail-closed reason",
+            f"{plan.display_name} materialization has a fail-closed reason",
             {"source_id": plan.source_id},
         )
     if record.byte_size is None or record.byte_size <= 0:
         raise SourceAssetMaterializationError(
             "materialization_size_missing",
-            "ready AlphaMissense materialization is missing byte_size",
+            f"ready {plan.display_name} materialization is missing byte_size",
             {"source_id": plan.source_id},
         )
     if record.byte_size != plan.path.stat().st_size:
         raise SourceAssetMaterializationError(
             "materialization_size_mismatch",
-            "AlphaMissense materialization size does not match local cache bytes",
+            f"{plan.display_name} materialization size does not match local cache bytes",
             {"source_id": plan.source_id},
         )
     if record.verified_at is None:
         raise SourceAssetMaterializationError(
             "materialization_verified_at_missing",
-            "ready AlphaMissense materialization is missing verified_at",
+            f"ready {plan.display_name} materialization is missing verified_at",
             {"source_id": plan.source_id},
         )
     if record.checksum_algorithm is None or record.checksum_value is None:
         raise SourceAssetMaterializationError(
             "materialization_checksum_missing",
-            "ready AlphaMissense materialization is missing checksum metadata",
+            f"ready {plan.display_name} materialization is missing checksum metadata",
             {"source_id": plan.source_id},
         )
     if (record.checksum_algorithm or "").lower() != "md5":
         raise SourceAssetMaterializationError(
             "materialization_checksum_algorithm_mismatch",
-            "AlphaMissense materialization checksum must use md5",
+            f"{plan.display_name} materialization checksum must use md5",
             {"source_id": plan.source_id},
         )
     if plan.expected_md5 and (record.checksum_value or "").lower() != plan.expected_md5:
         raise SourceAssetMaterializationError(
             "materialization_checksum_mismatch",
-            "AlphaMissense materialization checksum does not match registry metadata",
+            f"{plan.display_name} materialization checksum does not match registry metadata",
             {"source_id": plan.source_id},
         )
     materialized_path = _resolve_materialization_path(settings, record.local_cache_path)
     if materialized_path.resolve() != plan.path.resolve():
         raise SourceAssetMaterializationError(
             "materialization_path_mismatch",
-            "AlphaMissense materialization path does not match configured runtime path",
+            f"{plan.display_name} materialization path does not match configured runtime path",
             {"source_id": plan.source_id},
         )
     return record
