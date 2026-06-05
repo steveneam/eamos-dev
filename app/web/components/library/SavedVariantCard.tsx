@@ -3,6 +3,7 @@
 import type { DragEvent } from 'react'
 import type { SavedVariant } from '@/lib/variant-library'
 import { VariantCardRow } from './VariantCardRow'
+import { IconPin, IconRemove } from '@/components/icons/Icon'
 
 /**
  * A worklist entry: <VariantCardRow> + the selection / pin / remove chrome,
@@ -21,6 +22,8 @@ export interface SavedVariantCardProps {
   onRemove: () => void
   onDragStart?: (e: DragEvent) => void
   onDragEnd?: (e: DragEvent) => void
+  /** Surface-specific tooltip for the card-open action (default "Open report"). */
+  openLabel?: string
 }
 
 export function SavedVariantCard({
@@ -34,6 +37,7 @@ export function SavedVariantCard({
   onRemove,
   onDragStart,
   onDragEnd,
+  openLabel,
 }: SavedVariantCardProps) {
   const label = `${variant.gene ?? ''} ${variant.variant ?? variant.query}`.trim()
   return (
@@ -59,6 +63,7 @@ export function SavedVariantCard({
         classification={variant.classification}
         hgvsFull={variant.hgvs_full}
         onOpen={onOpen}
+        openLabel={openLabel}
       />
       <div className="lib-card-actions">
         <button
@@ -68,7 +73,7 @@ export function SavedVariantCard({
           title={pinned ? 'Unpin from compare' : 'Pin for compare'}
           onClick={onTogglePin}
         >
-          ⇄
+          <IconPin size={16} />
         </button>
         <button
           type="button"
@@ -77,7 +82,7 @@ export function SavedVariantCard({
           title="Remove"
           onClick={onRemove}
         >
-          ✕
+          <IconRemove size={16} />
         </button>
       </div>
     </div>

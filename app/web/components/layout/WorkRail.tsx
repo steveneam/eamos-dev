@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { IconChevron } from '@/components/icons/Icon'
 import './work-rail.css'
 
 /**
@@ -56,14 +57,6 @@ function getServerCompactSnapshot() {
   return false
 }
 
-function Chevron() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  )
-}
-
 export interface WorkRailSectionProps {
   title: string
   meta?: ReactNode
@@ -86,7 +79,7 @@ export function WorkRailSection({ title, meta, defaultOpen = true, children, id 
         onClick={() => setOpen((o) => !o)}
       >
         <span className="wr-section-chev" aria-hidden="true">
-          <Chevron />
+          <IconChevron size={12} />
         </span>
         <span className="wr-section-title">{title}</span>
         {meta ? <span className="wr-section-meta">{meta}</span> : null}

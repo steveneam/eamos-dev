@@ -16,6 +16,17 @@ import {
 } from '@/lib/variant-library'
 import { useLibrary } from './useLibrary'
 import { SavedVariantCard } from './SavedVariantCard'
+import {
+  IconArrowRight,
+  IconBookmark,
+  IconChevron,
+  IconDropInto,
+  IconFolderMove,
+  IconPin,
+  IconPlus,
+  IconRemove,
+  IconRename,
+} from '@/components/icons/Icon'
 import './library.css'
 
 /**
@@ -55,9 +66,11 @@ export interface LibrarySectionProps {
   onOpen?: (v: SavedVariant) => void
   /** The variant currently on screen (its `query`) — marks the "you are here" card. */
   currentQuery?: string
+  /** Surface-specific tooltip for opening a card (default "Open report"; /workbench loads the viewer). */
+  openLabel?: string
 }
 
-export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
+export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySectionProps) {
   const router = useRouter()
   const { variants, folders } = useLibrary()
 
@@ -178,19 +191,20 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
       onOpen={() => open(v)}
       onRemove={() => removeOne(v.id)}
       onDragStart={onCardDragStart(v.id)}
+      openLabel={openLabel}
     />
   )
 
   return (
     <>
-      <WorkRailSection title="Saved variants" meta={<span className="lib-count">{topLevel.length}</span>}>
+      <WorkRailSection title="Saved variants" meta={topLevel.length}>
         <div className="lib-secbar">
-          <Link href="/compare">Import VCF →</Link>
+          <Link href="/compare">Import VCF <IconArrowRight size={12} /></Link>
         </div>
 
         {variants.length === 0 ? (
           <div className="lib-empty">
-            <span className="lib-empty-glyph" aria-hidden>⌬</span>
+            <span className="lib-empty-glyph" aria-hidden><IconBookmark size={18} /></span>
             <strong>No saved variants yet.</strong>
             <p>
               Save the variant you’re viewing, or <Link href="/compare">import a VCF in Compare</Link> to
@@ -206,11 +220,13 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
             <span className="lib-seltoolbar-count">{selected.size} selected</span>
             <div className="lib-seltoolbar-actions">
               <button type="button" onClick={() => setMoveMenuOpen((o) => !o)} aria-expanded={moveMenuOpen}>
-                Move to folder ▾
+                <IconFolderMove size={14} /> Move to folder
               </button>
-              <button type="button" onClick={pinSelected}>⇄ Pin</button>
+              <button type="button" onClick={pinSelected}>
+                <IconPin size={14} /> Pin
+              </button>
               <button type="button" className="seltoolbar-clear" onClick={clearSelection} aria-label="Clear selection">
-                ✕
+                <IconRemove size={14} />
               </button>
               {moveMenuOpen && (
                 <div className="lib-folder-menu" role="menu">
@@ -244,7 +260,7 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
         )}
       </WorkRailSection>
 
-      <WorkRailSection title="Folders" meta={<span className="lib-count">{folders.length}</span>}>
+      <WorkRailSection title="Folders" meta={folders.length}>
         {folders.map((f) => {
           const isOpen = !collapsedFolders.has(f.id)
           const cards = byFolder.get(f.id) ?? []
@@ -315,14 +331,14 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
                     }
                   >
                     <span className="lib-folder-chev" aria-hidden>
-                      {dragOverFolder === f.id ? '⤓' : <Chevron />}
+                      {dragOverFolder === f.id ? <IconDropInto size={14} /> : <IconChevron size={12} />}
                     </span>
                     <span className="lib-folder-name">{f.name}</span>
                     <span className="lib-count">{cards.length}</span>
                   </button>
                   <div className="lib-folder-actions">
                     <button type="button" title="Rename folder" aria-label={`Rename ${f.name}`} onClick={() => setRenaming(f.id)}>
-                      ✎
+                      <IconRename size={14} />
                     </button>
                     <button
                       type="button"
@@ -331,7 +347,7 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
                       aria-label={`Delete ${f.name}`}
                       onClick={() => setConfirmDelete(f.id)}
                     >
-                      ✕
+                      <IconRemove size={14} />
                     </button>
                   </div>
                 </div>
@@ -356,12 +372,12 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
           />
         ) : (
           <button type="button" className="lib-newfolder" onClick={() => setNewFolderOpen(true)}>
-            + New folder
+            <IconPlus size={13} /> New folder
           </button>
         )}
       </WorkRailSection>
 
-      <WorkRailSection title="Compare tray" meta={<span className="lib-count">{pinnedVariants.length}</span>}>
+      <WorkRailSection title="Compare tray" meta={pinnedVariants.length}>
         {pinnedVariants.length === 0 ? (
           <p className="lib-tray-empty">Pin 2 or more saved variants to line them up in Compare.</p>
         ) : (
@@ -371,7 +387,7 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
                 {v.gene ?? v.query}
                 {v.variant ? ` ${v.variant}` : ''}
                 <button type="button" aria-label={`Unpin ${v.gene ?? v.query}`} onClick={() => togglePin(v.id)}>
-                  ✕
+                  <IconRemove size={11} />
                 </button>
               </span>
             ))}
@@ -384,17 +400,9 @@ export function LibrarySection({ onOpen, currentQuery }: LibrarySectionProps) {
           title={pinnedVariants.length < 2 ? 'Pin at least 2 variants' : undefined}
           onClick={openInCompare}
         >
-          Open in Compare →
+          Open in Compare <IconArrowRight size={12} />
         </button>
       </WorkRailSection>
     </>
-  )
-}
-
-function Chevron() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="11" height="11">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
   )
 }

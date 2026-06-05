@@ -7,6 +7,7 @@ import { saveVariant } from '@/lib/variant-library'
 import type { LookupResponse } from '@/lib/backend'
 import { RelatedVariants } from './RelatedVariants'
 import { ReportSectionNav } from './ReportSectionNav'
+import { IconPlus, IconCheck } from '@/components/icons/Icon'
 
 /**
  * The /report <WorkRail> body: the shared LibrarySection (saved + folders +
@@ -48,7 +49,7 @@ export function SaveCurrentButton({ data }: { data: LookupResponse }) {
   if (!identity) {
     return (
       <button type="button" className="lib-save-btn" disabled title="No variant identity available">
-        + Save
+        <IconPlus size={13} /> Save
       </button>
     )
   }
@@ -67,7 +68,15 @@ export function SaveCurrentButton({ data }: { data: LookupResponse }) {
         )
       }}
     >
-      {saved ? '✓ Saved' : '+ Save'}
+      {saved ? (
+        <>
+          <IconCheck size={13} /> Saved
+        </>
+      ) : (
+        <>
+          <IconPlus size={13} /> Save
+        </>
+      )}
     </button>
   )
 }
