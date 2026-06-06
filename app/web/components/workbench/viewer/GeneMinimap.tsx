@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
 
 interface GeneMinimapProps {
@@ -15,7 +15,7 @@ interface GeneMinimapProps {
 /** Whole-transcript band: proportional exon/intron segments, optional
  *  per-exon ClinVar density bubbles, active-window flag. Port of
  *  `sv-minimap.js`. */
-export function GeneMinimap({
+export const GeneMinimap = memo(function GeneMinimap({
   data,
   activeExon,
   showDensity,
@@ -175,4 +175,4 @@ export function GeneMinimap({
       </div>
     </div>
   )
-}
+})

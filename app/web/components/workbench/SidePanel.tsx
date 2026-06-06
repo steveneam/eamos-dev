@@ -2,7 +2,7 @@
 import { useState, type ReactNode } from 'react'
 import type { WorkbenchTool } from '@/lib/backend'
 import { aaThree } from '@/lib/workbench/codon-table'
-import type { GeneWindowData } from '@/lib/workbench/gene-window'
+import { classLabel, type ClinvarVariant, type GeneWindowData } from '@/lib/workbench/gene-window'
 import { TOOL_META } from './tools'
 import type { ScratchEntry } from './viewer/SequenceViewerV2'
 import type { SelectionSummary } from './viewer/viewer-types'
@@ -17,6 +17,7 @@ interface SidePanelProps {
   data: GeneWindowData
   scratch: ScratchEntry[]
   selection: SelectionSummary | null
+  selectedClinvar: ClinvarVariant | null
   collapsed: boolean
   exonTableOpen: boolean
   activeExon: number
@@ -27,6 +28,7 @@ interface SidePanelProps {
   onDelSelection: () => void
   onReplaceSelection: (seq: string) => void
   onClearSelection: () => void
+  onClearClinvar: () => void
 }
 
 function Kv({ k, v, tone }: { k: string; v: string; tone?: 'warn' | 'ok' }) {
@@ -132,6 +134,9 @@ function SelectionBlock({
             Clear
           </button>
         </div>
+        <div className="scratch-sel-esc">
+          Press <b>Esc</b> or click empty canvas to clear.
+        </div>
       </div>
     )
   }
@@ -172,6 +177,50 @@ function SelectionBlock({
           Replace →
         </button>
       </div>
+      <div className="scratch-sel-esc">
+        Press <b>Esc</b> or click empty canvas to clear.
+      </div>
+    </div>
+  )
+}
+
+/** Info card for the ClinVar dot the user clicked in the viewer. Mirrors the
+ *  `.scratch-sel` card shape; the classification chip reuses the lollipop
+ *  colour ramp (`.scratch-cv-cls.<cls>`). */
+function ClinvarFocusCard({
+  variant,
+  onClear,
+}: {
+  variant: ClinvarVariant
+  onClear: () => void
+}) {
+  const numericId = variant.cv.replace(/\D/g, '').replace(/^0+/, '')
+  const href = numericId
+    ? `https://www.ncbi.nlm.nih.gov/clinvar/variation/${numericId}/`
+    : null
+  return (
+    <div className="scratch-cv">
+      <div className="scratch-cv-head">
+        <span className="lbl">ClinVar variant</span>
+        <span className={`scratch-cv-cls ${variant.cls}`}>{classLabel(variant.cls)}</span>
+      </div>
+      <div className="scratch-cv-hgvs">{variant.hgvsC}</div>
+      {variant.hgvsP ? <div className="scratch-cv-hgvs sub">{variant.hgvsP}</div> : null}
+      <div className="scratch-cv-actions">
+        {href ? (
+          <a
+            className="scratch-cv-link"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {variant.cv} ↗
+          </a>
+        ) : null}
+        <button type="button" className="scratch-sel-btn ghost" onClick={onClear}>
+          Clear
+        </button>
+      </div>
     </div>
   )
 }
@@ -185,17 +234,21 @@ type ScratchTab = 'log' | 'notes' | 'ask'
 function ScratchpadSection({
   scratch,
   selection,
+  selectedClinvar,
   onResetAll,
   onDelSelection,
   onReplaceSelection,
   onClearSelection,
+  onClearClinvar,
 }: {
   scratch: ScratchEntry[]
   selection: SelectionSummary | null
+  selectedClinvar: ClinvarVariant | null
   onResetAll: () => void
   onDelSelection: () => void
   onReplaceSelection: (seq: string) => void
   onClearSelection: () => void
+  onClearClinvar: () => void
 }) {
   const [tab, setTab] = useState<ScratchTab>('log')
   const [notes, setNotes] = useState('')
@@ -253,6 +306,9 @@ function ScratchpadSection({
 
       {tab === 'log' && (
         <>
+          {selectedClinvar && (
+            <ClinvarFocusCard variant={selectedClinvar} onClear={onClearClinvar} />
+          )}
           {selection && (
             <SelectionBlock
               selection={selection}
@@ -333,6 +389,7 @@ function ViewerSide({
   data,
   scratch,
   selection,
+  selectedClinvar,
   exonTableOpen,
   activeExon,
   onToggleExonTable,
@@ -341,6 +398,7 @@ function ViewerSide({
   onDelSelection,
   onReplaceSelection,
   onClearSelection,
+  onClearClinvar,
 }: Omit<SidePanelProps, 'tool' | 'collapsed' | 'onToggleCollapsed'>) {
   const qv = data.queriedVariant
   const g = data.genomicCoords
@@ -357,10 +415,12 @@ function ViewerSide({
       <ScratchpadSection
         scratch={scratch}
         selection={selection}
+        selectedClinvar={selectedClinvar}
         onResetAll={onResetAll}
         onDelSelection={onDelSelection}
         onReplaceSelection={onReplaceSelection}
         onClearSelection={onClearSelection}
+        onClearClinvar={onClearClinvar}
       />
 
       <CollapsibleSection title="Active variant">

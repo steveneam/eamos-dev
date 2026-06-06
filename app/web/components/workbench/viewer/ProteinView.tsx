@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { AlleleMode } from '@/lib/backend'
 import {
   classLabel,
@@ -44,7 +44,7 @@ interface Lollipop {
 const LANE_GAP_PCT = 3.4
 const MAX_LANES = 4
 
-export function ProteinView({ data, alleleMode }: ProteinViewProps) {
+export const ProteinView = memo(function ProteinView({ data, alleleMode }: ProteinViewProps) {
   const product = alleleMode === 'variant' ? data.proteinProduct : null
   const referenceLen = Math.max(
     1,
@@ -294,4 +294,4 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
       </div>
     </div>
   )
-}
+})

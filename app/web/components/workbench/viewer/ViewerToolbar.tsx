@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { IconChevron, IconRemove } from '@/components/icons/Icon'
 
 interface ViewerToolbarProps {
@@ -23,7 +23,7 @@ interface ViewerToolbarProps {
 
 /** Find/jump box, ClinVar variant chevrons, undo/redo + history toggle.
  *  Port of `renderToolbar()`. */
-export function ViewerToolbar({
+export const ViewerToolbar = memo(function ViewerToolbar({
   searchQuery,
   jumpError,
   variantCount,
@@ -157,4 +157,4 @@ export function ViewerToolbar({
       </div>
     </div>
   )
-}
+})

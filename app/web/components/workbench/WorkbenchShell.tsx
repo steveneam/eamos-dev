@@ -6,7 +6,7 @@ import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
 import { adaptFullLocus, type FullLocusViewModel } from '@/lib/workbench/full-locus-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
-import type { GeneWindowData } from '@/lib/workbench/gene-window'
+import type { ClinvarVariant, GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader, type ViewerMode } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
 import { ToolBar } from './ToolBar'
@@ -80,6 +80,20 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
   const [scratch, setScratch] = useState<ScratchEntry[]>([])
   const [selSummary, setSelSummary] = useState<SelectionSummary | null>(null)
   const [activeExon, setActiveExon] = useState(4)
+
+  // ClinVar focus (clicked lollipop → Scratchpad log card). Key-stamped to the
+  // variant context so it auto-clears when gene/cdna/transcript change, without
+  // a setState-in-effect (mirrors the viewer's activeExonOverride pattern).
+  const clinvarKey = `${gene}|${cdna}|${transcript ?? ''}`
+  const [clinvarFocus, setClinvarFocus] = useState<{
+    key: string
+    variant: ClinvarVariant | null
+  }>({ key: clinvarKey, variant: null })
+  const selectedClinvar = clinvarFocus.key === clinvarKey ? clinvarFocus.variant : null
+  const setSelectedClinvar = useCallback(
+    (variant: ClinvarVariant | null) => setClinvarFocus({ key: clinvarKey, variant }),
+    [clinvarKey],
+  )
 
   const [alleleMode, setAlleleMode] = useState<AlleleMode>('reference')
   const [viewerMode, setViewerMode] = useState<ViewerMode>('window')
@@ -174,9 +188,11 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
         data={data}
         scratch={scratch}
         selection={selSummary}
+        selectedClinvar={selectedClinvar}
         collapsed={false}
         exonTableOpen={exonTableOpen}
         activeExon={activeExon}
+        onClearClinvar={() => setSelectedClinvar(null)}
         onToggleCollapsed={() => { /* collapse is handled by WorkRail */ }}
         onToggleExonTable={() => setExonTableOpen((o) => !o)}
         onResetAll={() => viewerRef.current?.resetEdits()}
@@ -248,6 +264,8 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
                 onScratchChange={setScratch}
                 onSelectionChange={setSelSummary}
                 onActiveExonChange={setActiveExon}
+                onClinvarSelect={setSelectedClinvar}
+                activeClinvar={selectedClinvar?.cv ?? null}
               />
             ) : null}
           </>
@@ -265,6 +283,8 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
             onScratchChange={setScratch}
             onSelectionChange={setSelSummary}
             onActiveExonChange={setActiveExon}
+            onClinvarSelect={setSelectedClinvar}
+            activeClinvar={selectedClinvar?.cv ?? null}
           />
         ) : (
           <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>

@@ -1,6 +1,7 @@
 'use client'
 import {
   Fragment,
+  memo,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,6 +13,7 @@ import {
   COMPLEMENT,
   classLabel,
   translateTriplet,
+  type ClinvarVariant,
   type Codon,
   type FlatBase,
   type GeneWindowData,
@@ -39,17 +41,23 @@ interface CodonDetailProps {
   alleleMode: AlleleMode
   edits: EditMap
   selection: { start: number; end: number } | null
+  /** ClinVar id (`cv`) of the dot currently focused in the Scratchpad log;
+   *  renders its `.active` ring. */
+  activeClinvar: string | null
   searchQuery: string
   restrictionHover: string | null
   onBaseMouseDown: (idx: number, shiftKey: boolean) => void
   onBaseContextMenu: (idx: number, x: number, y: number) => void
-  onClinvarClick: (idx: number) => void
+  onSelectionEdgeDown: (edge: 'start' | 'end') => void
+  /** Mousedown on blank canvas (not a base/handle/dot/site) → clear selection. */
+  onBlankMouseDown: () => void
+  onClinvarClick: (variant: ClinvarVariant, idx: number) => void
   onRestrictionHover: (name: string | null) => void
   onRestrictionSelect: (start: number, end: number) => void
 }
 
 export function CodonDetail(props: CodonDetailProps) {
-  const { flat, baseW } = props
+  const { flat, baseW, onBlankMouseDown } = props
   const detailRef = useRef<HTMLDivElement>(null)
   const [containerW, setContainerW] = useState(0)
 
@@ -95,7 +103,21 @@ export function CodonDetail(props: CodonDetailProps) {
   }, [flat])
 
   return (
-    <div className="sv-detail" ref={detailRef}>
+    <div
+      className="sv-detail"
+      ref={detailRef}
+      onMouseDown={(e) => {
+        const t = e.target as HTMLElement
+        // Only blank canvas clears; bases/handles/dots/sites keep their flows.
+        if (
+          t.closest(
+            '.sv-base, .sv-selection-handle, .sv-cv, .sv-re-bar, .sv-ins-marker',
+          )
+        )
+          return
+        onBlankMouseDown()
+      }}
+    >
       {layout.map((item, k) =>
         item.kind === 'gap' ? (
           <div className="sv-gap-sep" key={`gap${k}`}>
@@ -123,7 +145,7 @@ interface BlockProps extends CodonDetailProps {
   baseFlatIndex: Map<number, number>
 }
 
-function Block(props: BlockProps) {
+const Block = memo(function Block(props: BlockProps) {
   const {
     data,
     flat,
@@ -134,12 +156,14 @@ function Block(props: BlockProps) {
     alleleMode,
     edits,
     selection,
+    activeClinvar,
     searchQuery,
     restrictionHover,
     indices,
     baseFlatIndex,
     onBaseMouseDown,
     onBaseContextMenu,
+    onSelectionEdgeDown,
     onClinvarClick,
     onRestrictionHover,
     onRestrictionSelect,
@@ -150,6 +174,18 @@ function Block(props: BlockProps) {
   const endIdx = indices[indices.length - 1]
   const posOf = (i: number) => indices.indexOf(i)
   const localX = (i: number) => posOf(i) * baseW
+
+  // ── Selection band + edge handles (cross-rail, Benchling-style) ──
+  // The band spans the full block height for the portion of [lo,hi] that
+  // intersects this wrapped row; the left/right handles render only in the
+  // row that owns the low/high global edge.
+  const selLo = selection ? Math.min(selection.start, selection.end) : null
+  const selHi = selection ? Math.max(selection.start, selection.end) : null
+  const bandLo = selLo != null ? Math.max(selLo, startIdx) : null
+  const bandHi = selHi != null ? Math.min(selHi, endIdx) : null
+  const hasBand = bandLo != null && bandHi != null && bandLo <= bandHi
+  const startHandleHere = selLo != null && selLo >= startIdx && selLo <= endIdx
+  const endHandleHere = selHi != null && selHi >= startIdx && selHi <= endIdx
 
   // ── Annotation row: exon/intron feature bars + splice tags + oligo ──
   function annotations() {
@@ -281,13 +317,15 @@ function Block(props: BlockProps) {
         <button
           key={v.cv}
           type="button"
-          className={`sv-cv ${v.cls}${v.queried ? ' queried' : ''}`}
+          className={`sv-cv ${v.cls}${v.queried ? ' queried' : ''}${
+            v.cv && v.cv === activeClinvar ? ' active' : ''
+          }`}
           style={{ left: localX(idx) + baseW / 2 }}
           title={`${v.hgvsC} · ${v.hgvsP} · ${classLabel(v.cls)}`}
           aria-label={`${v.hgvsC}, ${v.hgvsP}, ${classLabel(v.cls)}`}
           onClick={(e) => {
             e.stopPropagation()
-            onClinvarClick(idx)
+            onClinvarClick(v, idx)
           }}
         />
       )
@@ -459,7 +497,10 @@ function Block(props: BlockProps) {
               isComp
                 ? undefined
                 : (e) => {
-                    if (e.button === 0) onBaseMouseDown(i, e.shiftKey)
+                    if (e.button === 0) {
+                      e.preventDefault()
+                      onBaseMouseDown(i, e.shiftKey)
+                    }
                   }
             }
             onContextMenu={
@@ -586,6 +627,41 @@ function Block(props: BlockProps) {
 
   return (
     <div className="sv-block" style={blockStyle}>
+      {hasBand && (
+        <div
+          className="sv-selection-band"
+          style={{ left: localX(bandLo!), width: localX(bandHi!) + baseW - localX(bandLo!) }}
+          aria-hidden="true"
+        />
+      )}
+      {startHandleHere && (
+        <div
+          className="sv-selection-handle start"
+          style={{ left: localX(selLo!) }}
+          aria-hidden="true"
+          title="Drag to resize selection"
+          onMouseDown={(e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            e.stopPropagation()
+            onSelectionEdgeDown('start')
+          }}
+        />
+      )}
+      {endHandleHere && (
+        <div
+          className="sv-selection-handle end"
+          style={{ left: localX(selHi!) + baseW }}
+          aria-hidden="true"
+          title="Drag to resize selection"
+          onMouseDown={(e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            e.stopPropagation()
+            onSelectionEdgeDown('end')
+          }}
+        />
+      )}
       {trackOn.annotations && row('annotations', 22, annotations())}
       {trackOn.domains &&
         domainTrack &&
@@ -613,4 +689,32 @@ function Block(props: BlockProps) {
       {trackOn.restriction && row('restriction', 22, restriction())}
     </div>
   )
+}, blocksEqual)
+
+/** Skip re-rendering a block during a selection drag unless that block's
+ *  selection footprint (band intersection + which edge handle lives here)
+ *  changed, or some non-selection prop changed. Only the edge blocks repaint
+ *  per base-crossing instead of every block. */
+function blocksEqual(prev: BlockProps, next: BlockProps): boolean {
+  const sig = (p: BlockProps): string => {
+    const s = p.selection
+    if (!s) return 'n'
+    const lo = Math.min(s.start, s.end)
+    const hi = Math.max(s.start, s.end)
+    const a = p.indices[0]
+    const b = p.indices[p.indices.length - 1]
+    const il = Math.max(lo, a)
+    const ih = Math.min(hi, b)
+    return `${il <= ih ? `${il}-${ih}` : 'x'}|${lo >= a && lo <= b ? lo : 'x'}|${
+      hi >= a && hi <= b ? hi : 'x'
+    }`
+  }
+  if (sig(prev) !== sig(next)) return false
+  const keys = Object.keys(next) as (keyof BlockProps)[]
+  if (keys.length !== Object.keys(prev).length) return false
+  for (const k of keys) {
+    if (k === 'selection') continue
+    if (prev[k] !== next[k]) return false
+  }
+  return true
 }

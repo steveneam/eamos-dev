@@ -695,6 +695,11 @@
   padding: 20px 22px 22px;
   display: flex; flex-direction: column;
   gap: 22px;
+  /* Drag-to-select is our own gesture — never let the browser start a native
+     text selection inside the canvas (it raced our selection logic and made
+     the drag feel laggy / sometimes lose to text-select). */
+  user-select: none;
+  -webkit-user-select: none;
   /* Benchling-style internal scroll — the sequence may run thousands of bp
      across many wrapped rows; cap the panel height and scroll inside it
      instead of stretching the page. The ResizeObserver still measures
@@ -818,21 +823,39 @@
 /* ClinVar pins */
 .sv-cv {
   position: absolute;
-  width: 9px; height: 9px;
+  width: 10px; height: 10px;
   border-radius: 50%;
   border: 1px solid var(--bg);
-  top: 50%; margin-top: -4.5px;
+  top: 50%; margin-top: -5px;
   transform: translateX(-50%);
   cursor: pointer;
   transition: transform .12s;
+  /* Lift above the sibling rails so the enlarged hit area below is clickable. */
+  z-index: 5;
+}
+/* Transparent hit area so the 10px dot is comfortably clickable (~20px). */
+.sv-cv::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
 }
 .sv-cv:hover { transform: translateX(-50%) scale(1.4); }
+/* Don't let dots swallow pointer events mid edge-drag. */
+.sv-root.sv-dragging-edge .sv-cv { pointer-events: none; }
 .sv-cv.p   { background: #B82B2B; }
 .sv-cv.lp  { background: #BA7517; }
 .sv-cv.vus { background: #94a3b8; }
 .sv-cv.lb  { background: #6FA88F; }
 .sv-cv.b   { background: #1D9E75; }
 .sv-cv.queried { box-shadow: 0 0 0 3px rgba(186,117,23,0.20); }
+/* Focused dot (clicked → card in the Scratchpad log): double focus ring. */
+.sv-cv.active {
+  transform: translateX(-50%) scale(1.35);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--teal-deep);
+  z-index: 6;
+}
+.sv-cv.active:hover { transform: translateX(-50%) scale(1.5); }
 
 /* Bases */
 .sv-base {
@@ -998,6 +1021,56 @@
   pointer-events: none;
   z-index: 4;
 }
+
+/* ── Selection band + drag handles (cross-rail, Benchling-style) ──
+   The band sits behind the rails as a translucent column; the two edge
+   handles sit above everything and resize the selection by base/codon.
+   Per-base .selected highlights still paint inside the band. */
+.sv-selection-band {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: rgba(29, 158, 117, 0.07);
+  border-left: 1px solid var(--teal);
+  border-right: 1px solid var(--teal);
+  pointer-events: none;
+  z-index: 0;
+}
+.sv-selection-handle {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 11px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  z-index: 6;
+  touch-action: none;
+}
+.sv-selection-handle::before {
+  /* the full-height teal rail along the selection edge */
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 2.5px;
+  background: var(--teal);
+}
+.sv-selection-handle::after {
+  /* centred grab knob so the affordance reads as draggable */
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px; height: 20px;
+  background: var(--teal);
+  border: 1px solid #fff;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.sv-selection-handle:hover::before,
+.sv-selection-handle:hover::after { background: var(--teal-deep); }
+.sv-root.sv-dragging-edge { cursor: ew-resize; user-select: none; }
+.sv-root.sv-dragging-edge .sv-selection-handle { pointer-events: none; }
+.sv-root.sv-dragging-edge .sv-selection-handle::before,
+.sv-root.sv-dragging-edge .sv-selection-handle::after { background: var(--teal-deep); }
 
 /* ─────────────── EDIT HISTORY TIMELINE ─────────────── */
 .sv-history {
@@ -1712,6 +1785,16 @@
 .scratch-sel-meta b { color: var(--ink); }
 .scratch-sel-hint { font-size: 10.5px; color: var(--ink-4); line-height: 1.5; }
 .scratch-sel-hint b { color: var(--ink-3); }
+.scratch-sel-esc { font-size: 10px; color: var(--ink-4); line-height: 1.4; }
+.scratch-sel-esc b {
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-weight: 600;
+  background: var(--bg-soft2);
+  border: 0.5px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+}
 .scratch-sel-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .scratch-sel-replace { display: flex; gap: 6px; }
 .scratch-sel-input {
@@ -1739,6 +1822,47 @@
 .scratch-sel-btn.ins:hover { background: var(--ink); }
 .scratch-sel-btn.ghost { background: transparent; color: var(--ink-3); border-color: transparent; }
 .scratch-sel-btn.ghost:hover { background: var(--bg-soft); color: var(--ink); }
+
+/* ClinVar focus card — appears in the Scratchpad log when a lollipop is
+   clicked in the viewer. Shares the .scratch-sel card shell. */
+.scratch-cv {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-left: 3px solid var(--teal-deep);
+  border-radius: var(--r-sm);
+}
+.scratch-cv-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.scratch-cv-head .lbl {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.scratch-cv-cls {
+  font-size: 10px; font-weight: 700; color: #fff;
+  border-radius: 3px; padding: 1px 6px; white-space: nowrap;
+}
+.scratch-cv-cls.p   { background: #B82B2B; }
+.scratch-cv-cls.lp  { background: #BA7517; }
+.scratch-cv-cls.vus { background: #94a3b8; }
+.scratch-cv-cls.lb  { background: #6FA88F; }
+.scratch-cv-cls.b   { background: #1D9E75; }
+.scratch-cv-hgvs {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink);
+}
+.scratch-cv-hgvs.sub { font-size: 11px; font-weight: 500; color: var(--ink-3); }
+.scratch-cv-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  margin-top: 1px;
+}
+.scratch-cv-link {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--teal-deep); text-decoration: none;
+}
+.scratch-cv-link:hover { text-decoration: underline; }
 
 .side-info {
   font-size: 12px;

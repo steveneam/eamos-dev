@@ -14,6 +14,7 @@ import {
   buildFlatWindow,
   consequenceAt,
   posDisplay,
+  type ClinvarVariant,
   type FlatBase,
   type GeneWindowData,
 } from '@/lib/workbench/gene-window'
@@ -77,6 +78,11 @@ interface SequenceViewerV2Props {
   onSelectionChange: (selection: SelectionSummary | null) => void
   onEditCountChange?: (count: number) => void
   onActiveExonChange?: (n: number) => void
+  /** Clicking a ClinVar dot focuses it: jumps to the position and reports the
+   *  variant up so the Scratchpad log can show an info card. */
+  onClinvarSelect?: (variant: ClinvarVariant) => void
+  /** ClinVar id (`cv`) of the currently focused dot → drives its active ring. */
+  activeClinvar?: string | null
 }
 
 export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV2Props>(
@@ -94,6 +100,8 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       onSelectionChange,
       onEditCountChange,
       onActiveExonChange,
+      onClinvarSelect,
+      activeClinvar,
     },
     ref,
   ) {
@@ -103,6 +111,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const focusSearchRef = useRef<() => void>(() => {})
     const isSelecting = useRef(false)
     const dragCleanupRef = useRef<(() => void) | null>(null)
+    const selectionRef = useRef<{ start: number; end: number } | null>(null)
 
     const [editState, dispatch] = useReducer(editReducer, initialEditState)
     const { edits, history, cursor } = editState
@@ -285,15 +294,26 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     }, [edits, flat, onScratchChange, onEditCountChange])
 
     // ── Selection summary, mirrored to the side-panel edit hub (Unit C) ──
-    useEffect(() => {
-      if (!selection) {
+    // Deferred during an active drag: pushing the summary on every base-cross
+    // re-rendered the whole shell (SidePanel + library rail + canvas) and
+    // starved the band's paint (multi-second lag on fast drags). The band
+    // paints from local state so it stays live; the summary flushes on mouseup
+    // (and immediately for click / keyboard / jump / edit, which aren't drags).
+    const flushSelectionSummary = useCallback(() => {
+      const sel = selectionRef.current
+      if (!sel) {
         onSelectionChange(null)
         return
       }
-      const lo = Math.min(selection.start, selection.end)
-      const hi = Math.max(selection.start, selection.end)
+      const lo = Math.min(sel.start, sel.end)
+      const hi = Math.max(sel.start, sel.end)
       onSelectionChange(buildSelectionSummary(data, flat, edits, lo, hi))
-    }, [selection, data, flat, edits, onSelectionChange])
+    }, [data, flat, edits, onSelectionChange])
+    useEffect(() => {
+      selectionRef.current = selection
+      if (isSelecting.current) return
+      flushSelectionSummary()
+    }, [selection, flushSelectionSummary])
 
     // ── Jump / navigation ──
     const scrollToIdx = useCallback((i: number) => {
@@ -430,6 +450,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     // ── Selection drag ──
     const cleanupSelectionDrag = useCallback(() => {
       isSelecting.current = false
+      rootRef.current?.classList.remove('sv-dragging-edge')
       dragCleanupRef.current?.()
       dragCleanupRef.current = null
     }, [])
@@ -454,6 +475,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         }
         const up = () => {
           cleanupSelectionDrag()
+          flushSelectionSummary()
         }
         document.addEventListener('mousemove', move)
         document.addEventListener('mouseup', up)
@@ -462,7 +484,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           document.removeEventListener('mouseup', up)
         }
       },
-      [cleanupSelectionDrag],
+      [cleanupSelectionDrag, flushSelectionSummary],
     )
     // Right-click opens the cursor-anchored edit menu for that base. It does
     // not disturb the selection — selecting (left-click/drag) and editing
@@ -470,6 +492,51 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const onBaseContextMenu = useCallback((idx: number, x: number, y: number) => {
       setPopover({ idx, x, y })
     }, [])
+
+    // Drag a selection-band edge handle. Reuses the same elementFromPoint
+    // pattern as base-drag; normalizes so the left handle always drives the
+    // low edge (`start`) and the right handle the high edge (`end`). The
+    // `sv-dragging-edge` root class drops handle pointer-events mid-drag so
+    // elementFromPoint reaches the bases underneath.
+    const onSelectionEdgeDown = useCallback(
+      (edge: 'start' | 'end') => {
+        cleanupSelectionDrag()
+        setSelection((sel) =>
+          sel
+            ? { start: Math.min(sel.start, sel.end), end: Math.max(sel.start, sel.end) }
+            : sel,
+        )
+        isSelecting.current = true
+        rootRef.current?.classList.add('sv-dragging-edge')
+        const move = (e: MouseEvent) => {
+          if (!isSelecting.current) return
+          const t = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+          const cell = t?.closest<HTMLElement>('.sv-base[data-idx]')
+          if (!cell) return
+          const i = parseInt(cell.dataset.idx!, 10)
+          setSelection((sel) => {
+            if (!sel) return sel
+            if (edge === 'start') {
+              const ns = Math.min(i, sel.end)
+              return ns === sel.start ? sel : { start: ns, end: sel.end }
+            }
+            const ne = Math.max(i, sel.start)
+            return ne === sel.end ? sel : { start: sel.start, end: ne }
+          })
+        }
+        const up = () => {
+          cleanupSelectionDrag()
+          flushSelectionSummary()
+        }
+        document.addEventListener('mousemove', move)
+        document.addEventListener('mouseup', up)
+        dragCleanupRef.current = () => {
+          document.removeEventListener('mousemove', move)
+          document.removeEventListener('mouseup', up)
+        }
+      },
+      [cleanupSelectionDrag, flushSelectionSummary],
+    )
 
     // ── Keyboard ──
     useEffect(() => {
@@ -522,6 +589,24 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const registerFocus = useCallback((fn: () => void) => {
       focusSearchRef.current = fn
     }, [])
+    // Stable toolbar callbacks so the memoized ViewerToolbar skips re-render
+    // during a selection drag (inline arrows would defeat the memo).
+    const handleUndo = useCallback(() => dispatch({ type: 'undo' }), [])
+    const handleRedo = useCallback(() => dispatch({ type: 'redo' }), [])
+    const handleToggleHistory = useCallback(() => setShowHistory((s) => !s), [])
+    const handleClearSearch = useCallback(() => {
+      setSearchQuery('')
+      setJumpError(null)
+    }, [])
+    // Clicking a ClinVar dot focuses it: jump to (and select) the base, then
+    // report the variant up so the Scratchpad log can show its info card.
+    const handleClinvarClick = useCallback(
+      (variant: ClinvarVariant, idx: number) => {
+        jumpToFlatIdx(idx)
+        onClinvarSelect?.(variant)
+      },
+      [jumpToFlatIdx, onClinvarSelect],
+    )
 
     return (
       <div className="sv-root" ref={rootRef}>
@@ -535,14 +620,11 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           showHistory={showHistory}
           onSearchChange={setSearchQuery}
           onJumpQuery={jumpToQuery}
-          onClearSearch={() => {
-            setSearchQuery('')
-            setJumpError(null)
-          }}
+          onClearSearch={handleClearSearch}
           onStepVariant={stepVariant}
-          onUndo={() => dispatch({ type: 'undo' })}
-          onRedo={() => dispatch({ type: 'redo' })}
-          onToggleHistory={() => setShowHistory((s) => !s)}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onToggleHistory={handleToggleHistory}
           onReset={resetEdits}
           registerFocus={registerFocus}
         />
@@ -598,11 +680,14 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
                 alleleMode={alleleMode}
                 edits={edits}
                 selection={selection}
+                activeClinvar={activeClinvar ?? null}
                 searchQuery={searchQuery}
                 restrictionHover={restrictionHover}
                 onBaseMouseDown={onBaseMouseDown}
                 onBaseContextMenu={onBaseContextMenu}
-                onClinvarClick={jumpToFlatIdx}
+                onSelectionEdgeDown={onSelectionEdgeDown}
+                onBlankMouseDown={clearSelection}
+                onClinvarClick={handleClinvarClick}
                 onRestrictionHover={setRestrictionHover}
                 onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
               />
