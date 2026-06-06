@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { alignSequences } from '@/lib/api'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
 import {
   compareSequences,
@@ -20,11 +21,6 @@ interface AlignPanelProps {
 }
 
 type AlignApiStatus = 'idle' | 'loading' | 'success' | 'error'
-
-// Next.js port: read NEXT_PUBLIC_API_BASE_URL (empty = same-origin rewrites
-// from next.config.ts) rather than Vite's import.meta.env.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? ''
-const ALIGN_API_URL = `${API_BASE_URL}/api/v1/align`
 
 export function AlignPanel({ data, cdna }: AlignPanelProps) {
   const seed = useMemo(() => makeAlignmentSeed(data), [data])
@@ -680,24 +676,12 @@ async function requestApiAlignment({
   userSequence: string
   traceFile: File | null
 }): Promise<AlignApiResponseShape> {
-  const payload = {
+  return alignSequences({
     gene,
     cdna,
     user_sequence: userSequence || null,
     ab1_blob_base64: traceFile ? await fileToBase64(traceFile) : null,
-  }
-  const response = await fetch(ALIGN_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
   })
-
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(body || `Alignment request failed with status ${response.status}.`)
-  }
-
-  return (await response.json()) as AlignApiResponseShape
 }
 
 function fileToBase64(file: File): Promise<string> {

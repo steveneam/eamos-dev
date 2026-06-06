@@ -12,9 +12,11 @@ import type {
   PrimerResponse,
   PublicationLiterature,
 } from './backend'
+import type { AlignApiResponseShape } from './workbench/alignment-pairwise'
 import { GENE_VIEWER_SAMPLE } from './workbench/gene-viewer-sample'
 import { PRIMER_SAMPLE } from './workbench/primer-sample'
 import { CRISPR_SAMPLE } from './workbench/crispr-sample'
+import { ALIGN_SAMPLE } from './workbench/align-sample'
 import { CRISPR_TIDE_SAMPLE, type CrisprTideResult } from './workbench/crispr-tide-sample'
 
 // Variant Evidence Report → FastAPI. Same-origin by default (empty base):
@@ -161,6 +163,25 @@ export async function designPrimers(payload: PrimerRequest): Promise<PrimerRespo
     return await parseResponse<PrimerResponse>(response)
   } catch (err) {
     if (err instanceof TypeError) return PRIMER_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+export async function alignSequences(payload: {
+  gene: string
+  cdna: string
+  user_sequence: string | null
+  ab1_blob_base64: string | null
+}): Promise<AlignApiResponseShape> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/align`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return await parseResponse<AlignApiResponseShape>(response)
+  } catch (err) {
+    if (err instanceof TypeError) return ALIGN_SAMPLE // backend down → mock
     throw err
   }
 }
