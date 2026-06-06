@@ -37,6 +37,10 @@ from app.repos.supabase_local_model_cache_repo import (
 )
 from app.repos.users_repo import UsersRepo
 from app.repos.variant_cache_repo import VariantCacheRepo
+from app.repos.variant_library_repo import (
+    SupabaseVariantLibraryRepo,
+    VariantLibraryRepo,
+)
 from app.rules.clinic_rules import ClinicRules
 from app.services.auth import AuthService
 from app.services.batch import BatchService
@@ -67,6 +71,7 @@ from app.services.sequence_context import (
     SequenceContextService,
 )
 from app.services.source_cache import HeroExampleSourceCacheWarmer
+from app.services.variant_library import VariantLibraryService
 from app.services.workbench_design import WorkbenchDesignService
 from app.services.workflow import WorkflowService
 from app.tools.registry import build_tool_registry
@@ -107,6 +112,7 @@ def create_app(settings=None) -> FastAPI:
     subscriptions_repo = SubscriptionsRepo(db_session_factory)
     users_repo = UsersRepo(db_session_factory)
     variant_cache_repo = VariantCacheRepo(db_session_factory)
+    variant_library_repo = _build_variant_library_repo(settings, db_session_factory)
     source_cache_repo = SourceCacheRepo(db_session_factory)
     protein_annotation_cache_repo = ProteinAnnotationCacheRepo(db_session_factory)
     supabase_local_model_cache_store = build_supabase_local_model_cache_store(settings)
@@ -178,6 +184,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.subscriptions_repo = subscriptions_repo
     app.state.users_repo = users_repo
     app.state.variant_cache_repo = variant_cache_repo
+    app.state.variant_library_repo = variant_library_repo
     app.state.source_cache_repo = source_cache_repo
     app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
     app.state.supabase_local_model_cache_store = supabase_local_model_cache_store
@@ -196,6 +203,7 @@ def create_app(settings=None) -> FastAPI:
         settings=settings,
         subscriptions_repo=subscriptions_repo,
     )
+    app.state.variant_library_service = VariantLibraryService(variant_library_repo)
     app.state.intake_service = IntakeService(
         settings, reports_repo, report_pdf_tool, extraction_chain
     )
@@ -253,3 +261,13 @@ def _build_evidence_submissions_repo(settings, db_session_factory):
             timeout_seconds=settings.supabase_rest_timeout_seconds,
         )
     return EvidenceSubmissionsRepo(db_session_factory)
+
+
+def _build_variant_library_repo(settings, db_session_factory):
+    if settings.supabase_url and settings.supabase_service_role_key:
+        return SupabaseVariantLibraryRepo(
+            supabase_url=settings.supabase_url,
+            service_role_key=settings.supabase_service_role_key,
+            timeout_seconds=settings.supabase_rest_timeout_seconds,
+        )
+    return VariantLibraryRepo(db_session_factory)

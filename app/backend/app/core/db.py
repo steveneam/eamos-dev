@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     JSON,
     DateTime,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     func,
     inspect,
@@ -76,6 +78,55 @@ class SubscriptionStateRecord(Base):
     last_event_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     raw_event: Mapped[dict] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class VariantLibraryCollectionRecord(Base):
+    __tablename__ = "collection"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_collection_user_name"),
+        Index("ix_collection_user_created", "user_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class VariantLibrarySavedVariantRecord(Base):
+    __tablename__ = "saved_variant"
+    __table_args__ = (
+        Index("ix_saved_variant_user_saved", "user_id", "saved_at"),
+        Index("ix_saved_variant_user_folder", "user_id", "folder_id"),
+        Index("ix_saved_variant_query", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(512), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    gene: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    variant: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    query: Mapped[str] = mapped_column(String(512))
+    raw: Mapped[str] = mapped_column(Text, default="")
+    classification: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    hgvs_full: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    folder_id: Mapped[str | None] = mapped_column(
+        ForeignKey("collection.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    saved_at: Mapped[int] = mapped_column(BigInteger, index=True)
+
+
+class VariantViewCountRecord(Base):
+    __tablename__ = "variant_view_count"
+
+    query_id: Mapped[str] = mapped_column(String(512), primary_key=True)
+    view_count: Mapped[int] = mapped_column(BigInteger, default=0)
+    last_viewed: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
 

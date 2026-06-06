@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+
+import httpx
+
+from app.repos.variant_library_repo import (
+    SavedVariantRecord,
+    SupabaseVariantLibraryRepo,
+)
+
+
+def test_supabase_variant_library_upserts_saved_variant_with_owner_from_backend() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        body = json.loads(request.content.decode("utf-8"))
+        assert body == {
+            "id": "ush2a:c.2276g>t",
+            "user_id": "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+            "gene": "USH2A",
+            "variant": "c.2276G>T",
+            "query": "USH2A c.2276G>T",
+            "raw": "USH2A c.2276G>T",
+            "saved_at": 1_780_000_000_000,
+            "folder_id": None,
+            "classification": "likely_pathogenic",
+            "hgvs_full": "NM_206933.4:c.2276G>T",
+        }
+        return httpx.Response(status_code=201, json=[body])
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co/",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    row = repo.save_variant(
+        user_id="23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+        variant=SavedVariantRecord(
+            id="ush2a:c.2276g>t",
+            gene="USH2A",
+            variant="c.2276G>T",
+            query="USH2A c.2276G>T",
+            raw="USH2A c.2276G>T",
+            saved_at=1_780_000_000_000,
+            folder_id=None,
+            classification="likely_pathogenic",
+            hgvs_full="NM_206933.4:c.2276G>T",
+        ),
+    )
+
+    assert row.id == "ush2a:c.2276g>t"
+    assert len(requests) == 1
+    request = requests[0]
+    assert str(request.url) == (
+        "https://cpdjxsgasaesysvxkpmi.supabase.co/rest/v1/" "saved_variant?on_conflict=id%2Cuser_id"
+    )
+    assert request.headers["apikey"] == "service-role-key"
+    assert request.headers["authorization"] == "Bearer service-role-key"
+    assert request.headers["prefer"] == "resolution=merge-duplicates,return=representation"
+
+
+def test_supabase_variant_library_folder_crud_uses_owner_filters() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "GET":
+            assert "user_id=eq.23fc93e9-d351-4a9f-b5a7-f23dd7ceab11" in str(request.url)
+            return httpx.Response(status_code=200, json=[])
+        if request.method == "POST":
+            body = json.loads(request.content.decode("utf-8"))
+            assert body == {
+                "user_id": "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+                "name": "Retina",
+            }
+            return httpx.Response(
+                status_code=201,
+                json=[
+                    {
+                        "id": "a8ff9c92-84b6-4d6a-b26e-f236c87d4c86",
+                        "name": "Retina",
+                        "created_at": "2026-06-06T03:30:00Z",
+                    }
+                ],
+            )
+        raise AssertionError(f"unexpected request {request.method} {request.url}")
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    folder = repo.create_folder(
+        user_id="23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+        name="Retina",
+    )
+
+    assert folder.id == "a8ff9c92-84b6-4d6a-b26e-f236c87d4c86"
+    assert folder.created_at == datetime(2026, 6, 6, 3, 30, tzinfo=timezone.utc)
+    assert [request.method for request in requests] == ["GET", "POST"]
+
+
+def test_supabase_variant_library_popularity_uses_service_role_rpc() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        body = json.loads(request.content.decode("utf-8"))
+        assert body == {"p_query_id": "ush2a c.2276g>t"}
+        return httpx.Response(
+            status_code=200,
+            json=[
+                {
+                    "query_id": "ush2a c.2276g>t",
+                    "view_count": 3,
+                    "last_viewed": "2026-06-06T03:31:00Z",
+                }
+            ],
+        )
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = repo.record_view(query_id="ush2a c.2276g>t")
+
+    assert result.view_count == 3
+    assert len(requests) == 1
+    request = requests[0]
+    assert str(request.url) == (
+        "https://cpdjxsgasaesysvxkpmi.supabase.co/rest/v1/" "rpc/increment_variant_view_count"
+    )
+    assert request.headers["authorization"] == "Bearer service-role-key"

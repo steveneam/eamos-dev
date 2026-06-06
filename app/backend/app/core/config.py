@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     rate_limit_lookup_max_requests: int = 30
     rate_limit_chat_max_requests: int = 10
     rate_limit_evidence_max_requests: int = 10
+    rate_limit_library_max_requests: int = 60
     rate_limit_payments_checkout_max_requests: int = 6
     rate_limit_payments_webhook_max_requests: int = 60
     rate_limit_workbench_max_requests: int = 20

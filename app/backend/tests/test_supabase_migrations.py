@@ -249,3 +249,47 @@ def test_private_source_asset_bucket_is_private_and_bounded() -> None:
     assert "create policy" not in normalized
     assert "using (true)" not in normalized
     assert "with check (true)" not in normalized
+
+
+def test_variant_library_persistence_migration_uses_owner_rls_and_service_rpc() -> None:
+    sql = _migration_sql("20260606134652_variant_library_persistence.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "create table if not exists public.collection" in normalized
+    assert "create table if not exists public.saved_variant" in normalized
+    assert "create table if not exists public.variant_view_count" in normalized
+    assert "create table if not exists public.saved_variants" not in normalized
+    assert "alter table public.saved_variants" not in normalized
+    assert "primary key (id, user_id)" in normalized
+    assert "idx_collection_user_name_lower" in normalized
+    assert "idx_saved_variant_user_folder" in normalized
+    assert "idx_variant_view_count_popular" in normalized
+
+    assert "alter table public.collection enable row level security" in normalized
+    assert "alter table public.saved_variant enable row level security" in normalized
+    assert "alter table public.variant_view_count enable row level security" in normalized
+    assert "using ((select auth.uid()) = user_id)" in normalized
+    assert "with check ((select auth.uid()) = user_id)" in normalized
+    assert "and c.user_id = (select auth.uid())" in normalized
+
+    assert "grant select, insert, update, delete on public.collection to authenticated" in (
+        normalized
+    )
+    assert "grant select, insert, update, delete on public.saved_variant to authenticated" in (
+        normalized
+    )
+    assert "grant select on public.variant_view_count to anon, authenticated" in normalized
+    assert "grant select, insert, update, delete on public.variant_view_count to service_role" in (
+        normalized
+    )
+
+    assert "create or replace function public.increment_variant_view_count" in normalized
+    assert "security definer" not in normalized
+    assert (
+        "revoke execute on function public.increment_variant_view_count(text) "
+        "from public, anon, authenticated"
+    ) in normalized
+    assert (
+        "grant execute on function public.increment_variant_view_count(text) to service_role"
+        in (normalized)
+    )
