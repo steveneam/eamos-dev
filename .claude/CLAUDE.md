@@ -17,3 +17,6 @@ Claude Code configuration: agent role definitions, universal conventions, output
 | `conventions/` | Universal coding and documentation standards | Code review, documentation, writing CLAUDE.md/README.md |
 | `output-styles/` | Output format instructions for agent responses | Changing how agents format their output |
 | `skills/` | Workflow skill scripts (planner, deepthink, refactor, doc-sync, etc.) | Running or modifying a skill |
+# graphify
+- **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
+When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` before doing anything else.

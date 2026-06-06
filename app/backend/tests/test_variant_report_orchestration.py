@@ -141,8 +141,7 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
 
     computational = profile["computational_deep_dive"]
     predictor_names = {row["name"] for row in computational["predictors"]}
-    assert predictor_names == {"REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI"}
-    assert "AlphaMissense" not in predictor_names
+    assert {"REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI"} <= predictor_names
     predictor_versions = {
         row["name"]: row["version"] for row in computational["predictors"] if row["version"]
     }
@@ -171,7 +170,9 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
         "CADD",
         "SpliceAI",
     }
-    assert "alphamissense_on_hold" in computational["warnings"]
+    assert "alphamissense_on_hold" not in computational["warnings"]
+    assert "alphamissense_missing_source_file" in computational["warnings"]
+    assert "esm1b_missing_source_file" in computational["warnings"]
     computational_card = next(
         card for card in report_payload["call_cards"]["cards"] if card["card_id"] == "computational"
     )

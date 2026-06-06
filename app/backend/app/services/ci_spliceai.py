@@ -32,17 +32,19 @@ class CiSpliceAiLookup:
     calibration_bucket: str | None = None
     unavailable_reason: str | None = None
     warnings: tuple[str, ...] = ()
-    provenance: tuple[str, ...] = ("eamos_ci_spliceai_isolated_lane_v1",)
+    provenance: tuple[str, ...] = ("eamos_ci_spliceai_admin_lane_v1",)
+    public_serialization_allowed: bool = True
+    launch_gate: str | None = "ci_spliceai_launch_filter_metadata"
 
 
 class CiSpliceAiLane:
-    """Isolated CI-SpliceAI lane.
+    """Admin-enabled CI-SpliceAI score lane.
 
-    The lane is intentionally not wired into the main report path. It only
-    produces output when explicitly enabled and supplied with a local score.
+    The lane preserves launch-gate metadata, but it is not license-blocked for
+    backend/admin use. It still requires a local score or cache hit.
     """
 
-    def __init__(self, *, enabled: bool = False) -> None:
+    def __init__(self, *, enabled: bool = True) -> None:
         self.enabled = enabled
 
     def lookup(self, score: CiSpliceAiScore | None) -> CiSpliceAiLookup:
@@ -51,7 +53,7 @@ class CiSpliceAiLane:
                 available=False,
                 score=None,
                 unavailable_reason="ci_spliceai_lane_disabled",
-                warnings=("ci_spliceai_isolated_from_main_api_path",),
+                warnings=("ci_spliceai_admin_lane_disabled",),
             )
         if score is None or score.max_delta is None:
             return CiSpliceAiLookup(

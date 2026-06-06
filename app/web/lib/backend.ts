@@ -724,6 +724,7 @@ export type SourceStatus =
   | 'stale'
   | 'fixture'
   | 'fallback'
+  | 'local'
   | 'missing'
   | 'live_stub'
   | 'error'
@@ -868,12 +869,15 @@ export interface ComputationalPredictorRow {
   threshold?: string | number | null
   interpretation?: string | null
   source: string
+  source_id?: string | null
   version?: string | null
   calibrated_label?: string | null
   calibration_bucket?: RampVerdict | null
   calibration_method?: string | null
   calibration_version?: string | null
   source_url?: string | null
+  public_serialization_allowed?: boolean | null
+  launch_gate?: string | null
   warnings: string[]
 }
 

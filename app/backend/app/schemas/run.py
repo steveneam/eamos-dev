@@ -419,6 +419,7 @@ class PublicationsCallout(BaseModel):
 
 SourceStatus = Literal[
     "live",
+    "local",
     "cache",
     "stale",
     "fixture",
@@ -583,12 +584,15 @@ class ComputationalPredictorRow(BaseModel):
     threshold: str | float | None = None
     interpretation: str | None = None
     source: str
+    source_id: str | None = None
     version: str | None = None
     calibrated_label: str | None = None
     calibration_bucket: RampVerdict | None = None
     calibration_method: str | None = None
     calibration_version: str | None = None
     source_url: str | None = None
+    public_serialization_allowed: bool | None = None
+    launch_gate: str | None = None
     warnings: list[str] = Field(default_factory=list)
 
 

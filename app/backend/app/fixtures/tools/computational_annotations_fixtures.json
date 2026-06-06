@@ -99,9 +99,6 @@
           "warnings": []
         }
       ],
-      "excluded_predictors": [
-        "AlphaMissense"
-      ],
       "provenance": [
         {
           "source": "dbNSFP",
@@ -142,7 +139,6 @@
         }
       ],
       "warnings": [
-        "alphamissense_on_hold",
         "computational_annotations_fixture_snapshot"
       ]
     }

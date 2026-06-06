@@ -2,14 +2,15 @@
 
 Status: Draft for user review
 Owner: Codex/backend
-Last updated: 2026-06-03 23:55 +1000 - Codex
+Last updated: 2026-06-06 22:00 +1000 - Codex
 
 ## What
 
 Build the next backend evidence foundation for Eamos: a local-first adapter
 contract, gated runtime asset wiring, advisory ACMG/PVS1 engines, literature
-and AI-gateway scaffolding, and predictor lanes with AlphaMissense prepared
-behind gates and ESM1b kept license-blocked until provenance is safe.
+and AI-gateway scaffolding, and predictor lanes wired for Steven/backend use
+now with license/provenance/launch-gate metadata preserved for later launch
+filtering.
 
 ## Context
 
@@ -73,17 +74,22 @@ Relevant current code:
     no PHI logging, and no verdict decisions.
 20. Real Groq, DeepInfra, or other provider enablement waits for secret and
     config approval.
-21. AlphaMissense may be prepared behind gates with materialization/index
-    preflight and a runtime adapter wrapper.
-22. AlphaMissense runtime display still requires explicit approval.
+21. AlphaMissense must be backend/admin-wired with materialization/index
+    preflight, a runtime adapter wrapper, and report serialization when a local
+    hit exists.
+22. AlphaMissense must fail closed when the runtime asset, index, manifest, or
+    checksum is missing or invalid.
 23. AlphaMissense calibration must use Bergquist 2025 bands for PP3/BP4
     activation, not AlphaMissense developer class labels.
-24. ESM1b can add pure-code MANE assembly job scaffolding and fixture manifests.
-25. ESM1b public serialization remains blocked until score-file terms are
+24. ESM1b can add pure-code MANE assembly job scaffolding, manifests, local
+    adapter rows, and backend/admin report serialization.
+25. ESM1b must preserve launch-gate metadata until score-file terms are
     confirmed or scores are regenerated from a commercial-safe source path.
-26. CI-SpliceAI must stay isolated from the main API path.
+26. CI-SpliceAI must be backend/admin-wired while reporting missing
+    model/reference/score cache artifacts until materialized.
 27. MaveDB requires per-record CC0 gating and Supabase/import approval.
-28. CAPICE remains parked until Steven chooses Pro-only, retrain, or drop.
+28. CAPICE must be backend/admin-wired while reporting missing model and
+    feature-cache artifacts until materialized.
 
 ## Design
 
@@ -127,10 +133,11 @@ Add a wrapper that:
 - queries exact `chrom, position, ref, alt`;
 - applies AlphaMissense calibration fields;
 - returns provenance and warnings;
-- fails closed on missing index, checksum mismatch, wrong source ID, public
-  materialization, or display-not-approved settings.
+- fails closed on missing index, checksum mismatch, wrong source ID, or invalid
+  materialization.
 
-The wrapper must not add AlphaMissense to report display yet.
+The wrapper may add AlphaMissense to backend/admin report rows when the local
+asset returns an exact hit.
 
 ### ESM1b Assembly Scaffold
 
@@ -141,10 +148,11 @@ Add job-scaffold pieces only:
 - emit genomic SNV rows using existing codon primitives;
 - produce a manifest with score-source, MANE version, reference checksum,
   code version, output checksum, and warnings;
-- keep output fixture-sized by default.
+- allow explicit fixture limits in tests without imposing a production row cap
+  by default.
 
-No production ESM1b score download, public serialization, or score-file terms
-claim is in scope.
+No production ESM1b score download or score-file terms claim is in scope.
+Backend/admin serialization is in scope and must carry launch-gate metadata.
 
 ### Deterministic Advisory Engines
 
@@ -171,23 +179,24 @@ No real provider keys, Supabase writes, or provider activation are in scope.
     just source asset rollout.
   - Reversible: yes, by merging into the local-first docs later.
 
-- Decision: AlphaMissense adapter readiness can proceed before display.
-  - Why: materialization and reader failure paths need testing before UI
-    exposure.
+- Decision: AlphaMissense adapter readiness and backend/admin serialization
+  can proceed before launch filtering is finalized.
+  - Why: materialization and reader failure paths need testing before launch
+    policy is useful.
   - Reversible: yes.
 
-- Decision: ESM1b public output stays blocked.
-  - Why: score-file terms are unresolved unless regenerated from a safe path.
-  - Reversible: only after terms or regeneration approval.
+- Decision: ESM1b backend/admin output is allowed with launch-gate metadata.
+  - Why: score-file terms are unresolved for launch filtering, but that should
+    not block building and testing the backend path.
+  - Reversible: launch filters can hide or relabel it later.
 
 - Decision: ACMG and PVS1/NMD engines are advisory.
   - Why: Eamos should not override primary clinical source verdicts or produce
     final classifications from incomplete evidence.
   - Reversible: not recommended.
 
-- Assumption: "runtime/display approval" for AlphaMissense means report/API
-  serialization to user-visible surfaces, not internal preflight and adapter
-  tests.
+- Assumption: "admin" in predictor work means Steven/backend gets all
+  predictors wired now; no account-role or auth plumbing is implied.
 
 ## Invariants
 
@@ -200,8 +209,8 @@ No real provider keys, Supabase writes, or provider activation are in scope.
 - No startup downloads.
 - No PHI in AI gateway logs.
 - No AI-generated verdict decisions.
-- ESM1b, CI-SpliceAI, MaveDB, and CAPICE remain gated as described in the
-  requirements.
+- ESM1b, CI-SpliceAI, MaveDB, and CAPICE preserve launch/license metadata as
+  described in the requirements.
 
 ## Error Behavior
 
@@ -212,9 +221,10 @@ No real provider keys, Supabase writes, or provider activation are in scope.
 - Unsupported runtime mode: configuration error in preflight, not request-time
   guessing.
 - Materialization metadata public or frontend-readable: fail closed.
-- AlphaMissense display not approved: do not serialize to user-visible report
-  rows.
-- ESM1b terms unresolved: fixture/internal status only.
+- AlphaMissense exact local hit: serialize a backend/admin report row with
+  provenance.
+- ESM1b terms unresolved: serialize backend/admin report rows with launch-gate
+  metadata.
 - Literature license unclear: store metadata/link-out only.
 - AI provider not configured: mock or unavailable status, no client error that
   exposes secrets.
@@ -227,10 +237,14 @@ Focused backend tests should cover:
   ready local path, and sanitized materialization status.
 - AlphaMissense wrapper exact variant lookup and calibration with a tiny indexed
   TSV fixture.
-- AlphaMissense display gate proving report serialization is unchanged until
-  explicitly enabled.
+- AlphaMissense report serialization proving exact local hits survive into the
+  computational evidence payload.
 - ESM1b assembly scaffold manifest generation and fail-closed codon/transcript
   mismatches.
+- ESM1b local/report serialization proving launch-gate metadata survives into
+  the computational evidence payload.
+- CI-SpliceAI and CAPICE scaffolds proving default backend/admin wiring and
+  honest missing-artifact states.
 - ACMG points deterministic totals and source-separation behavior.
 - PVS1/NMD conservative false/uncertain defaults.
 - AI gateway mock broker, de-identification, no PHI logging, and no verdict
@@ -251,9 +265,7 @@ python -m pytest tests/test_data_source_registry.py tests/test_source_downloads.
 - Supabase mutation in this pass.
 - Production source download/upload/import.
 - Startup downloads.
-- AlphaMissense display enablement.
-- ESM1b public serialization.
-- CI-SpliceAI main-path wiring.
+- Launch entitlement/commercialization filter implementation.
 - MaveDB import.
-- CAPICE decision or implementation.
+- Production CAPICE/CI-SpliceAI model artifact materialization.
 - Real AI provider enablement.

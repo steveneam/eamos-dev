@@ -49,6 +49,7 @@ class BuildLedgerItem:
     status: str
     runtime_wired: bool
     public_serialization_allowed: bool
+    launch_gate: str | None = None
     startup_download_allowed: bool = False
     source_runtime_scan_allowed: bool = False
     blockers: tuple[str, ...] = ()
@@ -164,8 +165,10 @@ def build_backend_build_ledger(
             status=predictor_statuses["alphamissense"],
             storage_decision=(
                 "Supabase private Storage is durable; Render disk holds the bgzip/tabix "
-                "runtime cache. Public serialization remains locked."
+                "runtime cache. The computational evidence path serializes local rows when "
+                "the artifact is materialized; launch filtering can use source metadata."
             ),
+            public_serialization_allowed=True,
         ),
         _predictor_item(
             item_id="esm1b",
@@ -174,8 +177,11 @@ def build_backend_build_ledger(
             status=predictor_statuses["esm1b"],
             storage_decision=(
                 "Supabase private Storage is durable after offline MANE assembly; Render disk "
-                "holds only the indexed runtime artifact."
+                "holds only the indexed runtime artifact. License-gate status is preserved as "
+                "metadata for launch filtering, not as a backend integration blocker."
             ),
+            public_serialization_allowed=True,
+            launch_gate="esm1b_score_file_terms_unconfirmed",
         ),
         BuildLedgerItem(
             item_id="gpn_msa",
@@ -199,23 +205,24 @@ def build_backend_build_ledger(
         ),
         BuildLedgerItem(
             item_id="ci_spliceai",
-            label="CI-SpliceAI isolated compute lane",
+            label="CI-SpliceAI compute lane",
             group="predictor",
             source_ids=("ci_spliceai_model", LOCAL_HG38_2BIT_SOURCE_ID),
             engine="TensorFlow/Keras on-demand compute with tabix score cache",
-            durable_source="supabase_private_storage_after_terms_review",
+            durable_source="supabase_private_storage",
             runtime_source="render_disk_model_reference_and_score_cache",
-            render_disk_role="runtime_cache_required_when_enabled",
+            render_disk_role="runtime_cache_required",
             storage_decision=(
-                "Model, reference, and cache need local files when enabled, but the lane stays "
-                "isolated and disabled until terms and resources are approved."
+                "Model, reference, and cache need local files. Backend serialization is allowed "
+                "for Steven/admin use; launch filtering can use source metadata."
             ),
-            status="isolated_lane_disabled",
+            status="score_cache_missing",
             runtime_wired=True,
-            public_serialization_allowed=False,
-            blockers=("terms_review", "runtime_resource_review", "score_cache_materialization"),
-            wired_surfaces=("isolated_predictor_lane",),
-            next_action="Keep disabled; approve terms and seed model/cache explicitly before enablement.",
+            public_serialization_allowed=True,
+            launch_gate="ci_spliceai_launch_filter_metadata",
+            blockers=("model_reference_materialization", "score_cache_materialization"),
+            wired_surfaces=("lookup", "report", "acmg_calibration"),
+            next_action="Materialize model/reference/score cache and verify runtime resource envelope.",
         ),
         BuildLedgerItem(
             item_id="nmdetective_pvs1",
@@ -239,19 +246,20 @@ def build_backend_build_ledger(
             group="predictor",
             source_ids=("capice_model", "illumina_spliceai_precomputed_hg38"),
             engine="XGBoost over VEP-style features",
-            durable_source="none_until_license_decision",
-            runtime_source="disabled",
-            render_disk_role="not_required_until_unblocked",
+            durable_source="supabase_private_storage",
+            runtime_source="render_disk_model_and_feature_cache",
+            render_disk_role="runtime_cache_required",
             storage_decision=(
-                "Do not stage model artifacts while mandatory SpliceAI-derived features remain "
-                "license-blocked."
+                "Model and SpliceAI-derived feature cache are backend runtime assets. "
+                "Commercialization filtering is launch metadata, not a backend integration block."
             ),
-            status="blocked_license_dependency",
-            runtime_wired=False,
-            public_serialization_allowed=False,
-            blockers=("spliceai_feature_dependency", "model_terms_review"),
-            wired_surfaces=("none",),
-            next_action="Resolve feature licensing or keep CAPICE out of runtime.",
+            status="model_artifact_missing",
+            runtime_wired=True,
+            public_serialization_allowed=True,
+            launch_gate="capice_launch_filter_metadata",
+            blockers=("capice_model_materialization", "spliceai_feature_cache_materialization"),
+            wired_surfaces=("lookup", "report", "acmg_calibration"),
+            next_action="Materialize CAPICE model and feature cache; connect scorer once artifacts exist.",
         ),
         BuildLedgerItem(
             item_id="mavedb",
@@ -287,7 +295,7 @@ def build_backend_build_ledger(
             runtime_wired=True,
             public_serialization_allowed=True,
             wired_surfaces=("lookup", "report", "variant_library"),
-            next_action="Attach local predictor rows as each restricted lane is approved.",
+            next_action="Keep local predictor serialization and calibration covered by tests.",
         ),
         BuildLedgerItem(
             item_id="literature_engine",
@@ -686,6 +694,8 @@ def _predictor_item(
     source_id: str,
     status: str,
     storage_decision: str,
+    public_serialization_allowed: bool,
+    launch_gate: str | None = None,
 ) -> BuildLedgerItem:
     return BuildLedgerItem(
         item_id=item_id,
@@ -699,7 +709,8 @@ def _predictor_item(
         storage_decision=storage_decision,
         status=status,
         runtime_wired=True,
-        public_serialization_allowed=False,
+        public_serialization_allowed=public_serialization_allowed,
+        launch_gate=launch_gate,
         blockers=() if status == "ready" else ("indexed_artifact_materialization",),
         wired_surfaces=("lookup", "report", "acmg_calibration"),
         next_action=(

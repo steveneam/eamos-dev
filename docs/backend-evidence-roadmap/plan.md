@@ -2,7 +2,7 @@
 
 Status: Draft for review
 Owner: Codex/backend
-Last updated: 2026-06-03 23:55 +1000 - Codex
+Last updated: 2026-06-06 22:00 +1000 - Codex
 
 Source spec: `docs/backend-evidence-roadmap/spec.md`
 
@@ -18,10 +18,13 @@ Source spec: `docs/backend-evidence-roadmap/spec.md`
   manifests, and materialization metadata. No startup downloads.
 - Disk-gated wiring waits for verified Standard 2 GB memory plus 60 GB disk at
   `/var/data`.
-- AlphaMissense can be made adapter-ready behind gates, but display remains
-  approval-gated.
-- ESM1b remains fixture/internal until score-file terms or regenerated-score
-  provenance are safe.
+- AlphaMissense is backend/admin-wired through adapter and report
+  serialization; missing runtime artifacts fail closed.
+- ESM1b is backend/admin-wired through assembly, adapter, and report
+  serialization while launch-gate metadata remains attached.
+- CAPICE and CI-SpliceAI backend/admin lanes should be wired now; model,
+  reference, score, and feature-cache artifacts are materialization blockers,
+  not policy reasons to postpone the code path.
 - Literature and AI gateway can wait until the weekend unless Steven redirects.
 
 ## Task 1 - Durable Roadmap Bundle
@@ -121,13 +124,13 @@ python -m pytest tests/test_predictor_runtime.py tests/test_source_downloads.py 
 ### Goal
 
 Add an internal adapter wrapper that can query a materialized AlphaMissense
-tabix TSV by exact variant and return calibrated provenance-rich rows, while
-remaining hidden from user-visible reports.
+tabix TSV by exact variant and return calibrated provenance-rich rows into the
+backend/admin report evidence payload.
 
 ### Context
 
-The generic TSV reader can query exact variants. The report path still filters
-AlphaMissense and must remain unchanged until display approval.
+The generic TSV reader can query exact variants. The report path should no
+longer filter AlphaMissense just because older docs held it for later.
 
 ### Relevant Files
 
@@ -136,7 +139,8 @@ AlphaMissense and must remain unchanged until display approval.
 - new: `app/backend/app/services/alphamissense_local.py`
 - `app/backend/app/services/variant_report_orchestrator.py`
 - new: `app/backend/tests/test_alphamissense_local_adapter.py`
-- existing report contract tests that prove AlphaMissense remains hidden
+- existing report contract tests that prove AlphaMissense rows survive
+  serialization
 
 ### Proposed Approach
 
@@ -151,7 +155,8 @@ unavailable states rather than falling through to fixtures.
 - No-hit returns honest unavailable/no-record state.
 - REF/ALT mismatch returns no record, not a guessed record.
 - Calibration uses Bergquist 2025 bands.
-- User-visible report serialization still excludes AlphaMissense.
+- Report serialization includes AlphaMissense when the local adapter returns an
+  exact hit.
 - Adapter cannot open without preflight-ready source and index.
 
 ### Source Reference
@@ -186,18 +191,20 @@ slice should add job-level structure without using production score files.
 
 ### Proposed Approach
 
-Add a fixture-sized job helper that takes score rows and explicit codon context
-objects, emits sorted TSV rows, and writes or returns a manifest payload with
-source score checksum, MANE version, reference checksum, code version, output
-checksum, warnings, and license gate state.
+Add a job helper that takes score rows and explicit codon context objects,
+emits sorted TSV rows, and writes or returns a manifest payload with source
+score checksum, MANE version, reference checksum, code version, output
+checksum, warnings, and license gate state. Tests may pass explicit row limits,
+but production assembly should not be fixture-capped by default.
 
 ### Acceptance Criteria
 
 - Fixture scores assemble to deterministic genomic SNV rows.
 - Reverse-strand codons are handled through existing primitives.
 - Codon/residue mismatch fails closed.
-- Manifest records `internal_fixture_only` or equivalent gate.
-- No production ESM1b score download or public serialization occurs.
+- Manifest records launch-gate metadata.
+- No production ESM1b score download occurs.
+- Backend/admin serialization is allowed and carries launch-gate metadata.
 
 ### Source Reference
 
@@ -427,17 +434,18 @@ cd app/backend
 python -m pytest tests/test_ai_gateway.py tests/test_chat_service.py -q
 ```
 
-## Task 10 - Isolated Predictor Lane Follow-Ups
+## Task 10 - Admin Predictor Lane Follow-Ups
 
 ### Goal
 
-Keep non-AlphaMissense predictor lanes parked or isolated according to current
-policy.
+Keep non-AlphaMissense predictor lanes wired for Steven/backend use while
+reporting honest missing-artifact states and preserving launch-gate metadata.
 
 ### Context
 
-The modern predictor set is unevenly licensed and should not enter the main API
-path by accident.
+The modern predictor set is unevenly licensed, but backend implementation
+should not wait for launch entitlement policy. Launch/commercial filtering can
+hide or relabel rows later.
 
 ### Relevant Files
 
@@ -447,17 +455,22 @@ path by accident.
 
 ### Proposed Approach
 
-Add tests or policy rows only when needed:
+Add scaffolds, tests, and ledger/preflight rows as needed:
 
-- CI-SpliceAI isolated from the main API path.
+- CI-SpliceAI backend/admin lane wired, score cache/materialization required.
 - MaveDB per-record CC0 gate plus Supabase/import approval.
-- CAPICE parked pending Steven decision.
+- CAPICE backend/admin scaffold wired, model/feature-cache materialization
+  required.
 
 ### Acceptance Criteria
 
-- Main API path does not include CI-SpliceAI.
+- CI-SpliceAI default scaffold is available when a score is present and reports
+  missing score/cache honestly otherwise.
 - MaveDB cannot import non-CC0 records.
-- CAPICE remains unavailable until policy choice is recorded.
+- CAPICE default scaffold is available when a score is present and reports
+  missing model/feature-cache state honestly otherwise.
+- Health/preflight/build-ledger rows say backend/admin runtime is allowed while
+  launch filtering remains metadata.
 
 ### Source Reference
 

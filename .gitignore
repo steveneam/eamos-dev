@@ -46,4 +46,12 @@ node_modules_temp/
 .claude/scheduled_tasks.lock
 supabase/supabase/
 
+# Graphify local/volatile outputs. Keep graphify-out/graph.json and
+# graphify-out/GRAPH_REPORT.md reviewable when generated for team use.
+graphify-out/cache/
+graphify-out/converted/
+graphify-out/cost.json
+graphify-out/memory/
+graphify-out/.graphify_*
+
 .vercel

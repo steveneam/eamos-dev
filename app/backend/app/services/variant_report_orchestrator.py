@@ -412,8 +412,6 @@ def _computational_deep_dive_from_legacy_predictions(
     spliceai_consequence: str | None = None
     if predictions is not None:
         for card in predictions.cards:
-            if card.name == "AlphaMissense":
-                continue
             rows.append(
                 ComputationalPredictorRow(
                     name=card.name,
@@ -432,7 +430,6 @@ def _computational_deep_dive_from_legacy_predictions(
     warnings = []
     if not rows:
         warnings.append("computational_predictors_unavailable")
-    warnings.append("alphamissense_on_hold")
     return ComputationalDeepDiveSection(
         predictors=rows,
         spliceai_max_delta=spliceai_max_delta,
@@ -450,7 +447,7 @@ def _computational_deep_dive_from_annotations(
     provenance: list[SourceProvenance],
 ) -> ComputationalDeepDiveSection | None:
     excluded = set(_string_list(computational.get("excluded_predictors")))
-    excluded.add("AlphaMissense")
+    excluded.discard("AlphaMissense")
     rows = [
         row
         for row in (
@@ -478,7 +475,6 @@ def _computational_deep_dive_from_annotations(
     warnings = _dedupe_text(
         [
             *_string_list(computational.get("warnings")),
-            *(["alphamissense_on_hold"] if "AlphaMissense" in excluded else []),
         ]
     )
     if not rows and not conservation and spliceai_max_delta is None:
@@ -514,6 +510,7 @@ def _computational_row_from_dict(item: dict[str, Any]) -> ComputationalPredictor
         threshold=_score_value(item.get("threshold")),
         interpretation=_optional_text(item.get("interpretation")),
         source=source,
+        source_id=_optional_text(item.get("source_id")),
         version=_optional_text(item.get("version")),
         calibrated_label=_optional_text(item.get("calibrated_label"))
         or calibration["calibrated_label"],
@@ -524,6 +521,8 @@ def _computational_row_from_dict(item: dict[str, Any]) -> ComputationalPredictor
         calibration_version=_optional_text(item.get("calibration_version"))
         or calibration["calibration_version"],
         source_url=_optional_text(item.get("source_url")),
+        public_serialization_allowed=_optional_bool(item.get("public_serialization_allowed")),
+        launch_gate=_optional_text(item.get("launch_gate")),
         warnings=_string_list(item.get("warnings")),
     )
 
@@ -834,6 +833,19 @@ def _optional_int(value: Any) -> int | None:
     if match is None:
         return None
     return int(match.group(0))
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no"}:
+        return False
+    return None
 
 
 def _chromosome(genomic_hg38: str | None) -> str | None:

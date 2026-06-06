@@ -6,6 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 from app.core.config import Settings
+from app.services.alphamissense_local import AlphaMissensePrediction, AlphaMissenseProvenance
+from app.services.esm1b_assembly import ESM1B_LICENSE_GATE
+from app.services.esm1b_local import Esm1bPrediction, Esm1bProvenance
 from app.tools.base import FixtureBackedTool
 from app.tools.clingen import ClingenTool
 from app.tools.clinvar import ClinvarTool
@@ -467,7 +470,6 @@ def test_computational_annotations_fixture_returns_source_labeled_rows() -> None
     assert result.status == "fixture"
     names = {row["name"] for row in result.summary["predictors"]}
     assert {"SpliceAI", "REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR"} <= names
-    assert "AlphaMissense" not in names
     rows_by_name = {row["name"]: row for row in result.summary["predictors"]}
     assert rows_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
     assert rows_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
@@ -488,7 +490,43 @@ def test_computational_annotations_fixture_returns_source_labeled_rows() -> None
         "CADD",
         "SpliceAI",
     }
-    assert "alphamissense_on_hold" in result.summary["warnings"]
+    assert "alphamissense_on_hold" not in result.summary["warnings"]
+    assert "alphamissense_missing_source_file" in result.summary["warnings"]
+    assert "esm1b_missing_source_file" in result.summary["warnings"]
+
+
+def test_computational_annotations_serializes_local_alpha_and_esm1b_rows() -> None:
+    variant = SimpleNamespace(
+        gene="RPE65",
+        genomic_hg38="1-68444869-T-C",
+        genomic_hgvs="NC_000001.11:g.68444869T>C",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        protein_change="p.Asp87Gly",
+        dbsnp_rsid="",
+    )
+
+    result = ComputationalAnnotationsTool(
+        _settings(use_real_apis=False),
+        alphamissense_adapter=FakeAlphaMissenseAdapter(),
+        esm1b_adapter=FakeEsm1bAdapter(),
+    ).get_evidence(variant)
+
+    assert result.status == "fixture"
+    rows_by_name = {row["name"]: row for row in result.summary["predictors"]}
+    assert rows_by_name["AlphaMissense"]["score"] == 0.792
+    assert rows_by_name["AlphaMissense"]["calibrated_label"] == "PP3_Strong"
+    assert rows_by_name["AlphaMissense"]["source_id"] == "google_deepmind_alphamissense_hg38"
+    assert rows_by_name["AlphaMissense"]["public_serialization_allowed"] is True
+    assert rows_by_name["ESM1b"]["score"] == -14.0
+    assert rows_by_name["ESM1b"]["calibrated_label"] == "PP3_Strong"
+    assert rows_by_name["ESM1b"]["source_id"] == "esm1b_hg38_assembled_scores"
+    assert rows_by_name["ESM1b"]["public_serialization_allowed"] is True
+    assert rows_by_name["ESM1b"]["launch_gate"] == ESM1B_LICENSE_GATE
+    assert ESM1B_LICENSE_GATE in result.summary["warnings"]
+    assert {item["source"] for item in result.summary["provenance"]} >= {
+        "AlphaMissense",
+        "ESM1b",
+    }
 
 
 def test_computational_annotations_fixture_no_match_returns_missing_without_bleed() -> None:
@@ -508,6 +546,71 @@ def test_computational_annotations_fixture_no_match_returns_missing_without_blee
     assert result.summary["spliceai"] is None
     assert result.raw is None
     assert "computational_annotations_not_found" in result.warnings
+
+
+class FakeAlphaMissenseAdapter:
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+        assert (chrom, position, ref, alt) == ("1", 68444869, "T", "C")
+        return SimpleNamespace(
+            available=True,
+            prediction=AlphaMissensePrediction(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                am_pathogenicity=0.792,
+                am_class="likely_pathogenic",
+                genome="hg38",
+                uniprot_id="Q16518",
+                transcript_id="NM_000329.3",
+                protein_variant="D87G",
+                calibrated_label="PP3_Strong",
+                calibration_bucket="Pathogenic",
+                calibration_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
+                calibration_version="PMID:40084623",
+                provenance=AlphaMissenseProvenance(
+                    source_id="google_deepmind_alphamissense_hg38",
+                    source_version="AlphaMissense Zenodo test",
+                    source_url="https://zenodo.org/records/10813168",
+                    file_name="AlphaMissense_hg38.tsv.gz",
+                    reader="tabix_tsv_predictor_reader",
+                ),
+            ),
+            warnings=(),
+        )
+
+
+class FakeEsm1bAdapter:
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+        assert (chrom, position, ref, alt) == ("1", 68444869, "T", "C")
+        return SimpleNamespace(
+            available=True,
+            prediction=Esm1bPrediction(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                esm1b_llr=-14.0,
+                acmg_band="PP3_Strong",
+                uniprot_isoform="Q16518-1",
+                mane_tx="NM_000329.3",
+                aa_sub="D87G",
+                calibrated_label="PP3_Strong",
+                calibration_bucket="Pathogenic",
+                calibration_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
+                calibration_version="PMID:40084623",
+                public_serialization_allowed=True,
+                provenance=Esm1bProvenance(
+                    source_id="esm1b_hg38_assembled_scores",
+                    source_version="ESM1b test assembly",
+                    source_url=None,
+                    file_name="esm1b_hg38.tsv.gz",
+                    reader="tabix_tsv_predictor_reader",
+                    license_gate=ESM1B_LICENSE_GATE,
+                ),
+            ),
+            warnings=("esm1b_license_gate_metadata", ESM1B_LICENSE_GATE),
+        )
 
 
 def test_clinvar_prefers_resolved_genomic_hgvs_over_transcript_source_input(

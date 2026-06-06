@@ -163,7 +163,7 @@ def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path)
                 "litvar_id": None,
                 "total_publications": 0,
                 "articles": [],
-                "scholar_url": "https://scholar.google.com/scholar?q=RPE65+c.260A%3EG",
+                "scholar_url": "https://scholar.google.com/scholar?q=RPE65+c.9999A%3EG",
             },
         ),
         "clinical_trials": _ClinicalTrialsTool(),
@@ -176,7 +176,7 @@ def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path)
         settings=settings,
         functional_evidence_extractor=functional_evidence,
     )
-    request = LookupRequest(gene="RPE65", cdna="c.260A>G")
+    request = LookupRequest(gene="RPE65", cdna="c.9999A>G")
 
     first = service.lookup(request)
     second = service.lookup(request)
@@ -185,7 +185,7 @@ def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path)
     assert second.report_payload.variant_summary_rows[0].genomic_hg38 is None
     assert vep_tool.calls == 2
     assert all(item.status != "cache" for item in second.evidence)
-    assert repo.get_fresh("RPE65:c.260A>G", ttl_days=30) is None
+    assert repo.get_fresh("RPE65:c.9999A>G", ttl_days=30) is None
     with session_scope(session_factory) as session:
         assert session.execute(select(VariantCacheRecord)).scalars().all() == []
 

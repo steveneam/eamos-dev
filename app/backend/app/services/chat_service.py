@@ -121,7 +121,6 @@ class ChatService:
             "computational_predictors": [
                 item.model_dump(mode="json", exclude_none=True)
                 for item in computational
-                if item.name != "AlphaMissense"
             ][:8],
             "expert_panel": (
                 {

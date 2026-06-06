@@ -13,7 +13,7 @@ from app.services.predictor_runtime import (
 )
 
 
-def test_esm1b_adapter_maps_exact_hit_with_calibration_and_public_lock(
+def test_esm1b_adapter_maps_exact_hit_with_calibration_and_license_metadata(
     tmp_path: Path,
 ) -> None:
     adapter = Esm1bLocalAdapter(
@@ -40,7 +40,7 @@ def test_esm1b_adapter_maps_exact_hit_with_calibration_and_public_lock(
     lookup = adapter.lookup(chrom="chr7", position=117509068, ref="C", alt="T")
 
     assert lookup.available is True
-    assert lookup.warnings == ("esm1b_public_serialization_blocked", ESM1B_LICENSE_GATE)
+    assert lookup.warnings == ("esm1b_license_gate_metadata", ESM1B_LICENSE_GATE)
     prediction = lookup.prediction
     assert prediction is not None
     assert prediction.chrom == "7"
@@ -54,7 +54,7 @@ def test_esm1b_adapter_maps_exact_hit_with_calibration_and_public_lock(
     assert prediction.aa_sub == "V1M"
     assert prediction.calibrated_label == "PP3_Strong"
     assert prediction.calibration_bucket == "Pathogenic"
-    assert prediction.public_serialization_allowed is False
+    assert prediction.public_serialization_allowed is True
     assert prediction.provenance.source_id == ESM1B_SOURCE_ID
     assert prediction.provenance.reader == "tabix_tsv_predictor_reader"
     assert prediction.provenance.license_gate == ESM1B_LICENSE_GATE

@@ -149,13 +149,12 @@ def test_assemble_esm1b_mane_fixture_snv_table_emits_tsv_and_manifest() -> None:
     assert payload["output_checksum"] == sha256(expected_tsv.encode("utf-8")).hexdigest()
     assert payload["row_count"] == 2
     assert payload["input_score_row_count"] == 2
-    assert payload["internal_fixture_only"] is True
-    assert payload["public_serialization_allowed"] is False
+    assert payload["internal_fixture_only"] is False
+    assert payload["public_serialization_allowed"] is True
     assert payload["license_gate"] == "esm1b_score_file_terms_unconfirmed"
     assert payload["warnings"] == [
         "fixture rows are synthetic",
-        "internal_fixture_only",
-        "esm1b_public_serialization_blocked",
+        "esm1b_license_gate_metadata",
         "esm1b_score_file_terms_unconfirmed",
     ]
 
@@ -204,8 +203,8 @@ def test_assemble_esm1b_mane_fixture_snv_table_requires_explicit_codon_context()
         )
 
 
-def test_assemble_esm1b_mane_fixture_snv_table_is_fixture_sized_only() -> None:
-    with pytest.raises(Esm1bAssemblyError, match="fixture-sized only"):
+def test_assemble_esm1b_mane_fixture_snv_table_honors_explicit_row_limit() -> None:
+    with pytest.raises(Esm1bAssemblyError, match="configured limit"):
         assemble_esm1b_mane_fixture_snv_table(
             score_rows=(
                 Esm1bScoreRow(

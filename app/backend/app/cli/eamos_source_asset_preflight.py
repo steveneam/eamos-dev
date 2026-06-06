@@ -184,7 +184,7 @@ def build_source_asset_preflight_report(
             "production_downloads": "not_used",
             "runtime_local_source_wiring": "not_used",
             "uploads_or_imports": "not_used",
-            "restricted_predictor_unlocks": "not_used",
+            "restricted_predictor_unlocks": "admin_runtime_allowed_launch_filter_later",
         },
         "source_manifest": source_manifest,
         "download_staging": _download_staging_summary(),
@@ -373,11 +373,12 @@ def _predictor_runtime_asset_summary(
     return {
         "alphamissense": _predictor_runtime_summary(
             alphamissense,
-            public_serialization_allowed=False,
+            public_serialization_allowed=True,
         ),
         "esm1b": _predictor_runtime_summary(
             esm1b,
-            public_serialization_allowed=False,
+            public_serialization_allowed=True,
+            launch_gate="esm1b_score_file_terms_unconfirmed",
         ),
         "pvs1_nmd": {
             "source_id": pvs1_nmd.source_id,
@@ -389,7 +390,26 @@ def _predictor_runtime_asset_summary(
             "storage_required": pvs1_nmd.storage_required,
             "status_notes": list(pvs1_nmd.warnings),
         },
-        "public_serialization_locked": ["alphamissense", "esm1b"],
+        "ci_spliceai": _admin_predictor_lane_summary(
+            source_id="ci_spliceai_model",
+            status="score_cache_missing",
+            launch_gate="ci_spliceai_launch_filter_metadata",
+            status_notes=(
+                "model_reference_materialization_required",
+                "score_cache_materialization_required",
+            ),
+        ),
+        "capice": _admin_predictor_lane_summary(
+            source_id="capice_model",
+            status="model_artifact_missing",
+            launch_gate="capice_launch_filter_metadata",
+            status_notes=(
+                "capice_model_materialization_required",
+                "spliceai_feature_cache_materialization_required",
+            ),
+        ),
+        "public_serialization_locked": [],
+        "launch_gated": ["esm1b", "ci_spliceai", "capice"],
     }
 
 
@@ -397,6 +417,7 @@ def _predictor_runtime_summary(
     inspection: Any,
     *,
     public_serialization_allowed: bool,
+    launch_gate: str | None = None,
 ) -> dict[str, Any]:
     return {
         "source_id": inspection.source_id,
@@ -408,6 +429,25 @@ def _predictor_runtime_summary(
         "reader_requires_local_path": inspection.reader_requires_local_path,
         "materialization_status": inspection.materialization_status,
         "public_serialization_allowed": public_serialization_allowed,
+        "launch_gate": launch_gate,
+    }
+
+
+def _admin_predictor_lane_summary(
+    *,
+    source_id: str,
+    status: str,
+    launch_gate: str,
+    status_notes: tuple[str, ...],
+) -> dict[str, Any]:
+    return {
+        "source_id": source_id,
+        "status": status,
+        "available": False,
+        "runtime_wired": True,
+        "public_serialization_allowed": True,
+        "launch_gate": launch_gate,
+        "status_notes": list(status_notes),
     }
 
 
@@ -566,7 +606,6 @@ def _render_persistent_disk_gate_summary(
             "REVEL",
             "PrimateAI-3D",
             "InterVar/ANNOVAR/OMIM restricted production use",
-            "AlphaMissense",
             "InterProScan optional licensed apps",
             "future local LLM or transformer weights",
         ],
@@ -597,9 +636,10 @@ def _local_evidence_gate_summary(gate: LocalEvidenceRuntimeGate) -> dict[str, An
 
 def _restricted_predictor_summary(registry: DataSourceRegistry) -> dict[str, Any]:
     records = [registry.get(source_id) for source_id in sorted(RESTRICTED_PREDICTOR_SOURCE_IDS)]
-    locked = all(not record.download_approved and not record.allowed_fields for record in records)
     return {
-        "locked": locked,
+        "locked": False,
+        "admin_runtime_allowed": True,
+        "launch_filter_required": True,
         "source_ids": [record.source_id for record in records],
         "sources": [
             {

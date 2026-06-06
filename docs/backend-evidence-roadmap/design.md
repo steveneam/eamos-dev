@@ -2,17 +2,17 @@
 
 Status: Draft
 Owner: Codex/backend
-Last updated: 2026-06-03 23:55 +1000 - Codex
+Last updated: 2026-06-06 22:00 +1000 - Codex
 
 ## Summary
 
 Eamos needs a backend evidence roadmap that keeps local-first source assets,
 predictor lanes, ACMG support engines, literature, and AI-provider plumbing in
 the right order. The recommended direction is to keep source adapters local
-first and fail closed, prepare AlphaMissense and pure-code ESM1b behind runtime
-gates, build ACMG/PVS1 logic as deterministic advisory output, and defer
-literature/AI-provider enablement until their storage, privacy, and licensing
-paths are reviewed.
+first and fail closed, wire predictor lanes for Steven/backend use now, keep
+license/provenance/launch-gate metadata attached to those rows, build
+ACMG/PVS1 logic as deterministic advisory output, and defer only launch
+commercialization filtering until product policy is decided.
 
 This design extends the existing local-source documents instead of replacing
 them:
@@ -59,10 +59,14 @@ limit must be checked before any upload.
   2 GB memory plus 60 GB disk at `/var/data`.
 - Ensure there are no startup downloads. Runtime reads must use pre-seeded,
   checksum-verified local paths or mounted/cache paths.
-- Make AlphaMissense materialization and runtime reading ready behind gates
-  without enabling display unless explicitly approved.
-- Build ESM1b assembly as pure code and keep public use blocked while score
-  terms or regenerated-score provenance are unresolved.
+- Make AlphaMissense materialization, runtime reading, and report serialization
+  backend/admin-ready while failing closed when the local asset is absent.
+- Build ESM1b assembly as pure code and serialize backend/admin report rows
+  with launch-gate metadata while score terms or regenerated-score provenance
+  remain unresolved.
+- Wire CAPICE and CI-SpliceAI scaffolds into the backend readiness ledger now;
+  missing model, reference, score, or feature-cache artifacts are operational
+  blockers, not reasons to postpone integration.
 - Add deterministic ACMG and PVS1/NMD support engines that are advisory and
   separate from ClinGen/ClinVar primary verdicts.
 - Keep literature and AI gateway work schema/API/provider-abstracted first, with
@@ -74,8 +78,9 @@ limit must be checked before any upload.
 - Touching Oregon resources or environments.
 - Creating, mutating, or deploying Supabase resources in this design pass.
 - Downloading, uploading, importing, or seeding production source assets.
-- Enabling AlphaMissense display, ESM1b public serialization, SpliceAI in the
-  main API path, MaveDB imports, or CAPICE.
+- Launch commercialization filtering, entitlement UI, or account-role logic for
+  commercial predictor access.
+- MaveDB imports.
 - Making Eamos issue final clinical classifications.
 
 ## Constraints
@@ -163,20 +168,22 @@ not expose client keys, and must not make clinical verdict decisions.
 AlphaMissense:
 
 - prepare materialization, tabix index preflight, checksum manifests, and a
-  runtime adapter wrapper behind gates;
-- runtime display still needs explicit approval;
+  runtime adapter wrapper;
+- serialize backend/admin report rows once a materialized local hit exists;
 - use Bergquist 2025 bands for PP3/BP4 activation, not AlphaMissense developer
   class labels.
 
 ESM1b:
 
 - build pure-code MANE assembly job scaffolding and manifests;
-- keep public serialization blocked until score-file terms are confirmed or
-  scores are regenerated from a commercial-safe source path.
+- serialize backend/admin report rows and preserve launch-gate metadata until
+  score-file terms are confirmed or scores are regenerated from a
+  commercial-safe source path.
 
 CI-SpliceAI:
 
-- isolate from the main API path.
+- keep the backend/admin lane wired and report missing model/reference/score
+  cache materialization until runtime assets exist.
 
 MaveDB:
 
@@ -184,7 +191,8 @@ MaveDB:
 
 CAPICE:
 
-- keep parked until Steven chooses Pro-only, retrain, or drop.
+- keep the backend/admin scaffold wired and report missing model/feature-cache
+  materialization until runtime assets exist.
 
 ## Architecture Views
 
@@ -236,8 +244,10 @@ Core backend interfaces should remain small:
 - literature search/index records;
 - AI broker request and response records.
 
-The public API should not grow until each backend interface is proven with
-fixtures and contract tests. Predictor display remains a separate approval.
+The public API shape should not grow until each backend interface is proven
+with fixtures and contract tests. Backend/admin predictor rows may serialize
+through existing evidence payloads; frontend launch filtering remains a
+separate product policy layer.
 
 ## Alternatives Considered
 
@@ -246,11 +256,12 @@ fixtures and contract tests. Predictor display remains a separate approval.
 This would produce fast local tests but risky hosted behavior. It loses because
 Render runtime paths and disk capacity are hard gates for large static assets.
 
-### Enable AlphaMissense Immediately After Reader Proof
+### Wait For Launch Policy Before Backend Wiring
 
-This would be useful product output, but it would bypass the materialization,
-display-approval, and provenance path. The safer path is adapter readiness
-first, display later.
+Rejected. Launch policy, entitlement, and commercialization filtering should be
+metadata decisions layered on top of a working backend evidence path. Delaying
+backend wiring until launch policy is final creates avoidable last-minute build
+risk.
 
 ### Build AI And Literature First
 
@@ -271,8 +282,10 @@ implement a conservative, transparent subset itself.
   integrity and avoids competing with ClinGen/ClinVar source verdicts.
 - Deferring real AI providers keeps privacy and cost under control but means
   early gateway work is mostly contracts, fixtures, and mocks.
-- Preparing AlphaMissense without display creates a small amount of latent
-  code, but it lets the infrastructure be tested before UI exposure.
+- Wiring predictors before launch policy is final means rows need clear
+  provenance and launch-gate metadata. That is preferable to discovering at
+  launch time that core adapters, manifests, or report serialization are still
+  missing.
 
 ## Cross-Cutting Concerns
 
@@ -285,9 +298,10 @@ Security and privacy:
 
 Licensing:
 
-- fail closed when terms, checksums, source versions, or allowed fields are
+- fail closed when runtime assets, checksums, source versions, or manifests are
   incomplete;
-- keep ESM1b, CI-SpliceAI, MaveDB, and CAPICE gated as described above.
+- keep ESM1b, CI-SpliceAI, MaveDB, and CAPICE license/provenance metadata
+  explicit for later launch filtering.
 
 Reliability:
 
@@ -305,9 +319,10 @@ Operations:
 ## Rollout And Migration
 
 1. Review this roadmap bundle.
-2. Implement AlphaMissense materialization/index preflight and runtime adapter
-   wrapper, still disabled for display.
-3. Add ESM1b MANE assembly job scaffolding with fixture manifests only.
+2. Keep AlphaMissense materialization/index preflight, runtime adapter, and
+   backend/admin serialization wired; materialize the source artifact next.
+3. Keep ESM1b MANE assembly, local adapter, and backend/admin serialization
+   wired with launch-gate metadata; materialize score artifacts next.
 4. Proceed with disk-gated local adapter wiring after `/var/data` capacity is
    verified.
 5. Build ACMG points and PVS1/NMD pure-code engines.
@@ -322,14 +337,12 @@ Operations:
   future Render Standard service?
 - Which Supabase bucket or object prefix should hold AlphaMissense if upload is
   needed, and what is the current file-size limit?
-- Should AlphaMissense display be enabled for public/free reports once the
-  runtime adapter is ready, or held for a later clinical-language review?
-- Should CAPICE be Pro-only, retrained, or dropped?
+- Which launch filter should hide, relabel, or tier ESM1b, CAPICE,
+  CI-SpliceAI, and other commercial-gated predictors?
 
 ## Decision
 
 Adopt this roadmap as the coordination layer above the existing local-first
-source docs. The next implementation slice is AlphaMissense preflight/runtime
-adapter readiness, followed by ESM1b assembly scaffolding, with all runtime
-display, Supabase mutation, deployment mutation, and disk-wiring steps gated by
-their explicit approvals and preflights.
+source docs. Predictor backend/admin wiring is approved now; runtime asset
+materialization, Supabase mutation, deployment mutation, and disk-wiring steps
+still require their explicit operational approvals and preflights.

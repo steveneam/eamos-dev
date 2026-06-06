@@ -42,7 +42,7 @@ DOCX_BLUEPRINT_TIERS: tuple[dict[str, Any], ...] = (
     {
         "tier": "tier_4_live_apis",
         "docx_items": ("MyVariant.info gnomAD", "MyVariant.info restricted predictors"),
-        "current_state": "gnomad_only_after_policy_predictors_locked",
+        "current_state": "gnomad_policy_preserved_predictors_admin_wired_launch_gated",
     },
 )
 
@@ -79,8 +79,11 @@ DOCX_RECONCILIATION: tuple[dict[str, str], ...] = (
     },
     {
         "item": "SpliceAI, CADD, REVEL, PrimateAI-3D, and restricted dbNSFP fields",
-        "state": "locked",
-        "current_policy": "Restricted predictors remain unlicensed and unavailable for public/runtime serialization.",
+        "state": "launch_gated",
+        "current_policy": (
+            "Backend/admin runtime serialization is allowed; public launch filtering remains "
+            "required until commercial terms are finalized."
+        ),
     },
 )
 
@@ -476,7 +479,10 @@ DOCX_BLUEPRINT_LINES: tuple[DocxBlueprintLine, ...] = (
         _STATUS_POLICY_LOCKED,
         ("myvariant_gnomad_only",),
         ("app/backend/app/data_sources/policy.py", "app/backend/tests/test_source_field_policy.py"),
-        next_action="Current backend policy filters restricted predictor fields before cache/serialization.",
+        next_action=(
+            "Keep MyVariant gnomAD-only filtering, but do not use that policy to strip "
+            "admin/backend predictor evidence."
+        ),
     ),
     DocxBlueprintLine(
         38,
@@ -490,7 +496,10 @@ DOCX_BLUEPRINT_LINES: tuple[DocxBlueprintLine, ...] = (
             "illumina_primateai3d_scores",
         ),
         ("app/backend/app/data_sources/registry.py", "app/backend/app/data_sources/policy.py"),
-        blocker="No restricted predictor unlock until licenses, source rights, and product gates are approved.",
+        blocker=(
+            "Backend/admin runtime use is approved; public launch remains gated until licenses, "
+            "source rights, and product gates are finalized."
+        ),
     ),
 )
 

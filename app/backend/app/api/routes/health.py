@@ -158,20 +158,28 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
                 settings,
                 materialization_store=materialization_store,
                 verify_checksum=False,
-            )
+            ),
+            public_serialization_allowed=True,
         ),
         "esm1b": _predictor_inspection_health(
             inspect_esm1b_runtime_asset(
                 settings,
                 materialization_store=materialization_store,
                 verify_checksum=False,
-            )
+            ),
+            public_serialization_allowed=True,
+            launch_gate="esm1b_score_file_terms_unconfirmed",
         ),
         "ci_spliceai": {
             "available": False,
-            "status": "restricted_unlicensed",
-            "runtime_wired": False,
-            "public_serialization_allowed": False,
+            "status": "score_cache_missing",
+            "runtime_wired": True,
+            "public_serialization_allowed": True,
+            "launch_gate": "ci_spliceai_launch_filter_metadata",
+            "status_notes": [
+                "model_reference_materialization_required",
+                "score_cache_materialization_required",
+            ],
         },
         "pvs1_nmd": {
             "available": pvs1_nmd.available,
@@ -189,10 +197,26 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             "runtime_wired": False,
             "public_serialization_allowed": False,
         },
+        "capice": {
+            "available": False,
+            "status": "model_artifact_missing",
+            "runtime_wired": True,
+            "public_serialization_allowed": True,
+            "launch_gate": "capice_launch_filter_metadata",
+            "status_notes": [
+                "capice_model_materialization_required",
+                "spliceai_feature_cache_materialization_required",
+            ],
+        },
     }
 
 
-def _predictor_inspection_health(inspection) -> dict[str, object]:
+def _predictor_inspection_health(
+    inspection,
+    *,
+    public_serialization_allowed: bool,
+    launch_gate: str | None = None,
+) -> dict[str, object]:
     return {
         "available": inspection.ready,
         "status": inspection.status.value,
@@ -204,7 +228,8 @@ def _predictor_inspection_health(inspection) -> dict[str, object]:
         "actual_size_bytes": inspection.actual_size_bytes,
         "reader_requires_local_path": inspection.reader_requires_local_path,
         "materialization_status": inspection.materialization_status,
-        "public_serialization_allowed": False,
+        "public_serialization_allowed": public_serialization_allowed,
+        "launch_gate": launch_gate,
     }
 
 

@@ -79,9 +79,9 @@ class Esm1bLookup:
 class Esm1bLocalAdapter:
     """Internal ESM1b tabix adapter.
 
-    ESM1b score-file terms remain unresolved unless scores are regenerated from
-    a safe path, so this adapter is internal-only and never enables public
-    serialization by itself.
+    The report evidence path reads this adapter after materialization preflight
+    succeeds. License-gate status is preserved as metadata for launch filtering
+    instead of blocking backend/admin serialization.
     """
 
     def __init__(
@@ -164,7 +164,7 @@ class Esm1bLocalAdapter:
         return Esm1bLookup(
             available=True,
             prediction=prediction,
-            warnings=("esm1b_public_serialization_blocked", ESM1B_LICENSE_GATE),
+            warnings=("esm1b_license_gate_metadata", ESM1B_LICENSE_GATE),
         )
 
     def _prediction_from_score(self, score: IndexedPredictorScore) -> Esm1bPrediction | None:
@@ -185,7 +185,7 @@ class Esm1bLocalAdapter:
             calibration_bucket=calibration["calibration_bucket"],
             calibration_method=calibration["calibration_method"],
             calibration_version=calibration["calibration_version"],
-            public_serialization_allowed=False,
+            public_serialization_allowed=True,
             provenance=Esm1bProvenance(
                 source_id=ESM1B_SOURCE_ID,
                 source_version=self._record.source_version,

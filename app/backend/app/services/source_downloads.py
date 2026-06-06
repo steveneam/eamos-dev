@@ -179,6 +179,18 @@ SOURCE_DOWNLOAD_FILE_SPECS: tuple[SourceDownloadFileSpec, ...] = (
         role="mane_gtf",
     ),
     SourceDownloadFileSpec(
+        source_id="ncbi_refseq_grch38_p14",
+        asset_id="refseq_grch38_p14_genomic_gff_gz",
+        url=(
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/"
+            "GCF_000001405.40_GRCh38.p14/"
+            "GCF_000001405.40_GRCh38.p14_genomic.gff.gz"
+        ),
+        file_name="GCF_000001405.40_GRCh38.p14_genomic.gff.gz",
+        expected_size_bytes=56_923_273,
+        role="refseq_genomic_gff",
+    ),
+    SourceDownloadFileSpec(
         source_id="gencode_v45_annotation",
         asset_id="gencode_v45_annotation_gtf_gz",
         url=(

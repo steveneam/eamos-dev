@@ -174,7 +174,6 @@ def test_computational_card_prefers_source_labeled_annotation_metrics() -> None:
                 {"name": "MetaLR", "score": 0.62, "threshold": 0.5},
             ],
             "spliceai": {"max_delta": 0.12, "threshold": 0.2},
-            "excluded_predictors": ["AlphaMissense"],
             "warnings": ["computational_annotations_fixture_snapshot"],
         }
     }

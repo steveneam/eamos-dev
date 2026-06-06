@@ -77,8 +77,8 @@ class AlphaMissenseLookup:
 class AlphaMissenseLocalAdapter:
     """Internal AlphaMissense tabix adapter.
 
-    This adapter is deliberately not wired into report serialization. It is the
-    backend-only reader wrapper used after materialization preflight succeeds.
+    The report evidence path reads this adapter after materialization preflight
+    succeeds. Missing or malformed runtime assets fail closed with warnings.
     """
 
     def __init__(

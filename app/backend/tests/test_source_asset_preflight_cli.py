@@ -45,7 +45,7 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert output["guardrails"] == {
         "network": "not_used",
         "production_downloads": "not_used",
-        "restricted_predictor_unlocks": "not_used",
+        "restricted_predictor_unlocks": "admin_runtime_allowed_launch_filter_later",
         "runtime_local_source_wiring": "not_used",
         "supabase": "not_used",
         "uploads_or_imports": "not_used",
@@ -110,7 +110,7 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert full_stack["ready_for_download_or_import_count"] == 11
     assert full_stack["total_sources"] == 11
     assert full_stack["blocking_requirement_counts"] == {}
-    assert "AlphaMissense" in render_gate["excluded_from_disk_estimates"]
+    assert "AlphaMissense" not in render_gate["excluded_from_disk_estimates"]
 
     hg38 = output["hg38_runtime_asset"]
     assert hg38["status"] == "missing"
@@ -126,12 +126,20 @@ def test_source_asset_preflight_reports_guarded_readiness(
 
     predictors = output["predictor_runtime_assets"]
     assert predictors["alphamissense"]["status"] == "missing_source_file"
-    assert predictors["alphamissense"]["public_serialization_allowed"] is False
+    assert predictors["alphamissense"]["public_serialization_allowed"] is True
     assert predictors["esm1b"]["status"] == "missing_source_file"
-    assert predictors["esm1b"]["public_serialization_allowed"] is False
+    assert predictors["esm1b"]["public_serialization_allowed"] is True
+    assert predictors["esm1b"]["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
     assert predictors["pvs1_nmd"]["status"] == "pure_code_available"
     assert predictors["pvs1_nmd"]["storage_required"] is False
-    assert predictors["public_serialization_locked"] == ["alphamissense", "esm1b"]
+    assert predictors["public_serialization_locked"] == []
+    assert predictors["ci_spliceai"]["status"] == "score_cache_missing"
+    assert predictors["ci_spliceai"]["runtime_wired"] is True
+    assert predictors["ci_spliceai"]["public_serialization_allowed"] is True
+    assert predictors["capice"]["status"] == "model_artifact_missing"
+    assert predictors["capice"]["runtime_wired"] is True
+    assert predictors["capice"]["public_serialization_allowed"] is True
+    assert predictors["launch_gated"] == ["esm1b", "ci_spliceai", "capice"]
 
     gate = output["local_evidence_gate"]
     assert gate["configured_runtime_flows_enabled"] is False
@@ -144,6 +152,11 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert ledger["gff_runtime_scans_allowed"] is False
     items = {item["item_id"]: item for item in ledger["items"]}
     assert items["alphamissense"]["status"] == "missing_source_file"
+    assert items["alphamissense"]["runtime_wired"] is True
+    assert items["esm1b"]["runtime_wired"] is True
+    assert items["ci_spliceai"]["runtime_wired"] is True
+    assert items["capice"]["runtime_wired"] is True
+    assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
     assert items["clinical_source_tables"]["durable_source"] == "supabase_postgres"
     assert items["clinical_source_tables"]["render_disk_role"] == "not_required"
     assert items["coordinate_compact_index"]["runtime_source"] == (
@@ -251,10 +264,12 @@ def test_source_asset_preflight_records_docx_reconciliation_and_policy(
     assert reconciliation["InterVar, ANNOVAR, and OMIM production use"]["state"] == "blocked"
     assert (
         reconciliation["SpliceAI, CADD, REVEL, PrimateAI-3D, and restricted dbNSFP fields"]["state"]
-        == "locked"
+        == "launch_gated"
     )
 
-    assert output["restricted_predictors"]["locked"] is True
+    assert output["restricted_predictors"]["locked"] is False
+    assert output["restricted_predictors"]["admin_runtime_allowed"] is True
+    assert output["restricted_predictors"]["launch_filter_required"] is True
     assert output["myvariant_policy"]["enabled_for_runtime"] is False
     assert output["myvariant_policy"]["allowed_fields"] == ["gnomad_genome", "gnomad_exome"]
     assert "spliceai" in output["myvariant_policy"]["restricted_fields"]
@@ -333,7 +348,7 @@ def test_render_disk_gate_separates_current_runtime_from_full_stack() -> None:
     assert full_stack["blocked_by"] == []
 
 
-def test_docx_task_matrix_keeps_restricted_predictors_locked() -> None:
+def test_docx_task_matrix_marks_restricted_predictors_launch_gated() -> None:
     matrix = build_docx_task_matrix()
     lines = {line["line_number"]: line for line in matrix["lines"]}
 

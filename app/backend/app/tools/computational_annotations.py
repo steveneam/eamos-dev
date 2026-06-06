@@ -1,16 +1,30 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import re
 from typing import Any
 from urllib.parse import quote
 
+from app.services.alphamissense_local import AlphaMissenseLocalAdapter
 from app.services.computational_calibration import calibration_field_values
+from app.services.esm1b_local import Esm1bLocalAdapter
 from app.tools.base import FixtureBackedTool, ToolResult
 
 SPLICEAI_SOURCE_URL = "https://spliceailookup.broadinstitute.org/"
 DEFAULT_SPLICEAI_THRESHOLD = 0.2
 ALPHAMISSENSE_KEYS = {"alphamissense", "alpha_missense", "alpha missense"}
+ESM1B_KEYS = {"esm1b", "esm1b llr", "esm1b_llr", "esm1b-llr"}
+_VARIANT_ID_RE = re.compile(
+    r"^(?:chr)?(?P<chrom>[0-9XYM]+|MT)-(?P<pos>[1-9][0-9]*)-"
+    r"(?P<ref>[ACGT]+)-(?P<alt>[ACGT]+)$",
+    flags=re.IGNORECASE,
+)
+_GENOMIC_HGVS_SNV_RE = re.compile(
+    r"^(?P<accession>NC_0*(?P<chrom_num>[0-9]{1,2}|23|24)\.[0-9]+):g\."
+    r"(?P<pos>[1-9][0-9]*)(?P<ref>[ACGT])>(?P<alt>[ACGT])$",
+    flags=re.IGNORECASE,
+)
 SPLICEAI_COMPONENTS = {
     "DS_AG": "acceptor_gain",
     "DS_AL": "acceptor_loss",
@@ -72,6 +86,17 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
     source = "computational_annotations"
     fixture_name = "computational_annotations_fixtures.json"
 
+    def __init__(
+        self,
+        settings,
+        *,
+        alphamissense_adapter: Any | None = None,
+        esm1b_adapter: Any | None = None,
+    ) -> None:
+        super().__init__(settings)
+        self._alphamissense_adapter = alphamissense_adapter
+        self._esm1b_adapter = esm1b_adapter
+
     def get_evidence(self, variant=None) -> ToolResult:
         identity = _identity_from_variant(variant)
         if not identity.gene or not identity.has_variant_level_identifier:
@@ -92,6 +117,7 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
                 status="fixture" if record else "missing",
                 identity=identity,
                 record=record,
+                local_predictors=self._local_predictor_evidence(identity),
                 missing_warning="computational_annotations_not_found",
             )
 
@@ -100,6 +126,7 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
                 status="missing",
                 identity=identity,
                 record=None,
+                local_predictors=self._local_predictor_evidence(identity),
                 missing_warning="computational_annotations_not_found",
             )
 
@@ -107,26 +134,109 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
             status="fallback",
             identity=identity,
             record=record,
+            local_predictors=self._local_predictor_evidence(identity),
             extra_warnings=["computational_annotations_curated_fixture_snapshot"],
         )
 
+    def _local_predictor_evidence(
+        self,
+        identity: ComputationalVariantIdentity,
+    ) -> dict[str, Any]:
+        variant_parts = _genomic_variant_parts(identity.genomic_hg38 or identity.variant_id)
+        if variant_parts is None:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": ["local_predictor_coordinates_unavailable"],
+            }
+        chrom, position, ref, alt = variant_parts
+        rows: list[dict[str, Any]] = []
+        provenance: list[dict[str, Any]] = []
+        warnings: list[str] = []
 
-def normalize_computational_record(record: dict[str, Any]) -> dict[str, Any]:
+        alphamissense = self._lookup_alphamissense(chrom, position, ref, alt)
+        if alphamissense is not None:
+            rows.extend(alphamissense["rows"])
+            provenance.extend(alphamissense["provenance"])
+            warnings.extend(alphamissense["warnings"])
+
+        esm1b = self._lookup_esm1b(chrom, position, ref, alt)
+        if esm1b is not None:
+            rows.extend(esm1b["rows"])
+            provenance.extend(esm1b["provenance"])
+            warnings.extend(esm1b["warnings"])
+
+        return {"rows": rows, "provenance": provenance, "warnings": warnings}
+
+    def _lookup_alphamissense(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> dict[str, Any] | None:
+        try:
+            adapter = self._alphamissense_adapter or AlphaMissenseLocalAdapter.from_settings(
+                self.settings
+            )
+            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+        except Exception as exc:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": [f"alphamissense_local_lookup_failed:{type(exc).__name__}"],
+            }
+        if not lookup.available or lookup.prediction is None:
+            return {"rows": [], "provenance": [], "warnings": list(lookup.warnings)}
+        prediction = lookup.prediction
+        return {
+            "rows": [_alphamissense_prediction_row(prediction, warnings=lookup.warnings)],
+            "provenance": [_prediction_provenance("AlphaMissense", prediction.provenance)],
+            "warnings": list(lookup.warnings),
+        }
+
+    def _lookup_esm1b(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> dict[str, Any] | None:
+        try:
+            adapter = self._esm1b_adapter or Esm1bLocalAdapter.from_settings(self.settings)
+            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+        except Exception as exc:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": [f"esm1b_local_lookup_failed:{type(exc).__name__}"],
+            }
+        if not lookup.available or lookup.prediction is None:
+            return {"rows": [], "provenance": [], "warnings": list(lookup.warnings)}
+        prediction = lookup.prediction
+        return {
+            "rows": [_esm1b_prediction_row(prediction, warnings=lookup.warnings)],
+            "provenance": [_prediction_provenance("ESM1b", prediction.provenance)],
+            "warnings": list(lookup.warnings),
+        }
+
+
+def normalize_computational_record(
+    record: dict[str, Any],
+) -> dict[str, Any]:
     """Normalize dbNSFP/MyVariant-like predictor blocks into report row dicts."""
 
     clean_record = deepcopy(record)
-    predictors, filtered_warnings = _predictor_rows(clean_record)
+    predictors = _predictor_rows(clean_record)
     spliceai = _spliceai_summary(clean_record)
     spliceai_row = _spliceai_predictor_row(spliceai)
     if spliceai_row is not None:
         predictors.insert(0, spliceai_row)
 
-    conservation, conservation_filtered_warnings = _conservation_rows(clean_record)
+    conservation = _conservation_rows(clean_record)
     warnings = _dedupe(
         [
             *_string_list(clean_record.get("warnings")),
-            *filtered_warnings,
-            *conservation_filtered_warnings,
         ]
     )
     if not predictors:
@@ -245,62 +355,81 @@ def _result_from_record(
     status: str,
     identity: ComputationalVariantIdentity,
     record: dict[str, Any] | None,
+    local_predictors: dict[str, Any] | None = None,
     missing_warning: str | None = None,
     extra_warnings: list[str] | None = None,
 ) -> ToolResult:
     warnings = list(extra_warnings or [])
+    local_predictors = local_predictors or {"rows": [], "provenance": [], "warnings": []}
+    local_rows = _list_of_dicts(local_predictors.get("rows"))
+    local_provenance = _list_of_dicts(local_predictors.get("provenance"))
+    local_warnings = _string_list(local_predictors.get("warnings"))
     if record is None:
         if missing_warning:
             warnings.append(missing_warning)
+        summary = _unavailable_summary(identity, _dedupe([*warnings, *local_warnings]))
+        summary["predictors"] = local_rows
+        summary["provenance"] = local_provenance
+        summary["warnings"] = _dedupe([*summary.get("warnings", []), *local_warnings])
+        if local_rows and status == "missing":
+            status = "local"
         return ToolResult(
             source=ComputationalAnnotationsTool.source,
             status=status,
             request_identity=identity.request_identity,
-            summary=_unavailable_summary(identity, warnings),
-            warnings=warnings,
+            summary=summary,
+            warnings=_dedupe([*warnings, *local_warnings]),
             raw=None,
             source_url=_source_search_url(identity),
         )
 
     summary = normalize_computational_record(record)
-    summary["warnings"] = _dedupe([*summary.get("warnings", []), *warnings])
+    summary["predictors"] = _dedupe_rows([*summary.get("predictors", []), *local_rows])
+    summary["provenance"] = _dedupe_provenance_dicts(
+        [*summary.get("provenance", []), *local_provenance]
+    )
+    summary["warnings"] = _dedupe([*summary.get("warnings", []), *warnings, *local_warnings])
     return ToolResult(
         source=ComputationalAnnotationsTool.source,
         status=status,
         request_identity=identity.request_identity,
         summary=summary,
-        warnings=warnings,
+        warnings=_dedupe([*warnings, *local_warnings]),
         raw=_sanitize_raw_record(record),
         source_url=_primary_source_url(summary) or _source_search_url(identity),
     )
 
 
-def _predictor_rows(record: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+def _predictor_rows(
+    record: dict[str, Any],
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    warnings: list[str] = []
     for source_name, block in _annotation_blocks(record):
         for item in _list_of_dicts(block.get("predictors")):
-            row, filtered = _row_from_metric(item, source_name=source_name, block=block)
-            if filtered:
-                warnings.append("alphamissense_on_hold")
-                continue
+            row = _row_from_metric(
+                item,
+                source_name=source_name,
+                block=block,
+            )
             if row is not None:
                 rows.append(row)
-    return _dedupe_rows(rows), _dedupe(warnings)
+    return _dedupe_rows(rows)
 
 
-def _conservation_rows(record: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+def _conservation_rows(
+    record: dict[str, Any],
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    warnings: list[str] = []
     for source_name, block in _annotation_blocks(record):
         for item in _list_of_dicts(block.get("conservation")):
-            row, filtered = _row_from_metric(item, source_name=source_name, block=block)
-            if filtered:
-                warnings.append("alphamissense_on_hold")
-                continue
+            row = _row_from_metric(
+                item,
+                source_name=source_name,
+                block=block,
+            )
             if row is not None:
                 rows.append(row)
-    return _dedupe_rows(rows), _dedupe(warnings)
+    return _dedupe_rows(rows)
 
 
 def _row_from_metric(
@@ -308,12 +437,11 @@ def _row_from_metric(
     *,
     source_name: str,
     block: dict[str, Any],
-) -> tuple[dict[str, Any] | None, bool]:
+) -> dict[str, Any] | None:
     name = _text(item.get("name") or item.get("metric"))
     if not name:
-        return None, False
-    if _is_alphamissense(name):
-        return None, True
+        return None
+    source = _text(item.get("source")) or _source_label(source_name)
     row = {
         "name": name,
         "score": _score_value(item.get("score")),
@@ -321,16 +449,18 @@ def _row_from_metric(
         "interpretation": _text(
             item.get("interpretation") or item.get("prediction") or item.get("verdict")
         ),
-        "source": _text(item.get("source")) or _source_label(source_name),
+        "source": source,
         "version": _text(item.get("version")) or _text(block.get("version")),
         "source_url": _text(item.get("source_url")) or _text(block.get("source_url")),
         "warnings": _string_list(item.get("warnings")),
     }
     row.update(calibration_field_values(name, row["score"]))
-    return row, False
+    return row
 
 
-def _spliceai_summary(record: dict[str, Any]) -> dict[str, Any] | None:
+def _spliceai_summary(
+    record: dict[str, Any],
+) -> dict[str, Any] | None:
     spliceai = _spliceai_block(record)
     if not spliceai:
         return None
@@ -397,7 +527,7 @@ def _annotation_blocks(record: dict[str, Any]) -> list[tuple[str, dict[str, Any]
     sources = record.get("sources")
     if isinstance(sources, dict):
         for source_name, block in sources.items():
-            if not isinstance(block, dict) or _is_alphamissense(source_name):
+            if not isinstance(block, dict):
                 continue
             blocks.append((source_name, block))
     return blocks
@@ -407,53 +537,146 @@ def _provenance(record: dict[str, Any]) -> list[dict[str, Any]]:
     provenance = record.get("provenance")
     if not isinstance(provenance, list):
         return []
-    return [
-        item
-        for item in provenance
-        if isinstance(item, dict) and not _is_alphamissense(item.get("source"))
-    ]
+    return [item for item in provenance if isinstance(item, dict)]
 
 
 def _sanitize_raw_record(record: dict[str, Any]) -> dict[str, Any]:
-    clean = deepcopy(record)
-    for block in [clean, *_source_dicts(clean)]:
-        if isinstance(block.get("predictors"), list):
-            block["predictors"] = [
-                item
-                for item in block["predictors"]
-                if not (
-                    isinstance(item, dict)
-                    and _is_alphamissense(item.get("name") or item.get("metric"))
-                )
-            ]
-        if isinstance(block.get("conservation"), list):
-            block["conservation"] = [
-                item
-                for item in block["conservation"]
-                if not (
-                    isinstance(item, dict)
-                    and _is_alphamissense(item.get("name") or item.get("metric"))
-                )
-            ]
-    sources = clean.get("sources")
-    if isinstance(sources, dict):
-        for source_name in list(sources):
-            if _is_alphamissense(source_name):
-                del sources[source_name]
-    if isinstance(clean.get("provenance"), list):
-        clean["provenance"] = [
-            item
-            for item in clean["provenance"]
-            if not (isinstance(item, dict) and _is_alphamissense(item.get("source")))
-        ]
-    return clean
+    return deepcopy(record)
 
 
-def _source_dicts(record: dict[str, Any]) -> list[dict[str, Any]]:
-    sources = record.get("sources")
-    if not isinstance(sources, dict):
-        return []
-    return [block for block in sources.values() if isinstance(block, dict)]
+def _genomic_variant_parts(value: str | None) -> tuple[str, int, str, str] | None:
+    text = (value or "").strip()
+    if not text:
+        return None
+    variant_match = _VARIANT_ID_RE.fullmatch(text)
+    if variant_match is not None:
+        chrom = _normalize_chromosome(variant_match.group("chrom"))
+        return (
+            chrom,
+            int(variant_match.group("pos")),
+            variant_match.group("ref").upper(),
+            variant_match.group("alt").upper(),
+        )
+
+    hgvs_match = _GENOMIC_HGVS_SNV_RE.fullmatch(text)
+    if hgvs_match is None:
+        return None
+    return (
+        _chromosome_from_nc_accession(hgvs_match.group("chrom_num")),
+        int(hgvs_match.group("pos")),
+        hgvs_match.group("ref").upper(),
+        hgvs_match.group("alt").upper(),
+    )
+
+
+def _chromosome_from_nc_accession(value: str) -> str:
+    number = int(value)
+    if number == 23:
+        return "X"
+    if number == 24:
+        return "Y"
+    return str(number)
+
+
+def _normalize_chromosome(value: str) -> str:
+    chrom = value.upper()
+    if chrom == "M":
+        return "MT"
+    return chrom
+
+
+def _alphamissense_prediction_row(prediction: Any, *, warnings: tuple[str, ...]) -> dict[str, Any]:
+    row = {
+        "name": "AlphaMissense",
+        "score": prediction.am_pathogenicity,
+        "threshold": None,
+        "interpretation": prediction.am_class,
+        "source": "AlphaMissense",
+        "source_id": prediction.provenance.source_id,
+        "version": prediction.provenance.source_version,
+        "source_url": prediction.provenance.source_url,
+        "warnings": list(warnings),
+        "genome": prediction.genome,
+        "uniprot_id": prediction.uniprot_id,
+        "transcript_id": prediction.transcript_id,
+        "protein_variant": prediction.protein_variant,
+        "public_serialization_allowed": True,
+        "launch_gate": None,
+        "calibrated_label": prediction.calibrated_label,
+        "calibration_bucket": prediction.calibration_bucket,
+        "calibration_method": prediction.calibration_method,
+        "calibration_version": prediction.calibration_version,
+    }
+    return {key: value for key, value in row.items() if value is not None}
+
+
+def _esm1b_prediction_row(prediction: Any, *, warnings: tuple[str, ...]) -> dict[str, Any]:
+    launch_gate = getattr(prediction.provenance, "license_gate", None)
+    row = {
+        "name": "ESM1b",
+        "score": prediction.esm1b_llr,
+        "threshold": None,
+        "interpretation": prediction.acmg_band,
+        "source": "ESM1b",
+        "source_id": prediction.provenance.source_id,
+        "version": prediction.provenance.source_version,
+        "source_url": prediction.provenance.source_url,
+        "warnings": list(warnings),
+        "acmg_band": prediction.acmg_band,
+        "uniprot_isoform": prediction.uniprot_isoform,
+        "mane_tx": prediction.mane_tx,
+        "aa_sub": prediction.aa_sub,
+        "public_serialization_allowed": prediction.public_serialization_allowed,
+        "launch_gate": launch_gate,
+        "calibrated_label": prediction.calibrated_label,
+        "calibration_bucket": prediction.calibration_bucket,
+        "calibration_method": prediction.calibration_method,
+        "calibration_version": prediction.calibration_version,
+    }
+    return {key: value for key, value in row.items() if value is not None}
+
+
+def _prediction_provenance(source_label: str, provenance: Any) -> dict[str, Any]:
+    payload = asdict(provenance)
+    query = {
+        key: str(value)
+        for key, value in {
+            "source_id": payload.get("source_id"),
+            "file_name": payload.get("file_name"),
+            "reader": payload.get("reader"),
+        }.items()
+        if value
+    }
+    warnings = []
+    license_gate = payload.get("license_gate")
+    if license_gate:
+        warnings.append(str(license_gate))
+    return {
+        "source": source_label,
+        "status": "local",
+        "query": query,
+        "source_url": payload.get("source_url"),
+        "version": payload.get("source_version"),
+        "warnings": warnings,
+    }
+
+
+def _dedupe_provenance_dicts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[str, str | None, str | None, tuple[tuple[str, str], ...]]] = set()
+    result: list[dict[str, Any]] = []
+    for item in items:
+        query = item.get("query") if isinstance(item.get("query"), dict) else {}
+        key = (
+            str(item.get("source")),
+            _text(item.get("source_url")),
+            _text(item.get("version")),
+            tuple(sorted((str(k), str(v)) for k, v in query.items())),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result
 
 
 def _component_values(

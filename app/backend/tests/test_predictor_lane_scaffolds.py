@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+from app.services.capice import CapiceLane, CapiceScore
 from app.services.ci_spliceai import CiSpliceAiLane, CiSpliceAiScore
 from app.services.mavedb_local import MaveDbRecord, filter_mavedb_cc0_records
 from app.services.pvs1_nmd import Pvs1NmdInput, assess_pvs1_nmd, inspect_pvs1_nmd_runtime
 
 
-def test_ci_spliceai_lane_is_disabled_by_default() -> None:
+def test_ci_spliceai_lane_is_admin_enabled_by_default() -> None:
     lookup = CiSpliceAiLane().lookup(
         CiSpliceAiScore(chrom="1", position=10, ref="A", alt="G", ds_al=0.7)
     )
 
-    assert lookup.available is False
-    assert lookup.unavailable_reason == "ci_spliceai_lane_disabled"
-    assert lookup.warnings == ("ci_spliceai_isolated_from_main_api_path",)
+    assert lookup.available is True
+    assert lookup.score is not None
+    assert lookup.score.max_delta == 0.7
+    assert lookup.calibration_bucket == "Pathogenic"
+    assert lookup.public_serialization_allowed is True
+    assert lookup.launch_gate == "ci_spliceai_launch_filter_metadata"
 
 
 def test_ci_spliceai_lane_calibrates_when_explicitly_enabled() -> None:
@@ -24,6 +28,44 @@ def test_ci_spliceai_lane_calibrates_when_explicitly_enabled() -> None:
     assert lookup.score is not None
     assert lookup.score.max_delta == 0.7
     assert lookup.calibration_bucket == "Pathogenic"
+
+
+def test_ci_spliceai_lane_reports_missing_score_not_license_block() -> None:
+    lookup = CiSpliceAiLane().lookup(None)
+
+    assert lookup.available is False
+    assert lookup.unavailable_reason == "ci_spliceai_score_missing"
+    assert lookup.warnings == ("ci_spliceai_score_missing",)
+    assert lookup.public_serialization_allowed is True
+
+
+def test_capice_lane_is_admin_enabled_and_requires_materialized_score() -> None:
+    missing = CapiceLane().lookup(None)
+
+    assert missing.available is False
+    assert missing.unavailable_reason == "capice_score_missing"
+    assert missing.warnings == ("capice_score_missing",)
+    assert missing.public_serialization_allowed is True
+    assert missing.launch_gate == "capice_launch_filter_metadata"
+
+    lookup = CapiceLane().lookup(
+        CapiceScore(chrom="1", position=10, ref="A", alt="G", score=0.83)
+    )
+
+    assert lookup.available is True
+    assert lookup.score is not None
+    assert lookup.score.score == 0.83
+    assert lookup.public_serialization_allowed is True
+
+
+def test_capice_lane_rejects_invalid_scores() -> None:
+    lookup = CapiceLane().lookup(
+        CapiceScore(chrom="1", position=10, ref="A", alt="G", score=1.5)
+    )
+
+    assert lookup.available is False
+    assert lookup.unavailable_reason == "capice_score_out_of_range"
+    assert lookup.warnings == ("capice_score_out_of_range",)
 
 
 def test_pvs1_nmd_assessment_is_conservative_without_context() -> None:

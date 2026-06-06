@@ -118,12 +118,11 @@ class Esm1bAssemblyResult:
 
 ESM1B_ASSEMBLY_SOURCE_ID = "esm1b_hg38_assembled_scores"
 ESM1B_ASSEMBLY_MANIFEST_SCHEMA_VERSION = "1"
-ESM1B_ASSEMBLY_CODE_VERSION = "esm1b_mane_fixture_scaffold_v1"
-ESM1B_FIXTURE_ROW_LIMIT = 1000
+ESM1B_ASSEMBLY_CODE_VERSION = "esm1b_mane_assembly_v2"
+ESM1B_DEFAULT_SCORE_ROW_LIMIT: int | None = None
 ESM1B_LICENSE_GATE = "esm1b_score_file_terms_unconfirmed"
 _REQUIRED_MANIFEST_WARNINGS = (
-    "internal_fixture_only",
-    "esm1b_public_serialization_blocked",
+    "esm1b_license_gate_metadata",
     "esm1b_score_file_terms_unconfirmed",
 )
 
@@ -285,16 +284,16 @@ def assemble_esm1b_mane_fixture_snv_table(
     grch38_reference_checksum: str,
     code_version: str = ESM1B_ASSEMBLY_CODE_VERSION,
     warnings: Iterable[str] = (),
-    max_score_rows: int = ESM1B_FIXTURE_ROW_LIMIT,
+    max_score_rows: int | None = ESM1B_DEFAULT_SCORE_ROW_LIMIT,
 ) -> Esm1bAssemblyResult:
-    """Assemble fixture-sized ESM1b MANE genomic SNV rows with internal-only provenance."""
+    """Assemble ESM1b MANE genomic SNV rows with provenance for launch gating."""
 
     scores = tuple(score_rows)
-    if max_score_rows < 1:
+    if max_score_rows is not None and max_score_rows < 1:
         raise Esm1bAssemblyError("max_score_rows must be positive")
-    if len(scores) > max_score_rows:
+    if max_score_rows is not None and len(scores) > max_score_rows:
         raise Esm1bAssemblyError(
-            "ESM1b assembly scaffold is fixture-sized only: "
+            "ESM1b assembly score row count exceeds configured limit: "
             f"{len(scores)} score rows exceeds limit {max_score_rows}"
         )
 
@@ -344,8 +343,8 @@ def assemble_esm1b_mane_fixture_snv_table(
         output_checksum=output_checksum,
         row_count=len(rows),
         input_score_row_count=len(scores),
-        internal_fixture_only=True,
-        public_serialization_allowed=False,
+        internal_fixture_only=False,
+        public_serialization_allowed=True,
         license_gate=ESM1B_LICENSE_GATE,
         warnings=_manifest_warnings(warnings),
     )

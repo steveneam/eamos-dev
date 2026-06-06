@@ -68,10 +68,18 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert crispr["providers"]["crisprscore_r"]["status"] == "disabled"
     indexed = body["providers"]["indexed_predictors"]
     assert indexed["alphamissense"]["status"] == "missing_source_file"
-    assert indexed["alphamissense"]["public_serialization_allowed"] is False
+    assert indexed["alphamissense"]["public_serialization_allowed"] is True
     assert indexed["esm1b"]["status"] == "missing_source_file"
-    assert indexed["esm1b"]["public_serialization_allowed"] is False
-    assert indexed["ci_spliceai"]["status"] == "restricted_unlicensed"
+    assert indexed["esm1b"]["public_serialization_allowed"] is True
+    assert indexed["esm1b"]["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert indexed["ci_spliceai"]["status"] == "score_cache_missing"
+    assert indexed["ci_spliceai"]["runtime_wired"] is True
+    assert indexed["ci_spliceai"]["public_serialization_allowed"] is True
+    assert indexed["ci_spliceai"]["launch_gate"] == "ci_spliceai_launch_filter_metadata"
+    assert indexed["capice"]["status"] == "model_artifact_missing"
+    assert indexed["capice"]["runtime_wired"] is True
+    assert indexed["capice"]["public_serialization_allowed"] is True
+    assert indexed["capice"]["launch_gate"] == "capice_launch_filter_metadata"
     assert indexed["pvs1_nmd"]["status"] == "pure_code_available"
     assert indexed["pvs1_nmd"]["source_id"] == "nmdetective_b_pvs1"
     assert indexed["pvs1_nmd"]["storage_required"] is False
@@ -96,14 +104,28 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     items = {item["item_id"]: item for item in ledger["items"]}
     required_items = {
         "alphamissense",
+        "capice",
         "clinical_source_tables",
         "coordinate_compact_index",
+        "ci_spliceai",
+        "esm1b",
         "gene_view",
         "nmdetective_pvs1",
         "protein_pfam",
     }
     assert required_items <= items.keys()
     assert items["alphamissense"]["status"] == "missing_source_file"
+    assert items["alphamissense"]["runtime_wired"] is True
+    assert items["alphamissense"]["public_serialization_allowed"] is True
+    assert items["esm1b"]["runtime_wired"] is True
+    assert items["esm1b"]["public_serialization_allowed"] is True
+    assert items["esm1b"]["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert items["ci_spliceai"]["runtime_wired"] is True
+    assert items["ci_spliceai"]["public_serialization_allowed"] is True
+    assert items["ci_spliceai"]["launch_gate"] == "ci_spliceai_launch_filter_metadata"
+    assert items["capice"]["runtime_wired"] is True
+    assert items["capice"]["public_serialization_allowed"] is True
+    assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
     assert items["alphamissense"]["durable_source"] == "supabase_private_storage"
     assert items["clinical_source_tables"]["durable_source"] == "supabase_postgres"
     assert items["clinical_source_tables"]["render_disk_role"] == "not_required"

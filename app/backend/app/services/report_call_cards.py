@@ -292,7 +292,7 @@ def _computational_card_from_annotations(
         return None
 
     excluded = {str(item) for item in annotations.get("excluded_predictors", [])}
-    excluded.add("AlphaMissense")
+    excluded.discard("AlphaMissense")
     rows = [
         row
         for row in (
@@ -333,7 +333,15 @@ def _computational_card_from_annotations(
         primary_label = "Uncertain"
         theme = "caution_orange_state"
 
-    preferred_names = ("REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI")
+    preferred_names = (
+        "REVEL",
+        "CADD PHRED",
+        "AlphaMissense",
+        "ESM1b",
+        "PrimateAI-3D",
+        "MetaLR",
+        "SpliceAI",
+    )
     ranked_rows = sorted(
         rows,
         key=lambda row: (
