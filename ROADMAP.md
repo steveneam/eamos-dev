@@ -1,5 +1,11 @@
 # Eamos — Roadmap
 
+> ⚠ **Freshness note (2026-06-06):** the header below and the "nothing is
+> committed" lines are STALE — most v2 work is committed + live on
+> `origin/main` `8a571eb`. The Workbench FE table (FE-6/7/8) was corrected this
+> date against the real tree. Treat dated status cells as point-in-time; the
+> working tree + commits are ground truth.
+>
 > Updated 2026-05-16 (Session 16/17) after a whole-project Codex adversarial
 > review + a deepthink sessionized-plan pass. State is accurate to the working
 > tree; **nothing is committed** (standing "no commit unless asked"). The
@@ -163,9 +169,9 @@ Source: `Eamos Workbench v1.html` + `Workbench/*.{js,css}`. Plan: `plans/v2-fron
 | -- | --------- | ------ |
 | FE-4 | Workbench shell — layout chrome, tool state, context strip | ✅ Done |
 | FE-5 | Sequence Viewer + click-to-edit — codon table, tracks, popover, scratchpad | ✅ Done |
-| FE-6 | Primer + CRISPR panels — segmented mode tabs, output tables, HDR ssODN | ⏳ Pending (Session 3) |
-| FE-7 | Alignment + Comparator — Canvas chromatogram, pairwise, 2–3 variant grid | ⏳ Pending (Session 4) |
-| FE-8 | AskEamos pill (tool-aware) — floating panel, per-tool chips, persistent | ⏳ Pending (Session 5) |
+| FE-6 | Primer + CRISPR panels — segmented mode tabs, output tables, HDR ssODN | ✅ Done + mock-wired (Primer **and** CRISPR; corrected 2026-06-06 — was stale "Pending"). Live engines flag-gated behind `use_real_apis`. |
+| FE-7 | Alignment + Comparator — Canvas chromatogram, pairwise, 2–3 variant grid | 🟡 Alignment done + mock-wired; **Comparator NOT built** (ghost tool: `tools.ts` has meta but no component, absent from `TOOL_ORDER`). Corrected 2026-06-06. |
+| FE-8 | AskEamos pill (tool-aware) — floating panel, per-tool chips, persistent | ⏳ PARKED — pill not mounted (orphaned CSS only); LLM key unfunded → "COMING SOON". |
 | BE-4 | Workbench engine stubs — `/api/v1/primer | /crispr | /align` | ✅ Done |
 | BE-5 | Test sweep — `test_frontend_contract.py` v2 schema | ✅ Done (40/40) |
 
