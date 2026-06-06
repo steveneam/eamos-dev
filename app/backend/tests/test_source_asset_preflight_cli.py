@@ -124,6 +124,15 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert compact_index["source_runtime_scan_allowed"] is False
     assert compact_index["startup_download_allowed"] is False
 
+    predictors = output["predictor_runtime_assets"]
+    assert predictors["alphamissense"]["status"] == "missing_source_file"
+    assert predictors["alphamissense"]["public_serialization_allowed"] is False
+    assert predictors["esm1b"]["status"] == "missing_source_file"
+    assert predictors["esm1b"]["public_serialization_allowed"] is False
+    assert predictors["pvs1_nmd"]["status"] == "pure_code_available"
+    assert predictors["pvs1_nmd"]["storage_required"] is False
+    assert predictors["public_serialization_locked"] == ["alphamissense", "esm1b"]
+
     gate = output["local_evidence_gate"]
     assert gate["configured_runtime_flows_enabled"] is False
     assert gate["preflight_wires_runtime"] is False

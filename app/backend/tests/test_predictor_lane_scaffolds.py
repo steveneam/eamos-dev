@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.services.ci_spliceai import CiSpliceAiLane, CiSpliceAiScore
 from app.services.mavedb_local import MaveDbRecord, filter_mavedb_cc0_records
-from app.services.pvs1_nmd import Pvs1NmdInput, assess_pvs1_nmd
+from app.services.pvs1_nmd import Pvs1NmdInput, assess_pvs1_nmd, inspect_pvs1_nmd_runtime
 
 
 def test_ci_spliceai_lane_is_disabled_by_default() -> None:
@@ -33,6 +33,17 @@ def test_pvs1_nmd_assessment_is_conservative_without_context() -> None:
     assert assessment.pvs1_support == "uncertain"
     assert assessment.nmd_predicted is None
     assert assessment.warnings == ("nmd_exon_context_missing",)
+
+
+def test_pvs1_nmd_runtime_probe_is_pure_code_and_advisory() -> None:
+    inspection = inspect_pvs1_nmd_runtime()
+
+    assert inspection.available is True
+    assert inspection.status == "pure_code_available"
+    assert inspection.runtime_wired is True
+    assert inspection.public_serialization_allowed is True
+    assert inspection.storage_required is False
+    assert inspection.warnings == ("advisory_engine_only", "autopvs1_code_not_used")
 
 
 def test_pvs1_nmd_assessment_supports_possible_when_nmd_context_is_clear() -> None:

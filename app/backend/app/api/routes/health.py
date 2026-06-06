@@ -18,6 +18,7 @@ from app.services.predictor_runtime import (
     inspect_alphamissense_runtime_asset,
     inspect_esm1b_runtime_asset,
 )
+from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.crispr_design import (
@@ -150,6 +151,7 @@ def _compact_coordinate_index_health(settings) -> dict[str, object]:
 
 
 def _indexed_predictor_health(settings, materialization_store) -> dict[str, object]:
+    pvs1_nmd = inspect_pvs1_nmd_runtime()
     return {
         "alphamissense": _predictor_inspection_health(
             inspect_alphamissense_runtime_asset(
@@ -172,10 +174,14 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             "public_serialization_allowed": False,
         },
         "pvs1_nmd": {
-            "available": True,
-            "status": "pure_code_available",
-            "runtime_wired": True,
-            "public_serialization_allowed": True,
+            "available": pvs1_nmd.available,
+            "status": pvs1_nmd.status,
+            "source_id": pvs1_nmd.source_id,
+            "runtime_wired": pvs1_nmd.runtime_wired,
+            "public_serialization_allowed": pvs1_nmd.public_serialization_allowed,
+            "engine": pvs1_nmd.engine,
+            "storage_required": pvs1_nmd.storage_required,
+            "status_notes": list(pvs1_nmd.warnings),
         },
         "mavedb": {
             "available": False,

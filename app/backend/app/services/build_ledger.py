@@ -28,6 +28,7 @@ from app.services.predictor_runtime import (
     inspect_alphamissense_runtime_asset,
     inspect_esm1b_runtime_asset,
 )
+from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.repeatmasker_local import REPEATMASKER_SOURCE_ID
 from app.services.transcript_model import GENCODE_SOURCE_ID, MANE_SOURCE_ID
 
@@ -91,6 +92,7 @@ def build_backend_build_ledger(
         protein_annotation_status=protein_annotation_status,
     )
     coordinate_index_status = _compact_coordinate_index_status(settings)
+    pvs1_nmd_status = _pvs1_nmd_status()
 
     items = (
         _hg38_item(hg38_status),
@@ -219,15 +221,15 @@ def build_backend_build_ledger(
             item_id="nmdetective_pvs1",
             label="NMDetective-B and PVS1 decision support",
             group="classifier",
-            source_ids=("nmdetective_b",),
+            source_ids=(pvs1_nmd_status["source_id"],),
             engine="pure Python Abou-Tayoun-style PVS1/NMD decision tree",
             durable_source="repo_code_or_supabase_postgres_small_overrides",
             runtime_source="repo_code_with_optional_small_table",
             render_disk_role="not_required",
             storage_decision="The rule table is tiny; Render disk is not justified.",
-            status="pure_code_available",
-            runtime_wired=True,
-            public_serialization_allowed=True,
+            status=pvs1_nmd_status["status"],
+            runtime_wired=bool(pvs1_nmd_status["runtime_wired"]),
+            public_serialization_allowed=bool(pvs1_nmd_status["public_serialization_allowed"]),
             wired_surfaces=("acmg_classifier", "report"),
             next_action="Add full source import only if clean-room rules require extra tables.",
         ),
@@ -432,6 +434,24 @@ def _protein_status(
     if any(item.present for item in inspections):
         return "assets_partially_present"
     return "missing"
+
+
+def _pvs1_nmd_status() -> dict[str, object]:
+    try:
+        inspection = inspect_pvs1_nmd_runtime()
+    except Exception:
+        return {
+            "source_id": "nmdetective_b_pvs1",
+            "status": "runtime_probe_failed",
+            "runtime_wired": False,
+            "public_serialization_allowed": False,
+        }
+    return {
+        "source_id": inspection.source_id,
+        "status": inspection.status,
+        "runtime_wired": inspection.runtime_wired,
+        "public_serialization_allowed": inspection.public_serialization_allowed,
+    }
 
 
 def _hg38_item(status: str) -> BuildLedgerItem:

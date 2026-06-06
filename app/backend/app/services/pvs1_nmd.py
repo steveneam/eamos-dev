@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+PVS1_NMD_SOURCE_ID = "nmdetective_b_pvs1"
+PVS1_NMD_ENGINE = "eamos_pure_code_pvs1_nmd_v1"
+
 LOF_CONSEQUENCES = frozenset(
     {
         "stop_gained",
@@ -32,6 +35,31 @@ class Pvs1NmdAssessment:
     reason: str
     warnings: tuple[str, ...] = ()
     provenance: tuple[str, ...] = ("eamos_pure_code_pvs1_nmd_v1",)
+
+
+@dataclass(frozen=True)
+class Pvs1NmdRuntimeInspection:
+    source_id: str
+    status: str
+    available: bool
+    runtime_wired: bool
+    public_serialization_allowed: bool
+    engine: str
+    storage_required: bool
+    warnings: tuple[str, ...] = ()
+
+
+def inspect_pvs1_nmd_runtime() -> Pvs1NmdRuntimeInspection:
+    return Pvs1NmdRuntimeInspection(
+        source_id=PVS1_NMD_SOURCE_ID,
+        status="pure_code_available",
+        available=True,
+        runtime_wired=True,
+        public_serialization_allowed=True,
+        engine=PVS1_NMD_ENGINE,
+        storage_required=False,
+        warnings=("advisory_engine_only", "autopvs1_code_not_used"),
+    )
 
 
 def assess_pvs1_nmd(payload: Pvs1NmdInput) -> Pvs1NmdAssessment:

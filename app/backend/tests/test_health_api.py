@@ -73,6 +73,12 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert indexed["esm1b"]["public_serialization_allowed"] is False
     assert indexed["ci_spliceai"]["status"] == "restricted_unlicensed"
     assert indexed["pvs1_nmd"]["status"] == "pure_code_available"
+    assert indexed["pvs1_nmd"]["source_id"] == "nmdetective_b_pvs1"
+    assert indexed["pvs1_nmd"]["storage_required"] is False
+    assert indexed["pvs1_nmd"]["status_notes"] == [
+        "advisory_engine_only",
+        "autopvs1_code_not_used",
+    ]
     assert indexed["mavedb"]["status"] == "cc0_import_not_materialized"
     protein = body["providers"]["protein_annotation"]
     assert protein["enabled"] is False
@@ -93,6 +99,7 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "clinical_source_tables",
         "coordinate_compact_index",
         "gene_view",
+        "nmdetective_pvs1",
         "protein_pfam",
     }
     assert required_items <= items.keys()
@@ -107,6 +114,8 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     )
     assert items["coordinate_compact_index"]["runtime_wired"] is True
     assert items["gene_view"]["runtime_wired"] is True
+    assert items["nmdetective_pvs1"]["status"] == "pure_code_available"
+    assert items["nmdetective_pvs1"]["render_disk_role"] == "not_required"
     assert items["protein_pfam"]["runtime_source"] == "render_disk_hmmer_indexes"
     encoded_ledger = json.dumps(ledger).lower()
     assert "supabase://" not in encoded_ledger

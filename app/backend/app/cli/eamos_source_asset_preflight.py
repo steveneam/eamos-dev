@@ -30,6 +30,11 @@ from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
     LocalEvidenceRuntimeGate,
 )
+from app.services.predictor_runtime import (
+    inspect_alphamissense_runtime_asset,
+    inspect_esm1b_runtime_asset,
+)
+from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.source_downloads import (
     SourceDownloadStatus,
     build_source_download_items,
@@ -160,6 +165,11 @@ def build_source_asset_preflight_report(
         registry=registry,
         materialization_store=materialization_store,
     )
+    predictor_runtime_assets = _predictor_runtime_asset_summary(
+        settings=settings,
+        registry=registry,
+        materialization_store=materialization_store,
+    )
     return {
         "mode": "source_asset_readiness",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -189,6 +199,7 @@ def build_source_asset_preflight_report(
             verify_checksum=verify_hg38_checksum,
         ),
         "compact_coordinate_index": compact_coordinate_index.to_sanitized_dict(),
+        "predictor_runtime_assets": predictor_runtime_assets,
         "protein_annotation_assets": protein_summary,
         "build_ledger": build_ledger,
         "render_persistent_disk_gate": _render_persistent_disk_gate_summary(
@@ -337,6 +348,66 @@ def _runtime_asset_summary(inspection: Any, *, checksum_verified: bool) -> dict[
         "object_uri": inspection.object_uri,
         "reader_requires_local_path": inspection.reader_requires_local_path,
         "message": inspection.message,
+    }
+
+
+def _predictor_runtime_asset_summary(
+    *,
+    settings: Settings,
+    registry: DataSourceRegistry,
+    materialization_store: SourceAssetMaterializationStore | None,
+) -> dict[str, Any]:
+    alphamissense = inspect_alphamissense_runtime_asset(
+        settings,
+        registry=registry,
+        materialization_store=materialization_store,
+        verify_checksum=False,
+    )
+    esm1b = inspect_esm1b_runtime_asset(
+        settings,
+        registry=registry,
+        materialization_store=materialization_store,
+        verify_checksum=False,
+    )
+    pvs1_nmd = inspect_pvs1_nmd_runtime()
+    return {
+        "alphamissense": _predictor_runtime_summary(
+            alphamissense,
+            public_serialization_allowed=False,
+        ),
+        "esm1b": _predictor_runtime_summary(
+            esm1b,
+            public_serialization_allowed=False,
+        ),
+        "pvs1_nmd": {
+            "source_id": pvs1_nmd.source_id,
+            "status": pvs1_nmd.status,
+            "available": pvs1_nmd.available,
+            "runtime_wired": pvs1_nmd.runtime_wired,
+            "public_serialization_allowed": pvs1_nmd.public_serialization_allowed,
+            "engine": pvs1_nmd.engine,
+            "storage_required": pvs1_nmd.storage_required,
+            "status_notes": list(pvs1_nmd.warnings),
+        },
+        "public_serialization_locked": ["alphamissense", "esm1b"],
+    }
+
+
+def _predictor_runtime_summary(
+    inspection: Any,
+    *,
+    public_serialization_allowed: bool,
+) -> dict[str, Any]:
+    return {
+        "source_id": inspection.source_id,
+        "asset_role": inspection.asset_role,
+        "mode": inspection.mode,
+        "status": inspection.status.value,
+        "ready": inspection.ready,
+        "actual_size_bytes": inspection.actual_size_bytes,
+        "reader_requires_local_path": inspection.reader_requires_local_path,
+        "materialization_status": inspection.materialization_status,
+        "public_serialization_allowed": public_serialization_allowed,
     }
 
 
