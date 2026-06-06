@@ -9,8 +9,15 @@ import re
 from typing import Any, Callable, Mapping, Protocol
 from urllib.parse import unquote
 
+from app.services.compact_coordinate_index import (
+    CompactCoordinateIndex,
+    CompactCoordinateVariant,
+)
 from app.services.reference_genome import ReferenceGenomeStoreError, TwoBitReferenceGenomeStore
-from app.services.sequence_context import NC_CHROMOSOME_ACCESSIONS, genomic_variant_id_to_refseq_hgvs
+from app.services.sequence_context import (
+    NC_CHROMOSOME_ACCESSIONS,
+    genomic_variant_id_to_refseq_hgvs,
+)
 
 DEFAULT_MANE_GFF_PATH = (
     Path(__file__).resolve().parents[2]
@@ -168,12 +175,17 @@ class EamosLocalCoordinateResolver:
         *,
         mane_gff_path: Path | None = DEFAULT_MANE_GFF_PATH,
         refseq_gff_path: Path | None = DEFAULT_REFSEQ_GFF_PATH,
+        compact_index_path: Path | None = None,
+        compact_index: CompactCoordinateIndex | None = None,
         coordinate_catalog_path: Path | None = None,
         reference_store_factory: Callable[[], _ReferenceStore] | None = None,
     ) -> None:
         self.coordinate_catalog_path = coordinate_catalog_path
         self.mane_gff_path = mane_gff_path
         self.refseq_gff_path = refseq_gff_path
+        self.compact_index = compact_index or (
+            CompactCoordinateIndex(compact_index_path) if compact_index_path is not None else None
+        )
         self.reference_store_factory = reference_store_factory or _default_reference_store
         self._catalog = _load_coordinate_catalog(coordinate_catalog_path)
         self._transcript_cache: dict[str, tuple[_TranscriptRecord, ...]] = {}
@@ -194,6 +206,16 @@ class EamosLocalCoordinateResolver:
         normalized_cdna = _normalize_cdna(cdna)
         normalized_transcript = transcript.strip() if transcript else None
 
+        compact_resolution = self._compact_index_lookup(
+            gene=normalized_gene,
+            cdna=normalized_cdna,
+            transcript=normalized_transcript,
+            accession=accession,
+            clinvar_variation_id=clinvar_variation_id,
+        )
+        if compact_resolution is not None:
+            return compact_resolution
+
         transcript_record = self._transcript_record(normalized_gene, normalized_transcript)
         if transcript_record is not None:
             resolved = self._resolve_from_transcript_model(transcript_record, normalized_cdna)
@@ -207,6 +229,28 @@ class EamosLocalCoordinateResolver:
             accession=accession,
             clinvar_variation_id=clinvar_variation_id,
         )
+
+    def _compact_index_lookup(
+        self,
+        *,
+        gene: str,
+        cdna: str,
+        transcript: str | None,
+        accession: str | None,
+        clinvar_variation_id: str | None,
+    ) -> EamosCoordinateResolution | None:
+        if self.compact_index is None:
+            return None
+        row = self.compact_index.resolve_variant(
+            gene=gene,
+            cdna=cdna,
+            transcript=transcript,
+            accession=accession,
+            clinvar_variation_id=clinvar_variation_id,
+        )
+        if row is None:
+            return None
+        return _resolution_from_compact_variant(row)
 
     def _catalog_lookup(
         self,
@@ -1024,6 +1068,27 @@ def _resolution_from_catalog_row(row: Mapping[str, Any]) -> EamosCoordinateResol
         canonical_spdi=_optional_str(row.get("canonical_spdi")),
         provenance=tuple(str(item) for item in row.get("provenance", []) if str(item).strip()),
         warnings=tuple(str(item) for item in row.get("warnings", []) if str(item).strip()),
+    )
+
+
+def _resolution_from_compact_variant(row: CompactCoordinateVariant) -> EamosCoordinateResolution:
+    return EamosCoordinateResolution(
+        gene=row.gene,
+        transcript=row.transcript,
+        cdna=_normalize_cdna(row.cdna),
+        chrom=row.chrom,
+        pos=row.pos,
+        ref=row.ref,
+        alt=row.alt,
+        genomic_hg38=row.genomic_hg38,
+        genomic_hgvs=row.genomic_hgvs or genomic_variant_id_to_refseq_hgvs(row.genomic_hg38),
+        source=row.source,
+        confidence=row.confidence,
+        accession=row.accession,
+        clinvar_variation_id=row.clinvar_variation_id,
+        canonical_spdi=row.canonical_spdi,
+        provenance=row.provenance,
+        warnings=row.warnings,
     )
 
 

@@ -209,7 +209,9 @@ def _sample_context(
     sample_name = sample_names[0] if sample_names else None
     format_keys = columns[8].split(":")
     sample_values = columns[9].split(":")
-    genotype = sample_values[0] if format_keys and format_keys[0] == "GT" and sample_values else None
+    genotype = (
+        sample_values[0] if format_keys and format_keys[0] == "GT" and sample_values else None
+    )
     return sample_name, genotype
 
 

@@ -16,6 +16,7 @@ def test_post_reference_manifest_covers_user_named_day1_sources() -> None:
         "repeatmasker_rmsk_bb",
         "ucsc_phylop100way_hg38",
         "ncbi_mane_grch38_v1_4_select_ensembl",
+        "ncbi_refseq_grch38_p14",
         "gencode_v45_annotation",
         "mondo_disease_ontology",
         "human_phenotype_ontology",
@@ -71,11 +72,13 @@ def test_manifest_preserves_verified_file_identity_corrections() -> None:
 
     dbsnp = readiness["ncbi_dbsnp_gcf_000001405_40"]
     mane = readiness["ncbi_mane_grch38_v1_4_select_ensembl"]
+    refseq = readiness["ncbi_refseq_grch38_p14"]
     repeatmasker = readiness["repeatmasker_rmsk_bb"]
     hpo = readiness["human_phenotype_ontology"]
 
     assert dbsnp.files_or_api == ("GCF_000001405.40.gz", "GCF_000001405.40.gz.tbi")
     assert mane.files_or_api == ("MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz",)
+    assert refseq.files_or_api == ("GCF_000001405.40_GRCh38.p14_genomic.gff.gz",)
     assert repeatmasker.files_or_api == (
         "rmsk.txt.gz",
         "derived rmsk.bb after approved conversion",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Protocol
 from uuid import uuid4
 from urllib.parse import unquote
 
@@ -19,6 +19,10 @@ from app.services.panels import PanelService
 from app.services.vcf_ingest import parse_vcf_upload_bytes
 
 BATCH_EST_SECONDS_PER_LOOKUP = 0.25
+
+
+class BatchCoordinateResolver(Protocol):
+    def resolve(self, **kwargs): ...
 
 
 @dataclass
@@ -50,10 +54,12 @@ class BatchService:
         *,
         upload_dir: Path,
         panel_service: PanelService,
+        coordinate_resolver: BatchCoordinateResolver | None = None,
     ) -> None:
         self.upload_dir = upload_dir / "batch"
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.panel_service = panel_service
+        self.coordinate_resolver = coordinate_resolver
         self._uploads: dict[str, StoredUpload] = {}
         self._jobs: dict[str, StoredBatchJob] = {}
 
@@ -83,7 +89,7 @@ class BatchService:
         deduped, dedupe_warnings = _dedupe_variants(filtered)
         warnings.extend(dedupe_warnings)
 
-        results = [_result_from_variant(variant) for variant in deduped]
+        results = [self._result_from_variant(variant) for variant in deduped]
         job_id = f"batch-{uuid4().hex[:12]}"
         est_seconds = round(len(deduped) * BATCH_EST_SECONDS_PER_LOOKUP, 2)
         job = StoredBatchJob(
@@ -128,7 +134,9 @@ class BatchService:
             warnings=list(job.warnings),
         )
 
-    def _request_variants(self, request: BatchCreateRequest) -> tuple[list[ParsedVariant], list[str]]:
+    def _request_variants(
+        self, request: BatchCreateRequest
+    ) -> tuple[list[ParsedVariant], list[str]]:
         if request.variants is not None:
             return list(request.variants), []
         upload = self._uploads.get(request.upload_ref or "")
@@ -179,6 +187,55 @@ class BatchService:
             encoding="utf-8",
         )
 
+    def _result_from_variant(self, variant: ParsedVariant) -> BatchResult:
+        resolved_variant_key: str | None = None
+        warnings = list(variant.warnings)
+        if (
+            self.coordinate_resolver is not None
+            and not (variant.chrom and variant.pos and variant.ref and variant.alt)
+            and variant.gene
+            and variant.variant
+            and variant.variant.startswith("c.")
+        ):
+            try:
+                resolved = self.coordinate_resolver.resolve(
+                    gene=variant.gene,
+                    cdna=variant.variant,
+                )
+            except Exception:
+                resolved = None
+                warnings.append("compact_coordinate_index_batch_resolution_failed")
+            if resolved is not None:
+                resolved_variant_key = resolved.genomic_hg38
+                warnings.extend(
+                    warning
+                    for warning in (
+                        "compact_coordinate_index_batch_resolution",
+                        *getattr(resolved, "warnings", ()),
+                    )
+                    if warning
+                )
+            else:
+                warnings.append("compact_coordinate_index_batch_resolution_unavailable")
+
+        variant_key = resolved_variant_key or _variant_key(variant)
+        hgvs_c = variant.variant if (variant.variant or "").startswith("c.") else None
+        hgvs_p = _raw_info_value(variant.raw, "HGVS_P")
+        clinvar_verdict = _raw_info_value(variant.raw, "CLNSIG")
+        return BatchResult(
+            variant_key=variant_key,
+            state="completed",
+            gene=variant.gene,
+            hgvs_c=hgvs_c,
+            hgvs_p=hgvs_p,
+            clinvar_verdict=clinvar_verdict,
+            gnomad_af=variant.info_af,
+            predictor_ensemble={},
+            acmg_classification=None,
+            report_href=f"/lookup?query={variant.query}",
+            warnings=list(dict.fromkeys(warnings)),
+        )
+
 
 def _dedupe_variants(variants: Iterable[ParsedVariant]) -> tuple[list[ParsedVariant], list[str]]:
     seen: set[str] = set()
@@ -193,26 +250,6 @@ def _dedupe_variants(variants: Iterable[ParsedVariant]) -> tuple[list[ParsedVari
         deduped.append(variant)
     warnings = [f"deduplicated_variants:{duplicate_count}"] if duplicate_count else []
     return deduped, warnings
-
-
-def _result_from_variant(variant: ParsedVariant) -> BatchResult:
-    variant_key = _variant_key(variant)
-    hgvs_c = variant.variant if (variant.variant or "").startswith("c.") else None
-    hgvs_p = _raw_info_value(variant.raw, "HGVS_P")
-    clinvar_verdict = _raw_info_value(variant.raw, "CLNSIG")
-    return BatchResult(
-        variant_key=variant_key,
-        state="completed",
-        gene=variant.gene,
-        hgvs_c=hgvs_c,
-        hgvs_p=hgvs_p,
-        clinvar_verdict=clinvar_verdict,
-        gnomad_af=variant.info_af,
-        predictor_ensemble={},
-        acmg_classification=None,
-        report_href=f"/lookup?query={variant.query}",
-        warnings=list(variant.warnings),
-    )
 
 
 def _variant_key(variant: ParsedVariant) -> str:

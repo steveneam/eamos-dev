@@ -384,7 +384,10 @@ class LookupService:
         self.clinical_consensus = clinical_consensus_builder or ClinicalConsensusBuilder(
             settings=settings
         )
-        self.search_input_resolver = EamosSearchInputResolver(settings=settings)
+        self.search_input_resolver = EamosSearchInputResolver(
+            settings=settings,
+            resolve_coordinates=bool(settings and settings.use_real_apis),
+        )
         self.search_input_interpreter = SearchInputInterpreter(settings=settings)
         self.sequence_context = sequence_context_service or SequenceContextService(
             settings=settings

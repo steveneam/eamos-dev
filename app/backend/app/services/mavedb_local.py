@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 CC0_LICENSES = frozenset({"cc0", "cc0-1.0", "creative commons zero v1.0 universal"})
 
 

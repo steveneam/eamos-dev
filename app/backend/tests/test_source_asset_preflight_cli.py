@@ -18,6 +18,9 @@ from app.data_sources import (
     SourceAssetMaterializationRecord,
 )
 
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
+COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
+
 
 def test_source_asset_preflight_reports_guarded_readiness(
     tmp_path: Path,
@@ -49,10 +52,10 @@ def test_source_asset_preflight_reports_guarded_readiness(
     }
 
     manifest = output["source_manifest"]
-    assert manifest["total_sources"] == 10
-    assert manifest["download_approved_count"] == 10
-    assert manifest["ready_for_download_or_import_count"] == 10
-    assert manifest["backend_owned_storage_count"] == 10
+    assert manifest["total_sources"] == 11
+    assert manifest["download_approved_count"] == 11
+    assert manifest["ready_for_download_or_import_count"] == 11
+    assert manifest["backend_owned_storage_count"] == 11
     assert manifest["requires_c_drive_staging"] == [
         "ncbi_dbsnp_gcf_000001405_40",
         "ucsc_phylop100way_hg38",
@@ -104,8 +107,8 @@ def test_source_asset_preflight_reports_guarded_readiness(
     full_stack = render_gate["full_noncommercial_tier_stack"]
     assert full_stack["ready_for_paid_render_disk_decision"] is True
     assert full_stack["recommended_disk_gb_after_unpaid_readiness"] == 60
-    assert full_stack["ready_for_download_or_import_count"] == 10
-    assert full_stack["total_sources"] == 10
+    assert full_stack["ready_for_download_or_import_count"] == 11
+    assert full_stack["total_sources"] == 11
     assert full_stack["blocking_requirement_counts"] == {}
     assert "AlphaMissense" in render_gate["excluded_from_disk_estimates"]
 
@@ -114,10 +117,58 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert hg38["ready"] is False
     assert hg38["checksum_verified"] is False
 
+    compact_index = output["compact_coordinate_index"]
+    assert compact_index["source_id"] == "eamos_compact_coordinate_index"
+    assert compact_index["ready"] is False
+    assert compact_index["status"] == "missing"
+    assert compact_index["source_runtime_scan_allowed"] is False
+    assert compact_index["startup_download_allowed"] is False
+
     gate = output["local_evidence_gate"]
     assert gate["configured_runtime_flows_enabled"] is False
     assert gate["preflight_wires_runtime"] is False
     assert {flow["reason"] for flow in gate["flows"]} == {"local_evidence_disabled"}
+
+    ledger = output["build_ledger"]
+    assert ledger["mode"] == "backend_build_ledger"
+    assert ledger["startup_downloads_allowed"] is False
+    assert ledger["gff_runtime_scans_allowed"] is False
+    items = {item["item_id"]: item for item in ledger["items"]}
+    assert items["alphamissense"]["status"] == "missing_source_file"
+    assert items["clinical_source_tables"]["durable_source"] == "supabase_postgres"
+    assert items["clinical_source_tables"]["render_disk_role"] == "not_required"
+    assert items["coordinate_compact_index"]["runtime_source"] == (
+        "render_disk_compact_immutable_index"
+    )
+    assert items["gene_view"]["runtime_wired"] is True
+    assert items["protein_pfam"]["runtime_source"] == "render_disk_hmmer_indexes"
+    encoded_ledger = json.dumps(ledger).lower()
+    assert str(tmp_path).lower() not in encoded_ledger
+    assert "supabase://" not in encoded_ledger
+    assert "service_role" not in encoded_ledger
+
+
+def test_source_asset_preflight_reports_compact_coordinate_index_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=tmp_path / "missing-hg38.2bit",
+        coordinate_resolver_compact_index_path=COMPACT_INDEX_FIXTURE,
+    )
+
+    output = build_source_asset_preflight_report(settings=settings)
+
+    compact_index = output["compact_coordinate_index"]
+    assert compact_index["ready"] is True
+    assert compact_index["status"] == "ready"
+    assert compact_index["schema_version"] == "eamos.coordinate_index.v1"
+    assert compact_index["variant_count"] == 2
+    assert compact_index["transcript_count"] == 2
+    assert compact_index["source_runtime_scan_allowed"] is False
+    encoded = json.dumps(output).lower()
+    assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded
+    assert "eamos-coordinate-index" not in encoded
 
 
 def test_source_asset_preflight_records_docx_reconciliation_and_policy(
@@ -268,8 +319,8 @@ def test_render_disk_gate_separates_current_runtime_from_full_stack() -> None:
 
     full_stack = gate["full_noncommercial_tier_stack"]
     assert full_stack["ready_for_paid_render_disk_decision"] is True
-    assert full_stack["ready_for_download_or_import_count"] == 10
-    assert full_stack["total_sources"] == 10
+    assert full_stack["ready_for_download_or_import_count"] == 11
+    assert full_stack["total_sources"] == 11
     assert full_stack["blocked_by"] == []
 
 

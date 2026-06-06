@@ -44,6 +44,7 @@ class _StaticLocalCoordinateResolver:
 
 def test_local_coordinate_resolver_settings_use_backend_runtime_paths() -> None:
     settings = _settings(
+        coordinate_resolver_compact_index_path=Path("custom/compact.jsonl.gz"),
         coordinate_resolver_mane_gff_path=Path("custom/MANE.gff.gz"),
         coordinate_resolver_refseq_gff_path=Path("custom/refseq.gff.gz"),
         hg38_2bit_runtime_asset_path=Path("custom/hg38.2bit"),
@@ -51,8 +52,9 @@ def test_local_coordinate_resolver_settings_use_backend_runtime_paths() -> None:
 
     kwargs = _local_coordinate_resolver_settings(settings)
 
-    assert kwargs["mane_gff_path"] == settings.backend_root / "custom/MANE.gff.gz"
-    assert kwargs["refseq_gff_path"] == settings.backend_root / "custom/refseq.gff.gz"
+    assert kwargs["compact_index_path"] == settings.backend_root / "custom/compact.jsonl.gz"
+    assert kwargs["mane_gff_path"] is None
+    assert kwargs["refseq_gff_path"] is None
     assert "reference_store_factory" in kwargs
 
 

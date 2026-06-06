@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from app.services.batch import BatchService
+from app.services.panels import PanelService
+from app.services.search_input_resolver import build_runtime_coordinate_resolver
+
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
+COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
+
 
 def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
     response = client.post(
@@ -45,6 +54,42 @@ def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
     assert job["results"][0]["variant_key"] == "1-10-A-C"
     assert job["results"][0]["gene"] == "BRCA1"
     assert "deduplicated_variants:1" in job["warnings"]
+
+
+def test_batch_inline_job_uses_compact_coordinate_index_for_cdna_rows(
+    client,
+    tmp_path: Path,
+) -> None:
+    settings = client.app.state.settings.model_copy(
+        update={"coordinate_resolver_compact_index_path": COMPACT_INDEX_FIXTURE}
+    )
+    client.app.state.batch_service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        coordinate_resolver=build_runtime_coordinate_resolver(settings),
+    )
+
+    response = client.post(
+        "/api/v1/batch",
+        json={
+            "variants": [
+                {
+                    "query": "RPE65:c.260A>G",
+                    "gene": "RPE65",
+                    "variant": "c.260A>G",
+                    "filter": "PASS",
+                }
+            ],
+            "filters": {"pass_only": True},
+        },
+    )
+
+    assert response.status_code == 200
+    created = response.json()
+    job = client.get(f"/api/v1/batch/{created['job_id']}").json()
+
+    assert job["results"][0]["variant_key"] == "1-68444869-T-C"
+    assert "compact_coordinate_index_batch_resolution" in job["results"][0]["warnings"]
 
 
 def test_batch_upload_vcf_cleans_rows_and_filters_before_lookup(client) -> None:

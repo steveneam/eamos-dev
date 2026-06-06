@@ -6,11 +6,15 @@ import stat
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
 from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.main import create_app
+
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
+COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
 
 
 def test_healthz_returns_mode_flags(client):
@@ -51,6 +55,12 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "ready": False,
         "status": "materialization_store_unavailable",
     }
+    compact_index = body["source_assets"]["compact_coordinate_index"]
+    assert compact_index["source_id"] == "eamos_compact_coordinate_index"
+    assert compact_index["ready"] is False
+    assert compact_index["status"] == "missing"
+    assert compact_index["source_runtime_scan_allowed"] is False
+    assert compact_index["startup_download_allowed"] is False
     crispr = body["providers"]["crispr"]
     assert crispr["configured_provider"] == "local_deterministic"
     assert crispr["available"] is True
@@ -71,6 +81,66 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert protein["cache_enabled"] is True
     assert protein["hmmer"]["ready"] is False
     assert "path" not in json.dumps(protein).lower()
+
+    ledger = body["build_ledger"]
+    assert ledger["mode"] == "backend_build_ledger"
+    assert ledger["startup_downloads_allowed"] is False
+    assert ledger["gff_runtime_scans_allowed"] is False
+    assert ledger["render_disk_is_runtime_cache_only"] is True
+    items = {item["item_id"]: item for item in ledger["items"]}
+    required_items = {
+        "alphamissense",
+        "clinical_source_tables",
+        "coordinate_compact_index",
+        "gene_view",
+        "protein_pfam",
+    }
+    assert required_items <= items.keys()
+    assert items["alphamissense"]["status"] == "missing_source_file"
+    assert items["alphamissense"]["durable_source"] == "supabase_private_storage"
+    assert items["clinical_source_tables"]["durable_source"] == "supabase_postgres"
+    assert items["clinical_source_tables"]["render_disk_role"] == "not_required"
+    assert "mondo_disease_ontology" in items["clinical_source_tables"]["source_ids"]
+    assert items["coordinate_compact_index"]["source_runtime_scan_allowed"] is False
+    assert items["coordinate_compact_index"]["runtime_source"] == (
+        "render_disk_compact_immutable_index"
+    )
+    assert items["coordinate_compact_index"]["runtime_wired"] is True
+    assert items["gene_view"]["runtime_wired"] is True
+    assert items["protein_pfam"]["runtime_source"] == "render_disk_hmmer_indexes"
+    encoded_ledger = json.dumps(ledger).lower()
+    assert "supabase://" not in encoded_ledger
+    assert "service_role" not in encoded_ledger
+
+
+def test_provider_cache_health_reports_compact_coordinate_index_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        coordinate_resolver_compact_index_path=COMPACT_INDEX_FIXTURE,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    body = response.json()
+    compact_index = body["source_assets"]["compact_coordinate_index"]
+    assert compact_index["ready"] is True
+    assert compact_index["status"] == "ready"
+    assert compact_index["schema_version"] == "eamos.coordinate_index.v1"
+    assert compact_index["variant_count"] == 2
+    assert compact_index["transcript_count"] == 2
+    assert compact_index["checksum_verified"] is False
+    ledger_items = {item["item_id"]: item for item in body["build_ledger"]["items"]}
+    assert ledger_items["coordinate_compact_index"]["status"] == "ready"
+    encoded = json.dumps(body).lower()
+    assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded
+    assert "eamos-coordinate-index" not in encoded
 
 
 def test_provider_cache_health_summarizes_source_cache_without_identity_leaks(client) -> None:
@@ -270,6 +340,22 @@ def test_provider_cache_health_reports_available_protein_annotation_without_path
         "missing_index_count": 0,
     }
     assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
+
+
+def test_coordinate_resolver_startup_materialization_flag_fails_closed(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        coordinate_resolver_asset_materialization_enabled=True,
+    )
+
+    with pytest.raises(RuntimeError, match="startup materialization is disabled"):
+        with TestClient(create_app(settings)):
+            pass
 
 
 class FakeMaterializationStore:

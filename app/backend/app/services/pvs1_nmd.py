@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 LOF_CONSEQUENCES = frozenset(
     {
         "stop_gained",

@@ -54,6 +54,8 @@ preserved separately as `genomic_hgvs`, for example
 
 - Local resolver:
   `app/backend/app/services/eamos_coordinate_resolver.py`
+- Compact runtime index reader:
+  `app/backend/app/services/compact_coordinate_index.py`
 - Search resolver integration:
   `app/backend/app/services/search_input_resolver.py`
 - Developer CLI:
@@ -69,17 +71,20 @@ preserved separately as `genomic_hgvs`, for example
 
 ## Required Local Assets
 
-- MANE RefSeq GFF:
-  `app/backend/data/bio_assets/transcripts/MANE.GRCh38.v1.5.refseq_genomic.gff.gz`
-- All-RefSeq GRCh38.p14 GFF:
-  `app/backend/data/bio_assets/transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz`
-- UCSC hg38 2bit reference:
+- Runtime compact coordinate index:
+  `app/backend/data/bio_assets/transcripts/eamos-coordinate-index.latest.jsonl.gz`
+- Runtime hg38 reference:
   `app/backend/data/bio_assets/genomes/hg38.2bit`
+- Offline MANE RefSeq GFF input:
+  `app/backend/data/bio_assets/transcripts/MANE.GRCh38.v1.5.refseq_genomic.gff.gz`
+- Offline all-RefSeq GRCh38.p14 GFF input:
+  `app/backend/data/bio_assets/transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz`
 
-These raw assets are ignored locally and should be promoted to private backend
-asset storage. Supabase/Postgres should store metadata, checksums, versions, and
-object paths only; raw genomic assets belong in private object storage or the
-backend local cache.
+Raw MANE/RefSeq/Gencode GFF parsing is offline-only. Runtime resolver instances
+built from `Settings` read the compact immutable index and do not scan raw GFF.
+Supabase/Postgres should store metadata, checksums, versions, and object paths
+only; raw genomic assets belong in private object storage or the backend local
+cache.
 
 ## Current Verification
 
@@ -117,6 +122,7 @@ python scripts/validate_project_100_coordinates.py --validate-variant-validator 
   rsID, or another source-backed DNA-level candidate before coordinate
   resolution.
 - Production should add a compact precompiled Eamos transcript projection index
-  so request startup does not parse the full RefSeq GFF on a cold process.
+  release process around the new runtime reader so request startup never parses
+  the full RefSeq GFF on a cold process.
 - Liftover is out of scope for v1. The resolver assumes GRCh38/hg38 and should
   flag or refuse hg19/hg37 inputs until a dedicated liftover policy exists.

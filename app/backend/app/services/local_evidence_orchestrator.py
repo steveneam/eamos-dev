@@ -158,12 +158,63 @@ class LocalEvidenceOrchestrator:
         transcript_store: TranscriptModelStore | None = None,
         repeatmasker_store: RepeatMaskerLocalStore | None = None,
         sequence_builder: LocalSequenceWindowBuilder | None = None,
+        coordinate_resolver: object | None = None,
     ) -> None:
         self.dbsnp_store = dbsnp_store or DbSnpLocalStore()
         self.clinvar_store = clinvar_store or ClinVarLocalStore()
         self.transcript_store = transcript_store or TranscriptModelStore()
         self.repeatmasker_store = repeatmasker_store or RepeatMaskerLocalStore()
         self.sequence_builder = sequence_builder or LocalSequenceWindowBuilder()
+        self.coordinate_resolver = coordinate_resolver
+
+    def resolve_cdna(
+        self,
+        *,
+        gene: str,
+        cdna_hgvs: str,
+        transcript: str | None = None,
+        include_sequence: bool = False,
+        repeatmasker_flank_bp: int = 25,
+        sequence_flank_bp: int | None = None,
+    ) -> LocalEvidenceBundle:
+        if self.coordinate_resolver is None:
+            return LocalEvidenceBundle(
+                query_kind="cdna",
+                submitted_query=f"{gene}:{cdna_hgvs}",
+                variant_identity=None,
+                warnings=("local_evidence_coordinate_resolver_unavailable",),
+                unavailable_reason="coordinate_resolver_unavailable",
+            )
+        try:
+            resolved = self.coordinate_resolver.resolve(
+                gene=gene,
+                cdna=cdna_hgvs,
+                transcript=transcript,
+            )
+        except Exception:
+            resolved = None
+        if resolved is None:
+            return LocalEvidenceBundle(
+                query_kind="cdna",
+                submitted_query=f"{gene}:{cdna_hgvs}",
+                variant_identity=None,
+                warnings=("local_evidence_coordinate_resolution_unavailable",),
+                unavailable_reason="coordinate_resolution_unavailable",
+            )
+        return self.resolve_variant(
+            gene=gene,
+            chrom=resolved.chrom,
+            position=resolved.pos,
+            ref=resolved.ref,
+            alt=resolved.alt,
+            transcript=transcript or resolved.transcript,
+            cdna_hgvs=cdna_hgvs,
+            include_sequence=include_sequence,
+            repeatmasker_flank_bp=repeatmasker_flank_bp,
+            sequence_flank_bp=sequence_flank_bp,
+            submitted_query=f"{gene}:{cdna_hgvs}",
+            query_kind="cdna",
+        )
 
     def resolve_rsid(
         self,

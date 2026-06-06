@@ -45,9 +45,6 @@ from app.rules.clinic_rules import ClinicRules
 from app.services.auth import AuthService
 from app.services.batch import BatchService
 from app.services.chat_service import ChatService
-from app.services.coordinate_asset_materialization import (
-    materialize_coordinate_resolver_assets,
-)
 from app.services.draft_render import DraftRenderService
 from app.services.final_report import FinalReportService
 from app.services.evidence_submissions import EvidenceSubmissionService
@@ -59,6 +56,7 @@ from app.services.gene_viewer import (
 )
 from app.services.intake import IntakeService
 from app.services.lookup_service import LookupService
+from app.services.local_evidence_orchestrator import LocalEvidenceOrchestrator
 from app.services.panels import PanelService
 from app.services.payments import PaymentsService
 from app.services.protein_annotation import ProteinAnnotationService
@@ -70,6 +68,7 @@ from app.services.sequence_context import (
     MaterializedHg38SequenceResolver,
     SequenceContextService,
 )
+from app.services.search_input_resolver import build_runtime_coordinate_resolver
 from app.services.source_cache import HeroExampleSourceCacheWarmer
 from app.services.variant_library import VariantLibraryService
 from app.services.workbench_design import WorkbenchDesignService
@@ -89,10 +88,13 @@ def create_app(settings=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if settings.coordinate_resolver_asset_materialization_enabled:
-            result = materialize_coordinate_resolver_assets(settings)
-            logger.info("Coordinate resolver asset materialization: %s", result.to_dict())
-            if not result.ready:
-                raise RuntimeError("coordinate resolver asset materialization failed")
+            logger.error(
+                "Coordinate resolver startup materialization is disabled by backend policy"
+            )
+            raise RuntimeError(
+                "coordinate resolver startup materialization is disabled; "
+                "seed and verify runtime assets with an explicit off-peak process"
+            )
         initialize_database(db_session_factory)
         logger.info("Eamos backend ready at %s:%s", settings.host, settings.port)
         yield
@@ -170,9 +172,14 @@ def create_app(settings=None) -> FastAPI:
     )
 
     panel_service = PanelService()
+    runtime_coordinate_resolver = build_runtime_coordinate_resolver(settings)
+    local_evidence_orchestrator = LocalEvidenceOrchestrator(
+        coordinate_resolver=runtime_coordinate_resolver
+    )
     batch_service = BatchService(
         upload_dir=settings.upload_dir,
         panel_service=panel_service,
+        coordinate_resolver=runtime_coordinate_resolver,
     )
 
     app.state.settings = settings
@@ -193,6 +200,8 @@ def create_app(settings=None) -> FastAPI:
     app.state.gene_viewer_source_provider = gene_viewer_source_provider
     app.state.gene_context_snapshot_service = gene_context_snapshot_service
     app.state.panel_service = panel_service
+    app.state.runtime_coordinate_resolver = runtime_coordinate_resolver
+    app.state.local_evidence_orchestrator = local_evidence_orchestrator
     app.state.batch_service = batch_service
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(

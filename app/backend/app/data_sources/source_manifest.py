@@ -16,6 +16,7 @@ POST_REFERENCE_DAY1_SOURCE_IDS: tuple[str, ...] = (
     "repeatmasker_rmsk_bb",
     "ucsc_phylop100way_hg38",
     "ncbi_mane_grch38_v1_4_select_ensembl",
+    "ncbi_refseq_grch38_p14",
     "gencode_v45_annotation",
     "mondo_disease_ontology",
     "human_phenotype_ontology",

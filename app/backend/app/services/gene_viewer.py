@@ -18,6 +18,11 @@ from app.data_sources.runtime_assets import (
     SourceAssetMaterializationStore,
     resolve_hg38_materialized_runtime_asset,
 )
+from app.services.compact_coordinate_index import (
+    CompactCoordinateIndex,
+    CompactCoordinateTranscript,
+    compact_coordinate_index_from_settings,
+)
 from app.schemas.gene_viewer import (
     AppliedVariant,
     ClinvarVariant,
@@ -397,6 +402,7 @@ class HttpGeneViewerSourceClient:
         settings: Settings | None,
         *,
         materialization_store: SourceAssetMaterializationStore | None = None,
+        compact_index: CompactCoordinateIndex | None = None,
         reference_store_factory: (
             Callable[[ResolvedRuntimeAsset], GeneViewerReferenceReader] | None
         ) = None,
@@ -404,6 +410,9 @@ class HttpGeneViewerSourceClient:
     ) -> None:
         self.settings = settings
         self.materialization_store = materialization_store
+        self.compact_index = compact_index or (
+            compact_coordinate_index_from_settings(settings) if settings is not None else None
+        )
         self.reference_store_factory = (
             reference_store_factory or _materialized_hg38_gene_viewer_store
         )
@@ -422,6 +431,32 @@ class HttpGeneViewerSourceClient:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         variant = VariantProjection.from_hgvs_c(query.hgvs)
+        compact_variant = (
+            self.compact_index.resolve_variant(
+                gene=query.gene,
+                cdna=query.hgvs,
+                transcript=query.resolver_transcript,
+            )
+            if self.compact_index is not None
+            else None
+        )
+        if compact_variant is not None:
+            hgvs_p = compact_variant.protein_change
+            codon_number, aa_ref, aa_alt = _protein_change_parts(hgvs_p)
+            return VariantProjection(
+                hgvs_c=variant.hgvs_c,
+                cds_pos=variant.cds_pos,
+                cds_end=variant.cds_end,
+                variant_type=variant.variant_type,
+                ref=variant.ref,
+                alt=variant.alt,
+                hgvs_p=hgvs_p,
+                genomic_hg38=compact_variant.genomic_hg38,
+                codon_number=codon_number,
+                codon_offset=(variant.cds_pos - 1) % 3,
+                aa_ref=aa_ref,
+                aa_alt=aa_alt,
+            )
         response = httpx.get(
             self._variant_validator_url(query=query, genome_build=genome_build),
             timeout=self.timeout_seconds,
@@ -479,6 +514,13 @@ class HttpGeneViewerSourceClient:
                 message="Gene viewer live source client is not configured.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        compact_transcript = (
+            self.compact_index.transcript(gene=query.gene, transcript=query.resolver_transcript)
+            if self.compact_index is not None
+            else None
+        )
+        if compact_transcript is not None:
+            return _source_transcript_from_compact_index(compact_transcript)
         payload = self._get_json(self._ensembl_lookup_symbol_url(query=query))
         if not isinstance(payload, dict):
             raise GeneViewerError(
@@ -629,6 +671,23 @@ class HttpGeneViewerSourceClient:
         transcript: SourceTranscriptModel,
         variant: VariantProjection,
     ) -> list[ViewerProvenanceSource]:
+        if "compact_coordinate_index_transcript" in transcript.warnings:
+            sources = [
+                ViewerProvenanceSource(
+                    name="eamos_compact_coordinate_index",
+                    identifier=transcript.transcript,
+                    url=None,
+                )
+            ]
+            if self.materialization_store is not None:
+                sources.append(
+                    ViewerProvenanceSource(
+                        name="ucsc_hg38_2bit_materialized",
+                        identifier=transcript.genome_build,
+                        url=None,
+                    )
+                )
+            return sources
         sources = [
             ViewerProvenanceSource(
                 name="variant_validator",
@@ -2122,6 +2181,85 @@ def _source_transcript_from_curated_fixture(record: dict[str, Any]) -> SourceTra
         translation_id=_optional_fixture_text(record.get("translation_id")),
         warnings=tuple(str(warning) for warning in record.get("warnings") or []),
     )
+
+
+def _source_transcript_from_compact_index(
+    transcript: CompactCoordinateTranscript,
+) -> SourceTranscriptModel:
+    exons = tuple(
+        SourceTranscriptExon(
+            number=exon.number,
+            cds_start=exon.cds_start,
+            cds_end=exon.cds_end,
+            genomic_start=exon.genomic_start,
+            genomic_end=exon.genomic_end,
+        )
+        for exon in transcript.exons
+    )
+    aliases = tuple(
+        dict.fromkeys(
+            alias
+            for alias in (
+                transcript.refseq_transcript,
+                transcript.ensembl_transcript,
+                *transcript.transcript_aliases,
+            )
+            if alias
+        )
+    )
+    return SourceTranscriptModel(
+        gene=transcript.gene,
+        transcript=transcript.refseq_transcript,
+        chrom=transcript.chrom,
+        strand=transcript.strand,
+        exons=exons,
+        introns=_introns_from_compact_exons(exons),
+        ensembl_gene_id=transcript.ensembl_gene_id,
+        transcript_aliases=aliases,
+        genome_build=transcript.genome_build,
+        gene_start=transcript.gene_start,
+        gene_end=transcript.gene_end,
+        gene_length=(
+            transcript.gene_end - transcript.gene_start + 1
+            if transcript.gene_start is not None and transcript.gene_end is not None
+            else None
+        ),
+        cds_length=transcript.cds_length,
+        protein_length=transcript.protein_length,
+        utr5_length=transcript.utr5_length,
+        utr3_length=transcript.utr3_length,
+        mrna_length=transcript.mrna_length,
+        translation_id=transcript.translation_id,
+        warnings=(
+            "compact_coordinate_index_transcript",
+            "raw_gff_runtime_scan_disabled",
+        ),
+    )
+
+
+def _introns_from_compact_exons(
+    exons: tuple[SourceTranscriptExon, ...],
+) -> tuple[SourceTranscriptIntron, ...]:
+    introns: list[SourceTranscriptIntron] = []
+    for left, right in zip(exons, exons[1:], strict=False):
+        left_interval = tuple(sorted((left.genomic_start, left.genomic_end)))
+        right_interval = tuple(sorted((right.genomic_start, right.genomic_end)))
+        lower_exon, higher_exon = sorted(
+            (left_interval, right_interval),
+            key=lambda interval: interval[0],
+        )
+        start = lower_exon[1] + 1
+        end = higher_exon[0] - 1
+        if start > end:
+            continue
+        introns.append(
+            SourceTranscriptIntron(
+                number=left.number,
+                genomic_start=start,
+                genomic_end=end,
+            )
+        )
+    return tuple(introns)
 
 
 def _transcript_model_from_curated_fixture(record: dict[str, Any]) -> TranscriptModel:

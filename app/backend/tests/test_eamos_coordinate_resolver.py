@@ -11,6 +11,8 @@ from app.data_sources import (
     LOCAL_HG38_2BIT_SOURCE_ID,
     resolve_local_asset_path,
 )
+from app.core.config import Settings
+from app.services.compact_coordinate_index import CompactCoordinateIndex
 from app.services.eamos_coordinate_resolver import (
     DEFAULT_MANE_GFF_PATH,
     DEFAULT_REFSEQ_GFF_PATH,
@@ -20,6 +22,7 @@ from app.services.search_input_resolver import EamosSearchInputResolver, parse_s
 from scripts.validate_project_100_coordinates import _project_100_source_rows
 
 FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "app" / "fixtures"
+COMPACT_INDEX_FIXTURE = FIXTURE_ROOT / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
 VERIFY_PROJECT_100_COORDINATES = os.environ.get("EAMOS_VERIFY_PROJECT_100_COORDINATES") == "1"
 
 
@@ -94,6 +97,61 @@ def test_search_text_parser_accepts_gene_space_transcript_hgvs() -> None:
     assert parsed.gene == "ABCA4"
     assert parsed.transcript == "NM_000350.3"
     assert parsed.cdna == "c.5435T>A"
+
+
+def test_compact_coordinate_index_reader_resolves_variant_and_transcript() -> None:
+    index = CompactCoordinateIndex(COMPACT_INDEX_FIXTURE)
+
+    inspection = index.inspection(verify_checksum=True)
+    variant = index.resolve_variant(
+        gene="rpe65",
+        transcript="ENST00000262340",
+        cdna="c.260A>G",
+    )
+    transcript = index.transcript(gene="RPE65", transcript="NM_000329")
+
+    assert inspection.ready is True
+    assert inspection.status == "ready"
+    assert inspection.schema_version == "eamos.coordinate_index.v1"
+    assert inspection.variant_count == 2
+    assert inspection.transcript_count == 2
+    assert inspection.checksum_verified is True
+    assert variant is not None
+    assert variant.genomic_hg38 == "1-68444869-T-C"
+    assert variant.source == "eamos_compact_coordinate_index"
+    assert transcript is not None
+    assert transcript.refseq_transcript == "NM_000329.3"
+    assert transcript.exons[1].genomic_start == 68444805
+
+
+def test_runtime_search_resolver_uses_compact_index_without_raw_gff_scan(
+    monkeypatch,
+) -> None:
+    def raw_gff_loader_should_not_run(*_args, **_kwargs):
+        raise AssertionError("runtime coordinate resolution must not scan raw GFF")
+
+    monkeypatch.setattr(
+        coordinate_resolver_module,
+        "_load_gff_transcript_models_for_genes",
+        raw_gff_loader_should_not_run,
+    )
+    settings = Settings(
+        jwt_secret="test-secret",
+        use_real_apis=True,
+        coordinate_resolver_compact_index_path=COMPACT_INDEX_FIXTURE,
+    )
+
+    resolution = EamosSearchInputResolver(
+        settings=settings,
+        resolve_coordinates=True,
+    ).resolve_text("RPE65 NM_000329.3:c.260A>G")
+
+    assert resolution.genomic_hg38 == "1-68444869-T-C"
+    assert resolution.local_coordinate_summary is not None
+    assert resolution.local_coordinate_summary["source"] == "eamos_compact_coordinate_index"
+    assert resolution.coordinate_resolution_audit.resolver_path == "eamos_local"
+    assert resolution.variant_validator_summary is None
+    assert resolution.provenance == ("eamos_local_coordinate_resolver",)
 
 
 def test_search_input_resolver_uses_eamos_local_coordinates_before_live_api(

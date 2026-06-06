@@ -18,6 +18,8 @@ from app.services.predictor_runtime import (
     inspect_alphamissense_runtime_asset,
     inspect_esm1b_runtime_asset,
 )
+from app.services.build_ledger import build_backend_build_ledger
+from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
@@ -46,6 +48,11 @@ def healthz(request: Request) -> dict[str, object]:
 def provider_cache_health(request: Request) -> dict[str, object]:
     ping_database(request.app.state.db_session_factory)
     settings = request.app.state.settings
+    materialization_store = getattr(request.app.state, "supabase_local_model_cache_store", None)
+    protein_annotation_status = _protein_annotation_health(
+        settings,
+        getattr(request.app.state, "protein_annotation_service", None),
+    )
     source_cache_repo = getattr(request.app.state, "source_cache_repo", None)
     source_cache: dict[str, Any] = {"enabled": source_cache_repo is not None}
     if source_cache_repo is not None:
@@ -57,18 +64,20 @@ def provider_cache_health(request: Request) -> dict[str, object]:
         "source_cache": source_cache,
         "source_assets": _source_asset_health(
             settings,
-            getattr(request.app.state, "supabase_local_model_cache_store", None),
+            materialization_store,
+        ),
+        "build_ledger": build_backend_build_ledger(
+            settings,
+            materialization_store=materialization_store,
+            protein_annotation_status=protein_annotation_status,
         ),
         "providers": {
             "crispr": _crispr_provider_health(settings),
             "indexed_predictors": _indexed_predictor_health(
                 settings,
-                getattr(request.app.state, "supabase_local_model_cache_store", None),
+                materialization_store,
             ),
-            "protein_annotation": _protein_annotation_health(
-                settings,
-                getattr(request.app.state, "protein_annotation_service", None),
-            ),
+            "protein_annotation": protein_annotation_status,
         },
     }
 
@@ -109,8 +118,35 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
             "checksum_verified": False,
             "reader_requires_local_path": reader_requires_local_path,
             "materialization_metadata": metadata,
-        }
+        },
+        "compact_coordinate_index": _compact_coordinate_index_health(settings),
     }
+
+
+def _compact_coordinate_index_health(settings) -> dict[str, object]:
+    try:
+        return inspect_compact_coordinate_index(
+            settings,
+            verify_checksum=False,
+        ).to_sanitized_dict()
+    except Exception:
+        return {
+            "source_id": "eamos_compact_coordinate_index",
+            "status": "runtime_asset_probe_failed",
+            "ready": False,
+            "schema_version": None,
+            "artifact_version": None,
+            "genome_build": None,
+            "variant_count": 0,
+            "transcript_count": 0,
+            "actual_size_bytes": None,
+            "checksum_verified": False,
+            "actual_sha256": None,
+            "message": "compact coordinate index probe failed",
+            "status_notes": [],
+            "source_runtime_scan_allowed": False,
+            "startup_download_allowed": False,
+        }
 
 
 def _indexed_predictor_health(settings, materialization_store) -> dict[str, object]:

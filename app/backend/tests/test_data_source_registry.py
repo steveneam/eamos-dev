@@ -52,13 +52,14 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 30
+    assert len(source_ids) == 31
     assert {
         "myvariant_gnomad_only",
         "google_deepmind_alphamissense_hg38",
         "esm1b_hg38_assembled_scores",
         "intervar_pipeline_config",
         "ncbi_clinvar_vcf",
+        "ncbi_refseq_grch38_p14",
         "mondo_disease_ontology",
         "uniprotkb_reviewed_swissprot",
         "interpro_pfam_protein_matches",

@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     coordinate_resolver_refseq_gff_path: Path = Path(
         "./data/bio_assets/transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz"
     )
+    coordinate_resolver_compact_index_path: Path = Path(
+        "./data/bio_assets/transcripts/eamos-coordinate-index.latest.jsonl.gz"
+    )
     coordinate_resolver_hg38_2bit_path: Path | None = None
     coordinate_resolver_asset_materialization_enabled: bool = False
     coordinate_resolver_asset_materialization_timeout_seconds: float = 1200.0

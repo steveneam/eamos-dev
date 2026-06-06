@@ -24,6 +24,8 @@ from app.data_sources import (
 from app.data_sources.registry import RESTRICTED_PREDICTOR_SOURCE_IDS, DataSourceRegistry
 from app.data_sources.source_manifest import build_post_reference_source_readiness
 from app.repos.supabase_local_model_cache_repo import build_supabase_local_model_cache_store
+from app.services.build_ledger import build_backend_build_ledger
+from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
     LocalEvidenceRuntimeGate,
@@ -145,9 +147,18 @@ def build_source_asset_preflight_report(
         hg38,
         checksum_verified=verify_hg38_checksum,
     )
+    compact_coordinate_index = inspect_compact_coordinate_index(
+        settings,
+        verify_checksum=False,
+    )
     protein_summary = _protein_asset_summary(
         protein_assets,
         checksum_verified=verify_protein_checksums,
+    )
+    build_ledger = build_backend_build_ledger(
+        settings,
+        registry=registry,
+        materialization_store=materialization_store,
     )
     return {
         "mode": "source_asset_readiness",
@@ -177,7 +188,9 @@ def build_source_asset_preflight_report(
             probe_materialization=probe_materialization,
             verify_checksum=verify_hg38_checksum,
         ),
+        "compact_coordinate_index": compact_coordinate_index.to_sanitized_dict(),
         "protein_annotation_assets": protein_summary,
+        "build_ledger": build_ledger,
         "render_persistent_disk_gate": _render_persistent_disk_gate_summary(
             readiness=readiness,
             hg38=hg38,

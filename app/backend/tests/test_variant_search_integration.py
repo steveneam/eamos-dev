@@ -39,9 +39,7 @@ def test_lookup_parse_endpoint_returns_deterministic_source_inputs(client) -> No
     assert interpretation["source_inputs"]["variant_validator"] == "NM_000329.3:c.260A>G"
     assert interpretation["source_inputs"]["clinvar"] == "NM_000329.3:c.260A>G"
     assert interpretation["coordinate_resolution_audit"]["resolver_path"] == "not_requested"
-    assert (
-        interpretation["coordinate_resolution_audit"]["used_clinvar_for_coordinates"] is False
-    )
+    assert interpretation["coordinate_resolution_audit"]["used_clinvar_for_coordinates"] is False
     assert "deterministic_parser" in interpretation["provenance"]
 
 

@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 import httpx
 
+from app.services.compact_coordinate_index import DEFAULT_COMPACT_COORDINATE_INDEX_PATH
 from app.services.eamos_coordinate_resolver import (
     EamosCoordinateResolution,
     EamosLocalCoordinateResolver,
@@ -301,9 +302,7 @@ class EamosSearchInputResolver:
     ) -> EamosCoordinateResolution | None:
         resolver = self._local_coordinate_resolver
         if resolver is None:
-            resolver = EamosLocalCoordinateResolver(
-                **_local_coordinate_resolver_settings(self.settings)
-            )
+            resolver = build_runtime_coordinate_resolver(self.settings)
             self._local_coordinate_resolver = resolver
         return resolver.resolve(gene=gene, cdna=cdna, transcript=transcript)
 
@@ -872,15 +871,15 @@ def _local_coordinate_summary(resolution: EamosCoordinateResolution) -> dict[str
 
 def _local_coordinate_resolver_settings(settings) -> dict[str, Any]:
     if settings is None:
-        return {}
+        return {
+            "compact_index_path": DEFAULT_COMPACT_COORDINATE_INDEX_PATH,
+            "mane_gff_path": None,
+            "refseq_gff_path": None,
+        }
 
-    mane_path = _settings_path(
+    compact_index_path = _settings_path(
         settings,
-        getattr(settings, "coordinate_resolver_mane_gff_path", None),
-    )
-    refseq_path = _settings_path(
-        settings,
-        getattr(settings, "coordinate_resolver_refseq_gff_path", None),
+        getattr(settings, "coordinate_resolver_compact_index_path", None),
     )
     reference_path = _settings_path(
         settings,
@@ -888,18 +887,22 @@ def _local_coordinate_resolver_settings(settings) -> dict[str, Any]:
         or getattr(settings, "hg38_2bit_runtime_asset_path", None),
     )
     kwargs: dict[str, Any] = {
-        "mane_gff_path": mane_path,
-        "refseq_gff_path": refseq_path,
+        "compact_index_path": compact_index_path,
+        "mane_gff_path": None,
+        "refseq_gff_path": None,
     }
     if reference_path is not None:
-        kwargs["reference_store_factory"] = (
-            lambda path=reference_path: TwoBitReferenceGenomeStore(
-                path,
-                source_version="UCSC hg38.2bit",
-                verify_checksum=False,
-            )
+        kwargs["reference_store_factory"] = lambda path=reference_path: TwoBitReferenceGenomeStore(
+            path,
+            source_version="UCSC hg38.2bit",
+            verify_checksum=False,
         )
     return kwargs
+
+
+def build_runtime_coordinate_resolver(settings) -> EamosLocalCoordinateResolver:
+    """Build the runtime coordinate resolver without raw GFF scan paths."""
+    return EamosLocalCoordinateResolver(**_local_coordinate_resolver_settings(settings))
 
 
 def _settings_path(settings, path: Path | str | None) -> Path | None:

@@ -816,6 +816,50 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         ),
     ),
     DataSourceRecord(
+        source_id="ncbi_refseq_grch38_p14",
+        display_name="NCBI RefSeq GRCh38.p14 genomic GFF",
+        priority="p3_transcript_model",
+        tier="tier_2_object_storage_asset",
+        day1_status="active_day1",
+        files_or_api=("GCF_000001405.40_GRCh38.p14_genomic.gff.gz",),
+        upstream_source="NCBI RefSeq assembly FTP",
+        source_url=(
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/"
+            "GCF_000001405.40_GRCh38.p14/"
+            "GCF_000001405.40_GRCh38.p14_genomic.gff.gz"
+        ),
+        source_url_status="verified_official_uploaded_coordinate_asset_2026_06_04",
+        expected_size="56,923,273 bytes in approved 2026-06-04 coordinate asset upload",
+        storage_target="supabase_storage_after_review",
+        temporary_staging="not_expected",
+        adapter="offline_compact_coordinate_index_builder_input",
+        license_status=LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW,
+        allowed_product_tiers=("public_day1_after_review",),
+        allowed_fields=("gene_transcript_mapping", "exon_cds_model", "refseq_projection_model"),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="offline_builder_input_with_manifest_checksum",
+        download_approved=True,
+        storage_policy_reviewed=True,
+        reader_compatibility_proofed=True,
+        source_version="NCBI RefSeq GRCh38.p14 / GCF_000001405.40",
+        checksum_plan=(
+            "Use the uploaded sidecar manifest plus SHA256/size before approved "
+            "offline compact-index builds."
+        ),
+        terms_url="https://www.ncbi.nlm.nih.gov/home/about/policies/",
+        terms_status=(
+            "Reviewed 2026-05-31: NCBI molecular data use is allowed with "
+            "standard third-party-rights caveats, attribution, release identity, "
+            "retrieval date, and disclaimer."
+        ),
+        notes=(
+            "Offline build input only. Runtime lookup/search/report/viewer/batch "
+            "must consume the compact coordinate index instead of scanning this GFF."
+        ),
+    ),
+    DataSourceRecord(
         source_id="gencode_v45_annotation",
         display_name="GENCODE v45 annotation GTF",
         priority="p3_transcript_model",

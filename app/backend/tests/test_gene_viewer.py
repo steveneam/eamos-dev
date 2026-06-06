@@ -19,6 +19,7 @@ from app.schemas.gene_viewer import (
 )
 from app.services.reference_genome import ReferenceWindow
 from app.services.sequence_context import normalize_sequence_query, unsupported_input_warning
+from app.services.compact_coordinate_index import CompactCoordinateIndex
 from app.services.gene_viewer import (
     GENE_VIEWER_PROVIDER_FAILED_PREFIX,
     GENE_VIEWER_REFERENCE_MISMATCH,
@@ -39,6 +40,13 @@ from app.services.gene_viewer import (
 from app.services.gene_context_snapshot import GeneContextSnapshotService
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
+COMPACT_INDEX_FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "fixtures"
+    / "coordinate_index"
+    / "eamos_coordinate_index_tiny.jsonl"
+)
 
 
 def _request(
@@ -329,6 +337,39 @@ def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeyp
 
     assert sequence == "GCTT"
     assert store.closed is True
+
+
+def test_http_source_client_uses_compact_coordinate_index_before_http(
+    monkeypatch,
+) -> None:
+    def fail_http(url: str, **_kwargs):
+        raise AssertionError(f"compact coordinate index should avoid HTTP, got {url}")
+
+    monkeypatch.setattr("app.services.gene_viewer.httpx.get", fail_http)
+    query = normalize_sequence_query("RPE65", "c.260A>G", "NM_000329.3")
+    client = HttpGeneViewerSourceClient(
+        Settings(jwt_secret="test-secret"),
+        compact_index=CompactCoordinateIndex(COMPACT_INDEX_FIXTURE),
+    )
+
+    variant = client.resolve_variant(query=query, genome_build="GRCh38")
+    transcript = client.fetch_transcript(
+        query=query,
+        variant=variant,
+        genome_build="GRCh38",
+    )
+    sources = client.provenance_sources(
+        query=query,
+        transcript=transcript,
+        variant=variant,
+    )
+
+    assert variant.genomic_hg38 == "1-68444869-T-C"
+    assert variant.hgvs_p == "p.Asp87Gly"
+    assert transcript.transcript == "NM_000329.3"
+    assert transcript.exons[1].genomic_start == 68444805
+    assert "compact_coordinate_index_transcript" in transcript.warnings
+    assert [source.name for source in sources] == ["eamos_compact_coordinate_index"]
 
 
 def _ensembl_rpe65_lookup_payload() -> dict:

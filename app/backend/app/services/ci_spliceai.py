@@ -19,9 +19,7 @@ class CiSpliceAiScore:
     @property
     def max_delta(self) -> float | None:
         values = [
-            value
-            for value in (self.ds_ag, self.ds_al, self.ds_dg, self.ds_dl)
-            if value is not None
+            value for value in (self.ds_ag, self.ds_al, self.ds_dg, self.ds_dl) if value is not None
         ]
         return max(values) if values else None
 
