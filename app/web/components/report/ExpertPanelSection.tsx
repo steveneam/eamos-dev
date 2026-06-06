@@ -5,11 +5,11 @@ import { resolveClassificationConfig } from '@/lib/classification'
 import type {
   ExpertPanelClassification,
   ExpertPanelCriterion,
-  ExpertPanelData,
-} from './expert-panel-sample'
+  ExpertPanelSection as ExpertPanelSectionData,
+} from '@/lib/backend'
 
 interface ExpertPanelSectionProps {
-  data?: ExpertPanelData | null
+  data?: ExpertPanelSectionData | null
 }
 
 const CLASSIFICATION_DISPLAY: Record<ExpertPanelClassification, string> = {
@@ -41,7 +41,7 @@ function strengthSuffix(code: string, applied: string): string | null {
   return applied.slice(prefix.length)
 }
 
-function FreshnessChip({ data }: { data: ExpertPanelData }) {
+function FreshnessChip({ data }: { data: ExpertPanelSectionData }) {
   if (data.freshness === 'fresh') return null
   if (data.freshness === 'stale') {
     return (

@@ -56,6 +56,8 @@ import {
   htmlTrials,
 } from '@/lib/report-html'
 import type {
+  ComputationalDeepDiveSection,
+  ExpertPanelSection as ExpertPanelSectionData,
   LookupRequest,
   LookupResponse,
   LookupSectionId,
@@ -74,6 +76,32 @@ const LAZY_OVERRIDE_VALID_IDS: readonly LookupSectionId[] = [
   'computational_deep_dive',
   'clingen_vcep',
 ]
+
+// Rendered for §3 when the live `clingen_vcep` section resolves to a non-
+// `available` status (today's default is `partial`: a consensus-derived
+// fallback, since the ClinGen Evidence-Repository source-cache isn't wired
+// yet — Codex C1). An honest provenance note, not an error (role="note").
+function ExpertPanelPartialNote() {
+  return (
+    <div
+      role="note"
+      style={{
+        marginTop: 18,
+        padding: '12px 14px',
+        background: 'var(--warn-tint)',
+        border: '0.5px solid var(--warn-bdr)',
+        borderRadius: 'var(--r-md)',
+        fontSize: 12,
+        lineHeight: 1.5,
+        color: 'var(--ink-3)',
+      }}
+    >
+      Expert-panel classification is derived from the current clinical-consensus
+      snapshot, not the ClinGen Evidence Repository. Full VCEP attribution lands
+      when the Evidence-Repository source-cache is integrated.
+    </div>
+  )
+}
 
 function parseLazyOverrides(raw: string | null): Set<LookupSectionId> {
   const out = new Set<LookupSectionId>()
@@ -734,8 +762,25 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           }
         >
-          <CompositeVerdictBar predictors={payload.report_profile?.computational_deep_dive?.predictors} />
-          <CalibratedInSilicoTable predictors={payload.report_profile?.computational_deep_dive?.predictors} />
+          <LazySection<ComputationalDeepDiveSection>
+            key={`insilico-${variantKey}${lazyOverrides.has('computational_deep_dive') ? '-lazy' : ''}`}
+            eagerData={
+              lazyOverrides.has('computational_deep_dive')
+                ? null
+                : payload.report_profile?.computational_deep_dive
+            }
+            sectionId="computational_deep_dive"
+            request={effectiveSummaryRequest ?? null}
+            unwrap={(env) => (env.payload as ComputationalDeepDiveSection | null) ?? null}
+            forceLoad={lazyOverrides.has('computational_deep_dive')}
+          >
+            {(section) => (
+              <>
+                <CompositeVerdictBar predictors={section.predictors} />
+                <CalibratedInSilicoTable predictors={section.predictors} />
+              </>
+            )}
+          </LazySection>
         </Card>
 
         {/* 3 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
@@ -772,7 +817,24 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           }
         >
-          <ExpertPanelSection data={payload.report_profile?.expert_panel} />
+          <LazySection<ExpertPanelSectionData>
+            key={`vcep-${variantKey}${lazyOverrides.has('clingen_vcep') ? '-lazy' : ''}`}
+            eagerData={
+              lazyOverrides.has('clingen_vcep')
+                ? null
+                : payload.report_profile?.expert_panel
+            }
+            sectionId="clingen_vcep"
+            request={effectiveSummaryRequest ?? null}
+            unwrap={(env) =>
+              env.status === 'available' ? (env.payload as ExpertPanelSectionData | null) ?? null : null
+            }
+            forceLoad={lazyOverrides.has('clingen_vcep')}
+            emptyView={<ExpertPanelPartialNote />}
+            errorView={() => <ExpertPanelPartialNote />}
+          >
+            {(section) => <ExpertPanelSection data={section} />}
+          </LazySection>
           <ClinVarBlock evidence={data.evidence} />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
