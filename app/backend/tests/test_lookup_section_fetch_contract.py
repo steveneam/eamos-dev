@@ -2,6 +2,15 @@ from __future__ import annotations
 
 import json
 
+from app.schemas.lookup import LookupResponse
+from app.schemas.run import (
+    AcmgWorksheetCriterion,
+    AcmgWorksheetLedger,
+    ReportPayload,
+    VariantReportProfile,
+)
+from app.services.lookup_sections import build_lookup_section_fetch_response
+
 
 def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
     response = client.post(
@@ -140,3 +149,34 @@ def test_lookup_sections_rejects_deferred_population_detail_until_m11_full(clien
     )
 
     assert response.status_code == 422
+
+
+def test_clingen_partial_section_tolerates_legacy_nullable_criterion_warnings() -> None:
+    criterion = AcmgWorksheetCriterion(
+        code="PM2",
+        state="met",
+        assertion_level="source_asserted",
+        rationale="Rare in population databases.",
+        warnings=["population_frequency_source_snapshot"],
+    ).model_copy(update={"warnings": None})
+    response = LookupResponse(
+        query="USH2A:c.2276G>T",
+        species="human",
+        report_payload=ReportPayload(
+            patient_id="lookup_test",
+            acmg_classification="ClinVar currently lists this variant as unavailable.",
+            report_profile=VariantReportProfile(
+                acmg_worksheet=AcmgWorksheetLedger(criteria=[criterion])
+            ),
+        ),
+        evidence=[],
+        warnings=[],
+    )
+
+    result = build_lookup_section_fetch_response(response, ["clingen_vcep"])
+
+    clingen = result.sections["clingen_vcep"]
+    assert clingen.status == "partial"
+    assert clingen.payload is not None
+    assert clingen.payload["narrative"] == "ClinVar currently lists this variant as unavailable."
+    assert clingen.warnings == ["clingen_vcep_evidence_repo_source_cache_not_integrated"]

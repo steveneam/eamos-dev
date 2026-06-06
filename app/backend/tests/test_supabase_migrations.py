@@ -293,3 +293,12 @@ def test_variant_library_persistence_migration_uses_owner_rls_and_service_rpc() 
         "grant execute on function public.increment_variant_view_count(text) to service_role"
         in (normalized)
     )
+
+
+def test_variant_library_folder_fk_has_covering_index() -> None:
+    sql = _migration_sql("20260606051914_variant_library_folder_fk_index.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "create index if not exists idx_saved_variant_folder_id" in normalized
+    assert "on public.saved_variant(folder_id)" in normalized
+    assert "where folder_id is not null" in normalized

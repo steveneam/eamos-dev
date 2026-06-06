@@ -174,7 +174,7 @@ def _clingen_vcep_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     payload["source_scope"] = "current_clinical_consensus_snapshot"
     warnings = [
         "clingen_vcep_evidence_repo_source_cache_not_integrated",
-        *[warning for criterion in worksheet.criteria for warning in criterion.warnings],
+        *[warning for criterion in worksheet.criteria for warning in (criterion.warnings or [])],
     ]
     return LookupSectionEnvelope(
         section_id="clingen_vcep",
