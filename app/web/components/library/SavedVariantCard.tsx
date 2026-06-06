@@ -3,19 +3,17 @@
 import type { DragEvent } from 'react'
 import type { SavedVariant } from '@/lib/variant-library'
 import { VariantCardRow } from './VariantCardRow'
-import { IconPin, IconRemove } from '@/components/icons/Icon'
+import { IconRemove } from '@/components/icons/Icon'
 
 /**
- * A worklist entry: <VariantCardRow> + the selection / pin / remove chrome,
- * matched to VariantTable's selected-row vocabulary (teal-tint + 3px inset bar)
- * so the rail and the compare table read as one family. Design §2.
+ * A worklist entry: <VariantCardRow> + the selection / remove chrome, matched
+ * to VariantTable's selected-row vocabulary (teal-tint + 3px inset bar) so the
+ * rail and the Batch table read as one family. Design §2.
  */
 export interface SavedVariantCardProps {
   variant: SavedVariant
   selected: boolean
   onToggleSelect: () => void
-  pinned: boolean
-  onTogglePin: () => void
   /** This card is the report currently on screen — a quiet "you are here" cue. */
   here?: boolean
   onOpen: () => void
@@ -30,8 +28,6 @@ export function SavedVariantCard({
   variant,
   selected,
   onToggleSelect,
-  pinned,
-  onTogglePin,
   here,
   onOpen,
   onRemove,
@@ -45,7 +41,6 @@ export function SavedVariantCard({
       className="lib-card"
       data-selected={selected ? 'true' : 'false'}
       data-here={here ? 'true' : 'false'}
-      data-pinned={pinned ? 'true' : 'false'}
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -66,15 +61,6 @@ export function SavedVariantCard({
         openLabel={openLabel}
       />
       <div className="lib-card-actions">
-        <button
-          type="button"
-          className="lib-card-pin"
-          aria-pressed={pinned}
-          title={pinned ? 'Unpin from compare' : 'Pin for compare'}
-          onClick={onTogglePin}
-        >
-          <IconPin size={16} />
-        </button>
         <button
           type="button"
           className="lib-card-remove"

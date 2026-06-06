@@ -22,7 +22,6 @@ import {
   IconChevron,
   IconDropInto,
   IconFolderMove,
-  IconPin,
   IconPlus,
   IconRemove,
   IconRename,
@@ -30,32 +29,14 @@ import {
 import './library.css'
 
 /**
- * The shared cross-surface worklist block: Saved variants + Folders + Compare
- * tray, rendered as <WorkRailSection>s. Driven by useLibrary() so every surface
- * re-renders on a store change. Mounted on /report (via VariantLibraryRail) and
- * /compare (alongside ScopeGate). Design: phase-3-4-design.md §3.
+ * The shared cross-surface worklist block: Saved variants + Folders, rendered
+ * as <WorkRailSection>s. Driven by useLibrary() so every surface re-renders on
+ * a store change. Mounted on /report (via VariantLibraryRail) and /compare
+ * (alongside ScopeGate). Selecting variants (or opening a whole folder) lines
+ * them up as rows in the Batch table. Design: phase-3-4-design.md §3.
  */
 
 const DT = 'text/plain'
-const TRAY_KEY = 'eamos.compare-tray.v1'
-
-function readTray(): string[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(TRAY_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
-  } catch {
-    return []
-  }
-}
-function writeTray(ids: string[]): void {
-  try {
-    window.localStorage.setItem(TRAY_KEY, JSON.stringify(ids))
-  } catch {
-    // private mode / quota — ephemeral UI state, non-fatal.
-  }
-}
 
 function toParsed(v: SavedVariant): ParsedVariant {
   return { raw: v.raw, gene: v.gene, variant: v.variant, query: v.query }
@@ -75,7 +56,6 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
   const { variants, folders } = useLibrary()
 
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
-  const [pinned, setPinned] = useState<Set<string>>(() => new Set(readTray()))
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set())
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null)
   const [newFolderOpen, setNewFolderOpen] = useState(false)
@@ -112,21 +92,16 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
     })
   const clearSelection = () => setSelected(new Set())
 
-  const updatePinned = (next: Set<string>) => {
-    setPinned(next)
-    writeTray([...next])
-  }
-  const togglePin = (id: string) => {
-    const next = new Set(pinned)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    updatePinned(next)
-  }
-  const pinSelected = () => {
-    const next = new Set(pinned)
-    for (const id of selected) next.add(id)
-    updatePinned(next)
-    clearSelection()
+  // Hand the chosen variants to the Batch table (same stash the VCF-import path
+  // uses), then navigate. Replaces the old, undiscoverable pin → Compare tray.
+  const selectedVariants = useMemo(
+    () => variants.filter((v) => selected.has(v.id)),
+    [variants, selected],
+  )
+  const openInBatch = (vs: SavedVariant[], source: string) => {
+    if (vs.length === 0) return
+    stashCompareVariants(vs.map(toParsed), source)
+    router.push('/compare')
   }
 
   const moveSelectedTo = (folderId: string | null) => {
@@ -156,27 +131,11 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
 
   const removeOne = (id: string) => {
     removeVariant(id)
-    if (pinned.has(id)) {
-      const next = new Set(pinned)
-      next.delete(id)
-      updatePinned(next)
-    }
   }
 
   const commitNewFolder = (name: string) => {
     if (name.trim()) createFolder(name)
     setNewFolderOpen(false)
-  }
-
-  // Compare tray: resolve pinned ids → live variants (prune stale ids defensively).
-  const pinnedVariants = useMemo(
-    () => [...pinned].map((id) => variants.find((v) => v.id === id)).filter((v): v is SavedVariant => Boolean(v)),
-    [pinned, variants],
-  )
-  const openInCompare = () => {
-    if (pinnedVariants.length < 2) return
-    stashCompareVariants(pinnedVariants.map(toParsed), 'Compare tray')
-    router.push('/compare')
   }
 
   const renderCard = (v: SavedVariant) => (
@@ -185,8 +144,6 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
       variant={v}
       selected={selected.has(v.id)}
       onToggleSelect={() => toggleSelect(v.id)}
-      pinned={pinned.has(v.id)}
-      onTogglePin={() => togglePin(v.id)}
       here={hereId === v.id}
       onOpen={() => open(v)}
       onRemove={() => removeOne(v.id)}
@@ -207,7 +164,7 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
             <span className="lib-empty-glyph" aria-hidden><IconBookmark size={18} /></span>
             <strong>No saved variants yet.</strong>
             <p>
-              Save the variant you’re viewing, or <Link href="/compare">import a VCF in Compare</Link> to
+              Save the variant you’re viewing, or <Link href="/compare">import a VCF in Batch</Link> to
               build a worklist.
             </p>
           </div>
@@ -219,11 +176,11 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
           <div className="lib-seltoolbar">
             <span className="lib-seltoolbar-count">{selected.size} selected</span>
             <div className="lib-seltoolbar-actions">
+              <button type="button" onClick={() => openInBatch(selectedVariants, 'Saved variants')}>
+                <IconArrowRight size={14} /> Open in Batch
+              </button>
               <button type="button" onClick={() => setMoveMenuOpen((o) => !o)} aria-expanded={moveMenuOpen}>
                 <IconFolderMove size={14} /> Move to folder
-              </button>
-              <button type="button" onClick={pinSelected}>
-                <IconPin size={14} /> Pin
               </button>
               <button type="button" className="seltoolbar-clear" onClick={clearSelection} aria-label="Clear selection">
                 <IconRemove size={14} />
@@ -337,6 +294,15 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
                     <span className="lib-count">{cards.length}</span>
                   </button>
                   <div className="lib-folder-actions">
+                    <button
+                      type="button"
+                      title="Open all in Batch"
+                      aria-label={`Open ${f.name} in Batch`}
+                      disabled={cards.length === 0}
+                      onClick={() => openInBatch(cards, f.name)}
+                    >
+                      <IconArrowRight size={14} />
+                    </button>
                     <button type="button" title="Rename folder" aria-label={`Rename ${f.name}`} onClick={() => setRenaming(f.id)}>
                       <IconRename size={14} />
                     </button>
@@ -375,33 +341,6 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
             <IconPlus size={13} /> New folder
           </button>
         )}
-      </WorkRailSection>
-
-      <WorkRailSection title="Compare tray" meta={pinnedVariants.length}>
-        {pinnedVariants.length === 0 ? (
-          <p className="lib-tray-empty">Pin 2 or more saved variants to line them up in Compare.</p>
-        ) : (
-          <div className="lib-tray">
-            {pinnedVariants.map((v) => (
-              <span key={v.id} className="lib-pin-chip">
-                {v.gene ?? v.query}
-                {v.variant ? ` ${v.variant}` : ''}
-                <button type="button" aria-label={`Unpin ${v.gene ?? v.query}`} onClick={() => togglePin(v.id)}>
-                  <IconRemove size={11} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          className="lib-tray-open"
-          disabled={pinnedVariants.length < 2}
-          title={pinnedVariants.length < 2 ? 'Pin at least 2 variants' : undefined}
-          onClick={openInCompare}
-        >
-          Open in Compare <IconArrowRight size={12} />
-        </button>
       </WorkRailSection>
     </>
   )
