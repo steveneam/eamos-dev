@@ -128,6 +128,7 @@ export function ReadRow({
         lowQMismatch={lowQMismatch}
         hetIndices={hetIndices}
         showTrace={showTrace}
+        referenceLength={reference.sequence.length}
       />
     </div>
   )

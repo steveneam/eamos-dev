@@ -23,6 +23,8 @@ interface PairwiseViewProps {
   lowQMismatch: Set<number>
   hetIndices: Set<number>
   showTrace: boolean
+  /** Reference length, for the coverage metric. */
+  referenceLength: number
 }
 
 /** Metric strip + ◀▶ nav + a single shared-coordinate ref/read/trace track + chips. */
@@ -39,6 +41,7 @@ export function PairwiseView({
   lowQMismatch,
   hetIndices,
   showTrace,
+  referenceLength,
 }: PairwiseViewProps) {
   const alignment = comparison.alignment
   const [showMismatch, setShowMismatch] = useState(true)
@@ -71,6 +74,7 @@ export function PairwiseView({
     <div className="align-results">
       <Summary
         alignment={alignment}
+        referenceLength={referenceLength}
         showMismatch={showMismatch}
         showGap={showGap}
         onToggleMismatch={() => setShowMismatch((value) => !value)}
@@ -116,21 +120,27 @@ export function PairwiseView({
 
 function Summary({
   alignment,
+  referenceLength,
   showMismatch,
   showGap,
   onToggleMismatch,
   onToggleGap,
 }: {
   alignment: PairwiseAlignment
+  referenceLength: number
   showMismatch: boolean
   showGap: boolean
   onToggleMismatch: () => void
   onToggleGap: () => void
 }) {
+  const coverage =
+    referenceLength > 0
+      ? Math.round(((alignment.referenceEnd - alignment.referenceStart) / referenceLength) * 100)
+      : 0
   return (
     <div className="align-summary" aria-label="Alignment summary">
-      <Metric label="Mode" value={alignment.method === 'local' ? 'Local' : 'Positional'} />
       <Metric label="Identity" value={formatPercent(alignment.identity)} tone="ok" />
+      <Metric label="Coverage" value={`${coverage}%`} />
       <Metric label="Matches" value={String(alignment.matches)} />
       <Metric
         label="Mismatches"
