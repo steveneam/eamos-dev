@@ -18,6 +18,30 @@ const Z_TIP =
   'gnomAD missense constraint Z-score: how depleted the gene is of missense changes versus expectation. Higher = more constrained (Z ≳ 3 is constrained).'
 const MOCK_TIP =
   'Preview value — not yet wired to live data. This number is illustrative and will update once the data source is connected.'
+const CONSTRAINT_TIP =
+  'gnomAD gene constraint — how depleted this gene is of variants versus expectation. Higher missense/LoF Z and lower LOEUF/pLI mean the gene is less tolerant of change.'
+const LOFZ_TIP =
+  'gnomAD loss-of-function Z-score: depletion of predicted LoF variants vs expectation. Higher = more constrained; LOEUF/pLI are the preferred LoF measures.'
+
+function ConstraintStat({
+  label, tip, value, verdict, verdictColor, pos, thresholdPos,
+}: {
+  label: string; tip: string; value: string; verdict: string; verdictColor: string; pos: number; thresholdPos: number
+}) {
+  return (
+    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '7px 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{value}</span>
+        <span title={tip} style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}>{label}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: verdictColor, fontWeight: 600 }}>{verdict}</span>
+      </div>
+      <div style={{ position: 'relative', marginTop: 5, height: 4, borderRadius: 2, background: 'var(--bg-soft2)' }}>
+        <span aria-hidden style={{ position: 'absolute', left: `${Math.max(0, Math.min(100, thresholdPos * 100))}%`, top: 0, bottom: 0, width: 1, background: 'var(--ink-4)', opacity: 0.5 }} />
+        <span aria-hidden style={{ position: 'absolute', left: `${Math.max(0, Math.min(100, pos * 100))}%`, top: -1, bottom: -1, width: 2, transform: 'translateX(-1px)', background: 'var(--ink)' }} />
+      </div>
+    </div>
+  )
+}
 
 function fmtAf(af: number | null): string {
   if (af == null) return 'Not observed'
@@ -154,21 +178,23 @@ export function AfThermometer({ af }: { af: number | null }) {
         <span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 6 }}>· gnomAD v4 · joint</span>
       </div>
 
-      {/* Constraint readout (gene-level). LOEUF / pLI render in Gene & locus;
-          the missense Z-score is not yet in the contract → mock + label. */}
-      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span
-          title={Z_TIP}
-          style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
-        >
-          Missense Z
-        </span>
-        <span className="eamos-mock" title={`Genomic-constraint Z-score. ${MOCK_TIP}`}>
-          Z = — · needs live data
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>
-          LOEUF / pLI in <span style={{ fontWeight: 600 }}>Gene &amp; locus</span> below.
-        </span>
+      {/* Gene constraint readout (gnomAD). mis_z / lof_z are not yet in the
+          contract → tagged MOCK values (coherent with the gene's LOEUF/pLI);
+          LOEUF / pLI themselves render live in Gene & locus below. */}
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span title={CONSTRAINT_TIP} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}>
+            Gene constraint
+          </span>
+          <span className="eamos-mock" title={MOCK_TIP}>Mock</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-4)' }}>
+            LOEUF / pLI live in <span style={{ fontWeight: 600 }}>Gene &amp; locus</span> below.
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <ConstraintStat label="Missense Z" tip={Z_TIP} value="1.86" verdict="Not constrained" verdictColor="var(--cls-ben-text)" pos={1.86 / 6} thresholdPos={3.09 / 6} />
+          <ConstraintStat label="LoF Z" tip={LOFZ_TIP} value="0.55" verdict="Tolerant" verdictColor="var(--cls-ben-text)" pos={0.55 / 6} thresholdPos={3.09 / 6} />
+        </div>
       </div>
     </div>
   )

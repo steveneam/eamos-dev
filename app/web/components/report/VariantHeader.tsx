@@ -251,13 +251,13 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
                 <dt title="Variant Call Format — chrom-pos-ref-alt">VCF</dt>
                 <dd>{vcf ?? '—'}</dd>
                 <dt title="dbSNP reference SNP identifier">rsID</dt>
-                <dd><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></dd>
+                <dd><a href="https://www.ncbi.nlm.nih.gov/snp/rs62637009" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--teal-deep)', textDecoration: 'none' }}>rs62637009</a>{' '}<span className="eamos-mock" title={MOCK_TIP}>mock</span></dd>
                 <dt title="RefSeq (NCBI / Entrez) transcript">Transcript · RefSeq</dt>
-                <dd>{transcriptId ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dd>{transcriptId ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}{' '}<span className="eamos-mock" title="MANE Select — the single NCBI/EMBL-EBI agreed clinical transcript for this gene. Mock until wired.">MANE Select</span></dd>
                 <dt title="Ensembl gene identifier (ENSG)">Ensembl gene</dt>
-                <dd>{ensgId ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dd>{ensgId ?? <>ENSG00000116745{' '}<span className="eamos-mock" title={MOCK_TIP}>mock</span></>}</dd>
                 <dt title="Ensembl transcript identifier (ENST)">Ensembl transcript</dt>
-                <dd><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></dd>
+                <dd>ENST00000262340.6{' '}<span className="eamos-mock" title={MOCK_TIP}>mock</span></dd>
               </dl>
             </div>
             <div className="v-jump" style={{ marginTop: 12 }}>

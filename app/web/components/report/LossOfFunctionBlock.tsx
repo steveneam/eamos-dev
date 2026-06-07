@@ -60,6 +60,17 @@ function Tile({ label, tip, children }: { label: string; tip: string; children: 
   )
 }
 
+function FlagChip({ label, state }: { label: string; state: 'yes' | 'no' | 'na' }) {
+  const sym = state === 'yes' ? '✓' : state === 'no' ? '✗' : '–'
+  const col = state === 'yes' ? 'var(--teal-deep)' : state === 'no' ? 'var(--ink-4)' : 'var(--ink-5)'
+  return (
+    <span style={{ fontSize: 10.5, color: 'var(--ink-3)', border: '0.5px solid var(--line)', borderRadius: 999, padding: '1.5px 8px', background: 'var(--bg)' }}>
+      <span style={{ color: col, fontWeight: 700, marginRight: 4 }}>{sym}</span>
+      {label}
+    </span>
+  )
+}
+
 export function LossOfFunctionBlock({ consequence }: { consequence?: string | null }) {
   const applicable = isNullVariant(consequence)
   const consequenceLabel = consequence ? consequence.replace(/_/g, ' ') : 'this variant'
@@ -77,15 +88,36 @@ export function LossOfFunctionBlock({ consequence }: { consequence?: string | nu
 
       {applicable ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 12 }}>
-            <Tile label="PVS1 strength" tip={PVS1_TIP}><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></Tile>
-            <Tile label="Predicted NMD" tip={NMD_TIP}><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></Tile>
-            <Tile label="Protein lost" tip={PROTLOST_TIP}><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></Tile>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <span className="eamos-mock" title={MOCK_TIP}>Illustrative</span>
+            <span style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>preview values until the NMD / PVS1 engine is wired</span>
           </div>
-          <p style={{ fontSize: 11, color: 'var(--ink-4)', margin: '10px 0 0', lineHeight: 1.5 }}>
-            {consequenceLabel} is a predicted null variant — the NMD / Abou-Tayoun PVS1 tree will report the firing
-            rule, fraction of protein lost, and calibrated PVS1 strength once wired.
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 10 }}>
+            <Tile label="PVS1 strength" tip={PVS1_TIP}>
+              <span style={{ display: 'inline-block', fontWeight: 700, fontSize: 12, color: 'var(--cls-path-text)', background: 'var(--cls-path-bg)', border: '0.5px solid var(--cls-path-bdr)', borderRadius: 999, padding: '1px 8px' }}>
+                Very Strong · +8
+              </span>
+            </Tile>
+            <Tile label="Predicted NMD" tip={NMD_TIP}>
+              <div style={{ fontWeight: 600 }}>Triggers NMD</div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>50-nt rule — PTC well before the final junction</div>
+            </Tile>
+            <Tile label="Protein lost" tip={PROTLOST_TIP}>
+              <div style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>62%</div>
+              <div style={{ marginTop: 4, height: 5, borderRadius: 3, background: 'var(--bg-soft2)', overflow: 'hidden' }}>
+                <span style={{ display: 'block', width: '62%', height: '100%', background: 'var(--cls-lpath-dot)' }} />
+              </div>
+            </Tile>
+          </div>
+          <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: '10px 0 0', lineHeight: 1.55 }}>
+            Nonsense in a biologically-relevant transcript, predicted to undergo NMD → no protein (true null) ⇒{' '}
+            <strong style={{ color: 'var(--ink-2)' }}>PVS1 Very Strong</strong>. PTC at aa 178 / 466 · MANE Select · exon 4.
           </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+            <FlagChip label="Biologically-relevant transcript" state="yes" />
+            <FlagChip label="Clinically-relevant region" state="na" />
+            <FlagChip label="Exon LoF-tolerant" state="no" />
+          </div>
         </>
       ) : (
         <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: '10px 0 0', lineHeight: 1.55 }}>
