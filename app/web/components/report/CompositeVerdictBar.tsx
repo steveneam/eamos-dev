@@ -18,8 +18,8 @@ const RAMP_ORDER: RampVerdict[] = [
 ]
 
 export function CompositeVerdictBar({ predictors }: CompositeVerdictBarProps) {
-  // AM filtered at render per [[project_alphamissense_plan]].
-  const visible = (predictors ?? []).filter((p) => p.name !== 'AlphaMissense')
+  // AlphaMissense re-enabled in §2 (Steven 2026-06-08) — count all live engines.
+  const visible = predictors ?? []
   const totalEngines = visible.length
 
   const counts: Record<RampVerdict, number> = {
