@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { SaveCurrentButton } from './VariantLibraryRail'
 import type { LookupResponse } from '@/lib/backend'
 
@@ -37,6 +37,17 @@ const IconExport = () => (
 // Threshold (px) past which the ribbon pins; covers the variant header height.
 const SCROLL_THRESHOLD = 200
 
+// Reactive `prefers-reduced-motion` via useSyncExternalStore so the value is
+// correct on first paint (no render-time ref read, no setState-in-effect).
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
+function subscribeReducedMotion(onChange: () => void) {
+  const mq = window.matchMedia(REDUCED_MOTION_QUERY)
+  mq.addEventListener('change', onChange)
+  return () => mq.removeEventListener('change', onChange)
+}
+const getReducedMotion = () => window.matchMedia(REDUCED_MOTION_QUERY).matches
+const getReducedMotionServer = () => false
+
 export function StickyVariantRibbon({
   hgvsC,
   hgvsP,
@@ -49,13 +60,13 @@ export function StickyVariantRibbon({
   className,
 }: StickyVariantRibbonProps) {
   const [pinned, setPinned] = useState(false)
-  const reducedMotion = useRef(false)
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotion,
+    getReducedMotionServer,
+  )
 
   useEffect(() => {
-    reducedMotion.current =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
     const handleScroll = () => {
       setPinned(window.scrollY > SCROLL_THRESHOLD)
     }
@@ -81,7 +92,7 @@ export function StickyVariantRibbon({
     .filter(Boolean)
     .join(' ')
 
-  const noMotion = reducedMotion.current
+  const noMotion = reducedMotion
 
   return (
     <div
