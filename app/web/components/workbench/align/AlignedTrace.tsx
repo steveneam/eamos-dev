@@ -133,44 +133,50 @@ export function AlignedTrace({
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <button
-        type="button"
-        className={`chromatogram-toggle${controlsOpen ? ' active' : ''}`}
-        aria-label="Trace scale controls"
-        aria-expanded={controlsOpen}
-        onClick={() => setControlsOpen((v) => !v)}
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <line x1="4" y1="9" x2="20" y2="9" />
-          <circle cx="10" cy="9" r="2.4" fill="var(--bg)" />
-          <line x1="4" y1="16" x2="20" y2="16" />
-          <circle cx="15" cy="16" r="2.4" fill="var(--bg)" />
-        </svg>
-      </button>
-      <div
-        className={`chromatogram-controls${controlsOpen || hovering ? ' show' : ''}`}
-        aria-label="Trace scale"
-      >
-        <label title="Peak intensity (vertical scale)">
-          <span aria-hidden>↕</span>
-          <input type="range" min={0.4} max={3} step={0.1} value={intensity} aria-label="Peak intensity"
-            onChange={(e) => setIntensity(Number(e.target.value))} />
-        </label>
-        <label title="Base spacing (horizontal scale) — moves bases + trace together">
-          <span aria-hidden>↔</span>
-          <input type="range" min={9} max={48} step={1} value={baseStep} aria-label="Base spacing"
-            onChange={(e) => setBaseStep(Number(e.target.value))} />
-        </label>
-      </div>
+      {/* Scale handle + sliders belong to the chromatogram — only shown when a
+          trace is actually rendered (pasted reads have no trace). */}
+      {showTrace && trace && (
+        <>
+          <button
+            type="button"
+            className={`chromatogram-toggle${controlsOpen ? ' active' : ''}`}
+            aria-label="Trace scale controls"
+            aria-expanded={controlsOpen}
+            onClick={() => setControlsOpen((v) => !v)}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="9" x2="20" y2="9" />
+              <circle cx="10" cy="9" r="2.4" fill="var(--bg)" />
+              <line x1="4" y1="16" x2="20" y2="16" />
+              <circle cx="15" cy="16" r="2.4" fill="var(--bg)" />
+            </svg>
+          </button>
+          <div
+            className={`chromatogram-controls${controlsOpen || hovering ? ' show' : ''}`}
+            aria-label="Trace scale"
+          >
+            <label title="Peak intensity (vertical scale)">
+              <span aria-hidden>↕</span>
+              <input type="range" min={0.4} max={3} step={0.1} value={intensity} aria-label="Peak intensity"
+                onChange={(e) => setIntensity(Number(e.target.value))} />
+            </label>
+            <label title="Base spacing (horizontal scale) — moves bases + trace together">
+              <span aria-hidden>↔</span>
+              <input type="range" min={9} max={48} step={1} value={baseStep} aria-label="Base spacing"
+                onChange={(e) => setBaseStep(Number(e.target.value))} />
+            </label>
+          </div>
+        </>
+      )}
       <div className="aligned-trace-labels" aria-hidden>
         <span className="aln-row-label">REF</span>
         <span className="aln-row-label read" title={readLabel}>{readLabel}</span>

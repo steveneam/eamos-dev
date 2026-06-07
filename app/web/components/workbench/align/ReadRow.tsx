@@ -2,23 +2,37 @@
 
 import { useMemo, useState } from 'react'
 import { PairwiseView } from './PairwiseView'
-import { analyzeRead, type ReadEntry, type ReferenceState } from './read-model'
+import {
+  analyzeRead,
+  type ReadEntry,
+  type ReadOrientation,
+  type ReferenceState,
+} from './read-model'
 
 interface ReadRowProps {
   read: ReadEntry
   reference: ReferenceState
   searchHits: Set<number>
   activeSearchStart: number | null
-  onToggleOrientation: () => void
+  onSetOrientation: (orientation: ReadOrientation) => void
   onRemove: () => void
 }
+
+// Leading glyph telegraphs the direction/transform so the collapsed select
+// itself shows which orientation is active (Steven's "icon next to it" ask).
+const ORIENTATIONS: Array<{ value: ReadOrientation; label: string }> = [
+  { value: 'forward', label: '→ Forward 5′→3′' },
+  { value: 'reverse', label: '← Reverse 3′→5′' },
+  { value: 'complement', label: '↕ Complement' },
+  { value: 'reverse-complement', label: '⇄ Reverse complement' },
+]
 
 export function ReadRow({
   read,
   reference,
   searchHits,
   activeSearchStart,
-  onToggleOrientation,
+  onSetOrientation,
   onRemove,
 }: ReadRowProps) {
   const [showTrace, setShowTrace] = useState(true)
@@ -57,14 +71,19 @@ export function ReadRow({
           </span>
         </div>
         <div className="align-read-actions">
-          <button
-            type="button"
-            className={`align-read-btn${read.orientation === 'reverse' ? ' active' : ''}`}
-            onClick={onToggleOrientation}
-            title="Forward / reverse-complement"
+          <select
+            className="align-read-select"
+            value={read.orientation}
+            onChange={(event) => onSetOrientation(event.target.value as ReadOrientation)}
+            title="Read orientation (forward / reverse / complement / reverse-complement)"
+            aria-label="Read orientation"
           >
-            {read.orientation === 'reverse' ? '← Rev-comp' : '→ Forward'}
-          </button>
+            {ORIENTATIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
           {trace && (
             <button
               type="button"
@@ -84,7 +103,13 @@ export function ReadRow({
               {showTrace ? 'Trace shown' : 'Trace hidden'}
             </button>
           )}
-          <button type="button" className="align-read-btn remove" onClick={onRemove} aria-label="Remove read">
+          <button
+            type="button"
+            className="align-read-btn remove"
+            onClick={onRemove}
+            aria-label="Remove read"
+            title="Remove read"
+          >
             ✕
           </button>
         </div>

@@ -2829,6 +2829,14 @@
 .align-read-btn.active { background: var(--teal-tint); border-color: #cbe3d8; color: var(--teal-deep); }
 .align-read-btn.remove { color: var(--ink-4); padding: 5px 8px; }
 .align-read-btn.remove:hover { color: var(--err); border-color: #f3c2c2; }
+/* Orientation selector — matches the read-action button height */
+.align-read-select {
+  border: 0.5px solid var(--line-2); background: var(--bg); color: var(--ink-2);
+  border-radius: var(--r-sm); padding: 5px 7px; font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.align-read-select:hover { border-color: var(--ink-2); }
+.align-read-select:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 
 .chromatogram-v2,
 .aligned-trace {

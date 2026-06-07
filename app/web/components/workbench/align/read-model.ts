@@ -28,7 +28,11 @@ export interface ReadTrace {
   sampleCount: number
 }
 
-export type ReadOrientation = 'forward' | 'reverse'
+export type ReadOrientation =
+  | 'forward'
+  | 'reverse'
+  | 'complement'
+  | 'reverse-complement'
 
 export interface ReadEntry {
   id: string
@@ -117,6 +121,18 @@ export function reverseComplementSequence(seq: string): string {
   return out
 }
 
+/** Reverse the base order without complementing (3′←5′ display orientation). */
+export function reverseSequence(seq: string): string {
+  return seq.split('').reverse().join('')
+}
+
+/** Complement each base in place without reversing the order. */
+export function complementSequence(seq: string): string {
+  let out = ''
+  for (let i = 0; i < seq.length; i += 1) out += COMPLEMENT[seq[i]] ?? 'N'
+  return out
+}
+
 /** Reverse-complement a trace: each output base's channel is the input
  *  complement channel, reversed; base calls reverse + complement; peaks mirror. */
 export function reverseComplementTrace(trace: ReadTrace): ReadTrace {
@@ -139,6 +155,34 @@ export function reverseComplementTrace(trace: ReadTrace): ReadTrace {
   return { channels, baseCalls, sampleCount: trace.sampleCount }
 }
 
+/** Reverse a trace without complementing: sample order mirrors, bases unchanged. */
+export function reverseTrace(trace: ReadTrace): ReadTrace {
+  const last = trace.sampleCount - 1
+  const channels: AbifChannel[] = trace.channels.map((channel) => ({
+    base: channel.base,
+    values: channel.values.slice().reverse(),
+  }))
+  const baseCalls: ReadTraceBase[] = trace.baseCalls
+    .slice()
+    .reverse()
+    .map((call) => ({ base: call.base, qScore: call.qScore, peak: last - call.peak }))
+  return { channels, baseCalls, sampleCount: trace.sampleCount }
+}
+
+/** Complement a trace without reversing: A↔T / C↔G channels swap, order kept. */
+export function complementTrace(trace: ReadTrace): ReadTrace {
+  const byBase = new Map(trace.channels.map((channel) => [channel.base, channel.values]))
+  const channels: AbifChannel[] = (['A', 'C', 'G', 'T'] as TraceBase[])
+    .map((base) => ({ base, values: byBase.get(COMPLEMENT_BASE[base]) ?? [] }))
+    .filter((channel) => channel.values.length > 0)
+  const baseCalls: ReadTraceBase[] = trace.baseCalls.map((call) => ({
+    base: COMPLEMENT[call.base] ?? 'N',
+    qScore: call.qScore,
+    peak: call.peak,
+  }))
+  return { channels, baseCalls, sampleCount: trace.sampleCount }
+}
+
 /** Find a nucleotide motif in the reference (forward + reverse-complement).
  *  Returns match start positions (reference coordinates), sorted. */
 export function findMotif(reference: string, rawQuery: string): { start: number; length: number }[] {
@@ -158,12 +202,30 @@ export function findMotif(reference: string, rawQuery: string): { start: number;
 }
 
 export function orientedSequence(read: ReadEntry): string {
-  return read.orientation === 'reverse' ? reverseComplementSequence(read.sequence) : read.sequence
+  switch (read.orientation) {
+    case 'reverse':
+      return reverseSequence(read.sequence)
+    case 'complement':
+      return complementSequence(read.sequence)
+    case 'reverse-complement':
+      return reverseComplementSequence(read.sequence)
+    default:
+      return read.sequence
+  }
 }
 
 export function orientedTrace(read: ReadEntry): ReadTrace | null {
   if (!read.trace) return null
-  return read.orientation === 'reverse' ? reverseComplementTrace(read.trace) : read.trace
+  switch (read.orientation) {
+    case 'reverse':
+      return reverseTrace(read.trace)
+    case 'complement':
+      return complementTrace(read.trace)
+    case 'reverse-complement':
+      return reverseComplementTrace(read.trace)
+    default:
+      return read.trace
+  }
 }
 
 export function alignRead(reference: ReferenceState, read: ReadEntry): AlignmentComparison {
@@ -250,14 +312,25 @@ export function detectHetIndices(trace: ReadTrace): Set<number> {
   return het
 }
 
-/** Pick the orientation that aligns better to the reference (auto-orient). */
+/** Pick the orientation that aligns best to the reference (auto-orient). Tries
+ *  all four configurations — forward, reverse, complement, reverse-complement. */
 export function bestOrientation(reference: ReferenceState, read: ReadEntry): ReadOrientation {
+  const transform: Record<ReadOrientation, (seq: string) => string> = {
+    forward: (seq) => seq,
+    reverse: reverseSequence,
+    complement: complementSequence,
+    'reverse-complement': reverseComplementSequence,
+  }
   const score = (orientation: ReadOrientation) => {
-    const seq = orientation === 'reverse' ? reverseComplementSequence(read.sequence) : read.sequence
-    const alignment = compareSequences(reference.sequence, seq, reference.targetIndex).alignment
+    const alignment = compareSequences(
+      reference.sequence,
+      transform[orientation](read.sequence),
+      reference.targetIndex,
+    ).alignment
     return alignment ? alignment.identity * alignment.matches : 0
   }
-  return score('reverse') > score('forward') ? 'reverse' : 'forward'
+  const order: ReadOrientation[] = ['forward', 'reverse-complement', 'reverse', 'complement']
+  return order.reduce((best, o) => (score(o) > score(best) ? o : best), 'forward')
 }
 
 export interface ReadAnalysis {

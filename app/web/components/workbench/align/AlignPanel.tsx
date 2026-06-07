@@ -108,13 +108,9 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
     }
   }
 
-  const toggleOrientation = (id: string) =>
+  const setOrientation = (id: string, orientation: ReadEntry['orientation']) =>
     setReads((prev) =>
-      prev.map((read) =>
-        read.id === id
-          ? { ...read, orientation: read.orientation === 'forward' ? 'reverse' : 'forward' }
-          : read,
-      ),
+      prev.map((read) => (read.id === id ? { ...read, orientation } : read)),
     )
 
   return (
@@ -318,7 +314,7 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
               reference={reference}
               searchHits={searchHits}
               activeSearchStart={activeStart}
-              onToggleOrientation={() => toggleOrientation(read.id)}
+              onSetOrientation={(orientation) => setOrientation(read.id, orientation)}
               onRemove={() => setReads((prev) => prev.filter((r) => r.id !== read.id))}
             />
             ))}
