@@ -156,12 +156,12 @@ export function CompareClient() {
           <EmptyState />
         </main>
       ) : (
-        <div style={{ maxWidth: 'var(--maxw-workbench)', margin: '0 auto', padding: '16px 24px 80px' }}>
+        <div style={{ padding: '16px 0 80px' }}>
           <WorkRail
             surface="compare"
             title="Scope"
             output={
-              <div style={{ padding: '0 0 0 24px' }}>
+              <div style={{ padding: '0 22px 0 24px' }}>
                 {/* The idle GeneratePrompt card already carries the CTA — only show
                     the top Generate/Regenerate control once there's output to re-run,
                     so the idle state doesn't leave a lone button over empty space. */}

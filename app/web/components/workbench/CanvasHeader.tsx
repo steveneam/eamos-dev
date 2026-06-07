@@ -44,8 +44,6 @@ const STRANDS: Array<{ s: StrandMode; label: string; title: string }> = [
 
 interface CanvasHeaderProps {
   tool: WorkbenchTool
-  gene: string
-  variant: string
   trackOn: TrackState
   onToggleTrack: (key: keyof TrackState) => void
   strandMode: StrandMode
@@ -58,8 +56,6 @@ interface CanvasHeaderProps {
 
 export function CanvasHeader({
   tool,
-  gene,
-  variant,
   trackOn,
   onToggleTrack,
   strandMode,
@@ -85,16 +81,14 @@ export function CanvasHeader({
 
   const trackCount = Object.values(trackOn).filter(Boolean).length
 
+  // The gene · variant identity lives in the context strip now (single source);
+  // this header is just the view controls. When a tool has none (e.g. Align),
+  // there's nothing to render.
+  const hasControls = tool === 'viewer' || meta.tracks
+  if (!hasControls) return null
+
   return (
     <div className="canvas-head">
-      <div className="canvas-head-left">
-        <h1 className="canvas-title">
-          <span className="canvas-title-gene">{gene}</span>
-          <span className="canvas-title-sep">·</span>
-          <span className="canvas-title-variant">{variant}</span>
-        </h1>
-      </div>
-
       <div className="canvas-head-right">
         {tool === 'viewer' && viewerMode && onViewerMode && (
           <div

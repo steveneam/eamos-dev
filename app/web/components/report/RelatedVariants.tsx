@@ -3,12 +3,30 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { WorkRailSection } from '@/components/layout/WorkRail'
-import { VariantCardRow } from '@/components/library/VariantCardRow'
 import { tierFromText } from '@/components/library/tier'
+import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { reportHrefForQuery } from '@/lib/variant-search'
-import { saveVariant } from '@/lib/variant-library'
 import { MOCK_PANELS, getMockPanel, panelBadge } from '@/lib/panels.mock'
 import type { LookupResponse, NearbyVariant } from '@/lib/backend'
+
+// Reuse the same classification ramp tokens as the call cards / hero strip so the
+// mini chips match by construction. Unknown tier → neutral grey.
+const TIER_TO_COLOR: Record<string, string> = {
+  pathogenic: 'var(--cls-path-text)',
+  likely_pathogenic: 'var(--cls-lpath-text)',
+  vus: 'var(--cls-vus-text)',
+  likely_benign: 'var(--cls-lben-text)',
+  benign: 'var(--cls-ben-text)',
+}
+const TIER_LABEL_FULL: Record<string, string> = {
+  pathogenic: 'Pathogenic',
+  likely_pathogenic: 'Likely pathogenic',
+  vus: 'VUS',
+  likely_benign: 'Likely benign',
+  benign: 'Benign',
+}
+const REL_MOCK_TIP =
+  'Preview — per-axis calls, view counts and recency are illustrative and update once the data source is connected.'
 
 /**
  * Evidence-grounded related-variants feed (Phase 4). Four lanes from data the
@@ -30,11 +48,6 @@ export function RelatedVariants({ data }: { data: LookupResponse }) {
     const href = reportHrefForQuery(`${gene} ${hgvs}`)
     if (href) router.push(href)
   }
-  const saveNearby = (nv: NearbyVariant) => {
-    if (!gene) return
-    const q = `${gene} ${nv.hgvs}`
-    saveVariant({ gene, variant: nv.hgvs, query: q, raw: q }, { classification: nv.classification })
-  }
 
   const nearby = useMemo(() => locus?.nearby_variants ?? [], [locus])
   const sameClass = useMemo(
@@ -55,25 +68,47 @@ export function RelatedVariants({ data }: { data: LookupResponse }) {
   const hasAny = nearby.length > 0 || conditions.length > 0 || panels.length > 0
   if (!hasAny) return null
 
-  const nearbyRow = (nv: NearbyVariant) => (
-    <div className="lib-related-row" key={`${nv.cds_pos}-${nv.hgvs}`}>
-      <VariantCardRow
-        gene={gene}
-        hgvs={nv.hgvs}
-        classification={nv.classification}
-        onOpen={() => goReport(nv.hgvs)}
-      />
+  const nearbyRow = (nv: NearbyVariant) => {
+    const clinColor = (nv.classification && TIER_TO_COLOR[nv.classification]) || 'var(--cls-na-text)'
+    const clsLabel = nv.classification ? TIER_LABEL_FULL[nv.classification] ?? null : null
+    return (
       <button
         type="button"
-        className="lib-related-add"
-        title="Save to library"
-        aria-label={`Save ${gene} ${nv.hgvs} to library`}
-        onClick={() => saveNearby(nv)}
+        className="rel-card"
+        key={`${nv.cds_pos}-${nv.hgvs}`}
+        onClick={() => goReport(nv.hgvs)}
+        title={`Open the report for ${gene} ${nv.hgvs}`}
       >
-        +
+        {/* Top — New tag (left) + variant, classification pill (right) */}
+        <div className="rel-card-top">
+          <span className="rel-id">
+            <span className="rel-tag" title={`New to Eamos. ${REL_MOCK_TIP}`}>New</span>
+            <span className="rel-gene">{gene}</span>
+            <span className="rel-cdna">{nv.hgvs}</span>
+          </span>
+          {clsLabel && <ClassificationBadge classification={clsLabel} />}
+        </div>
+        {/* Bottom — views · exact date (left) + 4 axis squares (right) */}
+        <div className="rel-card-bottom">
+          <span className="rel-meta" title={REL_MOCK_TIP}>1,043 views · added 5 Jun 2026</span>
+          <span
+            className="rel-chips"
+            role="img"
+            aria-label="Evidence axes: Computational, Clinical, Population, Lab & Functional"
+            title="Evidence axes (Computational · Clinical · Population · Lab & Functional). Only the clinical classification is known per variant today; the rest fill in when wired."
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className={i === 1 ? 'rel-chip' : 'rel-chip ghost'}
+                style={i === 1 ? { background: clinColor } : undefined}
+              />
+            ))}
+          </span>
+        </div>
       </button>
-    </div>
-  )
+    )
+  }
 
   return (
     <WorkRailSection title="Related variants" defaultOpen={false}>
@@ -135,6 +170,39 @@ export function RelatedVariants({ data }: { data: LookupResponse }) {
         Suggestions are based on real genomic relationships in this report — shared gene, condition,
         panel, or variant class — not popularity.
       </p>
+
+      <style>{`
+        .rel-card {
+          display: block; width: 100%; text-align: left;
+          border: 0.5px solid var(--line);
+          border-radius: var(--r-md);
+          background: var(--bg);
+          padding: 9px 11px;
+          margin-bottom: 7px;
+          box-shadow: var(--elev-1);
+          cursor: pointer;
+          font: inherit;
+          transition: border-color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard);
+        }
+        .rel-card:hover { border-color: var(--ink-5); box-shadow: var(--elev-2); }
+        .rel-card:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-color: var(--teal); }
+        .rel-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .rel-id { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+        .rel-tag {
+          flex-shrink: 0;
+          font-size: 8.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+          color: var(--teal-deep); background: var(--teal-tint);
+          border: 0.5px solid var(--teal-bdr); border-radius: 4px;
+          padding: 1px 5px;
+        }
+        .rel-gene { font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: var(--ink); flex-shrink: 0; }
+        .rel-cdna { font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rel-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; }
+        .rel-meta { font-size: 10.5px; color: var(--ink-4); border-bottom: 1px dotted var(--ink-5); cursor: help; }
+        .rel-chips { display: inline-flex; gap: 3px; flex-shrink: 0; }
+        .rel-chip { width: 10px; height: 10px; border-radius: 2px; }
+        .rel-chip.ghost { background: transparent; border: 1px dashed var(--ink-5); }
+      `}</style>
     </WorkRailSection>
   )
 }

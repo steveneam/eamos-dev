@@ -1,10 +1,14 @@
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import Link from 'next/link'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
-import type { ReportPayload, VariantSummaryRow } from '@/lib/backend'
+import type { LookupResponse, ReportPayload, VariantSummaryRow } from '@/lib/backend'
+import { SaveCurrentButton } from './VariantLibraryRail'
 
 interface VariantHeaderProps {
   payload: ReportPayload
+  /** Full lookup response — threaded so the hero Save reuses the one library
+   *  save path (no second, drifting save system). */
+  data: LookupResponse
   query?: string
   /** When provided, replaces the plain "Export PDF" button (e.g. the ExportMenu dropdown). */
   exportSlot?: ReactNode
@@ -56,6 +60,17 @@ const ENSEMBL_BY_GENE: Record<string, string> = {
   CNGA3: 'ENSG00000144348',
 }
 
+// GRCh38 RefSeq chromosome accessions — to build the genomic HGVS (g.) from the
+// VCF triple. (The g. nomenclature is derivable; not a mock.)
+const CHROM_NC: Record<string, string> = {
+  '1': 'NC_000001.11', '2': 'NC_000002.12', '3': 'NC_000003.12', '4': 'NC_000004.12',
+  '5': 'NC_000005.10', '6': 'NC_000006.12', '7': 'NC_000007.14', '8': 'NC_000008.11',
+  '9': 'NC_000009.12', '10': 'NC_000010.11', '11': 'NC_000011.10', '12': 'NC_000012.12',
+  '13': 'NC_000013.11', '14': 'NC_000014.9', '15': 'NC_000015.10', '16': 'NC_000016.10',
+  '17': 'NC_000017.11', '18': 'NC_000018.10', '19': 'NC_000019.10', '20': 'NC_000020.11',
+  '21': 'NC_000021.9', '22': 'NC_000022.11', X: 'NC_000023.11', Y: 'NC_000024.10', MT: 'NC_012920.1',
+}
+
 function deriveClassificationLabel(acmg: string | null | undefined): string | null {
   if (!acmg) return null
   const raw = acmg.toLowerCase()
@@ -71,20 +86,51 @@ function deriveClassificationLabel(acmg: string | null | undefined): string | nu
   return first
 }
 
-export function VariantHeader({ payload, query, exportSlot }: VariantHeaderProps) {
+// "1-68444869-T-C" → "chr1:68,444,869" (1-based genomic coordinate).
+function genomicCoordFromVcf(vcf: string | null): string | null {
+  if (!vcf) return null
+  const parts = vcf.split('-')
+  if (parts.length < 2) return null
+  const pos = Number(parts[1])
+  if (!Number.isFinite(pos)) return null
+  return `chr${parts[0]}:${pos.toLocaleString()}`
+}
+
+const MOCK_TIP =
+  'Preview value — not yet wired to live data. This number is illustrative and will update once the data source is connected.'
+
+export function VariantHeader({ payload, data, query, exportSlot }: VariantHeaderProps) {
   const row = payload.variant_summary_rows[0]
-  const gene = row?.gene ?? '—'
-  const proteinChange = row?.protein_change ?? null
+  // report_profile.header is richer than the summary row (it carries the protein
+  // change + transcript even when the row's are null), so prefer it.
+  const reportHeader = payload.report_profile?.header
+  const gene = row?.gene ?? reportHeader?.gene ?? '—'
+  const proteinChange = reportHeader?.protein_change ?? row?.protein_change ?? null
   const transcriptHgvs = row?.transcript_hgvs ?? null
-  const genomic = row?.genomic_hg38 ?? null
+  const cdna = reportHeader?.cdna ?? transcriptHgvs?.split(':').pop() ?? null
+  const transcriptId = reportHeader?.transcript ?? (transcriptHgvs?.includes(':') ? transcriptHgvs.split(':')[0] : null)
+  const vcf = row?.genomic_hg38 ?? reportHeader?.genomic_hg38 ?? null
+  const genomicCoord = genomicCoordFromVcf(vcf)
   const consequence = row?.consequence ?? row?.variation_type ?? null
+  const ensgId = ENSEMBL_BY_GENE[gene] ?? null
+  // Exon comes from the molecular-context evidence row (same source MolecularContextBlock reads).
+  const mcRow = data.evidence?.find((e) => e.source?.toLowerCase() === 'molecular_context')
+  const mcSummary = (mcRow?.summary ?? null) as Record<string, unknown> | null
+  const exon = mcSummary && typeof mcSummary.exon === 'string' ? (mcSummary.exon as string) : null
+  const codon = mcSummary && typeof mcSummary.codon_change === 'string' ? (mcSummary.codon_change as string) : null
+  // Genomic HGVS (g.) — derived from the VCF triple + GRCh38 accession (real, not mock).
+  const hgvsG = (() => {
+    if (!vcf) return null
+    const parts = vcf.split('-')
+    const nc = CHROM_NC[parts[0]]
+    if (!nc || parts.length < 4) return null
+    return `${nc}:g.${parts[1]}${parts[2]}>${parts[3]}`
+  })()
   const classificationLabel = deriveClassificationLabel(
     payload.report_profile?.header?.classification ??
       payload.report_profile?.acmg_worksheet?.classification ??
       payload.acmg_classification,
   )
-  const [followed, setFollowed] = useState(false)
-  const [shareCopied, setShareCopied] = useState(false)
   const chips = buildCrossDbChips(row, gene)
 
   return (
@@ -106,70 +152,115 @@ export function VariantHeader({ payload, query, exportSlot }: VariantHeaderProps
       </nav>
 
       <section
-        className="variant-header-card mb-4"
+        className="variant-header-card variant-header-slim mb-4"
         style={{
           background: 'var(--bg)',
           border: '0.5px solid var(--line)',
           borderRadius: 14,
-          padding: '28px 32px',
+          padding: '14px 20px',
         }}
       >
-        <div className="variant-header-layout flex flex-wrap items-start justify-between gap-5">
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              className="mb-2 inline-flex items-center gap-1.5 uppercase"
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: '0.1em',
-                color: 'var(--ink-4)',
-              }}
-            >
-              <span
-                style={{ width: 5, height: 5, borderRadius: 999, background: 'var(--teal)' }}
-              />
-              Variant report · normalised from your query
+        {/* Row 1 — identity (DNA primary) on the left, classification hard-right */}
+        <div className="vh-bar">
+          <h1 className="vh-title">
+            <span className="vh-gene">{gene}</span>
+            {cdna && <span className="vh-cdna">{cdna}</span>}
+            {proteinChange && <span className="vh-prot">{proteinChange}</span>}
+          </h1>
+          {classificationLabel && (
+            <div className="vh-bar-right">
+              <ClassificationBadge classification={classificationLabel} />
             </div>
-            <h1
-              className="variant-title mb-1.5"
-              style={{
-                fontFamily: 'var(--display)',
-                fontWeight: 400,
-                fontSize: 36,
-                lineHeight: 1.05,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink)',
-                margin: 0,
-              }}
-            >
-              {gene}
-              {proteinChange ? (
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 500, color: 'var(--ink-3)', marginLeft: 10, letterSpacing: 0 }}>
-                  {proteinChange}
-                </span>
-              ) : ''}
-            </h1>
-            <p
-              className="variant-meta"
-              style={{
-                fontFamily: 'var(--mono)',
-                fontSize: 12.5,
-                color: 'var(--ink-3)',
-                margin: 0,
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {[transcriptHgvs, genomic, consequence].filter(Boolean).map((part, i, arr) => (
-                <span key={i}>
-                  {part}
-                  {i < arr.length - 1 && (
-                    <span style={{ color: 'var(--ink-4)', padding: '0 6px' }}>·</span>
-                  )}
-                </span>
-              ))}
-            </p>
+          )}
+        </div>
 
-            <div className="v-jump">
+        {/* Row 2 — engagement metrics (left) + Save / Export / Share (right) */}
+        <div className="vh-actions">
+          <div className="vh-metrics" aria-label={`Engagement metrics. ${MOCK_TIP}`}>
+            <span className="vh-metric" title="How many times this report has been viewed">
+              <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <b>1,204</b> views
+            </span>
+            <span className="vh-metric" title="When the evidence for this variant was last updated">
+              <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Updated <b>5 Jun 2026</b>
+            </span>
+            <span className="eamos-mock" title={MOCK_TIP}>preview</span>
+          </div>
+          <div className="v-tools">
+            <SaveCurrentButton data={data} variant="hero" />
+            {exportSlot ?? (
+              <button
+                type="button"
+                className="v-tool"
+                onClick={() => window.print()}
+                aria-label="Export report"
+                title="Download or print this report as a PDF"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Export</span>
+              </button>
+            )}
+            <ShareButton />
+          </div>
+        </div>
+
+        {/* Row 3 — expandable details (full coords / HGVS / transcript / build) */}
+        <details className="vh-details">
+          <summary title="Show the full genomic coordinates, HGVS nomenclature, transcript, and build">
+            <span className="vh-details-chev" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="11" height="11">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+            Variant details
+          </summary>
+          <div className="vh-details-body">
+            <div className="vh-dl-cols">
+              {/* Column 1 — nomenclature (6) */}
+              <dl className="vh-dl">
+                <dt title="HGVS coding-DNA nomenclature (c.)">HGVS c.</dt>
+                <dd>{transcriptHgvs ?? cdna ?? '—'}</dd>
+                <dt title="HGVS protein nomenclature (p.)">HGVS p.</dt>
+                <dd>{proteinChange ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dt title="HGVS genomic nomenclature (g.) on GRCh38">HGVS g.</dt>
+                <dd>{hgvsG ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dt title="The exon containing this variant">Exon</dt>
+                <dd>{exon ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dt title="Codon change at the affected residue">Codon</dt>
+                <dd>{codon ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dt>Consequence</dt>
+                <dd>{consequence ?? '—'}</dd>
+              </dl>
+              {/* Column 2 — coordinates + identifiers (6) */}
+              <dl className="vh-dl">
+                <dt title="1-based genomic position (GRCh38)">Genomic</dt>
+                <dd>{genomicCoord ? `${genomicCoord} · GRCh38` : '—'}</dd>
+                <dt title="Variant Call Format — chrom-pos-ref-alt">VCF</dt>
+                <dd>{vcf ?? '—'}</dd>
+                <dt title="dbSNP reference SNP identifier">rsID</dt>
+                <dd><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></dd>
+                <dt title="RefSeq (NCBI / Entrez) transcript">Transcript · RefSeq</dt>
+                <dd>{transcriptId ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dt title="Ensembl gene identifier (ENSG)">Ensembl gene</dt>
+                <dd>{ensgId ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dt title="Ensembl transcript identifier (ENST)">Ensembl transcript</dt>
+                <dd><span className="eamos-mock" title={MOCK_TIP}>Needs live data</span></dd>
+              </dl>
+            </div>
+            <div className="v-jump" style={{ marginTop: 12 }}>
               <span className="v-jump-label">Open in</span>
               {chips.map((chip) => (
                 <a
@@ -178,142 +269,103 @@ export function VariantHeader({ payload, query, exportSlot }: VariantHeaderProps
                   href={chip.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  title={`Open this variant in ${chip.label}`}
                 >
                   {chip.label} <span className="ext">↗</span>
                 </a>
               ))}
             </div>
           </div>
-
-          <div className="variant-header-actions flex flex-col items-end gap-2">
-            <div className="flex flex-wrap justify-end gap-2">
-              {classificationLabel && <ClassificationBadge classification={classificationLabel} />}
-              {payload.clinical_phenotype && (
-                <span className="badge subtle">
-                  {payload.clinical_phenotype.split(/[,;/]/)[0]?.trim().slice(0, 22)}
-                </span>
-              )}
-            </div>
-            <div className="v-tools">
-              <button
-                type="button"
-                className={followed ? 'v-tool followed' : 'v-tool'}
-                aria-pressed={followed}
-                onClick={() => setFollowed((v) => !v)}
-              >
-                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                  <path d="M10 21a2 2 0 0 0 4 0" />
-                </svg>
-                <span>{followed ? 'Following' : 'Follow'}</span>
-              </button>
-              {exportSlot ?? (
-                <button type="button" className="v-tool" onClick={() => window.print()} aria-label="Export PDF">
-                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Export PDF</span>
-                </button>
-              )}
-              <button
-                type="button"
-                className="v-tool"
-                aria-label={shareCopied ? 'Link copied' : 'Copy link to share'}
-                onClick={() => {
-                  if (typeof navigator !== 'undefined' && 'clipboard' in navigator) {
-                    void navigator.clipboard.writeText(window.location.href).then(() => {
-                      setShareCopied(true)
-                      setTimeout(() => setShareCopied(false), 2000)
-                    })
-                  }
-                }}
-              >
-                {shareCopied ? (
-                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                ) : (
-                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                    <polyline points="16 6 12 2 8 6" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                )}
-                <span>{shareCopied ? 'Copied' : 'Share'}</span>
-              </button>
-            </div>
-            {shareCopied && (
-              <span role="status" aria-live="polite" className="sr-only">Link copied to clipboard</span>
-            )}
-          </div>
-        </div>
+        </details>
 
         <style>{`
+          .variant-header-slim { display: flex; flex-direction: column; gap: 10px; }
+          .vh-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+          .vh-title { margin: 0; display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 10px; min-width: 0; }
+          .vh-gene { font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.05; letter-spacing: -0.02em; color: var(--ink); }
+          .vh-cdna { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--ink-2); }
+          .vh-prot { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--ink-4); }
+          .vh-bar-right { display: inline-flex; align-items: center; gap: 12px; flex-shrink: 0; }
+          .vh-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+          .vh-metrics { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+          .vh-metric { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-3); }
+          .vh-metric b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+          .vh-metric svg { width: 13px; height: 13px; color: var(--ink-4); flex-shrink: 0; }
+          .vh-meta { display: inline-flex; align-items: center; gap: 8px; }
+          .v-tools { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+          .vh-details { border-top: 0.5px solid var(--line); padding-top: 8px; }
+          .vh-details > summary {
+            list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+            font-size: 11.5px; font-weight: 600; color: var(--ink-3); padding: 2px 0;
+          }
+          .vh-details > summary::-webkit-details-marker { display: none; }
+          .vh-details > summary:hover { color: var(--ink); }
+          .vh-details > summary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-radius: 6px; }
+          .vh-details-chev { display: inline-flex; transition: transform var(--dur-2) var(--ease-emphasized); color: var(--ink-4); }
+          .vh-details[open] .vh-details-chev { transform: rotate(90deg); }
+          .vh-details-body { margin-top: 10px; background: var(--bg-soft); border-radius: var(--r-md); padding: 12px 14px; }
+          .vh-dl-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 28px; }
+          .vh-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: 0; align-content: start; }
+          .vh-dl dt { font-size: 11px; color: var(--ink-4); align-self: baseline; }
+          .vh-dl dt[title] { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--ink-5); cursor: help; }
+          .vh-dl dd { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; display: inline-flex; align-items: center; gap: 6px; }
           .v-tool {
             transition: background var(--dur-1) var(--ease-standard),
                         border-color var(--dur-1) var(--ease-standard),
                         color var(--dur-1) var(--ease-standard);
           }
-          .v-tool:hover {
-            background: var(--bg-soft2) !important;
-            border-color: var(--ink-5) !important;
-          }
-          .v-tool:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
-            border-color: var(--teal) !important;
-          }
-          .v-tool:active {
-            transform: translateY(1px) scale(0.98);
-            transition-duration: 80ms;
-          }
+          .v-tool:hover { background: var(--bg-soft2) !important; border-color: var(--ink-5) !important; }
+          .v-tool:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-color: var(--teal) !important; }
+          .v-tool:active { transform: translateY(1px) scale(0.98); transition-duration: 80ms; }
           .v-jump-chip {
             transition: color var(--dur-1) var(--ease-standard),
                         border-color var(--dur-1) var(--ease-standard),
                         background var(--dur-1) var(--ease-standard);
           }
           .v-jump-chip:hover { color: var(--ink) !important; border-color: var(--ink-5) !important; background: var(--bg-soft2) !important; }
-          .v-jump-chip:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
-            border-color: var(--teal) !important;
-          }
+          .v-jump-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-color: var(--teal) !important; }
           @media (max-width: 640px) {
-            .variant-header-card {
-              padding: 22px 16px !important;
-            }
-            .variant-header-layout {
-              display: block !important;
-            }
-            .variant-title {
-              font-size: 30px !important;
-              line-height: 1.08 !important;
-            }
-            .variant-meta {
-              font-size: 11.5px !important;
-              overflow-wrap: anywhere !important;
-              word-break: normal !important;
-            }
-            .variant-header-actions {
-              align-items: flex-start !important;
-              margin-top: 16px;
-              width: 100%;
-            }
-            .variant-header-actions > div {
-              justify-content: flex-start !important;
-            }
-            .variant-header-actions .v-tools {
-              width: 100%;
-              justify-content: flex-start;
-            }
-            .variant-header-actions .v-tool {
-              min-width: 0;
-            }
+            .variant-header-card { padding: 14px 14px !important; }
+            .vh-gene { font-size: 23px; }
+            .vh-bar-right { width: 100%; justify-content: space-between; }
+            .vh-actions { align-items: flex-start; }
+            .vh-dl-cols { grid-template-columns: 1fr; }
           }
         `}</style>
       </section>
     </header>
+  )
+}
+
+function ShareButton() {
+  return (
+    <button
+      type="button"
+      className="v-tool"
+      aria-label="Copy link to share"
+      title="Copy a link to this exact report"
+      onClick={(e) => {
+        const btn = e.currentTarget
+        if (typeof navigator !== 'undefined' && 'clipboard' in navigator) {
+          void navigator.clipboard.writeText(window.location.href).then(() => {
+            const span = btn.querySelector('span')
+            if (span) {
+              const prev = span.textContent
+              span.textContent = 'Copied'
+              setTimeout(() => {
+                span.textContent = prev
+              }, 2000)
+            }
+          })
+        }
+      }}
+    >
+      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+      </svg>
+      <span>Share</span>
+    </button>
   )
 }

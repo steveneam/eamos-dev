@@ -134,12 +134,18 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
       {hasConstraint && constraint && (
         <ChipRow label="gnomAD constraint">
           {constraint.loeuf != null && (
-            <span style={{ fontFamily: 'var(--mono)', marginRight: 12 }}>
+            <span
+              style={{ fontFamily: 'var(--mono)', marginRight: 12, borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
+              title="LOEUF — loss-of-function observed/expected upper-bound fraction. Lower = the gene tolerates loss-of-function poorly (< 0.35 is LoF-intolerant)."
+            >
               LOEUF {constraint.loeuf}
             </span>
           )}
           {constraint.pli != null && (
-            <span style={{ fontFamily: 'var(--mono)' }}>
+            <span
+              style={{ fontFamily: 'var(--mono)', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
+              title="pLI — probability the gene is intolerant of a single loss-of-function allele. ≥ 0.9 = highly LoF-intolerant."
+            >
               pLI {constraint.pli}
             </span>
           )}

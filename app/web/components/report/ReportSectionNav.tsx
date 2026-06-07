@@ -11,9 +11,9 @@ import { WorkRailSection } from '@/components/layout/WorkRail'
  * IntersectionObserver drive the active highlight. Design §2.6 / ground-truth §6.
  */
 const ANCHORS: { id: string; label: string }[] = [
-  { id: 'population_frequency', label: 'Population frequency' },
-  { id: 'evidence_by_source', label: 'In-silico predictions' },
   { id: 'clinical_evidence', label: 'Clinical evidence' },
+  { id: 'evidence_by_source', label: 'In-silico predictions' },
+  { id: 'population_frequency', label: 'Population frequency' },
   { id: 'gene_context', label: 'Gene & locus' },
   { id: 'associated_conditions', label: 'Disease & conditions' },
   { id: 'publications', label: 'Publications' },

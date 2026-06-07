@@ -1,29 +1,24 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { SaveCurrentButton } from './VariantLibraryRail'
+import type { LookupResponse } from '@/lib/backend'
 
 export interface StickyVariantRibbonProps {
   hgvsC?: string
   hgvsP?: string
   transcript?: string
   gene?: string
-  onCopy?: () => void
+  /** Threaded so the ribbon's Save reuses the one library save path (matches the hero). */
+  data?: LookupResponse
   onShare?: () => void
   onExport?: () => void
-  onSave?: () => void
-  onCite?: () => void
   /** When provided, replaces the plain Export button (e.g. the ExportMenu dropdown). */
   exportSlot?: React.ReactNode
   className?: string
 }
 
 // Inline SVGs — Lucide-style, 16×16 viewBox, 1.5px stroke
-const IconCopy = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="5" y="5" width="9" height="9" rx="1.5" />
-    <path d="M2 11V2h9" />
-  </svg>
-)
 const IconShare = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <circle cx="12" cy="3" r="1.5" />
@@ -38,19 +33,6 @@ const IconExport = () => (
     <path d="M3 11v2a1 1 0 001 1h8a1 1 0 001-1v-2" />
   </svg>
 )
-const IconSave = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3 3h8l2 2v8a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" />
-    <rect x="5.5" y="3" width="5" height="3.5" rx="0.5" />
-    <rect x="4.5" y="9" width="7" height="4" rx="0.5" />
-  </svg>
-)
-const IconCite = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 7c0-2 1-3 3-3M9 7c0-2 1-3 3-3" />
-    <path d="M4 7v3h3V7H4zM9 7v3h3V7H9z" />
-  </svg>
-)
 
 // Threshold (px) past which the ribbon pins; covers the variant header height.
 const SCROLL_THRESHOLD = 200
@@ -60,11 +42,9 @@ export function StickyVariantRibbon({
   hgvsP,
   transcript,
   gene,
-  onCopy,
+  data,
   onShare,
   onExport,
-  onSave,
-  onCite,
   exportSlot,
   className,
 }: StickyVariantRibbonProps) {
@@ -162,13 +142,11 @@ export function StickyVariantRibbon({
           {label}
         </span>
 
-        {/* Right: action cluster */}
+        {/* Right: action cluster — Save · Export · Share, matching the hero. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <RibbonBtn label="Copy" icon={<IconCopy />} onClick={onCopy} />
-          <RibbonBtn label="Share" icon={<IconShare />} onClick={onShare} />
+          {data && <SaveCurrentButton data={data} variant="hero" />}
           {exportSlot ?? <RibbonBtn label="Export" icon={<IconExport />} onClick={onExport} />}
-          <RibbonBtn label="Save" icon={<IconSave />} onClick={onSave} />
-          <RibbonBtn label="Cite" icon={<IconCite />} onClick={onCite} />
+          <RibbonBtn label="Share" icon={<IconShare />} onClick={onShare} />
         </div>
       </div>
     </div>

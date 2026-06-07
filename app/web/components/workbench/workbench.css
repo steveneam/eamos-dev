@@ -16,7 +16,11 @@
   --side-w: var(--maxw-workbench-side);
 }
 
-.wrap-wide { max-width: var(--maxw-workbench); margin: 0 auto; padding: 0 24px; }
+/* Full-bleed: the nav + context strip span the viewport with a comfortable
+   gutter, lining their content up with the full-width WorkRail body below
+   (rail flush-left, canvas to the right edge) — no centered 1440 column, so
+   the toggle + tool tabs sit at the right edge, not floating toward centre. */
+.wrap-wide { max-width: none; margin: 0; padding: 0 22px; }
 
 /* ─────────────────── NAV (matches Report) ─────────────────── */
 .nav-wrap {
@@ -29,91 +33,26 @@
 }
 .nav {
   height: var(--nav-h);
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 24px;
+  /* logo (left) · search (true-centered, capped) · switcher (right). The two
+     1fr tracks are equal, so the middle search column is centred to the
+     viewport regardless of the logo/switcher widths. */
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 720px) 1fr;
+  align-items: center;
+  gap: 22px;
 }
-.logo {
-  display: flex; align-items: center; gap: 10px;
-  font-family: var(--display); font-weight: 600; font-size: 16px;
-  letter-spacing: -0.01em; color: var(--ink);
+.nav > :last-child { justify-self: end; }
+/* Brand + search now come from the shared chrome (<EamosLogo>, <EamosSearch>,
+   <ModePill>) so the workbench bar is identical to Report/Batch. These two
+   locals just position those shared components within the wide workbench bar. */
+.wb-logo {
+  display: inline-flex; align-items: center;
   flex-shrink: 0;
+  text-decoration: none;
+  justify-self: start;
 }
-.logo-word .e1 { color: var(--teal); }
-.logo-sub {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-4);
-  padding: 2px 8px;
-  background: var(--bg-soft);
-  border-radius: 4px;
-  margin-left: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.nav-search { flex: 1; max-width: 420px; }
-.ns-shell {
-  background: var(--bg);
-  border: 0.5px solid var(--line);
-  border-radius: 100px;
-  padding: 4px 4px 4px 14px;
-  display: flex; align-items: center; gap: 8px;
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
-.ns-shell:focus-within {
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
-}
-.ns-ic { width: 16px; height: 16px; color: var(--ink-4); flex-shrink: 0; }
-.ns-input {
-  flex: 1;
-  border: none; outline: none; background: transparent;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--ink);
-  padding: 8px 0;
-}
-.ns-input::placeholder { color: var(--ink-4); font-family: var(--mono); }
-.ns-submit {
-  height: 30px; width: 30px;
-  border: none;
-  border-radius: 50%;
-  background: var(--ink-2);
-  color: #fff;
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.ns-submit svg { width: 13px; height: 13px; }
-
-.nav-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-
-/* Mode toggle (Report / Workbench) */
-.mode-pill {
-  display: inline-flex;
-  background: var(--bg-soft);
-  border: 0.5px solid var(--line);
-  border-radius: 100px;
-  padding: 3px;
-  gap: 2px;
-}
-.mode-pill a {
-  padding: 5px 11px;
-  border-radius: 100px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--ink-4);
-  letter-spacing: -0.005em;
-  display: inline-flex; align-items: center; gap: 5px;
-  transition: color .15s ease, background .15s ease;
-}
-.mode-pill a.active {
-  background: var(--bg);
-  color: var(--ink);
-  box-shadow: 0 1px 1px rgba(11,26,43,0.06), 0 0 0 0.5px var(--line);
-}
-.mode-pill a svg { width: 12px; height: 12px; }
-.mode-pill a:not(.active):hover { color: var(--ink-2); }
+/* Search fills its centred grid column (capped at 720px by the track). */
+.wb-nav-search { width: 100%; min-width: 0; }
 
 /* ─────────────────── CONTEXT STRIP ─────────────────── */
 .ctx-wrap {
@@ -177,63 +116,18 @@
   min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
 }
 
-/* Tool switcher block inside the rail — vertical stack of icon+label buttons. */
-.wb-rail-tools {
-  padding: 8px 0 12px;
-  border-bottom: 0.5px solid var(--line);
-  margin-bottom: 4px;
-}
-/* In the rail, render the toolbar as a vertical stack that fills available width. */
-.wb-rail-tools .toolbar-seg {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  width: 100%;
-}
-.wb-rail-tools .toolbar-seg-btn {
-  justify-content: flex-start;
-  width: 100%;
-  padding: 7px 10px;
-  border-radius: 7px;
-}
-/* When the rail is collapsed to icon-only (48px), WorkRail hides .work-rail-body
-   entirely via display:none, so no further override is needed. */
-
 /* ── Canvas (center) ── */
 .canvas {
   padding: 18px 22px 80px;
   min-width: 0;
 }
+/* Header is view-controls only now (gene · variant identity lives in the
+   context strip), so the controls sit flush-right above the viewer. */
 .canvas-head {
-  display: flex; justify-content: space-between; align-items: flex-end;
+  display: flex; justify-content: flex-end; align-items: flex-end;
   margin-bottom: 14px;
   gap: 16px;
   flex-wrap: wrap;
-}
-.canvas-head-left { min-width: 0; }
-.canvas-title {
-  font-family: var(--display);
-  font-weight: 600;
-  font-size: 22px;
-  letter-spacing: -0.015em;
-  margin: 0;
-  color: var(--ink);
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.canvas-title-gene { color: var(--ink); }
-.canvas-title-sep { color: var(--ink-4); font-weight: 400; }
-.canvas-title-variant {
-  font-family: var(--mono);
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--ink-2);
-  letter-spacing: 0;
 }
 .canvas-head-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
+import { CuratorQuote } from './CuratorQuote'
 import {
   StackedCountBar,
   type RampVerdict,
@@ -109,10 +110,19 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
             <ClassificationBadge classification={classification} reviewStars={stars} />
           )}
           {reviewStatus && (
-            <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>{reviewStatus}</span>
+            <span
+              style={{ fontSize: 11.5, color: 'var(--ink-4)', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
+              title="ClinVar review confidence (0–4 stars). More stars = more independent submitters agree, or an expert panel reviewed it."
+            >
+              {reviewStatus}
+            </span>
           )}
         </div>
       )}
+
+      {/* Same curator-quote grammar as ClinGen above; the submitter free-text
+          interpretation is backend-gated, so the quote is mock-marked. */}
+      <CuratorQuote mock />
 
       {submitterSegments.length > 0 && (
         <div className="flex flex-col gap-1">

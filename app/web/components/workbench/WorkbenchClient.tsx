@@ -1,9 +1,12 @@
 'use client'
 import './workbench.css'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { WorkbenchTool } from '@/lib/backend'
+import { EamosLogo } from '@/components/brand/EamosLogo'
+import { EamosSearch } from '@/components/landing/EamosSearch'
+import { ModePill } from '@/components/layout/ModePill'
 import { ContextStrip } from './ContextStrip'
 import { WorkbenchShell } from './WorkbenchShell'
 
@@ -36,17 +39,13 @@ export function WorkbenchClient() {
   const gene = cleanParam(params.get('gene'))?.toUpperCase() ?? DEFAULT_GENE
   const cdna = cleanParam(params.get('cdna')) ?? DEFAULT_CDNA
   const transcript = cleanParam(params.get('transcript'))
-  const qs = useMemo(() => {
-    const q = params.toString()
-    return q ? `?${q}` : ''
-  }, [params])
 
   const [tool, setTool] = useState<WorkbenchTool>('viewer')
-  const [search, setSearch] = useState('')
 
-  const onSearch = (e: FormEvent) => {
-    e.preventDefault()
-    const parsed = parseQuery(search)
+  // A gene/variant lookup stays on the workbench (loads the new sequence); a
+  // free-text or unparseable query hands off to the report search resolver.
+  const handleLookup = (query: string) => {
+    const parsed = parseQuery(query)
     if (parsed) {
       const next = new URLSearchParams({
         gene: parsed.gene,
@@ -54,115 +53,23 @@ export function WorkbenchClient() {
       })
       if (parsed.transcript) next.set('transcript', parsed.transcript)
       router.push(`/workbench?${next.toString()}`)
-    } else if (search.trim()) {
-      router.push(`/report?q=${encodeURIComponent(search.trim())}`)
+    } else if (query.trim()) {
+      router.push(`/report?q=${encodeURIComponent(query.trim())}`)
     }
   }
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
-      {/* ── Nav ── */}
+      {/* ── Nav — shared chrome, identical to Report / Batch ── */}
       <div className="nav-wrap">
         <div className="wrap-wide nav">
-          <Link href="/" className="logo" aria-label="Eamos home">
-            <span className="logo-word">
-              <span className="e1">E</span>amos
-            </span>
-            <span className="logo-sub">workbench</span>
+          <Link href="/" className="wb-logo" aria-label="Eamos home">
+            <EamosLogo size={18} />
           </Link>
-
-          <form className="nav-search" role="search" onSubmit={onSearch}>
-            <div className="ns-shell" data-mode="lookup">
-              <span className="ns-ic" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </span>
-              <input
-                className="ns-input"
-                type="text"
-                placeholder="Look up another gene or variant…"
-                autoComplete="off"
-                spellCheck={false}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Look up another gene or variant"
-              />
-              <button className="ns-submit" type="submit" aria-label="Search">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12,5 19,12 12,19" />
-                </svg>
-              </button>
-            </div>
-          </form>
-
-          <div className="nav-actions">
-            <div className="mode-pill" role="group" aria-label="View mode">
-              <Link href={`/report${qs}`}>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                </svg>
-                Report
-              </Link>
-              <Link href={`/workbench${qs}`} className="active" aria-current="page">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                </svg>
-                Workbench
-              </Link>
-              <Link href="/compare">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="8" y1="6" x2="21" y2="6" />
-                  <line x1="8" y1="12" x2="21" y2="12" />
-                  <line x1="8" y1="18" x2="21" y2="18" />
-                  <line x1="3" y1="6" x2="3.01" y2="6" />
-                  <line x1="3" y1="12" x2="3.01" y2="12" />
-                  <line x1="3" y1="18" x2="3.01" y2="18" />
-                </svg>
-                Batch
-              </Link>
-            </div>
+          <div className="wb-nav-search">
+            <EamosSearch size="compact" tone="light" onSubmit={handleLookup} />
           </div>
+          <ModePill current="workbench" />
         </div>
       </div>
 
@@ -173,7 +80,7 @@ export function WorkbenchClient() {
         onSelectTool={setTool}
       />
 
-      <WorkbenchShell tool={tool} onSelectTool={setTool} gene={gene} cdna={cdna} transcript={transcript} />
+      <WorkbenchShell tool={tool} gene={gene} cdna={cdna} transcript={transcript} />
     </div>
   )
 }

@@ -46,6 +46,14 @@ export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummar
       ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(geneSymbol)}%5BGene+Name%5D`
       : null
   const geneLabel = geneSymbol ? `the ${geneSymbol} gene` : 'this gene'
+  // Variant-scope outbound link → PubMed (was Google Scholar). Prefer the
+  // backend's variant PubMed query; else fall back to a gene-name search.
+  const variantQuery = scopeCounts?.variant?.query ?? null
+  const variantPubMedUrl = variantQuery
+    ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(variantQuery)}`
+    : geneSymbol
+      ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(geneSymbol)}%5BGene+Name%5D`
+      : null
 
   return (
     <div
@@ -63,6 +71,7 @@ export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummar
           type="button"
           onClick={() => setScope('variant')}
           className="eamos-toggle-btn"
+          title="Show publications that cite this specific variant"
           style={scope === 'variant' ? { background: 'var(--bg-soft2)', borderColor: 'var(--ink-4)', color: 'var(--ink)' } : undefined}
         >
           Variant
@@ -71,6 +80,7 @@ export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummar
           type="button"
           onClick={() => setScope('gene')}
           className="eamos-toggle-btn"
+          title="Show publications about the whole gene, not just this variant"
           style={scope === 'gene' ? { background: 'var(--bg-soft2)', borderColor: 'var(--ink-4)', color: 'var(--ink)' } : undefined}
         >
           Gene
@@ -146,19 +156,20 @@ export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummar
           )}
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {scope === 'variant' && data?.scholar_url && (
+          {scope === 'variant' && variantPubMedUrl && (
             <a
-              href={data.scholar_url}
+              href={variantPubMedUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="eamos-toggle-btn"
               style={{ textDecoration: 'none' }}
+              title="Open this variant's publications in PubMed"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="11" cy="11" r="7" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              Google Scholar ↗
+              PubMed ↗
             </a>
           )}
           {scope === 'gene' && genePubMedUrl && (

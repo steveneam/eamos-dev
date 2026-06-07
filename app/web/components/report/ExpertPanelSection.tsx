@@ -2,6 +2,7 @@
 
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { resolveClassificationConfig } from '@/lib/classification'
+import { CuratorQuote } from './CuratorQuote'
 import type {
   ExpertPanelClassification,
   ExpertPanelCriterion,
@@ -189,9 +190,7 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
           </a>
         </div>
 
-        <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-2)', margin: 0 }}>
-          {data.narrative}
-        </p>
+        <CuratorQuote>{data.narrative}</CuratorQuote>
 
         <div>
           <div className="eamos-kicker" style={{ marginBottom: 8 }}>

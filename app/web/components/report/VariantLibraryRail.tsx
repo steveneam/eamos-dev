@@ -41,15 +41,28 @@ function reportIdentity(data: LookupResponse) {
   return { gene, cdna, query: `${gene} ${cdna}`.trim(), hgvsFull, classification }
 }
 
-export function SaveCurrentButton({ data }: { data: LookupResponse }) {
+export function SaveCurrentButton({
+  data,
+  variant = 'rail',
+}: {
+  data: LookupResponse
+  /** 'rail' = the `.lib-save-btn` rail-head pill; 'hero' = a `.v-tool` chip that
+   *  sits in the hero Export/Share cluster. Both share the same save path. */
+  variant?: 'rail' | 'hero'
+}) {
   const { variants } = useLibrary()
   const identity = reportIdentity(data)
   const saved = identity ? variants.some((v) => v.id === identity.query.toLowerCase()) : false
+  const hero = variant === 'hero'
+  const baseClass = hero ? 'v-tool' : 'lib-save-btn'
+  const label = (text: string) =>
+    hero ? <span>{text}</span> : <> {text}</>
 
   if (!identity) {
     return (
-      <button type="button" className="lib-save-btn" disabled title="No variant identity available">
-        <IconPlus size={13} /> Save
+      <button type="button" className={baseClass} disabled title="No variant identity available">
+        <IconPlus size={13} />
+        {label('Save')}
       </button>
     )
   }
@@ -57,9 +70,10 @@ export function SaveCurrentButton({ data }: { data: LookupResponse }) {
   return (
     <button
       type="button"
-      className="lib-save-btn"
+      className={hero ? (saved ? 'v-tool followed' : 'v-tool') : 'lib-save-btn'}
       data-saved={saved ? 'true' : 'false'}
       aria-pressed={saved}
+      title={saved ? 'Saved — it is in your library' : 'Save this variant to your library so you can return to it'}
       onClick={() => {
         if (saved) return
         saveVariant(
@@ -70,11 +84,13 @@ export function SaveCurrentButton({ data }: { data: LookupResponse }) {
     >
       {saved ? (
         <>
-          <IconCheck size={13} /> Saved
+          <IconCheck size={13} />
+          {label('Saved')}
         </>
       ) : (
         <>
-          <IconPlus size={13} /> Save
+          <IconPlus size={13} />
+          {label('Save')}
         </>
       )}
     </button>

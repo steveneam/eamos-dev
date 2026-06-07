@@ -21,8 +21,8 @@ export function TopNav({ children, right, className }: TopNavProps) {
       }}
     >
       <div
-        className="mx-auto flex flex-wrap items-center gap-3 px-4 py-2 sm:flex-nowrap sm:gap-6 sm:px-8"
-        style={{ maxWidth: 1180, minHeight: 56 }}
+        className="flex flex-wrap items-center gap-3 px-4 py-2 sm:flex-nowrap sm:gap-6 sm:px-6"
+        style={{ minHeight: 56 }}
       >
         <Link
           href="/"

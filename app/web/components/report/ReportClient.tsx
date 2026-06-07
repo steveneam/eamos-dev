@@ -21,13 +21,14 @@ import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
 import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
 import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
+import { AfThermometer } from '@/components/report/AfThermometer'
+import { EamosAcmgClassifier } from '@/components/report/EamosAcmgClassifier'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { ReportLoadingState } from '@/components/report/ReportLoadingState'
 import { ExportMenu } from '@/components/report/ExportMenu'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
-import { MatrixOverture } from '@/components/report/MatrixOverture'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
 import { GeneDiseaseBlock } from '@/components/report/GeneDiseaseBlock'
@@ -460,8 +461,9 @@ export function ReportClient() {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSearchFocused(false)
           }}
           style={{
-            width: searchFocused ? '100%' : '78%',
-            transition: 'width 460ms var(--ease-emphasized)',
+            width: '100%',
+            maxWidth: searchFocused ? 760 : 640,
+            transition: 'max-width 460ms var(--ease-emphasized)',
           }}
         >
           <EamosSearch size="compact" tone="light" onSubmit={handleSearch} />
@@ -477,7 +479,7 @@ export function ReportClient() {
           title="Library"
           action={<SaveCurrentButton data={activeState.data} />}
           output={
-            <CenteredMain>
+            <CenteredMain bleed>
               <ReportBody
                 key={activeState.requestKey}
                 data={activeState.data}
@@ -552,14 +554,20 @@ export function ReportClient() {
   )
 }
 
-/** The report's reading column wrapper (the --maxw-report-frame centered
- *  <main>). Shared by every load state and the ready WorkRail output so the
- *  column geometry is defined in exactly one place. */
-function CenteredMain({ children }: { children: ReactNode }) {
+/** The report's main column wrapper. Shared by every load state and the ready
+ *  WorkRail output so the column geometry is defined in exactly one place.
+ *  `bleed` (the ready report) runs full-width like the Workbench — the card
+ *  grid uses the whole surface; the narrow centered frame is kept for the
+ *  short-text load/error states, where a full-width message reads poorly. */
+function CenteredMain({ children, bleed = false }: { children: ReactNode; bleed?: boolean }) {
   return (
     <main
-      className="mx-auto"
-      style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }}
+      className={bleed ? undefined : 'mx-auto'}
+      style={
+        bleed
+          ? { width: '100%', maxWidth: 'none', padding: '32px 24px 80px' }
+          : { width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '32px 32px 80px' }
+      }
     >
       {children}
     </main>
@@ -639,25 +647,13 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
       payload.acmg_classification,
   )
 
-  // Ribbon handlers — mirror VariantHeader buttons (Copy/Share/Export) + open
-  // CiteChip globally via ?cite=1.
-  const handleCopy = () => {
-    const label = [ribbonGene, ribbonTranscript && ribbonHgvsC ? `${ribbonTranscript}:${ribbonHgvsC}` : ribbonHgvsC, ribbonHgvsP ? `(${ribbonHgvsP})` : '']
-      .filter(Boolean)
-      .join(' ')
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(label)
-    }
-  }
+  // Ribbon Share — mirrors the hero Share (copy link). Copy + Cite were removed
+  // from the ribbon (Copy duplicates the per-section copy buttons; Cite lives in
+  // the bottom-left dock).
   const handleShare = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       void navigator.clipboard.writeText(window.location.href)
     }
-  }
-  const handleCite = () => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('cite', '1')
-    router.replace(`?${params.toString()}`, { scroll: false })
   }
 
   // BE-12 frozen code: any `live_fetch_failed:<ExceptionName>` means a source
@@ -697,99 +693,31 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         transcript={ribbonTranscript}
         hgvsC={ribbonHgvsC}
         hgvsP={ribbonHgvsP}
-        onCopy={handleCopy}
+        data={data}
         onShare={handleShare}
         exportSlot={<ExportMenu data={data} variant="ribbon" />}
-        onCite={handleCite}
       />
       <VariantHeader
         payload={payload}
+        data={data}
         query={query}
         exportSlot={<ExportMenu data={data} variant="header" />}
       />
-
-      {/* M7 lookahead — 10-12 tiles that deep-link to each numbered section
-          below. Live-wired to lookupSummary(); falls back to tiles synthesized
-          from the existing ReportPayload when the backend is unreachable
-          (TypeError) or when no request shape is available (fixture mode). */}
-      <MatrixOverture key={`matrix-${variantKey}`} payload={payload} request={summaryRequest} />
 
       <div className="flex flex-col gap-3.5">
         {/* Call cards sit just under the header as the at-a-glance verdicts.
             They're scannable summary; the numbered evidence sections begin
             below. */}
-        <CallCardsGrid payload={payload} />
+        <CallCardsGrid payload={payload} populationAf={populationSection?.overall?.total?.allele_frequency ?? null} />
 
-        {/* 1 · Population frequency (gnomAD) */}
-        <div id="population_frequency" className="scroll-mt-24" />
-        {populationSection && (
-          <Card
-            number={1}
-            title="gnomAD population frequency"
-            meta="genetic ancestry groups | source age distribution"
-            actions={
-              <CopyButton
-                text={{
-                  html: htmlPopulation(payload, payload.population_frequency_detail),
-                  text: tsvPopulation(payload, payload.population_frequency_detail),
-                }}
-                label="Copy population frequency (paste into Excel for formatted table)"
-              />
-            }
-          >
-            <PopulationFrequencySection section={populationSection} />
-          </Card>
-        )}
-
-        {/* 2 · In-silico predictions — engines + calibrated buckets only.
-            Verdict accent and ClinVar/ACMG moved to §3 Clinical evidence in
-            Slice A; per-source data for variant_validator/gnomad/ensembl/
-            spliceai/clingen/gene_disease/molecular_context/computational_
-            annotations/pubmed/litvar2/clinical_trials/vep is already rendered
-            elsewhere or in the variant header. */}
-        <div id="evidence_by_source" className="scroll-mt-24" />
-        <Card
-          number={2}
-          title="In-silico predictions"
-          meta="engines · calibrated"
-          actions={
-            <CopyButton
-              text={{
-                html: htmlEvidenceBySource(payload, payload.in_silico_predictions, null, []),
-                text: tsvEvidenceBySource(payload, payload.in_silico_predictions, null, []),
-              }}
-              label="Copy in-silico (paste into Excel for formatted table)"
-            />
-          }
-        >
-          <LazySection<ComputationalDeepDiveSection>
-            key={`insilico-${variantKey}${lazyOverrides.has('computational_deep_dive') ? '-lazy' : ''}`}
-            eagerData={
-              lazyOverrides.has('computational_deep_dive')
-                ? null
-                : payload.report_profile?.computational_deep_dive
-            }
-            sectionId="computational_deep_dive"
-            request={effectiveSummaryRequest ?? null}
-            unwrap={(env) => (env.payload as ComputationalDeepDiveSection | null) ?? null}
-            forceLoad={lazyOverrides.has('computational_deep_dive')}
-          >
-            {(section) => (
-              <>
-                <CompositeVerdictBar predictors={section.predictors} />
-                <CalibratedInSilicoTable predictors={section.predictors} />
-              </>
-            )}
-          </LazySection>
-        </Card>
-
-        {/* 3 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
+        {/* 1 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
             ClinGen leads (highest weight for classification), then ClinVar,
-            then the ACMG criteria fold. Verdict accent shows as the header
-            leading dot (Card verdict prop). */}
+            then the ACMG criteria fold. Leads the report (v3): the clinical
+            classification is what a curator reads first. Verdict accent shows
+            as the header leading dot (Card verdict prop). */}
         <div id="clinical_evidence" className="scroll-mt-24" />
         <Card
-          number={3}
+          number={1}
           title="Clinical evidence"
           meta="ClinGen · ClinVar · ACMG"
           verdict={verdict}
@@ -838,6 +766,74 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           <ClinVarBlock evidence={data.evidence} />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
+
+        {/* 2 · In-silico predictions — engines + calibrated buckets only.
+            Verdict accent and ClinVar/ACMG live in §1 Clinical evidence;
+            per-source data for variant_validator/gnomad/ensembl/spliceai/
+            clingen/gene_disease/molecular_context/computational_annotations/
+            pubmed/litvar2/clinical_trials/vep is rendered elsewhere or in the
+            variant header. */}
+        <div id="evidence_by_source" className="scroll-mt-24" />
+        <Card
+          number={2}
+          title="In-silico predictions"
+          meta="engines · calibrated"
+          actions={
+            <CopyButton
+              text={{
+                html: htmlEvidenceBySource(payload, payload.in_silico_predictions, null, []),
+                text: tsvEvidenceBySource(payload, payload.in_silico_predictions, null, []),
+              }}
+              label="Copy in-silico (paste into Excel for formatted table)"
+            />
+          }
+        >
+          <LazySection<ComputationalDeepDiveSection>
+            key={`insilico-${variantKey}${lazyOverrides.has('computational_deep_dive') ? '-lazy' : ''}`}
+            eagerData={
+              lazyOverrides.has('computational_deep_dive')
+                ? null
+                : payload.report_profile?.computational_deep_dive
+            }
+            sectionId="computational_deep_dive"
+            request={effectiveSummaryRequest ?? null}
+            unwrap={(env) => (env.payload as ComputationalDeepDiveSection | null) ?? null}
+            forceLoad={lazyOverrides.has('computational_deep_dive')}
+          >
+            {(section) => (
+              <>
+                <CompositeVerdictBar predictors={section.predictors} />
+                <CalibratedInSilicoTable predictors={section.predictors} />
+              </>
+            )}
+          </LazySection>
+          {/* Eamos automated ACMG estimate (InterVar-style) — combines the met
+              §1 criteria into a rule-based verdict; useful for novel variants. */}
+          <EamosAcmgClassifier data={payload.acmg_criteria_scaffold} />
+        </Card>
+
+        {/* 3 · Population frequency (gnomAD) — AF thermometer + constraint
+            readout above the world map / ancestry / age tabs. */}
+        <div id="population_frequency" className="scroll-mt-24" />
+        {populationSection && (
+          <Card
+            number={3}
+            title="gnomAD population frequency"
+            meta="genetic ancestry groups | source age distribution"
+            actions={
+              <CopyButton
+                text={{
+                  html: htmlPopulation(payload, payload.population_frequency_detail),
+                  text: tsvPopulation(payload, payload.population_frequency_detail),
+                }}
+                label="Copy population frequency (paste into Excel for formatted table)"
+              />
+            }
+          >
+            <AfThermometer af={populationSection.overall?.total?.allele_frequency ?? null} />
+            <PopulationFrequencySection section={populationSection} />
+          </Card>
+        )}
 
         {/* 4 · Gene & locus context — Slice B build 1 swaps the gene-snapshot
             SVG + expandable transcript figures for the new ReportGeneViewer

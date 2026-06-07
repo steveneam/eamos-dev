@@ -9,7 +9,6 @@ import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { ClinvarVariant, GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader, type ViewerMode } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
-import { ToolBar } from './ToolBar'
 import { viewerCollapsed } from './tools'
 import { PrimerPanel } from './primer/PrimerPanel'
 import { CrisprPanel } from './crispr/CrisprPanel'
@@ -37,7 +36,6 @@ export type { ScratchEntry }
 
 interface WorkbenchShellProps {
   tool: WorkbenchTool
-  onSelectTool: (tool: WorkbenchTool) => void
   gene: string
   cdna: string
   transcript?: string
@@ -71,7 +69,7 @@ function isDefaultViewerRequest(gene: string, cdna: string, transcript?: string)
   )
 }
 
-export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: WorkbenchShellProps) {
+export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellProps) {
   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)
   const [strandMode, setStrandMode] = useState<StrandMode>('both')
   const [baseW, setBaseW] = useState<number>(ZOOM_PRESETS.exon)
@@ -176,13 +174,10 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
     [router],
   )
 
-  // The rail content: tool switcher + SidePanel (or loading stub).
+  // The rail content: SidePanel (or loading stub). The tool switcher now lives
+  // in the context strip under the nav, not the rail.
   const railContent = data ? (
     <>
-      {/* Tool switcher lives at the top of the rail body. */}
-      <div className="wb-rail-tools">
-        <ToolBar active={tool} onSelect={onSelectTool} />
-      </div>
       <SidePanel
         tool={tool}
         data={data}
@@ -204,9 +199,6 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
     </>
   ) : (
     <>
-      <div className="wb-rail-tools">
-        <ToolBar active={tool} onSelect={onSelectTool} />
-      </div>
       <div className="side-section">
         <div className="side-h">Viewer request</div>
         <div className="side-info">
@@ -229,8 +221,6 @@ export function WorkbenchShell({ tool, onSelectTool, gene, cdna, transcript }: W
     <main className="canvas">
       <CanvasHeader
         tool={tool}
-        gene={gene}
-        variant={cdna}
         trackOn={trackOn}
         onToggleTrack={toggleTrack}
         strandMode={strandMode}

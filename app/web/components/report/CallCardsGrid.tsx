@@ -5,6 +5,18 @@ import type { ReportCallBadgeKind, ReportCallCard, ReportPayload } from '@/lib/b
 
 interface CallCardsGridProps {
   payload: ReportPayload
+  /** Joint AF (gnomAD) — used to colour the Population card by its frequency
+   *  band, since the backend currently emits a neutral theme for it. */
+  populationAf?: number | null
+}
+
+// AF → verdict-state for the Population card, mirroring the §3 thermometer:
+// BA1/BS1 (≥1%) benign-green, 0.1–1% intermediate yellow, <0.1% / absent →
+// PM2-supporting (orange/lpath). Absence is suggestive, not diagnostic — never red.
+function afToState(af: number): string {
+  if (af >= 0.01) return 'safe_green_state'
+  if (af >= 0.001) return 'caution_yellow_state'
+  return 'caution_orange_state'
 }
 
 const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; color: string }> = {
@@ -20,13 +32,42 @@ const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; col
 // uncurated, or none) rather than the generic "acmg" teal, so a clinician reads
 // the wet-lab call at a glance. Maps onto the design-system ACMG ramp + grey NA,
 // plus the off-ramp info-blue for "uncurated". See plans/functional-card/spec.md.
-const STATE_THEME: Record<string, { bg: string; border: string; color: string }> = {
+// Verdict-state → card theme. v3 applies this to ALL FOUR cards (was functional-
+// only) so each evidence axis is read at a glance by colour + word + dot. Covers
+// all 7 backend states; `caution_orange_state` (e.g. the clinical card) maps onto
+// the likely-pathogenic ramp (orange, leaning-risk) — a missing key here silently
+// renders a white card.
+export const STATE_THEME: Record<string, { bg: string; border: string; color: string }> = {
   danger_red_state: { bg: 'var(--cls-path-bg)', border: 'var(--cls-path-bdr)', color: 'var(--cls-path-text)' },
   risk_red_state: { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', color: 'var(--cls-lpath-text)' },
+  caution_orange_state: { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', color: 'var(--cls-lpath-text)' },
   caution_yellow_state: { bg: 'var(--cls-vus-bg)', border: 'var(--cls-vus-bdr)', color: 'var(--cls-vus-text)' },
   safe_green_state: { bg: 'var(--cls-ben-bg)', border: 'var(--cls-ben-bdr)', color: 'var(--cls-ben-text)' },
   info_blue_state: { bg: 'var(--info-bg)', border: 'var(--info-bdr)', color: 'var(--info-text)' },
   neutral_slate_state: { bg: 'var(--cls-na-bg)', border: 'var(--cls-na-bdr)', color: 'var(--cls-na-text)' },
+}
+
+// Locked L→R display order (Computational · Clinical · Population · Lab &
+// Functional). The backend payload array order is not guaranteed, so the FE
+// sorts deterministically; unknown ids sort last.
+export const CARD_ORDER: string[] = [
+  'computational',
+  'clinical_consensus',
+  'population_frequency',
+  'lab_functional',
+]
+
+// Plain-language hover help per card (intuitiveness pass) — explains what the
+// axis means, not just the label.
+const CARD_TOOLTIP: Record<string, string> = {
+  computational:
+    "Eamos's combined call from the in-silico predictors (REVEL, CADD, SpliceAI, …). 'Damaging' means the tools agree the change is likely harmful to the protein.",
+  clinical_consensus:
+    'The clinical classification (ACMG / ClinGen / ClinVar): Pathogenic through Benign, or VUS when the evidence is uncertain.',
+  population_frequency:
+    'How common this variant is in the general population (gnomAD). Common variants are usually benign; very rare or absent variants can support a pathogenic call.',
+  lab_functional:
+    "What wet-lab experiments show about the variant's effect on protein function, and who curated that evidence (ClinGen / ClinVar).",
 }
 
 // "via ClinGen / ClinVar / ClinGen + ClinVar" — the authority of a PS3/BS3 hinges
@@ -80,8 +121,14 @@ function cardMeta(card: ReportCallCard): string {
   return card.source_status ? formatWarning(card.source_status) : 'Source status unavailable'
 }
 
-export function CallCardsGrid({ payload }: CallCardsGridProps) {
-  const cards = payload.call_cards?.cards ?? []
+export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
+  const cards = [...(payload.call_cards?.cards ?? [])].sort(
+    (a, b) => {
+      const ai = CARD_ORDER.indexOf(a.card_id)
+      const bi = CARD_ORDER.indexOf(b.card_id)
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    },
+  )
   if (cards.length === 0) return null
 
   return (
@@ -102,24 +149,32 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
           // functional_evidence.display_metrics, which the generic ReportCallCard
           // contract doesn't carry. plans/functional-card/spec.md.
           const isFunctionalCard = card.card_id === 'lab_functional'
-          const fnTheme = isFunctionalCard ? STATE_THEME[card.ui_color_theme] ?? null : null
+          // v3: colour EVERY card by its verdict-state (was functional-only). The
+          // functional card additionally carries display_metrics extras below.
+          // Population is re-derived from the AF band (backend emits neutral today).
+          const backendTheme = STATE_THEME[card.ui_color_theme] ?? null
+          const cardTheme =
+            card.card_id === 'population_frequency' && populationAf != null
+              ? STATE_THEME[afToState(populationAf)] ?? backendTheme
+              : backendTheme
           const fnMetrics = isFunctionalCard
             ? payload.functional_evidence?.display_metrics ?? null
             : null
           const verdictAttr = verdictAttribution(fnMetrics?.verdict_source)
+          const cardHelp = CARD_TOOLTIP[card.card_id] ?? null
           // On a state-tinted card the badges become crisp chips on the page-white
           // surface so they stay legible: the verdict chip keeps the state colour
           // (text + border), the rest go neutral.
           const renderBadges = badges.slice(0, 3).map((badge, i) => {
             let tone = BADGE_TONES[badge.kind] ?? BADGE_TONES.neutral
-            if (fnTheme) {
+            if (cardTheme) {
               tone =
                 i === 0
-                  ? { bg: 'var(--bg)', border: fnTheme.border, color: fnTheme.color }
+                  ? { bg: 'var(--bg)', border: cardTheme.border, color: cardTheme.color }
                   : { bg: 'var(--bg)', border: 'var(--line)', color: 'var(--ink-2)' }
             }
             const text =
-              fnTheme && i === 0 && verdictAttr ? `${badge.text} · ${verdictAttr}` : badge.text
+              cardTheme && i === 0 && verdictAttr ? `${badge.text} · ${verdictAttr}` : badge.text
             return { key: `${card.card_id}-${i}`, text, tone }
           })
           const fnNote =
@@ -128,7 +183,21 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
               : null
           const cardBody = (
             <>
-              <div className="eamos-kicker">
+              <div
+                className="eamos-kicker"
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                title={cardHelp ?? undefined}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    flexShrink: 0,
+                    background: cardTheme ? cardTheme.color : 'var(--ink-5)',
+                  }}
+                />
                 {card.title}
               </div>
               <div
@@ -197,11 +266,13 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
               <article
                 key={card.card_id}
                 className="w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
+                aria-label={`${card.title}: ${card.primary_label ?? 'no data'}`}
+                title={cardHelp ?? undefined}
                 style={{
                   minHeight: 158,
-                  border: `0.5px solid ${fnTheme ? fnTheme.border : 'var(--line)'}`,
+                  border: `0.5px solid ${cardTheme ? cardTheme.border : 'var(--line)'}`,
                   borderRadius: 10,
-                  background: fnTheme ? fnTheme.bg : 'var(--bg)',
+                  background: cardTheme ? cardTheme.bg : 'var(--bg)',
                   padding: '15px 16px',
                   boxShadow: 'var(--elev-1)',
                 }}
@@ -216,6 +287,8 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
               key={card.card_id}
               card={card}
               cardBody={cardBody}
+              theme={cardTheme}
+              help={cardHelp}
               onNavigate={() => scrollToInteraction(card)}
             />
           )
@@ -229,10 +302,12 @@ export function CallCardsGrid({ payload }: CallCardsGridProps) {
 interface InteractiveCardProps {
   card: ReportCallCard
   cardBody: ReactNode
+  theme: { bg: string; border: string; color: string } | null
+  help: string | null
   onNavigate: () => void
 }
 
-function InteractiveCard({ card, cardBody, onNavigate }: InteractiveCardProps) {
+function InteractiveCard({ card, cardBody, theme, help, onNavigate }: InteractiveCardProps) {
   const [hovered, setHovered] = useState(false)
   const label = `${card.title}: ${card.primary_label ?? 'view detail'}`
   return (
@@ -242,12 +317,13 @@ function InteractiveCard({ card, cardBody, onNavigate }: InteractiveCardProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       aria-label={label}
+      title={help ?? undefined}
       className="call-card-btn w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
       style={{
         minHeight: 158,
-        border: `0.5px solid ${hovered ? 'var(--ink-5)' : 'var(--line)'}`,
+        border: `0.5px solid ${hovered ? 'var(--ink-5)' : theme ? theme.border : 'var(--line)'}`,
         borderRadius: 10,
-        background: 'var(--bg)',
+        background: theme ? theme.bg : 'var(--bg)',
         padding: '15px 16px',
         textAlign: 'left',
         cursor: 'pointer',

@@ -36,6 +36,14 @@
     width var(--dur-2) var(--ease-emphasized);
 }
 
+/* The inline rail sits above the report's fixed StickyVariantRibbon (z-40) so
+   its collapse/expand toggle stays clickable when the ribbon pins on scroll —
+   the ribbon's content is centred, so the rail just owns the left edge. Still
+   below the nav (z-50). */
+.work-shell.mode-inline .work-rail {
+  z-index: 45;
+}
+
 .work-rail-head {
   display: flex;
   align-items: center;
