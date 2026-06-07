@@ -3212,16 +3212,60 @@
   margin-top: 6px;
 }
 .crispr-table-wrap .tool-table {
-  min-width: 760px;
+  min-width: 920px;
   margin-top: 0;
 }
 
-/* gRNA table: spacer teal / PAM amber, same accent vocabulary as ssODN */
+/* Reference/template anchor — echoes the Align REF row: guides are framed as
+   "designed against" an explicit reference/template. */
+.crispr-ref-anchor {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+  margin-top: 16px; padding: 8px 12px;
+  background: var(--teal-tint); border-left: 2px solid var(--teal);
+  border-radius: var(--r-sm);
+}
+.cra-label {
+  font-size: 10px; font-weight: 700; color: var(--teal-deep);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.cra-target { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+.cra-meta { font-size: 11px; color: var(--ink-4); }
+
+/* Candidate-summary roll-up (aggregate overview above the detailed table) */
+.crispr-summary {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 12px;
+  background: var(--bg-canvas);
+  border: 0.5px solid var(--line); border-radius: var(--r-md);
+  overflow: hidden;
+}
+.cs-cell {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 7px 13px; background: var(--bg-canvas);
+}
+.cs-k {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.cs-v { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+@media (max-width: 560px) { .crispr-summary { grid-template-columns: 1fr; } }
+
+/* gRNA table: PAM amber, same accent vocabulary as ssODN. The spacer is
+   base-coloured below. */
 .tool-table td.seq .g-spacer { color: var(--teal-deep); font-weight: 600; }
 .tool-table td.seq .g-pam {
   color: #633806; background: var(--warn-tint);
   padding: 1px 3px; border-radius: 3px; margin-left: 2px; font-weight: 600;
 }
+
+/* Colour-coded 20-mer — reuse the shared --base-* tokens (Align trace /
+   chromatogram / gene viewer) for a consistent base vocabulary. */
+.tool-table td.seq .g-nt { font-weight: 600; }
+.tool-table td.seq .g-nt.A { color: var(--base-A); }
+.tool-table td.seq .g-nt.T { color: var(--base-T); }
+.tool-table td.seq .g-nt.C { color: var(--base-C); }
+.tool-table td.seq .g-nt.G { color: var(--base-G); }
 .tool-table tbody tr { outline: none; }
 .tool-table tbody tr:focus-visible { box-shadow: inset 0 0 0 1.5px var(--teal); }
 

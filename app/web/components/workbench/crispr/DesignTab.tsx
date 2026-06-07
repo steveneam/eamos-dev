@@ -10,6 +10,7 @@ import type {
 import { designGuides } from '@/lib/api'
 import { designProviderDisclosure } from '@/lib/workbench/crispr-disclosure'
 import { recommendedGuideIndex } from '@/lib/workbench/crispr-guide-ranking'
+import { mapGuide } from '@/lib/workbench/crispr-guide-map'
 import { GuideTrack } from './GuideTrack'
 
 interface DesignTabProps {
@@ -70,6 +71,33 @@ function offClass(v: number): string {
 }
 function onClass(v: number): string {
   return v >= 75 ? 'score-good' : v >= 60 ? 'score-mid' : 'score-bad'
+}
+
+/** SpCas9 recognises NGG; the other enzymes stay schema-only in real mode. */
+function casPam(cas: CasEnzyme): string {
+  return cas === 'SpCas9' ? 'NGG' : '—'
+}
+
+/**
+ * Colour-coded guide spacer — each A/C/G/T painted with the shared --base-*
+ * tokens (same vocabulary as the Align trace, chromatogram, and gene viewer),
+ * so the 20-mer reads consistently across the Workbench. The PAM keeps its
+ * amber recognition chip. Letters stay visible, so colour is never the only cue.
+ */
+function GuideSeq({ guide, pam }: { guide: string; pam: string }) {
+  return (
+    <span className="seq g-seq">
+      {guide
+        .toUpperCase()
+        .split('')
+        .map((b, i) => (
+          <span key={i} className={`g-nt ${'ACGT'.includes(b) ? b : ''}`}>
+            {b}
+          </span>
+        ))}
+      <span className="g-pam">{pam}</span>
+    </span>
+  )
 }
 
 /** ssODN highlight classes, derived from the three-arm diff. */
@@ -169,6 +197,16 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
   }
 
   const recIdx = res ? recommendedGuideIndex(res.guides) : -1
+  const plusCount = res ? res.guides.filter((g) => g.strand === '+').length : 0
+  const minusCount = res ? res.guides.length - plusCount : 0
+  const bestOn =
+    res && res.guides.length
+      ? Math.max(...res.guides.map((g) => g.on_target_score))
+      : null
+  const bestOff =
+    res && res.guides.length
+      ? Math.min(...res.guides.map((g) => g.off_target_score))
+      : null
 
   const rows = useMemo(() => {
     if (!res) return []
@@ -296,6 +334,63 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
             </div>
           )}
 
+          <div className="crispr-ref-anchor">
+            <span className="cra-label">Designed against</span>
+            <span className="cra-target">
+              {gene} · {cdna}
+            </span>
+            {template && (
+              <span className="cra-meta">
+                template {template.length} nt · ssODN reference arm
+              </span>
+            )}
+          </div>
+
+          <div
+            className="crispr-summary"
+            role="group"
+            aria-label="Candidate summary"
+          >
+            <div className="cs-cell">
+              <span className="cs-k">Candidates found</span>
+              <span className="cs-v">{res.guides.length}</span>
+            </div>
+            <div className="cs-cell">
+              <span className="cs-k">Enzyme</span>
+              <span className="cs-v">
+                {res.cas} · {casPam(res.cas)}
+              </span>
+            </div>
+            <div className="cs-cell">
+              <span className="cs-k">Passing filter</span>
+              <span className="cs-v">{rows.length}</span>
+            </div>
+            <div className="cs-cell">
+              <span className="cs-k">Strand</span>
+              <span className="cs-v">
+                {plusCount} (+) / {minusCount} (−)
+              </span>
+            </div>
+            <div className="cs-cell">
+              <span className="cs-k">Best on-target</span>
+              <span className="cs-v">
+                {bestOn != null ? bestOn.toFixed(1) : '—'}
+              </span>
+            </div>
+            <div className="cs-cell">
+              <span className="cs-k">Best off-target</span>
+              <span className="cs-v">
+                {bestOff != null ? bestOff.toFixed(1) : '—'}
+              </span>
+            </div>
+            {recIdx >= 0 && (
+              <div className="cs-cell">
+                <span className="cs-k">Recommended</span>
+                <span className="cs-v">#{recIdx} ★</span>
+              </div>
+            )}
+          </div>
+
           <div className="crispr-table-bar">
             <div className="seg" role="group" aria-label="Sort guides">
               <button
@@ -335,52 +430,70 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
             </label>
           </div>
 
+          <div className="help-note">
+            Start / End / Region are positions on the design template
+            (template-relative offsets), not genomic coordinates.
+          </div>
+
           <div className="crispr-table-wrap">
             <table className="tool-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Guide 5′ to 3′ + PAM</th>
-                  <th>Cut</th>
+                  <th>Start</th>
+                  <th>End</th>
                   <th>Strand</th>
+                  <th>Guide 5′ to 3′ + PAM</th>
                   <th>On-target</th>
                   <th>Off-target</th>
                   <th>GC%</th>
+                  <th>Region</th>
                   <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((g) => (
-                  <tr
-                    key={g.index}
-                    className={g.index === recIdx ? 'selected' : undefined}
-                    onMouseEnter={() => setHovered(g.index)}
-                    onFocus={() => setHovered(g.index)}
-                    tabIndex={0}
-                  >
-                    <td className="num">
-                      {g.index === recIdx ? 'rec. ' : ''}
-                      {g.index}
-                    </td>
-                    <td className="seq">
-                      <span className="g-spacer">{g.guide}</span>
-                      <span className="g-pam">{g.pam}</span>
-                    </td>
-                    <td className="num">{g.cut_position}</td>
-                    <td className="num">{g.strand}</td>
-                    <td className={`num ${onClass(g.on_target_score)}`}>
-                      {g.on_target_score.toFixed(1)}
-                    </td>
-                    <td className={`num ${offClass(g.off_target_score)}`}>
-                      {g.off_target_score.toFixed(1)}
-                    </td>
-                    <td className="num">{g.gc_percent}</td>
-                    <td>{g.notes}</td>
-                  </tr>
-                ))}
+                {rows.map((g) => {
+                  const gm = template ? mapGuide(g, template) : null
+                  const located = Boolean(gm?.located)
+                  return (
+                    <tr
+                      key={g.index}
+                      className={g.index === recIdx ? 'selected' : undefined}
+                      onMouseEnter={() => setHovered(g.index)}
+                      onFocus={() => setHovered(g.index)}
+                      tabIndex={0}
+                    >
+                      <td className="num">
+                        {g.index === recIdx ? 'rec. ' : ''}
+                        {g.index}
+                      </td>
+                      <td className="num">
+                        {located ? (gm as NonNullable<typeof gm>).spacerStart + 1 : '—'}
+                      </td>
+                      <td className="num">
+                        {located ? (gm as NonNullable<typeof gm>).spacerEnd : '—'}
+                      </td>
+                      <td className="num">{g.strand}</td>
+                      <td className="seq">
+                        <GuideSeq guide={g.guide} pam={g.pam} />
+                      </td>
+                      <td className={`num ${onClass(g.on_target_score)}`}>
+                        {g.on_target_score.toFixed(1)}
+                      </td>
+                      <td className={`num ${offClass(g.off_target_score)}`}>
+                        {g.off_target_score.toFixed(1)}
+                      </td>
+                      <td className="num">{g.gc_percent}</td>
+                      <td>
+                        {gene} <span className="cra-meta">tmpl</span>
+                      </td>
+                      <td>{g.notes}</td>
+                    </tr>
+                  )
+                })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="crispr-empty">
+                    <td colSpan={10} className="crispr-empty">
                       No guides at min on-target &gt;= {minOnTarget}.
                     </td>
                   </tr>
