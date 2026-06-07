@@ -36,8 +36,18 @@ export function GuideTrack({ guide, template, showCut }: GuideTrackProps) {
               {b}
             </span>
           ))}
-          {guide.pam.split('').map((b, i) => (
-            <span key={`p${i}`} className="gt-base pam">
+          {guide.pam.split('').map((b, i, arr) => (
+            <span
+              key={`p${i}`}
+              className={`gt-base pam${i === 0 ? ' pam-first' : ''}${
+                i === arr.length - 1 ? ' pam-last' : ''
+              }`}
+            >
+              {i === 0 && (
+                <i className="gt-pam-tag" aria-hidden="true">
+                  PAM
+                </i>
+              )}
               {b}
             </span>
           ))}
@@ -69,9 +79,20 @@ export function GuideTrack({ guide, template, showCut }: GuideTrackProps) {
           const inSpacer = i >= m.spacerStart && i < m.spacerEnd
           const inPam =
             m.pamStart != null && i >= m.pamStart && i < (m.pamEnd as number)
-          const cls = inSpacer ? 'gt-base spacer' : inPam ? 'gt-base pam' : 'gt-base'
+          const pamFirst = inPam && i === m.pamStart
+          const pamLast = inPam && i === (m.pamEnd as number) - 1
+          const cls = inSpacer
+            ? 'gt-base spacer'
+            : inPam
+              ? `gt-base pam${pamFirst ? ' pam-first' : ''}${pamLast ? ' pam-last' : ''}`
+              : 'gt-base'
           return (
             <span key={i} className={cls}>
+              {pamFirst && (
+                <i className="gt-pam-tag" aria-hidden="true">
+                  PAM
+                </i>
+              )}
               {showCut && m.cutIndex === i && (
                 <i className="gt-cut" aria-hidden="true" />
               )}

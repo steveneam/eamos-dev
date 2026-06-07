@@ -38,6 +38,7 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
   const [pasteDraft, setPasteDraft] = useState('')
   const [search, setSearch] = useState('')
   const [activeMatch, setActiveMatch] = useState(0)
+  const [parsing, setParsing] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const matches = useMemo(() => findMotif(reference.sequence, search), [reference.sequence, search])
@@ -57,16 +58,24 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     setAddError(null)
+    const list = Array.from(files)
     const errors: string[] = []
-    for (const file of Array.from(files)) {
-      try {
-        const parsed = await readFromFile(file)
-        // Auto-orient: pick the orientation that aligns better to the reference.
-        const read = { ...parsed, orientation: bestOrientation(reference, parsed) }
-        setReads((prev) => (prev.some((r) => r.id === read.id) ? prev : [...prev, read]))
-      } catch (error) {
-        errors.push(`${file.name}: ${error instanceof Error ? error.message : 'could not parse'}`)
+    setParsing(list.length)
+    try {
+      for (const file of list) {
+        try {
+          const parsed = await readFromFile(file)
+          // Auto-orient: pick the orientation that aligns better to the reference.
+          const read = { ...parsed, orientation: bestOrientation(reference, parsed) }
+          setReads((prev) => (prev.some((r) => r.id === read.id) ? prev : [...prev, read]))
+        } catch (error) {
+          errors.push(`${file.name}: ${error instanceof Error ? error.message : 'could not parse'}`)
+        } finally {
+          setParsing((n) => Math.max(0, n - 1))
+        }
       }
+    } finally {
+      setParsing(0)
     }
     if (errors.length > 0) setAddError(errors.join(' · '))
   }, [reference])
@@ -240,6 +249,12 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
           </div>
         </div>
       )}
+      {parsing > 0 && (
+        <div className="align-parsing" role="status">
+          <i className="align-spinner" aria-hidden="true" />
+          Parsing {parsing} read{parsing > 1 ? 's' : ''}…
+        </div>
+      )}
       {addError && (
         <div className="align-slot-error" role="alert">
           {addError}
@@ -287,8 +302,16 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
           {reference.label}.
         </div>
       ) : (
-        <div className="align-reads">
-          {reads.map((read) => (
+        <>
+          <div className="align-base-legend" aria-label="Base colours">
+            <span className="field-label">Bases</span>
+            <span className="abl A">A</span>
+            <span className="abl C">C</span>
+            <span className="abl G">G</span>
+            <span className="abl T">T</span>
+          </div>
+          <div className="align-reads">
+            {reads.map((read) => (
             <ReadRow
               key={read.id}
               read={read}
@@ -298,8 +321,9 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
               onToggleOrientation={() => toggleOrientation(read.id)}
               onRemove={() => setReads((prev) => prev.filter((r) => r.id !== read.id))}
             />
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

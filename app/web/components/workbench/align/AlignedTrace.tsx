@@ -51,22 +51,11 @@ export function AlignedTrace({
 }: AlignedTraceProps) {
   const [intensity, setIntensity] = useState(1)
   const [baseStep, setBaseStep] = useState(16)
-  const [controlsShown, setControlsShown] = useState(false)
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Scale controls tuck away by default to keep the trace clean; a persistent
+  // handle pins them open (touch-friendly), and hover/focus reveals them too.
+  const [controlsOpen, setControlsOpen] = useState(false)
+  const [hovering, setHovering] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => () => {
-    if (hideTimer.current) clearTimeout(hideTimer.current)
-  }, [])
-  const reveal = () => {
-    setControlsShown(true)
-    if (hideTimer.current) clearTimeout(hideTimer.current)
-    hideTimer.current = setTimeout(() => setControlsShown(false), 1600)
-  }
-  const hide = () => {
-    if (hideTimer.current) clearTimeout(hideTimer.current)
-    setControlsShown(false)
-  }
 
   const width = Math.max(360, cells.length * baseStep)
   const height = showTrace && trace ? FULL_HEIGHT : CHARS_HEIGHT
@@ -139,8 +128,38 @@ export function AlignedTrace({
   const baseClass = (b: string) => (b === 'A' || b === 'C' || b === 'G' || b === 'T' ? b : 'gap')
 
   return (
-    <div className="aligned-trace" onMouseMove={reveal} onMouseLeave={hide}>
-      <div className={`chromatogram-controls${controlsShown ? ' show' : ''}`} aria-label="Trace scale">
+    <div
+      className="aligned-trace"
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <button
+        type="button"
+        className={`chromatogram-toggle${controlsOpen ? ' active' : ''}`}
+        aria-label="Trace scale controls"
+        aria-expanded={controlsOpen}
+        onClick={() => setControlsOpen((v) => !v)}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <line x1="4" y1="9" x2="20" y2="9" />
+          <circle cx="10" cy="9" r="2.4" fill="var(--bg)" />
+          <line x1="4" y1="16" x2="20" y2="16" />
+          <circle cx="15" cy="16" r="2.4" fill="var(--bg)" />
+        </svg>
+      </button>
+      <div
+        className={`chromatogram-controls${controlsOpen || hovering ? ' show' : ''}`}
+        aria-label="Trace scale"
+      >
         <label title="Peak intensity (vertical scale)">
           <span aria-hidden>↕</span>
           <input type="range" min={0.4} max={3} step={0.1} value={intensity} aria-label="Peak intensity"

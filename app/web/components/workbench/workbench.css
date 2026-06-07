@@ -2233,6 +2233,29 @@
   border-radius: var(--r-md);
   font-size: 12px;
 }
+/* Parsing feedback while .ab1 reads are decoded */
+.align-parsing {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; font-size: 12px; color: var(--ink-3);
+}
+.align-spinner {
+  width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%;
+  border: 1.5px solid var(--line-2); border-top-color: var(--teal);
+  animation: align-spin 0.7s linear infinite;
+}
+@keyframes align-spin { to { transform: rotate(360deg); } }
+/* Base-colour legend (A/C/G/T) — names the trace + read base colours once */
+.align-base-legend {
+  display: flex; align-items: center; gap: 10px;
+  margin: 2px 0; padding: 0 2px;
+}
+.align-base-legend .abl {
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+}
+.align-base-legend .abl.A { color: var(--base-A); }
+.align-base-legend .abl.C { color: var(--base-C); }
+.align-base-legend .abl.G { color: var(--base-G); }
+.align-base-legend .abl.T { color: var(--base-T); }
 .align-results {
   margin-top: 16px;
   display: flex;
@@ -2266,6 +2289,7 @@
   font-size: 12px;
   color: var(--ink);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .align-metric b.ok { color: var(--teal-deep); }
 .align-metric b.warn { color: var(--warn); }
@@ -2676,7 +2700,7 @@
   cursor: pointer;
 }
 .align-nav-btn:hover { border-color: var(--teal); color: var(--teal-deep); }
-.align-diff-count { font-family: var(--mono); font-size: 11px; color: var(--ink-3); min-width: 44px; text-align: center; }
+.align-diff-count { font-family: var(--mono); font-size: 11px; color: var(--ink-3); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
 .align-diff-current {
   font-family: var(--mono);
   font-size: 11px;
@@ -2756,7 +2780,7 @@
 .align-find-nav { display: inline-flex; align-items: center; gap: 6px; }
 .align-find-count {
   font-family: var(--mono); font-size: 11px; color: var(--ink-3);
-  min-width: 64px; text-align: center;
+  min-width: 64px; text-align: center; font-variant-numeric: tabular-nums;
 }
 /* search match highlight in the pairwise block */
 .align-base.search { background: rgba(212, 175, 55, 0.28); }
@@ -2840,9 +2864,23 @@
 .chromatogram-ref.C { fill: var(--base-C); }
 .chromatogram-ref.G { fill: var(--base-G); }
 .chromatogram-ref.gap, .chromatogram-letter.gap { fill: var(--ink-4); }
-/* per-chromatogram scale, revealed on cursor movement (top-right; labels take left) */
+/* Persistent scale handle (top-right) — always visible so the trace-scale
+   controls are discoverable on touch and don't rely on hover. */
+.chromatogram-toggle {
+  position: absolute; top: 6px; right: 6px; z-index: 4;
+  width: 22px; height: 22px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; cursor: pointer;
+  background: var(--bg); border: 0.5px solid var(--line-2);
+  border-radius: var(--r-sm); color: var(--ink-4);
+  box-shadow: 0 1px 4px rgba(60, 50, 30, 0.10);
+}
+.chromatogram-toggle:hover { color: var(--teal-deep); border-color: var(--teal-bdr); }
+.chromatogram-toggle.active {
+  color: var(--teal-deep); border-color: var(--teal); background: var(--teal-tint);
+}
+/* per-chromatogram scale, revealed by the handle / hover / focus (below the handle) */
 .chromatogram-controls {
-  position: absolute; top: 8px; right: 8px; z-index: 3;
+  position: absolute; top: 32px; right: 6px; z-index: 3;
   display: flex; flex-direction: column; gap: 4px;
   background: var(--bg); border: 0.5px solid var(--line-2);
   border-radius: var(--r-sm); padding: 6px 8px;
@@ -3255,8 +3293,9 @@
    base-coloured below. */
 .tool-table td.seq .g-spacer { color: var(--teal-deep); font-weight: 600; }
 .tool-table td.seq .g-pam {
-  color: #633806; background: var(--warn-tint);
-  padding: 1px 3px; border-radius: 3px; margin-left: 2px; font-weight: 600;
+  color: var(--warn-text); background: var(--warn-tint);
+  border: 0.5px solid var(--warn-bdr);
+  padding: 1px 3px; border-radius: 3px; margin-left: 2px; font-weight: 700;
 }
 
 /* Colour-coded 20-mer — reuse the shared --base-* tokens (Align trace /
@@ -3300,7 +3339,24 @@
 }
 .gt-base { position: relative; padding: 1px 0.5px; }
 .gt-base.spacer { background: var(--teal-tint); color: var(--teal-deep); font-weight: 600; }
-.gt-base.pam { background: var(--warn-tint); color: #633806; font-weight: 600; }
+/* PAM box — saturated amber (matches the legend swatch) so the recognition
+   site is unmistakable in the ribbon, not a pale tint lost among the bases. */
+.gt-base.pam {
+  background: var(--warn-bdr); color: var(--warn-text); font-weight: 700;
+  box-shadow: inset 0 0 0 0.5px var(--warn);
+}
+.gt-base.pam.pam-first {
+  border-top-left-radius: 3px; border-bottom-left-radius: 3px; padding-left: 1.5px;
+}
+.gt-base.pam.pam-last {
+  border-top-right-radius: 3px; border-bottom-right-radius: 3px; padding-right: 1.5px;
+}
+/* In-place "PAM" caption above the box (mirrors the viewer's locus-marker tag) */
+.gt-pam-tag {
+  position: absolute; top: -11px; left: 0; font-style: normal;
+  font-family: var(--mono); font-size: 8px; font-weight: 700; line-height: 1;
+  letter-spacing: 0.06em; color: var(--warn); white-space: nowrap;
+}
 .gt-cut {
   position: absolute; left: -1px; top: -3px; bottom: -3px;
   width: 2px; background: var(--err); border-radius: 1px;
