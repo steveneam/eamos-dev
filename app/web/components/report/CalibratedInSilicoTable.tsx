@@ -97,6 +97,13 @@ const PREDICTOR_CATALOG: CatalogEntry[] = [
     metric: 'Genomic-LLM log-likelihood (genome-wide)',
     cal: { range: [-15, 5], higherDamaging: false, source: null },
   },
+  {
+    name: 'CAPICE', category: 'Genome-wide', acmg: 'PP3 / BP4', tier: 'Pro',
+    metric: 'ML pathogenicity 0–1, SNV + indel (consequence-agnostic)',
+    // LGPL-3.0 code, but v5 consumes SpliceAI input features (CC-BY-NC) → Pro-only
+    // per the vault CAPICE build-spec; display-only, no ClinGen calibration.
+    cal: { range: [0, 1], higherDamaging: true, source: null },
+  },
 ]
 
 const CATEGORY_ORDER: PredictorCategory[] = ['Missense', 'Splice', 'Genome-wide', 'Other']

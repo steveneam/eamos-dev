@@ -23,6 +23,8 @@ import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { AfThermometer } from '@/components/report/AfThermometer'
 import { EamosAcmgClassifier } from '@/components/report/EamosAcmgClassifier'
+import { LossOfFunctionBlock } from '@/components/report/LossOfFunctionBlock'
+import { MaveFunctionalBlock } from '@/components/report/MaveFunctionalBlock'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { ReportLoadingState } from '@/components/report/ReportLoadingState'
 import { ExportMenu } from '@/components/report/ExportMenu'
@@ -764,6 +766,9 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             {(section) => <ExpertPanelSection data={section} />}
           </LazySection>
           <ClinVarBlock evidence={data.evidence} />
+          {/* Functional evidence (PS3/BS3) from MaveDB — wet-lab MAVE/DMS assays;
+              sits with the clinical evidence that drives the classification. */}
+          <MaveFunctionalBlock gene={row0?.gene} query={query} />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
@@ -807,6 +812,10 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               </>
             )}
           </LazySection>
+          {/* Loss-of-function (PVS1) — NMD prediction + Abou-Tayoun PVS1 tree.
+              Computational, so it lives with the in-silico predictions; N/A for
+              non-null variants (e.g. missense). */}
+          <LossOfFunctionBlock consequence={row0?.consequence ?? row0?.variation_type ?? null} />
           {/* Eamos automated ACMG estimate (InterVar-style) — combines the met
               §1 criteria into a rule-based verdict; useful for novel variants. */}
           <EamosAcmgClassifier data={payload.acmg_criteria_scaffold} />
