@@ -24,8 +24,13 @@ from app.services.local_evidence_orchestrator import (
 )
 from app.services.predictor_runtime import (
     ALPHAMISSENSE_SOURCE_ID,
+    CAPICE_FEATURE_CACHE_SOURCE_ID,
+    CAPICE_SOURCE_ID,
+    CI_SPLICEAI_SOURCE_ID,
     ESM1B_SOURCE_ID,
     inspect_alphamissense_runtime_asset,
+    inspect_capice_runtime_assets,
+    inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
 )
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
@@ -207,7 +212,7 @@ def build_backend_build_ledger(
             item_id="ci_spliceai",
             label="CI-SpliceAI compute lane",
             group="predictor",
-            source_ids=("ci_spliceai_model", LOCAL_HG38_2BIT_SOURCE_ID),
+            source_ids=(CI_SPLICEAI_SOURCE_ID, LOCAL_HG38_2BIT_SOURCE_ID),
             engine="TensorFlow/Keras on-demand compute with tabix score cache",
             durable_source="supabase_private_storage",
             runtime_source="render_disk_model_reference_and_score_cache",
@@ -216,11 +221,15 @@ def build_backend_build_ledger(
                 "Model, reference, and cache need local files. Backend serialization is allowed "
                 "for Steven/admin use; launch filtering can use source metadata."
             ),
-            status="score_cache_missing",
+            status=predictor_statuses["ci_spliceai"],
             runtime_wired=True,
             public_serialization_allowed=True,
             launch_gate="ci_spliceai_launch_filter_metadata",
-            blockers=("model_reference_materialization", "score_cache_materialization"),
+            blockers=(
+                ()
+                if predictor_statuses["ci_spliceai"] == "ready"
+                else ("model_reference_materialization", "score_cache_materialization")
+            ),
             wired_surfaces=("lookup", "report", "acmg_calibration"),
             next_action="Materialize model/reference/score cache and verify runtime resource envelope.",
         ),
@@ -244,7 +253,7 @@ def build_backend_build_ledger(
             item_id="capice",
             label="CAPICE",
             group="predictor",
-            source_ids=("capice_model", "illumina_spliceai_precomputed_hg38"),
+            source_ids=(CAPICE_SOURCE_ID, CAPICE_FEATURE_CACHE_SOURCE_ID),
             engine="XGBoost over VEP-style features",
             durable_source="supabase_private_storage",
             runtime_source="render_disk_model_and_feature_cache",
@@ -253,11 +262,15 @@ def build_backend_build_ledger(
                 "Model and SpliceAI-derived feature cache are backend runtime assets. "
                 "Commercialization filtering is launch metadata, not a backend integration block."
             ),
-            status="model_artifact_missing",
+            status=predictor_statuses["capice"],
             runtime_wired=True,
             public_serialization_allowed=True,
             launch_gate="capice_launch_filter_metadata",
-            blockers=("capice_model_materialization", "spliceai_feature_cache_materialization"),
+            blockers=(
+                ()
+                if predictor_statuses["capice"] == "ready"
+                else ("capice_model_materialization", "spliceai_feature_cache_materialization")
+            ),
             wired_surfaces=("lookup", "report", "acmg_calibration"),
             next_action="Materialize CAPICE model and feature cache; connect scorer once artifacts exist.",
         ),
@@ -411,12 +424,27 @@ def _predictor_statuses(
             registry=registry,
             materialization_store=materialization_store,
         ),
+        "ci_spliceai": _safe_admin_predictor_status(
+            inspect_ci_spliceai_runtime_assets,
+            settings,
+        ),
+        "capice": _safe_admin_predictor_status(
+            inspect_capice_runtime_assets,
+            settings,
+        ),
     }
 
 
 def _safe_predictor_status(inspector, settings: Settings, **kwargs: Any) -> str:
     try:
         return inspector(settings, verify_checksum=False, **kwargs).status.value
+    except Exception:
+        return "runtime_asset_probe_failed"
+
+
+def _safe_admin_predictor_status(inspector, settings: Settings) -> str:
+    try:
+        return str(inspector(settings).status)
     except Exception:
         return "runtime_asset_probe_failed"
 

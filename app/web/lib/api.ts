@@ -1,6 +1,10 @@
 import type {
+  CrisprOffTargetRequest,
+  CrisprOffTargetResponse,
   CrisprRequest,
   CrisprResponse,
+  CrisprScreeningPrimerRequest,
+  CrisprScreeningPrimerResponse,
   GeneViewerRequest,
   GeneViewerResponse,
   LookupInitialSummaryResponse,
@@ -16,6 +20,10 @@ import type { AlignApiResponseShape } from './workbench/alignment-pairwise'
 import { GENE_VIEWER_SAMPLE } from './workbench/gene-viewer-sample'
 import { PRIMER_SAMPLE } from './workbench/primer-sample'
 import { CRISPR_SAMPLE } from './workbench/crispr-sample'
+import {
+  OFFTARGET_SAMPLE,
+  mockScreeningPrimers,
+} from './workbench/crispr-offtarget-sample'
 import { ALIGN_SAMPLE } from './workbench/align-sample'
 import { CRISPR_TIDE_SAMPLE, type CrisprTideResult } from './workbench/crispr-tide-sample'
 
@@ -196,6 +204,48 @@ export async function designGuides(payload: CrisprRequest): Promise<CrisprRespon
     return await parseResponse<CrisprResponse>(response)
   } catch (err) {
     if (err instanceof TypeError) return CRISPR_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+// The CRISPR off-target endpoints are new + backend-gated (mock-first per
+// docs/crispr-offtarget-screening/spec.md). Until Codex's route is deployed the
+// backend answers 404, so we treat 404 (route absent) the same as a TypeError
+// (backend down): fall back to the bundled sample so the surface renders and
+// self-heals once the endpoint lands. Real errors (400/422/500) still surface.
+export async function enumerateOffTargets(
+  payload: CrisprOffTargetRequest,
+): Promise<CrisprOffTargetResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/crispr/offtargets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (response.status === 404) return OFFTARGET_SAMPLE // endpoint not deployed → mock
+    return await parseResponse<CrisprOffTargetResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError) return OFFTARGET_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+export async function designScreeningPrimers(
+  payload: CrisprScreeningPrimerRequest,
+): Promise<CrisprScreeningPrimerResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/crispr/screening-primers`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
+    if (response.status === 404) return mockScreeningPrimers(payload) // endpoint not deployed → mock
+    return await parseResponse<CrisprScreeningPrimerResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError) return mockScreeningPrimers(payload) // backend down → mock
     throw err
   }
 }

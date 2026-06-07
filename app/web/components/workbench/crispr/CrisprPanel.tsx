@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { DesignTab } from './DesignTab'
+import { OffTargetTab } from './OffTargetTab'
 import { OutcomesTab } from './OutcomesTab'
 
 interface CrisprPanelProps {
@@ -9,7 +10,19 @@ interface CrisprPanelProps {
   cdna: string
 }
 
-type SubTab = 'design' | 'outcomes'
+type SubTab = 'design' | 'offtargets' | 'outcomes'
+
+const TAB_TITLE: Record<SubTab, string> = {
+  design: 'Guide design & repair',
+  offtargets: 'Off-target screening',
+  outcomes: 'Editing outcomes',
+}
+
+const TAB_SUB: Record<SubTab, string> = {
+  design: 'Local SpCas9 design surface / ssODN HDR template',
+  offtargets: 'Enumerate → curate → screening primers for off-target validation',
+  outcomes: 'Observed-only spectrum unless backend provides TIDE/Lindel data',
+}
 
 /**
  * CRISPR tool panel. Design is the local SpCas9 gRNA/HDR surface; Outcomes
@@ -22,14 +35,8 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
     <div className="crispr-panel">
       <div className="tool-panel-head">
         <div>
-          <h2 className="tool-panel-title">
-            {tab === 'design' ? 'Guide design & repair' : 'Editing outcomes'}
-          </h2>
-          <span className="tool-panel-sub">
-            {tab === 'design'
-              ? 'Local SpCas9 design surface / ssODN HDR template'
-              : 'Observed-only spectrum unless backend provides TIDE/Lindel data'}
-          </span>
+          <h2 className="tool-panel-title">{TAB_TITLE[tab]}</h2>
+          <span className="tool-panel-sub">{TAB_SUB[tab]}</span>
         </div>
         <div className="seg" role="tablist" aria-label="CRISPR sub-tool">
           <button
@@ -40,6 +47,15 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             onClick={() => setTab('design')}
           >
             Design
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'offtargets'}
+            className={tab === 'offtargets' ? 'active' : ''}
+            onClick={() => setTab('offtargets')}
+          >
+            Off-targets
           </button>
           <button
             type="button"
@@ -55,6 +71,8 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
 
       {tab === 'design' ? (
         <DesignTab gene={gene} cdna={cdna} />
+      ) : tab === 'offtargets' ? (
+        <OffTargetTab gene={gene} cdna={cdna} />
       ) : (
         <OutcomesTab />
       )}

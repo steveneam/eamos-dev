@@ -32,6 +32,8 @@ from app.services.local_evidence_orchestrator import (
 )
 from app.services.predictor_runtime import (
     inspect_alphamissense_runtime_asset,
+    inspect_capice_runtime_assets,
+    inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
 )
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
@@ -390,24 +392,8 @@ def _predictor_runtime_asset_summary(
             "storage_required": pvs1_nmd.storage_required,
             "status_notes": list(pvs1_nmd.warnings),
         },
-        "ci_spliceai": _admin_predictor_lane_summary(
-            source_id="ci_spliceai_model",
-            status="score_cache_missing",
-            launch_gate="ci_spliceai_launch_filter_metadata",
-            status_notes=(
-                "model_reference_materialization_required",
-                "score_cache_materialization_required",
-            ),
-        ),
-        "capice": _admin_predictor_lane_summary(
-            source_id="capice_model",
-            status="model_artifact_missing",
-            launch_gate="capice_launch_filter_metadata",
-            status_notes=(
-                "capice_model_materialization_required",
-                "spliceai_feature_cache_materialization_required",
-            ),
-        ),
+        "ci_spliceai": inspect_ci_spliceai_runtime_assets(settings).to_sanitized_dict(),
+        "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
         "public_serialization_locked": [],
         "launch_gated": ["esm1b", "ci_spliceai", "capice"],
     }
@@ -430,24 +416,6 @@ def _predictor_runtime_summary(
         "materialization_status": inspection.materialization_status,
         "public_serialization_allowed": public_serialization_allowed,
         "launch_gate": launch_gate,
-    }
-
-
-def _admin_predictor_lane_summary(
-    *,
-    source_id: str,
-    status: str,
-    launch_gate: str,
-    status_notes: tuple[str, ...],
-) -> dict[str, Any]:
-    return {
-        "source_id": source_id,
-        "status": status,
-        "available": False,
-        "runtime_wired": True,
-        "public_serialization_allowed": True,
-        "launch_gate": launch_gate,
-        "status_notes": list(status_notes),
     }
 
 

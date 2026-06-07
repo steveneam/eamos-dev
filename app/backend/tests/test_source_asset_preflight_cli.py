@@ -193,6 +193,50 @@ def test_source_asset_preflight_reports_compact_coordinate_index_ready_without_p
     assert "eamos-coordinate-index" not in encoded
 
 
+def test_source_asset_preflight_reports_ready_admin_predictors_without_paths(
+    tmp_path: Path,
+) -> None:
+    ci_model = _write_runtime_file(tmp_path / "ci" / "model.keras", b"model")
+    ci_reference = _write_runtime_file(tmp_path / "ci" / "reference.json", b"reference")
+    ci_cache = _write_indexed_runtime_file(tmp_path / "ci" / "scores.vcf.gz", b"scores")
+    capice_model = _write_runtime_file(tmp_path / "capice" / "model.json", b"model")
+    capice_features = _write_indexed_runtime_file(
+        tmp_path / "capice" / "features.tsv.gz",
+        b"features",
+    )
+    settings = Settings(
+        jwt_secret="test-secret",
+        ci_spliceai_model_path=ci_model,
+        ci_spliceai_reference_path=ci_reference,
+        ci_spliceai_score_cache_path=ci_cache,
+        capice_model_path=capice_model,
+        capice_feature_cache_path=capice_features,
+    )
+
+    output = build_source_asset_preflight_report(settings=settings)
+
+    predictors = output["predictor_runtime_assets"]
+    assert predictors["ci_spliceai"]["status"] == "ready"
+    assert predictors["ci_spliceai"]["available"] is True
+    assert predictors["ci_spliceai"]["status_notes"] == []
+    assert predictors["capice"]["status"] == "ready"
+    assert predictors["capice"]["available"] is True
+    assert predictors["capice"]["status_notes"] == []
+    ledger_items = {item["item_id"]: item for item in output["build_ledger"]["items"]}
+    assert ledger_items["ci_spliceai"]["status"] == "ready"
+    assert ledger_items["ci_spliceai"]["blockers"] == []
+    assert ledger_items["capice"]["status"] == "ready"
+    assert ledger_items["capice"]["blockers"] == []
+    encoded = json.dumps(
+        {
+            "predictor_runtime_assets": predictors,
+            "build_ledger": output["build_ledger"],
+        }
+    ).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "supabase://" not in encoded
+
+
 def test_source_asset_preflight_records_docx_reconciliation_and_policy(
     tmp_path: Path,
     capsys,
@@ -381,3 +425,15 @@ def test_docx_supplement_records_local_protein_annotation_gap_without_api_depend
 class ExplodingMaterializationStore:
     def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord:
         raise RuntimeError("database unavailable at postgresql://private.example/path")
+
+
+def _write_runtime_file(path: Path, payload: bytes) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+    return path
+
+
+def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
+    _write_runtime_file(path, payload)
+    Path(f"{path}.tbi").write_bytes(b"index")
+    return path

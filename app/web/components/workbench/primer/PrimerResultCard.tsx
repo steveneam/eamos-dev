@@ -83,12 +83,23 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
     >
       {/* ── Layer 1 — decision surface ─────────────────────────────── */}
       <header className="primer-l1">
-        <span className={`primer-badge tone-${badge.tone}`}>
+        <span
+          className={`primer-badge tone-${badge.tone}`}
+          title="Overall verdict for this pair — a quick read on the balance of Tm match, GC content, and specificity."
+        >
           <i className="primer-badge-dot" />
           {badge.label}
         </span>
         <span className="primer-l1-id">
-          {pair.recommended && <span className="primer-star" aria-hidden>★</span>}
+          {pair.recommended && (
+            <span
+              className="primer-star"
+              title="Recommended pair — the best overall balance of the metrics."
+              aria-hidden
+            >
+              ★
+            </span>
+          )}
           Primer pair #{pair.index}
           {pair.recommended && <span className="sr-only"> (recommended)</span>}
         </span>
@@ -97,6 +108,7 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
           className="primer-copy"
           onClick={copyPair}
           aria-live="polite"
+          title="Copy the forward and reverse primer sequences to the clipboard."
         >
           {copied === 'ok'
             ? 'Copied'
@@ -160,6 +172,7 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
         aria-expanded={open}
         aria-controls={drawerId}
         onClick={() => setOpen((o) => !o)}
+        title="Open the thermodynamics + specificity breakdown for this pair."
       >
         <svg
           className={`primer-chev${open ? ' open' : ''}`}

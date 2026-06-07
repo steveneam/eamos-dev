@@ -1184,6 +1184,10 @@ export interface ChatResponse {
 // ─────────────────────────────────────────────────────────────
 
 export type PrimerMode = 'sanger' | 'qpcr' | 'arms'
+export type SecondaryStructureRisk = 'low' | 'moderate' | 'high' | 'not_assessed'
+export type SsodnProtocol = 'lab_genomic' | 'guide_pam_block'
+export type SsodnOrientation = 'sense' | 'antisense'
+export type SsodnStrandRequest = 'auto' | '+' | '-'
 
 export interface PrimerRequest {
   gene: string
@@ -1206,6 +1210,8 @@ export interface PrimerPair {
   gc_reverse: number
   product_size: number
   specificity_hits: number
+  secondary_structure_risk?: SecondaryStructureRisk
+  secondary_structure_notes?: string
   notes?: string
   recommended?: boolean
 }
@@ -1252,6 +1258,144 @@ export interface CrisprResponse {
   ssodn?: HdrSsodn | null
 }
 
+export interface CrisprSsodnRequest {
+  gene: string
+  cdna: string
+  transcript?: string | null
+  protein_change?: string | null
+  species?: 'human' | 'mouse'
+  genome_build?: string
+  oligo_length?: number
+  variant_offset?: number | null
+  strand?: SsodnStrandRequest
+  orientation?: SsodnOrientation
+  protocol?: SsodnProtocol
+  guide_sequence?: string | null
+  pam_sequence?: string | null
+  pam_blocking_enabled?: boolean
+}
+
+export interface CrisprSsodnDesign {
+  reference_arm: string
+  variant_arm: string
+  repair_template: string
+  edits_encoded: string[]
+  arm_lengths: Record<string, number>
+  estimated_hdr_efficiency: number
+  oligo_sequence: string
+  oligo_length: number
+  oligo_name: string
+  variant_offset: number
+  intron_mask: boolean[]
+  strand: '+' | '-'
+  orientation: SsodnOrientation
+  protocol: SsodnProtocol
+  template_source: string
+  genome_build: string
+}
+
+export interface CrisprSsodnResponse {
+  genome_build: string
+  ssodn: CrisprSsodnDesign
+  warnings: string[]
+}
+
+export interface CrisprOffTargetLocus {
+  chromosome: string
+  position: number
+  strand?: '+' | '-'
+}
+
+export interface CrisprOffTargetRequest {
+  guide: string
+  pam?: string
+  enzyme?: CasEnzyme
+  genome_build?: string
+  max_mismatches?: number
+  on_target_locus?: CrisprOffTargetLocus | null
+}
+
+export interface CrisprOffTargetSite {
+  sequence: string
+  pam: string
+  score: number
+  mismatches: number
+  gene?: string | null
+  gene_id?: string | null
+  biotype?: string | null
+  chromosome: string
+  strand: '+' | '-'
+  position: number
+  on_target: boolean
+}
+
+export interface CrisprOffTargetResponse {
+  genome_build: string
+  sites: CrisprOffTargetSite[]
+}
+
+export interface CrisprScreeningRegion {
+  chromosome: string
+  start: number
+  end: number
+  genome_build?: string
+  strand?: '+' | '-'
+}
+
+export interface CrisprScreeningPrimerTarget {
+  site_index: number
+  point?: string | null
+  chromosome?: string | null
+  position?: number | null
+  strand?: '+' | '-'
+  region?: CrisprScreeningRegion | null
+  template_sequence?: string | null
+  target_offset?: number | null
+  sequence?: string | null
+  pam?: string | null
+}
+
+export interface CrisprScreeningPrimerRequest {
+  sites: CrisprScreeningPrimerTarget[]
+  genome_build?: string
+  flank_bp?: number
+  naming_prefix?: string
+  mode?: PrimerMode
+  tm_min?: number
+  tm_max?: number
+  product_size_min?: number
+  product_size_max?: number
+  avoid_snps?: boolean
+}
+
+export interface ScreeningPrimer {
+  site_index: number
+  point: string
+  region: string
+  name_forward: string
+  name_reverse: string
+  forward: string
+  reverse: string
+  tm_forward: number
+  tm_reverse: number
+  gc_forward: number
+  gc_reverse: number
+  product_size: number
+  specificity_hits: number
+  other_products: string
+  secondary_structure_risk?: SecondaryStructureRisk
+  secondary_structure_notes?: string
+  recommended?: boolean
+  notes?: string
+  template_source: string
+}
+
+export interface CrisprScreeningPrimerResponse {
+  mode: PrimerMode
+  primers: ScreeningPrimer[]
+  warnings: string[]
+}
+
 export interface AlignRequest {
   gene: string
   cdna: string
@@ -1259,9 +1403,45 @@ export interface AlignRequest {
   ab1_blob_base64?: string | null
 }
 
+export interface AlignTraceRequest {
+  ab1_blob_base64: string
+}
+
 export interface TraceChannel {
   base: 'A' | 'T' | 'C' | 'G'
   values: number[]
+}
+
+export interface AlignTraceTrimRange {
+  start: number
+  end: number
+  method: string
+  q_cutoff: number
+}
+
+export interface AlignTraceHetCall {
+  index: number
+  called_base: 'A' | 'T' | 'C' | 'G'
+  secondary_base: 'A' | 'T' | 'C' | 'G'
+  main_ratio: number
+  flank_ratio: number
+  avg_q: number
+  primary_signal: number
+  secondary_signal: number
+}
+
+export interface AlignTraceResponse {
+  sequence: string
+  base_calls: string[]
+  q_scores: number[]
+  base_confidence: number[]
+  peak_locations: number[]
+  trace_channels: TraceChannel[]
+  sample_count: number
+  trim: AlignTraceTrimRange
+  het: AlignTraceHetCall[]
+  noise_floor: number
+  warnings: string[]
 }
 
 export interface AlignResponse {

@@ -174,6 +174,51 @@ def test_provider_cache_health_reports_compact_coordinate_index_ready_without_pa
     assert "eamos-coordinate-index" not in encoded
 
 
+def test_provider_cache_health_reports_ready_admin_predictors_without_paths(
+    tmp_path: Path,
+) -> None:
+    ci_model = _write_runtime_file(tmp_path / "ci" / "model.keras", b"model")
+    ci_reference = _write_runtime_file(tmp_path / "ci" / "reference.json", b"reference")
+    ci_cache = _write_indexed_runtime_file(tmp_path / "ci" / "scores.vcf.gz", b"scores")
+    capice_model = _write_runtime_file(tmp_path / "capice" / "model.json", b"model")
+    capice_features = _write_indexed_runtime_file(
+        tmp_path / "capice" / "features.tsv.gz",
+        b"features",
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        ci_spliceai_model_path=ci_model,
+        ci_spliceai_reference_path=ci_reference,
+        ci_spliceai_score_cache_path=ci_cache,
+        capice_model_path=capice_model,
+        capice_feature_cache_path=capice_features,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    body = response.json()
+    indexed = body["providers"]["indexed_predictors"]
+    assert indexed["ci_spliceai"]["status"] == "ready"
+    assert indexed["ci_spliceai"]["available"] is True
+    assert indexed["ci_spliceai"]["status_notes"] == []
+    assert indexed["capice"]["status"] == "ready"
+    assert indexed["capice"]["available"] is True
+    assert indexed["capice"]["status_notes"] == []
+    ledger_items = {item["item_id"]: item for item in body["build_ledger"]["items"]}
+    assert ledger_items["ci_spliceai"]["status"] == "ready"
+    assert ledger_items["ci_spliceai"]["blockers"] == []
+    assert ledger_items["capice"]["status"] == "ready"
+    assert ledger_items["capice"]["blockers"] == []
+    encoded = json.dumps(body).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "supabase://" not in encoded
+
+
 def test_provider_cache_health_summarizes_source_cache_without_identity_leaks(client) -> None:
     repo = client.app.state.source_cache_repo
     repo.upsert(
@@ -405,4 +450,16 @@ def _fake_executable(tmp_path: Path, name: str) -> Path:
     else:
         path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
+    return path
+
+
+def _write_runtime_file(path: Path, payload: bytes) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+    return path
+
+
+def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
+    _write_runtime_file(path, payload)
+    Path(f"{path}.tbi").write_bytes(b"index")
     return path

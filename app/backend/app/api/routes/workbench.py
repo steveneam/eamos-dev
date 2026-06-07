@@ -8,8 +8,16 @@ from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
 from app.schemas.workbench import (
     AlignRequest,
     AlignResponse,
+    AlignTraceRequest,
+    AlignTraceResponse,
+    CrisprOffTargetRequest,
+    CrisprOffTargetResponse,
     CrisprRequest,
     CrisprResponse,
+    CrisprScreeningPrimerRequest,
+    CrisprScreeningPrimerResponse,
+    CrisprSsodnRequest,
+    CrisprSsodnResponse,
     PrimerRequest,
     PrimerResponse,
 )
@@ -24,7 +32,17 @@ router = APIRouter(prefix="/api/v1", tags=["workbench"])
 class WorkbenchService(Protocol):
     def design_primers(self, payload: PrimerRequest) -> PrimerResponse: ...
     def design_guides(self, payload: CrisprRequest) -> CrisprResponse: ...
+    def enumerate_crispr_offtargets(
+        self,
+        payload: CrisprOffTargetRequest,
+    ) -> CrisprOffTargetResponse: ...
+    def design_crispr_screening_primers(
+        self,
+        payload: CrisprScreeningPrimerRequest,
+    ) -> CrisprScreeningPrimerResponse: ...
+    def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse: ...
     def align(self, payload: AlignRequest) -> AlignResponse: ...
+    def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse: ...
 
 
 def _workbench_service(request: Request) -> WorkbenchService:
@@ -66,10 +84,55 @@ def design_guides(payload: CrisprRequest, request: Request) -> CrisprResponse:
         _raise_workbench_error(exc)
 
 
+@router.post("/crispr/offtargets", response_model=CrisprOffTargetResponse)
+def enumerate_crispr_offtargets(
+    payload: CrisprOffTargetRequest,
+    request: Request,
+) -> CrisprOffTargetResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+    try:
+        return _workbench_service(request).enumerate_crispr_offtargets(payload)
+    except WorkbenchDesignError as exc:
+        _raise_workbench_error(exc)
+
+
+@router.post("/crispr/screening-primers", response_model=CrisprScreeningPrimerResponse)
+def design_crispr_screening_primers(
+    payload: CrisprScreeningPrimerRequest,
+    request: Request,
+) -> CrisprScreeningPrimerResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+    try:
+        return _workbench_service(request).design_crispr_screening_primers(payload)
+    except WorkbenchDesignError as exc:
+        _raise_workbench_error(exc)
+
+
+@router.post("/crispr/ssodn", response_model=CrisprSsodnResponse)
+def design_crispr_ssodn(
+    payload: CrisprSsodnRequest,
+    request: Request,
+) -> CrisprSsodnResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+    try:
+        return _workbench_service(request).design_crispr_ssodn(payload)
+    except WorkbenchDesignError as exc:
+        _raise_workbench_error(exc)
+
+
 @router.post("/align", response_model=AlignResponse)
 def align(payload: AlignRequest, request: Request) -> AlignResponse:
     enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _workbench_service(request).align(payload)
+    except WorkbenchDesignError as exc:
+        _raise_workbench_error(exc)
+
+
+@router.post("/align/trace", response_model=AlignTraceResponse)
+def analyze_trace(payload: AlignTraceRequest, request: Request) -> AlignTraceResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+    try:
+        return _workbench_service(request).analyze_trace(payload)
     except WorkbenchDesignError as exc:
         _raise_workbench_error(exc)

@@ -11,6 +11,8 @@
       "gc_reverse": 65,
       "product_size": 487,
       "specificity_hits": 1,
+      "secondary_structure_risk": "not_assessed",
+      "secondary_structure_notes": "Primer3 secondary-structure metrics were not returned.",
       "notes": "Optimal Tm balance; single specific hit; flanks c.260 by 178/309 bp.",
       "recommended": true
     },
@@ -24,6 +26,8 @@
       "gc_reverse": 62,
       "product_size": 412,
       "specificity_hits": 1,
+      "secondary_structure_risk": "not_assessed",
+      "secondary_structure_notes": "Primer3 secondary-structure metrics were not returned.",
       "notes": "Slightly wider Tm spread; useful if pair #1 fails.",
       "recommended": false
     },
@@ -37,6 +41,8 @@
       "gc_reverse": 62,
       "product_size": 524,
       "specificity_hits": 2,
+      "secondary_structure_risk": "not_assessed",
+      "secondary_structure_notes": "Primer3 secondary-structure metrics were not returned.",
       "notes": "Tighter Tm but two BLAST hits \u2014 risk of pseudogene cross-reactivity.",
       "recommended": false
     }

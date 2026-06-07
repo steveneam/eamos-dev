@@ -17,8 +17,16 @@ from app.core.config import Settings
 from app.schemas.workbench import (
     AlignRequest,
     AlignResponse,
+    AlignTraceRequest,
+    AlignTraceResponse,
+    CrisprOffTargetRequest,
+    CrisprOffTargetResponse,
     CrisprRequest,
     CrisprResponse,
+    CrisprScreeningPrimerRequest,
+    CrisprScreeningPrimerResponse,
+    CrisprSsodnRequest,
+    CrisprSsodnResponse,
     PrimerPair,
     PrimerRequest,
     PrimerResponse,
@@ -32,6 +40,12 @@ from app.services.crispr_design import (
     CrisprScoreRBackedCrisprProvider,
     LocalDeterministicCrisprProvider,
 )
+from app.services.crispr_offtarget_screening import (
+    CrisprOffTargetScreeningInputError,
+    MockCasOffinderOffTargetProvider,
+    design_screening_primers,
+)
+from app.services.crispr_ssodn import CrisprSsodnInputError, design_ssodn
 from app.services.sequence_context import (
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     SequenceContext,
@@ -39,6 +53,7 @@ from app.services.sequence_context import (
     SequenceContextService,
     unsupported_input_warning,
 )
+from app.services.trace_analysis import analyze_parsed_trace
 from app.services.trace_parser import (
     TRACE_INVALID_BASE64,
     TRACE_PAYLOAD_TOO_LARGE,
@@ -140,6 +155,10 @@ class CrisprDesignProvider(Protocol):
     def design(self, payload: CrisprRequest, context: SequenceContext) -> CrisprResponse: ...
 
 
+class CrisprOffTargetProvider(Protocol):
+    def enumerate(self, payload: CrisprOffTargetRequest) -> CrisprOffTargetResponse: ...
+
+
 class AlignProvider(Protocol):
     def align(self, payload: AlignRequest, context: SequenceContext) -> AlignResponse: ...
 
@@ -180,6 +199,12 @@ class PrimerSpecificityResult:
     @property
     def supports_recommendation(self) -> bool:
         return self.hits == 1 and self.intended_hits == 1
+
+
+@dataclass(frozen=True)
+class PrimerSecondaryStructureAssessment:
+    risk: str
+    notes: str
 
 
 class PrimerSpecificityProvider(Protocol):
@@ -1179,6 +1204,7 @@ def _primer3_pairs(
             product_max=product_max,
             context=context,
         )
+        secondary_structure = _primer3_secondary_structure(raw_result, idx)
         pair_rows.append(
             (
                 {
@@ -1190,6 +1216,8 @@ def _primer3_pairs(
                     "gc_forward": round(gc_forward, 1),
                     "gc_reverse": round(gc_reverse, 1),
                     "product_size": product_size,
+                    "secondary_structure_risk": secondary_structure.risk,
+                    "secondary_structure_notes": secondary_structure.notes,
                 },
                 specificity,
             )
@@ -1218,6 +1246,52 @@ def _primer3_pairs(
             )
         )
     return pairs
+
+
+def _primer3_secondary_structure(
+    raw_result: dict[str, Any],
+    pair_index: int,
+) -> PrimerSecondaryStructureAssessment:
+    metric_keys = {
+        "forward self-any": f"PRIMER_LEFT_{pair_index}_SELF_ANY_TH",
+        "forward self-end": f"PRIMER_LEFT_{pair_index}_SELF_END_TH",
+        "forward hairpin": f"PRIMER_LEFT_{pair_index}_HAIRPIN_TH",
+        "reverse self-any": f"PRIMER_RIGHT_{pair_index}_SELF_ANY_TH",
+        "reverse self-end": f"PRIMER_RIGHT_{pair_index}_SELF_END_TH",
+        "reverse hairpin": f"PRIMER_RIGHT_{pair_index}_HAIRPIN_TH",
+        "pair complement-any": f"PRIMER_PAIR_{pair_index}_COMPL_ANY_TH",
+        "pair complement-end": f"PRIMER_PAIR_{pair_index}_COMPL_END_TH",
+    }
+    metrics: dict[str, float] = {}
+    for label, key in metric_keys.items():
+        value = raw_result.get(key)
+        if value in (None, ""):
+            continue
+        try:
+            metrics[label] = float(value)
+        except (TypeError, ValueError):
+            continue
+
+    if not metrics:
+        return PrimerSecondaryStructureAssessment(
+            risk="not_assessed",
+            notes="Primer3 secondary-structure metrics were not returned.",
+        )
+
+    worst_label, worst_value = max(metrics.items(), key=lambda item: item[1])
+    if worst_value >= 47.0:
+        risk = "high"
+    elif worst_value >= 35.0:
+        risk = "moderate"
+    else:
+        risk = "low"
+    return PrimerSecondaryStructureAssessment(
+        risk=risk,
+        notes=(
+            "Primer3 thermodynamic secondary-structure screen "
+            f"{risk}; max {worst_label} {worst_value:.1f}."
+        ),
+    )
 
 
 def _primer3_notes(
@@ -1286,6 +1360,7 @@ class WorkbenchDesignService:
         sequence_context_service: SequenceContextService | None = None,
         primer_provider: PrimerDesignProvider | None = None,
         crispr_provider: CrisprDesignProvider | None = None,
+        crispr_offtarget_provider: CrisprOffTargetProvider | None = None,
         align_provider: AlignProvider | None = None,
     ) -> None:
         self.settings = settings
@@ -1297,6 +1372,9 @@ class WorkbenchDesignService:
             specificity_provider=_default_specificity_provider(settings)
         )
         self.crispr_provider = crispr_provider or _default_crispr_provider(settings)
+        self.crispr_offtarget_provider = (
+            crispr_offtarget_provider or MockCasOffinderOffTargetProvider()
+        )
         self.align_provider = align_provider or LocalSangerAlignmentProvider()
 
     def design_primers(self, payload: PrimerRequest) -> PrimerResponse:
@@ -1309,10 +1387,112 @@ class WorkbenchDesignService:
             return self._design_real_guides(payload)
         return self.fixture_provider.crispr(payload)
 
+    def enumerate_crispr_offtargets(
+        self,
+        payload: CrisprOffTargetRequest,
+    ) -> CrisprOffTargetResponse:
+        try:
+            return self.crispr_offtarget_provider.enumerate(payload)
+        except CrisprOffTargetScreeningInputError as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=exc.warnings,
+            ) from exc
+        except WorkbenchDesignError:
+            raise
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="CRISPR off-target provider failed for the requested guide.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+
+    def design_crispr_screening_primers(
+        self,
+        payload: CrisprScreeningPrimerRequest,
+    ) -> CrisprScreeningPrimerResponse:
+        try:
+            primers, warnings = design_screening_primers(
+                payload,
+                primer_provider=self.primer_provider,
+            )
+        except CrisprOffTargetScreeningInputError as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=exc.warnings,
+            ) from exc
+        except WorkbenchDesignError:
+            raise
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="CRISPR screening-primer provider failed for the selected sites.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+        return CrisprScreeningPrimerResponse(
+            mode=payload.mode,
+            primers=primers,
+            warnings=warnings,
+        )
+
+    def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse:
+        try:
+            return design_ssodn(payload, None)
+        except CrisprSsodnInputError as local_exc:
+            if local_exc.code != unsupported_input_warning("ssodn_sequence_context"):
+                raise WorkbenchDesignError(
+                    code=local_exc.code,
+                    message=local_exc.message,
+                    status_code=HTTP_UNPROCESSABLE_ENTITY,
+                    warnings=local_exc.warnings,
+                ) from local_exc
+
+        try:
+            sequence_result = self.sequence_context_service.resolve(
+                gene=payload.gene,
+                cdna=payload.cdna,
+            )
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="Sequence context provider failed while preparing ssODN design.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+
+        try:
+            return design_ssodn(
+                payload,
+                sequence_result.context,
+                context_warnings=list(sequence_result.warnings),
+            )
+        except CrisprSsodnInputError as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=exc.warnings,
+            ) from exc
+        except WorkbenchDesignError:
+            raise
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="ssODN provider failed for the requested variant.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+
     def align(self, payload: AlignRequest) -> AlignResponse:
         if self.settings is not None and self.settings.use_real_apis:
             return self._align_real(payload)
         return self.fixture_provider.align(payload)
+
+    def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse:
+        trace = _parse_ab1_trace(payload.ab1_blob_base64)
+        return analyze_parsed_trace(trace)
 
     def _design_real_primers(self, payload: PrimerRequest) -> PrimerResponse:
         try:

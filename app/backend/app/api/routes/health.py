@@ -16,6 +16,8 @@ from app.data_sources.runtime_assets import (
 )
 from app.services.predictor_runtime import (
     inspect_alphamissense_runtime_asset,
+    inspect_capice_runtime_assets,
+    inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
 )
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
@@ -170,17 +172,7 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             public_serialization_allowed=True,
             launch_gate="esm1b_score_file_terms_unconfirmed",
         ),
-        "ci_spliceai": {
-            "available": False,
-            "status": "score_cache_missing",
-            "runtime_wired": True,
-            "public_serialization_allowed": True,
-            "launch_gate": "ci_spliceai_launch_filter_metadata",
-            "status_notes": [
-                "model_reference_materialization_required",
-                "score_cache_materialization_required",
-            ],
-        },
+        "ci_spliceai": inspect_ci_spliceai_runtime_assets(settings).to_sanitized_dict(),
         "pvs1_nmd": {
             "available": pvs1_nmd.available,
             "status": pvs1_nmd.status,
@@ -197,17 +189,7 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             "runtime_wired": False,
             "public_serialization_allowed": False,
         },
-        "capice": {
-            "available": False,
-            "status": "model_artifact_missing",
-            "runtime_wired": True,
-            "public_serialization_allowed": True,
-            "launch_gate": "capice_launch_filter_metadata",
-            "status_notes": [
-                "capice_model_materialization_required",
-                "spliceai_feature_cache_materialization_required",
-            ],
-        },
+        "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
     }
 
 

@@ -14,12 +14,24 @@ from app.data_sources import (
 from app.services.predictor_runtime import (
     ALPHAMISSENSE_ASSET_ROLE,
     ALPHAMISSENSE_SOURCE_ID,
+    CAPICE_FEATURE_CACHE_ASSET_ROLE,
+    CAPICE_FEATURE_CACHE_SOURCE_ID,
+    CAPICE_LAUNCH_GATE,
+    CAPICE_MODEL_ASSET_ROLE,
+    CAPICE_SOURCE_ID,
+    CI_SPLICEAI_LAUNCH_GATE,
+    CI_SPLICEAI_MODEL_ASSET_ROLE,
+    CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+    CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+    CI_SPLICEAI_SOURCE_ID,
     ESM1B_ASSET_ROLE,
     ESM1B_SOURCE_ID,
     PredictorRuntimeStatus,
     build_alphamissense_runtime_plan,
     build_esm1b_runtime_plan,
     inspect_alphamissense_runtime_asset,
+    inspect_capice_runtime_assets,
+    inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
 )
 
@@ -87,6 +99,95 @@ def test_esm1b_preflight_reports_missing_file(tmp_path: Path) -> None:
     assert inspection.ready is False
     assert inspection.status is PredictorRuntimeStatus.MISSING_SOURCE_FILE
     assert inspection.actual_size_bytes is None
+
+
+def test_ci_spliceai_runtime_reports_missing_artifacts(tmp_path: Path) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        ci_spliceai_model_path=tmp_path / "missing-model.keras",
+        ci_spliceai_reference_path=tmp_path / "missing-reference.json",
+        ci_spliceai_score_cache_path=tmp_path / "missing-score-cache.vcf.gz",
+    )
+
+    inspection = inspect_ci_spliceai_runtime_assets(settings)
+
+    assert inspection.source_id == CI_SPLICEAI_SOURCE_ID
+    assert inspection.available is False
+    assert inspection.status == "score_cache_missing"
+    assert inspection.launch_gate == CI_SPLICEAI_LAUNCH_GATE
+    assert inspection.status_notes == (
+        "model_reference_materialization_required",
+        "score_cache_materialization_required",
+    )
+    components = {component.asset_role: component for component in inspection.components}
+    assert components[CI_SPLICEAI_MODEL_ASSET_ROLE].status == "model_artifact_missing"
+    assert components[CI_SPLICEAI_REFERENCE_ASSET_ROLE].status == "reference_artifact_missing"
+    assert components[CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE].status == "score_cache_missing"
+
+
+def test_ci_spliceai_runtime_reports_ready_when_all_artifacts_exist(tmp_path: Path) -> None:
+    model = _write_plain_file(tmp_path / "ci_spliceai.keras", b"model")
+    reference = _write_plain_file(tmp_path / "hg38_reference.json", b"reference")
+    score_cache = _write_indexed_cache(tmp_path / "ci_spliceai_hg38_scores.vcf.gz", b"scores")
+    settings = Settings(
+        jwt_secret="test-secret",
+        ci_spliceai_model_path=model,
+        ci_spliceai_reference_path=reference,
+        ci_spliceai_score_cache_path=score_cache,
+    )
+
+    inspection = inspect_ci_spliceai_runtime_assets(settings)
+    sanitized = inspection.to_sanitized_dict()
+
+    assert inspection.available is True
+    assert inspection.status == "ready"
+    assert inspection.status_notes == ()
+    assert sanitized["status"] == "ready"
+    assert str(tmp_path).lower() not in str(sanitized).lower()
+
+
+def test_capice_runtime_reports_missing_model_and_feature_cache(tmp_path: Path) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        capice_model_path=tmp_path / "missing-capice-model.json",
+        capice_feature_cache_path=tmp_path / "missing-capice-features.tsv.gz",
+    )
+
+    inspection = inspect_capice_runtime_assets(settings)
+
+    assert inspection.source_id == CAPICE_SOURCE_ID
+    assert inspection.available is False
+    assert inspection.status == "model_artifact_missing"
+    assert inspection.launch_gate == CAPICE_LAUNCH_GATE
+    assert inspection.status_notes == (
+        "capice_model_materialization_required",
+        "spliceai_feature_cache_materialization_required",
+    )
+    components = {component.asset_role: component for component in inspection.components}
+    assert components[CAPICE_MODEL_ASSET_ROLE].status == "model_artifact_missing"
+    assert components[CAPICE_FEATURE_CACHE_ASSET_ROLE].source_id == CAPICE_FEATURE_CACHE_SOURCE_ID
+    assert components[CAPICE_FEATURE_CACHE_ASSET_ROLE].status == "feature_cache_missing"
+
+
+def test_capice_runtime_reports_ready_when_model_and_feature_cache_exist(
+    tmp_path: Path,
+) -> None:
+    model = _write_plain_file(tmp_path / "capice_model.json", b"model")
+    feature_cache = _write_indexed_cache(tmp_path / "capice_hg38_features.tsv.gz", b"features")
+    settings = Settings(
+        jwt_secret="test-secret",
+        capice_model_path=model,
+        capice_feature_cache_path=feature_cache,
+    )
+
+    inspection = inspect_capice_runtime_assets(settings)
+    sanitized = inspection.to_sanitized_dict()
+
+    assert inspection.available is True
+    assert inspection.status == "ready"
+    assert inspection.status_notes == ()
+    assert sanitized["status"] == "ready"
+    assert str(tmp_path).lower() not in str(sanitized).lower()
 
 
 def test_alphamissense_preflight_reports_missing_index_before_manifest(
@@ -256,6 +357,79 @@ def test_alphamissense_materialization_reports_ready_without_sensitive_checksum(
     assert inspection.bucket_file_size_limit == 50 * 1024 * 1024 * 1024
 
 
+def test_esm1b_materialization_reports_ready_without_requiring_expected_registry_md5(
+    tmp_path: Path,
+) -> None:
+    payload = b"tiny-esm1b"
+    asset = _write_materialized_asset(
+        tmp_path,
+        payload,
+        file_name="esm1b_hg38.tsv.gz",
+    )
+    object_path = "esm1b_hg38_assembled_scores/md5-test/esm1b_hg38.tsv.gz"
+    settings = Settings(
+        jwt_secret="test-secret",
+        esm1b_hg38_runtime_asset_path=asset,
+        esm1b_hg38_runtime_asset_object_uri=f"supabase://eamos-source-assets/{object_path}",
+    )
+
+    inspection = inspect_esm1b_runtime_asset(
+        settings,
+        materialization_store=FakeMaterializationStore(
+            _materialization_record(
+                payload,
+                asset,
+                object_path,
+                source_id=ESM1B_SOURCE_ID,
+                asset_role=ESM1B_ASSET_ROLE,
+            )
+        ),
+        verify_checksum=True,
+    )
+
+    assert inspection.ready is True
+    assert inspection.status is PredictorRuntimeStatus.READY
+    assert inspection.actual_md5 == _md5(payload)
+    assert inspection.materialization_status == "ready"
+    assert inspection.bucket_file_size_limit == 50 * 1024 * 1024 * 1024
+
+
+def test_esm1b_materialization_rejects_public_metadata(
+    tmp_path: Path,
+) -> None:
+    payload = b"tiny-esm1b"
+    asset = _write_materialized_asset(
+        tmp_path,
+        payload,
+        file_name="esm1b_hg38.tsv.gz",
+    )
+    object_path = "esm1b_hg38_assembled_scores/md5-test/esm1b_hg38.tsv.gz"
+    settings = Settings(
+        jwt_secret="test-secret",
+        esm1b_hg38_runtime_asset_path=asset,
+        esm1b_hg38_runtime_asset_object_uri=f"supabase://eamos-source-assets/{object_path}",
+    )
+    record = replace(
+        _materialization_record(
+            payload,
+            asset,
+            object_path,
+            source_id=ESM1B_SOURCE_ID,
+            asset_role=ESM1B_ASSET_ROLE,
+        ),
+        frontend_direct_access_allowed=True,
+    )
+
+    inspection = inspect_esm1b_runtime_asset(
+        settings,
+        materialization_store=FakeMaterializationStore(record),
+    )
+
+    assert inspection.ready is False
+    assert inspection.status is PredictorRuntimeStatus.MATERIALIZATION_PUBLIC_ACCESS_BLOCKED
+    assert inspection.materialization_status == "materialization_public_access_blocked"
+
+
 def test_alphamissense_materialization_filters_runtime_local_cache_path(
     tmp_path: Path,
 ) -> None:
@@ -320,9 +494,14 @@ class FakeMaterializationStore:
         return None
 
 
-def _write_materialized_asset(tmp_path: Path, payload: bytes) -> Path:
+def _write_materialized_asset(
+    tmp_path: Path,
+    payload: bytes,
+    *,
+    file_name: str = "AlphaMissense_hg38.tsv.gz",
+) -> Path:
     tmp_path.mkdir(parents=True, exist_ok=True)
-    asset = tmp_path / "AlphaMissense_hg38.tsv.gz"
+    asset = tmp_path / file_name
     asset.write_bytes(payload)
     Path(f"{asset}.tbi").write_bytes(b"index")
     asset.with_suffix(asset.suffix + ".manifest.json").write_text(
@@ -330,6 +509,18 @@ def _write_materialized_asset(tmp_path: Path, payload: bytes) -> Path:
         encoding="utf-8",
     )
     return asset
+
+
+def _write_plain_file(path: Path, payload: bytes) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+    return path
+
+
+def _write_indexed_cache(path: Path, payload: bytes) -> Path:
+    _write_plain_file(path, payload)
+    Path(f"{path}.tbi").write_bytes(b"index")
+    return path
 
 
 def _tiny_registry(payload: bytes, *, expected_md5: str | None = None) -> DataSourceRegistry:
@@ -353,10 +544,13 @@ def _materialization_record(
     payload: bytes,
     asset_path: Path,
     object_path: str,
+    *,
+    source_id: str = ALPHAMISSENSE_SOURCE_ID,
+    asset_role: str = ALPHAMISSENSE_ASSET_ROLE,
 ) -> SourceAssetMaterializationRecord:
     return SourceAssetMaterializationRecord(
-        source_id=ALPHAMISSENSE_SOURCE_ID,
-        asset_role=ALPHAMISSENSE_ASSET_ROLE,
+        source_id=source_id,
+        asset_role=asset_role,
         bucket_id="eamos-source-assets",
         object_path=object_path,
         upload_status="verified",

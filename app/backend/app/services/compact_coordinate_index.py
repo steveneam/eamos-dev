@@ -224,6 +224,10 @@ def inspect_compact_coordinate_index(
     )
 
 
+def clear_compact_coordinate_index_cache() -> None:
+    _load_index.cache_clear()
+
+
 @lru_cache(maxsize=16)
 def _load_index(path: Path, *, verify_checksum: bool) -> _LoadedCompactCoordinateIndex:
     if not path.exists():

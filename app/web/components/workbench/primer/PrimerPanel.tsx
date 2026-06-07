@@ -15,10 +15,22 @@ interface PrimerPanelProps {
   cdna: string
 }
 
-const MODES: Array<{ v: PrimerMode; label: string }> = [
-  { v: 'sanger', label: 'Sanger' },
-  { v: 'qpcr', label: 'qPCR' },
-  { v: 'arms', label: 'ARMS' },
+const MODES: Array<{ v: PrimerMode; label: string; tip: string }> = [
+  {
+    v: 'sanger',
+    label: 'Sanger',
+    tip: 'Sanger sequencing primers — flank the target with a larger amplicon for clean reads across the variant.',
+  },
+  {
+    v: 'qpcr',
+    label: 'qPCR',
+    tip: 'qPCR primers — a short amplicon optimised for quantitative / real-time PCR.',
+  },
+  {
+    v: 'arms',
+    label: 'ARMS',
+    tip: 'ARMS allele-specific primers — the 3′ end is placed on the variant base to discriminate alleles.',
+  },
 ]
 
 /** Honest loading: the request is a single synchronous call, so we show one
@@ -133,6 +145,7 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
               className={mode === m.v ? 'active' : ''}
               onClick={() => chooseMode(m.v)}
               disabled={loading}
+              title={m.tip}
             >
               {m.label}
             </button>
@@ -141,7 +154,7 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
       </div>
 
       <div className="tool-form">
-        <label className="field">
+        <label className="field" title="Lowest acceptable primer melting temperature (°C).">
           <span className="field-label">Tm min (°C)</span>
           <input
             className="field-input"
@@ -154,7 +167,10 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             disabled={loading}
           />
         </label>
-        <label className="field">
+        <label
+          className="field"
+          title="Highest acceptable primer melting temperature (°C). Keep the min–max window tight so forward and reverse anneal at one temperature."
+        >
           <span className="field-label">Tm max (°C)</span>
           <input
             className="field-input"
@@ -167,7 +183,7 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             disabled={loading}
           />
         </label>
-        <label className="field">
+        <label className="field" title="Smallest acceptable PCR amplicon size (bp).">
           <span className="field-label">Product min (bp)</span>
           <input
             className="field-input"
@@ -180,7 +196,7 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             disabled={loading}
           />
         </label>
-        <label className="field">
+        <label className="field" title="Largest acceptable PCR amplicon size (bp).">
           <span className="field-label">Product max (bp)</span>
           <input
             className="field-input"
@@ -193,7 +209,10 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
             disabled={loading}
           />
         </label>
-        <label className="field">
+        <label
+          className="field"
+          title="Avoid placing primer 3′ ends over known SNPs, which can cause allele dropout."
+        >
           <span className="field-label">Avoid SNPs</span>
           <select
             className="field-select"
@@ -216,6 +235,7 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
           className="btn-teal primer-go"
           onClick={run}
           disabled={loading}
+          title="Run Primer3 thermodynamics + the specificity screen to design and validate primer pairs for this target."
         >
           {loading ? 'Designing…' : 'Generate & validate'}
         </button>

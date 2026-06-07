@@ -22,6 +22,16 @@ ALPHAMISSENSE_SOURCE_ID = "google_deepmind_alphamissense_hg38"
 ALPHAMISSENSE_ASSET_ROLE = "predictor_tabix_tsv"
 ESM1B_SOURCE_ID = "esm1b_hg38_assembled_scores"
 ESM1B_ASSET_ROLE = "predictor_tabix_tsv"
+CI_SPLICEAI_SOURCE_ID = "ci_spliceai_model"
+CI_SPLICEAI_MODEL_ASSET_ROLE = "keras_model"
+CI_SPLICEAI_REFERENCE_ASSET_ROLE = "reference_bundle"
+CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE = "score_cache"
+CI_SPLICEAI_LAUNCH_GATE = "ci_spliceai_launch_filter_metadata"
+CAPICE_SOURCE_ID = "capice_model"
+CAPICE_MODEL_ASSET_ROLE = "xgboost_model"
+CAPICE_FEATURE_CACHE_SOURCE_ID = "illumina_spliceai_precomputed_hg38"
+CAPICE_FEATURE_CACHE_ASSET_ROLE = "spliceai_feature_cache"
+CAPICE_LAUNCH_GATE = "capice_launch_filter_metadata"
 
 
 class PredictorRuntimeStatus(str, Enum):
@@ -85,6 +95,52 @@ class PredictorRuntimeInspection:
     @property
     def ready(self) -> bool:
         return self.status is PredictorRuntimeStatus.READY
+
+
+@dataclass(frozen=True)
+class AdminPredictorComponentInspection:
+    source_id: str
+    asset_role: str
+    label: str
+    status: str
+    ready: bool
+    actual_size_bytes: int | None
+    reader_requires_local_path: bool = True
+
+    def to_sanitized_dict(self) -> dict[str, object]:
+        return {
+            "source_id": self.source_id,
+            "asset_role": self.asset_role,
+            "label": self.label,
+            "status": self.status,
+            "ready": self.ready,
+            "actual_size_bytes": self.actual_size_bytes,
+            "reader_requires_local_path": self.reader_requires_local_path,
+        }
+
+
+@dataclass(frozen=True)
+class AdminPredictorRuntimeInspection:
+    source_id: str
+    status: str
+    available: bool
+    launch_gate: str
+    status_notes: tuple[str, ...]
+    components: tuple[AdminPredictorComponentInspection, ...]
+    runtime_wired: bool = True
+    public_serialization_allowed: bool = True
+
+    def to_sanitized_dict(self) -> dict[str, object]:
+        return {
+            "source_id": self.source_id,
+            "status": self.status,
+            "available": self.available,
+            "runtime_wired": self.runtime_wired,
+            "public_serialization_allowed": self.public_serialization_allowed,
+            "launch_gate": self.launch_gate,
+            "status_notes": list(self.status_notes),
+            "components": [component.to_sanitized_dict() for component in self.components],
+        }
 
 
 def build_alphamissense_runtime_plan(
@@ -267,6 +323,82 @@ def inspect_esm1b_runtime_asset(
     )
 
 
+def inspect_ci_spliceai_runtime_assets(settings: Settings) -> AdminPredictorRuntimeInspection:
+    """Inspect CI-SpliceAI admin-lane artifacts without exposing local paths."""
+
+    model = _inspect_admin_component(
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_role=CI_SPLICEAI_MODEL_ASSET_ROLE,
+        label="CI-SpliceAI model",
+        path=_resolve_backend_path(settings, settings.ci_spliceai_model_path),
+        missing_status="model_artifact_missing",
+        path_not_file_status="model_artifact_path_not_file",
+    )
+    reference = _inspect_admin_component(
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_role=CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+        label="CI-SpliceAI reference bundle",
+        path=_resolve_backend_path(settings, settings.ci_spliceai_reference_path),
+        missing_status="reference_artifact_missing",
+        path_not_file_status="reference_artifact_path_not_file",
+    )
+    score_cache = _inspect_admin_component(
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_role=CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+        label="CI-SpliceAI score cache",
+        path=_resolve_backend_path(settings, settings.ci_spliceai_score_cache_path),
+        missing_status="score_cache_missing",
+        path_not_file_status="score_cache_path_not_file",
+        indexed=True,
+        missing_index_status="score_cache_index_missing",
+        index_not_file_status="score_cache_index_path_not_file",
+    )
+    components = (model, reference, score_cache)
+    status = _ci_spliceai_status(model, reference, score_cache)
+    return AdminPredictorRuntimeInspection(
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        status=status,
+        available=status == "ready",
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+        status_notes=_ci_spliceai_status_notes(components),
+        components=components,
+    )
+
+
+def inspect_capice_runtime_assets(settings: Settings) -> AdminPredictorRuntimeInspection:
+    """Inspect CAPICE admin-lane artifacts without exposing local paths."""
+
+    model = _inspect_admin_component(
+        source_id=CAPICE_SOURCE_ID,
+        asset_role=CAPICE_MODEL_ASSET_ROLE,
+        label="CAPICE model",
+        path=_resolve_backend_path(settings, settings.capice_model_path),
+        missing_status="model_artifact_missing",
+        path_not_file_status="model_artifact_path_not_file",
+    )
+    feature_cache = _inspect_admin_component(
+        source_id=CAPICE_FEATURE_CACHE_SOURCE_ID,
+        asset_role=CAPICE_FEATURE_CACHE_ASSET_ROLE,
+        label="CAPICE SpliceAI-derived feature cache",
+        path=_resolve_backend_path(settings, settings.capice_feature_cache_path),
+        missing_status="feature_cache_missing",
+        path_not_file_status="feature_cache_path_not_file",
+        indexed=True,
+        missing_index_status="feature_cache_index_missing",
+        index_not_file_status="feature_cache_index_path_not_file",
+    )
+    components = (model, feature_cache)
+    status = _capice_status(model, feature_cache)
+    return AdminPredictorRuntimeInspection(
+        source_id=CAPICE_SOURCE_ID,
+        status=status,
+        available=status == "ready",
+        launch_gate=CAPICE_LAUNCH_GATE,
+        status_notes=_capice_status_notes(components),
+        components=components,
+    )
+
+
 def _inspect_predictor_local_files(
     plan: PredictorRuntimePlan,
     *,
@@ -353,6 +485,120 @@ def _inspect_predictor_local_files(
         actual_size_bytes=actual_size,
         actual_md5=actual_md5,
     )
+
+
+def _inspect_admin_component(
+    *,
+    source_id: str,
+    asset_role: str,
+    label: str,
+    path: Path,
+    missing_status: str,
+    path_not_file_status: str,
+    indexed: bool = False,
+    missing_index_status: str | None = None,
+    index_not_file_status: str | None = None,
+) -> AdminPredictorComponentInspection:
+    if not path.exists():
+        return AdminPredictorComponentInspection(
+            source_id=source_id,
+            asset_role=asset_role,
+            label=label,
+            status=missing_status,
+            ready=False,
+            actual_size_bytes=None,
+        )
+    if not path.is_file():
+        return AdminPredictorComponentInspection(
+            source_id=source_id,
+            asset_role=asset_role,
+            label=label,
+            status=path_not_file_status,
+            ready=False,
+            actual_size_bytes=None,
+        )
+    actual_size = path.stat().st_size
+    if indexed:
+        index_path = Path(f"{path}.tbi")
+        if not index_path.exists():
+            return AdminPredictorComponentInspection(
+                source_id=source_id,
+                asset_role=asset_role,
+                label=label,
+                status=missing_index_status or "index_missing",
+                ready=False,
+                actual_size_bytes=actual_size,
+            )
+        if not index_path.is_file():
+            return AdminPredictorComponentInspection(
+                source_id=source_id,
+                asset_role=asset_role,
+                label=label,
+                status=index_not_file_status or "index_path_not_file",
+                ready=False,
+                actual_size_bytes=actual_size,
+            )
+    return AdminPredictorComponentInspection(
+        source_id=source_id,
+        asset_role=asset_role,
+        label=label,
+        status="ready",
+        ready=True,
+        actual_size_bytes=actual_size,
+    )
+
+
+def _ci_spliceai_status(
+    model: AdminPredictorComponentInspection,
+    reference: AdminPredictorComponentInspection,
+    score_cache: AdminPredictorComponentInspection,
+) -> str:
+    if not score_cache.ready:
+        return score_cache.status
+    if not model.ready:
+        return model.status
+    if not reference.ready:
+        return reference.status
+    return "ready"
+
+
+def _ci_spliceai_status_notes(
+    components: tuple[AdminPredictorComponentInspection, ...],
+) -> tuple[str, ...]:
+    notes: list[str] = []
+    for component in components:
+        if component.ready:
+            continue
+        if component.asset_role in {CI_SPLICEAI_MODEL_ASSET_ROLE, CI_SPLICEAI_REFERENCE_ASSET_ROLE}:
+            notes.append("model_reference_materialization_required")
+        elif component.asset_role == CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE:
+            notes.append("score_cache_materialization_required")
+    return tuple(dict.fromkeys(notes))
+
+
+def _capice_status(
+    model: AdminPredictorComponentInspection,
+    feature_cache: AdminPredictorComponentInspection,
+) -> str:
+    if not model.ready:
+        return model.status
+    if not feature_cache.ready:
+        return feature_cache.status
+    return "ready"
+
+
+def _capice_status_notes(
+    components: tuple[AdminPredictorComponentInspection, ...],
+) -> tuple[str, ...]:
+    notes: list[str] = []
+    for component in components:
+        if component.ready:
+            continue
+        if component.asset_role == CAPICE_MODEL_ASSET_ROLE:
+            notes.append("capice_model_materialization_required")
+        elif component.asset_role == CAPICE_FEATURE_CACHE_ASSET_ROLE:
+            notes.append("spliceai_feature_cache_materialization_required")
+    return tuple(dict.fromkeys(notes))
 
 
 def _validate_materialization_record(

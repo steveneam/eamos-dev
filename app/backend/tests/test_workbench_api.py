@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -13,8 +14,14 @@ from app.core.config import Settings
 from app.schemas.workbench import (
     AlignRequest,
     AlignResponse,
+    AlignTraceRequest,
+    AlignTraceResponse,
+    CrisprOffTargetRequest,
+    CrisprOffTargetResponse,
     CrisprRequest,
     CrisprResponse,
+    CrisprSsodnRequest,
+    PrimerPair,
     PrimerRequest,
     PrimerResponse,
 )
@@ -45,6 +52,8 @@ from app.services.workbench_design import (
     WorkbenchDesignService,
     _align_sequences,
 )
+from app.services.crispr_offtarget_screening import MOCK_SCREENING_TEMPLATE_WARNING
+from app.services.crispr_ssodn import SSODN_MOCK_GENOMIC_WINDOW_WARNING
 from app.services.trace_parser import (
     TRACE_MAX_BASE_CALLS,
     TRACE_MAX_CHANNEL_SAMPLES,
@@ -59,6 +68,25 @@ from app.services.trace_parser import (
 )
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
+LOCAL_HG38_2BIT_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "bio_assets" / "genomes" / "hg38.2bit"
+)
+LOCAL_MANE_GFF_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "bio_assets"
+    / "transcripts"
+    / "MANE.GRCh38.v1.5.refseq_genomic.gff.gz"
+)
+RPE65_SSODN_PUBLIC_FINGERPRINTS = {
+    "c.247T>C": (57, 56, "6c46cf72520215eea658884e717ff5734011e9b386128128188b2b2edf665718"),
+    "c.419G>A": (61, 0, "11d3503e6bfb8b040fdba34b5d42a959d00a2a72105eb6f5a8f74cee11ef4b4b"),
+    "c.65T>C": (61, 37, "2c300ad88a378d16d1d070d54103360bfa2c5d55111242fe7f72a07837956f71"),
+    "c.675C>G": (62, 38, "094f579c803ccec699ffce58134ce8fac0b4d2e4be33d997d6b685db9edce4cc"),
+    "c.881A>C": (61, 39, "3decd801aa812943ad7881b5fb6bdf695a1973cacac4807694a164a1f0e80662"),
+    "c.1301C>T": (61, 25, "2939082cd5fbe5d2fe0317453488aaf4a22f91ea0966a85cb0003794dfc9072b"),
+    "c.260A>G": (61, 47, "5496370ed7a8d38bceaf7fb6b6e7bc850717829338e77648b492890b4532e69d"),
+}
 
 
 class FailingWorkbenchService:
@@ -71,7 +99,19 @@ class FailingWorkbenchService:
     def design_guides(self, _payload):
         raise self.error
 
+    def enumerate_crispr_offtargets(self, _payload):
+        raise self.error
+
+    def design_crispr_screening_primers(self, _payload):
+        raise self.error
+
+    def design_crispr_ssodn(self, _payload):
+        raise self.error
+
     def align(self, _payload):
+        raise self.error
+
+    def analyze_trace(self, _payload):
         raise self.error
 
 
@@ -103,6 +143,16 @@ class FakeCrisprProvider:
         return CrisprResponse(cas=payload.cas, guides=[], ssodn=None)
 
 
+class FakeScreeningPrimerProvider:
+    def __init__(self, pairs: list[PrimerPair] | None = None) -> None:
+        self.pairs = pairs if pairs is not None else []
+        self.calls: list[tuple] = []
+
+    def design(self, payload, context) -> PrimerResponse:
+        self.calls.append((payload, context))
+        return PrimerResponse(mode=payload.mode, pairs=self.pairs)
+
+
 class FakeAlignProvider:
     def __init__(self) -> None:
         self.calls: list[tuple] = []
@@ -121,6 +171,10 @@ class FakeAlignProvider:
         )
 
 
+def _rpe65_vus1_ab1_blob() -> str:
+    return base64.b64encode((FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()).decode("ascii")
+
+
 class QueuedSpecificityProvider:
     def __init__(self, results: list[PrimerSpecificityResult]) -> None:
         self.results = results
@@ -133,6 +187,12 @@ class QueuedSpecificityProvider:
 
 def _fixture(name: str) -> dict:
     return json.loads((FIXTURES_DIR / name).read_text(encoding="utf-8"))
+
+
+def _require_local_ssodn_assets() -> None:
+    missing = [path for path in (LOCAL_HG38_2BIT_PATH, LOCAL_MANE_GFF_PATH) if not path.is_file()]
+    if missing:
+        pytest.skip(f"local ssODN runtime asset(s) absent: {', '.join(map(str, missing))}")
 
 
 def _settings(**overrides) -> Settings:
@@ -196,11 +256,330 @@ def test_workbench_endpoints_preserve_fixture_responses(
     assert response.json() == _fixture(fixture_name)
 
 
+def test_crispr_offtargets_route_returns_deidentified_fixture_shape(client) -> None:
+    response = client.post(
+        "/api/v1/crispr/offtargets",
+        json={
+            "guide": "GAGTCCGAGCAGAAGAAGAT",
+            "pam": "NGG",
+            "max_mismatches": 2,
+            "on_target_locus": {
+                "chromosome": "7",
+                "position": 117509080,
+                "strand": "+",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == _fixture("crispr_offtargets_deidentified.json")
+    assert set(body) == {"genome_build", "sites"}
+    assert set(body["sites"][0]) == {
+        "sequence",
+        "pam",
+        "score",
+        "mismatches",
+        "gene",
+        "gene_id",
+        "biotype",
+        "chromosome",
+        "strand",
+        "position",
+        "on_target",
+    }
+    assert body["sites"][0]["on_target"] is True
+    assert all(site["mismatches"] <= 2 for site in body["sites"])
+
+
+def test_crispr_offtargets_service_is_deterministic_against_fixture() -> None:
+    payload = CrisprOffTargetRequest(
+        guide="GAGTCCGAGCAGAAGAAGAT",
+        pam="NGG",
+        max_mismatches=2,
+        on_target_locus={"chromosome": "7", "position": 117509080, "strand": "+"},
+    )
+    service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
+
+    first = service.enumerate_crispr_offtargets(payload)
+    second = service.enumerate_crispr_offtargets(payload)
+
+    assert isinstance(first, CrisprOffTargetResponse)
+    assert first == second
+    assert first.model_dump() == _fixture("crispr_offtargets_deidentified.json")
+
+
+def test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor(client) -> None:
+    _require_local_ssodn_assets()
+
+    response = client.post(
+        "/api/v1/crispr/ssodn",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "protein_change": "p.Asp87Gly",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    ssodn = body["ssodn"]
+    assert body["genome_build"] == "GRCh38"
+    assert body["warnings"] == []
+    assert ssodn["template_source"] == "local_mane_hg38_transcript"
+    assert ssodn["oligo_length"] == 120
+    assert ssodn["variant_offset"] == 61
+    assert ssodn["arm_lengths"] == {"left": 61, "right": 58}
+    assert ssodn["reference_arm"][61] == "A"
+    assert ssodn["oligo_sequence"][61] == "G"
+    assert ssodn["repair_template"] == ssodn["oligo_sequence"]
+    assert ssodn["strand"] == "-"
+    assert ssodn["orientation"] == "sense"
+    assert ssodn["protocol"] == "lab_genomic"
+    assert ssodn["oligo_name"] == "ss oligo for c.260A>G; p.Asp87Gly; GAT > GGT"
+    assert len(ssodn["intron_mask"]) == 120
+    assert sum(ssodn["intron_mask"]) == 47
+    assert ssodn["oligo_sequence"].isupper()
+
+
+@pytest.mark.parametrize(
+    "cdna,expected_offset,expected_intron_count,expected_sha256",
+    [
+        (cdna, offset, intron_count, digest)
+        for cdna, (offset, intron_count, digest) in RPE65_SSODN_PUBLIC_FINGERPRINTS.items()
+    ],
+)
+def test_crispr_ssodn_public_rpe65_examples_match_expected_ordered_donor(
+    cdna: str,
+    expected_offset: int,
+    expected_intron_count: int,
+    expected_sha256: str,
+) -> None:
+    _require_local_ssodn_assets()
+    service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
+
+    response = service.design_crispr_ssodn(CrisprSsodnRequest(gene="RPE65", cdna=cdna))
+
+    assert response.warnings == []
+    assert response.ssodn.template_source == "local_mane_hg38_transcript"
+    assert response.ssodn.oligo_length == 120
+    assert response.ssodn.variant_offset == expected_offset
+    assert sum(response.ssodn.intron_mask) == expected_intron_count
+    assert hashlib.sha256(response.ssodn.oligo_sequence.encode("ascii")).hexdigest() == (
+        expected_sha256
+    )
+
+
+def test_crispr_ssodn_non_default_length_recalculates_centered_offset() -> None:
+    _require_local_ssodn_assets()
+    service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
+
+    response = service.design_crispr_ssodn(
+        CrisprSsodnRequest(gene="RPE65", cdna="c.260A>G", oligo_length=100)
+    )
+
+    assert response.ssodn.oligo_length == 100
+    assert response.ssodn.variant_offset == 51
+    assert response.ssodn.arm_lengths == {"left": 51, "right": 48}
+    assert len(response.ssodn.oligo_sequence) == 100
+    assert len(response.ssodn.intron_mask) == 100
+    assert response.ssodn.reference_arm[51] == "A"
+    assert response.ssodn.oligo_sequence[51] == "G"
+
+
+def test_crispr_ssodn_falls_back_to_sequence_context_mock_when_local_assets_do_not_apply(
+    client,
+) -> None:
+    query = normalize_sequence_query("TEST", "c.1A>G")
+    context = _context()
+    context.gene = "TEST"
+    context.cdna = "c.1A>G"
+    context.transcript = "NM_TEST.1"
+    context.window_sequence = "A"
+    context.target_offset = 0
+    context.reference_base = "A"
+    context.alternate_base = "G"
+    context.strand = "+"
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=context)
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/crispr/ssodn",
+        json={"gene": "TEST", "cdna": "c.1A>G", "oligo_length": 100},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["warnings"] == [SSODN_MOCK_GENOMIC_WINDOW_WARNING]
+    assert body["ssodn"]["template_source"] == "mock_genomic_window"
+    assert body["ssodn"]["variant_offset"] == 49
+    assert body["ssodn"]["reference_arm"][49] == "A"
+    assert body["ssodn"]["oligo_sequence"][49] == "G"
+
+
+def test_crispr_offtargets_unsupported_enzyme_maps_to_422(client) -> None:
+    response = client.post(
+        "/api/v1/crispr/offtargets",
+        json={
+            "guide": "GAGTCCGAGCAGAAGAAGAT",
+            "enzyme": "SaCas9",
+        },
+    )
+
+    warning = unsupported_input_warning("enzyme")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": "CRISPR off-target screening currently supports SpCas9 NGG only.",
+        "warnings": [warning],
+    }
+
+
+def test_crispr_screening_primers_route_maps_primer_pair(client) -> None:
+    pair = PrimerPair(
+        index=1,
+        forward="AACCGGTTAACCGGTTAA",
+        reverse="TTGGAACCTTGGAACCTT",
+        tm_forward=59.9,
+        tm_reverse=60.1,
+        gc_forward=44.4,
+        gc_reverse=55.5,
+        product_size=421,
+        specificity_hits=3,
+        secondary_structure_risk="moderate",
+        secondary_structure_notes=(
+            "Primer3 thermodynamic secondary-structure screen moderate; "
+            "max pair complement-end 38.2."
+        ),
+        notes="Synthetic primer engine result.",
+        recommended=True,
+    )
+    primer_provider = FakeScreeningPrimerProvider([pair])
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        primer_provider=primer_provider,
+    )
+
+    response = client.post(
+        "/api/v1/crispr/screening-primers",
+        json={
+            "naming_prefix": "11.1 Cor",
+            "sites": [
+                {
+                    "site_index": 1,
+                    "point": "chr7:117509080",
+                    "template_sequence": "A" * 900,
+                    "target_offset": 400,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "sanger"
+    assert body["warnings"] == []
+    assert body["primers"] == [
+        {
+            "site_index": 1,
+            "point": "chr7:117509080",
+            "region": "chr7:117508680-117509480",
+            "name_forward": "11.1_Cor_1_F",
+            "name_reverse": "11.1_Cor_1_R",
+            "forward": "AACCGGTTAACCGGTTAA",
+            "reverse": "TTGGAACCTTGGAACCTT",
+            "tm_forward": 59.9,
+            "tm_reverse": 60.1,
+            "gc_forward": 44.4,
+            "gc_reverse": 55.5,
+            "product_size": 421,
+            "specificity_hits": 3,
+            "other_products": "2 other product(s); see notes",
+            "secondary_structure_risk": "moderate",
+            "secondary_structure_notes": (
+                "Primer3 thermodynamic secondary-structure screen moderate; "
+                "max pair complement-end 38.2."
+            ),
+            "recommended": True,
+            "notes": "Synthetic primer engine result.",
+            "template_source": "template_sequence",
+        }
+    ]
+    primer_payload, context = primer_provider.calls[0]
+    assert primer_payload == PrimerRequest(
+        gene="CRISPR_SCREENING",
+        cdna="site-1",
+        mode="sanger",
+    )
+    assert context.window_sequence == "A" * 900
+    assert context.target_offset == 400
+    assert context.genomic_hg38 == "7-117509080-N-N"
+
+
+def test_crispr_screening_primers_region_without_template_uses_mock_window(client) -> None:
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        primer_provider=FakeScreeningPrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/crispr/screening-primers",
+        json={
+            "flank_bp": 50,
+            "sites": [
+                {
+                    "site_index": 1,
+                    "chromosome": "12",
+                    "position": 102912875,
+                    "sequence": "GAGTGCGAGCAGAAGAATAT",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["primers"] == []
+    assert body["warnings"] == [
+        MOCK_SCREENING_TEMPLATE_WARNING,
+        "crispr_screening_primer_unavailable:site_1",
+    ]
+
+
+def test_crispr_screening_primers_missing_locus_maps_to_422(client) -> None:
+    response = client.post(
+        "/api/v1/crispr/screening-primers",
+        json={"sites": [{"site_index": 1, "template_sequence": "A" * 900}]},
+    )
+
+    warning = unsupported_input_warning("screening_locus")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": (
+            "Screening-primer targets require chromosome and position, "
+            "or a point formatted as chrN:position."
+        ),
+        "warnings": [warning],
+    }
+
+
 @pytest.mark.parametrize(
     "path,payload",
     [
         ("/api/v1/primer", {"gene": "RPE65", "cdna": "c.260A>G"}),
         ("/api/v1/crispr", {"gene": "RPE65", "cdna": "c.260A>G"}),
+        ("/api/v1/crispr/offtargets", {"guide": "GAGTCCGAGCAGAAGAAGAT"}),
+        ("/api/v1/crispr/ssodn", {"gene": "RPE65", "cdna": "c.260A>G"}),
+        (
+            "/api/v1/crispr/screening-primers",
+            {"sites": [{"site_index": 1, "point": "chr7:117509080"}]},
+        ),
         ("/api/v1/align", {"gene": "RPE65", "cdna": "c.260A>G"}),
     ],
 )
@@ -226,6 +605,46 @@ def test_workbench_service_failures_map_to_structured_http_errors(
         "message": "Provider returned an invalid design.",
         "warnings": [WORKBENCH_PROVIDER_MALFORMED, "provider_payload_missing_field"],
     }
+
+
+def test_align_trace_endpoint_analyzes_rpe65_vus1_ab1_in_fixture_mode(client) -> None:
+    response = client.post(
+        "/api/v1/align/trace",
+        json={"ab1_blob_base64": _rpe65_vus1_ab1_blob()},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sequence"].startswith("AACGGAGGATA")
+    assert len(body["base_calls"]) == 570
+    assert len(body["q_scores"]) == 570
+    assert len(body["base_confidence"]) == 570
+    assert len(body["peak_locations"]) == 570
+    assert body["sample_count"] == 16506
+    assert [channel["base"] for channel in body["trace_channels"]] == ["A", "T", "C", "G"]
+    assert body["trim"] == {
+        "start": 25,
+        "end": 568,
+        "method": "modified_mott_q20_phfinder3",
+        "q_cutoff": 20,
+    }
+    assert body["noise_floor"] >= 1.0
+    assert body["warnings"] == []
+    assert body["het"]
+    assert all(body["trim"]["start"] <= call["index"] < body["trim"]["end"] for call in body["het"])
+    assert all(call["main_ratio"] >= 0.5 for call in body["het"])
+
+
+def test_workbench_service_analyze_trace_is_always_on_without_real_apis() -> None:
+    service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
+
+    response = service.analyze_trace(AlignTraceRequest(ab1_blob_base64=_rpe65_vus1_ab1_blob()))
+
+    assert isinstance(response, AlignTraceResponse)
+    assert response.trim.method == "modified_mott_q20_phfinder3"
+    assert response.trim.start == 25
+    assert response.trim.end == 568
+    assert len(response.het) >= 1
 
 
 def test_real_mode_primer_service_uses_sequence_context_and_provider() -> None:
@@ -609,6 +1028,12 @@ def test_trace_parser_extracts_synthetic_ab1_record() -> None:
         ("C", (1.0, 1.0)),
         ("G", (0.0, 1.0)),
     ]
+    assert [(channel.base, channel.raw_values) for channel in trace.trace_channels] == [
+        ("A", (0.0, 5.0)),
+        ("T", (4.0, 8.0)),
+        ("C", (2.0, 2.0)),
+        ("G", (0.0, 10.0)),
+    ]
 
 
 def test_trace_parser_rejects_oversized_base64_before_parser() -> None:
@@ -707,6 +1132,14 @@ def test_primer3_provider_maps_engine_output() -> None:
                 "PRIMER_RIGHT_0_TM": 60.05,
                 "PRIMER_LEFT_0_GC_PERCENT": 44.4,
                 "PRIMER_RIGHT_0_GC_PERCENT": 55.5,
+                "PRIMER_LEFT_0_SELF_ANY_TH": 22.5,
+                "PRIMER_LEFT_0_SELF_END_TH": 10.0,
+                "PRIMER_LEFT_0_HAIRPIN_TH": 18.0,
+                "PRIMER_RIGHT_0_SELF_ANY_TH": 31.2,
+                "PRIMER_RIGHT_0_SELF_END_TH": 12.0,
+                "PRIMER_RIGHT_0_HAIRPIN_TH": 17.0,
+                "PRIMER_PAIR_0_COMPL_ANY_TH": 30.0,
+                "PRIMER_PAIR_0_COMPL_END_TH": 38.2,
                 "PRIMER_PAIR_0_PRODUCT_SIZE": 421,
             }
 
@@ -735,6 +1168,11 @@ def test_primer3_provider_maps_engine_output() -> None:
     assert pair.gc_reverse == 55.5
     assert pair.product_size == 421
     assert pair.specificity_hits == 1
+    assert pair.secondary_structure_risk == "moderate"
+    assert pair.secondary_structure_notes == (
+        "Primer3 thermodynamic secondary-structure screen moderate; "
+        "max pair complement-end 38.2."
+    )
     assert pair.recommended is True
     assert "Primer3 local design" in pair.notes
     assert "Specificity provider note." in pair.notes

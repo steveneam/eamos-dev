@@ -91,6 +91,8 @@ class Settings(BaseSettings):
     coordinate_resolver_compact_index_path: Path = Path(
         "./data/bio_assets/transcripts/eamos-coordinate-index.latest.jsonl.gz"
     )
+    coordinate_resolver_compact_index_object_uri: str | None = None
+    coordinate_resolver_compact_index_materialize_timeout_seconds: float = 1200.0
     coordinate_resolver_hg38_2bit_path: Path | None = None
     coordinate_resolver_asset_materialization_enabled: bool = False
     coordinate_resolver_asset_materialization_timeout_seconds: float = 1200.0
@@ -129,6 +131,19 @@ class Settings(BaseSettings):
     )
     esm1b_hg38_runtime_asset_mode: str = "local_path"
     esm1b_hg38_runtime_asset_object_uri: str | None = None
+    ci_spliceai_model_path: Path = Path(
+        "./data/bio_assets/predictors/ci_spliceai/ci_spliceai.keras"
+    )
+    ci_spliceai_reference_path: Path = Path(
+        "./data/bio_assets/predictors/ci_spliceai/hg38_reference.json"
+    )
+    ci_spliceai_score_cache_path: Path = Path(
+        "./data/bio_assets/predictors/ci_spliceai/ci_spliceai_hg38_scores.vcf.gz"
+    )
+    capice_model_path: Path = Path("./data/bio_assets/predictors/capice/capice_model.json")
+    capice_feature_cache_path: Path = Path(
+        "./data/bio_assets/predictors/capice/capice_hg38_features.tsv.gz"
+    )
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"

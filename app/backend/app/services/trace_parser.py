@@ -23,6 +23,7 @@ TRACE_MAX_CHANNEL_SAMPLES = 20_000
 class TraceChannelData:
     base: str
     values: tuple[float, ...]
+    raw_values: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -168,9 +169,13 @@ def _trace_channels(abif_raw: dict[str, Any]) -> tuple[TraceChannelData, ...]:
     for base, tag in zip(order[:4], ("DATA9", "DATA10", "DATA11", "DATA12"), strict=True):
         if base not in {"A", "T", "C", "G"}:
             continue
-        values = _normalized_values(abif_raw.get(tag))
-        if values:
-            by_base[base] = TraceChannelData(base=base, values=values)
+        raw_values = _signal_values(abif_raw.get(tag))
+        if raw_values:
+            by_base[base] = TraceChannelData(
+                base=base,
+                values=_normalized_values(raw_values),
+                raw_values=raw_values,
+            )
 
     return tuple(by_base[base] for base in ("A", "T", "C", "G") if base in by_base)
 
@@ -222,7 +227,7 @@ def _int_tuple(values: Any) -> tuple[int, ...]:
         return ()
 
 
-def _normalized_values(values: Any) -> tuple[float, ...]:
+def _signal_values(values: Any) -> tuple[float, ...]:
     if values is None:
         return ()
 
@@ -243,6 +248,10 @@ def _normalized_values(values: Any) -> tuple[float, ...]:
         limit=TRACE_MAX_CHANNEL_SAMPLES,
         message=f"AB1 trace channel contains more than {TRACE_MAX_CHANNEL_SAMPLES} samples.",
     )
+    return tuple(numbers)
+
+
+def _normalized_values(numbers: tuple[float, ...]) -> tuple[float, ...]:
     high = max(numbers)
     if high <= 0:
         return tuple(0.0 for _ in numbers)

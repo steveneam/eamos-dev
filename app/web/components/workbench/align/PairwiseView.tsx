@@ -139,15 +139,29 @@ function Summary({
       : 0
   return (
     <div className="align-summary" aria-label="Alignment summary">
-      <Metric label="Identity" value={formatPercent(alignment.identity)} tone="ok" />
-      <Metric label="Coverage" value={`${coverage}%`} />
-      <Metric label="Matches" value={String(alignment.matches)} />
+      <Metric
+        label="Identity"
+        value={formatPercent(alignment.identity)}
+        tone="ok"
+        tip="Percent of aligned positions where the read base matches the reference base."
+      />
+      <Metric
+        label="Coverage"
+        value={`${coverage}%`}
+        tip="Percent of the reference window this read's alignment spans (how much of the reference the read covers)."
+      />
+      <Metric
+        label="Matches"
+        value={String(alignment.matches)}
+        tip="Number of aligned positions where the read matches the reference."
+      />
       <Metric
         label="Mismatches"
         value={String(alignment.mismatches)}
         tone={alignment.mismatches > 0 ? 'err' : 'ok'}
         onClick={alignment.mismatches > 0 ? onToggleMismatch : undefined}
         open={alignment.mismatches > 0 ? showMismatch : undefined}
+        tip="Aligned positions where the read base differs from the reference (substitutions). Click to show or hide them below."
       />
       <Metric
         label="Gaps"
@@ -155,9 +169,18 @@ function Summary({
         tone={alignment.gaps > 0 ? 'warn' : undefined}
         onClick={alignment.gaps > 0 ? onToggleGap : undefined}
         open={alignment.gaps > 0 ? showGap : undefined}
+        tip="Insertions or deletions — positions present in one sequence but not the other. Click to show or hide them below."
       />
-      <Metric label="Ref span" value={formatRange(alignment.referenceStart, alignment.referenceEnd)} />
-      <Metric label="Read span" value={formatRange(alignment.editedStart, alignment.editedEnd)} />
+      <Metric
+        label="Ref span"
+        value={formatRange(alignment.referenceStart, alignment.referenceEnd)}
+        tip="The reference coordinate range covered by this alignment."
+      />
+      <Metric
+        label="Read span"
+        value={formatRange(alignment.editedStart, alignment.editedEnd)}
+        tip="The read coordinate range covered by this alignment."
+      />
     </div>
   )
 }
@@ -168,17 +191,19 @@ function Metric({
   tone,
   onClick,
   open,
+  tip,
 }: {
   label: string
   value: string
   tone?: 'ok' | 'warn' | 'err'
   onClick?: () => void
   open?: boolean
+  tip?: string
 }) {
   const className = `align-metric${onClick ? ' toggle' : ''}${open ? ' open' : ''}`
   if (onClick) {
     return (
-      <button type="button" className={className} onClick={onClick} title="Show / hide these differences">
+      <button type="button" className={className} onClick={onClick} title={tip}>
         <span>
           {label}
           {open !== undefined && <i className="align-metric-caret">{open ? '▾' : '▸'}</i>}
@@ -188,7 +213,7 @@ function Metric({
     )
   }
   return (
-    <div className={className}>
+    <div className={className} title={tip}>
       <span>{label}</span>
       <b className={tone}>{value}</b>
     </div>

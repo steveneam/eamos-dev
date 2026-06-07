@@ -267,7 +267,10 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
             ))}
           </select>
         </label>
-        <label className="field">
+        <label
+          className="field"
+          title="Maximum mismatches tolerated when scoring off-target risk for each guide (0–5)."
+        >
           <span className="field-label">Off-target tolerance</span>
           <input
             className="field-input"
@@ -397,6 +400,7 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                 type="button"
                 className={sort === null ? 'active' : ''}
                 onClick={() => setSort(null)}
+                title="Keep the design engine's original guide order."
               >
                 Default
               </button>
@@ -404,6 +408,8 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                 type="button"
                 className={sort === 'on' ? 'active' : ''}
                 onClick={() => setSort('on')}
+                title="Sort by on-target score, highest first — the predicted cutting efficiency at the intended site."
+                aria-label="Sort by on-target score, highest first"
               >
                 On-target high
               </button>
@@ -411,11 +417,16 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                 type="button"
                 className={sort === 'off' ? 'active' : ''}
                 onClick={() => setSort('off')}
+                title="Sort by off-target score, lowest first — fewer/weaker predicted off-target sites is safer."
+                aria-label="Sort by off-target score, lowest first"
               >
                 Off-target low
               </button>
             </div>
-            <label className="crispr-minfilter">
+            <label
+              className="crispr-minfilter"
+              title="Hide guides whose on-target efficiency score is below this value."
+            >
               <span className="field-label">
                 Min on-target &gt;= {minOnTarget}
               </span>
@@ -442,12 +453,20 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                   <th>#</th>
                   <th>Start</th>
                   <th>End</th>
-                  <th>Strand</th>
-                  <th>Guide 5′ to 3′ + PAM</th>
-                  <th>On-target</th>
-                  <th>Off-target</th>
-                  <th>GC%</th>
-                  <th>Region</th>
+                  <th title="Which DNA strand the guide targets (+ plus / − minus).">Strand</th>
+                  <th title="The 20-nt spacer (5′→3′) plus its PAM; bases are colour-coded and the PAM carries the amber recognition chip.">
+                    Guide 5′ to 3′ + PAM
+                  </th>
+                  <th title="On-target score — predicted cutting efficiency at the intended site (higher is better).">
+                    On-target
+                  </th>
+                  <th title="Off-target score — predicted risk of cutting elsewhere; lower is safer in this local surface.">
+                    Off-target
+                  </th>
+                  <th title="GC content of the 20-nt spacer (≈40–70% is the usual sweet spot).">GC%</th>
+                  <th title="Where the guide sits on the design template (template-relative, not a genomic coordinate).">
+                    Region
+                  </th>
                   <th>Notes</th>
                 </tr>
               </thead>

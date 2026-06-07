@@ -1,6 +1,24 @@
 # CRISPR ssODN (HDR donor) — lab-protocol spec
 
-Status: **DRAFT for review** · Authored 2026-06-07 (Claude, FE) · Owner of build: backend (Codex) for sequence generation; FE (Claude) for rendering.
+Status: **BACKEND IMPLEMENTED** (2026-06-07) · Authored 2026-06-07 (Claude, FE) · Owner of build: backend (Codex) for sequence generation; FE (Claude) for rendering.
+
+## Implementation update (2026-06-07)
+
+Backend implemented:
+
+- `POST /api/v1/crispr/ssodn`
+- Request model: `CrisprSsodnRequest`
+- Response model: `CrisprSsodnResponse`
+- Backend service: `app.services.crispr_ssodn.design_ssodn()`
+- Local-first source: MANE RefSeq GFF plus local `hg38.2bit` for human GRCh38.
+- Fallback source: resolved `SequenceContext`, then deterministic mock context when no
+  full donor window is available.
+- Legacy `/api/v1/crispr` `HdrSsodn` remains unchanged.
+
+Workbook check: the endpoint's uppercase donor sequence matched all seven RPE65 workbook
+rows exactly when typed casing was ignored. The endpoint returns uppercase orderable DNA and
+uses `intron_mask` metadata for intron display instead of treating workbook casing as source
+truth. No workbook sequence rows are committed.
 
 Steven flagged that the single-strand oligonucleotide (ssODN) is the **second required
 component** of a CRISPR HDR knock-in (the guide is the first), and that our current
@@ -33,7 +51,7 @@ interface HdrSsodn {
 }
 ```
 
-Current backend behaviour: `_build_hdr_ssodn()` uses the resolved `SequenceContext`
+Legacy `/api/v1/crispr` behaviour: `_build_hdr_ssodn()` uses the resolved `SequenceContext`
 target offset/reference/alternate base, takes up to 30 nt left and 30 nt right around a
 single-base edit, swaps the edited base, and returns that as `repair_template`. It is a
 source-backed SNV repair-preview, not a lab-order ssODN generator. It does **not** yet produce
@@ -49,8 +67,9 @@ length, or implement a real silent PAM-blocking edit path.
    For user-selected lengths, centre the edited base in the requested window unless the user
    supplies an explicit offset.
 3. **Genomic sequence, intron-inclusive.** The donor covers the genomic region around the
-   variant; if the donor window crosses an exon/intron boundary, the **intronic bases are
-   included** (the lab writes intronic bases in **lowercase** to mark them).
+   variant; if the donor window crosses an exon/intron boundary, intronic bases are included.
+   The backend returns uppercase orderable DNA plus `intron_mask` metadata; workbook casing was
+   typed manually and is not treated as source truth.
 4. **Arms framed around the target codon.** Lab notation: ~**59 nt downstream** of the
    codon (`_NNN`) and ~**56 nt upstream** (`NNN_`), where `NNN` is the 3-nt target codon.
    (See open question on the exact split / off-by-one.)
@@ -79,11 +98,12 @@ order list; not a constraint on the generator.
 
 ## Proposed design
 
-### Backend (Codex) — additive, mock-first
+### Backend (Codex) — additive
 
-1. **Genomic window source.** Obtain the genomic (intron-aware) reference around the
-   variant codon. Reuse the align-engine **BE-4 `/sequence/resolve`** or the gene-viewer
-   **`full_locus`** genomic sequence rather than the cDNA template.
+1. **Genomic window source.** Implemented local-first for human GRCh38 MANE transcripts using
+   the local MANE RefSeq GFF and `hg38.2bit`. The route falls back to resolved
+   `SequenceContext`, then deterministic mock context when no 120 nt source window is
+   available.
 2. **ssODN assembly algorithm (deterministic):**
    - Locate the variant codon on the genomic reference.
    - Take a genomic window of `oligo_length` nt, defaulting to 120.
@@ -91,32 +111,57 @@ order list; not a constraint on the generator.
      (`floor((oligo_length - 1) / 2)`, so 120 nt places the edited base at 0-based offset 59).
      Allow an advanced `variant_offset` override when the lab needs asymmetric arms.
    - Apply the **corrective edit** (variant codon → WT codon via codon table).
-   - Tag which window positions are **intronic** (for lowercase rendering).
+   - Tag which window positions are intronic via `intron_mask`.
    - Optionally apply a silent **PAM-blocking** edit **only when a guide is supplied and
      the option is enabled** (off by default to match the lab protocol).
    - Compose the final donor sequence + a name string.
-3. **Strand:** honour the requested ssODN strand (sense / antisense). RPE65 is minus-strand
-   — see open question.
+3. **Strand:** implemented transcript-sense output by default. RPE65 resolves as strand `-`,
+   with `orientation: "sense"` for the workbook convention. `orientation: "antisense"` reverse
+   complements the orderable donor.
 
-### Contract (additive — keep all existing `HdrSsodn` fields)
+### Contract (additive)
 
 ```ts
-interface CrisprSsodnOptions {
+interface CrisprSsodnRequest {
+  gene: string
+  cdna: string
+  transcript?: string | null
+  protein_change?: string | null
+  species?: 'human' | 'mouse'
+  genome_build?: string
   oligo_length?: number          // default 120; backend validates range, e.g. 60-200 nt
   variant_offset?: number        // optional 0-based edited-base position; default midpoint
   protocol?: 'lab_genomic' | 'guide_pam_block'
+  orientation?: 'sense' | 'antisense'
+  strand?: 'auto' | '+' | '-'
+  guide_sequence?: string | null
+  pam_sequence?: string | null
+  pam_blocking_enabled?: boolean
 }
 
-interface HdrSsodn {
-  // ...existing fields unchanged...
-  oligo_sequence?: string         // the assembled orderable donor (5'->3')
-  oligo_length?: number           // requested/generated length, default 120
-  oligo_name?: string             // "ss oligo for c.247T>C; p.Phe83Leu; TTC > CTC"
-  variant_offset?: number         // 0-based index of the edited base within oligo_sequence (~59)
-  intron_mask?: boolean[]         // per-base: true where genomic position is intronic (lowercase)
-  strand?: '+' | '-'              // sense/antisense the oligo is written on
-  protocol?: 'lab_genomic' | 'guide_pam_block'   // which generation mode produced it
-  arm_lengths: Record<string, number>            // now may be asymmetric (e.g. {left:56,right:59})
+interface CrisprSsodnDesign {
+  reference_arm: string
+  variant_arm: string
+  repair_template: string
+  edits_encoded: string[]
+  arm_lengths: Record<string, number>
+  estimated_hdr_efficiency: number
+  oligo_sequence: string          // uppercase orderable donor (5'->3')
+  oligo_length: number
+  oligo_name: string
+  variant_offset: number
+  intron_mask: boolean[]
+  strand: '+' | '-'
+  orientation: 'sense' | 'antisense'
+  protocol: 'lab_genomic' | 'guide_pam_block'
+  template_source: string
+  genome_build: string
+}
+
+interface CrisprSsodnResponse {
+  genome_build: string
+  ssodn: CrisprSsodnDesign
+  warnings: string[]
 }
 ```
 
@@ -125,8 +170,8 @@ unless Steven chooses tighter lab bounds. Reject values that cannot keep the edi
 requested edits inside the resolved genomic window.
 
 Both `backend.ts` mirrors (`app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`)
-stay **byte-identical**. Existing fields and the current behaviour remain valid (the new
-fields are optional; the FE degrades gracefully when absent).
+stay **byte-identical**. Existing `/api/v1/crispr` fields and behaviour remain valid; the
+lab-order donor is exposed through the dedicated `/api/v1/crispr/ssodn` response.
 
 ### Frontend (Claude) — once the contract lands
 
@@ -151,6 +196,13 @@ reference donor sequences stay in the internal workbook only):
   good for exercising gap #1.
 - Include one non-default length case, for example 100 nt or 140 nt, proving the edited base
   remains centred by default and `oligo_length`/`variant_offset` report correctly.
+
+Implemented backend tests:
+
+- `test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor`
+- `test_crispr_ssodn_public_rpe65_examples_match_expected_ordered_donor`
+- `test_crispr_ssodn_non_default_length_recalculates_centered_offset`
+- `test_crispr_ssodn_falls_back_to_sequence_context_mock_when_local_assets_do_not_apply`
 
 ## Open questions (for Steven)
 
