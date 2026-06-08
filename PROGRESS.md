@@ -43,6 +43,22 @@ Commit/deploy plan:
 - Do not stage Claude frontend/report WIP or use `git add -A`.
 - Push to `origin/main`, then run the SG backend deploy/live verification loop.
 
+Closeout:
+- Committed as `59feb38` (`feat(pubmed): materialize local literature edges`)
+  and pushed `3129834..59feb38` to `origin/main`.
+- Triggered SG Render deploy `dep-d8j43or7uimc73bb1nn0`; Render reports it
+  `live` on commit `59feb38a6e0d98ae515b2244a04459acfb74c194`.
+- Live SG `/healthz` returned `status=ok`, `database=ok`, `use_real_apis=true`.
+- Live SG provider-cache returned `status=ok`; `source_assets.pubmed_local`
+  is deployed but disabled/default-safe: `enabled=false`, `status=db_missing`,
+  `startup_download_allowed=false`, and no local paths/raw abstracts/secrets
+  emitted.
+- Live SG and deployed Vercel proxy `/api/v1/lookup?refresh=true` returned 200
+  for `USH2A c.2276G>T`.
+- Live SG and deployed Vercel proxy `/api/v1/lookup/publications?refresh=true`
+  returned matching paginated publication results: `total=190`, `count=3`,
+  first PMID `41892280`, source breakdown `litvar2=190`.
+
 ## 2026-06-08 02:32 +1000 - Codex - PubMed-local PubTator/LitVar edge ingestion
 
 Continued the uncommitted PubMed-local backend lane. No commit, push, deploy,
