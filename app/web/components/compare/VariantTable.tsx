@@ -440,7 +440,7 @@ function Table({
                     : null}
                 </span>
               </Td>
-              <Td style={{ fontFamily: 'var(--mono)', color: 'var(--ink-2)' }}>{v.variant ?? v.query}</Td>
+              <Td style={{ fontFamily: 'var(--body)', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-2)' }}>{v.variant ?? v.query}</Td>
               <Td style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>{v.raw}</Td>
               <Td style={{ textAlign: 'right' }}>
                 {href ? (

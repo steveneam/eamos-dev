@@ -1,6 +1,7 @@
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { SOURCES } from '@/lib/sources'
 import { TextLink, TextLinkStyles } from '@/components/landing/ui/TextLink'
+import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 
 export function SiteFooter() {
   return (
@@ -60,12 +61,9 @@ export function SiteFooter() {
 function FooterCol({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
-      <span
-        className="text-[10.5px] font-semibold uppercase tracking-[0.14em]"
-        style={{ color: 'var(--hero-ink-3)' }}
-      >
+      <LandingEyebrow style={{ color: 'var(--hero-ink-3)' }}>
         {title}
-      </span>
+      </LandingEyebrow>
       {children}
     </div>
   )

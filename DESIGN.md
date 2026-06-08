@@ -323,7 +323,8 @@ only — no inline tier hex in components. Canonical values are OKLCH in
 ## Typography
 
 v2 "Reading Room" stack — **Spectral** (editorial serif, display) + **Inter**
-(body) + **JetBrains Mono** (HGVS identity, kept). Spectral is a deliberate
+(body, also carries HGVS / variant identity in tabular-nums) + **IBM Plex Mono**
+(codes / coords / scores / sequences). Spectral is a deliberate
 non-reflex pick (impeccable flags Newsreader/Syne/etc. as reflex-default serifs);
 the editorial register is justified because Eamos is literally a genomic-evidence
 reading surface. **Avoid the editorial-template fingerprint**: do not lean on
@@ -333,7 +334,7 @@ imagery on the landing (text-only is the failure mode).
 ```css
 --display: 'Spectral', Georgia, serif;       /* editorial serif — HEADING-ROLE ONLY */
 --body:    'Inter', system-ui, sans-serif;
---mono:    'JetBrains Mono', ui-monospace, monospace;
+--mono:    'IBM Plex Mono', ui-monospace, monospace;  /* codes / coords / scores */
 
 body { font-family: var(--body); font-size: 15px; line-height: 1.6; }
 ```
@@ -359,7 +360,8 @@ exposes them as `font-display`, `font-sans`, `font-mono`.
 | Body | 15px / 1.6 | sans 400–500 |
 | Dense / secondary | 13px | sans 500 |
 | Label / metadata | 11px uppercase, tracked | mono 500 |
-| HGVS / scores / coords | per context | mono 500 |
+| HGVS / variant identity | per context | sans 500, tabular-nums |
+| Scores / coords / sequences | per context | mono 500 |
 
 **Never use weight > 700** on product; the serif reads authoritative at low weight
 (300–400 large), so bold is rarely needed.
@@ -665,7 +667,7 @@ COLOUR
 TYPE
   Display font:  'Spectral' (editorial serif — HEADING-ROLE ONLY)
   Body font:     'Inter'
-  Mono font:     'JetBrains Mono' (HGVS / coords / scores)
+  Mono font:     'IBM Plex Mono' (coords / scores / sequences; HGVS identity = Inter)
   Body size:     15px / 1.6
   Landing h2:    LandingH2 — clamp(30, 3.6vw, 42)px, Spectral 400
   Landing h3:    LandingH3 — 18px, Spectral 400

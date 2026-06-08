@@ -127,17 +127,7 @@ export function DiseaseSection({ payload, number, embedded, sectionTarget }: Dis
         <div className="flex flex-col gap-3.5">
           {populated.map((field) => (
             <div key={field.label}>
-              <div
-                className="mb-1 uppercase"
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  letterSpacing: '0.08em',
-                  color: 'var(--ink-4)',
-                }}
-              >
-                {field.label}
-              </div>
+              <div className="eamos-kicker mb-1">{field.label}</div>
               <p
                 style={{
                   margin: 0,

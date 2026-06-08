@@ -85,7 +85,7 @@ export function BatchResultsTable({ results }: { results: BatchResult[] }) {
                 <tr key={`${r.variant_key}-${i}`} style={{ borderTop: '0.5px solid var(--line)' }}>
                   <Td style={{ textAlign: 'right', color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{i + 1}</Td>
                   <Td style={{ fontWeight: 600, color: 'var(--ink)' }}>{r.gene ?? '—'}</Td>
-                  <Td style={{ fontFamily: 'var(--mono)', color: 'var(--ink-2)' }}>
+                  <Td style={{ fontFamily: 'var(--body)', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-2)' }}>
                     {r.hgvs_c ?? r.variant_key}
                     {r.hgvs_p ? <span style={{ color: 'var(--ink-4)' }}> · {r.hgvs_p}</span> : null}
                   </Td>

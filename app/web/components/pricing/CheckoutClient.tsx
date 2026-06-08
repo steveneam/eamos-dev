@@ -227,6 +227,8 @@ export function CheckoutClient() {
       plan: plan.id,
       amount: String(totals.total),
       order,
+      cycle: 'monthly', // the only billing cycle currently surfaced — explicit so the receipt is truthful, not defaulted
+      // NOTE: no `method` — checkout redirects to Stripe and no method is chosen here, so the receipt omits the row rather than asserting "Card".
     })
     // Reset busy if navigation is cancelled or fails
     router.push(`/checkout/success?${q.toString()}`)
@@ -419,7 +421,10 @@ export function CheckoutClient() {
               </p>
             )}
 
-            <div className="mt-5 flex flex-wrap items-center gap-2">
+            <p className="mt-4 text-[11.5px] font-semibold" style={{ color: 'var(--ink-2)' }}>
+              Pay with
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
               {['Card', 'Apple Pay', 'Google Pay', 'Link'].map((m) => (
                 <span
                   key={m}
@@ -428,9 +433,9 @@ export function CheckoutClient() {
                     fontWeight: 600,
                     padding: '5px 10px',
                     borderRadius: 100,
-                    background: 'var(--bg-soft)',
+                    background: 'transparent',
                     border: '0.5px solid var(--line)',
-                    color: 'var(--ink-2)',
+                    color: 'var(--ink-3)',
                   }}
                 >
                   {m}

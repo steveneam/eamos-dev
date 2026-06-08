@@ -3,10 +3,13 @@ import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { Field, AuthPanelStyles } from '@/components/auth/AuthPanel'
 
 // Password-recovery landing. The recovery email links to
 // /auth/confirm?...&type=recovery&next=/account/update-password — that route
 // verifies the token (establishing a short-lived session) and redirects here.
+// Composes the shared AuthPanel Field (password reveal toggle + one field idiom)
+// instead of a standalone .upw-* system.
 export default function UpdatePasswordPage() {
   const { updatePassword, user, loading, configured } = useAuth()
   const router = useRouter()
@@ -26,8 +29,15 @@ export default function UpdatePasswordPage() {
     e.preventDefault()
     if (busy) return
     setError(null)
-    if (password.length < 8) return setError('Use at least 8 characters.')
-    if (password !== confirm) return setError('Passwords do not match.')
+    // Field-scoped rules surface under their field (one wording, one place).
+    if (password.length < 8) {
+      setFieldError('password', 'Use at least 8 characters.')
+      return
+    }
+    if (password !== confirm) {
+      setFieldError('confirm', 'Passwords do not match.')
+      return
+    }
     setBusy(true)
     const { error } = await updatePassword(password)
     setBusy(false)
@@ -38,60 +48,7 @@ export default function UpdatePasswordPage() {
 
   return (
     <>
-      <style>{`
-        .upw-field {
-          width: 100%;
-          height: 40px;
-          padding: 0 12px;
-          border-radius: var(--r-md);
-          background: var(--bg-soft);
-          border: 0.5px solid var(--line-2);
-          color: var(--ink);
-          font-size: 13.5px;
-          outline: none;
-          transition: border-color var(--dur-1) var(--ease-standard),
-                      box-shadow var(--dur-1) var(--ease-standard);
-        }
-        /* Hover: same teal-axis signal as the rest of the brand surface. */
-        .upw-field:hover:not(:focus):not([aria-invalid="true"]) {
-          border-color: var(--teal);
-        }
-        .upw-field:focus-visible,
-        .upw-field:focus {
-          border-color: var(--teal);
-          box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
-          outline: none;
-        }
-        .upw-field[aria-invalid="true"] {
-          border-color: var(--err);
-        }
-        .upw-field[aria-invalid="true"]:focus-visible,
-        .upw-field[aria-invalid="true"]:focus {
-          border-color: var(--err);
-          box-shadow: 0 0 0 3px rgba(184,43,43,0.10);
-        }
-        .upw-submit {
-          height: 40px;
-          width: 100%;
-          border-radius: var(--r-md);
-          border: none;
-          background: var(--teal);
-          color: #fff;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background var(--dur-1) var(--ease-standard),
-                      box-shadow var(--dur-1) var(--ease-standard),
-                      transform var(--dur-1) var(--ease-standard);
-        }
-        .upw-submit:hover:not(:disabled) { background: var(--teal-deep); }
-        .upw-submit:active:not(:disabled) { transform: translateY(1px); }
-        .upw-submit:focus-visible {
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
-        }
-        .upw-submit:disabled { opacity: 0.65; cursor: not-allowed; }
-      `}</style>
+      <AuthPanelStyles />
       <main
         style={{
           minHeight: '100dvh',
@@ -181,54 +138,36 @@ export default function UpdatePasswordPage() {
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{user.email}</span>.
                 Choose a new password.
               </p>
-              <label className="flex flex-col gap-1.5">
-                <span style={labelStyle}>New password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onBlur={() => {
-                    if (password && password.length < 8)
-                      setFieldError('password', 'Use at least 8 characters.')
-                    else clearFieldError('password')
-                  }}
-                  required
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  className="upw-field"
-                  aria-invalid={fieldErrors.password ? true : undefined}
-                  aria-describedby={fieldErrors.password ? 'upw-pw-err' : undefined}
-                />
-                {fieldErrors.password && (
-                  <span id="upw-pw-err" role="alert" style={{ fontSize: 11.5, color: 'var(--err)' }}>
-                    {fieldErrors.password}
-                  </span>
-                )}
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span style={labelStyle}>Confirm new password</span>
-                <input
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  onBlur={() => {
-                    if (confirm && confirm !== password)
-                      setFieldError('confirm', 'Passwords do not match.')
-                    else clearFieldError('confirm')
-                  }}
-                  required
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  className="upw-field"
-                  aria-invalid={fieldErrors.confirm ? true : undefined}
-                  aria-describedby={fieldErrors.confirm ? 'upw-conf-err' : undefined}
-                />
-                {fieldErrors.confirm && (
-                  <span id="upw-conf-err" role="alert" style={{ fontSize: 11.5, color: 'var(--err)' }}>
-                    {fieldErrors.confirm}
-                  </span>
-                )}
-              </label>
+              <Field
+                label="New password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                placeholder="••••••••"
+                dark={false}
+                fieldError={fieldErrors.password}
+                onBlur={() => {
+                  if (password && password.length < 8)
+                    setFieldError('password', 'Use at least 8 characters.')
+                  else clearFieldError('password')
+                }}
+              />
+              <Field
+                label="Confirm new password"
+                type="password"
+                value={confirm}
+                onChange={setConfirm}
+                autoComplete="new-password"
+                placeholder="••••••••"
+                dark={false}
+                fieldError={fieldErrors.confirm}
+                onBlur={() => {
+                  if (confirm && confirm !== password)
+                    setFieldError('confirm', 'Passwords do not match.')
+                  else clearFieldError('confirm')
+                }}
+              />
               {error && (
                 <p
                   style={{
@@ -250,8 +189,8 @@ export default function UpdatePasswordPage() {
                 type="submit"
                 disabled={busy}
                 aria-busy={busy}
-                className="upw-submit"
-                style={{ marginTop: 4 }}
+                className="ap-primary-btn"
+                style={{ marginTop: 4, width: '100%' }}
               >
                 {busy ? 'Updating…' : 'Update password'}
               </button>
@@ -268,9 +207,4 @@ const muted: React.CSSProperties = {
   lineHeight: 1.6,
   color: 'var(--ink-3)',
   margin: '8px 0 0',
-}
-const labelStyle: React.CSSProperties = {
-  fontSize: 11.5,
-  fontWeight: 600,
-  color: 'var(--ink-2)',
 }

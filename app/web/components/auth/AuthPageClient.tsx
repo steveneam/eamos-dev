@@ -191,6 +191,7 @@ export function AuthPageClient() {
             <AuthPanel
               onClose={() => router.push('/account')}
               tone="light"
+              chromeless
             />
           </div>
 

@@ -178,7 +178,7 @@ export function CheckoutSuccessClient() {
               <tbody>
                 <ReceiptRow label="Receipt" value={order || 'Preview'} mono />
                 <ReceiptRow label="Date" value={when} />
-                <ReceiptRow label="Payment method" value={method} />
+                {params.get('method') ? <ReceiptRow label="Payment method" value={method} /> : null}
                 <ReceiptRow label="Account" value={user?.email ?? 'Guest'} mono />
                 <ReceiptRow
                   label="Billing"
@@ -306,11 +306,9 @@ function ReceiptRow({
           color: 'var(--ink)',
           textAlign: 'right',
           fontFamily: mono ? 'var(--mono)' : 'var(--body)',
+          fontVariantNumeric: 'tabular-nums',
           paddingBottom: 8,
-          maxWidth: 220,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          wordBreak: 'break-word',
         }}
       >
         {value}

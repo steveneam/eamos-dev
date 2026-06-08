@@ -154,7 +154,7 @@ export function FeaturesGrid() {
                   aspectRatio: '32 / 9',
                   overflow: 'hidden',
                   background:
-                    'radial-gradient(120% 120% at 50% 0%, rgba(16,185,129,0.10), transparent 60%), var(--page-bg-deep)',
+                    'radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--em) 10%, transparent), transparent 60%), var(--page-bg-deep)',
                 }}
               >
                 <span
@@ -186,7 +186,7 @@ export function FeaturesGrid() {
                     textTransform: 'uppercase',
                     letterSpacing: '0.1em',
                     color: 'var(--em-bright)',
-                    background: 'rgba(16,185,129,0.12)',
+                    background: 'color-mix(in oklab, var(--em) 12%, transparent)',
                     border: '0.5px solid var(--hero-line)',
                     borderRadius: 999,
                     padding: '4px 10px',

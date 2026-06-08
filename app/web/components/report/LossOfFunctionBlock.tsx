@@ -76,7 +76,7 @@ export function LossOfFunctionBlock({ consequence }: { consequence?: string | nu
   const consequenceLabel = consequence ? consequence.replace(/_/g, ' ') : 'this variant'
 
   return (
-    <div style={{ marginTop: 18, border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: '14px 16px' }}>
+    <div style={{ marginTop: 'var(--report-subpanel-gap)', border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: 'var(--report-subpanel-pad)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <span className="eamos-kicker" title={PVS1_TIP} style={{ cursor: 'help', borderBottom: '1px dotted var(--ink-5)' }}>
           Loss-of-function · PVS1

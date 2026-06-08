@@ -158,8 +158,8 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
   return (
     <div
       style={{
-        marginTop: 18,
-        padding: '14px 16px',
+        marginTop: 'var(--report-subpanel-gap)',
+        padding: 'var(--report-subpanel-pad)',
         background: 'var(--bg-soft)',
         border: '0.5px solid var(--line)',
         borderRadius: 'var(--r-md)',

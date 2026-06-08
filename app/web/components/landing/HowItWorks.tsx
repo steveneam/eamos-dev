@@ -1,5 +1,6 @@
 import { Reveal } from '@/components/landing/Reveal'
 import { LandingH2, LandingH3 } from '@/components/landing/ui/LandingHeading'
+import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 
 interface Step {
   num: number
@@ -96,7 +97,7 @@ export function HowItWorks() {
                         height: isFeatured ? 34 : 26,
                         borderRadius: 999,
                         background: isFeatured ? 'var(--em)' : 'transparent',
-                        color: isFeatured ? '#04140e' : 'var(--em-bright)',
+                        color: isFeatured ? 'var(--em-ink)' : 'var(--em-bright)',
                         border: isFeatured ? 'none' : '0.5px solid var(--hero-line)',
                         fontFamily: 'var(--mono)',
                         fontSize: isFeatured ? 13 : 11,
@@ -105,12 +106,9 @@ export function HowItWorks() {
                     >
                       {String(step.num).padStart(2, '0')}
                     </span>
-                    <span
-                      className="text-[10.5px] font-semibold uppercase tracking-[0.12em]"
-                      style={{ color: 'var(--em-bright)' }}
-                    >
+                    <LandingEyebrow style={{ color: 'var(--em-bright)' }}>
                       {step.kicker}
-                    </span>
+                    </LandingEyebrow>
                   </div>
                   <LandingH3 className="mb-3">{step.title}</LandingH3>
                   <p
@@ -126,13 +124,13 @@ export function HowItWorks() {
                   <div
                     className="mt-auto flex flex-col justify-center gap-1 overflow-hidden"
                     style={{
-                      background: isFeatured ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.22)',
+                      background: isFeatured ? 'var(--page-bg-deep)' : 'var(--page-bg)',
                       border: '0.5px solid var(--hero-line)',
                       borderRadius: 10,
                       padding: isFeatured ? '16px 18px' : '12px 14px',
                       fontFamily: 'var(--mono)',
                       fontSize: isFeatured ? 12 : 11,
-                      color: 'var(--hero-ink-2)',
+                      color: 'var(--hero-ink)',
                       minHeight: isFeatured ? 132 : 70,
                     }}
                   >

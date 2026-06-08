@@ -24,7 +24,7 @@ const CLASSIFICATION_DISPLAY: Record<ExpertPanelClassification, string> = {
 }
 
 const CRITERION_STATE_TINT: Record<ExpertPanelCriterion['state'], { bg: string; bd: string; ink: string }> = {
-  met: { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink-1)' },
+  met: { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink)' },
   not_met: { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink-4)' },
   not_assessed: { bg: 'transparent', bd: 'var(--line)', ink: 'var(--ink-4)' },
   conflicting: { bg: 'var(--warn-tint)', bd: 'var(--warn-bdr)', ink: 'var(--warn)' },
@@ -134,8 +134,8 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
   return (
     <div
       style={{
-        marginTop: 18,
-        padding: '14px 16px',
+        marginTop: 'var(--report-subpanel-gap)',
+        padding: 'var(--report-subpanel-pad)',
         background: 'var(--bg-soft)',
         border: '0.5px solid var(--line)',
         borderRadius: 'var(--r-md)',

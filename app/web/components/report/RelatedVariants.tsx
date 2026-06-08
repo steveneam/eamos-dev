@@ -196,8 +196,8 @@ export function RelatedVariants({ data }: { data: LookupResponse }) {
           border: 0.5px solid var(--teal-bdr); border-radius: 4px;
           padding: 1px 5px;
         }
-        .rel-gene { font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: var(--ink); flex-shrink: 0; }
-        .rel-cdna { font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rel-gene { font-family: var(--body); font-size: 12.5px; font-weight: 600; color: var(--ink); flex-shrink: 0; }
+        .rel-cdna { font-family: var(--body); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .rel-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; }
         .rel-meta { font-size: 10.5px; color: var(--ink-4); border-bottom: 1px dotted var(--ink-5); cursor: help; }
         .rel-chips { display: inline-flex; gap: 3px; flex-shrink: 0; }

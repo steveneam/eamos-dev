@@ -206,7 +206,7 @@ export function ProteinTrack({ track, gene }: { track?: ProteinDomainTrack | nul
   const anyMock = model.domainsMock || model.markersMock
 
   return (
-    <div style={{ marginTop: 18, border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: '14px 16px' }}>
+    <div style={{ marginTop: 'var(--report-subpanel-gap)', border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: 'var(--report-subpanel-pad)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
         <span className="eamos-kicker">Protein domains &amp; AlphaMissense</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -229,7 +229,7 @@ export function ProteinTrack({ track, gene }: { track?: ProteinDomainTrack | nul
           const w = Math.max(2, xFor(d.end) - x)
           return (
             <g key={`dom-${i}`}>
-              <rect x={x} y={DOMAIN_Y} width={w} height={DOMAIN_H} rx="4" fill="var(--teal-faint)" stroke="var(--teal-bdr)" strokeWidth="0.75" />
+              <rect x={x} y={DOMAIN_Y} width={w} height={DOMAIN_H} rx="4" fill="var(--teal-tint)" stroke="var(--teal-bdr)" strokeWidth="0.75" />
               {w > 120 && (
                 <text x={x + w / 2} y={DOMAIN_Y + DOMAIN_H / 2 + 3.5} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 600, fill: 'var(--teal-deep)' }}>
                   {d.short}
@@ -296,7 +296,7 @@ export function ProteinTrack({ track, gene }: { track?: ProteinDomainTrack | nul
       {/* legend */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 8, fontSize: 10.5, color: 'var(--ink-4)' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 16, height: 8, borderRadius: 2, background: 'var(--teal-faint)', border: '0.5px solid var(--teal-bdr)' }} />
+          <span style={{ width: 16, height: 8, borderRadius: 2, background: 'var(--teal-tint)', border: '0.5px solid var(--teal-bdr)' }} />
           Domain / family
         </span>
         {model.sites.length > 0 && (

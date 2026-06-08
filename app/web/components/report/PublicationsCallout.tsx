@@ -60,7 +60,7 @@ export function PublicationsCallout({
         background: 'var(--bg-soft)',
         border: '0.5px solid var(--line)',
         borderRadius: 'var(--r-md)',
-        padding: '14px 18px',
+        padding: 'var(--report-subpanel-pad)',
         marginTop: 14,
       }}
     >

@@ -31,7 +31,7 @@ function AccountStyles() {
         background: var(--bg-soft);
         border: 0.5px solid var(--line-2);
         color: var(--ink);
-        font-size: 13px;
+        font-size: 13.5px;
         outline: none;
         min-width: 0;
         width: 100%;
@@ -87,7 +87,13 @@ function AccountStyles() {
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
-        padding: 4px 6px;
+        /* 44px min tap target (was a ~20px hit area on a destructive mobile action) */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        min-width: 44px;
+        padding: 4px 10px;
         border-radius: 5px;
         transition: color var(--dur-1) var(--ease-standard),
                     background var(--dur-1) var(--ease-standard);
@@ -269,7 +275,7 @@ function SignedOut() {
       >
         {/* X / Cancel route back to the landing — /account on its own is a
             sign-in gate, so 'close' has to mean 'leave the gate'. */}
-        <AuthPanel onClose={() => router.push('/')} tone="light" />
+        <AuthPanel onClose={() => router.push('/')} tone="light" chromeless />
       </div>
     </div>
   )
@@ -446,23 +452,32 @@ function SavedVariants({
 
   return (
     <Section title="Saved variants" subtitle="Bookmark variants to track for reclassification.">
-      <form onSubmit={submit} className="flex flex-col gap-2.5 sm:flex-row">
-        <input
-          value={hgvs}
-          onChange={(e) => setHgvs(e.target.value)}
-          placeholder="Variant HGVS — e.g. NM_000257.4:c.1208G>A"
-          aria-label="Variant HGVS"
-          className="ac-field"
-          style={{ flex: 1.4, fontFamily: 'var(--mono)' }}
-        />
-        <input
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Note (optional)"
-          aria-label="Note"
-          className="ac-field"
-          style={{ flex: 1 }}
-        />
+      <form onSubmit={submit} className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
+        <label className="flex flex-col gap-1.5" style={{ flex: 1.4 }}>
+          <span style={labelStyle}>
+            Variant HGVS <span style={{ color: 'var(--err)' }}>*</span>
+          </span>
+          <input
+            value={hgvs}
+            onChange={(e) => setHgvs(e.target.value)}
+            placeholder="e.g. NM_000257.4:c.1208G>A"
+            aria-label="Variant HGVS"
+            className="ac-field"
+            style={{ fontFamily: 'var(--mono)' }}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5" style={{ flex: 1 }}>
+          <span style={labelStyle}>
+            Note <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>(optional)</span>
+          </span>
+          <input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. recheck after next ClinVar release"
+            aria-label="Note"
+            className="ac-field"
+          />
+        </label>
         <button type="submit" disabled={busy} aria-busy={busy} className="ac-add-btn">
           {busy ? 'Saving…' : 'Save'}
         </button>
@@ -1055,6 +1070,14 @@ function fmtDate(iso: string): string {
 }
 
 // ── styles ─────────────────────────────────────────────────────────────────
+// Visible field-label idiom shared across the account forms (matches the
+// AuthPanel.Field / update-password label spec: 11.5px / 600 / --ink-2).
+const labelStyle: React.CSSProperties = {
+  fontSize: 11.5,
+  fontWeight: 600,
+  color: 'var(--ink-2)',
+}
+
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',

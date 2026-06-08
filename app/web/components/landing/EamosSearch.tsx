@@ -22,7 +22,7 @@ const TONES = {
     text: 'var(--hero-ink)',
     icon: 'var(--hero-ink-3)',
     send: 'var(--em)',
-    sendIcon: '#04140e',
+    sendIcon: 'var(--em-ink)',
     glowFocus:
       '0 24px 70px -28px rgba(0,0,0,0.7), 0 0 0 4px rgba(52,211,153,0.14), 0 0 70px -16px rgba(16,185,129,0.55)',
     glowHero: '0 24px 70px -30px rgba(0,0,0,0.7), 0 0 60px -20px rgba(16,185,129,0.38)',
@@ -41,12 +41,13 @@ const TONES = {
     icon: 'var(--ink-4)',
     send: 'var(--teal)',
     sendIcon: '#ffffff',
-    glowFocus: '0 1px 2px rgba(15,23,42,0.04), 0 0 0 4px rgba(29,158,117,0.13)',
-    glowHero: '0 12px 36px -22px rgba(15,23,42,0.22)',
-    // Hover signal matches the Try pills + nav text-links: the border snaps
-    // to the teal accent and a soft teal ring picks it up. Same teal axis as
-    // every other interactive surface on the landing.
-    glowHover: '0 8px 24px -16px rgba(15,23,42,0.18), 0 0 0 4px rgba(29,158,117,0.16)',
+    // Depth on the --elev-* tokens (DESIGN.md mandate) + a teal ring on the --em
+    // axis — was a cool slate (rgba(15,23,42)) drop-shadow off the warm mandate.
+    glowFocus: 'var(--elev-1), 0 0 0 4px color-mix(in oklab, var(--em) 16%, transparent)',
+    glowHero: 'var(--elev-1)',
+    // Hover signal matches the Try pills + nav text-links: a soft teal ring on
+    // the --em axis, same as every other interactive surface on the landing.
+    glowHover: 'var(--elev-2), 0 0 0 4px color-mix(in oklab, var(--em) 16%, transparent)',
     borderHover: 'var(--teal)',
     sendDeep: 'var(--teal-deep)',
     backdrop: 'none',

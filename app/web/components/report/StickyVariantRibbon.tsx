@@ -68,10 +68,10 @@ export function StickyVariantRibbon({
   // If no HGVS notation, render nothing
   if (!hgvsC) return null
 
-  // Variant identity, rendered to MIRROR the hero header: gene in Spectral
-  // (display), the HGVS / coords in mono. The gene name must read in the same
-  // font everywhere it appears (hero + this ribbon), so it is split out from the
-  // mono HGVS run rather than baked into one mono string.
+  // Variant identity. The gene is split out from the HGVS run so each can carry
+  // its own type: gene = Inter 600 (Spectral reads too delicate in this compact
+  // 16px bar), HGVS = Inter (tabular-nums) — variant identity is no longer set in
+  // mono (mono is reserved for coords / scores / sequences).
   const hgvsText = [
     transcript && hgvsC ? `${transcript}:${hgvsC}` : hgvsC,
     hgvsP ? `(${hgvsP})` : undefined,
@@ -123,7 +123,7 @@ export function StickyVariantRibbon({
           gap: 16,
         }}
       >
-        {/* Left: variant identity — gene (Spectral) + HGVS (mono), mirroring the hero */}
+        {/* Left: variant identity — gene (Inter 600) + HGVS (Inter, tabular-nums) */}
         <span
           style={{
             display: 'inline-flex',
@@ -137,8 +137,8 @@ export function StickyVariantRibbon({
           {gene && (
             <span
               style={{
-                fontFamily: 'var(--display)',
-                fontWeight: 500,
+                fontFamily: 'var(--body)',
+                fontWeight: 600,
                 fontSize: 16,
                 lineHeight: 1,
                 letterSpacing: '-0.01em',
@@ -151,7 +151,8 @@ export function StickyVariantRibbon({
           )}
           <span
             style={{
-              fontFamily: 'var(--mono)',
+              fontFamily: 'var(--body)',
+              fontVariantNumeric: 'tabular-nums',
               fontSize: 12.5,
               fontWeight: 500,
               color: 'var(--ink-2)',

@@ -33,7 +33,11 @@ function humaniseError(raw: string): string {
 
 type ToneProps = { tone?: 'dark' | 'light' }
 
-export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } & ToneProps) {
+export function AuthPanel({
+  onClose,
+  tone = 'light',
+  chromeless = false,
+}: { onClose: () => void; chromeless?: boolean } & ToneProps) {
   const { signInWithPassword, signUp, signInWithOAuth, resetPassword, configured } = useAuth()
   const [mode, setMode] = useState<Mode>('signup')
   const [email, setEmail] = useState('')
@@ -95,8 +99,16 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
     }
 
     if (mode === 'signup') {
-      if (password !== confirm) return setError('Passwords do not match.')
-      if (password.length < 8) return setError('Use at least 8 characters.')
+      // Field-scoped rules surface under their field (one wording, one place);
+      // only the agreement (which has no field) stays on the top banner.
+      if (password.length < 8) {
+        setFieldError('password', 'Use at least 8 characters.')
+        return
+      }
+      if (password !== confirm) {
+        setFieldError('confirm', 'Passwords do not match.')
+        return
+      }
       if (!agreed) return setError('Accept the Terms and Conditions to continue.')
       setBusy(true)
       const { error, needsConfirmation } = await signUp(email, password)
@@ -145,15 +157,17 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
           >
             {isReset ? 'Reset password' : isSignup ? 'Create your account' : 'Welcome back'}
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="ap-icon-btn"
-            data-dark={dark ? '' : undefined}
-          >
-            <CloseIcon dark={dark} />
-          </button>
+          {!chromeless && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="ap-icon-btn"
+              data-dark={dark ? '' : undefined}
+            >
+              <CloseIcon dark={dark} />
+            </button>
+          )}
         </header>
 
         {!configured && (
@@ -164,24 +178,48 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
 
         {!isReset && (
           <>
-            <div className="grid grid-cols-3 gap-2">
-              {OAUTH.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => onOAuth(p.id)}
-                  disabled={busy}
-                  aria-label={`Continue with ${p.label}`}
-                  title={`Continue with ${p.label}`}
-                  aria-busy={busyProvider === p.id}
-                  className="ap-oauth-btn"
-                  data-dark={dark ? '' : undefined}
-                  data-busy={busyProvider === p.id ? '' : undefined}
-                >
-                  {busyProvider === p.id ? <MiniSpinner /> : p.icon}
-                </button>
-              ))}
-            </div>
+            {chromeless ? (
+              /* Full-page /auth + /account gate: stacked, labelled OAuth buttons —
+                 three same-shape icon squares read as a toolbar, not three sign-in paths. */
+              <div className="flex flex-col gap-2">
+                {OAUTH.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onOAuth(p.id)}
+                    disabled={busy}
+                    aria-label={`Continue with ${p.label}`}
+                    aria-busy={busyProvider === p.id}
+                    className="ap-oauth-btn ap-oauth-row"
+                    data-dark={dark ? '' : undefined}
+                    data-busy={busyProvider === p.id ? '' : undefined}
+                  >
+                    {busyProvider === p.id ? <MiniSpinner /> : p.icon}
+                    <span>Continue with {p.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Width-constrained popover: keep the compact 3-icon row. */
+              <div className="grid grid-cols-3 gap-2">
+                {OAUTH.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onOAuth(p.id)}
+                    disabled={busy}
+                    aria-label={`Continue with ${p.label}`}
+                    title={`Continue with ${p.label}`}
+                    aria-busy={busyProvider === p.id}
+                    className="ap-oauth-btn"
+                    data-dark={dark ? '' : undefined}
+                    data-busy={busyProvider === p.id ? '' : undefined}
+                  >
+                    {busyProvider === p.id ? <MiniSpinner /> : p.icon}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="my-4 flex items-center gap-3">
               <span
                 style={{
@@ -316,11 +354,12 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
                 clear()
                 setMode('reset')
               }}
-              className="ap-link-btn"
+              className="ap-link-btn ap-forgot-btn"
               style={{
                 alignSelf: 'flex-end',
                 fontSize: 12,
-                color: dark ? 'var(--hero-ink-2)' : 'var(--ink-3)',
+                color: 'var(--teal)',
+                fontWeight: 600,
               }}
             >
               Forgot password?
@@ -339,19 +378,21 @@ export function AuthPanel({ onClose, tone = 'light' }: { onClose: () => void } &
           )}
 
           <div className="mt-2 flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              className="ap-ghost-btn"
-              data-dark={dark ? '' : undefined}
-            >
-              Cancel
-            </button>
+            {!chromeless && (
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={busy}
+                className="ap-ghost-btn"
+                data-dark={dark ? '' : undefined}
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
               className="ap-primary-btn"
-              style={{ flex: 1, opacity: busy ? 0.65 : 1 }}
+              style={{ flex: 1 }}
               disabled={busy}
               aria-busy={busy}
             >
@@ -494,7 +535,7 @@ function SuccessState({
   )
 }
 
-function Field({
+export function Field({
   label,
   type,
   value,
@@ -517,6 +558,33 @@ function Field({
 }) {
   const id = `auth-field-${label.toLowerCase().replace(/\s+/g, '-')}`
   const errId = fieldError ? `${id}-err` : undefined
+  const isPassword = type === 'password'
+  const [show, setShow] = useState(false)
+
+  const input = (
+    <input
+      id={id}
+      data-tone={dark ? 'dark' : undefined}
+      className="ap-field"
+      data-error={fieldError ? '' : undefined}
+      type={isPassword && show ? 'text' : type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      required
+      autoComplete={autoComplete}
+      placeholder={placeholder}
+      spellCheck={false}
+      aria-describedby={errId}
+      aria-invalid={fieldError ? true : undefined}
+      style={{
+        color: dark ? 'var(--hero-ink)' : 'var(--ink)',
+        // .ap-field carries the light --bg-soft fill; dark tone overrides inline.
+        ...(dark ? { background: 'var(--hero-glass)' } : null),
+        ...(isPassword ? { paddingRight: 38 } : null),
+      }}
+    />
+  )
 
   return (
     <label className="flex flex-col gap-1.5">
@@ -529,26 +597,24 @@ function Field({
       >
         {label}
       </span>
-      <input
-        id={id}
-        data-tone={dark ? 'dark' : undefined}
-        className="ap-field"
-        data-error={fieldError ? '' : undefined}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        required
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        spellCheck={false}
-        aria-describedby={errId}
-        aria-invalid={fieldError ? true : undefined}
-        style={{
-          background: dark ? 'var(--hero-glass)' : 'var(--bg)',
-          color: dark ? 'var(--hero-ink)' : 'var(--ink)',
-        }}
-      />
+      {isPassword ? (
+        <div style={{ position: 'relative' }}>
+          {input}
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShow((s) => !s)}
+            aria-label={show ? 'Hide password' : 'Show password'}
+            aria-pressed={show}
+            className="ap-eye-btn"
+            data-dark={dark ? '' : undefined}
+          >
+            {show ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </div>
+      ) : (
+        input
+      )}
       {fieldError && (
         <span id={errId} role="alert" style={{ fontSize: 11.5, color: 'var(--err)', marginTop: -2 }}>
           {fieldError}
@@ -559,7 +625,7 @@ function Field({
 }
 
 // ── scoped styles ────────────────────────────────────────────────────────────
-function AuthPanelStyles() {
+export function AuthPanelStyles() {
   return (
     <style>{`
       .ap-field {
@@ -568,6 +634,7 @@ function AuthPanelStyles() {
         padding: 0 12px;
         border-radius: var(--r-md);
         font-size: 13.5px;
+        background: var(--bg-soft);
         border: 0.5px solid var(--line-2);
         outline: none;
         transition: border-color var(--dur-1) var(--ease-standard),
@@ -641,6 +708,7 @@ function AuthPanelStyles() {
         box-shadow: 0 0 0 3px rgba(29,158,117,0.25);
       }
       .ap-primary-btn:disabled {
+        opacity: 0.55;
         cursor: not-allowed;
       }
 
@@ -750,6 +818,44 @@ function AuthPanelStyles() {
         box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
         border-radius: 3px;
       }
+      /* Forgot-password is teal (actionable) at rest; deepen on hover. */
+      .ap-forgot-btn:hover { color: var(--teal-deep); opacity: 1; }
+
+      /* Password reveal toggle inside the field. */
+      .ap-eye-btn {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--ink-4);
+        transition: color var(--dur-1) var(--ease-standard);
+      }
+      .ap-eye-btn[data-dark] { color: var(--hero-ink-3); }
+      .ap-eye-btn:hover { color: var(--ink-2); }
+      .ap-eye-btn[data-dark]:hover { color: var(--hero-ink); }
+      .ap-eye-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+      }
+
+      /* Stacked, labelled OAuth buttons (full-page /auth + /account gate). */
+      .ap-oauth-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 14px;
+        font-size: 13px;
+        font-weight: 600;
+      }
     `}</style>
   )
 }
@@ -841,6 +947,23 @@ function CloseIcon({ dark }: { dark: boolean }) {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={dark ? 'var(--hero-ink-3)' : 'var(--ink-4)'} strokeWidth={2} strokeLinecap="round" aria-hidden>
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.4 18.4 0 0 1-3.2 4.2M6.6 6.6A18.2 18.2 0 0 0 2 12s3.5 7 10 7a10.8 10.8 0 0 0 4.1-.8" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <line x1="3" y1="3" x2="21" y2="21" />
     </svg>
   )
 }

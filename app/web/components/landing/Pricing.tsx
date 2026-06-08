@@ -133,7 +133,7 @@ function PlanCard({ plan, rank }: { plan: Plan; rank: number }) {
       style={{
         boxShadow: 'var(--elev-1)',
         background: 'var(--page-card)',
-        border: `0.5px solid ${isFeatured ? 'rgba(52,211,153,0.55)' : 'var(--page-line)'}`,
+        border: `0.5px solid ${isFeatured ? 'color-mix(in oklab, var(--em) 45%, transparent)' : 'var(--page-line)'}`,
         borderRadius: 16,
         padding: '28px 26px',
       }}
@@ -150,6 +150,7 @@ function PlanCard({ plan, rank }: { plan: Plan; rank: number }) {
           <span
             style={{
               fontFamily: 'var(--mono)',
+              fontVariantNumeric: 'tabular-nums',
               fontWeight: 600,
               fontSize: 32,
               color: 'var(--hero-ink)',
@@ -164,7 +165,7 @@ function PlanCard({ plan, rank }: { plan: Plan; rank: number }) {
             </span>
           )}
         </div>
-        <p className="mt-1.5 text-[11.5px]" style={{ color: 'var(--hero-ink-3)', minHeight: 16 }}>
+        <p className="mt-1.5 text-[11.5px]" style={{ color: 'var(--hero-ink-2)', minHeight: 16 }}>
           {isFree ? 'Free forever' : 'Billed monthly · incl. GST'}
         </p>
 
@@ -248,7 +249,7 @@ function AudienceToggle({
                 fontSize: 13,
                 fontWeight: 600,
                 background: active ? 'var(--em)' : 'transparent',
-                color: active ? '#04140e' : 'var(--hero-ink-2)',
+                color: active ? 'var(--em-ink)' : 'var(--hero-ink-2)',
               }}
             >
               {label}
@@ -284,6 +285,7 @@ function EnterpriseCard() {
           <span
             style={{
               fontFamily: 'var(--mono)',
+              fontVariantNumeric: 'tabular-nums',
               fontWeight: 600,
               fontSize: 32,
               color: 'var(--hero-ink)',
@@ -346,8 +348,8 @@ function ctaStyle(featured: boolean): React.CSSProperties {
     fontSize: 13,
     fontWeight: 600,
     background: featured ? 'var(--em)' : 'var(--hero-glass2)',
-    color: featured ? '#04140e' : 'var(--hero-ink)',
-    border: `0.5px solid ${featured ? 'var(--em)' : 'var(--hero-line)'}`,
+    color: featured ? 'var(--em-ink)' : 'var(--hero-ink)',
+    border: `0.5px solid ${featured ? 'var(--em)' : 'color-mix(in oklab, var(--em) 32%, var(--hero-line))'}`,
   }
 }
 

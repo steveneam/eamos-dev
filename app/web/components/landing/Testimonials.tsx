@@ -4,7 +4,7 @@ import { Reveal } from '@/components/landing/Reveal'
 export function Testimonials() {
   return (
     <section
-      className="py-28"
+      className="py-24"
       style={{
         background: 'var(--page-bg-deep)',
         borderTop: '0.5px solid var(--page-line)',

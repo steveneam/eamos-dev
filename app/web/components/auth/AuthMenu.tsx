@@ -92,7 +92,7 @@ export function AuthMenu({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
               onClick={() => setOpen('auth')}
               className="am-register-btn"
               style={{
-                color: dark ? '#04140e' : '#fff',
+                color: dark ? 'var(--em-ink)' : '#fff',
                 background: dark ? 'var(--em)' : 'var(--teal)',
               }}
             >
@@ -328,7 +328,7 @@ function Avatar({ email, dark }: { email: string; dark: boolean }) {
         display: 'grid',
         placeItems: 'center',
         background: dark ? 'var(--em)' : 'var(--teal)',
-        color: dark ? '#04140e' : '#fff',
+        color: dark ? 'var(--em-ink)' : '#fff',
         fontSize: 12,
         fontWeight: 700,
         flexShrink: 0,

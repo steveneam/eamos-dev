@@ -194,7 +194,7 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
         background: 'var(--bg-soft)',
         border: '0.5px solid var(--line)',
         borderRadius: 'var(--r-md)',
-        padding: '14px 18px',
+        padding: 'var(--report-subpanel-pad)',
         marginBottom: 14,
       }}
     >

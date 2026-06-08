@@ -42,7 +42,7 @@ export function Faq() {
   return (
     <section
       id="faq"
-      className="py-28"
+      className="py-24"
       style={{
         background: 'var(--page-bg-deep)',
         borderTop: '0.5px solid var(--page-line)',

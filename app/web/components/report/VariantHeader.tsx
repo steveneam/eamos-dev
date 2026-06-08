@@ -147,7 +147,7 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
         <span style={{ color: 'var(--ink-5)' }}>/</span>
         <span>Variant report</span>
         <span style={{ color: 'var(--ink-5)' }}>/</span>
-        <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-3)' }}>
+        <span style={{ fontFamily: 'var(--body)', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-3)' }}>
           {query ?? transcriptHgvs ?? gene}
         </span>
       </nav>
@@ -261,8 +261,8 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
           .vh-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
           .vh-title { margin: 0; display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 10px; min-width: 0; }
           .vh-gene { font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.05; letter-spacing: -0.02em; color: var(--ink); }
-          .vh-cdna { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--ink-2); }
-          .vh-prot { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--ink-4); }
+          .vh-cdna { font-family: var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; font-size: 14px; font-weight: 500; color: var(--ink-2); }
+          .vh-prot { font-family: var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; font-size: 13px; font-weight: 500; color: var(--ink-4); }
           .vh-bar-right { display: inline-flex; align-items: center; gap: 12px; flex-shrink: 0; }
           .vh-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
           .vh-metrics { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }

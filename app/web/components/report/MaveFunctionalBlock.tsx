@@ -63,7 +63,7 @@ export function MaveFunctionalBlock({ gene, query }: { gene?: string | null; que
   const codeTip = band.dir === 'path' ? PS3_TIP : band.dir === 'benign' ? BS3_TIP : 'Indeterminate — the assay does not provide ACMG functional evidence at a calibrated strength.'
 
   return (
-    <div style={{ marginTop: 16, border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: '14px 16px' }}>
+    <div style={{ marginTop: 'var(--report-subpanel-gap)', border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: 'var(--report-subpanel-pad)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <span className="eamos-kicker" title={MAVE_TIP} style={{ cursor: 'help', borderBottom: '1px dotted var(--ink-5)' }}>
           MAVE functional evidence · PS3/BS3

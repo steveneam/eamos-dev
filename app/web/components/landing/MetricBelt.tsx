@@ -9,6 +9,7 @@
  */
 
 import { LandingH2 } from '@/components/landing/ui/LandingHeading'
+import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 import type { ReportCallBadgeKind, ReportCallCard } from '@/lib/backend'
 
 type SpecimenCard = Pick<
@@ -73,10 +74,10 @@ const SPECIMEN_CARDS: SpecimenCard[] = [
 ]
 
 const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; color: string }> = {
-  acmg:    { bg: 'var(--teal-tint)',   border: '#cbe3d8', color: 'var(--teal-deep)' },
+  acmg:    { bg: 'var(--teal-tint)',   border: 'var(--teal-bdr)', color: 'var(--teal-deep)' },
   metric:  { bg: 'var(--bg-soft)',     border: 'var(--line)', color: 'var(--ink-2)' },
-  source:  { bg: '#eef6ff',            border: '#c9ddf5', color: '#1d4f7a' },
-  warning: { bg: 'var(--warn-tint)',   border: 'var(--warn-bdr)', color: '#633806' },
+  source:  { bg: 'var(--info-bg)',     border: 'var(--info-bdr)', color: 'var(--info-text)' },
+  warning: { bg: 'var(--warn-tint)',   border: 'var(--warn-bdr)', color: 'var(--warn-text)' },
   neutral: { bg: 'var(--bg-soft)',     border: 'var(--line)', color: 'var(--ink-3)' },
 }
 
@@ -204,17 +205,9 @@ export function MetricBelt() {
                     minHeight: 168,
                   }}
                 >
-                  <div
-                    className="uppercase"
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.08em',
-                      color: 'var(--ink-4)',
-                    }}
-                  >
+                  <LandingEyebrow style={{ display: 'block', color: 'var(--ink-4)' }}>
                     {card.title}
-                  </div>
+                  </LandingEyebrow>
                   <div
                     style={{
                       marginTop: 10,
@@ -243,6 +236,7 @@ export function MetricBelt() {
                               padding: '4px 7px',
                               fontSize: 10.5,
                               fontWeight: 700,
+                              fontVariantNumeric: 'tabular-nums',
                               lineHeight: 1.15,
                               overflowWrap: 'anywhere',
                             }}

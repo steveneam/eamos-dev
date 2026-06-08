@@ -425,7 +425,7 @@ function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
     <tr>
       <td style={cell}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 600, color: 'var(--ink-1)', cursor: engineTitle ? 'help' : undefined }} title={engineTitle}>
+          <span style={{ fontWeight: 600, color: 'var(--ink)', cursor: engineTitle ? 'help' : undefined }} title={engineTitle}>
             {displayName(rd.name)}
           </span>
           {rd.tier && <TierTag tier={rd.tier} />}

@@ -88,7 +88,7 @@ export function EamosAcmgClassifier({ data }: { data?: AcmgCriteriaScaffold | nu
   const benignCodes = met.filter((c) => c.startsWith('B'))
 
   return (
-    <div style={{ marginTop: 18 }}>
+    <div style={{ marginTop: 'var(--report-subpanel-gap)' }}>
       <Disclosure
         kicker="Eamos automated ACMG"
         showLabel="Show Eamos auto-classification"

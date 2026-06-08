@@ -149,8 +149,8 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
   return (
     <div
       style={{
-        marginTop: 18,
-        padding: '14px 16px',
+        marginTop: 'var(--report-subpanel-gap)',
+        padding: 'var(--report-subpanel-pad)',
         background: 'var(--bg-soft)',
         border: '0.5px solid var(--line)',
         borderRadius: 'var(--r-md)',
@@ -202,7 +202,7 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
             </span>
           </ChipRow>
           {/* phyloP conservation scale: accelerated ↔ conserved */}
-          <div style={{ position: 'relative', height: 6, borderRadius: 999, background: 'linear-gradient(90deg, var(--bg-soft2), var(--teal-faint), var(--teal))', border: '0.5px solid var(--line)' }}>
+          <div style={{ position: 'relative', height: 6, borderRadius: 999, background: 'linear-gradient(90deg, var(--bg-soft2), var(--teal-tint), var(--teal))', border: '0.5px solid var(--line)' }}>
             <span
               style={{
                 position: 'absolute',

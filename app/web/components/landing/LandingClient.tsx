@@ -91,12 +91,12 @@ export function LandingClient() {
               fontSize: 18,
               lineHeight: 1.6,
               color: 'var(--hero-ink-2)',
-              maxWidth: 580,
+              maxWidth: 520,
               margin: '0 0 40px',
             }}
           >
             Search a gene, a variant, or ask in plain words. Eamos gathers the genomic evidence and
-            returns one clear, sourced report
+            returns one clear, sourced report.
           </p>
 
           <div style={{ width: '100%', maxWidth: 880 }}>
@@ -124,12 +124,10 @@ export function LandingClient() {
               </Pill>
             ))}
             <span
-              className="mx-1 text-[10px]"
-              style={{ color: 'var(--hero-ink-3)', opacity: 0.5 }}
+              className="mx-1"
+              style={{ display: 'inline-block', width: 1, height: 14, background: 'var(--hero-line)' }}
               aria-hidden
-            >
-              |
-            </span>
+            />
             <Pill
               as="button"
               onClick={() => {
