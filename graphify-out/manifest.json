@@ -2400,8 +2400,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/ReportClient.tsx": {
-    "mtime": 1780850599.7031481,
-    "ast_hash": "8dcccff75174ac74eed464e47fefe2ab",
+    "mtime": 1780893196.2384276,
+    "ast_hash": "44756b8f032ef4a0c08c3714de3fb5ed",
     "semantic_hash": ""
   },
   "app/web/components/report/ReportGeneViewer.tsx": {
@@ -3120,8 +3120,8 @@
     "semantic_hash": ""
   },
   "PROGRESS.md": {
-    "mtime": 1780849992.2923033,
-    "ast_hash": "d1876912903e1825cfa390d959f233a6",
+    "mtime": 1780893167.1488178,
+    "ast_hash": "9e45a0858698a26b0d09dd309bfb21ee",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3135,8 +3135,8 @@
     "semantic_hash": ""
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1780851253.99878,
-    "ast_hash": "f41d758f258dd095cb1a5901507a98be",
+    "mtime": 1780893211.1917531,
+    "ast_hash": "e668a1a9c33ba5f367d45985524786a3",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -4130,8 +4130,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/AfThermometer.tsx": {
-    "mtime": 1780850439.2860384,
-    "ast_hash": "2fa8da4990e335a2b81da74c239d9f6a",
+    "mtime": 1780893127.626449,
+    "ast_hash": "85b32f29a1017527444d07405e27f1e4",
     "semantic_hash": ""
   },
   "app/web/components/report/CuratorQuote.tsx": {
@@ -4187,6 +4187,11 @@
   "app/backend/tests/test_pubmed_pubtator_edges.py": {
     "mtime": 1780890744.498785,
     "ast_hash": "403cb9053ec488277d86b32bf7020c9d",
+    "semantic_hash": ""
+  },
+  "app/web/components/report/ProteinTrack.tsx": {
+    "mtime": 1780891572.6131082,
+    "ast_hash": "f042e2c61f0d7aaa5f61d15e88d7b899",
     "semantic_hash": ""
   }
 }
