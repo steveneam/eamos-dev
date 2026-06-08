@@ -1,4 +1,5 @@
 import type React from 'react'
+import { TierTag } from '@/components/ui/TierTag'
 
 // §2 Loss-of-function (PVS1) block — the null-variant ACMG axis (NMDetective-B +
 // the clean-room Abou-Tayoun PVS1 decision tree). These are computational, so the
@@ -46,7 +47,7 @@ function ToolTag({ name, tier, tip }: { name: string; tier: 'Free' | 'Pro'; tip:
       }}
     >
       {name}
-      <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: tier === 'Pro' ? 'var(--warn-text)' : 'var(--teal-deep)' }}>{tier}</span>
+      <TierTag tier={tier} />
     </span>
   )
 }
