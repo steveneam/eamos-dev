@@ -681,6 +681,14 @@ textarea {
 .acmg-cell.met .code, .acmg-cell.met .label-l { color: var(--cls-path-text); }
 .acmg-cell.met-benign { background: var(--cls-ben-bg); border-color: var(--cls-ben-bdr); }
 .acmg-cell.met-benign .code, .acmg-cell.met-benign .label-l { color: var(--cls-ben-text); }
+/* Met-cell fill graded by criterion strength so a curator reads strength, not a
+   flat red / green. Strong (PVS/PS, BA/BS) keep the base met tint; Moderate (PM)
+   sits between; Supporting (PP, BP) drops to the likely-path / likely-benign tint. */
+.acmg-cell.met.acmg-s-mod { background: color-mix(in oklab, var(--cls-path-bg) 55%, var(--cls-lpath-bg)); }
+.acmg-cell.met.acmg-s-supp { background: var(--cls-lpath-bg); border-color: var(--cls-lpath-bdr); }
+.acmg-cell.met.acmg-s-supp .code, .acmg-cell.met.acmg-s-supp .label-l { color: var(--cls-lpath-text); }
+.acmg-cell.met-benign.acmg-s-supp { background: var(--cls-lben-bg); border-color: var(--cls-lben-bdr); }
+.acmg-cell.met-benign.acmg-s-supp .code, .acmg-cell.met-benign.acmg-s-supp .label-l { color: var(--cls-lben-text); }
 .acmg-note { margin-top: 12px; font-size: 11px; color: var(--ink-4); line-height: 1.55; }
 .acmg-note strong { color: var(--ink-3); }
 

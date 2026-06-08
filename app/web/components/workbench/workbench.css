@@ -737,11 +737,14 @@
 .sv-cv:hover { transform: translateX(-50%) scale(1.4); }
 /* Don't let dots swallow pointer events mid edge-drag. */
 .sv-root.sv-dragging-edge .sv-cv { pointer-events: none; }
-.sv-cv.p   { background: #B82B2B; }
-.sv-cv.lp  { background: #BA7517; }
-.sv-cv.vus { background: #94a3b8; }
-.sv-cv.lb  { background: #6FA88F; }
-.sv-cv.b   { background: #1D9E75; }
+/* ClinVar dot verdict ramp — single source = lib/classification.ts (--cls-*).
+   Was hardcoded off-ACMG hex (LP amber, VUS grey, LB sage); grey is reserved
+   for NA/conflict, so a VUS dot read as "no data". Now matches the report. */
+.sv-cv.p   { background: var(--cls-path-dot); }
+.sv-cv.lp  { background: var(--cls-lpath-dot); }
+.sv-cv.vus { background: var(--cls-vus-dot); }
+.sv-cv.lb  { background: var(--cls-lben-dot); }
+.sv-cv.b   { background: var(--cls-ben-dot); }
 .sv-cv.queried { box-shadow: 0 0 0 3px rgba(186,117,23,0.20); }
 /* Focused dot (clicked → card in the Scratchpad log): double focus ring. */
 .sv-cv.active {
@@ -1755,11 +1758,11 @@
   font-size: 10px; font-weight: 700; color: #fff;
   border-radius: 3px; padding: 1px 6px; white-space: nowrap;
 }
-.scratch-cv-cls.p   { background: #B82B2B; }
-.scratch-cv-cls.lp  { background: #BA7517; }
-.scratch-cv-cls.vus { background: #94a3b8; }
-.scratch-cv-cls.lb  { background: #6FA88F; }
-.scratch-cv-cls.b   { background: #1D9E75; }
+.scratch-cv-cls.p   { background: var(--cls-path-dot); }
+.scratch-cv-cls.lp  { background: var(--cls-lpath-dot); }
+.scratch-cv-cls.vus { background: var(--cls-vus-dot); }
+.scratch-cv-cls.lb  { background: var(--cls-lben-dot); }
+.scratch-cv-cls.b   { background: var(--cls-ben-dot); }
 .scratch-cv-hgvs {
   font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink);
 }
@@ -3753,11 +3756,11 @@
   width: 15px; height: 15px; margin-left: -7.5px; top: -2px;
   box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.20);
 }
-.sv-pv-headdot.p   { background: #B82B2B; }
-.sv-pv-headdot.lp  { background: #BA7517; }
-.sv-pv-headdot.vus { background: #94a3b8; }
-.sv-pv-headdot.lb  { background: #6FA88F; }
-.sv-pv-headdot.b   { background: #1D9E75; }
+.sv-pv-headdot.p   { background: var(--cls-path-dot); }
+.sv-pv-headdot.lp  { background: var(--cls-lpath-dot); }
+.sv-pv-headdot.vus { background: var(--cls-vus-dot); }
+.sv-pv-headdot.lb  { background: var(--cls-lben-dot); }
+.sv-pv-headdot.b   { background: var(--cls-ben-dot); }
 .sv-pv-poplabel {
   position: absolute; top: -16px; left: 50%;
   transform: translateX(-50%); white-space: nowrap;

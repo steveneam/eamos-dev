@@ -38,15 +38,24 @@ export function isBenignAcmgCode(code: AcmgCode): boolean {
   return code.startsWith('B')
 }
 
+// Default ACMG strength is encoded in the code prefix (PVS/PS/BA/BS = strong,
+// PM = moderate, PP/BP = supporting). A met cell grades its fill by that
+// strength so a curator reads strength, not just met/not-met.
+function strengthClass(code: AcmgCode): string {
+  if (code.startsWith('PVS') || code.startsWith('PS') || code.startsWith('BA') || code.startsWith('BS'))
+    return 'acmg-s-strong'
+  if (code.startsWith('PM')) return 'acmg-s-mod'
+  if (code.startsWith('PP') || code.startsWith('BP')) return 'acmg-s-supp'
+  return 'acmg-s-strong'
+}
+
 export function AcmgGrid({ criteria }: { criteria: AcmgCriterion[] }) {
   return (
     <div className="acmg-grid">
       {criteria.map((c) => {
         const met = c.verdict === 'met'
         const cls = met
-          ? isBenignAcmgCode(c.code)
-            ? 'acmg-cell met-benign'
-            : 'acmg-cell met'
+          ? `${isBenignAcmgCode(c.code) ? 'acmg-cell met-benign' : 'acmg-cell met'} ${strengthClass(c.code)}`
           : 'acmg-cell'
         const label = ACMG_LABELS[c.code]
         return (

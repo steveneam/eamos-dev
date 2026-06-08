@@ -233,7 +233,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
                   minHeight: 50,
                   fontFamily: 'var(--display)',
                   fontSize: 18,
-                  fontWeight: 600,
+                  fontWeight: 400,
                   lineHeight: 1.15,
                   color: 'var(--ink)',
                 }}
@@ -298,7 +298,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
                 style={{
                   minHeight: 158,
                   border: `0.5px solid ${cardTheme ? cardTheme.border : 'var(--line)'}`,
-                  borderRadius: 10,
+                  borderRadius: 'var(--r-md)',
                   background: cardTheme ? cardTheme.bg : 'var(--bg)',
                   padding: '15px 16px',
                   boxShadow: 'var(--elev-1)',
@@ -349,7 +349,7 @@ function InteractiveCard({ card, cardBody, theme, help, onNavigate }: Interactiv
       style={{
         minHeight: 158,
         border: `0.5px solid ${hovered ? 'var(--ink-5)' : theme ? theme.border : 'var(--line)'}`,
-        borderRadius: 10,
+        borderRadius: 'var(--r-md)',
         background: theme ? theme.bg : 'var(--bg)',
         padding: '15px 16px',
         textAlign: 'left',
