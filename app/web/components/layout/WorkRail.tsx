@@ -59,16 +59,20 @@ function getServerCompactSnapshot() {
 
 export interface WorkRailSectionProps {
   title: string
+  /** Leading monochrome glyph (an <Icon*>) — the "what belongs to what" cue.
+   *  Sits at the muted label tone; never carries the brand teal. */
+  icon?: ReactNode
   meta?: ReactNode
   defaultOpen?: boolean
   children: ReactNode
   id?: string
 }
 
-/** A collapsible section inside the rail. Mirrors the Workbench
- *  `.side-section-head` chevron chrome, but rail-scoped so it works on every
- *  surface without depending on workbench.css. */
-export function WorkRailSection({ title, meta, defaultOpen = true, children, id }: WorkRailSectionProps) {
+/** A collapsible section inside the rail. Airy icon-led grammar (work-rail.css):
+ *  a leading glyph anchors the row, the uppercase label and right-aligned meta
+ *  follow, and the disclosure chevron sits quietly at the far right. Shared by
+ *  every surface; the Workbench `.side-section` mirrors the same metrics. */
+export function WorkRailSection({ title, icon, meta, defaultOpen = true, children, id }: WorkRailSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className={`wr-section${open ? '' : ' is-collapsed'}`} id={id}>
@@ -78,11 +82,12 @@ export function WorkRailSection({ title, meta, defaultOpen = true, children, id 
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
+        {icon ? <span className="wr-section-icon" aria-hidden="true">{icon}</span> : null}
+        <span className="wr-section-title">{title}</span>
+        {meta ? <span className="wr-section-meta">{meta}</span> : null}
         <span className="wr-section-chev" aria-hidden="true">
           <IconChevron size={12} />
         </span>
-        <span className="wr-section-title">{title}</span>
-        {meta ? <span className="wr-section-meta">{meta}</span> : null}
       </button>
       {open && <div className="wr-section-body">{children}</div>}
     </div>

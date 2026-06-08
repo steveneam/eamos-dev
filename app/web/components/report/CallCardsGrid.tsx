@@ -19,6 +19,25 @@ function afToState(af: number): string {
   return 'caution_orange_state'
 }
 
+// Verdict label → ACMG-ramp state for the Computational + Clinical cards, so each
+// is coloured by its OWN call (VUS → yellow, Pathogenic → red, Likely path →
+// orange, Benign → green) instead of whatever theme the backend happens to send.
+// One ramp shared with the hero badge + §1-§3, so a clinician reads colour + word
+// + dot consistently down the whole report. No-data / N/A returns null and the
+// card falls back to the neutral backend theme. (Order matters: the more specific
+// "likely …" cases are tested before the bare tier.)
+function verdictToState(label: string | null | undefined): string | null {
+  const l = (label ?? '').toLowerCase()
+  if (!l || l.includes('no ') || l.includes('unavailable') || l.includes('not applicable')) return null
+  if (l.includes('conflict')) return 'neutral_slate_state'
+  if (l.includes('uncertain') || l.includes('vus')) return 'caution_yellow_state'
+  if (l.includes('likely pathogenic')) return 'caution_orange_state'
+  if (l.includes('pathogenic')) return 'danger_red_state'
+  if (l.includes('benign') || l.includes('tolerated')) return 'safe_green_state'
+  if (l.includes('damaging') || l.includes('deleterious')) return 'caution_orange_state'
+  return null
+}
+
 const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; color: string }> = {
   acmg: { bg: 'var(--teal-tint)', border: 'var(--teal-bdr)', color: 'var(--teal-deep)' },
   metric: { bg: 'var(--bg-soft)', border: 'var(--line)', color: 'var(--ink-2)' },
@@ -152,11 +171,19 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
           // v3: colour EVERY card by its verdict-state (was functional-only). The
           // functional card additionally carries display_metrics extras below.
           // Population is re-derived from the AF band (backend emits neutral today).
+          // Colour every card by its own verdict, on one FE-owned ramp:
+          //   • Population  → AF band (afToState)
+          //   • Computational / Clinical → classification label (verdictToState)
+          //   • Functional  → backend display_metrics state (kept; richest signal)
+          // Each falls back to the backend theme when it can't derive one.
           const backendTheme = STATE_THEME[card.ui_color_theme] ?? null
-          const cardTheme =
-            card.card_id === 'population_frequency' && populationAf != null
-              ? STATE_THEME[afToState(populationAf)] ?? backendTheme
-              : backendTheme
+          let cardTheme = backendTheme
+          if (card.card_id === 'population_frequency' && populationAf != null) {
+            cardTheme = STATE_THEME[afToState(populationAf)] ?? backendTheme
+          } else if (card.card_id === 'computational' || card.card_id === 'clinical_consensus') {
+            const derived = verdictToState(card.primary_label)
+            if (derived) cardTheme = STATE_THEME[derived] ?? backendTheme
+          }
           const fnMetrics = isFunctionalCard
             ? payload.functional_evidence?.display_metrics ?? null
             : null

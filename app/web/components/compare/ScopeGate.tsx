@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { WorkRailSection } from '@/components/layout/WorkRail'
-import { IconDropInto, IconRemove } from '@/components/icons/Icon'
+import { IconDropInto, IconFilter, IconRemove, IconScope } from '@/components/icons/Icon'
 import { MOCK_PANELS, PANEL_SOURCE_LABEL } from '@/lib/panels.mock'
 import { getPanels } from '@/lib/panels'
 import type { ParsedVariant } from '@/lib/variant-file'
@@ -94,7 +94,7 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
 
   return (
     <>
-      <WorkRailSection title="Active scope">
+      <WorkRailSection title="Active scope" icon={<IconScope size={14} />}>
         {filters.length === 0 ? (
           <div
             onDragOver={enterZone}
@@ -225,7 +225,7 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
         )}
       </WorkRailSection>
 
-      <WorkRailSection title="Add a filter">
+      <WorkRailSection title="Add a filter" icon={<IconFilter size={14} />}>
         <div role="tablist" aria-label="Add a filter" style={{ display: 'flex', gap: 2, marginBottom: 10 }}>
           <TabButton active={tab === 'panels'} onClick={() => setTab('panels')}>
             Gene panels

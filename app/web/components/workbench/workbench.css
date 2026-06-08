@@ -1393,7 +1393,7 @@
 .work-rail-body .side-collapse-row {
   display: none;
 }
-.side-section { margin-bottom: 14px; }
+.side-section { margin-bottom: 4px; }
 .side-section:last-child { margin-bottom: 0; }
 /* Legacy .side-h kept for callsites that still pass markup without the new
    collapsible header (none in the viewer side panel right now — kept for
@@ -1425,47 +1425,63 @@
    viewer's .sv-section-head). Chevron on the LEFT of the title (Google
    Docs / VS Code disclosure pattern). Title takes remaining space; meta
    floats to the right edge. Click anywhere on the row to toggle. ── */
+/* Airy icon-led grammar — mirrors .wr-section-head (work-rail.css) byte-for-byte
+   so the Workbench rail reads identically to /report + /compare: leading
+   monochrome glyph, uppercase label, right meta, quiet far-right chevron. */
 .side-section-head {
   width: 100%;
   display: flex; align-items: center;
   gap: 8px;
-  padding: 9px 10px;
+  padding: 7px 8px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
-  font-family: var(--mono);
+  font-family: var(--body);
   font-size: 10.5px; font-weight: 600;
-  color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.07em;
   text-align: left;
-  transition: background .15s, color .15s;
+  transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
 }
 .side-section-head:hover { background: var(--bg-soft); color: var(--ink); }
 .side-section-head:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
 }
-.side-section-head[aria-expanded="false"] { color: var(--ink-4); }
+.side-section-head[aria-expanded="false"] { color: var(--ink-2); }
+
+/* Leading glyph — as sharp as the label (feedback/cite chip ink); never teal. */
+.side-section-icon {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.side-section-head:hover .side-section-icon { color: var(--ink); }
+.side-section-head[aria-expanded="false"] .side-section-icon { color: var(--ink-2); }
+
 .side-section-chev {
   width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--ink-3);
-  transition: transform .2s ease;
+  color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized), color var(--dur-1) var(--ease-standard);
   flex: 0 0 auto;
 }
+.side-section-head:hover .side-section-chev { color: var(--ink-2); }
 .side-section-head[aria-expanded="false"] .side-section-chev { transform: rotate(-90deg); }
 .side-section-title {
   display: inline-flex; align-items: center; gap: 8px;
-  flex: 1;
+  flex: 1; min-width: 0;
 }
 .side-section-meta {
   display: inline-flex; align-items: center; gap: 6px;
-  color: var(--ink-3);
+  color: var(--ink-4);
   text-transform: none; letter-spacing: 0; font-weight: 500;
   flex: 0 0 auto;
 }
-.side-section-body { padding: 4px 4px 10px; }
+.side-section-body { padding: 4px 2px 8px 6px; }
 
 /* Scratchpad surface — warm yellow so the workspace reads distinctly
    against the cooler evidence sections. The whole section card gets a
@@ -1475,7 +1491,7 @@
   border: 0.5px solid oklch(88% 0.07 90);
   border-radius: var(--r-md);
   padding: 4px 6px 6px;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 .side-section.is-scratchpad .side-section-head {
   color: oklch(38% 0.08 80);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { WorkRailSection } from '@/components/layout/WorkRail'
+import { IconList } from '@/components/icons/Icon'
 
 /**
  * Scroll-spy "On this page" jump-list over the report module anchors that
@@ -41,7 +42,7 @@ export function ReportSectionNav() {
   }, [])
 
   return (
-    <WorkRailSection title="On this page" defaultOpen={false}>
+    <WorkRailSection title="On this page" icon={<IconList size={14} />} defaultOpen={false}>
       <nav className="lib-pagenav" aria-label="Report sections">
         {ANCHORS.map((a) => (
           <button

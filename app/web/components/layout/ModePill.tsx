@@ -11,14 +11,14 @@ interface ModePillProps {
   className?: string
 }
 
-// Shared icon set for the primary surface switcher — one stroke language (1.9px,
-// round caps) so Report / Workbench / Batch read as one control. The label
-// always rides alongside the glyph (never icon-only) for discoverability.
+// Shared icon set for the primary surface switcher — 1.75px round caps, matching
+// the one Icon.tsx line family so the switcher reads as part of the same system.
+// The label always rides alongside the glyph (never icon-only) for discoverability.
 const svgProps = {
   viewBox: '0 0 24 24',
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.9,
+  strokeWidth: 1.75,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
   width: 13,

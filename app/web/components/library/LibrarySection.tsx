@@ -21,6 +21,7 @@ import {
   IconBookmark,
   IconChevron,
   IconDropInto,
+  IconFolder,
   IconFolderMove,
   IconPlus,
   IconRemove,
@@ -154,7 +155,7 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
 
   return (
     <>
-      <WorkRailSection title="Saved variants" meta={topLevel.length}>
+      <WorkRailSection title="Saved variants" icon={<IconBookmark size={14} />} meta={topLevel.length}>
         <div className="lib-secbar">
           <Link href="/compare">Import VCF <IconArrowRight size={12} /></Link>
         </div>
@@ -217,7 +218,7 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
         )}
       </WorkRailSection>
 
-      <WorkRailSection title="Folders" meta={folders.length}>
+      <WorkRailSection title="Folders" icon={<IconFolder size={14} />} meta={folders.length}>
         {folders.map((f) => {
           const isOpen = !collapsedFolders.has(f.id)
           const cards = byFolder.get(f.id) ?? []

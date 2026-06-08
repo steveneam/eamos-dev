@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { SaveCurrentButton } from './VariantLibraryRail'
+import { IconExport, IconShare } from '@/components/icons/Icon'
 import type { LookupResponse } from '@/lib/backend'
 
 export interface StickyVariantRibbonProps {
@@ -17,22 +18,6 @@ export interface StickyVariantRibbonProps {
   exportSlot?: React.ReactNode
   className?: string
 }
-
-// Inline SVGs — Lucide-style, 16×16 viewBox, 1.5px stroke
-const IconShare = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="3" r="1.5" />
-    <circle cx="4" cy="8" r="1.5" />
-    <circle cx="12" cy="13" r="1.5" />
-    <path d="M5.5 7.25l5 -3M5.5 8.75l5 3" />
-  </svg>
-)
-const IconExport = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M8 2v8M5 7l3 3 3-3" />
-    <path d="M3 11v2a1 1 0 001 1h8a1 1 0 001-1v-2" />
-  </svg>
-)
 
 // Threshold (px) past which the ribbon pins; covers the variant header height.
 const SCROLL_THRESHOLD = 200
@@ -83,9 +68,11 @@ export function StickyVariantRibbon({
   // If no HGVS notation, render nothing
   if (!hgvsC) return null
 
-  // Label: "RPE65 NM_000329.3:c.260A>G (p.Tyr87Cys)" or whatever subset is present
-  const label = [
-    gene,
+  // Variant identity, rendered to MIRROR the hero header: gene in Spectral
+  // (display), the HGVS / coords in mono. The gene name must read in the same
+  // font everywhere it appears (hero + this ribbon), so it is split out from the
+  // mono HGVS run rather than baked into one mono string.
+  const hgvsText = [
     transcript && hgvsC ? `${transcript}:${hgvsC}` : hgvsC,
     hgvsP ? `(${hgvsP})` : undefined,
   ]
@@ -102,7 +89,7 @@ export function StickyVariantRibbon({
       style={{
         position: 'fixed',
         top: 60,
-        left: 0,
+        left: 'var(--rail-live-w, 0px)',
         right: 0,
         zIndex: 40,
         background: 'var(--bg)',
@@ -126,7 +113,7 @@ export function StickyVariantRibbon({
     >
       <div
         style={{
-          maxWidth: 'var(--maxw-report, 860px)',
+          maxWidth: 'var(--maxw-report-frame, 1140px)',
           margin: '0 auto',
           padding: '0 24px',
           height: 44,
@@ -136,28 +123,53 @@ export function StickyVariantRibbon({
           gap: 16,
         }}
       >
-        {/* Left: HGVS label */}
+        {/* Left: variant identity — gene (Spectral) + HGVS (mono), mirroring the hero */}
         <span
           style={{
-            fontFamily: 'var(--mono)',
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--ink)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: 8,
             flex: '1 1 0',
             minWidth: 0,
+            overflow: 'hidden',
           }}
         >
-          {label}
+          {gene && (
+            <span
+              style={{
+                fontFamily: 'var(--display)',
+                fontWeight: 500,
+                fontSize: 16,
+                lineHeight: 1,
+                letterSpacing: '-0.01em',
+                color: 'var(--ink)',
+                flexShrink: 0,
+              }}
+            >
+              {gene}
+            </span>
+          )}
+          <span
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: 'var(--ink-2)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+            }}
+          >
+            {hgvsText}
+          </span>
         </span>
 
         {/* Right: action cluster — Save · Export · Share, matching the hero. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {data && <SaveCurrentButton data={data} variant="hero" />}
-          {exportSlot ?? <RibbonBtn label="Export" icon={<IconExport />} onClick={onExport} />}
-          <RibbonBtn label="Share" icon={<IconShare />} onClick={onShare} />
+          {data && <SaveCurrentButton data={data} variant="ribbon" />}
+          {exportSlot ?? <RibbonBtn label="Export" icon={<IconExport size={13} />} onClick={onExport} />}
+          <RibbonBtn label="Share" icon={<IconShare size={13} />} onClick={onShare} />
         </div>
       </div>
     </div>
@@ -174,7 +186,6 @@ function RibbonBtn({ label, icon, onClick }: RibbonBtnProps) {
   return (
     <button
       className="eamos-toggle-btn eamos-ribbon-btn"
-      style={{ padding: '5px 10px', gap: 5, fontSize: 12 }}
       onClick={onClick}
       disabled={!onClick}
       aria-label={label}

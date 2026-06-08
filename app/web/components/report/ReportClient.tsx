@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
-import { VariantLibraryRail, SaveCurrentButton } from '@/components/report/VariantLibraryRail'
+import { VariantLibraryRail } from '@/components/report/VariantLibraryRail'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { VariantHeader } from '@/components/report/VariantHeader'
 import { VariantDecoder } from '@/components/report/VariantDecoder'
@@ -480,7 +480,6 @@ export function ReportClient() {
         <WorkRail
           surface="report"
           title="Library"
-          action={<SaveCurrentButton data={activeState.data} />}
           output={
             <CenteredMain bleed>
               <ReportBody

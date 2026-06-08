@@ -7,7 +7,7 @@ import { saveVariant } from '@/lib/variant-library'
 import type { LookupResponse } from '@/lib/backend'
 import { RelatedVariants } from './RelatedVariants'
 import { ReportSectionNav } from './ReportSectionNav'
-import { IconPlus, IconCheck } from '@/components/icons/Icon'
+import { IconBookmark, IconCheck } from '@/components/icons/Icon'
 
 /**
  * The /report <WorkRail> body: the shared LibrarySection (saved + folders +
@@ -43,25 +43,27 @@ function reportIdentity(data: LookupResponse) {
 
 export function SaveCurrentButton({
   data,
-  variant = 'rail',
+  variant = 'hero',
 }: {
   data: LookupResponse
-  /** 'rail' = the `.lib-save-btn` rail-head pill; 'hero' = a `.v-tool` chip that
-   *  sits in the hero Export/Share cluster. Both share the same save path. */
-  variant?: 'rail' | 'hero'
+  /** 'hero' = a `.v-tool` chip in the hero action cluster; 'ribbon' = the compact
+   *  `.eamos-ribbon-btn` chip in the sticky ribbon (same size as its Export/Share).
+   *  Both share the one library save path. */
+  variant?: 'hero' | 'ribbon'
 }) {
   const { variants } = useLibrary()
   const identity = reportIdentity(data)
   const saved = identity ? variants.some((v) => v.id === identity.query.toLowerCase()) : false
-  const hero = variant === 'hero'
-  const baseClass = hero ? 'v-tool' : 'lib-save-btn'
+  const isRibbon = variant === 'ribbon'
+  const restClass = isRibbon ? 'eamos-toggle-btn eamos-ribbon-btn' : 'v-tool'
+  const savedClass = isRibbon ? 'eamos-toggle-btn eamos-ribbon-btn' : 'v-tool followed'
   const label = (text: string) =>
-    hero ? <span>{text}</span> : <> {text}</>
+    isRibbon ? <span className="eamos-ribbon-btn-label">{text}</span> : <span>{text}</span>
 
   if (!identity) {
     return (
-      <button type="button" className={baseClass} disabled title="No variant identity available">
-        <IconPlus size={13} />
+      <button type="button" className={restClass} disabled title="No variant identity available">
+        <IconBookmark size={13} />
         {label('Save')}
       </button>
     )
@@ -70,7 +72,7 @@ export function SaveCurrentButton({
   return (
     <button
       type="button"
-      className={hero ? (saved ? 'v-tool followed' : 'v-tool') : 'lib-save-btn'}
+      className={saved ? savedClass : restClass}
       data-saved={saved ? 'true' : 'false'}
       aria-pressed={saved}
       title={saved ? 'Saved — it is in your library' : 'Save this variant to your library so you can return to it'}
@@ -89,7 +91,7 @@ export function SaveCurrentButton({
         </>
       ) : (
         <>
-          <IconPlus size={13} />
+          <IconBookmark size={13} />
           {label('Save')}
         </>
       )}

@@ -1,5 +1,15 @@
 'use client'
 import { useState, type ReactNode } from 'react'
+import {
+  IconFlask,
+  IconGene,
+  IconProtein,
+  IconRename,
+  IconScissors,
+  IconScope,
+  IconSparkle,
+  IconWindow,
+} from '@/components/icons/Icon'
 import type { WorkbenchTool } from '@/lib/backend'
 import { aaThree } from '@/lib/workbench/codon-table'
 import { classLabel, type ClinvarVariant, type GeneWindowData } from '@/lib/workbench/gene-window'
@@ -46,6 +56,7 @@ function Kv({ k, v, tone }: { k: string; v: string; tone?: 'warn' | 'ok' }) {
  *  Use `tone="scratch"` for the yellow Scratchpad surface. */
 function CollapsibleSection({
   title,
+  icon,
   meta,
   children,
   defaultOpen = true,
@@ -53,6 +64,8 @@ function CollapsibleSection({
   id,
 }: {
   title: string
+  /** Leading monochrome glyph — same airy icon-led grammar as <WorkRailSection>. */
+  icon?: ReactNode
   meta?: ReactNode
   children: ReactNode
   defaultOpen?: boolean
@@ -71,13 +84,14 @@ function CollapsibleSection({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
+        {icon ? <span className="side-section-icon" aria-hidden="true">{icon}</span> : null}
+        <span className="side-section-title">{title}</span>
+        {meta ? <span className="side-section-meta">{meta}</span> : null}
         <span className="side-section-chev" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </span>
-        <span className="side-section-title">{title}</span>
-        {meta ? <span className="side-section-meta">{meta}</span> : null}
       </button>
       {open && <div className="side-section-body">{children}</div>}
     </div>
@@ -273,7 +287,7 @@ function ScratchpadSection({
     ) : undefined
 
   return (
-    <CollapsibleSection title="Scratchpad" meta={meta} tone="scratch" defaultOpen>
+    <CollapsibleSection title="Scratchpad" icon={<IconRename size={14} />} meta={meta} tone="scratch" defaultOpen>
       <div className="scratch-tabs" role="tablist" aria-label="Scratchpad mode">
         <button
           type="button"
@@ -423,7 +437,7 @@ function ViewerSide({
         onClearClinvar={onClearClinvar}
       />
 
-      <CollapsibleSection title="Active variant">
+      <CollapsibleSection title="Active variant" icon={<IconScope size={14} />}>
         <div className="kv-list">
           <Kv k="HGVS (c.)" v={qv.hgvsC} tone="warn" />
           <Kv k="HGVS (p.)" v={qv.hgvsP} tone="warn" />
@@ -456,7 +470,7 @@ function ViewerSide({
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Transcript">
+      <CollapsibleSection title="Transcript" icon={<IconGene size={14} />}>
         <div className="kv-list">
           <Kv k="Gene" v={`${data.gene} · ${data.ensg}`} />
           <Kv k="Transcript" v={data.transcript} />
@@ -546,7 +560,7 @@ function ViewerSide({
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Protein features">
+      <CollapsibleSection title="Protein features" icon={<IconProtein size={14} />}>
         <div className="kv-list">
           <Kv
             k="Length"
@@ -603,7 +617,7 @@ function ViewerSide({
         <div className="side-source">Source: UniProt Q16518 · Proteins API</div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="AI note" defaultOpen={false}>
+      <CollapsibleSection title="AI note" icon={<IconSparkle size={14} />} defaultOpen={false}>
         <div className="side-info">
           <b>Why this variant matters.</b> Codon 87 sits in the strictly
           conserved core of the carotenoid-oxygenase domain (PhyloP 0.96). The
@@ -624,7 +638,7 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
   )
   return (
     <>
-      <CollapsibleSection title="Editing strategy">
+      <CollapsibleSection title="Editing strategy" icon={<IconScissors size={14} />}>
         <div className="kv-list">
           <Kv k="Approach" v="HDR knock-in (ssODN)" />
           <Kv k="Nuclease" v="SpCas9 · NGG PAM" />
@@ -638,7 +652,7 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Target window">
+      <CollapsibleSection title="Target window" icon={<IconWindow size={14} />}>
         <div className="kv-list">
           <Kv
             k="Region"
@@ -653,7 +667,7 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="AI assist">
+      <CollapsibleSection title="AI assist" icon={<IconSparkle size={14} />}>
         <div className="side-info">
           Guided design help arrives with the CRISPR engine (FE-6 / M-002D).
         </div>
@@ -674,7 +688,7 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
   )
   return (
     <>
-      <CollapsibleSection title="Assay strategy">
+      <CollapsibleSection title="Assay strategy" icon={<IconFlask size={14} />}>
         <div className="kv-list">
           <Kv k="Approach" v="Sanger / qPCR amplicon" />
           <Kv k="Engine" v="Primer3 · local" />
@@ -687,7 +701,7 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Target window">
+      <CollapsibleSection title="Target window" icon={<IconWindow size={14} />}>
         <div className="kv-list">
           <Kv
             k="Region"
@@ -702,7 +716,7 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="AI assist">
+      <CollapsibleSection title="AI assist" icon={<IconSparkle size={14} />}>
         <div className="side-info">
           Guided primer help arrives with the design engine (FE-6 / M-002C).
         </div>
@@ -746,7 +760,7 @@ export function SidePanel(props: SidePanelProps) {
       ) : tool === 'crispr' ? (
         <CrisprSide data={props.data} />
       ) : (
-        <CollapsibleSection title={meta.rail} meta={<span className="count">context</span>}>
+        <CollapsibleSection title={meta.rail} icon={<IconScope size={14} />} meta={<span className="count">context</span>}>
           <div className="side-info">
             <b>{meta.title}</b> — {meta.sub}
           </div>

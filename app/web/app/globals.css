@@ -635,7 +635,15 @@ textarea {
 .pred-disagree { margin-top: 10px; padding: 10px 12px; background: var(--teal-tint); border: 0.5px solid var(--line); border-radius: var(--r-md); font-size: 12px; color: var(--ink-2); line-height: 1.55; }
 .pred-disagree strong { color: var(--ink); }
 
-/* ─── Sticky variant ribbon — icon-only at narrow widths ─── */
+/* ─── Sticky variant ribbon action buttons — one compact size for all three
+   (Save · Export · Share) so the cluster reads as a single control. Layers on
+   .eamos-toggle-btn; the media query below collapses them to icon-only when the
+   ribbon gets narrow. ─── */
+.eamos-ribbon-btn {
+  padding: 5px 10px;
+  gap: 5px;
+  font-size: 12px;
+}
 @media (max-width: 480px) {
   .eamos-ribbon-btn { padding: 5px 7px !important; }
   .eamos-ribbon-btn-label { display: none; }

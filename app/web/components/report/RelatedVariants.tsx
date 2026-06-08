@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { WorkRailSection } from '@/components/layout/WorkRail'
+import { IconRelated } from '@/components/icons/Icon'
 import { tierFromText } from '@/components/library/tier'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { reportHrefForQuery } from '@/lib/variant-search'
@@ -111,7 +112,7 @@ export function RelatedVariants({ data }: { data: LookupResponse }) {
   }
 
   return (
-    <WorkRailSection title="Related variants" defaultOpen={false}>
+    <WorkRailSection title="Related variants" icon={<IconRelated size={14} />} defaultOpen={false}>
       {nearby.length > 0 && (
         <Lane label="In this gene" count={nearby.length}>
           {nearby.map(nearbyRow)}

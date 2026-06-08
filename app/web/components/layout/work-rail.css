@@ -12,11 +12,18 @@
   --rail-top: var(--nav-h, 60px);
   --rail-w: 336px;
   --rail-w-collapsed: 48px;
+  /* The CURRENT rail width — published as a custom property so a fixed-position
+     descendant (the report's sticky variant ribbon) can offset itself by the
+     rail and stay centred over the output column instead of the whole viewport.
+     Tracks the collapse/drawer state via the class overrides below. */
+  --rail-live-w: var(--rail-w);
   display: flex;
   align-items: stretch;
   gap: 0;
   width: 100%;
 }
+.work-shell.is-collapsed { --rail-live-w: var(--rail-w-collapsed); }
+.work-shell.mode-drawer { --rail-live-w: 0px; }
 
 /* ── Rail (left controls) ── */
 .work-rail {
@@ -75,10 +82,10 @@
 .work-rail-title {
   flex: 1;
   min-width: 0;
-  font-family: var(--mono);
+  font-family: var(--body);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-3);
   white-space: nowrap;
@@ -133,10 +140,10 @@
 .work-rail-stub span {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  font-family: var(--mono);
+  font-family: var(--body);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-4);
 }
@@ -197,7 +204,7 @@
   cursor: pointer;
 }
 .work-rail-fab span {
-  font-family: var(--mono);
+  font-family: var(--body);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 10.5px;
@@ -207,80 +214,109 @@
   color: var(--ink);
 }
 
-/* ─────────────── Rail section (collapsible) ───────────────
-   Each section is a distinct group: a header band sits clearly above its
-   content, and a hairline + spacing separate one section from the next
-   (Supabase/Vercel/Render sidebar grammar). Mirrors .side-section-head. */
+/* ─────────────── Rail section — "airy icon-led" grammar ───────────────
+   The shared section grammar for every <WorkRail>, mirrored exactly by the
+   Workbench .side-section (workbench.css) so all three surfaces read as one
+   rail. A leading MONOCHROME glyph anchors each group ("what belongs to what",
+   never a status colour), the uppercase label and right-aligned meta follow,
+   and the disclosure chevron sits quietly at the far right. Groups are
+   separated by WHITESPACE rhythm, not dividers (yorby / Vercel sidebar
+   grammar): tight within a group, generous between. */
 .wr-section {
-  margin: 0 -4px; /* let the header band + divider span the full rail width */
+  margin: 0 -4px;
   padding: 0 4px;
 }
 .wr-section + .wr-section {
-  margin-top: 6px;
-  border-top: 0.5px solid var(--line);
-  padding-top: 6px;
+  margin-top: 4px; /* tight list rhythm — the reference rails pack rows close */
 }
 .wr-section-head {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 8px;
+  padding: 7px 8px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-family: var(--body);
+  font-size: 10.5px;
+  font-weight: 600;
   color: var(--ink-2);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   text-align: left;
-  transition: background var(--dur-1, 120ms) ease, color var(--dur-1, 120ms) ease;
+  transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
 }
 .wr-section-head:hover {
   background: var(--bg-soft);
   color: var(--ink);
 }
 .wr-section-head:focus-visible {
-  outline: 2px solid var(--brand, var(--teal));
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
 }
 .wr-section-head[aria-expanded='false'] {
-  color: var(--ink-4);
+  color: var(--ink-2);
 }
+
+/* Leading glyph — monochrome and as sharp as the label (matches the
+   feedback/cite chip ink); never teal. The chevron carries the collapsed cue,
+   so the label + icon stay sharp in both states. */
+.wr-section-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.wr-section-head:hover .wr-section-icon {
+  color: var(--ink);
+}
+.wr-section-head[aria-expanded='false'] .wr-section-icon {
+  color: var(--ink-2);
+}
+
+.wr-section-title {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.wr-section-meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-4);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+/* Disclosure chevron — quieter than the label, far right; rotates closed. */
 .wr-section-chev {
+  flex: 0 0 auto;
   width: 14px;
   height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--ink-3);
-  transition: transform var(--dur-2) ease;
-  flex: 0 0 auto;
+  color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized), color var(--dur-1) var(--ease-standard);
+}
+.wr-section-head:hover .wr-section-chev {
+  color: var(--ink-2);
 }
 .wr-section-head[aria-expanded='false'] .wr-section-chev {
   transform: rotate(-90deg);
 }
-.wr-section-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
-.wr-section-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink-3);
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
-  flex: 0 0 auto;
-}
 .wr-section-body {
-  padding: 4px 4px 8px;
+  padding: 4px 2px 8px 6px; /* gentle indent under the label, tight */
 }
 
 @media (prefers-reduced-motion: reduce) {
