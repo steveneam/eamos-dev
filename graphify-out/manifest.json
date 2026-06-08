@@ -2145,9 +2145,9 @@
     "semantic_hash": "ab064e6e427cc1275a78716afa0295c8"
   },
   "app/web/components/compare/ScopeGate.tsx": {
-    "mtime": 1780673415.1891215,
-    "ast_hash": "97513b66d29c4347d4e188e58a3bb3af",
-    "semantic_hash": "97513b66d29c4347d4e188e58a3bb3af"
+    "mtime": 1780918148.002876,
+    "ast_hash": "373ab48202010917186640d267bc43f3",
+    "semantic_hash": ""
   },
   "app/web/components/compare/VariantTable.tsx": {
     "mtime": 1780661096.7544744,
@@ -2155,9 +2155,9 @@
     "semantic_hash": "074c3208fb131a8782e017cb35329112"
   },
   "app/web/components/icons/Icon.tsx": {
-    "mtime": 1780673368.9633625,
-    "ast_hash": "9d3f86f5662101933cfd2bbb07b45fdb",
-    "semantic_hash": "9d3f86f5662101933cfd2bbb07b45fdb"
+    "mtime": 1780920369.114764,
+    "ast_hash": "8359b50e2e5c50d6839b478157bb0f39",
+    "semantic_hash": ""
   },
   "app/web/components/landing/EamosSearch.tsx": {
     "mtime": 1780492445.4034336,
@@ -2240,8 +2240,8 @@
     "semantic_hash": "4a0c1088919f1c3ed3f115fcc5a0df99"
   },
   "app/web/components/layout/ModePill.tsx": {
-    "mtime": 1780835097.9553943,
-    "ast_hash": "06a560c5c5f1c508081fdf2b39fd0dcb",
+    "mtime": 1780920340.7806149,
+    "ast_hash": "4ed756e83879f0294d1ab0d8bee5d3dd",
     "semantic_hash": ""
   },
   "app/web/components/layout/TopNav.tsx": {
@@ -2250,13 +2250,13 @@
     "semantic_hash": ""
   },
   "app/web/components/layout/WorkRail.tsx": {
-    "mtime": 1780671724.0299625,
-    "ast_hash": "106184ab98b986bcc4c0cab16906c227",
-    "semantic_hash": "106184ab98b986bcc4c0cab16906c227"
+    "mtime": 1780918019.7767942,
+    "ast_hash": "4b9d66b1d9a649758f0f95d2293c7fe6",
+    "semantic_hash": ""
   },
   "app/web/components/library/LibrarySection.tsx": {
-    "mtime": 1780746983.4730694,
-    "ast_hash": "ca07a7d23fd075f0add649100d1924d5",
+    "mtime": 1780918097.8502655,
+    "ast_hash": "080df8c0f312fd0818b26d88dfc2c8be",
     "semantic_hash": ""
   },
   "app/web/components/library/SavedVariantCard.tsx": {
@@ -2310,8 +2310,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/CallCardsGrid.tsx": {
-    "mtime": 1780841058.0639875,
-    "ast_hash": "a12503dcad785f9f3d8cf8d940701bcd",
+    "mtime": 1780921258.1297936,
+    "ast_hash": "d1d46bec937f8d2ba847926b76ef0d45",
     "semantic_hash": ""
   },
   "app/web/components/report/ClinVarBlock.tsx": {
@@ -2340,9 +2340,9 @@
     "semantic_hash": ""
   },
   "app/web/components/report/ExportMenu.tsx": {
-    "mtime": 1780491511.4312563,
-    "ast_hash": "433b7018739707eb1b836823369de3a9",
-    "semantic_hash": "433b7018739707eb1b836823369de3a9"
+    "mtime": 1780919921.8954506,
+    "ast_hash": "3f79375438b1c124c36c0cd4bf7b7aa1",
+    "semantic_hash": ""
   },
   "app/web/components/report/GeneDiseaseBlock.tsx": {
     "mtime": 1780890582.5944238,
@@ -2395,13 +2395,13 @@
     "semantic_hash": ""
   },
   "app/web/components/report/RelatedVariants.tsx": {
-    "mtime": 1780842803.3149326,
-    "ast_hash": "d52980ad39b7f01b92421b014c4ea11f",
+    "mtime": 1780918113.5002546,
+    "ast_hash": "40259a19dbfe83cca95b39064be212bb",
     "semantic_hash": ""
   },
   "app/web/components/report/ReportClient.tsx": {
-    "mtime": 1780893196.2384276,
-    "ast_hash": "44756b8f032ef4a0c08c3714de3fb5ed",
+    "mtime": 1780919488.364863,
+    "ast_hash": "21c6e7b0ca1347b4585aa3ab8fa07ba4",
     "semantic_hash": ""
   },
   "app/web/components/report/ReportGeneViewer.tsx": {
@@ -2415,8 +2415,8 @@
     "semantic_hash": "530a9c462939761ca034323252c5796b"
   },
   "app/web/components/report/ReportSectionNav.tsx": {
-    "mtime": 1780839124.7860367,
-    "ast_hash": "179b944a4175d554713a146f4173f455",
+    "mtime": 1780918123.154199,
+    "ast_hash": "d44ad7ddfee0bb428b4bd77c23ab2ee2",
     "semantic_hash": ""
   },
   "app/web/components/report/SearchInterpretationPanel.tsx": {
@@ -2425,8 +2425,8 @@
     "semantic_hash": "1f629afb3831686285b11a9c37f78bd6"
   },
   "app/web/components/report/StickyVariantRibbon.tsx": {
-    "mtime": 1780844977.2470355,
-    "ast_hash": "df3011c4c432690dce80edb94cdf012a",
+    "mtime": 1780921565.819196,
+    "ast_hash": "88be7e02ada065b2dad3be1e9a7b92c7",
     "semantic_hash": ""
   },
   "app/web/components/report/TrialsSection.tsx": {
@@ -2440,13 +2440,13 @@
     "semantic_hash": "1b9d590f5e79ca41dc45ed64de1edad9"
   },
   "app/web/components/report/VariantHeader.tsx": {
-    "mtime": 1780850510.9879315,
-    "ast_hash": "91890b8062b92a1a80c5e041264f1754",
+    "mtime": 1780921337.5938911,
+    "ast_hash": "ac0f573ffff6126725a10c6072df7bf7",
     "semantic_hash": ""
   },
   "app/web/components/report/VariantLibraryRail.tsx": {
-    "mtime": 1780839500.395416,
-    "ast_hash": "e36f718941b259430581df0a0b1d8793",
+    "mtime": 1780921294.0222564,
+    "ast_hash": "204469b038e706e76ff0241bea034e46",
     "semantic_hash": ""
   },
   "app/web/components/report/gnomadAncestryMap.ts": {
@@ -2535,8 +2535,8 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/SidePanel.tsx": {
-    "mtime": 1780745734.6493833,
-    "ast_hash": "8c7f3fd60eee06a1dc372e328081f9c3",
+    "mtime": 1780918308.395972,
+    "ast_hash": "be705ae5a001baaff55d9b1685f441cf",
     "semantic_hash": ""
   },
   "app/web/components/workbench/ToolBar.tsx": {
@@ -3135,8 +3135,8 @@
     "semantic_hash": ""
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1780893211.1917531,
-    "ast_hash": "e668a1a9c33ba5f367d45985524786a3",
+    "mtime": 1780893740.1844327,
+    "ast_hash": "c8fb32a3123de070d9ca6002c46813f2",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
