@@ -1,9 +1,11 @@
 /** StackedCountBar — proportional horizontal bar with frozen-ramp segments.
  *
- * Each segment background uses the saturated `--cls-*-dot` token so white
- * tabular numerals remain legible at bar scale. Segments narrower than 32px
- * drop their inline text; consumers should pair with a tooltip or aria-label
- * for those cases.
+ * Each segment background uses the saturated `--cls-*-dot` token; the count
+ * numeral takes a per-tier ink (`TEXT_ON_DOT`) chosen for contrast — white on
+ * the dark Pathogenic/LP/Benign dots, the dark `--cls-*-text` token on the
+ * light VUS/Likely-benign dots (white fails contrast on those two). Segments
+ * narrower than 32px drop their inline text; consumers should pair with a
+ * tooltip or aria-label for those cases.
  */
 
 export type RampVerdict =
@@ -37,6 +39,16 @@ const DOT_TOKEN: Record<RampVerdict, string> = {
   'VUS':              'var(--cls-vus-dot)',
   'Likely benign':    'var(--cls-lben-dot)',
   'Benign':           'var(--cls-ben-dot)',
+}
+
+// Numeral ink per tier, chosen for legibility on the dot above. White reads on
+// the dark path/LP/benign dots; the light VUS/LB dots need a dark ink instead.
+const TEXT_ON_DOT: Record<RampVerdict, string> = {
+  'Pathogenic':       '#fff',
+  'Likely pathogenic': '#fff',
+  'VUS':              'var(--cls-vus-text)',
+  'Likely benign':    'var(--cls-lben-text)',
+  'Benign':           '#fff',
 }
 
 const NARROW_THRESHOLD_PX = 32
@@ -110,7 +122,7 @@ export function StackedCountBar({
               {showLabels && !tooNarrow && (
                 <span
                   style={{
-                    color: '#fff',
+                    color: TEXT_ON_DOT[seg.verdict],
                     fontSize: 11,
                     fontWeight: 600,
                     fontVariantNumeric: 'tabular-nums',

@@ -122,7 +122,7 @@ function ConstraintGauge({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
         <InfoHint tip={infoTip} />
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginLeft: 2 }}>{valueText}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: mock ? 'var(--ink-4)' : 'var(--ink)', marginLeft: 2 }}>{valueText}</span>
         {badge && (
           <span title={badgeTip} style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', border: '0.5px solid var(--line)', borderRadius: 999, padding: '0 6px', cursor: badgeTip ? 'help' : 'default' }}>
             {badge}
@@ -146,8 +146,8 @@ function ConstraintGauge({
           aria-hidden
           style={{ position: 'absolute', left: `${pct(value)}%`, top: -7, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}
         >
-          <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid var(--ink)' }} />
-          <span style={{ width: 2, height: 12, marginTop: -1, background: 'var(--ink)', borderRadius: 1, boxShadow: '0 0 0 1.5px var(--bg)' }} />
+          <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: `6px solid ${mock ? 'var(--ink-4)' : 'var(--ink)'}` }} />
+          <span style={{ width: 2, height: 12, marginTop: -1, background: mock ? 'var(--ink-4)' : 'var(--ink)', borderRadius: 1, boxShadow: '0 0 0 1.5px var(--bg)' }} />
         </span>
       </div>
     </div>

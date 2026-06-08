@@ -728,7 +728,9 @@ textarea {
 .ev-bars span:nth-child(2) { height: 8px; }
 .ev-bars span:nth-child(3) { height: 11px; }
 .ev-bars.def span { background: var(--teal); }
+.ev-bars.strong span { background: var(--teal); }
 .ev-bars.mod span:nth-child(1), .ev-bars.mod span:nth-child(2) { background: var(--teal); }
+.ev-bars.lim span:nth-child(1) { background: var(--teal); }
 .cond-inherit { font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding: 3px 8px; background: var(--bg-soft); border: 0.5px solid var(--line); border-radius: 100px; }
 
 /* ─── Publications count callout ─── */

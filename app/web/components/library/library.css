@@ -516,7 +516,7 @@
               border-color var(--dur-1) var(--ease-standard);
 }
 .lib-pagenav-item:hover { background: var(--bg-soft); color: var(--ink-2); }
-.lib-pagenav-item[aria-current='true'] { color: var(--teal-deep); border-left-color: var(--teal-deep); font-weight: 600; }
+.lib-pagenav-item[aria-current] { color: var(--teal-deep); border-left-color: var(--teal-deep); font-weight: 600; }
 
 /* ─────────────── Reduced-motion (belt-and-braces; global guard also covers) ─────────────── */
 @media (prefers-reduced-motion: reduce) {

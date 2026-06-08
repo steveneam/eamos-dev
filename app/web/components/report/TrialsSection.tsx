@@ -190,7 +190,7 @@ function statusTone(status: string): { bg: string; fg: string; border: string } 
     case 'NOT_YET_RECRUITING':
       return { bg: 'var(--warn-tint)', fg: 'var(--warn-text)', border: 'var(--warn-bdr)' }
     case 'ACTIVE_NOT_RECRUITING':
-      return { bg: 'var(--err-tint)', fg: 'var(--err)', border: 'var(--err)' }
+      return { bg: 'var(--err-tint)', fg: 'var(--err)', border: 'var(--cls-path-bdr)' }
     default:
       return { bg: 'var(--bg-soft)', fg: 'var(--ink-3)', border: 'var(--line)' }
   }

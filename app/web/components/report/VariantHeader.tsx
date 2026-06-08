@@ -180,11 +180,11 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
           <div className="vh-metrics" aria-label={`Engagement metrics. ${MOCK_TIP}`}>
             <span className="vh-metric" title="How many times this report has been viewed">
               <IconEye />
-              <b>1,204</b> views
+              <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>1,204</span> views
             </span>
             <span className="vh-metric" title="When the evidence for this variant was last updated">
               <IconCalendar />
-              Updated <b>5 Jun 2026</b>
+              Updated <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>5 Jun 2026</span>
             </span>
             <span className="eamos-mock" title={MOCK_TIP}>preview</span>
           </div>

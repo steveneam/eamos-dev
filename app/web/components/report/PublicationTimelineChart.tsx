@@ -132,8 +132,17 @@ export function PublicationTimelineChart({
         <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={baseY} stroke="var(--ink-4)" strokeWidth="1" />
         <line x1={PAD.left} y1={baseY} x2={W - PAD.right} y2={baseY} stroke="var(--ink-4)" strokeWidth="1" />
 
-        <path d={areaPath} fill="var(--teal)" fillOpacity="0.1" />
-        <path d={linePath} fill="none" stroke="var(--teal)" strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={areaPath} fill="var(--teal)" fillOpacity={showMock ? 0.05 : 0.1} />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="var(--teal)"
+          strokeWidth="1.75"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          strokeDasharray={showMock ? '4 3' : undefined}
+          strokeOpacity={showMock ? 0.75 : 1}
+        />
 
         {series.map((p, i) => {
           const cx = xFor(i)

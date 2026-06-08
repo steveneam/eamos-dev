@@ -331,7 +331,7 @@ function TabButton({
         borderColor: active ? 'var(--teal)' : 'transparent',
         background: active ? 'var(--teal-tint)' : 'transparent',
         color: active ? 'var(--teal-deep)' : 'var(--ink-3)',
-        borderRadius: 7,
+        borderRadius: 'var(--r-sm)',
         padding: '7px 10px',
         fontSize: 11.5,
         fontWeight: 700,
@@ -387,7 +387,7 @@ function MapOverviewTab({
       style={{
         border: '0.5px solid var(--line)',
         borderRadius: 8,
-        background: 'linear-gradient(180deg, #f8fbfd 0%, #f1f6f8 100%)',
+        background: 'var(--bg-soft)',
         overflow: 'hidden',
       }}
     >
@@ -651,7 +651,7 @@ function DatasetCheckbox({
         borderColor: checked ? 'var(--teal-bdr)' : 'var(--line)',
         background: checked ? 'var(--teal-tint)' : 'var(--bg)',
         color: checked ? 'var(--teal-deep)' : 'var(--ink-3)',
-        borderRadius: 7,
+        borderRadius: 'var(--r-sm)',
         padding: '3px 9px',
         fontSize: 11,
         fontWeight: 600,
@@ -934,7 +934,7 @@ function AncestryBar({
         // populating, while hover is just the tint + a soft band-colour glow.
         borderColor: emphasized ? '#fde047' : 'var(--line)',
         background: emphasized ? 'rgba(254, 249, 195, 0.72)' : 'var(--bg)',
-        borderRadius: 7,
+        borderRadius: 'var(--r-sm)',
         padding: '7px 8px',
         textAlign: 'left',
         cursor: 'pointer',
@@ -1284,7 +1284,7 @@ function OffMapCohorts({
                       borderColor: emphasized ? '#fde047' : 'var(--line)',
                       background: emphasized ? 'rgba(254, 249, 195, 0.72)' : 'var(--bg)',
                       boxShadow: isSelected ? '0 0 0 2px rgba(253, 224, 71, 0.9)' : 'none',
-                      borderRadius: 7,
+                      borderRadius: 'var(--r-sm)',
                       padding: '4px 8px',
                       textAlign: 'left',
                       cursor: 'pointer',
@@ -1476,7 +1476,7 @@ function InfoPopover({
               background: 'var(--bg)',
               borderRadius: 10,
               padding: '12px 14px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.16)',
+              boxShadow: 'var(--elev-3)',
               fontSize: 11,
               lineHeight: 1.5,
               color: 'var(--ink-3)',

@@ -27,7 +27,7 @@ const CRITERION_STATE_TINT: Record<ExpertPanelCriterion['state'], { bg: string; 
   met: { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink)' },
   not_met: { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink-4)' },
   not_assessed: { bg: 'transparent', bd: 'var(--line)', ink: 'var(--ink-4)' },
-  conflicting: { bg: 'var(--warn-tint)', bd: 'var(--warn-bdr)', ink: 'var(--warn)' },
+  conflicting: { bg: 'var(--warn-tint)', bd: 'var(--warn-bdr)', ink: 'var(--warn-text)' },
 }
 
 function formatFetchedAt(iso: string): string {
@@ -55,7 +55,7 @@ function FreshnessChip({ data }: { data: ExpertPanelSectionData }) {
           fontSize: 10,
           fontWeight: 500,
           letterSpacing: '0.02em',
-          color: 'var(--warn)',
+          color: 'var(--warn-text)',
           background: 'var(--warn-tint)',
           border: '0.5px solid var(--warn-bdr)',
           lineHeight: '16px',

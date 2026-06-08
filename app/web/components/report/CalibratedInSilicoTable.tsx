@@ -316,12 +316,12 @@ function EvidenceBar({ cal, score }: { cal: Calibration | null; score: number | 
         )}
       </div>
       {/* range endpoints (raw-score units): benign end ◀ ▶ pathogenic end */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-5)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)' }}>
         <span>{fmtNum(leftVal)}</span>
         <span>{fmtNum(rightVal)}</span>
       </div>
       {/* source (left) + resulting tier / status (right) */}
-      <div style={{ marginTop: 2, display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 9.5, lineHeight: 1.3 }}>
+      <div style={{ marginTop: 2, display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 10, lineHeight: 1.3 }}>
         <span style={{ color: 'var(--ink-4)', fontFamily: 'var(--mono)' }}>{captionLeft}</span>
         <span style={{ color: rightColor, fontWeight: hasScore && calibrated ? 600 : 400, textAlign: 'right' }}>{captionRight}</span>
       </div>

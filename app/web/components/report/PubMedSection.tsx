@@ -402,7 +402,7 @@ function highlightTerms(text: string, terms: string[]): ReactNode {
     lowered.includes(part.toLowerCase()) ? (
       <mark
         key={i}
-        style={{ background: 'var(--teal-tint)', color: 'var(--teal-deep)', padding: '0 1px', borderRadius: 2 }}
+        style={{ background: 'var(--warn-tint)', color: 'var(--warn-text)', padding: '0 1px', borderRadius: 2 }}
       >
         {part}
       </mark>

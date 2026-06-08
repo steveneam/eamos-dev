@@ -249,7 +249,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
                           border: `0.5px solid ${badge.tone.border}`,
                           background: badge.tone.bg,
                           color: badge.tone.color,
-                          borderRadius: 7,
+                          borderRadius: 'var(--r-sm)',
                           padding: '4px 7px',
                           fontSize: 10.5,
                           fontWeight: 700,

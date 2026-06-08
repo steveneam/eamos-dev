@@ -186,7 +186,7 @@ export function PublicationModal({ article, onClose }: PublicationModalProps) {
   return (
     /* Backdrop overlay */
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-10 sm:py-16 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-10 sm:py-16"
       style={{ background: 'rgba(11, 26, 43, 0.45)' }}
       onClick={handleBackdropClick}
       aria-hidden="false"
@@ -215,9 +215,10 @@ export function PublicationModal({ article, onClose }: PublicationModalProps) {
           <div className="flex-1 min-w-0">
             <h2
               id={titleId}
-              className="font-semibold leading-snug"
+              className="leading-snug"
               style={{
                 fontFamily: 'var(--display)',
+                fontWeight: 400,
                 fontSize: '18px',
                 color: 'var(--ink)',
               }}

@@ -49,7 +49,7 @@ export function ReportSectionNav() {
             key={a.id}
             type="button"
             className="lib-pagenav-item"
-            aria-current={active === a.id ? 'true' : undefined}
+            aria-current={active === a.id ? 'location' : undefined}
             onClick={() => document.getElementById(a.id)?.scrollIntoView({ behavior: 'smooth' })}
           >
             {a.label}

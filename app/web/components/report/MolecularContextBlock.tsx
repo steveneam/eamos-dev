@@ -105,16 +105,7 @@ function phyloPFill(score: number): number {
 function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
-      <span
-        style={{
-          fontSize: 10.5,
-          fontWeight: 700,
-          color: 'var(--ink-4)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          flex: '0 0 auto',
-        }}
-      >
+      <span className="eamos-kicker" style={{ flex: '0 0 auto' }}>
         {label}
       </span>
       <span style={{ fontSize: 12.5, color: 'var(--ink-2)', minWidth: 0, overflowWrap: 'anywhere' }}>{children}</span>
