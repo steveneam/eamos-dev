@@ -71,6 +71,37 @@ function readClinGenDosage(raw: unknown): ClinGenDosage | null {
   }
 }
 
+interface ConservationScore {
+  name: string
+  score: number
+  interpretation: string | null
+  source_url: string | null
+}
+
+// Conservation lives on the `computational_annotations` evidence row (REAL —
+// phyloP100way / GERP++ from dbNSFP), separate from molecular_context. Surface it
+// here so the locus card answers "does evolution care about this base?".
+function readConservation(evidence: EvidenceSourceSummary[]): ConservationScore[] {
+  const row = evidence.find((e) => e.source?.toLowerCase() === 'computational_annotations')
+  const raw = (row?.summary as Record<string, unknown> | undefined)?.conservation
+  if (!Array.isArray(raw)) return []
+  const out: ConservationScore[] = []
+  for (const item of raw) {
+    const obj = readObject(item)
+    const name = readString(obj?.name)
+    const score = readNumber(obj?.score)
+    if (!obj || !name || score == null) continue
+    out.push({ name, score, interpretation: readString(obj.interpretation), source_url: readString(obj.source_url) })
+  }
+  return out
+}
+
+// phyloP100way ranges roughly -20 (accelerated) to +10 (deeply conserved); the
+// positive half is what matters clinically. Map to a 0..1 fill on a [-2, 8] view.
+function phyloPFill(score: number): number {
+  return Math.max(0, Math.min(1, (score + 2) / 10))
+}
+
 function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
@@ -100,6 +131,9 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
   const dosage = readClinGenDosage(summary.clingen_dosage)
   const overlappingCnvs = Array.isArray(summary.overlapping_cnvs) ? summary.overlapping_cnvs : []
   const cnvCount = overlappingCnvs.length
+  const conservation = readConservation(evidence)
+  const phyloP = conservation.find((c) => c.name.toLowerCase().startsWith('phylop'))
+  const gerp = conservation.find((c) => c.name.toLowerCase().startsWith('gerp'))
 
   const hasConstraint =
     constraint && (constraint.loeuf != null || constraint.pli != null)
@@ -110,7 +144,7 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
       dosage.haploinsufficiency_score ||
       dosage.triplosensitivity_score)
 
-  if (!hasConstraint && !hasDosage && cnvCount === 0) return null
+  if (!hasConstraint && !hasDosage && cnvCount === 0 && conservation.length === 0) return null
 
   return (
     <div
@@ -130,6 +164,60 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
           Molecular context
         </span>
       </div>
+
+      {phyloP && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <ChipRow label="Conservation">
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <span
+                title="phyloP100way — per-base evolutionary conservation across 100 vertebrates. Positive = conserved (selection against change); ≳ 2 marks a constrained site."
+                style={{ cursor: 'help', borderBottom: '1px dotted var(--ink-5)' }}
+              >
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>
+                  {phyloP.score.toFixed(2)}
+                </span>{' '}
+                <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>phyloP</span>
+              </span>
+              {phyloP.interpretation && (
+                <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{phyloP.interpretation}</span>
+              )}
+              {gerp && (
+                <span
+                  style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
+                  title="GERP++ RS — rejected-substitutions score; higher = stronger evolutionary constraint at this position."
+                >
+                  GERP++ {gerp.score.toFixed(2)}
+                </span>
+              )}
+              {phyloP.source_url && (
+                <a
+                  href={phyloP.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 11.5, color: 'var(--teal-deep)', textDecoration: 'underline', textUnderlineOffset: 3 }}
+                >
+                  dbNSFP ↗
+                </a>
+              )}
+            </span>
+          </ChipRow>
+          {/* phyloP conservation scale: accelerated ↔ conserved */}
+          <div style={{ position: 'relative', height: 6, borderRadius: 999, background: 'linear-gradient(90deg, var(--bg-soft2), var(--teal-faint), var(--teal))', border: '0.5px solid var(--line)' }}>
+            <span
+              style={{
+                position: 'absolute',
+                top: -3,
+                left: `calc(${(phyloPFill(phyloP.score) * 100).toFixed(1)}% - 1px)`,
+                width: 2,
+                height: 12,
+                background: 'var(--ink)',
+                borderRadius: 1,
+              }}
+              aria-hidden
+            />
+          </div>
+        </div>
+      )}
 
       {hasConstraint && constraint && (
         <ChipRow label="gnomAD constraint">

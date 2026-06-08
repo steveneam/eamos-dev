@@ -1,4 +1,5 @@
 'use client'
+import type { EvidenceSourceSummary } from '@/lib/backend'
 import { GNOMAD_AF_BANDS } from './gnomadMapTheme'
 
 // Franklin-style allele-frequency "thermometer" (report v3, design §4). A
@@ -14,30 +15,140 @@ const AF_CHIP_TIP: Record<string, string> = {
 }
 const INTERMEDIATE_TIP =
   'Uncommon — between the benign and pathogenic frequency thresholds; not decisive on its own.'
-const Z_TIP =
-  'gnomAD missense constraint Z-score: how depleted the gene is of missense changes versus expectation. Higher = more constrained (Z ≳ 3 is constrained).'
+const MIS_Z_TIP =
+  'Missense Z-score: how depleted the gene is of missense variation vs expectation. Higher = more constrained; Z ≥ 3.1 marks a missense-constrained gene.'
+const MIS_OE_TIP =
+  'Missense observed/expected ratio: fraction of expected missense variants actually seen. Toward 0 = strong depletion (constrained); ≈ 1 = tolerant.'
 const MOCK_TIP =
   'Preview value — not yet wired to live data. This number is illustrative and will update once the data source is connected.'
 const CONSTRAINT_TIP =
-  'gnomAD gene constraint — how depleted this gene is of variants versus expectation. Higher missense/LoF Z and lower LOEUF/pLI mean the gene is less tolerant of change.'
-const LOFZ_TIP =
-  'gnomAD loss-of-function Z-score: depletion of predicted LoF variants vs expectation. Higher = more constrained; LOEUF/pLI are the preferred LoF measures.'
+  'gnomAD gene constraint — how depleted this gene is of variation vs expectation. Low LOEUF / high pLI = the gene poorly tolerates loss-of-function; high missense constraint = it poorly tolerates missense change.'
+const LOEUF_TIP =
+  "LOEUF — loss-of-function observed/expected upper-bound fraction, gnomAD's primary LoF-constraint metric (the upper end of the 90% CI of the LoF o/e ratio). Lower = less tolerant of loss-of-function; < 0.6 (gnomAD v4) marks a constrained gene."
+const PLI_TIP =
+  'pLI — probability the gene is intolerant of a single loss-of-function allele. ≥ 0.9 = LoF-intolerant. gnomAD now leads with LOEUF.'
+const AF_TIP =
+  'Allele frequency — how often this exact variant appears across gnomAD reference-population samples. Common variants are usually benign (BA1/BS1); very rare or absent variants give supporting evidence toward pathogenic (PM2). The bar above places this AF on the ACMG benign↔pathogenic thresholds.'
 
-function ConstraintStat({
-  label, tip, value, verdict, verdictColor, pos, thresholdPos,
-}: {
-  label: string; tip: string; value: string; verdict: string; verdictColor: string; pos: number; thresholdPos: number
-}) {
+// Small circled-"i" hover affordance — a discoverable info popout matching the
+// "ⓘ" idiom used in the population section. Keyboard-focusable; native title on hover.
+function InfoHint({ tip }: { tip: string }) {
   return (
-    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '7px 10px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{value}</span>
-        <span title={tip} style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}>{label}</span>
-        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: verdictColor, fontWeight: 600 }}>{verdict}</span>
+    <span
+      tabIndex={0}
+      role="img"
+      aria-label={tip}
+      title={tip}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 13,
+        height: 13,
+        marginLeft: 5,
+        borderRadius: 999,
+        border: '0.5px solid var(--ink-5)',
+        fontSize: 9,
+        fontWeight: 700,
+        fontStyle: 'italic',
+        fontFamily: 'var(--mono)',
+        color: 'var(--ink-4)',
+        cursor: 'help',
+        lineHeight: 1,
+        verticalAlign: 'middle',
+        flex: '0 0 auto',
+      }}
+    >
+      i
+    </span>
+  )
+}
+
+// gnomAD-style constraint thermometer: a coloured banded scale (red = constrained
+// → green = tolerant, low value = constrained for both LOEUF and missense o/e) with
+// a value pin and the constrained-threshold tick. Mirrors gnomAD's o/e visual but
+// uses the report's shared class-ramp tokens so §3 matches the rest of the page.
+interface GaugeBand { upTo: number; color: string }
+
+const LOEUF_BANDS: GaugeBand[] = [
+  { upTo: 0.33, color: 'var(--cls-path-dot)' },
+  { upTo: 0.66, color: 'var(--cls-lpath-dot)' },
+  { upTo: 1.0, color: 'var(--cls-vus-dot)' },
+  { upTo: 1.5, color: 'var(--cls-ben-dot)' },
+]
+const MIS_OE_BANDS: GaugeBand[] = [
+  { upTo: 0.4, color: 'var(--cls-path-dot)' },
+  { upTo: 0.6, color: 'var(--cls-lpath-dot)' },
+  { upTo: 0.8, color: 'var(--cls-vus-dot)' },
+  { upTo: 1.2, color: 'var(--cls-ben-dot)' },
+]
+
+function loeufStatus(l: number): { text: string; color: string } {
+  if (l < 0.33) return { text: 'Highly constrained', color: 'var(--cls-path-text)' }
+  if (l < 0.6) return { text: 'Constrained', color: 'var(--cls-lpath-text)' }
+  if (l < 1.0) return { text: 'Moderately tolerant', color: 'var(--cls-vus-text)' }
+  return { text: 'LoF-tolerant', color: 'var(--cls-ben-text)' }
+}
+
+function readConstraint(evidence?: EvidenceSourceSummary[]): { loeuf: number | null; pli: number | null } {
+  const row = evidence?.find((e) => e.source?.toLowerCase() === 'molecular_context')
+  const c = (row?.summary as Record<string, unknown> | undefined)?.gnomad_constraint as
+    | Record<string, unknown>
+    | undefined
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  return { loeuf: num(c?.loeuf), pli: num(c?.pli) }
+}
+
+function ConstraintGauge({
+  label, infoTip, axisMax, bands, value, valueText, badge, badgeTip, threshold, thresholdLabel, status, statusColor, mock,
+}: {
+  label: string
+  infoTip: string
+  axisMax: number
+  bands: GaugeBand[]
+  value: number
+  valueText: string
+  badge?: string
+  badgeTip?: string
+  threshold?: number
+  thresholdLabel?: string
+  status: string
+  statusColor: string
+  mock?: boolean
+}) {
+  const pct = (v: number) => Math.max(0, Math.min(100, (v / axisMax) * 100))
+  return (
+    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '8px 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+        <InfoHint tip={infoTip} />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginLeft: 2 }}>{valueText}</span>
+        {badge && (
+          <span title={badgeTip} style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', border: '0.5px solid var(--line)', borderRadius: 999, padding: '0 6px', cursor: badgeTip ? 'help' : 'default' }}>
+            {badge}
+          </span>
+        )}
+        {mock && <span className="eamos-mock" title={MOCK_TIP}>Mock</span>}
+        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: statusColor, fontWeight: 600 }}>{status}</span>
       </div>
-      <div style={{ position: 'relative', marginTop: 5, height: 4, borderRadius: 2, background: 'var(--bg-soft2)' }}>
-        <span aria-hidden style={{ position: 'absolute', left: `${Math.max(0, Math.min(100, thresholdPos * 100))}%`, top: 0, bottom: 0, width: 1, background: 'var(--ink-4)', opacity: 0.5 }} />
-        <span aria-hidden style={{ position: 'absolute', left: `${Math.max(0, Math.min(100, pos * 100))}%`, top: -1, bottom: -1, width: 2, transform: 'translateX(-1px)', background: 'var(--ink)' }} />
+      <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden' }}>
+          {bands.map((b, i) => {
+            const start = i === 0 ? 0 : bands[i - 1].upTo
+            const w = ((b.upTo - start) / axisMax) * 100
+            return <span key={i} style={{ width: `${w}%`, background: b.color }} />
+          })}
+        </div>
+        {threshold != null && (
+          <span aria-hidden title={thresholdLabel} style={{ position: 'absolute', left: `${pct(threshold)}%`, top: -2, height: 12, width: 1, background: 'var(--ink-4)', opacity: 0.6 }} />
+        )}
+        <span
+          aria-hidden
+          style={{ position: 'absolute', left: `${pct(value)}%`, top: -7, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}
+        >
+          <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid var(--ink)' }} />
+          <span style={{ width: 2, height: 12, marginTop: -1, background: 'var(--ink)', borderRadius: 1, boxShadow: '0 0 0 1.5px var(--bg)' }} />
+        </span>
       </div>
     </div>
   )
@@ -51,7 +162,7 @@ function fmtAf(af: number | null): string {
   return `${Number(pct.toPrecision(3))}%`
 }
 
-export function AfThermometer({ af }: { af: number | null }) {
+export function AfThermometer({ af, evidence }: { af: number | null; evidence?: EvidenceSourceSummary[] }) {
   const observed = af != null && af > 0
   const bandIdx = observed ? GNOMAD_AF_BANDS.findIndex((b) => (af as number) >= b.min) : -1
   const band = bandIdx >= 0 ? GNOMAD_AF_BANDS[bandIdx] : null
@@ -171,31 +282,72 @@ export function AfThermometer({ af }: { af: number | null }) {
       {/* Allele frequency on its own fixed line — always in the same place,
           never tracking the marker (so there's one place to look). */}
       <div style={{ marginTop: 12 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Allele frequency
         </span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{fmtAf(af)}</span>
+        <InfoHint tip={AF_TIP} />
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginLeft: 8 }}>{fmtAf(af)}</span>
         <span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 6 }}>· gnomAD v4 · joint</span>
       </div>
 
-      {/* Gene constraint readout (gnomAD). mis_z / lof_z are not yet in the
-          contract → tagged MOCK values (coherent with the gene's LOEUF/pLI);
-          LOEUF / pLI themselves render live in Gene & locus below. */}
-      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span title={CONSTRAINT_TIP} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}>
-            Gene constraint
-          </span>
-          <span className="eamos-mock" title={MOCK_TIP}>Mock</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-4)' }}>
-            LOEUF / pLI live in <span style={{ fontWeight: 600 }}>Gene &amp; locus</span> below.
-          </span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-          <ConstraintStat label="Missense Z" tip={Z_TIP} value="1.86" verdict="Not constrained" verdictColor="var(--cls-ben-text)" pos={1.86 / 6} thresholdPos={3.09 / 6} />
-          <ConstraintStat label="LoF Z" tip={LOFZ_TIP} value="0.55" verdict="Tolerant" verdictColor="var(--cls-ben-text)" pos={0.55 / 6} thresholdPos={3.09 / 6} />
-        </div>
-      </div>
+      {/* Gene constraint readout (gnomAD), gnomAD-style coloured thermometers.
+          LOEUF + pLI are LIVE from molecular_context; the o/e bar geometry +
+          the missense axis are illustrative (tagged) until wired. "LoF Z" was
+          dropped — gnomAD has no LoF Z-score; LOEUF is its LoF-constraint metric. */}
+      {(() => {
+        const { loeuf: realLoeuf, pli: realPli } = readConstraint(evidence)
+        const loeufMock = realLoeuf == null
+        const loeuf = realLoeuf ?? 0.41
+        const pli = realPli ?? 0.86
+        const ls = loeufStatus(loeuf)
+        // Missense axis is gated → illustrative o/e + Z, coherent with the gene's LoF tolerance.
+        const misOe = 0.94
+        const misZ = 1.86
+        const misConstrained = misZ >= 3.1
+        return (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--line)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Gene constraint
+              </span>
+              <InfoHint tip={CONSTRAINT_TIP} />
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-4)' }}>gnomAD v4</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              <ConstraintGauge
+                label="LoF · LOEUF"
+                infoTip={LOEUF_TIP}
+                axisMax={1.5}
+                bands={LOEUF_BANDS}
+                value={loeuf}
+                valueText={loeuf.toFixed(2)}
+                badge={`pLI ${pli.toFixed(2)}`}
+                badgeTip={PLI_TIP}
+                threshold={0.6}
+                thresholdLabel="Constrained threshold (LOEUF < 0.6, gnomAD v4)"
+                status={ls.text}
+                statusColor={ls.color}
+                mock={loeufMock}
+              />
+              <ConstraintGauge
+                label="Missense · o/e"
+                infoTip={MIS_OE_TIP}
+                axisMax={1.2}
+                bands={MIS_OE_BANDS}
+                value={misOe}
+                valueText={misOe.toFixed(2)}
+                badge={`Z ${misZ.toFixed(2)}`}
+                badgeTip={MIS_Z_TIP}
+                threshold={0.6}
+                thresholdLabel="Region of missense constraint (lower o/e)"
+                status={misConstrained ? 'Constrained' : 'Not constrained'}
+                statusColor={misConstrained ? 'var(--cls-lpath-text)' : 'var(--cls-ben-text)'}
+                mock
+              />
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -5,7 +5,14 @@ import { Disclosure } from '@/components/ui/Disclosure'
 import type { PublicationTimeline } from '@/lib/backend'
 
 interface PublicationTimelineChartProps {
+  /** Variant-scope per-year series (live). */
   timeline: PublicationTimeline
+  /** Gene-scope per-year series (currently illustrative mock). */
+  geneTimeline?: PublicationTimeline | null
+  /** Which series to plot — driven by the §6 scope toggle. */
+  scope?: 'variant' | 'gene'
+  /** True when the gene series is mock; surfaces a "Mock" tag on the gene view. */
+  geneMock?: boolean
 }
 
 interface YearPoint {
@@ -36,8 +43,16 @@ const plotW = W - PAD.left - PAD.right
 const plotH = H - PAD.top - PAD.bottom
 const baseY = PAD.top + plotH
 
-export function PublicationTimelineChart({ timeline }: PublicationTimelineChartProps) {
-  const series = useMemo(() => buildSeries(timeline), [timeline])
+export function PublicationTimelineChart({
+  timeline,
+  geneTimeline,
+  scope = 'variant',
+  geneMock = false,
+}: PublicationTimelineChartProps) {
+  const isGene = scope === 'gene' && geneTimeline != null
+  const active = isGene ? geneTimeline : timeline
+  const showMock = isGene && geneMock
+  const series = useMemo(() => buildSeries(active), [active])
 
   if (series.length === 0) return null
 
@@ -59,15 +74,25 @@ export function PublicationTimelineChart({ timeline }: PublicationTimelineChartP
   const areaPath = `${linePath} L${xFor(n - 1).toFixed(1)},${baseY.toFixed(1)} L${xFor(0).toFixed(1)},${baseY.toFixed(1)} Z`
 
   const labelStep = Math.max(1, Math.ceil(n / 8))
-  const undated = timeline.total_without_year ?? 0
+  const undated = active.total_without_year ?? 0
   const rangeLabel = minYear === maxYear ? `${minYear}` : `${minYear}–${maxYear}`
 
-  const summary = undated > 0 ? `${rangeLabel} · +${undated} undated` : rangeLabel
+  const rangeText = undated > 0 ? `${rangeLabel} · +${undated} undated` : rangeLabel
+  const summary = showMock ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {rangeText}
+      <span className="eamos-mock" title="Illustrative gene-wide per-year distribution — not yet wired to live data.">
+        Mock
+      </span>
+    </span>
+  ) : (
+    rangeText
+  )
 
   return (
     <Disclosure
       flush
-      kicker="Publications over time"
+      kicker={isGene ? 'Gene publications over time' : 'Variant publications over time'}
       showLabel="Show timeline"
       hideLabel="Hide timeline"
       summary={summary}
@@ -156,7 +181,8 @@ export function PublicationTimelineChart({ timeline }: PublicationTimelineChartP
         </text>
       </svg>
       <p style={{ fontSize: 11, color: 'var(--ink-4)', margin: '6px 2px 0' }}>
-        {timeline.total_with_year} dated {timeline.total_with_year === 1 ? 'publication' : 'publications'}
+        {active.total_with_year} dated {active.total_with_year === 1 ? 'publication' : 'publications'}
+        {isGene ? ` across ${rangeLabel} (gene-wide)` : ''}
         {undated > 0 && ` · ${undated} without a publication year`}
       </p>
     </Disclosure>

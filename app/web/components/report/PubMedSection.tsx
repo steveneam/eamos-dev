@@ -1,12 +1,18 @@
 'use client'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { PublicationTimelineChart } from '@/components/report/PublicationTimelineChart'
 import { PublicationModal, usePublicationUrl } from '@/components/report/PublicationModal'
 import { PublicationsCallout } from '@/components/report/PublicationsCallout'
 import { lookupPublications } from '@/lib/api'
-import type { PublicationSnippet, PubMedArticle, ReportPayload } from '@/lib/backend'
+import type {
+  PublicationScope,
+  PublicationSnippet,
+  PublicationTimeline,
+  PubMedArticle,
+  ReportPayload,
+} from '@/lib/backend'
 
 interface PubMedSectionProps {
   payload: ReportPayload
@@ -24,6 +30,42 @@ const pubStyles = `
 
 function formatLabel(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
+}
+
+// Gene-wide per-year publication curve is gated on the backend, so we synthesise
+// an illustrative one (tagged "Mock" in the chart). The shape mimics a gene
+// whose literature ramps from the mid-90s and peaks around its translational
+// milestone, normalised so the series total stays coherent with the live
+// gene-wide scope count. Swap for the real `PublicationScopeCount.publication_timeline`
+// (gene) once Codex ships it.
+const GENE_YEAR_SHAPE: ReadonlyArray<readonly [number, number]> = [
+  [1995, 2], [1996, 2], [1997, 4], [1998, 4], [1999, 5],
+  [2000, 6], [2001, 8], [2002, 7], [2003, 9], [2004, 10],
+  [2005, 12], [2006, 13], [2007, 15], [2008, 22], [2009, 20],
+  [2010, 24], [2011, 26], [2012, 27], [2013, 30], [2014, 32],
+  [2015, 36], [2016, 40], [2017, 52], [2018, 56], [2019, 50],
+  [2020, 44], [2021, 40], [2022, 38], [2023, 34], [2024, 24],
+]
+
+function buildGeneTimeline(total: number): PublicationTimeline {
+  const weightSum = GENE_YEAR_SHAPE.reduce((sum, [, w]) => sum + w, 0)
+  let allocated = 0
+  const points = GENE_YEAR_SHAPE.map(([year, w]) => {
+    const count = Math.max(1, Math.round((w / weightSum) * total))
+    allocated += count
+    return { year, count }
+  })
+  // Park the rounding remainder on the peak year so the bars sum to `total`.
+  const diff = total - allocated
+  if (diff !== 0) {
+    let peakIdx = 0
+    for (let i = 1; i < points.length; i += 1) {
+      if (points[i].count > points[peakIdx].count) peakIdx = i
+    }
+    points[peakIdx] = { ...points[peakIdx], count: Math.max(1, points[peakIdx].count + diff) }
+  }
+  const realTotal = points.reduce((sum, p) => sum + p.count, 0)
+  return { publications_by_year: points, total_with_year: realTotal, total_without_year: 0 }
 }
 
 function articleDate(article: PubMedArticle): string {
@@ -53,6 +95,19 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   const [failed, setFailed] = useState(false)
   const [openArticle, setOpenArticle] = useState<PubMedArticle | null>(null)
   const searchParams = useSearchParams()
+
+  // Scope (variant | gene) is lifted here so a single toggle drives BOTH the
+  // PublicationsCallout count and the PublicationTimelineChart series. URL param
+  // `?pubScope=variant|gene` sets the initial state and stays in sync on external
+  // URL changes (back/forward) via the render-time adjustment below; clicks don't
+  // push to URL (per M-001 scope).
+  const urlScope: PublicationScope = searchParams.get('pubScope') === 'gene' ? 'gene' : 'variant'
+  const [pubScope, setPubScope] = useState<PublicationScope>(urlScope)
+  const [prevUrlScope, setPrevUrlScope] = useState<PublicationScope>(urlScope)
+  if (urlScope !== prevUrlScope) {
+    setPrevUrlScope(urlScope)
+    setPubScope(urlScope)
+  }
 
   const articles = [...initialArticles, ...extra]
 
@@ -118,13 +173,19 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   const moreCount = Math.min(PAGE_SIZE, total - shownCount)
 
   // Variant ↔ gene scope callout migrated up from old §4 so the scope toggle
-  // lives with the publications section it actually controls. URL param
-  // `?pubScope=variant|gene` continues to drive it; clicks on the toggle do
-  // NOT push to URL (per M-001 scope).
+  // lives with the publications section it actually controls.
   const calloutScopeCounts =
     payload.publications_callout?.scope_counts ??
     payload.publications_literature?.scope_counts ??
     null
+
+  // Gene-wide per-year series is gated → synthesise an illustrative one keyed to
+  // the live gene-wide total so the chart can answer the gene-scope toggle.
+  const geneCount = calloutScopeCounts?.gene?.total_count ?? null
+  const geneTimeline = useMemo(
+    () => (geneCount && geneCount > 0 ? buildGeneTimeline(geneCount) : null),
+    [geneCount],
+  )
 
   // All hooks are above this line — the empty-state early return must stay below
   // them so hook call order is identical on every render (rules-of-hooks).
@@ -137,6 +198,8 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
         data={payload.publications_callout}
         scopeCounts={calloutScopeCounts}
         geneSymbol={gene || null}
+        scope={pubScope}
+        onScopeChange={setPubScope}
       />
       {articles.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '14px 0 0' }}>
@@ -209,7 +272,16 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
         </div>
       )}
 
-      {hasTimeline && timeline && <PublicationTimelineChart timeline={timeline} />}
+      {(hasTimeline || geneTimeline) && (
+        <PublicationTimelineChart
+          timeline={
+            timeline ?? { publications_by_year: [], total_with_year: 0, total_without_year: 0 }
+          }
+          geneTimeline={geneTimeline}
+          scope={pubScope}
+          geneMock
+        />
+      )}
       <PublicationModal article={openArticle} onClose={() => setOpenArticle(null)} />
     </Card>
   )

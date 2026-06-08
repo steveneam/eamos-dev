@@ -33,6 +33,7 @@ import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
+import { ProteinTrack } from '@/components/report/ProteinTrack'
 import { GeneDiseaseBlock } from '@/components/report/GeneDiseaseBlock'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
@@ -839,7 +840,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               />
             }
           >
-            <AfThermometer af={populationSection.overall?.total?.allele_frequency ?? null} />
+            <AfThermometer af={populationSection.overall?.total?.allele_frequency ?? null} evidence={data.evidence} />
             <PopulationFrequencySection section={populationSection} />
           </Card>
         )}
@@ -887,26 +888,14 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           )}
 
-          {/* Protein-domain viewer slot — reserved for Slice B build 2 (the
-              UniProt domain track, pending Codex's protein-annotation backend).
-              The old locus ±40bp codon picture sat here; removed 2026-05-30 as
-              redundant with the genomic viewer above. Its data still flows to
-              the Copy-gene-context export via payload.locus_context. */}
-          <div
-            style={{
-              marginTop: 18,
-              border: '0.5px dashed var(--line-2)',
-              borderRadius: 'var(--r-md)',
-              background: 'var(--bg-soft)',
-              padding: '28px 16px',
-              textAlign: 'center',
-            }}
-          >
-            <div className="eamos-kicker" style={{ marginBottom: 6 }}>Protein domains</div>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-4)' }}>
-              Protein-domain viewer wiring in progress.
-            </p>
-          </div>
+          {/* Protein-domain track — custom inline-SVG (domains + AlphaMissense
+              per-residue heatmap + variant lollipop). Consumes Codex's
+              `protein_domain_track` contract when populated; illustrative
+              mock until then (per the mock-everything-unwired policy). */}
+          <ProteinTrack
+            track={payload.report_profile?.molecular_context?.protein_domain_track ?? null}
+            gene={header?.gene ?? null}
+          />
 
           <MolecularContextBlock evidence={data.evidence} />
         </Card>

@@ -1,32 +1,31 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 import type {
   PublicationsCallout as PublicationsCalloutData,
   PublicationScopeCounts,
 } from '@/lib/backend'
+
+type PubScope = 'variant' | 'gene'
 
 interface PublicationsCalloutProps {
   data?: PublicationsCalloutData | null
   scopeCounts?: PublicationScopeCounts | null
   geneSymbol?: string | null
   onAskSummary?: () => void
+  /** Controlled scope — the parent (§6) owns it so the same toggle also steers
+   *  the publication timeline. URL `?pubScope=` is read by the parent. */
+  scope: PubScope
+  onScopeChange: (scope: PubScope) => void
 }
 
-type PubScope = 'variant' | 'gene'
-
-export function PublicationsCallout({ data, scopeCounts, geneSymbol, onAskSummary }: PublicationsCalloutProps) {
-  const searchParams = useSearchParams()
-  const [scope, setScope] = useState<PubScope>(() => {
-    const param = searchParams.get('pubScope')
-    return param === 'gene' ? 'gene' : 'variant'
-  })
-
-  // Keep scope in sync if the URL param changes externally (e.g. browser back/forward)
-  useEffect(() => {
-    const param = searchParams.get('pubScope')
-    setScope(param === 'gene' ? 'gene' : 'variant')
-  }, [searchParams])
+export function PublicationsCallout({
+  data,
+  scopeCounts,
+  geneSymbol,
+  onAskSummary,
+  scope,
+  onScopeChange,
+}: PublicationsCalloutProps) {
+  const setScope = onScopeChange
 
   if (!data && !scopeCounts) {
     return (

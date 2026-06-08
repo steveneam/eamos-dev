@@ -56,17 +56,77 @@ function readCondition(raw: unknown): GeneDiseaseCondition | null {
   }
 }
 
+// ClinGen Gene-Disease Validity — full 8-tier scale, mapped onto the shared
+// classification ramp so confidence reads at a glance: high (green/teal) →
+// low (yellow) → contradicting (orange/red) → neutral (grey/blue).
 function validityTone(validity: string | null) {
-  if (!validity) return { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink-3)' }
+  const neutral = { bg: 'var(--cls-na-bg)', bd: 'var(--cls-na-bdr)', ink: 'var(--cls-na-text)' }
+  if (!validity) return neutral
   const v = validity.toLowerCase()
-  if (v.includes('definitive') || v.includes('strong'))
-    return { bg: 'var(--teal-tint)', bd: 'var(--teal-deep)', ink: 'var(--teal-deep)' }
-  if (v.includes('moderate') || v.includes('limited'))
-    return { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink-2)' }
-  if (v.includes('disputed') || v.includes('refuted'))
-    return { bg: 'var(--warn-tint)', bd: 'var(--warn-bdr)', ink: 'var(--warn)' }
-  return { bg: 'var(--bg-soft)', bd: 'var(--line)', ink: 'var(--ink-3)' }
+  if (v.includes('definitive'))
+    return { bg: 'var(--teal-tint)', bd: 'var(--teal-bdr)', ink: 'var(--teal-deep)' }
+  if (v.includes('strong'))
+    return { bg: 'var(--cls-ben-bg)', bd: 'var(--cls-ben-bdr)', ink: 'var(--cls-ben-text)' }
+  if (v.includes('moderate'))
+    return { bg: 'var(--cls-lben-bg)', bd: 'var(--cls-lben-bdr)', ink: 'var(--cls-lben-text)' }
+  if (v.includes('limited'))
+    return { bg: 'var(--cls-vus-bg)', bd: 'var(--cls-vus-bdr)', ink: 'var(--cls-vus-text)' }
+  if (v.includes('disputed'))
+    return { bg: 'var(--cls-lpath-bg)', bd: 'var(--cls-lpath-bdr)', ink: 'var(--cls-lpath-text)' }
+  if (v.includes('refuted'))
+    return { bg: 'var(--cls-path-bg)', bd: 'var(--cls-path-bdr)', ink: 'var(--cls-path-text)' }
+  if (v.includes('animal'))
+    return { bg: 'var(--info-bg)', bd: 'var(--info-bdr)', ink: 'var(--info-text)' }
+  // "No Known Disease Relationship" and anything unrecognised → neutral grey.
+  return neutral
 }
+
+// Resolve a CURIE-style disease id (MONDO:0008765, OMIM:204100, ORPHA:65,
+// MedGen:C1859844, MedGenUID:348473) to its canonical ontology page.
+function diseaseIdLink(id: string): string | null {
+  const idx = id.indexOf(':')
+  if (idx < 0) return null
+  const prefix = id.slice(0, idx).toUpperCase()
+  const acc = id.slice(idx + 1).trim()
+  if (!acc) return null
+  switch (prefix) {
+    case 'MONDO':
+      return `https://monarchinitiative.org/MONDO:${acc}`
+    case 'OMIM':
+      return `https://omim.org/entry/${acc}`
+    case 'ORPHA':
+      return `https://www.orpha.net/en/disease/detail/${acc}`
+    case 'MEDGEN':
+      return `https://www.ncbi.nlm.nih.gov/medgen/?term=${encodeURIComponent(acc)}`
+    case 'MEDGENUID':
+      return `https://www.ncbi.nlm.nih.gov/medgen/${acc}`
+    default:
+      return null
+  }
+}
+
+// MONDO leads (cross-ontology anchor), then OMIM/ORPHA/MedGen.
+function orderDiseaseIds(ids: string[]): string[] {
+  const rank = (id: string) => {
+    const p = id.split(':')[0].toUpperCase()
+    return p === 'MONDO' ? 0 : p === 'OMIM' ? 1 : p === 'ORPHA' ? 2 : p === 'MEDGEN' ? 3 : 4
+  }
+  // de-dupe while preserving the ranked order
+  const seen = new Set<string>()
+  return [...ids]
+    .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
+    .sort((a, b) => rank(a) - rank(b))
+}
+
+function titleCase(value: string): string {
+  return value.replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const GENCC_TIP =
+  'GenCC aggregates gene–disease validity assertions from member submitters (ClinGen, Genomics England PanelApp, Orphanet, Invitae, and others). Consensus = the agreed classification across them.'
+const MONDO_TIP =
+  'MONDO — the cross-ontology disease identifier that unifies OMIM, Orphanet and MedGen. Opens the Monarch Initiative page.'
+const GENCC_MOCK_TIP = 'Illustrative — GenCC consensus / submitter count not yet wired to live data.'
 
 export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
   const row = evidence.find((e) => e.source?.toLowerCase() === 'gene_disease')
@@ -89,6 +149,11 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
   }
 
   const tone = validityTone(validity)
+  const orderedIds = orderDiseaseIds(readStringArray(summary.disease_ids))
+  // GenCC consensus is gated → illustrative mock, kept coherent with the live
+  // ClinGen validity tier on the same gene.
+  const genccConsensus = validity ? titleCase(validity) : 'Definitive'
+  const genccSubmitters = 5
 
   return (
     <div
@@ -104,25 +169,44 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
       }}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="eamos-kicker">
-          ClinGen gene-disease validity
-        </span>
-        {validity && (
+        <span className="eamos-kicker">Gene-disease validity</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {validity && (
+            <span
+              title="ClinGen Gene-Disease Validity classification (8-tier confidence scale)."
+              style={{
+                padding: '2px 8px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 600,
+                background: tone.bg,
+                border: `0.5px solid ${tone.bd}`,
+                color: tone.ink,
+                textTransform: 'capitalize',
+                cursor: 'help',
+              }}
+            >
+              ClinGen · {validity}
+            </span>
+          )}
+          {/* GenCC consensus — second validity source, mock until wired. */}
           <span
+            title={GENCC_TIP}
             style={{
               padding: '2px 8px',
               borderRadius: 999,
               fontSize: 11,
               fontWeight: 600,
-              background: tone.bg,
+              background: 'var(--bg)',
               border: `0.5px solid ${tone.bd}`,
               color: tone.ink,
-              textTransform: 'capitalize',
+              cursor: 'help',
             }}
           >
-            {validity}
+            GenCC · {genccConsensus} · {genccSubmitters} submitters
           </span>
-        )}
+          <span className="eamos-mock" title={GENCC_MOCK_TIP}>Mock</span>
+        </span>
       </div>
 
       {(approvedSymbol || primaryCondition || inheritance) && (
@@ -155,6 +239,44 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
               <span style={{ fontFamily: 'var(--mono)' }}>{inheritance}</span>
             </>
           )}
+        </div>
+      )}
+
+      {orderedIds.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+          <span className="eamos-kicker" style={{ marginRight: 2 }}>Disease IDs</span>
+          {orderedIds.map((id) => {
+            const href = diseaseIdLink(id)
+            const isMondo = id.toUpperCase().startsWith('MONDO')
+            const chipStyle: React.CSSProperties = {
+              fontFamily: 'var(--mono)',
+              fontSize: 10.5,
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 999,
+              border: `0.5px solid ${isMondo ? 'var(--teal-bdr)' : 'var(--line)'}`,
+              background: isMondo ? 'var(--teal-tint)' : 'var(--bg)',
+              color: isMondo ? 'var(--teal-deep)' : 'var(--ink-3)',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }
+            return href ? (
+              <a
+                key={id}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={chipStyle}
+                title={isMondo ? MONDO_TIP : `Open ${id}`}
+              >
+                {id} ↗
+              </a>
+            ) : (
+              <span key={id} style={chipStyle}>
+                {id}
+              </span>
+            )
+          })}
         </div>
       )}
 
