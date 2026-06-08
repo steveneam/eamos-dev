@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
 import { TOOL_META } from './tools'
+import { IconExport, IconTracks } from '@/components/icons/Icon'
 import type { StrandMode, TrackState } from './viewer/viewer-types'
 
 // Minimal-chrome header above the viewer: shows the active gene + variant
@@ -139,11 +140,7 @@ export function CanvasHeader({
                 aria-controls="sv-tracks-menu"
                 onClick={() => setTracksOpen((o) => !o)}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
+                <IconTracks />
                 Tracks
                 <span className="sv-dropdown-count">{trackCount}</span>
               </button>
@@ -183,11 +180,7 @@ export function CanvasHeader({
               title="Export / print this view"
               onClick={() => window.print()}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <IconExport />
               Export
             </button>
           </>

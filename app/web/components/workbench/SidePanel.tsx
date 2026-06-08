@@ -1,6 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import {
+  IconChevron,
   IconFlask,
   IconGene,
   IconProtein,
@@ -88,9 +89,7 @@ function CollapsibleSection({
         <span className="side-section-title">{title}</span>
         {meta ? <span className="side-section-meta">{meta}</span> : null}
         <span className="side-section-chev" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <IconChevron size={12} />
         </span>
       </button>
       {open && <div className="side-section-body">{children}</div>}
@@ -504,9 +503,7 @@ function ViewerSide({
           onClick={onToggleExonTable}
         >
           <span className="side-nested-chev" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <IconChevron size={12} />
           </span>
           <span className="side-nested-title">Exons</span>
           <span className="side-nested-meta">

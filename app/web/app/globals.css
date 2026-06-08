@@ -182,6 +182,20 @@
   --ease-emphasized: cubic-bezier(.3, 0, 0, 1);   /* disclosure / focal reveals */
   --ease-exit:       cubic-bezier(.4, 0, 1, 1);   /* accelerate — exits */
 
+  /* Stacking scale — one monotonic ladder for every layered chrome surface so
+     the workbench/report shells stop colliding (FAB == nav, edit-popover == nav).
+     Local in-canvas sub-stacking (clinvar dot active-vs-rest, chromatogram
+     handles, locus dots) keeps its small literal values — those are isolated
+     stacking contexts, not part of the global chrome ladder. */
+  --z-track:   5;    /* in-canvas track/annotation baseline */
+  --z-rail:    45;   /* sticky controls rail (inline) + drawer FAB — below nav */
+  --z-nav:     50;   /* sticky top nav */
+  --z-scrim:   55;   /* drawer scrim */
+  --z-drawer:  60;   /* drawer rail overlay (above nav when open) */
+  --z-popover: 70;   /* dropdowns / inline edit popovers / menus — clear rail+nav */
+  --z-pill:    100;  /* floating launcher / AI pill */
+  --z-modal:   200;  /* modal dialog + backdrop */
+
   /* Display = editorial serif (Spectral, display-only >=24px), body = Inter
      (also carries HGVS / variant identity, tabular-nums), mono = IBM Plex Mono
      (coords / scores / sequences). These CSS vars are set by next/font

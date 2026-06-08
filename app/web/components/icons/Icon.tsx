@@ -317,3 +317,49 @@ export function IconCalendar(p: IconProps) {
     </Icon>
   )
 }
+
+/* ─── Viewer chrome glyphs — bring the sequence-viewer toolbar + canvas-head
+   controls onto the one family. They replace hand-rolled inline SVGs that drew
+   at strokeWidth 2 (the search lens, undo, redo, tracks hamburger) beside the
+   1.75 family — "icons whisper" only when they share one pen. ─── */
+
+/** A magnifier — the viewer find/jump box (sv-find). */
+export function IconSearch(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </Icon>
+  )
+}
+
+/** A counter-clockwise arrow — Undo (⌘Z). */
+export function IconUndo(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+    </Icon>
+  )
+}
+
+/** A clockwise arrow — Redo (⌘⇧Z). */
+export function IconRedo(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 15-6.7L21 13" />
+    </Icon>
+  )
+}
+
+/** Three ruled lines — the "Tracks" annotation-layer menu (canvas head). */
+export function IconTracks(p: IconProps) {
+  return (
+    <Icon {...p}>
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </Icon>
+  )
+}

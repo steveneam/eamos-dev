@@ -48,7 +48,7 @@
    the ribbon's content is centred, so the rail just owns the left edge. Still
    below the nav (z-50). */
 .work-shell.mode-inline .work-rail {
-  z-index: 45;
+  z-index: var(--z-rail);
 }
 
 .work-rail-head {
@@ -160,7 +160,7 @@
   max-height: none;
   width: min(var(--rail-w), 86vw);
   flex-basis: auto;
-  z-index: 60;
+  z-index: var(--z-drawer);
   border-right: 0.5px solid var(--line);
   box-shadow: var(--elev-3);
   transform: translateX(-100%);
@@ -172,7 +172,7 @@
 .work-rail-scrim {
   position: fixed;
   inset: 0;
-  z-index: 55;
+  z-index: var(--z-scrim);
   border: none;
   padding: 0;
   background: rgba(11, 26, 43, 0.32);
@@ -189,7 +189,9 @@
   position: fixed;
   left: 16px;
   bottom: 16px;
-  z-index: 50;
+  /* Below nav (--z-nav 50) — was z-50, colliding with the sticky nav. The FAB
+     only appears in drawer mode and triggers the rail overlay (--z-drawer 60). */
+  z-index: var(--z-rail);
   display: inline-flex;
   align-items: center;
   gap: 8px;

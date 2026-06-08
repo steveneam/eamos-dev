@@ -24,7 +24,7 @@
 
 /* ─────────────────── NAV (matches Report) ─────────────────── */
 .nav-wrap {
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: 0; z-index: var(--z-nav);
   /* Opaque warm-paper, matching TopNav/LandingNav. No backdrop-filter:blur on a
      sticky bar — this one holds a search input, so a blur repaints on every
      keystroke (mobile typing lag). Use the shared --nav-bg token instead. */
@@ -246,7 +246,7 @@
 }
 .sv-dropdown-menu {
   position: absolute; top: calc(100% + 4px); right: 0;
-  z-index: 30;
+  z-index: var(--z-popover);
   background: var(--bg);
   border: 0.5px solid var(--line);
   border-radius: var(--r-md);
@@ -1043,7 +1043,7 @@
 /* ─────────────── INLINE EDIT POP (single-base quick edit) ─────────────── */
 .sv-edit-pop {
   position: absolute;
-  z-index: 50;
+  z-index: var(--z-popover);
   background: var(--bg);
   border: 0.5px solid var(--line);
   border-radius: var(--r-md);
@@ -1146,7 +1146,7 @@
 .sv-export-backdrop {
   position: fixed; inset: 0;
   background: rgba(11,26,43,0.40);
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex; align-items: center; justify-content: center;
   padding: 40px;
   backdrop-filter: blur(2px);
@@ -2897,7 +2897,7 @@
 .ai-pill {
   position: fixed;
   bottom: 22px; right: 22px;
-  z-index: 100;
+  z-index: var(--z-pill);
   display: flex; align-items: center;
   gap: 8px;
   background: var(--ink-2);
@@ -2925,7 +2925,7 @@
 .ai-panel {
   position: fixed;
   bottom: 76px; right: 22px;
-  z-index: 99;
+  z-index: calc(var(--z-pill) - 1);
   width: 420px;
   max-width: calc(100vw - 44px);
   max-height: 70vh;

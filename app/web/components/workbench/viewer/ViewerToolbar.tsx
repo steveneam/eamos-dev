@@ -1,6 +1,6 @@
 'use client'
 import { memo, useEffect, useRef } from 'react'
-import { IconChevron, IconRemove } from '@/components/icons/Icon'
+import { IconChevron, IconRedo, IconRemove, IconSearch, IconUndo } from '@/components/icons/Icon'
 
 interface ViewerToolbarProps {
   searchQuery: string
@@ -50,10 +50,7 @@ export const ViewerToolbar = memo(function ViewerToolbar({
   return (
     <div className="sv-toolbar">
       <div className={`sv-find${jumpError ? ' sv-find-error' : ''}`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-          <circle cx="11" cy="11" r="7" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
+        <IconSearch />
         <input
           ref={inputRef}
           type="text"
@@ -117,10 +114,7 @@ export const ViewerToolbar = memo(function ViewerToolbar({
           disabled={!canUndo}
           onClick={onUndo}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 7v6h6" />
-            <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
-          </svg>
+          <IconUndo />
           Undo
         </button>
         <button
@@ -130,10 +124,7 @@ export const ViewerToolbar = memo(function ViewerToolbar({
           disabled={!canRedo}
           onClick={onRedo}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 7v6h-6" />
-            <path d="M3 17a9 9 0 0 1 15-6.7L21 13" />
-          </svg>
+          <IconRedo />
           Redo
         </button>
         {editCount > 0 ? (
