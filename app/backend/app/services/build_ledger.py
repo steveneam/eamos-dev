@@ -34,6 +34,7 @@ from app.services.predictor_runtime import (
     inspect_esm1b_runtime_asset,
 )
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
+from app.services.pubmed_local import inspect_pubmed_local_store
 from app.services.repeatmasker_local import REPEATMASKER_SOURCE_ID
 from app.services.transcript_model import GENCODE_SOURCE_ID, MANE_SOURCE_ID
 
@@ -98,6 +99,7 @@ def build_backend_build_ledger(
         protein_annotation_status=protein_annotation_status,
     )
     coordinate_index_status = _compact_coordinate_index_status(settings)
+    pubmed_local_status = _pubmed_local_status(settings)
     pvs1_nmd_status = _pvs1_nmd_status()
 
     items = (
@@ -312,19 +314,30 @@ def build_backend_build_ledger(
         ),
         BuildLedgerItem(
             item_id="literature_engine",
-            label="Literature engine and PubTator edges",
+            label="Literature engine and PubMed local",
             group="literature",
-            source_ids=("pubmed", "litvar2", "pubtator3", "medcpt_pgvector"),
-            engine="PubMed/LitVar2 live fetch plus PubTator bulk and pgvector edges",
-            durable_source="supabase_postgres_pgvector",
-            runtime_source="supabase_postgres_pgvector",
-            render_disk_role="not_required",
-            storage_decision="Publication edges and embeddings are relational/vector data.",
-            status="live_fetch_built_bulk_edges_pending",
+            source_ids=("pubmed", "litvar2", "pubtator3", "pmc_oa", "medcpt_pgvector"),
+            engine=(
+                "EP-VLEx over PubMed local SQLite, LitVar2, PubTator/PMC later, "
+                "and live E-utilities fallback"
+            ),
+            durable_source="pubmed_xml_and_pmc_oa_operator_materialized_assets",
+            runtime_source="render_disk_pubmed_sqlite_when_enabled",
+            render_disk_role="runtime_cache_optional",
+            storage_decision=(
+                "PubMed local is a backend-owned source asset with explicit CLI "
+                "materialization/preflight; Supabase edge/vector tiers remain later."
+            ),
+            status=pubmed_local_status,
             runtime_wired=True,
             public_serialization_allowed=True,
+            blockers=() if pubmed_local_status == "ready" else ("pubmed_local_materialization",),
             wired_surfaces=("lookup", "report", "search"),
-            next_action="Backfill PubTator bulk edges and lazy MedCPT embeddings into Supabase.",
+            next_action=(
+                None
+                if pubmed_local_status == "ready"
+                else "Run explicit PubMed local materialization/preflight before enabling local-first lookup."
+            ),
         ),
         BuildLedgerItem(
             item_id="ai_gateway",
@@ -551,6 +564,18 @@ def _compact_coordinate_index_status(settings: Settings) -> str:
         return inspect_compact_coordinate_index(settings, verify_checksum=False).status
     except Exception:
         return "runtime_asset_probe_failed"
+
+
+def _pubmed_local_status(settings: Settings) -> str:
+    try:
+        inspection = inspect_pubmed_local_store(settings, verify_checksum=False)
+    except Exception:
+        return "runtime_asset_probe_failed"
+    if inspection.ready:
+        return "ready"
+    if not settings.pubmed_local_enabled:
+        return "local_adapter_disabled"
+    return inspection.status
 
 
 def _coordinate_index_item(

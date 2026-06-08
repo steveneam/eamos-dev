@@ -69,6 +69,19 @@ class Settings(BaseSettings):
     local_evidence_enabled: bool = False
     local_evidence_allowed_flows_raw: str = ""
     local_evidence_require_real_apis: bool = True
+    pubmed_local_enabled: bool = False
+    pubmed_local_sqlite_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.sqlite")
+    pubmed_local_manifest_path: Path = Path(
+        "./data/bio_assets/pubmed/pubmed-local.manifest.json"
+    )
+    pubmed_local_startup_materialization_enabled: bool = False
+    pubmed_local_fallback_on_no_hit: bool = True
+    pubmed_local_max_results: int = 50
+    pubmed_local_require_licensed_abstracts: bool = True
+    pubmed_local_materialize_timeout_seconds: float = 1200.0
+    ncbi_eutils_api_key: str | None = None
+    ncbi_eutils_tool: str = "eamos"
+    ncbi_eutils_email: str | None = None
     crispr_provider: str = "local_deterministic"
     crispr_rscript_path: Path = Path("Rscript")
     crispr_ruleset3_conda_env: Path | None = None

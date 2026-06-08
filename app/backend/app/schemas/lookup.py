@@ -291,6 +291,7 @@ class PublicationPageRequest(BaseModel):
     scope: Literal["variant", "gene"] = "variant"
     limit: int = Field(default=20, ge=1, le=50)
     offset: int = Field(default=0, ge=0)
+    refresh: bool = False
 
     @field_validator("gene", "cdna", "transcript", "protein_change", mode="before")
     @classmethod

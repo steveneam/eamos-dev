@@ -61,6 +61,15 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert compact_index["status"] == "missing"
     assert compact_index["source_runtime_scan_allowed"] is False
     assert compact_index["startup_download_allowed"] is False
+    pubmed_local = body["source_assets"]["pubmed_local"]
+    assert pubmed_local["source_id"] == "eamos_pubmed_local"
+    assert pubmed_local["ready"] is False
+    assert pubmed_local["enabled"] is False
+    assert pubmed_local["status"] == "db_missing"
+    assert pubmed_local["startup_download_allowed"] is False
+    assert pubmed_local["request_time_materialization_allowed"] is False
+    assert pubmed_local["local_path_values_emitted"] is False
+    assert pubmed_local["abstract_values_emitted"] is False
     crispr = body["providers"]["crispr"]
     assert crispr["configured_provider"] == "local_deterministic"
     assert crispr["available"] is True
@@ -139,6 +148,9 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert items["nmdetective_pvs1"]["status"] == "pure_code_available"
     assert items["nmdetective_pvs1"]["render_disk_role"] == "not_required"
     assert items["protein_pfam"]["runtime_source"] == "render_disk_hmmer_indexes"
+    assert items["literature_engine"]["status"] == "local_adapter_disabled"
+    assert items["literature_engine"]["runtime_wired"] is True
+    assert items["literature_engine"]["blockers"] == ["pubmed_local_materialization"]
     encoded_ledger = json.dumps(ledger).lower()
     assert "supabase://" not in encoded_ledger
     assert "service_role" not in encoded_ledger
@@ -172,6 +184,20 @@ def test_provider_cache_health_reports_compact_coordinate_index_ready_without_pa
     encoded = json.dumps(body).lower()
     assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded
     assert "eamos-coordinate-index" not in encoded
+
+
+def test_pubmed_local_startup_materialization_flag_fails_closed(tmp_path: Path) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        pubmed_local_startup_materialization_enabled=True,
+    )
+
+    with pytest.raises(RuntimeError, match="PubMed local startup materialization is disabled"):
+        with TestClient(create_app(settings)):
+            pass
 
 
 def test_provider_cache_health_reports_ready_admin_predictors_without_paths(

@@ -695,7 +695,11 @@ class LookupService:
                 tool = self.tool_registry[name]
                 result = source_cached_result(
                     name,
-                    lambda tool=tool: tool.get_evidence(variant=variant),
+                    lambda tool=tool, name=name: (
+                        tool.get_evidence(variant=variant, refresh=refresh)
+                        if name == "pubmed"
+                        else tool.get_evidence(variant=variant)
+                    ),
                 )
                 if name == "vep":
                     variant.vep_raw = result.raw
@@ -734,6 +738,7 @@ class LookupService:
                 name == "pubmed"
                 and isinstance(publication_cache, dict)
                 and isinstance(publication_cache.get("pubmed_summary"), dict)
+                and not bool(self.settings and self.settings.pubmed_local_enabled)
             ):
                 result = ToolResult(
                     source="pubmed",
@@ -1168,7 +1173,13 @@ class LookupService:
 
         for name in ("clinvar", "pubmed", "litvar2"):
             try:
-                result = self.tool_registry[name].get_evidence(variant=variant)
+                if name == "pubmed":
+                    result = self.tool_registry[name].get_evidence(
+                        variant=variant,
+                        refresh=request.refresh,
+                    )
+                else:
+                    result = self.tool_registry[name].get_evidence(variant=variant)
             except Exception as exc:
                 warnings.append(f"publication_{name}_failed:{type(exc).__name__}")
                 continue

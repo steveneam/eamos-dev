@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE">
+      <PMID Version="1">38191234</PMID>
+      <Article>
+        <Journal>
+          <JournalIssue>
+            <PubDate>
+              <Year>2024</Year>
+              <Month>Jan</Month>
+              <Day>15</Day>
+            </PubDate>
+          </JournalIssue>
+          <Title>Ophthalmology</Title>
+          <ISOAbbreviation>Ophthalmology</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>Biallelic RPE65 variants causing inherited retinal disease</ArticleTitle>
+        <ELocationID EIdType="doi">10.1000/eamos.38191234</ELocationID>
+        <Abstract>
+          <AbstractText>The RPE65 c.260A&gt;G p.Asp87Gly variant was observed in retinal disease.</AbstractText>
+          <CopyrightInformation>Creative Commons Attribution License</CopyrightInformation>
+        </Abstract>
+        <AuthorList>
+          <Author>
+            <LastName>Walia</LastName>
+            <Initials>S</Initials>
+          </Author>
+          <Author>
+            <LastName>Example</LastName>
+            <Initials>A</Initials>
+          </Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <PublicationTypeList>
+          <PublicationType>Journal Article</PublicationType>
+        </PublicationTypeList>
+      </Article>
+      <MeshHeadingList>
+        <MeshHeading>
+          <DescriptorName>Retinal Degeneration</DescriptorName>
+        </MeshHeading>
+      </MeshHeadingList>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">38191234</ArticleId>
+        <ArticleId IdType="doi">10.1000/eamos.38191234</ArticleId>
+        <ArticleId IdType="pmc">PMC38191234</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE">
+      <PMID Version="1">37042101</PMID>
+      <Article>
+        <Journal>
+          <JournalIssue>
+            <PubDate>
+              <Year>2023</Year>
+            </PubDate>
+          </JournalIssue>
+          <Title>New England Journal of Medicine</Title>
+          <ISOAbbreviation>N Engl J Med</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>Long-term outcomes of RPE65 gene therapy</ArticleTitle>
+        <Abstract>
+          <AbstractText>RPE65 gene therapy follow-up in inherited retinal disease.</AbstractText>
+          <CopyrightInformation>Copyright 2023 Publisher</CopyrightInformation>
+        </Abstract>
+        <AuthorList>
+          <Author>
+            <LastName>Maguire</LastName>
+            <Initials>AM</Initials>
+          </Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <PublicationTypeList>
+          <PublicationType>Journal Article</PublicationType>
+        </PublicationTypeList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">37042101</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <DeleteCitation>
+    <PMID>39999999</PMID>
+  </DeleteCitation>
+</PubmedArticleSet>

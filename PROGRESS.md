@@ -1,5 +1,124 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## 2026-06-08 14:07 +1000 - Codex - PubMed-local PubTator converter and commit/deploy coordination
+
+Continued the PubMed-local backend lane after Steven explicitly authorized
+Claude coordination, commit, push, and deploy. Coordination check: Claude is
+idle in `agent_handoff/CURRENT.md`, no fresh handoff/shared lock is held, and
+Claude-owned `app/web/components/report/**` WIP remains unstaged/off-limits.
+
+Completed:
+- Added `python -m app.cli.eamos_pubmed_pubtator_edges`, an operator-run,
+  no-network converter from NCBI PubTator flat exports to the existing
+  PubMed-local PubTator edge JSONL shape.
+- The converter supports single files or a directory, `.gz` input, sanitized
+  compact/full JSON reports, `--force`, and `--require-edges`.
+- Converted rows include PMID, source, normalized entity type, identifier,
+  mention, offsets, section, deterministic annotation ID, and bounded
+  title/abstract context snippets. No raw full abstract or local path appears
+  in the report.
+- Added tests proving converter report sanitization, edge JSONL output, and
+  end-to-end ingestion by the v4 PubMed-local materializer into local
+  EP-VLEx-compatible `pubtator` snippets.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_pubmed_pubtator_edges.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests\test_pubmed_local.py tests\test_pubmed_pubtator_edges.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests\test_pubmed_local.py tests\test_pubmed_pubtator_edges.py tests\test_health_api.py tests\test_publication_literature.py tests\test_lookup_section_fetch_contract.py tests\test_variant_cache.py tests\test_frontend_contract.py -q`
+  -> passed after rerun with longer timeout.
+- `cd app/backend && python -m ruff check app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py app\cli\eamos_pubmed_pubtator_edges.py tests\test_pubmed_local.py tests\test_pubmed_pubtator_edges.py app\api\routes\health.py tests\test_health_api.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py app\cli\eamos_pubmed_pubtator_edges.py tests\test_pubmed_local.py tests\test_pubmed_pubtator_edges.py app\api\routes\health.py tests\test_health_api.py`
+  -> passed.
+- `cd app/backend && python -m py_compile app\cli\eamos_pubmed_pubtator_edges.py app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py app\tools\pubmed.py app\api\routes\health.py`
+  -> passed.
+- `python -m graphify update .` -> passed; HTML skipped because the graph has
+  11,829 nodes.
+
+Commit/deploy plan:
+- Stage only Codex-owned backend PubMed-local files, `PROGRESS.md`,
+  `agent_handoff/CURRENT.md`, and `graphify-out/**` with explicit pathspecs.
+- Do not stage Claude frontend/report WIP or use `git add -A`.
+- Push to `origin/main`, then run the SG backend deploy/live verification loop.
+
+## 2026-06-08 02:32 +1000 - Codex - PubMed-local PubTator/LitVar edge ingestion
+
+Continued the uncommitted PubMed-local backend lane. No commit, push, deploy,
+startup/download job, Supabase mutation, frontend edit, stash, reset, or clean
+was performed.
+
+Completed:
+- Bumped the PubMed-local SQLite schema/manifest to v4.
+- Added `pubmed_literature_edge` for operator-supplied PubTator/LitVar-style
+  PMID entity edges with source-file provenance, source kind, load order,
+  source version, sanitized basename, relation/snippet fields, and lookup
+  indexes.
+- Added materializer inputs `--from-pubtator-edge-jsonl-file` and
+  `--from-litvar-edge-jsonl-file`; edge files are load-ordered after PubMed XML
+  and import JSONL shards in the same source manifest.
+- Added edge import counters to materialization/preflight/manifest output:
+  total literature edges, imported edge rows, invalid rows, and orphan-PMID
+  skips by source kind.
+- Added a seed-filter pre-scan so edge matches can retain otherwise neutral
+  article metadata rows during query-scoped materialization.
+- Enriched local PubMed lookup results with existing EP-VLEx-compatible
+  `pubtator` and `litvar2_snippet` fields, preserving live E-utilities
+  fallback/refresh and the disabled-by-default/no-startup-download policy.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_pubmed_local.py -q` -> passed.
+- `cd app/backend && python -m pytest tests\test_pubmed_local.py tests\test_health_api.py tests\test_publication_literature.py tests\test_lookup_section_fetch_contract.py tests\test_variant_cache.py tests\test_frontend_contract.py -q` -> passed.
+- `cd app/backend && python -m ruff check app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py tests\test_pubmed_local.py` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py tests\test_pubmed_local.py` -> passed.
+- `cd app/backend && python -m py_compile app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py app\tools\pubmed.py app\api\routes\health.py` -> passed.
+- `python -m graphify update .` -> passed; HTML skipped because the graph has
+  11,777 nodes.
+- `git diff --check` -> clean except existing LF-to-CRLF warnings.
+
+Next:
+- Decide the next scale step: either add a converter for NCBI PubTator flat
+  files into the edge JSONL format, or add an operator LitVar export command
+  that materializes variant PMID edges without request-time API calls.
+
+## 2026-06-08 01:47 +1000 - Codex - PubMed-local source-manifest scale slice
+
+Continued the local-only PubMed/PMC materialization lane. No commit, push,
+deploy, startup/download job, Supabase mutation, frontend edit, stash, reset,
+or clean was performed.
+
+Completed:
+- Bumped the PubMed-local SQLite schema/manifest to v3.
+- Added `pubmed_source_file` source-shard metadata with sanitized basename,
+  load order, source kind (`pubmed_baseline`, `pubmed_update`, `pubmed_xml`,
+  or `import_jsonl`), source format, size, MD5 sidecar status, and per-shard
+  import counters.
+- Added aggregate `source_file_count`, `source_kind_counts`, and
+  `import_stats_by_source` counters to materialization, preflight, and
+  provider-health output without exposing local paths or raw abstract text.
+- Added `--xml-source-kind auto|baseline|update|pubmed_xml` to
+  `python -m app.cli.eamos_pubmed_local_materialize` so operators can label
+  baseline/update batches explicitly while `auto` still infers from file or
+  directory names.
+- Attached sanitized source-file provenance to imported article rows so the
+  next PubTator/LitVar edge-ingestion slice can trace PMID edges back to
+  source shard/load order.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_pubmed_local.py -q` -> passed.
+- `cd app/backend && python -m pytest tests\test_pubmed_local.py tests\test_health_api.py tests\test_publication_literature.py tests\test_lookup_section_fetch_contract.py tests\test_variant_cache.py tests\test_frontend_contract.py -q` -> passed.
+- `cd app/backend && python -m ruff check app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py tests\test_pubmed_local.py app\api\routes\health.py tests\test_health_api.py` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py tests\test_pubmed_local.py app\api\routes\health.py tests\test_health_api.py` -> passed.
+- `cd app/backend && python -m py_compile app\services\pubmed_local.py app\cli\eamos_pubmed_local_materialize.py app\cli\eamos_pubmed_local_preflight.py app\tools\pubmed.py app\api\routes\health.py` -> passed.
+- `python -m graphify update .` -> passed; HTML skipped because the graph has
+  11,734 nodes.
+
+Next:
+- Add local PubTator/LitVar edge ingestion with tiny fixtures first. Keep live
+  E-utilities fallback/refresh, disabled-by-default local runtime behavior, and
+  the no-startup-download policy intact.
+
 ## Session 104 - 1 Jun 2026 - report route/cache hardening and SG proxy audit
 
 Continued the uncommitted Codex slice after a usage interruption. No commit,

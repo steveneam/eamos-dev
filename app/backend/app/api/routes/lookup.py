@@ -108,6 +108,7 @@ def parse_lookup_input(
 def lookup_publications(
     payload: PublicationPageRequest,
     request: Request,
+    refresh: bool = False,
 ) -> PublicationLiterature:
     enforce_rate_limit(
         request,
@@ -121,6 +122,8 @@ def lookup_publications(
             detail="Lookup service is unavailable.",
         )
     try:
+        if refresh:
+            payload = payload.model_copy(update={"refresh": True})
         return service.page_publications(payload)
     except ValueError as exc:
         raise HTTPException(

@@ -38,7 +38,17 @@ SECTION_SOURCE_HINTS: dict[LookupSectionId, tuple[str, ...]] = {
     ),
     "clingen_vcep": ("clingen", "clinvar", "clinical_consensus"),
 }
-STATUS_PRIORITY = ("live", "cache", "stale", "fixture", "fallback", "error", "failed", "missing")
+STATUS_PRIORITY = (
+    "live",
+    "local",
+    "cache",
+    "stale",
+    "fixture",
+    "fallback",
+    "error",
+    "failed",
+    "missing",
+)
 
 
 def build_lookup_initial_summary(response: LookupResponse) -> LookupInitialSummaryResponse:

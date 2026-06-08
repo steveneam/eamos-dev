@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 
 import httpx
 
+from app.services.pubmed_local import PubMedLocalStore
 from app.tools.base import FixtureBackedTool, ToolResult
 
 
@@ -95,46 +96,98 @@ def _empty_result(variant, *, status: str, warnings: list[str]) -> ToolResult:
     )
 
 
+def _with_extra_warnings(result: ToolResult, warnings: list[str]) -> ToolResult:
+    if not warnings:
+        return result
+    result.warnings = [*warnings, *result.warnings]
+    return result
+
+
 class PubmedTool(FixtureBackedTool):
     source = "pubmed"
     fixture_name = "pubmed_fixtures.json"
     FETCH_COUNT = 10
 
-    def get_evidence(self, variant=None) -> ToolResult:
+    def get_evidence(self, variant=None, *, refresh: bool = False) -> ToolResult:
+        local_warnings: list[str] = []
+        if self.settings.pubmed_local_enabled and variant is not None and not refresh:
+            db_path = self.settings.pubmed_local_sqlite_path
+            manifest_path = self.settings.pubmed_local_manifest_path
+            if not db_path.is_absolute():
+                db_path = self.settings.backend_root / db_path
+            if not manifest_path.is_absolute():
+                manifest_path = self.settings.backend_root / manifest_path
+            local_store = PubMedLocalStore(
+                db_path,
+                manifest_path=manifest_path,
+                enabled=True,
+            )
+            local_result, needs_live_fallback = local_store.search_tool_result(
+                variant,
+                limit=max(1, min(int(self.settings.pubmed_local_max_results), 50)),
+            )
+            local_warnings.extend(local_result.warnings)
+            if local_result.status == "local" and (
+                local_result.summary.get("articles")
+                or not needs_live_fallback
+                or not self.settings.pubmed_local_fallback_on_no_hit
+                or not self.settings.use_real_apis
+            ):
+                return local_result
+
         if not self.settings.use_real_apis or variant is None:
             fixture = self.load_fixture()
             gene = (variant.gene if variant is not None else None) or ""
             fallback_url = _gene_scope_url(gene) if gene else None
             if variant is not None and not _fixture_matches_variant(variant, fixture):
-                return _empty_result(
-                    variant,
-                    status="missing",
-                    warnings=["pubmed_fixture_variant_mismatch"],
+                return _with_extra_warnings(
+                    _empty_result(
+                        variant,
+                        status="missing",
+                        warnings=["pubmed_fixture_variant_mismatch"],
+                    ),
+                    local_warnings,
                 )
-            return ToolResult(
-                source=self.source, status="fixture", source_url=fallback_url, **fixture
+            return _with_extra_warnings(
+                ToolResult(
+                    source=self.source, status="fixture", source_url=fallback_url, **fixture
+                ),
+                local_warnings,
             )
         try:
-            return self._fetch_live(variant)
+            result = self._fetch_live(variant)
+            if local_warnings:
+                result.warnings = [
+                    *local_warnings,
+                    "pubmed_local_no_hit_live_fallback",
+                    *result.warnings,
+                ]
+            return result
         except Exception as exc:
             fixture = self.load_fixture()
             gene = variant.gene or ""
             fallback_url = _gene_scope_url(gene) if gene else None
             if not _fixture_matches_variant(variant, fixture):
-                return _empty_result(
-                    variant,
-                    status="fallback",
-                    warnings=[
-                        f"live_fetch_failed:{type(exc).__name__}",
-                        "pubmed_fallback_fixture_variant_mismatch",
-                    ],
+                return _with_extra_warnings(
+                    _empty_result(
+                        variant,
+                        status="fallback",
+                        warnings=[
+                            f"live_fetch_failed:{type(exc).__name__}",
+                            "pubmed_fallback_fixture_variant_mismatch",
+                        ],
+                    ),
+                    local_warnings,
                 )
-            return ToolResult(
-                source=self.source,
-                status="fallback",
-                warnings=[f"live_fetch_failed:{type(exc).__name__}"],
-                source_url=fallback_url,
-                **fixture,
+            return _with_extra_warnings(
+                ToolResult(
+                    source=self.source,
+                    status="fallback",
+                    warnings=[f"live_fetch_failed:{type(exc).__name__}"],
+                    source_url=fallback_url,
+                    **fixture,
+                ),
+                local_warnings,
             )
 
     def _fetch_live(self, variant) -> ToolResult:
@@ -152,13 +205,15 @@ class PubmedTool(FixtureBackedTool):
 
         search_response = httpx.get(
             f"{self.settings.clinvar_base_url}/esearch.fcgi",
-            params={
-                "db": "pubmed",
-                "term": term,
-                "retmax": self.FETCH_COUNT,
-                "retmode": "json",
-                "sort": "relevance",
-            },
+            params=self._eutils_params(
+                {
+                    "db": "pubmed",
+                    "term": term,
+                    "retmax": self.FETCH_COUNT,
+                    "retmode": "json",
+                    "sort": "relevance",
+                }
+            ),
             timeout=10.0,
         )
         search_response.raise_for_status()
@@ -174,13 +229,15 @@ class PubmedTool(FixtureBackedTool):
             term = _gene_scope_query(gene)
             search_response = httpx.get(
                 f"{self.settings.clinvar_base_url}/esearch.fcgi",
-                params={
-                    "db": "pubmed",
-                    "term": term,
-                    "retmax": self.FETCH_COUNT,
-                    "retmode": "json",
-                    "sort": "relevance",
-                },
+                params=self._eutils_params(
+                    {
+                        "db": "pubmed",
+                        "term": term,
+                        "retmax": self.FETCH_COUNT,
+                        "retmode": "json",
+                        "sort": "relevance",
+                    }
+                ),
                 timeout=10.0,
             )
             search_response.raise_for_status()
@@ -208,11 +265,13 @@ class PubmedTool(FixtureBackedTool):
         with httpx.Client(timeout=12.0) as client:
             summary_resp = client.get(
                 f"{self.settings.clinvar_base_url}/esummary.fcgi",
-                params={"db": "pubmed", "id": pmid_str, "retmode": "json"},
+                params=self._eutils_params({"db": "pubmed", "id": pmid_str, "retmode": "json"}),
             )
             fetch_resp = client.get(
                 f"{self.settings.clinvar_base_url}/efetch.fcgi",
-                params={"db": "pubmed", "id": pmid_str, "retmode": "xml", "rettype": "abstract"},
+                params=self._eutils_params(
+                    {"db": "pubmed", "id": pmid_str, "retmode": "xml", "rettype": "abstract"}
+                ),
             )
         summary_resp.raise_for_status()
         fetch_resp.raise_for_status()
@@ -257,16 +316,28 @@ class PubmedTool(FixtureBackedTool):
             source_url=_gene_scope_url(gene),
         )
 
+    def _eutils_params(self, params: dict[str, object]) -> dict[str, object]:
+        payload = dict(params)
+        if self.settings.ncbi_eutils_tool:
+            payload["tool"] = self.settings.ncbi_eutils_tool
+        if self.settings.ncbi_eutils_email:
+            payload["email"] = self.settings.ncbi_eutils_email
+        if self.settings.ncbi_eutils_api_key:
+            payload["api_key"] = self.settings.ncbi_eutils_api_key
+        return payload
+
     def _fetch_gene_scope_count(self, gene: str) -> dict | None:
         try:
             response = httpx.get(
                 f"{self.settings.clinvar_base_url}/esearch.fcgi",
-                params={
-                    "db": "pubmed",
-                    "term": _gene_scope_query(gene),
-                    "retmax": 0,
-                    "retmode": "json",
-                },
+                params=self._eutils_params(
+                    {
+                        "db": "pubmed",
+                        "term": _gene_scope_query(gene),
+                        "retmax": 0,
+                        "retmode": "json",
+                    }
+                ),
                 timeout=10.0,
             )
             response.raise_for_status()

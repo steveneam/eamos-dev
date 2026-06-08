@@ -95,6 +95,12 @@ def create_app(settings=None) -> FastAPI:
                 "coordinate resolver startup materialization is disabled; "
                 "seed and verify runtime assets with an explicit off-peak process"
             )
+        if settings.pubmed_local_startup_materialization_enabled:
+            logger.error("PubMed local startup materialization is disabled by backend policy")
+            raise RuntimeError(
+                "PubMed local startup materialization is disabled; "
+                "seed and verify with explicit CLI"
+            )
         initialize_database(db_session_factory)
         logger.info("Eamos backend ready at %s:%s", settings.host, settings.port)
         yield

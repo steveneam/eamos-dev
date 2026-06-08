@@ -23,6 +23,7 @@ from app.services.predictor_runtime import (
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
+from app.services.pubmed_local import inspect_pubmed_local_store
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
@@ -123,6 +124,7 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
             "materialization_metadata": metadata,
         },
         "compact_coordinate_index": _compact_coordinate_index_health(settings),
+        "pubmed_local": _pubmed_local_health(settings),
     }
 
 
@@ -149,6 +151,39 @@ def _compact_coordinate_index_health(settings) -> dict[str, object]:
             "status_notes": [],
             "source_runtime_scan_allowed": False,
             "startup_download_allowed": False,
+        }
+
+
+def _pubmed_local_health(settings) -> dict[str, object]:
+    try:
+        return inspect_pubmed_local_store(settings, verify_checksum=False).to_sanitized_dict()
+    except Exception:
+        return {
+            "source_id": "eamos_pubmed_local",
+            "status": "runtime_asset_probe_failed",
+            "ready": False,
+            "enabled": bool(settings.pubmed_local_enabled),
+            "schema_version": None,
+            "source_version": None,
+            "article_count": 0,
+            "licensed_abstract_count": 0,
+            "metadata_only_count": 0,
+            "deleted_count": 0,
+            "coverage_count": 0,
+            "domain_filtered_count": 0,
+            "pmc_license_overlay_count": 0,
+            "source_file_count": 0,
+            "source_kind_counts": {},
+            "import_stats_by_source": {},
+            "fts_status": "unavailable",
+            "actual_size_bytes": None,
+            "checksum_verified": False,
+            "checksum_value": None,
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "abstract_values_emitted": False,
         }
 
 
