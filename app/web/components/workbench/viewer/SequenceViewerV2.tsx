@@ -34,6 +34,8 @@ import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
 import { EditPopoverV2 } from './EditPopoverV2'
 import { ZoomSlider } from './ZoomSlider'
+import { IconChevron, IconGene, IconProtein, IconList } from '@/components/icons/Icon'
+import type { ReactNode } from 'react'
 
 export interface ScratchEntry {
   idx: number
@@ -637,6 +639,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           sub={`${data.gene} · ${data.totalExons} exons`}
           open={!navCollapsed}
           onToggle={onToggleMinimap}
+          icon={<IconGene size={14} />}
         />
         {!navCollapsed && (
           <GeneMinimap
@@ -652,6 +655,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           sub={`${data.proteinLength || '—'} aa · ${alleleMode === 'variant' ? 'variant-applied' : 'reference'}`}
           open={proteinOpen}
           onToggle={() => setProteinOpen((o) => !o)}
+          icon={<IconProtein size={14} />}
         />
         {proteinOpen && <ProteinView data={data} alleleMode={alleleMode} />}
 
@@ -664,6 +668,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             sub="codons · bases · ruler"
             open={sequenceOpen}
             onToggle={() => setSequenceOpen((o) => !o)}
+            icon={<IconList size={14} />}
           />
           {sequenceOpen && (
             <>
@@ -743,11 +748,13 @@ function SectionHeader({
   sub,
   open,
   onToggle,
+  icon,
 }: {
   title: string
   sub?: string
   open: boolean
   onToggle?: () => void
+  icon?: ReactNode
 }) {
   return (
     <div
@@ -763,14 +770,17 @@ function SectionHeader({
         }
       }}
     >
-      <span className="sv-section-chev" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </span>
+      {icon ? (
+        <span className="sv-section-icon" aria-hidden="true">
+          {icon}
+        </span>
+      ) : null}
       <span className="sv-section-title">
         {title}
         {sub ? <span className="sv-section-sub"> · {sub}</span> : null}
+      </span>
+      <span className="sv-section-chev" aria-hidden="true">
+        <IconChevron size={12} />
       </span>
     </div>
   )

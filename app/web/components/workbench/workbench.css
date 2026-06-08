@@ -549,6 +549,9 @@
    Each header is a full-width clickable bar that toggles its body's
    collapsed state — the workbench windows can be folded down to just their
    labels for vertical focus. */
+/* Airy icon-led grammar shared with the rail (.side-section-head / .wr-section-head):
+   leading monochrome glyph + uppercase Inter label + quiet far-right chevron, so the
+   canvas windows and the rail beside them read as one system. */
 .sv-section-head {
   display: flex; align-items: center;
   gap: 10px;
@@ -559,26 +562,36 @@
   border-bottom: 0.5px solid var(--line);
   cursor: pointer;
   user-select: none;
-  font-family: var(--mono);
+  font-family: var(--body);
   font-size: 10.5px; font-weight: 600;
-  color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.07em;
   text-align: left;
-  transition: background .15s, color .15s;
+  transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
 }
 .sv-section-head:first-child { border-top: none; }
 .sv-section-head:hover { background: var(--bg-soft2); color: var(--ink); }
-.sv-section-head[aria-expanded="false"] { color: var(--ink-4); }
+.sv-section-head[aria-expanded="false"] { color: var(--ink-2); }
+/* Leading glyph — as sharp as the label (--ink-2); never teal. */
+.sv-section-head .sv-section-icon {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.sv-section-head:hover .sv-section-icon { color: var(--ink); }
 .sv-section-head .sv-section-chev {
   width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--ink-3);
-  transition: transform .2s ease;
+  color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized), color var(--dur-1) var(--ease-standard);
   flex: 0 0 auto;
 }
+.sv-section-head:hover .sv-section-chev { color: var(--ink-2); }
 .sv-section-head .sv-section-title {
   display: inline-flex; align-items: center; gap: 8px;
-  flex: 1;
+  flex: 1; min-width: 0;
 }
 .sv-section-head .sv-section-sub { color: var(--ink-4); font-weight: 500; text-transform: none; letter-spacing: 0; }
 .sv-section-head[aria-expanded="false"] .sv-section-chev { transform: rotate(-90deg); }
