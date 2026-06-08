@@ -18,13 +18,6 @@ interface MolecularContextBlockProps {
   evidence: EvidenceSourceSummary[]
 }
 
-interface GnomadConstraint {
-  loeuf?: number | null
-  pli?: number | null
-  source_url?: string | null
-  version?: string | null
-}
-
 interface ClinGenDosage {
   haploinsufficiency?: string | null
   haploinsufficiency_score?: string | null
@@ -45,17 +38,6 @@ function readNumber(raw: unknown): number | null {
 
 function readString(raw: unknown): string | null {
   return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null
-}
-
-function readGnomadConstraint(raw: unknown): GnomadConstraint | null {
-  const obj = readObject(raw)
-  if (!obj) return null
-  return {
-    loeuf: readNumber(obj.loeuf),
-    pli: readNumber(obj.pli),
-    source_url: readString(obj.source_url),
-    version: readString(obj.version),
-  }
 }
 
 function readClinGenDosage(raw: unknown): ClinGenDosage | null {
@@ -118,7 +100,6 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
   if (!row || !row.summary) return null
 
   const summary = row.summary as Record<string, unknown>
-  const constraint = readGnomadConstraint(summary.gnomad_constraint)
   const dosage = readClinGenDosage(summary.clingen_dosage)
   const overlappingCnvs = Array.isArray(summary.overlapping_cnvs) ? summary.overlapping_cnvs : []
   const cnvCount = overlappingCnvs.length
@@ -126,8 +107,6 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
   const phyloP = conservation.find((c) => c.name.toLowerCase().startsWith('phylop'))
   const gerp = conservation.find((c) => c.name.toLowerCase().startsWith('gerp'))
 
-  const hasConstraint =
-    constraint && (constraint.loeuf != null || constraint.pli != null)
   const hasDosage =
     dosage &&
     (dosage.haploinsufficiency ||
@@ -135,7 +114,9 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
       dosage.haploinsufficiency_score ||
       dosage.triplosensitivity_score)
 
-  if (!hasConstraint && !hasDosage && cnvCount === 0 && conservation.length === 0) return null
+  // gnomAD constraint moved to §3's ConstraintGauge — this block now renders on
+  // dosage / overlapping CNVs / conservation only.
+  if (!hasDosage && cnvCount === 0 && conservation.length === 0) return null
 
   return (
     <div
@@ -210,43 +191,9 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
         </div>
       )}
 
-      {hasConstraint && constraint && (
-        <ChipRow label="gnomAD constraint">
-          {constraint.loeuf != null && (
-            <span
-              style={{ fontFamily: 'var(--mono)', marginRight: 12, borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
-              title="LOEUF — loss-of-function observed/expected upper-bound fraction. Lower = the gene tolerates loss-of-function poorly (< 0.35 is LoF-intolerant)."
-            >
-              LOEUF {constraint.loeuf}
-            </span>
-          )}
-          {constraint.pli != null && (
-            <span
-              style={{ fontFamily: 'var(--mono)', borderBottom: '1px dotted var(--ink-5)', cursor: 'help' }}
-              title="pLI — probability the gene is intolerant of a single loss-of-function allele. ≥ 0.9 = highly LoF-intolerant."
-            >
-              pLI {constraint.pli}
-            </span>
-          )}
-          {constraint.source_url && (
-            <a
-              href={constraint.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                marginLeft: 10,
-                fontSize: 11.5,
-                color: 'var(--teal-deep)',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-              }}
-            >
-              gnomAD ↗
-            </a>
-          )}
-        </ChipRow>
-      )}
-
+      {/* gnomAD LOEUF/pLI live in §3's ConstraintGauge (AfThermometer) — the
+          richer coloured gauge owns the constraint readout + the gnomAD source
+          link, so this block no longer repeats the numbers (sweep de-dup). */}
       {hasDosage && dosage && (
         <ChipRow label="ClinGen dosage">
           {dosage.haploinsufficiency && (

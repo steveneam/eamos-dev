@@ -90,13 +90,18 @@ function loeufStatus(l: number): { text: string; color: string } {
   return { text: 'LoF-tolerant', color: 'var(--cls-ben-text)' }
 }
 
-function readConstraint(evidence?: EvidenceSourceSummary[]): { loeuf: number | null; pli: number | null } {
+function readConstraint(evidence?: EvidenceSourceSummary[]): {
+  loeuf: number | null
+  pli: number | null
+  sourceUrl: string | null
+} {
   const row = evidence?.find((e) => e.source?.toLowerCase() === 'molecular_context')
   const c = (row?.summary as Record<string, unknown> | undefined)?.gnomad_constraint as
     | Record<string, unknown>
     | undefined
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
-  return { loeuf: num(c?.loeuf), pli: num(c?.pli) }
+  const url = typeof c?.source_url === 'string' && c.source_url ? c.source_url : null
+  return { loeuf: num(c?.loeuf), pli: num(c?.pli), sourceUrl: url }
 }
 
 function ConstraintGauge({
@@ -295,7 +300,7 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
           the missense axis are illustrative (tagged) until wired. "LoF Z" was
           dropped — gnomAD has no LoF Z-score; LOEUF is its LoF-constraint metric. */}
       {(() => {
-        const { loeuf: realLoeuf, pli: realPli } = readConstraint(evidence)
+        const { loeuf: realLoeuf, pli: realPli, sourceUrl: constraintSrc } = readConstraint(evidence)
         const loeufMock = realLoeuf == null
         const loeuf = realLoeuf ?? 0.41
         const pli = realPli ?? 0.86
@@ -311,7 +316,18 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
                 Gene constraint
               </span>
               <InfoHint tip={CONSTRAINT_TIP} />
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-4)' }}>gnomAD v4</span>
+              {constraintSrc ? (
+                <a
+                  href={constraintSrc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--teal-deep)', textDecoration: 'underline', textUnderlineOffset: 3 }}
+                >
+                  gnomAD v4 ↗
+                </a>
+              ) : (
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-4)' }}>gnomAD v4</span>
+              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
               <ConstraintGauge
