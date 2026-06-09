@@ -3247,10 +3247,9 @@
   border-radius: var(--r-md); padding: 12px 14px; color: var(--ink);
 }
 .ssodn-nt.intron { color: var(--ink-4); }
-/* Workbook convention: the 3 corrective-codon nucleotides are UNDERLINED in
-   teal (the "restore wild-type" cue — matches the 3-arm .seq-hl-correct, and is
-   deliberately NOT the amber PAM highlight); the single changed base is then
-   HIGHLIGHTED with a teal fill. */
+/* Workbook convention: the 3 edited-codon nucleotides are UNDERLINED in teal
+   (matches the 3-arm .seq-hl-correct teal, and is deliberately NOT the amber PAM
+   highlight); the single changed base is then HIGHLIGHTED with a teal fill. */
 .ssodn-nt.codon { box-shadow: inset 0 -2px 0 var(--teal-deep); }
 .ssodn-nt.edit {
   background: var(--teal-tint); color: var(--teal-deep);

@@ -18,10 +18,10 @@ function isMock(res: CrisprSsodnResponse): boolean {
   )
 }
 
-/** Offsets of the 3 nucleotides of the codon carrying the corrective edit,
- *  framed from the CDS position so the whole codon (not just the changed base)
- *  is highlighted. Falls back to centring on the edit when `c.` can't be parsed. */
-function correctiveCodon(
+/** Offsets of the 3 nucleotides of the codon carrying the edit, framed from the
+ *  CDS position so the whole codon (not just the changed base) is highlighted.
+ *  Falls back to centring on the edit when `c.` can't be parsed. */
+function editedCodon(
   variantOffset: number,
   cdna: string,
 ): { offsets: Set<number>; number: number | null } {
@@ -85,7 +85,7 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
 
   const ss = res?.ssodn ?? null
   const mock = res ? isMock(res) : false
-  const codon = ss ? correctiveCodon(ss.variant_offset, cdna) : null
+  const codon = ss ? editedCodon(ss.variant_offset, cdna) : null
 
   return (
     <section className="ssodn-donor">
@@ -183,7 +183,7 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
               <i className="ssodn-key intron" /> intronic (lowercase)
             </span>
             <span>
-              <i className="ssodn-key codon" /> corrective codon
+              <i className="ssodn-key codon" /> edited codon
               {codon?.number != null ? ` ${codon.number}` : ''}
             </span>
             <span>
