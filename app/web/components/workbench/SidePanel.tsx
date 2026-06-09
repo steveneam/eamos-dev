@@ -450,7 +450,6 @@ function ViewerSide({
             />
           )}
           <Kv k="Class" v="Likely Pathogenic" tone="warn" />
-          <Kv k="PhyloP" v="0.96" tone="ok" />
         </div>
         <div className="side-links">
           {VARIANT_LINKS.map((l) => (
