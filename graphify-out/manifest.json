@@ -2310,13 +2310,13 @@
     "semantic_hash": ""
   },
   "app/web/components/report/CallCardsGrid.tsx": {
-    "mtime": 1780933443.4581847,
-    "ast_hash": "6a17386af7a4081996dbe1b6d30eb63d",
+    "mtime": 1780999414.9677658,
+    "ast_hash": "bb2ee815c123380f4ff472677709eec4",
     "semantic_hash": ""
   },
   "app/web/components/report/ClinVarBlock.tsx": {
-    "mtime": 1780929632.6817336,
-    "ast_hash": "9e4b5e1344c80a94756107854197dc76",
+    "mtime": 1781000916.911648,
+    "ast_hash": "e556509e130f53a57c4871ee060b78ae",
     "semantic_hash": ""
   },
   "app/web/components/report/CompositeVerdictBar.tsx": {
@@ -2360,13 +2360,13 @@
     "semantic_hash": "d6250ef2147df0b85e06d5ea38e26471"
   },
   "app/web/components/report/MolecularContextBlock.tsx": {
-    "mtime": 1780936849.1849825,
-    "ast_hash": "b74524810bf3f8dfeaa052698e4fb916",
+    "mtime": 1781000913.58529,
+    "ast_hash": "1329871c3d15430d41e5f5c89cfd52f9",
     "semantic_hash": ""
   },
   "app/web/components/report/PopulationFrequencySection.tsx": {
-    "mtime": 1780932075.824864,
-    "ast_hash": "a5e958b22f37f2ad109d3c6555af9025",
+    "mtime": 1781000028.6916242,
+    "ast_hash": "bbb74ce042f81db9ab03b7191e7efa8e",
     "semantic_hash": ""
   },
   "app/web/components/report/ProvenanceNote.tsx": {
@@ -3135,8 +3135,8 @@
     "semantic_hash": ""
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1780937211.5268183,
-    "ast_hash": "aa4baa6409de2eb1dcdf8e96d4b64bbd",
+    "mtime": 1781002408.7469704,
+    "ast_hash": "fbcf1d28155a30f0814dd9e0857e2307",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -4130,8 +4130,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/AfThermometer.tsx": {
-    "mtime": 1780995928.587998,
-    "ast_hash": "24f920c97a3d0770924e315fccb3702f",
+    "mtime": 1781001998.4774284,
+    "ast_hash": "7df89365f4ad3cf5dc1b86333ae6e6bf",
     "semantic_hash": ""
   },
   "app/web/components/report/CuratorQuote.tsx": {
@@ -4165,18 +4165,18 @@
     "semantic_hash": ""
   },
   "app/web/components/report/EamosAcmgClassifier.tsx": {
-    "mtime": 1780929635.9489288,
-    "ast_hash": "ba37a21bbe96f06fb666f18f9ec3832a",
+    "mtime": 1780999466.6709297,
+    "ast_hash": "bb864322f90470785c136b0dc8bb46fa",
     "semantic_hash": ""
   },
   "app/web/components/report/LossOfFunctionBlock.tsx": {
-    "mtime": 1780936151.561681,
-    "ast_hash": "4c13a9c68873cd8c4e502a455aaa2cce",
+    "mtime": 1780999399.147241,
+    "ast_hash": "cbad1a2850240c5077d88db13151281e",
     "semantic_hash": ""
   },
   "app/web/components/report/MaveFunctionalBlock.tsx": {
-    "mtime": 1780996079.2450805,
-    "ast_hash": "fa22a06c35b6d694f41254708be01a29",
+    "mtime": 1780999383.734769,
+    "ast_hash": "eaac2ff7118ad2357a26ba6df14e7e6e",
     "semantic_hash": ""
   },
   "app/backend/app/cli/eamos_pubmed_pubtator_edges.py": {
@@ -4200,8 +4200,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/ScoreScale.tsx": {
-    "mtime": 1780995885.2137027,
-    "ast_hash": "dfdcb912f9ec95092a1d663eefff109f",
+    "mtime": 1781001975.2045588,
+    "ast_hash": "4f7fd7ecf99f4e63e935d5bb2dddc371",
     "semantic_hash": ""
   },
   "app/web/components/ui/TierTag.tsx": {
@@ -4267,6 +4267,46 @@
   "docs/workbench-shell-chrome/spec.md": {
     "mtime": 1780935312.3054514,
     "ast_hash": "17ccb343ac02a168dd32d1dfc877f5e9",
+    "semantic_hash": ""
+  },
+  "app/web/components/ui/EvidenceChip.tsx": {
+    "mtime": 1780999339.0338042,
+    "ast_hash": "80a6cb5b323ff11aa3f0f3e0d9af9324",
+    "semantic_hash": ""
+  },
+  "app/web/components/ui/InfoHint.tsx": {
+    "mtime": 1780999626.9099317,
+    "ast_hash": "f1e438ec16d12b4a846fb75400bdaff8",
+    "semantic_hash": ""
+  },
+  "app/web/components/ui/SourceLink.tsx": {
+    "mtime": 1781000875.886647,
+    "ast_hash": "f841ab3f91fa080bca2051e285c92eaf",
+    "semantic_hash": ""
+  },
+  "docs/workbench-audit/PLAN.md": {
+    "mtime": 1781000621.3179555,
+    "ast_hash": "307cb11abef3cab14034f199e049d351",
+    "semantic_hash": ""
+  },
+  "docs/workbench-audit/align.md": {
+    "mtime": 1781000443.1905289,
+    "ast_hash": "4d1ba4077447e5929c0f1afb04a59e89",
+    "semantic_hash": ""
+  },
+  "docs/workbench-audit/gene-viewer.md": {
+    "mtime": 1781000255.5647373,
+    "ast_hash": "3c7f34a659b577e67a46983bd5e203f7",
+    "semantic_hash": ""
+  },
+  "docs/workbench-audit/primer-crispr.md": {
+    "mtime": 1781000543.2684858,
+    "ast_hash": "e441d65eaac23dc5231aa0af054aae6a",
+    "semantic_hash": ""
+  },
+  "docs/workbench-audit/shell-flow.md": {
+    "mtime": 1781000367.6168363,
+    "ast_hash": "3e313ba674410b4f4184849780927da4",
     "semantic_hash": ""
   }
 }
