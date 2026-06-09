@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
-import type { AlleleMode, WorkbenchTool } from '@/lib/backend'
+import type { AlleleMode, PrimerPair, WorkbenchTool } from '@/lib/backend'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
 import { adaptFullLocus, type FullLocusViewModel } from '@/lib/workbench/full-locus-adapter'
@@ -50,10 +50,18 @@ function renderToolPanel(
   gene: string,
   cdna: string,
   data: GeneWindowData,
+  primerSel: { selected: PrimerPair | null; onSelect: (p: PrimerPair | null) => void },
 ) {
   switch (tool) {
     case 'primer':
-      return <PrimerPanel gene={gene} cdna={cdna} />
+      return (
+        <PrimerPanel
+          gene={gene}
+          cdna={cdna}
+          selected={primerSel.selected}
+          onSelect={primerSel.onSelect}
+        />
+      )
     case 'crispr':
       return <CrisprPanel gene={gene} cdna={cdna} />
     case 'align':
@@ -178,6 +186,10 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
     [tool],
   )
 
+  // Primer pair toggled "show on gene view" → a rough amplicon overlay in the
+  // viewer (only meaningful on the Primer tool; gated at the prop below).
+  const [selectedPrimer, setSelectedPrimer] = useState<PrimerPair | null>(null)
+
   const toggleTrack = useCallback(
     (key: keyof TrackState) => setTrackOn((t) => ({ ...t, [key]: !t[key] })),
     [],
@@ -284,6 +296,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
             onActiveExonChange={setActiveExon}
             onClinvarSelect={setSelectedClinvar}
             activeClinvar={selectedClinvar?.cv ?? null}
+            selectedPrimer={tool === 'primer' ? selectedPrimer : null}
           />
         ) : null}
       </>
@@ -303,6 +316,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         onActiveExonChange={setActiveExon}
         onClinvarSelect={setSelectedClinvar}
         activeClinvar={selectedClinvar?.cv ?? null}
+        selectedPrimer={tool === 'primer' ? selectedPrimer : null}
       />
     ) : (
       <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>
@@ -313,7 +327,10 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   const toolPanel = (
     <div className="tool-panel active" data-panel={tool}>
       {data ? (
-        renderToolPanel(tool, gene, cdna, data)
+        renderToolPanel(tool, gene, cdna, data, {
+          selected: selectedPrimer,
+          onSelect: setSelectedPrimer,
+        })
       ) : (
         <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>
       )}

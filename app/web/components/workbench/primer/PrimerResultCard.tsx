@@ -81,9 +81,13 @@ function PrimerTip({ label, tip }: { label: string; tip: string }) {
 
 interface PrimerResultCardProps {
   pair: PrimerPair
+  /** Whether this pair's amplicon overlay is shown on the gene viewer. */
+  selected?: boolean
+  /** Toggle the gene-view overlay for this pair. */
+  onToggleOverlay?: () => void
 }
 
-export function PrimerResultCard({ pair }: PrimerResultCardProps) {
+export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResultCardProps) {
   const [open, setOpen] = useState(false)
   const fwdRef = useRef<HTMLSpanElement>(null)
   const revRef = useRef<HTMLSpanElement>(null)
@@ -114,15 +118,13 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
     <article
       className={`primer-card card--interactive${pair.recommended ? ' rec' : ''}`}
     >
+      {/* Copy affordance — top-right of the card, matching the /report sections. */}
+      <div className="primer-card-copy">
+        <CopyButton text={copyText} label="Copy sequences + details" size="compact" />
+      </div>
+
       {/* ── Layer 1 — decision surface ─────────────────────────────── */}
       <header className="primer-l1">
-        <span
-          className={`primer-badge tone-${badge.tone}`}
-          title="Overall verdict for this pair — a quick read on the balance of Tm match, GC content, and specificity."
-        >
-          <i className="primer-badge-dot" />
-          {badge.label}
-        </span>
         <span className="primer-l1-id">
           {pair.recommended && (
             <span
@@ -136,11 +138,13 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
           Primer pair #{pair.index}
           {pair.recommended && <span className="sr-only"> (recommended)</span>}
         </span>
-        <CopyButton
-          text={copyText}
-          label="Copy sequences + details"
-          size="compact"
-        />
+        <span
+          className={`primer-badge tone-${badge.tone}`}
+          title="Overall verdict for this pair — a quick read on the balance of Tm match, GC content, and specificity."
+        >
+          <i className="primer-badge-dot" />
+          {badge.label}
+        </span>
       </header>
 
       {/* ── Layer 2 — primary detail ───────────────────────────────── */}
@@ -187,6 +191,15 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
           >
             ΔTm {deltaTm.toFixed(1)} °C
           </span>
+          {onToggleOverlay && (
+            <label
+              className="primer-overlay-toggle"
+              title="Outline this pair's amplicon on the gene viewer (schematic — exact primer positions pending backend)."
+            >
+              <input type="checkbox" checked={!!selected} onChange={onToggleOverlay} />
+              Show on gene view
+            </label>
+          )}
         </div>
       </div>
 

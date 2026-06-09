@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { PrimerMode, PrimerRequest, PrimerResponse } from '@/lib/backend'
+import type { PrimerMode, PrimerPair, PrimerRequest, PrimerResponse } from '@/lib/backend'
 import { designPrimers } from '@/lib/api'
 import {
   isArmsUnsupportedError,
@@ -13,6 +13,9 @@ import { PrimerResultCard } from './PrimerResultCard'
 interface PrimerPanelProps {
   gene: string
   cdna: string
+  /** Pair toggled "show on gene view" + its setter (drives the viewer overlay). */
+  selected?: PrimerPair | null
+  onSelect?: (pair: PrimerPair | null) => void
 }
 
 const MODES: Array<{ v: PrimerMode; label: string; tip: string }> = [
@@ -44,7 +47,7 @@ const PHASES = ['Constraints', 'Primer3 thermodynamics', 'Specificity screen']
  * against the frozen `POST /api/v1/primer` contract; no contract/schema edits.
  * Mirrors `CrisprPanel`. Sits in the shared Workbench shell below the viewer.
  */
-export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
+export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps) {
   const [mode, setMode] = useState<PrimerMode>('sanger')
   const [tmMin, setTmMin] = useState('58')
   const [tmMax, setTmMax] = useState('62')
@@ -284,7 +287,13 @@ export function PrimerPanel({ gene, cdna }: PrimerPanelProps) {
           <div className="primer-feed">
             {res.pairs.map((p) => (
               <div key={p.index} className="primer-feed-item">
-                <PrimerResultCard pair={p} />
+                <PrimerResultCard
+                  pair={p}
+                  selected={selected?.index === p.index}
+                  onToggleOverlay={() =>
+                    onSelect?.(selected?.index === p.index ? null : p)
+                  }
+                />
               </div>
             ))}
             {res.pairs.length === 0 && (

@@ -25,7 +25,7 @@ import {
   type EditMap,
 } from '@/lib/workbench/edit-state'
 import type { Base } from '@/lib/workbench/codon-table'
-import type { AlleleMode } from '@/lib/backend'
+import type { AlleleMode, PrimerPair } from '@/lib/backend'
 import type { SelectionSummary, StrandMode, TrackState } from './viewer-types'
 import { GeneMinimap } from './GeneMinimap'
 import { CodonDetail } from './CodonDetail'
@@ -85,6 +85,11 @@ interface SequenceViewerV2Props {
   onClinvarSelect?: (variant: ClinvarVariant) => void
   /** ClinVar id (`cv`) of the currently focused dot → drives its active ring. */
   activeClinvar?: string | null
+  /** A primer pair toggled on in the Primer tool → a rough directional amplicon
+   *  bracket over the sequence. Primer positions aren't in the contract yet
+   *  (see docs/workbench-backend-wiring), so this is a schematic spanning the
+   *  queried variant, not base-anchored. */
+  selectedPrimer?: PrimerPair | null
 }
 
 export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV2Props>(
@@ -104,6 +109,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       onActiveExonChange,
       onClinvarSelect,
       activeClinvar,
+      selectedPrimer,
     },
     ref,
   ) {
@@ -672,6 +678,26 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           />
           {sequenceOpen && (
             <>
+              {selectedPrimer && (
+                <div
+                  className="sv-primer-amplicon"
+                  role="img"
+                  aria-label={`Selected primer pair amplicon, ${selectedPrimer.product_size} bp, spanning ${data.queriedVariant.hgvsC}`}
+                >
+                  <span className="sv-pa-cap fwd">
+                    <span className="sv-pa-tag">F</span> 5′→3′
+                  </span>
+                  <span className="sv-pa-track">
+                    <span className="sv-pa-label">
+                      Amplicon · {selectedPrimer.product_size} bp · spans {data.queriedVariant.hgvsC}
+                      <span className="sv-pa-note">schematic — exact primer positions pending backend</span>
+                    </span>
+                  </span>
+                  <span className="sv-pa-cap rev">
+                    3′←5′ <span className="sv-pa-tag">R</span>
+                  </span>
+                </div>
+              )}
               <div className="sv-zoom-overlay-seq" aria-hidden={false}>
                 <ZoomSlider baseW={baseW} onBaseW={onBaseW} />
               </div>
