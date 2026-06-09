@@ -37,19 +37,19 @@ const AF_TIP =
 // → green = tolerant, low value = constrained for both LOEUF and missense o/e) with
 // a value pin and the constrained-threshold tick. Mirrors gnomAD's o/e visual but
 // uses the report's shared class-ramp tokens so §3 matches the rest of the page.
-interface GaugeBand { upTo: number; color: string }
+interface GaugeBand { upTo: number; color: string; label: string }
 
 const LOEUF_BANDS: GaugeBand[] = [
-  { upTo: 0.33, color: 'var(--cls-path-dot)' },
-  { upTo: 0.66, color: 'var(--cls-lpath-dot)' },
-  { upTo: 1.0, color: 'var(--cls-vus-dot)' },
-  { upTo: 1.5, color: 'var(--cls-ben-dot)' },
+  { upTo: 0.33, color: 'var(--cls-path-dot)', label: 'Highly constrained' },
+  { upTo: 0.66, color: 'var(--cls-lpath-dot)', label: 'Constrained' },
+  { upTo: 1.0, color: 'var(--cls-vus-dot)', label: 'Moderately tolerant' },
+  { upTo: 1.5, color: 'var(--cls-ben-dot)', label: 'LoF-tolerant' },
 ]
 const MIS_OE_BANDS: GaugeBand[] = [
-  { upTo: 0.4, color: 'var(--cls-path-dot)' },
-  { upTo: 0.6, color: 'var(--cls-lpath-dot)' },
-  { upTo: 0.8, color: 'var(--cls-vus-dot)' },
-  { upTo: 1.2, color: 'var(--cls-ben-dot)' },
+  { upTo: 0.4, color: 'var(--cls-path-dot)', label: 'Strongly depleted' },
+  { upTo: 0.6, color: 'var(--cls-lpath-dot)', label: 'Depleted' },
+  { upTo: 0.8, color: 'var(--cls-vus-dot)', label: 'Mild depletion' },
+  { upTo: 1.2, color: 'var(--cls-ben-dot)', label: 'Tolerant' },
 ]
 
 function loeufStatus(l: number): { text: string; color: string } {
@@ -92,9 +92,16 @@ function ConstraintGauge({
 }) {
   // Convert the cumulative-`upTo` gauge bands into the shared scale's per-band
   // fractions; the value pin + constrained threshold ride the same primitive §2 uses.
+  // Each band carries a hover title (zone meaning + the metric range it covers)
+  // so hovering a §3 sector explains it — matching §2's EvidenceBar bands.
+  const unit = label.split('·').pop()?.trim() ?? ''
   const scaleBands = bands.map((b, i) => {
     const start = i === 0 ? 0 : bands[i - 1].upTo
-    return { frac: (b.upTo - start) / axisMax, color: b.color }
+    return {
+      frac: (b.upTo - start) / axisMax,
+      color: b.color,
+      title: `${b.label} · ${unit} ${start}–${b.upTo}`,
+    }
   })
   return (
     <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '8px 10px' }}>
@@ -174,7 +181,7 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
       <div style={{ position: 'relative', marginTop: 24, marginBottom: 6 }}>
         <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden' }}>
           {GNOMAD_AF_BANDS.map((b) => (
-            <span key={b.id} style={{ flex: 1, background: b.color }} title={`${b.label}${b.acmg ? ` · ${b.acmg}` : ''}`} />
+            <span key={b.id} style={{ flex: 1, background: b.color, cursor: 'help' }} title={b.acmg ? AF_CHIP_TIP[b.acmg] : INTERMEDIATE_TIP} />
           ))}
         </div>
         {/* Variant marker — a dark down-pointing pin + haloed line (shape, not
