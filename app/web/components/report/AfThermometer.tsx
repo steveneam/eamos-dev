@@ -1,6 +1,7 @@
 'use client'
 import type { EvidenceSourceSummary } from '@/lib/backend'
 import { GNOMAD_AF_BANDS } from './gnomadMapTheme'
+import { ScaleTrack } from './ScoreScale'
 
 // Franklin-style allele-frequency "thermometer" (report v3, design §4). A
 // threshold bullet bar over the SAME GNOMAD_AF_BANDS cutoffs the world map +
@@ -121,7 +122,12 @@ function ConstraintGauge({
   statusColor: string
   mock?: boolean
 }) {
-  const pct = (v: number) => Math.max(0, Math.min(100, (v / axisMax) * 100))
+  // Convert the cumulative-`upTo` gauge bands into the shared scale's per-band
+  // fractions; the value pin + constrained threshold ride the same primitive §2 uses.
+  const scaleBands = bands.map((b, i) => {
+    const start = i === 0 ? 0 : bands[i - 1].upTo
+    return { frac: (b.upTo - start) / axisMax, color: b.color }
+  })
   return (
     <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '8px 10px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
@@ -136,25 +142,11 @@ function ConstraintGauge({
         {mock && <span className="eamos-mock" title={MOCK_TIP}>Mock</span>}
         <span style={{ marginLeft: 'auto', fontSize: 10.5, color: statusColor, fontWeight: 600 }}>{status}</span>
       </div>
-      <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden' }}>
-          {bands.map((b, i) => {
-            const start = i === 0 ? 0 : bands[i - 1].upTo
-            const w = ((b.upTo - start) / axisMax) * 100
-            return <span key={i} style={{ width: `${w}%`, background: b.color }} />
-          })}
-        </div>
-        {threshold != null && (
-          <span aria-hidden title={thresholdLabel} style={{ position: 'absolute', left: `${pct(threshold)}%`, top: -2, height: 12, width: 1, background: 'var(--ink-4)', opacity: 0.6 }} />
-        )}
-        <span
-          aria-hidden
-          style={{ position: 'absolute', left: `${pct(value)}%`, top: -7, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}
-        >
-          <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: `6px solid ${mock ? 'var(--ink-4)' : 'var(--ink)'}` }} />
-          <span style={{ width: 2, height: 12, marginTop: -1, background: mock ? 'var(--ink-4)' : 'var(--ink)', borderRadius: 1, boxShadow: '0 0 0 1.5px var(--bg)' }} />
-        </span>
-      </div>
+      <ScaleTrack
+        bands={scaleBands}
+        threshold={threshold != null ? { pos: threshold / axisMax, title: thresholdLabel } : null}
+        pin={{ pos: value / axisMax, muted: mock }}
+      />
     </div>
   )
 }

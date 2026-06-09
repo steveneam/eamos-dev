@@ -1,6 +1,7 @@
 import type { ComputationalPredictorRow } from '@/lib/backend'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { TierTag } from '@/components/ui/TierTag'
+import { ScaleTrack, type ScaleBand } from './ScoreScale'
 
 interface CalibratedInSilicoTableProps {
   predictors?: ComputationalPredictorRow[] | null
@@ -258,64 +259,42 @@ function EvidenceBar({ cal, score }: { cal: Calibration | null; score: number | 
     summaryTip = `Raw-score scale ${fmtNum(leftVal)} → ${fmtNum(rightVal)}; no published ACMG calibration for this engine.`
   }
 
+  // Resolve the bands for the shared scale track. Calibrated → one band per
+  // ACMG tier; binary → tolerated/damaging two-zone; uncalibrated → soft fill.
+  let scaleBands: ScaleBand[]
+  if (calibrated) {
+    scaleBands = segs.map((s) => {
+      const a = invScore(cal, s.from)
+      const b = invScore(cal, s.to)
+      const lo = Math.min(a, b)
+      const hi = Math.max(a, b)
+      const meta = TIER_META[s.tier]
+      return {
+        frac: s.to - s.from,
+        color: meta.fill,
+        title: `${s.tier} · ${meta.points >= 0 ? '+' : ''}${meta.points} ACMG pt · raw ${fmtNum(lo)}–${fmtNum(hi)}`,
+      }
+    })
+  } else if (binary != null && binPos != null) {
+    scaleBands = [
+      { frac: binPos, color: TIER_META['Supporting benign'].fill, title: `Tolerated / benign-leaning (score ${cal.higherDamaging ? '≤' : '≥'} ${fmtNum(binary)})` },
+      { frac: 1 - binPos, color: TIER_META['Supporting path'].fill, title: `Damaging (score ${cal.higherDamaging ? '>' : '<'} ${fmtNum(binary)}) — tool-native cutoff, not ClinGen-calibrated` },
+    ]
+  } else {
+    scaleBands = [{ frac: 1, color: 'var(--bg-soft2)' }]
+  }
+
   return (
     <div style={{ minWidth: 188, opacity: hasScore ? 1 : 0.82 }} title={summaryTip}>
-      {/* track */}
-      <div style={{ position: 'relative', height: 10, borderRadius: 5, border: '0.5px solid var(--line)', background: 'var(--bg-soft2)' }}>
-        <div style={{ position: 'absolute', inset: 0, borderRadius: 5, overflow: 'hidden', display: 'flex' }}>
-          {calibrated &&
-            segs.map((s, i) => {
-              const a = invScore(cal, s.from)
-              const b = invScore(cal, s.to)
-              const lo = Math.min(a, b)
-              const hi = Math.max(a, b)
-              const meta = TIER_META[s.tier]
-              return (
-                <span
-                  key={i}
-                  title={`${s.tier} · ${meta.points >= 0 ? '+' : ''}${meta.points} ACMG pt · raw ${fmtNum(lo)}–${fmtNum(hi)}`}
-                  style={{ width: `${(s.to - s.from) * 100}%`, background: meta.fill, cursor: 'help' }}
-                />
-              )
-            })}
-          {binary != null && binPos != null && (
-            <>
-              <span
-                title={`Tolerated / benign-leaning (score ${cal.higherDamaging ? '≤' : '≥'} ${fmtNum(binary)})`}
-                style={{ width: `${binPos * 100}%`, background: TIER_META['Supporting benign'].fill, cursor: 'help' }}
-              />
-              <span
-                title={`Damaging (score ${cal.higherDamaging ? '>' : '<'} ${fmtNum(binary)}) — tool-native cutoff, not ClinGen-calibrated`}
-                style={{ flex: 1, background: TIER_META['Supporting path'].fill, cursor: 'help' }}
-              />
-            </>
-          )}
-          {!calibrated && binary == null && <span style={{ flex: 1, background: 'var(--bg-soft2)' }} />}
-        </div>
-        {/* tier boundary ticks (white separators between vivid bands) */}
-        {calibrated &&
-          segs.slice(1).map((s, i) => (
-            <span key={`tick-${i}`} aria-hidden style={{ position: 'absolute', left: `${s.from * 100}%`, top: 0, bottom: 0, width: 1, background: 'var(--bg)', opacity: 0.75 }} />
-          ))}
-        {/* score pin — dark down-triangle (shape, not colour) */}
-        {hasScore && scorePos != null && (
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: -6,
-              left: `${scorePos * 100}%`,
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '4px solid transparent',
-              borderRight: '4px solid transparent',
-              borderTop: '7px solid var(--ink)',
-              filter: 'drop-shadow(0 0 1px var(--bg))',
-            }}
-          />
-        )}
-      </div>
+      <ScaleTrack
+        bands={scaleBands}
+        height={10}
+        radius={5}
+        border="0.5px solid var(--line)"
+        background="var(--bg-soft2)"
+        separators={calibrated}
+        pin={hasScore && scorePos != null ? { pos: scorePos } : null}
+      />
       {/* range endpoints (raw-score units): benign end ◀ ▶ pathogenic end */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)' }}>
         <span>{fmtNum(leftVal)}</span>

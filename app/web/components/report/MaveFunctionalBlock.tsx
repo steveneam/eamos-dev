@@ -33,12 +33,29 @@ function bandForOddsPath(op: number) {
   return BRNICH_BANDS.find((b) => op >= b.min && op < b.max) ?? BRNICH_BANDS[3]
 }
 
-function dirTone(dir: 'benign' | 'path' | 'none') {
-  if (dir === 'path')
-    return { bg: 'var(--cls-lpath-bg)', bd: 'var(--cls-lpath-bdr)', ink: 'var(--cls-lpath-text)', dot: 'var(--cls-lpath-dot)' }
-  if (dir === 'benign')
-    return { bg: 'var(--cls-ben-bg)', bd: 'var(--cls-ben-bdr)', ink: 'var(--cls-ben-text)', dot: 'var(--cls-ben-dot)' }
-  return { bg: 'var(--cls-na-bg)', bd: 'var(--cls-na-bdr)', ink: 'var(--cls-na-text)', dot: 'var(--cls-na-dot)' }
+// Per-band tile/badge colour, matched to §2/§3's strength ramp so the same
+// OddsPath strength reads as the same colour across the report — still a discrete
+// ladder (no continuous pin). The "moderate" tiers reuse §2's exact class-ramp
+// mixes (TIER_META) so a "PS3 Mod" tile is the same shade as §2's "Moderate path".
+interface Tone { bg: string; bd: string; ink: string; dot: string }
+const BAND_TONE: Record<string, Tone> = {
+  BS3_Strong: { bg: 'var(--cls-ben-bg)', bd: 'var(--cls-ben-bdr)', ink: 'var(--cls-ben-text)', dot: 'var(--cls-ben-dot)' },
+  BS3_Moderate: {
+    bg: 'color-mix(in oklab, var(--cls-ben-bg) 70%, var(--cls-lben-bg))',
+    bd: 'color-mix(in oklab, var(--cls-ben-bdr) 70%, var(--cls-lben-bdr))',
+    ink: 'var(--cls-ben-text)',
+    dot: 'color-mix(in oklab, var(--cls-ben-dot) 70%, var(--cls-lben-dot))',
+  },
+  BS3_Supporting: { bg: 'var(--cls-lben-bg)', bd: 'var(--cls-lben-bdr)', ink: 'var(--cls-lben-text)', dot: 'var(--cls-lben-dot)' },
+  Indeterminate: { bg: 'var(--cls-na-bg)', bd: 'var(--cls-na-bdr)', ink: 'var(--cls-na-text)', dot: 'var(--cls-na-dot)' },
+  PS3_Supporting: { bg: 'var(--cls-lpath-bg)', bd: 'var(--cls-lpath-bdr)', ink: 'var(--cls-lpath-text)', dot: 'var(--cls-lpath-dot)' },
+  PS3_Moderate: {
+    bg: 'color-mix(in oklab, var(--cls-path-bg) 60%, var(--cls-lpath-bg))',
+    bd: 'color-mix(in oklab, var(--cls-path-bdr) 60%, var(--cls-lpath-bdr))',
+    ink: 'var(--cls-lpath-text)',
+    dot: 'color-mix(in oklab, var(--cls-path-dot) 60%, var(--cls-lpath-dot))',
+  },
+  PS3_Strong: { bg: 'var(--cls-path-bg)', bd: 'var(--cls-path-bdr)', ink: 'var(--cls-path-text)', dot: 'var(--cls-path-dot)' },
 }
 
 // Illustrative damaging assay coherent with a missense in a catalytic enzyme.
@@ -58,7 +75,7 @@ export function MaveFunctionalBlock({ gene, query }: { gene?: string | null; que
 
   const a = MOCK_ASSAY
   const band = bandForOddsPath(a.oddsPath)
-  const tone = dirTone(band.dir)
+  const tone = BAND_TONE[band.key]
   const code = band.dir === 'path' ? 'PS3' : band.dir === 'benign' ? 'BS3' : null
   const codeTip = band.dir === 'path' ? PS3_TIP : band.dir === 'benign' ? BS3_TIP : 'Indeterminate — the assay does not provide ACMG functional evidence at a calibrated strength.'
 
@@ -109,7 +126,7 @@ export function MaveFunctionalBlock({ gene, query }: { gene?: string | null; que
         <div style={{ display: 'flex', gap: 3 }}>
           {BRNICH_BANDS.map((b) => {
             const active = b.key === band.key
-            const t = dirTone(b.dir)
+            const t = BAND_TONE[b.key]
             return (
               <div
                 key={b.key}
