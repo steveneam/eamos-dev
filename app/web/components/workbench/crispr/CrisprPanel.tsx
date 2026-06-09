@@ -45,6 +45,7 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             aria-selected={tab === 'design'}
             className={tab === 'design' ? 'active' : ''}
             onClick={() => setTab('design')}
+            title="Design candidate guide RNAs for this target (step 1)"
           >
             Design
           </button>
@@ -54,6 +55,7 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             aria-selected={tab === 'offtargets'}
             className={tab === 'offtargets' ? 'active' : ''}
             onClick={() => setTab('offtargets')}
+            title="Screen a guide for genome-wide off-target sites (step 2)"
           >
             Off-targets
           </button>
@@ -63,6 +65,7 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             aria-selected={tab === 'outcomes'}
             className={tab === 'outcomes' ? 'active' : ''}
             onClick={() => setTab('outcomes')}
+            title="Confirm edit outcomes from sequencing traces (step 3)"
           >
             Outcomes
           </button>

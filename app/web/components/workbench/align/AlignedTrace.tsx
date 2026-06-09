@@ -110,7 +110,13 @@ export function AlignedTrace({
   const scrollToCol = (col: number) => {
     const el = scrollRef.current
     if (!el) return
-    el.scrollTo({ left: Math.max(0, colCenter(col) - el.clientWidth / 2), behavior: 'smooth' })
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollTo({
+      left: Math.max(0, colCenter(col) - el.clientWidth / 2),
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
   }
   useEffect(() => {
     if (activeCol !== null) scrollToCol(activeCol)

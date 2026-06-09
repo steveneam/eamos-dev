@@ -81,6 +81,7 @@
   font-size: 13.5px;
   font-weight: 500;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 .ctx-sep { color: var(--ink-5); padding: 0 2px; }
 .ctx-sub {
@@ -209,6 +210,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .sv-zoom-overlay-seq { transition: opacity .12s linear; transform: none; }
+  .align-spinner { animation: none; }
 }
 .viewer.viewer-collapsed { max-height: 0; padding: 0; border: none; opacity: 0; margin-bottom: 0; }
 .viewer-loading {
@@ -371,6 +373,7 @@
   padding: 2px 8px;
   background: var(--bg); border: 0.5px solid var(--line); border-radius: 4px;
   color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 
 .sv-hist {
@@ -395,6 +398,7 @@
 .sv-hist-count {
   font-family: var(--mono); font-size: 10.5px;
   color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
   padding: 2px 8px;
   background: var(--bg); border: 0.5px solid var(--line); border-radius: 4px;
   margin-left: 4px;
@@ -494,8 +498,9 @@
   border-color: rgba(184, 43, 43, 0.35);
 }
 .sv-mm-exon-num {
-  font-family: var(--mono); font-size: 9.5px; font-weight: 600;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
   color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
 }
 .sv-mm-exon-num.hidden { display: none; }
 .sv-mm-seg.intron {
@@ -634,11 +639,12 @@
   white-space: nowrap;
   text-align: left;
   pointer-events: none;
+  font-variant-numeric: tabular-nums;
 }
 .sv-block-pos .sub {
   display: block;
-  font-size: 9px;
-  color: var(--ink-4);
+  font-size: 10px;
+  color: var(--ink-3);
   margin-top: 1px;
   letter-spacing: 0.04em;
 }
@@ -665,9 +671,10 @@
   position: absolute;
   bottom: 0;
   transform: translateX(-50%);
-  font-family: var(--mono); font-size: 9.5px;
-  color: var(--ink-4);
+  font-family: var(--mono); font-size: 10px;
+  color: var(--ink-3);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .sv-ruler-tick::before {
   content: ''; position: absolute;
@@ -866,9 +873,10 @@
 }
 .sv-aa-num {
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 10px;
   color: var(--ink-4);
   margin-top: 1px;
+  font-variant-numeric: tabular-nums;
 }
 .sv-codon.queried .sv-aa { outline: 1px solid var(--warn); }
 .sv-codon.changed .sv-aa { outline: 1px solid var(--warn); background: var(--warn-tint); }
@@ -1921,6 +1929,9 @@
   padding: 8px 12px;
   border-bottom: 0.5px solid var(--line);
   background: var(--bg-soft);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .tool-table tbody td {
   padding: 9px 12px;
@@ -2004,7 +2015,7 @@
   min-width: 90px;
 }
 .ssodn-vis .seq-hl-correct { background: var(--teal-tint); color: var(--teal-deep); font-weight: 600; padding: 1px 0; }
-.ssodn-vis .seq-hl-silent  { background: #e8eaf2; color: #3b4877; padding: 1px 0; }
+.ssodn-vis .seq-hl-silent  { background: var(--info-bg); color: var(--info-text); padding: 1px 0; }
 .ssodn-vis .seq-hl-pam     { background: var(--warn-tint); color: var(--warn-text); padding: 1px 0; }
 
 /* ─────────────── ALIGNMENT ─────────────── */
@@ -2789,8 +2800,8 @@
 .aln-band.mismatch { fill: color-mix(in oklab, var(--err) 18%, transparent); }
 .aln-band.mismatch.lowq { fill: color-mix(in oklab, var(--warn) 16%, transparent); }
 .aln-band.gap { fill: color-mix(in oklab, var(--warn) 14%, transparent); }
-.aln-band.search { fill: rgba(212, 175, 55, 0.26); }
-.aln-band.search-active { fill: rgba(212, 175, 55, 0.5); }
+.aln-band.search { fill: color-mix(in oklab, var(--warn) 26%, transparent); }
+.aln-band.search-active { fill: color-mix(in oklab, var(--warn) 50%, transparent); }
 .aln-band.active { fill: color-mix(in oklab, var(--teal) 18%, transparent); stroke: var(--teal-deep); stroke-width: 1; }
 .aln-band.target { fill: none; stroke: var(--warn); stroke-width: 1.5; }
 /* base-coloured reference row + gap fallbacks (match the chromatogram channels) */
@@ -2830,7 +2841,7 @@
 .chromatogram-svg { display: block; }
 .chromatogram-band { fill: rgba(193, 58, 52, 0.18); }
 .chromatogram-band.lowq { fill: rgba(186, 117, 23, 0.16); }
-.chromatogram-het { fill: #7c5cd6; }
+.chromatogram-het { fill: var(--info-dot); }
 .chromatogram-dim { fill: rgba(120, 120, 120, 0.16); }
 .chromatogram-baseline { stroke: var(--line-2); stroke-width: 0.75; }
 .chromatogram-qbar { fill: var(--ink-5); opacity: 0.35; }
@@ -2848,7 +2859,7 @@
 /* read-head quality tags */
 .tag-real { color: var(--err); font-weight: 700; }
 .tag-lowq { color: var(--warn); }
-.tag-het { color: #7c5cd6; font-weight: 700; }
+.tag-het { color: var(--info-text); font-weight: 700; }
 
 /* ─────────────── COMPARATOR ─────────────── */
 .compare-grid {
@@ -3416,7 +3427,7 @@
 .sw.pam, .sw.target { background: var(--warn-bdr); }
 .sw.cut { background: var(--err); }
 .sw.correct { background: var(--teal); }
-.sw.silent, .sw.predicted { background: #3b4877; }
+.sw.silent, .sw.predicted { background: var(--info-dot); }
 
 .crispr-file { padding: 5px 8px; font-family: var(--body); font-size: 11.5px; }
 
@@ -3435,7 +3446,7 @@
 .ic-xtick { fill: var(--ink-4); font-size: 9px; text-anchor: middle; font-family: var(--mono); }
 .ic-bar.observed { fill: var(--teal); }
 .ic-bar.observed.wt { fill: var(--teal-soft); }
-.ic-bar.predicted { fill: #3b4877; }
+.ic-bar.predicted { fill: var(--info-dot); }
 .ic-callouts {
   display: flex; flex-wrap: wrap; gap: 22px;
   margin: 16px 0 4px;

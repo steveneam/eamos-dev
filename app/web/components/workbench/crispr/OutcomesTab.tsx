@@ -100,6 +100,7 @@ export function OutcomesTab() {
           className="btn-teal"
           onClick={run}
           disabled={loading}
+          title="Compare edited vs control traces to estimate indel outcomes"
         >
           {loading ? 'Analyzing...' : 'Analyze outcomes'}
         </button>

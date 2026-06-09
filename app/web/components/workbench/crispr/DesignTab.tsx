@@ -303,6 +303,7 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
           className="btn-teal"
           onClick={run}
           disabled={loading}
+          title="Design SpCas9 (NGG) guides across the target window"
         >
           {loading ? 'Designing...' : 'Design SpCas9 guides'}
         </button>

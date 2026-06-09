@@ -573,7 +573,7 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
                   <th title="Number of mismatches between this site and your guide spacer (fewer = closer match).">
                     MM
                   </th>
-                  <th title="The off-target 20-mer (5′→3′) + PAM. Bases that differ from your guide are underlined.">
+                  <th title="The off-target 20-mer (5′→3′) + PAM. Bases that differ from your guide are ringed.">
                     Off-target 5′→3′ + PAM
                   </th>
                   <th title="Gene the off-target falls in (or intergenic if none).">Gene</th>
@@ -755,7 +755,12 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
                     {primerRes.primers.map((p) => (
                       <tr key={p.site_index} className={p.recommended ? 'selected' : undefined}>
                         <td className="num">
-                          {p.recommended ? '★ ' : ''}
+                          {p.recommended ? (
+                            <>
+                              <span className="sr-only">Recommended: </span>
+                              <span aria-hidden="true">★ </span>
+                            </>
+                          ) : ''}
                           {p.site_index}
                         </td>
                         <td className="mono">{p.point}</td>

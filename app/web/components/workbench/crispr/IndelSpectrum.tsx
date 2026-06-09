@@ -44,6 +44,10 @@ export function IndelSpectrum({
   const y = (v: number) => PAD_T + plotH * (1 - v / max)
   const barW = showPredicted ? 11 : 16
 
+  if (spectrum.length === 0) {
+    return <p className="tool-panel-sub">No indel spectrum to display.</p>
+  }
+
   return (
     <div className="indel-chart">
       <svg
