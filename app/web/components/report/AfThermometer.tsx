@@ -103,25 +103,62 @@ function ConstraintGauge({
       title: `${b.label} · ${unit} ${start}–${b.upTo}`,
     }
   })
+  const thresholdPos = threshold != null ? threshold / axisMax : null
   return (
-    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '8px 10px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
-        <InfoHint tip={infoTip} />
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: mock ? 'var(--ink-4)' : 'var(--ink)', marginLeft: 2 }}>{valueText}</span>
-        {badge && (
-          <span title={badgeTip} style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', border: '0.5px solid var(--line)', borderRadius: 999, padding: '0 6px', cursor: badgeTip ? 'help' : 'default' }}>
-            {badge}
-          </span>
-        )}
-        {mock && <span className="eamos-mock" title={MOCK_TIP}>Mock</span>}
-        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: statusColor, fontWeight: 600 }}>{status}</span>
+    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg)', padding: '11px 13px 9px' }}>
+      {/* header: metric + info (left) · the value + badge, read big (right) */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+          <InfoHint tip={infoTip} />
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 7 }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 600, color: mock ? 'var(--ink-4)' : 'var(--ink)', lineHeight: 1 }}>{valueText}</span>
+          {badge && (
+            <span title={badgeTip} style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', border: '0.5px solid var(--line)', borderRadius: 999, padding: '0 6px', cursor: badgeTip ? 'help' : 'default' }}>
+              {badge}
+            </span>
+          )}
+          {mock && <span className="eamos-mock" title={MOCK_TIP}>Mock</span>}
+        </span>
       </div>
+
+      {/* status pill — coloured by constraint level */}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, margin: '8px 0 11px', fontSize: 11, fontWeight: 600, color: statusColor }}>
+        <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: statusColor }} />
+        {status}
+      </div>
+
+      {/* banded scale: value pin (▼) + dashed constrained-threshold line */}
       <ScaleTrack
         bands={scaleBands}
-        threshold={threshold != null ? { pos: threshold / axisMax, title: thresholdLabel } : null}
+        height={12}
+        radius={6}
+        border="0.5px solid var(--line)"
+        separators
+        threshold={thresholdPos != null ? { pos: thresholdPos, title: thresholdLabel } : null}
         pin={{ pos: value / axisMax, muted: mock }}
       />
+
+      {/* numeric axis — min · constrained cutoff · max (the scale §2 has) */}
+      <div style={{ position: 'relative', height: 13, marginTop: 5, fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--ink-4)' }}>
+        <span style={{ position: 'absolute', left: 0 }}>0</span>
+        <span style={{ position: 'absolute', right: 0 }}>{axisMax}</span>
+        {thresholdPos != null && (
+          <span
+            title={thresholdLabel}
+            style={{ position: 'absolute', left: `${thresholdPos * 100}%`, transform: 'translateX(-50%)', color: 'var(--ink-2)', fontWeight: 700, cursor: 'help', borderBottom: '1px dotted var(--ink-4)', whiteSpace: 'nowrap' }}
+          >
+            {threshold}
+          </span>
+        )}
+      </div>
+
+      {/* orientation — which way is constrained */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--ink-5)', marginTop: 1 }}>
+        <span>more constrained</span>
+        <span>more tolerant</span>
+      </div>
     </div>
   )
 }

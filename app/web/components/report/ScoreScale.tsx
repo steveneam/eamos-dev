@@ -103,7 +103,15 @@ export function ScaleTrack({
         <span
           aria-hidden
           title={threshold.title}
-          style={{ position: 'absolute', left: `${clamp01(threshold.pos) * 100}%`, top: -2, height: height + 4, width: 1, background: 'var(--ink-4)', opacity: 0.6 }}
+          style={{
+            position: 'absolute',
+            left: `${clamp01(threshold.pos) * 100}%`,
+            top: -3,
+            height: height + 6,
+            width: 1.5,
+            transform: 'translateX(-50%)',
+            background: 'repeating-linear-gradient(var(--ink-2) 0 3px, transparent 3px 6px)',
+          }}
         />
       )}
       {pin && <ScorePin pos={pin.pos} muted={pin.muted} title={pin.title} />}
