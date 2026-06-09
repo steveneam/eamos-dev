@@ -12,6 +12,7 @@ import { designProviderDisclosure } from '@/lib/workbench/crispr-disclosure'
 import { recommendedGuideIndex } from '@/lib/workbench/crispr-guide-ranking'
 import { mapGuide } from '@/lib/workbench/crispr-guide-map'
 import { GuideTrack } from './GuideTrack'
+import { SsodnLabDonor } from './SsodnLabDonor'
 
 interface DesignTabProps {
   gene: string
@@ -328,6 +329,8 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
       </div>
 
       {error && <div className="crispr-error">{error}</div>}
+
+      <SsodnLabDonor gene={gene} cdna={cdna} />
 
       {res && (
         <>

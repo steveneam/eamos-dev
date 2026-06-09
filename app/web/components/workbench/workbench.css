@@ -3222,6 +3222,55 @@
 
 .crispr-file { padding: 5px 8px; font-family: var(--body); font-size: 11.5px; }
 
+/* ssODN lab-order donor (CRISPR Design) — guide-independent corrective HDR
+   donor: adjustable length, orderable single-string oligo with intronic bases
+   quieted/lowercased and the corrective edit highlighted. */
+.ssodn-donor { margin-top: 18px; }
+.ssodn-donor-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ssodn-mock-tag { margin-left: 8px; }
+.ssodn-donor-controls {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+  margin: 10px 0 12px;
+}
+.ssodn-len-field { max-width: 116px; }
+.ssodn-orient-seg { display: inline-flex; }
+.ssodn-donor-status { font-size: 12px; color: var(--ink-3); margin: 8px 0; }
+.ssodn-donor-status.error { color: var(--err); }
+.ssodn-oligo-name {
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+  margin-bottom: 8px; overflow-wrap: anywhere;
+}
+.ssodn-oligo-seq {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.9;
+  letter-spacing: 0.5px; word-break: break-all;
+  background: var(--bg-canvas); border: 0.5px solid var(--line);
+  border-radius: var(--r-md); padding: 12px 14px; color: var(--ink);
+}
+.ssodn-nt.intron { color: var(--ink-4); }
+/* Workbook convention: the 3 corrective-codon nucleotides are UNDERLINED in
+   teal (the "restore wild-type" cue — matches the 3-arm .seq-hl-correct, and is
+   deliberately NOT the amber PAM highlight); the single changed base is then
+   HIGHLIGHTED with a teal fill. */
+.ssodn-nt.codon { box-shadow: inset 0 -2px 0 var(--teal-deep); }
+.ssodn-nt.edit {
+  background: var(--teal-tint); color: var(--teal-deep);
+  font-weight: 700; border-radius: 2px;
+}
+.ssodn-oligo-legend {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  margin-top: 8px; font-size: 10.5px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.ssodn-key {
+  width: 10px; height: 10px; border-radius: 2px;
+  display: inline-block; vertical-align: -1px; margin-right: 4px;
+}
+.ssodn-key.intron { background: var(--ink-4); }
+.ssodn-key.codon { background: transparent; border: 0.5px solid var(--line); box-shadow: inset 0 -2px 0 var(--teal-deep); }
+.ssodn-key.edit { background: var(--teal-tint); border: 0.5px solid var(--teal-bdr); }
+.ssodn-oligo-meta { margin-left: auto; font-family: var(--mono); }
+.ssodn-order-note { font-size: 11px; color: var(--ink-4); margin-top: 8px; font-style: italic; }
+
 /* Hand-rolled indel-spectrum chart (same approach as the PhyloP track) */
 .indel-chart {
   background: var(--bg-canvas);

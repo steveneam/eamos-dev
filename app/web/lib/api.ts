@@ -5,6 +5,8 @@ import type {
   CrisprResponse,
   CrisprScreeningPrimerRequest,
   CrisprScreeningPrimerResponse,
+  CrisprSsodnRequest,
+  CrisprSsodnResponse,
   GeneViewerRequest,
   GeneViewerResponse,
   LookupInitialSummaryResponse,
@@ -20,6 +22,7 @@ import type { AlignApiResponseShape } from './workbench/alignment-pairwise'
 import { GENE_VIEWER_SAMPLE } from './workbench/gene-viewer-sample'
 import { PRIMER_SAMPLE } from './workbench/primer-sample'
 import { CRISPR_SAMPLE } from './workbench/crispr-sample'
+import { CRISPR_SSODN_SAMPLE } from './workbench/crispr-ssodn-sample'
 import {
   OFFTARGET_SAMPLE,
   mockScreeningPrimers,
@@ -204,6 +207,27 @@ export async function designGuides(payload: CrisprRequest): Promise<CrisprRespon
     return await parseResponse<CrisprResponse>(response)
   } catch (err) {
     if (err instanceof TypeError) return CRISPR_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+// The lab-order ssODN donor is a dedicated route (docs/crispr-ssodn/spec.md).
+// It may not be deployed everywhere yet, so 404 (route absent) falls back to the
+// bundled public sample the same as a TypeError (backend down). Real lab-accurate
+// donors come from the live route; the sample renders the surface offline.
+export async function designSsodn(
+  payload: CrisprSsodnRequest,
+): Promise<CrisprSsodnResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/crispr/ssodn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (response.status === 404) return CRISPR_SSODN_SAMPLE // route not deployed → mock
+    return await parseResponse<CrisprSsodnResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError) return CRISPR_SSODN_SAMPLE // backend down → mock
     throw err
   }
 }
