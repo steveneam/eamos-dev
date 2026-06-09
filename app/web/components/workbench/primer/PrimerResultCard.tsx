@@ -22,6 +22,32 @@ import { classifyPair, parseNotes } from '@/lib/workbench/primer-metrics'
    grid-template-rows 0fr→1fr wrap. Same semantics, animatable, a11y-clean.
 ─────────────────────────────────────────────────────────────────────── */
 
+/** Deterministic illustrative secondary-structure metrics from a primer
+ *  sequence. The local Primer3 surface does not return thermodynamic alignments
+ *  yet, so these are mock (tagged illustrative) — but stable per sequence and in
+ *  the ranges Primer3 / Primer-BLAST report: self-complementarity (self-dimer
+ *  tendency), self 3′ complementarity (primer-dimer formed at the 3′ end, the
+ *  one that matters most), and the most-stable hairpin Tm (3′ hairpins block
+ *  extension). Lower is better throughout. */
+function hashSeq(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+function mockStruct(seq: string) {
+  // Unsigned shifts (>>>) — a signed >> on the >2^31 hash would flip negative
+  // and yield nonsensical negative scores through the modulo.
+  const h = hashSeq(seq)
+  return {
+    selfAny: 2 + (h % 7), // 2–8
+    selfEnd: (h >>> 3) % 5, // 0–4
+    hairpinTm: (h >>> 6) % 100 < 55 ? 0 : 28 + ((h >>> 7) % 18), // mostly none, else ~28–45 °C
+  }
+}
+
 /** Select the chip's text on click — order-ready copy without a textarea. */
 function selectText(el: HTMLElement) {
   const sel = window.getSelection()
@@ -65,6 +91,9 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
 
   const { badge, deltaTm, deltaTmWarn } = classifyPair(pair)
   const notes = parseNotes(pair.notes)
+  const fwdStruct = mockStruct(pair.forward)
+  const revStruct = mockStruct(pair.reverse)
+  const pairEnd = (hashSeq(pair.forward + pair.reverse) >>> 2) % 5 // pair 3′ dimer, 0–4
 
   const copyPair = async () => {
     const text = `F: ${pair.forward}\nR: ${pair.reverse}`
@@ -223,6 +252,46 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
                   <dd>{pair.product_size} bp</dd>
                 </div>
               </dl>
+            </section>
+            <section>
+              <h4 className="primer-l3-h">
+                <PrimerTip
+                  label="Secondary structure"
+                  tip="Self-complementarity (self-dimer tendency), self 3′ complementarity (primer-dimer formed at the 3′ end), and the most-stable hairpin Tm. Lower is better; 3′ structures matter most because they block extension. Illustrative — the local engine does not return Primer3 thermodynamic alignments yet."
+                />
+              </h4>
+              <dl className="primer-kv">
+                <div>
+                  <dt>Self-compl. (any)</dt>
+                  <dd>
+                    F {fwdStruct.selfAny} / R {revStruct.selfAny}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Self 3′ (end)</dt>
+                  <dd
+                    className={
+                      fwdStruct.selfEnd > 3 || revStruct.selfEnd > 3 ? 'warn' : undefined
+                    }
+                  >
+                    F {fwdStruct.selfEnd} / R {revStruct.selfEnd}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Hairpin Tm</dt>
+                  <dd>
+                    F {fwdStruct.hairpinTm ? `${fwdStruct.hairpinTm} °C` : 'none'} / R{' '}
+                    {revStruct.hairpinTm ? `${revStruct.hairpinTm} °C` : 'none'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Pair 3′ dimer</dt>
+                  <dd className={pairEnd > 3 ? 'warn' : undefined}>{pairEnd}</dd>
+                </div>
+              </dl>
+              <p className="primer-notes-raw eamos-mock">
+                illustrative — pending Primer3 thermodynamic alignment
+              </p>
             </section>
             <section>
               <h4 className="primer-l3-h">

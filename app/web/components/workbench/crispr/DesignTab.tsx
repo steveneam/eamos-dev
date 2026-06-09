@@ -330,8 +330,6 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
 
       {error && <div className="crispr-error">{error}</div>}
 
-      <SsodnLabDonor gene={gene} cdna={cdna} />
-
       {res && (
         <>
           {returnedDifferentCas && (
@@ -539,6 +537,10 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
           )}
 
           {res.ssodn && <SsodnBlock ss={res.ssodn} />}
+
+          {/* The lab-order donor follows guide design — you choose a guide,
+              then order the ssODN repair template that pairs with it. */}
+          <SsodnLabDonor gene={gene} cdna={cdna} />
         </>
       )}
     </div>
