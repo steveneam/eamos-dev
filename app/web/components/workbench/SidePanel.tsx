@@ -29,10 +29,8 @@ interface SidePanelProps {
   scratch: ScratchEntry[]
   selection: SelectionSummary | null
   selectedClinvar: ClinvarVariant | null
-  collapsed: boolean
   exonTableOpen: boolean
   activeExon: number
-  onToggleCollapsed: () => void
   onToggleExonTable: () => void
   onResetAll: () => void
   onJumpToExon: (n: number) => void
@@ -412,7 +410,7 @@ function ViewerSide({
   onReplaceSelection,
   onClearSelection,
   onClearClinvar,
-}: Omit<SidePanelProps, 'tool' | 'collapsed' | 'onToggleCollapsed'>) {
+}: Omit<SidePanelProps, 'tool'>) {
   const qv = data.queriedVariant
   const g = data.genomicCoords
   const pf = data.proteinFeatures
@@ -728,29 +726,11 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
 }
 
 export function SidePanel(props: SidePanelProps) {
-  const { tool, collapsed, onToggleCollapsed } = props
+  const { tool } = props
   const meta = TOOL_META[tool]
   return (
     <aside className="side" id="side">
-      <div className="side-collapse-row">
-        <button
-          type="button"
-          className="side-collapse-btn"
-          title={collapsed ? 'Expand context panel' : 'Collapse context panel'}
-          aria-label={collapsed ? 'Expand context panel' : 'Collapse context panel'}
-          onClick={onToggleCollapsed}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <polyline points={collapsed ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
-          </svg>
-        </button>
-      </div>
-
-      {collapsed ? (
-        <div className="side-collapsed-stub">
-          <span className="vlabel">CONTEXT</span>
-        </div>
-      ) : tool === 'viewer' ? (
+      {tool === 'viewer' ? (
         <ViewerSide {...props} />
       ) : tool === 'primer' ? (
         <PrimerSide data={props.data} />

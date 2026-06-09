@@ -152,31 +152,6 @@
 .track-toggle input { margin: 0; accent-color: var(--teal); width: 11px; height: 11px; }
 .track-toggle:has(input:checked) { color: var(--ink); }
 
-.zoom-pill {
-  display: inline-flex;
-  background: var(--bg);
-  border: 0.5px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 3px;
-  gap: 2px;
-}
-.zoom-pill button {
-  background: transparent;
-  border: none;
-  padding: 5px 12px;
-  font-size: 11.5px;
-  font-weight: 600;
-  font-family: var(--mono);
-  color: var(--ink-3);
-  border-radius: 6px;
-  cursor: pointer;
-}
-.zoom-pill button.active {
-  background: var(--bg-soft);
-  color: var(--ink);
-  box-shadow: 0 0 0 0.5px var(--line);
-}
-
 /* ─────────────────── SEQUENCE VIEWER (v2) ─────────────────── */
 .viewer {
   position: relative;
@@ -1300,47 +1275,6 @@
   box-shadow: inset 3px 0 0 rgba(184, 43, 43, 0.45);
 }
 
-/* Side panel — collapse mechanism */
-.side-collapse-row {
-  display: flex; justify-content: flex-end;
-  position: sticky; top: 0; z-index: 5;
-  background: var(--bg);
-  margin: 0 0 12px;
-  padding: 2px 0 8px;
-  border-bottom: 0.5px solid var(--line);
-}
-.side-collapse-btn {
-  background: var(--bg);
-  border: 0.5px solid var(--line);
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--ink-4);
-  cursor: pointer;
-  transition: all .15s;
-}
-.side-collapse-btn:hover { color: var(--ink); border-color: var(--ink-3); background: var(--bg-soft); }
-.side-collapse-btn svg { width: 11px; height: 11px; }
-
-.side-collapsed-stub {
-  display: flex; align-items: center; justify-content: center;
-  flex: 1; min-height: 200px;
-  margin-top: 8px;
-}
-.side-collapsed-stub .vlabel {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  color: var(--ink-4);
-  font-weight: 600;
-}
-
-/* When collapsed, shrink the side column */
-.wb.side-collapsed { grid-template-columns: 1fr 40px; }
-.wb.side-collapsed .side { padding: 16px 6px; }
-.wb.side-collapsed .side-collapse-row { justify-content: center; margin: 0 0 10px; }
 
 /* Side mini-header (small section sub-labels) */
 .side-mini-h {
@@ -1411,11 +1345,6 @@
   border-left: none;
   padding: 0;
   background: transparent;
-}
-/* Hide the collapse toggle row when the panel is embedded in the rail —
-   WorkRail provides its own collapse mechanism. */
-.work-rail-body .side-collapse-row {
-  display: none;
 }
 .side-section { margin-bottom: 4px; }
 .side-section:last-child { margin-bottom: 0; }
@@ -2904,144 +2833,6 @@
 .compare-grid > div .v.ok { color: var(--teal-deep); }
 .compare-grid > div .v.err { color: var(--err); }
 
-/* ─────────────── AI PILL (floating, tool-aware) ─────────────── */
-.ai-pill {
-  position: fixed;
-  bottom: 22px; right: 22px;
-  z-index: var(--z-pill);
-  display: flex; align-items: center;
-  gap: 8px;
-  background: var(--ink-2);
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 100px;
-  box-shadow: 0 8px 24px -8px rgba(11,26,43,0.30), 0 0 0 0.5px rgba(11,26,43,0.05);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: transform .15s ease, background .15s ease;
-}
-.ai-pill:hover { background: var(--teal-deep); transform: translateY(-1px); }
-.ai-pill svg { width: 16px; height: 16px; }
-.ai-pill-ctx {
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.7);
-  font-family: var(--mono);
-  margin-left: 4px;
-  padding-left: 10px;
-  border-left: 0.5px solid rgba(255,255,255,0.2);
-}
-
-.ai-panel {
-  position: fixed;
-  bottom: 76px; right: 22px;
-  z-index: calc(var(--z-pill) - 1);
-  width: 420px;
-  max-width: calc(100vw - 44px);
-  max-height: 70vh;
-  background: var(--bg);
-  border: 0.5px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: 0 20px 60px -20px rgba(11,26,43,0.25), 0 0 0 0.5px var(--line);
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-}
-.ai-panel.open { display: flex; }
-.ai-panel-head {
-  padding: 14px 16px;
-  background: linear-gradient(180deg, var(--teal-tint), transparent);
-  border-bottom: 0.5px solid var(--line);
-  display: flex; align-items: center; gap: 10px;
-}
-.ai-panel-head .ic {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  background: var(--bg);
-  border: 0.5px solid var(--teal-bdr);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--teal);
-}
-.ai-panel-head .ic svg { width: 13px; height: 13px; }
-.ai-panel-head .title {
-  font-family: var(--display);
-  font-weight: 600;
-  font-size: 14px;
-}
-.ai-panel-head .ctx {
-  font-size: 11px;
-  color: var(--ink-3);
-  font-family: var(--mono);
-  margin-left: auto;
-}
-.ai-panel-head .close {
-  background: none; border: none;
-  color: var(--ink-4); padding: 4px;
-  cursor: pointer;
-  display: flex; align-items: center;
-}
-.ai-panel-head .close:hover { color: var(--ink-2); }
-
-.ai-panel-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
-.ai-suggested {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin-bottom: 12px;
-}
-.ai-chip {
-  background: var(--bg);
-  border: 0.5px solid var(--line);
-  border-radius: 100px;
-  padding: 5px 11px;
-  font-size: 11.5px;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: all .15s;
-}
-.ai-chip:hover { border-color: var(--teal); background: var(--teal-tint); color: var(--teal-deep); }
-.ai-msg {
-  display: flex; flex-direction: column; gap: 6px;
-  margin-bottom: 12px;
-}
-.ai-msg .from { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
-.ai-msg.user .from { color: var(--ink-4); }
-.ai-msg.bot  .from { color: var(--teal-deep); }
-.ai-msg.user .body { background: var(--bg-soft); padding: 8px 12px; border: 0.5px solid var(--line); border-radius: var(--r-sm); font-size: 13px; color: var(--ink); }
-.ai-msg.bot  .body { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
-.ai-msg.bot  .body p { margin: 0 0 6px; }
-
-.ai-composer {
-  border-top: 0.5px solid var(--line);
-  padding: 10px 12px;
-  display: flex; gap: 6px; align-items: flex-end;
-  background: var(--bg);
-}
-.ai-composer textarea {
-  flex: 1;
-  border: 0.5px solid var(--line);
-  background: var(--bg-soft);
-  border-radius: var(--r-sm);
-  padding: 7px 10px;
-  font-family: var(--body);
-  font-size: 12.5px;
-  resize: none;
-  outline: none;
-  min-height: 32px;
-  max-height: 80px;
-}
-.ai-composer textarea:focus { border-color: var(--teal); background: var(--bg); }
-.ai-composer button {
-  width: 32px; height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: var(--teal);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.ai-composer button:hover { background: var(--teal-deep); }
-.ai-composer button svg { width: 13px; height: 13px; }
 
 
 /* ─────────────────── RESPONSIVE ─────────────────── */

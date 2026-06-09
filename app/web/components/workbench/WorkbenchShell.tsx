@@ -184,11 +184,9 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         scratch={scratch}
         selection={selSummary}
         selectedClinvar={selectedClinvar}
-        collapsed={false}
         exonTableOpen={exonTableOpen}
         activeExon={activeExon}
         onClearClinvar={() => setSelectedClinvar(null)}
-        onToggleCollapsed={() => { /* collapse is handled by WorkRail */ }}
         onToggleExonTable={() => setExonTableOpen((o) => !o)}
         onResetAll={() => viewerRef.current?.resetEdits()}
         onJumpToExon={(n) => viewerRef.current?.jumpToExon(n)}
