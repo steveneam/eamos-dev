@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
+import { RailFoot } from '@/components/layout/RailFoot'
 import { VariantLibraryRail } from '@/components/report/VariantLibraryRail'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { VariantHeader } from '@/components/report/VariantHeader'
@@ -480,6 +481,7 @@ export function ReportClient() {
         <WorkRail
           surface="report"
           title="Library"
+          foot={<RailFoot />}
           output={
             <CenteredMain bleed>
               <ReportBody

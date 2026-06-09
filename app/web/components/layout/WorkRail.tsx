@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { IconChevron } from '@/components/icons/Icon'
+import { readCollapsed, writeCollapsed } from '@/lib/work-rail-collapse'
 import './work-rail.css'
 
 /**
@@ -19,19 +20,6 @@ import './work-rail.css'
  */
 
 const BP_COMPACT = '(max-width: 1199px)'
-
-function storageKey(surface: string) {
-  return `eamos-rail-${surface}-collapsed`
-}
-
-function readCollapsed(surface: string): boolean | null {
-  try {
-    const v = localStorage.getItem(storageKey(surface))
-    return v === null ? null : v === '1'
-  } catch {
-    return null
-  }
-}
 
 /** Initial collapse pref — SSR returns expanded; client reads the persisted
  *  value, falling back to "collapsed on small screens". Lazy useState
@@ -105,10 +93,13 @@ export interface WorkRailProps {
   output: ReactNode
   /** Rail body — typically <WorkRailSection> children. */
   children: ReactNode
+  /** Optional pinned bottom region (account cluster, Ask launcher). Renders
+   *  only when provided, so surfaces that don't opt in are unaffected. */
+  foot?: ReactNode
   className?: string
 }
 
-export function WorkRail({ surface, title, action, output, children, className }: WorkRailProps) {
+export function WorkRail({ surface, title, action, output, children, foot, className }: WorkRailProps) {
   // Viewport <1200 → drawer mode (external store, SSR-safe). Collapse pref is
   // local + persisted. Drawer-open is only meaningful in drawer mode, so it's
   // derived (isOpen) rather than reset via an effect.
@@ -124,22 +115,14 @@ export function WorkRail({ surface, title, action, output, children, className }
     }
     setCollapsed((c) => {
       const next = !c
-      try {
-        localStorage.setItem(storageKey(surface), next ? '1' : '0')
-      } catch {
-        /* private mode — ignore */
-      }
+      writeCollapsed(surface, next)
       return next
     })
   }, [drawer, surface])
 
   const expandFromIcon = useCallback(() => {
     setCollapsed(false)
-    try {
-      localStorage.setItem(storageKey(surface), '0')
-    } catch {
-      /* ignore */
-    }
+    writeCollapsed(surface, false)
   }, [surface])
 
   const showIconRail = !drawer && collapsed
@@ -205,6 +188,10 @@ export function WorkRail({ surface, title, action, output, children, className }
             <span>{title}</span>
           </button>
         )}
+
+        {/* Pinned foot — account cluster + Ask launcher. Rides the rail's flex
+            column (never unmounts), so it inherits collapse + drawer for free. */}
+        {foot ? <div className="work-rail-foot">{foot}</div> : null}
       </aside>
 
       <div className="work-output">{output}</div>

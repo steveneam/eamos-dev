@@ -35,6 +35,9 @@
   align-self: flex-start;
   position: sticky;
   top: var(--rail-top);
+  /* Fill the sticky viewport height (min == max) so the body (flex:1) expands
+     and the pinned foot rides the bottom-left even when rail content is short. */
+  min-height: calc(100vh - var(--rail-top));
   max-height: calc(100vh - var(--rail-top));
   display: flex;
   flex-direction: column;
@@ -104,6 +107,138 @@
   overflow-x: hidden;
   padding: 10px 12px 16px;
   min-height: 0;
+}
+
+/* ── Pinned foot — account cluster + Ask launcher ──
+   Sits below the scrolling body (flex:0). The body's overflow-y already clips
+   above it, so the foot never scrolls away. */
+.work-rail-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-top: 0.5px solid var(--line);
+  background: var(--bg);
+}
+/* Collapsed icon-rail → centre the foot's glyph-only rows. */
+.work-shell.is-collapsed .work-rail-foot {
+  padding: 10px 0;
+  align-items: center;
+}
+
+/* Foot rows — one register: full-width, left-aligned, rail-grammar type. */
+.wr-foot-am {
+  width: 100%;
+}
+.wr-foot-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 0.5px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--body);
+  color: var(--ink-2);
+  transition: background var(--dur-1) var(--ease-standard),
+    border-color var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
+}
+.wr-foot-row:hover {
+  background: var(--bg-soft);
+  color: var(--ink);
+}
+.wr-foot-row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+}
+
+/* Ask launcher — parked. Quiet, non-interactive affordance kept in tab order. */
+.wr-foot-ask {
+  color: var(--ink-3);
+  cursor: default;
+}
+.wr-foot-ask:hover {
+  background: var(--bg-soft);
+  color: var(--ink-2);
+}
+.wr-foot-ask-ico {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--ink-3);
+}
+.wr-foot-ask-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.wr-foot-soon {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border: 0.5px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+/* Account row (signed in) + Sign-in row (signed out) — bordered controls. */
+.wr-foot-account,
+.wr-foot-signin {
+  border-color: var(--line);
+  background: var(--bg);
+}
+.wr-foot-account:hover,
+.wr-foot-signin:hover {
+  border-color: var(--ink-3);
+  background: var(--bg-soft);
+}
+.wr-foot-email {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wr-foot-chev {
+  flex: 0 0 auto;
+  color: var(--ink-4);
+}
+.wr-foot-signin {
+  color: var(--ink);
+}
+.wr-foot-signin-ico {
+  flex: 0 0 auto;
+  color: var(--teal);
+}
+.wr-foot-signin-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Collapsed icon-rail → glyph-only foot rows (avatar / sparkle / door stay). */
+.work-shell.is-collapsed .wr-foot-ask-label,
+.work-shell.is-collapsed .wr-foot-soon,
+.work-shell.is-collapsed .wr-foot-email,
+.work-shell.is-collapsed .wr-foot-signin-label,
+.work-shell.is-collapsed .wr-foot-chev {
+  display: none;
+}
+.work-shell.is-collapsed .wr-foot-row {
+  justify-content: center;
+  padding: 7px 0;
+  gap: 0;
 }
 
 /* ── Output (right, dominant) ── */
@@ -325,7 +460,8 @@
   .work-rail,
   .work-shell.mode-drawer .work-rail,
   .work-rail-scrim,
-  .wr-section-chev {
+  .wr-section-chev,
+  .wr-foot-chev {
     transition: none;
   }
 }

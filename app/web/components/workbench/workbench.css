@@ -112,8 +112,13 @@
   /* --rail-top is set inline by WorkbenchShell */
   min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
 }
-/* The WorkRail shell takes full width inside the wrapper. */
-.wb-work-shell {
+/* The WorkRail shell takes full width inside the wrapper. The workbench has a
+   taller sticky header (nav + context strip) than the base 60px nav, so the
+   shell must clear --rail-top to both — otherwise the rail's min/max-height
+   overshoots and the pinned foot falls below the fold. (.work-shell's own
+   --rail-top:60 default would otherwise shadow the wrapper's inline value.) */
+.work-shell.wb-work-shell {
+  --rail-top: calc(var(--nav-h) + var(--ctx-h));
   min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
 }
 

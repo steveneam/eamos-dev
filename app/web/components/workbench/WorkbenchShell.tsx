@@ -28,6 +28,7 @@ import {
   type TrackState,
 } from './viewer/viewer-types'
 import { WorkRail } from '@/components/layout/WorkRail'
+import { RailFoot } from '@/components/layout/RailFoot'
 import { LibrarySection } from '@/components/library/LibrarySection'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import type { SavedVariant } from '@/lib/variant-library'
@@ -307,6 +308,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         surface="workbench"
         title="Workbench"
         output={canvasOutput}
+        foot={<RailFoot />}
         className="wb-work-shell"
       >
         {railContent}

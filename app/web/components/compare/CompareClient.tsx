@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
+import { RailFoot } from '@/components/layout/RailFoot'
 import { readCompareVariants, type CompareStash } from '@/lib/variant-file'
 import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
 import { getPanel } from '@/lib/panels'
@@ -160,6 +161,7 @@ export function CompareClient() {
           <WorkRail
             surface="compare"
             title="Scope"
+            foot={<RailFoot />}
             output={
               <div style={{ padding: '0 22px 0 24px' }}>
                 {/* The idle GeneratePrompt card already carries the CTA — only show
