@@ -378,32 +378,12 @@ const Block = memo(function Block(props: BlockProps) {
       ]
         .filter(Boolean)
         .join(' ')
-      const showNum =
-        c.codonNum % 5 === 0 || c.codonNum === data.queriedVariant.codonNumber
       return (
         <div key={`c${c.codonNum}`} className={cls} style={{ left, width }}>
           <div className={`sv-aa ${aaClass[dEditAA] || 'hydro'}`}>
             {editTriplet.includes('-') ? '•' : dEditAA}
             {changed && allHere && <span className="sv-aa-old">{dRefAA}</span>}
           </div>
-          {showNum && allHere && <div className="sv-aa-num">{c.codonNum}</div>}
-        </div>
-      )
-    })
-  }
-
-  // ── Ruler ──
-  function ruler() {
-    return indices.map((i) => {
-      const b = flat[i]
-      if (b.kind !== 'exon' || b.cdsPos % 10 !== 0) return null
-      return (
-        <div
-          key={`r${i}`}
-          className="sv-ruler-tick"
-          style={{ left: localX(i) + baseW / 2 }}
-        >
-          c.{b.cdsPos}
         </div>
       )
     })
@@ -674,7 +654,6 @@ const Block = memo(function Block(props: BlockProps) {
         )}
       {trackOn.clinvar && row('clinvar', 12, clinvar())}
       {row('translation', 28, translation())}
-      {row('ruler', 14, ruler())}
       <div className="sv-block-row sequence" style={{ height: 24, width: w }}>
         {bases('top')}
         {rightPos('top')}

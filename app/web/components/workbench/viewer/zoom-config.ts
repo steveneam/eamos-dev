@@ -7,6 +7,6 @@ export const BASE_W_MAX = 22
  * continuous density. */
 export const ZOOM_PRESETS: Record<ZoomLevel, number> = {
   gene: 9,
-  exon: 14,
+  exon: 16,
   codon: 20,
 }

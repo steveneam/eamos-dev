@@ -665,7 +665,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         <div className="sv-sequence-wrap">
           <SectionHeader
             title="Sequence"
-            sub="codons · bases · ruler"
+            sub="codons · bases"
             open={sequenceOpen}
             onToggle={() => setSequenceOpen((o) => !o)}
             icon={<IconList size={14} />}
