@@ -11,6 +11,7 @@ import type {
   CrisprScreeningPrimerTarget,
 } from '@/lib/backend'
 import { enumerateOffTargets, designScreeningPrimers } from '@/lib/api'
+import { ScoreBullet } from '../ScoreBullet'
 
 interface OffTargetTabProps {
   gene: string
@@ -29,9 +30,6 @@ function clampInt(raw: string, min: number, max: number, fallback: number): numb
 }
 
 /** CFD-like off-target score: higher = more likely to cut = more concerning. */
-function offScoreClass(score: number): string {
-  return score >= 0.2 ? 'score-bad' : score >= 0.05 ? 'score-mid' : 'score-good'
-}
 
 function locusLabel(site: CrisprOffTargetSite): string {
   return `${site.chromosome}:${site.position.toLocaleString()}`
@@ -568,7 +566,7 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
                   <th aria-label="Select" title="Tick to include this site in screening-primer design." />
                   <th title="Rank within the filtered off-target list.">#</th>
                   <th title="CFD-style off-target score (0–1): predicted likelihood the guide cuts here. Higher = more concerning.">
-                    Score
+                    Score (CFD 0–1)
                   </th>
                   <th title="Number of mismatches between this site and your guide spacer (fewer = closer match).">
                     MM
@@ -619,8 +617,16 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
                         />
                       </td>
                       <td className="num">{i + 1}</td>
-                      <td className={`num ${offScoreClass(s.score)}`}>
-                        {s.score.toFixed(3)}
+                      <td className="num">
+                        <ScoreBullet
+                          value={s.score}
+                          min={0}
+                          max={1}
+                          thresholds={[0.05, 0.2]}
+                          sense="lower-better"
+                          display={s.score.toFixed(3)}
+                          title={`CFD ${s.score.toFixed(3)} (0–1, lower safer)`}
+                        />
                       </td>
                       <td className="num">{s.mismatches}</td>
                       <td className="seq">

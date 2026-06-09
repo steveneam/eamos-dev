@@ -2080,6 +2080,53 @@
 .score-good { color: var(--teal-deep); font-weight: 600; }
 .score-mid  { color: var(--warn); font-weight: 600; }
 .score-bad  { color: var(--err); font-weight: 600; }
+
+/* Score bullet — value + tiny zoned bar (Pass D). Magnitude legible without hue:
+   bar length + marker position. Score palette only (not --cls-* verdicts). */
+.score-bullet {
+  display: inline-grid;
+  grid-template-columns: auto minmax(48px, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 92px;
+}
+.sb-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sb-track {
+  position: relative;
+  height: 6px;
+}
+.sb-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-soft);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+}
+.sb-zone {
+  display: block;
+  height: 100%;
+}
+.sb-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink);
+  box-shadow: 0 0 0 1.5px var(--bg);
+}
+.score-bullet.is-muted .sb-num { color: var(--ink-4); }
+.score-bullet.is-muted .sb-marker { background: var(--ink-4); }
+.score-bullet.is-muted .sb-zones {
+  box-shadow: none;
+  border: 0.5px dashed var(--line);
+}
 .tool-table td .row-cb { accent-color: var(--teal); }
 
 /* ─────────────── PRIMER / CRISPR — segmented mode tabs ─────────────── */

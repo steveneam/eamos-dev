@@ -13,6 +13,7 @@ import { recommendedGuideIndex } from '@/lib/workbench/crispr-guide-ranking'
 import { mapGuide } from '@/lib/workbench/crispr-guide-map'
 import { GuideTrack } from './GuideTrack'
 import { SsodnLabDonor } from './SsodnLabDonor'
+import { ScoreBullet } from '../ScoreBullet'
 
 interface DesignTabProps {
   gene: string
@@ -64,14 +65,6 @@ function clampNumber(
   const parsed = Number(raw)
   if (!Number.isFinite(parsed)) return fallback
   return Math.min(max, Math.max(min, parsed))
-}
-
-/** Lower off-target is better in the current fixture contract. */
-function offClass(v: number): string {
-  return v < 20 ? 'score-good' : v <= 30 ? 'score-mid' : 'score-bad'
-}
-function onClass(v: number): string {
-  return v >= 75 ? 'score-good' : v >= 60 ? 'score-mid' : 'score-bad'
 }
 
 /** SpCas9 recognises NGG; the other enzymes stay schema-only in real mode. */
@@ -460,10 +453,10 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                     Guide 5′ to 3′ + PAM
                   </th>
                   <th title="On-target score — predicted cutting efficiency at the intended site (higher is better).">
-                    On-target
+                    On-target (0–100)
                   </th>
                   <th title="Off-target score — predicted risk of cutting elsewhere; lower is safer in this local surface.">
-                    Off-target
+                    Off-target (lower safer)
                   </th>
                   <th title="GC content of the 20-nt spacer (≈40–70% is the usual sweet spot).">GC%</th>
                   <th title="Where the guide sits on the design template (template-relative, not a genomic coordinate).">
@@ -498,13 +491,41 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                       <td className="seq">
                         <GuideSeq guide={g.guide} pam={g.pam} />
                       </td>
-                      <td className={`num ${onClass(g.on_target_score)}`}>
-                        {g.on_target_score.toFixed(1)}
+                      <td className="num">
+                        <ScoreBullet
+                          value={g.on_target_score}
+                          min={0}
+                          max={100}
+                          thresholds={[60, 75]}
+                          sense="higher-better"
+                          display={g.on_target_score.toFixed(1)}
+                          muted={!providerDisclosure.sourceBacked}
+                          title={`On-target ${g.on_target_score.toFixed(1)} / 100 (higher better)`}
+                        />
                       </td>
-                      <td className={`num ${offClass(g.off_target_score)}`}>
-                        {g.off_target_score.toFixed(1)}
+                      <td className="num">
+                        <ScoreBullet
+                          value={g.off_target_score}
+                          min={0}
+                          max={50}
+                          thresholds={[20, 30]}
+                          sense="lower-better"
+                          display={g.off_target_score.toFixed(1)}
+                          muted={!providerDisclosure.sourceBacked}
+                          title={`Off-target ${g.off_target_score.toFixed(1)} (lower safer)`}
+                        />
                       </td>
-                      <td className="num">{g.gc_percent}</td>
+                      <td className="num">
+                        <ScoreBullet
+                          value={g.gc_percent}
+                          min={0}
+                          max={100}
+                          thresholds={[40, 70]}
+                          sense="band"
+                          display={String(g.gc_percent)}
+                          title={`GC ${g.gc_percent}% (40–70% sweet spot)`}
+                        />
+                      </td>
                       <td>
                         {gene} <span className="cra-meta">tmpl</span>
                       </td>
