@@ -50,7 +50,11 @@ function renderToolPanel(
   gene: string,
   cdna: string,
   data: GeneWindowData,
-  primerSel: { selected: PrimerPair | null; onSelect: (p: PrimerPair | null) => void },
+  controls: {
+    primerSelected: PrimerPair | null
+    onPrimerSelect: (p: PrimerPair | null) => void
+    onCrisprSubTab: (tab: string) => void
+  },
 ) {
   switch (tool) {
     case 'primer':
@@ -58,12 +62,12 @@ function renderToolPanel(
         <PrimerPanel
           gene={gene}
           cdna={cdna}
-          selected={primerSel.selected}
-          onSelect={primerSel.onSelect}
+          selected={controls.primerSelected}
+          onSelect={controls.onPrimerSelect}
         />
       )
     case 'crispr':
-      return <CrisprPanel gene={gene} cdna={cdna} />
+      return <CrisprPanel gene={gene} cdna={cdna} onSubTabChange={controls.onCrisprSubTab} />
     case 'align':
       return <AlignPanel data={data} cdna={cdna} />
     default:
@@ -189,6 +193,15 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   // Primer pair toggled "show on gene view" → a rough amplicon overlay in the
   // viewer (only meaningful on the Primer tool; gated at the prop below).
   const [selectedPrimer, setSelectedPrimer] = useState<PrimerPair | null>(null)
+
+  // Selecting CRISPR → Off-targets (the widest content) collapses the viewer so
+  // the table gets the room. One-way nudge — the user can re-expand via the stub.
+  const handleCrisprSubTab = useCallback(
+    (subTab: string) => {
+      if (subTab === 'offtargets') setViewerPane('collapsed')
+    },
+    [setViewerPane],
+  )
 
   const toggleTrack = useCallback(
     (key: keyof TrackState) => setTrackOn((t) => ({ ...t, [key]: !t[key] })),
@@ -328,8 +341,9 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
     <div className="tool-panel active" data-panel={tool}>
       {data ? (
         renderToolPanel(tool, gene, cdna, data, {
-          selected: selectedPrimer,
-          onSelect: setSelectedPrimer,
+          primerSelected: selectedPrimer,
+          onPrimerSelect: setSelectedPrimer,
+          onCrisprSubTab: handleCrisprSubTab,
         })
       ) : (
         <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>

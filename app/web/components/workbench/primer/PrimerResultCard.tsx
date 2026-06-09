@@ -104,9 +104,9 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
   const hp = (tm: number) => (tm ? `${tm} °C` : 'none')
   const copyText = [
     `Primer pair #${pair.index}${pair.recommended ? ' (recommended)' : ''} — ${badge.label}`,
-    `F\t${pair.forward}\tTm ${pair.tm_forward.toFixed(1)} °C\tGC ${pair.gc_forward}%`,
-    `R\t${pair.reverse}\tTm ${pair.tm_reverse.toFixed(1)} °C\tGC ${pair.gc_reverse}%`,
-    `Product ${pair.product_size} bp · ΔTm ${deltaTm.toFixed(1)} °C`,
+    `F\t${pair.forward}\t${pair.forward.length} nt\tPlus\tTm ${pair.tm_forward.toFixed(1)} °C\tGC ${pair.gc_forward}%`,
+    `R\t${pair.reverse}\t${pair.reverse.length} nt\tMinus\tTm ${pair.tm_reverse.toFixed(1)} °C\tGC ${pair.gc_reverse}%`,
+    `Product ${pair.product_size} bp · ΔTm ${deltaTm.toFixed(1)} °C · gene start–stop pending backend`,
     `Secondary structure (illustrative): self-compl F${fwdStruct.selfAny}/R${revStruct.selfAny} · self-3′ F${fwdStruct.selfEnd}/R${revStruct.selfEnd} · hairpin F${hp(fwdStruct.hairpinTm)}/R${hp(revStruct.hairpinTm)} · pair-3′ ${pairEnd}`,
     `Specificity: ${pair.specificity_hits} hit${pair.specificity_hits === 1 ? '' : 's'}${notes.provider ? ` · ${notes.provider}` : ''}${notes.productSizes ? ` · products ${notes.productSizes}` : ''}`,
     notes.raw ? `Notes: ${notes.raw}` : '',
@@ -160,7 +160,8 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
             {pair.forward}
           </span>
           <span className="primer-strand-m">
-            Tm <b>{pair.tm_forward.toFixed(1)}</b> · GC <b>{pair.gc_forward}%</b>
+            <b>{pair.forward.length}</b> nt · Tm <b>{pair.tm_forward.toFixed(1)}</b> · GC{' '}
+            <b>{pair.gc_forward}%</b>
           </span>
         </div>
         <div className="primer-strand">
@@ -174,7 +175,8 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
             {pair.reverse}
           </span>
           <span className="primer-strand-m">
-            Tm <b>{pair.tm_reverse.toFixed(1)}</b> · GC <b>{pair.gc_reverse}%</b>
+            <b>{pair.reverse.length}</b> nt · Tm <b>{pair.tm_reverse.toFixed(1)}</b> · GC{' '}
+            <b>{pair.gc_reverse}%</b>
           </span>
         </div>
         <div className="primer-l2-foot">
@@ -259,6 +261,34 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
                 <div>
                   <dt>Product size</dt>
                   <dd>{pair.product_size} bp</dd>
+                </div>
+              </dl>
+            </section>
+            <section>
+              <h4 className="primer-l3-h">
+                <PrimerTip
+                  label="Position"
+                  tip="Where each primer sits on the gene — length, template strand, and start/stop coordinates, like Primer-BLAST. Start/stop are pending the backend (PrimerPair carries no coordinates yet)."
+                />
+              </h4>
+              <dl className="primer-kv">
+                <div>
+                  <dt>Length</dt>
+                  <dd>
+                    F {pair.forward.length} / R {pair.reverse.length} nt
+                  </dd>
+                </div>
+                <div>
+                  <dt>Template strand</dt>
+                  <dd>F Plus / R Minus</dd>
+                </div>
+                <div>
+                  <dt>Template start–stop</dt>
+                  <dd className="eamos-mock">pending backend</dd>
+                </div>
+                <div>
+                  <dt>Genomic (GRCh38)</dt>
+                  <dd className="eamos-mock">pending backend</dd>
                 </div>
               </dl>
             </section>

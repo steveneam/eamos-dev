@@ -5,12 +5,17 @@ import { DesignTab } from './DesignTab'
 import { OffTargetTab } from './OffTargetTab'
 import { OutcomesTab } from './OutcomesTab'
 
+export type CrisprSubTab = 'design' | 'offtargets' | 'outcomes'
+
 interface CrisprPanelProps {
   gene: string
   cdna: string
+  /** Fires when the sub-tab changes — lets the shell auto-collapse the viewer
+   *  for the widest content (Off-targets). One-way nudge, not a lock. */
+  onSubTabChange?: (tab: CrisprSubTab) => void
 }
 
-type SubTab = 'design' | 'offtargets' | 'outcomes'
+type SubTab = CrisprSubTab
 
 const TAB_TITLE: Record<SubTab, string> = {
   design: 'Guide design & repair',
@@ -28,8 +33,12 @@ const TAB_SUB: Record<SubTab, string> = {
  * CRISPR tool panel. Design is the local SpCas9 gRNA/HDR surface; Outcomes
  * stays observed-only until backend metadata proves real TIDE/Lindel data.
  */
-export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
+export function CrisprPanel({ gene, cdna, onSubTabChange }: CrisprPanelProps) {
   const [tab, setTab] = useState<SubTab>('design')
+  const selectTab = (next: SubTab) => {
+    setTab(next)
+    onSubTabChange?.(next)
+  }
 
   return (
     <div className="crispr-panel">
@@ -44,7 +53,7 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             role="tab"
             aria-selected={tab === 'design'}
             className={tab === 'design' ? 'active' : ''}
-            onClick={() => setTab('design')}
+            onClick={() => selectTab('design')}
             title="Design candidate guide RNAs for this target (step 1)"
           >
             Design
@@ -54,7 +63,7 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             role="tab"
             aria-selected={tab === 'offtargets'}
             className={tab === 'offtargets' ? 'active' : ''}
-            onClick={() => setTab('offtargets')}
+            onClick={() => selectTab('offtargets')}
             title="Screen a guide for genome-wide off-target sites (step 2)"
           >
             Off-targets
@@ -64,7 +73,7 @@ export function CrisprPanel({ gene, cdna }: CrisprPanelProps) {
             role="tab"
             aria-selected={tab === 'outcomes'}
             className={tab === 'outcomes' ? 'active' : ''}
-            onClick={() => setTab('outcomes')}
+            onClick={() => selectTab('outcomes')}
             title="Confirm edit outcomes from sequencing traces (step 3)"
           >
             Outcomes

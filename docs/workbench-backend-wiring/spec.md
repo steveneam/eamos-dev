@@ -56,13 +56,28 @@ cannot reliably place them on the viewer: the sequence window is a
 primers usually fall **outside** the displayed window — a naive `indexOf` search
 would locate nothing (or the wrong copy). So the robust overlay is **backend-gated**.
 
-**Codex CAR.** Add primer-placement fields to `PrimerPair`, in the **same
-coordinate basis the viewer uses** (`GeneWindowData` — i.e. transcript/CDS
-position and/or genomic), both mirrors identical:
-- `forward_start` / `forward_end`, `reverse_start` / `reverse_end`
-- `forward_strand` / `reverse_strand` (`'+' | '-'`)
-- `amplicon_start` / `amplicon_end`
-- coordinate basis tag (transcript vs genomic) so the FE maps without guessing.
+**Codex CAR.** Add primer-placement + specificity fields to `PrimerPair` (both
+mirrors identical), matching the **NCBI Primer-BLAST** output the lab workflow
+uses (Steven 2026-06-10 confirmed the real format: per-primer Sequence · Template
+strand · Length · Start · Stop · Tm · GC% · self-compl · self-3′, then "Products
+on intended / unintended targets" with genomic coordinates):
+- **Length** is now shown FE-side (`forward.length` / `reverse.length`) — no
+  backend needed; remove from this list once you confirm it's the oligo length.
+- **Template strand** `forward_strand` / `reverse_strand` (`Plus | Minus`; the FE
+  defaults F=Plus / R=Minus — backend should confirm).
+- **Template Start/Stop** — the primer's 1-based position on the resolved design
+  template (Primer-BLAST "Start"/"Stop"; the reverse primer's Start > Stop).
+- **Genomic Start/Stop** — GRCh38 chromosome coordinates (the Primer-BLAST
+  "Template <start> … <stop>" line under "Products on intended targets").
+- `amplicon_start` / `amplicon_end` (template + genomic) for the gene-view overlay
+  (item #2 above — this is what unblocks the directional outline).
+- **Products on intended / unintended targets** (richer specificity, later): the
+  on-target amplicon (RPE65) + off-target amplicons on other chromosomes with
+  mismatch positions — mirrors the CRISPR off-target screen. Today
+  `specificity_hits` is only a count; a products list powers a full Primer-BLAST-
+  style specificity panel.
+- Workflow note: the lab runs Primer-BLAST against the **genome** DB (not RefSeq
+  mRNA) over the gDNA region, ~500–1000 bp products, to flank the CRISPR/edit site.
 
 **FE swap-in.** WorkbenchShell lifts a `selectedPrimerPair` state, threads a
 select callback to `PrimerResultCard` (the checkbox) and the selection to
