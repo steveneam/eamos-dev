@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from 'react'
 import type { PrimerPair } from '@/lib/backend'
 import { classifyPair, parseNotes } from '@/lib/workbench/primer-metrics'
+import { CopyButton } from '@/components/ui/CopyButton'
 
 /* ───────────────────────────────────────────────────────────────────────
    PrimerResultCard — the canonical reference implementation of the
@@ -84,7 +85,6 @@ interface PrimerResultCardProps {
 
 export function PrimerResultCard({ pair }: PrimerResultCardProps) {
   const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState<'idle' | 'ok' | 'fail'>('idle')
   const fwdRef = useRef<HTMLSpanElement>(null)
   const revRef = useRef<HTMLSpanElement>(null)
   const drawerId = useId()
@@ -95,16 +95,20 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
   const revStruct = mockStruct(pair.reverse)
   const pairEnd = (hashSeq(pair.forward + pair.reverse) >>> 2) % 5 // pair 3′ dimer, 0–4
 
-  const copyPair = async () => {
-    const text = `F: ${pair.forward}\nR: ${pair.reverse}`
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied('ok')
-    } catch {
-      setCopied('fail')
-    }
-    window.setTimeout(() => setCopied('idle'), 1600)
-  }
+  // Clipboard payload — sequences + the full detail set (thermodynamics,
+  // secondary structure, specificity), tab-laid so it pastes cleanly.
+  const hp = (tm: number) => (tm ? `${tm} °C` : 'none')
+  const copyText = [
+    `Primer pair #${pair.index}${pair.recommended ? ' (recommended)' : ''} — ${badge.label}`,
+    `F\t${pair.forward}\tTm ${pair.tm_forward.toFixed(1)} °C\tGC ${pair.gc_forward}%`,
+    `R\t${pair.reverse}\tTm ${pair.tm_reverse.toFixed(1)} °C\tGC ${pair.gc_reverse}%`,
+    `Product ${pair.product_size} bp · ΔTm ${deltaTm.toFixed(1)} °C`,
+    `Secondary structure (illustrative): self-compl F${fwdStruct.selfAny}/R${revStruct.selfAny} · self-3′ F${fwdStruct.selfEnd}/R${revStruct.selfEnd} · hairpin F${hp(fwdStruct.hairpinTm)}/R${hp(revStruct.hairpinTm)} · pair-3′ ${pairEnd}`,
+    `Specificity: ${pair.specificity_hits} hit${pair.specificity_hits === 1 ? '' : 's'}${notes.provider ? ` · ${notes.provider}` : ''}${notes.productSizes ? ` · products ${notes.productSizes}` : ''}`,
+    notes.raw ? `Notes: ${notes.raw}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   return (
     <article
@@ -132,19 +136,11 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
           Primer pair #{pair.index}
           {pair.recommended && <span className="sr-only"> (recommended)</span>}
         </span>
-        <button
-          type="button"
-          className="primer-copy"
-          onClick={copyPair}
-          aria-live="polite"
-          title="Copy the forward and reverse primer sequences to the clipboard."
-        >
-          {copied === 'ok'
-            ? 'Copied'
-            : copied === 'fail'
-              ? 'Copy failed'
-              : 'Copy pair'}
-        </button>
+        <CopyButton
+          text={copyText}
+          label="Copy sequences + details"
+          size="compact"
+        />
       </header>
 
       {/* ── Layer 2 — primary detail ───────────────────────────────── */}
@@ -215,7 +211,7 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
         >
           <polyline points="9 18 15 12 9 6" />
         </svg>
-        <span>Audit detail</span>
+        <span>Details</span>
         <span className="primer-l3-hint">thermodynamics · specificity</span>
       </button>
       <div className={`primer-l3-wrap${open ? ' open' : ''}`}>
