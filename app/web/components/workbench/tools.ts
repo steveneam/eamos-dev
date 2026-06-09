@@ -46,7 +46,15 @@ export const TOOL_META: Record<WorkbenchTool, ToolMeta> = {
   },
 }
 
-/** Viewer collapses (canvas replaced) for alignment. */
-export function viewerCollapsed(tool: WorkbenchTool): boolean {
-  return tool === 'align'
+/** Three-state pane for the workbench 3-column canvas: the sequence viewer can
+ *  be `expanded` (shares the canvas with the tool rail), `collapsed` (a narrow
+ *  stub the user can re-expand), or `hidden` (removed so the tool takes the full
+ *  width — e.g. the CRISPR off-target table). */
+export type ViewerPane = 'expanded' | 'collapsed' | 'hidden'
+
+/** Default pane per tool — Align opens `collapsed` (the alignment result is the
+ *  focus, the reference sequence is secondary); Primer/CRISPR open `expanded`
+ *  (the sequence informs the design). */
+export function defaultViewerPane(tool: WorkbenchTool): ViewerPane {
+  return tool === 'align' ? 'collapsed' : 'expanded'
 }

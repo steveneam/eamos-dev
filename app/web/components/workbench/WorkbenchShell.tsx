@@ -9,7 +9,8 @@ import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { ClinvarVariant, GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader, type ViewerMode } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
-import { viewerCollapsed } from './tools'
+import { defaultViewerPane, type ViewerPane } from './tools'
+import { readPane, writePane } from '@/lib/work-rail-collapse'
 import { PrimerPanel } from './primer/PrimerPanel'
 import { CrisprPanel } from './crispr/CrisprPanel'
 import { AlignPanel } from './align/AlignPanel'
@@ -150,8 +151,32 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   }, [alleleMode, cdna, gene, transcript, viewerMode])
 
   const viewerRef = useRef<SequenceViewerHandle>(null)
-  const collapsed = viewerCollapsed(tool)
   const router = useRouter()
+
+  // Per-tool viewer pane for the 3-column canvas (STEP 6). SSR returns the
+  // per-tool default; the client reads the persisted value (lazy init, no
+  // setState-in-effect — mirrors WorkRail.initialCollapsed).
+  const [paneByTool, setPaneByTool] = useState<Record<string, ViewerPane>>(() => {
+    const init: Record<string, ViewerPane> = {}
+    for (const t of PANEL_TOOLS) {
+      let pane = defaultViewerPane(t)
+      if (typeof window !== 'undefined') {
+        const stored = readPane(t)
+        if (stored === 'expanded' || stored === 'collapsed' || stored === 'hidden') pane = stored
+      }
+      init[t] = pane
+    }
+    return init
+  })
+  const viewerPane: ViewerPane =
+    tool === 'viewer' ? 'expanded' : paneByTool[tool] ?? defaultViewerPane(tool)
+  const setViewerPane = useCallback(
+    (next: ViewerPane) => {
+      setPaneByTool((m) => ({ ...m, [tool]: next }))
+      writePane(tool, next)
+    },
+    [tool],
+  )
 
   const toggleTrack = useCallback(
     (key: keyof TrackState) => setTrackOn((t) => ({ ...t, [key]: !t[key] })),
@@ -215,50 +240,35 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
     </>
   )
 
-  // Canvas output — the dominant right pane.
-  const canvasOutput = (
-    <main className="canvas">
-      <CanvasHeader
-        tool={tool}
-        trackOn={trackOn}
-        onToggleTrack={toggleTrack}
-        strandMode={strandMode}
-        onStrand={setStrandMode}
-        alleleMode={alleleMode}
-        onAlleleMode={setAlleleMode}
-        viewerMode={viewerMode}
-        onViewerMode={setViewerMode}
-      />
+  // Canvas output — the dominant pane. For the bare Sequence viewer it's one
+  // column; for a tool it's a 2-column grid [viewer | tool rail] so the primary
+  // action (Generate / Run) sits beside the sequence, not below it (STEP 7).
+  const isViewerOnly = tool === 'viewer'
 
-      <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
-        {viewerMode === 'locus' && locusModel?.kind === 'ready' ? (
-          <FullLocusViewer model={locusModel} />
-        ) : viewerMode === 'locus' && locusModel?.kind === 'unsupported' ? (
-          <>
-            <FullLocusUnsupportedBanner
-              gene={locusModel.gene}
-              onBackToWindow={() => setViewerMode('window')}
-            />
-            {data ? (
-              <SequenceViewerV2
-                ref={viewerRef}
-                data={data}
-                trackOn={trackOn}
-                strandMode={strandMode}
-                baseW={baseW}
-                onBaseW={setBaseW}
-                navCollapsed={navCollapsed}
-                onToggleMinimap={() => setNavCollapsed((c) => !c)}
-                alleleMode={alleleMode}
-                onScratchChange={setScratch}
-                onSelectionChange={setSelSummary}
-                onActiveExonChange={setActiveExon}
-                onClinvarSelect={setSelectedClinvar}
-                activeClinvar={selectedClinvar?.cv ?? null}
-              />
-            ) : null}
-          </>
-        ) : data ? (
+  const canvasHeader = (
+    <CanvasHeader
+      tool={tool}
+      trackOn={trackOn}
+      onToggleTrack={toggleTrack}
+      strandMode={strandMode}
+      onStrand={setStrandMode}
+      alleleMode={alleleMode}
+      onAlleleMode={setAlleleMode}
+      viewerMode={viewerMode}
+      onViewerMode={setViewerMode}
+    />
+  )
+
+  const viewerBody =
+    viewerMode === 'locus' && locusModel?.kind === 'ready' ? (
+      <FullLocusViewer model={locusModel} />
+    ) : viewerMode === 'locus' && locusModel?.kind === 'unsupported' ? (
+      <>
+        <FullLocusUnsupportedBanner
+          gene={locusModel.gene}
+          onBackToWindow={() => setViewerMode('window')}
+        />
+        {data ? (
           <SequenceViewerV2
             ref={viewerRef}
             data={data}
@@ -275,30 +285,83 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
             onClinvarSelect={setSelectedClinvar}
             activeClinvar={selectedClinvar?.cv ?? null}
           />
-        ) : (
-          <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>
-            {viewerError ?? 'Loading sequence...'}
-          </div>
-        )}
-      </section>
+        ) : null}
+      </>
+    ) : data ? (
+      <SequenceViewerV2
+        ref={viewerRef}
+        data={data}
+        trackOn={trackOn}
+        strandMode={strandMode}
+        baseW={baseW}
+        onBaseW={setBaseW}
+        navCollapsed={navCollapsed}
+        onToggleMinimap={() => setNavCollapsed((c) => !c)}
+        alleleMode={alleleMode}
+        onScratchChange={setScratch}
+        onSelectionChange={setSelSummary}
+        onActiveExonChange={setActiveExon}
+        onClinvarSelect={setSelectedClinvar}
+        activeClinvar={selectedClinvar?.cv ?? null}
+      />
+    ) : (
+      <div className="viewer-loading" role={viewerError ? 'alert' : 'status'}>
+        {viewerError ?? 'Loading sequence...'}
+      </div>
+    )
 
-      <section className="tool-panels">
-        {data ? (
-          PANEL_TOOLS.map((p) => (
-            <div
-              key={p}
-              className={p === tool ? 'tool-panel active' : 'tool-panel'}
-              data-panel={p}
-            >
-              {p === tool && renderToolPanel(p, gene, cdna, data)}
-            </div>
-          ))
-        ) : (
-          <div className="tool-panel active" data-panel={tool}>
-            <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>
-          </div>
-        )}
-      </section>
+  const toolPanel = (
+    <div className="tool-panel active" data-panel={tool}>
+      {data ? (
+        renderToolPanel(tool, gene, cdna, data)
+      ) : (
+        <div className="viewer-loading">{viewerError ?? 'Loading sequence...'}</div>
+      )}
+    </div>
+  )
+
+  // The viewer column: full content when expanded; a re-expand stub when
+  // collapsed. (`hidden` drops the column — handled by the grid template.)
+  const viewerColumn =
+    viewerPane === 'collapsed' ? (
+      <button
+        type="button"
+        className="wb-viewer-stub"
+        onClick={() => setViewerPane('expanded')}
+        aria-label="Expand sequence viewer"
+        title="Show sequence"
+      >
+        <span>Sequence</span>
+      </button>
+    ) : (
+      <>
+        <div className="wb-viewer-head">
+          <button
+            type="button"
+            className="wb-viewer-min"
+            onClick={() => setViewerPane('collapsed')}
+            aria-label="Minimise sequence viewer"
+            title="Minimise sequence"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          {canvasHeader}
+        </div>
+        <section className="viewer">{viewerBody}</section>
+      </>
+    )
+
+  const canvasOutput = isViewerOnly ? (
+    <main className="canvas">
+      {canvasHeader}
+      <section className="viewer">{viewerBody}</section>
+    </main>
+  ) : (
+    <main className="canvas canvas-split" data-viewer-pane={viewerPane}>
+      <div className="wb-viewer-col">{viewerColumn}</div>
+      <aside className="wb-tool-rail">{toolPanel}</aside>
     </main>
   )
 

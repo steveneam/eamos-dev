@@ -1757,8 +1757,7 @@
 .kv-row .v { font-family: var(--body); color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 .kv-row .v.warn { color: var(--warn); }
 .kv-row .v.ok   { color: var(--teal-deep); }
-/* ─────────────────── TOOL PANELS (below canvas) ─────────────────── */
-.tool-panels { margin-top: 16px; }
+/* ─────────────────── TOOL PANEL (in the canvas tool rail) ─────────────────── */
 .tool-panel {
   display: none;
   background: var(--bg);
@@ -1767,6 +1766,131 @@
   padding: 22px 24px;
 }
 .tool-panel.active { display: block; }
+
+/* ───────────── 3-COLUMN CANVAS: viewer (left) | tool rail (right) ─────────────
+   When a tool is active the canvas is a 2-track grid so the primary action sits
+   beside the sequence, not below it (docs/workbench-task-a STEP 7). The bare
+   Sequence viewer (tool === 'viewer') keeps the single-column `.canvas`. */
+.canvas.canvas-split {
+  --tool-rail-w: clamp(380px, 42%, 560px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tool-rail-w);
+  gap: 20px;
+  align-items: start;
+  transition: grid-template-columns var(--dur-2) var(--ease-emphasized);
+}
+.canvas.canvas-split[data-viewer-pane='collapsed'] {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+.canvas.canvas-split[data-viewer-pane='hidden'] {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+.canvas.canvas-split[data-viewer-pane='hidden'] .wb-viewer-col { overflow: hidden; }
+.wb-viewer-col,
+.wb-tool-rail {
+  min-width: 0; /* let mono sequence / wide tables stay inside the track */
+}
+.wb-tool-rail .tool-panel { margin-top: 0; }
+
+/* Viewer head — the minimise handle sits left of the canvas-header controls.
+   For Align (no canvas header) the head row carries just the handle. */
+.wb-viewer-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.wb-viewer-head .canvas-head {
+  flex: 1;
+  margin-bottom: 0;
+}
+.wb-viewer-min {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease-standard),
+    border-color var(--dur-1) var(--ease-standard),
+    background var(--dur-1) var(--ease-standard);
+}
+.wb-viewer-min:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+  background: var(--bg-soft);
+}
+.wb-viewer-min:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+}
+
+/* Collapsed viewer → a vertical "Sequence" stub the user clicks to re-expand. */
+.wb-viewer-stub {
+  width: 100%;
+  min-height: 240px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-standard),
+    background var(--dur-1) var(--ease-standard);
+}
+.wb-viewer-stub:hover {
+  border-color: var(--ink-3);
+  background: var(--bg-soft);
+}
+.wb-viewer-stub:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+}
+.wb-viewer-stub span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--body);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.wb-viewer-stub:hover span {
+  color: var(--ink-2);
+}
+
+/* Below 900px the 3-column model is abandoned for the vertical stack. */
+@media (max-width: 899px) {
+  .canvas.canvas-split,
+  .canvas.canvas-split[data-viewer-pane='collapsed'],
+  .canvas.canvas-split[data-viewer-pane='hidden'] {
+    display: block;
+    grid-template-columns: none;
+  }
+  .canvas.canvas-split .wb-tool-rail {
+    margin-top: 16px;
+  }
+  .canvas.canvas-split .wb-viewer-stub {
+    min-height: 0;
+    padding: 10px;
+  }
+  .canvas.canvas-split[data-viewer-pane='hidden'] .wb-viewer-col {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas.canvas-split {
+    transition: none;
+  }
+}
 .tool-panel-head {
   display: flex; align-items: center; justify-content: space-between;
   padding-bottom: 14px;

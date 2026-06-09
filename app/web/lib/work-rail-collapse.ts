@@ -30,3 +30,26 @@ export function writeCollapsed(scope: string, value: boolean): void {
     /* private mode — ignore */
   }
 }
+
+// ── Workbench viewer-pane pref (3-column canvas, per tool) ──
+function paneKey(tool: string) {
+  return `eamos-wb-viewer-${tool}`
+}
+
+/** Persisted viewer-pane string for a tool, or null when unset / unavailable. */
+export function readPane(tool: string): string | null {
+  try {
+    return localStorage.getItem(paneKey(tool))
+  } catch {
+    return null
+  }
+}
+
+/** Persist the viewer-pane pref for a tool. No-op in private mode. */
+export function writePane(tool: string, value: string): void {
+  try {
+    localStorage.setItem(paneKey(tool), value)
+  } catch {
+    /* private mode — ignore */
+  }
+}
