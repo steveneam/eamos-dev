@@ -1,6 +1,7 @@
 'use client'
 
 import type { EvidenceSourceSummary } from '@/lib/backend'
+import { SourceLink } from '@/components/ui/SourceLink'
 
 // MolecularContextBlock — locus-side molecular context for the renamed
 // §4 Gene & locus context card.
@@ -162,14 +163,9 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
                 </span>
               )}
               {phyloP.source_url && (
-                <a
-                  href={phyloP.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 11.5, color: 'var(--teal-deep)', textDecoration: 'underline', textUnderlineOffset: 3 }}
-                >
-                  dbNSFP ↗
-                </a>
+                <SourceLink href={phyloP.source_url}>
+                  dbNSFP
+                </SourceLink>
               )}
             </span>
           </ChipRow>
@@ -198,7 +194,7 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
         <ChipRow label="ClinGen dosage">
           {dosage.haploinsufficiency && (
             <span style={{ marginRight: 12 }}>
-              HI: <span style={{ color: 'var(--ink) ' }}>{dosage.haploinsufficiency}</span>
+              HI: <span style={{ color: 'var(--ink)' }}>{dosage.haploinsufficiency}</span>
             </span>
           )}
           {dosage.triplosensitivity && (
@@ -207,20 +203,9 @@ export function MolecularContextBlock({ evidence }: MolecularContextBlockProps) 
             </span>
           )}
           {dosage.source_url && (
-            <a
-              href={dosage.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                marginLeft: 10,
-                fontSize: 11.5,
-                color: 'var(--teal-deep)',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-              }}
-            >
-              ClinGen ↗
-            </a>
+            <SourceLink href={dosage.source_url} style={{ marginLeft: 10 }}>
+              ClinGen
+            </SourceLink>
           )}
         </ChipRow>
       )}

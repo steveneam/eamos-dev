@@ -1,5 +1,6 @@
 import type React from 'react'
 import { TierTag } from '@/components/ui/TierTag'
+import { EvidenceChip } from '@/components/ui/EvidenceChip'
 
 // §2 Loss-of-function (PVS1) block — the null-variant ACMG axis (NMDetective-B +
 // the clean-room Abou-Tayoun PVS1 decision tree). These are computational, so the
@@ -95,9 +96,9 @@ export function LossOfFunctionBlock({ consequence }: { consequence?: string | nu
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 10 }}>
             <Tile label="PVS1 strength" tip={PVS1_TIP}>
-              <span style={{ display: 'inline-block', fontWeight: 700, fontSize: 12, color: 'var(--cls-path-text)', background: 'var(--cls-path-bg)', border: '0.5px solid var(--cls-path-bdr)', borderRadius: 999, padding: '1px 8px' }}>
+              <EvidenceChip size="md" tone={{ bg: 'var(--cls-path-bg)', border: 'var(--cls-path-bdr)', text: 'var(--cls-path-text)' }}>
                 Very Strong · +8
-              </span>
+              </EvidenceChip>
             </Tile>
             <Tile label="Predicted NMD" tip={NMD_TIP}>
               <div style={{ fontWeight: 600 }}>Triggers NMD</div>

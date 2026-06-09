@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   PopulationAgeHistogramView,
   PopulationFrequencyDatasetCell,
@@ -26,6 +26,7 @@ import {
   GNOMAD_MAP_VIEW_BOX,
 } from './gnomadMapGeometry.generated'
 import { CopyButton } from '@/components/ui/CopyButton'
+import { InfoPopover } from '@/components/ui/InfoHint'
 
 interface PopulationFrequencySectionProps {
   section?: PopulationFrequencyReportSection | null
@@ -1393,100 +1394,6 @@ function LegendSwatch({ color, label, tag }: { color: string; label: string; tag
         >
           {tag}
         </span>
-      )}
-    </span>
-  )
-}
-
-// Small "ⓘ How to read this" disclosure. Tucks the colour key + basemap/method copy
-// out of the always-on footer; click toggles a popover, click-away closes it. The
-// panel is position:fixed (anchored to the button rect) so it escapes the map
-// container's overflow:hidden clip on every tab/layout.
-const INFO_POPOVER_WIDTH = 320
-
-function InfoPopover({
-  label,
-  triggerText = 'How to read this',
-  children,
-}: {
-  label: string
-  triggerText?: string
-  children: ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  const toggle = () => {
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      const left = Math.max(8, Math.min(rect.right - INFO_POPOVER_WIDTH, window.innerWidth - INFO_POPOVER_WIDTH - 8))
-      setPos({ top: rect.bottom + 8, left })
-    }
-    setOpen((value) => !value)
-  }
-
-  return (
-    <span style={{ display: 'inline-flex', flex: '0 0 auto' }}>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-expanded={open}
-        aria-label={label}
-        onClick={toggle}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 5,
-          border: '0.5px solid var(--line)',
-          background: open ? 'var(--bg-soft)' : 'var(--bg)',
-          color: 'var(--ink-3)',
-          borderRadius: 999,
-          padding: '3px 10px',
-          fontSize: 10.5,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        <span aria-hidden style={{ fontFamily: 'var(--mono)', fontWeight: 700 }}>ⓘ</span>
-        {triggerText}
-      </button>
-      {open && pos && (
-        <>
-          <button
-            type="button"
-            aria-hidden
-            tabIndex={-1}
-            onClick={() => setOpen(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'transparent', border: 'none', cursor: 'default' }}
-          />
-          <div
-            role="dialog"
-            aria-label={label}
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              zIndex: 61,
-              width: INFO_POPOVER_WIDTH,
-              maxWidth: 'calc(100vw - 16px)',
-              maxHeight: 'calc(100vh - 24px)',
-              overflowY: 'auto',
-              border: '0.5px solid var(--line)',
-              background: 'var(--bg)',
-              borderRadius: 10,
-              padding: '12px 14px',
-              boxShadow: 'var(--elev-3)',
-              fontSize: 11,
-              lineHeight: 1.5,
-              color: 'var(--ink-3)',
-              textAlign: 'left',
-              whiteSpace: 'normal',
-            }}
-          >
-            {children}
-          </div>
-        </>
       )}
     </span>
   )

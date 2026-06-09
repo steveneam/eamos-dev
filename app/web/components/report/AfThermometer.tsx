@@ -1,5 +1,7 @@
 'use client'
 import type { EvidenceSourceSummary } from '@/lib/backend'
+import { InfoHint } from '@/components/ui/InfoHint'
+import { SourceLink } from '@/components/ui/SourceLink'
 import { GNOMAD_AF_BANDS } from './gnomadMapTheme'
 import { ScaleTrack } from './ScoreScale'
 
@@ -30,40 +32,6 @@ const PLI_TIP =
   'pLI — probability the gene is intolerant of a single loss-of-function allele. ≥ 0.9 = LoF-intolerant. gnomAD now leads with LOEUF.'
 const AF_TIP =
   'Allele frequency — how often this exact variant appears across gnomAD reference-population samples. Common variants are usually benign (BA1/BS1); very rare or absent variants give supporting evidence toward pathogenic (PM2). The bar above places this AF on the ACMG benign↔pathogenic thresholds.'
-
-// Small circled-"i" hover affordance — a discoverable info popout matching the
-// "ⓘ" idiom used in the population section. Keyboard-focusable; native title on hover.
-function InfoHint({ tip }: { tip: string }) {
-  return (
-    <span
-      tabIndex={0}
-      role="img"
-      aria-label={tip}
-      title={tip}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 13,
-        height: 13,
-        marginLeft: 5,
-        borderRadius: 999,
-        border: '0.5px solid var(--ink-5)',
-        fontSize: 9,
-        fontWeight: 700,
-        fontStyle: 'italic',
-        fontFamily: 'var(--mono)',
-        color: 'var(--ink-4)',
-        cursor: 'help',
-        lineHeight: 1,
-        verticalAlign: 'middle',
-        flex: '0 0 auto',
-      }}
-    >
-      i
-    </span>
-  )
-}
 
 // gnomAD-style constraint thermometer: a coloured banded scale (red = constrained
 // → green = tolerant, low value = constrained for both LOEUF and missense o/e) with
@@ -309,14 +277,9 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
               </span>
               <InfoHint tip={CONSTRAINT_TIP} />
               {constraintSrc ? (
-                <a
-                  href={constraintSrc}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--teal-deep)', textDecoration: 'underline', textUnderlineOffset: 3 }}
-                >
-                  gnomAD v4 ↗
-                </a>
+                <SourceLink href={constraintSrc} fontSize={11} style={{ marginLeft: 'auto' }}>
+                  gnomAD v4
+                </SourceLink>
               ) : (
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-4)' }}>gnomAD v4</span>
               )}

@@ -1,6 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { CarouselDots } from '@/components/ui/CarouselDots'
+import { EvidenceChip } from '@/components/ui/EvidenceChip'
 import type { ReportCallBadgeKind, ReportCallCard, ReportPayload } from '@/lib/backend'
 
 interface CallCardsGridProps {
@@ -243,22 +244,14 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {renderBadges.length > 0 ? (
                   renderBadges.map((badge) => (
-                      <span
-                        key={badge.key}
-                        style={{
-                          border: `0.5px solid ${badge.tone.border}`,
-                          background: badge.tone.bg,
-                          color: badge.tone.color,
-                          borderRadius: 'var(--r-sm)',
-                          padding: '4px 7px',
-                          fontSize: 10.5,
-                          fontWeight: 700,
-                          lineHeight: 1.15,
-                          overflowWrap: 'anywhere',
-                        }}
-                      >
-                        {badge.text}
-                      </span>
+                    <EvidenceChip
+                      key={badge.key}
+                      size="sm"
+                      shape="rect"
+                      tone={{ bg: badge.tone.bg, border: badge.tone.border, text: badge.tone.color }}
+                    >
+                      {badge.text}
+                    </EvidenceChip>
                   ))
                 ) : (
                   <span

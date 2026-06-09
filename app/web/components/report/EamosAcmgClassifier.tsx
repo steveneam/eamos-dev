@@ -1,4 +1,5 @@
 import { Disclosure } from '@/components/ui/Disclosure'
+import { EvidenceChip } from '@/components/ui/EvidenceChip'
 import type { AcmgCriteriaScaffold, AcmgCode } from '@/lib/backend'
 import { AcmgGrid } from './AcmgGrid'
 
@@ -18,14 +19,6 @@ interface Counts {
   ba: number
   bs: number
   bp: number
-}
-
-const VERDICT_THEME: Record<string, { bg: string; border: string; text: string }> = {
-  Pathogenic: { bg: 'var(--cls-path-bg)', border: 'var(--cls-path-bdr)', text: 'var(--cls-path-text)' },
-  'Likely pathogenic': { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', text: 'var(--cls-lpath-text)' },
-  'Uncertain significance': { bg: 'var(--cls-vus-bg)', border: 'var(--cls-vus-bdr)', text: 'var(--cls-vus-text)' },
-  'Likely benign': { bg: 'var(--cls-lben-bg)', border: 'var(--cls-lben-bdr)', text: 'var(--cls-lben-text)' },
-  Benign: { bg: 'var(--cls-ben-bg)', border: 'var(--cls-ben-bdr)', text: 'var(--cls-ben-text)' },
 }
 
 function categorize(code: AcmgCode): keyof Counts | null {
@@ -83,7 +76,6 @@ export function EamosAcmgClassifier({ data }: { data?: AcmgCriteriaScaffold | nu
     if (cat) counts[cat] += 1
   }
   const { verdict, rule } = classify(counts)
-  const theme = VERDICT_THEME[verdict] ?? { bg: 'var(--cls-na-bg)', border: 'var(--cls-na-bdr)', text: 'var(--cls-na-text)' }
   const pathCodes = met.filter((c) => c.startsWith('P'))
   const benignCodes = met.filter((c) => c.startsWith('B'))
 
@@ -103,24 +95,14 @@ export function EamosAcmgClassifier({ data }: { data?: AcmgCriteriaScaffold | nu
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-          <span
+          <EvidenceChip
+            size="lg"
+            dot
+            classification={verdict}
             title="Automated ACMG/AMP classification from the met criteria"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 11px',
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 700,
-              background: theme.bg,
-              border: `0.5px solid ${theme.border}`,
-              color: theme.text,
-            }}
           >
-            <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: theme.text }} />
             {verdict}
-          </span>
+          </EvidenceChip>
           <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>{rule}</span>
         </div>
 

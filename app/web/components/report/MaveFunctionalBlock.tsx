@@ -7,6 +7,8 @@
 // ladder, then keep the live MaveDB search link. Swap for `mavedb_functional`
 // once Codex ships it.
 
+import { EvidenceChip } from '@/components/ui/EvidenceChip'
+
 const PS3_TIP = 'PS3 — lab experiments show the variant damages protein function (evidence it is pathogenic).'
 const BS3_TIP = 'BS3 — lab experiments show the variant leaves protein function normal (evidence it is benign).'
 const ODDSPATH_TIP =
@@ -87,18 +89,23 @@ export function MaveFunctionalBlock({ gene, query }: { gene?: string | null; que
         </span>
         {/* dual badge: ACMG code (left) + assay-count confidence signal (right) + mock tag */}
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
+          <EvidenceChip
+            size="xs"
+            uppercase
+            tone={{ bg: tone.bg, border: tone.bd, text: tone.ink }}
             title={codeTip}
-            style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: tone.ink, border: `0.5px solid ${tone.bd}`, background: tone.bg, borderRadius: 999, padding: '1px 7px', cursor: 'help' }}
+            style={{ cursor: 'help' }}
           >
             {code ? `${code} · ${band.label.replace(/^(PS3|BS3) /, '')}` : 'Indeterminate'}
-          </span>
-          <span
+          </EvidenceChip>
+          <EvidenceChip
+            size="xs"
+            tone={{ bg: 'var(--bg)', border: 'var(--line)', text: 'var(--ink-4)' }}
             title="Number of independent MAVE assays — a confidence signal, not the strength."
-            style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-4)', border: '0.5px solid var(--line)', background: 'var(--bg)', borderRadius: 999, padding: '1px 7px', cursor: 'help' }}
+            style={{ cursor: 'help' }}
           >
             1 assay
-          </span>
+          </EvidenceChip>
           <span className="eamos-mock" title={MOCK_TIP}>Mock</span>
         </span>
       </div>

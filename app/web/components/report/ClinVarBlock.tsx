@@ -1,6 +1,7 @@
 'use client'
 
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
+import { SourceLink } from '@/components/ui/SourceLink'
 import { CuratorQuote } from './CuratorQuote'
 import {
   StackedCountBar,
@@ -88,19 +89,9 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
           {meta?.label ?? 'ClinVar'}
         </span>
         {link && (
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: 11.5,
-              color: 'var(--teal-deep)',
-              textDecoration: 'underline',
-              textUnderlineOffset: 3,
-            }}
-          >
-            View record ↗
-          </a>
+          <SourceLink href={link}>
+            View record
+          </SourceLink>
         )}
       </div>
 

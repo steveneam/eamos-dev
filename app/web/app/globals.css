@@ -399,6 +399,16 @@ textarea {
 .v-tool svg { width: 13px; height: 13px; }
 .v-tool.followed { color: var(--teal-deep); border-color: var(--teal-bdr); background: var(--teal-tint); }
 
+/* Shared report info-popover (InfoPopover) — a fixed click-away help panel.
+   Rides the --z-popover layer so it clears the rail + nav like every other
+   popover; positioning (top/left) stays inline (computed from the trigger). */
+.info-popover-scrim {
+  position: fixed; inset: 0;
+  z-index: var(--z-popover);
+  background: transparent; border: none; cursor: default;
+}
+.info-popover-panel { position: fixed; z-index: var(--z-popover); }
+
 /* "Needs live data" ghost marker — a deliberately monochrome, dashed chip so a
    placeholder metric never reads as a real number (report v3, design §3). */
 .eamos-mock {
