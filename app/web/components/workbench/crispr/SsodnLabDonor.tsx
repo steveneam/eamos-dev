@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { CrisprSsodnResponse, SsodnOrientation } from '@/lib/backend'
+import type { CrisprSsodnDesign, CrisprSsodnResponse, SsodnOrientation } from '@/lib/backend'
 import { designSsodn } from '@/lib/api'
 import { CopyButton } from '@/components/ui/CopyButton'
 
@@ -32,6 +32,66 @@ function editedCodon(
   const offsets = new Set<number>()
   for (let k = 0; k < 3; k++) offsets.add(start + k)
   return { offsets, number: cdsPos != null ? Math.ceil(cdsPos / 3) : null }
+}
+
+const COMP: Record<string, string> = { A: 'T', T: 'A', G: 'C', C: 'G' }
+const complement = (s: string) => s.split('').map((c) => COMP[c] ?? c).join('')
+const revcomp = (s: string) => complement(s).split('').reverse().join('')
+
+/** Reference (wild-type) window + the WT/donor codons. The reference is the
+ *  donor with the edited base reverted to the reference allele (parsed from
+ *  edits_encoded), so the two sequences align position-for-position. */
+function deriveReference(
+  ss: CrisprSsodnDesign,
+  codonOffsets: Set<number>,
+): { wtSeq: string | null; wtCodon: string | null; donorCodon: string } {
+  const refAllele = ss.edits_encoded[0]?.match(/c\.\d+([ACGT])>[ACGT]/)?.[1] ?? null
+  const arr = ss.oligo_sequence.split('')
+  if (refAllele) arr[ss.variant_offset] = refAllele
+  const wtSeq = refAllele ? arr.join('') : null
+  const offs = [...codonOffsets].sort((a, b) => a - b)
+  const donorCodon = offs.map((i) => ss.oligo_sequence[i] ?? '').join('').toUpperCase()
+  const wtCodon = wtSeq ? offs.map((i) => wtSeq[i] ?? '').join('').toUpperCase() : null
+  return { wtSeq, wtCodon, donorCodon }
+}
+
+/** One sequence line: intronic bases lowercased, the edited codon underlined,
+ *  and (donor only) the single changed base highlighted. */
+function SeqRow({
+  label,
+  seq,
+  intronMask,
+  codonOffsets,
+  editOffset,
+  markEdit,
+}: {
+  label: string
+  seq: string
+  intronMask: boolean[]
+  codonOffsets: Set<number> | null
+  editOffset: number
+  markEdit: boolean
+}) {
+  return (
+    <div className="ssodn-seq-row">
+      <span className="ssodn-seq-label">{label}</span>
+      <div className="ssodn-oligo-seq" aria-label={`${label} sequence, 5′ to 3′`}>
+        {seq.split('').map((b, i) => {
+          const intronic = intronMask[i] ?? false
+          const inCodon = codonOffsets?.has(i) ?? false
+          const edit = markEdit && i === editOffset
+          return (
+            <span
+              key={i}
+              className={`ssodn-nt${intronic ? ' intron' : ''}${inCodon ? ' codon' : ''}${edit ? ' edit' : ''}`}
+            >
+              {intronic ? b.toLowerCase() : b.toUpperCase()}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -86,6 +146,7 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
   const ss = res?.ssodn ?? null
   const mock = res ? isMock(res) : false
   const codon = ss ? editedCodon(ss.variant_offset, cdna) : null
+  const reference = ss && codon ? deriveReference(ss, codon.offsets) : null
 
   return (
     <section className="ssodn-donor">
@@ -163,20 +224,36 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
           <div className="ssodn-oligo-name" title="Order name">
             {ss.oligo_name}
           </div>
-          <div className="ssodn-oligo-seq" aria-label="Orderable donor sequence, 5′ to 3′">
-            {ss.oligo_sequence.split('').map((b, i) => {
-              const intronic = ss.intron_mask[i] ?? false
-              const inCodon = codon?.offsets.has(i) ?? false
-              const edit = i === ss.variant_offset
-              return (
-                <span
-                  key={i}
-                  className={`ssodn-nt${intronic ? ' intron' : ''}${inCodon ? ' codon' : ''}${edit ? ' edit' : ''}`}
-                >
-                  {intronic ? b.toLowerCase() : b.toUpperCase()}
-                </span>
-              )
-            })}
+          {reference?.wtCodon && (
+            <div className="ssodn-codon-note">
+              Codon{codon?.number != null ? ` ${codon.number}` : ''}:{' '}
+              <b>
+                {reference.wtCodon} → {reference.donorCodon}
+              </b>{' '}
+              coding · complement {complement(reference.wtCodon)} →{' '}
+              {complement(reference.donorCodon)} · 5′→3′ rev-comp{' '}
+              {revcomp(reference.wtCodon)} → {revcomp(reference.donorCodon)}
+            </div>
+          )}
+          <div className="ssodn-seq-block">
+            {reference?.wtSeq && (
+              <SeqRow
+                label="Reference (WT)"
+                seq={reference.wtSeq}
+                intronMask={ss.intron_mask}
+                codonOffsets={codon?.offsets ?? null}
+                editOffset={ss.variant_offset}
+                markEdit={false}
+              />
+            )}
+            <SeqRow
+              label="Donor (ssODN)"
+              seq={ss.oligo_sequence}
+              intronMask={ss.intron_mask}
+              codonOffsets={codon?.offsets ?? null}
+              editOffset={ss.variant_offset}
+              markEdit
+            />
           </div>
           <div className="ssodn-oligo-legend">
             <span>
