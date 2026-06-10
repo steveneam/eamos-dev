@@ -2055,9 +2055,9 @@
     "semantic_hash": "f76282172dd88f3885253c2a20ad49e3"
   },
   "app/web/app/providers.tsx": {
-    "mtime": 1779889546.8687882,
-    "ast_hash": "e3317b6fa4fdc062857624a1b0cde9a2",
-    "semantic_hash": "e3317b6fa4fdc062857624a1b0cde9a2"
+    "mtime": 1781015432.7168324,
+    "ast_hash": "dde33d3ad16ea3b6614bc26d6760817e",
+    "semantic_hash": ""
   },
   "app/web/app/report/page.tsx": {
     "mtime": 1779522970.3664196,
@@ -2105,8 +2105,8 @@
     "semantic_hash": "cc4245ed8ed10ac085d4ccd77184ea43"
   },
   "app/web/components/auth/AuthMenu.tsx": {
-    "mtime": 1780929565.7160182,
-    "ast_hash": "c7642c606199ea7f82430aab23b9bbb8",
+    "mtime": 1781016419.4655094,
+    "ast_hash": "1b4ae2717165caf1cb16df728ba2bf90",
     "semantic_hash": ""
   },
   "app/web/components/auth/AuthPageClient.tsx": {
@@ -2135,8 +2135,8 @@
     "semantic_hash": ""
   },
   "app/web/components/compare/CompareClient.tsx": {
-    "mtime": 1780835205.2578342,
-    "ast_hash": "12fa9fed1c82280af2bdc9d0f97fc967",
+    "mtime": 1781015301.0506392,
+    "ast_hash": "c52f51f167eb67b2c6b5d95ffdd012c0",
     "semantic_hash": ""
   },
   "app/web/components/compare/CustomPanelBuilder.tsx": {
@@ -2250,8 +2250,8 @@
     "semantic_hash": ""
   },
   "app/web/components/layout/WorkRail.tsx": {
-    "mtime": 1780918019.7767942,
-    "ast_hash": "4b9d66b1d9a649758f0f95d2293c7fe6",
+    "mtime": 1781014943.3017488,
+    "ast_hash": "9f034609ee3f6bfea2a6f832a285edae",
     "semantic_hash": ""
   },
   "app/web/components/library/LibrarySection.tsx": {
@@ -2400,8 +2400,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/ReportClient.tsx": {
-    "mtime": 1780919488.364863,
-    "ast_hash": "21c6e7b0ca1347b4585aa3ab8fa07ba4",
+    "mtime": 1781016220.0807028,
+    "ast_hash": "73bd7a54ae8b8e942b372347a07310d8",
     "semantic_hash": ""
   },
   "app/web/components/report/ReportGeneViewer.tsx": {
@@ -2484,11 +2484,6 @@
     "ast_hash": "99849b6498b48587937d2d9ecec1ea12",
     "semantic_hash": "99849b6498b48587937d2d9ecec1ea12"
   },
-  "app/web/components/ui/CiteChip.tsx": {
-    "mtime": 1780835087.5828674,
-    "ast_hash": "96a47b20e18df73e52dea3b5a35328d0",
-    "semantic_hash": ""
-  },
   "app/web/components/ui/CiteModal.tsx": {
     "mtime": 1780153869.4260063,
     "ast_hash": "951293e3b82602ea05a0bbf24ea43ab7",
@@ -2525,8 +2520,8 @@
     "semantic_hash": "1583ca001379a1d598c42c87007fd812"
   },
   "app/web/components/workbench/CanvasHeader.tsx": {
-    "mtime": 1780935616.2218342,
-    "ast_hash": "5e7f72d893d0b195f5bffb8cb8c78946",
+    "mtime": 1781086617.970101,
+    "ast_hash": "515fb568d74af07cea2cc6ebc4148f73",
     "semantic_hash": ""
   },
   "app/web/components/workbench/ContextStrip.tsx": {
@@ -2535,8 +2530,8 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/SidePanel.tsx": {
-    "mtime": 1780935700.5198083,
-    "ast_hash": "bc5650a4c2e579d7859c7aa47eb21df4",
+    "mtime": 1781009885.051838,
+    "ast_hash": "746904a908220572bd44663d4253997c",
     "semantic_hash": ""
   },
   "app/web/components/workbench/ToolBar.tsx": {
@@ -2555,8 +2550,8 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/WorkbenchShell.tsx": {
-    "mtime": 1780833879.4266315,
-    "ast_hash": "eec84a72ceb0dbb991b8cb3f86af3ffb",
+    "mtime": 1781021656.193352,
+    "ast_hash": "40c3b7a7af7b79d02d2b05adae8bdede",
     "semantic_hash": ""
   },
   "app/web/components/workbench/align/AlignPanel.tsx": {
@@ -2565,13 +2560,13 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/crispr/CrisprPanel.tsx": {
-    "mtime": 1780822352.6091592,
-    "ast_hash": "cc319b7e63a8f4c225a3080bb05d6bcb",
+    "mtime": 1781085883.3195517,
+    "ast_hash": "b181d0a43de223b410e074d13b3b21b8",
     "semantic_hash": ""
   },
   "app/web/components/workbench/crispr/DesignTab.tsx": {
-    "mtime": 1780824397.1944077,
-    "ast_hash": "d9826584d0f89b20265446e084cd6410",
+    "mtime": 1781086544.304496,
+    "ast_hash": "160a13d172c9e050d55c582325dcaad3",
     "semantic_hash": ""
   },
   "app/web/components/workbench/crispr/GuideTrack.tsx": {
@@ -2580,33 +2575,33 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/crispr/IndelSpectrum.tsx": {
-    "mtime": 1779869061.7427096,
-    "ast_hash": "bb0e30ea4f637ac24fc2c4cd9f1c9078",
-    "semantic_hash": "bb0e30ea4f637ac24fc2c4cd9f1c9078"
+    "mtime": 1781004506.2625155,
+    "ast_hash": "2d61e8ab4f9e04f689f5bcff7f861e5f",
+    "semantic_hash": ""
   },
   "app/web/components/workbench/crispr/OutcomesTab.tsx": {
-    "mtime": 1779869062.0848453,
-    "ast_hash": "0916aefeced0248882a58d933ef3aa0b",
-    "semantic_hash": "0916aefeced0248882a58d933ef3aa0b"
+    "mtime": 1781086612.3707807,
+    "ast_hash": "ebaba719eb7d87bdb4f1f213e0b666bb",
+    "semantic_hash": ""
   },
   "app/web/components/workbench/primer/PrimerPanel.tsx": {
-    "mtime": 1780824537.017984,
-    "ast_hash": "34e9420ea16c38b6c093770baf11e822",
+    "mtime": 1781020720.5262938,
+    "ast_hash": "56d9d0b7aa1f2b49b1446cb4bb2ab901",
     "semantic_hash": ""
   },
   "app/web/components/workbench/primer/PrimerResultCard.tsx": {
-    "mtime": 1780824558.8600564,
-    "ast_hash": "8cb55843ac3773d706c49cf96cbcd635",
+    "mtime": 1781022077.212035,
+    "ast_hash": "3553d621b50e17e55bfb873e972bd120",
     "semantic_hash": ""
   },
   "app/web/components/workbench/tools.ts": {
-    "mtime": 1780664178.710545,
-    "ast_hash": "662505b0fe67cbfb1a80c598d18f2e3d",
-    "semantic_hash": "662505b0fe67cbfb1a80c598d18f2e3d"
+    "mtime": 1781017526.1832087,
+    "ast_hash": "6cf2404db8fd4b852e297d370d719764",
+    "semantic_hash": ""
   },
   "app/web/components/workbench/viewer/CodonDetail.tsx": {
-    "mtime": 1780745598.2491329,
-    "ast_hash": "18271cd45259aeca841d122ac48b8ba5",
+    "mtime": 1781013204.5752451,
+    "ast_hash": "1064c4394200a29070b241ad1e1c5cf1",
     "semantic_hash": ""
   },
   "app/web/components/workbench/viewer/EditPopoverV2.tsx": {
@@ -2635,8 +2630,8 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/viewer/SequenceViewerV2.tsx": {
-    "mtime": 1780933866.4167814,
-    "ast_hash": "f5c297a5301b2dca2cd06fcd6ac35e3c",
+    "mtime": 1781020590.5035267,
+    "ast_hash": "4fca029f5bc0f6ef440cc7af1da1c6c3",
     "semantic_hash": ""
   },
   "app/web/components/workbench/viewer/ViewerToolbar.tsx": {
@@ -2655,9 +2650,9 @@
     "semantic_hash": "7d614f421a85073da63d429e08acfe94"
   },
   "app/web/components/workbench/viewer/zoom-config.ts": {
-    "mtime": 1779703487.643291,
-    "ast_hash": "9c938aef3a87363b72f6d9bcf7253852",
-    "semantic_hash": "9c938aef3a87363b72f6d9bcf7253852"
+    "mtime": 1781011907.7017317,
+    "ast_hash": "bb304876a9302fc0123c63bd6eda6911",
+    "semantic_hash": ""
   },
   "app/web/eslint.config.mjs": {
     "mtime": 1780142550.2249424,
@@ -2665,8 +2660,8 @@
     "semantic_hash": "c64106eb5cde38a253025bea93dee9f9"
   },
   "app/web/lib/api.ts": {
-    "mtime": 1780823793.6856236,
-    "ast_hash": "d54c57433ded2e42584acc023c6fa99a",
+    "mtime": 1781006340.3008554,
+    "ast_hash": "85b544b1751bc26b8d9d05dd33ea74a2",
     "semantic_hash": ""
   },
   "app/web/lib/backend.ts": {
@@ -3055,13 +3050,13 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/align/AlignedTrace.tsx": {
-    "mtime": 1780820686.5108075,
-    "ast_hash": "a46d8084b9dc78bf3453dcd5d23f5502",
+    "mtime": 1781004496.85517,
+    "ast_hash": "a3d3a7a83fb1f9c81a2468a589630bd9",
     "semantic_hash": ""
   },
   "app/web/components/workbench/align/PairwiseView.tsx": {
-    "mtime": 1780824340.7698934,
-    "ast_hash": "c67ef59e4cb3797f7bc8d1047f903937",
+    "mtime": 1781086023.247493,
+    "ast_hash": "6dd9044307526c559e12c0d339fedd68",
     "semantic_hash": ""
   },
   "app/web/components/workbench/align/ReadRow.tsx": {
@@ -3135,8 +3130,8 @@
     "semantic_hash": ""
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1781002408.7469704,
-    "ast_hash": "fbcf1d28155a30f0814dd9e0857e2307",
+    "mtime": 1781023105.5841062,
+    "ast_hash": "e78bef1efe2b8731711867009f0b7865",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -4090,8 +4085,8 @@
     "semantic_hash": ""
   },
   "app/web/components/workbench/crispr/OffTargetTab.tsx": {
-    "mtime": 1780824476.9677076,
-    "ast_hash": "71f2c310b67dc96ff21265abb780c7fd",
+    "mtime": 1781086576.155795,
+    "ast_hash": "1fcc7aa39f028f68a3f351b15c1c6a0f",
     "semantic_hash": ""
   },
   "app/web/lib/workbench/crispr-offtarget-sample.ts": {
@@ -4307,6 +4302,66 @@
   "docs/workbench-audit/shell-flow.md": {
     "mtime": 1781000367.6168363,
     "ast_hash": "3e313ba674410b4f4184849780927da4",
+    "semantic_hash": ""
+  },
+  "app/web/components/layout/RailFoot.tsx": {
+    "mtime": 1781015197.1237385,
+    "ast_hash": "be51732d3c024a63c740765963a0fce7",
+    "semantic_hash": ""
+  },
+  "app/web/components/workbench/ScoreBullet.tsx": {
+    "mtime": 1781022435.1508472,
+    "ast_hash": "591fe9cb61ca1e22e33555043002569a",
+    "semantic_hash": ""
+  },
+  "app/web/components/workbench/crispr/SsodnLabDonor.tsx": {
+    "mtime": 1781008437.8121226,
+    "ast_hash": "c5f3f9901824fc46b1677d52318e7e51",
+    "semantic_hash": ""
+  },
+  "app/web/lib/report-feedback.ts": {
+    "mtime": 1781016286.0723522,
+    "ast_hash": "7c410a79fab717926bcd368d30dd24d6",
+    "semantic_hash": ""
+  },
+  "app/web/lib/work-rail-collapse.ts": {
+    "mtime": 1781017568.0921075,
+    "ast_hash": "4fd2673d5f63ce9a13ea967bc8e5800c",
+    "semantic_hash": ""
+  },
+  "app/web/lib/workbench/crispr-ssodn-sample.ts": {
+    "mtime": 1781007843.1744144,
+    "ast_hash": "7b41155aec3d3420e0715f6812154d37",
+    "semantic_hash": ""
+  },
+  "docs/workbench-backend-wiring/spec.md": {
+    "mtime": 1781022104.7542095,
+    "ast_hash": "48a996d4f6b58322e50a25e795e5ed6c",
+    "semantic_hash": ""
+  },
+  "docs/workbench-control-cleanup/build-plan.md": {
+    "mtime": 1781022322.590551,
+    "ast_hash": "f32870a4b0f6d5e62befdcd83bb16e27",
+    "semantic_hash": ""
+  },
+  "docs/workbench-control-cleanup/spec.md": {
+    "mtime": 1781011277.7979138,
+    "ast_hash": "c9ff961f93ec903cf2903eb6b47b1220",
+    "semantic_hash": ""
+  },
+  "docs/workbench-interpretability/build-plan.md": {
+    "mtime": 1781022282.086488,
+    "ast_hash": "b04b31f61b4c4efda9b2a9527d21bdf3",
+    "semantic_hash": ""
+  },
+  "docs/workbench-interpretability/spec.md": {
+    "mtime": 1781011231.1887763,
+    "ast_hash": "4642d8d984834f28cca813a4863aca89",
+    "semantic_hash": ""
+  },
+  "docs/workbench-task-a/plan.md": {
+    "mtime": 1781011222.6557133,
+    "ast_hash": "5cc3917f2f6c81c6ae005daacefa0ba6",
     "semantic_hash": ""
   }
 }
