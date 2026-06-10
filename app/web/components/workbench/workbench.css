@@ -2380,13 +2380,66 @@
 }
 .align-nav-btn:hover { border-color: var(--teal); color: var(--teal-deep); }
 .align-diff-count { font-family: var(--body); font-size: 11px; color: var(--ink-3); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
-.align-diff-current {
+
+/* ── ALIGN — result-card lede (Pass D, 3-tier hierarchy) ──
+   Tier 1: big Identity + the active difference + ◀▶ nav on one airy line, so
+   the headline read lands before the metric strip and spans caption below. */
+.align-lede {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+}
+.align-lede-id { display: flex; align-items: baseline; gap: 6px; }
+.align-lede-id b {
   font-family: var(--body);
-  font-size: 11px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.align-lede-id span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+}
+.align-lede-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-family: var(--body);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.align-lede-diff {
   color: var(--err);
   background: var(--err-tint);
   border-radius: var(--r-sm);
-  padding: 3px 7px;
+  padding: 3px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.align-lede-exact {
+  color: var(--teal-deep);
+  background: var(--teal-tint);
+  border-radius: var(--r-sm);
+  padding: 3px 8px;
+  font-weight: 600;
+}
+.align-lede-het { color: var(--ink-4); font-size: 11px; }
+.align-spans-caption {
+  font-family: var(--body);
+  font-size: 11px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  padding-left: 2px;
 }
 
 
@@ -2902,6 +2955,22 @@
 }
 .ots-export-btn:hover { color: var(--teal-deep); border-color: var(--teal); background: var(--teal-tint); }
 .ots-export-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+/* Per-row "Screen ↗" bridge button in the Design table — ghost button + a
+   trailing scope glyph that lines up with the label. */
+.crispr-screen-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+/* The Design → Off-targets provenance note — a teal-tinted help-note so the
+   seeded-from line reads as a hand-off, not a warning. */
+.crispr-seed-note {
+  border-left: 2px solid var(--teal);
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+}
 
 .ots-actions {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

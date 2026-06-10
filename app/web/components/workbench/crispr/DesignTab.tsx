@@ -14,10 +14,14 @@ import { mapGuide } from '@/lib/workbench/crispr-guide-map'
 import { GuideTrack } from './GuideTrack'
 import { SsodnLabDonor } from './SsodnLabDonor'
 import { ScoreBullet } from '../ScoreBullet'
+import { IconScope } from '@/components/icons/Icon'
+import type { ScreenSeed } from './CrisprPanel'
 
 interface DesignTabProps {
   gene: string
   cdna: string
+  /** Hand a designed guide to the Off-targets tab for genome-wide screening. */
+  onScreenGuide?: (seed: ScreenSeed) => void
 }
 
 const CAS_OPTIONS: Array<{
@@ -137,7 +141,7 @@ function SsodnLine({
   )
 }
 
-export function DesignTab({ gene, cdna }: DesignTabProps) {
+export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
   const [cas, setCas] = useState<CasEnzyme>('SpCas9')
   const [strand, setStrand] = useState<CrisprRequest['strand_filter']>('both')
   const [offTol, setOffTol] = useState(2)
@@ -463,6 +467,7 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                     Region
                   </th>
                   <th>Notes</th>
+                  <th title="Screen this guide for genome-wide off-targets.">Screen</th>
                 </tr>
               </thead>
               <tbody>
@@ -530,12 +535,29 @@ export function DesignTab({ gene, cdna }: DesignTabProps) {
                         {gene} <span className="cra-meta">tmpl</span>
                       </td>
                       <td>{g.notes}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ots-export-btn crispr-screen-btn"
+                          onClick={() =>
+                            onScreenGuide?.({
+                              guide: g.guide,
+                              pam: g.pam,
+                              strand: g.strand,
+                              source: `guide #${g.index}`,
+                            })
+                          }
+                          title="Screen this guide for genome-wide off-targets — switches to the Off-targets tab and pre-fills the protospacer + PAM."
+                        >
+                          Screen <IconScope size={12} />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="crispr-empty">
+                    <td colSpan={11} className="crispr-empty">
                       No guides at min on-target &gt;= {minOnTarget}.
                     </td>
                   </tr>

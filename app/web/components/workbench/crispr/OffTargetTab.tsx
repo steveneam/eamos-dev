@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   CasEnzyme,
   CrisprOffTargetRequest,
@@ -12,10 +12,15 @@ import type {
 } from '@/lib/backend'
 import { enumerateOffTargets, designScreeningPrimers } from '@/lib/api'
 import { ScoreBullet } from '../ScoreBullet'
+import type { ScreenSeed } from './CrisprPanel'
 
 interface OffTargetTabProps {
   gene: string
   cdna: string
+  /** A guide handed in from Design's "Screen ↗" — pre-fills the protospacer + PAM. */
+  seed?: ScreenSeed | null
+  /** Fired once the seed has been applied, so the parent can clear it (no re-prefill). */
+  onSeedConsumed?: () => void
 }
 
 /** Default protospacer used to seed the form (the de-identified on-target). */
@@ -135,7 +140,7 @@ function ExportButtons({
   )
 }
 
-export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
+export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabProps) {
   // ── enumeration form ──────────────────────────────────────────────────
   const [guide, setGuide] = useState(DEFAULT_GUIDE)
   const [pam, setPam] = useState('NGG')
@@ -143,6 +148,24 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
   const [chrom, setChrom] = useState('chr7')
   const [pos, setPos] = useState('117509080')
   const [strand, setStrand] = useState<'+' | '-'>('+')
+  const [seededFrom, setSeededFrom] = useState<string | null>(null)
+
+  // Apply a guide handed in from Design before paint (render-phase idiom, like
+  // ReadRow) so there's no flash of the default protospacer. The genomic locus
+  // is left at its defaults — Design offsets are template-relative, not genomic.
+  const [seenSeed, setSeenSeed] = useState<ScreenSeed | null>(null)
+  if (seed && seed !== seenSeed) {
+    setSeenSeed(seed)
+    setGuide(seed.guide)
+    setPam(seed.pam || 'NGG')
+    if (seed.strand) setStrand(seed.strand)
+    setSeededFrom(seed.source)
+  }
+  // Signal the parent to clear the seed once applied (post-render, so this never
+  // updates the parent mid-render); guards against re-prefilling on a tab toggle.
+  useEffect(() => {
+    if (seed) onSeedConsumed?.()
+  }, [seed, onSeedConsumed])
 
   const [res, setRes] = useState<CrisprOffTargetResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -168,6 +191,7 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
     setSelected(new Set())
     setPrimerRes(null)
     setPrimerError(null)
+    setSeededFrom(null)
   }
 
   const cleanGuide = guide.trim().toUpperCase()
@@ -431,6 +455,14 @@ export function OffTargetTab({ gene, cdna }: OffTargetTabProps) {
         Loci are de-identified sample coordinates — connect the backend for a
         real GRCh38 search.
       </div>
+
+      {seededFrom && (
+        <div className="help-note crispr-seed-note">
+          Seeded from {seededFrom}; set the on-target genomic locus (chromosome /
+          position) before enumerating — Design positions are template-relative,
+          not genomic coordinates.
+        </div>
+      )}
 
       {error && <div className="crispr-error">{error}</div>}
 

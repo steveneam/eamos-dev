@@ -1,11 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { DesignTab } from './DesignTab'
 import { OffTargetTab } from './OffTargetTab'
 import { OutcomesTab } from './OutcomesTab'
 
 export type CrisprSubTab = 'design' | 'offtargets' | 'outcomes'
+
+/** A guide handed from Design to the Off-targets tab via the "Screen ↗" bridge.
+ *  Carries only what the off-target form needs to pre-fill; the genomic locus is
+ *  deliberately left out (Design positions are template-relative, not genomic). */
+export interface ScreenSeed {
+  guide: string
+  pam: string
+  strand?: '+' | '-'
+  source: string
+}
 
 interface CrisprPanelProps {
   gene: string
@@ -35,10 +45,18 @@ const TAB_SUB: Record<SubTab, string> = {
  */
 export function CrisprPanel({ gene, cdna, onSubTabChange }: CrisprPanelProps) {
   const [tab, setTab] = useState<SubTab>('design')
+  const [screenSeed, setScreenSeed] = useState<ScreenSeed | null>(null)
   const selectTab = (next: SubTab) => {
     setTab(next)
     onSubTabChange?.(next)
   }
+  // Design hands a guide to Off-targets: stash the seed, then jump tabs (which
+  // also auto-collapses the viewer for the wider screening table).
+  const handleScreenGuide = (seed: ScreenSeed) => {
+    setScreenSeed(seed)
+    selectTab('offtargets')
+  }
+  const handleSeedConsumed = useCallback(() => setScreenSeed(null), [])
 
   return (
     <div className="crispr-panel">
@@ -82,9 +100,14 @@ export function CrisprPanel({ gene, cdna, onSubTabChange }: CrisprPanelProps) {
       </div>
 
       {tab === 'design' ? (
-        <DesignTab gene={gene} cdna={cdna} />
+        <DesignTab gene={gene} cdna={cdna} onScreenGuide={handleScreenGuide} />
       ) : tab === 'offtargets' ? (
-        <OffTargetTab gene={gene} cdna={cdna} />
+        <OffTargetTab
+          gene={gene}
+          cdna={cdna}
+          seed={screenSeed}
+          onSeedConsumed={handleSeedConsumed}
+        />
       ) : (
         <OutcomesTab />
       )}

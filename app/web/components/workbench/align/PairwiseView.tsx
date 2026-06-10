@@ -72,6 +72,13 @@ export function PairwiseView({
 
   return (
     <div className="align-results">
+      <Lede
+        alignment={alignment}
+        activeDiff={safeActive}
+        diffCount={diffCount}
+        hetCount={hetIndices.size}
+        onStep={step}
+      />
       <Summary
         alignment={alignment}
         referenceLength={referenceLength}
@@ -80,20 +87,10 @@ export function PairwiseView({
         onToggleMismatch={() => setShowMismatch((value) => !value)}
         onToggleGap={() => setShowGap((value) => !value)}
       />
-      {diffCount > 0 && (
-        <div className="align-diff-nav" aria-label="Step through differences">
-          <button type="button" className="align-nav-btn" onClick={() => step(-1)} aria-label="Previous difference">
-            ◀
-          </button>
-          <span className="align-diff-count">
-            {safeActive + 1} / {diffCount}
-          </span>
-          <button type="button" className="align-nav-btn" onClick={() => step(1)} aria-label="Next difference">
-            ▶
-          </button>
-          <span className="align-diff-current">{differenceLabel(alignment.differences[safeActive])}</span>
-        </div>
-      )}
+      <div className="align-spans-caption">
+        Ref {formatRange(alignment.referenceStart, alignment.referenceEnd)} · Read{' '}
+        {formatRange(alignment.editedStart, alignment.editedEnd)}
+      </div>
       <AlignedTrace
         cells={alignment.cells}
         trace={trace}
@@ -114,6 +111,56 @@ export function PairwiseView({
         showMismatch={showMismatch}
         showGap={showGap}
       />
+    </div>
+  )
+}
+
+/**
+ * Tier 1 of the result card — the headline read. Identity is the loudest thing,
+ * with the active difference (or an exact-match note) as the supporting clause
+ * and the ◀▶ nav lifted up beside it so stepping is where the eye already is.
+ */
+function Lede({
+  alignment,
+  activeDiff,
+  diffCount,
+  hetCount,
+  onStep,
+}: {
+  alignment: PairwiseAlignment
+  activeDiff: number
+  diffCount: number
+  hetCount: number
+  onStep: (delta: number) => void
+}) {
+  const exact = diffCount === 0
+  return (
+    <div className="align-lede">
+      <div className="align-lede-id">
+        <b>{formatPercent(alignment.identity)}</b>
+        <span>identity</span>
+      </div>
+      <div className="align-lede-detail">
+        {exact ? (
+          <span className="align-lede-exact">Exact match — no mismatches or gaps</span>
+        ) : (
+          <span className="align-lede-diff">{differenceLabel(alignment.differences[activeDiff])}</span>
+        )}
+        {hetCount > 0 && <span className="align-lede-het">· {hetCount} het</span>}
+      </div>
+      {diffCount > 0 && (
+        <div className="align-diff-nav" aria-label="Step through differences">
+          <button type="button" className="align-nav-btn" onClick={() => onStep(-1)} aria-label="Previous difference">
+            ◀
+          </button>
+          <span className="align-diff-count">
+            {activeDiff + 1} / {diffCount}
+          </span>
+          <button type="button" className="align-nav-btn" onClick={() => onStep(1)} aria-label="Next difference">
+            ▶
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -140,12 +187,6 @@ function Summary({
   return (
     <div className="align-summary" aria-label="Alignment summary">
       <Metric
-        label="Identity"
-        value={formatPercent(alignment.identity)}
-        tone="ok"
-        tip="Percent of aligned positions where the read base matches the reference base."
-      />
-      <Metric
         label="Coverage"
         value={`${coverage}%`}
         tip="Percent of the reference window this read's alignment spans (how much of the reference the read covers)."
@@ -170,16 +211,6 @@ function Summary({
         onClick={alignment.gaps > 0 ? onToggleGap : undefined}
         open={alignment.gaps > 0 ? showGap : undefined}
         tip="Insertions or deletions — positions present in one sequence but not the other. Click to show or hide them below."
-      />
-      <Metric
-        label="Ref span"
-        value={formatRange(alignment.referenceStart, alignment.referenceEnd)}
-        tip="The reference coordinate range covered by this alignment."
-      />
-      <Metric
-        label="Read span"
-        value={formatRange(alignment.editedStart, alignment.editedEnd)}
-        tip="The read coordinate range covered by this alignment."
       />
     </div>
   )
