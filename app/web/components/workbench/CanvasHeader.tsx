@@ -32,8 +32,9 @@ const VIEWER_MODES: Array<{ m: ViewerMode; label: string; title: string }> = [
   { m: 'window', label: 'Window', title: 'CDS-centric window with introns collapsed' },
   {
     m: 'locus',
-    label: 'Full gene',
-    title: 'Full genomic locus — introns and UTRs visible',
+    label: 'Full gene · overview',
+    title:
+      'Whole genomic locus — read-only overview; base colour, selection, and editing live in Window view.',
   },
 ]
 

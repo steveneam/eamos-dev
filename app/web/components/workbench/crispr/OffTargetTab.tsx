@@ -374,8 +374,11 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
             }}
           />
         </label>
-        <label className="field">
-          <span className="field-label">Max mismatches</span>
+        <label
+          className="field"
+          title="Genome search radius — max mismatches the search returns."
+        >
+          <span className="field-label">Search ≤ {maxMismatches} mm</span>
           <input
             className="field-input"
             type="number"
@@ -566,9 +569,9 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
               </button>
               <label
                 className="ots-curate-field"
-                title="Hide off-targets with more than this many mismatches versus your guide."
+                title="Display filter — hides returned off-targets above this many mismatches (no re-run)."
               >
-                <span className="field-label">Max mm</span>
+                <span className="field-label">Show ≤ {filterMm} mm</span>
                 <input
                   type="number"
                   min={0}
@@ -684,7 +687,7 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
                 {visibleOff.length === 0 && (
                   <tr>
                     <td colSpan={9} className="crispr-empty">
-                      No off-targets within {filterMm} mismatches
+                      No off-targets shown at ≤ {filterMm} mm
                       {codingOnly ? ' in coding genes' : ''}.
                     </td>
                   </tr>

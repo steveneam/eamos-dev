@@ -24,31 +24,12 @@ interface DesignTabProps {
   onScreenGuide?: (seed: ScreenSeed) => void
 }
 
-const CAS_OPTIONS: Array<{
-  value: CasEnzyme
-  label: string
-  caveat: string
-  disabled?: boolean
-}> = [
+const CAS_OPTIONS: Array<{ value: CasEnzyme; label: string; caveat: string }> = [
   {
     value: 'SpCas9',
-    label: 'SpCas9 NGG',
+    label: 'SpCas9 · NGG',
     caveat:
       'Current real-mode CRISPR design supports local deterministic SpCas9 only.',
-  },
-  {
-    value: 'SaCas9',
-    label: 'SaCas9 (unavailable)',
-    caveat:
-      'SaCas9 remains a schema value only; the real-mode backend rejects it until a provider is added.',
-    disabled: true,
-  },
-  {
-    value: 'Cas12a',
-    label: 'Cas12a (unavailable)',
-    caveat:
-      'Generic Cas12a is not a source-backed DeepCpf1/enCas12a provider in the current backend.',
-    disabled: true,
   },
 ]
 
@@ -142,7 +123,7 @@ function SsodnLine({
 }
 
 export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
-  const [cas, setCas] = useState<CasEnzyme>('SpCas9')
+  const [cas] = useState<CasEnzyme>('SpCas9')
   const [strand, setStrand] = useState<CrisprRequest['strand_filter']>('both')
   const [offTol, setOffTol] = useState(2)
   const [minOnTarget, setMinOnTarget] = useState(0)
@@ -154,7 +135,6 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
   const [hovered, setHovered] = useState<number | null>(null)
 
   const selectedCas = CAS_OPTIONS.find((option) => option.value === cas)
-  const unavailableCas = CAS_OPTIONS.filter((option) => option.disabled)
   const providerDisclosure = designProviderDisclosure(res)
 
   const clearComputed = () => {
@@ -227,26 +207,10 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
   return (
     <div className="crispr-design">
       <div className="tool-form">
-        <label className="field">
+        <div className="field">
           <span className="field-label">Cas enzyme</span>
-          <select
-            className="field-select"
-            value={cas}
-            disabled={loading}
-            onChange={(e) => {
-              const nextCas = e.target.value as CasEnzyme
-              if (nextCas !== 'SpCas9') return
-              setCas(nextCas)
-              clearComputed()
-            }}
-          >
-            {CAS_OPTIONS.map((c) => (
-              <option key={c.value} value={c.value} disabled={c.disabled}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <span className="crispr-enzyme-chip">SpCas9 · NGG</span>
+        </div>
         <label className="field">
           <span className="field-label">Strand</span>
           <select
@@ -283,16 +247,6 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
             }}
           />
         </label>
-        <label className="field">
-          <span className="field-label">Target window</span>
-          <input
-            className="field-input"
-            type="text"
-            value="server-resolved"
-            disabled
-            readOnly
-          />
-        </label>
       </div>
 
       <div className="btn-row">
@@ -318,11 +272,6 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
         <div className="help-note">{providerDisclosure.scoreLine}</div>
         <div className="help-note">{providerDisclosure.platformLine}</div>
         {selectedCas && <div className="help-note">{selectedCas.caveat}</div>}
-        {unavailableCas.map((option) => (
-          <div className="help-note" key={option.value}>
-            {option.caveat}
-          </div>
-        ))}
       </div>
 
       {error && <div className="crispr-error">{error}</div>}
@@ -442,7 +391,8 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
 
           <div className="help-note">
             Start / End / Region are positions on the design template
-            (template-relative offsets), not genomic coordinates.
+            (template-relative offsets), not genomic coordinates. The design
+            window is resolved on the server from the selected gene / cDNA.
           </div>
 
           <div className="crispr-table-wrap">

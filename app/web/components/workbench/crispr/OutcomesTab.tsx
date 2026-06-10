@@ -50,33 +50,42 @@ export function OutcomesTab() {
 
   return (
     <div className="crispr-outcomes">
+      {!outcomeInfo.sourceBacked && (
+        <span className="crispr-preview-tag eamos-mock">Preview</span>
+      )}
       <div className="tool-form">
-        <label className="field">
+        <div className="field">
           <span className="field-label">Control trace (.ab1 / JSON)</span>
-          <input
-            className="field-input crispr-file"
-            type="file"
-            accept=".ab1,.json"
-            disabled={loading}
-            onChange={(e) => {
-              setControl(e.target.files?.[0] ?? null)
-              clearComputed()
-            }}
-          />
-        </label>
-        <label className="field">
+          <label className="align-read-btn align-file-btn">
+            {control ? 'Replace file' : 'Choose file'}
+            <input
+              type="file"
+              accept=".ab1,.json"
+              hidden
+              disabled={loading}
+              onChange={(e) => {
+                setControl(e.target.files?.[0] ?? null)
+                clearComputed()
+              }}
+            />
+          </label>
+        </div>
+        <div className="field">
           <span className="field-label">Edited trace (.ab1 / JSON)</span>
-          <input
-            className="field-input crispr-file"
-            type="file"
-            accept=".ab1,.json"
-            disabled={loading}
-            onChange={(e) => {
-              setEdited(e.target.files?.[0] ?? null)
-              clearComputed()
-            }}
-          />
-        </label>
+          <label className="align-read-btn align-file-btn">
+            {edited ? 'Replace file' : 'Choose file'}
+            <input
+              type="file"
+              accept=".ab1,.json"
+              hidden
+              disabled={loading}
+              onChange={(e) => {
+                setEdited(e.target.files?.[0] ?? null)
+                clearComputed()
+              }}
+            />
+          </label>
+        </div>
         <label className="field">
           <span className="field-label">Cas9 cleavage base index</span>
           <input
@@ -110,20 +119,17 @@ export function OutcomesTab() {
         </span>
       </div>
 
-      <div className="crispr-caveats">
-        <div className="help-note">
-          Outcomes stay observed-only unless the backend returns source-backed
-          TIDE or Lindel details with numeric predicted bins.
+      {!outcomeInfo.sourceBacked && (
+        <div className="crispr-caveats">
+          <div className="help-note">
+            Preview surface — outcomes stay observed-only until the backend
+            returns source-backed TIDE / Lindel details with numeric predicted
+            bins. Uploaded traces are not evidence of a completed solve, and
+            Lindel frameshift probability would be a separate backend score, not
+            blended into observed indel frequencies.
+          </div>
         </div>
-        <div className="help-note">
-          Without that contract, this tab uses the frontend sample/fallback;
-          uploaded traces are not evidence of a completed TIDE solve.
-        </div>
-        <div className="help-note">
-          Lindel-derived frameshift probability should be shown as a separate
-          backend score, not blended into observed indel frequencies.
-        </div>
-      </div>
+      )}
 
       {error && <div className="crispr-error">{error}</div>}
 
