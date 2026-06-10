@@ -1,10 +1,12 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { streamChat } from '@/lib/chat'
 
 interface AskEamosProps {
   runId: string | null
-  contextLabel?: string
   suggestions?: string[]
+  /** Rendered at the top of the scrollable conversation area — the AI evidence
+   *  summary opens the thread, chat-style (it scrolls as the conversation grows). */
+  intro?: ReactNode
 }
 
 interface Message {
@@ -19,7 +21,15 @@ const DEFAULT_SUGGESTIONS = [
   'Are there any active trials?',
 ]
 
-export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTIONS }: AskEamosProps) {
+/**
+ * The Ask-Eamos chat shell for the work-rail (docs/ai-work-rail/spec.md): a
+ * scrollable conversation area (the evidence summary opens it, messages follow)
+ * over a composer pinned at the bottom — the familiar assistant layout (Claude /
+ * Grok). Streams via `streamChat`, gated on `runId`; today `runId` is null so it
+ * renders the guiding coming-soon state, and the AI gateway lights it up with no
+ * rebuild. Layout lives in work-rail.css (`.wr-chat*`).
+ */
+export function AskEamos({ runId, suggestions = DEFAULT_SUGGESTIONS, intro }: AskEamosProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -68,155 +78,61 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
     }
   }
 
-  return (
-    <div
-      style={{
-        background: 'var(--bg)',
-        border: '0.5px solid var(--line)',
-        borderTop: 'none',
-        borderBottomLeftRadius: 14,
-        borderBottomRightRadius: 14,
-        overflow: 'hidden',
-      }}
-    >
-      <header
-        className="flex flex-wrap items-center gap-2.5"
-        style={{
-          padding: '14px 26px',
-          background: 'var(--teal-tint)',
-          borderBottom: '0.5px solid var(--line)',
-        }}
-      >
-        <span
-          className="inline-flex items-center justify-center"
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 999,
-            background: 'var(--bg)',
-            border: '0.5px solid #cbe3d8',
-            color: 'var(--teal)',
-          }}
-        >
-          <SparkIcon />
-        </span>
-        <h3
-          style={{
-            fontFamily: 'var(--display)',
-            fontWeight: 600,
-            fontSize: 14,
-            color: 'var(--ink)',
-            letterSpacing: '-0.01em',
-            margin: 0,
-          }}
-        >
-          Ask Eamos about this variant
-        </h3>
-        {disabled && (
-          <span
-            style={{
-              padding: '2px 8px',
-              borderRadius: 999,
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-3)',
-              background: 'var(--bg)',
-              border: '0.5px solid var(--line)',
-            }}
-          >
-            Coming soon
-          </span>
-        )}
-        {contextLabel && (
-          <span
-            className="ml-auto"
-            style={{ fontSize: 12, color: 'var(--ink-3)' }}
-          >
-            Context:{' '}
-            <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink)', fontWeight: 600 }}>
-              {contextLabel}
-            </span>
-          </span>
-        )}
-      </header>
+  const sendActive = !disabled && !streaming && !!input.trim()
 
-      <div style={{ padding: '16px 26px 20px' }}>
-        {messages.length > 0 && (
-          <div
-            aria-live="polite"
-            className="mb-3.5 flex flex-col gap-4"
-          >
-            {messages.map((msg, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <span
-                  className="uppercase"
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    letterSpacing: '0.08em',
-                    color: msg.role === 'user' ? 'var(--ink-4)' : 'var(--teal-deep)',
-                  }}
-                >
-                  {msg.role === 'user' ? 'You' : 'Eamos'}
-                </span>
-                <div
-                  style={
-                    msg.role === 'user'
-                      ? {
-                          background: 'var(--bg-soft)',
-                          padding: '10px 14px',
-                          borderRadius: 10,
-                          border: '0.5px solid var(--line)',
-                          color: 'var(--ink)',
-                          fontSize: 14,
-                          lineHeight: 1.65,
-                        }
-                      : {
-                          padding: 0,
-                          color: 'var(--ink-2)',
-                          fontSize: 14,
-                          lineHeight: 1.65,
-                          whiteSpace: 'pre-wrap',
-                        }
-                  }
-                >
-                  {msg.text || (msg.role === 'ai' && streaming ? <TypingDots /> : null)}
-                </div>
+  return (
+    <div className="wr-chat">
+      {/* Conversation — the evidence summary is the opening Eamos message, so the
+          thread reads as if it already started; user/Eamos turns append below. */}
+      <div className="wr-chat-scroll">
+        <div aria-live="polite" className="wr-chat-msgs">
+          {intro && (
+            <div className="wr-chat-msg">
+              <span className="wr-chat-role is-ai">Eamos</span>
+              {intro}
+            </div>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} className="wr-chat-msg">
+              <span className={`wr-chat-role${msg.role === 'ai' ? ' is-ai' : ''}`}>
+                {msg.role === 'user' ? 'You' : 'Eamos'}
+              </span>
+              <div className={msg.role === 'user' ? 'wr-chat-user' : 'wr-chat-ai'}>
+                {msg.text || (msg.role === 'ai' && streaming ? <TypingDots /> : null)}
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+        {messages.length === 0 && (
+          <div className="wr-chat-starters">
+            <span className="wr-chat-starters-label">
+              {disabled ? "You'll be able to ask" : 'Try asking'}
+            </span>
+            <div className="wr-chat-chips">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => void send(s)}
+                  disabled={disabled || streaming}
+                  className="ask-chip"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
+      </div>
 
+      {/* Composer — pinned at the bottom of the rail. */}
+      <div className="wr-chat-composer">
         {error && (
-          <div
-            role="alert"
-            className="mb-3"
-            style={{
-              fontSize: 12,
-              color: 'var(--err)',
-              background: 'var(--err-tint)',
-              border: '0.5px solid var(--err)',
-              padding: '8px 12px',
-              borderRadius: 10,
-            }}
-          >
+          <div role="alert" className="wr-chat-err">
             {error}
           </div>
         )}
-
-        <form
-          onSubmit={handleSubmit}
-          className="ask-form flex items-end gap-1.5"
-          style={{
-            background: 'var(--bg-soft)',
-            border: '0.5px solid var(--line)',
-            borderRadius: 10,
-            padding: '5px 5px 5px 14px',
-            transition: `border-color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard)`,
-          }}
-        >
+        <form onSubmit={handleSubmit} className="ask-form">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -225,127 +141,69 @@ export function AskEamos({ runId, contextLabel, suggestions = DEFAULT_SUGGESTION
             rows={1}
             placeholder={
               disabled
-                ? 'Variant-aware chat is coming. We are wiring it to this report next.'
+                ? 'Variant-aware chat is coming soon.'
                 : 'Ask a follow-up about this variant, evidence, or therapies…'
             }
             aria-label="Ask Eamos"
-            className="min-h-[28px] flex-1 resize-none border-none bg-transparent outline-none disabled:cursor-not-allowed"
-            style={{
-              fontFamily: 'var(--body)',
-              fontSize: 13.5,
-              color: 'var(--ink)',
-              padding: '9px 0',
-              maxHeight: 120,
-              lineHeight: 1.5,
-            }}
+            className="ask-input"
           />
           <button
             type="submit"
-            disabled={disabled || streaming || !input.trim()}
+            disabled={!sendActive}
             aria-label="Send"
-            className="inline-flex shrink-0 items-center justify-center text-white transition-colors disabled:cursor-not-allowed"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 999,
-              border: 'none',
-              background: disabled || streaming || !input.trim() ? 'var(--ink-5)' : 'var(--teal)',
-            }}
+            className="ask-send"
+            data-on={sendActive}
           >
             <SendIcon />
           </button>
         </form>
-
-        {messages.length === 0 && !disabled && (
-          <div
-            className="mt-2.5 flex flex-wrap items-center gap-1.5"
-          >
-            <span
-              className="mr-1 uppercase"
-              style={{
-                fontSize: 10.5,
-                color: 'var(--ink-4)',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-              }}
-            >
-              Try
-            </span>
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => void send(s)}
-                disabled={streaming}
-                className="ask-chip inline-flex items-center gap-1.5"
-                style={{
-                  background: 'var(--bg)',
-                  border: '0.5px solid var(--line)',
-                  borderRadius: 999,
-                  padding: '5px 11px',
-                  fontSize: 11.5,
-                  color: 'var(--ink-2)',
-                  cursor: streaming ? 'not-allowed' : 'pointer',
-                  opacity: streaming ? 0.5 : 1,
-                  transition: `border-color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard)`,
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <style>{`
-          .ask-form:focus-within {
-            border-color: var(--teal) !important;
-            box-shadow: 0 0 0 3px rgba(29,158,117,0.10);
-          }
-          .ask-chip:hover:not(:disabled) {
-            background: var(--bg-soft) !important;
-            border-color: var(--ink-5) !important;
-            color: var(--ink) !important;
-          }
-          .ask-chip:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
-            border-color: var(--teal) !important;
-          }
-          .ask-chip:active:not(:disabled) {
-            transform: scale(0.97);
-            transition-duration: 80ms;
-          }
-        `}</style>
-        <div
-          className="mt-2.5 flex items-center gap-1.5"
-          style={{ fontSize: 10.5, color: 'var(--ink-4)' }}
-        >
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+        <p className="wr-chat-disclaimer">
+          <InfoDot />
           Answers cite source databases · not a substitute for clinical judgement
-        </div>
+        </p>
       </div>
+
+      <style>{`
+        .ask-form:focus-within {
+          border-color: var(--teal) !important;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.10);
+        }
+        .ask-chip:hover:not(:disabled) {
+          background: var(--bg-soft);
+          border-color: var(--ink-5);
+          color: var(--ink);
+        }
+        .ask-chip:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(29,158,117,0.14);
+          border-color: var(--teal);
+        }
+        .ask-chip:active:not(:disabled) {
+          transform: scale(0.97);
+          transition-duration: 80ms;
+        }
+      `}</style>
     </div>
   )
 }
 
-function SparkIcon() {
+function InfoDot() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z" />
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      style={{ flexShrink: 0 }}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
     </svg>
   )
 }

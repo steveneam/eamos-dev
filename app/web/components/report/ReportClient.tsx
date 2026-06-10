@@ -43,7 +43,6 @@ import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import { RPE65_NEGATIVE_CONTROL_SAMPLE } from '@/lib/sample-report'
 import {
-  tsvAISummary,
   tsvDiseaseAndConditions,
   tsvEvidenceBySource,
   tsvGeneContextSnapshot,
@@ -52,7 +51,6 @@ import {
   tsvTrials,
 } from '@/lib/report-tsv'
 import {
-  htmlAISummary,
   htmlDiseaseAndConditions,
   htmlEvidenceBySource,
   htmlGeneContextSnapshot,
@@ -481,7 +479,14 @@ export function ReportClient() {
         <WorkRail
           surface="report"
           title="Library"
+          aiTitle="Ask Eamos"
           foot={<RailFoot />}
+          aiPanel={
+            <ReportAiPanel
+              data={activeState.data}
+              queryFallback={`${gene} ${cdna}`.trim() || activeState.data.query}
+            />
+          }
           output={
             <CenteredMain bleed>
               <ReportBody
@@ -576,6 +581,16 @@ function CenteredMain({ children, bleed = false }: { children: ReactNode; bleed?
       {children}
     </main>
   )
+}
+
+/** The Ask-Eamos rail surface for a ready report (docs/ai-work-rail/spec.md). Mirrors
+ *  ReportBody's context derivation so the rail's context chip matches the report. */
+function ReportAiPanel({ data, queryFallback }: { data: LookupResponse; queryFallback: string }) {
+  const payload = data.report_payload
+  const row0 = payload.variant_summary_rows[0]
+  const contextLabel =
+    row0?.gene && row0?.protein_change ? `${row0.gene} ${row0.protein_change}` : queryFallback
+  return <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
 }
 
 interface ReportBodyProps {
@@ -999,25 +1014,9 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           }
         />
 
-        {/* 8 · AI evidence summary — last so the deterministic source rows
-            anchor the read before the synthesised summary. */}
-        <div id="ai_summary" className="scroll-mt-24" />
-        <Card
-          number={8}
-          title="AI evidence summary"
-          meta="deterministic · cited"
-          actions={
-            <CopyButton
-              text={{
-                html: htmlAISummary(payload),
-                text: tsvAISummary(payload),
-              }}
-              label="Copy AI summary (paste into Excel for formatted table)"
-            />
-          }
-        >
-          <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
-        </Card>
+        {/* The AI evidence summary (formerly §8) now lives in the Ask-Eamos
+            work-rail (docs/ai-work-rail/spec.md) — on-demand, not buried at the
+            foot of the read. */}
 
         {/* Optional plain-language decoder (not part of the numbered chain). */}
         <VariantDecoder decoder={payload.variant_decoder} />

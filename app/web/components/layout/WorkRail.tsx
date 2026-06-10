@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { IconChevron } from '@/components/icons/Icon'
+import { IconChevron, IconList, IconSparkle } from '@/components/icons/Icon'
 import { readCollapsed, writeCollapsed } from '@/lib/work-rail-collapse'
 import './work-rail.css'
 
@@ -14,6 +14,12 @@ import './work-rail.css'
  *   - ≥1200px  inline rail, expand (≈336px) ↔ collapse (48px icon rail).
  *   - <1200px  rail becomes an off-canvas drawer; output goes full-width; a
  *              floating trigger + scrim open it on demand. Content stays mounted.
+ *
+ * AI mode (docs/ai-work-rail/spec.md): when `aiPanel` is supplied the rail head
+ * carries a segmented Library ⇄ Ask-Eamos toggle. In AI mode the rail body shows
+ * the assistant (the library sections stay mounted, just hidden, preserving their
+ * state), the foot hides, and an expand-width button widens the rail to ~half the
+ * page. Surfaces that pass no `aiPanel` are unchanged.
  *
  * Collapse preference persists per surface in localStorage
  * (`eamos-rail-<surface>-collapsed`). Spec: docs/workspace-rail/spec.md §3.
@@ -85,7 +91,7 @@ export function WorkRailSection({ title, icon, meta, defaultOpen = true, childre
 export interface WorkRailProps {
   /** Persistence + a11y key. One of 'compare' | 'workbench' | 'report'. */
   surface: string
-  /** Rail header label. */
+  /** Rail header label (and the Library segment label when `aiPanel` is set). */
   title: string
   /** Primary "new" action rendered at the top of the rail header. */
   action?: ReactNode
@@ -96,17 +102,25 @@ export interface WorkRailProps {
   /** Optional pinned bottom region (account cluster, Ask launcher). Renders
    *  only when provided, so surfaces that don't opt in are unaffected. */
   foot?: ReactNode
+  /** Optional Ask-Eamos surface. When set, the rail head gains the Library ⇄
+   *  Ask-Eamos toggle and this renders in AI mode. */
+  aiPanel?: ReactNode
+  /** AI-segment label. Defaults to "Ask Eamos". */
+  aiTitle?: string
   className?: string
 }
 
-export function WorkRail({ surface, title, action, output, children, foot, className }: WorkRailProps) {
+export function WorkRail({ surface, title, action, output, children, foot, aiPanel, aiTitle = 'Ask Eamos', className }: WorkRailProps) {
   // Viewport <1200 → drawer mode (external store, SSR-safe). Collapse pref is
   // local + persisted. Drawer-open is only meaningful in drawer mode, so it's
   // derived (isOpen) rather than reset via an effect.
   const drawer = useSyncExternalStore(subscribeCompact, getCompactSnapshot, getServerCompactSnapshot)
   const [collapsed, setCollapsed] = useState(() => initialCollapsed(surface))
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [mode, setMode] = useState<'library' | 'ai'>('library')
+  const [aiWide, setAiWide] = useState(false)
   const isOpen = drawer && drawerOpen
+  const aiActive = !!aiPanel && mode === 'ai'
 
   const toggle = useCallback(() => {
     if (drawer) {
@@ -125,12 +139,21 @@ export function WorkRail({ surface, title, action, output, children, foot, class
     writeCollapsed(surface, false)
   }, [surface])
 
+  // Collapsed-rail sparkle: expand straight into the assistant in one click.
+  const openAiFromIcon = useCallback(() => {
+    setCollapsed(false)
+    writeCollapsed(surface, false)
+    setMode('ai')
+  }, [surface])
+
   const showIconRail = !drawer && collapsed
   const shellCls = [
     'work-shell',
     drawer ? 'mode-drawer' : 'mode-inline',
     showIconRail ? 'is-collapsed' : '',
     isOpen ? 'is-open' : '',
+    aiActive ? 'is-ai' : '',
+    aiActive && aiWide ? 'is-ai-wide' : '',
     className ?? '',
   ]
     .filter(Boolean)
@@ -170,27 +193,87 @@ export function WorkRail({ surface, title, action, output, children, foot, class
               <polyline points={!drawer && collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6'} />
             </svg>
           </button>
-          <span className="work-rail-title">{title}</span>
-          {action ? <span className="work-rail-action">{action}</span> : null}
+
+          {/* Head centre — segmented mode toggle when an AI panel is wired,
+              else the static rail title. Hidden in the collapsed icon rail. */}
+          {!showIconRail && aiPanel ? (
+            <div className="wr-mode-toggle" data-mode={mode} role="tablist" aria-label="Rail mode">
+              <span className="wr-mode-thumb" aria-hidden="true" />
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'library'}
+                className="wr-mode-seg"
+                onClick={() => setMode('library')}
+              >
+                <IconList size={13} />
+                <span>{title}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'ai'}
+                className="wr-mode-seg wr-mode-seg-ai"
+                onClick={() => setMode('ai')}
+              >
+                <IconSparkle size={13} />
+                <span>{aiTitle}</span>
+              </button>
+            </div>
+          ) : !showIconRail ? (
+            <span className="work-rail-title">{title}</span>
+          ) : null}
+
+          {/* Head right — the expand-width control in AI mode, else the surface
+              action. The collapsed icon rail gets a sparkle quick-open instead. */}
+          {!showIconRail && aiActive ? (
+            <button
+              type="button"
+              className="wr-ai-expand"
+              aria-label={aiWide ? 'Collapse panel width' : 'Expand panel to half screen'}
+              aria-pressed={aiWide}
+              onClick={() => setAiWide((w) => !w)}
+            >
+              <ExpandWidthIcon wide={aiWide} />
+            </button>
+          ) : !showIconRail && action ? (
+            <span className="work-rail-action">{action}</span>
+          ) : showIconRail && aiPanel ? (
+            <button
+              type="button"
+              className="wr-icon-ai"
+              aria-label={`Open ${aiTitle}`}
+              onClick={openAiFromIcon}
+            >
+              <IconSparkle size={16} />
+            </button>
+          ) : null}
         </div>
 
-        {/* Full body — the surface controls. Hidden (not unmounted) in icon-rail. */}
-        <div className="work-rail-body">{children}</div>
+        {/* Full body — the surface controls + the AI panel. Both stay mounted
+            (display-toggled by `.is-ai`) so Library state survives a mode flip.
+            Hidden (not unmounted) in the icon rail. */}
+        <div className="work-rail-body">
+          <div className="wr-lib-body">{children}</div>
+          {aiPanel ? <div className="wr-ai-body">{aiPanel}</div> : null}
+        </div>
 
-        {/* Collapsed → a vertical title label; the toggle (above) or this stub expands it. */}
+        {/* Collapsed → a vertical label of the active mode; the toggle (above) or
+            this stub expands it. */}
         {showIconRail && (
           <button
             type="button"
             className="work-rail-stub"
-            aria-label={`Expand ${title} controls`}
+            aria-label={`Expand ${aiActive ? aiTitle : title} controls`}
             onClick={expandFromIcon}
           >
-            <span>{title}</span>
+            <span>{aiActive ? aiTitle : title}</span>
           </button>
         )}
 
-        {/* Pinned foot — account cluster + Ask launcher. Rides the rail's flex
-            column (never unmounts), so it inherits collapse + drawer for free. */}
+        {/* Pinned foot — account cluster. Rides the rail's flex column (never
+            unmounts), so it inherits collapse + drawer for free. Hidden in AI
+            mode (the rail is dedicated to the assistant). */}
         {foot ? <div className="work-rail-foot">{foot}</div> : null}
       </aside>
 
@@ -208,5 +291,24 @@ export function WorkRail({ surface, title, action, output, children, foot, class
         </button>
       )}
     </div>
+  )
+}
+
+/** Double-chevron width control: `»` widen the rail, `«` narrow it back. */
+function ExpandWidthIcon({ wide }: { wide: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+      {wide ? (
+        <>
+          <polyline points="15 6 9 12 15 18" />
+          <polyline points="21 6 15 12 21 18" />
+        </>
+      ) : (
+        <>
+          <polyline points="9 6 15 12 9 18" />
+          <polyline points="3 6 9 12 3 18" />
+        </>
+      )}
+    </svg>
   )
 }

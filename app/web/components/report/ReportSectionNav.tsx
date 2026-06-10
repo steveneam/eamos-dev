@@ -19,7 +19,6 @@ const ANCHORS: { id: string; label: string }[] = [
   { id: 'associated_conditions', label: 'Disease & conditions' },
   { id: 'publications', label: 'Publications' },
   { id: 'trials', label: 'Trials' },
-  { id: 'ai_summary', label: 'AI summary' },
 ]
 
 export function ReportSectionNav() {

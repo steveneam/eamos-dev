@@ -8,6 +8,14 @@ function formatWarning(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
 }
 
+/**
+ * The deterministic, source-anchored evidence synthesis — rendered as the opening
+ * "Eamos" message of the Ask-Eamos chat thread (docs/ai-work-rail/spec.md): the
+ * conversation starts already summarised, and scrolls up as the user chats. The
+ * synthesis prose, then a slim provenance footnote, then any warning chips. The
+ * "Eamos" role label is supplied by the surrounding chat message. Styling lives in
+ * work-rail.css (`.wr-ai-*`).
+ */
 export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
   const typedSummary = payload.report_profile?.interpretation_summary
   const hasTypedSummary = typedSummary != null
@@ -16,108 +24,26 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
     : payload.ai_clinical_summary?.trim()
   const warnings = typedSummary?.warnings ?? []
   if (!summary && warnings.length === 0) return null
-  const modeLabel =
-    typedSummary?.mode === 'deterministic'
-      ? 'deterministic'
-      : typedSummary?.mode === 'llm_rewrite'
-        ? 'AI rewrite'
-        : hasTypedSummary
-          ? 'unavailable'
-          : 'synthesised'
 
   return (
-    <div
-      style={{
-        background: 'var(--bg)',
-        border: '0.5px solid var(--line)',
-        borderTopLeftRadius: 14,
-        borderTopRightRadius: 14,
-        borderBottom: 'none',
-        padding: '22px 26px',
-      }}
-    >
-      <header
-        className="mb-4 flex items-center gap-3 pb-4"
-        style={{ borderBottom: '0.5px solid var(--line)' }}
-      >
-        <h2
-          className="flex-1"
-          style={{
-            fontFamily: 'var(--display)',
-            fontWeight: 400,
-            fontSize: 18,
-            letterSpacing: '-0.01em',
-            color: 'var(--ink)',
-            margin: 0,
-          }}
-        >
-          AI evidence summary
-        </h2>
-        <span
-          style={{
-            fontSize: 11,
-            color: 'var(--ink-4)',
-            fontFamily: 'var(--mono)',
-          }}
-        >
-          {modeLabel} | cited
-        </span>
-      </header>
-
-      <div
-        className="mb-4 flex items-center gap-2.5"
-        style={{
-          padding: '10px 12px',
-          background: 'var(--teal-tint)',
-          border: '0.5px solid var(--teal-bdr)',
-          borderRadius: 10,
-          fontSize: 12,
-          color: 'var(--teal-deep)',
-        }}
-      >
-        <InfoIcon />
-        <span>
-          Synthesised from the source databases below. Every claim is anchored
-          to a numbered source row.
-        </span>
-      </div>
-
-      <div
-        style={{
-          fontSize: 15,
-          lineHeight: 1.7,
-          color: 'var(--ink-2)',
-        }}
-      >
+    <div className="wr-ai-summary">
+      <div className="wr-ai-prose">
         {summary ? (
-          summary.split(/\n+/).map((para, i) => (
-            <p key={i} style={{ margin: i === 0 ? 0 : '12px 0 0' }}>
-              {para}
-            </p>
-          ))
+          summary.split(/\n+/).map((para, i) => <p key={i}>{para}</p>)
         ) : (
-          <p style={{ margin: 0, color: 'var(--ink-4)' }}>
+          <p className="wr-ai-prose-empty">
             Interpretation summary unavailable for this lookup.
           </p>
         )}
       </div>
-
+      <p className="wr-ai-synth">
+        <InfoIcon />
+        <span>Synthesised from the cited evidence in this report.</span>
+      </p>
       {warnings.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="wr-ai-warnings">
           {warnings.slice(0, 3).map((warning) => (
-            <span
-              key={warning}
-              style={{
-                border: '0.5px solid var(--warn-bdr)',
-                background: 'var(--warn-tint)',
-                color: 'var(--warn-text)',
-                borderRadius: 7,
-                padding: '5px 8px',
-                fontSize: 10.5,
-                fontWeight: 600,
-                overflowWrap: 'anywhere',
-              }}
-            >
+            <span key={warning} className="wr-ai-warn">
               {formatWarning(warning)}
             </span>
           ))}
@@ -130,8 +56,8 @@ export function EvidenceSummary({ payload }: EvidenceSummaryProps) {
 function InfoIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

@@ -1,32 +1,16 @@
 'use client'
-import { IconSparkle } from '@/components/icons/Icon'
 import { AuthMenu } from '@/components/auth/AuthMenu'
 
 /**
- * Pinned bottom cluster for the <WorkRail> foot (docs/workbench-task-a Part A):
- *   - a parked "Ask Eamos" launcher (COMING SOON — no LLM key, see
- *     feedback_askeamos_parked), kept in tab order for discoverability.
- *   - the account row (AuthMenu rail-foot variant) — opens upward, portalled.
+ * Pinned bottom cluster for the <WorkRail> foot — the account control (AuthMenu
+ * rail-foot variant: icon-led, opens upward, portalled). The parked "Ask Eamos"
+ * launcher that used to live here is gone: the rail's Library ⇄ Ask-Eamos toggle
+ * is now the single Ask entry point (docs/ai-work-rail/spec.md §6). The foot hides
+ * entirely while the rail is in AI mode.
  *
- * Global by construction: WorkRail is shared by report / workbench / compare,
- * so passing this as `foot` lights up the same cluster on every surface.
+ * Global by construction: WorkRail is shared by report / workbench / compare, so
+ * passing this as `foot` lights up the same account control on every surface.
  */
 export function RailFoot() {
-  return (
-    <>
-      <button
-        type="button"
-        className="wr-foot-row wr-foot-ask"
-        aria-disabled="true"
-        title="Variant-aware chat — coming soon"
-      >
-        <span className="wr-foot-ask-ico" aria-hidden="true">
-          <IconSparkle size={15} />
-        </span>
-        <span className="wr-foot-ask-label">Ask Eamos</span>
-        <span className="wr-foot-soon">Soon</span>
-      </button>
-      <AuthMenu tone="light" placement="rail-foot" />
-    </>
-  )
+  return <AuthMenu tone="light" placement="rail-foot" />
 }

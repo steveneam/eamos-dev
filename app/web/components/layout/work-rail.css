@@ -12,6 +12,8 @@
   --rail-top: var(--nav-h, 60px);
   --rail-w: 336px;
   --rail-w-collapsed: 48px;
+  /* AI mode "expand to ~half the page" width (docs/ai-work-rail/spec.md). */
+  --rail-w-ai: min(52vw, 760px);
   /* The CURRENT rail width — published as a custom property so a fixed-position
      descendant (the report's sticky variant ribbon) can offset itself by the
      rail and stay centred over the output column instead of the whole viewport.
@@ -254,6 +256,8 @@
 }
 .work-shell.is-collapsed .work-rail-head {
   padding: 12px 0 10px;
+  flex-direction: column;
+  gap: 8px;
   justify-content: center;
 }
 .work-shell.is-collapsed .work-rail-title,
@@ -456,12 +460,429 @@
   padding: 4px 2px 8px 6px; /* gentle indent under the label, tight */
 }
 
+/* ═══════════ AI mode — Ask-Eamos work-rail (docs/ai-work-rail/spec.md) ═══════════
+   A segmented Library ⇄ Ask-Eamos toggle in the head; in AI mode the body swaps to
+   the assistant (library sections stay mounted, just hidden, so their state
+   survives), the foot hides, and the rail can widen to ~half the page. Reading-room
+   vocabulary throughout: no chat bubbles, no glass, one teal sparkle accent. */
+
+/* — Expand to ~half page (inline pushes the output; drawer widens the overlay). — */
+.work-shell.mode-inline.is-ai-wide:not(.is-collapsed) {
+  --rail-live-w: var(--rail-w-ai);
+}
+.work-shell.mode-inline.is-ai-wide:not(.is-collapsed) .work-rail {
+  flex-basis: var(--rail-w-ai);
+  width: var(--rail-w-ai);
+}
+.work-shell.mode-drawer.is-ai-wide .work-rail {
+  width: min(560px, 94vw);
+}
+
+/* — Body swap: library vs AI, both mounted; foot hides in AI. — */
+.work-shell.is-ai .wr-lib-body { display: none; }
+.work-shell:not(.is-ai) .wr-ai-body { display: none; }
+.work-shell.is-ai .work-rail-foot { display: none; }
+
+/* AI mode turns the rail body into a flex column so the chat composer pins to the
+   bottom and the conversation scrolls between the strip and the composer. */
+.work-shell.is-ai .work-rail-body {
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.work-shell.is-ai .wr-ai-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* One orchestrated reveal: display:none → flex retriggers the keyframe. */
+.wr-ai-body {
+  animation: wr-ai-rise var(--dur-2) var(--ease-emphasized) both;
+}
+@keyframes wr-ai-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* — Segmented mode toggle (replaces the static head title) — */
+.wr-mode-toggle {
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 264px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 32px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: 9px;
+  isolation: isolate;
+}
+.wr-mode-thumb {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  padding: 2px;
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+.wr-mode-thumb::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: 7px;
+  box-shadow: var(--elev-1);
+}
+.wr-mode-toggle[data-mode='ai'] .wr-mode-thumb {
+  transform: translateX(100%);
+}
+.wr-mode-seg {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.wr-mode-seg > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wr-mode-seg:hover { color: var(--ink-2); }
+.wr-mode-seg[aria-selected='true'],
+.wr-mode-seg[aria-selected='true']:hover { color: var(--ink); }
+/* The one teal touch: the sparkle inks teal on the active Ask-Eamos segment. */
+.wr-mode-seg-ai[aria-selected='true'] svg { color: var(--teal); }
+.wr-mode-seg:focus-visible {
+  outline: none;
+  border-radius: 7px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+}
+
+/* — Expand-width button (AI head, far right) — */
+.wr-ai-expand {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--dur-1) ease, border-color var(--dur-1) ease, background var(--dur-1) ease;
+}
+.wr-ai-expand:hover { color: var(--ink); border-color: var(--ink-3); background: var(--bg-soft); }
+.wr-ai-expand:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 22%, transparent);
+}
+
+/* — Collapsed icon-rail → sparkle quick-open (expand straight into AI) — */
+.wr-icon-ai {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  color: var(--teal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
+}
+.wr-icon-ai:hover { border-color: var(--ink-3); background: var(--bg-soft); }
+
+/* ── AI panel: pinned strip + chat shell (scroll over a bottom composer) ── */
+.wr-ai-stack {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wr-ai-strip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 14px 12px;
+  border-bottom: 0.5px solid var(--line);
+}
+.wr-ai-strip-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--teal-tint);
+  border: 0.5px solid var(--teal-bdr);
+  color: var(--teal);
+}
+.wr-ai-strip-title {
+  flex: 0 0 auto;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.wr-ai-strip-soon {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border: 0.5px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.wr-ai-strip-ctx {
+  margin-left: auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chat shell — scroll area over a composer pinned at the bottom (Claude / Grok). */
+.wr-chat {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.wr-chat-scroll {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 14px 14px 10px;
+}
+/* Anchor the conversation to the bottom (just above the composer), filling
+   upward like a chat already in progress — not pinned to the top with a gap.
+   margin-top:auto stays scroll-safe when the thread overflows. */
+.wr-chat-scroll > :first-child { margin-top: auto; }
+.wr-chat-composer {
+  flex: 0 0 auto;
+  padding: 10px 14px 13px;
+  border-top: 0.5px solid var(--line);
+  background: var(--bg);
+}
+
+/* The evidence summary is the opening Eamos message — the synthesis prose plus a
+   slim provenance footnote; the "Eamos" role label is the surrounding message's. */
+.wr-ai-synth {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 9px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-4);
+}
+.wr-ai-synth svg { margin-top: 2px; }
+.wr-ai-prose {
+  font-family: var(--body);
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.wr-ai-prose p { margin: 0; }
+.wr-ai-prose p + p { margin-top: 11px; }
+.wr-ai-prose-empty { color: var(--ink-4); }
+.wr-ai-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+.wr-ai-warn {
+  border: 0.5px solid var(--warn-bdr);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Starter prompts — empty-state previews of what you can ask. */
+.wr-chat-starters { margin-top: 14px; }
+.wr-chat-starters-label {
+  display: block;
+  margin-bottom: 9px;
+  font-family: var(--body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.wr-chat-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.ask-chip {
+  max-width: 100%;
+  text-align: left;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-standard),
+    background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
+}
+.ask-chip:disabled { cursor: default; opacity: 0.6; }
+
+/* Conversation messages — the summary opens the thread, turns append below. */
+.wr-chat-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.wr-chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wr-chat-role {
+  font-family: var(--body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.wr-chat-role.is-ai { color: var(--teal-deep); }
+.wr-chat-user {
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.wr-chat-ai {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
+/* Composer — error, input row, disclaimer. */
+.wr-chat-err {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--err);
+  background: var(--err-tint);
+  border: 0.5px solid var(--err);
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+.ask-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: 12px;
+  padding: 5px 5px 5px 12px;
+  transition: border-color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard);
+}
+.ask-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 26px;
+  max-height: 120px;
+  resize: none;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: var(--body);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  padding: 7px 0;
+  overflow-y: auto;
+}
+.ask-input::placeholder { color: var(--ink-4); }
+.ask-input:disabled { cursor: not-allowed; overflow-y: hidden; }
+.ask-send {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--ink-5);
+  cursor: not-allowed;
+  transition: background var(--dur-1) var(--ease-standard);
+}
+.ask-send[data-on='true'] { background: var(--teal); cursor: pointer; }
+.wr-chat-disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 9px 0 0;
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .work-rail,
   .work-shell.mode-drawer .work-rail,
   .work-rail-scrim,
   .wr-section-chev,
-  .wr-foot-chev {
+  .wr-foot-chev,
+  .wr-mode-thumb {
     transition: none;
+  }
+  .wr-ai-body {
+    animation: none;
   }
 }
