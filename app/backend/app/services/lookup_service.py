@@ -585,7 +585,12 @@ class LookupService:
         def source_cached_result(name: str, producer) -> ToolResult:
             source_cache_lookup_key = source_cache_key_for(name)
             use_source_cache = source_cache_lookup_key is not None
-            if use_source_cache and not refresh:
+            skip_fresh_source_cache = (
+                name == "clingen"
+                and self.settings is not None
+                and self.settings.clingen_local_enabled
+            )
+            if use_source_cache and not refresh and not skip_fresh_source_cache:
                 hit = self.source_cache_repo.get_fresh(name, source_cache_lookup_key)
                 if hit is not None:
                     return hit.to_tool_result(status="cache", cache_status="cache_hit")
@@ -619,7 +624,11 @@ class LookupService:
                         ],
                     )
 
-            if use_source_cache and should_persist_source_cache(name, result):
+            if (
+                use_source_cache
+                and result.status != "local"
+                and should_persist_source_cache(name, result)
+            ):
                 _annotate_source_cached_result(
                     name,
                     result,
@@ -752,7 +761,11 @@ class LookupService:
             else:
                 result = source_cached_result(
                     name,
-                    lambda tool=tool: tool.get_evidence(variant=variant),
+                    lambda tool=tool, name=name: (
+                        tool.get_evidence(variant=variant, refresh=refresh)
+                        if name in {"clingen", "pubmed"}
+                        else tool.get_evidence(variant=variant)
+                    ),
                 )
             record_result(name, result)
             if name == "clinvar":

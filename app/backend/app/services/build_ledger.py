@@ -16,6 +16,7 @@ from app.data_sources import (
 from app.data_sources.registry import DataSourceRegistry
 from app.data_sources.source_manifest import build_post_reference_source_readiness
 from app.services.clinvar_local import CLINVAR_SOURCE_ID
+from app.services.clingen_local import CLINGEN_LOCAL_SOURCE_ID, inspect_clingen_local_store
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.dbsnp_local import DBSNP_SOURCE_ID
 from app.services.local_evidence_orchestrator import (
@@ -99,6 +100,7 @@ def build_backend_build_ledger(
         protein_annotation_status=protein_annotation_status,
     )
     coordinate_index_status = _compact_coordinate_index_status(settings)
+    clingen_local_status = _clingen_local_status(settings)
     pubmed_local_status = _pubmed_local_status(settings)
     pvs1_nmd_status = _pvs1_nmd_status()
 
@@ -311,6 +313,39 @@ def build_backend_build_ledger(
             public_serialization_allowed=True,
             wired_surfaces=("lookup", "report", "variant_library"),
             next_action="Keep local predictor serialization and calibration covered by tests.",
+        ),
+        BuildLedgerItem(
+            item_id="clingen_local_adapter",
+            label="ClinGen eRepo VCEP and CSpec local materialization",
+            group="clinical_tables",
+            source_ids=(CLINGEN_LOCAL_SOURCE_ID, "clingen_erepo", "clingen_cspec"),
+            engine="ClinGenLocalStore / SQLite source asset",
+            durable_source="operator_public_snapshot_jsonl",
+            runtime_source="render_disk_sqlite_cache",
+            render_disk_role="runtime_cache_required",
+            storage_decision=(
+                "Full public eRepo/CSpec snapshots are fetched by explicit operator CLI, "
+                "materialized into SQLite, and read local-first by ClingenTool. Runtime "
+                "startup and lookup requests never bulk-download ClinGen data."
+            ),
+            status=clingen_local_status,
+            runtime_wired=True,
+            public_serialization_allowed=True,
+            launch_gate=(
+                None if clingen_local_status == "ready" else "clingen_local_materialization"
+            ),
+            blockers=() if clingen_local_status == "ready" else ("clingen_local_materialization",),
+            wired_surfaces=(
+                "lookup",
+                "clingen_vcep_section",
+                "clinical_consensus",
+                "functional_evidence",
+            ),
+            next_action=(
+                None
+                if clingen_local_status == "ready"
+                else "Fetch ClinGen source JSONL, materialize SQLite, and pass preflight before enabling."
+            ),
         ),
         BuildLedgerItem(
             item_id="literature_engine",
@@ -577,6 +612,18 @@ def _pubmed_local_status(settings: Settings) -> str:
     if inspection.ready:
         return "ready"
     if not settings.pubmed_local_enabled:
+        return "local_adapter_disabled"
+    return inspection.status
+
+
+def _clingen_local_status(settings: Settings) -> str:
+    try:
+        inspection = inspect_clingen_local_store(settings, verify_checksum=False)
+    except Exception:
+        return "runtime_asset_probe_failed"
+    if inspection.ready:
+        return "ready"
+    if not settings.clingen_local_enabled:
         return "local_adapter_disabled"
     return inspection.status
 

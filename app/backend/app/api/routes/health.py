@@ -23,6 +23,7 @@ from app.services.predictor_runtime import (
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
+from app.services.clingen_local import inspect_clingen_local_store
 from app.services.pubmed_local import inspect_pubmed_local_store
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
@@ -130,6 +131,7 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
             "materialization_metadata": metadata,
         },
         "compact_coordinate_index": _compact_coordinate_index_health(settings),
+        "clingen_local": _clingen_local_health(settings),
         "pubmed_local": _pubmed_local_health(settings),
     }
 
@@ -190,6 +192,36 @@ def _pubmed_local_health(settings) -> dict[str, object]:
             "secret_values_emitted": False,
             "local_path_values_emitted": False,
             "abstract_values_emitted": False,
+        }
+
+
+def _clingen_local_health(settings) -> dict[str, object]:
+    try:
+        return inspect_clingen_local_store(settings, verify_checksum=False).to_sanitized_dict()
+    except Exception:
+        return {
+            "source_id": "eamos_clingen_local",
+            "status": "runtime_asset_probe_failed",
+            "ready": False,
+            "enabled": bool(settings.clingen_local_enabled),
+            "schema_version": None,
+            "source_version": None,
+            "classification_count": 0,
+            "cspec_entity_count": 0,
+            "cspec_link_count": 0,
+            "actual_size_bytes": None,
+            "checksum_verified": False,
+            "checksum_algorithm": None,
+            "checksum_value": None,
+            "message": "ClinGen local source asset probe failed",
+            "notices": [],
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "raw_source_rows_emitted": False,
+            "public_serialization_allowed": True,
+            "launch_gate": "clingen_local_materialization",
         }
 
 

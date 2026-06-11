@@ -67,7 +67,7 @@ class _StaticTool:
         self.raw = raw
         self.calls = 0
 
-    def get_evidence(self, variant=None) -> ToolResult:
+    def get_evidence(self, variant=None, **_kwargs) -> ToolResult:
         self.calls += 1
         return ToolResult(
             source=self.source,
@@ -79,7 +79,7 @@ class _StaticTool:
 
 
 class _MutatingVariantValidatorTool(_StaticTool):
-    def get_evidence(self, variant=None) -> ToolResult:
+    def get_evidence(self, variant=None, **_kwargs) -> ToolResult:
         result = super().get_evidence(variant=variant)
         if variant is not None:
             variant.genomic_hg38 = "1-68444869-T-C"

@@ -71,6 +71,15 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert pubmed_local["request_time_materialization_allowed"] is False
     assert pubmed_local["local_path_values_emitted"] is False
     assert pubmed_local["abstract_values_emitted"] is False
+    clingen_local = body["source_assets"]["clingen_local"]
+    assert clingen_local["source_id"] == "eamos_clingen_local"
+    assert clingen_local["ready"] is False
+    assert clingen_local["enabled"] is False
+    assert clingen_local["status"] == "db_missing"
+    assert clingen_local["startup_download_allowed"] is False
+    assert clingen_local["request_time_materialization_allowed"] is False
+    assert clingen_local["local_path_values_emitted"] is False
+    assert clingen_local["raw_source_rows_emitted"] is False
     crispr = body["providers"]["crispr"]
     assert crispr["configured_provider"] == "local_deterministic"
     assert crispr["available"] is True
@@ -115,6 +124,7 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     required_items = {
         "alphamissense",
         "capice",
+        "clingen_local_adapter",
         "clinical_source_tables",
         "coordinate_compact_index",
         "ci_spliceai",
@@ -136,6 +146,10 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert items["capice"]["runtime_wired"] is True
     assert items["capice"]["public_serialization_allowed"] is True
     assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
+    assert items["clingen_local_adapter"]["status"] == "local_adapter_disabled"
+    assert items["clingen_local_adapter"]["runtime_wired"] is True
+    assert items["clingen_local_adapter"]["public_serialization_allowed"] is True
+    assert items["clingen_local_adapter"]["launch_gate"] == "clingen_local_materialization"
     assert items["alphamissense"]["durable_source"] == "supabase_private_storage"
     assert items["clinical_source_tables"]["durable_source"] == "supabase_postgres"
     assert items["clinical_source_tables"]["render_disk_role"] == "not_required"
@@ -334,7 +348,7 @@ def test_provider_cache_health_summarizes_source_cache_without_identity_leaks(cl
         "cache_key",
         "normalized_identity",
         "request_identity",
-        "raw",
+        '"raw":',
         "warnings",
         "source_url",
         "1-68444869",

@@ -25,6 +25,7 @@ from app.data_sources.registry import RESTRICTED_PREDICTOR_SOURCE_IDS, DataSourc
 from app.data_sources.source_manifest import build_post_reference_source_readiness
 from app.repos.supabase_local_model_cache_repo import build_supabase_local_model_cache_store
 from app.services.build_ledger import build_backend_build_ledger
+from app.services.clingen_local import inspect_clingen_local_store
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
@@ -158,6 +159,7 @@ def build_source_asset_preflight_report(
         settings,
         verify_checksum=False,
     )
+    clingen_local = inspect_clingen_local_store(settings, verify_checksum=False)
     protein_summary = _protein_asset_summary(
         protein_assets,
         checksum_verified=verify_protein_checksums,
@@ -201,6 +203,7 @@ def build_source_asset_preflight_report(
             verify_checksum=verify_hg38_checksum,
         ),
         "compact_coordinate_index": compact_coordinate_index.to_sanitized_dict(),
+        "clingen_local": clingen_local.to_sanitized_dict(),
         "predictor_runtime_assets": predictor_runtime_assets,
         "protein_annotation_assets": protein_summary,
         "build_ledger": build_ledger,

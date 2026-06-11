@@ -78,6 +78,14 @@ class Settings(BaseSettings):
     pubmed_local_max_results: int = 50
     pubmed_local_require_licensed_abstracts: bool = True
     pubmed_local_materialize_timeout_seconds: float = 1200.0
+    clingen_local_enabled: bool = False
+    clingen_local_sqlite_path: Path = Path("./data/bio_assets/clingen/clingen-local.sqlite")
+    clingen_local_manifest_path: Path = Path(
+        "./data/bio_assets/clingen/clingen-local.manifest.json"
+    )
+    clingen_local_fallback_on_no_hit: bool = True
+    clingen_local_max_results: int = 25
+    clingen_local_materialize_timeout_seconds: float = 1200.0
     ncbi_eutils_api_key: str | None = None
     ncbi_eutils_tool: str = "eamos"
     ncbi_eutils_email: str | None = None
@@ -166,6 +174,7 @@ class Settings(BaseSettings):
     variant_validator_base_url: str = "https://rest.variantvalidator.org"
     litvar2_base_url: str = "https://www.ncbi.nlm.nih.gov/research/litvar2-api"
     clingen_erepo_base_url: str = "https://erepo.clinicalgenome.org/evrepo"
+    clingen_cspec_base_url: str = "https://cspec.genome.network/cspec"
     hgnc_rest_base_url: str = "https://rest.genenames.org"
     cache_ttl_days: int = 30
     stripe_secret_key: str | None = None

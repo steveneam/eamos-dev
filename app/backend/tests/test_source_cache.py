@@ -37,7 +37,7 @@ class _StaticTool:
         self.warnings = list(warnings or [])
         self.calls = 0
 
-    def get_evidence(self, variant=None) -> ToolResult:
+    def get_evidence(self, variant=None, **_kwargs) -> ToolResult:
         self.calls += 1
         return ToolResult(
             source=self.source,
@@ -51,7 +51,7 @@ class _StaticTool:
 
 
 class _MutatingVariantValidatorTool(_StaticTool):
-    def get_evidence(self, variant=None) -> ToolResult:
+    def get_evidence(self, variant=None, **_kwargs) -> ToolResult:
         result = super().get_evidence(variant=variant)
         if variant is not None:
             variant.genomic_hg38 = "1-68444869-T-C"
@@ -89,6 +89,9 @@ def _settings(tmp_path: Path) -> Settings:
         use_real_apis=True,
         llm_provider="mock",
         cache_ttl_days=30,
+        clingen_local_enabled=False,
+        clingen_local_sqlite_path=tmp_path / "missing-clingen.sqlite",
+        clingen_local_manifest_path=tmp_path / "missing-clingen.manifest.json",
     )
 
 

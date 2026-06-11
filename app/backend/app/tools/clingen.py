@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 import httpx
 
+from app.services.clingen_local import ClinGenLocalStore
 from app.tools.base import FixtureBackedTool, ToolResult
 
 _CLASSIFICATION_TO_EXPERT_PANEL = {
@@ -45,7 +46,7 @@ class ClingenTool(FixtureBackedTool):
     source = "clingen"
     fixture_name = "clingen_fixtures.json"
 
-    def get_evidence(self, variant=None) -> ToolResult:
+    def get_evidence(self, variant=None, *, refresh: bool = False) -> ToolResult:
         if variant is None:
             return ToolResult(
                 source=self.source,
@@ -59,6 +60,15 @@ class ClingenTool(FixtureBackedTool):
         gene = str(getattr(variant, "gene", "") or "").strip().upper()
         terms = _variant_terms(variant)
         request_identity = {"gene": gene, "terms": terms}
+
+        if self.settings.clingen_local_enabled and not refresh:
+            local_result = self._get_local_evidence(
+                gene=gene,
+                terms=terms,
+                request_identity=request_identity,
+            )
+            if local_result is not None:
+                return local_result
 
         if not self.settings.use_real_apis:
             records = _matching_fixture_records(self.load_fixture(), gene, terms)
@@ -90,6 +100,76 @@ class ClingenTool(FixtureBackedTool):
             records=records,
             base_url=self.settings.clingen_erepo_base_url,
             not_found_warning="clingen_variant_not_found",
+        )
+
+    def _get_local_evidence(
+        self,
+        *,
+        gene: str,
+        terms: list[str],
+        request_identity: dict[str, Any],
+    ) -> ToolResult | None:
+        local_warnings: list[str] = []
+        try:
+            store = ClinGenLocalStore(
+                _settings_path(self.settings, self.settings.clingen_local_sqlite_path),
+                manifest_path=_settings_path(
+                    self.settings,
+                    self.settings.clingen_local_manifest_path,
+                ),
+                enabled=True,
+            )
+            records, inspection, needs_live_fallback = store.search_records(
+                gene=gene,
+                terms=terms,
+                limit=self.settings.clingen_local_max_results,
+            )
+        except Exception as exc:
+            if self.settings.use_real_apis and self.settings.clingen_local_fallback_on_no_hit:
+                return None
+            return ToolResult(
+                source=self.source,
+                status="fallback",
+                request_identity=request_identity,
+                summary=_unavailable_summary(gene),
+                warnings=[f"clingen_local_failed:{type(exc).__name__}"],
+                raw=None,
+                source_url=_erepo_url(self.settings.clingen_erepo_base_url),
+            )
+
+        if inspection.ready:
+            local_warnings.extend(inspection.warnings)
+        else:
+            local_warnings.append(f"clingen_local_unavailable:{inspection.status}")
+
+        if records:
+            return _result_from_records(
+                source=self.source,
+                status="local",
+                request_identity=request_identity,
+                records=records,
+                base_url=self.settings.clingen_erepo_base_url,
+                warnings=local_warnings,
+                source_version=inspection.source_version,
+            )
+
+        can_live_fallback = (
+            self.settings.use_real_apis
+            and self.settings.clingen_local_fallback_on_no_hit
+            and (needs_live_fallback or not inspection.ready)
+        )
+        if can_live_fallback:
+            return None
+
+        return _result_from_records(
+            source=self.source,
+            status="missing",
+            request_identity=request_identity,
+            records=[],
+            base_url=self.settings.clingen_erepo_base_url,
+            not_found_warning="clingen_local_variant_not_found",
+            warnings=local_warnings,
+            source_version=inspection.source_version,
         )
 
     def _fetch_live(self, *, gene: str, terms: list[str]) -> list[dict[str, Any]]:
@@ -195,17 +275,22 @@ def _result_from_records(
     records: list[dict[str, Any]],
     base_url: str,
     not_found_warning: str | None = None,
+    warnings: list[str] | None = None,
+    source_version: str | None = None,
 ) -> ToolResult:
     summary = _summary_from_records(records, request_identity.get("gene"))
-    warnings = [not_found_warning] if not records and not_found_warning else []
+    result_warnings = list(warnings or [])
+    if not records and not_found_warning:
+        result_warnings.append(not_found_warning)
     return ToolResult(
         source=source,
         status=status,
         request_identity=request_identity,
         summary=summary,
-        warnings=warnings,
+        warnings=_dedupe(result_warnings),
         raw={"records": records},
         source_url=_record_source_url(records[0], base_url) if records else _erepo_url(base_url),
+        source_version=source_version or _records_source_version(records),
     )
 
 
@@ -297,6 +382,7 @@ def _expert_panel_vcep(record: dict[str, Any], nested: dict[str, Any]) -> dict[s
             or nested.get("vcep_name")
             or nested.get("vcepName")
             or record.get("vcepName")
+            or record.get("ep")
             or assertion_method
         )
         or "ClinGen Variant Curation Expert Panel",
@@ -484,6 +570,29 @@ def _record_source_url(record: dict[str, Any], base_url: str) -> str:
 def _erepo_url(base_url: str) -> str:
     base = base_url.rstrip("/")
     return f"{base}/" if base else "https://erepo.clinicalgenome.org/evrepo/"
+
+
+def _settings_path(settings, path) -> Any:
+    return path if path.is_absolute() else settings.backend_root / path
+
+
+def _records_source_version(records: list[dict[str, Any]]) -> str | None:
+    for record in records:
+        version = _text(record.get("sourceVersion") or record.get("source_version"))
+        if version:
+            return version
+    return None
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _text(value: Any) -> str | None:

@@ -680,7 +680,7 @@ def _expert_panel_freshness(
         return "stale", "stale_on_failure"
     if evidence.cache_status == "cache_hit":
         return "fresh", "cache_hit"
-    if evidence.status in {"live", "fixture", "cache"}:
+    if evidence.status in {"live", "local", "fixture", "cache"}:
         return "fresh", None
     return "unknown", "tile_only"
 
