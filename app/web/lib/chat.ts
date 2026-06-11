@@ -35,15 +35,3 @@ export async function* streamChat(
     reader.releaseLock()
   }
 }
-
-export async function sendChat(
-  runId: string,
-  question: string,
-  signal?: AbortSignal,
-): Promise<string> {
-  const parts: string[] = []
-  for await (const chunk of streamChat(runId, question, signal)) {
-    parts.push(chunk)
-  }
-  return parts.join('')
-}

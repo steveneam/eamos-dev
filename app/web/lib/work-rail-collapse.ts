@@ -8,7 +8,7 @@
  * Key shape is unchanged: `eamos-rail-<scope>-collapsed`, value '1' | '0'.
  */
 
-export function storageKey(scope: string): string {
+function storageKey(scope: string): string {
   return `eamos-rail-${scope}-collapsed`
 }
 

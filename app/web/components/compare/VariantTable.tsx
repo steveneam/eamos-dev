@@ -107,10 +107,14 @@ export function VariantTable({ rows, activePanels }: { rows: ParsedVariant[]; ac
   const isDragging = useRef(false)
   const [dragActive, setDragActive] = useState(false)
 
-  // Clear selection when rows change (new compare result loaded).
-  useEffect(() => {
+  // Clear selection when rows change (new compare result loaded). Adjust during
+  // render instead of in an effect to avoid a cascading re-render
+  // (react.dev: "you might not need an effect").
+  const [prevRows, setPrevRows] = useState(rows)
+  if (rows !== prevRows) {
+    setPrevRows(rows)
     setSelected(new Set())
-  }, [rows])
+  }
 
   const onSort = (key: SortKey) =>
     setSort((s) => (s && s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))

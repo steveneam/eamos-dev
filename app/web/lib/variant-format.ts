@@ -8,7 +8,7 @@ const PATTERNS: [VariantFormat, RegExp][] = [
   ['gene',   /^[A-Z][A-Z0-9]+\s+[cnmrCNMRgG]\.\d+/],
 ]
 
-export function classify(query: string): VariantFormat {
+function classify(query: string): VariantFormat {
   const q = query.trim()
   for (const [format, pattern] of PATTERNS) {
     if (pattern.test(q)) return format
@@ -45,13 +45,4 @@ export function isLikelyUnparseable(gene: string, cdna: string): boolean {
   if (!cleaned) return true
   const probe = `${gene.trim().toUpperCase()} ${cleaned}`.trim()
   return classify(probe) === 'unknown' && classify(cleaned) === 'unknown'
-}
-
-export const FORMAT_HINTS: Record<VariantFormat, string> = {
-  rsid:    'dbSNP identifier',
-  coord:   'Genomic coordinate',
-  hgvs:   'Transcript HGVS',
-  'gene-p': 'Gene + protein change',
-  gene:    'Gene + cDNA change',
-  unknown: 'Variant query',
 }
