@@ -41,6 +41,24 @@ Deploy guardrail:
   ready. Do not switch production to `indexed_sqlite` on the basis of the code
   deploy alone.
 
+Post-deploy update:
+- Committed as `43f6e92` and pushed to `origin/main`.
+- Render SG manual deploy `dep-d8l9tfa8qa3s738k78tg` is live on commit
+  `43f6e92`.
+- Vercel production deployment
+  `eamos-141hgwceg-steven-eamegdool-s-projects.vercel.app` is Ready and aliased
+  to `https://eamos-dev.vercel.app`.
+- SG and Vercel provider-cache both report
+  `crispr.off_target_screening.configured_provider=auto`, status
+  `mock_fallback`, `indexed_sqlite.ready=false`, and
+  `request_time_supabase_search=false`.
+- SG and Vercel `POST /api/v1/lookup/publications?refresh=true` for
+  `USH2A:c.2276G>T` return `scope=variant`, `total_count=190`, five rows, and
+  no warnings.
+- SG and Vercel `POST /api/v1/lookup?refresh=true&include_lazy_sections=true`
+  for `USH2A:c.2276G>T` return 200 with a report payload and seven warnings.
+- `https://eamos-dev.vercel.app/report?demo=1` returns 200.
+
 ## 2026-06-11 20:11 +1000 - Codex - Publication precision and live timeline slice
 
 Continued the publication-section quality slice with the Supabase corpus path
