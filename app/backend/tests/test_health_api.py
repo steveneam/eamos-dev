@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.main import create_app
+from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
@@ -154,6 +155,48 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     encoded_ledger = json.dumps(ledger).lower()
     assert "supabase://" not in encoded_ledger
     assert "service_role" not in encoded_ledger
+
+
+def test_provider_cache_health_reports_crispr_offtarget_index_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    guide = "GAGTCCGAGCAGAAGAAGAT"
+    index_path = tmp_path / "spcas9_offtargets.sqlite"
+    build_spcas9_offtarget_index_from_sequences(
+        [("1", f"{guide}AGG{'N' * 40}")],
+        index_path,
+        genome_build="GRCh38",
+        source_version="pytest-mini",
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        crispr_offtarget_provider="indexed_sqlite",
+        crispr_offtarget_index_path=index_path,
+        crispr_offtarget_index_object_uri=(
+            "supabase://eamos-source-assets/crispr/spcas9_offtargets.sqlite"
+        ),
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    off_target = response.json()["providers"]["crispr"]["off_target_screening"]
+    assert off_target["configured_provider"] == "indexed_sqlite"
+    assert off_target["available"] is True
+    assert off_target["status"] == "indexed_ready"
+    assert off_target["indexed_sqlite"]["ready"] is True
+    assert off_target["indexed_sqlite"]["target_count"] == 1
+    assert off_target["indexed_sqlite"]["max_mismatches_supported"] == 3
+    assert off_target["supabase_storage_object_uri_configured"] is True
+    assert off_target["render_materialization_required"] is False
+    assert off_target["request_time_supabase_search"] is False
+    encoded = json.dumps(response.json()).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "supabase://" not in encoded
 
 
 def test_provider_cache_health_reports_compact_coordinate_index_ready_without_paths(

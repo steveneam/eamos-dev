@@ -20,9 +20,18 @@ from app.services.crispr_design import (
     hsu_mismatch_positions,
     hsu_off_target_cutting_score,
 )
+from app.services.crispr_offtarget_index import (
+    CrisprOffTargetIndexUnavailable,
+    CrisprOffTargetIndexUnsupported,
+    inspect_crispr_offtarget_index,
+    query_spcas9_offtarget_index,
+)
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 
 MOCK_SCREENING_TEMPLATE_WARNING = "crispr_screening_mock_template"
+CRISPR_OFFTARGET_PROVIDER_AUTO = "auto"
+CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE = "indexed_sqlite"
+CRISPR_OFFTARGET_PROVIDER_MOCK = "mock"
 
 
 class CrisprOffTargetScreeningInputError(Exception):
@@ -37,6 +46,13 @@ class CrisprOffTargetScreeningInputError(Exception):
         self.code = code
         self.message = message
         self.warnings = warnings if warnings is not None else [code]
+
+
+class CrisprOffTargetScreeningProviderUnavailable(Exception):
+    def __init__(self, *, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
 
 
 class PrimerDesignProvider(Protocol):
@@ -113,6 +129,41 @@ class MockCasOffinderOffTargetProvider:
             genome_build=payload.genome_build,
             sites=sites,
         )
+
+
+class IndexedSqliteCrisprOffTargetProvider:
+    """Whole-genome SpCas9 off-target lookup against a local immutable SQLite index."""
+
+    def __init__(
+        self,
+        index_path,
+        *,
+        max_results: int = 200,
+    ) -> None:
+        self.index_path = index_path
+        self.max_results = max_results
+
+    def available(self) -> bool:
+        return inspect_crispr_offtarget_index(self.index_path).ready
+
+    def enumerate(self, payload: CrisprOffTargetRequest) -> CrisprOffTargetResponse:
+        try:
+            return query_spcas9_offtarget_index(
+                self.index_path,
+                payload,
+                max_results=self.max_results,
+            )
+        except CrisprOffTargetIndexUnsupported as exc:
+            raise CrisprOffTargetScreeningInputError(
+                code=exc.code,
+                message=exc.message,
+                warnings=[exc.code],
+            ) from exc
+        except CrisprOffTargetIndexUnavailable as exc:
+            raise CrisprOffTargetScreeningProviderUnavailable(
+                code="crispr_offtarget_index_unavailable",
+                message=exc.message,
+            ) from exc
 
 
 def design_screening_primers(

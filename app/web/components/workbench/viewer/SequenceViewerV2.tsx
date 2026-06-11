@@ -34,6 +34,7 @@ import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
 import { EditPopoverV2 } from './EditPopoverV2'
 import { ZoomSlider } from './ZoomSlider'
+import type { ZoomStep } from './zoom-config'
 import { IconChevron, IconGene, IconProtein, IconList } from '@/components/icons/Icon'
 import type { ReactNode } from 'react'
 
@@ -62,8 +63,10 @@ interface SequenceViewerV2Props {
   trackOn: TrackState
   strandMode: StrandMode
   baseW: number
-  /** Drives the hover-revealed zoom slider inside the Sequence window. */
-  onBaseW: (w: number) => void
+  basesPerRow: number
+  zoomStep: ZoomStep
+  /** Drives the hover-revealed zoom control inside the Sequence window. */
+  onZoomStep: (step: ZoomStep) => void
   /** Reference/control vs variant-applied sequence basis (GV-006). The
    *  adapter already applied the SNV to `data` in `variant` mode; this is
    *  passed through so the queried codon shows its ref→alt change. */
@@ -99,7 +102,9 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       trackOn,
       strandMode,
       baseW,
-      onBaseW,
+      basesPerRow,
+      zoomStep,
+      onZoomStep,
       alleleMode,
       navCollapsed,
       onToggleMinimap,
@@ -699,13 +704,14 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
                 </div>
               )}
               <div className="sv-zoom-overlay-seq" aria-hidden={false}>
-                <ZoomSlider baseW={baseW} onBaseW={onBaseW} />
+                <ZoomSlider zoomStep={zoomStep} onZoomStep={onZoomStep} />
               </div>
               <CodonDetail
                 data={data}
                 flat={flat}
                 codons={codons}
                 baseW={baseW}
+                basesPerRow={basesPerRow}
                 trackOn={trackOn}
                 strandMode={strandMode}
                 alleleMode={alleleMode}

@@ -21,6 +21,7 @@ def app(tmp_path: Path):
         database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
         llm_provider="mock",
         use_real_apis=False,
+        workbench_live_design_enabled=False,
         max_upload_mb=5,
         debug=True,
         jwt_secret="test-secret",

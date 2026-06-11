@@ -19,9 +19,6 @@ export const DEFAULT_TRACKS: TrackState = {
   restriction: false,
 }
 
-/** Semantic zoom presets — retained alongside the density slider. */
-export type ZoomLevel = 'gene' | 'exon' | 'codon'
-
 /** Selection summary mirrored out of the viewer to the side-panel edit hub
  *  (FE-5.6 Unit C). The reducer + raw `{start,end}` stay inside the viewer;
  *  only this presentational digest crosses the callback seam. */

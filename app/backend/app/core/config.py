@@ -66,14 +66,13 @@ class Settings(BaseSettings):
     search_input_ai_timeout_seconds: float = 8.0
     run_chat_top_k: int = 4
     use_real_apis: bool = False
+    workbench_live_design_enabled: bool = True
     local_evidence_enabled: bool = False
     local_evidence_allowed_flows_raw: str = ""
     local_evidence_require_real_apis: bool = True
     pubmed_local_enabled: bool = False
     pubmed_local_sqlite_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.sqlite")
-    pubmed_local_manifest_path: Path = Path(
-        "./data/bio_assets/pubmed/pubmed-local.manifest.json"
-    )
+    pubmed_local_manifest_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.manifest.json")
     pubmed_local_startup_materialization_enabled: bool = False
     pubmed_local_fallback_on_no_hit: bool = True
     pubmed_local_max_results: int = 50
@@ -86,6 +85,10 @@ class Settings(BaseSettings):
     crispr_rscript_path: Path = Path("Rscript")
     crispr_ruleset3_conda_env: Path | None = None
     crispr_lindel_conda_env: Path | None = None
+    crispr_offtarget_provider: str = "auto"
+    crispr_offtarget_index_path: Path = Path("./data/bio_assets/crispr/spcas9_offtargets.sqlite")
+    crispr_offtarget_index_object_uri: str | None = None
+    crispr_offtarget_max_results: int = 200
     primer_specificity_provider: str = "template"
     ucsc_ispcr_binary_path: Path = Path("./bio_assets/bin/isPcr")
     ucsc_ispcr_hg38_path: Path = Path("./bio_assets/genomes/hg38.2bit")

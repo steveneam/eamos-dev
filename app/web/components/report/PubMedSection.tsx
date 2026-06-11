@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { PublicationTimelineChart } from '@/components/report/PublicationTimelineChart'
@@ -9,7 +9,6 @@ import { lookupPublications } from '@/lib/api'
 import type {
   PublicationScope,
   PublicationSnippet,
-  PublicationTimeline,
   PubMedArticle,
   ReportPayload,
 } from '@/lib/backend'
@@ -32,42 +31,6 @@ function formatLabel(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
 }
 
-// Gene-wide per-year publication curve is gated on the backend, so we synthesise
-// an illustrative one (tagged "Mock" in the chart). The shape mimics a gene
-// whose literature ramps from the mid-90s and peaks around its translational
-// milestone, normalised so the series total stays coherent with the live
-// gene-wide scope count. Swap for the real `PublicationScopeCount.publication_timeline`
-// (gene) once Codex ships it.
-const GENE_YEAR_SHAPE: ReadonlyArray<readonly [number, number]> = [
-  [1995, 2], [1996, 2], [1997, 4], [1998, 4], [1999, 5],
-  [2000, 6], [2001, 8], [2002, 7], [2003, 9], [2004, 10],
-  [2005, 12], [2006, 13], [2007, 15], [2008, 22], [2009, 20],
-  [2010, 24], [2011, 26], [2012, 27], [2013, 30], [2014, 32],
-  [2015, 36], [2016, 40], [2017, 52], [2018, 56], [2019, 50],
-  [2020, 44], [2021, 40], [2022, 38], [2023, 34], [2024, 24],
-]
-
-function buildGeneTimeline(total: number): PublicationTimeline {
-  const weightSum = GENE_YEAR_SHAPE.reduce((sum, [, w]) => sum + w, 0)
-  let allocated = 0
-  const points = GENE_YEAR_SHAPE.map(([year, w]) => {
-    const count = Math.max(1, Math.round((w / weightSum) * total))
-    allocated += count
-    return { year, count }
-  })
-  // Park the rounding remainder on the peak year so the bars sum to `total`.
-  const diff = total - allocated
-  if (diff !== 0) {
-    let peakIdx = 0
-    for (let i = 1; i < points.length; i += 1) {
-      if (points[i].count > points[peakIdx].count) peakIdx = i
-    }
-    points[peakIdx] = { ...points[peakIdx], count: Math.max(1, points[peakIdx].count + diff) }
-  }
-  const realTotal = points.reduce((sum, p) => sum + p.count, 0)
-  return { publications_by_year: points, total_with_year: realTotal, total_without_year: 0 }
-}
-
 function articleDate(article: PubMedArticle): string {
   return article.publication_date || article.year || ''
 }
@@ -78,7 +41,7 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   const initialArticles = hasTypedLiterature
     ? literature.articles ?? []
     : payload.pubmed_articles ?? []
-  const warnings = literature?.warnings ?? []
+  const variantWarnings = literature?.warnings ?? []
 
   // Variant identity for the pagination request. Header is the authoritative
   // source (works for raw `q=` searches too). Per the live gotcha we OMIT the
@@ -89,10 +52,19 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   const proteinChange = header?.protein_change ?? null
   const canPaginate = hasTypedLiterature && Boolean(gene && cdna)
 
-  const [extra, setExtra] = useState<PubMedArticle[]>([])
-  const [total, setTotal] = useState<number>(literature?.total_count ?? initialArticles.length)
-  const [loading, setLoading] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [variantExtra, setVariantExtra] = useState<PubMedArticle[]>([])
+  const [variantTotal, setVariantTotal] = useState<number>(
+    literature?.scope === 'gene'
+      ? (literature.scope_counts?.variant?.total_count ?? initialArticles.length)
+      : (literature?.total_count ?? initialArticles.length),
+  )
+  const [variantLoading, setVariantLoading] = useState(false)
+  const [variantFailed, setVariantFailed] = useState(false)
+  const [geneLiterature, setGeneLiterature] = useState<typeof literature>(
+    literature?.scope === 'gene' ? literature : null,
+  )
+  const [geneFailed, setGeneFailed] = useState(false)
+  const geneRequestedRef = useRef(literature?.scope === 'gene')
   const [openArticle, setOpenArticle] = useState<PubMedArticle | null>(null)
   const searchParams = useSearchParams()
 
@@ -109,7 +81,14 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
     setPubScope(urlScope)
   }
 
-  const articles = [...initialArticles, ...extra]
+  const variantArticles = [...initialArticles, ...variantExtra]
+  const geneArticles = geneLiterature?.articles ?? []
+  const activeArticles = pubScope === 'variant' ? variantArticles : geneArticles
+  const activeWarnings = pubScope === 'variant' ? variantWarnings : (geneLiterature?.warnings ?? [])
+  const allLoadedArticles = [...variantArticles, ...geneArticles].filter(
+    (article, index, all) =>
+      article.pmid && all.findIndex((item) => item.pmid === article.pmid) === index,
+  )
 
   // Hydrate openArticle from ?pub=PMID:N on mount + whenever articles change
   // (so newly-loaded "View more" rows are also URL-addressable). Inbound only —
@@ -122,20 +101,30 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
     }
     const targetPmid = param.startsWith('PMID:') ? param.slice(5) : param
     if (openArticle?.pmid === targetPmid) return
-    const match = articles.find((a) => a.pmid === targetPmid)
+    const match = allLoadedArticles.find((a) => a.pmid === targetPmid)
     if (match) setOpenArticle(match)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, articles.length])
+  }, [searchParams, allLoadedArticles.length])
 
   usePublicationUrl(openArticle, () => setOpenArticle(null))
-  const shownCount = articles.length
+  const geneTotal =
+    geneLiterature?.total_count ??
+    geneLiterature?.scope_counts?.gene?.total_count ??
+    literature?.scope_counts?.gene?.total_count ??
+    payload.publications_callout?.scope_counts?.gene?.total_count ??
+    null
   const meta = hasTypedLiterature
-    ? `Showing ${shownCount} of ${total} publications`
-    : `${articles.length} ${articles.length === 1 ? 'article' : 'articles'}`
+    ? pubScope === 'variant'
+      ? `Showing ${variantArticles.length} of ${variantTotal} publications`
+      : geneTotal != null
+        ? `Gene-wide count: ${geneTotal.toLocaleString()} publications`
+        : 'Gene-wide count unavailable'
+    : `${activeArticles.length} ${activeArticles.length === 1 ? 'article' : 'articles'}`
 
-  const canLoadMore = canPaginate && !failed && shownCount < total
+  const canLoadMore =
+    pubScope === 'variant' && canPaginate && !variantFailed && variantArticles.length < variantTotal
 
-  const timeline = literature?.publication_timeline ?? null
+  const timeline = literature?.scope === 'gene' ? null : (literature?.publication_timeline ?? null)
   const hasTimeline = timeline != null && (timeline.publications_by_year?.length ?? 0) > 0
 
   const pubmedSearchTerm = gene ? `${gene} ${proteinChange || cdna}`.trim() : ''
@@ -144,49 +133,69 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
     : null
 
   const handleLoadMore = () => {
-    if (loading) return
-    setLoading(true)
-    setFailed(false)
+    if (variantLoading) return
+    setVariantLoading(true)
+    setVariantFailed(false)
     lookupPublications({
       gene,
       cdna,
       protein_change: proteinChange,
       species: 'human',
+      scope: 'variant',
       limit: PAGE_SIZE,
-      offset: shownCount,
+      offset: variantArticles.length,
     })
       .then((page) => {
-        const seen = new Set(articles.map((a) => a.pmid))
+        const seen = new Set(variantArticles.map((a) => a.pmid))
         const fresh = (page.articles ?? []).filter((a) => a.pmid && !seen.has(a.pmid))
         if (fresh.length === 0) {
           // Backend has no further distinct rows -- stop offering "View more".
-          setTotal(shownCount)
+          setVariantTotal(variantArticles.length)
           return
         }
-        setExtra((prev) => [...prev, ...fresh])
-        setTotal(page.total_count || shownCount + fresh.length)
+        setVariantExtra((prev) => [...prev, ...fresh])
+        setVariantTotal(page.total_count || variantArticles.length + fresh.length)
       })
-      .catch(() => setFailed(true))
-      .finally(() => setLoading(false))
+      .catch(() => setVariantFailed(true))
+      .finally(() => setVariantLoading(false))
   }
 
-  const moreCount = Math.min(PAGE_SIZE, total - shownCount)
+  const moreCount = Math.min(PAGE_SIZE, variantTotal - variantArticles.length)
 
   // Variant ↔ gene scope callout migrated up from old §4 so the scope toggle
   // lives with the publications section it actually controls.
   const calloutScopeCounts =
+    geneLiterature?.scope_counts ??
     payload.publications_callout?.scope_counts ??
     payload.publications_literature?.scope_counts ??
     null
 
-  // Gene-wide per-year series is gated → synthesise an illustrative one keyed to
-  // the live gene-wide total so the chart can answer the gene-scope toggle.
-  const geneCount = calloutScopeCounts?.gene?.total_count ?? null
-  const geneTimeline = useMemo(
-    () => (geneCount && geneCount > 0 ? buildGeneTimeline(geneCount) : null),
-    [geneCount],
-  )
+  // Gene-wide scope currently exposes a live total, not a per-year distribution.
+  const geneCount = geneTotal ?? calloutScopeCounts?.gene?.total_count ?? null
 
+  useEffect(() => {
+    if (pubScope !== 'gene' || !canPaginate || geneRequestedRef.current) return
+    geneRequestedRef.current = true
+    let cancelled = false
+    lookupPublications({
+      gene,
+      cdna,
+      protein_change: proteinChange,
+      species: 'human',
+      scope: 'gene',
+      limit: PAGE_SIZE,
+      offset: 0,
+    })
+      .then((page) => {
+        if (!cancelled) setGeneLiterature(page)
+      })
+      .catch(() => {
+        if (!cancelled) setGeneFailed(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [canPaginate, cdna, gene, proteinChange, pubScope])
   // All hooks are above this line — the empty-state early return must stay below
   // them so hook call order is identical on every render (rules-of-hooks).
   if (!hasTypedLiterature && initialArticles.length === 0) return null
@@ -201,38 +210,44 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
         scope={pubScope}
         onScopeChange={setPubScope}
       />
-      {articles.length === 0 ? (
+      {activeArticles.length === 0 ? (
         <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '14px 0 0' }}>
-          No publication rows available for this lookup.
+          {pubScope === 'gene'
+            ? geneCount == null && canPaginate && !geneLiterature && !geneFailed
+              ? 'Loading gene-wide publication scope...'
+              : geneCount != null && geneCount > 0
+                ? 'Gene-wide PubMed count is live, but row-level gene-wide articles are not expanded in this report. Open PubMed (gene) to inspect the full live set.'
+                : 'No gene-wide publication rows are available for this lookup.'
+            : 'No publication rows available for this lookup.'}
         </p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-4 p-0">
-          {articles.map((art) => (
+          {activeArticles.map((art) => (
             <ArticleRow key={art.pmid} article={art} onOpen={() => setOpenArticle(art)} />
           ))}
         </ul>
       )}
 
-      {(canLoadMore || failed || pubmedSearchUrl) && (
+      {(canLoadMore || variantFailed || (pubScope === 'variant' && pubmedSearchUrl)) && (
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           {canLoadMore && (
             <button
               type="button"
               onClick={handleLoadMore}
-              disabled={loading}
-              aria-busy={loading}
+              disabled={variantLoading}
+              aria-busy={variantLoading}
               className="eamos-toggle-btn"
             >
               <span aria-hidden style={{ color: 'var(--ink-3)' }}>+</span>
-              {loading ? 'Loading…' : `View ${moreCount} more`}
+              {variantLoading ? 'Loading...' : `View ${moreCount} more`}
             </button>
           )}
-          {failed && (
+          {variantFailed && (
             <span role="alert" style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
               Could not load more here. Search the full set on PubMed.
             </span>
           )}
-          {pubmedSearchUrl && (
+          {pubScope === 'variant' && pubmedSearchUrl && (
             <a
               href={pubmedSearchUrl}
               target="_blank"
@@ -250,9 +265,15 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
         </div>
       )}
 
-      {warnings.length > 0 && (
+      {geneFailed && pubScope === 'gene' && (
+        <span role="alert" style={{ display: 'block', marginTop: 12, fontSize: 11.5, color: 'var(--ink-4)' }}>
+          Could not refresh the gene-wide scope here. Open PubMed (gene) to inspect the live set.
+        </span>
+      )}
+
+      {activeWarnings.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {warnings.slice(0, 3).map((warning) => (
+          {activeWarnings.slice(0, 3).map((warning) => (
             <span
               key={warning}
               style={{
@@ -272,15 +293,18 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
         </div>
       )}
 
-      {(hasTimeline || geneTimeline) && (
+      {pubScope === 'variant' && hasTimeline && (
         <PublicationTimelineChart
-          timeline={
-            timeline ?? { publications_by_year: [], total_with_year: 0, total_without_year: 0 }
-          }
-          geneTimeline={geneTimeline}
-          scope={pubScope}
-          geneMock
+          timeline={timeline ?? { publications_by_year: [], total_with_year: 0, total_without_year: 0 }}
+          articles={variantArticles}
+          onOpenArticle={setOpenArticle}
         />
+      )}
+      {pubScope === 'gene' && geneCount != null && geneCount > 0 && (
+        <p style={{ fontSize: 11, color: 'var(--ink-4)', margin: '12px 2px 0' }}>
+          Gene-wide total is live from PubMed; per-year gene distribution is not exposed by the live
+          publication source yet.
+        </p>
       )}
       <PublicationModal article={openArticle} onClose={() => setOpenArticle(null)} />
     </Card>

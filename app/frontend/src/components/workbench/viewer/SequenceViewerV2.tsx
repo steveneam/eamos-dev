@@ -62,6 +62,7 @@ interface SequenceViewerV2Props {
   trackOn: TrackState
   strandMode: StrandMode
   baseW: number
+  basesPerRow: number
   /** Reference/control vs variant-applied sequence basis (GV-006). The
    *  adapter already applied the SNV to `data` in `variant` mode; this is
    *  passed through so the queried codon shows its ref→alt change. */
@@ -81,6 +82,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       trackOn,
       strandMode,
       baseW,
+      basesPerRow,
       alleleMode,
       navCollapsed,
       onScratchChange,
@@ -575,6 +577,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             flat={flat}
             codons={codons}
             baseW={baseW}
+            basesPerRow={basesPerRow}
             trackOn={trackOn}
             strandMode={strandMode}
             alleleMode={alleleMode}

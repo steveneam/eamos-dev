@@ -41,7 +41,12 @@ from app.services.crispr_design import (
     LocalDeterministicCrisprProvider,
 )
 from app.services.crispr_offtarget_screening import (
+    CRISPR_OFFTARGET_PROVIDER_AUTO,
+    CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE,
+    CRISPR_OFFTARGET_PROVIDER_MOCK,
     CrisprOffTargetScreeningInputError,
+    CrisprOffTargetScreeningProviderUnavailable,
+    IndexedSqliteCrisprOffTargetProvider,
     MockCasOffinderOffTargetProvider,
     design_screening_primers,
 )
@@ -205,6 +210,13 @@ class PrimerSpecificityResult:
 class PrimerSecondaryStructureAssessment:
     risk: str
     notes: str
+    self_any_forward: float | None = None
+    self_any_reverse: float | None = None
+    self_end_forward: float | None = None
+    self_end_reverse: float | None = None
+    hairpin_tm_forward: float | None = None
+    hairpin_tm_reverse: float | None = None
+    pair_compl_end: float | None = None
 
 
 class PrimerSpecificityProvider(Protocol):
@@ -439,6 +451,7 @@ class Primer3PrimerProvider:
                     "PRIMER_MIN_GC": 35.0,
                     "PRIMER_MAX_GC": 70.0,
                     "PRIMER_MAX_NS_ACCEPTED": 0,
+                    "PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT": 1,
                     "PRIMER_PRODUCT_SIZE_RANGE": [[product_min, product_max]],
                 },
             )
@@ -1205,6 +1218,7 @@ def _primer3_pairs(
             context=context,
         )
         secondary_structure = _primer3_secondary_structure(raw_result, idx)
+        placement = _primer3_pair_placement(raw_result, idx, context=context)
         pair_rows.append(
             (
                 {
@@ -1218,6 +1232,14 @@ def _primer3_pairs(
                     "product_size": product_size,
                     "secondary_structure_risk": secondary_structure.risk,
                     "secondary_structure_notes": secondary_structure.notes,
+                    "self_any_forward": secondary_structure.self_any_forward,
+                    "self_any_reverse": secondary_structure.self_any_reverse,
+                    "self_end_forward": secondary_structure.self_end_forward,
+                    "self_end_reverse": secondary_structure.self_end_reverse,
+                    "hairpin_tm_forward": secondary_structure.hairpin_tm_forward,
+                    "hairpin_tm_reverse": secondary_structure.hairpin_tm_reverse,
+                    "pair_compl_end": secondary_structure.pair_compl_end,
+                    **placement,
                 },
                 specificity,
             )
@@ -1248,27 +1270,128 @@ def _primer3_pairs(
     return pairs
 
 
+def _primer3_pair_placement(
+    raw_result: dict[str, Any],
+    pair_index: int,
+    *,
+    context: SequenceContext,
+) -> dict[str, Any]:
+    left = _primer3_position(raw_result.get(f"PRIMER_LEFT_{pair_index}"))
+    right = _primer3_position(raw_result.get(f"PRIMER_RIGHT_{pair_index}"))
+    if left is None or right is None:
+        return {}
+
+    left_start_zero, left_length = left
+    right_start_zero, right_length = right
+    forward_template_start = left_start_zero + 1
+    forward_template_stop = left_start_zero + left_length
+    reverse_template_start = right_start_zero + 1
+    reverse_template_stop = right_start_zero - right_length + 2
+    amplicon_template_start = forward_template_start
+    amplicon_template_end = reverse_template_start
+
+    placement: dict[str, Any] = {
+        "forward_strand": "Plus",
+        "reverse_strand": "Minus",
+        "forward_template_start": forward_template_start,
+        "forward_template_stop": forward_template_stop,
+        "reverse_template_start": reverse_template_start,
+        "reverse_template_stop": reverse_template_stop,
+        "amplicon_template_start": amplicon_template_start,
+        "amplicon_template_end": amplicon_template_end,
+    }
+
+    chrom, target_pos = _target_genomic_locus(context)
+    if chrom is None or target_pos is None:
+        return placement
+
+    template_genomic_start = target_pos - context.target_offset
+
+    def genomic_pos(template_pos: int) -> int:
+        return template_genomic_start + template_pos - 1
+
+    placement.update(
+        {
+            "genomic_chromosome": chrom,
+            "genome_build": context.genome_build,
+            "forward_genomic_start": genomic_pos(forward_template_start),
+            "forward_genomic_stop": genomic_pos(forward_template_stop),
+            "reverse_genomic_start": genomic_pos(reverse_template_start),
+            "reverse_genomic_stop": genomic_pos(reverse_template_stop),
+            "amplicon_genomic_start": genomic_pos(amplicon_template_start),
+            "amplicon_genomic_end": genomic_pos(amplicon_template_end),
+        }
+    )
+    return placement
+
+
+def _primer3_position(value: Any) -> tuple[int, int] | None:
+    if isinstance(value, (list, tuple)) and len(value) >= 2:
+        start, length = value[0], value[1]
+    elif isinstance(value, str):
+        match = re.fullmatch(r"\s*(?P<start>\d+)\s*,\s*(?P<length>\d+)\s*", value)
+        if match is None:
+            return None
+        start = match.group("start")
+        length = match.group("length")
+    else:
+        return None
+
+    try:
+        start_int = int(start)
+        length_int = int(length)
+    except (TypeError, ValueError):
+        return None
+    if start_int < 0 or length_int <= 0:
+        return None
+    return start_int, length_int
+
+
 def _primer3_secondary_structure(
     raw_result: dict[str, Any],
     pair_index: int,
 ) -> PrimerSecondaryStructureAssessment:
     metric_keys = {
-        "forward self-any": f"PRIMER_LEFT_{pair_index}_SELF_ANY_TH",
-        "forward self-end": f"PRIMER_LEFT_{pair_index}_SELF_END_TH",
-        "forward hairpin": f"PRIMER_LEFT_{pair_index}_HAIRPIN_TH",
-        "reverse self-any": f"PRIMER_RIGHT_{pair_index}_SELF_ANY_TH",
-        "reverse self-end": f"PRIMER_RIGHT_{pair_index}_SELF_END_TH",
-        "reverse hairpin": f"PRIMER_RIGHT_{pair_index}_HAIRPIN_TH",
-        "pair complement-any": f"PRIMER_PAIR_{pair_index}_COMPL_ANY_TH",
-        "pair complement-end": f"PRIMER_PAIR_{pair_index}_COMPL_END_TH",
+        "self_any_forward": (
+            "forward self-any",
+            f"PRIMER_LEFT_{pair_index}_SELF_ANY_TH",
+        ),
+        "self_end_forward": (
+            "forward self-end",
+            f"PRIMER_LEFT_{pair_index}_SELF_END_TH",
+        ),
+        "hairpin_tm_forward": (
+            "forward hairpin",
+            f"PRIMER_LEFT_{pair_index}_HAIRPIN_TH",
+        ),
+        "self_any_reverse": (
+            "reverse self-any",
+            f"PRIMER_RIGHT_{pair_index}_SELF_ANY_TH",
+        ),
+        "self_end_reverse": (
+            "reverse self-end",
+            f"PRIMER_RIGHT_{pair_index}_SELF_END_TH",
+        ),
+        "hairpin_tm_reverse": (
+            "reverse hairpin",
+            f"PRIMER_RIGHT_{pair_index}_HAIRPIN_TH",
+        ),
+        "pair_compl_any": (
+            "pair complement-any",
+            f"PRIMER_PAIR_{pair_index}_COMPL_ANY_TH",
+        ),
+        "pair_compl_end": (
+            "pair complement-end",
+            f"PRIMER_PAIR_{pair_index}_COMPL_END_TH",
+        ),
     }
-    metrics: dict[str, float] = {}
-    for label, key in metric_keys.items():
+    metrics: dict[str, tuple[str, float]] = {}
+    for field_name, (label, key) in metric_keys.items():
         value = raw_result.get(key)
         if value in (None, ""):
             continue
         try:
-            metrics[label] = float(value)
+            metrics[field_name] = (label, float(value))
         except (TypeError, ValueError):
             continue
 
@@ -1278,19 +1401,23 @@ def _primer3_secondary_structure(
             notes="Primer3 secondary-structure metrics were not returned.",
         )
 
-    worst_label, worst_value = max(metrics.items(), key=lambda item: item[1])
+    worst_label, worst_value = max(metrics.values(), key=lambda item: item[1])
     if worst_value >= 47.0:
         risk = "high"
     elif worst_value >= 35.0:
         risk = "moderate"
     else:
         risk = "low"
+    exposed_metrics = {
+        key: round(value, 1) for key, (_label, value) in metrics.items() if key != "pair_compl_any"
+    }
     return PrimerSecondaryStructureAssessment(
         risk=risk,
         notes=(
             "Primer3 thermodynamic secondary-structure screen "
             f"{risk}; max {worst_label} {worst_value:.1f}."
         ),
+        **exposed_metrics,
     )
 
 
@@ -1351,6 +1478,44 @@ def _default_crispr_provider(settings: Settings | None) -> CrisprDesignProvider:
     raise ValueError(f"Unknown CRISPR provider: {provider_name}")
 
 
+def _default_crispr_offtarget_provider(
+    settings: Settings | None,
+    *,
+    live_design_enabled: bool,
+) -> CrisprOffTargetProvider:
+    provider_name = (
+        (
+            settings.crispr_offtarget_provider
+            if settings is not None
+            else CRISPR_OFFTARGET_PROVIDER_AUTO
+        )
+        .strip()
+        .lower()
+    )
+    if provider_name == CRISPR_OFFTARGET_PROVIDER_MOCK:
+        return MockCasOffinderOffTargetProvider()
+
+    if provider_name == CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE:
+        if settings is None:
+            raise ValueError("Indexed CRISPR off-target screening requires backend settings.")
+        return IndexedSqliteCrisprOffTargetProvider(
+            _settings_path(settings, settings.crispr_offtarget_index_path),
+            max_results=settings.crispr_offtarget_max_results,
+        )
+
+    if provider_name == CRISPR_OFFTARGET_PROVIDER_AUTO:
+        if settings is not None and live_design_enabled:
+            indexed_provider = IndexedSqliteCrisprOffTargetProvider(
+                _settings_path(settings, settings.crispr_offtarget_index_path),
+                max_results=settings.crispr_offtarget_max_results,
+            )
+            if indexed_provider.available():
+                return indexed_provider
+        return MockCasOffinderOffTargetProvider()
+
+    raise ValueError(f"Unknown CRISPR off-target provider: {provider_name}")
+
+
 class WorkbenchDesignService:
     def __init__(
         self,
@@ -1364,6 +1529,11 @@ class WorkbenchDesignService:
         align_provider: AlignProvider | None = None,
     ) -> None:
         self.settings = settings
+        self.workbench_live_design_enabled = (
+            settings is None
+            or bool(getattr(settings, "workbench_live_design_enabled", True))
+            or bool(settings.use_real_apis)
+        )
         self.fixture_provider = fixture_provider or WorkbenchFixtureProvider()
         self.sequence_context_service = sequence_context_service or SequenceContextService(
             settings=settings
@@ -1373,18 +1543,22 @@ class WorkbenchDesignService:
         )
         self.crispr_provider = crispr_provider or _default_crispr_provider(settings)
         self.crispr_offtarget_provider = (
-            crispr_offtarget_provider or MockCasOffinderOffTargetProvider()
+            crispr_offtarget_provider
+            or _default_crispr_offtarget_provider(
+                settings,
+                live_design_enabled=self.workbench_live_design_enabled,
+            )
         )
         self.align_provider = align_provider or LocalSangerAlignmentProvider()
 
     def design_primers(self, payload: PrimerRequest) -> PrimerResponse:
-        if self.settings is not None and self.settings.use_real_apis:
-            return self._design_real_primers(payload)
+        if self.workbench_live_design_enabled:
+            return self._design_real_primers(payload, prefer_resolver=True)
         return self.fixture_provider.primers(payload)
 
     def design_guides(self, payload: CrisprRequest) -> CrisprResponse:
-        if self.settings is not None and self.settings.use_real_apis:
-            return self._design_real_guides(payload)
+        if self.workbench_live_design_enabled:
+            return self._design_real_guides(payload, prefer_resolver=True)
         return self.fixture_provider.crispr(payload)
 
     def enumerate_crispr_offtargets(
@@ -1399,6 +1573,13 @@ class WorkbenchDesignService:
                 message=exc.message,
                 status_code=HTTP_UNPROCESSABLE_ENTITY,
                 warnings=exc.warnings,
+            ) from exc
+        except CrisprOffTargetScreeningProviderUnavailable as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                warnings=[exc.code],
             ) from exc
         except WorkbenchDesignError:
             raise
@@ -1494,11 +1675,17 @@ class WorkbenchDesignService:
         trace = _parse_ab1_trace(payload.ab1_blob_base64)
         return analyze_parsed_trace(trace)
 
-    def _design_real_primers(self, payload: PrimerRequest) -> PrimerResponse:
+    def _design_real_primers(
+        self,
+        payload: PrimerRequest,
+        *,
+        prefer_resolver: bool = False,
+    ) -> PrimerResponse:
         try:
             sequence_result = self.sequence_context_service.resolve(
                 gene=payload.gene,
                 cdna=payload.cdna,
+                prefer_resolver=prefer_resolver,
             )
         except Exception as exc:
             raise WorkbenchDesignError(
@@ -1510,11 +1697,17 @@ class WorkbenchDesignService:
         context = self._sequence_context_or_error(sequence_result)
         return self.primer_provider.design(payload, context)
 
-    def _design_real_guides(self, payload: CrisprRequest) -> CrisprResponse:
+    def _design_real_guides(
+        self,
+        payload: CrisprRequest,
+        *,
+        prefer_resolver: bool = False,
+    ) -> CrisprResponse:
         try:
             sequence_result = self.sequence_context_service.resolve(
                 gene=payload.gene,
                 cdna=payload.cdna,
+                prefer_resolver=prefer_resolver,
             )
         except Exception as exc:
             raise WorkbenchDesignError(

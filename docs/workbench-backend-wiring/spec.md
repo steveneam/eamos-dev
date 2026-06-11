@@ -135,6 +135,51 @@ real data lands so the pass isn't done twice.
 
 ---
 
+## 2026-06-11 Codex implementation update
+
+The Workbench wiring slice below was implemented in the combined
+Workbench/PubMed integration commit.
+
+Durable behavior:
+- `/primer` and `/crispr` prefer local live-provider paths when
+  `workbench_live_design_enabled=true`; this does not require global
+  `use_real_apis=true`.
+- Primer3 thermodynamic oligo alignment is enabled and `PrimerPair` now carries
+  nullable thermodynamic plus placement/overlay fields in the Python schema and
+  both frontend contract mirrors.
+- `/crispr/ssodn` returns `variant_genomic` when the sequence context or local
+  transcript asset can resolve it.
+- CRISPR off-target screening has an optional local SQLite SpCas9 index
+  provider. `CRISPR_OFFTARGET_PROVIDER=auto` uses it only when a materialized
+  local index is present; otherwise it preserves the mock/deterministic
+  boundary. Explicit `indexed_sqlite` fails closed when the index is missing.
+- New operator CLI wrapper:
+  `python -m app.cli.eamos_crispr_offtarget_index --help`
+- Provider-cache health exposes sanitized off-target status, index readiness,
+  mock fallback, and Render materialization gates without leaking local paths or
+  private object URIs.
+- Workbench gene viewer defaults to 102 nt per row and uses fixed row-zoom
+  steps instead of dynamic scroller-width zoom.
+
+Deploy guardrail:
+- Do not commit, bundle, or web-serve any whole-genome CRISPR off-target index
+  artifact.
+- Keep production `CRISPR_OFFTARGET_PROVIDER=auto` unless Render has a real
+  local `CRISPR_OFFTARGET_INDEX_PATH` and provider-cache health reports
+  `indexed_sqlite.ready=true`.
+- `CRISPR_OFFTARGET_INDEX_OBJECT_URI` is coordination metadata only in this
+  slice. Request-time Supabase search and startup materialization remain
+  disabled.
+
+Verification recorded for the combined tree:
+- Backend Workbench/health pytest passed.
+- Backend Ruff and scoped Black checks passed.
+- `python -m app.cli.eamos_crispr_offtarget_index --help` passed.
+- `app/frontend` and `app/web` TypeScript checks passed.
+- No private/generated CRISPR SQLite/genome/index artifacts were staged.
+
+---
+
 ## Already real / not a CAR (for reference)
 
 - CRISPR real-mode design is correctly gated to **local deterministic SpCas9**;

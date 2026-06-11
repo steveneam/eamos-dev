@@ -56,6 +56,438 @@ the Patient Report Pipeline out of scope.
   Report should continue using `PublicationLiterature`, `PubMedArticle`, and
   `/api/v1/lookup/publications`.
 
+## Status Update - 2026-06-11
+
+Implemented and verified after the v4 materializer:
+
+- PubMed-local v4 accepts operator PubTator and LitVar edge JSONL through
+  `--from-pubtator-edge-jsonl-file` and `--from-litvar-edge-jsonl-file`.
+- `python -m app.cli.eamos_pubmed_pubtator_edges` converts NCBI PubTator flat
+  files into the existing edge JSONL shape with sanitized reporting.
+- `python -m app.cli.eamos_pubmed_litvar_edges` converts operator LitVar/LitVar2
+  publication exports into the same edge JSONL shape. It performs no network,
+  startup download, runtime materialization, or DB mutation.
+- The backend build ledger now describes PubTator and LitVar edge JSONL as
+  operator-fed inputs, names the Supabase private Storage/Postgres corpus as
+  the planned production tier after sizing approval, and keeps the live status
+  blocker on `pubmed_local_materialization`.
+
+## Remaining PubMed/PMC Wiring Buckets - Local Proof Harness
+
+These buckets are intentionally small enough for Claude/Codex coordination and
+for focused verification after each step. Codex owns backend/source/runtime
+tasks. Claude owns frontend rendering and browser polish unless Steven
+explicitly redirects.
+
+The local proof harness exists to prove policy, parsing, EP-VLEx snippets,
+fallback/refresh semantics, and health output before bulk Supabase storage is
+touched. It is not the final production storage topology.
+
+### Bucket LIT-1 - Operator Seed Pack Proof
+
+Goal: prove the complete local materialization path from staged operator files
+on a tiny USH2A/RPE65/BRCA1 seed pack.
+
+Tasks:
+- Create an ignored or fixture-sized seed pack shape: PubMed JSONL/XML metadata,
+  PubTator edge JSONL, LitVar edge JSONL, and seed TSV.
+- Run `eamos_pubmed_local_materialize` into a temporary SQLite DB.
+- Run `eamos_pubmed_local_preflight --require-ready`.
+- Lookup locally and prove EP-VLEx gets `pubtator` and `litvar2_snippet`
+  snippets without live calls.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_pubmed_local.py tests/test_pubmed_pubtator_edges.py tests/test_pubmed_litvar_edges.py -q
+python -m app.cli.eamos_pubmed_local_preflight --db-path <tmp-db> --manifest-path <tmp-manifest> --compact --require-ready
+```
+
+Done when: the seed pack materializes locally, health/preflight is sanitized,
+and local lookup returns variant-scoped publications with no request-time
+materialization.
+
+### Bucket LIT-2 - PMC OA Policy Overlay
+
+Goal: make PMC license metadata a first-class operator input for text policy,
+without importing PMC full text yet.
+
+Tasks:
+- Harden `--pmc-license-file` coverage with CSV/TSV/JSONL fixtures for CC BY,
+  public-domain, noncommercial, no-derivatives, unknown, and missing PMCID.
+- Ensure permissive overlays unlock abstract persistence only where allowed.
+- Add health/preflight counts that distinguish `metadata_only`,
+  `licensed_abstract`, and `pmc_license_overlay`.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_pubmed_local.py tests/test_health_api.py -q
+```
+
+Done when: PMC OA metadata changes only text policy/provenance and never leaks
+raw abstracts, local paths, or source-object identifiers in reports.
+
+### Bucket LIT-3 - Production Asset-Seeding Runbook
+
+Goal: produce an operator-ready SG seeding plan without changing live env yet.
+
+Tasks:
+- Specify exact Render disk paths under `/var/data/eamos/bio_assets/pubmed/`.
+- Specify file naming, checksums, source-version labels, and preflight commands.
+- Define the off-peak sequence: deploy disabled, upload/stage, materialize,
+  preflight, then enable `PUBMED_LOCAL_ENABLED=true` only after green checks.
+- Record rollback: unset/disable local PubMed and keep live E-utilities
+  fallback.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_health_api.py tests/test_source_asset_preflight_cli.py -q
+```
+
+Done when: Steven can run or delegate seeding without inventing policy at the
+terminal and without any startup/download path.
+
+### Bucket LIT-4 - SG Local-Enabled Smoke
+
+Goal: enable local PubMed on SG only after a preflight-ready asset exists.
+
+Tasks:
+- Run the seeding runbook on the SG persistent disk.
+- Set only the required env vars for local PubMed.
+- Redeploy SG, then check `/healthz`, provider-cache `build_ledger`, lookup,
+  lookup/publications, and `refresh=true` live bypass.
+- Confirm Vercel proxy matches SG.
+
+Verify:
+```powershell
+curl https://eamos-dev-sg.onrender.com/healthz
+curl https://eamos-dev-sg.onrender.com/api/v1/health/provider-cache
+```
+
+Done when: SG reports `literature_engine.status=ready`,
+`pubmed_local.status=ready`, normal lookup uses local where covered, and
+`refresh=true` still bypasses local for live E-utilities.
+
+### Bucket LIT-5 - Frontend Publication Surface Contract
+
+Goal: coordinate Claude's report rendering against the already additive
+`PublicationLiterature` contract.
+
+Tasks:
+- Confirm which snippet sources should display now:
+  `pubmed_efetch`, `pubtator`, `litvar2`, and later `pmc_bioc`.
+- Confirm how the UI labels metadata-only rows versus exact variant snippets.
+- Browser-verify count, top-five rows, pagination, and timeline using local
+  materialized payloads or a deterministic fixture.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_frontend_contract.py tests/test_lookup_section_fetch_contract.py -q
+```
+
+Done when: Claude can render the local-backed section without contract changes
+and without implying metadata-only rows are exact functional evidence.
+
+### Bucket LIT-6 - PMC BioC Full-Text Upgrade
+
+Goal: add PMC OA BioC snippets only after the metadata/license path is stable.
+
+Tasks:
+- Fetch or import only license-permitted PMC OA BioC for PMCID-linked PMIDs.
+- Store bounded passages/snippets, not bulk full text in public API output.
+- Add snippet provenance for section labels: body, table, supplement.
+- Keep publisher scraping out of scope.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_publication_literature.py tests/test_pubmed_local.py -q
+```
+
+Done when: EP-VLEx can show PMC-derived snippets with section/provenance while
+health/preflight still blocks raw full-text leakage.
+
+## Supabase Corpus Track - On Hold / Budget-Gated Production Plan
+
+Status: ON HOLD as of Steven's 2026-06-11 direction. Do not run bulk
+Supabase corpus uploads, Storage/Postgres corpus expansion, PMC/PubTator
+full-source mirroring, or vector/embedding expansion until Steven explicitly
+reopens this track with budget approval.
+
+Current publication runtime while this track is on hold:
+- Keep the report publication section on the existing live API/cache path:
+  PubMed E-utilities, LitVar2, and ClinVar PMID aggregation build
+  `PublicationLiterature`.
+- Keep `pubmed_local_enabled=false` in production unless a separate approved
+  local materialization is deployed. Local SQLite remains a proof harness, not
+  the production corpus tier.
+- Continue improving publication precision with filtered, derived artifacts
+  only: selected genes/variants/PMIDs, source tags, bounded snippets, edge
+  rows, provenance, and license metadata.
+- Any proof run must use an explicit non-`C:` staging volume and must not upload
+  source packages or derived corpus rows to Supabase without renewed approval.
+
+Current capacity facts from the 2026-06-11 check:
+
+- Organization `Eamos` is on Supabase Pro.
+- Project `eamos-dev` currently reports about 19 MB Postgres database size and
+  about 38 GB in private Storage object data, all in `eamos-source-assets`.
+- Supabase Pro includes 100 GB Storage at the organization level before
+  Storage Size overage and 8 GB database disk per project before database disk
+  overage.
+- The 2026 PubMed baseline FTP listing is about 50.6 GiB compressed, with
+  current update files about 7.0 GiB compressed.
+- PubTator3 full BioC XML is about 200 GiB compressed, while the useful gene,
+  mutation, relation, and bioconcept selector tables are about 6.8 GiB
+  compressed.
+- PMC OA XML baseline packages are about 135.2 GiB compressed, PMC OA text
+  baseline packages are about 104.0 GiB compressed, and the PMC ID crosswalk is
+  about 0.23 GiB compressed. Unpacked staging size is larger.
+
+Operator rule: do not download the whole PubMed/PMC/PubTator corpus to `C:`.
+Use an explicit staging volume, stream when possible, preserve checksums, and
+upload only approved raw source packages plus filtered/derived artifacts.
+
+### Bucket SUPA-LIT-0 - Corpus Inventory And Size Budget
+
+Goal: produce a concrete upload budget before any bulk Supabase mutation.
+
+Tasks:
+- Inventory PubMed baseline/update, PubTator3 entity tables/BioC XML, PMC OA
+  XML/text packages, and PMC ID crosswalk manifests from official listings.
+- Estimate compressed raw source size, extracted staging size, derived JSONL or
+  SQLite/Parquet size, Postgres table/index size, and expected monthly Storage
+  egress.
+- Separate three retention tiers: raw compressed sources, filtered source
+  packages, and query tables/snippets.
+- Produce a go/no-go table for PubMed-only, PubMed plus PubTator selector
+  tables, PubMed plus filtered PMC OA XML, and full PMC/PubTator raw mirrors.
+
+Tool:
+```powershell
+cd app/backend
+python -m app.cli.eamos_pubmed_corpus_budget --fetch-official-listings --compact
+```
+
+The command fetches public directory-listing HTML only. It does not download
+corpus payloads, mutate Supabase Storage/Postgres, or emit local staging paths,
+private object paths, secrets, raw abstracts, or full text. Offline reruns can
+use `--listing-dir <dir>` with saved `<source-key>.html` listing pages.
+
+Initial result from 2026-06-11 official listings, assuming current private
+Storage usage of 38.0 GiB / 100.0 GiB and Postgres usage of 0.019 GiB / 8.0
+GiB:
+
+| Scenario | Raw compressed source | Storage after upload | Version-overlap storage | Postgres high estimate | Decision |
+| --- | ---: | ---: | ---: | ---: | --- |
+| PubMed baseline/update raw mirror | 57.567 GiB | 95.567 GiB, 4.433 GiB headroom | 153.134 GiB | 0.019 GiB | Hold for approval; near-quota and no next-baseline overlap room. |
+| PubMed plus PubTator selector tables | 64.350 GiB | 102.350 GiB, 2.350 GiB over | 166.700 GiB | 33.934 GiB | Hold for approval; Storage and full selector-table Postgres estimate exceed included quotas. |
+| PubMed plus filtered PMC OA commercial XML placeholder | 62.678 GiB | 100.678 GiB, 0.678 GiB over | 163.357 GiB | 2.519 GiB | Hold for approval; even a 5% PMC commercial XML placeholder exceeds current Storage headroom. |
+| Full PubMed, PubTator BioC, and PMC OA XML/text mirrors | 497.001 GiB | 535.001 GiB, 435.001 GiB over | 1032.001 GiB | 300.019 GiB | No-go without explicit paid-capacity approval; do not mirror wholesale. |
+
+SUPA-LIT-0 recommendation, now accepted: keep the production path PubMed-first
+and filtered-source-first, but do not promote it to Supabase corpus storage
+yet. Stage any proof on an explicit non-`C:` volume, derive the Eamos-specific
+corpus, and keep it local unless Steven reopens the budget gate.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_pubmed_corpus_budget.py tests/test_pubmed_litvar_edges.py tests/test_pubmed_pubtator_edges.py tests/test_pubmed_local.py -q
+```
+
+Done when: Steven can see expected GB, expected overage risk, and which upload
+step requires approval. No Supabase object uploads happen in this bucket.
+
+### Bucket SUPA-LIT-LITE - Local Filtered Publication Proof While Supabase Is On Hold
+
+Goal: improve publication precision without paid Storage/Postgres corpus
+expansion.
+
+Tasks:
+- Use live API/cache output plus operator-staged LitVar/PubTator edge exports
+  to build small, filtered local artifacts for selected genes/variants.
+- Keep artifacts scoped to PMIDs, source tags, bounded snippets, edge rows,
+  provenance, and license metadata.
+- Avoid raw PubMed baseline/update, full PubTator BioC, full PMC OA, or
+  vector/embedding stores.
+- Preserve current report contracts: `PublicationLiterature`, `PubMedArticle`,
+  `/api/v1/lookup`, `/api/v1/lookup/sections`, and
+  `/api/v1/lookup/publications`.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_publication_literature.py tests/test_pubmed_local.py tests/test_lookup_section_fetch_contract.py -q
+```
+
+Done when: report publications are more precise for selected variants while
+production still uses live APIs/cache and no Supabase corpus upload is needed.
+
+### Bucket SUPA-LIT-1 - DEFERRED - PubMed Source Mirror Decision
+
+Goal: decide whether to store the full compressed PubMed baseline/update files
+in Supabase Storage or keep only filtered/derived PubMed artifacts there.
+
+Hold note:
+- Deferred until Steven explicitly reopens Supabase corpus spending. The
+  current decision is no raw mirror and no Supabase corpus upload.
+
+Tasks:
+- Compare the compressed PubMed baseline/update budget against current
+  Supabase Storage headroom and required version-overlap room.
+- Define object prefixes, checksum manifests, source-version labels, and
+  rollback/delete policy.
+- Keep API lookups as fallback/refresh; do not make raw PubMed upload a
+  request-time behavior.
+
+Approval gate:
+- Stop and ask Steven before uploading the PubMed baseline/update set or any
+  package that pushes Storage near or beyond the included Pro quota.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_health_api.py tests/test_source_asset_preflight_cli.py -q
+```
+
+Done when: the storage decision is documented and either approved for upload or
+explicitly narrowed to filtered/derived artifacts only. While on hold, treat
+this bucket as backlog only.
+
+### Bucket SUPA-LIT-2 - DEFERRED - Filtered PubTator Selector Import
+
+Goal: use PubTator entity tables to select gene/variant PMIDs before touching
+large BioC XML.
+
+Hold note:
+- Deferred for production Supabase storage. Selector work may continue only as
+  a small local proof with explicit non-`C:` staging and no Supabase upload.
+
+Tasks:
+- Stage the small PubTator gene, mutation, relation, and bioconcept tables.
+- Convert selected rows into the existing edge JSONL shape.
+- Join PubTator PMIDs against PubMed-local articles and the variant term
+  builder.
+- Record selector provenance, source release, and entity type counts.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_pubmed_pubtator_edges.py tests/test_pubmed_local.py -q
+```
+
+Done when: PubTator contributes variant/gene edges from selector tables without
+requiring the full 200 GiB BioC XML mirror.
+
+### Bucket SUPA-LIT-3 - DEFERRED - PMC OA Filter And License Gate
+
+Goal: fetch PMC OA content only for selected PMIDs/PMCIDs and only where
+license policy permits use.
+
+Hold note:
+- Deferred for production Supabase storage. No PMC OA bulk package download or
+  upload while the budget gate is closed.
+
+Tasks:
+- Crosswalk selected PMIDs to PMCIDs.
+- Filter PMC OA package manifests before download/extract.
+- Persist license class, source package, article section, and snippet policy.
+- Keep noncommercial, no-license, custom-license, and missing-license rows
+  policy-gated.
+
+Approval gate:
+- Stop and ask Steven before any PMC OA bulk package upload or storage overage.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_pubmed_local.py tests/test_publication_literature.py tests/test_health_api.py -q
+```
+
+Done when: PMC OA is a filtered, policy-gated snippet source, not an unbounded
+full-text mirror.
+
+### Bucket SUPA-LIT-4 - DEFERRED - Supabase Private Tables And RLS
+
+Goal: materialize queryable literature metadata/edges into private Supabase
+Postgres without exposing source assets through the public Data API.
+
+Hold note:
+- Deferred. Do not create Supabase corpus tables, policies, buckets, or storage
+  prefixes for this track until Steven reopens the budget gate.
+
+Tasks:
+- Create private-schema tables for article metadata, PMIDs, terms, snippets,
+  source manifests, and materialization runs.
+- Keep raw source packages in private Storage and store only object references
+  that are safe for backend service-role use.
+- Add RLS/privilege boundaries and run Supabase advisors before promotion.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_health_api.py tests/test_publication_literature.py tests/test_lookup_section_fetch_contract.py -q
+```
+
+Done when: backend code can read private Supabase literature tables while
+frontend clients cannot enumerate raw corpus rows or Storage objects directly.
+
+### Bucket SUPA-LIT-5 - DEFERRED - Runtime Adapter Switch
+
+Goal: move production lookup from SQLite proof harness to Supabase-backed
+literature repositories while preserving local fallback and live refresh.
+
+Hold note:
+- Deferred. Production continues using live API/cache behavior; do not switch
+  runtime reads to Supabase corpus repositories while the budget gate is closed.
+
+Tasks:
+- Add a repository boundary so EP-VLEx can read from SQLite in tests and from
+  Supabase in production.
+- Preserve `refresh=true` live PubMed bypass and fallback semantics.
+- Keep the response contract additive and unchanged for Claude's frontend work.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_publication_literature.py tests/test_lookup_section_fetch_contract.py tests/test_variant_cache.py tests/test_frontend_contract.py -q
+```
+
+Done when: SG can use Supabase-backed literature reads with API fallback still
+working and no request-time corpus materialization.
+
+### Bucket SUPA-LIT-6 - DEFERRED - Vector/Search Upgrade
+
+Goal: add semantic/vector search only after raw and relational corpus storage is
+stable.
+
+Hold note:
+- Deferred. Do not create vector buckets, embedding jobs, or pgvector-backed
+  literature expansion while the Supabase corpus track is on hold.
+
+Tasks:
+- Decide whether embeddings live in pgvector tables or Supabase vector buckets.
+- Size embeddings and indexes separately from source Storage.
+- Embed only policy-approved title/abstract/snippet text, not arbitrary full
+  text or patient data.
+
+Approval gate:
+- Stop and ask Steven before any vector bucket, embedding job, or database disk
+  expansion that materially changes monthly cost.
+
+Verify:
+```powershell
+cd app/backend
+python -m pytest tests/test_publication_literature.py tests/test_health_api.py -q
+```
+
+Done when: semantic search is a measured upgrade on top of a stable corpus, not
+the first production ingestion step.
+
 ## Task PML-001 - Source Policy And Corpus Contract
 
 ### Goal

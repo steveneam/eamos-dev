@@ -16,13 +16,16 @@ import {
   type SequenceViewerHandle,
 } from './viewer/SequenceViewerV2'
 import { ZoomSlider } from './viewer/ZoomSlider'
-import { ZOOM_PRESETS } from './viewer/zoom-config'
+import {
+  DEFAULT_ZOOM_STEP,
+  ZOOM_SETTINGS_BY_STEP,
+  type ZoomStep,
+} from './viewer/zoom-config'
 import {
   DEFAULT_TRACKS,
   type SelectionSummary,
   type StrandMode,
   type TrackState,
-  type ZoomLevel,
 } from './viewer/viewer-types'
 
 export type { ScratchEntry }
@@ -55,7 +58,8 @@ function readSideCollapsed(): boolean {
 export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellProps) {
   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)
   const [strandMode, setStrandMode] = useState<StrandMode>('both')
-  const [baseW, setBaseW] = useState<number>(ZOOM_PRESETS.exon)
+  const [zoomStep, setZoomStep] = useState<ZoomStep>(DEFAULT_ZOOM_STEP)
+  const zoomSetting = ZOOM_SETTINGS_BY_STEP[zoomStep]
   const [navCollapsed, setNavCollapsed] = useState(false)
   const [exonTableOpen, setExonTableOpen] = useState(false)
   const [sideCollapsed, setSideCollapsed] = useState(readSideCollapsed)
@@ -125,8 +129,6 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
       return next
     })
   }, [])
-  const onPreset = useCallback((level: ZoomLevel) => setBaseW(ZOOM_PRESETS[level]), [])
-
   return (
     <div className={`wb${sideCollapsed && data ? ' side-collapsed' : ''}`}>
       <main className="canvas">
@@ -142,19 +144,26 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
 
         <section className={collapsed ? 'viewer viewer-collapsed' : 'viewer'}>
           <ZoomSlider
-            baseW={baseW}
-            navCollapsed={navCollapsed}
-            onBaseW={setBaseW}
-            onPreset={onPreset}
-            onToggleNav={() => setNavCollapsed((c) => !c)}
+            zoomStep={zoomStep}
+            onZoomStep={setZoomStep}
           />
+          <button
+            type="button"
+            className={`sv-navtoggle${navCollapsed ? ' on' : ''}`}
+            title={navCollapsed ? 'Show gene map' : 'Hide gene map'}
+            aria-pressed={navCollapsed}
+            onClick={() => setNavCollapsed((c) => !c)}
+          >
+            {navCollapsed ? 'Show map' : 'Hide map'}
+          </button>
           {data ? (
             <SequenceViewerV2
               ref={viewerRef}
               data={data}
               trackOn={trackOn}
               strandMode={strandMode}
-              baseW={baseW}
+              baseW={zoomSetting.baseW}
+              basesPerRow={zoomSetting.basesPerRow}
               navCollapsed={navCollapsed}
               alleleMode={alleleMode}
               onScratchChange={setScratch}

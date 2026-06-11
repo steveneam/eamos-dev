@@ -25,6 +25,7 @@ interface OffTargetTabProps {
 
 /** Default protospacer used to seed the form (the de-identified on-target). */
 const DEFAULT_GUIDE = 'GAGTCCGAGCAGAAGAAGAT'
+const MAX_OFFTARGET_MISMATCHES = 3
 
 type SortKey = 'score' | 'mismatches'
 
@@ -174,7 +175,7 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
   // ── curation ──────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SortKey>('score')
-  const [filterMm, setFilterMm] = useState(4)
+  const [filterMm, setFilterMm] = useState(MAX_OFFTARGET_MISMATCHES)
   const [codingOnly, setCodingOnly] = useState(false)
   const [topN, setTopN] = useState(10)
   const [flank, setFlank] = useState(400)
@@ -197,8 +198,8 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
   const cleanGuide = guide.trim().toUpperCase()
 
   const enumerate = async () => {
-    if (cleanGuide.length < 17 || /[^ACGT]/.test(cleanGuide)) {
-      setError('Enter a protospacer of 17–20 nt using A/C/G/T only.')
+    if (cleanGuide.length !== 20 || /[^ACGT]/.test(cleanGuide)) {
+      setError('Enter a 20 nt protospacer using A/C/G/T only.')
       setRes(null)
       return
     }
@@ -223,7 +224,7 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
       const r = await enumerateOffTargets(payload)
       setRes(r)
       // Pre-select the default top-N off-targets so the flow is one click ahead.
-      setSelected(autoPickKeys(r.sites, topN, 4, false))
+      setSelected(autoPickKeys(r.sites, topN, MAX_OFFTARGET_MISMATCHES, false))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Off-target enumeration failed')
     } finally {
@@ -383,11 +384,13 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
             className="field-input"
             type="number"
             min={0}
-            max={4}
+            max={MAX_OFFTARGET_MISMATCHES}
             value={maxMismatches}
             disabled={loading}
             onChange={(e) => {
-              setMaxMismatches(clampInt(e.target.value, 0, 4, maxMismatches))
+              setMaxMismatches(
+                clampInt(e.target.value, 0, MAX_OFFTARGET_MISMATCHES, maxMismatches),
+              )
               clearComputed()
             }}
           />
@@ -453,10 +456,9 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
       </div>
 
       <div className="help-note">
-        Paste the protospacer (spacer, ~20 nt) of a guide designed above. Mock
-        Cas-OFFinder genome search scored CFD-style; the on-target row is pinned.
-        Loci are de-identified sample coordinates — connect the backend for a
-        real GRCh38 search.
+        Paste the 20 nt protospacer of a guide designed above. Indexed GRCh38
+        screening is used when the backend artifact is configured; the offline
+        fallback keeps de-identified sample coordinates.
       </div>
 
       {seededFrom && (
@@ -575,9 +577,13 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
                 <input
                   type="number"
                   min={0}
-                  max={4}
+                  max={MAX_OFFTARGET_MISMATCHES}
                   value={filterMm}
-                  onChange={(e) => setFilterMm(clampInt(e.target.value, 0, 4, filterMm))}
+                  onChange={(e) =>
+                    setFilterMm(
+                      clampInt(e.target.value, 0, MAX_OFFTARGET_MISMATCHES, filterMm),
+                    )
+                  }
                 />
               </label>
               <label

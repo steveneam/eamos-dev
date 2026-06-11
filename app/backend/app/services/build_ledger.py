@@ -318,15 +318,18 @@ def build_backend_build_ledger(
             group="literature",
             source_ids=("pubmed", "litvar2", "pubtator3", "pmc_oa", "medcpt_pgvector"),
             engine=(
-                "EP-VLEx over PubMed local SQLite, LitVar2, PubTator/PMC later, "
-                "and live E-utilities fallback"
+                "EP-VLEx over PubMed local SQLite, operator PubTator/LitVar edge JSONL, "
+                "PMC OA policy overlays later, and live E-utilities fallback"
             ),
-            durable_source="pubmed_xml_and_pmc_oa_operator_materialized_assets",
-            runtime_source="render_disk_pubmed_sqlite_when_enabled",
+            durable_source="supabase_private_storage_and_postgres_after_corpus_sizing",
+            runtime_source="render_disk_pubmed_sqlite_now_supabase_corpus_planned",
             render_disk_role="runtime_cache_optional",
             storage_decision=(
-                "PubMed local is a backend-owned source asset with explicit CLI "
-                "materialization/preflight; Supabase edge/vector tiers remain later."
+                "PubMed local SQLite is the proof harness. The production corpus path is "
+                "private Supabase Storage for approved source packages plus "
+                "private Postgres search tables after explicit sizing approval. PubTator "
+                "and LitVar edge JSONL are operator-fed inputs; API calls remain fallback "
+                "or refresh."
             ),
             status=pubmed_local_status,
             runtime_wired=True,

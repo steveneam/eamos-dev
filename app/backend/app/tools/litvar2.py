@@ -5,6 +5,7 @@ from urllib.parse import quote, quote_plus
 import httpx
 
 from app.tools.base import FixtureBackedTool, ToolResult
+from app.tools.pubmed import fetch_pubmed_article_metadata
 
 
 def _extract_hgvs(transcript_hgvs: str | None) -> str | None:
@@ -53,6 +54,7 @@ def _empty_result(variant, *, status: str, warnings: list[str]) -> ToolResult:
 class LitVar2Tool(FixtureBackedTool):
     source = "litvar2"
     fixture_name = "litvar2_fixtures.json"
+    HYDRATE_COUNT = 20
 
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
@@ -136,15 +138,31 @@ class LitVar2Tool(FixtureBackedTool):
             )
             publications.raise_for_status()
             payload = publications.json()
+            pmids = _payload_pmids(payload)
+            hydration_warnings: list[str] = []
+            hydrated_articles: list[dict] = []
+            if pmids:
+                try:
+                    hydrated_articles, _ = fetch_pubmed_article_metadata(
+                        self.settings,
+                        pmids,
+                        limit=self.HYDRATE_COUNT,
+                        client=client,
+                    )
+                except Exception as exc:
+                    hydration_warnings.append(
+                        f"litvar2_pubmed_hydration_failed:{type(exc).__name__}"
+                    )
 
-        pmids = payload.get("pmids", []) if isinstance(payload, dict) else []
+        hydrated_by_pmid = {str(item.get("pmid")): item for item in hydrated_articles}
         articles = []
-        for item in pmids or []:
-            pmid = str(item)
+        for item in pmids:
+            pmid = str(item).strip()
             if not pmid:
                 continue
-            articles.append(
-                {
+            article = hydrated_by_pmid.get(pmid)
+            if article is None:
+                article = {
                     "pmid": pmid,
                     "title": "",
                     "authors": "",
@@ -153,7 +171,7 @@ class LitVar2Tool(FixtureBackedTool):
                     "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
                     "abstract": None,
                 }
-            )
+            articles.append(article)
         total = payload.get("pmids_count") if isinstance(payload, dict) else None
         summary = {
             "litvar_id": litvar_id,
@@ -166,9 +184,24 @@ class LitVar2Tool(FixtureBackedTool):
             status="live",
             request_identity={"query": query, "litvar_id": litvar_id},
             summary=summary,
+            warnings=hydration_warnings,
             raw=payload,
             source_url=(
                 f"{self.settings.litvar2_base_url}/variant/get/"
                 f"{quote(str(litvar_id), safe='')}/publications"
             ),
         )
+
+
+def _payload_pmids(payload) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    pmids = payload.get("pmids", [])
+    if not isinstance(pmids, list):
+        return []
+    values: list[str] = []
+    for item in pmids:
+        pmid = str(item).strip()
+        if pmid:
+            values.append(pmid)
+    return values

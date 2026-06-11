@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from typing import Any
 
 import httpx
 
@@ -101,6 +102,94 @@ def _with_extra_warnings(result: ToolResult, warnings: list[str]) -> ToolResult:
         return result
     result.warnings = [*warnings, *result.warnings]
     return result
+
+
+def _eutils_params(settings: Any, params: dict[str, object]) -> dict[str, object]:
+    payload = dict(params)
+    if settings.ncbi_eutils_tool:
+        payload["tool"] = settings.ncbi_eutils_tool
+    if settings.ncbi_eutils_email:
+        payload["email"] = settings.ncbi_eutils_email
+    if settings.ncbi_eutils_api_key:
+        payload["api_key"] = settings.ncbi_eutils_api_key
+    return payload
+
+
+def _author_display(authors: list[dict[str, Any]]) -> str:
+    if len(authors) == 0:
+        return "Unknown"
+    if len(authors) == 1:
+        return authors[0].get("name", "Unknown")
+    return f"{authors[0].get('name', '')} et al."
+
+
+def _article_from_pubmed_summary(
+    pmid: str,
+    entry: dict[str, Any],
+    abstracts: dict[str, str],
+) -> dict[str, Any]:
+    authors = entry.get("authors", [])
+    return {
+        "pmid": pmid,
+        "title": entry.get("title", "Untitled"),
+        "authors": _author_display(authors if isinstance(authors, list) else []),
+        "journal": entry.get("source", ""),
+        "year": (entry.get("pubdate", "") or "")[:4],
+        "publication_date": entry.get("sortpubdate") or entry.get("pubdate") or None,
+        "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+        "abstract": abstracts.get(pmid),
+    }
+
+
+def fetch_pubmed_article_metadata(
+    settings: Any,
+    pmids: list[str],
+    *,
+    limit: int = 50,
+    client: httpx.Client | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    bounded_limit = max(0, min(int(limit), 50))
+    unique_pmids: list[str] = []
+    for item in pmids:
+        pmid = str(item).strip()
+        if not pmid or not pmid.isdigit() or pmid in unique_pmids:
+            continue
+        unique_pmids.append(pmid)
+        if len(unique_pmids) >= bounded_limit:
+            break
+    if not unique_pmids:
+        return [], {}
+
+    def _fetch(active_client: httpx.Client) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        pmid_str = ",".join(unique_pmids)
+        summary_resp = active_client.get(
+            f"{settings.clinvar_base_url}/esummary.fcgi",
+            params=_eutils_params(settings, {"db": "pubmed", "id": pmid_str, "retmode": "json"}),
+        )
+        fetch_resp = active_client.get(
+            f"{settings.clinvar_base_url}/efetch.fcgi",
+            params=_eutils_params(
+                settings,
+                {"db": "pubmed", "id": pmid_str, "retmode": "xml", "rettype": "abstract"},
+            ),
+        )
+        summary_resp.raise_for_status()
+        fetch_resp.raise_for_status()
+
+        result = summary_resp.json().get("result", {})
+        abstracts = _parse_abstracts_xml(fetch_resp.text)
+        articles = []
+        for pmid in unique_pmids:
+            entry = result.get(pmid, {})
+            if not entry or pmid == "uids":
+                continue
+            articles.append(_article_from_pubmed_summary(pmid, entry, abstracts))
+        return articles, result
+
+    if client is not None:
+        return _fetch(client)
+    with httpx.Client(timeout=12.0) as owned_client:
+        return _fetch(owned_client)
 
 
 class PubmedTool(FixtureBackedTool):
@@ -226,82 +315,39 @@ class PubmedTool(FixtureBackedTool):
         )
 
         if not id_list:
-            term = _gene_scope_query(gene)
-            search_response = httpx.get(
-                f"{self.settings.clinvar_base_url}/esearch.fcgi",
-                params=self._eutils_params(
-                    {
-                        "db": "pubmed",
-                        "term": term,
-                        "retmax": self.FETCH_COUNT,
-                        "retmode": "json",
-                        "sort": "relevance",
-                    }
-                ),
-                timeout=10.0,
-            )
-            search_response.raise_for_status()
-            search_result = search_response.json().get("esearchresult", {})
-            id_list = search_result.get("idlist", [])
-            gene_scope = _gene_scope_from_esearch(gene, search_result, status="live")
-
-            if not id_list:
+            if identifiers:
+                gene_scope = self._fetch_gene_scope_count(gene)
                 summary = {"articles": [], "total": 0}
                 if gene_scope is not None:
                     summary["gene_scope"] = gene_scope
                 return ToolResult(
                     source=self.source,
                     status="live",
-                    request_identity={"term": term},
+                    request_identity={"term": term, "gene_scope_term": _gene_scope_query(gene)},
                     summary=summary,
                     raw={},
                     source_url=_gene_scope_url(gene),
                 )
+            summary = {"articles": [], "total": 0}
+            if gene_scope is not None:
+                summary["gene_scope"] = gene_scope
+            return ToolResult(
+                source=self.source,
+                status="live",
+                request_identity={"term": term},
+                summary=summary,
+                raw={},
+                source_url=_gene_scope_url(gene),
+            )
 
         if gene_scope is None:
             gene_scope = self._fetch_gene_scope_count(gene)
 
-        pmid_str = ",".join(id_list)
-        with httpx.Client(timeout=12.0) as client:
-            summary_resp = client.get(
-                f"{self.settings.clinvar_base_url}/esummary.fcgi",
-                params=self._eutils_params({"db": "pubmed", "id": pmid_str, "retmode": "json"}),
-            )
-            fetch_resp = client.get(
-                f"{self.settings.clinvar_base_url}/efetch.fcgi",
-                params=self._eutils_params(
-                    {"db": "pubmed", "id": pmid_str, "retmode": "xml", "rettype": "abstract"}
-                ),
-            )
-        summary_resp.raise_for_status()
-        fetch_resp.raise_for_status()
-
-        result = summary_resp.json().get("result", {})
-        abstracts = _parse_abstracts_xml(fetch_resp.text)
-
-        articles = []
-        for pmid in id_list:
-            entry = result.get(pmid, {})
-            if not entry or pmid == "uids":
-                continue
-            authors = entry.get("authors", [])
-            if len(authors) == 0:
-                author_str = "Unknown"
-            elif len(authors) == 1:
-                author_str = authors[0].get("name", "Unknown")
-            else:
-                author_str = f"{authors[0].get('name', '')} et al."
-            articles.append(
-                {
-                    "pmid": pmid,
-                    "title": entry.get("title", "Untitled"),
-                    "authors": author_str,
-                    "journal": entry.get("source", ""),
-                    "year": (entry.get("pubdate", "") or "")[:4],
-                    "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-                    "abstract": abstracts.get(pmid),
-                }
-            )
+        articles, result = fetch_pubmed_article_metadata(
+            self.settings,
+            [str(item) for item in id_list],
+            limit=self.FETCH_COUNT,
+        )
 
         summary = {"articles": articles, "total": len(articles)}
         if gene_scope is not None:
@@ -317,14 +363,7 @@ class PubmedTool(FixtureBackedTool):
         )
 
     def _eutils_params(self, params: dict[str, object]) -> dict[str, object]:
-        payload = dict(params)
-        if self.settings.ncbi_eutils_tool:
-            payload["tool"] = self.settings.ncbi_eutils_tool
-        if self.settings.ncbi_eutils_email:
-            payload["email"] = self.settings.ncbi_eutils_email
-        if self.settings.ncbi_eutils_api_key:
-            payload["api_key"] = self.settings.ncbi_eutils_api_key
-        return payload
+        return _eutils_params(self.settings, params)
 
     def _fetch_gene_scope_count(self, gene: str) -> dict | None:
         try:

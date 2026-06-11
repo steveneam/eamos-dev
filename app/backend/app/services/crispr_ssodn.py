@@ -21,6 +21,7 @@ _CDNA_SNV_RE = re.compile(
     r"^c\.(?P<pos>\d+)(?P<ref>[ACGT])>(?P<alt>[ACGT])$",
     re.IGNORECASE,
 )
+_REFSEQ_CHROMOSOME_RE = re.compile(r"^NC_0*(?P<number>\d+)\.\d+$", re.IGNORECASE)
 _MANE_GFF_PATH = (
     Path(__file__).resolve().parents[2]
     / "data"
@@ -73,6 +74,7 @@ class _ResolvedSsodnWindow:
     genome_build: str
     reference_base: str
     alternate_base: str
+    variant_genomic: str | None = None
     codon_ref: str | None = None
     codon_alt: str | None = None
 
@@ -146,6 +148,7 @@ def design_ssodn(
             codon_alt=resolved_window.codon_alt,
         ),
         variant_offset=output_offset,
+        variant_genomic=resolved_window.variant_genomic,
         intron_mask=output_mask,
         strand=strand,
         orientation=payload.orientation,
@@ -200,10 +203,12 @@ def _context_window(
         )
         variant_offset = desired_offset
         template_source = "mock_genomic_window"
+        variant_genomic = None
         warnings.append(SSODN_MOCK_GENOMIC_WINDOW_WARNING)
     else:
         raw_reference, intron_mask, variant_offset = source_window
         template_source = "sequence_context"
+        variant_genomic = _variant_genomic_from_hg38(context.genomic_hg38)
 
     reference_bases = list(raw_reference.upper())
     variant_bases = reference_bases.copy()
@@ -218,6 +223,7 @@ def _context_window(
         genome_build=context.genome_build or payload.genome_build,
         reference_base=reference,
         alternate_base=alternate,
+        variant_genomic=variant_genomic,
         codon_ref=context.codon_ref,
         codon_alt=context.codon_alt,
     )
@@ -285,6 +291,7 @@ def _local_transcript_window(payload: CrisprSsodnRequest) -> _ResolvedSsodnWindo
         genome_build=payload.genome_build,
         reference_base=reference,
         alternate_base=alternate,
+        variant_genomic=_format_variant_genomic(model.chrom, target_coordinate),
         codon_ref=codon_ref,
         codon_alt=codon_alt,
     )
@@ -487,6 +494,47 @@ def _to_transcript_base(base: str, *, strand: str) -> str:
     normalized = base.upper()
     if strand == "-":
         return normalized.translate(_TRANSCRIPT_COMPLEMENT)
+    return normalized
+
+
+def _variant_genomic_from_hg38(genomic_hg38: str | None) -> str | None:
+    if not genomic_hg38:
+        return None
+    chrom, sep, rest = genomic_hg38.partition("-")
+    if not sep:
+        return None
+    position_text = rest.split("-", 1)[0]
+    try:
+        position = int(position_text)
+    except ValueError:
+        return None
+    return _format_variant_genomic(chrom, position)
+
+
+def _format_variant_genomic(chromosome: str, position: int) -> str:
+    return f"{_display_chromosome(chromosome)}:{position}"
+
+
+def _display_chromosome(chromosome: str) -> str:
+    normalized = chromosome.strip()
+    if not normalized:
+        return "chr?"
+    if normalized.lower().startswith("chr"):
+        return f"chr{normalized[3:]}"
+    if normalized.upper() in {"X", "Y", "M", "MT"} or normalized.isdigit():
+        return f"chr{'M' if normalized.upper() == 'MT' else normalized.upper()}"
+    match = _REFSEQ_CHROMOSOME_RE.match(normalized)
+    if match is None:
+        return normalized
+    number = int(match.group("number"))
+    if 1 <= number <= 22:
+        return f"chr{number}"
+    if number == 23:
+        return "chrX"
+    if number == 24:
+        return "chrY"
+    if number == 12920:
+        return "chrM"
     return normalized
 
 

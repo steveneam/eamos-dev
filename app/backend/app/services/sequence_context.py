@@ -580,6 +580,7 @@ class SequenceContextService:
         cdna: str,
         transcript: str | None = None,
         species: str = "human",
+        prefer_resolver: bool = False,
     ) -> SequenceContextResult:
         normalized_species = species.strip().lower() or "human"
         query = normalize_sequence_query(gene, cdna, transcript)
@@ -596,25 +597,23 @@ class SequenceContextService:
                 warnings=[unsupported_input_warning(query.kind)],
             )
 
-        if self.settings is None or not self.settings.use_real_apis:
-            context = self.fixture_provider.resolve(query, normalized_species)
+        should_use_resolver = prefer_resolver or (
+            self.settings is not None and self.settings.use_real_apis
+        )
+        if should_use_resolver and self.resolver is not None:
+            context = self.resolver.resolve(query, normalized_species)
             if context is not None:
                 return SequenceContextResult(query=query, context=context)
-            return SequenceContextResult(
-                query=query,
-                warnings=[WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE],
-            )
+            if self.settings is not None and self.settings.use_real_apis:
+                return SequenceContextResult(
+                    query=query,
+                    warnings=[WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE],
+                )
 
-        if self.resolver is None:
-            return SequenceContextResult(
-                query=query,
-                warnings=[WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE],
-            )
-
-        context = self.resolver.resolve(query, normalized_species)
-        if context is None:
-            return SequenceContextResult(
-                query=query,
-                warnings=[WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE],
-            )
-        return SequenceContextResult(query=query, context=context)
+        context = self.fixture_provider.resolve(query, normalized_species)
+        if context is not None:
+            return SequenceContextResult(query=query, context=context)
+        return SequenceContextResult(
+            query=query,
+            warnings=[WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE],
+        )

@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from app.core.config import Settings
 from app.services.publication_literature import (
     EamosProprietaryVariantLiteratureExtractor,
     VariantLiteratureTerms,
 )
+from app.tools.litvar2 import LitVar2Tool
+from app.tools.pubmed import PubmedTool
+
+
+def _settings(**overrides) -> Settings:
+    return Settings(jwt_secret="test-secret", **overrides)
 
 
 def _variant(
@@ -53,6 +60,170 @@ def test_variant_literature_terms_build_one_letter_alias_for_user_ush2a_variant(
     assert "p.Cys759Phe" in terms.terms
     assert "C759F" in terms.terms
     assert "p.C759F" in terms.terms
+
+
+def test_pubmed_variant_no_hit_keeps_gene_scope_out_of_variant_articles(monkeypatch) -> None:
+    class Response:
+        def __init__(self, payload) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return self.payload
+
+    calls: list[dict] = []
+
+    def fake_get(*args, **kwargs):
+        params = dict(kwargs.get("params") or {})
+        calls.append(params)
+        if len(calls) == 1:
+            assert "c.260A>G" in params["term"]
+            return Response({"esearchresult": {"idlist": [], "count": "0"}})
+        assert params["term"] == "RPE65[Gene Name]"
+        assert params["retmax"] == 0
+        return Response({"esearchresult": {"idlist": ["37042101"], "count": "816"}})
+
+    monkeypatch.setattr("app.tools.pubmed.httpx.get", fake_get)
+
+    result = PubmedTool(_settings(use_real_apis=True)).get_evidence(_variant())
+
+    assert len(calls) == 2
+    assert result.status == "live"
+    assert result.summary["articles"] == []
+    assert result.summary["total"] == 0
+    assert result.summary["gene_scope"]["total_count"] == 816
+
+
+def test_litvar2_hydrates_pmids_with_bounded_pubmed_metadata(monkeypatch) -> None:
+    calls: list[str] = []
+
+    class Response:
+        def __init__(self, payload=None, *, text: str = "") -> None:
+            self.payload = payload or {}
+            self.text = text
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self.payload
+
+    class Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def get(self, url, params=None):
+            calls.append(url)
+            if url.endswith("/variant/autocomplete/"):
+                return Response([{"litvar_id": "litvar-rpe65-c260ag", "rsid": "rs1645931040"}])
+            if url.endswith("/variant/get/litvar-rpe65-c260ag/publications"):
+                return Response({"pmids": ["38191234", "37042101"], "pmids_count": 2})
+            if url.endswith("/esummary.fcgi"):
+                return Response(
+                    {
+                        "result": {
+                            "uids": ["38191234", "37042101"],
+                            "38191234": {
+                                "title": "RPE65 c.260A>G genotype-phenotype correlations.",
+                                "authors": [{"name": "Walia S"}, {"name": "Smith J"}],
+                                "source": "Ophthalmology",
+                                "pubdate": "2024 Jan 15",
+                                "sortpubdate": "2024/01/15 00:00",
+                            },
+                            "37042101": {
+                                "title": "Long-term RPE65 gene therapy outcomes.",
+                                "authors": [{"name": "Maguire AM"}],
+                                "source": "N Engl J Med",
+                                "pubdate": "2023 Apr",
+                            },
+                        }
+                    }
+                )
+            if url.endswith("/efetch.fcgi"):
+                return Response(
+                    text=(
+                        "<PubmedArticleSet>"
+                        "<PubmedArticle><MedlineCitation><PMID>38191234</PMID>"
+                        "<Article><Abstract><AbstractText>"
+                        "The c.260A&gt;G variant was recurrent."
+                        "</AbstractText></Abstract></Article></MedlineCitation></PubmedArticle>"
+                        "</PubmedArticleSet>"
+                    )
+                )
+            raise AssertionError(f"unexpected URL {url}")
+
+    monkeypatch.setattr("app.tools.litvar2.httpx.Client", Client)
+
+    result = LitVar2Tool(_settings(use_real_apis=True)).get_evidence(_variant())
+
+    assert result.status == "live"
+    assert result.warnings == []
+    assert len(calls) == 4
+    assert result.summary["total_publications"] == 2
+    article = result.summary["articles"][0]
+    assert article["pmid"] == "38191234"
+    assert article["title"] == "RPE65 c.260A>G genotype-phenotype correlations."
+    assert article["authors"] == "Walia S et al."
+    assert article["journal"] == "Ophthalmology"
+    assert article["year"] == "2024"
+    assert "c.260A>G variant was recurrent" in article["abstract"]
+
+
+def test_litvar2_hydration_failure_keeps_pmid_rows_and_warns(monkeypatch) -> None:
+    class Response:
+        def __init__(self, payload=None) -> None:
+            self.payload = payload or {}
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self.payload
+
+    class Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def get(self, url, params=None):
+            if url.endswith("/variant/autocomplete/"):
+                return Response([{"litvar_id": "litvar-rpe65-c260ag"}])
+            if url.endswith("/variant/get/litvar-rpe65-c260ag/publications"):
+                return Response({"pmids": ["38191234"], "pmids_count": 1})
+            if url.endswith("/esummary.fcgi"):
+                raise TimeoutError("PubMed metadata unavailable")
+            raise AssertionError(f"unexpected URL {url}")
+
+    monkeypatch.setattr("app.tools.litvar2.httpx.Client", Client)
+
+    result = LitVar2Tool(_settings(use_real_apis=True)).get_evidence(_variant())
+
+    assert result.status == "live"
+    assert result.summary["articles"] == [
+        {
+            "pmid": "38191234",
+            "title": "",
+            "authors": "",
+            "journal": "",
+            "year": "",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/38191234/",
+            "abstract": None,
+        }
+    ]
+    assert result.warnings == ["litvar2_pubmed_hydration_failed:TimeoutError"]
 
 
 def test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets() -> None:
@@ -295,3 +466,49 @@ def test_ep_vlex_gene_scope_returns_source_count_without_articles() -> None:
     assert literature.scope_counts is not None
     assert literature.scope_counts.variant.total_count == 1
     assert literature.scope_counts.gene.total_count == 816
+
+
+def test_ep_vlex_pagination_uses_deduped_rows_without_page_overlap() -> None:
+    evidence_map = {
+        "pubmed": {
+            "articles": [
+                {
+                    "pmid": "39000001",
+                    "title": "RPE65 c.260A>G first report.",
+                    "publication_date": "2025-01-01",
+                },
+                {
+                    "pmid": "39000002",
+                    "title": "RPE65 c.260A>G follow-up.",
+                    "publication_date": "2024-01-01",
+                },
+                {
+                    "pmid": "39000003",
+                    "title": "RPE65 c.260A>G assay.",
+                    "publication_date": "2023-01-01",
+                },
+            ]
+        },
+        "litvar2": {
+            "articles": [
+                {"pmid": "39000002", "title": ""},
+                {"pmid": "39000004", "title": "RPE65 c.260A>G LitVar row."},
+            ]
+        },
+        "clinvar": {"citations": [{"pmid": "39000004"}, {"pmid": "39000005"}]},
+    }
+    extractor = EamosProprietaryVariantLiteratureExtractor()
+
+    first_page = extractor.build_for_lookup(_variant(), evidence_map, limit=2, offset=0)
+    second_page = extractor.build_for_lookup(_variant(), evidence_map, limit=2, offset=2)
+
+    first_pmids = {article.pmid for article in first_page.articles}
+    second_pmids = {article.pmid for article in second_page.articles}
+    assert first_page.total_count == 5
+    assert second_page.total_count == 5
+    assert len(first_pmids) == len(first_page.articles)
+    assert len(second_pmids) == len(second_page.articles)
+    assert first_pmids.isdisjoint(second_pmids)
+    assert first_page.source_breakdown.pubmed == 3
+    assert first_page.source_breakdown.litvar2 == 2
+    assert first_page.source_breakdown.clinvar == 2

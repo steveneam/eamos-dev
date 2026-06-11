@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 PrimerMode = Literal["sanger", "qpcr", "arms"]
 SecondaryStructureRisk = Literal["low", "moderate", "high", "not_assessed"]
+PrimerTemplateStrand = Literal["Plus", "Minus"]
 SsodnProtocol = Literal["lab_genomic", "guide_pam_block"]
 SsodnOrientation = Literal["sense", "antisense"]
 SsodnStrandRequest = Literal["auto", "+", "-"]
@@ -63,6 +64,29 @@ class PrimerPair(BaseModel):
     specificity_hits: int
     secondary_structure_risk: SecondaryStructureRisk = "not_assessed"
     secondary_structure_notes: str = ""
+    self_any_forward: float | None = None
+    self_any_reverse: float | None = None
+    self_end_forward: float | None = None
+    self_end_reverse: float | None = None
+    hairpin_tm_forward: float | None = None
+    hairpin_tm_reverse: float | None = None
+    pair_compl_end: float | None = None
+    forward_strand: PrimerTemplateStrand | None = None
+    reverse_strand: PrimerTemplateStrand | None = None
+    forward_template_start: int | None = None
+    forward_template_stop: int | None = None
+    reverse_template_start: int | None = None
+    reverse_template_stop: int | None = None
+    genomic_chromosome: str | None = None
+    genome_build: str | None = None
+    forward_genomic_start: int | None = None
+    forward_genomic_stop: int | None = None
+    reverse_genomic_start: int | None = None
+    reverse_genomic_stop: int | None = None
+    amplicon_template_start: int | None = None
+    amplicon_template_end: int | None = None
+    amplicon_genomic_start: int | None = None
+    amplicon_genomic_end: int | None = None
     notes: str = ""
     recommended: bool = False
 
@@ -113,6 +137,7 @@ class CrisprSsodnDesign(BaseModel):
     oligo_length: int
     oligo_name: str
     variant_offset: int
+    variant_genomic: str | None = None
     intron_mask: list[bool]
     strand: Literal["+", "-"]
     orientation: SsodnOrientation

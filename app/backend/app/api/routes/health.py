@@ -28,6 +28,12 @@ from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
 )
+from app.services.crispr_offtarget_index import inspect_crispr_offtarget_index
+from app.services.crispr_offtarget_screening import (
+    CRISPR_OFFTARGET_PROVIDER_AUTO,
+    CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE,
+    CRISPR_OFFTARGET_PROVIDER_MOCK,
+)
 
 router = APIRouter(tags=["health"])
 
@@ -279,8 +285,79 @@ def _crispr_provider_health(settings) -> dict[str, object]:
         "available": configured_available,
         "status": "available" if configured_available else "unavailable",
         "providers": providers,
+        "off_target_screening": _crispr_offtarget_health(settings),
         "platform_gated_models": ["DeepHF", "DeepCpf1", "enPAM+GB"],
     }
+
+
+def _crispr_offtarget_health(settings) -> dict[str, object]:
+    configured_provider = (settings.crispr_offtarget_provider or "").strip().lower()
+    if not configured_provider:
+        configured_provider = CRISPR_OFFTARGET_PROVIDER_AUTO
+    index_path = _settings_path(settings, settings.crispr_offtarget_index_path)
+    try:
+        inspection = inspect_crispr_offtarget_index(index_path)
+    except Exception:
+        inspection = None
+
+    index_status = (
+        inspection.to_sanitized_dict()
+        if inspection is not None
+        else {
+            "source_id": "eamos_crispr_spcas9_offtarget_index",
+            "ready": False,
+            "status": "runtime_asset_probe_failed",
+            "schema_version": None,
+            "genome_build": None,
+            "target_count": 0,
+            "max_mismatches_supported": None,
+            "actual_size_bytes": None,
+            "request_time_supabase_search": False,
+            "request_time_materialization_allowed": False,
+            "startup_materialization_allowed": False,
+            "reader_requires_local_path": True,
+            "local_path_values_emitted": False,
+        }
+    )
+    index_ready = bool(index_status["ready"])
+    mock_fallback = configured_provider in {
+        CRISPR_OFFTARGET_PROVIDER_AUTO,
+        CRISPR_OFFTARGET_PROVIDER_MOCK,
+    }
+    available = (
+        configured_provider == CRISPR_OFFTARGET_PROVIDER_MOCK
+        or index_ready
+        or (configured_provider == CRISPR_OFFTARGET_PROVIDER_AUTO and mock_fallback)
+    )
+    if configured_provider == CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE:
+        status = "indexed_ready" if index_ready else "unavailable"
+    elif configured_provider == CRISPR_OFFTARGET_PROVIDER_MOCK:
+        status = "mock_fixture"
+    elif index_ready:
+        status = "indexed_ready"
+    else:
+        status = "mock_fallback"
+
+    return {
+        "configured_provider": configured_provider,
+        "available": available,
+        "status": status,
+        "indexed_sqlite": index_status,
+        "mock_fallback_enabled": mock_fallback,
+        "supabase_storage_object_uri_configured": bool(settings.crispr_offtarget_index_object_uri),
+        "render_materialization_required": not index_ready
+        and configured_provider != CRISPR_OFFTARGET_PROVIDER_MOCK,
+        "request_time_supabase_search": False,
+        "launch_gate": (
+            None
+            if index_ready or configured_provider == CRISPR_OFFTARGET_PROVIDER_MOCK
+            else "crispr_offtarget_index_artifact_not_materialized"
+        ),
+    }
+
+
+def _settings_path(settings, path: Path) -> Path:
+    return path if path.is_absolute() else settings.backend_root / path
 
 
 def _protein_annotation_health(settings, service) -> dict[str, object]:

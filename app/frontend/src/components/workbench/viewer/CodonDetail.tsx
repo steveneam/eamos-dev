@@ -1,9 +1,6 @@
 import {
   Fragment,
-  useLayoutEffect,
   useMemo,
-  useRef,
-  useState,
   type CSSProperties,
 } from 'react'
 import { aaClass } from '@/lib/workbench/codon-table'
@@ -21,14 +18,13 @@ import type { AlleleMode } from '@/lib/backend'
 import type { StrandMode, TrackState } from './viewer-types'
 
 const RIGHT_MARGIN = 64
-/** Sub-pixel cushion so the widest row never forces a horizontal scrollbar. */
-const REFLOW_PAD = 2
 
 interface CodonDetailProps {
   data: GeneWindowData
   flat: FlatBase[]
   codons: Codon[]
   baseW: number
+  basesPerRow: number
   trackOn: TrackState
   strandMode: StrandMode
   /** Reference/control vs variant-applied. The adapter already applied the
@@ -48,33 +44,10 @@ interface CodonDetailProps {
 }
 
 export function CodonDetail(props: CodonDetailProps) {
-  const { flat, baseW } = props
-  const detailRef = useRef<HTMLDivElement>(null)
-  const [containerW, setContainerW] = useState(0)
+  const { flat, basesPerRow } = props
 
-  // Live container width → bases-per-row. The ResizeObserver covers
-  // side-panel collapse (the content box widens with no zoom change); the
-  // rowBp memo also keys off baseW so zoom reflows even though zoom does not
-  // change the container width. Observer is disconnected on unmount.
-  useLayoutEffect(() => {
-    const el = detailRef.current
-    if (!el) return
-    const measure = () => {
-      const cs = getComputedStyle(el)
-      setContainerW(
-        el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
-      )
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  const rowBp = useMemo(
-    () => Math.max(MIN_BP, Math.floor((containerW - RIGHT_MARGIN - REFLOW_PAD) / baseW)),
-    [containerW, baseW],
-  )
+  // Fixed codon-aligned row widths keep overlays and annotations anchored.
+  const rowBp = Math.max(MIN_BP, basesPerRow)
   const layout = useMemo<LayoutItem[]>(() => buildLayout(flat, rowBp), [flat, rowBp])
 
   // GV-006: the displayed allele basis is now adapter-driven — in `variant`
@@ -94,7 +67,7 @@ export function CodonDetail(props: CodonDetailProps) {
   }, [flat])
 
   return (
-    <div className="sv-detail" ref={detailRef}>
+    <div className="sv-detail">
       {layout.map((item, k) =>
         item.kind === 'gap' ? (
           <div className="sv-gap-sep" key={`gap${k}`}>

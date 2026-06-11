@@ -1185,6 +1185,7 @@ export interface ChatResponse {
 
 export type PrimerMode = 'sanger' | 'qpcr' | 'arms'
 export type SecondaryStructureRisk = 'low' | 'moderate' | 'high' | 'not_assessed'
+export type PrimerTemplateStrand = 'Plus' | 'Minus'
 export type SsodnProtocol = 'lab_genomic' | 'guide_pam_block'
 export type SsodnOrientation = 'sense' | 'antisense'
 export type SsodnStrandRequest = 'auto' | '+' | '-'
@@ -1212,6 +1213,29 @@ export interface PrimerPair {
   specificity_hits: number
   secondary_structure_risk?: SecondaryStructureRisk
   secondary_structure_notes?: string
+  self_any_forward?: number | null
+  self_any_reverse?: number | null
+  self_end_forward?: number | null
+  self_end_reverse?: number | null
+  hairpin_tm_forward?: number | null
+  hairpin_tm_reverse?: number | null
+  pair_compl_end?: number | null
+  forward_strand?: PrimerTemplateStrand | null
+  reverse_strand?: PrimerTemplateStrand | null
+  forward_template_start?: number | null
+  forward_template_stop?: number | null
+  reverse_template_start?: number | null
+  reverse_template_stop?: number | null
+  genomic_chromosome?: string | null
+  genome_build?: string | null
+  forward_genomic_start?: number | null
+  forward_genomic_stop?: number | null
+  reverse_genomic_start?: number | null
+  reverse_genomic_stop?: number | null
+  amplicon_template_start?: number | null
+  amplicon_template_end?: number | null
+  amplicon_genomic_start?: number | null
+  amplicon_genomic_end?: number | null
   notes?: string
   recommended?: boolean
 }
@@ -1286,6 +1310,7 @@ export interface CrisprSsodnDesign {
   oligo_length: number
   oligo_name: string
   variant_offset: number
+  variant_genomic?: string | null
   intron_mask: boolean[]
   strand: '+' | '-'
   orientation: SsodnOrientation

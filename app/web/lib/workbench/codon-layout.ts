@@ -3,8 +3,7 @@
    Splits the flat window into fixed-size rows of `rowBp` real bases, with each
    truncated intron's ellipsis cell flushing the current row and emitting its
    own gap separator. Extracted from `CodonDetail.tsx` as a pure function so the
-   chunking + intron-gap interaction can be unit-tested without a DOM (the live
-   `rowBp` comes from a ResizeObserver, which vitest can't measure). */
+   chunking + intron-gap interaction can be unit-tested without a DOM. */
 
 import type { FlatBase } from './gene-window'
 
@@ -12,7 +11,7 @@ export type LayoutItem =
   | { kind: 'row'; indices: number[] }
   | { kind: 'gap'; intronNum: number; omitted: number }
 
-/** Floor for the dynamic bases-per-row so a very narrow panel stays usable. */
+/** Floor for bases-per-row so a very narrow manual setting stays usable. */
 export const MIN_BP = 12
 
 /**

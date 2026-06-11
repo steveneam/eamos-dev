@@ -1,5 +1,218 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## 2026-06-11 21:29 +1000 - Codex - Combined Workbench/PubMed integration commit
+
+Steven approved a single combined integration commit after the parallel
+Workbench and PubMed/report slices. This entry supersedes the per-lane
+"uncommitted" notes below for these staged changes.
+
+Included in the explicit-pathspec commit set:
+- Workbench live provider wiring, Primer3 thermodynamic/placement fields,
+  CRISPR ssODN genomic coordinates, optional local SQLite CRISPR off-target
+  index source/CLI, provider-cache health reporting, Workbench contracts, and
+  fixed-step viewer zoom in both app surfaces.
+- PubMed/report precision work: exact variant no-hit behavior with separate
+  gene-scope count, LitVar2 PMID metadata hydration, corpus-budget and LitVar
+  operator CLIs/tests, report publication timeline interactions, and
+  count-only gene-scope UI states.
+- Shared coordination/log artifacts: `PROGRESS.md`,
+  `agent_handoff/CURRENT.md`, `docs/workbench-backend-wiring/spec.md`, and
+  refreshed `graphify-out/*`.
+
+Deliberately excluded:
+- `.claude/settings.json`.
+- `codex-workbench-temp.md`.
+- Any generated/private CRISPR off-target SQLite/genome/index artifact.
+
+Verification on the combined tree:
+- `cd app/backend && python -m pytest tests\test_workbench_api.py tests\test_health_api.py -q --durations=10` -> passed.
+- `cd app/backend && python -m pytest tests\test_pubmed_corpus_budget.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_pubmed_local.py tests\test_publication_literature.py tests\test_tool_invariants.py tests\test_health_api.py -q` -> passed.
+- `cd app/backend && python -m ruff check app tests` -> passed.
+- PubMed-scoped Ruff and Black checks -> passed.
+- Workbench-scoped Black check -> passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_offtarget_index --help` -> passed.
+- `cd app/frontend && npx tsc --noEmit` -> passed.
+- `cd app/web && npx tsc --noEmit` -> passed.
+- `git diff --cached --check` -> passed.
+
+Deploy guardrail:
+- Keep `CRISPR_OFFTARGET_PROVIDER=auto` unless Render has a real local
+  `CRISPR_OFFTARGET_INDEX_PATH` and provider-cache health reports the index
+  ready. Do not switch production to `indexed_sqlite` on the basis of the code
+  deploy alone.
+
+## 2026-06-11 20:11 +1000 - Codex - Publication precision and live timeline slice
+
+Continued the publication-section quality slice with the Supabase corpus path
+still on hold. No Supabase upload, Storage/Postgres mutation, corpus table,
+source-payload download, PMC/PubTator mirroring, vector/embedding expansion,
+startup download, commit, push, deploy, or Workbench edit was performed.
+
+Completed:
+- Kept production publication runtime on live PubMed E-utilities, LitVar2,
+  ClinVar PMID aggregation, and cache. Local SQLite/PubMed-local remains a
+  proof harness only.
+- `PubmedTool` now preserves exact variant precision: when variant identifiers
+  return no PubMed IDs it reports zero variant articles plus a separate
+  `gene_scope` source count instead of returning gene-wide rows as variant hits.
+- Added bounded PubMed metadata hydration for LitVar2 PMIDs, preserving PMID-only
+  rows and warning on hydration failure instead of dropping the source.
+- Preserved `PublicationLiterature` and `PubMedArticle` contracts while keeping
+  variant-scope rows, gene-scope count-only results, source tags, snippet
+  confidence labels, dedupe, and pagination semantics explicit.
+- Updated the report publication UI so the timeline uses backend live
+  `publication_timeline` data only. Hover/keyboard focus exposes year/count,
+  click/Enter opens a scrollable selected-year popout, and selecting a row opens
+  the existing publication modal.
+- Fixed the scope toggle so Gene scope no longer relabels variant rows as
+  gene-wide. It fetches the backend `scope: "gene"` result and shows a count/link
+  plus honest count-only/empty states when row-level gene-wide articles are not
+  expanded.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_publication_literature.py tests/test_lookup_section_fetch_contract.py tests/test_pubmed_local.py tests/test_frontend_contract.py tests/test_tool_invariants.py -q` -> passed.
+- `cd app/backend && python -m ruff check app/tools/pubmed.py app/tools/litvar2.py app/services/publication_literature.py app/services/lookup_service.py tests/test_publication_literature.py tests/test_tool_invariants.py` -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app/tools/pubmed.py app/tools/litvar2.py app/services/publication_literature.py app/services/lookup_service.py tests/test_publication_literature.py tests/test_tool_invariants.py` -> passed.
+- `cd app/web && npx tsc --noEmit --pretty false` -> passed.
+- `cd app/web && npx eslint components/report/PubMedSection.tsx components/report/PublicationTimelineChart.tsx` -> passed with the one pre-existing `react-hooks/set-state-in-effect` warning in `PubMedSection.tsx`.
+- Browser verification on `http://localhost:3000/report?gene=USH2A&cdna=c.2276G%3ET` initially confirmed live variant results, live timeline label, accessible year points, hover tooltip text, selected-year popout, and row-to-publication-modal handoff. A later reload hit remote proxy 500 on `lookup/sections` for `clingen_vcep`, leaving the lazy publications placeholder stuck; the fixture route was used to verify the final scope-toggle regression fix.
+- `python -m graphify update .` -> passed; graph HTML skipped because the graph exceeds the viz node limit.
+
+Next:
+- Keep improving publication precision through live API/cache/local-proof work
+  only. Reopen Supabase corpus upload/table/vector work only after Steven
+  explicitly approves the budget gate.
+- If the remote lazy-section 500 recurs, debug `POST /api/v1/lookup/sections`
+  separately; the failing browser request body was for `include:["clingen_vcep"]`,
+  not the publication component itself.
+
+## 2026-06-11 19:06 +1000 - Codex - Supabase corpus extension put on hold
+
+Steven accepted the recommendation to pause the Supabase publication corpus
+extension until there is more budget. No code path, deploy, commit, Supabase
+upload, schema migration, Storage mutation, corpus payload download,
+PMC/PubTator full-source mirroring, or vector expansion was performed.
+
+Completed:
+- Updated `docs/pubmed-local/plan.md` so the Supabase corpus track is explicitly
+  `ON HOLD` / budget-gated.
+- Marked `SUPA-LIT-1` through `SUPA-LIT-6` deferred: raw PubMed mirror,
+  PubTator selector production import, PMC OA package work, private Supabase
+  tables/RLS, runtime adapter switch, and vector/search expansion.
+- Added `SUPA-LIT-LITE`, a small local-only path for improving publication
+  precision with selected genes/variants/PMIDs, source tags, bounded snippets,
+  edge rows, provenance, and license metadata.
+- Preserved the current publication runtime decision: production reports keep
+  using live PubMed E-utilities, LitVar2, ClinVar PMID aggregation, cache, and
+  the existing `PublicationLiterature` contract. Local SQLite remains a proof
+  harness, not the production corpus tier.
+
+Verification:
+- Documentation-only change; no backend/frontend tests were required.
+- Supabase changelog checked on 2026-06-11; no relevant Storage/Postgres corpus
+  implementation change was needed because this slice performs no Supabase
+  mutation.
+
+Next:
+- Continue improving publication relevance through live API/cache behavior and
+  local filtered proofs only. Reopen Supabase corpus upload/table/vector work
+  only after Steven explicitly approves the budget gate.
+
+## 2026-06-11 18:53 +1000 - Codex - PubMed SUPA-LIT-0 corpus budget CLI
+
+Continued the PubMed/Supabase corpus lane only. No Workbench files/status were
+edited, and no commit, push, deploy, Supabase upload, schema migration, Storage
+mutation, corpus payload download, PMC/PubTator full-source mirroring, or vector
+expansion was performed.
+
+Completed:
+- Added `python -m app.cli.eamos_pubmed_corpus_budget`, a read-only
+  SUPA-LIT-0 inventory and budget command for PubMed baseline/update,
+  PubTator3 selector/BioC listings, PMC OA XML/text listings, and the PMC ID
+  crosswalk.
+- The command supports official listing fetches or offline saved
+  `<source-key>.html` listing pages. It fetches/parses listing HTML only and
+  reports no local staging paths, private object paths, secrets, raw abstracts,
+  or full text.
+- Added tests for offline listing inventory, sanitized guardrails, hold-for-
+  approval scenario decisions, and the explicit listing-source requirement.
+- Updated `docs/pubmed-local/plan.md` with the measured 2026-06-11 go/no-go
+  table: PubMed-only is near quota with no version-overlap room; PubMed plus
+  PubTator selectors exceeds included Storage and database estimates; the 5%
+  PMC commercial XML placeholder exceeds current Storage headroom; wholesale
+  PMC/PubTator mirroring is a no-go without explicit paid-capacity approval.
+
+Key measured budget facts from official listing HTML:
+- PubMed baseline plus current updates: 57.567 GiB compressed.
+- PubTator3 selector tables: 6.783 GiB compressed; full BioC XML: 200.000 GiB
+  compressed.
+- PMC OA XML baseline packages: 135.185 GiB compressed; PMC OA text baseline
+  packages: 104.018 GiB compressed; PMC ID crosswalk: 0.230 GiB compressed.
+- With current 38.0 GiB Storage usage and 100.0 GiB quota, PubMed-only would
+  leave about 4.433 GiB headroom but would require 153.134 GiB for version
+  overlap, so upload remains Steven-approval-gated.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_pubmed_corpus_budget.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_pubmed_local.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app\cli\eamos_pubmed_corpus_budget.py tests\test_pubmed_corpus_budget.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app\cli\eamos_pubmed_corpus_budget.py tests\test_pubmed_corpus_budget.py`
+  -> passed after formatting those two new files.
+- `cd app/backend && python -m app.cli.eamos_pubmed_corpus_budget --fetch-official-listings --compact`
+  -> passed; fetched official listing HTML only.
+
+Next:
+- Ask Steven which SUPA-LIT-1 decision path to take before any bulk Supabase
+  upload: no raw mirror, PubMed-only raw mirror with capacity approval, or
+  filtered/derived artifacts only. Use an explicit non-`C:` staging volume for
+  any proof run.
+
+## 2026-06-11 17:53 +1000 - Codex - PubMed-local LitVar exporter and Supabase corpus buckets
+
+Continued the PubMed priority lane after Claude frontend work. The live
+PubMed-local v4/PubTator deployment remains unchanged; this slice added the
+LitVar operator converter and clarified the Supabase corpus path before any
+bulk storage action.
+
+Completed:
+- Added `python -m app.cli.eamos_pubmed_litvar_edges`, an operator-run,
+  no-network converter from staged LitVar/LitVar2 publication JSON/JSONL
+  exports into the existing PubMed-local edge JSONL shape.
+- Added tests proving sanitized converter output and end-to-end ingestion by
+  the PubMed-local materializer into EP-VLEx-compatible `litvar2_snippet`
+  publications.
+- Updated the backend build ledger so the literature engine names private
+  Supabase Storage/Postgres as the production corpus path after sizing
+  approval, with SQLite remaining the proof harness and API calls remaining
+  fallback/refresh.
+- Updated `docs/pubmed-local/plan.md` with small local-proof buckets plus a
+  separate approval-gated Supabase production track. The approval gate is
+  before bulk PubMed upload, any PMC/PubTator full-source upload, vector
+  expansion, or storage/database cost increase.
+- Checked current Supabase project facts: organization plan is Pro, project
+  `eamos-dev` is healthy, Postgres is about 19 MB, WAL is about 80 MB, and
+  private Storage currently holds about 38 GB in `eamos-source-assets`.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_pubmed_local.py -q`
+  -> passed.
+- `cd app/backend && python -m pytest tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_pubmed_local.py tests\test_health_api.py tests\test_publication_literature.py tests\test_lookup_section_fetch_contract.py tests\test_variant_cache.py tests\test_frontend_contract.py -q`
+  -> passed.
+- `cd app/backend && python -m ruff check app\cli\eamos_pubmed_litvar_edges.py tests\test_pubmed_litvar_edges.py app\cli\eamos_pubmed_pubtator_edges.py tests\test_pubmed_pubtator_edges.py app\services\pubmed_local.py tests\test_pubmed_local.py`
+  -> passed.
+- `cd app/backend && python -m black --check --target-version py310 app\cli\eamos_pubmed_litvar_edges.py tests\test_pubmed_litvar_edges.py app\cli\eamos_pubmed_pubtator_edges.py tests\test_pubmed_pubtator_edges.py app\services\pubmed_local.py tests\test_pubmed_local.py`
+  -> passed after formatting the new LitVar files.
+- `python -m py_compile app\cli\eamos_pubmed_litvar_edges.py` -> passed.
+- `python -m graphify update .` -> passed.
+
+Not done:
+- No commit, push, deploy, Supabase upload, schema migration, or Storage
+  mutation was performed in this slice.
+- The next executable step is `SUPA-LIT-0`: corpus inventory and size budget.
+  Steven approval is required before moving from sizing into bulk Supabase
+  upload or any storage/database overage.
+
 ## 2026-06-08 14:07 +1000 - Codex - PubMed-local PubTator converter and commit/deploy coordination
 
 Continued the PubMed-local backend lane after Steven explicitly authorized

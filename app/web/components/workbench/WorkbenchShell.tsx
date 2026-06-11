@@ -20,8 +20,11 @@ import {
   type SequenceViewerHandle,
 } from './viewer/SequenceViewerV2'
 import { FullLocusViewer, FullLocusUnsupportedBanner } from './viewer/FullLocusViewer'
-import { ZoomSlider } from './viewer/ZoomSlider'
-import { ZOOM_PRESETS } from './viewer/zoom-config'
+import {
+  DEFAULT_ZOOM_STEP,
+  ZOOM_SETTINGS_BY_STEP,
+  type ZoomStep,
+} from './viewer/zoom-config'
 import {
   DEFAULT_TRACKS,
   type SelectionSummary,
@@ -86,7 +89,8 @@ function isDefaultViewerRequest(gene: string, cdna: string, transcript?: string)
 export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellProps) {
   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)
   const [strandMode, setStrandMode] = useState<StrandMode>('both')
-  const [baseW, setBaseW] = useState<number>(ZOOM_PRESETS.exon)
+  const [zoomStep, setZoomStep] = useState<ZoomStep>(DEFAULT_ZOOM_STEP)
+  const zoomSetting = ZOOM_SETTINGS_BY_STEP[zoomStep]
   const [navCollapsed, setNavCollapsed] = useState(false)
   const [exonTableOpen, setExonTableOpen] = useState(false)
   const [scratch, setScratch] = useState<ScratchEntry[]>([])
@@ -299,8 +303,10 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
             data={data}
             trackOn={trackOn}
             strandMode={strandMode}
-            baseW={baseW}
-            onBaseW={setBaseW}
+            baseW={zoomSetting.baseW}
+            basesPerRow={zoomSetting.basesPerRow}
+            zoomStep={zoomStep}
+            onZoomStep={setZoomStep}
             navCollapsed={navCollapsed}
             onToggleMinimap={() => setNavCollapsed((c) => !c)}
             alleleMode={alleleMode}
@@ -319,8 +325,10 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         data={data}
         trackOn={trackOn}
         strandMode={strandMode}
-        baseW={baseW}
-        onBaseW={setBaseW}
+        baseW={zoomSetting.baseW}
+        basesPerRow={zoomSetting.basesPerRow}
+        zoomStep={zoomStep}
+        onZoomStep={setZoomStep}
         navCollapsed={navCollapsed}
         onToggleMinimap={() => setNavCollapsed((c) => !c)}
         alleleMode={alleleMode}

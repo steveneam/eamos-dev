@@ -1,45 +1,32 @@
 'use client'
-import { BASE_W_MAX, BASE_W_MIN } from './zoom-config'
+import { ZOOM_SETTINGS, type ZoomStep } from './zoom-config'
 
 interface ZoomSliderProps {
-  baseW: number
-  onBaseW: (w: number) => void
+  zoomStep: ZoomStep
+  onZoomStep: (step: ZoomStep) => void
 }
 
-// Minimal zoom control: −/+ steppers around a density slider. Lives inside
-// the viewer canvas (hover-revealed) so the chrome stays out of the way.
-// The semantic Gene/Exon/Codon presets and the Hide-map button were
-// retired — the density slider alone is enough density control, and the
-// gene-minimap collapse is now handled by its own section header.
-export function ZoomSlider({ baseW, onBaseW }: ZoomSliderProps) {
+export function ZoomSlider({ zoomStep, onZoomStep }: ZoomSliderProps) {
   return (
     <div className="sv-zoombar">
-      <div className="zoom-slider" role="group" aria-label="Zoom density">
-        <button
-          type="button"
-          className="zoom-step"
-          aria-label="Zoom out"
-          onClick={() => onBaseW(Math.max(BASE_W_MIN, baseW - 2))}
-        >
-          −
-        </button>
-        <input
-          type="range"
-          min={BASE_W_MIN}
-          max={BASE_W_MAX}
-          step={1}
-          value={baseW}
-          aria-label="Base density"
-          onChange={(e) => onBaseW(Number(e.target.value))}
-        />
-        <button
-          type="button"
-          className="zoom-step"
-          aria-label="Zoom in"
-          onClick={() => onBaseW(Math.min(BASE_W_MAX, baseW + 2))}
-        >
-          +
-        </button>
+      <div className="zoom-slider" role="group" aria-label="Sequence row zoom">
+        {ZOOM_SETTINGS.map((setting) => (
+          <button
+            key={setting.step}
+            type="button"
+            className={`zoom-step${setting.step === zoomStep ? ' active' : ''}`}
+            aria-pressed={setting.step === zoomStep}
+            aria-label={`${setting.label}, ${setting.basesPerRow} nucleotides per row`}
+            title={`${setting.label}: ${setting.basesPerRow} nt/row`}
+            onClick={() => onZoomStep(setting.step)}
+          >
+            {setting.step === 0
+              ? 'Default'
+              : setting.step > 0
+                ? `+${setting.step}`
+                : setting.step}
+          </button>
+        ))}
       </div>
     </div>
   )

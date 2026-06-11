@@ -32,6 +32,7 @@ from app.services.crispr_design import (
     CrisprScoreRBackedCrisprProvider,
     LocalDeterministicCrisprProvider,
 )
+from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
 from app.services.sequence_context import (
     SequenceContext,
     SequenceContextResult,
@@ -52,7 +53,10 @@ from app.services.workbench_design import (
     WorkbenchDesignService,
     _align_sequences,
 )
-from app.services.crispr_offtarget_screening import MOCK_SCREENING_TEMPLATE_WARNING
+from app.services.crispr_offtarget_screening import (
+    MOCK_SCREENING_TEMPLATE_WARNING,
+    IndexedSqliteCrisprOffTargetProvider,
+)
 from app.services.crispr_ssodn import SSODN_MOCK_GENOMIC_WINDOW_WARNING
 from app.services.trace_parser import (
     TRACE_MAX_BASE_CALLS,
@@ -309,6 +313,62 @@ def test_crispr_offtargets_service_is_deterministic_against_fixture() -> None:
     assert first.model_dump() == _fixture("crispr_offtargets_deidentified.json")
 
 
+def test_crispr_offtargets_indexed_provider_returns_index_hits(tmp_path: Path) -> None:
+    guide = "GAGTCCGAGCAGAAGAAGAT"
+    mismatch = "C" + guide[1:]
+    index_path = tmp_path / "spcas9_offtargets.sqlite"
+    build_spcas9_offtarget_index_from_sequences(
+        [
+            ("1", f"{guide}AGG{'N' * 40}"),
+            ("2", f"{'N' * 4}{mismatch}TGG{'N' * 40}"),
+        ],
+        index_path,
+        genome_build="GRCh38",
+        source_version="pytest-mini",
+    )
+    service = WorkbenchDesignService(
+        settings=_settings(
+            workbench_live_design_enabled=True,
+            crispr_offtarget_provider="auto",
+            crispr_offtarget_index_path=index_path,
+        )
+    )
+
+    response = service.enumerate_crispr_offtargets(
+        CrisprOffTargetRequest(
+            guide=guide,
+            pam="NGG",
+            max_mismatches=1,
+            on_target_locus={"chromosome": "1", "position": 18, "strand": "+"},
+        )
+    )
+
+    assert isinstance(service.crispr_offtarget_provider, IndexedSqliteCrisprOffTargetProvider)
+    assert response.genome_build == "GRCh38"
+    assert [site.mismatches for site in response.sites] == [0, 1]
+    assert response.sites[0].on_target is True
+    assert response.sites[0].chromosome == "chr1"
+    assert response.sites[1].sequence == mismatch
+    assert response.sites[1].chromosome == "chr2"
+    assert response.sites[1].on_target is False
+
+
+def test_crispr_offtargets_forced_index_missing_maps_to_503(tmp_path: Path) -> None:
+    service = WorkbenchDesignService(
+        settings=_settings(
+            workbench_live_design_enabled=True,
+            crispr_offtarget_provider="indexed_sqlite",
+            crispr_offtarget_index_path=tmp_path / "missing.sqlite",
+        )
+    )
+
+    with pytest.raises(WorkbenchDesignError) as exc_info:
+        service.enumerate_crispr_offtargets(CrisprOffTargetRequest(guide="GAGTCCGAGCAGAAGAAGAT"))
+
+    assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert exc_info.value.code == "crispr_offtarget_index_unavailable"
+
+
 def test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor(client) -> None:
     _require_local_ssodn_assets()
 
@@ -337,6 +397,7 @@ def test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor(client) -> None:
     assert ssodn["orientation"] == "sense"
     assert ssodn["protocol"] == "lab_genomic"
     assert ssodn["oligo_name"] == "ss oligo for c.260A>G; p.Asp87Gly; GAT > GGT"
+    assert ssodn["variant_genomic"] == "chr1:68444869"
     assert len(ssodn["intron_mask"]) == 120
     assert sum(ssodn["intron_mask"]) == 47
     assert ssodn["oligo_sequence"].isupper()
@@ -364,6 +425,8 @@ def test_crispr_ssodn_public_rpe65_examples_match_expected_ordered_donor(
     assert response.ssodn.template_source == "local_mane_hg38_transcript"
     assert response.ssodn.oligo_length == 120
     assert response.ssodn.variant_offset == expected_offset
+    if cdna == "c.260A>G":
+        assert response.ssodn.variant_genomic == "chr1:68444869"
     assert sum(response.ssodn.intron_mask) == expected_intron_count
     assert hashlib.sha256(response.ssodn.oligo_sequence.encode("ascii")).hexdigest() == (
         expected_sha256
@@ -418,8 +481,39 @@ def test_crispr_ssodn_falls_back_to_sequence_context_mock_when_local_assets_do_n
     assert body["warnings"] == [SSODN_MOCK_GENOMIC_WINDOW_WARNING]
     assert body["ssodn"]["template_source"] == "mock_genomic_window"
     assert body["ssodn"]["variant_offset"] == 49
+    assert body["ssodn"]["variant_genomic"] is None
     assert body["ssodn"]["reference_arm"][49] == "A"
     assert body["ssodn"]["oligo_sequence"][49] == "G"
+
+
+def test_crispr_ssodn_sequence_context_window_reports_variant_genomic() -> None:
+    query = normalize_sequence_query("TEST", "c.1A>G")
+    context = _context()
+    context.gene = "TEST"
+    context.cdna = "c.1A>G"
+    context.transcript = "NM_TEST.1"
+    context.genomic_hg38 = "7-117509080-A-G"
+    context.window_sequence = ("C" * 49) + "A" + ("C" * 50)
+    context.target_offset = 49
+    context.reference_base = "A"
+    context.alternate_base = "G"
+    context.strand = "+"
+    service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        sequence_context_service=StaticSequenceContextService(
+            SequenceContextResult(query=query, context=context)
+        ),
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = service.design_crispr_ssodn(
+        CrisprSsodnRequest(gene="TEST", cdna="c.1A>G", oligo_length=100)
+    )
+
+    assert response.ssodn.template_source == "sequence_context"
+    assert response.ssodn.variant_genomic == "chr7:117509080"
+    assert response.ssodn.reference_arm[49] == "A"
+    assert response.ssodn.oligo_sequence[49] == "G"
 
 
 def test_crispr_offtargets_unsupported_enzyme_maps_to_422(client) -> None:
@@ -662,7 +756,30 @@ def test_real_mode_primer_service_uses_sequence_context_and_provider() -> None:
     response = service.design_primers(PrimerRequest(gene="RPE65", cdna="c.260A>G"))
 
     assert response == PrimerResponse(mode="sanger", pairs=[])
-    assert sequence_service.calls == [{"gene": "RPE65", "cdna": "c.260A>G"}]
+    assert sequence_service.calls == [
+        {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
+    ]
+    assert primer_provider.calls[0][1].genomic_hg38 == "1-68444869-T-C"
+
+
+def test_workbench_live_design_uses_provider_without_global_real_apis() -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    sequence_service = StaticSequenceContextService(
+        SequenceContextResult(query=query, context=_context())
+    )
+    primer_provider = FakePrimerProvider()
+    service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        sequence_context_service=sequence_service,
+        primer_provider=primer_provider,
+    )
+
+    response = service.design_primers(PrimerRequest(gene="RPE65", cdna="c.260A>G"))
+
+    assert response == PrimerResponse(mode="sanger", pairs=[])
+    assert sequence_service.calls == [
+        {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
+    ]
     assert primer_provider.calls[0][1].genomic_hg38 == "1-68444869-T-C"
 
 
@@ -682,7 +799,31 @@ def test_real_mode_crispr_service_uses_sequence_context_and_provider() -> None:
     response = service.design_guides(CrisprRequest(gene="RPE65", cdna="c.260A>G"))
 
     assert response == CrisprResponse(cas="SpCas9", guides=[], ssodn=None)
-    assert sequence_service.calls == [{"gene": "RPE65", "cdna": "c.260A>G"}]
+    assert sequence_service.calls == [
+        {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
+    ]
+    assert crispr_provider.calls[0][1].genomic_hg38 == "1-68444869-T-C"
+
+
+def test_workbench_live_design_uses_crispr_provider_without_global_real_apis() -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G")
+    sequence_service = StaticSequenceContextService(
+        SequenceContextResult(query=query, context=_context())
+    )
+    crispr_provider = FakeCrisprProvider()
+    service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        sequence_context_service=sequence_service,
+        primer_provider=FakePrimerProvider(),
+        crispr_provider=crispr_provider,
+    )
+
+    response = service.design_guides(CrisprRequest(gene="RPE65", cdna="c.260A>G"))
+
+    assert response == CrisprResponse(cas="SpCas9", guides=[], ssodn=None)
+    assert sequence_service.calls == [
+        {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
+    ]
     assert crispr_provider.calls[0][1].genomic_hg38 == "1-68444869-T-C"
 
 
@@ -1128,6 +1269,8 @@ def test_primer3_provider_maps_engine_output() -> None:
                 "PRIMER_PAIR_NUM_RETURNED": 1,
                 "PRIMER_LEFT_0_SEQUENCE": "AACCGGTTAACCGGTTAA",
                 "PRIMER_RIGHT_0_SEQUENCE": "TTGGAACCTTGGAACCTT",
+                "PRIMER_LEFT_0": [300, 18],
+                "PRIMER_RIGHT_0": [720, 18],
                 "PRIMER_LEFT_0_TM": 59.94,
                 "PRIMER_RIGHT_0_TM": 60.05,
                 "PRIMER_LEFT_0_GC_PERCENT": 44.4,
@@ -1173,6 +1316,29 @@ def test_primer3_provider_maps_engine_output() -> None:
         "Primer3 thermodynamic secondary-structure screen moderate; "
         "max pair complement-end 38.2."
     )
+    assert pair.self_any_forward == 22.5
+    assert pair.self_any_reverse == 31.2
+    assert pair.self_end_forward == 10.0
+    assert pair.self_end_reverse == 12.0
+    assert pair.hairpin_tm_forward == 18.0
+    assert pair.hairpin_tm_reverse == 17.0
+    assert pair.pair_compl_end == 38.2
+    assert pair.forward_strand == "Plus"
+    assert pair.reverse_strand == "Minus"
+    assert pair.forward_template_start == 301
+    assert pair.forward_template_stop == 318
+    assert pair.reverse_template_start == 721
+    assert pair.reverse_template_stop == 704
+    assert pair.genomic_chromosome == "chr1"
+    assert pair.genome_build == "GRCh38"
+    assert pair.forward_genomic_start == 68444669
+    assert pair.forward_genomic_stop == 68444686
+    assert pair.reverse_genomic_start == 68445089
+    assert pair.reverse_genomic_stop == 68445072
+    assert pair.amplicon_template_start == 301
+    assert pair.amplicon_template_end == 721
+    assert pair.amplicon_genomic_start == 68444669
+    assert pair.amplicon_genomic_end == 68445089
     assert pair.recommended is True
     assert "Primer3 local design" in pair.notes
     assert "Specificity provider note." in pair.notes
@@ -1181,6 +1347,7 @@ def test_primer3_provider_maps_engine_output() -> None:
     assert specificity_provider.calls[0]["product_min"] == 300
     assert specificity_provider.calls[0]["product_max"] == 700
     assert Primer3Module.bindings.seq_args["SEQUENCE_TARGET"] == [500, 1]
+    assert Primer3Module.bindings.global_args["PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT"] == 1
     assert Primer3Module.bindings.global_args["PRIMER_PRODUCT_SIZE_RANGE"] == [[300, 700]]
 
 

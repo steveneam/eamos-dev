@@ -194,7 +194,15 @@ def test_litvar2_quotes_variant_id_path_segments(monkeypatch: pytest.MonkeyPatch
     assert result.summary["total_publications"] == 1
     assert result.summary["articles"][0]["pmid"] == "41234567"
     assert "litvar%40rs752238803%23%23" in result.source_url
-    assert len(calls) == 2
+    assert calls[:2] == [
+        "https://www.ncbi.nlm.nih.gov/research/litvar2-api/variant/autocomplete/",
+        (
+            "https://www.ncbi.nlm.nih.gov/research/litvar2-api/variant/get/"
+            "litvar%40rs752238803%23%23/publications"
+        ),
+    ]
+    assert calls[2].endswith("/esummary.fcgi")
+    assert result.warnings == ["litvar2_pubmed_hydration_failed:AssertionError"]
 
 
 def test_clinvar_live_no_hit_does_not_return_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
