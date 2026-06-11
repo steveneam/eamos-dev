@@ -155,13 +155,33 @@ export async function lookupSummary(
 
 export async function fetchLookupSections(
   payload: LookupSectionFetchRequest,
+  init: { signal?: AbortSignal } = {},
 ): Promise<LookupSectionFetchResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/lookup/sections`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  return parseResponse<LookupSectionFetchResponse>(response)
+  let lastError: unknown
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 600))
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/lookup/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: init.signal,
+      })
+      if (response.status >= 500 && attempt === 0) {
+        const body = await response.text()
+        lastError = new Error(body || `Request failed with status ${response.status}`)
+        continue
+      }
+      return parseResponse<LookupSectionFetchResponse>(response)
+    } catch (err) {
+      if (err instanceof TypeError && attempt === 0) {
+        lastError = err
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastError
 }
 
 export async function designPrimers(payload: PrimerRequest): Promise<PrimerResponse> {

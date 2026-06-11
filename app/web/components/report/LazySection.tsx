@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { fetchLookupSections } from '@/lib/api'
 import type {
   LookupRequest,
@@ -126,22 +126,59 @@ function LazyFetchSection<T>({
   const [state, setState] = useState<LoadState<T>>({ kind: 'idle' })
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const fetchedRef = useRef(false)
+  const fetchIdRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
+  const unwrapRef = useRef(unwrap)
+  const requestBody = useMemo(() => ({ ...request, include: [sectionId] }), [request, sectionId])
+  const requestSignature = useMemo(() => JSON.stringify(requestBody), [requestBody])
+
+  useEffect(() => {
+    unwrapRef.current = unwrap
+  }, [unwrap])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchedRef.current = false
+    fetchIdRef.current += 1
+    abortRef.current?.abort()
+    abortRef.current = null
+    void Promise.resolve().then(() => {
+      if (!cancelled) setState({ kind: 'idle' })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [requestSignature])
+
+  useEffect(() => {
+    return () => {
+      fetchIdRef.current += 1
+      abortRef.current?.abort()
+      abortRef.current = null
+    }
+  }, [])
 
   // Mark the active fetch so a stale request whose unwrap returns null doesn't
   // overwrite a fresher result. The request body is the dependency-change
   // signal; deep-equal isn't worth the bytes for the v1 surface.
-  const runFetch = () => {
+  const runFetch = useCallback(() => {
     if (fetchedRef.current) return
     fetchedRef.current = true
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const fetchId = fetchIdRef.current + 1
+    fetchIdRef.current = fetchId
     setState({ kind: 'loading' })
-    fetchLookupSections({ ...request, include: [sectionId] })
+    fetchLookupSections(requestBody, { signal: controller.signal })
       .then((response) => {
+        if (fetchIdRef.current !== fetchId || controller.signal.aborted) return
         const envelope = response.sections[sectionId]
         if (!envelope) {
           setState({ kind: 'error', message: `Section "${sectionId}" missing from response.` })
           return
         }
-        const data = unwrap(envelope)
+        const data = unwrapRef.current(envelope)
         if (data == null) {
           setState({ kind: 'error', message: `Section "${sectionId}" payload could not be narrowed.` })
           return
@@ -149,10 +186,11 @@ function LazyFetchSection<T>({
         setState({ kind: 'ready', data })
       })
       .catch((err: unknown) => {
+        if (fetchIdRef.current !== fetchId || controller.signal.aborted || isAbortError(err)) return
         const message = err instanceof Error ? err.message : 'Section fetch failed.'
         setState({ kind: 'error', message })
       })
-  }
+  }, [requestBody, sectionId])
 
   useEffect(() => {
     if (forceLoad) {
@@ -180,10 +218,7 @@ function LazyFetchSection<T>({
     )
     observer.observe(node)
     return () => observer.disconnect()
-    // request/sectionId/unwrap are captured in runFetch; intentional one-shot
-    // per mount — change the React `key` on the call site to reset.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceLoad, rootMargin])
+  }, [forceLoad, rootMargin, runFetch])
 
   if (state.kind === 'ready') return <>{children(state.data)}</>
   if (state.kind === 'error') {
@@ -205,6 +240,10 @@ function LazyFetchSection<T>({
       {placeholder ?? <DefaultPlaceholder sectionId={sectionId} />}
     </div>
   )
+}
+
+function isAbortError(err: unknown) {
+  return err instanceof Error && err.name === 'AbortError'
 }
 
 function DefaultPlaceholder({ sectionId }: { sectionId: LookupSectionId }) {
