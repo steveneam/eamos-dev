@@ -6,7 +6,7 @@
    minimap, or color schemes this slice — those land in FGV-004+ once we
    know what the row model actually feels like on RPE65/ABCA4. */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   FullLocusRow,
   FullLocusRows,
@@ -43,6 +43,11 @@ function rowStartsNewBand(row: FullLocusRow): string | null {
 
 function formatCoord(n: number): string {
   return n.toLocaleString('en-US')
+}
+
+function reducedMotionScrollBehavior(): ScrollBehavior {
+  if (typeof window === 'undefined') return 'smooth'
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
 interface RowDOMProps {
@@ -111,6 +116,8 @@ function RowDOM({ row, basesPerRow, coordinateMode }: RowDOMProps) {
   )
 }
 
+const MemoRowDOM = memo(RowDOM)
+
 function LocusHeader({
   rows,
   gene,
@@ -173,7 +180,7 @@ export function FullLocusViewer({ model }: FullLocusViewerProps) {
     const target = variantRowRef.current
     if (!scroller || !target) return
     const offset = target.offsetTop - scroller.clientHeight * 0.3
-    scroller.scrollTo({ top: Math.max(0, offset), behavior: 'auto' })
+    scroller.scrollTo({ top: Math.max(0, offset), behavior: reducedMotionScrollBehavior() })
   }, [rows.variantRowIndex])
 
   const renderedRows = useMemo(
@@ -184,7 +191,7 @@ export function FullLocusViewer({ model }: FullLocusViewerProps) {
           ref={row.rowIndex === rows.variantRowIndex ? variantRowRef : undefined}
           className="fl-row-anchor"
         >
-          <RowDOM row={row} basesPerRow={rows.basesPerRow} coordinateMode={coordinateMode} />
+          <MemoRowDOM row={row} basesPerRow={rows.basesPerRow} coordinateMode={coordinateMode} />
         </div>
       )),
     [coordinateMode, rows],

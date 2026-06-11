@@ -423,6 +423,16 @@ class AlignRequest(WorkbenchQuery):
         return _strip_text(value)
 
 
+class AlignReferenceRequest(WorkbenchQuery):
+    transcript: str | None = Field(default=None, max_length=128)
+    species: Literal["human", "mouse"] = "human"
+
+    @field_validator("transcript", mode="before")
+    @classmethod
+    def _strip_reference_text(cls, value):
+        return _strip_text(value)
+
+
 class AlignTraceRequest(BaseModel):
     ab1_blob_base64: str = Field(min_length=1, max_length=WORKBENCH_AB1_BLOB_MAX_LENGTH)
 
@@ -478,3 +488,19 @@ class AlignResponse(BaseModel):
     trace_channels: list[TraceChannel] = Field(default_factory=list)
     base_calls: list[str] = Field(default_factory=list)
     q_scores: list[int] = Field(default_factory=list)
+
+
+class AlignReferenceResponse(BaseModel):
+    gene: str
+    cdna: str
+    transcript: str | None = None
+    transcript_hgvs: str
+    genome_build: str
+    genomic_hg38: str | None = None
+    strand: str
+    reference: str
+    target_position: int
+    reference_base: str | None = None
+    alternate_base: str | None = None
+    source: str
+    warnings: list[str] = Field(default_factory=list)

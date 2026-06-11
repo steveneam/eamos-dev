@@ -152,6 +152,8 @@ from app.schemas.run import (
     VariantSummaryRow,
 )
 from app.schemas.workbench import (
+    AlignReferenceRequest,
+    AlignReferenceResponse,
     AlignRequest,
     AlignResponse,
     AlignTraceHetCall,
@@ -307,6 +309,8 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     CrisprTideResponse: "CrisprTideResponse",
     AlignRequest: "AlignRequest",
     AlignResponse: "AlignResponse",
+    AlignReferenceRequest: "AlignReferenceRequest",
+    AlignReferenceResponse: "AlignReferenceResponse",
     AlignTraceRequest: "AlignTraceRequest",
     AlignTraceResponse: "AlignTraceResponse",
     AlignTraceTrimRange: "AlignTraceTrimRange",

@@ -1447,6 +1447,13 @@ export interface AlignRequest {
   ab1_blob_base64?: string | null
 }
 
+export interface AlignReferenceRequest {
+  gene: string
+  cdna: string
+  transcript?: string | null
+  species?: 'human' | 'mouse'
+}
+
 export interface AlignTraceRequest {
   ab1_blob_base64: string
 }
@@ -1497,6 +1504,22 @@ export interface AlignResponse {
   trace_channels: TraceChannel[]
   base_calls: string[]
   q_scores: number[]
+}
+
+export interface AlignReferenceResponse {
+  gene: string
+  cdna: string
+  transcript?: string | null
+  transcript_hgvs: string
+  genome_build: string
+  genomic_hg38?: string | null
+  strand: string
+  reference: string
+  target_position: number
+  reference_base?: string | null
+  alternate_base?: string | null
+  source: string
+  warnings: string[]
 }
 
 // ─── Gene viewer (POST /api/v1/viewer) ──────────────────────────────────

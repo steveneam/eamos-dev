@@ -59,6 +59,19 @@ export interface SequenceViewerHandle {
 }
 
 type SelectionRange = { start: number; end: number }
+type DragRowBox = {
+  top: number
+  bottom: number
+  left: number
+  start: number
+  end: number
+  baseW: number
+}
+
+function reducedMotionScrollBehavior(): ScrollBehavior {
+  if (typeof window === 'undefined') return 'smooth'
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+}
 
 interface SequenceViewerV2Props {
   data: GeneWindowData
@@ -136,6 +149,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const selectionRef = useRef<SelectionRange | null>(null)
     const dragFrameRef = useRef<number | null>(null)
     const pendingDragPointRef = useRef<{ x: number; y: number } | null>(null)
+    const dragRowBoxesRef = useRef<DragRowBox[] | null>(null)
     const activePointerIdRef = useRef<number | null>(null)
 
     const [editState, dispatch] = useReducer(editReducer, initialEditState)
@@ -360,7 +374,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         const cell = rootRef.current?.querySelector<HTMLElement>(
           `.sv-base[data-idx="${i}"]`,
         )
-        cell?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        cell?.scrollIntoView({ behavior: reducedMotionScrollBehavior(), block: 'center' })
       })
     }, [])
     const jumpToFlatIdx = useCallback(
@@ -487,38 +501,58 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const variantCount = variantFlatPositions.length
 
     // ── Selection drag ──
-    const baseIndexFromPoint = useCallback((x: number, y: number): number | null => {
-      const rows = Array.from(
+    const collectDragRowBoxes = useCallback((): DragRowBox[] => {
+      return Array.from(
         rootRef.current?.querySelectorAll<HTMLElement>(
           '.sv-block-row.sequence[data-row-start][data-row-end][data-base-w]',
         ) ?? [],
       )
+        .map((row) => {
+          const rect = row.getBoundingClientRect()
+          const start = Number(row.dataset.rowStart)
+          const end = Number(row.dataset.rowEnd)
+          const baseWValue = Number(row.dataset.baseW)
+          if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            !Number.isFinite(baseWValue) ||
+            baseWValue <= 0
+          ) {
+            return null
+          }
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            left: rect.left,
+            start,
+            end,
+            baseW: baseWValue,
+          }
+        })
+        .filter((box): box is DragRowBox => box !== null)
+    }, [])
+
+    const baseIndexFromPoint = useCallback((x: number, y: number): number | null => {
+      const rows = dragRowBoxesRef.current ?? collectDragRowBoxes()
       if (rows.length === 0) return null
       let best:
         | {
-            row: HTMLElement
+            row: DragRowBox
             distance: number
           }
         | null = null
       for (const row of rows) {
-        const rect = row.getBoundingClientRect()
         const distance =
-          y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+          y < row.top ? row.top - y : y > row.bottom ? y - row.bottom : 0
         if (!best || distance < best.distance) best = { row, distance }
       }
       if (!best) return null
-      const rect = best.row.getBoundingClientRect()
-      const start = Number(best.row.dataset.rowStart)
-      const end = Number(best.row.dataset.rowEnd)
-      const rowBaseW = Number(best.row.dataset.baseW)
-      if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(rowBaseW)) {
-        return null
-      }
+      const { left, start, end, baseW: rowBaseW } = best.row
       const maxOffset = Math.max(0, end - start)
-      const rawOffset = Math.floor((x - rect.left) / rowBaseW)
+      const rawOffset = Math.floor((x - left) / rowBaseW)
       const offset = Math.max(0, Math.min(maxOffset, rawOffset))
       return start + offset
-    }, [])
+    }, [collectDragRowBoxes])
 
     const cancelDragFrame = useCallback(() => {
       pendingDragPointRef.current = null
@@ -554,6 +588,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       isSelecting.current = false
       cancelDragFrame()
       releasePointerCapture()
+      dragRowBoxesRef.current = null
       rootRef.current?.classList.remove('sv-dragging-select')
       rootRef.current?.classList.remove('sv-dragging-edge')
       dragCleanupRef.current?.()
@@ -564,8 +599,12 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
 
     const onSequencePointerDown = useCallback(
       (clientX: number, clientY: number, shift: boolean, pointerId: number) => {
+        dragRowBoxesRef.current = collectDragRowBoxes()
         const idx = baseIndexFromPoint(clientX, clientY)
-        if (idx === null) return
+        if (idx === null) {
+          dragRowBoxesRef.current = null
+          return
+        }
         cleanupSelectionDrag()
         beginPointerCapture(pointerId)
         setLiveSelection((sel) =>
@@ -621,6 +660,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
         baseIndexFromPoint,
         beginPointerCapture,
         cancelDragFrame,
+        collectDragRowBoxes,
         cleanupSelectionDrag,
         flushSelectionSummary,
         setLiveSelection,
@@ -641,6 +681,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const onSelectionEdgeDown = useCallback(
       (edge: 'start' | 'end') => {
         cleanupSelectionDrag()
+        dragRowBoxesRef.current = collectDragRowBoxes()
         setLiveSelection((sel) =>
           sel
             ? { start: Math.min(sel.start, sel.end), end: Math.max(sel.start, sel.end) }
@@ -694,6 +735,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       [
         baseIndexFromPoint,
         cancelDragFrame,
+        collectDragRowBoxes,
         cleanupSelectionDrag,
         flushSelectionSummary,
         setLiveSelection,

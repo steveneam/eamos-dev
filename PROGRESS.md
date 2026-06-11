@@ -1,5 +1,91 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## 2026-06-12 02:05 +1000 - Codex - Workbench CRISPR readiness, align reference, and viewer smoothness
+
+Continued the Workbench non-asset readiness slice. No commit, push, deploy,
+Render env change, provider/env flip, Supabase work, or AI gateway work was
+performed. `CRISPR_OFFTARGET_PROVIDER=auto` remains the expected default.
+
+Completed:
+- Added reusable sanitized crisprScore R runtime inspection plus
+  `python -m app.cli.eamos_crispr_score_preflight`.
+- Extended `python -m app.cli.eamos_crispr_offtarget_index` with `estimate`,
+  `verify`, and `manifest` subcommands for SpCas9 SQLite artifact planning.
+- Wired provider-cache CRISPR health to the shared crisprScore inspection and
+  added primer specificity readiness for `template` and `ucsc_ispcr`.
+- Added `POST /api/v1/align/reference` to resolve backend reference windows and
+  target metadata without requiring a Sanger read.
+- Mirrored the new alignment reference contract in both frontend `backend.ts`
+  files and added a Next API helper.
+- Hardened Workbench sequence/full-gene rendering: cached sequence-row
+  hit-test geometry during drag, memoized full-gene rows, added row-level paint
+  containment/content visibility, and respected reduced-motion scrolling.
+- Added proprietary catalogue docs for the CRISPR readiness operator tooling.
+- Checked local Conda status for Steven: Conda is not installed/on PATH here and
+  is only needed later for optional crisprScore RuleSet3/Lindel scoring paths.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_crispr_design.py tests/test_crispr_offtarget_index_cli.py tests/test_health_api.py tests/test_workbench_api.py tests/test_frontend_contract.py -q` passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_score_preflight --help` passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_score_preflight --provider local_deterministic --compact` passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_offtarget_index --help` passed.
+- `cd app/backend && python -m ruff check app tests` passed.
+- Full backend Black check remains blocked by unrelated pre-existing AI
+  gateway/config formatting drift; targeted Black check for this slice passed.
+- `cd app/web && npx tsc --noEmit --pretty false` passed.
+- `cd app/frontend && npx tsc -b --pretty false` passed.
+- Browser verified `http://localhost:3000/workbench` desktop Sequence and Full
+  gene views; no runtime console errors, viewer API returned 200. Existing
+  console issue remains: one form field lacks id/name.
+- `git diff --check -- <touched paths>` passed with line-ending warnings only.
+- `python -m json.tool docs/proprietary/index.json` passed.
+- `python -m graphify update .` passed.
+
+Notes:
+- Steven clarified that Workbench does not need routine mobile visual
+  verification going forward unless specifically requested or shared responsive
+  shell code is in scope.
+- Claude reported the AI gateway foundation is verified and is holding for
+  commit coordination. Recommended release order is: other Codex/ClinGen lane
+  first if its `config.py` block is ready, then Claude AI gateway, then this
+  Workbench readiness slice if keeping commits scoped. A combined release commit
+  is also viable but should be an explicit decision because it mixes Workbench,
+  ClinGen, and AI gateway work.
+- The tree still contains unrelated Claude AI gateway/ClinGen WIP and local
+  files intentionally left untouched.
+
+## 2026-06-12 01:02 +1000 - Codex - Workbench local TIDE operator CLI
+
+Continued the Workbench wiring pass after the PubMed/Workbench deployment was
+already committed and live. No commit, push, deploy, Render env change, Supabase
+work, source-asset mount, or AI gateway work was performed.
+
+Completed:
+- Audited Workbench UI/API fallback surfaces after Tasks 1 and 6. Primer
+  live-field consumption and source-backed Outcomes disclosure are already wired;
+  the remaining heavy Workbench items are still provider/materialization gated.
+- Added `python -m app.cli.eamos_crispr_tide`, a local operator CLI around the
+  same AB1 parser and observed-only TIDE-style adapter used by
+  `/api/v1/crispr/tide`.
+- The CLI accepts control/edited AB1 paths plus a 1-based cut-site index, emits
+  sanitized JSON with file-name/size summaries, guardrails, parsed base-call
+  counts, and the `CrisprTideResponse` result, and returns structured JSON errors
+  without raw local paths.
+- Added the proprietary catalogue entry for the Eamos observed-only CRISPR TIDE
+  analyzer and CLI.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_crispr_tide_cli.py tests\test_workbench_api.py -q` passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_tide --help` passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_tide --control app\fixtures\workbench\rpe65_vus1.ab1 --edited app\fixtures\workbench\rpe65_vus1.ab1 --cut-site-index 100 --compact` passed and returned source-backed observed-only TIDE JSON.
+- `cd app/backend && python -m ruff check app\cli\eamos_crispr_tide.py tests\test_crispr_tide_cli.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app\cli\eamos_crispr_tide.py tests\test_crispr_tide_cli.py` passed after formatting the new test.
+
+Next:
+- The next non-asset Workbench backend choices are readiness/tooling tasks:
+  CRISPR advanced score preflight, CRISPR off-target index estimate/manifest
+  hardening, or alignment sequence-resolve. Render/provider flips remain gated.
+
 ## 2026-06-12 00:46 +1000 - Codex - PubMed lazy fix and Workbench live-wiring deployed
 
 Steven confirmed the PubMed lazy-section retry/reset work was Codex-owned and

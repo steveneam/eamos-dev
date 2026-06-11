@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -28,12 +25,17 @@ from app.services.pubmed_local import inspect_pubmed_local_store
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
+    inspect_crisprscore_r_runtime,
 )
 from app.services.crispr_offtarget_index import inspect_crispr_offtarget_index
 from app.services.crispr_offtarget_screening import (
     CRISPR_OFFTARGET_PROVIDER_AUTO,
     CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE,
     CRISPR_OFFTARGET_PROVIDER_MOCK,
+)
+from app.services.workbench_design import (
+    PRIMER_SPECIFICITY_TEMPLATE,
+    PRIMER_SPECIFICITY_UCSC_ISPCR,
 )
 
 router = APIRouter(tags=["health"])
@@ -318,6 +320,7 @@ def _crispr_provider_health(settings) -> dict[str, object]:
         "status": "available" if configured_available else "unavailable",
         "providers": providers,
         "off_target_screening": _crispr_offtarget_health(settings),
+        "primer_specificity": _primer_specificity_health(settings),
         "platform_gated_models": ["DeepHF", "DeepCpf1", "enPAM+GB"],
     }
 
@@ -388,6 +391,54 @@ def _crispr_offtarget_health(settings) -> dict[str, object]:
     }
 
 
+def _primer_specificity_health(settings) -> dict[str, object]:
+    configured_provider = (settings.primer_specificity_provider or "").strip().lower()
+    if not configured_provider:
+        configured_provider = PRIMER_SPECIFICITY_TEMPLATE
+
+    if configured_provider == PRIMER_SPECIFICITY_TEMPLATE:
+        return {
+            "configured_provider": configured_provider,
+            "available": True,
+            "status": "template_window",
+            "whole_genome_specificity": False,
+            "request_time_external_calls": False,
+            "startup_download_allowed": False,
+            "local_path_values_emitted": False,
+        }
+
+    if configured_provider == PRIMER_SPECIFICITY_UCSC_ISPCR:
+        binary_present = _settings_path(settings, settings.ucsc_ispcr_binary_path).is_file()
+        reference_present = _settings_path(settings, settings.ucsc_ispcr_hg38_path).is_file()
+        available = bool(binary_present and reference_present)
+        return {
+            "configured_provider": configured_provider,
+            "available": available,
+            "status": "ucsc_ispcr_ready" if available else "ucsc_ispcr_unavailable",
+            "whole_genome_specificity": available,
+            "checks": {
+                "binary_present": binary_present,
+                "reference_present": reference_present,
+                "min_perfect": settings.ucsc_ispcr_min_perfect,
+                "min_good": settings.ucsc_ispcr_min_good,
+            },
+            "request_time_external_calls": False,
+            "startup_download_allowed": False,
+            "local_path_values_emitted": False,
+            "launch_gate": None if available else "ucsc_ispcr_assets_not_materialized",
+        }
+
+    return {
+        "configured_provider": configured_provider,
+        "available": False,
+        "status": "unknown_provider",
+        "whole_genome_specificity": False,
+        "request_time_external_calls": False,
+        "startup_download_allowed": False,
+        "local_path_values_emitted": False,
+    }
+
+
 def _settings_path(settings, path: Path) -> Path:
     return path if path.is_absolute() else settings.backend_root / path
 
@@ -444,85 +495,9 @@ def _protein_annotation_health(settings, service) -> dict[str, object]:
 
 
 def _crisprscore_r_health(settings, configured_provider: str) -> dict[str, object]:
-    configured = configured_provider == CRISPR_PROVIDER_CRISPRSCORE_R
-    checks: dict[str, object] = {
-        "rscript": False,
-        "jsonlite_package": None,
-        "crisprscore_package": None,
-        "rule_set3_conda_env_configured": settings.crispr_ruleset3_conda_env is not None,
-        "lindel_conda_env_configured": settings.crispr_lindel_conda_env is not None,
-    }
-    if not configured:
-        return {
-            "available": False,
-            "status": "disabled",
-            "checks": checks,
-        }
-
-    rscript = _resolve_executable(settings.crispr_rscript_path)
-    if rscript is None:
-        return {
-            "available": False,
-            "status": "unavailable",
-            "checks": checks,
-        }
-
-    checks["rscript"] = True
-    package_checks = _probe_crisprscore_r_packages(rscript)
-    checks.update(package_checks)
-    available = bool(checks["jsonlite_package"] and checks["crisprscore_package"])
-    return {
-        "available": available,
-        "status": "available" if available else "unavailable",
-        "checks": checks,
-    }
-
-
-def _resolve_executable(path: str | Path) -> str | None:
-    raw_path = str(path)
-    resolved = shutil.which(raw_path)
-    if resolved:
-        return resolved
-    candidate = Path(raw_path)
-    if candidate.is_file():
-        return str(candidate)
-    return None
-
-
-def _probe_crisprscore_r_packages(rscript: str) -> dict[str, bool | None]:
-    script = (
-        "cat('{\"jsonlite_package\":'); "
-        "cat(if (requireNamespace('jsonlite', quietly=TRUE)) 'true' else 'false'); "
-        "cat(',\"crisprscore_package\":'); "
-        "cat(if (requireNamespace('crisprScore', quietly=TRUE)) 'true' else 'false'); "
-        "cat('}')"
-    )
-    try:
-        completed = subprocess.run(
-            [rscript, "--vanilla", "-e", script],
-            capture_output=True,
-            text=True,
-            timeout=5.0,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return {"jsonlite_package": None, "crisprscore_package": None}
-
-    if completed.returncode != 0:
-        return {"jsonlite_package": None, "crisprscore_package": None}
-    try:
-        decoded = json.loads(completed.stdout or "{}")
-    except ValueError:
-        return {"jsonlite_package": None, "crisprscore_package": None}
-    return {
-        "jsonlite_package": (
-            decoded["jsonlite_package"]
-            if isinstance(decoded.get("jsonlite_package"), bool)
-            else None
-        ),
-        "crisprscore_package": (
-            decoded["crisprscore_package"]
-            if isinstance(decoded.get("crisprscore_package"), bool)
-            else None
-        ),
-    }
+    return inspect_crisprscore_r_runtime(
+        configured_provider=configured_provider,
+        rscript_path=settings.crispr_rscript_path,
+        rule_set3_conda_env=settings.crispr_ruleset3_conda_env,
+        lindel_conda_env=settings.crispr_lindel_conda_env,
+    ).to_sanitized_dict()

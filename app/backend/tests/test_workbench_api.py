@@ -12,6 +12,7 @@ from fastapi import status
 
 from app.core.config import Settings
 from app.schemas.workbench import (
+    AlignReferenceResponse,
     AlignRequest,
     AlignResponse,
     AlignTraceRequest,
@@ -111,6 +112,9 @@ class FailingWorkbenchService:
         raise self.error
 
     def design_crispr_ssodn(self, _payload):
+        raise self.error
+
+    def resolve_align_reference(self, _payload):
         raise self.error
 
     def align(self, _payload):
@@ -679,6 +683,7 @@ def test_crispr_screening_primers_missing_locus_maps_to_422(client) -> None:
             {"sites": [{"site_index": 1, "point": "chr7:117509080"}]},
         ),
         ("/api/v1/align", {"gene": "RPE65", "cdna": "c.260A>G"}),
+        ("/api/v1/align/reference", {"gene": "RPE65", "cdna": "c.260A>G"}),
     ],
 )
 def test_workbench_service_failures_map_to_structured_http_errors(
@@ -1066,6 +1071,60 @@ def test_real_mode_align_route_aligns_user_sequence_to_sequence_context(client) 
     assert body["base_calls"] == list("AAACCCAGG")
     assert body["q_scores"] == []
     assert body["trace_channels"] == []
+
+
+def test_align_reference_route_resolves_sequence_context_without_read_input(client) -> None:
+    query = normalize_sequence_query("RPE65", "c.260A>G", "NM_000329.3")
+    context = _context()
+    context.window_sequence = "TTTAAACCCGGGTTT"
+    context.target_offset = 9
+    sequence_context_service = StaticSequenceContextService(
+        SequenceContextResult(query=query, context=context)
+    )
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        sequence_context_service=sequence_context_service,
+        primer_provider=FakePrimerProvider(),
+    )
+
+    response = client.post(
+        "/api/v1/align/reference",
+        json={
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "transcript": "NM_000329.3",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (
+        body
+        == AlignReferenceResponse(
+            gene="RPE65",
+            cdna="c.260A>G",
+            transcript="NM_000329.3",
+            transcript_hgvs="NM_000329.3:c.260A>G",
+            genome_build="GRCh38",
+            genomic_hg38="1-68444869-T-C",
+            strand="unknown",
+            reference="TTTAAACCCGGGTTT",
+            target_position=9,
+            reference_base="T",
+            alternate_base="C",
+            source="resolver",
+            warnings=[],
+        ).model_dump()
+    )
+    assert sequence_context_service.calls == [
+        {
+            "gene": "RPE65",
+            "cdna": "c.260A>G",
+            "transcript": "NM_000329.3",
+            "species": "human",
+            "prefer_resolver": True,
+        }
+    ]
 
 
 def test_real_mode_align_requires_read_input_maps_to_422(client) -> None:

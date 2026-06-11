@@ -175,6 +175,7 @@
   position: relative;
   padding-top: 8px;
   background: var(--bg);
+  contain: layout paint style;
 }
 .sv-zoom-overlay-seq {
   position: absolute;
@@ -194,6 +195,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sv-zoom-overlay-seq { transition: opacity .12s linear; transform: none; }
   .align-spinner { animation: none; }
+  .fl-scroller { scroll-behavior: auto; }
 }
 .viewer.viewer-collapsed { max-height: 0; padding: 0; border: none; opacity: 0; margin-bottom: 0; }
 .viewer-loading {
@@ -700,13 +702,16 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+  contain: layout paint style;
 }
 .sv-block {
   position: relative;
   display: flex; flex-direction: column;
+  contain: layout paint;
 }
 .sv-block-row {
   position: relative;
+  contain: layout paint;
 }
 .sv-block-pos {
   position: absolute;
@@ -3704,10 +3709,16 @@
   overflow-y: auto; overflow-x: hidden;
   padding: 12px 14px 24px;
   scrollbar-gutter: stable;
+  contain: layout paint style;
+  scroll-behavior: smooth;
 }
 .fl-rows { display: flex; flex-direction: column; gap: 1px; }
 
-.fl-row-anchor { display: block; }
+.fl-row-anchor {
+  display: block;
+  content-visibility: auto;
+  contain-intrinsic-size: 24px;
+}
 .fl-row {
   display: grid;
   grid-template-columns: 110px 1fr 80px;
@@ -3715,6 +3726,7 @@
   column-gap: 12px;
   padding: 1px 0;
   border-radius: 3px;
+  contain: layout paint;
 }
 .fl-row--has-variant {
   background: rgba(186, 117, 23, 0.06);
@@ -3744,10 +3756,13 @@
   font: 500 12.5px var(--mono); line-height: 1.55;
   letter-spacing: 0.02em;
   color: var(--ink-2);
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
 }
 .fl-base {
   display: inline-block;
   width: 1ch; text-align: center;
+  contain: paint;
 }
 .fl-base--exon { color: var(--ink); }
 .fl-base--intron { color: var(--ink-4); }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sqlite3
@@ -76,6 +77,36 @@ class CrisprOffTargetIndexInspection:
         }
 
 
+@dataclass(frozen=True)
+class CrisprOffTargetIndexEstimate:
+    genome_build: str
+    source_version: str | None
+    contig_count: int
+    total_bases: int
+    target_count: int
+    max_mismatches_supported: int
+    estimated_sqlite_bytes: int
+    source_id: str = CRISPR_OFFTARGET_INDEX_SOURCE_ID
+    schema_version: str = CRISPR_OFFTARGET_INDEX_SCHEMA_VERSION
+
+    def to_sanitized_dict(self) -> dict[str, object]:
+        return {
+            "source_id": self.source_id,
+            "schema_version": self.schema_version,
+            "genome_build": self.genome_build,
+            "source_version": self.source_version,
+            "contig_count": self.contig_count,
+            "total_bases": self.total_bases,
+            "target_count": self.target_count,
+            "max_mismatches_supported": self.max_mismatches_supported,
+            "estimated_sqlite_bytes": self.estimated_sqlite_bytes,
+            "request_time_supabase_search": False,
+            "request_time_materialization_allowed": False,
+            "startup_materialization_allowed": False,
+            "local_path_values_emitted": False,
+        }
+
+
 def inspect_crispr_offtarget_index(index_path: Path | str) -> CrisprOffTargetIndexInspection:
     path = Path(index_path)
     if not path.is_file():
@@ -131,6 +162,94 @@ def inspect_crispr_offtarget_index(index_path: Path | str) -> CrisprOffTargetInd
         max_mismatches_supported=max_mismatches_supported,
         actual_size_bytes=actual_size_bytes,
     )
+
+
+def estimate_spcas9_offtarget_index_from_sequences(
+    records: Iterable[tuple[str, str]],
+    *,
+    genome_build: str = "GRCh38",
+    source_version: str | None = None,
+    max_mismatches_supported: int = DEFAULT_INDEX_MAX_MISMATCHES_SUPPORTED,
+) -> CrisprOffTargetIndexEstimate:
+    contig_count = 0
+    total_bases = 0
+    target_count = 0
+    for _chromosome, sequence in records:
+        contig_count += 1
+        cleaned = clean_dna(sequence)
+        total_bases += len(cleaned)
+        target_count += sum(1 for _target in _iter_spcas9_targets(cleaned))
+
+    estimated_sqlite_bytes = max(
+        65_536,
+        (target_count * 160) + (contig_count * 1_024) + 65_536,
+    )
+    return CrisprOffTargetIndexEstimate(
+        genome_build=genome_build,
+        source_version=source_version,
+        contig_count=contig_count,
+        total_bases=total_bases,
+        target_count=target_count,
+        max_mismatches_supported=max_mismatches_supported,
+        estimated_sqlite_bytes=estimated_sqlite_bytes,
+    )
+
+
+def verify_crispr_offtarget_index(
+    index_path: Path | str,
+    *,
+    genome_build: str | None = None,
+    min_target_count: int = 1,
+) -> dict[str, object]:
+    inspection = inspect_crispr_offtarget_index(index_path)
+    sanitized = inspection.to_sanitized_dict()
+    genome_build_matches = (
+        True
+        if genome_build is None
+        else _normalize_build(genome_build) == _normalize_build(inspection.genome_build or "")
+    )
+    target_count_meets_min = inspection.target_count >= max(0, min_target_count)
+    verification_ready = bool(inspection.ready and genome_build_matches and target_count_meets_min)
+    sanitized.update(
+        {
+            "verification_ready": verification_ready,
+            "expected_genome_build": genome_build,
+            "genome_build_matches": genome_build_matches,
+            "min_target_count": min_target_count,
+            "target_count_meets_min": target_count_meets_min,
+        }
+    )
+    return sanitized
+
+
+def crispr_offtarget_index_manifest(
+    index_path: Path | str,
+    *,
+    artifact_uri: str | None = None,
+    source_version: str | None = None,
+) -> dict[str, object]:
+    inspection = inspect_crispr_offtarget_index(index_path)
+    path = Path(index_path)
+    actual_sha256 = _sha256_file(path) if path.is_file() else None
+    return {
+        "source_id": CRISPR_OFFTARGET_INDEX_SOURCE_ID,
+        "schema_version": inspection.schema_version,
+        "genome_build": inspection.genome_build,
+        "source_version": source_version,
+        "ready": inspection.ready,
+        "status": inspection.status,
+        "target_count": inspection.target_count,
+        "max_mismatches_supported": inspection.max_mismatches_supported,
+        "actual_size_bytes": inspection.actual_size_bytes,
+        "actual_sha256": actual_sha256,
+        "artifact_uri": artifact_uri,
+        "reader_requires_local_path": True,
+        "request_time_supabase_search": False,
+        "request_time_materialization_allowed": False,
+        "startup_materialization_allowed": False,
+        "local_path_values_emitted": False,
+        "launch_gate": None if inspection.ready else "crispr_offtarget_index_artifact_not_ready",
+    }
 
 
 def build_spcas9_offtarget_index_from_sequences(
@@ -545,6 +664,14 @@ def _target_count(conn: sqlite3.Connection) -> int:
     return int(row["count"]) if row is not None else 0
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Build and query the EAMOS local SpCas9 off-target SQLite index."
@@ -566,6 +693,28 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--index", type=Path, required=True)
+
+    estimate_parser = subparsers.add_parser("estimate")
+    estimate_source = estimate_parser.add_mutually_exclusive_group(required=True)
+    estimate_source.add_argument("--fasta", type=Path)
+    estimate_source.add_argument("--twobit", type=Path)
+    estimate_parser.add_argument("--genome-build", default="GRCh38")
+    estimate_parser.add_argument("--source-version")
+    estimate_parser.add_argument(
+        "--max-mismatches-supported",
+        type=int,
+        default=DEFAULT_INDEX_MAX_MISMATCHES_SUPPORTED,
+    )
+
+    verify_parser = subparsers.add_parser("verify")
+    verify_parser.add_argument("--index", type=Path, required=True)
+    verify_parser.add_argument("--genome-build")
+    verify_parser.add_argument("--min-target-count", type=int, default=1)
+
+    manifest_parser = subparsers.add_parser("manifest")
+    manifest_parser.add_argument("--index", type=Path, required=True)
+    manifest_parser.add_argument("--artifact-uri")
+    manifest_parser.add_argument("--source-version")
 
     query_parser = subparsers.add_parser("query")
     query_parser.add_argument("--index", type=Path, required=True)
@@ -598,6 +747,32 @@ def cli_main(argv: list[str] | None = None) -> int:
             )
         )
         return 0
+    if args.command == "estimate":
+        records = iter_fasta_records(args.fasta) if args.fasta else iter_twobit_records(args.twobit)
+        estimate = estimate_spcas9_offtarget_index_from_sequences(
+            records,
+            genome_build=args.genome_build,
+            source_version=args.source_version,
+            max_mismatches_supported=args.max_mismatches_supported,
+        )
+        print(json.dumps(estimate.to_sanitized_dict(), sort_keys=True))
+        return 0
+    if args.command == "verify":
+        verification = verify_crispr_offtarget_index(
+            args.index,
+            genome_build=args.genome_build,
+            min_target_count=args.min_target_count,
+        )
+        print(json.dumps(verification, sort_keys=True))
+        return 0 if verification["verification_ready"] else 1
+    if args.command == "manifest":
+        manifest = crispr_offtarget_index_manifest(
+            args.index,
+            artifact_uri=args.artifact_uri,
+            source_version=args.source_version,
+        )
+        print(json.dumps(manifest, sort_keys=True))
+        return 0 if manifest["ready"] else 1
     if args.command == "query":
         response = query_spcas9_offtarget_index(
             args.index,

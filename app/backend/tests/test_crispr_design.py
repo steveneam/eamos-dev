@@ -16,6 +16,7 @@ from app.services.crispr_design import (
     discover_spcas9_pam_sites,
     hsu_off_target_cutting_score,
     hsu_specificity_score,
+    inspect_crisprscore_r_runtime,
 )
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 
@@ -164,6 +165,50 @@ def test_crisprscore_r_backed_provider_falls_back_when_rscript_is_unavailable(tm
     assert "RuleSet1=unavailable" in response.guides[0].notes
     assert "CFD=unavailable" in response.guides[0].notes
     assert "Lindel frameshift=unavailable" in response.guides[0].notes
+
+
+def test_crisprscore_runtime_preflight_is_sanitized_when_rscript_is_missing(tmp_path) -> None:
+    inspection = inspect_crisprscore_r_runtime(
+        configured_provider="crisprscore_r",
+        rscript_path=tmp_path / "missing-Rscript",
+    )
+    payload = inspection.to_sanitized_dict()
+
+    assert payload["available"] is False
+    assert payload["status"] == "unavailable"
+    assert payload["checks"]["rscript"] is False
+    assert payload["local_path_values_emitted"] is False
+    assert str(tmp_path).lower() not in json.dumps(payload).lower()
+
+
+def test_crisprscore_runtime_preflight_reports_score_family_readiness() -> None:
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        stdout = json.dumps(
+            {
+                "jsonlite_package": True,
+                "crisprscore_package": True,
+            }
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    inspection = inspect_crisprscore_r_runtime(
+        configured_provider="crisprscore_r",
+        rscript_path=__file__,
+        rule_set3_conda_env="ruleset3-env",
+        runner=runner,
+    )
+    payload = inspection.to_sanitized_dict()
+
+    assert calls
+    assert payload["available"] is True
+    assert payload["checks"]["jsonlite_package"] is True
+    assert payload["score_families"]["ruleset1"]["available"] is True
+    assert payload["score_families"]["ruleset3"]["available"] is True
+    assert payload["score_families"]["lindel_frameshift"]["available"] is False
+    assert payload["request_time_install_allowed"] is False
 
 
 def test_crisprscore_r_backed_provider_applies_source_score_payload() -> None:

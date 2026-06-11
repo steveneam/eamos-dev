@@ -104,6 +104,30 @@ class CrisprSourceScores:
     warnings: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class CrisprScoreRuntimeInspection:
+    configured_provider: str
+    available: bool
+    status: str
+    checks: dict[str, bool | None]
+    score_families: dict[str, dict[str, object]]
+    source_id: str = "eamos_crisprscore_r_runtime"
+
+    def to_sanitized_dict(self) -> dict[str, object]:
+        return {
+            "source_id": self.source_id,
+            "available": self.available,
+            "status": self.status,
+            "configured_provider": self.configured_provider,
+            "checks": self.checks,
+            "score_families": self.score_families,
+            "platform_gated_models": ["DeepHF", "DeepCpf1", "enPAM+GB"],
+            "request_time_install_allowed": False,
+            "startup_download_allowed": False,
+            "local_path_values_emitted": False,
+        }
+
+
 class CrisprSourceScoringAdapter(Protocol):
     def score(
         self, candidates: tuple[CrisprScoreCandidate, ...]
@@ -252,6 +276,170 @@ def hsu_specificity_score(off_target_cutting_scores: list[float]) -> float:
     return round(10000.0 / (100.0 + sum(off_target_cutting_scores)), 6)
 
 
+def inspect_crisprscore_r_runtime(
+    *,
+    configured_provider: str = CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
+    rscript_path: str | Path = "Rscript",
+    rule_set3_conda_env: str | Path | None = None,
+    lindel_conda_env: str | Path | None = None,
+    runner: Any = subprocess.run,
+    package_timeout_seconds: float = 5.0,
+) -> CrisprScoreRuntimeInspection:
+    provider = (configured_provider or "").strip().lower() or CRISPR_PROVIDER_LOCAL_DETERMINISTIC
+    checks: dict[str, bool | None] = {
+        "rscript": False,
+        "jsonlite_package": None,
+        "crisprscore_package": None,
+        "rule_set3_conda_env_configured": rule_set3_conda_env is not None,
+        "lindel_conda_env_configured": lindel_conda_env is not None,
+    }
+    if provider != CRISPR_PROVIDER_CRISPRSCORE_R:
+        return CrisprScoreRuntimeInspection(
+            configured_provider=provider,
+            available=False,
+            status="disabled",
+            checks=checks,
+            score_families=_crisprscore_score_families(checks),
+        )
+
+    rscript = _resolve_executable(rscript_path)
+    if rscript is None:
+        return CrisprScoreRuntimeInspection(
+            configured_provider=provider,
+            available=False,
+            status="unavailable",
+            checks=checks,
+            score_families=_crisprscore_score_families(checks),
+        )
+
+    checks["rscript"] = True
+    checks.update(
+        probe_crisprscore_r_packages(
+            rscript,
+            runner=runner,
+            timeout_seconds=package_timeout_seconds,
+        )
+    )
+    available = bool(checks["jsonlite_package"] and checks["crisprscore_package"])
+    return CrisprScoreRuntimeInspection(
+        configured_provider=provider,
+        available=available,
+        status="available" if available else "unavailable",
+        checks=checks,
+        score_families=_crisprscore_score_families(checks),
+    )
+
+
+def probe_crisprscore_r_packages(
+    rscript: str,
+    *,
+    runner: Any = subprocess.run,
+    timeout_seconds: float = 5.0,
+) -> dict[str, bool | None]:
+    script = (
+        "cat('{\"jsonlite_package\":'); "
+        "cat(if (requireNamespace('jsonlite', quietly=TRUE)) 'true' else 'false'); "
+        "cat(',\"crisprscore_package\":'); "
+        "cat(if (requireNamespace('crisprScore', quietly=TRUE)) 'true' else 'false'); "
+        "cat('}')"
+    )
+    try:
+        completed = runner(
+            [rscript, "--vanilla", "-e", script],
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"jsonlite_package": None, "crisprscore_package": None}
+
+    if completed.returncode != 0:
+        return {"jsonlite_package": None, "crisprscore_package": None}
+    try:
+        decoded = json.loads(completed.stdout or "{}")
+    except ValueError:
+        return {"jsonlite_package": None, "crisprscore_package": None}
+    return {
+        "jsonlite_package": (
+            decoded["jsonlite_package"]
+            if isinstance(decoded.get("jsonlite_package"), bool)
+            else None
+        ),
+        "crisprscore_package": (
+            decoded["crisprscore_package"]
+            if isinstance(decoded.get("crisprscore_package"), bool)
+            else None
+        ),
+    }
+
+
+def _resolve_executable(path: str | Path) -> str | None:
+    raw_path = str(path)
+    resolved = shutil.which(raw_path)
+    if resolved:
+        return resolved
+    candidate = Path(raw_path)
+    if candidate.is_file():
+        return str(candidate)
+    return None
+
+
+def _crisprscore_score_families(
+    checks: dict[str, bool | None],
+) -> dict[str, dict[str, object]]:
+    package_ready = bool(checks["jsonlite_package"] and checks["crisprscore_package"])
+    rule_set3_ready = bool(package_ready and checks["rule_set3_conda_env_configured"])
+    lindel_ready = bool(package_ready and checks["lindel_conda_env_configured"])
+    rule_set3_status = (
+        "available"
+        if rule_set3_ready
+        else "unavailable" if not package_ready else "conda_env_required"
+    )
+    lindel_status = (
+        "available"
+        if lindel_ready
+        else "unavailable" if not package_ready else "conda_env_required"
+    )
+    return {
+        "ruleset1": {
+            "available": package_ready,
+            "status": "available" if package_ready else "unavailable",
+            "runtime": "crisprScore",
+        },
+        "ruleset3": {
+            "available": rule_set3_ready,
+            "status": rule_set3_status,
+            "runtime": "crisprScore_rule_set3",
+        },
+        "crisprscan": {
+            "available": package_ready,
+            "status": "available" if package_ready else "unavailable",
+            "runtime": "crisprScore",
+        },
+        "crisprater": {
+            "available": package_ready,
+            "status": "available" if package_ready else "unavailable",
+            "runtime": "crisprScore",
+        },
+        "mit_specificity": {
+            "available": package_ready,
+            "status": "available" if package_ready else "unavailable",
+            "runtime": "crisprScore",
+        },
+        "cfd_specificity": {
+            "available": package_ready,
+            "status": "available" if package_ready else "unavailable",
+            "runtime": "crisprScore",
+        },
+        "lindel_frameshift": {
+            "available": lindel_ready,
+            "status": lindel_status,
+            "runtime": "crisprScore_lindel",
+        },
+    }
+
+
 class CrisprScoreRAdapter:
     """Windows-safe Rscript boundary for Bioconductor crisprScore."""
 
@@ -326,15 +514,9 @@ class CrisprScoreRAdapter:
         return _parse_crisprscore_response(decoded)
 
     def _resolve_rscript(self) -> str:
-        raw_path = str(self.rscript_path)
-        resolved = shutil.which(raw_path)
-        if resolved:
+        resolved = _resolve_executable(self.rscript_path)
+        if resolved is not None:
             return resolved
-
-        candidate = Path(raw_path)
-        if candidate.is_file():
-            return str(candidate)
-
         raise CrisprScoreProviderUnavailable(
             "Rscript executable was not found on PATH or at the configured path."
         )

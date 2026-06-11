@@ -1,4 +1,6 @@
 import type {
+  AlignReferenceRequest,
+  AlignReferenceResponse,
   CrisprOffTargetRequest,
   CrisprOffTargetResponse,
   CrisprRequest,
@@ -213,6 +215,40 @@ export async function alignSequences(payload: {
     return await parseResponse<AlignApiResponseShape>(response)
   } catch (err) {
     if (err instanceof TypeError) return ALIGN_SAMPLE // backend down → mock
+    throw err
+  }
+}
+
+export async function resolveAlignReference(
+  payload: AlignReferenceRequest,
+): Promise<AlignReferenceResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/align/reference`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return await parseResponse<AlignReferenceResponse>(response)
+  } catch (err) {
+    if (err instanceof TypeError) {
+      const sampleReference = ALIGN_SAMPLE.reference ?? ''
+      const sampleTargetPosition = ALIGN_SAMPLE.target_position ?? 0
+      return {
+        gene: payload.gene,
+        cdna: payload.cdna,
+        transcript: payload.transcript ?? null,
+        transcript_hgvs: payload.cdna,
+        genome_build: 'GRCh38',
+        genomic_hg38: null,
+        strand: 'unknown',
+        reference: sampleReference,
+        target_position: sampleTargetPosition,
+        reference_base: sampleReference[sampleTargetPosition] ?? null,
+        alternate_base: null,
+        source: 'fixture',
+        warnings: ['workbench_backend_unavailable'],
+      }
+    }
     throw err
   }
 }

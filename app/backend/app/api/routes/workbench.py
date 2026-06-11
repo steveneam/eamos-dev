@@ -6,6 +6,8 @@ from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile, 
 
 from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
 from app.schemas.workbench import (
+    AlignReferenceRequest,
+    AlignReferenceResponse,
     AlignRequest,
     AlignResponse,
     AlignTraceRequest,
@@ -43,6 +45,10 @@ class WorkbenchService(Protocol):
         payload: CrisprScreeningPrimerRequest,
     ) -> CrisprScreeningPrimerResponse: ...
     def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse: ...
+    def resolve_align_reference(
+        self,
+        payload: AlignReferenceRequest,
+    ) -> AlignReferenceResponse: ...
     def align(self, payload: AlignRequest) -> AlignResponse: ...
     def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse: ...
     def analyze_crispr_tide(
@@ -138,6 +144,18 @@ def align(payload: AlignRequest, request: Request) -> AlignResponse:
     enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _workbench_service(request).align(payload)
+    except WorkbenchDesignError as exc:
+        _raise_workbench_error(exc)
+
+
+@router.post("/align/reference", response_model=AlignReferenceResponse)
+def resolve_align_reference(
+    payload: AlignReferenceRequest,
+    request: Request,
+) -> AlignReferenceResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+    try:
+        return _workbench_service(request).resolve_align_reference(payload)
     except WorkbenchDesignError as exc:
         _raise_workbench_error(exc)
 

@@ -85,6 +85,12 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert crispr["available"] is True
     assert crispr["providers"]["local_deterministic"]["available"] is True
     assert crispr["providers"]["crisprscore_r"]["status"] == "disabled"
+    assert crispr["providers"]["crisprscore_r"]["local_path_values_emitted"] is False
+    assert crispr["providers"]["crisprscore_r"]["score_families"]["ruleset1"]["available"] is False
+    assert crispr["primer_specificity"]["configured_provider"] == "template"
+    assert crispr["primer_specificity"]["status"] == "template_window"
+    assert crispr["primer_specificity"]["whole_genome_specificity"] is False
+    assert crispr["primer_specificity"]["local_path_values_emitted"] is False
     indexed = body["providers"]["indexed_predictors"]
     assert indexed["alphamissense"]["status"] == "missing_source_file"
     assert indexed["alphamissense"]["public_serialization_allowed"] is True
@@ -383,6 +389,38 @@ def test_provider_cache_health_reports_unavailable_crisprscore_without_paths(
     assert crispr["status"] == "unavailable"
     assert crispr["providers"]["crisprscore_r"]["status"] == "unavailable"
     assert crispr["providers"]["crisprscore_r"]["checks"]["rscript"] is False
+    assert crispr["providers"]["crisprscore_r"]["request_time_install_allowed"] is False
+    assert crispr["providers"]["crisprscore_r"]["score_families"]["ruleset3"]["available"] is False
+    assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
+
+
+def test_provider_cache_health_reports_primer_specificity_assets_without_paths(
+    tmp_path: Path,
+) -> None:
+    binary_path = tmp_path / "isPcr"
+    reference_path = tmp_path / "hg38.2bit"
+    binary_path.write_bytes(b"tiny-binary")
+    reference_path.write_bytes(b"tiny-reference")
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        primer_specificity_provider="ucsc_ispcr",
+        ucsc_ispcr_binary_path=binary_path,
+        ucsc_ispcr_hg38_path=reference_path,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    specificity = response.json()["providers"]["crispr"]["primer_specificity"]
+    assert specificity["configured_provider"] == "ucsc_ispcr"
+    assert specificity["available"] is True
+    assert specificity["status"] == "ucsc_ispcr_ready"
+    assert specificity["whole_genome_specificity"] is True
+    assert specificity["local_path_values_emitted"] is False
     assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
 
 

@@ -136,6 +136,12 @@ Approval needed:
 - UCSC/Kent binary license/distribution comfort.
 - Render-local binary and hg38 path.
 
+Status update - 2026-06-12 01:46 +1000 - Codex:
+
+- Provider-cache now reports sanitized primer specificity readiness for the
+  default `template` provider and the `ucsc_ispcr` binary/reference asset pair.
+- `PRIMER_SPECIFICITY_PROVIDER=template` remains the default; no env flip.
+
 ## Task 4 - CRISPR Off-Target Index Build/Verify Package
 
 Goal: Prepare the full-genome SpCas9 SQLite artifact workflow up to the Render
@@ -179,6 +185,14 @@ Approval needed:
 - Where to build the full index.
 - Whether the existing Render disk is attached and large enough.
 - When to copy the artifact and switch env.
+
+Status update - 2026-06-12 01:46 +1000 - Codex:
+
+- `python -m app.cli.eamos_crispr_offtarget_index` now includes `estimate`,
+  `verify`, and `manifest` alongside existing `build`, `inspect`, and `query`.
+- Added CLI tests for tiny FASTA estimate plus sanitized verify/manifest output.
+- Provider-cache remains mock fallback unless a valid local index is mounted and
+  the provider is explicitly configured.
 
 ## Task 5 - CRISPR Screening Primers Over Real Windows
 
@@ -230,7 +244,10 @@ Relevant files:
 - `app/backend/app/api/routes/workbench.py`
 - `app/backend/app/services/trace_parser.py`
 - `app/backend/app/services/trace_analysis.py`
+- `app/backend/app/services/crispr_tide.py`
 - `app/backend/app/services/workbench_design.py`
+- `app/backend/app/cli/eamos_crispr_tide.py`
+- `app/backend/tests/test_crispr_tide_cli.py`
 - `app/web/lib/workbench/crispr-tide-sample.ts`
 - `app/web/lib/api.ts`
 - `app/web/components/workbench/crispr/OutcomesTab.tsx`
@@ -245,6 +262,8 @@ Proposed approach:
 - Return `source_backed=true`, `analysis_kind="tide"`, and
   `predicted_available=false` for first slice.
 - Keep frontend sample fallback only for network/offline failures.
+- Add an operator CLI for the same local adapter so a trace pair can be analyzed
+  without a browser session or running FastAPI.
 
 Acceptance criteria:
 
@@ -252,10 +271,13 @@ Acceptance criteria:
   `CRISPR_TIDE_SAMPLE`.
 - Bad trace files return structured 422.
 - Frontend disclosure shows "TIDE" or provider label, not "Frontend sample."
+- `python -m app.cli.eamos_crispr_tide` emits sanitized JSON, names no raw local
+  paths in error output, and preserves observed-only/no-prediction guardrails.
 
 Verify:
 
 - Backend route tests with fixture traces.
+- CLI tests and a direct CLI smoke with the RPE65 AB1 fixture.
 - `cd app/web; npx tsc --noEmit`
 - Browser verify Outcomes tab.
 
@@ -301,6 +323,14 @@ Approval needed:
 - R installation target.
 - Bioconductor `crisprScore` install.
 - Conda env locations for RuleSet3/Lindel.
+
+Status update - 2026-06-12 01:46 +1000 - Codex:
+
+- Added `python -m app.cli.eamos_crispr_score_preflight` for sanitized
+  Rscript/jsonlite/crisprScore/RuleSet3/Lindel readiness.
+- Provider-cache now reuses the same inspection and exposes per-score-family
+  readiness without local paths.
+- CRISPR provider default remains local deterministic.
 
 ## Task 8 - ssODN Fallback Shrink
 
@@ -380,6 +410,14 @@ Verify:
 - Web/frontend type checks.
 - Browser verify viewer after UI changes.
 
+Status update - 2026-06-12 01:46 +1000 - Codex:
+
+- Sequence-window dragging now caches row hit-test geometry for the drag
+  lifetime.
+- Full-gene rows are memoized and row-level CSS containment/content visibility
+  was added to reduce long-window paint work.
+- Smooth scroll behavior now respects reduced-motion preferences.
+
 Approval needed:
 
 - ClinVar local materialization on Render.
@@ -426,6 +464,13 @@ Approval needed:
 
 - Add `pywfa` and `pyabpoa` to requirements if robust engine is in scope.
 - Tracy binary only if decompose phase is approved.
+
+Status update - 2026-06-12 01:46 +1000 - Codex:
+
+- Added additive `POST /api/v1/align/reference` to resolve the backend
+  reference window and target metadata without requiring a read.
+- Added shared backend/frontend contract types and a Next API helper.
+- No optional WFA/abPOA dependencies were added.
 
 ## Task 11 - Render Approval Bundle
 

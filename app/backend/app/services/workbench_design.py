@@ -15,6 +15,8 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.schemas.workbench import (
+    AlignReferenceRequest,
+    AlignReferenceResponse,
     AlignRequest,
     AlignResponse,
     AlignTraceRequest,
@@ -1684,6 +1686,45 @@ class WorkbenchDesignService:
         if self.settings is not None and self.settings.use_real_apis:
             return self._align_real(payload)
         return self.fixture_provider.align(payload)
+
+    def resolve_align_reference(
+        self,
+        payload: AlignReferenceRequest,
+    ) -> AlignReferenceResponse:
+        try:
+            sequence_result = self.sequence_context_service.resolve(
+                gene=payload.gene,
+                cdna=payload.cdna,
+                transcript=payload.transcript,
+                species=payload.species,
+                prefer_resolver=True,
+            )
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="Sequence context provider failed while resolving alignment reference.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+
+        context = self._sequence_context_or_error(
+            sequence_result,
+            purpose="alignment reference resolution",
+        )
+        return AlignReferenceResponse(
+            gene=context.gene,
+            cdna=context.cdna,
+            transcript=context.transcript,
+            transcript_hgvs=context.transcript_hgvs,
+            genome_build=context.genome_build,
+            genomic_hg38=context.genomic_hg38,
+            strand=context.strand,
+            reference=context.window_sequence,
+            target_position=context.target_offset,
+            reference_base=context.reference_base,
+            alternate_base=context.alternate_base,
+            source=context.source,
+            warnings=list(sequence_result.warnings) + list(context.warnings),
+        )
 
     def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse:
         trace = _parse_ab1_trace(payload.ab1_blob_base64)
