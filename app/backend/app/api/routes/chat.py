@@ -30,4 +30,12 @@ def chat_stream(payload: ChatRequest, request: Request) -> StreamingResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Chat service is unavailable.",
         )
-    return StreamingResponse(service.respond_stream(payload), media_type="text/plain")
+    return StreamingResponse(
+        service.respond_stream(payload),
+        media_type="text/plain",
+        headers={
+            # Disable proxy/CDN buffering so tokens reach the client as they stream.
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

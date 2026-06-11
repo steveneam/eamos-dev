@@ -1,16 +1,34 @@
+import type { ReportPayload } from '@/lib/backend'
+
+// next.config rewrites same-origin `/api/*` to the FastAPI backend (no CORS).
+// Set NEXT_PUBLIC_API_BASE_URL to an absolute origin to call a remote backend.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? ''
+
 export interface ChatChunk {
   text: string
 }
 
-export async function* streamChat(
-  runId: string,
+export interface ReportChatTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/**
+ * Streams the Ask-Eamos variant chat (docs/ai-gateway/plan.md): posts the report
+ * payload + question (+ prior turns) to the variant-lookup chat endpoint, which
+ * grounds the answer in an evidence-only bounded context and streams tokens back
+ * as text/plain. Yields decoded token chunks as they arrive.
+ */
+export async function* streamReportChat(
+  payload: ReportPayload,
   question: string,
+  history: ReportChatTurn[] = [],
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
-  const res = await fetch(`/api/v1/runs/${runId}/chat/stream`, {
+  const res = await fetch(`${API_BASE_URL}/api/v1/chat/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, variant_context: payload, history }),
     signal,
   })
 

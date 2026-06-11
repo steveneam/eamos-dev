@@ -65,6 +65,20 @@ class Settings(BaseSettings):
     search_input_ai_enabled: bool = False
     search_input_ai_timeout_seconds: float = 8.0
     run_chat_top_k: int = 4
+
+    # --- AI gateway (variant chat) — docs/ai-gateway/plan.md ---
+    # Activated when llm_provider == "gateway"; key env var AI_GATEWAY_API_KEY.
+    # Provider order is Groq primary, Amazon Bedrock failover (both serve
+    # meta/llama-3.3-70b). ZDR is a gateway team-level setting, not a request flag.
+    ai_gateway_api_key: str | None = None
+    ai_gateway_base_url: str = "https://ai-gateway.vercel.sh/v1"
+    ai_gateway_model: str = "meta/llama-3.3-70b"
+    ai_gateway_provider_order_raw: str = "groq,bedrock"
+    ai_gateway_chat_temperature: float = 0.3
+    ai_gateway_max_tokens: int = 700
+    ai_gateway_timeout_seconds: float = 30.0
+    ai_gateway_max_retries: int = 3
+
     use_real_apis: bool = False
     workbench_live_design_enabled: bool = True
     local_evidence_enabled: bool = False
@@ -190,6 +204,14 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
+
+    @property
+    def ai_gateway_provider_order(self) -> list[str]:
+        return [
+            item.strip()
+            for item in self.ai_gateway_provider_order_raw.split(",")
+            if item.strip()
+        ]
 
     @property
     def backend_root(self) -> Path:

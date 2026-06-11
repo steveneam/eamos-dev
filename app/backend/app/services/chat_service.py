@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from fastapi import HTTPException, status
 
 from app.schemas.chat import ChatRequest, ChatResponse
+from app.services.ai_gateway.guard import EvidenceContextError, assert_evidence_only
+
+logger = logging.getLogger(__name__)
 
 UNSUPPORTED_QUESTION_TERMS = (
     "diagnose",
@@ -42,6 +46,7 @@ class ChatService:
                 {
                     "question": payload.question,
                     "bounded_context": self._build_bounded_context(payload),
+                    "history": self._history(payload),
                 }
             )
         except Exception as exc:  # pragma: no cover - defensive provider boundary
@@ -59,12 +64,55 @@ class ChatService:
         return ChatResponse(answer=answer)
 
     def respond_stream(self, payload: ChatRequest):
-        text = self.respond(payload).answer
+        if self.settings.llm_provider == "mock":
+            yield from self._word_chunks(self._mock_answer(payload))
+            return
+        if self._is_unsupported_question(payload.question):
+            yield from self._word_chunks(self._unsupported_answer())
+            return
+        if self.llm is not None and hasattr(self.llm, "stream"):
+            yield from self._stream_from_client(payload)
+            return
+        # Clients without native token streaming: word-chunk the full answer.
+        yield from self._word_chunks(self.respond(payload).answer)
+
+    def _stream_from_client(self, payload: ChatRequest):
+        try:
+            bounded_context = self._build_bounded_context(payload)
+        except EvidenceContextError:
+            logger.error("chat context failed evidence-only guard", exc_info=True)
+            yield "Eamos could not prepare a safe evidence context for this chat."
+            return
+        request = {
+            "question": payload.question,
+            "bounded_context": bounded_context,
+            "history": self._history(payload),
+        }
+        produced = False
+        try:
+            for token in self.llm.stream(request):
+                if token:
+                    produced = True
+                    yield token
+        except Exception:  # provider/transport boundary — cannot 503 mid-stream
+            logger.warning("chat stream failed", exc_info=True)
+            if not produced:
+                yield "Eamos could not reach the chat model. Please try again."
+            return
+        if not produced:
+            yield "Eamos cannot confirm that from the current variant evidence."
+
+    @staticmethod
+    def _word_chunks(text: str):
         if not text:
             yield ""
             return
         for word in text.split():
             yield word + " "
+
+    @staticmethod
+    def _history(payload: ChatRequest) -> list[dict[str, str]]:
+        return [{"role": m.role, "content": m.content} for m in payload.history]
 
     def _mock_answer(self, payload: ChatRequest) -> str:
         gene = (
@@ -135,7 +183,9 @@ class ChatService:
             "workbench": self._workbench_context(payload),
             "warnings": self._context_warnings(report),
         }
-        return json.dumps(context, sort_keys=True, default=str)
+        serialized = json.dumps(context, sort_keys=True, default=str)
+        assert_evidence_only(context, serialized)
+        return serialized
 
     def _publication_context(self, payload) -> dict[str, Any] | None:
         if not payload.publications_callout and not payload.publications_literature:

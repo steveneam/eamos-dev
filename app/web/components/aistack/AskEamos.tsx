@@ -1,8 +1,12 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
-import { streamChat } from '@/lib/chat'
+import { streamReportChat, type ReportChatTurn } from '@/lib/chat'
+import type { ReportPayload } from '@/lib/backend'
 
 interface AskEamosProps {
-  runId: string | null
+  /** The report payload — sent as the evidence context the chat is grounded in. */
+  payload: ReportPayload
+  /** Capability flag — flips the chat from the coming-soon state to live. */
+  enabled: boolean
   suggestions?: string[]
   /** Rendered at the top of the scrollable conversation area — the AI evidence
    *  summary opens the thread, chat-style (it scrolls as the conversation grows). */
@@ -29,24 +33,28 @@ const DEFAULT_SUGGESTIONS = [
  * renders the guiding coming-soon state, and the AI gateway lights it up with no
  * rebuild. Layout lives in work-rail.css (`.wr-chat*`).
  */
-export function AskEamos({ runId, suggestions = DEFAULT_SUGGESTIONS, intro }: AskEamosProps) {
+export function AskEamos({ payload, enabled, suggestions = DEFAULT_SUGGESTIONS, intro }: AskEamosProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const disabled = runId === null
+  const disabled = !enabled
 
   const send = async (question: string) => {
-    if (!runId || !question.trim() || streaming) return
+    if (!enabled || !question.trim() || streaming) return
     setError(null)
     setInput('')
+    // Prior completed turns become multi-turn history (the new pair is appended after).
+    const history: ReportChatTurn[] = messages
+      .filter((m) => m.text.trim())
+      .map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }))
     setMessages((prev) => [...prev, { role: 'user', text: question }, { role: 'ai', text: '' }])
     setStreaming(true)
     const controller = new AbortController()
     abortRef.current = controller
     try {
-      for await (const chunk of streamChat(runId, question, controller.signal)) {
+      for await (const chunk of streamReportChat(payload, question, history, controller.signal)) {
         setMessages((prev) => {
           const next = [...prev]
           const last = next[next.length - 1]

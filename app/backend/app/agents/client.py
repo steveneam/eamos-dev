@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -8,15 +9,19 @@ from app.agents.prompts import (
     current_run_chat_prompt,
     draft_prompt,
     extraction_prompt,
+    gateway_chat_prompt,
     lookup_chat_prompt,
     search_input_extraction_prompt,
 )
+
 from app.core.config import Settings
 from app.schemas.chat import LookupChatAnswerDraft, RunChatAnswerDraft
 from app.schemas.draft import DraftPayload
 from app.schemas.lookup import SearchInputAiExtraction
 from app.schemas.report import ExtractedCase
 from pydantic import SecretStr
+
+logger = logging.getLogger(__name__)
 
 
 class MockExtractionChain:
@@ -237,3 +242,86 @@ def build_search_input_ai_chain(settings: Settings):
             return dict(result)
 
     return LiveSearchInputAiChain()
+
+
+_GATEWAY_HISTORY_TURNS = 8
+
+
+def build_gateway_messages(
+    system_prompt: str,
+    question: str,
+    bounded_context: str,
+    history: list[dict[str, str]] | None = None,
+) -> list[dict[str, str]]:
+    """Compose the OpenAI-style message list for a gateway variant-chat turn:
+    system prompt, the most recent prior turns, then the current question with
+    the bounded evidence context."""
+    messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    for turn in (history or [])[-_GATEWAY_HISTORY_TURNS:]:
+        role = turn.get("role")
+        content = turn.get("content")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append(
+        {
+            "role": "user",
+            "content": (
+                f"Question:\n{question}\n\n"
+                f"Bounded Eamos lookup and Workbench context:\n{bounded_context}"
+            ),
+        }
+    )
+    return messages
+
+
+def build_gateway_chat_client(settings: Settings, *, engine=None):
+    """Lookup-chat client backed by the Vercel AI Gateway broker.
+
+    Returns None unless `llm_provider == "gateway"` and a gateway key is set, so
+    the mock/OpenAI paths are unaffected. The `engine` seam lets tests inject a
+    fake broker. Exposes `invoke` (non-streaming) and `stream` (token streaming),
+    matching the ChatService client contract."""
+    if settings.llm_provider != "gateway" or not settings.ai_gateway_api_key:
+        return None
+
+    if engine is None:
+        from app.services.ai_gateway import AIGatewayEngine
+
+        engine = AIGatewayEngine(
+            api_key=settings.ai_gateway_api_key,
+            model=settings.ai_gateway_model,
+            provider_order=settings.ai_gateway_provider_order,
+            base_url=settings.ai_gateway_base_url,
+            temperature=settings.ai_gateway_chat_temperature,
+            max_tokens=settings.ai_gateway_max_tokens,
+            timeout_seconds=settings.ai_gateway_timeout_seconds,
+            max_retries=settings.ai_gateway_max_retries,
+        )
+
+    from app.services.ai_gateway import GatewayResult
+
+    system_prompt = gateway_chat_prompt()
+    model_name = settings.ai_gateway_model
+
+    def _messages(payload: dict[str, Any]) -> list[dict[str, str]]:
+        return build_gateway_messages(
+            system_prompt,
+            payload.get("question", ""),
+            payload.get("bounded_context", ""),
+            payload.get("history"),
+        )
+
+    class GatewayChatClient:
+        def invoke(self, payload: dict[str, Any]) -> dict[str, str]:
+            result = engine.complete(_messages(payload))
+            logger.info("ai_gateway chat complete %s", result.log_fields(model_name))
+            return {"answer": result.content}
+
+        def stream(self, payload: dict[str, Any]):
+            meta = GatewayResult()
+            try:
+                yield from engine.stream_chat(_messages(payload), meta=meta)
+            finally:
+                logger.info("ai_gateway chat stream %s", meta.log_fields(model_name))
+
+    return GatewayChatClient()

@@ -590,7 +590,7 @@ function ReportAiPanel({ data, queryFallback }: { data: LookupResponse; queryFal
   const row0 = payload.variant_summary_rows[0]
   const contextLabel =
     row0?.gene && row0?.protein_change ? `${row0.gene} ${row0.protein_change}` : queryFallback
-  return <AIStack payload={payload} runId={null} contextLabel={contextLabel} />
+  return <AIStack payload={payload} contextLabel={contextLabel} />
 }
 
 interface ReportBodyProps {

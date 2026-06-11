@@ -9,6 +9,7 @@ from app.agents.client import (
     build_draft_chain,
     build_embeddings_model,
     build_extraction_chain,
+    build_gateway_chat_client,
     build_lookup_chat_chain,
     build_run_chat_chain,
 )
@@ -145,6 +146,7 @@ def create_app(settings=None) -> FastAPI:
     extraction_chain = build_extraction_chain(settings)
     draft_chain = build_draft_chain(settings)
     lookup_chat_chain = build_lookup_chat_chain(settings)
+    gateway_chat_client = build_gateway_chat_client(settings)
     run_chat_chain = build_run_chat_chain(settings)
     embeddings_model = build_embeddings_model(settings)
     tool_registry = build_tool_registry(
@@ -238,7 +240,10 @@ def create_app(settings=None) -> FastAPI:
         answer_chain=run_chat_chain,
         embeddings=embeddings_model,
     )
-    app.state.chat_service = ChatService(settings=settings, llm_client=lookup_chat_chain)
+    app.state.chat_service = ChatService(
+        settings=settings,
+        llm_client=gateway_chat_client or lookup_chat_chain,
+    )
     app.state.final_report_service = FinalReportService(settings, run_repo)
     app.state.sequence_context_service = sequence_context_service
     app.state.gene_viewer_service = GeneViewerService(

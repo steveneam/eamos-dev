@@ -143,3 +143,47 @@ def test_chat_route_wires_lookup_chat_chain(monkeypatch, tmp_path: Path) -> None
     assert response.status_code == 200
     assert response.json()["answer"] == "The current bounded context contains RPE65 evidence."
     assert len(chain.payloads) == 1
+
+
+class FakeStreamingClient:
+    def __init__(self) -> None:
+        self.requests: list[dict] = []
+
+    def invoke(self, payload: dict) -> dict:
+        self.requests.append(payload)
+        return {"answer": "full answer"}
+
+    def stream(self, payload: dict):
+        self.requests.append(payload)
+        for token in ["Streamed ", "evidence ", "answer."]:
+            yield token
+
+
+def test_respond_stream_uses_native_client_streaming() -> None:
+    client = FakeStreamingClient()
+    service = ChatService(settings=_settings("gateway"), llm_client=client)
+
+    out = "".join(service.respond_stream(_chat_payload()))
+
+    assert out == "Streamed evidence answer."
+    assert client.requests[-1]["question"] == "What does the current evidence show?"
+    assert "history" in client.requests[-1]
+    assert "bounded_context" in client.requests[-1]
+
+
+def test_respond_stream_mock_word_chunks() -> None:
+    service = ChatService(settings=_settings("mock"), llm_client=None)
+
+    out = "".join(service.respond_stream(_chat_payload("Explain the Workbench view.")))
+
+    assert out.strip() == "[mock] Asked about RPE65 in primer mode: Explain the Workbench view."
+
+
+def test_respond_stream_blocks_unsupported_before_client() -> None:
+    client = FakeStreamingClient()
+    service = ChatService(settings=_settings("gateway"), llm_client=client)
+
+    out = "".join(service.respond_stream(_chat_payload("What medication should be started?")))
+
+    assert "cannot provide diagnosis, prescribing, or treatment guidance" in out
+    assert client.requests == []  # never reached the model
