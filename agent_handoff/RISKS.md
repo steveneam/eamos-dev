@@ -1,5 +1,27 @@
 # Agent Risks And Guardrails
 
+## AI Gateway Chat — Pre-Launch Security Gate
+
+Section edited: 2026-06-12 02:22 +1000 · Claude (from the vibe-security audit of
+the variant-chat gateway foundation).
+
+**Do not enable the `/report` variant chat against the live gateway in production
+until these are addressed.** Full detail + fixes: `docs/ai-gateway/pre-launch-security.md`.
+
+- **The real on/off switch is server-side `LLM_PROVIDER`** — keep production on
+  `mock` (do not set `gateway`) until the items below are done. The frontend
+  `NEXT_PUBLIC_AI_CHAT_ENABLED` flag is a UX gate only and is client-bypassable.
+- **HIGH — `POST /api/v1/chat/stream` is unauthenticated, rate-limit-only**
+  (`RATE_LIMIT_CHAT`, 10/window/IP). Wired to the paid gateway this is a cost-abuse
+  vector; the `$50/mo` key cap bounds but can be exhausted (also a DoS for real
+  users). Before prod-enabling: add **auth** (decide if `/report` chat should require
+  login — product call) **and/or a per-user/tier daily token budget**, server-side.
+  Do not rely on the provider cap alone.
+- Companion launch items: **re-mint the gateway key** (it passed through a session
+  transcript) and **top up paid credits** (free tier rate-limits `meta/llama-3.3-70b`).
+- Audit found no Critical issues; secret handling, prompt-injection guards, the
+  evidence-only outbound allowlist, no-XSS rendering, and no-SSRF were all clean.
+
 ## Dirty Worktree
 
 Section edited: 2026-05-18 17:14 +1000 · Claude (user lifted Claude's commit
