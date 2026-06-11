@@ -1421,6 +1421,25 @@ export interface CrisprScreeningPrimerResponse {
   warnings: string[]
 }
 
+export interface CrisprTideSpectrumBin {
+  size: number
+  observed: number
+  predicted?: number | null
+}
+
+export interface CrisprTideResponse {
+  source_backed?: boolean
+  analysis_kind?: 'tide'
+  provider_label?: string
+  cut_site_index: number
+  editing_efficiency: number
+  r_squared: number
+  spectrum: CrisprTideSpectrumBin[]
+  predicted_available?: boolean
+  notes: string
+  warnings: string[]
+}
+
 export interface AlignRequest {
   gene: string
   cdna: string

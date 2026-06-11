@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import NoReturn, Protocol
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile, status
 
 from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
 from app.schemas.workbench import (
@@ -18,9 +18,11 @@ from app.schemas.workbench import (
     CrisprScreeningPrimerResponse,
     CrisprSsodnRequest,
     CrisprSsodnResponse,
+    CrisprTideResponse,
     PrimerRequest,
     PrimerResponse,
 )
+from app.services.trace_parser import TRACE_MAX_DECODED_BYTES
 from app.services.workbench_design import (
     WORKBENCH_SERVICE_UNAVAILABLE,
     WorkbenchDesignError,
@@ -43,6 +45,13 @@ class WorkbenchService(Protocol):
     def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse: ...
     def align(self, payload: AlignRequest) -> AlignResponse: ...
     def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse: ...
+    def analyze_crispr_tide(
+        self,
+        *,
+        control_bytes: bytes,
+        edited_bytes: bytes,
+        cut_site_index: int,
+    ) -> CrisprTideResponse: ...
 
 
 def _workbench_service(request: Request) -> WorkbenchService:
@@ -64,6 +73,10 @@ def _raise_workbench_error(error: WorkbenchDesignError) -> NoReturn:
         status_code=error.status_code,
         detail=error.to_http_detail(),
     ) from error
+
+
+async def _read_trace_upload(file: UploadFile) -> bytes:
+    return await file.read(TRACE_MAX_DECODED_BYTES + 1)
 
 
 @router.post("/primer", response_model=PrimerResponse)
@@ -134,5 +147,25 @@ def analyze_trace(payload: AlignTraceRequest, request: Request) -> AlignTraceRes
     enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
     try:
         return _workbench_service(request).analyze_trace(payload)
+    except WorkbenchDesignError as exc:
+        _raise_workbench_error(exc)
+
+
+@router.post("/crispr/tide", response_model=CrisprTideResponse)
+async def analyze_crispr_tide(
+    request: Request,
+    cut_site_index: int = Query(..., ge=1),
+    control_file: UploadFile = File(...),
+    edited_file: UploadFile = File(...),
+) -> CrisprTideResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+    control_bytes = await _read_trace_upload(control_file)
+    edited_bytes = await _read_trace_upload(edited_file)
+    try:
+        return _workbench_service(request).analyze_crispr_tide(
+            control_bytes=control_bytes,
+            edited_bytes=edited_bytes,
+            cut_site_index=cut_site_index,
+        )
     except WorkbenchDesignError as exc:
         _raise_workbench_error(exc)

@@ -171,10 +171,14 @@
    whole viewer box — at that scope it overlapped the Undo/Redo cluster
    in the ViewerToolbar). Lives inside .sv-sequence-wrap; fades in when
    the mouse is over the sequence section only. */
-.sv-sequence-wrap { position: relative; }
+.sv-sequence-wrap {
+  position: relative;
+  padding-top: 8px;
+  background: var(--bg);
+}
 .sv-zoom-overlay-seq {
   position: absolute;
-  top: 38px;          /* clears the section-head row */
+  top: 62px;          /* clears the section-head row + sequence gutter */
   right: 14px;
   z-index: 5;
   opacity: 1;         /* persistent (was hover-only) — discoverable on touch */
@@ -200,9 +204,8 @@
   font-size: 13px;
 }
 
-/* Primer amplicon overlay — a rough directional bracket shown on the sequence
-   when a Primer pair is toggled "show on gene view". Schematic: exact primer
-   positions aren't in the contract yet (see docs/workbench-backend-wiring). */
+/* Primer amplicon overlay. Backend coordinates anchor the highlighted span
+   when present; otherwise the label marks a template/schematic fallback. */
 .sv-primer-amplicon {
   display: flex;
   align-items: center;
@@ -235,6 +238,7 @@
 .sv-pa-track {
   flex: 1 1 auto;
   min-width: 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,8 +247,41 @@
   border: 0.5px solid var(--teal-bdr);
   border-radius: 4px;
   background: var(--teal-tint);
+  overflow: hidden;
+}
+.sv-pa-track::before {
+  content: '';
+  position: absolute;
+  inset-block: 3px;
+  left: var(--pa-left, 0%);
+  width: var(--pa-width, 100%);
+  min-width: 3px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--teal) 34%, transparent);
+}
+.sv-primer-amplicon.basis-schematic .sv-pa-track::before {
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--teal) 28%, transparent) 0,
+    color-mix(in oklab, var(--teal) 28%, transparent) 6px,
+    transparent 6px,
+    transparent 10px
+  );
+}
+.sv-primer-amplicon.outside .sv-pa-track::before {
+  left: 0;
+  width: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ink-4) 18%, transparent) 0,
+    color-mix(in oklab, var(--ink-4) 18%, transparent) 5px,
+    transparent 5px,
+    transparent 9px
+  );
 }
 .sv-pa-label {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
@@ -647,7 +684,7 @@
 /* ─────────────── CODON DETAIL (wrapped block layout v2.1) ─────────────── */
 .sv-detail {
   background: var(--bg-canvas);
-  padding: 20px 22px 22px;
+  padding: 76px 22px 22px;
   display: flex; flex-direction: column;
   gap: 22px;
   /* Drag-to-select is our own gesture — never let the browser start a native
@@ -662,6 +699,7 @@
   max-height: 62vh;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 .sv-block {
   position: relative;
@@ -829,10 +867,26 @@
                                    + state highlights, not the A/C/G/T letters. */
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
+  touch-action: none;
   transition: background .08s;
   border-radius: 2px;
 }
 .sv-base:hover { background: var(--bg-soft2); }
+.sv-root.sv-dragging-select {
+  cursor: col-resize;
+  user-select: none;
+}
+.sv-root.sv-dragging-select .sv-base {
+  transition: none;
+}
+.sv-root.sv-dragging-select .sv-selection-band,
+.sv-root.sv-dragging-select .sv-selection-handle,
+.sv-root.sv-dragging-select .sv-cv,
+.sv-root.sv-dragging-select .sv-marker-thin,
+.sv-root.sv-dragging-select .sv-ins-marker,
+.sv-root.sv-dragging-select .sv-re-bar {
+  pointer-events: none;
+}
 .sv-base.intron {
   font-size: 11.5px;
   color: var(--ink-4) !important;

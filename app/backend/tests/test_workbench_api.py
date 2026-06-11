@@ -21,6 +21,7 @@ from app.schemas.workbench import (
     CrisprRequest,
     CrisprResponse,
     CrisprSsodnRequest,
+    CrisprTideResponse,
     PrimerPair,
     PrimerRequest,
     PrimerResponse,
@@ -116,6 +117,9 @@ class FailingWorkbenchService:
         raise self.error
 
     def analyze_trace(self, _payload):
+        raise self.error
+
+    def analyze_crispr_tide(self, **_kwargs):
         raise self.error
 
 
@@ -727,6 +731,97 @@ def test_align_trace_endpoint_analyzes_rpe65_vus1_ab1_in_fixture_mode(client) ->
     assert body["het"]
     assert all(body["trim"]["start"] <= call["index"] < body["trim"]["end"] for call in body["het"])
     assert all(call["main_ratio"] >= 0.5 for call in body["het"])
+
+
+def test_crispr_tide_endpoint_returns_observed_only_source_backed_spectrum(client) -> None:
+    trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
+
+    response = client.post(
+        "/api/v1/crispr/tide?cut_site_index=100",
+        files={
+            "control_file": ("control.ab1", trace_bytes, "application/octet-stream"),
+            "edited_file": ("edited.ab1", trace_bytes, "application/octet-stream"),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_backed"] is True
+    assert body["analysis_kind"] == "tide"
+    assert body["provider_label"] == "Eamos observed-only TIDE-style analyzer"
+    assert body["cut_site_index"] == 100
+    assert body["editing_efficiency"] == 0.0
+    assert body["r_squared"] == 1.0
+    assert body["spectrum"] == [{"size": 0, "observed": 1.0, "predicted": None}]
+    assert body["predicted_available"] is False
+    assert "observed-only" in body["notes"].lower()
+    assert "crispr_tide_consensus_only" in body["warnings"]
+
+
+def test_workbench_service_crispr_tide_is_always_on_without_real_apis() -> None:
+    service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
+    trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
+
+    response = service.analyze_crispr_tide(
+        control_bytes=trace_bytes,
+        edited_bytes=trace_bytes,
+        cut_site_index=100,
+    )
+
+    assert isinstance(response, CrisprTideResponse)
+    assert response.source_backed is True
+    assert response.analysis_kind == "tide"
+    assert response.editing_efficiency == 0.0
+    assert response.spectrum[0].size == 0
+    assert response.spectrum[0].observed == 1.0
+
+
+def test_crispr_tide_unsupported_trace_upload_maps_to_422(client) -> None:
+    trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
+
+    response = client.post(
+        "/api/v1/crispr/tide?cut_site_index=100",
+        files={
+            "control_file": ("control.ab1", b"not-an-ab1", "application/octet-stream"),
+            "edited_file": ("edited.ab1", trace_bytes, "application/octet-stream"),
+        },
+    )
+
+    warning = unsupported_input_warning("ab1")
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": warning,
+        "message": "AB1 trace payload could not be parsed.",
+        "warnings": [warning, TRACE_UNSUPPORTED_FORMAT],
+    }
+
+
+def test_crispr_tide_parser_unavailable_maps_to_503(client, monkeypatch) -> None:
+    def missing_parser(_data):
+        raise TraceParseError(
+            code=TRACE_PARSER_UNAVAILABLE,
+            message="Biopython is required to parse AB1 trace files.",
+        )
+
+    monkeypatch.setattr(
+        "app.services.workbench_design.parse_ab1_bytes",
+        missing_parser,
+    )
+
+    response = client.post(
+        "/api/v1/crispr/tide?cut_site_index=100",
+        files={
+            "control_file": ("control.ab1", b"synthetic-ab1", "application/octet-stream"),
+            "edited_file": ("edited.ab1", b"synthetic-ab1", "application/octet-stream"),
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": WORKBENCH_PROVIDER_UNAVAILABLE,
+        "message": "Biopython is required to parse AB1 trace files.",
+        "warnings": [WORKBENCH_PROVIDER_UNAVAILABLE, TRACE_PARSER_UNAVAILABLE],
+    }
 
 
 def test_workbench_service_analyze_trace_is_always_on_without_real_apis() -> None:

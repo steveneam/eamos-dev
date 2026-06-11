@@ -36,7 +36,7 @@ import { EditPopoverV2 } from './EditPopoverV2'
 import { ZoomSlider } from './ZoomSlider'
 import type { ZoomStep } from './zoom-config'
 import { IconChevron, IconGene, IconProtein, IconList } from '@/components/icons/Icon'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 export interface ScratchEntry {
   idx: number
@@ -57,6 +57,8 @@ export interface SequenceViewerHandle {
   replaceSelection: (seq: string) => void
   clearSelection: () => void
 }
+
+type SelectionRange = { start: number; end: number }
 
 interface SequenceViewerV2Props {
   data: GeneWindowData
@@ -120,15 +122,39 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
   ) {
     const flat = useMemo(() => buildFlatWindow(data), [data])
     const codons = useMemo(() => buildCodons(flat), [flat])
+    const primerOverlay = useMemo(
+      () =>
+        selectedPrimer
+          ? buildPrimerAmpliconOverlay(selectedPrimer, data, flat.length)
+          : null,
+      [data, flat.length, selectedPrimer],
+    )
     const rootRef = useRef<HTMLDivElement>(null)
     const focusSearchRef = useRef<() => void>(() => {})
     const isSelecting = useRef(false)
     const dragCleanupRef = useRef<(() => void) | null>(null)
-    const selectionRef = useRef<{ start: number; end: number } | null>(null)
+    const selectionRef = useRef<SelectionRange | null>(null)
+    const dragFrameRef = useRef<number | null>(null)
+    const pendingDragPointRef = useRef<{ x: number; y: number } | null>(null)
+    const activePointerIdRef = useRef<number | null>(null)
 
     const [editState, dispatch] = useReducer(editReducer, initialEditState)
     const { edits, history, cursor } = editState
-    const [selection, setSelection] = useState<{ start: number; end: number } | null>(null)
+    const [selection, setSelection] = useState<SelectionRange | null>(null)
+    const setLiveSelection = useCallback(
+      (
+        next:
+          | SelectionRange
+          | null
+          | ((current: SelectionRange | null) => SelectionRange | null),
+      ) => {
+        const resolved =
+          typeof next === 'function' ? next(selectionRef.current) : next
+        selectionRef.current = resolved
+        setSelection(resolved)
+      },
+      [],
+    )
     const [searchQuery, setSearchQuery] = useState('')
     const [jumpError, setJumpError] = useState<string | null>(null)
     const [showHistory, setShowHistory] = useState(false)
@@ -252,9 +278,9 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
               if (flat[idx].kind !== 'intron-gap') m.set(idx, { kind: 'del', alt: '-' })
             }
         })
-        setSelection(null)
+        setLiveSelection(null)
       },
-      [commit, flat],
+      [commit, flat, setLiveSelection],
     )
     const resetEdits = useCallback(() => {
       if (edits.size === 0) return
@@ -284,7 +310,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       },
       [applyReplace, selectionRange],
     )
-    const clearSelection = useCallback(() => setSelection(null), [])
+    const clearSelection = useCallback(() => setLiveSelection(null), [setLiveSelection])
 
     // ── Scratchpad: exon substitutions, mirrored to the side panel ──
     useEffect(() => {
@@ -340,12 +366,12 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const jumpToFlatIdx = useCallback(
       (i: number) => {
         if (i < 0 || i >= flat.length) return
-        setSelection({ start: i, end: i })
+        setLiveSelection({ start: i, end: i })
         const b = flat[i]
         if (b?.kind === 'exon') setActiveExon(b.exonNum)
         scrollToIdx(i)
       },
-      [flat, scrollToIdx, setActiveExon],
+      [flat, scrollToIdx, setActiveExon, setLiveSelection],
     )
     const jumpToCdsPos = useCallback(
       (p: number) => {
@@ -461,43 +487,144 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const variantCount = variantFlatPositions.length
 
     // ── Selection drag ──
+    const baseIndexFromPoint = useCallback((x: number, y: number): number | null => {
+      const rows = Array.from(
+        rootRef.current?.querySelectorAll<HTMLElement>(
+          '.sv-block-row.sequence[data-row-start][data-row-end][data-base-w]',
+        ) ?? [],
+      )
+      if (rows.length === 0) return null
+      let best:
+        | {
+            row: HTMLElement
+            distance: number
+          }
+        | null = null
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect()
+        const distance =
+          y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+        if (!best || distance < best.distance) best = { row, distance }
+      }
+      if (!best) return null
+      const rect = best.row.getBoundingClientRect()
+      const start = Number(best.row.dataset.rowStart)
+      const end = Number(best.row.dataset.rowEnd)
+      const rowBaseW = Number(best.row.dataset.baseW)
+      if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(rowBaseW)) {
+        return null
+      }
+      const maxOffset = Math.max(0, end - start)
+      const rawOffset = Math.floor((x - rect.left) / rowBaseW)
+      const offset = Math.max(0, Math.min(maxOffset, rawOffset))
+      return start + offset
+    }, [])
+
+    const cancelDragFrame = useCallback(() => {
+      pendingDragPointRef.current = null
+      if (dragFrameRef.current !== null) {
+        window.cancelAnimationFrame(dragFrameRef.current)
+        dragFrameRef.current = null
+      }
+    }, [])
+
+    const beginPointerCapture = useCallback((pointerId: number) => {
+      activePointerIdRef.current = pointerId
+      try {
+        rootRef.current?.setPointerCapture(pointerId)
+      } catch {
+        // Pointer capture can fail if the pointer is no longer active.
+      }
+    }, [])
+
+    const releasePointerCapture = useCallback(() => {
+      const pointerId = activePointerIdRef.current
+      activePointerIdRef.current = null
+      if (pointerId === null) return
+      try {
+        if (rootRef.current?.hasPointerCapture(pointerId)) {
+          rootRef.current.releasePointerCapture(pointerId)
+        }
+      } catch {
+        // The browser may have already released capture on pointerup/cancel.
+      }
+    }, [])
+
     const cleanupSelectionDrag = useCallback(() => {
       isSelecting.current = false
+      cancelDragFrame()
+      releasePointerCapture()
+      rootRef.current?.classList.remove('sv-dragging-select')
       rootRef.current?.classList.remove('sv-dragging-edge')
       dragCleanupRef.current?.()
       dragCleanupRef.current = null
-    }, [])
+    }, [cancelDragFrame, releasePointerCapture])
 
     useEffect(() => cleanupSelectionDrag, [cleanupSelectionDrag])
 
-    const onBaseMouseDown = useCallback(
-      (idx: number, shift: boolean) => {
+    const onSequencePointerDown = useCallback(
+      (clientX: number, clientY: number, shift: boolean, pointerId: number) => {
+        const idx = baseIndexFromPoint(clientX, clientY)
+        if (idx === null) return
         cleanupSelectionDrag()
-        setSelection((sel) =>
+        beginPointerCapture(pointerId)
+        setLiveSelection((sel) =>
           shift && sel ? { start: sel.start, end: idx } : { start: idx, end: idx },
         )
         isSelecting.current = true
-        const move = (e: MouseEvent) => {
-          if (!isSelecting.current) return
-          const t = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-          const cell = t?.closest<HTMLElement>('.sv-base[data-idx]')
-          if (cell) {
-            const i = parseInt(cell.dataset.idx!, 10)
-            setSelection((sel) => (sel && sel.end !== i ? { ...sel, end: i } : sel))
-          }
+        rootRef.current?.classList.add('sv-dragging-select')
+        const applyDragIndex = (i: number) => {
+          setLiveSelection((sel) => (sel && sel.end !== i ? { ...sel, end: i } : sel))
         }
-        const up = () => {
+        const readPendingPoint = () => {
+          const point = pendingDragPointRef.current
+          pendingDragPointRef.current = null
+          return point
+        }
+        const move: EventListener = (event) => {
+          const e = event as PointerEvent
+          if (e.pointerId !== activePointerIdRef.current) return
+          if (!isSelecting.current) return
+          e.preventDefault()
+          pendingDragPointRef.current = { x: e.clientX, y: e.clientY }
+          if (dragFrameRef.current !== null) return
+          dragFrameRef.current = window.requestAnimationFrame(() => {
+            dragFrameRef.current = null
+            const point = readPendingPoint()
+            if (!point || !isSelecting.current) return
+            const i = baseIndexFromPoint(point.x, point.y)
+            if (i !== null) applyDragIndex(i)
+          })
+        }
+        const up: EventListener = (event) => {
+          const e = event as PointerEvent
+          if (e.pointerId !== activePointerIdRef.current) return
+          e.preventDefault()
+          const point = pendingDragPointRef.current ?? { x: e.clientX, y: e.clientY }
+          cancelDragFrame()
+          const i = baseIndexFromPoint(point.x, point.y)
+          if (i !== null) applyDragIndex(i)
           cleanupSelectionDrag()
           flushSelectionSummary()
         }
-        document.addEventListener('mousemove', move)
-        document.addEventListener('mouseup', up)
+        const target = rootRef.current ?? document
+        target.addEventListener('pointermove', move)
+        target.addEventListener('pointerup', up)
+        target.addEventListener('pointercancel', up)
         dragCleanupRef.current = () => {
-          document.removeEventListener('mousemove', move)
-          document.removeEventListener('mouseup', up)
+          target.removeEventListener('pointermove', move)
+          target.removeEventListener('pointerup', up)
+          target.removeEventListener('pointercancel', up)
         }
       },
-      [cleanupSelectionDrag, flushSelectionSummary],
+      [
+        baseIndexFromPoint,
+        beginPointerCapture,
+        cancelDragFrame,
+        cleanupSelectionDrag,
+        flushSelectionSummary,
+        setLiveSelection,
+      ],
     )
     // Right-click opens the cursor-anchored edit menu for that base. It does
     // not disturb the selection — selecting (left-click/drag) and editing
@@ -514,20 +641,15 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const onSelectionEdgeDown = useCallback(
       (edge: 'start' | 'end') => {
         cleanupSelectionDrag()
-        setSelection((sel) =>
+        setLiveSelection((sel) =>
           sel
             ? { start: Math.min(sel.start, sel.end), end: Math.max(sel.start, sel.end) }
             : sel,
         )
         isSelecting.current = true
         rootRef.current?.classList.add('sv-dragging-edge')
-        const move = (e: MouseEvent) => {
-          if (!isSelecting.current) return
-          const t = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-          const cell = t?.closest<HTMLElement>('.sv-base[data-idx]')
-          if (!cell) return
-          const i = parseInt(cell.dataset.idx!, 10)
-          setSelection((sel) => {
+        const applyDragIndex = (i: number) => {
+          setLiveSelection((sel) => {
             if (!sel) return sel
             if (edge === 'start') {
               const ns = Math.min(i, sel.end)
@@ -537,7 +659,28 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             return ne === sel.end ? sel : { start: sel.start, end: ne }
           })
         }
-        const up = () => {
+        const readPendingPoint = () => {
+          const point = pendingDragPointRef.current
+          pendingDragPointRef.current = null
+          return point
+        }
+        const move = (e: MouseEvent) => {
+          if (!isSelecting.current) return
+          pendingDragPointRef.current = { x: e.clientX, y: e.clientY }
+          if (dragFrameRef.current !== null) return
+          dragFrameRef.current = window.requestAnimationFrame(() => {
+            dragFrameRef.current = null
+            const point = readPendingPoint()
+            if (!point || !isSelecting.current) return
+            const i = baseIndexFromPoint(point.x, point.y)
+            if (i !== null) applyDragIndex(i)
+          })
+        }
+        const up = (e: MouseEvent) => {
+          const point = pendingDragPointRef.current ?? { x: e.clientX, y: e.clientY }
+          cancelDragFrame()
+          const i = baseIndexFromPoint(point.x, point.y)
+          if (i !== null) applyDragIndex(i)
           cleanupSelectionDrag()
           flushSelectionSummary()
         }
@@ -548,7 +691,13 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           document.removeEventListener('mouseup', up)
         }
       },
-      [cleanupSelectionDrag, flushSelectionSummary],
+      [
+        baseIndexFromPoint,
+        cancelDragFrame,
+        cleanupSelectionDrag,
+        flushSelectionSummary,
+        setLiveSelection,
+      ],
     )
 
     // ── Keyboard ──
@@ -586,18 +735,18 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           if (isBase(base)) applySub(selection.start, base)
           e.preventDefault()
         } else if (e.key === 'Escape') {
-          setSelection(null)
+          setLiveSelection(null)
         } else if (e.key === 'ArrowLeft' && selection) {
           const n = Math.max(0, selection.end - 1)
-          setSelection({ start: n, end: n })
+          setLiveSelection({ start: n, end: n })
         } else if (e.key === 'ArrowRight' && selection) {
           const n = Math.min(flat.length - 1, selection.end + 1)
-          setSelection({ start: n, end: n })
+          setLiveSelection({ start: n, end: n })
         }
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
-    }, [applyDel, applySub, flat.length, selection])
+    }, [applyDel, applySub, flat.length, selection, setLiveSelection])
 
     const registerFocus = useCallback((fn: () => void) => {
       focusSearchRef.current = fn
@@ -683,19 +832,20 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           />
           {sequenceOpen && (
             <>
-              {selectedPrimer && (
+              {primerOverlay && (
                 <div
-                  className="sv-primer-amplicon"
+                  className={`sv-primer-amplicon basis-${primerOverlay.basis}${primerOverlay.outside ? ' outside' : ''}`}
+                  style={primerOverlay.style}
                   role="img"
-                  aria-label={`Selected primer pair amplicon, ${selectedPrimer.product_size} bp, spanning ${data.queriedVariant.hgvsC}`}
+                  aria-label={primerOverlay.ariaLabel}
                 >
                   <span className="sv-pa-cap fwd">
                     <span className="sv-pa-tag">F</span> 5′→3′
                   </span>
                   <span className="sv-pa-track">
                     <span className="sv-pa-label">
-                      Amplicon · {selectedPrimer.product_size} bp · spans {data.queriedVariant.hgvsC}
-                      <span className="sv-pa-note">schematic — exact primer positions pending backend</span>
+                      {primerOverlay.label}
+                      <span className="sv-pa-note">{primerOverlay.note}</span>
                     </span>
                   </span>
                   <span className="sv-pa-cap rev">
@@ -720,13 +870,13 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
                 activeClinvar={activeClinvar ?? null}
                 searchQuery={searchQuery}
                 restrictionHover={restrictionHover}
-                onBaseMouseDown={onBaseMouseDown}
+                onSequencePointerDown={onSequencePointerDown}
                 onBaseContextMenu={onBaseContextMenu}
                 onSelectionEdgeDown={onSelectionEdgeDown}
                 onBlankMouseDown={clearSelection}
                 onClinvarClick={handleClinvarClick}
                 onRestrictionHover={setRestrictionHover}
-                onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
+                onRestrictionSelect={(s, en) => setLiveSelection({ start: s, end: en })}
               />
             </>
           )}
@@ -816,6 +966,154 @@ function SectionHeader({
       </span>
     </div>
   )
+}
+
+type PrimerOverlayBasis = 'genomic' | 'template' | 'schematic'
+
+interface PrimerAmpliconOverlay {
+  basis: PrimerOverlayBasis
+  outside: boolean
+  label: string
+  note: string
+  ariaLabel: string
+  style: CSSProperties
+}
+
+function buildPrimerAmpliconOverlay(
+  pair: PrimerPair,
+  data: GeneWindowData,
+  flatLength: number,
+): PrimerAmpliconOverlay {
+  const genomicStart = numberOrNull(pair.amplicon_genomic_start)
+  const genomicEnd = numberOrNull(pair.amplicon_genomic_end)
+  const pairChrom = normalizeChrom(pair.genomic_chromosome)
+  const viewerChrom = normalizeChrom(data.genomicCoords?.chrom ?? data.chrom)
+  if (
+    genomicStart !== null &&
+    genomicEnd !== null &&
+    pairChrom !== null &&
+    viewerChrom !== null &&
+    pairChrom === viewerChrom
+  ) {
+    const windowStart = Math.min(data.genomicCoords.start, data.genomicCoords.end)
+    const windowEnd = Math.max(data.genomicCoords.start, data.genomicCoords.end)
+    const mapped = mapRangeToPct(genomicStart, genomicEnd, windowStart, windowEnd)
+    const range = `${pair.genomic_chromosome}:${Math.min(genomicStart, genomicEnd)}-${Math.max(genomicStart, genomicEnd)}`
+    if (mapped !== null) {
+      return overlayResult({
+        basis: 'genomic',
+        outside: false,
+        label: `Amplicon · ${pair.product_size} bp · ${range}`,
+        note: mapped.clipped ? 'clipped to current viewer window' : pair.genome_build ?? 'genomic placement',
+        leftPct: mapped.leftPct,
+        widthPct: mapped.widthPct,
+      })
+    }
+    return overlayResult({
+      basis: 'genomic',
+      outside: true,
+      label: `Amplicon · ${pair.product_size} bp · outside current view`,
+      note: range,
+      leftPct: 0,
+      widthPct: 100,
+    })
+  }
+
+  const templateStart = numberOrNull(pair.amplicon_template_start)
+  const templateEnd = numberOrNull(pair.amplicon_template_end)
+  if (templateStart !== null && templateEnd !== null && flatLength > 0) {
+    const mapped = mapRangeToPct(templateStart, templateEnd, 1, flatLength)
+    const range = `template ${Math.min(templateStart, templateEnd)}-${Math.max(templateStart, templateEnd)}`
+    if (mapped !== null) {
+      return overlayResult({
+        basis: 'template',
+        outside: false,
+        label: `Amplicon · ${pair.product_size} bp · ${range}`,
+        note: mapped.clipped ? 'template placement clipped' : 'template-positioned',
+        leftPct: mapped.leftPct,
+        widthPct: mapped.widthPct,
+      })
+    }
+    return overlayResult({
+      basis: 'template',
+      outside: true,
+      label: `Amplicon · ${pair.product_size} bp · outside current view`,
+      note: range,
+      leftPct: 0,
+      widthPct: 100,
+    })
+  }
+
+  return overlayResult({
+    basis: 'schematic',
+    outside: false,
+    label: `Amplicon · ${pair.product_size} bp · spans ${data.queriedVariant.hgvsC}`,
+    note: 'schematic fallback, backend placement unavailable',
+    leftPct: 0,
+    widthPct: 100,
+  })
+}
+
+function overlayResult({
+  basis,
+  outside,
+  label,
+  note,
+  leftPct,
+  widthPct,
+}: {
+  basis: PrimerOverlayBasis
+  outside: boolean
+  label: string
+  note: string
+  leftPct: number
+  widthPct: number
+}): PrimerAmpliconOverlay {
+  return {
+    basis,
+    outside,
+    label,
+    note,
+    ariaLabel: `${label}. ${note}.`,
+    style: {
+      '--pa-left': `${leftPct}%`,
+      '--pa-width': `${widthPct}%`,
+    } as CSSProperties,
+  }
+}
+
+function mapRangeToPct(
+  start: number,
+  end: number,
+  windowStart: number,
+  windowEnd: number,
+): { leftPct: number; widthPct: number; clipped: boolean } | null {
+  const low = Math.min(start, end)
+  const high = Math.max(start, end)
+  if (high < windowStart || low > windowEnd) return null
+  const clippedLow = Math.max(low, windowStart)
+  const clippedHigh = Math.min(high, windowEnd)
+  const span = Math.max(1, windowEnd - windowStart + 1)
+  const leftPct = ((clippedLow - windowStart) / span) * 100
+  const widthPct = Math.max(1, ((clippedHigh - clippedLow + 1) / span) * 100)
+  return {
+    leftPct: clampPct(leftPct),
+    widthPct: clampPct(widthPct),
+    clipped: clippedLow !== low || clippedHigh !== high,
+  }
+}
+
+function numberOrNull(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function normalizeChrom(value: string | null | undefined): string | null {
+  if (!value) return null
+  return value.replace(/^chr/i, '').toUpperCase()
+}
+
+function clampPct(value: number): number {
+  return Math.max(0, Math.min(100, Number(value.toFixed(3))))
 }
 
 function formatExonList(nums: number[]): string {

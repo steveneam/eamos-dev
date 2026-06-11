@@ -307,8 +307,10 @@ export async function analyzeTide(
       `${API_BASE_URL}/api/v1/crispr/tide?cut_site_index=${cutSiteIndex}`,
       { method: 'POST', body: formData },
     )
+    if (response.status === 404) return CRISPR_TIDE_SAMPLE // route absent -> sample
     return await parseResponse<CrisprTideResult>(response)
-  } catch {
-    return CRISPR_TIDE_SAMPLE // endpoint gated to Codex §7 → mock-first
+  } catch (err) {
+    if (err instanceof TypeError) return CRISPR_TIDE_SAMPLE // backend down -> sample
+    throw err
   }
 }

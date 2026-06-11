@@ -394,6 +394,25 @@ class CrisprScreeningPrimerResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class CrisprTideSpectrumBin(BaseModel):
+    size: int = Field(ge=-50, le=50)
+    observed: float = Field(ge=0.0, le=1.0)
+    predicted: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class CrisprTideResponse(BaseModel):
+    source_backed: bool = True
+    analysis_kind: Literal["tide"] = "tide"
+    provider_label: str = "Eamos observed-only TIDE-style analyzer"
+    cut_site_index: int = Field(ge=1)
+    editing_efficiency: float = Field(ge=0.0, le=1.0)
+    r_squared: float = Field(ge=0.0, le=1.0)
+    spectrum: list[CrisprTideSpectrumBin] = Field(default_factory=list)
+    predicted_available: bool = False
+    notes: str
+    warnings: list[str] = Field(default_factory=list)
+
+
 class AlignRequest(WorkbenchQuery):
     user_sequence: str | None = Field(default=None, max_length=WORKBENCH_USER_SEQUENCE_MAX_LENGTH)
     ab1_blob_base64: str | None = Field(default=None, max_length=WORKBENCH_AB1_BLOB_MAX_LENGTH)

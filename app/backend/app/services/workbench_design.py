@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Protocol, TypeVar
+from typing import Any, NoReturn, Protocol, TypeVar
 
 from fastapi import status
 from pydantic import BaseModel, ValidationError
@@ -27,6 +27,7 @@ from app.schemas.workbench import (
     CrisprScreeningPrimerResponse,
     CrisprSsodnRequest,
     CrisprSsodnResponse,
+    CrisprTideResponse,
     PrimerPair,
     PrimerRequest,
     PrimerResponse,
@@ -51,6 +52,7 @@ from app.services.crispr_offtarget_screening import (
     design_screening_primers,
 )
 from app.services.crispr_ssodn import CrisprSsodnInputError, design_ssodn
+from app.services.crispr_tide import CrisprTideInputError, analyze_crispr_tide_observed
 from app.services.sequence_context import (
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     SequenceContext,
@@ -66,6 +68,7 @@ from app.services.trace_parser import (
     ParsedTrace,
     TraceParseError,
     parse_ab1_base64,
+    parse_ab1_bytes,
 )
 
 WORKBENCH_PROVIDER_FAILED_PREFIX = "workbench_provider_failed"
@@ -558,26 +561,37 @@ def _parse_ab1_trace(blob: str) -> ParsedTrace:
     try:
         return parse_ab1_base64(blob)
     except TraceParseError as exc:
-        if exc.code == TRACE_PARSER_UNAVAILABLE:
-            raise WorkbenchDesignError(
-                code=WORKBENCH_PROVIDER_UNAVAILABLE,
-                message=exc.message,
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                warnings=[WORKBENCH_PROVIDER_UNAVAILABLE, exc.code],
-            ) from exc
+        _raise_trace_parse_error(exc, encoded=True)
 
-        kind = (
-            "ab1_blob_base64"
-            if exc.code in {TRACE_INVALID_BASE64, TRACE_PAYLOAD_TOO_LARGE}
-            else "ab1"
-        )
-        code = unsupported_input_warning(kind)
+
+def _parse_ab1_trace_bytes(data: bytes) -> ParsedTrace:
+    try:
+        return parse_ab1_bytes(data)
+    except TraceParseError as exc:
+        _raise_trace_parse_error(exc, encoded=False)
+
+
+def _raise_trace_parse_error(exc: TraceParseError, *, encoded: bool) -> NoReturn:
+    if exc.code == TRACE_PARSER_UNAVAILABLE:
         raise WorkbenchDesignError(
-            code=code,
+            code=WORKBENCH_PROVIDER_UNAVAILABLE,
             message=exc.message,
-            status_code=HTTP_UNPROCESSABLE_ENTITY,
-            warnings=[code, exc.code],
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            warnings=[WORKBENCH_PROVIDER_UNAVAILABLE, exc.code],
         ) from exc
+
+    kind = (
+        "ab1_blob_base64"
+        if encoded and exc.code in {TRACE_INVALID_BASE64, TRACE_PAYLOAD_TOO_LARGE}
+        else "ab1"
+    )
+    code = unsupported_input_warning(kind)
+    raise WorkbenchDesignError(
+        code=code,
+        message=exc.message,
+        status_code=HTTP_UNPROCESSABLE_ENTITY,
+        warnings=[code, exc.code],
+    ) from exc
 
 
 def _parse_alignment_sequence(raw_sequence: str) -> str:
@@ -1674,6 +1688,29 @@ class WorkbenchDesignService:
     def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse:
         trace = _parse_ab1_trace(payload.ab1_blob_base64)
         return analyze_parsed_trace(trace)
+
+    def analyze_crispr_tide(
+        self,
+        *,
+        control_bytes: bytes,
+        edited_bytes: bytes,
+        cut_site_index: int,
+    ) -> CrisprTideResponse:
+        try:
+            control_trace = _parse_ab1_trace_bytes(control_bytes)
+            edited_trace = _parse_ab1_trace_bytes(edited_bytes)
+            return analyze_crispr_tide_observed(
+                control_trace=control_trace,
+                edited_trace=edited_trace,
+                cut_site_index=cut_site_index,
+            )
+        except CrisprTideInputError as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=exc.warnings,
+            ) from exc
 
     def _design_real_primers(
         self,

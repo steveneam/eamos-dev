@@ -284,11 +284,9 @@ export async function designPrimers(payload: PrimerRequest): Promise<PrimerRespo
 }
 
 /**
- * Post-CRISPR TIDE editing-outcome analysis. The `POST /api/v1/crispr/tide`
- * endpoint + its contract are a gated Codex milestone
- * (plans/crispr-integration.md §7); until it lands this is mock-first
- * against `CRISPR_TIDE_SAMPLE` — any failure (endpoint absent / offline)
- * resolves with the sample so the Outcomes scaffold is exercisable now.
+ * Post-CRISPR TIDE editing-outcome analysis. The route is mock-first only
+ * when absent or unreachable; reachable backend validation/provider errors
+ * surface to the UI.
  */
 export async function analyzeTide(
   controlFile: File,
@@ -303,9 +301,11 @@ export async function analyzeTide(
       `${API_BASE_URL}/api/v1/crispr/tide?cut_site_index=${cutSiteIndex}`,
       { method: 'POST', body: formData },
     )
+    if (response.status === 404) return CRISPR_TIDE_SAMPLE // route absent -> sample
     return await parseResponse<CrisprTideResult>(response)
-  } catch {
-    return CRISPR_TIDE_SAMPLE // endpoint gated to Codex §7 → mock-first
+  } catch (err) {
+    if (err instanceof TypeError) return CRISPR_TIDE_SAMPLE // backend down -> sample
+    throw err
   }
 }
 

@@ -1,5 +1,52 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## 2026-06-12 00:12 +1000 - Codex - Workbench live-wiring Task 1/6 and gene-viewer drag polish
+
+Steven approved the Workbench live-wiring quick wins, then gave rendered
+feedback on the sequence/gene viewer. This slice stayed local: no downloads, no
+Render/Supabase/Vercel/env/provider/source-asset changes, no commit, and no
+push.
+
+Completed:
+- Primer result cards now consume live Primer3/provider fields for placement,
+  genomic coordinates, amplicon, self-complement, hairpin, and pair-complement
+  values when present, with fallback states labelled honestly.
+- Added observed-only `POST /api/v1/crispr/tide` for control/edited AB1 uploads
+  plus `cut_site_index`, returning a TIDE-style indel spectrum,
+  editing-efficiency estimate, fit proxy, source label, notes, and warnings.
+- Treated the NKI TIDE/TIDER and TIDE Genetics sites as output references only;
+  Eamos uses its own local/provider-backed route rather than live-calling those
+  public sites.
+- CRISPR outcomes UI and both TypeScript contract mirrors consume the
+  source-backed response and only use fallback data for route-missing/transport
+  cases.
+- Gene viewer rows now fill fullscreen width, the sequence top gutter is 76px
+  with 16px zoom-control clearance, and row-level pointer capture lets drag
+  selection start from whitespace/between bases, continue off-line/across rows,
+  and update at requestAnimationFrame cadence.
+- Refreshed graphify output after code changes.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_workbench_api.py tests\test_frontend_contract.py -q` passed.
+- `cd app/backend && python -m ruff check app tests` passed.
+- Touched-file backend Black check passed for the Workbench files changed here.
+- `cd app/web && npx tsc --noEmit --pretty false` passed.
+- `cd app/frontend && npx tsc -b --pretty false` passed.
+- Browser-verified `http://localhost:3000/workbench` on desktop and mobile:
+  row fill, top spacing, zoom clearance, row-whitespace drag, reverse drag, and
+  off-line/cross-row drag all passed with no runtime/network failures.
+- `git diff --check` passed with line-ending warnings only.
+- `python -m graphify update .` passed.
+
+Not done / guardrails:
+- Render-gated off-target indexing remains gated. Keep
+  `CRISPR_OFFTARGET_PROVIDER=auto` until Render has a real
+  `CRISPR_OFFTARGET_INDEX_PATH` and provider-cache reports
+  `indexed_sqlite.ready=true`.
+- Full backend Black still fails on unrelated pre-existing files:
+  `tests\test_predictor_lane_scaffolds.py`, `app\services\chat_service.py`,
+  and `app\tools\computational_annotations.py`.
+
 ## 2026-06-11 21:29 +1000 - Codex - Combined Workbench/PubMed integration commit
 
 Steven approved a single combined integration commit after the parallel

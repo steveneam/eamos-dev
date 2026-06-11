@@ -50,6 +50,94 @@ function PrimerTip({ label, tip }: { label: string; tip: string }) {
   )
 }
 
+function hashSeq(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+function illustrativeStruct(seq: string) {
+  const h = hashSeq(seq)
+  return {
+    selfAny: 2 + (h % 7),
+    selfEnd: (h >>> 3) % 5,
+    hairpinTm: (h >>> 6) % 100 < 55 ? 0 : 28 + ((h >>> 7) % 18),
+  }
+}
+
+function finiteMetric(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function formatMetric(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatHairpin(value: number): string {
+  return value ? `${formatMetric(value)} °C` : 'none'
+}
+
+function formatRange(start: number | null | undefined, stop: number | null | undefined): string | null {
+  const startValue = finiteMetric(start)
+  const stopValue = finiteMetric(stop)
+  if (startValue === null || stopValue === null) return null
+  return `${Math.trunc(startValue)}-${Math.trunc(stopValue)}`
+}
+
+function formatAmplicon(start: number | null | undefined, end: number | null | undefined): string | null {
+  const startValue = finiteMetric(start)
+  const endValue = finiteMetric(end)
+  if (startValue === null || endValue === null) return null
+  const low = Math.min(startValue, endValue)
+  const high = Math.max(startValue, endValue)
+  return `${Math.trunc(low)}-${Math.trunc(high)}`
+}
+
+function formatGenomicRange(
+  chrom: string | null | undefined,
+  start: number | null | undefined,
+  end: number | null | undefined,
+): string | null {
+  const range = formatAmplicon(start, end)
+  return chrom && range ? `${chrom}:${range}` : null
+}
+
+function primerStruct(pair: PrimerPair, side: 'forward' | 'reverse') {
+  const fallback = illustrativeStruct(side === 'forward' ? pair.forward : pair.reverse)
+  const selfAny = finiteMetric(side === 'forward' ? pair.self_any_forward : pair.self_any_reverse)
+  const selfEnd = finiteMetric(side === 'forward' ? pair.self_end_forward : pair.self_end_reverse)
+  const hairpinTm = finiteMetric(
+    side === 'forward' ? pair.hairpin_tm_forward : pair.hairpin_tm_reverse,
+  )
+  return {
+    selfAny: selfAny ?? fallback.selfAny,
+    selfEnd: selfEnd ?? fallback.selfEnd,
+    hairpinTm: hairpinTm ?? fallback.hairpinTm,
+    live: selfAny !== null || selfEnd !== null || hairpinTm !== null,
+  }
+}
+
+function primerPlacement(pair: PrimerPair) {
+  const forwardTemplate = formatRange(pair.forward_template_start, pair.forward_template_stop)
+  const reverseTemplate = formatRange(pair.reverse_template_start, pair.reverse_template_stop)
+  const templateAmplicon = formatAmplicon(pair.amplicon_template_start, pair.amplicon_template_end)
+  const genomicAmplicon = formatGenomicRange(
+    pair.genomic_chromosome,
+    pair.amplicon_genomic_start,
+    pair.amplicon_genomic_end,
+  )
+  return {
+    forwardTemplate,
+    reverseTemplate,
+    templateAmplicon,
+    genomicAmplicon,
+    live: Boolean(forwardTemplate || reverseTemplate || templateAmplicon || genomicAmplicon),
+  }
+}
+
 interface PrimerResultCardProps {
   pair: PrimerPair
 }
@@ -63,9 +151,21 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
 
   const { badge, deltaTm, deltaTmWarn } = classifyPair(pair)
   const notes = parseNotes(pair.notes)
+  const fwdStruct = primerStruct(pair, 'forward')
+  const revStruct = primerStruct(pair, 'reverse')
+  const livePairEnd = finiteMetric(pair.pair_compl_end)
+  const pairEnd = livePairEnd ?? ((hashSeq(pair.forward + pair.reverse) >>> 2) % 5)
+  const structureLive = fwdStruct.live || revStruct.live || livePairEnd !== null
+  const placement = primerPlacement(pair)
 
   const copyPair = async () => {
-    const text = `F: ${pair.forward}\nR: ${pair.reverse}`
+    const text = [
+      `F: ${pair.forward}`,
+      `R: ${pair.reverse}`,
+      `Product: ${pair.product_size} bp`,
+      `Template: F ${placement.forwardTemplate ?? 'unavailable'} / R ${placement.reverseTemplate ?? 'unavailable'}`,
+      `Secondary: ${structureLive ? 'Primer3 thermodynamic screen' : 'illustrative fallback'}`,
+    ].join('\n')
     try {
       await navigator.clipboard.writeText(text)
       setCopied('ok')
@@ -208,6 +308,82 @@ export function PrimerResultCard({ pair }: PrimerResultCardProps) {
                   <dd>{pair.product_size} bp</dd>
                 </div>
               </dl>
+            </section>
+            <section>
+              <h4 className="primer-l3-h">
+                <PrimerTip
+                  label="Position"
+                  tip="Where each primer sits on the gene: length, template strand, and start/stop coordinates, like Primer-BLAST. Live coordinates appear when the backend provider returns Primer3 placement."
+                />
+              </h4>
+              <dl className="primer-kv">
+                <div>
+                  <dt>Template strand</dt>
+                  <dd>F {pair.forward_strand ?? 'Plus'} / R {pair.reverse_strand ?? 'Minus'}</dd>
+                </div>
+                <div>
+                  <dt>Template start-stop</dt>
+                  <dd className={placement.forwardTemplate || placement.reverseTemplate ? undefined : 'eamos-mock'}>
+                    {placement.forwardTemplate || placement.reverseTemplate
+                      ? `F ${placement.forwardTemplate ?? 'n/a'} / R ${placement.reverseTemplate ?? 'n/a'}`
+                      : 'placement unavailable'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Amplicon template</dt>
+                  <dd className={placement.templateAmplicon ? undefined : 'eamos-mock'}>
+                    {placement.templateAmplicon ?? 'placement unavailable'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Genomic ({pair.genome_build ?? 'GRCh38'})</dt>
+                  <dd className={placement.genomicAmplicon ? undefined : 'eamos-mock'}>
+                    {placement.genomicAmplicon ?? 'placement unavailable'}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+            <section>
+              <h4 className="primer-l3-h">
+                <PrimerTip
+                  label="Secondary structure"
+                  tip="Self-complementarity, self 3' complementarity, and most-stable hairpin Tm. Lower is better; live values come from Primer3 thermodynamic alignment when present."
+                />
+              </h4>
+              <dl className="primer-kv">
+                <div>
+                  <dt>Self-compl. (any)</dt>
+                  <dd>
+                    F {formatMetric(fwdStruct.selfAny)} / R {formatMetric(revStruct.selfAny)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Self 3' (end)</dt>
+                  <dd
+                    className={
+                      fwdStruct.selfEnd > 3 || revStruct.selfEnd > 3 ? 'warn' : undefined
+                    }
+                  >
+                    F {formatMetric(fwdStruct.selfEnd)} / R {formatMetric(revStruct.selfEnd)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Hairpin Tm</dt>
+                  <dd>
+                    F {formatHairpin(fwdStruct.hairpinTm)} / R{' '}
+                    {formatHairpin(revStruct.hairpinTm)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Pair 3' dimer</dt>
+                  <dd className={pairEnd > 3 ? 'warn' : undefined}>{formatMetric(pairEnd)}</dd>
+                </div>
+              </dl>
+              <p className={`primer-notes-raw${structureLive ? '' : ' eamos-mock'}`}>
+                {structureLive
+                  ? pair.secondary_structure_notes || 'Primer3 thermodynamic screen'
+                  : 'illustrative fallback, Primer3 thermodynamic alignment unavailable'}
+              </p>
             </section>
             <section>
               <h4 className="primer-l3-h">

@@ -38,7 +38,7 @@ function hashSeq(s: string): number {
   }
   return h >>> 0
 }
-function mockStruct(seq: string) {
+function illustrativeStruct(seq: string) {
   // Unsigned shifts (>>>) — a signed >> on the >2^31 hash would flip negative
   // and yield nonsensical negative scores through the modulo.
   const h = hashSeq(seq)
@@ -46,6 +46,88 @@ function mockStruct(seq: string) {
     selfAny: 2 + (h % 7), // 2–8
     selfEnd: (h >>> 3) % 5, // 0–4
     hairpinTm: (h >>> 6) % 100 < 55 ? 0 : 28 + ((h >>> 7) % 18), // mostly none, else ~28–45 °C
+  }
+}
+
+function finiteMetric(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function formatMetric(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatHairpin(value: number): string {
+  return value ? `${formatMetric(value)} °C` : 'none'
+}
+
+function formatRange(start: number | null | undefined, stop: number | null | undefined): string | null {
+  const startValue = finiteMetric(start)
+  const stopValue = finiteMetric(stop)
+  if (startValue === null || stopValue === null) return null
+  return `${Math.trunc(startValue)}-${Math.trunc(stopValue)}`
+}
+
+function formatAmplicon(start: number | null | undefined, end: number | null | undefined): string | null {
+  const startValue = finiteMetric(start)
+  const endValue = finiteMetric(end)
+  if (startValue === null || endValue === null) return null
+  const low = Math.min(startValue, endValue)
+  const high = Math.max(startValue, endValue)
+  return `${Math.trunc(low)}-${Math.trunc(high)}`
+}
+
+function formatGenomicRange(
+  chrom: string | null | undefined,
+  start: number | null | undefined,
+  end: number | null | undefined,
+): string | null {
+  const range = formatAmplicon(start, end)
+  return chrom && range ? `${chrom}:${range}` : null
+}
+
+function primerStruct(pair: PrimerPair, side: 'forward' | 'reverse') {
+  const fallback = illustrativeStruct(side === 'forward' ? pair.forward : pair.reverse)
+  const selfAny = finiteMetric(side === 'forward' ? pair.self_any_forward : pair.self_any_reverse)
+  const selfEnd = finiteMetric(side === 'forward' ? pair.self_end_forward : pair.self_end_reverse)
+  const hairpinTm = finiteMetric(
+    side === 'forward' ? pair.hairpin_tm_forward : pair.hairpin_tm_reverse,
+  )
+  return {
+    selfAny: selfAny ?? fallback.selfAny,
+    selfEnd: selfEnd ?? fallback.selfEnd,
+    hairpinTm: hairpinTm ?? fallback.hairpinTm,
+    live: selfAny !== null || selfEnd !== null || hairpinTm !== null,
+  }
+}
+
+function primerPlacement(pair: PrimerPair) {
+  const forwardTemplate = formatRange(pair.forward_template_start, pair.forward_template_stop)
+  const reverseTemplate = formatRange(pair.reverse_template_start, pair.reverse_template_stop)
+  const templateAmplicon = formatAmplicon(pair.amplicon_template_start, pair.amplicon_template_end)
+  const forwardGenomic = formatGenomicRange(
+    pair.genomic_chromosome,
+    pair.forward_genomic_start,
+    pair.forward_genomic_stop,
+  )
+  const reverseGenomic = formatGenomicRange(
+    pair.genomic_chromosome,
+    pair.reverse_genomic_start,
+    pair.reverse_genomic_stop,
+  )
+  const genomicAmplicon = formatGenomicRange(
+    pair.genomic_chromosome,
+    pair.amplicon_genomic_start,
+    pair.amplicon_genomic_end,
+  )
+  return {
+    forwardTemplate,
+    reverseTemplate,
+    templateAmplicon,
+    forwardGenomic,
+    reverseGenomic,
+    genomicAmplicon,
+    live: Boolean(forwardTemplate || reverseTemplate || templateAmplicon || genomicAmplicon),
   }
 }
 
@@ -95,19 +177,26 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
 
   const { badge, deltaTm, deltaTmWarn } = classifyPair(pair)
   const notes = parseNotes(pair.notes)
-  const fwdStruct = mockStruct(pair.forward)
-  const revStruct = mockStruct(pair.reverse)
-  const pairEnd = (hashSeq(pair.forward + pair.reverse) >>> 2) % 5 // pair 3′ dimer, 0–4
+  const fwdStruct = primerStruct(pair, 'forward')
+  const revStruct = primerStruct(pair, 'reverse')
+  const livePairEnd = finiteMetric(pair.pair_compl_end)
+  const pairEnd = livePairEnd ?? ((hashSeq(pair.forward + pair.reverse) >>> 2) % 5)
+  const structureLive = fwdStruct.live || revStruct.live || livePairEnd !== null
+  const placement = primerPlacement(pair)
+  const structureSource = structureLive
+    ? 'Primer3 thermodynamic screen'
+    : 'illustrative fallback'
+  const placementSource = placement.live ? 'backend placement' : 'placement unavailable'
 
   // Clipboard payload — sequences + the full detail set (thermodynamics,
   // secondary structure, specificity), tab-laid so it pastes cleanly.
-  const hp = (tm: number) => (tm ? `${tm} °C` : 'none')
   const copyText = [
     `Primer pair #${pair.index}${pair.recommended ? ' (recommended)' : ''} — ${badge.label}`,
     `F\t${pair.forward}\t${pair.forward.length} nt\tPlus\tTm ${pair.tm_forward.toFixed(1)} °C\tGC ${pair.gc_forward}%`,
     `R\t${pair.reverse}\t${pair.reverse.length} nt\tMinus\tTm ${pair.tm_reverse.toFixed(1)} °C\tGC ${pair.gc_reverse}%`,
-    `Product ${pair.product_size} bp · ΔTm ${deltaTm.toFixed(1)} °C · gene start–stop pending backend`,
-    `Secondary structure (illustrative): self-compl F${fwdStruct.selfAny}/R${revStruct.selfAny} · self-3′ F${fwdStruct.selfEnd}/R${revStruct.selfEnd} · hairpin F${hp(fwdStruct.hairpinTm)}/R${hp(revStruct.hairpinTm)} · pair-3′ ${pairEnd}`,
+    `Product ${pair.product_size} bp · ΔTm ${deltaTm.toFixed(1)} °C · ${placementSource}`,
+    `Placement: template F ${placement.forwardTemplate ?? 'unavailable'} / R ${placement.reverseTemplate ?? 'unavailable'} · amplicon ${placement.templateAmplicon ?? 'unavailable'}${placement.genomicAmplicon ? ` · genomic ${placement.genomicAmplicon}` : ''}`,
+    `Secondary structure (${structureSource}): self-compl F${formatMetric(fwdStruct.selfAny)}/R${formatMetric(revStruct.selfAny)} · self-3′ F${formatMetric(fwdStruct.selfEnd)}/R${formatMetric(revStruct.selfEnd)} · hairpin F${formatHairpin(fwdStruct.hairpinTm)}/R${formatHairpin(revStruct.hairpinTm)} · pair-3′ ${formatMetric(pairEnd)}`,
     `Specificity: ${pair.specificity_hits} hit${pair.specificity_hits === 1 ? '' : 's'}${notes.provider ? ` · ${notes.provider}` : ''}${notes.productSizes ? ` · products ${notes.productSizes}` : ''}`,
     notes.raw ? `Notes: ${notes.raw}` : '',
   ]
@@ -196,7 +285,11 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
           {onToggleOverlay && (
             <label
               className="primer-overlay-toggle"
-              title="Outline this pair's amplicon on the gene viewer (schematic — exact primer positions pending backend)."
+              title={
+                placement.live
+                  ? "Outline this pair's backend-positioned amplicon on the gene viewer."
+                  : "Outline this pair's amplicon on the gene viewer. Backend placement is unavailable for this pair."
+              }
             >
               <input type="checkbox" checked={!!selected} onChange={onToggleOverlay} />
               Show on gene view
@@ -268,7 +361,7 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
               <h4 className="primer-l3-h">
                 <PrimerTip
                   label="Position"
-                  tip="Where each primer sits on the gene — length, template strand, and start/stop coordinates, like Primer-BLAST. Start/stop are pending the backend (PrimerPair carries no coordinates yet)."
+                  tip="Where each primer sits on the gene: length, template strand, and start/stop coordinates, like Primer-BLAST. Live coordinates appear when the backend provider returns Primer3 placement."
                 />
               </h4>
               <dl className="primer-kv">
@@ -280,15 +373,27 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
                 </div>
                 <div>
                   <dt>Template strand</dt>
-                  <dd>F Plus / R Minus</dd>
+                  <dd>F {pair.forward_strand ?? 'Plus'} / R {pair.reverse_strand ?? 'Minus'}</dd>
                 </div>
                 <div>
                   <dt>Template start–stop</dt>
-                  <dd className="eamos-mock">pending backend</dd>
+                  <dd className={placement.forwardTemplate || placement.reverseTemplate ? undefined : 'eamos-mock'}>
+                    {placement.forwardTemplate || placement.reverseTemplate
+                      ? `F ${placement.forwardTemplate ?? 'n/a'} / R ${placement.reverseTemplate ?? 'n/a'}`
+                      : 'placement unavailable'}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Genomic (GRCh38)</dt>
-                  <dd className="eamos-mock">pending backend</dd>
+                  <dt>Amplicon template</dt>
+                  <dd className={placement.templateAmplicon ? undefined : 'eamos-mock'}>
+                    {placement.templateAmplicon ?? 'placement unavailable'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Genomic ({pair.genome_build ?? 'GRCh38'})</dt>
+                  <dd className={placement.genomicAmplicon ? undefined : 'eamos-mock'}>
+                    {placement.genomicAmplicon ?? 'placement unavailable'}
+                  </dd>
                 </div>
               </dl>
             </section>
@@ -296,14 +401,14 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
               <h4 className="primer-l3-h">
                 <PrimerTip
                   label="Secondary structure"
-                  tip="Self-complementarity (self-dimer tendency), self 3′ complementarity (primer-dimer formed at the 3′ end), and the most-stable hairpin Tm. Lower is better; 3′ structures matter most because they block extension. Illustrative — the local engine does not return Primer3 thermodynamic alignments yet."
+                  tip="Self-complementarity, self 3′ complementarity, and most-stable hairpin Tm. Lower is better; live values come from Primer3 thermodynamic alignment when present."
                 />
               </h4>
               <dl className="primer-kv">
                 <div>
                   <dt>Self-compl. (any)</dt>
                   <dd>
-                    F {fwdStruct.selfAny} / R {revStruct.selfAny}
+                    F {formatMetric(fwdStruct.selfAny)} / R {formatMetric(revStruct.selfAny)}
                   </dd>
                 </div>
                 <div>
@@ -313,23 +418,25 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
                       fwdStruct.selfEnd > 3 || revStruct.selfEnd > 3 ? 'warn' : undefined
                     }
                   >
-                    F {fwdStruct.selfEnd} / R {revStruct.selfEnd}
+                    F {formatMetric(fwdStruct.selfEnd)} / R {formatMetric(revStruct.selfEnd)}
                   </dd>
                 </div>
                 <div>
                   <dt>Hairpin Tm</dt>
                   <dd>
-                    F {fwdStruct.hairpinTm ? `${fwdStruct.hairpinTm} °C` : 'none'} / R{' '}
-                    {revStruct.hairpinTm ? `${revStruct.hairpinTm} °C` : 'none'}
+                    F {formatHairpin(fwdStruct.hairpinTm)} / R{' '}
+                    {formatHairpin(revStruct.hairpinTm)}
                   </dd>
                 </div>
                 <div>
                   <dt>Pair 3′ dimer</dt>
-                  <dd className={pairEnd > 3 ? 'warn' : undefined}>{pairEnd}</dd>
+                  <dd className={pairEnd > 3 ? 'warn' : undefined}>{formatMetric(pairEnd)}</dd>
                 </div>
               </dl>
-              <p className="primer-notes-raw eamos-mock">
-                illustrative — pending Primer3 thermodynamic alignment
+              <p className={`primer-notes-raw${structureLive ? '' : ' eamos-mock'}`}>
+                {structureLive
+                  ? pair.secondary_structure_notes || structureSource
+                  : 'illustrative fallback, Primer3 thermodynamic alignment unavailable'}
               </p>
             </section>
             <section>

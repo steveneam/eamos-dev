@@ -2,7 +2,10 @@
 import {
   Fragment,
   memo,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
   type CSSProperties,
 } from 'react'
 import { aaClass } from '@/lib/workbench/codon-table'
@@ -42,7 +45,12 @@ interface CodonDetailProps {
   activeClinvar: string | null
   searchQuery: string
   restrictionHover: string | null
-  onBaseMouseDown: (idx: number, shiftKey: boolean) => void
+  onSequencePointerDown: (
+    clientX: number,
+    clientY: number,
+    shiftKey: boolean,
+    pointerId: number,
+  ) => void
   onBaseContextMenu: (idx: number, x: number, y: number) => void
   onSelectionEdgeDown: (edge: 'start' | 'end') => void
   /** Mousedown on blank canvas (not a base/handle/dot/site) → clear selection. */
@@ -53,10 +61,40 @@ interface CodonDetailProps {
 }
 
 export function CodonDetail(props: CodonDetailProps) {
-  const { flat, basesPerRow, onBlankMouseDown } = props
+  const { flat, basesPerRow, baseW, onBlankMouseDown } = props
+  const detailRef = useRef<HTMLDivElement>(null)
+  const [contentWidth, setContentWidth] = useState(0)
 
   // Fixed codon-aligned row widths keep overlays and annotations anchored.
-  const rowBp = Math.max(MIN_BP, basesPerRow)
+  useEffect(() => {
+    const el = detailRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let frame: number | null = null
+    const measure = () => {
+      if (frame !== null) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        frame = null
+        const style = window.getComputedStyle(el)
+        const padding =
+          parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0')
+        setContentWidth(Math.max(0, el.clientWidth - padding))
+      })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame)
+      ro.disconnect()
+    }
+  }, [])
+
+  const minRowBp = Math.max(MIN_BP, basesPerRow)
+  const fittedRowBp =
+    contentWidth > RIGHT_MARGIN ? Math.floor((contentWidth - RIGHT_MARGIN) / baseW) : 0
+  const rowBp = Math.max(minRowBp, fittedRowBp)
+  const blockMinWidth =
+    contentWidth > RIGHT_MARGIN ? Math.floor(contentWidth) : undefined
   const layout = useMemo<LayoutItem[]>(() => buildLayout(flat, rowBp), [flat, rowBp])
 
   // GV-006: the displayed allele basis is now adapter-driven — in `variant`
@@ -78,12 +116,13 @@ export function CodonDetail(props: CodonDetailProps) {
   return (
     <div
       className="sv-detail"
+      ref={detailRef}
       onMouseDown={(e) => {
         const t = e.target as HTMLElement
         // Only blank canvas clears; bases/handles/dots/sites keep their flows.
         if (
           t.closest(
-            '.sv-base, .sv-selection-handle, .sv-cv, .sv-re-bar, .sv-ins-marker',
+            '.sv-block-row.sequence, .sv-selection-handle, .sv-cv, .sv-re-bar, .sv-ins-marker',
           )
         )
           return
@@ -104,6 +143,7 @@ export function CodonDetail(props: CodonDetailProps) {
             key={`row${item.indices[0]}`}
             indices={item.indices}
             baseFlatIndex={baseFlatIndex}
+            blockMinWidth={blockMinWidth}
             {...props}
           />
         ),
@@ -115,6 +155,7 @@ export function CodonDetail(props: CodonDetailProps) {
 interface BlockProps extends CodonDetailProps {
   indices: number[]
   baseFlatIndex: Map<number, number>
+  blockMinWidth?: number
 }
 
 const Block = memo(function Block(props: BlockProps) {
@@ -133,7 +174,8 @@ const Block = memo(function Block(props: BlockProps) {
     restrictionHover,
     indices,
     baseFlatIndex,
-    onBaseMouseDown,
+    blockMinWidth,
+    onSequencePointerDown,
     onBaseContextMenu,
     onSelectionEdgeDown,
     onClinvarClick,
@@ -445,16 +487,6 @@ const Block = memo(function Block(props: BlockProps) {
             style={{ left, width: baseW }}
             data-idx={isComp ? undefined : i}
             title={title}
-            onMouseDown={
-              isComp
-                ? undefined
-                : (e) => {
-                    if (e.button === 0) {
-                      e.preventDefault()
-                      onBaseMouseDown(i, e.shiftKey)
-                    }
-                  }
-            }
             onContextMenu={
               isComp
                 ? undefined
@@ -569,7 +601,7 @@ const Block = memo(function Block(props: BlockProps) {
       {children}
     </div>
   )
-  const blockStyle: CSSProperties = { width: w + RIGHT_MARGIN }
+  const blockStyle: CSSProperties = { width: Math.max(w + RIGHT_MARGIN, blockMinWidth ?? 0) }
   const domainTrack = data.domains[0] ?? data.proteinFeatures.domains[0]
   const domainLabel =
     domainTrack &&
@@ -626,7 +658,18 @@ const Block = memo(function Block(props: BlockProps) {
         )}
       {trackOn.clinvar && row('clinvar', 12, clinvar())}
       {row('translation', 28, translation())}
-      <div className="sv-block-row sequence" style={{ height: 24, width: w }}>
+      <div
+        className="sv-block-row sequence"
+        style={{ height: 24, width: w }}
+        data-row-start={startIdx}
+        data-row-end={endIdx}
+        data-base-w={baseW}
+        onPointerDown={(e) => {
+          if (e.button !== 0 || !e.isPrimary) return
+          e.preventDefault()
+          onSequencePointerDown(e.clientX, e.clientY, e.shiftKey, e.pointerId)
+        }}
+      >
         {bases('top')}
         {rightPos('top')}
       </div>

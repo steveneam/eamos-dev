@@ -160,6 +160,9 @@ export function OutcomesTab() {
             showPredicted={outcomeInfo.showPredicted}
             observedLabel={outcomeInfo.observedLegendLabel}
           />
+          {res.warnings?.length ? (
+            <div className="help-note">Remarks: {res.warnings.join(', ')}</div>
+          ) : null}
           <div className="help-note">{outcomeInfo.predictionLine}</div>
           <div className="help-note">{res.notes}</div>
         </>

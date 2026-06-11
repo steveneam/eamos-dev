@@ -1,41 +1,28 @@
+import type { CrisprTideResponse, CrisprTideSpectrumBin } from '../backend'
+
 /*
    Mock-first post-CRISPR editing-outcome sample.
 
-   The frontend Outcomes tab is scaffolded now, while the backend
-   POST /api/v1/crispr/tide endpoint, AB1 parsing, and numerical solver are
-   still gated work. This type is frontend-local until the backend contract
-   lands, matching the existing mock-first workbench pattern.
-
-   This sample is observed-only. It intentionally does not imply that Eamos
-   runs a repair-outcome model. A later Cas9 backend integration can expose
-   crisprScore's Lindel-derived frameshift probability as a separate score.
+   The backend contract is source-led by CrisprTideResponse. The bundled
+   sample keeps the Workbench surface usable when the route is absent or the
+   backend is offline, and remains clearly marked as frontend fallback data.
 */
 
 /** One indel-size bin. size is bp: negative = deletion, positive = insertion,
  *  0 = unmodified (wild-type). predicted is null when no repair-outcome model
  *  is available. */
-export interface IndelBin {
-  size: number
-  observed: number
-  predicted: number | null
-}
+export type IndelBin = CrisprTideSpectrumBin
 
-export interface CrisprTideResult {
+export interface CrisprTideResult
+  extends Omit<
+    CrisprTideResponse,
+    'source_backed' | 'analysis_kind' | 'provider_label' | 'warnings'
+  > {
   /** Optional additive backend metadata; absent means frontend sample/fallback. */
   source_backed?: boolean
-  analysis_kind?: 'sample' | 'tide' | 'lindel'
+  analysis_kind?: 'sample' | CrisprTideResponse['analysis_kind'] | 'lindel'
   provider_label?: string
-  /** Cas9 cleavage base index used for the deconvolution. */
-  cut_site_index: number
-  /** Overall editing efficiency = 1 - wild-type fraction (0..1). */
-  editing_efficiency: number
-  /** NNLS fit quality (R2) of the TIDE deconvolution. */
-  r_squared: number
-  /** Indel-frequency spectrum, ascending by size. */
-  spectrum: IndelBin[]
-  /** True only when a backend result explicitly includes predicted values. */
-  predicted_available: boolean
-  notes: string
+  warnings?: string[]
 }
 
 export const CRISPR_TIDE_SAMPLE: CrisprTideResult = {

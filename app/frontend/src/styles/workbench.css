@@ -589,9 +589,12 @@
 /* ─────────────── CODON DETAIL (wrapped block layout v2.1) ─────────────── */
 .sv-detail {
   background: var(--bg-canvas);
-  padding: 20px 22px 0;
+  padding: 76px 22px 0;
   display: flex; flex-direction: column;
   gap: 22px;
+  user-select: none;
+  -webkit-user-select: none;
+  scrollbar-gutter: stable;
 }
 .sv-block {
   position: relative;
@@ -733,10 +736,24 @@
   font-weight: 600;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
+  touch-action: none;
   transition: background .08s;
   border-radius: 2px;
 }
 .sv-base:hover { background: var(--bg-soft2); }
+.sv-root.sv-dragging-select {
+  cursor: col-resize;
+  user-select: none;
+}
+.sv-root.sv-dragging-select .sv-base {
+  transition: none;
+}
+.sv-root.sv-dragging-select .sv-cv,
+.sv-root.sv-dragging-select .sv-marker-thin,
+.sv-root.sv-dragging-select .sv-ins-marker,
+.sv-root.sv-dragging-select .sv-re-bar {
+  pointer-events: none;
+}
 .sv-base.A { color: var(--base-A); }
 .sv-base.T { color: var(--base-T); }
 .sv-base.C { color: var(--base-C); }
@@ -2468,6 +2485,33 @@
 .sw.cut { background: var(--err); }
 .sw.correct { background: var(--teal); }
 .sw.silent, .sw.predicted { background: #3b4877; }
+
+.eamos-mock {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px;
+  border: 1px dashed var(--ink-5);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--ink-4);
+  font-family: var(--body); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.02em; line-height: 1.4;
+}
+.eamos-mock::before {
+  content: ''; width: 5px; height: 5px; border-radius: 999px;
+  border: 1px dashed var(--ink-4); flex-shrink: 0;
+}
+.align-read-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0.5px solid var(--line-2); background: var(--bg); color: var(--ink-2);
+  border-radius: var(--r-sm); padding: 5px 9px; font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.align-read-btn:hover { border-color: var(--ink-2); }
+.align-file-btn { cursor: pointer; }
+.crispr-preview-tag {
+  align-self: flex-start;
+  margin-bottom: 10px;
+}
 
 .crispr-file { padding: 5px 8px; font-family: var(--body); font-size: 11.5px; }
 

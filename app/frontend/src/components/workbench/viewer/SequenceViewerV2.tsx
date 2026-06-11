@@ -57,6 +57,8 @@ export interface SequenceViewerHandle {
   clearSelection: () => void
 }
 
+type SelectionRange = { start: number; end: number }
+
 interface SequenceViewerV2Props {
   data: GeneWindowData
   trackOn: TrackState
@@ -98,10 +100,28 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const focusSearchRef = useRef<() => void>(() => {})
     const isSelecting = useRef(false)
     const dragCleanupRef = useRef<(() => void) | null>(null)
+    const selectionRef = useRef<SelectionRange | null>(null)
+    const dragFrameRef = useRef<number | null>(null)
+    const pendingDragPointRef = useRef<{ x: number; y: number } | null>(null)
+    const activePointerIdRef = useRef<number | null>(null)
 
     const [editState, dispatch] = useReducer(editReducer, initialEditState)
     const { edits, history, cursor } = editState
-    const [selection, setSelection] = useState<{ start: number; end: number } | null>(null)
+    const [selection, setSelection] = useState<SelectionRange | null>(null)
+    const setLiveSelection = useCallback(
+      (
+        next:
+          | SelectionRange
+          | null
+          | ((current: SelectionRange | null) => SelectionRange | null),
+      ) => {
+        const resolved =
+          typeof next === 'function' ? next(selectionRef.current) : next
+        selectionRef.current = resolved
+        setSelection(resolved)
+      },
+      [],
+    )
     const [searchQuery, setSearchQuery] = useState('')
     const [jumpError, setJumpError] = useState<string | null>(null)
     const [showHistory, setShowHistory] = useState(false)
@@ -220,9 +240,9 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
               if (flat[idx].kind !== 'intron-gap') m.set(idx, { kind: 'del', alt: '-' })
             }
         })
-        setSelection(null)
+        setLiveSelection(null)
       },
-      [commit, flat],
+      [commit, flat, setLiveSelection],
     )
     const resetEdits = useCallback(() => {
       if (edits.size === 0) return
@@ -252,7 +272,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       },
       [applyReplace, selectionRange],
     )
-    const clearSelection = useCallback(() => setSelection(null), [])
+    const clearSelection = useCallback(() => setLiveSelection(null), [setLiveSelection])
 
     // ── Scratchpad: exon substitutions, mirrored to the side panel ──
     useEffect(() => {
@@ -275,15 +295,21 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     }, [edits, flat, onScratchChange, onEditCountChange])
 
     // ── Selection summary, mirrored to the side-panel edit hub (Unit C) ──
-    useEffect(() => {
-      if (!selection) {
+    const flushSelectionSummary = useCallback(() => {
+      const sel = selectionRef.current
+      if (!sel) {
         onSelectionChange(null)
         return
       }
-      const lo = Math.min(selection.start, selection.end)
-      const hi = Math.max(selection.start, selection.end)
+      const lo = Math.min(sel.start, sel.end)
+      const hi = Math.max(sel.start, sel.end)
       onSelectionChange(buildSelectionSummary(data, flat, edits, lo, hi))
-    }, [selection, data, flat, edits, onSelectionChange])
+    }, [data, flat, edits, onSelectionChange])
+    useEffect(() => {
+      selectionRef.current = selection
+      if (isSelecting.current) return
+      flushSelectionSummary()
+    }, [selection, flushSelectionSummary])
 
     // ── Jump / navigation ──
     const scrollToIdx = useCallback((i: number) => {
@@ -297,12 +323,12 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const jumpToFlatIdx = useCallback(
       (i: number) => {
         if (i < 0 || i >= flat.length) return
-        setSelection({ start: i, end: i })
+        setLiveSelection({ start: i, end: i })
         const b = flat[i]
         if (b?.kind === 'exon') setActiveExon(b.exonNum)
         scrollToIdx(i)
       },
-      [flat, scrollToIdx, setActiveExon],
+      [flat, scrollToIdx, setActiveExon, setLiveSelection],
     )
     const jumpToCdsPos = useCallback(
       (p: number) => {
@@ -418,41 +444,143 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const variantCount = variantFlatPositions.length
 
     // ── Selection drag ──
+    const baseIndexFromPoint = useCallback((x: number, y: number): number | null => {
+      const rows = Array.from(
+        rootRef.current?.querySelectorAll<HTMLElement>(
+          '.sv-block-row.sequence[data-row-start][data-row-end][data-base-w]',
+        ) ?? [],
+      )
+      if (rows.length === 0) return null
+      let best:
+        | {
+            row: HTMLElement
+            distance: number
+          }
+        | null = null
+      for (const row of rows) {
+        const rect = row.getBoundingClientRect()
+        const distance =
+          y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+        if (!best || distance < best.distance) best = { row, distance }
+      }
+      if (!best) return null
+      const rect = best.row.getBoundingClientRect()
+      const start = Number(best.row.dataset.rowStart)
+      const end = Number(best.row.dataset.rowEnd)
+      const rowBaseW = Number(best.row.dataset.baseW)
+      if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(rowBaseW)) {
+        return null
+      }
+      const maxOffset = Math.max(0, end - start)
+      const rawOffset = Math.floor((x - rect.left) / rowBaseW)
+      const offset = Math.max(0, Math.min(maxOffset, rawOffset))
+      return start + offset
+    }, [])
+
+    const cancelDragFrame = useCallback(() => {
+      pendingDragPointRef.current = null
+      if (dragFrameRef.current !== null) {
+        window.cancelAnimationFrame(dragFrameRef.current)
+        dragFrameRef.current = null
+      }
+    }, [])
+
+    const beginPointerCapture = useCallback((pointerId: number) => {
+      activePointerIdRef.current = pointerId
+      try {
+        rootRef.current?.setPointerCapture(pointerId)
+      } catch {
+        // Pointer capture can fail if the pointer is no longer active.
+      }
+    }, [])
+
+    const releasePointerCapture = useCallback(() => {
+      const pointerId = activePointerIdRef.current
+      activePointerIdRef.current = null
+      if (pointerId === null) return
+      try {
+        if (rootRef.current?.hasPointerCapture(pointerId)) {
+          rootRef.current.releasePointerCapture(pointerId)
+        }
+      } catch {
+        // The browser may have already released capture on pointerup/cancel.
+      }
+    }, [])
+
     const cleanupSelectionDrag = useCallback(() => {
       isSelecting.current = false
+      cancelDragFrame()
+      releasePointerCapture()
+      rootRef.current?.classList.remove('sv-dragging-select')
       dragCleanupRef.current?.()
       dragCleanupRef.current = null
-    }, [])
+    }, [cancelDragFrame, releasePointerCapture])
 
     useEffect(() => cleanupSelectionDrag, [cleanupSelectionDrag])
 
-    const onBaseMouseDown = useCallback(
-      (idx: number, shift: boolean) => {
+    const onSequencePointerDown = useCallback(
+      (clientX: number, clientY: number, shift: boolean, pointerId: number) => {
+        const idx = baseIndexFromPoint(clientX, clientY)
+        if (idx === null) return
         cleanupSelectionDrag()
-        setSelection((sel) =>
+        beginPointerCapture(pointerId)
+        setLiveSelection((sel) =>
           shift && sel ? { start: sel.start, end: idx } : { start: idx, end: idx },
         )
         isSelecting.current = true
-        const move = (e: MouseEvent) => {
+        rootRef.current?.classList.add('sv-dragging-select')
+        const applyDragIndex = (i: number) => {
+          setLiveSelection((sel) => (sel && sel.end !== i ? { ...sel, end: i } : sel))
+        }
+        const readPendingPoint = () => {
+          const point = pendingDragPointRef.current
+          pendingDragPointRef.current = null
+          return point
+        }
+        const move: EventListener = (event) => {
+          const e = event as PointerEvent
+          if (e.pointerId !== activePointerIdRef.current) return
           if (!isSelecting.current) return
-          const t = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-          const cell = t?.closest<HTMLElement>('.sv-base[data-idx]')
-          if (cell) {
-            const i = parseInt(cell.dataset.idx!, 10)
-            setSelection((sel) => (sel && sel.end !== i ? { ...sel, end: i } : sel))
-          }
+          e.preventDefault()
+          pendingDragPointRef.current = { x: e.clientX, y: e.clientY }
+          if (dragFrameRef.current !== null) return
+          dragFrameRef.current = window.requestAnimationFrame(() => {
+            dragFrameRef.current = null
+            const point = readPendingPoint()
+            if (!point || !isSelecting.current) return
+            const i = baseIndexFromPoint(point.x, point.y)
+            if (i !== null) applyDragIndex(i)
+          })
         }
-        const up = () => {
+        const up: EventListener = (event) => {
+          const e = event as PointerEvent
+          if (e.pointerId !== activePointerIdRef.current) return
+          e.preventDefault()
+          const point = pendingDragPointRef.current ?? { x: e.clientX, y: e.clientY }
+          cancelDragFrame()
+          const i = baseIndexFromPoint(point.x, point.y)
+          if (i !== null) applyDragIndex(i)
           cleanupSelectionDrag()
+          flushSelectionSummary()
         }
-        document.addEventListener('mousemove', move)
-        document.addEventListener('mouseup', up)
+        const target = rootRef.current ?? document
+        target.addEventListener('pointermove', move)
+        target.addEventListener('pointerup', up)
+        target.addEventListener('pointercancel', up)
         dragCleanupRef.current = () => {
-          document.removeEventListener('mousemove', move)
-          document.removeEventListener('mouseup', up)
+          target.removeEventListener('pointermove', move)
+          target.removeEventListener('pointerup', up)
+          target.removeEventListener('pointercancel', up)
         }
       },
-      [cleanupSelectionDrag],
+      [
+        baseIndexFromPoint,
+        beginPointerCapture,
+        cancelDragFrame,
+        cleanupSelectionDrag,
+        flushSelectionSummary,
+        setLiveSelection,
+      ],
     )
     // Right-click opens the cursor-anchored edit menu for that base. It does
     // not disturb the selection — selecting (left-click/drag) and editing
@@ -496,18 +624,18 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           if (isBase(base)) applySub(selection.start, base)
           e.preventDefault()
         } else if (e.key === 'Escape') {
-          setSelection(null)
+          setLiveSelection(null)
         } else if (e.key === 'ArrowLeft' && selection) {
           const n = Math.max(0, selection.end - 1)
-          setSelection({ start: n, end: n })
+          setLiveSelection({ start: n, end: n })
         } else if (e.key === 'ArrowRight' && selection) {
           const n = Math.min(flat.length - 1, selection.end + 1)
-          setSelection({ start: n, end: n })
+          setLiveSelection({ start: n, end: n })
         }
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
-    }, [applyDel, applySub, flat.length, selection])
+    }, [applyDel, applySub, flat.length, selection, setLiveSelection])
 
     const registerFocus = useCallback((fn: () => void) => {
       focusSearchRef.current = fn
@@ -585,11 +713,11 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
             selection={selection}
             searchQuery={searchQuery}
             restrictionHover={restrictionHover}
-            onBaseMouseDown={onBaseMouseDown}
+            onSequencePointerDown={onSequencePointerDown}
             onBaseContextMenu={onBaseContextMenu}
             onClinvarClick={jumpToFlatIdx}
             onRestrictionHover={setRestrictionHover}
-            onRestrictionSelect={(s, en) => setSelection({ start: s, end: en })}
+            onRestrictionSelect={(s, en) => setLiveSelection({ start: s, end: en })}
           />
         ) : (
           <ProteinView data={data} alleleMode={alleleMode} />
