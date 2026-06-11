@@ -1,5 +1,56 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## 2026-06-12 00:46 +1000 - Codex - PubMed lazy fix and Workbench live-wiring deployed
+
+Steven confirmed the PubMed lazy-section retry/reset work was Codex-owned and
+ready to ship. Codex committed the PubMed fix separately, then committed the
+approved Workbench live-wiring slice, pushed the stack to `origin/main`, and
+deployed SG through the official Render API.
+
+Committed and pushed:
+- `7d38061` - `fix(report): stabilize lazy publication section fetches`.
+- `bcb2e1f` - `feat(workbench): add observed TIDE outcomes and live primer fields`.
+- The two pre-existing local Claude commits, `03d0603` and `d4b8df4`, were
+  included in the coordinated push because they were already ahead of
+  `origin/main`.
+
+Deployment:
+- Render SG deploy `dep-d8lci4gg4nts73cfu680` is live on
+  `bcb2e1f2ac10da6876dfe2185a4460f5f2c74516`.
+- Vercel production deployment
+  `eamos-ridq0o5zr-steven-eamegdool-s-projects.vercel.app` is Ready for the
+  same commit and `https://eamos-dev.vercel.app/report?demo=1` returns 200.
+
+Verification:
+- PubMed fix pre-commit: `git diff --cached --check`,
+  `cd app/web && npx eslint components/report/LazySection.tsx lib/api.ts`, and
+  `cd app/web && npx tsc --noEmit --pretty false` passed.
+- Workbench pre-commit: `git diff --cached --check`; backend focused pytest
+  `tests\test_workbench_api.py tests\test_frontend_contract.py -q`; backend
+  Ruff; touched-file backend Black; `app/web` TypeScript; and `app/frontend`
+  TypeScript passed.
+- SG and Vercel full lookup for `USH2A:c.2276G>T` with
+  `refresh=true&include_lazy_sections=true` returned 200 with
+  `publications_literature.total_count=190`; the prior deployed
+  null-reference did not reproduce.
+- SG and Vercel `/api/v1/lookup/sections?refresh=true` for
+  `include:["publications"]` returned `status=available`, 190 total, and five
+  publication rows.
+- SG and Vercel `/api/v1/crispr/tide?cut_site_index=100` accepted the RPE65
+  AB1 fixture pair and returned `source_backed=true`,
+  `analysis_kind="tide"`, one spectrum bin, and
+  `warnings=["crispr_tide_consensus_only"]`.
+- SG and Vercel provider-cache still report CRISPR off-target
+  `configured_provider=auto`, `status=mock_fallback`,
+  `indexed_sqlite.ready=false`, and `request_time_supabase_search=false`.
+
+Remaining local-only files:
+- `.claude/settings.json` and `codex-workbench-temp.md` remain intentionally
+  uncommitted.
+- Keep `CRISPR_OFFTARGET_PROVIDER=auto` until Render has a real
+  `CRISPR_OFFTARGET_INDEX_PATH` and provider-cache reports
+  `indexed_sqlite.ready=true`.
+
 ## 2026-06-12 00:12 +1000 - Codex - Workbench live-wiring Task 1/6 and gene-viewer drag polish
 
 Steven approved the Workbench live-wiring quick wins, then gave rendered
