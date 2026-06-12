@@ -1,0 +1,27 @@
+#!/bin/sh
+# eamos pre-commit — keep agent_handoff/CURRENT.md from re-bloating.
+#
+# Runs scripts/eamos-handoff-lint.mjs only when CURRENT.md is staged. Blocks the
+# commit on a FAIL (egregious bloat: >500 lines, a >2000-char line, >4 lock
+# status lines). WARNs (>400 lines, stale released/DONE entries) print but do
+# NOT block. Degrades to a no-op if Node is unavailable.
+#
+# Install (per clone, since .git/hooks is not tracked):
+#   cp scripts/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# or point git at the tracked dir:
+#   git config core.hooksPath scripts/hooks
+
+if git diff --cached --name-only | grep -q '^agent_handoff/CURRENT\.md$'; then
+  if command -v node >/dev/null 2>&1; then
+    if ! node scripts/eamos-handoff-lint.mjs; then
+      echo ""
+      echo "pre-commit: agent_handoff/CURRENT.md failed handoff-lint (see above)."
+      echo "Trim it (archive logs >1wk, collapse the Active Status heartbeat),"
+      echo "then commit again."
+      exit 1
+    fi
+  else
+    echo "pre-commit: node not found — skipping handoff-lint (install Node to enable)."
+  fi
+fi
+exit 0
