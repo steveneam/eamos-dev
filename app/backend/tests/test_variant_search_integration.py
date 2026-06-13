@@ -489,10 +489,12 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
         "No code asserted",
         "1 Unique",
     ]
-    assert call_cards[3]["primary_label"] == "Likely Pathogenic"
+    assert call_cards[3]["primary_label"] == "VUS"
     assert call_cards[3]["source_status"] == "fixture"
-    assert call_cards[3]["provenance"][0] == "ClinGen Evidence Repository"
-    assert call_cards[3]["support_badges"][0]["text"].startswith("ClinGen/VCEP:")
+    assert call_cards[3]["provenance"][0] == "ClinVar aggregate classification"
+    assert call_cards[3]["support_badges"][0]["text"] == (
+        "ClinVar: criteria provided, single submitter"
+    )
     assert all(
         article["url"] == f"https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/"
         for article in payload["report_payload"]["pubmed_articles"]

@@ -34,12 +34,11 @@ def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
     assert "publications_literature" not in payload
     assert "computational_deep_dive" not in profile
     assert "expert_panel" not in profile
-    assert profile["acmg_worksheet"]["classification"] == "Likely pathogenic"
+    assert profile["acmg_worksheet"]["classification"] == "Uncertain significance"
+    assert profile["acmg_worksheet"]["classification_source"] == "ClinVar"
     assert full_payload["publications_literature"]["total_count"] == 3
     assert full_payload["report_profile"]["computational_deep_dive"]["predictors"]
-    assert full_payload["report_profile"]["expert_panel"]["final_classification"] == (
-        "likely_pathogenic"
-    )
+    assert full_payload["report_profile"]["expert_panel"] is None
     assert len(response.content) < len(full_response.content)
 
 
@@ -126,14 +125,16 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     assert computational["freshness"]["stale_on_failure"] is False
 
     clingen = sections["clingen_vcep"]
-    assert clingen["status"] == "available"
-    assert clingen["payload"]["vcep"]["name"] == "Inherited Retinal Dystrophies VCEP"
-    assert clingen["payload"]["final_classification"] == "likely_pathogenic"
-    assert clingen["payload"]["criteria"][0]["applied_strength"] == "PM2_Moderate"
-    assert clingen["payload"]["criteria"][0]["assertion_level"] == "vcep_specified"
-    assert clingen["payload"]["freshness"] == "fresh"
-    assert "ClinGen Evidence Repository" in clingen["payload"]["source_scope"]
-    assert clingen["warnings"] == []
+    assert clingen["status"] == "partial"
+    assert clingen["payload"]["classification"] == "Uncertain significance"
+    assert clingen["payload"]["classification_source"] == "ClinVar"
+    assert clingen["payload"]["source_scope"] == "current_clinical_consensus_snapshot"
+    assert clingen["payload"]["criteria"][0]["assertion_level"] == "eamos_hint"
+    assert clingen["payload"]["synthesis"] == (
+        "ClinVar aggregate classification is used because no ClinGen/VCEP classification was "
+        "available; Eamos criteria remain worksheet hints only."
+    )
+    assert clingen["warnings"] == ["clingen_vcep_evidence_repo_source_cache_not_integrated"]
     assert clingen["freshness"]["stale_on_failure"] is False
 
 

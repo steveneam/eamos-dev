@@ -105,13 +105,12 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert profile["header"]["gene"] == "RPE65"
     assert profile["header"]["cdna"] == "c.260A>G"
     assert profile["header"]["genomic_hg38"] == "1-68444869-T-C"
-    assert profile["header"]["classification_source"] == "ClinGen"
+    assert profile["header"]["classification_source"] == "ClinVar"
     assert profile["interpretation_summary"]["mode"] == "deterministic"
     assert "clinical_consensus" in profile["interpretation_summary"]["fact_refs"]
-    assert profile["expert_panel"]["vcep"]["name"] == "Inherited Retinal Dystrophies VCEP"
-    assert profile["expert_panel"]["final_classification"] == "likely_pathogenic"
-    assert profile["expert_panel"]["criteria"][0]["assertion_level"] == "vcep_specified"
-    assert profile["expert_panel"]["freshness"] == "fresh"
+    assert profile["expert_panel"] is None
+    assert profile["acmg_worksheet"]["classification"] == "Uncertain significance"
+    assert profile["acmg_worksheet"]["classification_source"] == "ClinVar"
     _assert_section_3_population_frequency(profile, report_payload)
     _assert_no_population_metrics_in_section_2_or_acmg(profile)
     assert (
@@ -248,10 +247,10 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
 
     criteria = {row["code"]: row for row in profile["acmg_worksheet"]["criteria"]}
     assert criteria["PM2"]["state"] == "met"
-    assert criteria["PM2"]["assertion_level"] == "source_asserted"
-    assert criteria["PM2"]["source"] == "ClinGen Evidence Repository"
-    assert criteria["PM5"]["assertion_level"] == "source_asserted"
-    assert criteria["PP3"]["assertion_level"] == "source_asserted"
+    assert criteria["PM2"]["assertion_level"] == "eamos_hint"
+    assert criteria["PM2"]["source"] == "Eamos worksheet scaffold"
+    assert criteria["PM5"]["assertion_level"] == "eamos_hint"
+    assert criteria["PP3"]["assertion_level"] == "eamos_hint"
     assert criteria["PS3"]["assertion_level"] == "not_assessed"
     assert profile["therapies_trials"]["trial_rows"] == []
     assert "structured_clinical_trials_require_live_api" in profile["therapies_trials"]["warnings"]

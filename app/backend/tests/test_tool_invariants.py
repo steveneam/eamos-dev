@@ -22,7 +22,13 @@ from app.tools.variant_validator import VariantValidatorTool, _mutate_variant
 
 
 def _settings(**overrides) -> Settings:
-    return Settings(jwt_secret="test-secret", **overrides)
+    defaults = {
+        "clingen_local_enabled": False,
+        "clingen_local_sqlite_path": Path("missing-clingen.sqlite"),
+        "clingen_local_manifest_path": Path("missing-clingen.manifest.json"),
+    }
+    defaults.update(overrides)
+    return Settings(jwt_secret="test-secret", **defaults)
 
 
 def test_spliceai_live_stub_requires_genomic_coordinates(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -353,7 +359,7 @@ def test_clinvar_live_derives_submitter_counts_from_supporting_scvs(
 def test_clingen_fixture_filters_to_matching_variant() -> None:
     variant = SimpleNamespace(
         gene="RPE65",
-        transcript_hgvs="NM_000329.3:c.260A>G",
+        transcript_hgvs="NM_000329.3:c.11+5G>A",
         genomic_hgvs="",
         genomic_hg38="",
         protein_change="",
@@ -363,12 +369,28 @@ def test_clingen_fixture_filters_to_matching_variant() -> None:
 
     assert result.status == "fixture"
     assert result.summary["classification"] == "Likely pathogenic"
-    assert result.summary["criteria"] == ["PM2_Moderate", "PM5_Supporting", "PP3_Supporting"]
+    assert result.summary["criteria"] == ["PS3_Supporting"]
     expert_panel = result.summary["expert_panel"]
     assert expert_panel["vcep"]["name"] == "Inherited Retinal Dystrophies VCEP"
     assert expert_panel["final_classification"] == "likely_pathogenic"
-    assert expert_panel["criteria"][1]["applied_strength"] == "PM5_Supporting"
-    assert expert_panel["criteria"][1]["default_strength"] == "PM5_Moderate"
+    assert expert_panel["criteria"][0]["applied_strength"] == "PS3_Supporting"
+    assert expert_panel["criteria"][0]["default_strength"] == "PS3_Strong"
+
+
+def test_clingen_fixture_missing_for_neighboring_rpe65_allele_without_fixture_bleed() -> None:
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.11+5G>C",
+        genomic_hgvs="",
+        genomic_hg38="",
+        protein_change="",
+    )
+
+    result = ClingenTool(_settings(use_real_apis=False)).get_evidence(variant)
+
+    assert result.status == "missing"
+    assert result.summary["classification"] == "Unavailable"
+    assert result.raw == {"records": []}
 
 
 def test_clingen_fixture_no_match_returns_missing_without_fixture_bleed() -> None:
