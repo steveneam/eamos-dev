@@ -129,6 +129,14 @@ def test_chat_route_wires_lookup_chat_chain(monkeypatch, tmp_path: Path) -> None
     app = main.create_app(_settings(tmp_path=tmp_path))
 
     with TestClient(app) as client:
+        registration = client.post(
+            "/api/v1/auth/register",
+            json={"username": "route-chat-user", "password": "route-password"},
+        )
+        assert registration.status_code == 201
+        token = registration.json()["access_token"]
+        client.headers.update({"Authorization": f"Bearer {token}"})
+
         response = client.post(
             "/api/v1/chat",
             json={

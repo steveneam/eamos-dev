@@ -1,3 +1,4 @@
+import { createClient } from '@/utils/supabase/client'
 import type { ReportPayload } from '@/lib/backend'
 
 // next.config rewrites same-origin `/api/*` to the FastAPI backend (no CORS).
@@ -25,13 +26,28 @@ export async function* streamReportChat(
   history: ReportChatTurn[] = [],
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
+  // Ask-Eamos requires login (docs/ai-gateway/pre-launch-security.md): the chat
+  // endpoint reaches the paid gateway, so attach the Supabase bearer token. The
+  // backend derives the user from the JWT and rate-limits per user.
+  const { data, error: sessionError } = await createClient().auth.getSession()
+  const accessToken = data.session?.access_token
+  if (sessionError || !accessToken) {
+    throw new Error('Sign in to ask Eamos about this variant.')
+  }
+
   const res = await fetch(`${API_BASE_URL}/api/v1/chat/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify({ question, variant_context: payload, history }),
     signal,
   })
 
+  if (res.status === 401) {
+    throw new Error('Your session expired — sign in again to ask Eamos.')
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`Chat request failed: ${res.status}${body ? ` — ${body}` : ''}`)

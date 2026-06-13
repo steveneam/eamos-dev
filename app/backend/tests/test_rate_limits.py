@@ -94,16 +94,49 @@ def test_rate_limit_ignores_proxy_headers_by_default(client: TestClient) -> None
     assert second_spoofed_ip.status_code == 429
 
 
-def test_chat_endpoint_is_rate_limited(client: TestClient) -> None:
-    _set_limit(client, "chat")
-    client.app.state.chat_service = FakeChatService()
-    payload = {
+def _chat_payload() -> dict:
+    return {
         "question": "What does this variant mean?",
-        "variant_context": {"patient_id": "rate-limit-chat"},
+        "variant_context": {
+            "patient_id": "rate-limit-chat",
+            "variant_summary_rows": [{"gene": "RPE65"}],
+        },
     }
 
-    first = client.post("/api/v1/chat", json=payload)
-    second = client.post("/api/v1/chat", json=payload)
+
+def test_chat_endpoint_requires_authentication(client: TestClient) -> None:
+    client.app.state.chat_service = FakeChatService()
+
+    assert client.post("/api/v1/chat", json=_chat_payload()).status_code == 401
+    assert client.post("/api/v1/chat/stream", json=_chat_payload()).status_code == 401
+
+
+def test_chat_endpoint_is_rate_limited(auth_client: TestClient) -> None:
+    _set_limit(auth_client, "chat")
+    auth_client.app.state.chat_service = FakeChatService()
+
+    first = auth_client.post("/api/v1/chat", json=_chat_payload())
+    second = auth_client.post("/api/v1/chat", json=_chat_payload())
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
+def test_chat_is_rate_limited_per_user_across_ips(auth_client: TestClient) -> None:
+    _set_limit(auth_client, "chat")
+    auth_client.app.state.settings.rate_limit_trust_proxy_headers = True
+    auth_client.app.state.chat_service = FakeChatService()
+
+    first = auth_client.post(
+        "/api/v1/chat",
+        json=_chat_payload(),
+        headers={"X-Forwarded-For": "203.0.113.40"},
+    )
+    second = auth_client.post(
+        "/api/v1/chat",
+        json=_chat_payload(),
+        headers={"X-Forwarded-For": "203.0.113.41"},
+    )
 
     assert first.status_code == 200
     assert second.status_code == 429
