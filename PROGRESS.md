@@ -1,5 +1,61 @@
 # Eamos Genomic Report Tool — Build Progress
 
+## 2026-06-13 22:19 +1000 - Codex - Workbench CRISPR off-target full-index runbook/proof
+
+Delivered Workbench Task 4's CRISPR off-target full-index proof package without
+any provider flip, Render env change, startup download, Supabase mutation,
+generated genome/SQLite/index artifact commit, or Claude AI-gateway file edit.
+`LLM_PROVIDER=mock` and `CRISPR_OFFTARGET_PROVIDER=auto` remain the intended
+posture.
+
+Completed:
+- Extended the read-only Workbench Render approval-bundle CLI with a structured
+  `crispr_offtarget_full_index_runbook` covering exact input source, full build
+  command, expected Render output path, checksum/manifest flow, pilot proof,
+  Render copy/mount instructions, provider-cache readiness criteria, and
+  rollback values.
+- Updated `docs/workbench-live-wiring/render-approval-bundle.md` with the human
+  runbook and proof results. Full build input is UCSC `hg38.2bit` / GRCh38 at
+  `/var/data/eamos/bio_assets/genomes/hg38.2bit`, expected MD5
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, expected size `835393456` bytes.
+- Added focused tests for the new approval-bundle runbook fields.
+- Updated the Workbench plan and proprietary catalogue entries to record the
+  Task 4 proof/runbook boundary.
+- Refreshed graphify output after code/docs changes.
+
+Proof:
+- Tiny local proof used a synthetic FASTA with one SpCas9 NGG target and wrote
+  only under `%TEMP%`, outside the repo.
+- CLI proof results: `estimate.target_count=1`,
+  `estimate.estimated_sqlite_bytes=66720`, `build.ready=true`,
+  `verify.verification_ready=true`, `manifest.ready=true`,
+  `actual_sha256` length `64`, query returned one site, and all CLI payloads
+  kept `local_path_values_emitted=false`.
+- Read-only live provider-cache smoke: SG and Vercel both remain
+  `configured_provider=auto`, `status=mock_fallback`,
+  `indexed_sqlite.ready=false`, `request_time_supabase_search=false`.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_crispr_offtarget_index_cli.py tests\test_workbench_render_approval_bundle_cli.py tests\test_health_api.py -q` passed.
+- `cd app/backend && python -m ruff check app\cli\eamos_workbench_render_approval_bundle.py tests\test_workbench_render_approval_bundle_cli.py app\services\crispr_offtarget_index.py tests\test_crispr_offtarget_index_cli.py tests\test_health_api.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app\cli\eamos_workbench_render_approval_bundle.py tests\test_workbench_render_approval_bundle_cli.py` passed.
+- `cd app/backend && python -m app.cli.eamos_crispr_offtarget_index --help` passed.
+- `cd app/backend && python -m app.cli.eamos_workbench_render_approval_bundle --compact` passed.
+- `python -m json.tool docs\proprietary\index.json` passed.
+- `git diff --check -- <Task 4 touched paths>` passed with line-ending warnings only.
+- `python -m graphify update .` passed on rerun with a longer timeout; graph HTML
+  skipped because the graph exceeds the 5000-node viz limit.
+
+Current worktree notes:
+- `main` is ahead 1 of `origin/main`.
+- Task 4 render-bundle/runbook files are reviewed and scoped for a clean commit.
+- `graphify-out/` was refreshed, but those generated files are intentionally
+  left out of the Task 4 commit because the local worktree also contains
+  separate AI-gateway/RAG nodes.
+- Separate AI-gateway/RAG worktree files, `docs/deployment/render-provider-flip-workflows.md`,
+  untracked `docs/ai-gateway-rag/`, and local `codex-workbench-temp.md` remain
+  untouched by this task.
+
 ## 2026-06-12 02:05 +1000 - Codex - Workbench CRISPR readiness, align reference, and viewer smoothness
 
 Continued the Workbench non-asset readiness slice. No commit, push, deploy,

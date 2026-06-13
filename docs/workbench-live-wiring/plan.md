@@ -194,6 +194,25 @@ Status update - 2026-06-12 01:46 +1000 - Codex:
 - Provider-cache remains mock fallback unless a valid local index is mounted and
   the provider is explicitly configured.
 
+Status update - 2026-06-13 22:04 +1000 - Codex:
+
+- Added the full-index runbook/proof to
+  `docs/workbench-live-wiring/render-approval-bundle.md` and the structured
+  `python -m app.cli.eamos_workbench_render_approval_bundle` JSON.
+- Full build input is pinned to UCSC `hg38.2bit` / GRCh38 with expected MD5
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, expected size `835393456` bytes, and
+  Render-mounted path `/var/data/eamos/bio_assets/genomes/hg38.2bit`.
+- The runbook records the full build command, expected SQLite path, checksum /
+  manifest flow, pilot tiny proof, Render copy/mount instructions,
+  provider-cache readiness criteria, rollback values, and generated-artifact
+  no-commit policy.
+- Tiny proof and read-only live provider-cache smoke are captured in the
+  approval bundle: local pilot index verified/manifested/query-smoked in
+  `%TEMP%`; SG and Vercel remain `auto` / `mock_fallback` with
+  `indexed_sqlite.ready=false`.
+- No provider flip, Render env change, startup download, Supabase mutation, or
+  generated genome/SQLite/index artifact commit was performed.
+
 ## Task 5 - CRISPR Screening Primers Over Real Windows
 
 Goal: Make screening primers fully live once off-target sites are real.
@@ -508,3 +527,16 @@ Verify after approval:
 - SG `/api/v1/health/provider-cache`
 - SG and Vercel Workbench API probes for primer, CRISPR design, off-targets,
   screening primers, ssODN, align, and outcomes.
+
+Status update - 2026-06-13 21:33 +1000 - Codex:
+
+- Added `docs/workbench-live-wiring/render-approval-bundle.md` with the exact
+  Render disk layout, env changes, preflight commands, post-flip smoke checks,
+  approval questions, and rollback values.
+- Added `python -m app.cli.eamos_workbench_render_approval_bundle`, a read-only
+  sanitized JSON generator for the same approval package. The CLI performs no
+  network calls, Render mutations, env changes, provider flips, startup
+  downloads, or source-asset writes.
+- Provider posture remains unchanged: keep `LLM_PROVIDER=mock`,
+  `CRISPR_OFFTARGET_PROVIDER=auto`, and `PRIMER_SPECIFICITY_PROVIDER=template`
+  until the approval bundle is accepted and provider-cache proves readiness.

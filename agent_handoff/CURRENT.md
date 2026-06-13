@@ -16,11 +16,11 @@
 
 - **Claude:** ACTIVE @ 2026-06-12 20:15 +1000 - **CURRENT.md trim/maintenance (user-directed).** Archived the full 2309-line pre-trim file verbatim -> `archive/2026-06-12-current-pre-trim.md`, then collapsed the bloat: the two ~28k-char stacked Claude heartbeat lines -> this single line; the 40-line Log-Edit-Lock stack -> one current line; 59 of 67 Shared File Locks (all released, dated <=2026-06-01) and 60 of 61 Cross-Agent Requests (May 17 - Jun 1; OPEN briefs all superseded by shipped milestones) -> archive; refreshed the stale `## Current State` (was 2026-05-24) and `## Claude - Last Task` (was 2026-05-29) to current. **No code/state change** - HEAD is the `ab14824` AI-gateway era; `main` ahead 1 of `origin/main` (Codex closeout `2a47216` unpushed - Codex Workbench owns push+deploy); `LLM_PROVIDER=mock`; dev `:3000` running (pre-existing). Next: AI-gateway pre-launch security gate before any prod-enable.
 
-- **Codex:** IDLE @ 2026-06-12 03:26 +10:00 - **Coordinated release pushed/deployed; follow-up docs/graph closeout ready to commit.** Pushed `1289b13` ClinGen local materialization, `ab14824` Claude AI gateway, and `550641d` Workbench CRISPR/readiness/align tooling to `origin/main`; local `HEAD` and `origin/main` both resolve to `550641d5821bb0b1d9e7bc082e2055ecd1dc0b1a`. Vercel production `dpl_EPhYH5hu9HM5TBL6LtNqH16nEHtB` / `https://eamos-7b0jk46c4-steven-eamegdool-s-projects.vercel.app` is Ready and build logs show GitHub commit `550641d`. Render SG deploy `dep-d8lerncm0tmc73cb1sfg` is live on `550641d`. Live smoke passed: SG `/healthz` 200 with `llm_provider=mock`; SG+Vercel provider-cache kept CRISPR off-target `auto`/`mock_fallback`, `indexed_sqlite.ready=false`, primer specificity `template_window`; SG+Vercel `/api/v1/align/reference` for `RPE65:c.260A>G` returned `source=resolver`; SG+Vercel `/api/v1/crispr/tide` accepted the RPE65 AB1 fixture and returned source-backed observed-only TIDE. The follow-up commit includes the Claude AI gateway risk note, graphify output refresh, and this CURRENT closeout. Remaining local-only files after that commit: `.claude/settings.json` and `codex-workbench-temp.md`.
+- **Codex:** IDLE @ 2026-06-13 22:42 +10:00 - **Workbench Task 4 CRISPR off-target full-index runbook/proof reviewed and scoped for commit.** Task 4 approval-bundle code/docs/tests are clean; graphify output is intentionally left uncommitted because it now contains separate AI-gateway/RAG nodes from the local worktree. No provider flips, Render env changes, startup downloads, Supabase mutations, generated artifact commits, or Claude AI-gateway file edits.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-12 20:15 +1000 - Claude (CURRENT.md user-directed trim: pre-trim snapshot archived verbatim; Active Status / Log-Edit-Lock / Shared File Locks / Cross-Agent Requests entries >1wk collapsed into archive; stale Current State + Claude Last Task refreshed; Codex section kept byte-exact; atomic single-write, lock was free - Codex idle since 03:26)
+UNLOCKED - 2026-06-13 22:42 +10:00 - Codex (Task 4 commit closeout; graphify left dirty because it includes separate AI-gateway/RAG worktree nodes)
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 `LOCKED: <agent> Ã‚Â· <stamp> Ã‚Â· <file/section>` before editing any of them;
@@ -270,25 +270,33 @@ DONE entries older than the last major boundary into the relevant plan/log.
 
 ## Current State
 
-- Branch `main`. Local **ahead 1** of `origin/main` - the one unpushed commit is
-  Codex's `2a47216` (`docs(handoff): commit release closeout and graph refresh`).
-  **Codex Workbench owns the push + Render/Vercel deploy** (Steven-directed); do
-  not push unless Steven redirects. `origin/main` HEAD is `550641d`.
-- Worktree (intentional local-only, do NOT stage): `M .claude/settings.json`,
-  `?? codex-workbench-temp.md`.
-- Recent shipped lineage on `origin/main`: `550641d` Workbench CRISPR/readiness/
-  align tooling (Codex) | `ab14824` AI-gateway `/report` variant chat (Claude) |
-  `1289b13` ClinGen local materialization (Codex).
+- Branch `main`. After `git fetch origin`, local `HEAD` is **ahead 1** of
+  `origin/main`: local `449151a`
+  (`feat(chat,ai-gateway): require login + per-user rate limit on Ask-Eamos chat`)
+  is a separate AI-gateway lane and was not touched by Codex Workbench Task 4.
+  `origin/main` is `bcf37d0` (`feat(tooling): handoff-lint preflight + trim
+  CURRENT.md 2309->398`).
+- Worktree before the Task 4 scoped commit contained Workbench Task 4
+  render-bundle/runbook files plus separate AI-gateway/RAG work. The Task 4
+  commit intentionally excludes `graphify-out/` because the refreshed graph now
+  contains unrelated AI-gateway/RAG nodes. Local-only/unrelated files remain:
+  `codex-workbench-temp.md`, `docs/ai-gateway-rag/`, AI-gateway/RAG backend
+  edits, and `docs/deployment/render-provider-flip-workflows.md`.
+- Recent shipped lineage on `origin/main`: `bcf37d0` handoff-lint/CURRENT trim |
+  `2a47216` release closeout and graph refresh | `550641d` Workbench
+  CRISPR/readiness/align tooling | `ab14824` AI-gateway `/report` variant chat |
+  `1289b13` ClinGen local materialization.
 - **AI-gateway is inert in prod:** `LLM_PROVIDER=mock` (Render auto-deploy OFF),
   FE chat gated coming-soon (`NEXT_PUBLIC_AI_CHAT_ENABLED` unset). Do NOT flip to
   `gateway` until the pre-launch security gate is resolved
   (`docs/ai-gateway/pre-launch-security.md`; RISKS.md top entry).
 - `CRISPR_OFFTARGET_PROVIDER=auto` / `mock_fallback`; provider-cache
   `indexed_sqlite.ready=false` (no real index on Render yet).
-- Verification last green (Codex, 2026-06-12 pre-push): focused Workbench / CRISPR /
-  TIDE / frontend-contract / gateway pytest + backend Ruff / targeted Black +
-  app/web & app/frontend tsc; live SG+Vercel health / provider-cache /
-  align-reference / TIDE smokes (`/healthz` 200, `llm_provider=mock`).
+- Verification last green (Codex, 2026-06-13 Task 4): focused
+  CRISPR-offtarget-index / render-approval-bundle / health pytest, backend Ruff,
+  targeted Black, approval-bundle CLI compact, CRISPR off-target CLI help,
+  tiny local index estimate/build/verify/manifest/query proof, `git diff --check`,
+  `python -m graphify update .`, and read-only SG+Vercel provider-cache smoke.
 - Gated (no auto-start): prod gateway enable, restricted predictor unlocks,
   Supabase / object-storage / startup downloads, destructive git. See `RISKS.md`.
 
@@ -335,64 +343,59 @@ Next: AI-gateway pre-launch security gate (docs/ai-gateway/pre-launch-security.m
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-12 03:26 +10:00 - Codex. Detailed history is in
+Section last edited: 2026-06-13 22:42 +10:00 - Codex. Detailed history is in
 PROGRESS.md, commit messages, and `docs/workbench-live-wiring/`.
 
-**Latest Codex update (2026-06-12 03:26 +10:00 - Codex):**
-Coordinated release is committed, pushed, deployed, live-smoked, and the
-follow-up handoff/risk/graphify closeout is ready to commit.
+**Latest Codex update (2026-06-13 22:42 +10:00 - Codex):**
+Workbench Task 4 CRISPR off-target full-index proof/runbook is delivered,
+reviewed, and scoped for a clean Task 4 commit.
 
 Completed:
-- Committed Codex Workbench readiness as `550641d`
-  (`feat(workbench): add CRISPR readiness and align reference tooling`).
-- Pushed the coordinated local stack to `origin/main`: `1289b13` ClinGen local
-  materialization, `ab14824` Claude AI gateway, and `550641d` Workbench
-  CRISPR/readiness/align tooling.
-- Vercel production deployment
-  `https://eamos-7b0jk46c4-steven-eamegdool-s-projects.vercel.app` is Ready;
-  build logs show GitHub commit `550641d`.
-- Render SG deploy `dep-d8lerncm0tmc73cb1sfg` is live on commit `550641d`.
-- Follow-up closeout includes `agent_handoff/RISKS.md`, this `CURRENT.md`
-  closeout, and refreshed `graphify-out/` files.
+- Extended `python -m app.cli.eamos_workbench_render_approval_bundle` with
+  `crispr_offtarget_full_index_runbook`.
+- Updated `docs/workbench-live-wiring/render-approval-bundle.md` with the exact
+  full-index input (`UCSC hg38.2bit`, GRCh38, MD5
+  `dcc3ea27079aa6dc3f9deccd7275e0f8`, size `835393456`, Render path
+  `/var/data/eamos/bio_assets/genomes/hg38.2bit`), full build command, expected
+  output path, checksum/manifest flow, tiny proof, Render copy/mount steps,
+  provider-cache readiness criteria, rollback values, and tests/smoke proof.
+- Updated `docs/workbench-live-wiring/plan.md`, the proprietary catalogue, and
+  `PROGRESS.md`.
 
 Verification:
-- Pre-push focused pytest for Workbench/CRISPR/TIDE/frontend-contract/gateway
-  passed.
-- Backend Ruff, targeted Black, `app/web` TypeScript, and `app/frontend`
-  TypeScript passed.
-- Vercel logs: build cloned GitHub commit `550641d`, compiled successfully, ran
-  TypeScript, and deployed Ready.
-- Render API: deploy `dep-d8lerncm0tmc73cb1sfg` status `live`, commit
-  `550641d5821bb0b1d9e7bc082e2055ecd1dc0b1a`.
-- Live SG `/healthz` returned 200 with `llm_provider=mock`.
-- Live SG+Vercel provider-cache kept CRISPR off-target `auto` /
-  `mock_fallback`, `indexed_sqlite.ready=false`, and primer specificity
-  `template_window`.
-- Live SG+Vercel `/api/v1/align/reference` for `RPE65:c.260A>G` returned
-  `source=resolver`.
-- Live SG+Vercel `/api/v1/crispr/tide` accepted the RPE65 AB1 fixture pair and
-  returned source-backed observed-only TIDE.
+- Focused pytest passed:
+  `tests\test_crispr_offtarget_index_cli.py`,
+  `tests\test_workbench_render_approval_bundle_cli.py`,
+  `tests\test_health_api.py`.
+- Ruff and targeted Black passed for the touched backend CLI/tests.
+- Tiny `%TEMP%` CRISPR index proof passed:
+  estimate target count 1, build ready, verify ready, manifest ready with
+  64-character SHA-256, query returned one site, and
+  `local_path_values_emitted=false`.
+- Read-only SG+Vercel provider-cache smoke passed:
+  `configured_provider=auto`, `status=mock_fallback`,
+  `indexed_sqlite.ready=false`, `request_time_supabase_search=false`.
+- `python -m graphify update .` passed on rerun with longer timeout; graph HTML
+  skipped because the graph is over the 5000-node viz limit. The resulting
+  `graphify-out/` files are left uncommitted in this Task 4 commit because they
+  include separate local AI-gateway/RAG worktree nodes.
 
 Guardrails:
-- No Render provider/env flip was performed.
-- `LLM_PROVIDER` remains `mock` in live `/healthz`; do not switch to gateway
-  until the AI gateway pre-launch auth/cost gate is resolved.
-- `CRISPR_OFFTARGET_PROVIDER` remains `auto`; provider-cache reports
-  `indexed_sqlite.ready=false`.
-- `.claude/settings.json` and `codex-workbench-temp.md` remain intentionally
-  uncommitted.
-- `.claude/settings.json` and `codex-workbench-temp.md` remain the only
-  intentional local-only files after the closeout commit.
+- No provider flip, Render env change, startup download, Supabase mutation,
+  generated SQLite/genome/index artifact commit, or Claude AI-gateway file edit.
+- Keep `LLM_PROVIDER=mock`, `CRISPR_OFFTARGET_PROVIDER=auto`, and
+  `PRIMER_SPECIFICITY_PROVIDER=template` until approval/readiness gates pass.
+- After `git fetch origin`, local `HEAD` is ahead 1 at AI-gateway commit
+  `449151a`; `origin/main` is `bcf37d0`. This task did not touch that lane.
+- Unrelated worktree files remain: `codex-workbench-temp.md`,
+  `docs/ai-gateway-rag/`, AI-gateway/RAG backend edits, and
+  `docs/deployment/render-provider-flip-workflows.md`.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-12 03:26 +1000 - Codex coordinated release deployed and closeout committed
-
-Eamos. Continue in D:\eamos on Windows/PowerShell only. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md, docs/workbench-live-wiring/plan.md, then run git status --short --branch.
-
-Delta: Coordinated release pushed to `origin/main` at `550641d`: `1289b13` ClinGen local materialization + `ab14824` Claude AI gateway + `550641d` Workbench CRISPR/readiness/align tooling. Vercel production is Ready and Render SG deploy `dep-d8lerncm0tmc73cb1sfg` is live on `550641d`. Follow-up closeout committed `agent_handoff/RISKS.md`, `agent_handoff/CURRENT.md`, and refreshed `graphify-out/`.
-
-Verification: pre-push focused pytest/Ruff/targeted Black/web+frontend TypeScript passed; live SG+Vercel health/provider-cache/align-reference/TIDE smokes passed. `LLM_PROVIDER=mock`; CRISPR off-target remains `auto`/`mock_fallback`.
-
-Next: continue only after checking whether `.claude/settings.json` and `codex-workbench-temp.md` should remain local; do not commit either unless Steven explicitly asks. Keep `LLM_PROVIDER=mock` and `CRISPR_OFFTARGET_PROVIDER=auto` until their launch gates are resolved. End clear-safe.
+# Resume prompt - 2026-06-13 22:42 +1000 - Codex Workbench Task 4 runbook/proof commit
+Eamos. Continue in D:\eamos on Windows/PowerShell only. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md, docs/workbench-live-wiring/plan.md, docs/workbench-live-wiring/render-approval-bundle.md, then run git fetch origin && git status --short --branch.
+Delta: Workbench Task 4 CRISPR off-target full-index proof/runbook is delivered and committed in the Render approval bundle and CLI JSON. It pins UCSC hg38.2bit input/checksum, full build command, expected SQLite path, checksum/manifest flow, tiny proof, Render copy/mount, provider-cache readiness, rollback, and verification. No provider/env/storage changes.
+Verification: focused pytest/Ruff/Black, CLI help, approval-bundle compact CLI, tiny index estimate/build/verify/manifest/query proof, git diff --check, graphify update, and read-only SG+Vercel provider-cache smoke passed. Live CRISPR remains auto/mock_fallback with indexed_sqlite.ready=false; LLM_PROVIDER remains mock.
+Next: keep separate the local ahead AI-gateway commit 449151a, AI-gateway/RAG worktree files, docs/deployment/render-provider-flip-workflows.md, dirty graphify-out generated from those RAG nodes, docs/ai-gateway-rag/, and codex-workbench-temp.md. End clear-safe.
 ```

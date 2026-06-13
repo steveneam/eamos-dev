@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-12 01:46 +1000 - Codex",
+  "updated": "2026-06-13 22:04 +1000 - Codex",
   "purpose": "Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic.",
   "entries": [
     {
@@ -8,24 +8,27 @@
       "type": "operator_cli_readiness_workflow",
       "status": "active_backend_prototype",
       "added_at": "2026-06-12 01:46 +1000 - Codex",
-      "last_updated_at": "2026-06-12 01:46 +1000 - Codex",
+      "last_updated_at": "2026-06-13 22:04 +1000 - Codex",
       "doc": "docs/proprietary/eamos-crispr-readiness-tooling.md",
       "source_files": [
         "app/backend/app/services/crispr_design.py",
         "app/backend/app/services/crispr_offtarget_index.py",
         "app/backend/app/api/routes/health.py",
         "app/backend/app/cli/eamos_crispr_score_preflight.py",
-        "app/backend/app/cli/eamos_crispr_offtarget_index.py"
+        "app/backend/app/cli/eamos_crispr_offtarget_index.py",
+        "app/backend/app/cli/eamos_workbench_render_approval_bundle.py"
       ],
       "entry_points": [
         "python -m app.cli.eamos_crispr_score_preflight",
         "python -m app.cli.eamos_crispr_offtarget_index estimate",
         "python -m app.cli.eamos_crispr_offtarget_index verify",
-        "python -m app.cli.eamos_crispr_offtarget_index manifest"
+        "python -m app.cli.eamos_crispr_offtarget_index manifest",
+        "python -m app.cli.eamos_workbench_render_approval_bundle"
       ],
       "tests": [
         "app/backend/tests/test_crispr_design.py",
         "app/backend/tests/test_crispr_offtarget_index_cli.py",
+        "app/backend/tests/test_workbench_render_approval_bundle_cli.py",
         "app/backend/tests/test_health_api.py"
       ]
     },
