@@ -399,7 +399,7 @@ def _build_loaded_index(rows: tuple[dict[str, Any], ...]) -> _LoadedCompactCoord
 
 
 def _iter_jsonl(path: Path) -> Iterable[dict[str, Any]]:
-    opener = gzip.open if path.suffix.lower() == ".gz" else open
+    opener = gzip.open if _is_gzip_path_or_payload(path) else open
     with opener(path, "rt", encoding="utf-8", errors="replace") as handle:
         for line_number, line in enumerate(handle, start=1):
             if not line.strip():
@@ -412,6 +412,16 @@ def _iter_jsonl(path: Path) -> Iterable[dict[str, Any]]:
                     {"line_number": line_number},
                 )
             yield payload
+
+
+def _is_gzip_path_or_payload(path: Path) -> bool:
+    if path.suffix.lower() == ".gz":
+        return True
+    try:
+        with path.open("rb") as handle:
+            return handle.read(2) == b"\x1f\x8b"
+    except OSError:
+        return False
 
 
 def _variant_from_row(row: Mapping[str, Any]) -> CompactCoordinateVariant:

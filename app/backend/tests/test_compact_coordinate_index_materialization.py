@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -195,6 +196,49 @@ def test_materialize_compact_index_downloads_private_object_with_manifest(
     assert str(destination) not in encoded
     assert object_path not in encoded
     assert "supabase://" not in encoded
+
+
+def test_materialize_compact_index_validates_gzip_private_object_with_temp_suffix(
+    tmp_path: Path,
+) -> None:
+    payload = gzip.compress(COMPACT_INDEX_FIXTURE.read_bytes(), mtime=0)
+    object_path = "coordinate/eamos-coordinate-index.latest.jsonl.gz"
+    manifest = {
+        "byte_size": len(payload),
+        "checksums": {
+            "md5": hashlib.md5(payload).hexdigest(),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        },
+    }
+    payloads = {
+        _encoded_storage_path(f"{object_path}.manifest.json"): json.dumps(manifest).encode("utf-8"),
+        _encoded_storage_path(object_path): payload,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        key = request.url.path.split("/storage/v1/object/eamos-source-assets/", 1)[-1]
+        return httpx.Response(200, content=payloads.get(key, b""))
+
+    destination = tmp_path / "runtime" / "eamos-coordinate-index.latest.jsonl.gz"
+    settings = Settings(
+        jwt_secret="test-secret",
+        supabase_url="https://example.supabase.co",
+        supabase_service_role_key="service-role-secret",
+        coordinate_resolver_compact_index_path=destination,
+    )
+
+    result = materialize_compact_coordinate_index(
+        settings,
+        source_object_uri=f"supabase://eamos-source-assets/{object_path}",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    assert result.ready is True
+    assert result.status == "ready"
+    assert result.downloaded is True
+    assert result.schema_validated is True
+    assert result.transcript_count == 2
+    assert destination.read_bytes() == payload
 
 
 def test_compact_index_materialize_cli_fails_closed_without_source(

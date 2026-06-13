@@ -370,6 +370,10 @@ def test_http_source_client_uses_compact_coordinate_index_before_http(
     assert transcript.exons[1].genomic_start == 68444805
     assert "compact_coordinate_index_transcript" in transcript.warnings
     assert [source.name for source in sources] == ["eamos_compact_coordinate_index"]
+    assert sources[0].identifier == "NM_000329.3"
+    assert sources[0].url is None
+    encoded_sources = json.dumps([source.model_dump() for source in sources]).lower()
+    assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded_sources
 
 
 def _ensembl_rpe65_lookup_payload() -> dict:

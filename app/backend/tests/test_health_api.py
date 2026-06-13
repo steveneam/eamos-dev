@@ -5,10 +5,12 @@ import os
 import stat
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
+import app.services.build_ledger as build_ledger_module
 from app.core.config import Settings
 from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.main import create_app
@@ -219,6 +221,64 @@ def test_provider_cache_health_reports_crispr_offtarget_index_ready_without_path
     assert "supabase://" not in encoded
 
 
+def test_provider_cache_health_reports_crispr_offtarget_auto_missing_as_mock_fallback(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        crispr_offtarget_provider="auto",
+        crispr_offtarget_index_path=tmp_path / "missing.sqlite",
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    off_target = response.json()["providers"]["crispr"]["off_target_screening"]
+    assert off_target["configured_provider"] == "auto"
+    assert off_target["available"] is True
+    assert off_target["status"] == "mock_fallback"
+    assert off_target["mock_fallback_enabled"] is True
+    assert off_target["render_materialization_required"] is True
+    assert off_target["request_time_supabase_search"] is False
+    assert off_target["launch_gate"] == "crispr_offtarget_index_artifact_not_materialized"
+    assert off_target["indexed_sqlite"]["ready"] is False
+    encoded = json.dumps(response.json()).lower()
+    assert str(tmp_path).lower() not in encoded
+
+
+def test_provider_cache_health_reports_forced_crispr_offtarget_index_missing_as_unavailable(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        crispr_offtarget_provider="indexed_sqlite",
+        crispr_offtarget_index_path=tmp_path / "missing.sqlite",
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    off_target = response.json()["providers"]["crispr"]["off_target_screening"]
+    assert off_target["configured_provider"] == "indexed_sqlite"
+    assert off_target["available"] is False
+    assert off_target["status"] == "unavailable"
+    assert off_target["mock_fallback_enabled"] is False
+    assert off_target["render_materialization_required"] is True
+    assert off_target["request_time_supabase_search"] is False
+    assert off_target["launch_gate"] == "crispr_offtarget_index_artifact_not_materialized"
+    assert off_target["indexed_sqlite"]["ready"] is False
+    encoded = json.dumps(response.json()).lower()
+    assert str(tmp_path).lower() not in encoded
+
+
 def test_provider_cache_health_reports_compact_coordinate_index_ready_without_paths(
     tmp_path: Path,
 ) -> None:
@@ -242,11 +302,46 @@ def test_provider_cache_health_reports_compact_coordinate_index_ready_without_pa
     assert compact_index["variant_count"] == 2
     assert compact_index["transcript_count"] == 2
     assert compact_index["checksum_verified"] is False
+    assert compact_index["source_runtime_scan_allowed"] is False
+    assert compact_index["startup_download_allowed"] is False
     ledger_items = {item["item_id"]: item for item in body["build_ledger"]["items"]}
     assert ledger_items["coordinate_compact_index"]["status"] == "ready"
     encoded = json.dumps(body).lower()
     assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded
     assert "eamos-coordinate-index" not in encoded
+
+
+def test_build_ledger_marks_gene_view_ready_when_runtime_dependencies_are_ready(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+    )
+
+    monkeypatch.setattr(
+        build_ledger_module,
+        "inspect_hg38_runtime_asset",
+        lambda *args, **kwargs: SimpleNamespace(status=SimpleNamespace(value="ready")),
+    )
+    monkeypatch.setattr(
+        build_ledger_module,
+        "_compact_coordinate_index_status",
+        lambda settings: "ready",
+    )
+
+    ledger = build_ledger_module.build_backend_build_ledger(
+        settings,
+        protein_annotation_status={"status": "available"},
+    )
+
+    items = {item["item_id"]: item for item in ledger["items"]}
+    assert items["gene_view"]["status"] == "ready"
+    assert items["gene_view"]["blockers"] == []
+    assert items["gene_view"]["next_action"] is None
 
 
 def test_pubmed_local_startup_materialization_flag_fails_closed(tmp_path: Path) -> None:

@@ -165,7 +165,7 @@ def build_backend_build_ledger(
         _coordinate_index_item(readiness_by_source, coordinate_index_status),
         _local_evidence_gate_item(local_gate),
         _clinical_source_tables_item(readiness_by_source),
-        _gene_view_item(hg38_status, protein_status),
+        _gene_view_item(hg38_status, coordinate_index_status, protein_status),
         _protein_pfam_item(protein_status),
         _predictor_item(
             item_id="alphamissense",
@@ -732,11 +732,16 @@ def _clinical_source_tables_item(readiness_by_source: dict[str, Any]) -> BuildLe
     )
 
 
-def _gene_view_item(hg38_status: str, protein_status: str) -> BuildLedgerItem:
+def _gene_view_item(
+    hg38_status: str,
+    coordinate_index_status: str,
+    protein_status: str,
+) -> BuildLedgerItem:
     blockers = []
     if hg38_status != "ready":
         blockers.append("hg38_runtime_asset_ready")
-    blockers.append("compact_coordinate_index")
+    if coordinate_index_status != "ready":
+        blockers.append("compact_coordinate_index")
     if protein_status not in {"available", "ready"}:
         blockers.append("protein_runtime_ready")
     return BuildLedgerItem(
@@ -762,7 +767,11 @@ def _gene_view_item(hg38_status: str, protein_status: str) -> BuildLedgerItem:
         public_serialization_allowed=True,
         blockers=tuple(dict.fromkeys(blockers)),
         wired_surfaces=("gene_viewer", "lookup_sections"),
-        next_action="Point Gene View at the compact coordinate index and verified protein runtime.",
+        next_action=(
+            None
+            if not blockers
+            else "Point Gene View at the compact coordinate index and verified protein runtime."
+        ),
     )
 
 

@@ -37,3 +37,9 @@
      clinical source tables, literature, and startup policy.
    - Run lint/format checks where available.
    - Run `git diff --check`.
+
+7. Continue materialization from the current execution checklist.
+   - Use `docs/backend-build-ledger-runtime/materialization-plan.md` for the
+     compact coordinate index and local-adapter runtime sequence.
+   - Keep that checklist aligned with live SG health and Supabase inventory
+     before provider flips.
