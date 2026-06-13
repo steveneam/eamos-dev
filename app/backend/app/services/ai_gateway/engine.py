@@ -148,9 +148,7 @@ class AIGatewayEngine:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> GatewayResult:
-        body = self._body(
-            messages, stream=False, temperature=temperature, max_tokens=max_tokens
-        )
+        body = self._body(messages, stream=False, temperature=temperature, max_tokens=max_tokens)
         response = self._send_with_retry(body)
         try:
             data = response.json()
@@ -161,6 +159,27 @@ class AIGatewayEngine:
         result = GatewayResult(content=content)
         _extract_metadata(data, result)
         return result
+
+    # -- embeddings --------------------------------------------------------
+
+    def embed(self, inputs: list[str], *, model: str) -> list[list[float]]:
+        """Return one embedding vector per input via the gateway's OpenAI-compatible
+        `/embeddings` endpoint.
+
+        `model` is explicit (the engine's `model` attr is the *chat* model) — pass an
+        embedding model such as `openai/text-embedding-3-small`. Used offline at
+        corpus materialization and once per chat turn for the question embedding.
+        """
+        if not inputs:
+            return []
+        body = {"model": model, "input": list(inputs)}
+        response = self._send_with_retry(body, path="/embeddings")
+        try:
+            data = response.json()
+        finally:
+            response.close()
+        rows = sorted(data.get("data") or [], key=lambda row: row.get("index", 0))
+        return [list(row.get("embedding") or []) for row in rows]
 
     # -- streaming ---------------------------------------------------------
 
@@ -179,9 +198,7 @@ class AIGatewayEngine:
         generator is exhausted. Per-request `meta` avoids cross-request races on
         the shared engine.
         """
-        body = self._body(
-            messages, stream=True, temperature=temperature, max_tokens=max_tokens
-        )
+        body = self._body(messages, stream=True, temperature=temperature, max_tokens=max_tokens)
         response = self._send_with_retry(body, stream=True)
         try:
             for line in response.iter_lines():
@@ -208,14 +225,12 @@ class AIGatewayEngine:
     # -- transport with retry ---------------------------------------------
 
     def _send_with_retry(
-        self, body: dict[str, Any], *, stream: bool = False
+        self, body: dict[str, Any], *, stream: bool = False, path: str = "/chat/completions"
     ) -> httpx.Response:
         last_error: Exception | None = None
         for attempt in range(self.max_retries):
             try:
-                request = self._client.build_request(
-                    "POST", "/chat/completions", json=body
-                )
+                request = self._client.build_request("POST", path, json=body)
                 response = self._client.send(request, stream=stream)
             except httpx.TransportError as exc:
                 last_error = exc
@@ -229,9 +244,7 @@ class AIGatewayEngine:
             if response.status_code >= 400:
                 detail = _safe_error_detail(response, stream)
                 response.close()
-                raise GatewayError(
-                    f"AI Gateway returned {response.status_code}: {detail}"
-                )
+                raise GatewayError(f"AI Gateway returned {response.status_code}: {detail}")
             return response
         raise GatewayError(
             f"AI Gateway unreachable after {self.max_retries} attempts: {last_error}"

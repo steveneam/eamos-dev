@@ -118,6 +118,42 @@ def test_complete_honours_forced_order_reversal() -> None:
     assert result.final_provider == "bedrock"
 
 
+# --- broker: embeddings (literature RAG, D2=A) -----------------------------
+
+
+def test_embed_calls_embeddings_endpoint_and_orders_by_index() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = json.loads(request.content)
+        # return out of order to prove we sort by index
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"index": 1, "embedding": [0.3, 0.4]},
+                    {"index": 0, "embedding": [0.1, 0.2]},
+                ]
+            },
+        )
+
+    engine = _engine(handler)
+    vectors = engine.embed(["a", "b"], model="openai/text-embedding-3-small")
+
+    assert captured["url"].endswith("/embeddings")
+    assert captured["body"]["model"] == "openai/text-embedding-3-small"
+    assert captured["body"]["input"] == ["a", "b"]
+    assert vectors == [[0.1, 0.2], [0.3, 0.4]]
+
+
+def test_embed_empty_input_makes_no_call() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("embed([]) must not hit the gateway")
+
+    assert _engine(handler).embed([], model="m") == []
+
+
 # --- broker: streaming -----------------------------------------------------
 
 
@@ -146,9 +182,7 @@ def test_stream_chat_yields_token_deltas_and_captures_meta() -> None:
 
     engine = _engine(handler)
     meta = GatewayResult()  # fresh per-request holder
-    tokens = list(
-        engine.stream_chat([{"role": "user", "content": "hi"}], meta=meta)
-    )
+    tokens = list(engine.stream_chat([{"role": "user", "content": "hi"}], meta=meta))
 
     assert tokens == ["Hello", " world"]
     assert meta.generation_id == "gen_STREAM"
@@ -212,6 +246,23 @@ def test_guard_rejects_secret_token_in_payload() -> None:
     context = {"warnings": []}
     with pytest.raises(EvidenceContextError):
         assert_evidence_only(context, serialized)
+
+
+def test_guard_allows_retrieved_literature_key() -> None:
+    context = {
+        "retrieved_literature": [
+            {"pmid": "35901234", "title": "RPE65 study", "snippet": "RPE65 abstract."}
+        ]
+    }
+    assert_evidence_only(context, json.dumps(context))  # no raise
+
+
+def test_contains_forbidden_token_flags_phi_and_secrets_only() -> None:
+    from app.services.ai_gateway import contains_forbidden_token
+
+    assert contains_forbidden_token("note: patient_id 42")
+    assert contains_forbidden_token("token Bearer vck_abcdefghijklmnop")
+    assert not contains_forbidden_token("RPE65 is a retinal dystrophy gene")
 
 
 # --- adapter: build_gateway_messages + build_gateway_chat_client -----------

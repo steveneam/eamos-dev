@@ -43,6 +43,7 @@ from app.repos.variant_library_repo import (
     VariantLibraryRepo,
 )
 from app.rules.clinic_rules import ClinicRules
+from app.services.ai_gateway.retrieval import build_literature_retriever
 from app.services.auth import AuthService
 from app.services.batch import BatchService
 from app.services.chat_service import ChatService
@@ -147,6 +148,7 @@ def create_app(settings=None) -> FastAPI:
     draft_chain = build_draft_chain(settings)
     lookup_chat_chain = build_lookup_chat_chain(settings)
     gateway_chat_client = build_gateway_chat_client(settings)
+    literature_retriever = build_literature_retriever(settings)
     run_chat_chain = build_run_chat_chain(settings)
     embeddings_model = build_embeddings_model(settings)
     tool_registry = build_tool_registry(
@@ -243,6 +245,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.chat_service = ChatService(
         settings=settings,
         llm_client=gateway_chat_client or lookup_chat_chain,
+        literature_retriever=literature_retriever,
     )
     app.state.final_report_service = FinalReportService(settings, run_repo)
     app.state.sequence_context_service = sequence_context_service

@@ -14,6 +14,16 @@ from app.services.ai_gateway.guard import (
     ALLOWED_CONTEXT_KEYS,
     EvidenceContextError,
     assert_evidence_only,
+    contains_forbidden_token,
+)
+from app.services.ai_gateway.retrieval import (
+    LiteratureRetriever,
+    RetrievedLiterature,
+    build_literature_retriever,
+)
+from app.services.ai_gateway.structured import (
+    StructuredOutputError,
+    extract_structured,
 )
 
 __all__ = [
@@ -23,4 +33,10 @@ __all__ = [
     "ALLOWED_CONTEXT_KEYS",
     "EvidenceContextError",
     "assert_evidence_only",
+    "contains_forbidden_token",
+    "LiteratureRetriever",
+    "RetrievedLiterature",
+    "build_literature_retriever",
+    "StructuredOutputError",
+    "extract_structured",
 ]

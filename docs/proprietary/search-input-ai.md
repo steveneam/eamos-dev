@@ -4,7 +4,7 @@ Status: Mock-first backend prototype with opt-in live smoke harness
 Type: AI-assisted extraction service plus curated reference dictionary
 Owner: Codex backend
 Added: 2026-05-21 23:09 +1000 - Codex
-Last updated: 2026-05-23 18:00 +1000 - Codex
+Last updated: 2026-06-13 23:16 +1000 - Claude
 
 ## What It Does
 
@@ -46,6 +46,11 @@ The custom part is the safety-gated orchestration:
 - Schema: `app/backend/app/schemas/lookup.py`
 - Prompt/live chain: `app/backend/app/agents/prompts.py`,
   `app/backend/app/agents/client.py`
+- Gateway provider path (2026-06-13): `build_gateway_search_input_chain` in
+  `app/backend/app/agents/client.py` routes live extraction through the AI Gateway
+  using the structured validate+repair substrate
+  `app/backend/app/services/ai_gateway/structured.py`
+  (see [Eamos AI Gateway](./eamos-ai-gateway.md)); active when `LLM_PROVIDER=gateway`.
 - Smoke CLI: `app/backend/app/cli/search_input_ai_smoke.py`
 - Curated lexicon: `app/backend/app/fixtures/search_input_lexicon.json`
 - Interpreter wiring: `app/backend/app/services/search_input_interpreter.py`

@@ -11,6 +11,7 @@ from app.agents.prompts import (
     extraction_prompt,
     gateway_chat_prompt,
     lookup_chat_prompt,
+    paper_variants_prompt,
     search_input_extraction_prompt,
 )
 
@@ -18,6 +19,7 @@ from app.core.config import Settings
 from app.schemas.chat import LookupChatAnswerDraft, RunChatAnswerDraft
 from app.schemas.draft import DraftPayload
 from app.schemas.lookup import SearchInputAiExtraction
+from app.schemas.paper_variants import PaperVariantsExtraction
 from app.schemas.report import ExtractedCase
 from pydantic import SecretStr
 
@@ -205,12 +207,101 @@ def build_lookup_chat_chain(settings: Settings):
     return LiveLookupChatChain()
 
 
+def build_gateway_search_input_chain(settings: Settings, *, engine=None):
+    """Messy-text → structured search intent via the gateway broker.
+
+    Routes the search-input extraction through the AI Gateway with the structured
+    validate+repair substrate (`extract_structured`), returning a dict that mirrors
+    the OpenAI chain's output so `SearchInputAiExtractor` is provider-agnostic.
+    Returns None unless `llm_provider == "gateway"` with a key. The `engine` seam
+    lets tests inject a fake broker. See docs/ai-gateway/plan.md follow-on §1."""
+    if settings.llm_provider != "gateway" or not settings.ai_gateway_api_key:
+        return None
+
+    if engine is None:
+        from app.services.ai_gateway import AIGatewayEngine
+
+        engine = AIGatewayEngine(
+            api_key=settings.ai_gateway_api_key,
+            model=settings.ai_gateway_model,
+            provider_order=settings.ai_gateway_provider_order,
+            base_url=settings.ai_gateway_base_url,
+            max_tokens=settings.ai_gateway_max_tokens,
+            timeout_seconds=settings.search_input_ai_timeout_seconds,
+            max_retries=settings.ai_gateway_max_retries,
+        )
+
+    from app.services.ai_gateway.structured import extract_structured
+
+    system_prompt = search_input_extraction_prompt()
+
+    class GatewaySearchInputChain:
+        def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
+            user_content = (
+                f"Submitted search text:\n{payload.get('search_text', '')}\n\n"
+                f"Curated Eamos reference context:\n{payload.get('reference_context', '')}"
+            )
+            extraction = extract_structured(
+                engine,
+                system_prompt=system_prompt,
+                user_content=user_content,
+                schema=SearchInputAiExtraction,
+                temperature=0.0,
+            )
+            return extraction.model_dump(mode="json")
+
+    return GatewaySearchInputChain()
+
+
+def build_gateway_paper_variants_chain(settings: Settings, *, engine=None):
+    """Paper text → structured variant candidates via the gateway broker.
+
+    Reuses the structured validate+repair substrate (`extract_structured`) with the
+    paper-variants schema; returns a dict mirroring `PaperVariantsExtraction`.
+    Returns None unless `llm_provider == "gateway"` with a key. Candidates are
+    gated downstream by VariantValidator (see `PaperVariantsService`).
+    See docs/ai-gateway/plan.md follow-on §2."""
+    if settings.llm_provider != "gateway" or not settings.ai_gateway_api_key:
+        return None
+
+    if engine is None:
+        from app.services.ai_gateway import AIGatewayEngine
+
+        engine = AIGatewayEngine(
+            api_key=settings.ai_gateway_api_key,
+            model=settings.ai_gateway_model,
+            provider_order=settings.ai_gateway_provider_order,
+            base_url=settings.ai_gateway_base_url,
+            max_tokens=settings.ai_gateway_max_tokens,
+            timeout_seconds=settings.ai_gateway_timeout_seconds,
+            max_retries=settings.ai_gateway_max_retries,
+        )
+
+    from app.services.ai_gateway.structured import extract_structured
+
+    system_prompt = paper_variants_prompt()
+
+    class GatewayPaperVariantsChain:
+        def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
+            user_content = f"Publication text:\n{payload.get('paper_text', '')}"
+            extraction = extract_structured(
+                engine,
+                system_prompt=system_prompt,
+                user_content=user_content,
+                schema=PaperVariantsExtraction,
+                temperature=0.0,
+            )
+            return extraction.model_dump(mode="json")
+
+    return GatewayPaperVariantsChain()
+
+
 def build_search_input_ai_chain(settings: Settings):
-    if (
-        not settings.search_input_ai_enabled
-        or settings.llm_provider == "mock"
-        or not settings.openai_api_key
-    ):
+    if not settings.search_input_ai_enabled:
+        return None
+    if settings.llm_provider == "gateway":
+        return build_gateway_search_input_chain(settings)
+    if settings.llm_provider == "mock" or not settings.openai_api_key:
         return None
     from langchain_openai import ChatOpenAI
 

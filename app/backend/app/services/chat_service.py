@@ -26,9 +26,12 @@ UNSUPPORTED_QUESTION_TERMS = (
 
 
 class ChatService:
-    def __init__(self, settings, llm_client) -> None:
+    def __init__(self, settings, llm_client, literature_retriever=None) -> None:
         self.settings = settings
         self.llm = llm_client
+        # Literature RAG retriever (gateway path only; None otherwise — see
+        # build_literature_retriever). docs/ai-gateway-rag/spec.md.
+        self.literature_retriever = literature_retriever
 
     def respond(self, payload: ChatRequest) -> ChatResponse:
         if self.settings.llm_provider == "mock":
@@ -167,8 +170,7 @@ class ChatService:
                 else None
             ),
             "computational_predictors": [
-                item.model_dump(mode="json", exclude_none=True)
-                for item in computational
+                item.model_dump(mode="json", exclude_none=True) for item in computational
             ][:8],
             "expert_panel": (
                 {
@@ -183,9 +185,33 @@ class ChatService:
             "workbench": self._workbench_context(payload),
             "warnings": self._context_warnings(report),
         }
+        retrieved = self._retrieved_literature(payload, report)
+        if retrieved:
+            context["retrieved_literature"] = retrieved
         serialized = json.dumps(context, sort_keys=True, default=str)
         assert_evidence_only(context, serialized)
         return serialized
+
+    def _retrieved_literature(self, payload: ChatRequest, report) -> list[dict[str, Any]]:
+        """Gene-scoped literature snippets for the gateway RAG path.
+
+        Empty (the chat falls back to report-only grounding) when no retriever is
+        configured, the variant has no gene, or retrieval finds nothing — never
+        raises, so a retrieval miss can't break a chat turn.
+        """
+        if self.literature_retriever is None:
+            return []
+        genes = [row.gene for row in report.variant_summary_rows[:5] if getattr(row, "gene", None)]
+        if not genes:
+            return []
+        hits = self.literature_retriever.retrieve(payload.question, genes)
+        if hits:
+            # Provenance: pmid + score only, never abstract text (spec §7).
+            logger.info(
+                "ai_gateway chat retrieval %s",
+                {"retrieved": [{"pmid": hit.pmid, "score": hit.score} for hit in hits]},
+            )
+        return [hit.to_context_dict() for hit in hits]
 
     def _publication_context(self, payload) -> dict[str, Any] | None:
         if not payload.publications_callout and not payload.publications_literature:

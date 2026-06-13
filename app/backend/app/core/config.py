@@ -79,6 +79,28 @@ class Settings(BaseSettings):
     ai_gateway_timeout_seconds: float = 30.0
     ai_gateway_max_retries: int = 3
 
+    # --- AI gateway literature RAG — docs/ai-gateway-rag/spec.md ---
+    # Variant chat retrieves gene-scoped PubMed abstract snippets from a local-first
+    # vector store (D1=B: SQLite on the Render disk beside pubmed_local) when
+    # rag_enabled and llm_provider == "gateway". Question + corpus embeddings go
+    # through the gateway broker (D2=A). Inert otherwise; the store is built offline
+    # by eamos_literature_embed_materialize, never at startup/deploy.
+    rag_enabled: bool = False
+    rag_sqlite_path: Path = Path("./data/bio_assets/literature/literature-embeddings.sqlite")
+    rag_manifest_path: Path = Path(
+        "./data/bio_assets/literature/literature-embeddings.manifest.json"
+    )
+    rag_embedding_model: str = "openai/text-embedding-3-small"
+    rag_embedding_dim: int = 1536
+    rag_top_k: int = 5
+    rag_min_score: float = 0.2
+    rag_snippet_max_chars: int = 600
+
+    # PDF text extraction engine for paper/report ingestion (docs/ai-gateway-paper-variants).
+    # "pypdf" (BSD, default, commercial-safe) | "pdfplumber" (MIT) | "fitz" (PyMuPDF —
+    # fastest, AGPL: needs an Artifex commercial licence for production SaaS use).
+    pdf_text_engine: str = "pypdf"
+
     use_real_apis: bool = False
     workbench_live_design_enabled: bool = True
     local_evidence_enabled: bool = False
@@ -208,9 +230,7 @@ class Settings(BaseSettings):
     @property
     def ai_gateway_provider_order(self) -> list[str]:
         return [
-            item.strip()
-            for item in self.ai_gateway_provider_order_raw.split(",")
-            if item.strip()
+            item.strip() for item in self.ai_gateway_provider_order_raw.split(",") if item.strip()
         ]
 
     @property

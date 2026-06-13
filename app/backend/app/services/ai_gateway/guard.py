@@ -25,6 +25,10 @@ ALLOWED_CONTEXT_KEYS = frozenset(
         "expert_panel",
         "workbench",
         "warnings",
+        # Literature RAG (docs/ai-gateway-rag/spec.md D5): retrieved PubMed abstract
+        # snippets, scoped to the variant's gene. Snippets are sanitized by retrieval
+        # before injection; this guard stays the fail-closed backstop.
+        "retrieved_literature",
     }
 )
 
@@ -43,6 +47,18 @@ _SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9]{16,}"),
     re.compile(r"\bvck_[A-Za-z0-9._\-]{12,}"),  # Vercel AI Gateway key prefix
 )
+
+
+def contains_forbidden_token(text: str) -> bool:
+    """True if `text` carries a PHI- or secret-shaped token.
+
+    Single-sources the guard's forbidden patterns so retrieval can defensively
+    drop an individual unsafe snippet (rather than failing the whole turn) while
+    `assert_evidence_only` stays the fail-closed backstop on the full payload.
+    """
+    if any(needle in text for needle in _FORBIDDEN_SUBSTRINGS):
+        return True
+    return any(pattern.search(text) for pattern in _SECRET_PATTERNS)
 
 
 class EvidenceContextError(RuntimeError):
@@ -68,6 +84,4 @@ def assert_evidence_only(context: dict, serialized: str) -> None:
             )
     for pattern in _SECRET_PATTERNS:
         if pattern.search(serialized):
-            raise EvidenceContextError(
-                "Secret-shaped token reached outbound chat context"
-            )
+            raise EvidenceContextError("Secret-shaped token reached outbound chat context")

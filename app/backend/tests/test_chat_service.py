@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.schemas.chat import ChatRequest, WorkbenchContext
 from app.schemas.run import ReportPayload, VariantSummaryRow
+from app.services.ai_gateway.retrieval import RetrievedLiterature
 from app.services.chat_service import ChatService
 
 
@@ -195,3 +196,68 @@ def test_respond_stream_blocks_unsupported_before_client() -> None:
 
     assert "cannot provide diagnosis, prescribing, or treatment guidance" in out
     assert client.requests == []  # never reached the model
+
+
+# --- literature RAG wiring (docs/ai-gateway-rag/spec.md) -------------------
+
+
+class FakeRetriever:
+    def __init__(self, hits: list[RetrievedLiterature]) -> None:
+        self.hits = hits
+        self.calls: list[tuple[str, list[str]]] = []
+
+    def retrieve(self, question: str, genes) -> list[RetrievedLiterature]:
+        self.calls.append((question, list(genes)))
+        return self.hits
+
+
+def _hit() -> RetrievedLiterature:
+    return RetrievedLiterature(
+        pmid="35901234",
+        title="RPE65 functional study",
+        snippet="RPE65 loss-of-function reduces isomerohydrolase activity.",
+        year=2022,
+        source_url="https://pubmed.ncbi.nlm.nih.gov/35901234/",
+        score=0.83,
+    )
+
+
+def test_gateway_chat_injects_retrieved_literature_into_bounded_context() -> None:
+    retriever = FakeRetriever([_hit()])
+    chain = FakeLookupChatChain()
+    service = ChatService(
+        settings=_settings("gateway"), llm_client=chain, literature_retriever=retriever
+    )
+
+    service.respond(_chat_payload())
+
+    assert retriever.calls[0] == ("What does the current evidence show?", ["RPE65"])
+    context = json.loads(chain.payloads[0]["bounded_context"])
+    assert context["retrieved_literature"][0]["pmid"] == "35901234"
+    assert context["retrieved_literature"][0]["snippet"].startswith("RPE65 loss-of-function")
+    # still PHI-clean despite the new block
+    assert "patient_id" not in chain.payloads[0]["bounded_context"]
+
+
+def test_no_retrieved_literature_key_when_retriever_returns_nothing() -> None:
+    retriever = FakeRetriever([])
+    chain = FakeLookupChatChain()
+    service = ChatService(
+        settings=_settings("gateway"), llm_client=chain, literature_retriever=retriever
+    )
+
+    service.respond(_chat_payload())
+
+    context = json.loads(chain.payloads[0]["bounded_context"])
+    assert "retrieved_literature" not in context
+
+
+def test_mock_provider_skips_retrieval_entirely() -> None:
+    retriever = FakeRetriever([_hit()])
+    service = ChatService(
+        settings=_settings("mock"), llm_client=None, literature_retriever=retriever
+    )
+
+    service.respond(_chat_payload())
+
+    assert retriever.calls == []  # mock path never builds the bounded context
