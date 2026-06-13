@@ -1,4 +1,128 @@
-# Eamos Genomic Report Tool — Build Progress
+# Eamos Genomic Report Tool - Build Progress
+
+## 2026-06-14 02:26 +1000 - Claude - Coordinated release: 4 uncommitted lanes committed, pushed, deployed
+
+Steven-directed combined commit/push/deploy/verify. Codex handed Claude full
+release ownership (staging, commits, push, deploy, live verify) and stood down;
+Claude owned the safety gate before anything reached prod.
+
+Pre-commit safety gate (all GREEN on the combined working tree):
+- Full backend `python -m pytest tests/ -q` passed (exit 0, reached 100%); this
+  also confirmed the ClinGen `c.260A>G` correction resolved the 2 prior reds.
+- `python -m ruff check app tests` clean.
+- `python -m black --check --target-version py310` clean on all 43 changed
+  Python files (reformatted 12 lane-4 AI-gateway files; Codex lanes were already
+  clean). Re-ran lane-4 focused pytest after formatting - green.
+
+Commits (explicit pathspecs, on top of `449151a` + `d9c9f95`):
+- `f16390a` feat(workbench): local hardening - preflight/provider-state
+  contracts/primer SNP masking (Codex lane).
+- `2e8090d` feat(backend): compact coordinate index materialization + Gene View
+  ledger fix (Codex lane). Clears the deployed-`550641d`
+  `gene_view=runtime_partial` blocker once provider-cache sees compact/hg38/Pfam.
+- `95a57e4` fix(clingen): RPE65 `c.260A>G` -> ClinVar VUS / partial ClinGen
+  (Codex lane; explicit behavior change).
+- `0c91461` feat(ai-gateway): literature RAG + messy-text->JSON + paper->variants
+  P1+2 (Claude lane; inert, `LLM_PROVIDER=mock` / `RAG_ENABLED=false`).
+- shared-docs/proprietary catalogue/graph refresh commit (this entry).
+
+Excluded (never staged): `.tools/render/` (local Render CLI binary) and
+`codex-workbench-temp.md` (marked do-not-commit).
+
+Deploy: pushed `main` (ahead 6) to `origin/main`; Vercel FE auto-deploy; manual
+Render SG backend deploy + provider-cache verification. Held `LLM_PROVIDER=mock`,
+`RAG_ENABLED=false`, `CRISPR_OFFTARGET_PROVIDER=auto`,
+`PRIMER_SPECIFICITY_PROVIDER=template`; no env/provider flip, no Supabase
+mutation, no startup download, no source-asset materialization. `graphify
+update .` not run (Codex's lane) - refresh owed.
+
+## 2026-06-14 00:11 +1000 - Codex - Workbench provider-state hardening, primer SNP masking, and trace-decomposition spec
+
+Continued the approved local-hardening queue for Phases 2-6. No commit, push,
+Render flip, provider env change, Supabase mutation, startup download, or
+generated source asset commit was performed.
+
+Completed:
+- Hardened CRISPR off-target provider-state contracts with tests for indexed
+  provider success, auto-mode mock fallback when no index is mounted, and
+  forced `indexed_sqlite` fail-closed behavior when the index is missing.
+- Added provider-cache tests that distinguish CRISPR off-target auto mock
+  fallback from forced-provider unavailability.
+- Added a pluggable primer SNP masking provider surface, including a no-op
+  warning provider and a local dbSNP-backed implementation that injects
+  Primer3 excluded regions and rejects pairs with 3-prime SNP overlap.
+- Added an optional CRISPR screening-primer reference-window provider path so
+  indexed/source-backed windows can avoid the mock-template warning when a
+  mounted reference window is available.
+- Tightened compact coordinate index readiness/provenance tests so health and
+  source provenance remain path-free and startup-download/runtime-scan disabled.
+- Added `docs/tider-lindel-trace-decomposition/spec.md` as a spec-only phase
+  for observed trace decomposition, Lindel prediction, and TIDER-style template
+  repair. No runtime TIDER/Lindel/trace-decomposition implementation was added.
+- Updated `docs/workbench-live-wiring/plan.md` with the Phase 2-6 boundary.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_workbench_api.py tests\test_health_api.py tests\test_gene_viewer.py::test_http_source_client_uses_compact_coordinate_index_before_http tests\test_crispr_offtarget_preflight_cli.py tests\test_workbench_preflight_cli.py -q` passed.
+- `cd app/backend && python -m pytest tests\test_workbench_api.py::test_primer3_provider_warns_when_snp_masking_requested_without_provider tests\test_workbench_api.py::test_primer3_provider_dbsnp_masking_excludes_regions_and_rejects_3prime_hits tests\test_workbench_api.py::test_crispr_screening_primers_region_uses_reference_window_provider tests\test_health_api.py::test_provider_cache_health_reports_forced_crispr_offtarget_index_missing_as_unavailable -q` passed after Black formatting.
+- `cd app/backend && python -m ruff check app\services\workbench_design.py app\services\crispr_offtarget_screening.py tests\test_workbench_api.py tests\test_health_api.py tests\test_gene_viewer.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app\services\workbench_design.py app\services\crispr_offtarget_screening.py tests\test_workbench_api.py tests\test_health_api.py tests\test_gene_viewer.py` passed after formatting `workbench_design.py`.
+- `git diff --check -- <Phase 2-6 touched paths>` passed with line-ending
+  warnings only.
+- `python -m graphify update .` passed; graph HTML was skipped because the graph
+  is over the 5000-node visualization limit.
+
+Current worktree notes:
+- Phase 1 local CLI/preflight hardening remains uncommitted alongside these
+  Phase 2-6 changes.
+- Separate AI-gateway/RAG dirty files, `docs/deployment/render-provider-flip-workflows.md`,
+  `docs/proprietary/index.json` drift, and generated graphify output remain
+  separate from any commit scope.
+- Provider flip remains not-ready until CRISPR off-target and compact coordinate
+  indexes are mounted and provider-cache reports readiness.
+
+## 2026-06-13 23:30 +1000 - Codex - Workbench local CLI/preflight hardening
+
+Implemented Phase 1 local CLI/preflight hardening only. No Render flip, provider
+env change, push, Supabase mutation, startup download, or generated source asset
+commit was performed.
+
+Completed:
+- Added `python -m app.cli.eamos_crispr_offtarget_preflight`, a sanitized
+  wrapper for CRISPR off-target index readiness. It reports auto-mode mock
+  fallback separately from forced `indexed_sqlite` fail-closed behavior and
+  supports `--require-ready`.
+- Extended `python -m app.cli.eamos_workbench_preflight --compact` with one
+  local ready/not-ready bundle. It summarizes fixture freshness, cache
+  readability, full-gene fixture timing, CRISPR off-target public runtime
+  posture, primer specificity, CRISPR score runtime, CRISPR index flip
+  readiness, and compact coordinate index readiness without network calls or
+  mutations.
+- Updated the Workbench approval-bundle CLI/docs to list the local Workbench
+  bundle first, then the off-target-specific preflight gate.
+- Updated the CRISPR readiness proprietary doc. Left the existing AI-gateway/RAG
+  dirty work, `docs/deployment/render-provider-flip-workflows.md`, and
+  graphify generated output separate from any commit.
+
+Observed local readiness:
+- `eamos_workbench_preflight --iterations 1 --compact` reports
+  `local_status=ready`, `provider_flip_status=not_ready`, with blockers
+  `crispr_offtarget_index_flip` and `compact_coordinate_index`.
+- `eamos_crispr_offtarget_preflight --provider auto --compact` reports
+  `ready_to_flip=false`, `public_runtime_available=true`, and
+  `runtime_status=auto_mock_fallback_not_ready_to_flip`.
+
+Verification:
+- `cd app/backend && python -m pytest tests\test_crispr_offtarget_preflight_cli.py tests\test_workbench_preflight_cli.py tests\test_workbench_render_approval_bundle_cli.py tests\test_crispr_offtarget_index_cli.py -q` passed.
+- `cd app/backend && python -m ruff check app\cli\eamos_crispr_offtarget_preflight.py app\cli\eamos_workbench_preflight.py app\cli\eamos_workbench_render_approval_bundle.py tests\test_crispr_offtarget_preflight_cli.py tests\test_workbench_preflight_cli.py tests\test_workbench_render_approval_bundle_cli.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app\cli\eamos_crispr_offtarget_preflight.py app\cli\eamos_workbench_preflight.py app\cli\eamos_workbench_render_approval_bundle.py tests\test_crispr_offtarget_preflight_cli.py tests\test_workbench_preflight_cli.py tests\test_workbench_render_approval_bundle_cli.py` passed after formatting two touched tests.
+- Direct CLI smokes for `eamos_crispr_offtarget_preflight`,
+  `eamos_workbench_preflight`, and `eamos_workbench_render_approval_bundle`
+  passed.
+- `python -m json.tool docs\proprietary\index.json` passed.
+- `git diff --check -- <Phase 1 touched tracked paths>` passed with line-ending
+  warnings only.
+- `python -m graphify update .` passed; graph HTML was skipped because the graph
+  is over the 5000-node visualization limit.
 
 ## 2026-06-13 22:19 +1000 - Codex - Workbench CRISPR off-target full-index runbook/proof
 

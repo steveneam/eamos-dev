@@ -1,7 +1,42 @@
 {
-  "updated": "2026-06-13 22:04 +1000 - Codex",
+  "updated": "2026-06-13 23:16 +1000 - Claude",
   "purpose": "Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic.",
   "entries": [
+    {
+      "id": "eamos-ai-gateway",
+      "name": "Eamos AI Gateway Evidence-Grounded Chat & Extraction",
+      "type": "ai_orchestration_broker_guard_rag_structured",
+      "status": "active_backend_prototype",
+      "added_at": "2026-06-13 23:16 +1000 - Claude",
+      "last_updated_at": "2026-06-13 23:16 +1000 - Claude",
+      "doc": "docs/proprietary/eamos-ai-gateway.md",
+      "source_files": [
+        "app/backend/app/services/ai_gateway/engine.py",
+        "app/backend/app/services/ai_gateway/guard.py",
+        "app/backend/app/services/ai_gateway/retrieval.py",
+        "app/backend/app/services/ai_gateway/structured.py",
+        "app/backend/app/services/chat_service.py",
+        "app/backend/app/agents/client.py",
+        "app/backend/app/agents/prompts.py",
+        "app/backend/app/cli/eamos_literature_embed_materialize.py",
+        "app/backend/app/cli/eamos_literature_embed_preflight.py",
+        "app/backend/app/cli/chat_smoke.py",
+        "app/backend/app/core/config.py"
+      ],
+      "entry_points": [
+        "POST /api/v1/chat",
+        "POST /api/v1/chat/stream",
+        "python -m app.cli.eamos_literature_embed_materialize",
+        "python -m app.cli.eamos_literature_embed_preflight",
+        "python -m app.cli.chat_smoke"
+      ],
+      "tests": [
+        "app/backend/tests/test_ai_gateway.py",
+        "app/backend/tests/test_ai_gateway_structured.py",
+        "app/backend/tests/test_literature_retrieval.py",
+        "app/backend/tests/test_chat_service.py"
+      ]
+    },
     {
       "id": "eamos-crispr-readiness-tooling",
       "name": "Eamos CRISPR Readiness Operator Tooling",
@@ -210,7 +245,7 @@
       "type": "mock_first_ai_extraction_service",
       "status": "mock_first_backend_prototype",
       "added_at": "2026-05-21 23:09 +1000 - Codex",
-      "last_updated_at": "2026-05-23 18:00 +1000 - Codex",
+      "last_updated_at": "2026-06-13 23:16 +1000 - Claude",
       "doc": "docs/proprietary/search-input-ai.md",
       "source_files": [
         "app/backend/app/services/search_input_ai.py",
@@ -219,6 +254,7 @@
         "app/backend/app/cli/search_input_ai_smoke.py",
         "app/backend/app/agents/prompts.py",
         "app/backend/app/agents/client.py",
+        "app/backend/app/services/ai_gateway/structured.py",
         "app/backend/app/services/search_input_interpreter.py"
       ],
       "entry_points": [
@@ -230,6 +266,7 @@
         "app/backend/tests/test_variant_search_integration.py",
         "app/backend/tests/test_search_input_reference.py",
         "app/backend/tests/test_search_input_ai_smoke_cli.py",
+        "app/backend/tests/test_ai_gateway_structured.py",
         "app/backend/tests/test_frontend_contract.py"
       ]
     },
