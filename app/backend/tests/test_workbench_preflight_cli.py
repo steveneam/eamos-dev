@@ -25,6 +25,15 @@ def test_workbench_preflight_reports_fixture_timings(tmp_path: Path, capsys) -> 
     assert output["mode"] == "fixture"
     assert output["guardrails"]["network"] == "not_used"
     assert output["caches"]["state"] == "missing"
+    readiness = output["local_readiness"]
+    assert readiness["guardrails"]["network_used"] is False
+    assert readiness["guardrails"]["mutations_performed"] is False
+    assert readiness["guardrails"]["local_path_values_emitted"] is False
+    checks = {item["id"]: item for item in readiness["checks"]}
+    assert checks["crispr_offtarget_public_runtime"]["ready"] is True
+    assert checks["crispr_offtarget_public_runtime"]["detail"]["configured_provider"] == "auto"
+    assert checks["crispr_offtarget_index_flip"]["required_for_provider_flip"] is True
+    assert checks["crispr_offtarget_index_flip"]["detail"]["local_path_values_emitted"] is False
 
     timings = {item["gene"]: item for item in output["full_gene_viewer"]}
     assert timings["RPE65"]["state"] == "ok"

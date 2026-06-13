@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.schemas.workbench import (
     CrisprOffTargetRequest,
@@ -29,6 +29,7 @@ from app.services.crispr_offtarget_index import (
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 
 MOCK_SCREENING_TEMPLATE_WARNING = "crispr_screening_mock_template"
+SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING = "crispr_screening_reference_window_unavailable"
 CRISPR_OFFTARGET_PROVIDER_AUTO = "auto"
 CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE = "indexed_sqlite"
 CRISPR_OFFTARGET_PROVIDER_MOCK = "mock"
@@ -57,6 +58,16 @@ class CrisprOffTargetScreeningProviderUnavailable(Exception):
 
 class PrimerDesignProvider(Protocol):
     def design(self, payload: PrimerRequest, context: SequenceContext) -> PrimerResponse: ...
+
+
+class ScreeningReferenceWindowProvider(Protocol):
+    def get_sequence(
+        self,
+        chrom: str,
+        start: int,
+        end: int,
+        build: str | None = None,
+    ) -> Any: ...
 
 
 class MockCasOffinderOffTargetProvider:
@@ -170,6 +181,7 @@ def design_screening_primers(
     payload: CrisprScreeningPrimerRequest,
     *,
     primer_provider: PrimerDesignProvider,
+    reference_window_provider: ScreeningReferenceWindowProvider | None = None,
 ) -> tuple[list[ScreeningPrimer], list[str]]:
     primers: list[ScreeningPrimer] = []
     warnings: list[str] = []
@@ -177,6 +189,7 @@ def design_screening_primers(
         context, region_label, point, template_source, target_warnings = _target_context(
             target,
             payload=payload,
+            reference_window_provider=reference_window_provider,
         )
         warnings.extend(target_warnings)
         primer_payload = PrimerRequest(
@@ -259,6 +272,7 @@ def _target_context(
     target: CrisprScreeningPrimerTarget,
     *,
     payload: CrisprScreeningPrimerRequest,
+    reference_window_provider: ScreeningReferenceWindowProvider | None,
 ) -> tuple[SequenceContext, str, str, str, list[str]]:
     chrom, position = _target_locus(target)
     region = _target_region(
@@ -272,6 +286,7 @@ def _target_context(
         target,
         region=region,
         target_offset=target_offset,
+        reference_window_provider=reference_window_provider,
     )
     if target_offset >= len(template):
         code = unsupported_input_warning("screening_target")
@@ -362,9 +377,33 @@ def _template_sequence(
     *,
     region: CrisprScreeningRegion,
     target_offset: int,
+    reference_window_provider: ScreeningReferenceWindowProvider | None,
 ) -> tuple[str, str, list[str]]:
     if target.template_sequence:
         return target.template_sequence, "template_sequence", []
+
+    if reference_window_provider is not None:
+        try:
+            window = reference_window_provider.get_sequence(
+                _normalize_chromosome(region.chromosome),
+                region.start,
+                region.end,
+                build=region.genome_build,
+            )
+            sequence = _clean_reference_sequence(getattr(window, "sequence", ""))
+            if sequence and target_offset < len(sequence):
+                return sequence, "reference_window", []
+        except Exception:
+            pass
+        return (
+            _mock_reference_window(
+                length=region.end - region.start + 1,
+                target_offset=target_offset,
+                site_sequence=target.sequence,
+            ),
+            "mock_screening_window",
+            [SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING, MOCK_SCREENING_TEMPLATE_WARNING],
+        )
 
     length = region.end - region.start + 1
     return (
@@ -376,6 +415,10 @@ def _template_sequence(
         "mock_screening_window",
         [MOCK_SCREENING_TEMPLATE_WARNING],
     )
+
+
+def _clean_reference_sequence(sequence: str) -> str:
+    return re.sub(r"[^ACGTN]", "N", sequence.upper())
 
 
 def _mock_reference_window(

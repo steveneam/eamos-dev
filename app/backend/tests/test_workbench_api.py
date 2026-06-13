@@ -35,6 +35,7 @@ from app.services.crispr_design import (
     LocalDeterministicCrisprProvider,
 )
 from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
+from app.services.dbsnp_local import DbSnpLocalStore
 from app.services.sequence_context import (
     SequenceContext,
     SequenceContextResult,
@@ -47,6 +48,7 @@ from app.services.workbench_design import (
     PRIMER_SPECIFICITY_UCSC_ISPCR,
     WORKBENCH_PROVIDER_MALFORMED,
     WORKBENCH_PROVIDER_UNAVAILABLE,
+    LocalDbSnpPrimerSnpMaskingProvider,
     LocalIsPcrSpecificityProvider,
     PrimerSpecificityResult,
     Primer3PrimerProvider,
@@ -211,6 +213,16 @@ def _settings(**overrides) -> Settings:
     return Settings(jwt_secret="test-secret", **overrides)
 
 
+def _app_settings(tmp_path: Path, **overrides) -> Settings:
+    return Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        **overrides,
+    )
+
+
 def _context() -> SequenceContext:
     return SequenceContext(
         gene="RPE65",
@@ -361,6 +373,84 @@ def test_crispr_offtargets_indexed_provider_returns_index_hits(tmp_path: Path) -
     assert response.sites[1].on_target is False
 
 
+def test_crispr_offtargets_route_indexed_provider_returns_index_hits(tmp_path: Path) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    guide = "GAGTCCGAGCAGAAGAAGAT"
+    mismatch = "C" + guide[1:]
+    index_path = tmp_path / "spcas9_offtargets.sqlite"
+    build_spcas9_offtarget_index_from_sequences(
+        [
+            ("1", f"{guide}AGG{'N' * 40}"),
+            ("2", f"{'N' * 4}{mismatch}TGG{'N' * 40}"),
+        ],
+        index_path,
+        genome_build="GRCh38",
+        source_version="pytest-mini",
+    )
+    settings = _app_settings(
+        tmp_path,
+        workbench_live_design_enabled=True,
+        crispr_offtarget_provider="indexed_sqlite",
+        crispr_offtarget_index_path=index_path,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.post(
+            "/api/v1/crispr/offtargets",
+            json={
+                "guide": guide,
+                "pam": "NGG",
+                "max_mismatches": 1,
+                "on_target_locus": {"chromosome": "1", "position": 18, "strand": "+"},
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["genome_build"] == "GRCh38"
+    assert [site["mismatches"] for site in body["sites"]] == [0, 1]
+    assert body["sites"][0]["chromosome"] == "chr1"
+    assert body["sites"][1]["sequence"] == mismatch
+    assert body["sites"][1]["chromosome"] == "chr2"
+    assert all(site["gene"] != "OTSG1" for site in body["sites"])
+
+
+def test_crispr_offtargets_route_auto_missing_index_uses_mock_fallback(
+    tmp_path: Path,
+) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    settings = _app_settings(
+        tmp_path,
+        workbench_live_design_enabled=True,
+        crispr_offtarget_provider="auto",
+        crispr_offtarget_index_path=tmp_path / "missing.sqlite",
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.post(
+            "/api/v1/crispr/offtargets",
+            json={
+                "guide": "GAGTCCGAGCAGAAGAAGAT",
+                "pam": "NGG",
+                "max_mismatches": 1,
+                "on_target_locus": {"chromosome": "7", "position": 117509080, "strand": "+"},
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["genome_build"] == "GRCh38"
+    assert body["sites"][0]["on_target"] is True
+    assert body["sites"][0]["chromosome"] == "chr7"
+    assert any(site["gene"] == "OTSG1" for site in body["sites"])
+
+
 def test_crispr_offtargets_forced_index_missing_maps_to_503(tmp_path: Path) -> None:
     service = WorkbenchDesignService(
         settings=_settings(
@@ -375,6 +465,32 @@ def test_crispr_offtargets_forced_index_missing_maps_to_503(tmp_path: Path) -> N
 
     assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
     assert exc_info.value.code == "crispr_offtarget_index_unavailable"
+
+
+def test_crispr_offtargets_route_forced_index_missing_fails_closed(
+    tmp_path: Path,
+) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    settings = _app_settings(
+        tmp_path,
+        workbench_live_design_enabled=True,
+        crispr_offtarget_provider="indexed_sqlite",
+        crispr_offtarget_index_path=tmp_path / "missing.sqlite",
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.post(
+            "/api/v1/crispr/offtargets",
+            json={"guide": "GAGTCCGAGCAGAAGAAGAT"},
+        )
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = response.json()["detail"]
+    assert detail["code"] == "crispr_offtarget_index_unavailable"
+    assert detail["warnings"] == ["crispr_offtarget_index_unavailable"]
 
 
 def test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor(client) -> None:
@@ -651,6 +767,63 @@ def test_crispr_screening_primers_region_without_template_uses_mock_window(clien
         MOCK_SCREENING_TEMPLATE_WARNING,
         "crispr_screening_primer_unavailable:site_1",
     ]
+
+
+def test_crispr_screening_primers_region_uses_reference_window_provider(client) -> None:
+    class ReferenceWindowProvider:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, int, int, str | None]] = []
+
+        def get_sequence(self, chrom: str, start: int, end: int, build: str | None = None):
+            self.calls.append((chrom, start, end, build))
+            return SimpleNamespace(sequence="C" * 101, genome_build=build or "GRCh38")
+
+    pair = PrimerPair(
+        index=1,
+        forward="AACCGGTTAACCGGTTAA",
+        reverse="TTGGAACCTTGGAACCTT",
+        tm_forward=59.9,
+        tm_reverse=60.1,
+        gc_forward=44.4,
+        gc_reverse=55.5,
+        product_size=101,
+        specificity_hits=1,
+        notes="Reference-backed screening primer.",
+        recommended=True,
+    )
+    primer_provider = FakeScreeningPrimerProvider([pair])
+    reference_provider = ReferenceWindowProvider()
+    client.app.state.workbench_design_service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False),
+        primer_provider=primer_provider,
+        screening_reference_provider=reference_provider,
+    )
+
+    response = client.post(
+        "/api/v1/crispr/screening-primers",
+        json={
+            "flank_bp": 50,
+            "sites": [
+                {
+                    "site_index": 1,
+                    "chromosome": "12",
+                    "position": 102912875,
+                    "sequence": "GAGTGCGAGCAGAAGAATAT",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["warnings"] == []
+    assert body["primers"][0]["template_source"] == "reference_window"
+    assert reference_provider.calls == [("chr12", 102912825, 102912925, "GRCh38")]
+    primer_payload, context = primer_provider.calls[0]
+    assert primer_payload.avoid_snps is True
+    assert context.window_sequence == "C" * 101
+    assert context.target_offset == 50
+    assert context.source_metadata["template_source"] == "reference_window"
 
 
 def test_crispr_screening_primers_missing_locus_maps_to_422(client) -> None:
@@ -1503,6 +1676,100 @@ def test_primer3_provider_maps_engine_output() -> None:
     assert Primer3Module.bindings.seq_args["SEQUENCE_TARGET"] == [500, 1]
     assert Primer3Module.bindings.global_args["PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT"] == 1
     assert Primer3Module.bindings.global_args["PRIMER_PRODUCT_SIZE_RANGE"] == [[300, 700]]
+
+
+def test_primer3_provider_warns_when_snp_masking_requested_without_provider() -> None:
+    class Bindings:
+        def __init__(self) -> None:
+            self.seq_args = {}
+
+        def design_primers(self, *, seq_args, global_args):
+            self.seq_args = seq_args
+            return {
+                "PRIMER_PAIR_NUM_RETURNED": 1,
+                "PRIMER_LEFT_0_SEQUENCE": "AACCGGTTAACCGGTTAA",
+                "PRIMER_RIGHT_0_SEQUENCE": "TTGGAACCTTGGAACCTT",
+                "PRIMER_LEFT_0_TM": 60.0,
+                "PRIMER_RIGHT_0_TM": 60.0,
+                "PRIMER_LEFT_0_GC_PERCENT": 44.4,
+                "PRIMER_RIGHT_0_GC_PERCENT": 55.5,
+                "PRIMER_PAIR_0_PRODUCT_SIZE": 421,
+            }
+
+    class Primer3Module:
+        bindings = Bindings()
+
+    provider = Primer3PrimerProvider(
+        primer3_module=Primer3Module(),
+        specificity_provider=QueuedSpecificityProvider([_specificity_result()]),
+    )
+
+    response = provider.design(
+        payload=PrimerRequest(gene="RPE65", cdna="c.260A>G", avoid_snps=True),
+        context=_context(),
+    )
+
+    assert response.pairs
+    assert "primer_snp_masking_not_configured" in response.pairs[0].notes
+    assert "not yet applied" not in response.pairs[0].notes
+    assert "SEQUENCE_EXCLUDED_REGION" not in Primer3Module.bindings.seq_args
+
+
+def test_primer3_provider_dbsnp_masking_excludes_regions_and_rejects_3prime_hits() -> None:
+    class Bindings:
+        def __init__(self) -> None:
+            self.seq_args = {}
+
+        def design_primers(self, *, seq_args, global_args):
+            self.seq_args = seq_args
+            return {
+                "PRIMER_PAIR_NUM_RETURNED": 2,
+                "PRIMER_LEFT_0_SEQUENCE": "AACCGGTTAACCGGTTAAA",
+                "PRIMER_RIGHT_0_SEQUENCE": "TTGGAACCTTGGAACCTT",
+                "PRIMER_LEFT_0": [471, 19],
+                "PRIMER_RIGHT_0": [720, 18],
+                "PRIMER_LEFT_0_TM": 60.0,
+                "PRIMER_RIGHT_0_TM": 60.0,
+                "PRIMER_LEFT_0_GC_PERCENT": 44.4,
+                "PRIMER_RIGHT_0_GC_PERCENT": 55.5,
+                "PRIMER_PAIR_0_PRODUCT_SIZE": 250,
+                "PRIMER_LEFT_1_SEQUENCE": "TTTTGGCCAATTGGCCAATT",
+                "PRIMER_RIGHT_1_SEQUENCE": "AAGGTTAAGGTTAAGGTTAA",
+                "PRIMER_LEFT_1": [300, 20],
+                "PRIMER_RIGHT_1": [720, 20],
+                "PRIMER_LEFT_1_TM": 61.0,
+                "PRIMER_RIGHT_1_TM": 61.0,
+                "PRIMER_LEFT_1_GC_PERCENT": 45.0,
+                "PRIMER_RIGHT_1_GC_PERCENT": 45.0,
+                "PRIMER_PAIR_1_PRODUCT_SIZE": 421,
+            }
+
+    class Primer3Module:
+        bindings = Bindings()
+
+    specificity_provider = QueuedSpecificityProvider([_specificity_result()])
+    provider = Primer3PrimerProvider(
+        primer3_module=Primer3Module(),
+        specificity_provider=specificity_provider,
+        snp_masking_provider=LocalDbSnpPrimerSnpMaskingProvider(DbSnpLocalStore()),
+    )
+
+    response = provider.design(
+        payload=PrimerRequest(gene="RPE65", cdna="c.260A>G", avoid_snps=True),
+        context=_context(),
+    )
+
+    assert Primer3Module.bindings.seq_args["SEQUENCE_EXCLUDED_REGION"] == [[489, 1], [500, 1]]
+    assert len(response.pairs) == 1
+    pair = response.pairs[0]
+    assert pair.index == 2
+    assert pair.recommended is True
+    assert "dbSNP local SNP masking active" in pair.notes
+    assert "snp_count=2" in pair.notes
+    assert "excluded_regions=2" in pair.notes
+    assert "rejected_3prime_pairs=1" in pair.notes
+    assert str(FIXTURES_DIR).lower() not in pair.notes.lower()
+    assert len(specificity_provider.calls) == 1
 
 
 def test_primer3_provider_recommends_first_single_intended_specificity_hit() -> None:

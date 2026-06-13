@@ -51,10 +51,12 @@ from app.services.crispr_offtarget_screening import (
     CrisprOffTargetScreeningProviderUnavailable,
     IndexedSqliteCrisprOffTargetProvider,
     MockCasOffinderOffTargetProvider,
+    ScreeningReferenceWindowProvider,
     design_screening_primers,
 )
 from app.services.crispr_ssodn import CrisprSsodnInputError, design_ssodn
 from app.services.crispr_tide import CrisprTideInputError, analyze_crispr_tide_observed
+from app.services.dbsnp_local import DbSnpLocalError, DbSnpLocalStore
 from app.services.sequence_context import (
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     SequenceContext,
@@ -212,6 +214,56 @@ class PrimerSpecificityResult:
 
 
 @dataclass(frozen=True)
+class PrimerSnpMaskingVariant:
+    rsid: str
+    chrom: str
+    position: int
+    template_offset: int
+    ref: str
+    alts: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PrimerSnpMaskingResult:
+    requested: bool
+    provider: str
+    active: bool
+    source_version: str | None = None
+    queried_interval: str | None = None
+    variants: tuple[PrimerSnpMaskingVariant, ...] = ()
+    excluded_regions: tuple[tuple[int, int], ...] = ()
+    warnings: tuple[str, ...] = ()
+
+    def seq_args(self) -> dict[str, object]:
+        if not self.active or not self.excluded_regions:
+            return {}
+        return {
+            "SEQUENCE_EXCLUDED_REGION": [[start, length] for start, length in self.excluded_regions]
+        }
+
+    def risk_offsets(self) -> set[int]:
+        offsets: set[int] = set()
+        for start, length in self.excluded_regions:
+            offsets.update(range(start, start + max(1, length)))
+        return offsets
+
+    def note(self, *, rejected_pair_count: int = 0) -> str | None:
+        if not self.requested:
+            return None
+        if not self.active:
+            warning = self.warnings[0] if self.warnings else "primer_snp_masking_unavailable"
+            return f"{warning}: SNP masking was requested but no source-backed mask was applied."
+        interval = self.queried_interval or "unknown interval"
+        source = f"; source={self.source_version}" if self.source_version else ""
+        return (
+            "dbSNP local SNP masking active"
+            f"{source}; queried={interval}; snp_count={len(self.variants)}; "
+            f"excluded_regions={len(self.excluded_regions)}; "
+            f"rejected_3prime_pairs={rejected_pair_count}."
+        )
+
+
+@dataclass(frozen=True)
 class PrimerSecondaryStructureAssessment:
     risk: str
     notes: str
@@ -234,6 +286,16 @@ class PrimerSpecificityProvider(Protocol):
         product_max: int,
         context: SequenceContext,
     ) -> PrimerSpecificityResult: ...
+
+
+class PrimerSnpMaskingProvider(Protocol):
+    def prepare(
+        self,
+        *,
+        payload: PrimerRequest,
+        context: SequenceContext,
+        template: str,
+    ) -> PrimerSnpMaskingResult: ...
 
 
 class TemplateAmpliconSpecificityProvider:
@@ -270,6 +332,99 @@ class TemplateAmpliconSpecificityProvider:
                 intended_hits=intended_hits,
                 product_sizes=product_sizes,
             ),
+        )
+
+
+class NoopPrimerSnpMaskingProvider:
+    def prepare(
+        self,
+        *,
+        payload: PrimerRequest,
+        context: SequenceContext,
+        template: str,
+    ) -> PrimerSnpMaskingResult:
+        return PrimerSnpMaskingResult(
+            requested=bool(payload.avoid_snps),
+            provider="none",
+            active=False,
+            warnings=("primer_snp_masking_not_configured",) if payload.avoid_snps else (),
+        )
+
+
+class LocalDbSnpPrimerSnpMaskingProvider:
+    """Fixture/local dbSNP SNP mask for Primer3 design windows."""
+
+    def __init__(self, store: DbSnpLocalStore | None = None) -> None:
+        self.store = store or DbSnpLocalStore()
+
+    def prepare(
+        self,
+        *,
+        payload: PrimerRequest,
+        context: SequenceContext,
+        template: str,
+    ) -> PrimerSnpMaskingResult:
+        if not payload.avoid_snps:
+            return PrimerSnpMaskingResult(
+                requested=False,
+                provider="dbsnp_local",
+                active=False,
+            )
+        chrom, target_pos = _target_genomic_locus(context)
+        if chrom is None or target_pos is None:
+            return PrimerSnpMaskingResult(
+                requested=True,
+                provider="dbsnp_local",
+                active=False,
+                warnings=("primer_snp_masking_locus_unavailable",),
+            )
+        template_start = target_pos - context.target_offset
+        template_end = template_start + len(template) - 1
+        if template_start < 1 or template_end < template_start:
+            return PrimerSnpMaskingResult(
+                requested=True,
+                provider="dbsnp_local",
+                active=False,
+                warnings=("primer_snp_masking_interval_invalid",),
+            )
+
+        variants: dict[tuple[str, int, str], PrimerSnpMaskingVariant] = {}
+        try:
+            for position in range(template_start, template_end + 1):
+                for record in self.store.records_at(chrom, position):
+                    offset = record.position - template_start
+                    variants[(record.chrom, record.position, record.rsid)] = (
+                        PrimerSnpMaskingVariant(
+                            rsid=record.rsid,
+                            chrom=record.chrom,
+                            position=record.position,
+                            template_offset=offset,
+                            ref=record.ref,
+                            alts=record.alts,
+                        )
+                    )
+        except DbSnpLocalError as exc:
+            return PrimerSnpMaskingResult(
+                requested=True,
+                provider="dbsnp_local",
+                active=False,
+                warnings=(f"primer_snp_masking_{exc.code}",),
+            )
+
+        ordered_variants = tuple(
+            sorted(variants.values(), key=lambda variant: (variant.template_offset, variant.rsid))
+        )
+        excluded_regions = tuple(
+            (variant.template_offset, max(1, len(variant.ref))) for variant in ordered_variants
+        )
+        return PrimerSnpMaskingResult(
+            requested=True,
+            provider="dbsnp_local",
+            active=True,
+            source_version=self.store.provenance().source_version,
+            queried_interval=f"{chrom}:{template_start}-{template_end}",
+            variants=ordered_variants,
+            excluded_regions=excluded_regions,
         )
 
 
@@ -410,9 +565,11 @@ class Primer3PrimerProvider:
         self,
         primer3_module: ModuleType | None = None,
         specificity_provider: PrimerSpecificityProvider | None = None,
+        snp_masking_provider: PrimerSnpMaskingProvider | None = None,
     ) -> None:
         self._primer3_module = primer3_module
         self.specificity_provider = specificity_provider or TemplateAmpliconSpecificityProvider()
+        self.snp_masking_provider = snp_masking_provider or NoopPrimerSnpMaskingProvider()
 
     def design(self, payload: PrimerRequest, context: SequenceContext) -> PrimerResponse:
         if payload.mode == "arms":
@@ -438,13 +595,21 @@ class Primer3PrimerProvider:
         if len(template) < product_min:
             return PrimerResponse(mode=payload.mode, pairs=[])
 
+        snp_masking = self.snp_masking_provider.prepare(
+            payload=payload,
+            context=context,
+            template=template,
+        )
+        seq_args: dict[str, object] = {
+            "SEQUENCE_ID": f"{context.gene}:{context.cdna}",
+            "SEQUENCE_TEMPLATE": template,
+            "SEQUENCE_TARGET": [context.target_offset, 1],
+        }
+        seq_args.update(snp_masking.seq_args())
+
         try:
             raw_result = primer3.bindings.design_primers(
-                seq_args={
-                    "SEQUENCE_ID": f"{context.gene}:{context.cdna}",
-                    "SEQUENCE_TEMPLATE": template,
-                    "SEQUENCE_TARGET": [context.target_offset, 1],
-                },
+                seq_args=seq_args,
                 global_args={
                     "PRIMER_NUM_RETURN": 3,
                     "PRIMER_OPT_SIZE": 20,
@@ -474,6 +639,7 @@ class Primer3PrimerProvider:
                 payload=payload,
                 context=context,
                 specificity_provider=self.specificity_provider,
+                snp_masking=snp_masking,
                 product_min=product_min,
                 product_max=product_max,
             ),
@@ -1205,11 +1371,13 @@ def _primer3_pairs(
     payload: PrimerRequest,
     context: SequenceContext,
     specificity_provider: PrimerSpecificityProvider,
+    snp_masking: PrimerSnpMaskingResult,
     product_min: int,
     product_max: int,
 ) -> list[PrimerPair]:
     returned = int(raw_result.get("PRIMER_PAIR_NUM_RETURNED") or 0)
     pair_rows: list[tuple[dict[str, Any], PrimerSpecificityResult]] = []
+    snp_rejected_count = 0
     for idx in range(returned):
         try:
             forward = str(raw_result[f"PRIMER_LEFT_{idx}_SEQUENCE"])
@@ -1225,6 +1393,10 @@ def _primer3_pairs(
                 message="Primer3 returned an incomplete primer pair.",
                 status_code=status.HTTP_502_BAD_GATEWAY,
             ) from exc
+
+        if _primer3_pair_has_3prime_snp_overlap(raw_result, idx, snp_masking=snp_masking):
+            snp_rejected_count += 1
+            continue
 
         specificity = specificity_provider.check(
             forward=forward,
@@ -1279,11 +1451,44 @@ def _primer3_pairs(
                     payload=payload,
                     context=context,
                     specificity=specificity,
+                    snp_masking=snp_masking,
+                    snp_rejected_count=snp_rejected_count,
                 ),
                 recommended=idx == recommended_row,
             )
         )
     return pairs
+
+
+def _primer3_pair_has_3prime_snp_overlap(
+    raw_result: dict[str, Any],
+    pair_index: int,
+    *,
+    snp_masking: PrimerSnpMaskingResult,
+) -> bool:
+    if not snp_masking.active:
+        return False
+    risk_offsets = snp_masking.risk_offsets()
+    if not risk_offsets:
+        return False
+
+    left = _primer3_position(raw_result.get(f"PRIMER_LEFT_{pair_index}"))
+    if left is not None:
+        left_start_zero, left_length = left
+        three_prime_start = max(left_start_zero, left_start_zero + left_length - 5)
+        three_prime_end = left_start_zero + left_length
+        if risk_offsets.intersection(range(three_prime_start, three_prime_end)):
+            return True
+
+    right = _primer3_position(raw_result.get(f"PRIMER_RIGHT_{pair_index}"))
+    if right is not None:
+        right_start_zero, right_length = right
+        three_prime_start = max(0, right_start_zero - right_length + 1)
+        three_prime_end = min(right_start_zero + 1, three_prime_start + 5)
+        if risk_offsets.intersection(range(three_prime_start, three_prime_end)):
+            return True
+
+    return False
 
 
 def _primer3_pair_placement(
@@ -1442,14 +1647,17 @@ def _primer3_notes(
     payload: PrimerRequest,
     context: SequenceContext,
     specificity: PrimerSpecificityResult,
+    snp_masking: PrimerSnpMaskingResult,
+    snp_rejected_count: int,
 ) -> str:
     notes = [
         "Primer3 local design.",
         specificity.note,
         f"Template: {context.genome_build} {context.genomic_hg38 or context.transcript_hgvs}.",
     ]
-    if payload.avoid_snps:
-        notes.append("SNP masking was requested but is not yet applied.")
+    snp_note = snp_masking.note(rejected_pair_count=snp_rejected_count)
+    if snp_note:
+        notes.append(snp_note)
     return " ".join(notes)
 
 
@@ -1542,6 +1750,7 @@ class WorkbenchDesignService:
         primer_provider: PrimerDesignProvider | None = None,
         crispr_provider: CrisprDesignProvider | None = None,
         crispr_offtarget_provider: CrisprOffTargetProvider | None = None,
+        screening_reference_provider: ScreeningReferenceWindowProvider | None = None,
         align_provider: AlignProvider | None = None,
     ) -> None:
         self.settings = settings
@@ -1565,6 +1774,7 @@ class WorkbenchDesignService:
                 live_design_enabled=self.workbench_live_design_enabled,
             )
         )
+        self.screening_reference_provider = screening_reference_provider
         self.align_provider = align_provider or LocalSangerAlignmentProvider()
 
     def design_primers(self, payload: PrimerRequest) -> PrimerResponse:
@@ -1614,6 +1824,7 @@ class WorkbenchDesignService:
             primers, warnings = design_screening_primers(
                 payload,
                 primer_provider=self.primer_provider,
+                reference_window_provider=self.screening_reference_provider,
             )
         except CrisprOffTargetScreeningInputError as exc:
             raise WorkbenchDesignError(

@@ -39,6 +39,18 @@ The CLI output records:
 - SG and Vercel smoke probes;
 - rollback env values.
 
+Local ready/not-ready bundle:
+
+```powershell
+cd app/backend
+python -m app.cli.eamos_workbench_preflight --compact
+```
+
+The local bundle performs no network calls or mutations. It distinguishes the
+public auto-mode fallback state from provider-flip readiness: auto mode may
+remain locally available through warning-labeled mock fallback while the CRISPR
+index and compact coordinate assets are still `not_ready` for a forced flip.
+
 ## Disk Layout
 
 Mount root:
@@ -294,18 +306,23 @@ Run these on the host where the mounted files are visible:
 
 ```powershell
 cd app/backend
-python -m app.cli.eamos_crispr_offtarget_index verify `
-  --index /var/data/eamos/bio_assets/crispr/spcas9_offtargets.sqlite `
+python -m app.cli.eamos_workbench_preflight --compact
+
+python -m app.cli.eamos_crispr_offtarget_preflight `
+  --index-path /var/data/eamos/bio_assets/crispr/spcas9_offtargets.sqlite `
+  --provider indexed_sqlite `
   --genome-build GRCh38 `
-  --min-target-count <manifest_target_count>
+  --min-target-count <manifest_target_count> `
+  --require-ready `
+  --compact
 ```
 
 Expected:
 
-- `verification_ready=true`
-- `genome_build_matches=true`
-- `target_count_meets_min=true`
-- `local_path_values_emitted=false`
+- `ready_to_flip=true`
+- `runtime_status=indexed_ready`
+- `indexed_sqlite.verification_ready=true`
+- `indexed_sqlite.local_path_values_emitted=false`
 
 Then record the immutable manifest:
 
@@ -333,6 +350,20 @@ python -m app.cli.eamos_crispr_score_preflight --compact
 python -m app.cli.eamos_source_asset_preflight --compact
 python -m app.cli.eamos_workbench_render_approval_bundle --compact
 ```
+
+Status update - 2026-06-13 23:20 +1000 - Codex:
+
+- Added `python -m app.cli.eamos_crispr_offtarget_preflight`, the normalized
+  CRISPR off-target preflight wrapper used by runbooks. It emits sanitized JSON,
+  reports auto-mode warning fallback separately from forced indexed fail-closed,
+  and supports `--require-ready`.
+- Extended `python -m app.cli.eamos_workbench_preflight --compact` with a single
+  local ready/not-ready bundle for fixture freshness, cache readability,
+  full-gene fixture timing, CRISPR off-target public runtime posture, primer
+  specificity posture, CRISPR score runtime posture, CRISPR index flip
+  readiness, and compact coordinate index readiness.
+- No Render env, provider mode, storage, startup download, or generated source
+  asset changed.
 
 ## Approval Questions
 

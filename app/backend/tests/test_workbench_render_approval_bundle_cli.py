@@ -57,13 +57,20 @@ def test_render_approval_bundle_preflight_and_smoke_are_specific() -> None:
     bundle = build_render_approval_bundle(generated_at="2026-06-13T00:00:00+00:00")
 
     preflight = {item["name"]: item for item in bundle["operator_preflight"]}
-    assert "offtarget_index_verify" in preflight
-    assert "eamos_crispr_offtarget_index verify" in preflight["offtarget_index_verify"]["command"]
-    assert preflight["offtarget_index_verify"]["expects"] == {
-        "genome_build_matches": True,
-        "local_path_values_emitted": False,
-        "target_count_meets_min": True,
-        "verification_ready": True,
+    assert "workbench_local_ready_bundle" in preflight
+    assert (
+        "eamos_workbench_preflight --compact"
+        in preflight["workbench_local_ready_bundle"]["command"]
+    )
+    assert "crispr_offtarget_preflight" in preflight
+    assert "eamos_crispr_offtarget_preflight" in preflight["crispr_offtarget_preflight"]["command"]
+    assert "--require-ready --compact" in preflight["crispr_offtarget_preflight"]["command"]
+    assert preflight["crispr_offtarget_preflight"]["expects"] == {
+        "indexed_sqlite.local_path_values_emitted": False,
+        "indexed_sqlite.verification_ready": True,
+        "public_runtime_available": True,
+        "ready_to_flip": True,
+        "runtime_status": "indexed_ready",
     }
     assert preflight["offtarget_index_manifest"]["expects"]["actual_sha256"] == "recorded"
     assert preflight["source_asset_preflight"]["expects"]["uploads_or_imports"] == "not_used"

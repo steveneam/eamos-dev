@@ -99,6 +99,17 @@ Out of scope:
 
 - Whole-genome specificity via isPcr.
 
+Status update - 2026-06-14 00:07 +1000 - Codex:
+
+- Added a pluggable primer SNP masking provider surface with a no-op fallback
+  and local dbSNP-backed implementation.
+- Primer3 requests now receive source-backed excluded regions when dbSNP records
+  overlap the design window, and candidate pairs are rejected when a SNP lands
+  in the 3-prime risk window.
+- Added focused tests for unconfigured `avoid_snps=true` warnings, dbSNP
+  excluded-region injection, 3-prime pair rejection, and sanitized notes. isPcr
+  remains approval-gated and unchanged.
+
 ## Task 3 - Primer Whole-Genome isPcr Readiness
 
 Goal: Prepare an approval-gated path to source-backed whole-genome primer
@@ -213,6 +224,34 @@ Status update - 2026-06-13 22:04 +1000 - Codex:
 - No provider flip, Render env change, startup download, Supabase mutation, or
   generated genome/SQLite/index artifact commit was performed.
 
+Status update - 2026-06-13 23:20 +1000 - Codex:
+
+- Added `python -m app.cli.eamos_crispr_offtarget_preflight` as the normalized
+  local runbook gate for CRISPR off-target index readiness. Auto mode reports
+  warning-labeled mock fallback without failing public runtime; forced
+  `indexed_sqlite` mode fails closed under `--require-ready` until the mounted
+  SQLite index verifies.
+- Extended `python -m app.cli.eamos_workbench_preflight --compact` with one
+  local ready/not-ready bundle. It summarizes fixture freshness, cache
+  readability, full-gene fixture timings, CRISPR off-target public runtime
+  posture, primer specificity, CRISPR score runtime, CRISPR index flip
+  readiness, and compact coordinate index readiness without network calls or
+  mutations.
+- Updated the approval-bundle CLI and docs to list
+  `eamos_workbench_preflight --compact` before the off-target-specific
+  `eamos_crispr_offtarget_preflight` gate.
+- No provider flip, Render env change, startup download, Supabase mutation,
+  or generated genome/SQLite/index artifact commit was performed.
+
+Status update - 2026-06-14 00:07 +1000 - Codex:
+
+- Hardened provider-state contracts with focused tests for indexed off-target
+  success, auto-mode mock fallback when no index is mounted, and forced
+  `indexed_sqlite` fail-closed behavior when the index is missing.
+- Provider-cache tests now distinguish `auto` mock fallback from forced provider
+  unavailability. No provider flip, env change, Render mutation, or generated
+  index asset was performed.
+
 ## Task 5 - CRISPR Screening Primers Over Real Windows
 
 Goal: Make screening primers fully live once off-target sites are real.
@@ -248,6 +287,16 @@ Depends on:
 
 - Task 4 for real indexed sites.
 - Mounted hg38 asset.
+
+Status update - 2026-06-14 00:07 +1000 - Codex:
+
+- Added an optional screening reference-window provider path for CRISPR
+  screening primers. When a usable reference window is supplied, primers report
+  `template_source="reference_window"` instead of the mock template.
+- Missing or unusable reference windows still fall back to the explicit
+  `crispr_screening_mock_template` warning state.
+- Added focused tests for reference-window coordinate calls, target offsets, and
+  fallback warning preservation.
 
 ## Task 6 - CRISPR Outcomes Backend Route
 
@@ -437,6 +486,14 @@ Status update - 2026-06-12 01:46 +1000 - Codex:
   was added to reduce long-window paint work.
 - Smooth scroll behavior now respects reduced-motion preferences.
 
+Status update - 2026-06-14 00:07 +1000 - Codex:
+
+- Tightened compact-coordinate index readiness and provenance tests. Health now
+  asserts source runtime scanning and startup download remain disabled for the
+  compact index path.
+- The compact coordinate index source provenance test now asserts sanitized
+  identifiers and no raw local index path leakage.
+
 Approval needed:
 
 - ClinVar local materialization on Render.
@@ -540,3 +597,29 @@ Status update - 2026-06-13 21:33 +1000 - Codex:
 - Provider posture remains unchanged: keep `LLM_PROVIDER=mock`,
   `CRISPR_OFFTARGET_PROVIDER=auto`, and `PRIMER_SPECIFICITY_PROVIDER=template`
   until the approval bundle is accepted and provider-cache proves readiness.
+
+## Task 12 - TIDER, Lindel, and Trace Decomposition Spec
+
+Goal: Define the next CRISPR outcomes lane without mixing implementation into
+the current observed-only route.
+
+Context: `/api/v1/crispr/tide` is intentionally observed-only. TIDER-style
+template repair, Lindel prediction, and signal-level trace decomposition need a
+separate source-backed design before runtime work.
+
+Relevant files:
+
+- `docs/tider-lindel-trace-decomposition/spec.md`
+- `app/backend/app/services/trace_parser.py`
+- `app/backend/app/services/crispr_tide.py`
+- `app/backend/app/schemas/workbench.py`
+
+Status update - 2026-06-14 00:07 +1000 - Codex:
+
+- Added `docs/tider-lindel-trace-decomposition/spec.md` as a spec-only phase.
+- The spec separates observed indel decomposition, Lindel prediction, and
+  TIDER-style template-directed repair provider surfaces.
+- It preserves the existing observed-only route until a reviewed additive route
+  or contract extension passes quality gates and tests.
+- No runtime TIDER, Lindel, trace-decomposition, UI, provider, or deployment
+  implementation was added in this phase.

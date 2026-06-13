@@ -10,9 +10,13 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from app.cli.eamos_crispr_offtarget_preflight import build_crispr_offtarget_preflight
 from app.core.config import Settings
 from app.schemas.gene_viewer import GeneViewerRequest, ViewerWindowRequest
+from app.services.compact_coordinate_index import inspect_compact_coordinate_index
+from app.services.crispr_design import inspect_crisprscore_r_runtime
 from app.services.gene_viewer import GeneViewerError, GeneViewerService
+from app.services.workbench_design import PRIMER_SPECIFICITY_TEMPLATE, PRIMER_SPECIFICITY_UCSC_ISPCR
 
 DEFAULT_CASES: tuple[tuple[str, str, str], ...] = (
     ("RPE65", "c.260A>G", "NM_000329.3"),
@@ -32,11 +36,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--iterations", type=int, default=3, help="viewer timing iterations")
     parser.add_argument("--cache-db", type=Path, help="optional SQLite cache database to inspect")
+    parser.add_argument("--require-ready", action="store_true", help="exit non-zero unless ready")
     parser.add_argument("--compact", action="store_true", help="emit compact JSON")
     args = parser.parse_args(argv)
 
     settings = Settings(jwt_secret="preflight-local", use_real_apis=False)
     cache_db = args.cache_db or _sqlite_path_from_settings(settings)
+    fixtures = _fixture_freshness(settings.fixtures_root)
+    caches = _cache_summary(cache_db)
+    full_gene_viewer = _full_gene_timings(settings, max(1, args.iterations))
     report = {
         "mode": "fixture",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -47,12 +55,18 @@ def main(argv: list[str] | None = None) -> int:
             "production_downloads": "not_used",
             "supabase": "not_used",
         },
-        "fixtures": _fixture_freshness(settings.fixtures_root),
-        "caches": _cache_summary(cache_db),
-        "full_gene_viewer": _full_gene_timings(settings, max(1, args.iterations)),
+        "fixtures": fixtures,
+        "caches": caches,
+        "full_gene_viewer": full_gene_viewer,
+        "local_readiness": _local_readiness(
+            settings=settings,
+            fixtures=fixtures,
+            caches=caches,
+            full_gene_viewer=full_gene_viewer,
+        ),
     }
     print(json.dumps(report, indent=None if args.compact else 2, sort_keys=True))
-    return 0
+    return 0 if report["local_readiness"]["ready"] or not args.require_ready else 2
 
 
 def _fixture_freshness(fixtures_root: Path) -> dict[str, Any]:
@@ -278,6 +292,193 @@ def _metric(values: list[float]) -> dict[str, float | None]:
         "avg": round(sum(values) / len(values), 3),
         "max": round(max(values), 3),
     }
+
+
+def _local_readiness(
+    *,
+    settings: Settings,
+    fixtures: dict[str, Any],
+    caches: dict[str, Any],
+    full_gene_viewer: list[dict[str, Any]],
+) -> dict[str, Any]:
+    off_target = build_crispr_offtarget_preflight(settings=settings)
+    primer_specificity = _primer_specificity_readiness(settings)
+    compact_index = inspect_compact_coordinate_index(settings, verify_checksum=False)
+    crispr_score = inspect_crisprscore_r_runtime(
+        configured_provider=settings.crispr_provider,
+        rscript_path=settings.crispr_rscript_path,
+        rule_set3_conda_env=settings.crispr_ruleset3_conda_env,
+        lindel_conda_env=settings.crispr_lindel_conda_env,
+    )
+    crispr_score_payload = crispr_score.to_sanitized_dict()
+
+    checks = [
+        _readiness_check(
+            "fixture_files_present",
+            all(item.get("state") == "present" for item in fixtures.values()),
+            _counts_by_state(fixtures.values()),
+            required_for_local=True,
+        ),
+        _readiness_check(
+            "sqlite_cache_inspection",
+            caches.get("state") != "unreadable",
+            {"state": caches.get("state")},
+            required_for_local=True,
+        ),
+        _readiness_check(
+            "full_gene_viewer_fixture_cases",
+            all(item.get("state") == "ok" for item in full_gene_viewer),
+            _counts_by_state(full_gene_viewer),
+            required_for_local=True,
+        ),
+        _readiness_check(
+            "crispr_offtarget_public_runtime",
+            bool(off_target["public_runtime_available"]),
+            {
+                "configured_provider": off_target["configured_provider"],
+                "runtime_status": off_target["runtime_status"],
+                "auto_mode_warns_and_uses_mock_fallback": off_target["provider_policy"][
+                    "auto_mode_warns_and_uses_mock_fallback"
+                ],
+                "forced_indexed_sqlite_fails_closed": off_target["provider_policy"][
+                    "forced_indexed_sqlite_fails_closed"
+                ],
+            },
+            required_for_local=True,
+        ),
+        _readiness_check(
+            "primer_specificity_runtime",
+            bool(primer_specificity["ready"]),
+            primer_specificity,
+            required_for_local=True,
+        ),
+        _readiness_check(
+            "crispr_score_runtime",
+            bool(crispr_score.available or crispr_score.status == "disabled"),
+            {
+                "configured_provider": crispr_score_payload["configured_provider"],
+                "status": crispr_score_payload["status"],
+                "available": crispr_score_payload["available"],
+                "local_path_values_emitted": crispr_score_payload["local_path_values_emitted"],
+            },
+            required_for_local=True,
+        ),
+        _readiness_check(
+            "crispr_offtarget_index_flip",
+            bool(off_target["ready_to_flip"]),
+            {
+                "configured_provider": off_target["configured_provider"],
+                "runtime_status": off_target["runtime_status"],
+                "indexed_sqlite_status": off_target["indexed_sqlite"]["status"],
+                "target_count": off_target["indexed_sqlite"]["target_count"],
+                "local_path_values_emitted": off_target["indexed_sqlite"][
+                    "local_path_values_emitted"
+                ],
+            },
+            required_for_provider_flip=True,
+        ),
+        _readiness_check(
+            "compact_coordinate_index",
+            bool(compact_index.ready),
+            {
+                "status": compact_index.status,
+                "ready": compact_index.ready,
+                "schema_version": compact_index.schema_version,
+                "variant_count": compact_index.variant_count,
+                "transcript_count": compact_index.transcript_count,
+                "local_path_values_emitted": False,
+            },
+            required_for_provider_flip=True,
+        ),
+    ]
+    local_required = [item for item in checks if item["required_for_local"]]
+    provider_required = [item for item in checks if item["required_for_provider_flip"]]
+    ready = all(item["ready"] for item in local_required)
+    provider_flip_ready = all(item["ready"] for item in provider_required)
+    return {
+        "ready": ready,
+        "status": "ready" if ready else "not_ready",
+        "provider_flip_ready": provider_flip_ready,
+        "provider_flip_status": "ready" if provider_flip_ready else "not_ready",
+        "ready_count": sum(1 for item in checks if item["ready"]),
+        "not_ready_count": sum(1 for item in checks if not item["ready"]),
+        "not_ready": [item["id"] for item in checks if not item["ready"]],
+        "guardrails": {
+            "network_used": False,
+            "mutations_performed": False,
+            "provider_flip_performed": False,
+            "startup_downloads_allowed": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+        },
+        "checks": checks,
+    }
+
+
+def _readiness_check(
+    check_id: str,
+    ready: bool,
+    detail: dict[str, Any],
+    *,
+    required_for_local: bool = False,
+    required_for_provider_flip: bool = False,
+) -> dict[str, Any]:
+    return {
+        "id": check_id,
+        "ready": ready,
+        "status": "ready" if ready else "not_ready",
+        "required_for_local": required_for_local,
+        "required_for_provider_flip": required_for_provider_flip,
+        "detail": detail,
+    }
+
+
+def _counts_by_state(items: Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        state = str(item.get("state", "unknown"))
+        counts[state] = counts.get(state, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _primer_specificity_readiness(settings: Settings) -> dict[str, Any]:
+    configured_provider = (settings.primer_specificity_provider or "").strip().lower()
+    if not configured_provider:
+        configured_provider = PRIMER_SPECIFICITY_TEMPLATE
+    if configured_provider == PRIMER_SPECIFICITY_TEMPLATE:
+        return {
+            "configured_provider": configured_provider,
+            "ready": True,
+            "status": "template_window",
+            "whole_genome_specificity": False,
+            "local_path_values_emitted": False,
+        }
+    if configured_provider == PRIMER_SPECIFICITY_UCSC_ISPCR:
+        binary_present = _settings_path(settings, settings.ucsc_ispcr_binary_path).is_file()
+        reference_present = _settings_path(settings, settings.ucsc_ispcr_hg38_path).is_file()
+        ready = bool(binary_present and reference_present)
+        return {
+            "configured_provider": configured_provider,
+            "ready": ready,
+            "status": "ucsc_ispcr_ready" if ready else "ucsc_ispcr_unavailable",
+            "whole_genome_specificity": ready,
+            "checks": {
+                "binary_present": binary_present,
+                "reference_present": reference_present,
+            },
+            "local_path_values_emitted": False,
+        }
+    return {
+        "configured_provider": configured_provider,
+        "ready": False,
+        "status": "unknown_provider",
+        "whole_genome_specificity": False,
+        "local_path_values_emitted": False,
+    }
+
+
+def _settings_path(settings: Settings, path: Path) -> Path:
+    return path if path.is_absolute() else settings.backend_root / path
 
 
 if __name__ == "__main__":  # pragma: no cover

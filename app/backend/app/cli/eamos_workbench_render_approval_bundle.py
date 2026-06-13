@@ -166,16 +166,27 @@ def _operator_preflight(paths: dict[str, object]) -> list[dict[str, object]]:
     manifest = crispr["manifest"]
     return [
         {
-            "name": "offtarget_index_verify",
+            "name": "workbench_local_ready_bundle",
+            "command": "python -m app.cli.eamos_workbench_preflight --compact",
+            "expects": {
+                "local_readiness.status": "ready",
+                "local_readiness.provider_flip_status": "ready_or_not_ready_with_blockers",
+                "local_readiness.guardrails.local_path_values_emitted": False,
+            },
+        },
+        {
+            "name": "crispr_offtarget_preflight",
             "command": (
-                "python -m app.cli.eamos_crispr_offtarget_index verify "
-                f"--index {index} --genome-build GRCh38 --min-target-count <manifest_target_count>"
+                "python -m app.cli.eamos_crispr_offtarget_preflight "
+                f"--index-path {index} --provider indexed_sqlite --genome-build GRCh38 "
+                "--min-target-count <manifest_target_count> --require-ready --compact"
             ),
             "expects": {
-                "verification_ready": True,
-                "genome_build_matches": True,
-                "target_count_meets_min": True,
-                "local_path_values_emitted": False,
+                "ready_to_flip": True,
+                "public_runtime_available": True,
+                "runtime_status": "indexed_ready",
+                "indexed_sqlite.verification_ready": True,
+                "indexed_sqlite.local_path_values_emitted": False,
             },
         },
         {
