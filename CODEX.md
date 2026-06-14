@@ -9,14 +9,15 @@ protocol is **not** restated here — it lives once in
 Read in order:
 
 1. `CODEX.md` (this file).
-2. `agent_handoff/README.md` — **the coordination protocol** (hard rules,
+2. `AGENTS.md` — repo-level graphify/backend predictor rules.
+3. `agent_handoff/README.md` — **the coordination protocol** (hard rules,
    locks, idle, stop/break, resume-prompt format, full read order).
-3. `agent_handoff/CURRENT.md` — live state: Active Status, Log Edit-Lock,
+4. `agent_handoff/CURRENT.md` — live state: Active Status, Log Edit-Lock,
    Shared File Locks, Cross-Agent Requests, Current State, the
    `## Codex — Last Task & Resume` section.
-4. `agent_handoff/RISKS.md`.
-5. `plans/v2-backend.md` (backend) — plus `plans/<feature>/` if assigned.
-6. `git status --short --branch` and `git diff --stat`.
+5. `agent_handoff/RISKS.md`.
+6. `plans/v2-backend.md` (backend) — plus `plans/<feature>/` if assigned.
+7. `git status --short --branch` and `git diff --stat`.
 
 If the user gives a task brief inside `agent_handoff/CURRENT.md` or chat,
 follow that brief before older context.

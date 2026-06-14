@@ -11,6 +11,7 @@ coverage/
 # Runtime data, caches, and local scratch
 app/backend/data/
 data/
+.tools/
 .tmp/
 .scratch/
 .context/
@@ -35,3 +36,22 @@ graphify-out/converted/
 graphify-out/cost.json
 graphify-out/memory/
 graphify-out/.graphify_*
+
+# Historical handoff/screenshot artifacts and browser test output
+archive/
+agent_handoff/archive/
+agent_handoff/verify/
+app/frontend/test-results/
+app/web/test-results/
+
+# Static marketing/image assets are expensive for semantic extraction and do
+# not describe architecture.
+app/frontend/public/
+app/web/public/
+app/web/app/icon.svg
+app/backend/app/fixtures/reports/*.pdf
+app/backend/app/fixtures/**/*.json
+app/web/lib/rpe65-sample.json
+app/web/components/report/*.generated.ts
+app/frontend/src/lib/rpe65-sample.json
+.vercel/
