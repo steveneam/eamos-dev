@@ -42,6 +42,7 @@ node_modules_temp/
 
 # Agent scratch workspace (Codex native-reader proof venv, Claude .scratch screenshots, etc.)
 .scratch/
+.tools/
 .context/
 .claude/scheduled_tasks.lock
 supabase/supabase/
