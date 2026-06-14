@@ -243,7 +243,20 @@ def _preflight(target_path: Path) -> dict[str, object]:
         verify_checksum=True,
         require_manifest=True,
     )
-    return inspection.to_sanitized_dict()
+    return _predictor_inspection_summary(inspection)
+
+
+def _predictor_inspection_summary(inspection: object) -> dict[str, object]:
+    return {
+        "source_id": getattr(inspection, "source_id"),
+        "asset_role": getattr(inspection, "asset_role"),
+        "mode": getattr(inspection, "mode"),
+        "status": getattr(inspection, "status").value,
+        "ready": getattr(inspection, "ready"),
+        "actual_size_bytes": getattr(inspection, "actual_size_bytes"),
+        "reader_requires_local_path": getattr(inspection, "reader_requires_local_path"),
+        "materialization_status": getattr(inspection, "materialization_status"),
+    }
 
 
 def _hash_file(path: Path) -> dict[str, str]:

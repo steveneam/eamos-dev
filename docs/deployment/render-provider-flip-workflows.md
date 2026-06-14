@@ -442,12 +442,19 @@ stress the live web process. After the 2026-06-14 memory-limit restart warning
 on `eamos-dev-sg`, treat this as a maintenance-window operation, not a casual
 runtime command.
 
-Preflight from Render Shell:
+Preflight from Render Shell. The current Docker image does not include `free`,
+so read cgroup memory values directly:
 
 ```bash
-bash -lc 'pwd; df -h /var/data/eamos; free -h; command -v python; python - <<PY
+bash -lc 'pwd; df -h /var/data/eamos; command -v python; python - <<PY
+from pathlib import Path
 import importlib.util
 print("pysam", bool(importlib.util.find_spec("pysam")))
+for name in ("memory.max", "memory.current", "memory.swap.max", "memory.swap.current"):
+    path = Path("/sys/fs/cgroup") / name
+    if path.exists():
+        value = path.read_text().strip()
+        print(f"{name}={int(value)/1024/1024:.1f}MiB" if value.isdigit() else f"{name}={value}")
 PY'
 ```
 
@@ -494,6 +501,57 @@ $pc.providers.indexed_predictors.alphamissense | ConvertTo-Json -Depth 8
 
 If provider-cache is stale after file readiness and env reload, use one further
 deploy-only restart of the existing build.
+
+### AlphaMissense 2026-06-15 SG Event Log
+
+Context: Steven asked to materialize the AlphaMissense asset the same night as
+the report protein/gene viewer wiring, while preserving the 2026-06-14 memory
+limit warning on `eamos-dev-sg`.
+
+Actions and observations:
+
+- Commit `533e749` added source-backed report protein/domain hydration, the
+  optional AlphaMissense viewer heatmap contract, a streaming
+  `eamos_alphamissense_runtime_materialize` CLI, and this runbook section.
+- SG env keys set through single-key Render API updates only:
+  `ALPHAMISSENSE_HG38_RUNTIME_ASSET_PATH` and
+  `ALPHAMISSENSE_HG38_RUNTIME_ASSET_MODE`. Existing env vars were not replaced.
+- Manual Render deploy `dep-d8nbo84m0tmc73dvhlp0` went live on commit
+  `533e749ef873fdd759787cee8fe3891070143eeb`.
+- Render Shell preflight after deploy: `/var/data/eamos` mounted as a 59 GB
+  filesystem with about 54 GB free; Python `3.12.13`; `pysam=True`;
+  `memory.max=2048.0MiB`, `memory.current=156.3MiB`, no swap.
+- First CLI run reached final preflight after about `0m50s`, then failed on a
+  CLI-only serialization bug:
+  `AttributeError: 'PredictorRuntimeInspection' object has no attribute 'to_sanitized_dict'`.
+  The error occurred after the download/index/manifest path, so the next run
+  should first check whether the target file, `.tbi`, and manifest already
+  exist and match expected checksums before redownloading.
+
+Remediation:
+
+- Patch `app.cli.eamos_alphamissense_runtime_materialize` so `_preflight()`
+  serializes `PredictorRuntimeInspection` with the same sanitized shape as
+  provider-cache/source preflight.
+- Regression gate:
+
+```bash
+python -m pytest app/backend/tests/test_alphamissense_local_adapter.py -q
+python -m ruff check app/backend/app/cli/eamos_alphamissense_runtime_materialize.py app/backend/tests/test_alphamissense_local_adapter.py
+python -m black --check --target-version py310 app/backend/app/cli/eamos_alphamissense_runtime_materialize.py app/backend/tests/test_alphamissense_local_adapter.py
+```
+
+Resume sequence after the hotfix deploy:
+
+```bash
+ls -lh /var/data/eamos/bio_assets/predictors/alphamissense/
+python -m app.cli.eamos_alphamissense_runtime_materialize \
+  --target-path /var/data/eamos/bio_assets/predictors/alphamissense/AlphaMissense_hg38.tsv.gz \
+  --expected-size-bytes 642961469 \
+  --expected-md5 9fd167735f16a1b87da6eb3e4c25fcb5 \
+  --require-ready \
+  --compact
+```
 
 ## Supabase Cross-Check
 

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from app.cli.eamos_alphamissense_runtime_materialize import _predictor_inspection_summary
 from app.services.alphamissense_local import AlphaMissenseLocalAdapter
 from app.services.indexed_sources import IndexedPredictorScore, IndexedSourceError
 from app.services.predictor_runtime import (
@@ -179,6 +180,20 @@ def test_alphamissense_adapter_builds_bounded_residue_heatmap(
     assert heatmap.residues[0].mean_score == pytest.approx((0.2 + 0.8 + 0.6) / 3)
     assert heatmap.residues[0].max_score == 0.8
     assert heatmap.residues[1].scored_variant_count == 1
+
+
+def test_alphamissense_materializer_preflight_summary_is_sanitized(
+    tmp_path: Path,
+) -> None:
+    inspection = _ready_inspection(tmp_path)
+
+    summary = _predictor_inspection_summary(inspection)
+
+    encoded = str(summary).lower()
+    assert summary["status"] == "ready"
+    assert summary["ready"] is True
+    assert str(tmp_path).lower() not in encoded
+    assert "alphamissense_hg38.tsv.gz.tbi" not in encoded
 
 
 class FakeReader:
