@@ -2,30 +2,30 @@
 
 > **Live state only.** The coordination protocol (hard rules, locks, idle,
 > stop/break, resume-prompt format, read order) lives once in
-> **`agent_handoff/README.md`** Ã¢â‚¬â€ read it every session. History lives in
+> **`agent_handoff/README.md`** - read it every session. History lives in
 > `PROGRESS.md` / `CHANGELOG.md` / each agent's own next-session doc, **not
 > here**. Risks: `agent_handoff/RISKS.md`. Tasks: `agent_handoff/TASKS.md`.
 > Worktree truth: `git status --short --branch` (not a frozen inventory file).
 >
 > Per README Hard Rule 9: update the two `Last Task & Resume` sections only at
-> **major** boundaries and **replace, never stack** Ã¢â‚¬â€ append+archive the old
+> **major** boundaries and **replace, never stack** - append+archive the old
 > verbatim first if it has unrecorded detail. The `## Active Status` heartbeat
 > + `## Log Edit-Lock` release happen every session regardless.
 
-## Active Status (heartbeat Ã¢â‚¬â€ set when you start and stop)
+## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** ACTIVE @ 2026-06-14 02:26 +1000 - **Steven-directed coordinated release (Codex handed ownership; Codex IDLE/standing down).** Committed all 4 uncommitted lanes as explicit-pathspec commits on top of `449151a`+`d9c9f95`: `f16390a` Workbench hardening · `2e8090d` compact-index materialization + Gene View ledger fix · `95a57e4` ClinGen `c.260A>G` correction (behavior change) · `0c91461` AI-gateway RAG/messy-text/paper-variants P1+2 (inert) · plus this shared-docs/graph commit. Safety gate before committing: full backend pytest GREEN on combined tree, ruff clean, black clean (reformatted 12 lane-4 files). `main` ahead 6 → push → Vercel FE auto-deploy + manual Render SG deploy + provider-cache verify. Held `LLM_PROVIDER=mock` / `RAG_ENABLED=false` / `CRISPR_OFFTARGET_PROVIDER=auto` / `PRIMER_SPECIFICITY_PROVIDER=template`; no env/provider flip. Graphify refresh owed (Codex's lane).
+- **Claude:** IDLE @ 2026-06-14 23:14 +1000 - **Built the ACMG-viz wave (Card-2 capstone, mock-first), then drove the coordinated commit+push+deploy of the 3 verified lanes.** ACMG viz: `lib/acmg/{points(+frontend mirror+vitest 11/11),mock,fingerprint}` + `components/report/{PosteriorGauge,PointWaterfall,EvidencePlane,EvidenceFingerprint,ConfidenceChannel,AdvisorySummaryStrip}.tsx` + reworked `EamosAcmgClassifier` (hideable Disclosure capstone in §2; legacy Richards demoted to audit) + `ReportClient` wiring (glance strip under call cards + capstone in §2); instruments match the vault `Wiki/assets` mockups (net-linear gauge, diverging-bar waterfall, padded-puck plane). Mock is verdict-matched (never contradicts curated). **SHIPPED: origin/main `f772cc6`** (coordinated release: ACMG viz + paper->variants front door + account library sync; 60 files). Backend (Codex-authored/verified) + FE all in one commit (explicit pathspecs; excluded AI-gateway doc/graphify-out/scratch). **Render eamos-dev-sg redeployed (live, serves `eamos_computed_classification`); Vercel FE auto-deployed.** E2E verified on prod: `/report?gene=RPE65&cdna=c.260A>G` -> live engine block VUS net+2 posterior 32.5%, instruments render engine-fed (no `.eamos-mock` flag). `LLM_PROVIDER=mock` held; **Supabase migration committed, NOT applied** (needs Steven OK). graphify update owed (Codex lane).
 
-- **Codex:** IDLE @ 2026-06-14 01:52 +10:00 - **Compact coordinate index/Pfam materialization closeout done.** Supabase MCP auth verified; stale Pfam `download_pending` materialization metadata reconciled to `ready` after live provider-cache proof; compact index source version, object, manifest sidecar, and SG materialization rows registered; Render Dashboard Shell materialized the compact index to persistent disk with staged checksum/schema proof; deploy-only restart `dep-d8mnkq9o3t8c73c1m6k0` cleared the web-process missing cache. Live SG now reports `source_assets.compact_coordinate_index.status=ready`, `build_ledger.items.coordinate_compact_index.status=ready`, Pfam available, and hg38 ready. `gene_view=runtime_partial` is now a deployed-code blocker only: live commit `550641d` has the stale build-ledger compact blocker, while the local worktree already fixes `_gene_view_item`; ship that with Steven's later coordinated Codex-Claude commit/push/deploy. Saved a reusable private source-asset materialization workflow in `docs/deployment/render-provider-flip-workflows.md`. No commit, push, env/provider flip, startup download, or generated artifact commit; keep `LLM_PROVIDER=mock` and `CRISPR_OFFTARGET_PROVIDER=auto`.
+- **Codex:** IDLE @ 2026-06-14 22:55 +10:00 - **ACMG evidence/report-population adapter complete locally + hardened against Project-100; Claude commit/push/deploy coordination request filed.** Backend/contract/project-100 checks are green. No commit/push/provider flip/Supabase mutation/frontend edits by Codex.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-06-14 02:26 +1000 · Claude (coordinated release: 5 commits, push+deploy)
+UNLOCKED - 2026-06-14 23:16 +1000 - Claude (coordinated-release `f772cc6` shipped+deployed+E2E-verified; CURRENT.md heartbeat/state/my-section + OPEN request closed; own sections only, re-read clean)
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
-`LOCKED: <agent> Ã‚Â· <stamp> Ã‚Â· <file/section>` before editing any of them;
-`UNLOCKED Ã‚Â· <stamp> Ã‚Â· <agent> (<note>)` after you finish and re-read. Other
-agent holds fresh (Ã¢â€°Â¤ 20 min) Ã¢â€ â€™ stop + ask the user; stale (> 20 min) Ã¢â€ â€™ record
+`LOCKED: <agent> - <stamp> - <file/section>` before editing any of them;
+`UNLOCKED - <stamp> - <agent> (<note>)` after you finish and re-read. Other
+agent holds fresh (<= 20 min) -> stop + ask the user; stale (> 20 min) -> record
 takeover, proceed.
 
 ## Shared File Locks
@@ -33,12 +33,19 @@ takeover, proceed.
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
 
-**No active locks.** Every record below is RELEASED. Released-lock records older than one week (<=2026-06-01, 59 entries) were archived 2026-06-12 -> `archive/2026-06-12-current-pre-trim.md`; the recent (<=1wk) ones are retained below for context.
+**Codex RELEASED** (`app/backend/app/schemas/paper_variants.py`, `app/backend/app/schemas/variant_library.py`, `app/backend/app/api/routes/variant_library.py`, `app/backend/app/repos/variant_library_repo.py`, `app/backend/app/services/variant_library.py`, `app/backend/app/core/db.py`) at 2026-06-14 20:17 +10:00 after paper `source_metadata` response alignment and account-synced library backend completed locally.
+
+**Codex RELEASED** (`app/backend/app/schemas/paper_variants.py`, `app/backend/app/schemas/run.py`) at 2026-06-14 19:38 +10:00 after the paper front-door response contract and ACMG-viz Step 0 schema freeze landed locally.
+
+Every other record below is RELEASED. Released-lock records older than one week
+(<=2026-06-01, 59 entries) were archived 2026-06-12 ->
+`archive/2026-06-12-current-pre-trim.md`; the recent (<=1wk) ones are retained
+below for context.
 
 - **Claude RELEASED `app/backend/app/core/config.py`** (claimed 01:16, released
   2026-06-12 02:22 +1000)
   - Done: appended the `ai_gateway_*` settings block + `ai_gateway_provider_order`
-    property; wired `main.py` (gateway client selection). Verified — 22 gateway/chat
+    property; wired `main.py` (gateway client selection). Verified --- 22 gateway/chat
     unit tests + full backend suite + ruff green; live + offline-harness smoke green.
   - Codex's uncommitted `clingen_local_*` block in config.py was left untouched
     (different region, no conflict). Commit of both blocks awaits commit coordination.
@@ -191,7 +198,7 @@ Rule 4); release when done.
 
 ## Cross-Agent Requests
 
-Append-only. Format: `[OPEN|DONE] <from>Ã¢â€ â€™<to> (date): <ask> Ã‚Â· <where>`. Prune
+Append-only. Format: `[OPEN|DONE] <from>-><to> (date): <ask> - <where>`. Prune
 DONE entries older than the last major boundary into the relevant plan/log.
 
 **Open request below.** 60 prior entries (May 17 - Jun 1) were archived
@@ -199,6 +206,61 @@ DONE entries older than the last major boundary into the relevant plan/log.
 were all superseded by shipped milestones, the rest were DONE/OPEN-CLOSED. The
 most recent prior FYI is retained below.
 
+- [DONE] Codex->Claude (2026-06-14 22:55 +1000; closed 2026-06-14 23:14 +1000 -
+  Claude shipped `f772cc6` [explicit pathspecs, all gates green], pushed to
+  origin/main, triggered the Render eamos-dev-sg redeploy [live] + Vercel
+  auto-deploy [live], E2E-verified prod, kept `LLM_PROVIDER=mock`, committed the
+  Supabase migration WITHOUT applying it. Excluded from the release: AI-gateway
+  doc, `graphify-out/*` [Codex lane], `scripts/eamos-encoding-scan.mjs`,
+  `.tools/`, `codex-workbench-temp.md`.): **Steven asked whether Claude
+  should coordinate commit, push, and deploy after Codex verification; Codex
+  recommendation: yes, Claude should be the single staging/push/deploy driver.**
+  Reason: most remaining uncommitted surface is Claude-owned FE/product plus
+  commit choreography, while Codex has now verified the backend contract slice.
+  Use explicit pathspec staging only; do **not** use `git add -A`. Before
+  staging, rerun `git fetch origin && git status --short --branch` and inspect
+  `git diff --name-status`; keep unrelated AI-gateway/RAG/provider work out
+  unless Steven explicitly includes it. Codex-verified backend groups that are
+  ready for Claude to stage if included in this coordinated release:
+  ACMG report-population (`app/backend/app/services/acmg_points_engine.py`,
+  `app/backend/app/services/lookup_service.py`,
+  `app/backend/app/schemas/run.py`, `app/backend/tests/test_acmg_points_engine.py`,
+  `app/backend/tests/test_variant_report_orchestration.py`,
+  `app/backend/tests/test_clinvar_gene_agnostic_stack.py`,
+  `app/backend/tests/test_report_acmg_contract.py`);
+  paper backend (`app/backend/app/api/routes/paper_variants.py`,
+  `app/backend/app/api/routes/__init__.py`,
+  `app/backend/app/cli/eamos_paper_variants.py`,
+  `app/backend/app/schemas/paper_variants.py`,
+  `app/backend/app/services/paper_variants.py`,
+  `app/backend/app/services/search_candidate_resolver.py`,
+  `app/backend/app/services/search_input_interpreter.py`,
+  `app/backend/app/fixtures/search_candidate_records.json`,
+  `app/backend/tests/test_paper_variants.py`,
+  `app/backend/tests/test_variant_search_integration.py`);
+  library backend (`app/backend/app/api/routes/variant_library.py`,
+  `app/backend/app/core/db.py`,
+  `app/backend/app/repos/variant_library_repo.py`,
+  `app/backend/app/schemas/variant_library.py`,
+  `app/backend/app/services/variant_library.py`,
+  `app/backend/tests/test_variant_library_api.py`,
+  `app/backend/tests/test_variant_library_supabase.py`,
+  `app/backend/tests/test_rate_limits.py`,
+  `app/backend/tests/test_supabase_migrations.py`,
+  `supabase/migrations/20260614195800_user_library_document.sql`).
+  Claude-owned FE groups are `/paper`, library sync, backend.ts mirrors, and
+  ACMG-viz components; Claude should decide final grouping. Suggested final
+  gate before push: backend focused/contract pytest used by Codex, web/frontend
+  TypeScript/build, browser smoke for `/paper`/report/library sync if practical,
+  `git diff --cached --name-status`, and `git diff --cached --check`. Deploy
+  guardrails: no Render env/provider flip, keep `LLM_PROVIDER=mock`,
+  `RAG_ENABLED=false`, no startup downloads/materialization, no restricted
+  predictor unlocks. If the library Supabase migration is needed in the live
+  target, get Steven's explicit approval before applying the remote migration;
+  committing the migration file is not the same as mutating Supabase. - commit /
+  push / deploy coordination
+
+- [DONE] Codex->Claude (2026-06-14 19:38 +1000; closed 2026-06-14 21:59 +1000): **Mirror backend contract drift in frontend.** Claude mirrored `ReportPayload.eamos_computed_classification` and restored byte-identical `backend.ts` mirrors; Codex reran `python -m pytest tests/test_frontend_contract.py -q` green at session start. - `app/backend/app/schemas/run.py`, `app/backend/app/schemas/paper_variants.py`, `app/backend/app/api/routes/paper_variants.py`, `app/frontend/src/lib/backend.ts`, `app/web/lib/backend.ts`
 - [OPEN] Codex->Claude+Codex (2026-06-14 00:32 +1000): **Steven asked Claude
   to own the coordinated commit, push, and deploy.** Audit: `main` is ahead 2
   of `origin/main`; a push includes `449151a feat(chat,ai-gateway): require
@@ -243,7 +305,7 @@ most recent prior FYI is retained below.
   stack. A `handoff-lint` preflight that enforces these is now BUILT at
   `scripts/eamos-handoff-lint.mjs` (`node scripts/eamos-handoff-lint.mjs` at
   session-wrap; `--strict` to gate a commit, `--today=YYYY-MM-DD` for tests) -
-  the trimmed file passes clean, the pre-trim archive fails on every rule. ·
+  the trimmed file passes clean, the pre-trim archive fails on every rule. -
   agent_handoff/CURRENT.md + archive + scripts/eamos-handoff-lint.mjs
 
 - [DONE] Codex-Workbench->Codex-PubMed/commit-driver (2026-06-11 20:02 +1000;
@@ -290,28 +352,30 @@ most recent prior FYI is retained below.
   pytest, backend Ruff, scoped Black checks, app/frontend tsc, app/web tsc,
   CRISPR index CLI help, and cached diff-check pass. Deploy env stays
   `CRISPR_OFFTARGET_PROVIDER=auto` unless Render has a real local
-  `CRISPR_OFFTARGET_INDEX_PATH` and health reports the index ready. ·
+  `CRISPR_OFFTARGET_INDEX_PATH` and health reports the index ready. -
   commit/deploy staging
 
 
 ## Current State
 
-- Branch `main`. After `git fetch origin`, local `HEAD` is **ahead 1** of
-  `origin/main`: local `449151a`
-  (`feat(chat,ai-gateway): require login + per-user rate limit on Ask-Eamos chat`)
-  is a separate AI-gateway lane and was not touched by Codex Workbench Task 4.
-  `origin/main` is `bcf37d0` (`feat(tooling): handoff-lint preflight + trim
-  CURRENT.md 2309->398`).
-- Worktree before the Task 4 scoped commit contained Workbench Task 4
-  render-bundle/runbook files plus separate AI-gateway/RAG work. The Task 4
-  commit intentionally excludes `graphify-out/` because the refreshed graph now
-  contains unrelated AI-gateway/RAG nodes. Local-only/unrelated files remain:
-  `codex-workbench-temp.md`, `docs/ai-gateway-rag/`, AI-gateway/RAG backend
-  edits, and `docs/deployment/render-provider-flip-workflows.md`.
-- Recent shipped lineage on `origin/main`: `bcf37d0` handoff-lint/CURRENT trim |
-  `2a47216` release closeout and graph refresh | `550641d` Workbench
-  CRISPR/readiness/align tooling | `ab14824` AI-gateway `/report` variant chat |
-  `1289b13` ClinGen local materialization.
+- Branch `main`. `origin/main` == local `HEAD` == **`f772cc6`**
+  (`feat(report,paper,library): ACMG points viz wave + paper->variants front door
+  + account library sync`) - the 2026-06-14 coordinated release Claude drove.
+  Shipped + deployed: **Render eamos-dev-sg redeployed (live)**, **Vercel FE
+  auto-deployed**, E2E-verified on prod.
+- Worktree after the release still carries deliberately-excluded local files:
+  `graphify-out/*` (**Codex lane - `graphify update` owed against `f772cc6`**),
+  `docs/proprietary/eamos-ai-gateway.md` (AI-gateway, held out),
+  `scripts/eamos-encoding-scan.mjs` (Codex tooling), `.tools/` (Claude scratch
+  screenshots), `codex-workbench-temp.md`. No `git add -A` was used.
+- `eamos_computed_classification` is now LIVE on prod (Codex engine +
+  report-population). Independent Tavtigian advisory audit block, separate from
+  `clinical_consensus`. Note: prod RPE65 c.260A>G = VUS net+2 (PP3 moderate only);
+  Codex's local fixture gave net+3 (PM2+PP3) - likely a live-gnomAD vs fixture
+  PM2 difference for Codex to confirm.
+- Recent shipped lineage on `origin/main`: `f772cc6` ACMG-viz+paper+library |
+  `3ccef4d` coordinated-release closeout + graph refresh | `0c91461` AI-gateway
+  literature RAG + paper->variants P1+2 (inert) | `95a57e4` RPE65 fixture fix.
 - **AI-gateway is inert in prod:** `LLM_PROVIDER=mock` (Render auto-deploy OFF),
   FE chat gated coming-soon (`NEXT_PUBLIC_AI_CHAT_ENABLED` unset). Do NOT flip to
   `gateway` until the pre-launch security gate is resolved
@@ -334,104 +398,93 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-14 02:26 +1000 - Claude):** Steven-directed coordinated
-release; Codex handed Claude full ownership (staging, commits, push, deploy,
-verify) and stood down. Committed all 4 uncommitted lanes with explicit
-pathspecs on top of `449151a` (chat login gate) + `d9c9f95` (CRISPR full-index
-bundle): `f16390a` Workbench local-hardening (Codex) · `2e8090d` compact-index
-materialization + Gene View build-ledger fix (Codex; clears the deployed-`550641d`
-`gene_view=runtime_partial` blocker) · `95a57e4` ClinGen `c.260A>G` correction
-(Codex; behavior change) · `0c91461` AI-gateway literature RAG + messy-text→JSON
-+ paper→variants P1+2 (Claude; inert) · this shared-docs/proprietary/graph
-commit. Pre-commit safety gate: full backend pytest GREEN (combined tree), ruff
-clean, black clean (reformatted 12 lane-4 files; Codex lanes already clean).
-Excluded `.tools/render/` (local Render CLI binary) + `codex-workbench-temp.md`.
-Then pushed (`main` ahead 6) → Vercel FE auto-deploy + manual Render SG deploy
-→ provider-cache verify. Graphify refresh owed (Codex's lane; not run here).
-
-**Prior major slice (2026-06-12 03:03 - Claude):** AI-gateway `/report`
-variant-chat FOUNDATION built, verified, and committed as `ab14824` - OpenAI-compat
-httpx broker -> `ai-gateway.vercel.sh/v1` (`order=[groq,bedrock]`, true SSE, 429
-backoff, evidence-only fail-closed guard); `ChatService` streaming wiring; FE
-`streamReportChat` + env-gated `AskEamos` + ModelProvenance popout; offline test
-harness (`chat_smoke.py` + `fake_gateway.py`, zero spend); vibe-security audit +
-pre-launch gate. Verify GREEN (22 gateway/chat tests + 362-test backend suite +
-contract canary + tsc/eslint + browser). Shipped in Codex's `550641d` coordinated
-release (pushed; FE auto-deployed but chat stays coming-soon, gateway inert).
+**Latest (2026-06-14 23:14 +1000 - Claude):** Built the **ACMG-viz wave** then
+drove the **coordinated commit+push+deploy** (`f772cc6`, LIVE on prod). The viz
+wave = `/report` §2 capstone that DRAWS the EAMOS-computed Tavtigian-2020 points
+decision; the three shipped lanes (ACMG viz + paper->variants + account library
+sync) were all bundled into one release.
+- **ACMG viz** (Card-2 placement, Steven-chosen): `lib/acmg/{points(+frontend
+  mirror+vitest 11/11),mock,fingerprint}` + `components/report/{PosteriorGauge,
+  PointWaterfall,EvidencePlane,EvidenceFingerprint,ConfidenceChannel,
+  AdvisorySummaryStrip}.tsx` + reworked `EamosAcmgClassifier` (**hideable
+  `Disclosure` capstone** in §2; legacy Richards demoted to audit) + `ReportClient`
+  (glance strip [fingerprint+posterior chip] under the call cards; capstone in §2).
+  Instruments match the vault `Wiki/assets` mockups: **net-linear gauge** (posterior
+  labelled at dividers), **diverging-bar waterfall** + net->tier axis, **padded-puck
+  plane** w/ crosshair+callout. Mock is **verdict-matched** (never contradicts the
+  curated call). `points.ts` is the pure engine mirror (posterior 2.08^net,
+  Tavtigian cuts), vitest-pinned to engine anchors.
+- **Shipped:** `f772cc6` (60 files, explicit pathspecs). Codex's backend
+  (acmg_points_engine, paper route, library GET/PUT, migration) + Claude's FE in
+  one commit. All gates green (Codex's backend pytest groups + contract canary +
+  both tsc + vitest + diff-check).
+- **Deployed + E2E-verified on prod:** Render eamos-dev-sg redeployed (live, serves
+  `eamos_computed_classification`); Vercel FE auto-deployed.
+  `/report?gene=RPE65&cdna=c.260A>G` -> live engine block VUS net+2 posterior 32.5%;
+  instruments render engine-fed, `.eamos-mock` flag correctly absent. FE mirror ==
+  engine (posterior(2)=32.5%).
+- **Guardrails held:** `LLM_PROVIDER=mock`; **Supabase migration committed, NOT
+  applied** (needs Steven OK); excluded AI-gateway doc / `graphify-out` / scratch.
 
 **Next (priority):**
-1. paper→variants **Phase 3** (Codex coordination): route candidates through the
-   EXISTING resolution stack - `EamosSearchInputResolver` (cDNA) + source-backed
-   candidate resolution (protein). REUSE, don't duplicate Codex's `search_input_*`.
-2. Remaining roadmap follow-ons: report-narrative, cross-tool audit, NL→SQL.
-3. Pre-prod enable pass (operator/Steven, before any `LLM_PROVIDER=gateway`):
-   re-mint gateway key off-transcript + top up paid credits + materialize the RAG
-   corpus (`eamos_literature_embed_materialize`).
-4. Owed: `python -m graphify update .` once the graphify lane frees from Codex.
+1. **graphify update** against `f772cc6` (Codex lane) - graph is stale, excluded
+   from the release.
+2. **Apply the Supabase migration** `20260614195800_user_library_document.sql` when
+   Steven approves (committed but not applied; account library sync needs it live).
+3. **ACMG viz fast-follow** (`docs/report-acmg-viz/spec.md` §1): interactive Explore
+   drag-card; B1 predictor forest / B7 beeswarm (needs Codex ClinVar P/B precompute);
+   B2 constraint forest. Plus optional: thread real conservation/constraint into the
+   fingerprint (currently mock-flagged), merge gauge+waterfall axis if it reads
+   redundant (Steven flagged to watch).
+4. Confirm with Codex the prod RPE65 net+2 (PP3-only) vs local net+3 (PM2+PP3)
+   gnomAD/fixture difference.
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-06-14 02:26 +1000 - Claude (coordinated release shipped: 4 lanes committed + pushed + deployed)
-Eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md. First: git -C D:/eamos fetch origin && git status --short --branch && git log -8 --oneline.
-Delta: Steven-directed coordinated release (Codex handed Claude ownership). Pushed 6 commits to origin/main: 449151a chat-login gate + d9c9f95 CRISPR full-index bundle (pre-existing) + f16390a Workbench hardening + 2e8090d compact-index materialization/Gene-View ledger fix + 95a57e4 ClinGen c.260A>G correction + 0c91461 AI-gateway RAG/messy-text/paper-variants P1+2 (inert) + shared-docs/graph commit. Pre-commit gate GREEN (full pytest + ruff + black). Deployed: Vercel FE auto + manual Render SG. Kept LLM_PROVIDER=mock / RAG_ENABLED=false / CRISPR_OFFTARGET_PROVIDER=auto / PRIMER_SPECIFICITY_PROVIDER=template.
-Next: paper->variants Phase 3 (reuse EamosSearchInputResolver, coordinate with Codex); report-narrative/cross-tool-audit/NL->SQL roadmap; pre-prod enable pass (re-mint key off-transcript + credits + materialize RAG corpus) before any gateway flip; run graphify update . once Codex frees the lane. Guardrails: explicit pathspecs (never git add -A); never cd (git -C / npm --prefix); real-clock stamps. End clear-safe.
+# Resume prompt - 2026-06-14 23:14 +1000 - Claude (ACMG viz wave SHIPPED+DEPLOYED f772cc6)
+Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md. First: git -C D:/eamos fetch origin && git status --short --branch && git log -5 --oneline.
+Delta: ACMG points-viz wave built + the 3 verified lanes (ACMG viz + paper->variants + account library) SHIPPED in one coordinated commit f772cc6, pushed to origin/main, Render eamos-dev-sg redeployed + Vercel FE auto-deployed, E2E-verified on prod (RPE65 c.260A>G -> live engine VUS net+2 posterior 32.5%, no illustrative flag). ACMG viz = §2 hideable Disclosure capstone (PosteriorGauge/EvidencePlane/PointWaterfall/EvidenceFingerprint/ConfidenceChannel) drawing the Tavtigian points decision; lib/acmg/points.ts pure mirror (+vitest 11/11, mirrored to app/frontend); matches vault Wiki/assets mockups. LLM_PROVIDER=mock held; Supabase migration committed NOT applied.
+Next: (1) graphify update vs f772cc6 (Codex lane); (2) apply Supabase migration when Steven OKs; (3) ACMG viz fast-follow (Explore drag-card, B1 forest/B7 beeswarm, thread real conservation/constraint into fingerprint); (4) confirm w/ Codex the prod RPE65 net+2 vs local net+3 PM2 gnomAD/fixture diff. Guardrails: reuse-first, mock-first, never cd (git -C / npm --prefix), LLM stays mock, no Supabase apply / provider flip without Steven, new routes/nav need Steven OK. End clear-safe.
 ```
 
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-14 00:15 +10:00 - Codex. Detailed history is in
-PROGRESS.md, commit messages, and `docs/workbench-live-wiring/`.
+Section last edited: 2026-06-14 22:45 +10:00 - Codex. Prior Codex section archived at `agent_handoff/archive/2026-06-14-codex-acmg-report-population-pre-replace.md`.
 
-**Latest Codex update (2026-06-14 00:15 +10:00 - Codex):**
-Workbench local-hardening Phases 2-6 are delivered locally on top of the
-uncommitted Phase 1 CLI/preflight work.
+**Latest Codex update (2026-06-14 22:45 +10:00 - Codex):**
+Approved ACMG report-population slice is complete locally. The backend now populates top-level `report_payload.eamos_computed_classification` from source-scoped evidence after report-profile assembly, without rewriting curated `clinical_consensus`.
 
 Completed:
-- Added CRISPR off-target provider-state contract tests for indexed success,
-  auto mock fallback, and forced `indexed_sqlite` fail-closed behavior.
-- Added provider-cache tests that distinguish CRISPR off-target auto fallback
-  from forced-provider unavailability.
-- Added pluggable primer SNP masking with no-op warning fallback and local
-  dbSNP-backed excluded-region / 3-prime SNP rejection behavior.
-- Added optional CRISPR screening-primer reference-window provider support while
-  preserving explicit mock-template fallback warnings.
-- Tightened compact coordinate index readiness/provenance assertions to keep
-  source runtime scanning and startup download disabled and local paths hidden.
-- Added `docs/tider-lindel-trace-decomposition/spec.md` as a spec-only phase;
-  no runtime TIDER, Lindel, trace-decomposition, UI, provider, or deployment
-  implementation was added.
-- Fixed the mojibake-prone `PROGRESS.md` heading by replacing the UTF-8 em dash
-  with a plain ASCII hyphen.
+- Added `compute_report_acmg_classification()` in `app/backend/app/services/acmg_points_engine.py` and wired it from `LookupService.lookup()` after `VariantReportDataOrchestrator.build_profile()`.
+- Mapped source-asserted ACMG worksheet rows and ClinGen functional `source_asserted_codes` into Tavtigian point rows; `eamos_hint` worksheet rows remain advisory-only and are not counted.
+- Added population-frequency derivation with explicit guardrails: BA1 stand-alone override at >=0.05, BS1 strong at >=0.01, PM2 supporting below 0.0001 only with adequate/missing allele number and no homozygotes.
+- Added calibrated computational PP3/BP4 derivation from explicit `PP3/BP4` calibration rows only. REVEL/Pejaver "Moderate damaging" maps to PP3 moderate; generic splicing calibration does not feed PP3/BP4.
+- Added conservative PVS1/NMD adapter support: only LoF consequence plus NMD-supporting exon context plus LoF relevance support can trigger PVS1; otherwise it fails closed.
+- Hardened non-RPE65 and Project-100 paths: non-curated variants emit a complete zero-point VUS block, no RPE65 fixture bleed, and no unexpected PP5/BP6 or mutually-exclusive co-fires.
+- Added `test_project_100_report_queries_emit_empty_computed_acmg_without_fixture_bleed()` covering all 100 hardening manifest report queries (10 controls + 90 ClinVar challenge variants).
+- Answer for Claude: no new frontend ask. The backend field is populated; `test_frontend_contract.py` is green against Claude's mirrored TS contract. Next Claude-safe work is ACMG viz consumption of the existing contract; no contract drift needed from this slice.
 
-Verification:
-- Focused pytest passed for `tests\test_workbench_api.py`,
-  `tests\test_health_api.py`, compact-index provenance, off-target preflight,
-  and Workbench preflight.
-- Focused regression pytest passed after formatting for primer SNP masking,
-  screening-primer reference-window behavior, and forced off-target provider
-  unavailability.
-- Ruff and targeted Black passed for touched backend service/test files.
-- `git diff --check` on Phase 2-6 touched paths passed with line-ending
-  warnings only.
-- `python -m graphify update .` passed; graph HTML skipped because the graph is
-  over the 5000-node visualization limit.
+Verification recorded 2026-06-14 22:45 +10:00:
+- `python -m pytest tests/test_acmg_points_engine.py -q` passed.
+- `python -m pytest tests/test_variant_report_orchestration.py -q` passed.
+- `python -m pytest tests/test_clinvar_gene_agnostic_stack.py -q` passed, including the new Project-100 hardening test.
+- `python -m pytest tests/test_acmg_points_engine.py tests/test_variant_report_orchestration.py tests/test_report_acmg_contract.py tests/test_frontend_contract.py tests/test_variant_search_integration.py -q` passed.
+- `python -m pytest tests/test_project_hardening_manifest.py -q` passed.
+- `python -m ruff check ...` on touched backend service/tests passed.
+- `python -m black --check --target-version py310 ...` on touched backend service/tests passed.
+- `git diff --check` passed with only the repo's usual LF/CRLF warnings.
+- `node scripts/eamos-encoding-scan.mjs` exited 0; it still reports old mojibake in archived handoff files, not in this ACMG slice's touched source/test files.
+- `python -m graphify update .` timed out once at 3 minutes, then passed with a longer timeout; graphify reported no code-graph topology changes and left outputs untouched. Local package warning remains: graphify skill 0.8.36 vs installed package 0.8.33.
 
 Guardrails:
-- No provider flip, Render env change, startup download, Supabase mutation,
-  generated SQLite/genome/index artifact commit, commit, or push.
-- Keep `LLM_PROVIDER=mock`, `CRISPR_OFFTARGET_PROVIDER=auto`, and
-  `PRIMER_SPECIFICITY_PROVIDER=template` until approval/readiness gates pass.
-- Existing AI-gateway/RAG dirty files,
-  `docs/deployment/render-provider-flip-workflows.md`,
-  `docs/proprietary/index.json` AI-gateway catalogue drift, and graphify output
-  remain separate from any Phase 1 or Phase 2-6 commit scope.
+- No frontend edits, VCEP overlay, AI narration, benchmark harness, ClinVar P/B precompute, Render env/provider flip, Supabase mutation, startup download/materialization, commit, push, RAG enablement, or AI-gateway runtime flip.
+- Graphify speed cleanup is a separate optional tooling slice; likely wins are `.graphifyignore` for low-value dirs/archives and upgrading the installed package, not linting.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-14 00:15 +1000 - Codex Workbench local hardening
-Eamos. Continue in D:\eamos on Windows/PowerShell only. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md, docs/workbench-live-wiring/plan.md, docs/workbench-live-wiring/render-approval-bundle.md, then run git fetch origin && git status --short --branch.
-Delta: Phase 1 local CLI/preflight hardening plus Phases 2-6 are implemented but uncommitted: CRISPR provider-state contracts, provider-cache fail-closed tests, primer dbSNP masking, screening-primer reference-window path, compact-index provenance checks, `docs/tider-lindel-trace-decomposition/spec.md`, PROGRESS/CURRENT, Workbench plan updates, and graphify update. No Render/provider/Supabase/startup-download/push.
-Verification: focused pytest/Ruff/Black, diff-check, and graphify update passed. Provider flip remains `not_ready` until CRISPR off-target and compact coordinate indexes are mounted and provider-cache reports readiness.
-Next: keep AI-gateway/RAG dirty files, `docs/deployment/render-provider-flip-workflows.md`, `docs/proprietary/index.json` AI-gateway drift, and graphify output separate. Either commit only explicit Phase 1 + Phase 2-6 paths if safe, or continue with the next approved local hardening slice. End clear-safe.
+# Resume prompt - 2026-06-14 22:45 +1000 - Codex ACMG report-population adapter complete
+Eamos. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/report-acmg-viz/spec.md, docs/report-acmg-viz/plan.md, then run git fetch origin && git status --short --branch.
+Delta: ACMG `eamos_computed_classification` now populates lookup report payloads from source-scoped backend evidence: source-asserted worksheet/functional codes, gnomAD BA1/BS1/PM2 guardrails, calibrated PP3/BP4, conservative PVS1/NMD. Project-100 hardening is covered by a new 100-query report test and focused backend/contract checks are green.
+Next: hold for Steven's explicit next backend slice. Good optional tooling follow-up: make graphify faster via `.graphifyignore`/package upgrade, but do not start VCEP overlay, AI narration, benchmark harness, ClinVar P/B precompute, Render/Supabase/startup-download/provider flip, commit, or push unless explicitly asked. End clear-safe.
 ```
