@@ -1,14 +1,21 @@
 import { Disclosure } from '@/components/ui/Disclosure'
 import { EvidenceChip } from '@/components/ui/EvidenceChip'
-import type { AcmgCriteriaScaffold, AcmgCode } from '@/lib/backend'
+import type { AcmgCriteriaScaffold, AcmgCode, EamosComputedClassification } from '@/lib/backend'
 import { AcmgGrid } from './AcmgGrid'
+import { PosteriorGauge } from './PosteriorGauge'
+import { EvidencePlane } from './EvidencePlane'
+import { PointWaterfall } from './PointWaterfall'
+import { ConfidenceChannel } from './ConfidenceChannel'
 
 /**
- * Eamos automated ACMG/AMP classification (report v3) — InterVar-style. Takes the
- * criteria the report already assigned (the §1 28-criterion scaffold) and applies
- * the Richards et al. 2015 *combining* rules to estimate a 5-tier verdict. Useful
- * for NOVEL variants with no ClinVar/ClinGen call. It is a rule-based starting
- * point, NOT a substitute for the expert-panel classification above.
+ * The EAMOS-computed ACMG/AMP advisory — the synthesis capstone of §2. It DRAWS
+ * the classification decision (Tavtigian-2020 points): a posterior gauge, an
+ * evidence plane, and a point waterfall, fed by the single `eamos_computed_
+ * classification` contract. It deliberately sits below the in-silico predictor
+ * table because it *combines* those predictors (PP3/BP4) with population, loss-of-
+ * function and functional evidence — but it is an advisory: the curated clinical
+ * classification in §1 takes precedence. The legacy Richards-2015 categorical
+ * estimate (no points, no posterior) is demoted to an audit disclosure.
  */
 
 interface Counts {
@@ -67,8 +74,7 @@ function classify({ pvs, ps, pm, pp, ba, bs, bp }: Counts): { verdict: string; r
   }
 }
 
-export function EamosAcmgClassifier({ data }: { data?: AcmgCriteriaScaffold | null }) {
-  if (!data) return null
+function LegacyCategoricalView({ data }: { data: AcmgCriteriaScaffold }) {
   const met = data.criteria.filter((c) => c.verdict === 'met').map((c) => c.code)
   const counts: Counts = { pvs: 0, ps: 0, pm: 0, pp: 0, ba: 0, bs: 0, bp: 0 }
   for (const code of met) {
@@ -80,60 +86,115 @@ export function EamosAcmgClassifier({ data }: { data?: AcmgCriteriaScaffold | nu
   const benignCodes = met.filter((c) => c.startsWith('B'))
 
   return (
+    <Disclosure
+      kicker="Legacy categorical view"
+      showLabel="Show legacy categorical view (Richards-2015)"
+      hideLabel="Hide legacy categorical view"
+      summary={`${verdict} · rule-based count (no points)`}
+    >
+      <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.55, color: 'var(--ink-3)' }}>
+        The original <strong style={{ color: 'var(--ink)' }}>Richards-2015 combining rules</strong> applied to the met
+        criteria — a categorical count with no point total or posterior. Kept for audit; the point-based advisory above
+        supersedes it.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <EvidenceChip size="lg" dot classification={verdict} title="Legacy Richards-2015 categorical classification">
+          {verdict}
+        </EvidenceChip>
+        <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>{rule}</span>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11.5, color: 'var(--ink-3)', marginBottom: 12 }}>
+        <span>
+          <span style={{ color: 'var(--ink-4)' }}>Pathogenic criteria met: </span>
+          {pathCodes.length ? (
+            <span style={{ fontFamily: 'var(--mono)', color: 'var(--cls-path-text)' }}>{pathCodes.join(', ')}</span>
+          ) : (
+            <span style={{ color: 'var(--ink-4)' }}>none</span>
+          )}
+        </span>
+        <span>
+          <span style={{ color: 'var(--ink-4)' }}>Benign criteria met: </span>
+          {benignCodes.length ? (
+            <span style={{ fontFamily: 'var(--mono)', color: 'var(--cls-ben-text)' }}>{benignCodes.join(', ')}</span>
+          ) : (
+            <span style={{ color: 'var(--ink-4)' }}>none</span>
+          )}
+        </span>
+      </div>
+
+      <div className="eamos-kicker" style={{ marginBottom: 8 }}>All 28 ACMG criteria — met highlighted</div>
+      <AcmgGrid criteria={data.criteria} />
+    </Disclosure>
+  )
+}
+
+export function EamosAcmgClassifier({
+  data,
+  computed,
+  mock = false,
+}: {
+  data?: AcmgCriteriaScaffold | null
+  computed?: EamosComputedClassification | null
+  mock?: boolean
+}) {
+  // Nothing to show if neither the points advisory nor the legacy scaffold exist.
+  if (!computed && !data) return null
+
+  const pct = computed ? `${(computed.posterior * 100).toFixed(1)}%` : null
+
+  return (
     <div style={{ marginTop: 'var(--report-subpanel-gap)' }}>
-      <Disclosure
-        kicker="Eamos automated ACMG"
-        showLabel="Show Eamos auto-classification"
-        hideLabel="Hide auto-classification"
-        summary={`${verdict} · rule-based (InterVar-style)`}
-      >
-        <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.55, color: 'var(--ink-3)' }}>
-          A <strong style={{ color: 'var(--ink)' }}>rule-based</strong> ACMG/AMP estimate (Richards 2015
-          combining rules), computed from the criteria met in §1 — a starting point for{' '}
-          <strong style={{ color: 'var(--ink)' }}>novel variants</strong>. The expert-panel call above takes
-          precedence.
-        </p>
+      {computed && (
+        <Disclosure
+          kicker="EAMOS-computed ACMG/AMP advisory"
+          showLabel="Show the points breakdown"
+          hideLabel="Hide the points breakdown"
+          summary={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <EvidenceChip size="sm" dot classification={computed.tier} title="EAMOS point-based advisory classification">
+                {computed.tier}
+              </EvidenceChip>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>posterior {pct}</span>
+              {mock && (
+                <span
+                  className="eamos-mock"
+                  title="Illustrative — the EAMOS points engine is not yet wired to live data for this variant."
+                >
+                  illustrative
+                </span>
+              )}
+            </span>
+          }
+        >
+          <div aria-label="EAMOS-computed ACMG/AMP advisory classification">
+            <p style={{ margin: '0 0 14px', fontSize: 12, lineHeight: 1.55, color: 'var(--ink-3)' }}>
+              Combines the predictors above (PP3/BP4) with population, loss-of-function and functional evidence into a{' '}
+              <strong style={{ color: 'var(--ink)' }}>Tavtigian-2020 point score</strong>. EAMOS-computed{' '}
+              <strong style={{ color: 'var(--ink)' }}>advisory</strong> — the curated clinical classification in §1 takes
+              precedence.
+            </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-          <EvidenceChip
-            size="lg"
-            dot
-            classification={verdict}
-            title="Automated ACMG/AMP classification from the met criteria"
-          >
-            {verdict}
-          </EvidenceChip>
-          <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>{rule}</span>
+            <PosteriorGauge computed={computed} mock={mock} />
+
+            <div className="mt-4 grid gap-5 sm:grid-cols-[260px_1fr]">
+              <EvidencePlane computed={computed} mock={mock} />
+              <PointWaterfall computed={computed} mock={mock} />
+            </div>
+
+            <div style={{ marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--line)' }}>
+              <ConfidenceChannel computed={computed} />
+            </div>
+          </div>
+        </Disclosure>
+      )}
+
+      {data && (
+        <div style={{ marginTop: computed ? 12 : 0 }}>
+          <LegacyCategoricalView data={data} />
         </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11.5, color: 'var(--ink-3)', marginBottom: 12 }}>
-          <span>
-            <span style={{ color: 'var(--ink-4)' }}>Pathogenic criteria met: </span>
-            {pathCodes.length ? (
-              <span style={{ fontFamily: 'var(--mono)', color: 'var(--cls-path-text)' }}>{pathCodes.join(', ')}</span>
-            ) : (
-              <span style={{ color: 'var(--ink-4)' }}>none</span>
-            )}
-          </span>
-          <span>
-            <span style={{ color: 'var(--ink-4)' }}>Benign criteria met: </span>
-            {benignCodes.length ? (
-              <span style={{ fontFamily: 'var(--mono)', color: 'var(--cls-ben-text)' }}>{benignCodes.join(', ')}</span>
-            ) : (
-              <span style={{ color: 'var(--ink-4)' }}>none</span>
-            )}
-          </span>
-        </div>
-
-        {/* The same 28-box grid as §1 — met criteria highlighted; hover any box. */}
-        <div className="eamos-kicker" style={{ marginBottom: 8 }}>All 28 ACMG criteria — met highlighted</div>
-        <AcmgGrid criteria={data.criteria} />
-
-        <p style={{ margin: '12px 0 0', fontSize: 10.5, lineHeight: 1.5, color: 'var(--ink-4)' }}>
-          Automated; uses base criterion strengths (no VCEP-specific overrides). Not a clinical
-          classification — confirm against the expert-panel call and full ACMG review.
-        </p>
-      </Disclosure>
+      )}
     </div>
   )
 }

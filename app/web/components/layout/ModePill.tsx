@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-type Surface = 'report' | 'workbench' | 'compare'
+type Surface = 'report' | 'paper' | 'workbench' | 'compare'
 
 interface ModePillProps {
   current: Surface
@@ -35,6 +35,15 @@ const ICONS: Record<Surface, ReactNode> = {
       <line x1="16" y1="17" x2="8" y2="17" />
     </svg>
   ),
+  paper: (
+    // Page with a magnifier — a publication being scanned for variant mentions.
+    <svg {...svgProps}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h6" />
+      <polyline points="14 2 14 8 20 8" />
+      <circle cx="16.5" cy="15.5" r="3" />
+      <line x1="21" y1="20" x2="18.6" y2="17.6" />
+    </svg>
+  ),
   workbench: (
     <svg {...svgProps}>
       <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
@@ -54,6 +63,7 @@ const ICONS: Record<Surface, ReactNode> = {
 
 const ITEMS: Array<{ key: Surface; label: string; path: string }> = [
   { key: 'report',    label: 'Report',    path: '/report' },
+  { key: 'paper',     label: 'Paper',     path: '/paper' },
   { key: 'compare',   label: 'Batch',     path: '/compare' },
   { key: 'workbench', label: 'Workbench', path: '/workbench' },
 ]
@@ -77,9 +87,11 @@ export function ModePill({ current, className }: ModePillProps) {
     >
       {ITEMS.map((item) => {
         const active = item.key === current
-        // Report/Workbench preserve the active variant (qs); Compare is the
-        // multi-variant surface, so it doesn't carry the single-variant query.
-        const href = item.key === 'compare' ? item.path : `${item.path}${qs}`
+        // Report/Workbench preserve the active variant (qs); Batch and Paper are
+        // multi-variant / intake surfaces, so they don't carry the single-variant
+        // query.
+        const carriesVariant = item.key === 'report' || item.key === 'workbench'
+        const href = carriesVariant ? `${item.path}${qs}` : item.path
         return (
           <Link
             key={item.key}

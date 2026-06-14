@@ -7,12 +7,12 @@ Reuses Eamos assets rather than rebuilding:
 - the curated search-input lexicon (`SearchInputReference`) for amino-acid
   normalization (1-/3-letter/full name) and known-gene validation — no hardcoded
   amino-acid table here;
-- `VariantValidatorTool` as the cDNA/genomic coordinate gate (fixture-backed
-  offline, REST when `use_real_apis`).
+- `EamosSearchInputResolver` as the cDNA/genomic identity gate;
+- `SearchCandidateResolver` as the protein/source-backed candidate gate.
 
-Protein-only mentions are surfaced as `protein_only_unresolved` here; Phase 3
-routes them through source-backed candidate resolution (see
-docs/ai-gateway-paper-variants/spec.md). Mock-first; inert unless
+Protein-only mentions resolve only when a source-backed candidate exists. Protein
+constructs without a source-backed allele remain explicit experimental constructs,
+not coordinate-validated clinical variants. Mock-first; inert unless
 `llm_provider == "gateway"`.
 """
 
@@ -21,21 +21,21 @@ from __future__ import annotations
 import logging
 import re
 from collections import Counter
-from types import SimpleNamespace
 
 from app.agents.client import build_gateway_paper_variants_chain
+from app.schemas.lookup import SearchInputCandidate, SearchInputSourceInputs
 from app.schemas.paper_variants import (
     PaperVariantCandidate,
     PaperVariantsExtraction,
     PaperVariantsResult,
     ValidatedPaperVariant,
 )
+from app.services.search_candidate_resolver import SearchCandidateResolver
 from app.services.search_input_reference import default_search_input_reference
-from app.tools.variant_validator import VariantValidatorTool
+from app.services.search_input_resolver import EamosSearchInputResolver, SearchInputResolution
 
 logger = logging.getLogger(__name__)
 
-_VALIDATED_STATUSES = {"fixture", "live"}
 _CDNA_RE = re.compile(r"c\.\d+[A-Za-z0-9>_+*\-]+")
 _GENE_RE = re.compile(r"\b[A-Z][A-Z0-9]{1,9}\b")
 _PROTEIN_RE = re.compile(r"p\.[A-Za-z0-9*]+")
@@ -44,6 +44,7 @@ _PROTEIN_RE = re.compile(r"p\.[A-Za-z0-9*]+")
 # so non-amino-acid hits are dropped.
 _PROTEIN_SUB1_RE = re.compile(r"\b([A-Z])(\d{2,4})([A-Z*])\b")
 _PROTEIN_SUB3_RE = re.compile(r"\b([A-Za-z]{3})(\d{1,4})([A-Za-z]{3}|\*)\b")
+_PROTEIN_LIKE_TOKEN_RE = re.compile(r"^[ACDEFGHIKLMNPQRSTVWY]\d{1,5}[ACDEFGHIKLMNPQRSTVWY*]?$")
 _CONSTRUCT_HINTS = (
     "site-directed",
     "site directed",
@@ -53,6 +54,7 @@ _CONSTRUCT_HINTS = (
     "engineered",
     "replaced with",
     "alanine scan",
+    "mutant",
 )
 _CLINICAL_HINTS = (
     "patient",
@@ -66,11 +68,23 @@ _CLINICAL_HINTS = (
 
 
 class PaperVariantsService:
-    def __init__(self, settings, chain=None, validator=None, reference=None) -> None:
+    def __init__(
+        self,
+        settings,
+        chain=None,
+        validator=None,
+        reference=None,
+        input_resolver: EamosSearchInputResolver | None = None,
+        candidate_resolver: SearchCandidateResolver | None = None,
+    ) -> None:
         self.settings = settings
         self.chain = chain
+        # Compatibility seam for older tests/callers. Phase 3 resolves through
+        # EamosSearchInputResolver rather than calling VariantValidator here.
         self.validator = validator
         self.reference = reference or default_search_input_reference()
+        self.input_resolver = input_resolver
+        self.candidate_resolver = candidate_resolver or SearchCandidateResolver(settings=settings)
 
     def extract(self, paper_text: str, *, validate: bool = True) -> PaperVariantsResult:
         extraction, warnings, provenance = self._candidates(paper_text)
@@ -174,7 +188,11 @@ class PaperVariantsService:
         # Gene-agnostic: nearest preceding gene-like symbol, no curated allowlist.
         # Downstream coordinate/candidate resolution is MANE/RefSeq-backed and works
         # for any gene, so the extractor must not be limited to a fixed gene set.
-        tokens = _GENE_RE.findall(text[max(0, pos - 120) : pos])
+        tokens = [
+            token
+            for token in _GENE_RE.findall(text[max(0, pos - 120) : pos])
+            if not _looks_like_protein_or_catalog_token(token)
+        ]
         return tokens[-1] if tokens else fallback
 
     @staticmethod
@@ -194,31 +212,117 @@ class PaperVariantsService:
     # -- resolution gate --------------------------------------------------
 
     def _gate(self, candidate: PaperVariantCandidate) -> ValidatedPaperVariant:
-        # cDNA/genomic candidates: coordinate-validate via VariantValidator. (The
-        # tiered resolver-stack gate is Phase 3 — docs/ai-gateway-paper-variants.)
-        if candidate.gene and candidate.transcript_hgvs:
-            validator = self.validator or VariantValidatorTool(self.settings)
-            probe = SimpleNamespace(gene=candidate.gene, transcript_hgvs=candidate.transcript_hgvs)
-            try:
-                result = validator.get_evidence(probe)
-            except Exception as exc:  # tool boundary — unvalidated, never crash
-                logger.warning("variant validator gate failed", exc_info=True)
-                return _ungated(candidate, status=f"validator_failed:{type(exc).__name__}")
-            summary = result.summary or {}
-            variant_id = summary.get("variant_id")
-            validated = result.status in _VALIDATED_STATUSES and bool(variant_id)
+        if candidate.transcript_hgvs:
+            return self._resolve_cdna_or_genomic_candidate(candidate)
+        if candidate.protein_change or candidate.protein_hgvs:
+            return self._resolve_protein_candidate(candidate)
+        return _ungated(candidate, status="missing")
+
+    def _resolve_cdna_or_genomic_candidate(
+        self,
+        candidate: PaperVariantCandidate,
+    ) -> ValidatedPaperVariant:
+        try:
+            resolution = self._search_input_resolver().resolve_text(
+                candidate.transcript_hgvs or "",
+                gene=candidate.gene,
+                protein_change=candidate.protein_hgvs or candidate.protein_change,
+            )
+        except Exception as exc:  # resolver boundary - unvalidated, never crash
+            logger.warning("paper variant search-input resolution failed", exc_info=True)
+            return _ungated(candidate, status=f"resolver_failed:{type(exc).__name__}")
+
+        exact_candidate = self.candidate_resolver.exact_candidate(resolution)
+        if exact_candidate is not None:
+            return _resolved_from_candidate(
+                candidate,
+                resolution=resolution,
+                resolved=exact_candidate,
+                status="resolved",
+            )
+
+        if resolution.genomic_hg38 or resolution.genomic_hgvs:
             return _resolved(
                 candidate,
-                validated=validated,
-                status=result.status,
-                variant_id=variant_id if validated else None,
-                genomic_hgvs=summary.get("hgvs_genomic_description") if validated else None,
+                validated=True,
+                status="resolved",
+                variant_id=resolution.genomic_hg38,
+                genomic_hgvs=resolution.genomic_hgvs,
+                source_inputs=_source_inputs_schema(resolution),
+                resolver_warnings=list(resolution.warnings),
+                resolver_provenance=["eamos_search_input_resolver", *resolution.provenance],
             )
-        # protein-only mentions can't be coordinate-validated here; Phase 3 routes
-        # them through source-backed candidate resolution.
-        if candidate.protein_change or candidate.protein_hgvs:
-            return _ungated(candidate, status="protein_only_unresolved")
-        return _ungated(candidate, status="insufficient_identity")
+
+        candidates = self.candidate_resolver.resolve_candidates(resolution)
+        if candidates:
+            return _ungated(
+                candidate,
+                status="candidates",
+                source_inputs=_source_inputs_schema(resolution),
+                candidates=candidates,
+                resolver_warnings=list(resolution.warnings),
+                resolver_provenance=["eamos_search_input_resolver", *resolution.provenance],
+            )
+
+        return _ungated(
+            candidate,
+            status="missing",
+            source_inputs=_source_inputs_schema(resolution),
+            resolver_warnings=list(resolution.warnings),
+            resolver_provenance=["eamos_search_input_resolver", *resolution.provenance],
+        )
+
+    def _resolve_protein_candidate(
+        self,
+        candidate: PaperVariantCandidate,
+    ) -> ValidatedPaperVariant:
+        protein_hgvs = candidate.protein_hgvs or candidate.protein_change or ""
+        try:
+            resolution = self._search_input_resolver().resolve(
+                gene=candidate.gene or "",
+                cdna=protein_hgvs,
+                protein_change=protein_hgvs,
+            )
+        except Exception as exc:  # resolver boundary - unvalidated, never crash
+            logger.warning("paper protein search-input resolution failed", exc_info=True)
+            return _ungated(candidate, status=f"resolver_failed:{type(exc).__name__}")
+
+        candidates = self.candidate_resolver.resolve_candidates(resolution)
+        high_confidence = [item for item in candidates if item.confidence == "high"]
+        if (
+            candidate.context != "experimental_construct"
+            and len(candidates) == 1
+            and len(high_confidence) == 1
+        ):
+            return _resolved_from_candidate(
+                candidate,
+                resolution=resolution,
+                resolved=high_confidence[0],
+                status="resolved",
+            )
+
+        status = "protein_only_unresolved"
+        if candidates:
+            status = "candidates"
+        elif candidate.context == "experimental_construct":
+            status = "experimental_construct"
+
+        return _ungated(
+            candidate,
+            status=status,
+            source_inputs=_source_inputs_schema(resolution),
+            candidates=candidates,
+            resolver_warnings=list(resolution.warnings),
+            resolver_provenance=["eamos_search_input_resolver", "search_candidate_resolver"],
+        )
+
+    def _search_input_resolver(self) -> EamosSearchInputResolver:
+        if self.input_resolver is None:
+            self.input_resolver = EamosSearchInputResolver(
+                settings=self.settings,
+                resolve_coordinates=bool(getattr(self.settings, "use_real_apis", False)),
+            )
+        return self.input_resolver
 
 
 def _resolved(
@@ -228,6 +332,12 @@ def _resolved(
     status: str,
     variant_id: str | None,
     genomic_hgvs: str | None,
+    resolved_candidate_id: str | None = None,
+    source_support: list[str] | None = None,
+    source_inputs: SearchInputSourceInputs | None = None,
+    candidates: list[SearchInputCandidate] | None = None,
+    resolver_warnings: list[str] | None = None,
+    resolver_provenance: list[str] | None = None,
 ) -> ValidatedPaperVariant:
     return ValidatedPaperVariant(
         gene=candidate.gene,
@@ -241,11 +351,49 @@ def _resolved(
         validation_status=status,
         variant_id=variant_id,
         genomic_hgvs=genomic_hgvs,
+        resolved_candidate_id=resolved_candidate_id,
+        source_support=source_support or [],
+        source_inputs=source_inputs,
+        candidates=candidates or [],
+        resolver_warnings=resolver_warnings or [],
+        resolver_provenance=resolver_provenance or [],
+    )
+
+
+def _resolved_from_candidate(
+    candidate: PaperVariantCandidate,
+    *,
+    resolution: SearchInputResolution,
+    resolved: SearchInputCandidate,
+    status: str,
+) -> ValidatedPaperVariant:
+    return _resolved(
+        candidate,
+        validated=True,
+        status=status,
+        variant_id=resolved.genomic_hg38 or resolved.candidate_id,
+        genomic_hgvs=resolved.genomic_hgvs or resolution.genomic_hgvs,
+        resolved_candidate_id=resolved.candidate_id,
+        source_support=list(resolved.source_support),
+        source_inputs=_source_inputs_schema(resolution),
+        candidates=[resolved],
+        resolver_warnings=list(resolution.warnings),
+        resolver_provenance=[
+            "eamos_search_input_resolver",
+            "search_candidate_resolver",
+            *resolution.provenance,
+        ],
     )
 
 
 def _ungated(
-    candidate: PaperVariantCandidate, *, status: str = "not_validated"
+    candidate: PaperVariantCandidate,
+    *,
+    status: str = "not_validated",
+    source_inputs: SearchInputSourceInputs | None = None,
+    candidates: list[SearchInputCandidate] | None = None,
+    resolver_warnings: list[str] | None = None,
+    resolver_provenance: list[str] | None = None,
 ) -> ValidatedPaperVariant:
     return ValidatedPaperVariant(
         gene=candidate.gene,
@@ -257,4 +405,27 @@ def _ungated(
         evidence_quote=candidate.evidence_quote,
         validated=False,
         validation_status=status,
+        source_inputs=source_inputs,
+        candidates=candidates or [],
+        resolver_warnings=resolver_warnings or [],
+        resolver_provenance=resolver_provenance or [],
     )
+
+
+def _source_inputs_schema(resolution: SearchInputResolution) -> SearchInputSourceInputs:
+    source_inputs = resolution.source_inputs
+    return SearchInputSourceInputs(
+        variant_validator=source_inputs.variant_validator,
+        ensembl_vep=source_inputs.ensembl_vep,
+        gnomad=source_inputs.gnomad,
+        spliceai=source_inputs.spliceai,
+        clinvar=source_inputs.clinvar,
+        literature_terms=list(source_inputs.literature_terms),
+    )
+
+
+def _looks_like_protein_or_catalog_token(token: str) -> bool:
+    if _PROTEIN_LIKE_TOKEN_RE.match(token):
+        return True
+    digits = sum(1 for char in token if char.isdigit())
+    return digits >= 3 and token[0] in "ACDEFGHIKLMNPQRSTVWY"

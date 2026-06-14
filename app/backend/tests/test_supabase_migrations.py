@@ -302,3 +302,28 @@ def test_variant_library_folder_fk_has_covering_index() -> None:
     assert "create index if not exists idx_saved_variant_folder_id" in normalized
     assert "on public.saved_variant(folder_id)" in normalized
     assert "where folder_id is not null" in normalized
+
+
+def test_user_library_document_migration_uses_owner_rls_and_jsonb_store() -> None:
+    sql = _migration_sql("20260614195800_user_library_document.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "create table if not exists public.user_library" in normalized
+    assert "user_id uuid primary key references auth.users(id) on delete cascade" in normalized
+    assert "variants jsonb not null default '[]'::jsonb" in normalized
+    assert "folders jsonb not null default '[]'::jsonb" in normalized
+    assert "jsonb_typeof(variants) = 'array'" in normalized
+    assert "jsonb_typeof(folders) = 'array'" in normalized
+    assert "create index if not exists idx_user_library_updated_at" in normalized
+
+    assert "alter table public.user_library enable row level security" in normalized
+    assert "revoke all on public.user_library from public, anon, authenticated" in normalized
+    assert "grant select, insert, update, delete on public.user_library to authenticated" in (
+        normalized
+    )
+    assert "grant select, insert, update, delete on public.user_library to service_role" in (
+        normalized
+    )
+    assert "using ((select auth.uid()) = user_id)" in normalized
+    assert "with check ((select auth.uid()) = user_id)" in normalized
+    assert "to anon" not in normalized

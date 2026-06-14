@@ -33,7 +33,9 @@ export function TopNav({ children, right, className }: TopNavProps) {
           <EamosLogo size={18} />
         </Link>
         {children && <div className="order-3 min-w-full flex-1 sm:order-none sm:min-w-0">{children}</div>}
-        <div className="flex shrink-0 items-center gap-2">
+        {/* ml-auto right-aligns the slot even with no children to grow the row
+            (e.g. /paper); inert when a flex-1 child already consumes the space. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {right ?? (
             <a
               href="/runs"

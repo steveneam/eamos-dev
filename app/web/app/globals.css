@@ -339,6 +339,10 @@ html {
      scroll-behavior is overridden to auto by the reduced-motion guard below. */
   scroll-padding-top: calc(var(--nav-h) + 12px);
   scroll-behavior: smooth;
+  /* Reserve the scrollbar gutter so toggling page height (e.g. collapsing a
+     section) never adds/removes the scrollbar and shifts the layout sideways —
+     this is what made the WorkRail "twitch" on expand/collapse. */
+  scrollbar-gutter: stable;
 }
 
 body {

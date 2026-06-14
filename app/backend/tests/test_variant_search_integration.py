@@ -364,6 +364,32 @@ def test_lookup_near_miss_cdna_returns_ranked_suggestion_without_report(client) 
     assert interpretation["candidates"][0]["distance"] == "1 cDNA base"
 
 
+def test_lookup_protein_only_returns_same_residue_candidates_not_distant_same_gene(
+    client,
+) -> None:
+    response = client.post(
+        "/api/v1/lookup/parse",
+        json={"search_text": "RPE65:p.His313Ala"},
+    )
+
+    assert response.status_code == 200
+    interpretation = response.json()["interpretation"]
+    assert interpretation["mode"] == "needs_selection"
+    assert interpretation["requires_confirmation"] is True
+    assert interpretation["gene"] == "RPE65"
+    assert interpretation["protein_change"] == "p.His313Ala"
+    assert {candidate["cdna"] for candidate in interpretation["candidates"]} == {
+        "c.938A>G",
+        "c.938A>C",
+    }
+    assert all(candidate["confidence"] == "medium" for candidate in interpretation["candidates"])
+    assert all(
+        candidate["protein_change"].startswith("p.His313")
+        for candidate in interpretation["candidates"]
+    )
+    assert "c.260A>G" not in {candidate["cdna"] for candidate in interpretation["candidates"]}
+
+
 def test_lookup_protein_multiple_high_confidence_candidates_need_selection(client) -> None:
     response = client.post(
         "/api/v1/lookup/parse",

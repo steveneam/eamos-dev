@@ -30,7 +30,7 @@ class SearchInputInterpreter:
         ai_extractor: SearchInputAiExtractor | None = None,
     ) -> None:
         self.settings = settings
-        self.candidate_resolver = candidate_resolver or SearchCandidateResolver()
+        self.candidate_resolver = candidate_resolver or SearchCandidateResolver(settings=settings)
         self.ai_extractor = ai_extractor or SearchInputAiExtractor(settings=settings)
         self.resolver = EamosSearchInputResolver(settings=settings)
 

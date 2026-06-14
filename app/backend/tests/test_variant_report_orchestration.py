@@ -93,6 +93,11 @@ def _assert_no_population_metrics_in_section_2_or_acmg(profile: dict) -> None:
             assert row["assertion_level"] in {"source_asserted", "eamos_hint"}
 
 
+def _computed_rows(payload: dict) -> dict:
+    computed = payload["eamos_computed_classification"]
+    return {row["code"]: row for row in computed["per_criterion"]}
+
+
 def test_lookup_returns_typed_variant_report_profile(client) -> None:
     response = client.post(
         "/api/v1/lookup?include_lazy_sections=true",
@@ -267,6 +272,27 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
         "target_panel_id": "gnomad-expansion",
     }
 
+    computed = report_payload["eamos_computed_classification"]
+    computed_rows = _computed_rows(report_payload)
+    assert computed["acmg_version_pin"]["framework"] == ("Richards-2015 + Tavtigian-2020 points")
+    assert computed["tier"] == "VUS"
+    assert computed["net_points"] == 3
+    assert computed["sum_pathogenic"] == 3
+    assert computed["sum_benign"] == 0
+    assert computed["conflict"] == {"is_conflicting": False, "reason": None}
+    assert computed["ba1_override"] is False
+    assert 0.49 < computed["posterior"] < 0.51
+    assert computed_rows["PM2"]["triggered"] is True
+    assert computed_rows["PM2"]["applied_strength"] == "supporting"
+    assert computed_rows["PM2"]["source_db"] == "gnomAD"
+    assert computed_rows["PM2"]["source_version"] == "gnomad_r4"
+    assert computed_rows["PP3"]["triggered"] is True
+    assert computed_rows["PP3"]["applied_strength"] == "moderate"
+    assert computed_rows["PP3"]["source_db"] == "REVEL"
+    assert computed_rows["PP3"]["source_version"] == "dbNSFP v5.3.1 / REVEL v1.3"
+    assert computed_rows["BA1"]["triggered"] is False
+    assert computed_rows["BP4"]["triggered"] is False
+
 
 def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
     report_payload = _lookup_payload(client, "RPE65", "c.11+5G>A")
@@ -301,6 +327,14 @@ def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
     assert criteria["PS3"]["state"] == "met"
     assert criteria["PS3"]["assertion_level"] == "source_asserted"
     assert criteria["PS3"]["source"] == "ClinGen Evidence Repository"
+    computed = report_payload["eamos_computed_classification"]
+    computed_rows = _computed_rows(report_payload)
+    assert computed["tier"] == "VUS"
+    assert computed["net_points"] == 1
+    assert computed_rows["PS3"]["triggered"] is True
+    assert computed_rows["PS3"]["applied_strength"] == "supporting"
+    assert computed_rows["PS3"]["source_db"] == "ClinGen Evidence Repository"
+    assert computed_rows["PM2"]["triggered"] is False
     assert "c.260A>G" not in json.dumps(profile)
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None
 
@@ -417,6 +451,12 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     assert profile["computational_deep_dive"]["predictors"] == []
     assert profile["computational_deep_dive"]["spliceai_max_delta"] is None
     assert profile["acmg_worksheet"]["criteria"] == []
+    computed = report_payload["eamos_computed_classification"]
+    assert computed["tier"] == "VUS"
+    assert computed["net_points"] == 0
+    assert computed["sum_pathogenic"] == 0
+    assert computed["sum_benign"] == 0
+    assert all(row["triggered"] is False for row in computed["per_criterion"])
     assert report_payload["publications_literature"]["total_count"] == 0
     assert report_payload["functional_evidence"]["total_count"] == 0
     assert report_payload["call_cards"]["cards"][0]["primary_label"] == "No Population Data"

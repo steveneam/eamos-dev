@@ -27,6 +27,57 @@ def test_variant_library_requires_authentication(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_variant_library_replace_requires_authentication(client: TestClient) -> None:
+    response = client.put("/api/v1/library", json={"variants": [], "folders": []})
+
+    assert response.status_code == 401
+
+
+def test_variant_library_whole_document_sync_round_trip(auth_client: TestClient) -> None:
+    folder = {"id": "folder-retina", "name": "Retina", "createdAt": 1_780_000_000_001}
+    payload = {
+        "variants": [_saved_variant_payload(folderId=folder["id"])],
+        "folders": [folder],
+    }
+
+    replaced = auth_client.put("/api/v1/library", json=payload)
+    fetched = auth_client.get("/api/v1/library")
+
+    assert replaced.status_code == 200
+    assert fetched.status_code == 200
+    assert replaced.json()["variants"] == payload["variants"]
+    assert replaced.json()["folders"] == payload["folders"]
+    assert isinstance(replaced.json()["updated_at"], str)
+    assert fetched.json() == replaced.json()
+
+
+def test_variant_library_whole_document_is_account_scoped(client: TestClient) -> None:
+    first = client.post(
+        "/api/v1/auth/register",
+        json={"username": "first-user", "password": "first-password"},
+    )
+    second = client.post(
+        "/api/v1/auth/register",
+        json={"username": "second-user", "password": "second-password"},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    client.headers.update({"Authorization": f"Bearer {first.json()['access_token']}"})
+    stored = client.put(
+        "/api/v1/library",
+        json={"variants": [_saved_variant_payload()], "folders": []},
+    )
+    assert stored.status_code == 200
+
+    client.headers.update({"Authorization": f"Bearer {second.json()['access_token']}"})
+    other = client.get("/api/v1/library")
+
+    assert other.status_code == 200
+    assert other.json()["variants"] == []
+    assert other.json()["folders"] == []
+
+
 def test_variant_library_crud_round_trip(auth_client: TestClient) -> None:
     folder = auth_client.post("/api/v1/library/folders", json={"name": " Retina "})
     assert folder.status_code == 201

@@ -101,6 +101,16 @@ ReportCallBadgeKind = Literal["acmg", "metric", "source", "warning", "neutral"]
 PopulationSequencingType = Literal["joint", "exome", "genome", "unknown"]
 PopulationAgeSeriesKind = Literal["variant_carriers", "all_individuals"]
 RampVerdict = Literal["Pathogenic", "Likely pathogenic", "VUS", "Likely benign", "Benign"]
+EamosComputedTier = Literal[
+    "Pathogenic",
+    "Likely Pathogenic",
+    "VUS",
+    "Likely Benign",
+    "Benign",
+]
+EamosComputedDirection = Literal["pathogenic", "benign"]
+EamosComputedStrength = Literal["very_strong", "strong", "moderate", "supporting"]
+EamosComputedBenignCut = Literal["tavtigian_2020", "acgs_panel"]
 
 
 class PublicationSnippet(BaseModel):
@@ -225,6 +235,44 @@ class FunctionalEvidenceSummary(BaseModel):
     )
     studies: list[FunctionalStudy] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class EamosComputedVersionPin(BaseModel):
+    framework: str
+    pvs1_revision: str
+    pp3_calibration: str
+    vcep_id: str | None = None
+
+
+class EamosComputedConflict(BaseModel):
+    is_conflicting: bool
+    reason: str | None = None
+
+
+class EamosComputedCriterion(BaseModel):
+    code: str
+    direction: EamosComputedDirection
+    triggered: bool
+    applied_strength: EamosComputedStrength | None = None
+    points: int
+    evidence_value: str | int | float | None = None
+    threshold: str | int | float | None = None
+    source_db: str | None = None
+    source_version: str | None = None
+    svi_reference: str | None = None
+
+
+class EamosComputedClassification(BaseModel):
+    acmg_version_pin: EamosComputedVersionPin
+    net_points: int
+    sum_pathogenic: int
+    sum_benign: int
+    tier: EamosComputedTier
+    conflict: EamosComputedConflict
+    ba1_override: bool
+    posterior: float = Field(ge=0.0, le=1.0)
+    benign_cut: EamosComputedBenignCut
+    per_criterion: list[EamosComputedCriterion] = Field(default_factory=list)
 
 
 class ReportCallBadge(BaseModel):
@@ -880,6 +928,7 @@ class ReportPayload(BaseModel):
     population_frequency_detail: PopulationFrequencyDetail | None = None
     call_cards: VariantReportCallCards | None = None
     report_profile: VariantReportProfile | None = None
+    eamos_computed_classification: EamosComputedClassification | None = None
 
 
 class RunResponse(BaseModel):

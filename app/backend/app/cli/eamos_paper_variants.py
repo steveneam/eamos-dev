@@ -15,15 +15,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Extract variant mentions from publication text and gate each candidate "
-            "through VariantValidator. Mock-first (deterministic regex extractor); the "
-            "gateway path activates only when LLM_PROVIDER=gateway. Output is sanitized."
+            "through Eamos search-input and source-backed candidate resolution. "
+            "Mock-first (deterministic regex extractor); the gateway path activates "
+            "only when LLM_PROVIDER=gateway. Output is sanitized."
         )
     )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--text", help="publication text to scan")
     source.add_argument("--text-file", type=Path, help="path to a text file to scan")
     source.add_argument("--pdf", type=Path, help="path to a PDF to extract then scan")
-    parser.add_argument("--no-validate", action="store_true", help="skip the VariantValidator gate")
+    parser.add_argument(
+        "--no-validate",
+        action="store_true",
+        help="skip search-input/source-backed candidate resolution",
+    )
     parser.add_argument("--compact", action="store_true", help="emit compact JSON")
     parser.add_argument(
         "--require-validated",
@@ -58,6 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "llm_provider": settings.llm_provider,
         "pdf": pdf_meta,
+        "source_metadata": None,
         "guardrails": {
             "patient_data": "not_used",
             "raw_paper_text_in_output": "blocked",

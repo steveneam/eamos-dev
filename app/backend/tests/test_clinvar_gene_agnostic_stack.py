@@ -16,6 +16,13 @@ STACK_PATH = (
     / "tools"
     / "clinvar_gene_agnostic_report_stack.json"
 )
+MANIFEST_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "app"
+    / "fixtures"
+    / "hardening"
+    / "project_100_sample_manifest.json"
+)
 TRANSCRIPT_MODEL_FIXTURE_PATH = (
     Path(__file__).resolve().parents[1]
     / "app"
@@ -45,6 +52,36 @@ REQUIRED_VARIANT_TYPES = {
     "duplication",
     "splicing",
 }
+ALL_ACMG_CODES = (
+    "PVS1",
+    "PS1",
+    "PS2",
+    "PS3",
+    "PS4",
+    "PM1",
+    "PM2",
+    "PM3",
+    "PM4",
+    "PM5",
+    "PM6",
+    "PP1",
+    "PP2",
+    "PP3",
+    "PP4",
+    "PP5",
+    "BA1",
+    "BS1",
+    "BS2",
+    "BS3",
+    "BS4",
+    "BP1",
+    "BP2",
+    "BP3",
+    "BP4",
+    "BP5",
+    "BP6",
+    "BP7",
+)
 
 
 def _stack() -> dict:
@@ -57,6 +94,41 @@ def _variants(stack: dict) -> list[dict]:
 
 def _transcript_model_records() -> list[dict]:
     return json.loads(TRANSCRIPT_MODEL_FIXTURE_PATH.read_text(encoding="utf-8"))["records"]
+
+
+def _manifest() -> dict:
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _project_100_report_samples() -> list[dict]:
+    manifest = _manifest()
+    stack_by_gene = {entry["gene"]: entry["variants"] for entry in _stack()["stack_genes"]}
+
+    samples: list[dict] = []
+    for gene_entry in manifest["genes"]:
+        gene = gene_entry["gene"]
+        control = gene_entry["control_sample"]
+        samples.append(
+            {
+                "sample_id": control["sample_id"],
+                "sample_kind": control["sample_kind"],
+                "gene": gene,
+                "query": control["query"],
+            }
+        )
+
+        challenge = gene_entry["challenge_samples"]
+        for index, variant in enumerate(stack_by_gene[gene], start=1):
+            samples.append(
+                {
+                    "sample_id": f"{challenge['sample_id_prefix']}-{index:02d}",
+                    "sample_kind": challenge["sample_kind"],
+                    "gene": gene,
+                    "query": variant["report_query"],
+                }
+            )
+
+    return samples
 
 
 def test_clinvar_gene_agnostic_stack_has_requested_shape() -> None:
@@ -155,6 +227,72 @@ def test_clinvar_stack_report_queries_degrade_without_rpe65_bleed(
         "p.Asp87Gly",
     ):
         assert forbidden not in serialized
+
+
+def test_project_100_report_queries_emit_empty_computed_acmg_without_fixture_bleed(
+    client,
+) -> None:
+    samples = _project_100_report_samples()
+
+    assert len(samples) == 100
+    client.app.state.settings.rate_limit_lookup_max_requests = len(samples) + 1
+
+    failures: list[str] = []
+    sample_kinds: Counter[str] = Counter()
+    for sample in samples:
+        sample_id = sample["sample_id"]
+        sample_kinds[sample["sample_kind"]] += 1
+        response = client.post(
+            "/api/v1/lookup?include_lazy_sections=true",
+            json=sample["query"],
+        )
+        if response.status_code != 200:
+            failures.append(f"{sample_id}: status {response.status_code}")
+            continue
+
+        payload = response.json()["report_payload"]
+        profile = payload["report_profile"]
+        computed = payload["eamos_computed_classification"]
+        rows = {row["code"]: row for row in computed["per_criterion"]}
+        warnings = payload.get("warnings") or []
+
+        if profile["header"]["gene"] != sample["query"]["gene"]:
+            failures.append(f"{sample_id}: header gene mismatch")
+        if profile["header"]["cdna"] != sample["query"]["cdna"]:
+            failures.append(f"{sample_id}: header cdna mismatch")
+        if computed["tier"] != "VUS":
+            failures.append(f"{sample_id}: unexpected tier {computed['tier']}")
+        if computed["net_points"] != 0:
+            failures.append(f"{sample_id}: unexpected net points {computed['net_points']}")
+        if computed["sum_pathogenic"] != 0 or computed["sum_benign"] != 0:
+            failures.append(
+                f"{sample_id}: unexpected point sums "
+                f"{computed['sum_pathogenic']}/{computed['sum_benign']}"
+            )
+        if computed["ba1_override"] is not False:
+            failures.append(f"{sample_id}: unexpected BA1 override")
+        if computed["conflict"] != {"is_conflicting": False, "reason": None}:
+            failures.append(f"{sample_id}: unexpected conflict state")
+        if set(rows) != set(ALL_ACMG_CODES):
+            failures.append(f"{sample_id}: computed criteria code set mismatch")
+        if any(row["triggered"] is not False for row in rows.values()):
+            triggered = sorted(code for code, row in rows.items() if row["triggered"])
+            failures.append(f"{sample_id}: unexpected triggered ACMG rows {triggered}")
+        if any(warning.startswith("eamos_computed_classification_failed") for warning in warnings):
+            failures.append(f"{sample_id}: computed classification warning {warnings}")
+
+        serialized = json.dumps(payload)
+        for forbidden in (
+            "Leber congenital amaurosis 2",
+            "1-68444869-T-C",
+            "VCV001421454",
+            "p.Asp87Gly",
+        ):
+            if forbidden in serialized:
+                failures.append(f"{sample_id}: leaked RPE65 fixture value {forbidden}")
+
+    assert sample_kinds == {"reference_control": 10, "clinvar_challenge": 90}
+    assert failures == []
 
 
 @pytest.mark.parametrize(

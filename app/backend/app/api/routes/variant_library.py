@@ -7,6 +7,7 @@ from app.core.rate_limit import RATE_LIMIT_LIBRARY, enforce_rate_limit
 from app.schemas.variant_library import (
     CreateFolderRequest,
     Folder,
+    LibraryReplaceRequest,
     LibraryStore,
     MoveVariantRequest,
     PopularVariantsResponse,
@@ -27,6 +28,16 @@ def get_library(
 ) -> LibraryStore:
     enforce_rate_limit(request, RATE_LIMIT_LIBRARY, subject=principal.user_id)
     return _service(request).get_library(principal)
+
+
+@router.put("", response_model=LibraryStore)
+def replace_library(
+    payload: LibraryReplaceRequest,
+    request: Request,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> LibraryStore:
+    enforce_rate_limit(request, RATE_LIMIT_LIBRARY, subject=principal.user_id)
+    return _service(request).replace_library(payload, principal)
 
 
 @router.get("/popular", response_model=PopularVariantsResponse)

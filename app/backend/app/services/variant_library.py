@@ -8,12 +8,14 @@ from app.core.deps import AuthenticatedPrincipal
 from app.repos.variant_library_repo import (
     FolderRecord,
     SavedVariantRecord,
+    UserLibraryDocumentRecord,
     VariantLibraryNotFoundError,
     VariantLibraryRepoError,
     VariantPopularityRecord,
 )
 from app.schemas.variant_library import (
     Folder,
+    LibraryReplaceRequest,
     LibraryStore,
     SavedVariant,
     VariantPopularity,
@@ -26,6 +28,9 @@ class VariantLibraryService:
 
     def get_library(self, principal: AuthenticatedPrincipal) -> LibraryStore:
         try:
+            document = self.repo.get_document(user_id=principal.user_id)
+            if document is not None:
+                return _library_store_from_document(document)
             return LibraryStore(
                 variants=[
                     _saved_variant_schema(row)
@@ -35,6 +40,21 @@ class VariantLibraryService:
                     _folder_schema(row) for row in self.repo.list_folders(user_id=principal.user_id)
                 ],
             )
+        except VariantLibraryRepoError as exc:
+            raise _service_unavailable() from exc
+
+    def replace_library(
+        self,
+        payload: LibraryReplaceRequest,
+        principal: AuthenticatedPrincipal,
+    ) -> LibraryStore:
+        try:
+            document = self.repo.replace_document(
+                user_id=principal.user_id,
+                variants=[_saved_variant_document(variant) for variant in payload.variants],
+                folders=[folder.model_dump(mode="json") for folder in payload.folders],
+            )
+            return _library_store_from_document(document)
         except VariantLibraryRepoError as exc:
             raise _service_unavailable() from exc
 
@@ -188,6 +208,23 @@ def _popularity_schema(row: VariantPopularityRecord) -> VariantPopularity:
         view_count=row.view_count,
         last_viewed=row.last_viewed,
     )
+
+
+def _library_store_from_document(row: UserLibraryDocumentRecord) -> LibraryStore:
+    return LibraryStore(
+        variants=[SavedVariant.model_validate(item) for item in row.variants],
+        folders=[Folder.model_validate(item) for item in row.folders],
+        updated_at=row.updated_at,
+    )
+
+
+def _saved_variant_document(payload: SavedVariant) -> dict:
+    item = payload.model_dump(mode="json")
+    if payload.classification is None:
+        item.pop("classification", None)
+    if payload.hgvs_full is None:
+        item.pop("hgvs_full", None)
+    return item
 
 
 def _normalize_id(value: str) -> str:

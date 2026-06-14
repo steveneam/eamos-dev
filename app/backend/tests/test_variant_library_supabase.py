@@ -63,6 +63,97 @@ def test_supabase_variant_library_upserts_saved_variant_with_owner_from_backend(
     assert request.headers["prefer"] == "resolution=merge-duplicates,return=representation"
 
 
+def test_supabase_variant_library_replaces_whole_document_with_owner_from_backend() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        body = json.loads(request.content.decode("utf-8"))
+        assert body["user_id"] == "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11"
+        assert body["variants"] == [
+            {
+                "id": "rpe65:c.938a>g",
+                "gene": "RPE65",
+                "variant": "c.938A>G",
+                "query": "RPE65 c.938A>G",
+                "raw": "RPE65 c.938A>G",
+                "savedAt": 1_780_000_000_000,
+                "folderId": "folder-retina",
+            }
+        ]
+        assert body["folders"] == [
+            {"id": "folder-retina", "name": "Retina", "createdAt": 1_780_000_000_001}
+        ]
+        assert "updated_at" in body
+        return httpx.Response(status_code=201, json=[body])
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co/",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    row = repo.replace_document(
+        user_id="23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+        variants=[
+            {
+                "id": "rpe65:c.938a>g",
+                "gene": "RPE65",
+                "variant": "c.938A>G",
+                "query": "RPE65 c.938A>G",
+                "raw": "RPE65 c.938A>G",
+                "savedAt": 1_780_000_000_000,
+                "folderId": "folder-retina",
+            }
+        ],
+        folders=[{"id": "folder-retina", "name": "Retina", "createdAt": 1_780_000_000_001}],
+    )
+
+    assert row.user_id == "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11"
+    assert row.variants[0]["id"] == "rpe65:c.938a>g"
+    assert len(requests) == 1
+    request = requests[0]
+    assert str(request.url) == (
+        "https://cpdjxsgasaesysvxkpmi.supabase.co/rest/v1/" "user_library?on_conflict=user_id"
+    )
+    assert request.headers["apikey"] == "service-role-key"
+    assert request.headers["authorization"] == "Bearer service-role-key"
+    assert request.headers["prefer"] == "resolution=merge-duplicates,return=representation"
+
+
+def test_supabase_variant_library_gets_whole_document_by_owner() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        assert request.method == "GET"
+        assert "user_id=eq.23fc93e9-d351-4a9f-b5a7-f23dd7ceab11" in str(request.url)
+        return httpx.Response(
+            status_code=200,
+            json=[
+                {
+                    "user_id": "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+                    "variants": [],
+                    "folders": [],
+                    "updated_at": "2026-06-14T09:58:00Z",
+                }
+            ],
+        )
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    row = repo.get_document(user_id="23fc93e9-d351-4a9f-b5a7-f23dd7ceab11")
+
+    assert row is not None
+    assert row.variants == []
+    assert row.folders == []
+    assert row.updated_at == datetime(2026, 6, 14, 9, 58, tzinfo=timezone.utc)
+
+
 def test_supabase_variant_library_folder_crud_uses_owner_filters() -> None:
     requests: list[httpx.Request] = []
 

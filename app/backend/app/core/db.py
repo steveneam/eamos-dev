@@ -131,6 +131,19 @@ class VariantViewCountRecord(Base):
     )
 
 
+class UserLibraryRecord(Base):
+    __tablename__ = "user_library"
+
+    user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    variants: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    folders: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
 class ReportRecord(Base):
     __tablename__ = "reports"
 

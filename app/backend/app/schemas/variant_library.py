@@ -56,14 +56,22 @@ class SavedVariant(BaseModel):
 
 
 class Folder(BaseModel):
-    id: str
-    name: str
-    createdAt: int
+    id: str = Field(min_length=1, max_length=128)
+    name: str = Field(min_length=1, max_length=160)
+    createdAt: int = Field(ge=0)
 
 
 class LibraryStore(BaseModel):
     variants: list[SavedVariant] = Field(default_factory=list)
     folders: list[Folder] = Field(default_factory=list)
+    updated_at: datetime | None = None
+
+
+class LibraryReplaceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    variants: list[SavedVariant] = Field(default_factory=list, max_length=2000)
+    folders: list[Folder] = Field(default_factory=list, max_length=500)
 
 
 class SaveVariantsRequest(BaseModel):

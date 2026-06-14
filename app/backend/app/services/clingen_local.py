@@ -199,8 +199,9 @@ class ClinGenLocalStore:
         gene: str,
         terms: Iterable[str],
         limit: int,
+        verify_checksum: bool = True,
     ) -> tuple[list[dict[str, Any]], ClinGenLocalInspection, bool]:
-        inspection = self.inspect(verify_checksum=True)
+        inspection = self.inspect(verify_checksum=verify_checksum)
         if not inspection.ready:
             return [], inspection, True
 
@@ -211,6 +212,53 @@ class ClinGenLocalStore:
 
         with closing(_connect_readonly(self.db_path)) as conn:
             rows = _search_records(conn, normalized_gene, normalized_terms, limit=limit)
+            complete = _coverage_complete(conn)
+        return rows, inspection, not rows and not complete
+
+    def search_records_by_raw_text(
+        self,
+        *,
+        gene: str,
+        terms: Iterable[str],
+        limit: int,
+        verify_checksum: bool = True,
+    ) -> tuple[list[dict[str, Any]], ClinGenLocalInspection, bool]:
+        inspection = self.inspect(verify_checksum=verify_checksum)
+        if not inspection.ready:
+            return [], inspection, True
+
+        normalized_gene = gene.strip().upper()
+        raw_terms = [term for term in (_raw_like_term(item) for item in terms) if term]
+        if not normalized_gene or not raw_terms:
+            return [], inspection, False
+
+        with closing(_connect_readonly(self.db_path)) as conn:
+            rows = _search_records_by_raw_text(
+                conn,
+                normalized_gene,
+                raw_terms,
+                limit=limit,
+            )
+            complete = _coverage_complete(conn)
+        return rows, inspection, not rows and not complete
+
+    def search_records_by_terms(
+        self,
+        *,
+        terms: Iterable[str],
+        limit: int,
+        verify_checksum: bool = True,
+    ) -> tuple[list[dict[str, Any]], ClinGenLocalInspection, bool]:
+        inspection = self.inspect(verify_checksum=verify_checksum)
+        if not inspection.ready:
+            return [], inspection, True
+
+        normalized_terms = [term for term in (_normalize_term(item) for item in terms) if term]
+        if not normalized_terms:
+            return [], inspection, False
+
+        with closing(_connect_readonly(self.db_path)) as conn:
+            rows = _search_records_by_terms(conn, normalized_terms, limit=limit)
             complete = _coverage_complete(conn)
         return rows, inspection, not rows and not complete
 
@@ -560,6 +608,50 @@ def _search_records(
     return [_record_from_row(row) for row in rows]
 
 
+def _search_records_by_raw_text(
+    conn: sqlite3.Connection,
+    gene: str,
+    terms: list[str],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    bounded_limit = max(1, min(int(limit), 100))
+    clauses = " or ".join("lower(c.raw_json) like ?" for _ in terms)
+    rows = conn.execute(
+        f"""
+        select distinct c.*
+        from clingen_erepo_classification c
+        where c.gene = ? and ({clauses})
+        order by coalesce(c.approved_date, c.published_date, '') desc, c.record_id
+        limit ?
+        """,
+        (gene, *(f"%{term}%" for term in terms), bounded_limit),
+    ).fetchall()
+    return [_record_from_row(row) for row in rows]
+
+
+def _search_records_by_terms(
+    conn: sqlite3.Connection,
+    terms: list[str],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    bounded_limit = max(1, min(int(limit), 100))
+    placeholders = ",".join("?" for _ in terms)
+    rows = conn.execute(
+        f"""
+        select distinct c.*
+        from clingen_erepo_classification c
+        join clingen_erepo_classification_term t on t.record_id = c.record_id
+        where t.term_norm in ({placeholders})
+        order by coalesce(c.approved_date, c.published_date, '') desc, c.record_id
+        limit ?
+        """,
+        (*terms, bounded_limit),
+    ).fetchall()
+    return [_record_from_row(row) for row in rows]
+
+
 def _record_from_row(row: sqlite3.Row) -> dict[str, Any]:
     record = _json_object(row["raw_json"])
     if row["source_version"] and not record.get("sourceVersion"):
@@ -845,6 +937,10 @@ def _string_values(value: Any) -> list[str]:
 def _normalize_term(value: Any) -> str:
     text = _normalize_space(str(value or "")).lower()
     return re.sub(r"[^a-z0-9.>:_+-]+", "", text)
+
+
+def _raw_like_term(value: Any) -> str:
+    return _normalize_space(str(value or "")).lower()
 
 
 def _normalize_space(value: str) -> str:

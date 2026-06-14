@@ -27,6 +27,8 @@ import { EamosAcmgClassifier } from '@/components/report/EamosAcmgClassifier'
 import { LossOfFunctionBlock } from '@/components/report/LossOfFunctionBlock'
 import { MaveFunctionalBlock } from '@/components/report/MaveFunctionalBlock'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
+import { AdvisorySummaryStrip } from '@/components/report/AdvisorySummaryStrip'
+import { classificationToTier, mockEamosComputed } from '@/lib/acmg/mock'
 import { ReportLoadingState } from '@/components/report/ReportLoadingState'
 import { ExportMenu } from '@/components/report/ExportMenu'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
@@ -688,6 +690,17 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
     populationTarget?.match_level === 'unavailable'
       ? null
       : payload.report_profile?.population_frequency
+  const populationAf = populationSection?.overall?.total?.allele_frequency ?? null
+
+  // EAMOS-computed ACMG/AMP advisory (points engine). The contract is frozen but
+  // the engine does not populate the payload yet (Codex's report-population slice
+  // is gated), so fall back to an illustrative mock — built to agree in direction
+  // with the curated verdict so it never contradicts the precedence call — and
+  // flag every instrument `.eamos-mock` until the live block lands. Mock-first,
+  // same as §2 in-silico.
+  const computedClassification =
+    payload.eamos_computed_classification ?? mockEamosComputed(classificationToTier(verdict))
+  const computedIsMock = !payload.eamos_computed_classification
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -727,7 +740,18 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         {/* Call cards sit just under the header as the at-a-glance verdicts.
             They're scannable summary; the numbered evidence sections begin
             below. */}
-        <CallCardsGrid payload={payload} populationAf={populationSection?.overall?.total?.allele_frequency ?? null} />
+        <CallCardsGrid payload={payload} populationAf={populationAf} />
+
+        {/* The glanceable EAMOS-computed advisory (Evidence Fingerprint + posterior
+            chip), directly under the call cards. The full drawn decision (plane +
+            waterfall + gauge) is the synthesis capstone of §2; this strip links
+            down to it so the verdict is never buried. */}
+        <AdvisorySummaryStrip
+          payload={payload}
+          computed={computedClassification}
+          mock={computedIsMock}
+          populationAf={populationAf}
+        />
 
         {/* 1 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
             ClinGen leads (highest weight for classification), then ClinVar,
@@ -833,9 +857,15 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               Computational, so it lives with the in-silico predictions; N/A for
               non-null variants (e.g. missense). */}
           <LossOfFunctionBlock consequence={row0?.consequence ?? row0?.variation_type ?? null} />
-          {/* Eamos automated ACMG estimate (InterVar-style) — combines the met
-              §1 criteria into a rule-based verdict; useful for novel variants. */}
-          <EamosAcmgClassifier data={payload.acmg_criteria_scaffold} />
+          {/* EAMOS-computed ACMG/AMP advisory — the synthesis capstone of §2:
+              draws the points decision (gauge + plane + waterfall) by combining
+              the predictors above with population/LoF/functional evidence. The
+              legacy Richards categorical estimate folds into an audit disclosure. */}
+          <EamosAcmgClassifier
+            data={payload.acmg_criteria_scaffold}
+            computed={computedClassification}
+            mock={computedIsMock}
+          />
         </Card>
 
         {/* 3 · Population frequency (gnomAD) — AF thermometer + constraint

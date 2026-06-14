@@ -79,6 +79,59 @@ export interface PubMedArticle {
   snippet_status?: string | null
 }
 
+// ─── Eamos computed ACMG classification (points-engine advisory) ───
+// Mirror of app/backend/app/schemas/run.py EamosComputedClassification + its
+// sub-types. The seam the report's ACMG visuals (lib/acmg/points.ts + the SVG
+// instruments) read: net_points → tier/posterior. Backend-led; null until the
+// points engine materializes.
+export type EamosComputedTier =
+  | 'Pathogenic'
+  | 'Likely Pathogenic'
+  | 'VUS'
+  | 'Likely Benign'
+  | 'Benign'
+export type EamosComputedDirection = 'pathogenic' | 'benign'
+export type EamosComputedStrength = 'very_strong' | 'strong' | 'moderate' | 'supporting'
+export type EamosComputedBenignCut = 'tavtigian_2020' | 'acgs_panel'
+
+export interface EamosComputedVersionPin {
+  framework: string
+  pvs1_revision: string
+  pp3_calibration: string
+  vcep_id?: string | null
+}
+
+export interface EamosComputedConflict {
+  is_conflicting: boolean
+  reason?: string | null
+}
+
+export interface EamosComputedCriterion {
+  code: string
+  direction: EamosComputedDirection
+  triggered: boolean
+  applied_strength?: EamosComputedStrength | null
+  points: number
+  evidence_value?: string | number | null
+  threshold?: string | number | null
+  source_db?: string | null
+  source_version?: string | null
+  svi_reference?: string | null
+}
+
+export interface EamosComputedClassification {
+  acmg_version_pin: EamosComputedVersionPin
+  net_points: number
+  sum_pathogenic: number
+  sum_benign: number
+  tier: EamosComputedTier
+  conflict: EamosComputedConflict
+  ba1_override: boolean
+  posterior: number
+  benign_cut: EamosComputedBenignCut
+  per_criterion: EamosComputedCriterion[]
+}
+
 export interface ReportPayload {
   patient_id: string
   case_label?: string | null
@@ -109,6 +162,7 @@ export interface ReportPayload {
   population_frequency_detail?: PopulationFrequencyDetail | null
   call_cards?: VariantReportCallCards | null
   report_profile?: VariantReportProfile | null
+  eamos_computed_classification?: EamosComputedClassification | null
 }
 
 export interface EvidenceSourceSummary {
@@ -311,6 +365,95 @@ export interface LookupResponse {
   evidence: EvidenceSourceSummary[]
   warnings: string[]
   search_interpretation?: SearchInputInterpretation | null
+}
+
+// ─── Paper → Variants contract (POST /api/v1/paper-variants/extract) ───
+// Mirror of app/backend/app/schemas/paper_variants.py (VariantLevel,
+// VariantContext, ValidatedPaperVariant, PaperVariantsResult) plus the CLI-style
+// response envelope from app/backend/app/cli/eamos_paper_variants.py (pdf meta +
+// guardrails + counts). Reuses SearchInputCandidate / SearchInputSourceInputs
+// above — the candidates[] a paper variant carries are the SAME type the search
+// interpretation panel renders, so the FE shares one <CandidateCard>.
+//
+// Backend-led + NOT built yet: the HTTP route is CLI-only today, so
+// lib/paperVariants.ts renders the .eamos-mock fixture until Codex ships it, then
+// swaps to live with no shape change. Confirm the exact envelope with Codex
+// before the live cutover.
+export type VariantLevel = 'cdna' | 'protein' | 'genomic' | 'unknown'
+export type VariantContext = 'clinical_allele' | 'experimental_construct' | 'unknown'
+
+export interface ValidatedPaperVariant {
+  gene: string | null
+  transcript_hgvs: string | null
+  protein_change: string | null
+  protein_hgvs: string | null
+  level: VariantLevel
+  context: VariantContext
+  evidence_quote: string | null
+  /** Fail-closed gate result: true ONLY for a single high-confidence,
+   *  source-backed candidate with coordinates populated. */
+  validated: boolean
+  /** Resolver outcome string from the backend: 'resolved' | 'candidates' |
+   *  'protein_only_unresolved' | 'experimental_construct' | 'missing' |
+   *  'not_validated' | 'resolver_failed:<Type>'. */
+  validation_status: string
+  variant_id: string | null
+  genomic_hgvs: string | null
+  resolved_candidate_id: string | null
+  source_support: string[]
+  source_inputs: SearchInputSourceInputs | null
+  /** Same type the search panel renders → reused via <CandidateCard>. */
+  candidates: SearchInputCandidate[]
+  resolver_warnings: string[]
+  resolver_provenance: string[]
+}
+
+export interface PaperVariantsResult {
+  variants: ValidatedPaperVariant[]
+  warnings: string[]
+  provenance: string[]
+}
+
+export interface PaperPdfMeta {
+  page_count: number
+  engine: string
+  warnings: string[]
+}
+
+// Bibliographic metadata for the source paper, so the By-paper view can title a
+// group by "Authors · Year — Title" instead of the filename. Backend-led and
+// optional: the regex mock returns null (it can't know the title); Codex would
+// populate this from PDF metadata / first-page parse / the gateway extraction.
+export interface PaperSourceMetadata {
+  title: string | null
+  authors: string[]
+  year: string | null
+  journal: string | null
+  doi: string | null
+  pmid: string | null
+}
+
+export interface PaperVariantsGuardrails {
+  patient_data: string
+  raw_paper_text_in_output: string
+  secrets_in_output: string
+}
+
+// The HTTP envelope mirrors the eamos_paper_variants CLI report dict: the
+// PaperVariantsResult fields (variants/warnings/provenance) flattened to the top
+// level alongside pdf meta + guardrails + counts.
+export interface PaperVariantsResponse {
+  mode: string
+  generated_at: string
+  llm_provider: string
+  pdf: PaperPdfMeta | null
+  source_metadata: PaperSourceMetadata | null
+  guardrails: PaperVariantsGuardrails
+  candidate_count: number
+  validated_count: number
+  variants: ValidatedPaperVariant[]
+  warnings: string[]
+  provenance: string[]
 }
 
 // ─── M11 lookup section-fetch contract ───

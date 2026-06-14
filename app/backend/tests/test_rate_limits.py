@@ -142,6 +142,22 @@ def test_chat_is_rate_limited_per_user_across_ips(auth_client: TestClient) -> No
     assert second.status_code == 429
 
 
+def test_paper_variants_extract_uses_chat_user_rate_limit(auth_client: TestClient) -> None:
+    _set_limit(auth_client, "chat")
+
+    first = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        json={"text": "RPE65 c.260A>G was identified in a patient."},
+    )
+    second = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        json={"text": "RPE65 c.260A>G was identified in a patient."},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
 def test_evidence_submission_is_rate_limited_per_user_across_ips(
     auth_client: TestClient,
 ) -> None:

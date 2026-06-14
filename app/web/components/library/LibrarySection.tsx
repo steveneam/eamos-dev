@@ -12,6 +12,7 @@ import {
   removeFolder,
   removeVariant,
   renameFolder,
+  saveVariant,
   type SavedVariant,
 } from '@/lib/variant-library'
 import { useLibrary } from './useLibrary'
@@ -63,6 +64,7 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
   const [renaming, setRenaming] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [moveMenuOpen, setMoveMenuOpen] = useState(false)
+  const [dragOverSaved, setDragOverSaved] = useState(false)
 
   const hereId = currentQuery ? currentQuery.toLowerCase() : null
 
@@ -130,6 +132,25 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
     }
   }
 
+  // Accept a NEW variant dragged from a results surface (e.g. /paper) onto the
+  // saved box → save it top-level. Distinct from the internal {ids} card-move
+  // payload, which this ignores.
+  const onSavedDrop = (e: DragEvent) => {
+    e.preventDefault()
+    setDragOverSaved(false)
+    try {
+      const payload = JSON.parse(e.dataTransfer.getData(DT)) as {
+        eamosSave?: ParsedVariant
+        hgvs_full?: string | null
+      }
+      if (payload.eamosSave?.query) {
+        saveVariant(payload.eamosSave, { hgvs_full: payload.hgvs_full ?? undefined })
+      }
+    } catch {
+      // not a save payload — ignore
+    }
+  }
+
   const removeOne = (id: string) => {
     removeVariant(id)
   }
@@ -160,18 +181,34 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
           <Link href="/compare">Import VCF <IconArrowRight size={12} /></Link>
         </div>
 
-        {variants.length === 0 ? (
-          <div className="lib-empty">
-            <span className="lib-empty-glyph" aria-hidden><IconBookmark size={18} /></span>
-            <strong>No saved variants yet.</strong>
-            <p>
-              Save the variant you’re viewing, or <Link href="/compare">import a VCF in Batch</Link> to
-              build a worklist.
-            </p>
-          </div>
-        ) : (
-          <div className="lib-list">{topLevel.map(renderCard)}</div>
-        )}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOverSaved(true)
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget === e.target) setDragOverSaved(false)
+          }}
+          onDrop={onSavedDrop}
+          style={
+            dragOverSaved
+              ? { outline: '2px dashed var(--teal-deep)', outlineOffset: 2, borderRadius: 8 }
+              : undefined
+          }
+        >
+          {variants.length === 0 ? (
+            <div className="lib-empty">
+              <span className="lib-empty-glyph" aria-hidden><IconBookmark size={18} /></span>
+              <strong>No saved variants yet.</strong>
+              <p>
+                Save the variant you’re viewing, drag one here, or{' '}
+                <Link href="/compare">import a VCF in Batch</Link> to build a worklist.
+              </p>
+            </div>
+          ) : (
+            <div className="lib-list">{topLevel.map(renderCard)}</div>
+          )}
+        </div>
 
         {selected.size > 0 && (
           <div className="lib-seltoolbar">

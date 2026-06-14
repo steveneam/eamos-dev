@@ -76,6 +76,14 @@ function dispatch(): void {
   }
 }
 
+/** Replace the entire store — used by account sync to apply a merged library.
+ *  Persists + notifies subscribers like the granular mutators. */
+export function replaceLibrary(store: LibraryStore): void {
+  if (typeof window === 'undefined') return
+  persist({ variants: store.variants, folders: store.folders })
+  dispatch()
+}
+
 export function saveVariants(variants: ParsedVariant[], folderId?: string | null): number {
   if (typeof window === 'undefined') return 0
   const store = getLibrary()

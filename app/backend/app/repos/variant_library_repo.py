@@ -9,6 +9,7 @@ import httpx
 from sqlalchemy import delete, func, select, update
 
 from app.core.db import (
+    UserLibraryRecord,
     VariantLibraryCollectionRecord,
     VariantLibrarySavedVariantRecord,
     VariantViewCountRecord,
@@ -55,9 +56,41 @@ class VariantPopularityRecord:
     last_viewed: datetime
 
 
+@dataclass(frozen=True)
+class UserLibraryDocumentRecord:
+    user_id: str
+    variants: list[dict[str, Any]]
+    folders: list[dict[str, Any]]
+    updated_at: datetime
+
+
 class VariantLibraryRepo:
     def __init__(self, session_factory) -> None:
         self.session_factory = session_factory
+
+    def get_document(self, *, user_id: str) -> UserLibraryDocumentRecord | None:
+        with session_scope(self.session_factory) as session:
+            record = session.get(UserLibraryRecord, user_id)
+            return _library_document_from_record(record) if record is not None else None
+
+    def replace_document(
+        self,
+        *,
+        user_id: str,
+        variants: list[dict[str, Any]],
+        folders: list[dict[str, Any]],
+    ) -> UserLibraryDocumentRecord:
+        now = datetime.now(timezone.utc)
+        with session_scope(self.session_factory) as session:
+            record = session.get(UserLibraryRecord, user_id)
+            if record is None:
+                record = UserLibraryRecord(user_id=user_id)
+            record.variants = variants
+            record.folders = folders
+            record.updated_at = now
+            session.add(record)
+            session.flush()
+            return _library_document_from_record(record)
 
     def list_variants(self, *, user_id: str) -> list[SavedVariantRecord]:
         with session_scope(self.session_factory) as session:
@@ -246,6 +279,40 @@ class SupabaseVariantLibraryRepo:
         self.service_role_key = service_role_key
         self.timeout_seconds = timeout_seconds
         self.http_client = http_client
+
+    def get_document(self, *, user_id: str) -> UserLibraryDocumentRecord | None:
+        rows = self._get_rows(
+            "user_library",
+            params={
+                "select": "user_id,variants,folders,updated_at",
+                "user_id": f"eq.{user_id}",
+                "limit": "1",
+            },
+        )
+        return _library_document_from_row(rows[0]) if rows else None
+
+    def replace_document(
+        self,
+        *,
+        user_id: str,
+        variants: list[dict[str, Any]],
+        folders: list[dict[str, Any]],
+    ) -> UserLibraryDocumentRecord:
+        updated_at = datetime.now(timezone.utc).isoformat()
+        rows = self._post_rows(
+            "user_library",
+            json={
+                "user_id": user_id,
+                "variants": variants,
+                "folders": folders,
+                "updated_at": updated_at,
+            },
+            params={"on_conflict": "user_id"},
+            prefer="resolution=merge-duplicates,return=representation",
+        )
+        if not rows:
+            raise VariantLibraryWriteError("user library upsert returned no row")
+        return _library_document_from_row(rows[0])
 
     def list_variants(self, *, user_id: str) -> list[SavedVariantRecord]:
         rows = self._get_rows(
@@ -547,6 +614,24 @@ def _popularity_from_record(row: VariantViewCountRecord) -> VariantPopularityRec
     )
 
 
+def _library_document_from_record(row: UserLibraryRecord) -> UserLibraryDocumentRecord:
+    return UserLibraryDocumentRecord(
+        user_id=row.user_id,
+        variants=_list_of_dicts(row.variants),
+        folders=_list_of_dicts(row.folders),
+        updated_at=_as_utc_datetime(row.updated_at),
+    )
+
+
+def _library_document_from_row(row: dict[str, Any]) -> UserLibraryDocumentRecord:
+    return UserLibraryDocumentRecord(
+        user_id=str(row["user_id"]),
+        variants=_list_of_dicts(row.get("variants")),
+        folders=_list_of_dicts(row.get("folders")),
+        updated_at=_parse_datetime(row.get("updated_at")),
+    )
+
+
 def _saved_variant_from_row(row: dict[str, Any]) -> SavedVariantRecord:
     return SavedVariantRecord(
         id=str(row["id"]),
@@ -602,8 +687,20 @@ def _parse_datetime(value: Any) -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _as_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _optional_str(value: object) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _list_of_dicts(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]

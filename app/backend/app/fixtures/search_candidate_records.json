@@ -12,6 +12,30 @@
     "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/1421454/"
   },
   {
+    "candidate_id": "clinvar:VCV001679125",
+    "display_label": "RPE65 NM_000329.3:c.938A>G (p.His313Arg)",
+    "gene": "RPE65",
+    "cdna": "c.938A>G",
+    "transcript": "NM_000329.3",
+    "protein_change": "p.His313Arg",
+    "genomic_hg38": "1-68439002-T-C",
+    "genomic_hgvs": "NC_000001.11:g.68439002T>C",
+    "source_support": ["ClinVar VCV001679125", "ClinGen eRepo Pathogenic"],
+    "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/1679125/"
+  },
+  {
+    "candidate_id": "clinvar:VCV001180616",
+    "display_label": "RPE65 NM_000329.3:c.938A>C (p.His313Pro)",
+    "gene": "RPE65",
+    "cdna": "c.938A>C",
+    "transcript": "NM_000329.3",
+    "protein_change": "p.His313Pro",
+    "genomic_hg38": "1-68439002-T-G",
+    "genomic_hgvs": "NC_000001.11:g.68439002T>G",
+    "source_support": ["ClinVar VCV001180616", "ClinGen Allele Registry CA340744823"],
+    "source_url": "https://www.ncbi.nlm.nih.gov/clinvar/variation/1180616/"
+  },
+  {
     "candidate_id": "source:CFTR_c.1321_1323del",
     "display_label": "CFTR c.1321_1323del (p.Leu441del)",
     "gene": "CFTR",

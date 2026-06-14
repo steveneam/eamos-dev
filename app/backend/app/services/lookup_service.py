@@ -28,6 +28,7 @@ from app.schemas.run import (
     VariantSummaryRow,
 )
 from app.services.clinical_consensus import ClinicalConsensusBuilder
+from app.services.acmg_points_engine import compute_report_acmg_classification
 from app.services.functional_evidence import FunctionalEvidenceExtractor
 from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
@@ -1135,6 +1136,14 @@ class LookupService:
             evidence_map=evidence_map,
             evidence_statuses=evidence_statuses,
         )
+        try:
+            base_payload.eamos_computed_classification = compute_report_acmg_classification(
+                base_payload,
+                evidence_map,
+                evidence_statuses,
+            )
+        except Exception as exc:
+            warnings.append(f"eamos_computed_classification_failed:{type(exc).__name__}")
 
         response = LookupResponse(
             query=f"{gene}:{cdna}",
