@@ -164,7 +164,7 @@ SOURCE_DOWNLOAD_FILE_SPECS: tuple[SourceDownloadFileSpec, ...] = (
         asset_id="alphamissense_hg38_tsv_gz",
         url="https://zenodo.org/records/10813168/files/AlphaMissense_hg38.tsv.gz?download=1",
         file_name="AlphaMissense_hg38.tsv.gz",
-        expected_size_bytes=None,
+        expected_size_bytes=642_961_469,
         role="alphamissense_bgzip_tsv",
     ),
     SourceDownloadFileSpec(

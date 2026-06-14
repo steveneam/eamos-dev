@@ -13,6 +13,7 @@ ViewerTrack = Literal[
     "exons",
     "clinvar",
     "protein_features",
+    "alphamissense",
     "restriction",
     "conservation",
 ]
@@ -263,6 +264,29 @@ class ProteinFeatures(BaseModel):
     domain_track: ProteinDomainTrack | None = None
 
 
+class ProteinAlphaMissenseResidue(BaseModel):
+    aa: int = Field(ge=1)
+    mean_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    max_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    scored_variant_count: int = Field(default=0, ge=0)
+
+
+class ProteinAlphaMissenseHeatmap(BaseModel):
+    status: Literal["available", "unavailable", "partial"] = "unavailable"
+    fail_closed_reason: str | None = None
+    protein_length: int | None = Field(default=None, ge=1)
+    aa_start: int = Field(default=1, ge=1)
+    aa_end: int | None = Field(default=None, ge=1)
+    source_id: str = "google_deepmind_alphamissense_hg38"
+    source_release: str | None = None
+    calibrated_method: str | None = None
+    queried_aa: int | None = Field(default=None, ge=1)
+    queried_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    queried_calibrated_label: str | None = None
+    residues: list[ProteinAlphaMissenseResidue] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class RestrictionSite(BaseModel):
     name: str
     site: str
@@ -281,6 +305,7 @@ class ViewerTracks(BaseModel):
     exon_density: list[ExonVariantDensity] = Field(default_factory=list)
     protein_features: ProteinFeatures = Field(default_factory=ProteinFeatures)
     protein_product: ProteinProductEffect | None = None
+    alphamissense_heatmap: ProteinAlphaMissenseHeatmap | None = None
     conservation_values: list[float] = Field(default_factory=list)
     restriction_sites: list[RestrictionSite] = Field(default_factory=list)
     features: list[ViewerFeature] = Field(default_factory=list)

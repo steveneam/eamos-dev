@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from app.core.config import Settings
 from app.data_sources.registry import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
@@ -24,6 +24,8 @@ class AlphaMissenseReader(Protocol):
     def __enter__(self) -> AlphaMissenseReader: ...
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None: ...
+
+    def query_position(self, chrom: str, position: int) -> tuple[IndexedPredictorScore, ...]: ...
 
     def query_variant(
         self,
@@ -71,6 +73,31 @@ class AlphaMissenseLookup:
     available: bool
     prediction: AlphaMissensePrediction | None
     unavailable_reason: str | None = None
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class AlphaMissenseResidueScore:
+    aa: int
+    mean_score: float | None
+    max_score: float | None
+    scored_variant_count: int
+
+
+@dataclass(frozen=True)
+class AlphaMissenseHeatmap:
+    status: Literal["available", "unavailable", "partial"]
+    fail_closed_reason: str | None
+    protein_length: int | None
+    aa_start: int
+    aa_end: int | None
+    source_id: str
+    source_release: str | None
+    calibrated_method: str | None
+    queried_aa: int | None
+    queried_score: float | None
+    queried_calibrated_label: str | None
+    residues: tuple[AlphaMissenseResidueScore, ...]
     warnings: tuple[str, ...] = ()
 
 
@@ -160,6 +187,138 @@ class AlphaMissenseLocalAdapter:
             )
         return AlphaMissenseLookup(available=True, prediction=prediction)
 
+    def heatmap(
+        self,
+        *,
+        chrom: str,
+        coding_sequence: str,
+        coding_genomic_positions: tuple[int, ...],
+        protein_length: int | None,
+        aa_start: int,
+        aa_end: int,
+        queried_cds_pos: int | None = None,
+        queried_ref: str | None = None,
+        queried_alt: str | None = None,
+        queried_aa: int | None = None,
+    ) -> AlphaMissenseHeatmap:
+        if not self._inspection.ready:
+            return self._unavailable_heatmap(
+                self._inspection.status.value,
+                protein_length=protein_length,
+                aa_start=aa_start,
+                aa_end=aa_end,
+                queried_aa=queried_aa,
+                warnings=(f"alphamissense_{self._inspection.status.value}",),
+            )
+        sequence = coding_sequence.strip().upper()
+        if (
+            not sequence
+            or len(sequence) != len(coding_genomic_positions)
+            or aa_start < 1
+            or aa_end < aa_start
+        ):
+            return self._unavailable_heatmap(
+                "invalid_heatmap_request",
+                protein_length=protein_length,
+                aa_start=aa_start,
+                aa_end=aa_end,
+                queried_aa=queried_aa,
+                warnings=("alphamissense_invalid_heatmap_request",),
+            )
+
+        bounded_end = min(aa_end, max(1, len(sequence) // 3))
+        residues: list[AlphaMissenseResidueScore] = []
+        queried_score: float | None = None
+        queried_calibrated_label: str | None = None
+        position_cache: dict[int, tuple[IndexedPredictorScore, ...]] = {}
+        try:
+            with self._reader_factory(self._inspection.path) as reader:
+                for aa in range(aa_start, bounded_end + 1):
+                    codon_start = (aa - 1) * 3
+                    scores: list[float] = []
+                    for offset in range(3):
+                        cds_index = codon_start + offset
+                        if cds_index >= len(sequence):
+                            continue
+                        genomic_position = coding_genomic_positions[cds_index]
+                        ref = sequence[cds_index]
+                        rows = position_cache.get(genomic_position)
+                        if rows is None:
+                            rows = reader.query_position(chrom, genomic_position)
+                            position_cache[genomic_position] = rows
+                        for row in rows:
+                            if row.ref.upper() != ref:
+                                continue
+                            if isinstance(row.score, str):
+                                continue
+                            if row.alt.upper() == ref or row.alt.upper() not in {
+                                "A",
+                                "C",
+                                "G",
+                                "T",
+                            }:
+                                continue
+                            scores.append(float(row.score))
+                            if (
+                                queried_cds_pos is not None
+                                and queried_ref is not None
+                                and queried_alt is not None
+                                and cds_index + 1 == queried_cds_pos
+                                and row.ref.upper() == queried_ref.upper()
+                                and row.alt.upper() == queried_alt.upper()
+                            ):
+                                queried_score = float(row.score)
+                                calibration = calibration_field_values(
+                                    "AlphaMissense",
+                                    queried_score,
+                                )
+                                queried_calibrated_label = calibration["calibrated_label"]
+                    residues.append(
+                        AlphaMissenseResidueScore(
+                            aa=aa,
+                            mean_score=(sum(scores) / len(scores) if scores else None),
+                            max_score=(max(scores) if scores else None),
+                            scored_variant_count=len(scores),
+                        )
+                    )
+        except IndexedSourceError as exc:
+            return self._unavailable_heatmap(
+                exc.code,
+                protein_length=protein_length,
+                aa_start=aa_start,
+                aa_end=bounded_end,
+                queried_aa=queried_aa,
+                warnings=(f"alphamissense_{exc.code}",),
+            )
+
+        scored_count = sum(1 for residue in residues if residue.scored_variant_count > 0)
+        if scored_count == 0:
+            return self._unavailable_heatmap(
+                "no_scores_in_window",
+                protein_length=protein_length,
+                aa_start=aa_start,
+                aa_end=bounded_end,
+                queried_aa=queried_aa,
+                warnings=("alphamissense_no_scores_in_window",),
+            )
+        return AlphaMissenseHeatmap(
+            status="available" if scored_count == len(residues) else "partial",
+            fail_closed_reason=None,
+            protein_length=protein_length,
+            aa_start=aa_start,
+            aa_end=bounded_end,
+            source_id=ALPHAMISSENSE_SOURCE_ID,
+            source_release=self._record.source_version,
+            calibrated_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
+            queried_aa=queried_aa,
+            queried_score=queried_score,
+            queried_calibrated_label=queried_calibrated_label,
+            residues=tuple(residues),
+            warnings=(
+                () if scored_count == len(residues) else ("alphamissense_heatmap_partial_window",)
+            ),
+        )
+
     def _prediction_from_score(
         self,
         score: IndexedPredictorScore,
@@ -189,6 +348,32 @@ class AlphaMissenseLocalAdapter:
                 file_name=self._inspection.path.name,
                 reader="tabix_tsv_predictor_reader",
             ),
+        )
+
+    def _unavailable_heatmap(
+        self,
+        reason: str,
+        *,
+        protein_length: int | None,
+        aa_start: int,
+        aa_end: int | None,
+        queried_aa: int | None,
+        warnings: tuple[str, ...],
+    ) -> AlphaMissenseHeatmap:
+        return AlphaMissenseHeatmap(
+            status="unavailable",
+            fail_closed_reason=reason,
+            protein_length=protein_length,
+            aa_start=aa_start,
+            aa_end=aa_end,
+            source_id=ALPHAMISSENSE_SOURCE_ID,
+            source_release=self._record.source_version,
+            calibrated_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
+            queried_aa=queried_aa,
+            queried_score=None,
+            queried_calibrated_label=None,
+            residues=(),
+            warnings=warnings,
         )
 
 

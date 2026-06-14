@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from app.services.alphamissense_local import AlphaMissenseLocalAdapter
 from app.services.indexed_sources import IndexedPredictorScore, IndexedSourceError
 from app.services.predictor_runtime import (
@@ -141,6 +143,44 @@ def test_alphamissense_adapter_rejects_malformed_non_numeric_score(
     assert lookup.warnings == ("alphamissense_malformed_score",)
 
 
+def test_alphamissense_adapter_builds_bounded_residue_heatmap(
+    tmp_path: Path,
+) -> None:
+    adapter = AlphaMissenseLocalAdapter(
+        _ready_inspection(tmp_path),
+        reader_factory=lambda path: FakeReader(
+            (
+                _score(chrom="1", position=100, ref="A", alt="C", score=0.2),
+                _score(chrom="1", position=100, ref="A", alt="G", score=0.8),
+                _score(chrom="1", position=101, ref="A", alt="G", score=0.6),
+                _score(chrom="1", position=105, ref="T", alt="C", score=0.9),
+            )
+        ),
+    )
+
+    heatmap = adapter.heatmap(
+        chrom="1",
+        coding_sequence="AAATTT",
+        coding_genomic_positions=(100, 101, 102, 103, 104, 105),
+        protein_length=2,
+        aa_start=1,
+        aa_end=2,
+        queried_cds_pos=1,
+        queried_ref="A",
+        queried_alt="G",
+        queried_aa=1,
+    )
+
+    assert heatmap.status == "available"
+    assert heatmap.queried_score == 0.8
+    assert heatmap.queried_calibrated_label == "PP3_Strong"
+    assert [item.aa for item in heatmap.residues] == [1, 2]
+    assert heatmap.residues[0].scored_variant_count == 3
+    assert heatmap.residues[0].mean_score == pytest.approx((0.2 + 0.8 + 0.6) / 3)
+    assert heatmap.residues[0].max_score == 0.8
+    assert heatmap.residues[1].scored_variant_count == 1
+
+
 class FakeReader:
     def __init__(self, scores: tuple[IndexedPredictorScore, ...]) -> None:
         self.scores = scores
@@ -150,6 +190,11 @@ class FakeReader:
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         return None
+
+    def query_position(self, chrom: str, position: int) -> tuple[IndexedPredictorScore, ...]:
+        return tuple(
+            score for score in self.scores if score.chrom == chrom and score.position == position
+        )
 
     def query_variant(
         self,

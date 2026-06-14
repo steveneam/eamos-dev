@@ -424,6 +424,7 @@ Observed Supabase/Render state on 2026-06-14:
 | `hg38_2bit` | source metadata + Storage object | ready | `ready` | no flip needed |
 | `protein_pfam` | source metadata + Storage object; materialization metadata reconciled to `ready` | ready | `available` | monitor/cache smoke |
 | `coordinate_compact_index` | compact artifact + manifest in private Storage; metadata ready | ready | `ready` | deploy local build-ledger fix so Gene View ledger stops carrying the stale compact-index blocker |
+| `alphamissense` | registry metadata; no private Storage object observed on 2026-06-14 | missing | `missing_source_file` | stage/upload durable object, then seed bgzip+tbi in a maintenance window |
 | `dbsnp_local_adapter` | Storage object observed, source metadata gap | missing | `source_ready_for_materialization` | register/verify metadata, seed bgzip+tbi |
 | `phylop_conservation_reader` | Storage object observed, source metadata gap | missing | `source_ready_for_materialization` | register/verify metadata, seed bigWig |
 | `clinvar_local_adapter` | not proven in this pass | missing | `source_ready_for_materialization` | locate/register/seed bgzip+tbi |
@@ -433,6 +434,66 @@ Observed Supabase/Render state on 2026-06-14:
 The next backend work should close the source metadata gaps before large-file
 materialization. Prefer committed CLIs/services over manual SQL so provenance,
 license, launch-gate, checksum, and materialization rows stay consistent.
+
+## AlphaMissense Runtime Materialization
+
+AlphaMissense is about 643 MB compressed, but bgzip/tabix indexing can still
+stress the live web process. After the 2026-06-14 memory-limit restart warning
+on `eamos-dev-sg`, treat this as a maintenance-window operation, not a casual
+runtime command.
+
+Preflight from Render Shell:
+
+```bash
+bash -lc 'pwd; df -h /var/data/eamos; free -h; command -v python; python - <<PY
+import importlib.util
+print("pysam", bool(importlib.util.find_spec("pysam")))
+PY'
+```
+
+Materialize with the committed streaming CLI only after the current code is
+deployed:
+
+```bash
+time python -m app.cli.eamos_alphamissense_runtime_materialize \
+  --target-path /var/data/eamos/bio_assets/predictors/alphamissense/AlphaMissense_hg38.tsv.gz \
+  --expected-size-bytes 642961469 \
+  --expected-md5 9fd167735f16a1b87da6eb3e4c25fcb5 \
+  --require-ready \
+  --compact
+```
+
+The CLI streams the download, verifies MD5/size, creates
+`AlphaMissense_hg38.tsv.gz.tbi`, writes a sanitized manifest, and runs the same
+runtime preflight used by provider-cache. It does not mutate Supabase, Render
+env vars, deployments, startup commands, or provider flags.
+
+After the CLI reports ready, the SG service env must point the runtime reader at
+the persistent-disk path before provider-cache and request-time lookups can see
+the asset:
+
+```text
+ALPHAMISSENSE_HG38_RUNTIME_ASSET_PATH=/var/data/eamos/bio_assets/predictors/alphamissense/AlphaMissense_hg38.tsv.gz
+ALPHAMISSENSE_HG38_RUNTIME_ASSET_MODE=local_path
+```
+
+Apply only those AlphaMissense env values, then use a deploy-only restart of the
+current build so the web process reloads settings. Keep `LLM_PROVIDER=mock` and
+do not change unrelated provider flags.
+
+Verify after materialization:
+
+```powershell
+$pc = Invoke-RestMethod `
+  -Uri "https://eamos-dev-sg.onrender.com/api/v1/health/provider-cache" `
+  -Method Get `
+  -TimeoutSec 60
+
+$pc.providers.indexed_predictors.alphamissense | ConvertTo-Json -Depth 8
+```
+
+If provider-cache is stale after file readiness and env reload, use one further
+deploy-only restart of the existing build.
 
 ## Supabase Cross-Check
 

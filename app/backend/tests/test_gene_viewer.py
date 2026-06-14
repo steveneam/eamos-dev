@@ -17,6 +17,11 @@ from app.schemas.gene_viewer import (
     ViewerWindow,
     ViewerWindowRequest,
 )
+from app.schemas.protein_annotation import (
+    ProteinAnnotationRequest,
+    ProteinDomainTrack,
+    ProteinDomainTrackFeature,
+)
 from app.services.reference_genome import ReferenceWindow
 from app.services.sequence_context import normalize_sequence_query, unsupported_input_warning
 from app.services.compact_coordinate_index import CompactCoordinateIndex
@@ -38,6 +43,7 @@ from app.services.gene_viewer import (
     VariantProjection,
 )
 from app.services.gene_context_snapshot import GeneContextSnapshotService
+from app.services.alphamissense_local import AlphaMissenseHeatmap, AlphaMissenseResidueScore
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
 COMPACT_INDEX_FIXTURE = (
@@ -1155,6 +1161,135 @@ def test_source_backed_provider_uses_ensembl_transcript_for_non_rpe65_request() 
     assert source_client.variant_queries[0].resolver_transcript == "NM_GENERIC.1"
     assert response.provenance.sources[0].identifier == "NM_GENERIC.1:c.8G>A"
     assert response.provenance.warnings == ["mocked_generic_source"]
+
+
+def test_source_backed_provider_hydrates_local_protein_domain_track_from_full_cds() -> None:
+    class CapturingProteinAnnotationService:
+        def __init__(self) -> None:
+            self.requests: list[ProteinAnnotationRequest] = []
+
+        def annotate(self, request: ProteinAnnotationRequest) -> ProteinDomainTrack:
+            self.requests.append(request)
+            return ProteinDomainTrack(
+                status="available",
+                sequence_label=request.sequence_label,
+                gene_symbol=request.gene_symbol,
+                transcript=request.transcript,
+                protein_length=4,
+                translated_from="coding_dna",
+                pfam_release="Pfam test",
+                hmmer_release="HMMER test",
+                features=[
+                    ProteinDomainTrackFeature(
+                        feature_id="pfam:test:1-4",
+                        kind="domain",
+                        label="Generic source-backed domain",
+                        short_label="Generic domain",
+                        aa_start=1,
+                        aa_end=4,
+                        source="Pfam/HMMER hmmscan",
+                    )
+                ],
+            )
+
+    protein_service = CapturingProteinAnnotationService()
+    provider = SourceBackedGeneViewerProvider(
+        source_client=MockGenericGeneViewerSourceClient(),
+        protein_annotation_service=protein_service,
+    )
+
+    response = provider.viewer(
+        GeneViewerRequest(
+            gene="CFTR",
+            cdna="c.8G>A",
+            allele_mode="variant",
+            window=ViewerWindowRequest(
+                kind="cds_range",
+                cds_start=7,
+                cds_end=12,
+                intron_flank_bp=0,
+            ),
+        )
+    )
+
+    assert len(protein_service.requests) == 1
+    request = protein_service.requests[0]
+    assert request.sequence == "AAACCCGGGTTT"
+    assert request.input_type == "coding_dna"
+    assert request.allow_run is True
+    assert request.gene_symbol == "CFTR"
+    assert request.transcript == "ENSTGENERIC.1"
+    assert response.tracks.protein_features.domain_track is not None
+    assert response.tracks.protein_features.domain_track.status == "available"
+    assert response.tracks.protein_features.domains[0].label == ("Generic source-backed domain")
+    assert "protein_domain_track_from_local_annotation" in response.provenance.warnings
+
+
+def test_source_backed_provider_hydrates_alphamissense_heatmap_when_requested() -> None:
+    class CapturingAlphaMissenseAdapter:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def heatmap(self, **kwargs) -> AlphaMissenseHeatmap:
+            self.calls.append(kwargs)
+            return AlphaMissenseHeatmap(
+                status="available",
+                fail_closed_reason=None,
+                protein_length=4,
+                aa_start=1,
+                aa_end=4,
+                source_id="google_deepmind_alphamissense_hg38",
+                source_release="AlphaMissense test",
+                calibrated_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
+                queried_aa=3,
+                queried_score=0.792,
+                queried_calibrated_label="PP3_Strong",
+                residues=(
+                    AlphaMissenseResidueScore(
+                        aa=3,
+                        mean_score=0.7,
+                        max_score=0.9,
+                        scored_variant_count=3,
+                    ),
+                ),
+            )
+
+    adapter = CapturingAlphaMissenseAdapter()
+    provider = SourceBackedGeneViewerProvider(
+        source_client=MockGenericGeneViewerSourceClient(),
+        alphamissense_adapter=adapter,
+    )
+
+    response = provider.viewer(
+        GeneViewerRequest(
+            gene="CFTR",
+            cdna="c.8G>A",
+            allele_mode="variant",
+            window=ViewerWindowRequest(
+                kind="cds_range",
+                cds_start=7,
+                cds_end=12,
+                intron_flank_bp=0,
+            ),
+            tracks=[
+                "sequence",
+                "exons",
+                "protein_features",
+                "alphamissense",
+            ],
+        )
+    )
+
+    assert len(adapter.calls) == 1
+    call = adapter.calls[0]
+    assert call["coding_sequence"] == "AAACCCGGGTTT"
+    assert call["coding_genomic_positions"] == tuple(range(100, 106)) + tuple(range(200, 206))
+    assert call["queried_cds_pos"] == 8
+    assert call["queried_ref"] == "G"
+    assert call["queried_alt"] == "A"
+    assert response.tracks.alphamissense_heatmap is not None
+    assert response.tracks.alphamissense_heatmap.status == "available"
+    assert response.tracks.alphamissense_heatmap.queried_score == 0.792
 
 
 @pytest.mark.parametrize(

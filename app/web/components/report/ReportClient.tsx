@@ -36,7 +36,6 @@ import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
-import { ProteinTrack } from '@/components/report/ProteinTrack'
 import { GeneDiseaseBlock } from '@/components/report/GeneDiseaseBlock'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
@@ -896,8 +895,8 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             (compressed exon track + queried variant lollipop + ClinVar
             variant density). Locus ±40 bp window + MolecularContextBlock
             (gnomAD constraint / ClinGen dosage / overlapping CNVs) stay.
-            Protein-domain track lands in build 2 once Codex's UniProt
-            backend ships. */}
+            Source-backed protein-domain and optional AlphaMissense tracks now
+            render inside ReportGeneViewer. */}
         <div id="gene_context" className="scroll-mt-24" />
         <Card
           number={4}
@@ -933,15 +932,6 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               demo={demo}
             />
           )}
-
-          {/* Protein-domain track — custom inline-SVG (domains + AlphaMissense
-              per-residue heatmap + variant lollipop). Consumes Codex's
-              `protein_domain_track` contract when populated; illustrative
-              mock until then (per the mock-everything-unwired policy). */}
-          <ProteinTrack
-            track={payload.report_profile?.molecular_context?.protein_domain_track ?? null}
-            gene={header?.gene ?? null}
-          />
 
           <MolecularContextBlock evidence={data.evidence} />
         </Card>

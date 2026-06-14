@@ -44,6 +44,7 @@ from app.repos.variant_library_repo import (
 )
 from app.rules.clinic_rules import ClinicRules
 from app.services.ai_gateway.retrieval import build_literature_retriever
+from app.services.alphamissense_local import AlphaMissenseLocalAdapter
 from app.services.auth import AuthService
 from app.services.batch import BatchService
 from app.services.chat_service import ChatService
@@ -175,6 +176,7 @@ def create_app(settings=None) -> FastAPI:
         settings=settings,
         source_client=gene_viewer_source_client,
         protein_annotation_service=protein_annotation_service,
+        alphamissense_adapter=AlphaMissenseLocalAdapter.from_settings(settings),
     )
     gene_context_snapshot_service = GeneContextSnapshotService(
         settings=settings,

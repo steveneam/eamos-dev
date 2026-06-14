@@ -1679,6 +1679,7 @@ export type ViewerTrack =
   | 'exons'
   | 'clinvar'
   | 'protein_features'
+  | 'alphamissense'
   | 'restriction'
   | 'conservation'
 export type ViewerWindowKind = 'around_variant' | 'cds_range' | 'full_gene'
@@ -2020,6 +2021,29 @@ export interface ProteinFeatures {
   domain_track?: ProteinDomainTrack | null
 }
 
+export interface ProteinAlphaMissenseResidue {
+  aa: number
+  mean_score?: number | null
+  max_score?: number | null
+  scored_variant_count: number
+}
+
+export interface ProteinAlphaMissenseHeatmap {
+  status: 'available' | 'unavailable' | 'partial'
+  fail_closed_reason?: string | null
+  protein_length?: number | null
+  aa_start: number
+  aa_end?: number | null
+  source_id: string
+  source_release?: string | null
+  calibrated_method?: string | null
+  queried_aa?: number | null
+  queried_score?: number | null
+  queried_calibrated_label?: string | null
+  residues: ProteinAlphaMissenseResidue[]
+  warnings: string[]
+}
+
 export interface RestrictionSite {
   name: string
   site: string
@@ -2038,6 +2062,7 @@ export interface ViewerTracks {
   exon_density: ExonVariantDensity[]
   protein_features: ProteinFeatures
   protein_product?: ProteinProductEffect | null
+  alphamissense_heatmap?: ProteinAlphaMissenseHeatmap | null
   conservation_values: number[]
   restriction_sites: RestrictionSite[]
   features: ViewerFeature[]
