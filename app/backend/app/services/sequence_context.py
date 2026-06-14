@@ -58,6 +58,10 @@ CHROMOSOME_NC_ACCESSIONS: dict[str, str] = {
 }
 
 WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE = "workbench_sequence_context_unavailable"
+# The external coordinate/sequence resolver (VariantValidator / Ensembl) timed out
+# or otherwise failed at the transport layer. Distinct from "unavailable" (no data)
+# so a transient upstream failure is observable and never 500s the lookup.
+WORKBENCH_SEQUENCE_CONTEXT_RESOLVER_ERROR = "workbench_sequence_context_resolver_error"
 WORKBENCH_UNSUPPORTED_INPUT_PREFIX = "workbench_unsupported_input"
 
 QueryKind = Literal["cdna", "rsid", "protein", "genomic", "unknown"]
@@ -601,7 +605,18 @@ class SequenceContextService:
             self.settings is not None and self.settings.use_real_apis
         )
         if should_use_resolver and self.resolver is not None:
-            context = self.resolver.resolve(query, normalized_species)
+            try:
+                context = self.resolver.resolve(query, normalized_species)
+            except httpx.HTTPError:
+                # VariantValidator / Ensembl timed out or failed at the transport
+                # layer. Degrade to a partial section with a warning instead of
+                # letting the error 500 the whole lookup.
+                context = None
+                if self.settings is not None and self.settings.use_real_apis:
+                    return SequenceContextResult(
+                        query=query,
+                        warnings=[WORKBENCH_SEQUENCE_CONTEXT_RESOLVER_ERROR],
+                    )
             if context is not None:
                 return SequenceContextResult(query=query, context=context)
             if self.settings is not None and self.settings.use_real_apis:

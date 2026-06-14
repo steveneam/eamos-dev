@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import httpx
+
 from app.core.config import Settings
 from app.services.reference_genome import ReferenceWindow
 from app.services.sequence_context import (
     EnsemblVariantSequenceResolver,
     MaterializedHg38SequenceResolver,
+    WORKBENCH_SEQUENCE_CONTEXT_RESOLVER_ERROR,
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     NormalizedVariantQuery,
     SequenceContext,
@@ -111,6 +114,25 @@ def test_real_mode_resolver_hook_receives_normalized_query() -> None:
     assert resolver.query.gene == "RPE65"
     assert resolver.query.hgvs == "c.260A>G"
     assert resolver.query.resolver_transcript_hgvs == "NM_000329.3:c.260A>G"
+
+
+def test_real_mode_resolver_timeout_degrades_to_warning_not_error() -> None:
+    """A VariantValidator/Ensembl read timeout must degrade to a partial section
+    with a warning, not bubble an uncaught httpx error (the prod /lookup/sections
+    500 Codex traced to sequence_context.py)."""
+
+    class TimingOutResolver:
+        def resolve(self, query: NormalizedVariantQuery, species: str) -> SequenceContext:
+            raise httpx.ReadTimeout("VariantValidator timed out")
+
+    service = SequenceContextService(
+        settings=_settings(use_real_apis=True), resolver=TimingOutResolver()
+    )
+
+    result = service.resolve(gene="RPE65", cdna="c.260A>G")
+
+    assert result.context is None
+    assert result.warnings == [WORKBENCH_SEQUENCE_CONTEXT_RESOLVER_ERROR]
 
 
 def test_ensembl_resolver_builds_context_from_variant_validator_and_sequence(
