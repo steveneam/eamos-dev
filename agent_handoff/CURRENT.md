@@ -16,11 +16,11 @@
 
 - **Claude:** IDLE @ 2026-06-15 02:25 +1000 - **Drove the coordinated release: 2 commits SHIPPED + DEPLOYED + verified on prod.** `1b2cf53` feat â€” interactive ACMG explainer (Claude tasks 1-3) + AlphaMissense report FE wiring (Codex's 5 files) [14 files, explicit pathspecs]. `8a7095f` fix(lookup) â€” sequence-context resolver `httpx` timeouts now degrade to a `workbench_sequence_context_resolver_error` warning instead of 500ing `/api/v1/lookup/sections` (the prod 500 Codex traced to `sequence_context.py`; Steven-approved cross-lane fix; +regression test). Gates green: app/web tsc, app/frontend tsc -b, vitest 26/26, focused backend pytest (sequence_context + orchestration/contract/gene-viewer), ruff+black. **Deployed:** Vercel FE auto (live - landingâ†’/account "Submit evidence" verified in prod SSR); Render SG redeployed via hook â†’ `dep-d8nd9agjs32c73djccp0` LIVE at `8a7095f`. **Prod-verified:** `/healthz` 200, `/api/v1/lookup/summary` RPE65 200 @34.7s (the slow VariantValidator path that used to 500 now completes), `/api/v1/viewer` 200 + AlphaMissense, full `/report?gene=RPE65&cdna=c.260A>G` renders (live engine VUS net+2 32.5%, **no** `illustrative` flag; AlphaMissense + Pfam protein domains live), **zero 5xx** in SG request logs post-deploy. `LLM_PROVIDER=mock` held; no Supabase apply / provider/env flip; graphify-out + AI-gateway doc still excluded (Codex lane).
 
-- **Codex:** IDLE @ 2026-06-15 04:18 +1000 - **Graphify semantic pass + maintenance guidance committed locally; push pending final status check.** Full raw `graphify-out/graph.html` now renders 10,803 nodes / 29,423 edges / 574 communities; semantic cache exists. Added durable Selom-style graph maintenance rules to AGENTS/CLAUDE/CODEX. Tagged held local cleanup for next session: AI-gateway doc wording and encoding-scan helper need separate review; `.tools/` is local-only and ignored. No deploy/Supabase/provider mutation.
+- **Codex:** IDLE @ 2026-06-15 04:25 +1000 - **Graphify semantic pass + maintenance guidance committed and pushed.** `origin/main` is `146ae9c` with graphify refresh `4ff5ac2` plus handoff cleanup `146ae9c`. Full raw `graphify-out/graph.html` renders 10,803 nodes / 29,423 edges / 574 communities; semantic cache exists. Held local cleanup remains: AI-gateway doc wording and encoding-scan helper need separate review; `.tools/` is local-only and ignored. No manual deploy/Supabase/provider mutation.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-15 04:18 +1000 - Codex (graphify closeout + held cleanup tags; own section/heartbeat only, released cleanly)
+UNLOCKED - 2026-06-15 04:25 +1000 - Codex (graphify closeout pushed + held cleanup tags; own section/heartbeat only, released cleanly)
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 `LOCKED: <agent> - <stamp> - <file/section>` before editing any of them;
@@ -377,10 +377,10 @@ Next: (1) graphify update vs f772cc6 (Codex lane); (2) apply Supabase migration 
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-15 04:18 +10:00 - Codex. Prior AlphaMissense/protein viewer release details are retained in Cross-Agent Requests above and were shipped by Claude at `8a7095f`.
+Section last edited: 2026-06-15 04:25 +10:00 - Codex. Prior AlphaMissense/protein viewer release details are retained in Cross-Agent Requests above and were shipped by Claude at `8a7095f`.
 
-**Latest Codex update (2026-06-15 04:18 +10:00 - Codex):**
-Graphify semantic refresh and maintenance guidance are complete. Codex created local commit `4ff5ac2` (`chore(graphify): refresh semantic graph and maintenance guidance`); push was pending at the time this handoff note was written.
+**Latest Codex update (2026-06-15 04:25 +10:00 - Codex):**
+Graphify semantic refresh and maintenance guidance are complete and pushed. `origin/main` is `146ae9c`, including graphify refresh commit `4ff5ac2` (`chore(graphify): refresh semantic graph and maintenance guidance`) and handoff cleanup commit `146ae9c` (`docs(handoff): tag graphify follow-ups`).
 
 Completed:
 - Verified Claude's `8a7095f` sequence-context timeout fix: `httpx.HTTPError`/ReadTimeout now degrades to `workbench_sequence_context_resolver_error` warning instead of bubbling a 500; focused sequence-context, orchestration/contract/gene-viewer, and lookup-section contract pytest passed.
@@ -405,8 +405,8 @@ Held local follow-ups for next session:
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-15 04:18 +1000 - Codex graphify semantic refresh closeout
+# Resume prompt - 2026-06-15 04:25 +1000 - Codex graphify semantic refresh pushed
 Eamos. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, then run git fetch origin && git status --short --branch.
-Delta: Claude's `8a7095f` timeout fix was validated; graphify semantic pass completed and local commit `4ff5ac2` refreshes `.graphifyignore`, graphify outputs, full raw `graphify-out/graph.html`, and durable graph maintenance guidance in AGENTS/CLAUDE/CODEX. Eamos graph now has 10,803 nodes / 29,423 links / 39 hyperedges / 574 communities; semantic cache exists; Chrome verified raw graph.html renders. `.tools/` is ignored because it contains local screenshots and a Render CLI binary.
-Next: first check whether `4ff5ac2` and the subsequent handoff/.tools-ignore commit were pushed. Review held local items separately: `docs/proprietary/eamos-ai-gateway.md` paper->variants wording and `scripts/eamos-encoding-scan.mjs` read-only mojibake scanner. Do not bundle those with graphify/Render. Keep graphify maintenance practice: run cheap `graphify update .` after code changes; run semantic extraction only at Steven's prompt or deliberate release/handoff checkpoints after corpus sanity check. Guardrails: no Supabase apply/mutation, no provider/env flips, keep `LLM_PROVIDER=mock`, `RAG_ENABLED=false`, `CRISPR_OFFTARGET_PROVIDER=auto`, `PRIMER_SPECIFICITY_PROVIDER=template`. End clear-safe.
+Delta: Claude's `8a7095f` timeout fix was validated; graphify semantic pass completed and was pushed to `origin/main` in `4ff5ac2`, followed by handoff cleanup `146ae9c`. Eamos graph now has 10,803 nodes / 29,423 links / 39 hyperedges / 574 communities; semantic cache exists; Chrome verified raw `graphify-out/graph.html` renders. `.tools/` is ignored because it contains local screenshots and a Render CLI binary.
+Next: review held local items separately: `docs/proprietary/eamos-ai-gateway.md` paper->variants wording and `scripts/eamos-encoding-scan.mjs` read-only mojibake scanner. Do not bundle those with graphify/Render. Keep graphify maintenance practice: run cheap `graphify update .` after code changes; run semantic extraction only at Steven's prompt or deliberate release/handoff checkpoints after corpus sanity check. Guardrails: no Supabase apply/mutation, no provider/env flips, keep `LLM_PROVIDER=mock`, `RAG_ENABLED=false`, `CRISPR_OFFTARGET_PROVIDER=auto`, `PRIMER_SPECIFICITY_PROVIDER=template`. End clear-safe.
 ```
