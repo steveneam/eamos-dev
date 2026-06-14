@@ -22,6 +22,12 @@ Out of scope: `/runs` (frozen v1), `app/frontend` Vite (read-only reference),
 `app/backend` (Codex lane). `/runs`, AlphaMissense display, and Franklin stay
 as-is.
 
+2026-06-15 correction: `app/frontend` is now a stale frozen Vite reference for
+report work. Active `/report` development is in `app/web`. Do not copy
+`app/frontend` mock AlphaMissense/InSilicoGrid thresholds into live report code;
+the live Section 2 path is `app/web/components/report/CalibratedInSilicoTable.tsx`
+fed by `report_profile.computational_deep_dive`.
+
 Foundation (token + type + primitives) lands **first and serially** because every
 surface inherits it; surfaces then redesign in **parallel**; Workbench is gated
 on finishing its pass-2 migration.

@@ -32,12 +32,12 @@ const TRIGGERED_BY_TIER: Record<EamosComputedTier, Trig[]> = {
     { code: 'PS3', direction: 'pathogenic', applied_strength: 'strong', points: 4, evidence_value: 'damaging in a calibrated functional assay', source_db: 'MaveDB' },
     { code: 'PM1', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'functional domain / hotspot', source_db: 'UniProt' },
     { code: 'PM5', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'novel change at a known-pathogenic residue', source_db: 'ClinVar' },
-    { code: 'PP3', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'AlphaMissense 0.98', threshold: '≥ 0.906 → Moderate (Pejaver-2022)', source_db: 'AlphaMissense' },
+    { code: 'PP3', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'AlphaMissense 0.4365', threshold: '0.170-0.791 -> PP3_Moderate (Bergquist-2025)', source_db: 'AlphaMissense' },
     { code: 'PM2', direction: 'pathogenic', applied_strength: 'supporting', points: 1, evidence_value: 'gnomAD v4 popmax 4e-6', source_db: 'gnomAD v4' },
   ],
   'Likely Pathogenic': [
     { code: 'PM1', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'Laminin G-like 4 domain', source_db: 'UniProt' },
-    { code: 'PP3', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'AlphaMissense 0.98', threshold: '≥ 0.906 → Moderate (Pejaver-2022)', source_db: 'AlphaMissense' },
+    { code: 'PP3', direction: 'pathogenic', applied_strength: 'moderate', points: 2, evidence_value: 'AlphaMissense 0.4365', threshold: '0.170-0.791 -> PP3_Moderate (Bergquist-2025)', source_db: 'AlphaMissense' },
     { code: 'PM2', direction: 'pathogenic', applied_strength: 'supporting', points: 1, evidence_value: 'gnomAD v4 popmax 1.2e-5', source_db: 'gnomAD v4' },
     { code: 'PP2', direction: 'pathogenic', applied_strength: 'supporting', points: 1, evidence_value: 'missense-constrained gene', source_db: 'gnomAD constraint' },
   ],
@@ -108,7 +108,7 @@ export function mockEamosComputed(tier: EamosComputedTier): EamosComputedClassif
     acmg_version_pin: {
       framework: 'Richards-2015 + Tavtigian-2020 points',
       pvs1_revision: 'Abou-Tayoun-2018',
-      pp3_calibration: 'Pejaver-2022',
+      pp3_calibration: 'Pejaver-2022 / Bergquist-2025',
       vcep_id: null,
     },
     net_points,

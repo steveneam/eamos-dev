@@ -1,3 +1,5 @@
+'use client'
+
 // A1 — Evidence Plane. Plots the classification decision in 2D: benign points
 // (ΣB) on x, pathogenic points (ΣP) on y. Net = ΣP − ΣB, so lines of constant net
 // are anti-diagonals and the five tiers are diagonal bands (Pathogenic top-left →
@@ -8,6 +10,7 @@
 // as balanced evidence), and BA1 is an OVERRIDE called out in the legend, never a
 // summand folded into ΣB.
 
+import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import type { EamosComputedClassification, EamosComputedTier } from '@/lib/backend'
 import { netBoundaries, POINTS_FORMULA_STAMP, tierTokens } from '@/lib/acmg/points'
 
@@ -52,16 +55,24 @@ const TIER_SHORT: Record<EamosComputedTier, string> = {
 export function EvidencePlane({
   computed,
   mock = false,
+  onChange,
 }: {
   computed: EamosComputedClassification
   mock?: boolean
+  /** When provided, the marker becomes draggable (2-D reverse-calculator): drag
+   *  sets ΣP (y) and ΣB (x) independently → net = ΣP − ΣB. Static when omitted. */
+  onChange?: (sumPathogenic: number, sumBenign: number) => void
 }) {
   const b = netBoundaries(computed.benign_cut)
   const sp = computed.sum_pathogenic
   const sb = computed.sum_benign
+  const interactive = typeof onChange === 'function'
+  const svgRef = useRef<SVGSVGElement>(null)
+  const draggingRef = useRef(false)
   // Data domain padded BELOW the origin so a marker on an axis (ΣB or ΣP = 0)
-  // sits inside the plane, never jammed in the corner.
-  const domMax = Math.max(12, Math.ceil(sp) + 3, Math.ceil(sb) + 3)
+  // sits inside the plane, never jammed in the corner. Interactive mode uses a
+  // FIXED domain so the scale doesn't rescale under the cursor while dragging.
+  const domMax = interactive ? 16 : Math.max(12, Math.ceil(sp) + 3, Math.ceil(sb) + 3)
   const domMin = -1.5
   const dom = domMax - domMin
 
@@ -77,6 +88,56 @@ export function EvidencePlane({
   const S = 100 // viewBox units
   const X = (dx: number) => ((dx - domMin) / dom) * S
   const Y = (dy: number) => S - ((dy - domMin) / dom) * S // flip: data-y up → screen-y down
+
+  // ── interactive drag (reverse-calculator): pointer → (ΣP, ΣB) ───────────────
+  const clampPt = (n: number) => Math.max(0, Math.min(domMax, Math.round(n)))
+  const fromPointer = (clientX: number, clientY: number) => {
+    const el = svgRef.current
+    if (!el || !onChange) return
+    const rect = el.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const px = ((clientX - rect.left) / rect.width) * S
+    const py = ((clientY - rect.top) / rect.height) * S
+    const dxB = domMin + (px / S) * dom // invert X → ΣB
+    const dyP = domMin + ((S - py) / S) * dom // invert Y → ΣP
+    onChange(clampPt(dyP), clampPt(dxB))
+  }
+  const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
+    if (!interactive) return
+    draggingRef.current = true
+    try {
+      svgRef.current?.setPointerCapture(e.pointerId)
+    } catch {
+      /* capture can throw on detached nodes — drag still works via move */
+    }
+    fromPointer(e.clientX, e.clientY)
+  }
+  const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
+    if (draggingRef.current) fromPointer(e.clientX, e.clientY)
+  }
+  const endDrag = () => {
+    draggingRef.current = false
+  }
+  const onKeyDown = (e: KeyboardEvent<SVGSVGElement>) => {
+    if (!onChange) return
+    switch (e.key) {
+      case 'ArrowLeft':
+        onChange(sp, Math.max(0, sb - 1))
+        break
+      case 'ArrowRight':
+        onChange(sp, Math.min(domMax, sb + 1))
+        break
+      case 'ArrowDown':
+        onChange(Math.max(0, sp - 1), sb)
+        break
+      case 'ArrowUp':
+        onChange(Math.min(domMax, sp + 1), sb)
+        break
+      default:
+        return
+    }
+    e.preventDefault()
+  }
 
   const square: Pt[] = [
     { x: domMin, y: domMin },
@@ -100,9 +161,9 @@ export function EvidencePlane({
   const ariaLabel = `Evidence plane: ${sp} pathogenic points versus ${sb} benign points place this variant in the ${computed.tier} band at net ${markerNet}.${computed.conflict.is_conflicting ? ' Marker is hatched to flag conflicting evidence.' : ''}${computed.ba1_override ? ' A BA1 stand-alone benign override applies.' : ''}`
 
   return (
-    <figure role="img" aria-label={ariaLabel} style={{ margin: 0 }}>
+    <figure role={interactive ? 'group' : 'img'} aria-label={ariaLabel} style={{ margin: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span className="eamos-kicker">Evidence plane</span>
+        <span className="eamos-kicker">Evidence plane{interactive ? ' — drag the marker' : ''}</span>
         {mock && (
           <span className="eamos-mock" title="Illustrative — evidence-point sums are not yet wired to live engine output for this variant.">
             illustrative
@@ -127,7 +188,21 @@ export function EvidencePlane({
         </div>
 
         <div style={{ flex: 1, maxWidth: 280 }}>
-          <svg viewBox={`0 0 ${S} ${S}`} width="100%" style={{ display: 'block', borderRadius: 6, border: '0.5px solid var(--line)' }} aria-hidden>
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${S} ${S}`}
+            width="100%"
+            style={{ display: 'block', borderRadius: 6, border: '0.5px solid var(--line)', cursor: interactive ? 'grab' : undefined, touchAction: interactive ? 'none' : undefined }}
+            aria-hidden={interactive ? undefined : true}
+            role={interactive ? 'application' : undefined}
+            aria-label={interactive ? `${ariaLabel} Drag the marker, or use arrow keys: left/right adjust benign points, up/down adjust pathogenic points.` : undefined}
+            tabIndex={interactive ? 0 : undefined}
+            onPointerDown={interactive ? onPointerDown : undefined}
+            onPointerMove={interactive ? onPointerMove : undefined}
+            onPointerUp={interactive ? endDrag : undefined}
+            onPointerCancel={interactive ? endDrag : undefined}
+            onKeyDown={interactive ? onKeyDown : undefined}
+          >
             <defs>
               <pattern id="conflict-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                 <rect width="4" height="4" fill="var(--cls-na-bg)" />

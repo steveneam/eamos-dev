@@ -13,7 +13,7 @@ const MOCK_TIP =
 type PredictorCategory = 'Missense' | 'Splice' | 'Genome-wide' | 'Other'
 
 // Per-predictor score calibration that drives the evidence thermometer.
-// `tiers` (Pejaver 2022 / Bergquist 2024 / Walker 2023) → multi-tier evidence bar;
+// `tiers` (Pejaver 2022 / Bergquist 2025 / Walker 2023) → multi-tier evidence bar;
 // `binary` only → two-zone tool-native cutoff; neither → uncalibrated raw-score bar.
 interface Calibration {
   range: [number, number]
@@ -42,19 +42,19 @@ interface CatalogEntry {
 // placeholder so the complete predictor surface is visible before wiring. Tier
 // tags are informational only — everything is shown in full on this account; the
 // free/Pro gate (blur) is a pre-launch task, not active here. Calibrated cutoffs
-// are the ClinGen SVI values (Pejaver 2022 / Bergquist 2024 / Walker 2023);
+// are the ClinGen SVI values (Pejaver 2022 / Bergquist 2025 / Walker 2023);
 // uncalibrated tools render a raw-score bar rather than fabricated tiers.
 const PREDICTOR_CATALOG: CatalogEntry[] = [
   // Missense — predict the effect of an amino-acid substitution.
   {
     name: 'AlphaMissense', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Free',
     metric: 'Calibrated missense pathogenicity (0–1) + class',
-    cal: { range: [0, 1], higherDamaging: true, source: 'Bergquist 2024', tiers: { pp3Strong: 0.99, pp3Moderate: 0.906, pp3Supporting: 0.792, bp4Supporting: 0.169, bp4Moderate: 0.07 } },
+    cal: { range: [0, 1], higherDamaging: true, source: 'Bergquist 2025', tiers: { pp3Strong: 0.792, pp3Moderate: 0.17, pp3Supporting: 0.1, bp4Supporting: 0.099, bp4Strong: 0.07 } },
   },
   {
     name: 'ESM1b', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Free',
     metric: 'Protein-LLM variant-effect (log-likelihood)',
-    cal: { range: [-25, 10], higherDamaging: false, source: 'Bergquist 2024', tiers: { pp3Strong: -14.0, pp3Moderate: -10.7, pp3Supporting: -6.4, bp4Supporting: -3.2, bp4Moderate: 8.8 } },
+    cal: { range: [-25, 10], higherDamaging: false, source: 'Bergquist 2025', tiers: { pp3Strong: -14.0, pp3Moderate: -12.2, pp3Supporting: -10.7, bp4Supporting: -6.4, bp4Moderate: -3.2 } },
   },
   {
     name: 'REVEL', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Pro',

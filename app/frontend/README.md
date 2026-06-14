@@ -1,4 +1,16 @@
-# HSIL 2026 Demo Frontend
+# Frozen Vite Frontend Reference
+
+This React + Vite tree is a historical/reference frontend. It is stale for the
+live Eamos report surface, including the Section 2 in-silico predictor panel,
+AlphaMissense display, gene/protein viewer, and current backend contracts.
+
+Use `app/web` for active `/report`, `/workbench`, account, checkout, auth, and
+production frontend work. Do not copy `app/frontend` mocks or thresholds into
+live report code without checking the current `app/web` implementation and
+backend contract first.
+
+Future cleanup: retire this Vite tree or replace it with a generated/current
+mirror of the live Next implementation once no active tooling depends on it.
 
 ## Template and stack
 

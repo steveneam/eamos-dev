@@ -1,10 +1,9 @@
 import { Disclosure } from '@/components/ui/Disclosure'
 import { EvidenceChip } from '@/components/ui/EvidenceChip'
 import type { AcmgCriteriaScaffold, AcmgCode, EamosComputedClassification } from '@/lib/backend'
+import { criteriaStateFromComputed } from '@/lib/acmg/criteria-model'
+import { AcmgExplainer } from '@/components/acmg/AcmgExplainer'
 import { AcmgGrid } from './AcmgGrid'
-import { PosteriorGauge } from './PosteriorGauge'
-import { EvidencePlane } from './EvidencePlane'
-import { PointWaterfall } from './PointWaterfall'
 import { ConfidenceChannel } from './ConfidenceChannel'
 
 /**
@@ -176,12 +175,7 @@ export function EamosAcmgClassifier({
               precedence.
             </p>
 
-            <PosteriorGauge computed={computed} mock={mock} />
-
-            <div className="mt-4 grid gap-5 sm:grid-cols-[260px_1fr]">
-              <EvidencePlane computed={computed} mock={mock} />
-              <PointWaterfall computed={computed} mock={mock} />
-            </div>
+            <AcmgExplainer initialState={criteriaStateFromComputed(computed)} anchor={computed} mock={mock} />
 
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--line)' }}>
               <ConfidenceChannel computed={computed} />

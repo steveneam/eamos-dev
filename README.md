@@ -19,7 +19,8 @@ Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2
 
 | Component | Technology |
 | --------- | ---------- |
-| Frontend | React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion |
+| Active frontend | `app/web` - Next.js + React + TypeScript + Tailwind CSS |
+| Frozen Vite reference | `app/frontend` - historical React + Vite mirror; stale for live `/report` work |
 | Backend | Python 3.10 + FastAPI + Uvicorn |
 | LLM (default) | `provider=mock` — no API calls; deterministic fixture responses |
 | LLM (live) | OpenAI GPT-4o-mini via LangChain (`provider=openai`) |
@@ -33,7 +34,8 @@ Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2
 
 | Item | Path |
 | ---- | ---- |
-| Frontend source | `app/frontend/src/App.tsx` |
+| Active frontend source | `app/web/app/` + `app/web/components/` |
+| Frozen Vite reference | `app/frontend/src/App.tsx` |
 | Backend source | `app/backend/app/` |
 | Backend config | `app/backend/.env` (from `.env.example`; gitignored) |
 | Design system | `DESIGN.md` |
@@ -46,10 +48,10 @@ $env:PATH = "C:\Program Files\Python310\;C:\Program Files\Python310\Scripts\;$en
 cd app/backend
 python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
 
-# Frontend
-cd app/frontend
+# Active frontend
+cd app/web
 npm run dev
-# → http://localhost:5173
+# -> http://localhost:3000
 # Node.js: IT-managed system install at C:\Program Files\nodejs\ (already on PATH).
 ```
 
@@ -291,7 +293,8 @@ This platform has a separate internal business context involving pet genetics. D
 
 | Directory / File | What |
 | ---------------- | ---- |
-| `app/frontend/` | React + Vite frontend — `/`, `/report`, `/workbench`, `/runs` (legacy) |
+| `app/web/` | Active Next.js frontend - `/`, `/report`, `/workbench`, account/checkout/auth |
+| `app/frontend/` | Frozen React + Vite reference. Treat as stale for live report work until it is removed or replaced with the current Next implementation. |
 | `app/backend/` | FastAPI backend — `app/` contains tools, services, schemas, routes |
 | `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the Claude Code (frontend) ↔ Codex (backend) workflow. Direct Codex app sessions have verified full workspace + outbound-network access (2026-05-17); live cross-agent coordination is in `agent_handoff/`. The plugin-mediated path ([openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)) is historical. |
 | `docs/proprietary/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (EP-VLEx, search input resolution) |

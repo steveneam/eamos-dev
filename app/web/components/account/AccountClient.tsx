@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { AuthPanel } from '@/components/auth/AuthPanel'
+import { AcmgExplainer } from '@/components/acmg/AcmgExplainer'
 import { PageHeader } from '@/components/pricing/PageHeader'
 import {
   addSavedVariant,
@@ -323,7 +324,67 @@ function Dashboard({ userId, email }: { userId: string; email: string }) {
 
       <SavedVariants userId={userId} rows={saved} onChange={refresh} />
       <Submissions userId={userId} rows={subs} onChange={refresh} />
+      <AcmgExplainerSection />
     </>
+  )
+}
+
+// ── ACMG points explainer (teaching what-if) ───────────────────────────────────
+// The full criteria/strength + draggable-puck explainer. Lives here because the
+// submission form above is exactly where someone choosing evidence codes (PS3/BS3)
+// wants to see how points combine into a verdict. Linked to from the report's
+// Card-4 Explore drag-card via /account#acmg-explainer.
+function AcmgExplainerSection() {
+  const [open, setOpen] = useState(false)
+
+  // Open + scroll into view when arriving via an "#acmg-explainer" link — both on
+  // first load (report deep-link) and on in-page hashchange (the form link below).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const openIfTargeted = () => {
+      if (window.location.hash !== '#acmg-explainer') return
+      setOpen(true)
+      document.getElementById('acmg-explainer')?.scrollIntoView({ block: 'start' })
+    }
+    openIfTargeted()
+    window.addEventListener('hashchange', openIfTargeted)
+    return () => window.removeEventListener('hashchange', openIfTargeted)
+  }, [])
+
+  return (
+    <section
+      id="acmg-explainer"
+      className="mb-6"
+      style={{
+        borderRadius: 'var(--r-lg)',
+        background: 'var(--bg)',
+        border: '0.5px solid var(--line)',
+        padding: '24px 24px 26px',
+        boxShadow: 'var(--elev-1)',
+        scrollMarginTop: 90,
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 style={{ fontFamily: 'var(--display)', fontWeight: 400, fontSize: 18, color: 'var(--ink)', margin: 0, letterSpacing: '-0.01em' }}>
+            ACMG points explainer
+          </h2>
+          <p className="mt-1.5" style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', maxWidth: 620 }}>
+            A what-if sandbox: toggle the criteria and pick their strengths (or just drag the puck) to watch the
+            Tavtigian-2020 points sum, the override rules fire, and the verdict move. A teaching tool — not a classifier.
+          </p>
+        </div>
+        <button type="button" onClick={() => setOpen((v) => !v)} className="ac-text-btn shrink-0" style={{ marginTop: 4 }}>
+          {open ? 'Hide explainer' : 'Open explainer'}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 18 }}>
+          <AcmgExplainer />
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -769,6 +830,9 @@ function Submissions({
                       </button>
                     )
                   })}
+                  <a href="#acmg-explainer" className="ac-text-btn" style={{ marginLeft: 4 }}>
+                    See how these codes change the classification →
+                  </a>
                 </div>
               </div>
             )}
