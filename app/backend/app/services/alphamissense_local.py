@@ -191,6 +191,7 @@ class AlphaMissenseLocalAdapter:
         self,
         *,
         chrom: str,
+        genomic_strand: str = "+",
         coding_sequence: str,
         coding_genomic_positions: tuple[int, ...],
         protein_length: int | None,
@@ -227,6 +228,9 @@ class AlphaMissenseLocalAdapter:
             )
 
         bounded_end = min(aa_end, max(1, len(sequence) // 3))
+        reverse_strand = genomic_strand.strip() == "-"
+        queried_genomic_ref = _genomic_allele(queried_ref, reverse_strand)
+        queried_genomic_alt = _genomic_allele(queried_alt, reverse_strand)
         residues: list[AlphaMissenseResidueScore] = []
         queried_score: float | None = None
         queried_calibrated_label: str | None = None
@@ -241,31 +245,28 @@ class AlphaMissenseLocalAdapter:
                         if cds_index >= len(sequence):
                             continue
                         genomic_position = coding_genomic_positions[cds_index]
-                        ref = sequence[cds_index]
+                        ref = _genomic_allele(sequence[cds_index], reverse_strand)
                         rows = position_cache.get(genomic_position)
                         if rows is None:
                             rows = reader.query_position(chrom, genomic_position)
                             position_cache[genomic_position] = rows
                         for row in rows:
-                            if row.ref.upper() != ref:
+                            row_ref = row.ref.upper()
+                            row_alt = row.alt.upper()
+                            if row_ref != ref:
                                 continue
                             if isinstance(row.score, str):
                                 continue
-                            if row.alt.upper() == ref or row.alt.upper() not in {
-                                "A",
-                                "C",
-                                "G",
-                                "T",
-                            }:
+                            if row_alt == ref or row_alt not in {"A", "C", "G", "T"}:
                                 continue
                             scores.append(float(row.score))
                             if (
                                 queried_cds_pos is not None
-                                and queried_ref is not None
-                                and queried_alt is not None
+                                and queried_genomic_ref is not None
+                                and queried_genomic_alt is not None
                                 and cds_index + 1 == queried_cds_pos
-                                and row.ref.upper() == queried_ref.upper()
-                                and row.alt.upper() == queried_alt.upper()
+                                and row_ref == queried_genomic_ref
+                                and row_alt == queried_genomic_alt
                             ):
                                 queried_score = float(row.score)
                                 calibration = calibration_field_values(
@@ -375,6 +376,18 @@ class AlphaMissenseLocalAdapter:
             residues=(),
             warnings=warnings,
         )
+
+
+_BASE_COMPLEMENT = str.maketrans("ACGT", "TGCA")
+
+
+def _genomic_allele(value: str | None, reverse_strand: bool) -> str | None:
+    if value is None:
+        return None
+    allele = value.strip().upper()
+    if not allele or not reverse_strand:
+        return allele
+    return allele.translate(_BASE_COMPLEMENT)[::-1]
 
 
 def _default_reader_factory(path: Path) -> AlphaMissenseReader:

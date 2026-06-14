@@ -1541,6 +1541,7 @@ def _hydrate_response_with_alphamissense_heatmap(
     aa_end = min(protein_length, queried_aa + 18)
     heatmap = alphamissense_adapter.heatmap(
         chrom=transcript_source.chrom,
+        genomic_strand=transcript_source.strand,
         coding_sequence=coding_dna,
         coding_genomic_positions=genomic_positions,
         protein_length=transcript_source.protein_length,

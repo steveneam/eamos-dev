@@ -1284,6 +1284,7 @@ def test_source_backed_provider_hydrates_alphamissense_heatmap_when_requested() 
     call = adapter.calls[0]
     assert call["coding_sequence"] == "AAACCCGGGTTT"
     assert call["coding_genomic_positions"] == tuple(range(100, 106)) + tuple(range(200, 206))
+    assert call["genomic_strand"] == "+"
     assert call["queried_cds_pos"] == 8
     assert call["queried_ref"] == "G"
     assert call["queried_alt"] == "A"

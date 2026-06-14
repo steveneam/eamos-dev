@@ -182,6 +182,50 @@ def test_alphamissense_adapter_builds_bounded_residue_heatmap(
     assert heatmap.residues[1].scored_variant_count == 1
 
 
+@pytest.mark.parametrize(
+    ("queried_score", "expected_label"),
+    [
+        (0.12, "PP3_Supporting"),
+        (0.71, "PP3_Moderate"),
+        (0.92, "PP3_Strong"),
+    ],
+)
+def test_alphamissense_heatmap_matches_reverse_strand_genomic_alleles(
+    tmp_path: Path,
+    queried_score: float,
+    expected_label: str,
+) -> None:
+    adapter = AlphaMissenseLocalAdapter(
+        _ready_inspection(tmp_path),
+        reader_factory=lambda path: FakeReader(
+            (
+                _score(chrom="1", position=68444869, ref="T", alt="C", score=queried_score),
+                _score(chrom="1", position=68444868, ref="T", alt="G", score=0.22),
+            )
+        ),
+    )
+
+    heatmap = adapter.heatmap(
+        chrom="1",
+        genomic_strand="-",
+        coding_sequence="AAATTT",
+        coding_genomic_positions=(68444869, 68444868, 68444867, 68444866, 68444865, 68444864),
+        protein_length=2,
+        aa_start=1,
+        aa_end=2,
+        queried_cds_pos=1,
+        queried_ref="A",
+        queried_alt="G",
+        queried_aa=1,
+    )
+
+    assert heatmap.status == "partial"
+    assert heatmap.queried_score == queried_score
+    assert heatmap.queried_calibrated_label == expected_label
+    assert heatmap.residues[0].scored_variant_count == 2
+    assert heatmap.residues[0].max_score == max(queried_score, 0.22)
+
+
 def test_alphamissense_materializer_preflight_summary_is_sanitized(
     tmp_path: Path,
 ) -> None:

@@ -125,6 +125,11 @@ runtime assets follow the same proof path.
 8. Accept readiness from live health, not from files alone. Verify `/healthz`
    and `/api/v1/health/provider-cache`; the relevant `source_assets.*.ready`
    field and build-ledger item must agree with the materialized disk proof.
+   If provider-cache returns `materialization_metadata_missing` while the disk
+   file and CLI preflight are ready, the missing row is the blocker: reconcile
+   `eamos_private.source_asset_objects` and
+   `eamos_private.source_asset_materializations` before any restart/deploy
+   retry. This was a repeat failure mode on the 2026-06-15 AlphaMissense run.
 9. Reconcile the Supabase materialization row from `download_pending` to `ready`
    only after live provider-cache proof. Include `verified_at`, `ready_marker`,
    checksum/size, source object URI, Render service id, and guardrail metadata
@@ -442,6 +447,15 @@ stress the live web process. After the 2026-06-14 memory-limit restart warning
 on `eamos-dev-sg`, treat this as a maintenance-window operation, not a casual
 runtime command.
 
+Before opening Render Shell or downloading anything, prepare the Supabase
+metadata ledger first. The private source object row and the target
+`eamos_private.source_asset_materializations` row should exist in a pending
+state with source id `google_deepmind_alphamissense_hg38`, asset role
+`predictor_tabix_tsv`, checksum, byte size, license/provenance metadata,
+`public_access_allowed=false`, and frontend access disabled. Materialization
+then moves that row to `ready` after file, index, checksum, and provider-cache
+proof. Do not use Render disk presence as the first source of truth.
+
 Preflight from Render Shell. The current Docker image does not include `free`,
 so read cgroup memory values directly:
 
@@ -502,6 +516,13 @@ $pc.providers.indexed_predictors.alphamissense | ConvertTo-Json -Depth 8
 If provider-cache is stale after file readiness and env reload, use one further
 deploy-only restart of the existing build.
 
+If provider-cache reports `materialization_metadata_missing`, do not rerun the
+download or restart loop first. The Render disk asset is present, but the
+backend materialization ledger cannot validate it. Reconcile the private
+Supabase source object and materialization rows for
+`google_deepmind_alphamissense_hg38` / `predictor_tabix_tsv`, then recheck
+provider-cache.
+
 ### AlphaMissense 2026-06-15 SG Event Log
 
 Context: Steven asked to materialize the AlphaMissense asset the same night as
@@ -552,6 +573,39 @@ python -m app.cli.eamos_alphamissense_runtime_materialize \
   --require-ready \
   --compact
 ```
+
+Post-hotfix closeout observation: the fixed CLI reported `ready` with the
+expected 642,961,469-byte file, `.tbi` index, and MD5, but live provider-cache
+returned `materialization_metadata_missing`. That is not a Render disk or
+AlphaMissense reader failure; it means the Supabase materialization metadata row
+was missing, matching a prior materialization issue. Treat Supabase metadata
+reconciliation as an explicit closeout gate before calling the provider live.
+The generic SOP above was tightened during this run: future materializations
+should prepare `local_source_versions`, `source_asset_objects`, and a pending
+`source_asset_materializations` row before any Render Shell download/index work.
+
+Supabase reconciliation applied for AlphaMissense:
+
+- Created the `google_deepmind_alphamissense_hg38` source version and external
+  Zenodo source asset metadata with `upload_status=verified`,
+  `approval_status=approved`, `public_access_allowed=false`, and frontend access
+  disabled.
+- Created the `render-sg` materialization row for
+  `/var/data/eamos/bio_assets/predictors/alphamissense/AlphaMissense_hg38.tsv.gz`
+  with status `ready`, byte size `642961469`, MD5
+  `9fd167735f16a1b87da6eb3e4c25fcb5`, and marker
+  `render_sg_alphamissense_cli_ready_md5_verified_2026_06_15`.
+- Provider-cache then changed from `materialization_metadata_missing` to
+  `available=true`, `status=ready`, `materialization_status=ready` without a
+  download retry.
+
+Post-ready viewer check found a separate reverse-strand heatmap bug for RPE65:
+the AlphaMissense heatmap queried genomic positions correctly but compared
+AlphaMissense genomic REF/ALT to transcript-strand CDS bases. Reverse-strand
+genes could therefore show `alphamissense_no_scores_in_window` even when the
+asset and materialization metadata were ready. The fix is strand-aware heatmap
+allele matching while keeping exact-variant calibration score-driven through
+the central Bergquist 2025 thresholds.
 
 ## Supabase Cross-Check
 
