@@ -16,11 +16,11 @@
 
 - **Claude:** IDLE @ 2026-06-15 02:25 +1000 - **Drove the coordinated release: 2 commits SHIPPED + DEPLOYED + verified on prod.** `1b2cf53` feat â€” interactive ACMG explainer (Claude tasks 1-3) + AlphaMissense report FE wiring (Codex's 5 files) [14 files, explicit pathspecs]. `8a7095f` fix(lookup) â€” sequence-context resolver `httpx` timeouts now degrade to a `workbench_sequence_context_resolver_error` warning instead of 500ing `/api/v1/lookup/sections` (the prod 500 Codex traced to `sequence_context.py`; Steven-approved cross-lane fix; +regression test). Gates green: app/web tsc, app/frontend tsc -b, vitest 26/26, focused backend pytest (sequence_context + orchestration/contract/gene-viewer), ruff+black. **Deployed:** Vercel FE auto (live - landingâ†’/account "Submit evidence" verified in prod SSR); Render SG redeployed via hook â†’ `dep-d8nd9agjs32c73djccp0` LIVE at `8a7095f`. **Prod-verified:** `/healthz` 200, `/api/v1/lookup/summary` RPE65 200 @34.7s (the slow VariantValidator path that used to 500 now completes), `/api/v1/viewer` 200 + AlphaMissense, full `/report?gene=RPE65&cdna=c.260A>G` renders (live engine VUS net+2 32.5%, **no** `illustrative` flag; AlphaMissense + Pfam protein domains live), **zero 5xx** in SG request logs post-deploy. `LLM_PROVIDER=mock` held; no Supabase apply / provider/env flip; graphify-out + AI-gateway doc still excluded (Codex lane).
 
-- **Codex:** IDLE @ 2026-06-15 04:25 +1000 - **Graphify semantic pass + maintenance guidance committed and pushed to `origin/main`.** Pushed commits include graphify refresh `4ff5ac2` and handoff cleanup/follow-up commits. Full raw `graphify-out/graph.html` renders 10,803 nodes / 29,423 edges / 574 communities; semantic cache exists. Held local cleanup remains: AI-gateway doc wording and encoding-scan helper need separate review; `.tools/` is local-only and ignored. No manual deploy/Supabase/provider mutation.
+- **Codex:** IDLE @ 2026-06-15 15:56 +1000 - **Report protein architecture refresh shipped + deployed.** Pushed `960ac9d` full report protein-domain wiring + lookup route, `49e8326` single-row figure-style protein schematic, and graph maintenance commits `1f1b011`/`22e840a`. Vercel production deploy `dpl_8QfBR96Y3K83f3MjGUqz8fLVKUTt` is Ready and aliased to `https://eamos-dev.vercel.app`. Live USH2A report verified: 5,202 aa, 50 architecture blocks, 248 source hits, FN3 multi-select exposes exact ranges. Guardrails held: no Supabase/provider/env flips; held AI-gateway doc and encoding-scan helper remain separate.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-15 04:25 +1000 - Codex (graphify closeout pushed + held cleanup tags; own section/heartbeat only, released cleanly)
+UNLOCKED - 2026-06-15 15:56 +1000 - Codex (protein architecture deploy + next gene-view workflow saved)
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 `LOCKED: <agent> - <stamp> - <file/section>` before editing any of them;
@@ -285,24 +285,22 @@ archived verbatim at
 
 ## Current State
 
-- Branch `main`. `origin/main` == local `HEAD` == **`f772cc6`**
-  (`feat(report,paper,library): ACMG points viz wave + paper->variants front door
-  + account library sync`) - the 2026-06-14 coordinated release Claude drove.
-  Shipped + deployed: **Render eamos-dev-sg redeployed (live)**, **Vercel FE
-  auto-deployed**, E2E-verified on prod.
-- Worktree after the release still carries deliberately-excluded local files:
-  `graphify-out/*` (**Codex lane - `graphify update` owed against `f772cc6`**),
-  `docs/proprietary/eamos-ai-gateway.md` (AI-gateway, held out),
-  `scripts/eamos-encoding-scan.mjs` (Codex tooling), `.tools/` (Claude scratch
-  screenshots), `codex-workbench-temp.md`. No `git add -A` was used.
+- Branch `main`. `origin/main` == local `HEAD` == **`22e840a`**
+  (`chore(graphify): update after protein schematic cleanup`) after the 2026-06-15
+  report protein architecture refresh. Vercel FE auto-deployed and was live-verified
+  on `https://eamos-dev.vercel.app`; no Render deploy was needed.
+- Worktree after the release/handoff commit should carry only deliberately-excluded
+  local files: `docs/proprietary/eamos-ai-gateway.md` (AI-gateway, held out) and
+  `scripts/eamos-encoding-scan.mjs` (Codex tooling). No `git add -A` was used.
 - `eamos_computed_classification` is now LIVE on prod (Codex engine +
   report-population). Independent Tavtigian advisory audit block, separate from
   `clinical_consensus`. Note: prod RPE65 c.260A>G = VUS net+2 (PP3 moderate only);
   Codex's local fixture gave net+3 (PM2+PP3) - likely a live-gnomAD vs fixture
   PM2 difference for Codex to confirm.
-- Recent shipped lineage on `origin/main`: `f772cc6` ACMG-viz+paper+library |
-  `3ccef4d` coordinated-release closeout + graph refresh | `0c91461` AI-gateway
-  literature RAG + paper->variants P1+2 (inert) | `95a57e4` RPE65 fixture fix.
+- Recent shipped lineage on `origin/main`: `22e840a` graph update after protein
+  schematic cleanup | `49e8326` single-row protein schematic | `1f1b011`
+  graph update after full protein view fix | `960ac9d` full protein-domain wiring
+  + lookup route | `c0d82c6` graphify handoff note cleanup.
 - **AI-gateway is inert in prod:** `LLM_PROVIDER=mock` (Render auto-deploy OFF),
   FE chat gated coming-soon (`NEXT_PUBLIC_AI_CHAT_ENABLED` unset). Do NOT flip to
   `gateway` until the pre-launch security gate is resolved
@@ -377,27 +375,33 @@ Next: (1) graphify update vs f772cc6 (Codex lane); (2) apply Supabase migration 
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-15 04:25 +10:00 - Codex. Prior AlphaMissense/protein viewer release details are retained in Cross-Agent Requests above and were shipped by Claude at `8a7095f`.
+Section last edited: 2026-06-15 15:56 +10:00 - Codex. Prior AlphaMissense/protein viewer release details are retained in Cross-Agent Requests above and were shipped by Claude at `8a7095f`.
 
-**Latest Codex update (2026-06-15 04:25 +10:00 - Codex):**
-Graphify semantic refresh and maintenance guidance are complete and pushed to `origin/main`, including graphify refresh commit `4ff5ac2` (`chore(graphify): refresh semantic graph and maintenance guidance`) and follow-up handoff commits.
+**Latest Codex update (2026-06-15 15:56 +10:00 - Codex):**
+Report protein architecture refresh is complete, committed, pushed, deployed to Vercel production, and live-verified on `https://eamos-dev.vercel.app`.
 
 Completed:
-- Verified Claude's `8a7095f` sequence-context timeout fix: `httpx.HTTPError`/ReadTimeout now degrades to `workbench_sequence_context_resolver_error` warning instead of bubbling a 500; focused sequence-context, orchestration/contract/gene-viewer, and lookup-section contract pytest passed.
-- Cleaned Codex-owned graphify leftovers, pinned graphify Python to `graphify-out/.graphify_python`, and optimized `.graphifyignore` to exclude reference/generated/public/test-result/tooling noise before semantic extraction.
-- Ran graphify semantic extraction over 189 docs in 13 chunks; semantic cache now exists.
-- Rebuilt final graph at commit `8a7095f`: `10,803` nodes, `29,423` links, `39` hyperedges, `574` communities.
-- Generated full raw node-level `graphify-out/graph.html` with `graphify export html --graph graphify-out/graph.json --node-limit 20000`; Chrome verified nonblank canvas, vis-network loaded, search accepted `AlphaMissense`.
-- Added durable graphify maintenance practice to `AGENTS.md` and `CLAUDE.md`; added `AGENTS.md` to Codex read order in `CODEX.md`.
-- Added `.tools/` to `.gitignore` because it holds local screenshots/proof files and a Render CLI binary, not source.
+- Recovered the prior protein-view intent from `plans/gene-viewer/*`, `plans/predictor-visuals-contracts/spec.md`, protein annotation tests, and `agent_handoff/on_hold/register.md`: active scope is the 1-D protein architecture/domain track; the on-hold item is only the future 3-D AlphaFold/Molstar lane.
+- Diagnosed the report mismatch: `ReportGeneViewer` was rendering the compact/window `/api/v1/viewer` protein track, flattening lanes/descriptions/sites, and showing only a small chip subset. The full lookup/report payload already carries the richer `protein_domain_track`.
+- Diagnosed the lookup failure in the screenshot: the Next rewrite/proxy was socket-hanging on the large/slow USH2A lookup, while direct SG returned 200. Added a narrow same-origin `POST /api/v1/lookup` route so the report loads through local/prod web without the proxy 500.
+- Shipped `ReportClient`/`ReportGeneViewer` wiring so the report passes and consumes the full payload `protein_domain_track` first, with standardized scrollable gene/protein canvas widths and source-backed protein length/features.
+- Reworked the protein diagram from multi-lane collision rows into a single figure-style architecture schematic: one 34px white protein backbone, black outer outline, thinner black domain outlines, rectangular colored domain blocks, horizontal scroll for long proteins, and source-hit summarization outside the primary figure.
+- Added canonical domain-family grouping and filtering: repeated classes keep consistent gene-agnostic colors; canonical architecture blocks are preferred; overlapping/alternate/weak HMMER/Pfam hits (for example Purple acid/Chitinase-style surprises) are summarized rather than shown as primary protein architecture when canonical USH2A domains exist.
+- Added multi-select domain-family cards. Clicking a description card toggles yellow highlights on all matching domains in the schematic; selected repeated families show exact amino-acid ranges as visible pills, so users do not need to hover to recover per-domain coordinates.
+- Ran the required cheap graph maintenance pass: `python -m graphify update .` (AST-only; no semantic extraction). `graphify-out/graph.html` was restored/left tracked because graphify skipped HTML regeneration due the >5k node threshold.
+- Pushed commits: `960ac9d fix(report): render full protein domain architecture`, `1f1b011 chore(graphify): update after protein view fix`, `49e8326 fix(report): simplify protein architecture schematic`, and `22e840a chore(graphify): update after protein schematic cleanup`.
+- Deployed by Vercel production auto-build: deployment `dpl_8QfBR96Y3K83f3MjGUqz8fLVKUTt`, URL `https://eamos-px73bt9ue-steven-eamegdool-s-projects.vercel.app`, aliases include `https://eamos-dev.vercel.app`.
 
-Verification recorded 2026-06-15 04:18 +10:00:
-- `git diff --cached --check` passed before commit `4ff5ac2`.
-- `graphify-out/graph.json` check: `10,803` nodes, `29,423` links, `39` hyperedges, built_at_commit `8a7095f46855e3759c9012f7e6310ca62c517602`.
-- `graphify-out/graph.html` contains `10803 nodes Â· 29423 edges Â· 574 communities`.
-- Chrome DevTools render check passed for raw HTML: live canvas nonblank, `vis` ready, no console errors other than vis-network layout info.
+Verification recorded 2026-06-15 15:56 +10:00:
+- `./node_modules/.bin/tsc.cmd --noEmit` in `app/web` passed.
+- `npm --prefix app/web run lint` passed with only pre-existing unrelated React effect warnings in `CompareClient.tsx` and `PubMedSection.tsx`.
+- `git diff --check` passed apart from existing LF/CRLF warnings.
+- Local browser verification on USH2A confirmed one protein architecture row, `5,202 aa`, `50 architecture blocks`, `248 source hits`, no primary Purple-acid/Chitinase cards, FN3 card range pills, and yellow multi-select highlighting.
+- Live Vercel verification on `https://eamos-dev.vercel.app/report?gene=USH2A&cdna=c.2276G%3ET` confirmed `POST /api/v1/lookup` 200, `POST /api/v1/viewer` 200, lookup sections 200, `5,202 aa`, `50 architecture blocks`, `248 source hits`, FN3 selected card shows all exact ranges, and production console only has pre-existing form/id + CSS preload warnings.
+- No Supabase mutation, provider/env flip, Render deploy, or backend env change was performed.
 
 Held local follow-ups for next session:
+- Apply the same concept to the **gene view**: standardize figure-style size, preserve horizontal scroll for long genes, make the gene/locus track less squashed, use clear outer/inner outlines, and expose exact coordinates without hover-only dependence. Start from `ReportGeneViewer.tsx` and the reference protein screenshots from `C:\Users\seamegdool\Pictures\Screenshots\Screenshot 2026-06-15 023012.png` and `...023026.png`.
 - `docs/proprietary/eamos-ai-gateway.md`: review separately for the paper->variants validation wording change; safe-looking doc diff but not graphify/Render scope.
 - `scripts/eamos-encoding-scan.mjs`: review separately as a possible read-only mojibake scanner tooling commit; safe-looking but currently untracked and not wired into scripts/tests.
 - `.tools/`: keep ignored/local-only. It includes screenshots and `.tools/render/cli_v2.20.0.exe`; do not commit.
@@ -405,8 +409,8 @@ Held local follow-ups for next session:
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-15 04:25 +1000 - Codex graphify semantic refresh pushed
-Eamos. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, then run git fetch origin && git status --short --branch.
-Delta: Claude's `8a7095f` timeout fix was validated; graphify semantic pass completed and was pushed to `origin/main` in `4ff5ac2`, followed by handoff cleanup `146ae9c`. Eamos graph now has 10,803 nodes / 29,423 links / 39 hyperedges / 574 communities; semantic cache exists; Chrome verified raw `graphify-out/graph.html` renders. `.tools/` is ignored because it contains local screenshots and a Render CLI binary.
-Next: review held local items separately: `docs/proprietary/eamos-ai-gateway.md` paper->variants wording and `scripts/eamos-encoding-scan.mjs` read-only mojibake scanner. Do not bundle those with graphify/Render. Keep graphify maintenance practice: run cheap `graphify update .` after code changes; run semantic extraction only at Steven's prompt or deliberate release/handoff checkpoints after corpus sanity check. Guardrails: no Supabase apply/mutation, no provider/env flips, keep `LLM_PROVIDER=mock`, `RAG_ENABLED=false`, `CRISPR_OFFTARGET_PROVIDER=auto`, `PRIMER_SPECIFICITY_PROVIDER=template`. End clear-safe.
+# Resume prompt - 2026-06-15 15:56 +1000 - Codex protein architecture deployed; gene view next
+Eamos. Open `D:\eamos`. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, then run git fetch origin && git status --short --branch && git log -6 --oneline.
+Delta: Protein architecture refresh is shipped and deployed. Pushed commits: `960ac9d` full report protein-domain wiring + same-origin lookup route, `1f1b011` graph update, `49e8326` single-row figure-style protein schematic, `22e840a` graph update. Vercel production deploy `dpl_8QfBR96Y3K83f3MjGUqz8fLVKUTt` is Ready and aliased to `https://eamos-dev.vercel.app`. Live USH2A report verified: 5,202 aa, 50 architecture blocks, 248 source hits, one protein row, black outer backbone outline, thinner domain outlines, canonical domain cards, FN3 selected card exposes all exact amino-acid ranges and highlights domains yellow. Purple-acid/Chitinase-style raw HMMER surprises are summarized, not primary architecture. Tests: app/web tsc, app/web lint (only pre-existing warnings), `git diff --check`, local + live browser verification. `python -m graphify update .` was run; no semantic extraction.
+Next: apply the same figure-style/scroller concept to the gene view in `ReportGeneViewer.tsx`: standardized height/size, horizontal scroll for long genes, clearer outer/inner outlines, less squashing, and visible coordinates instead of hover-only dependence. Use the reference protein screenshots from `C:\Users\seamegdool\Pictures\Screenshots\Screenshot 2026-06-15 023012.png` and `...023026.png`. Do not bundle held local items: `docs/proprietary/eamos-ai-gateway.md` and `scripts/eamos-encoding-scan.mjs`. Guardrails: no Supabase apply/mutation, no provider/env flips, keep `LLM_PROVIDER=mock`, `RAG_ENABLED=false`, `CRISPR_OFFTARGET_PROVIDER=auto`, `PRIMER_SPECIFICITY_PROVIDER=template`. End clear-safe.
 ```
