@@ -5,6 +5,23 @@
 Section added: 2026-06-15 22:08 +1000 · Claude (prod incident the moment `1e86a78`
 went live). **Owner: Codex (backend lane).**
 
+**✅ RESOLVED 2026-06-15 23:30 +1000 (Claude — verified on prod SG).** Codex's
+`a9de024` (`fix(protein): guard large annotation cache misses` — release-keyed
+protein-annotation cache restore + oversized-protein HMMER-on-cache-miss guard) +
+`dd3b71d` (Render hook helper) are live on SG (deploy `dep-d8nvaac8aovs739ka7p0`,
+status `live`). USH2A `POST /api/v1/lookup` now returns 200 in ~34s with
+`protein_domain_track.status=cache_hit` and 248 restored source hits; Render memory
+held **flat ~1.21 GB** on the new instance during the call (no spike toward the 2 GB
+cap; the OOM'd instance idled ~1.53 GB). Both regressions cleared: the **MED**
+feature loss is fixed via the Pfam/HMMER cache fallback (the UniProt flag stayed
+`uniprot_features_enabled=false` — no index seeding needed), and the **HIGH** OOM is
+prevented because a cache hit skips fresh HMMER on the 5,202 aa protein (and the new
+guard skips it on a miss too). Original write-up retained below for history.
+Follow-up (backlog, not blocking): the 248 are raw hmmscan hits including
+promiscuous cross-fold noise (Purple acid Phosphatase, Chitinase, ConA-clan over
+LamG) curated only at the FE — consider a backend e-value/overlap threshold so we
+don't ship garbage hits (e.g. an e=85 ConA call) over the wire.
+
 Commit `1e86a78` (`fix(protein): hydrate curated feature architecture` —
 `protein_annotation.py` +379, `ReportGeneViewer.tsx` +359, new
 `eamos_uniprot_feature_index` CLI) reached prod for the FIRST time on 2026-06-15
@@ -37,6 +54,33 @@ Mitigation (Steven's call): roll back prod to the last verified-good deploy
 (`1c2df8b` FE + matching backend) until `1e86a78` is fixed, or keep it live and fix
 forward. Vercel rollback target = `dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc` (1c2df8b,
 rollback-candidate).
+
+## Backend Stability — Systemic OOM-Class Findings (Epic A)
+
+Section added: 2026-06-16 00:59 +1000 · Claude (from the multi-agent adversarial
+stability/memory audit, run `wf_476b5cd6-83c`, 35 agents; full report
+`docs/stability-audit/findings.md`). **Owner: Codex (backend lane); Claude owns A10 (FE).**
+
+**Verdict: SYSTEMIC.** The USH2A protein OOM was the acute instance of a repo-wide
+pattern — heavy compute / whole-asset reads / unbounded result sets executed
+synchronously on the FastAPI request thread — confirmed across ~8 subsystems.
+**89 findings confirmed** after adversarial verification (2 CRITICAL, ~13 HIGH; 63
+request-reachable). Codex's `a9de024` residue cap stops USH2A (5,202 aa) but is a
+request-time patch, not architectural: proteins ≤5,000 aa still run synchronous
+`hmmscan` in-request from THREE routes (`/viewer`, `/protein/annotate`, and every
+`/lookup` via `gene_context_snapshot`, which rebuilds even on a full variant-cache hit).
+
+**NEW CRITICAL (worse than the protein OOM) — fix first:** the `POST` batch VCF upload
+(`api/routes/batch.py` → `services/vcf_ingest.py`) is **unauthenticated, has no size cap,
+no rate limit**, and `gzip.decompress()`es the whole body with no decompressed-size
+ceiling. A <20 MB gzip bomb expands to multiple GB → a single unauthenticated request
+OOMs the 2 GB instance, no warm asset or login required. → Epic A task **A2** (Codex).
+
+Architectural remedy (Epic A, Codex-led): move heavy compute off the request thread
+(cache-or-fail-closed web tier + background warmer + concurrency/RSS caps), stream
+instead of whole-file/whole-table reads, bound every externally-driven result set, open
+big read-only assets once per worker, right-size the Render instance. Full ranked task
+list **A1–A12** in `docs/stability-audit/findings.md` and `~/.claude/plans/next-session-eamos.md`.
 
 ## AI Gateway Chat — Pre-Launch Security Gate
 

@@ -14,14 +14,16 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-15 22:16 +1000 - **Vercel deploy recovered, then found `1e86a78` is a degraded prod release.** Re-triggered the dropped-webhook deploy (`50d9dc8` -> live on `eamos-dev.vercel.app` 200), removed the stray `app/web/.vercel` link, and **deleted the wrong `web` Vercel project** (Steven OK; only `eamos-dev` remains). THEN `1e86a78` (first time live on Vercel) showed two regressions: Render SG **OOM >2GB** (instance 8wqsn, 22:00, on USH2A protein annotation) + **protein features missing** (new UniProt-first path needs the Render feature index, off/not-ready). Recorded for Codex in RISKS.md (`814c1fd`). **Steven deferred the fix to next session and authorized Claude to drive backend+frontend+web-server CROSS-LANE to fix it.** Prod left on `1e86a78` (degraded); rollback-first is a valid opener. `LLM_PROVIDER=mock` held; no Supabase/provider flip.
+- **Claude:** IDLE @ 2026-06-16 00:59 +1000 - **Ran a multi-agent adversarial backend stability/memory audit (Steven-requested, full workflow opt-in; run `wf_476b5cd6-83c`, 35 agents).** Verdict **SYSTEMIC**: the USH2A OOM is one instance of a repo-wide pattern (heavy compute / whole-asset reads / unbounded result sets synchronously on the request thread) across ~8 subsystems. **89 confirmed findings** (2 CRITICAL incl. a NEW unauthenticated gzip-bomb batch-VCF-upload OOM; ~13 HIGH; 63 request-reachable). Report `docs/stability-audit/findings.md`; ranked task list **A1–A12** in RISKS.md + next-session doc. **Most of Epic A is Codex's lane (`app/backend/**`) — see the new Cross-Agent Request + RISKS section**; Claude owns A10 (FE viewer virtualization), A11 infra shared. Codex's `a9de024` cap is a patch (≤5,000 aa proteins + 3 routes still vulnerable). NO app/backend code changed this session; only handoff/report docs. `LLM_PROVIDER=mock` held; no Supabase/provider flip. (Earlier tonight: verified `1e86a78` incident resolved on SG — USH2A 200/cache-hit/248 hits, memory flat ~1.21 GB.)
+  <!-- prior heartbeat retained below for the verified-resolved detail -->
+- **Claude (prior):** **`1e86a78` prod incident VERIFIED RESOLVED on SG (no Claude code change - Codex shipped the fix; Claude verified).** Codex's `a9de024` (release-keyed protein-annotation cache restore + oversized-protein HMMER guard) + `dd3b71d` (Render hook helper) are live on Render SG (deploy `dep-d8nvaac8aovs739ka7p0` = `dd3b71d`, status `live`). Verified on prod SG: `/healthz` 200 (`llm_provider=mock`); provider-cache 200 (`protein_annotation.cache_enabled=true`, `hmmer.ready=true`, `uniprot_features_enabled=false`, `uniprot_feature_index.ready=false` - **no flag flip / no seeding**); `POST /api/v1/lookup` USH2A (5,202 aa) 200 in 34s with `protein_domain_track.status=cache_hit` + **248 source hits restored** (= Codex's pre-incident count). Render memory flat **~1.21 GB** on the new instance (`mc2zh`) across the USH2A call, **no spike toward the 2 GB cap** (the OOM'd instance `8wqsn` idled ~1.53 GB) - OOM path resolved (cache hit -> no fresh HMMER on the big protein). NOTE/backlog: those 248 are RAW hmmscan hits incl. promiscuous cross-fold noise (Purple acid Phosphatase x35, Chitinase x17, ConA-clan PF13385 over the LamG regions) - the FE curates/demotes these to canonical USH2A architecture; pre-existing, not a regression. `LLM_PROVIDER=mock` held; no Supabase/provider flip.
 
 
-- **Codex:** IDLE @ 2026-06-15 21:15 +1000 - **Protein architecture consistency fix is local and verified, not committed/deployed.** USH2A now uses local UniProtKB/Swiss-Prot feature-table records before Pfam/HMMER so signal peptide, TM, PDZ-binding motif, topology/motif/site categories, and source-backed partial tracks are not hidden when HMMER is unavailable. UI has category filters, sites hidden by default, persistent aa scale, pattern legend, no-resize/no-twitch toggle behavior, and browser proof screenshots under `.tmp/`. Guardrails held: no Supabase mutation, provider/env flip, Render/Vercel deploy, or bundle of held AI-gateway doc / encoding-scan helper.
+- **Codex:** IDLE @ 2026-06-15 22:59 +1000 - **1e86a78 protein annotation prod-incident fix committed and pushed; Render deploy triggered but not live-verified.** Shipped `a9de024 fix(protein): guard large annotation cache misses` and `dd3b71d chore(deploy): add render hook helper` to `origin/main`; Vercel auto-deploy is Ready on `dd3b71d`; Render deploy hook triggered `dep-d8nvaac8aovs739ka7p0`, but final Render status/live verification was interrupted and should be checked once. Guardrails held: `LLM_PROVIDER=mock`, no Supabase mutation/provider flip, no UniProt feature flag flip/source seeding, held files excluded.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-15 22:16 +1000 - Claude (deploy recovery + wrong `web` project deleted; 1e86a78 prod regression recorded for Codex in RISKS.md; fix deferred to next session, Claude cross-lane authorized)
+UNLOCKED - 2026-06-16 00:59 +1000 - Claude (stability audit complete; report + RISKS + next-session + Cross-Agent Request written; no app/backend code changed)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +36,8 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/services/protein_annotation.py`, `app/backend/app/repos/protein_annotation_cache_repo.py`, `app/backend/app/core/config.py`, `app/backend/.env.example`, `app/backend/tests/test_protein_annotation_service.py`, `app/backend/tests/test_supabase_local_model_cache.py`) at 2026-06-15 22:59 +1000 after `a9de024` protein annotation cache/OOM guard and `dd3b71d` Render hook helper were pushed.
 
 **Codex RELEASED** (`app/backend/app/schemas/paper_variants.py`, `app/backend/app/schemas/variant_library.py`, `app/backend/app/api/routes/variant_library.py`, `app/backend/app/repos/variant_library_repo.py`, `app/backend/app/services/variant_library.py`, `app/backend/app/core/db.py`) at 2026-06-14 20:17 +10:00 after paper `source_metadata` response alignment and account-synced library backend completed locally.
 
@@ -214,6 +218,19 @@ archived verbatim at
   commit. Keep `.tools/` local-only; it contains screenshots/proof artifacts and
   a Render CLI binary under `.tools/render/`, not source. - held local cleanup
 
+- [OPEN] Claude->Codex (2026-06-16 00:59 +1000): **Epic A backend stability hardening
+  — adversarial audit done, tasks ready.** Multi-agent stability/memory audit (run
+  `wf_476b5cd6-83c`) → **SYSTEMIC** OOM-class verdict; full report + ranked tasks A1–A12
+  in `docs/stability-audit/findings.md` (summary in RISKS.md "Backend Stability" section).
+  FIX FIRST (request-reachable, can OOM/crash prod): **A2** NEW CRITICAL = unauthenticated /
+  size-unlimited / gzip-bombable batch VCF upload (`api/routes/batch.py` +
+  `services/vcf_ingest.py`); **A1** move HMMER off the request path (the 5,000-residue cap
+  only stops USH2A — ≤5,000 aa still run sync `hmmscan` from `/viewer`, `/protein/annotate`,
+  and every `/lookup` via `gene_context_snapshot`); **A3** cache `gene_context_snapshot` +
+  stop DELETE-on-read in `variant_cache_repo`; **A4** bound the compact coordinate index +
+  stop `/health` full-load. Then A5–A9. Claude owns A10 (FE viewer virtualization); A11 infra
+  shared. Coordinate via Log Edit-Lock + Shared File Locks. - docs/stability-audit/findings.md
+
 - [FYI] Claude->Codex (2026-06-15 02:25 +1000): **Coordinated release shipped,
   deployed, and prod-verified at origin/main `8a7095f`.** Sequence-context
   resolver `httpx.HTTPError`/ReadTimeout now degrades to
@@ -362,6 +379,9 @@ is a degraded prod release.
 
 **Resume prompt:**
 ```
+# Resume prompt - 2026-06-15 23:30 +1000 - Claude (1e86a78 incident RESOLVED + verified on prod)
+# NOTE: the 1e86a78 fix task in the body below is DONE (Codex shipped a9de024/dd3b71d; Claude verified live on SG at 23:30 - USH2A 200 cache_hit/248 hits, memory flat ~1.21GB, no OOM). Do NOT re-fix. Next work = backlog: genomic view Section 4, a backend hmmscan e-value/overlap threshold (raw 248 hits incl. cross-fold noise), graphify semantic pass. START HERE = ~/.claude/plans/next-session-eamos.md (✅ RESOLVED section). Body kept verbatim for history:
+# --- historical resume prompt (1e86a78 fix, now complete) ---
 # Resume prompt - 2026-06-15 22:16 +1000 - Claude (OPEN prod incident: fix 1e86a78, cross-lane authorized)
 Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md (TOP section = the 1e86a78 incident). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
 Context: Tonight Claude recovered a dropped-webhook Vercel deploy of Codex's 1e86a78 (re-triggered via 50d9dc8 -> live on eamos-dev.vercel.app), removed the stray app/web/.vercel link, and deleted the wrong `web` Vercel project (Steven OK). But 1e86a78 reached prod for the first time and is DEGRADED: (1) Render SG OOM >2GB on the USH2A protein annotation (reworked protein_annotation.py - inefficient/leak), and (2) protein features missing because the new UniProt-first path needs uniprot_features_enabled + a seeded Render feature index, both off/not-ready. Full detail in RISKS.md (committed 814c1fd).
