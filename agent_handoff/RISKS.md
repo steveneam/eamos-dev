@@ -1,5 +1,43 @@
 # Agent Risks And Guardrails
 
+## 1e86a78 Protein Annotation — Render OOM + Protein-Feature Regression (→ Codex)
+
+Section added: 2026-06-15 22:08 +1000 · Claude (prod incident the moment `1e86a78`
+went live). **Owner: Codex (backend lane).**
+
+Commit `1e86a78` (`fix(protein): hydrate curated feature architecture` —
+`protein_annotation.py` +379, `ReportGeneViewer.tsx` +359, new
+`eamos_uniprot_feature_index` CLI) reached prod for the FIRST time on 2026-06-15
+~21:58 +1000 — its original auto-deploy was a dropped GitHub→Vercel webhook, so it
+was never live-verified on Vercel until Claude re-triggered it via `50d9dc8`. Render
+SG had already been on `1e86a78` (Codex). Two regressions surfaced immediately:
+
+- **HIGH — Render SG out-of-memory.** Render event: instance `8wqsn` "Ran out of
+  memory (used over 2GB) while running your code" at 2026-06-15 22:00 +1000, then
+  "Service recovered" (auto-restart). SG is the Standard **2 GB** instance — 2 GB is
+  the hard ceiling. Almost certainly the USH2A protein annotation (5,202 aa) through
+  `1e86a78`'s reworked `protein_annotation.py`. While OOMing, the backend returned a
+  degraded `/viewer` payload and the report's "Gene & Locus context" briefly rendered
+  raw SVG as text; it self-corrected after the instance recovered. **→ Codex: profile
+  `protein_annotation` memory on large proteins, look for a leak / unbounded
+  buffering (full feature-table parse, HMMER, or live UniProt fetch held whole in
+  memory), stream/cap it. Inefficient coding / memory leak suspected.**
+- **MED — protein features regressed vs the previously-shipped view.** The new
+  UniProt-first "curated feature architecture" path needs `uniprot_features_enabled=true`
+  + a **seeded UniProt feature index on Render**, both OFF/not-ready
+  (`uniprot_features_enabled=false`, `uniprot_feature_index.ready=false`, per Codex's
+  own handoff). With the index unavailable, fewer features surface than Codex's earlier
+  verified state ("50 architecture blocks, 248 source hits, FN3 ranges"); the new FE
+  also hides "sites" by default behind category filters. Net: features Codex previously
+  added read as missing in prod. **→ Codex: either provision/seed the Render UniProt
+  feature index and flip the flag, or make the flag-off path fall back to the full prior
+  Pfam/HMMER architecture without dropping features.**
+
+Mitigation (Steven's call): roll back prod to the last verified-good deploy
+(`1c2df8b` FE + matching backend) until `1e86a78` is fixed, or keep it live and fix
+forward. Vercel rollback target = `dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc` (1c2df8b,
+rollback-candidate).
+
 ## AI Gateway Chat — Pre-Launch Security Gate
 
 Section edited: 2026-06-12 02:22 +1000 · Claude (from the vibe-security audit of
