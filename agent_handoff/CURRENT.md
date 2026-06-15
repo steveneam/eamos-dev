@@ -14,13 +14,13 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-15 02:25 +1000 - **Drove the coordinated release: 2 commits SHIPPED + DEPLOYED + verified on prod.** `1b2cf53` feat â€” interactive ACMG explainer (Claude tasks 1-3) + AlphaMissense report FE wiring (Codex's 5 files) [14 files, explicit pathspecs]. `8a7095f` fix(lookup) â€” sequence-context resolver `httpx` timeouts now degrade to a `workbench_sequence_context_resolver_error` warning instead of 500ing `/api/v1/lookup/sections` (the prod 500 Codex traced to `sequence_context.py`; Steven-approved cross-lane fix; +regression test). Gates green: app/web tsc, app/frontend tsc -b, vitest 26/26, focused backend pytest (sequence_context + orchestration/contract/gene-viewer), ruff+black. **Deployed:** Vercel FE auto (live - landingâ†’/account "Submit evidence" verified in prod SSR); Render SG redeployed via hook â†’ `dep-d8nd9agjs32c73djccp0` LIVE at `8a7095f`. **Prod-verified:** `/healthz` 200, `/api/v1/lookup/summary` RPE65 200 @34.7s (the slow VariantValidator path that used to 500 now completes), `/api/v1/viewer` 200 + AlphaMissense, full `/report?gene=RPE65&cdna=c.260A>G` renders (live engine VUS net+2 32.5%, **no** `illustrative` flag; AlphaMissense + Pfam protein domains live), **zero 5xx** in SG request logs post-deploy. `LLM_PROVIDER=mock` held; no Supabase apply / provider/env flip; graphify-out + AI-gateway doc still excluded (Codex lane).
+- **Claude:** IDLE @ 2026-06-15 21:52 +1000 - **Vercel recovery.** `eamos-dev` had not auto-deployed Codex's `1e86a78` (`fix(protein)`): the GitHub->Vercel webhook for that one push dropped (auto-deploy itself healthy - every commit through parent `1c2df8b` deployed). Render SG was already on `1e86a78`; only the Vercel FE lagged at `1c2df8b` (missing `ReportGeneViewer.tsx` +359). Re-triggered via this combined handoff commit (+ `app/web/.gitignore` now ignores `.vercel`); removed the stray local `app/web/.vercel` link that had sent Codex's manual `vercel --prod` to the wrong `web` project (`web-beryl-delta-96`, never the real domain). Remote `web` project left intact per Steven. Held files still excluded; `LLM_PROVIDER=mock` held; no Supabase/provider/env flip.
 
-- **Codex:** IDLE @ 2026-06-15 15:56 +1000 - **Report protein architecture refresh shipped + deployed.** Pushed `960ac9d` full report protein-domain wiring + lookup route, `49e8326` single-row figure-style protein schematic, and graph maintenance commits `1f1b011`/`22e840a`. Vercel production deploy `dpl_8QfBR96Y3K83f3MjGUqz8fLVKUTt` is Ready and aliased to `https://eamos-dev.vercel.app`. Live USH2A report verified: 5,202 aa, 50 architecture blocks, 248 source hits, FN3 multi-select exposes exact ranges. Guardrails held: no Supabase/provider/env flips; held AI-gateway doc and encoding-scan helper remain separate.
+- **Codex:** IDLE @ 2026-06-15 21:15 +1000 - **Protein architecture consistency fix is local and verified, not committed/deployed.** USH2A now uses local UniProtKB/Swiss-Prot feature-table records before Pfam/HMMER so signal peptide, TM, PDZ-binding motif, topology/motif/site categories, and source-backed partial tracks are not hidden when HMMER is unavailable. UI has category filters, sites hidden by default, persistent aa scale, pattern legend, no-resize/no-twitch toggle behavior, and browser proof screenshots under `.tmp/`. Guardrails held: no Supabase mutation, provider/env flip, Render/Vercel deploy, or bundle of held AI-gateway doc / encoding-scan helper.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-15 15:56 +1000 - Codex (protein architecture deploy + next gene-view workflow saved)
+UNLOCKED - 2026-06-15 21:52 +1000 - Claude (Vercel recovery: re-triggered eamos-dev deploy of 1e86a78 via this combined handoff commit; removed stray local app/web/.vercel)
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 `LOCKED: <agent> - <stamp> - <file/section>` before editing any of them;
@@ -285,13 +285,17 @@ archived verbatim at
 
 ## Current State
 
-- Branch `main`. `origin/main` == local `HEAD` == **`22e840a`**
-  (`chore(graphify): update after protein schematic cleanup`) after the 2026-06-15
-  report protein architecture refresh. Vercel FE auto-deployed and was live-verified
-  on `https://eamos-dev.vercel.app`; no Render deploy was needed.
-- Worktree after the release/handoff commit should carry only deliberately-excluded
-  local files: `docs/proprietary/eamos-ai-gateway.md` (AI-gateway, held out) and
-  `scripts/eamos-encoding-scan.mjs` (Codex tooling). No `git add -A` was used.
+- Branch `main`. `origin/main` HEAD is this **Vercel-recovery handoff commit** on top
+  of Codex's `1e86a78` (`fix(protein): hydrate curated feature architecture`). Codex's
+  `1e86a78` push did NOT auto-deploy to Vercel `eamos-dev` (dropped GitHub webhook;
+  auto-deploy otherwise healthy - parent `1c2df8b` deployed fine). Render SG is already
+  on `1e86a78` (Codex; `uniprot_features_enabled=false`, feature index not ready). This
+  commit re-triggers the Vercel FE deploy of `1e86a78`'s `ReportGeneViewer.tsx` (+359).
+- Worktree after this commit carries only deliberately-excluded local files:
+  `docs/proprietary/eamos-ai-gateway.md` (AI-gateway, held out), `scripts/eamos-encoding-scan.mjs`
+  (Codex tooling), and untracked `graphify-out/2026-06-15/`. The stray local `app/web/.vercel`
+  link (pointed at the wrong `web` project) was removed; root `.vercel` -> `eamos-dev` intact.
+  No `git add -A` was used.
 - `eamos_computed_classification` is now LIVE on prod (Codex engine +
   report-population). Independent Tavtigian advisory audit block, separate from
   `clinical_consensus`. Note: prod RPE65 c.260A>G = VUS net+2 (PP3 moderate only);
@@ -323,53 +327,38 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-14 23:14 +1000 - Claude):** Built the **ACMG-viz wave** then
-drove the **coordinated commit+push+deploy** (`f772cc6`, LIVE on prod). The viz
-wave = `/report` Â§2 capstone that DRAWS the EAMOS-computed Tavtigian-2020 points
-decision; the three shipped lanes (ACMG viz + paper->variants + account library
-sync) were all bundled into one release.
-- **ACMG viz** (Card-2 placement, Steven-chosen): `lib/acmg/{points(+frontend
-  mirror+vitest 11/11),mock,fingerprint}` + `components/report/{PosteriorGauge,
-  PointWaterfall,EvidencePlane,EvidenceFingerprint,ConfidenceChannel,
-  AdvisorySummaryStrip}.tsx` + reworked `EamosAcmgClassifier` (**hideable
-  `Disclosure` capstone** in Â§2; legacy Richards demoted to audit) + `ReportClient`
-  (glance strip [fingerprint+posterior chip] under the call cards; capstone in Â§2).
-  Instruments match the vault `Wiki/assets` mockups: **net-linear gauge** (posterior
-  labelled at dividers), **diverging-bar waterfall** + net->tier axis, **padded-puck
-  plane** w/ crosshair+callout. Mock is **verdict-matched** (never contradicts the
-  curated call). `points.ts` is the pure engine mirror (posterior 2.08^net,
-  Tavtigian cuts), vitest-pinned to engine anchors.
-- **Shipped:** `f772cc6` (60 files, explicit pathspecs). Codex's backend
-  (acmg_points_engine, paper route, library GET/PUT, migration) + Claude's FE in
-  one commit. All gates green (Codex's backend pytest groups + contract canary +
-  both tsc + vitest + diff-check).
-- **Deployed + E2E-verified on prod:** Render eamos-dev-sg redeployed (live, serves
-  `eamos_computed_classification`); Vercel FE auto-deployed.
-  `/report?gene=RPE65&cdna=c.260A>G` -> live engine block VUS net+2 posterior 32.5%;
-  instruments render engine-fed, `.eamos-mock` flag correctly absent. FE mirror ==
-  engine (posterior(2)=32.5%).
-- **Guardrails held:** `LLM_PROVIDER=mock`; **Supabase migration committed, NOT
-  applied** (needs Steven OK); excluded AI-gateway doc / `graphify-out` / scratch.
+**Latest (2026-06-15 21:52 +1000 - Claude - Vercel deploy recovery):** Codex pushed
+`1e86a78` (`fix(protein): hydrate curated feature architecture` - `ReportGeneViewer.tsx`
++359 + backend protein_annotation/health/config/CLI/tests + graphify) and deployed it to
+Render SG, but Vercel `eamos-dev` never auto-deployed it. Diagnosed via the Vercel MCP:
+auto-deploy is healthy (every commit through the parent `1c2df8b` deployed as a
+`githubDeployment` build) - the GitHub->Vercel webhook for the single `1e86a78` push was
+dropped (no build created at all). The mistaken `web`-project deploy Codex did from
+`app/web` never touched the real domain (it sits on `web-beryl-delta-96.vercel.app`).
+- **Fix (Steven-approved):** re-triggered the GitHub auto-deploy with this combined handoff
+  commit (handoff state + `app/web/.gitignore` now ignoring `.vercel`); removed the stray
+  local `app/web/.vercel` link so a future `vercel deploy` from `app/web` can't target `web`.
+- **Excluded** (held, per Steven): `docs/proprietary/eamos-ai-gateway.md`,
+  `scripts/eamos-encoding-scan.mjs`, untracked `graphify-out/2026-06-15/`. No `git add -A`.
+- **Did NOT touch:** the remote `web` Vercel project/deployment (Steven's call), Render env
+  (`uniprot_features_enabled=false` held), Supabase, `LLM_PROVIDER=mock`.
 
 **Next (priority):**
-1. **graphify update** against `f772cc6` (Codex lane) - graph is stale, excluded
-   from the release.
-2. **Apply the Supabase migration** `20260614195800_user_library_document.sql` when
-   Steven approves (committed but not applied; account library sync needs it live).
-3. **ACMG viz fast-follow** (`docs/report-acmg-viz/spec.md` Â§1): interactive Explore
-   drag-card; B1 predictor forest / B7 beeswarm (needs Codex ClinVar P/B precompute);
-   B2 constraint forest. Plus optional: thread real conservation/constraint into the
-   fingerprint (currently mock-flagged), merge gauge+waterfall axis if it reads
-   redundant (Steven flagged to watch).
-4. Confirm with Codex the prod RPE65 net+2 (PP3-only) vs local net+3 (PM2+PP3)
-   gnomAD/fixture difference.
+1. Verify the new Vercel deploy goes READY and serves `1e86a78`'s `ReportGeneViewer.tsx`
+   curated protein feature architecture on `https://eamos-dev.vercel.app`.
+2. Original work resumes: **genomic view Section 4 not started** (pairs with Codex's
+   gene-view figure-style refresh follow-up tracked in its own section).
+3. Optional, on Steven's go: clean up / delete the remote `web` Vercel project + its stray
+   `web-beryl-delta-96` deployment.
+4. graphify semantic pass still owed at a deliberate checkpoint (Codex lane; AST `update`
+   is current).
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-06-14 23:14 +1000 - Claude (ACMG viz wave SHIPPED+DEPLOYED f772cc6)
+# Resume prompt - 2026-06-15 21:52 +1000 - Claude (Vercel deploy recovery; 1e86a78 re-triggered)
 Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md. First: git -C D:/eamos fetch origin && git status --short --branch && git log -5 --oneline.
-Delta: ACMG points-viz wave built + the 3 verified lanes (ACMG viz + paper->variants + account library) SHIPPED in one coordinated commit f772cc6, pushed to origin/main, Render eamos-dev-sg redeployed + Vercel FE auto-deployed, E2E-verified on prod (RPE65 c.260A>G -> live engine VUS net+2 posterior 32.5%, no illustrative flag). ACMG viz = Â§2 hideable Disclosure capstone (PosteriorGauge/EvidencePlane/PointWaterfall/EvidenceFingerprint/ConfidenceChannel) drawing the Tavtigian points decision; lib/acmg/points.ts pure mirror (+vitest 11/11, mirrored to app/frontend); matches vault Wiki/assets mockups. LLM_PROVIDER=mock held; Supabase migration committed NOT applied.
-Next: (1) graphify update vs f772cc6 (Codex lane); (2) apply Supabase migration when Steven OKs; (3) ACMG viz fast-follow (Explore drag-card, B1 forest/B7 beeswarm, thread real conservation/constraint into fingerprint); (4) confirm w/ Codex the prod RPE65 net+2 vs local net+3 PM2 gnomAD/fixture diff. Guardrails: reuse-first, mock-first, never cd (git -C / npm --prefix), LLM stays mock, no Supabase apply / provider flip without Steven, new routes/nav need Steven OK. End clear-safe.
+Delta: Codex's 1e86a78 (fix(protein): ReportGeneViewer.tsx +359 + backend) deployed to Render SG but Vercel eamos-dev never auto-deployed it (dropped GitHub webhook; auto-deploy otherwise healthy). Re-triggered via a combined handoff commit (+ app/web/.gitignore ignores .vercel) and removed the stray local app/web/.vercel link that had sent Codex's manual vercel --prod to the wrong `web` project (web-beryl-delta-96; never the real domain). Held files excluded; remote `web` project left intact per Steven; Render env / LLM_PROVIDER=mock untouched.
+Next: (1) confirm the new Vercel deploy is READY + serves 1e86a78's protein feature architecture on eamos-dev.vercel.app; (2) resume original work = genomic view Section 4 (not started); (3) optional on Steven's go: delete the remote `web` Vercel project + web-beryl-delta-96 deploy; (4) graphify semantic pass owed (Codex lane). Guardrails: reuse-first, mock-first, never cd (git -C / npm --prefix), LLM stays mock, no Supabase apply / provider/env flip without Steven, new routes/nav need Steven OK, never git add -A (held files). End clear-safe.
 ```
 
 ## Codex - Last Task & Resume
