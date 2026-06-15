@@ -17,6 +17,7 @@ interface ReportGeneViewerProps {
   gene: string
   cdna: string
   transcript?: string | null
+  proteinDomainTrack?: ProteinDomainTrack | null
   /** Offline fixture mode — render from the bundled GENE_VIEWER_SAMPLE without
    *  a network call, matching the explicit fixture report. */
   demo?: boolean
@@ -51,10 +52,10 @@ const CLASS_COLOR: Record<string, string> = {
 const VIEW_W = 920
 const TRACK_LEFT = 36
 const TRACK_RIGHT = 28
-const TRACK_W = VIEW_W - TRACK_LEFT - TRACK_RIGHT
 const TRACK_Y = 96
 const EXON_H = 26
 const VIEW_H = 184
+const TRACK_MAX_W = 4200
 
 interface OverviewSeg {
   key: string
@@ -129,13 +130,26 @@ function formatInt(n: number): string {
   return n.toLocaleString('en-US')
 }
 
+function geneTrackWidth(data: GeneWindowData, totalClinvar: number): number {
+  const exonUnits = data.exons.length * 34
+  const intronUnits = data.introns.length * 10
+  const markerUnits = Math.min(900, totalClinvar * 3)
+  return Math.round(Math.min(TRACK_MAX_W, Math.max(VIEW_W, TRACK_LEFT + TRACK_RIGHT + exonUnits + intronUnits + markerUnits)))
+}
+
 function warningsForViewer(resp: GeneViewerResponse): string[] {
   const trackWarnings = resp.tracks.protein_features.domain_track?.warnings ?? []
   const alphamissenseWarnings = resp.tracks.alphamissense_heatmap?.warnings ?? []
   return Array.from(new Set([...geneViewerScaffoldWarnings(resp), ...trackWarnings, ...alphamissenseWarnings]))
 }
 
-export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: ReportGeneViewerProps) {
+export function ReportGeneViewer({
+  gene,
+  cdna,
+  transcript,
+  proteinDomainTrack = null,
+  demo = false,
+}: ReportGeneViewerProps) {
   // Fixture/offline mode renders the bundled sample synchronously, so the
   // explicit negative-control fixture never depends on a live backend.
   const [data, setData] = useState<GeneWindowData | null>(() =>
@@ -237,6 +251,11 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
     for (const m of clinvarMarks) counts[m.cls] = (counts[m.cls] ?? 0) + 1
     return counts
   }, [clinvarMarks])
+  const renderedProteinTrack = proteinDomainTrack ?? proteinTrack
+  const renderedWarnings = useMemo(
+    () => Array.from(new Set([...warnings, ...(proteinDomainTrack?.warnings ?? [])])),
+    [warnings, proteinDomainTrack],
+  )
 
   if (loading) {
     return (
@@ -258,6 +277,8 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
 
   const variantLabel = data.queriedVariant.hgvsP || data.queriedVariant.hgvsC || 'Variant'
   const totalClinvar = clinvarMarks.length
+  const geneWidth = geneTrackWidth(data, totalClinvar)
+  const geneTrackW = geneWidth - TRACK_LEFT - TRACK_RIGHT
 
   return (
     <div style={cardShellStyle}>
@@ -274,27 +295,28 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
         </div>
       </div>
 
+      <div style={trackScrollStyle}>
       <svg
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+        viewBox={`0 0 ${geneWidth} ${VIEW_H}`}
         role="img"
         aria-label={`${data.gene} ${data.transcript} gene track with queried variant and ClinVar markers`}
-        style={{ display: 'block', width: '100%', height: 'auto' }}
+        style={{ display: 'block', width: geneWidth, maxWidth: 'none', height: 'auto' }}
       >
-        <rect x="0" y="0" width={VIEW_W} height={VIEW_H} rx="8" fill="var(--bg-soft)" />
+        <rect x="0" y="0" width={geneWidth} height={VIEW_H} rx="8" fill="var(--bg-soft)" />
 
         {/* baseline line for introns */}
         <line
           x1={TRACK_LEFT}
           y1={TRACK_Y + EXON_H / 2}
-          x2={TRACK_LEFT + TRACK_W}
+          x2={TRACK_LEFT + geneTrackW}
           y2={TRACK_Y + EXON_H / 2}
           stroke="var(--line-2)"
           strokeWidth="1.5"
         />
 
         {segments.map((seg) => {
-          const x = TRACK_LEFT + (seg.leftPct / 100) * TRACK_W
-          const w = Math.max(3, (seg.widthPct / 100) * TRACK_W)
+          const x = TRACK_LEFT + (seg.leftPct / 100) * geneTrackW
+          const w = Math.max(3, (seg.widthPct / 100) * geneTrackW)
           if (seg.kind === 'intron') {
             return (
               <line
@@ -338,7 +360,7 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
 
         {/* ClinVar markers BELOW the track — small triangles, color by class */}
         {clinvarMarks.map((m, i) => {
-          const x = TRACK_LEFT + (m.pct / 100) * TRACK_W
+          const x = TRACK_LEFT + (m.pct / 100) * geneTrackW
           const y = TRACK_Y + EXON_H + 6
           return (
             <polygon
@@ -356,15 +378,15 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
         {variantPct !== null && (
           <g>
             <line
-              x1={TRACK_LEFT + (variantPct / 100) * TRACK_W}
+              x1={TRACK_LEFT + (variantPct / 100) * geneTrackW}
               y1={TRACK_Y - 26}
-              x2={TRACK_LEFT + (variantPct / 100) * TRACK_W}
+              x2={TRACK_LEFT + (variantPct / 100) * geneTrackW}
               y2={TRACK_Y - 4}
               stroke="var(--ink)"
               strokeWidth="2"
             />
             <circle
-              cx={TRACK_LEFT + (variantPct / 100) * TRACK_W}
+              cx={TRACK_LEFT + (variantPct / 100) * geneTrackW}
               cy={TRACK_Y - 30}
               r="6"
               fill="var(--cls-path-dot)"
@@ -373,9 +395,9 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
             />
             <text
               x={clamp(
-                TRACK_LEFT + (variantPct / 100) * TRACK_W,
+                TRACK_LEFT + (variantPct / 100) * geneTrackW,
                 TRACK_LEFT + 50,
-                TRACK_LEFT + TRACK_W - 50,
+                TRACK_LEFT + geneTrackW - 50,
               )}
               y={TRACK_Y - 44}
               textAnchor="middle"
@@ -400,7 +422,7 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
           5′
         </text>
         <text
-          x={TRACK_LEFT + TRACK_W}
+          x={TRACK_LEFT + geneTrackW}
           y={VIEW_H - 14}
           textAnchor="end"
           fontSize="10.5"
@@ -410,6 +432,7 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
           3′
         </text>
       </svg>
+      </div>
 
       <div style={legendRow}>
         <span style={legendLabel}>ClinVar:</span>
@@ -422,13 +445,13 @@ export function ReportGeneViewer({ gene, cdna, transcript, demo = false }: Repor
 
       <ReportProteinView
         data={data}
-        track={proteinTrack}
+        track={renderedProteinTrack}
         alphaHeatmap={alphaHeatmap}
         includeAlphaMissense={includeAlphaMissense}
         onToggleAlphaMissense={setIncludeAlphaMissense}
       />
 
-      <ProvenanceNote warnings={warnings} />
+      <ProvenanceNote warnings={renderedWarnings} />
     </div>
   )
 }
@@ -439,21 +462,44 @@ interface ProteinFeatureRender {
   label: string
   short: string
   kind: string
+  lane: ProteinLaneId
+  description?: string | null
   source?: string | null
   accession?: string | null
+}
+
+interface PackedProteinFeature extends ProteinFeatureRender {
+  legendKey: string
+  row: number
+  x: number
+  width: number
+}
+
+type ProteinLaneId = 'topology' | 'domains' | 'motifs' | 'sites' | 'other'
+
+interface ProteinLaneDef {
+  id: ProteinLaneId
+  label: string
 }
 
 const PROTEIN_W = 920
 const PROTEIN_LEFT = 42
 const PROTEIN_RIGHT = 34
-const PROTEIN_TRACK_W = PROTEIN_W - PROTEIN_LEFT - PROTEIN_RIGHT
+const PROTEIN_MAX_W = 5600
 const PROTEIN_MARKER_Y = 28
-const PROTEIN_BAR_Y = 78
-const PROTEIN_BAR_H = 24
-const PROTEIN_HEAT_Y = 112
+const PROTEIN_LANE_TOP = 64
+const PROTEIN_LANE_H = 20
+const PROTEIN_LANE_ROW_GAP = 5
+const PROTEIN_LANE_GAP = 22
 const PROTEIN_HEAT_H = 12
-const PROTEIN_AXIS_Y = 142
-const PROTEIN_H = 168
+
+const PROTEIN_LANES: ProteinLaneDef[] = [
+  { id: 'topology', label: 'Topology' },
+  { id: 'domains', label: 'Domains' },
+  { id: 'motifs', label: 'Motifs' },
+  { id: 'sites', label: 'Sites' },
+  { id: 'other', label: 'Other' },
+]
 
 function ReportProteinView({
   data,
@@ -468,6 +514,7 @@ function ReportProteinView({
   includeAlphaMissense: boolean
   onToggleAlphaMissense: (value: boolean) => void
 }) {
+  const [selectedFeatureKeys, setSelectedFeatureKeys] = useState<Set<string>>(() => new Set())
   const trackFeatures = track?.features ?? []
   const ranges = trackFeatures.length > 0 ? featuresFromTrack(trackFeatures) : featuresFromViewer(data)
   const proteinLength = Math.max(
@@ -478,6 +525,8 @@ function ReportProteinView({
       data.proteinLength ??
       1,
   )
+  const proteinWidth = proteinCanvasWidth(proteinLength, ranges.length)
+  const proteinTrackW = proteinWidth - PROTEIN_LEFT - PROTEIN_RIGHT
   const product = data.proteinProduct
   const queriedAa = clamp(
     data.queriedVariant.codonNumber || Math.ceil(data.queriedVariant.cdsPos / 3) || 1,
@@ -485,9 +534,32 @@ function ReportProteinView({
     proteinLength,
   )
   const xFor = (aa: number) =>
-    PROTEIN_LEFT + ((clamp(aa, 1, proteinLength) - 1) / Math.max(1, proteinLength - 1)) * PROTEIN_TRACK_W
+    PROTEIN_LEFT + ((clamp(aa, 1, proteinLength) - 1) / Math.max(1, proteinLength - 1)) * proteinTrackW
   const ticks = proteinTicks(proteinLength)
   const sourceLabel = proteinSourceLabel(track, ranges.length > 0)
+  const lanes = proteinLanesFor(ranges)
+  const { packedFeatures, laneOffsets, laneRowCounts, totalHeight: laneBlockHeight } = packProteinFeatures(
+    ranges,
+    lanes,
+    xFor,
+  )
+  const laneY = (lane: ProteinLaneId) => laneOffsets.get(lane) ?? PROTEIN_LANE_TOP
+  const featureY = (feature: PackedProteinFeature) =>
+    laneY(feature.lane) + feature.row * (PROTEIN_LANE_H + PROTEIN_LANE_ROW_GAP)
+  const firstLaneY = PROTEIN_LANE_TOP
+  const lastLaneBottom = PROTEIN_LANE_TOP + laneBlockHeight
+  const proteinHeatY = lastLaneBottom + 18
+  const proteinAxisY = proteinHeatY + (includeAlphaMissense ? PROTEIN_HEAT_H + 24 : 12)
+  const proteinHeight = proteinAxisY + 28
+  const legendItems = featureLegendItems(ranges)
+  const toggleFeatureKey = (key: string) => {
+    setSelectedFeatureKeys((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
   const alphaAvailable =
     includeAlphaMissense &&
     alphaHeatmap != null &&
@@ -506,7 +578,7 @@ function ReportProteinView({
         </div>
         <div style={proteinControlsStyle}>
           <StatPill label={`${formatInt(proteinLength)} aa`} />
-          <StatPill label={`${ranges.length} domains/features`} />
+          <StatPill label={`${ranges.length} features`} />
           <label style={toggleLabelStyle}>
             <input
               type="checkbox"
@@ -519,49 +591,103 @@ function ReportProteinView({
         </div>
       </div>
 
-      <svg
-        viewBox={`0 0 ${PROTEIN_W} ${PROTEIN_H}`}
-        role="img"
-        aria-label={`${data.gene} protein view with domain annotations`}
-        style={{ display: 'block', width: '100%', height: 'auto' }}
-      >
-        <rect x="0" y="0" width={PROTEIN_W} height={PROTEIN_H} rx="8" fill="var(--bg-soft)" />
-        <line
-          x1={PROTEIN_LEFT}
-          y1={PROTEIN_BAR_Y + PROTEIN_BAR_H / 2}
-          x2={PROTEIN_LEFT + PROTEIN_TRACK_W}
-          y2={PROTEIN_BAR_Y + PROTEIN_BAR_H / 2}
-          stroke="var(--line-2)"
-          strokeWidth="2"
-        />
+      <div style={trackScrollStyle}>
+        <svg
+          viewBox={`0 0 ${proteinWidth} ${proteinHeight}`}
+          role="img"
+          aria-label={`${data.gene} protein view with domain annotations`}
+          style={{ display: 'block', width: proteinWidth, maxWidth: 'none', height: 'auto' }}
+        >
+          <rect x="0" y="0" width={proteinWidth} height={proteinHeight} rx="8" fill="var(--bg-soft)" />
 
-        {ranges.map((feature, index) => {
-          const x = xFor(feature.start)
-          const width = Math.max(3, xFor(feature.end) - x)
-          const color = featureColor(feature.kind)
+        {lanes.map((lane) => {
+          const y = laneY(lane.id)
+          const rowCount = laneRowCounts.get(lane.id) ?? 1
+          return (
+            <g key={lane.id}>
+              <text
+                x={PROTEIN_LEFT}
+                y={y - 8}
+                fontSize="9.5"
+                fontWeight="800"
+                fill="var(--ink-5)"
+              >
+                {lane.label}
+              </text>
+              {Array.from({ length: rowCount }, (_, row) => {
+                const rowY = y + row * (PROTEIN_LANE_H + PROTEIN_LANE_ROW_GAP)
+                return (
+                  <line
+                    key={row}
+                    x1={PROTEIN_LEFT}
+                    y1={rowY + PROTEIN_LANE_H / 2}
+                    x2={PROTEIN_LEFT + proteinTrackW}
+                    y2={rowY + PROTEIN_LANE_H / 2}
+                    stroke="var(--line-2)"
+                    strokeWidth="1.5"
+                  />
+                )
+              })}
+            </g>
+          )
+        })}
+
+        {packedFeatures.map((feature, index) => {
+          const x = feature.x
+          const width = feature.width
+          const y = featureY(feature)
+          const color = featureColor(feature)
+          const label = labelForFeatureWidth(feature, width)
+          const pointFeature = feature.start === feature.end || feature.kind === 'site'
+          const highlighted = selectedFeatureKeys.has(feature.legendKey)
+          const stroke = highlighted ? 'rgba(225, 164, 35, 0.96)' : color.stroke
+          const strokeWidth = highlighted ? 2.2 : 0.8
           return (
             <g key={`${feature.kind}-${feature.start}-${feature.end}-${index}`}>
-              <rect
-                x={x}
-                y={PROTEIN_BAR_Y}
-                width={width}
-                height={PROTEIN_BAR_H}
-                rx="4"
-                fill={color.fill}
-                stroke={color.stroke}
-                strokeWidth="0.8"
-              />
-              {width > 92 && (
-                <text
-                  x={x + width / 2}
-                  y={PROTEIN_BAR_Y + PROTEIN_BAR_H / 2 + 4}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="700"
-                  fill={color.text}
-                >
-                  {feature.short}
-                </text>
+              {pointFeature ? (
+                <>
+                  <line
+                    x1={x}
+                    y1={y - 3}
+                    x2={x}
+                    y2={y + PROTEIN_LANE_H + 3}
+                    stroke={stroke}
+                    strokeWidth={highlighted ? 2 : 1}
+                  />
+                  <circle
+                    cx={x}
+                    cy={y + PROTEIN_LANE_H / 2}
+                    r="4.2"
+                    fill={color.fill}
+                    stroke={stroke}
+                    strokeWidth={highlighted ? 2 : 1}
+                  />
+                </>
+              ) : (
+                <>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={PROTEIN_LANE_H}
+                    rx="4"
+                    fill={color.fill}
+                    stroke={stroke}
+                    strokeWidth={strokeWidth}
+                  />
+                  {label && (
+                    <text
+                      x={x + width / 2}
+                      y={y + PROTEIN_LANE_H / 2 + 3.5}
+                      textAnchor="middle"
+                      fontSize="9.5"
+                      fontWeight="800"
+                      fill={color.text}
+                    >
+                      {label}
+                    </text>
+                  )}
+                </>
               )}
               <title>{featureTitle(feature)}</title>
             </g>
@@ -578,7 +704,7 @@ function ReportProteinView({
               <rect
                 key={`am-${residue.aa}`}
                 x={xFor(residue.aa)}
-                y={PROTEIN_HEAT_Y}
+                y={proteinHeatY}
                 width={width}
                 height={PROTEIN_HEAT_H}
                 fill={alphaColor(score)}
@@ -590,8 +716,8 @@ function ReportProteinView({
         {includeAlphaMissense && (
           <rect
             x={PROTEIN_LEFT}
-            y={PROTEIN_HEAT_Y}
-            width={PROTEIN_TRACK_W}
+            y={proteinHeatY}
+            width={proteinTrackW}
             height={PROTEIN_HEAT_H}
             fill="none"
             stroke="var(--line)"
@@ -603,7 +729,7 @@ function ReportProteinView({
           x1={xFor(queriedAa)}
           y1={PROTEIN_MARKER_Y + 6}
           x2={xFor(queriedAa)}
-          y2={PROTEIN_BAR_Y}
+          y2={firstLaneY}
           stroke="var(--ink)"
           strokeWidth="1.6"
         />
@@ -616,7 +742,7 @@ function ReportProteinView({
           strokeWidth="1.4"
         />
         <text
-          x={clamp(xFor(queriedAa), PROTEIN_LEFT + 58, PROTEIN_LEFT + PROTEIN_TRACK_W - 58)}
+          x={clamp(xFor(queriedAa), PROTEIN_LEFT + 58, PROTEIN_LEFT + proteinTrackW - 58)}
           y={PROTEIN_MARKER_Y - 11}
           textAnchor="middle"
           fontSize="11.5"
@@ -629,9 +755,9 @@ function ReportProteinView({
 
         <line
           x1={PROTEIN_LEFT}
-          y1={PROTEIN_AXIS_Y}
-          x2={PROTEIN_LEFT + PROTEIN_TRACK_W}
-          y2={PROTEIN_AXIS_Y}
+          y1={proteinAxisY}
+          x2={PROTEIN_LEFT + proteinTrackW}
+          y2={proteinAxisY}
           stroke="var(--ink-4)"
           strokeWidth="1"
         />
@@ -639,10 +765,10 @@ function ReportProteinView({
           const x = xFor(tick)
           return (
             <g key={tick}>
-              <line x1={x} y1={PROTEIN_AXIS_Y} x2={x} y2={PROTEIN_AXIS_Y + 5} stroke="var(--ink-4)" />
+              <line x1={x} y1={proteinAxisY} x2={x} y2={proteinAxisY + 5} stroke="var(--ink-4)" />
               <text
                 x={x}
-                y={PROTEIN_AXIS_Y + 18}
+                y={proteinAxisY + 18}
                 textAnchor={tick === 1 ? 'start' : tick === proteinLength ? 'end' : 'middle'}
                 fontSize="10"
                 fill="var(--ink-4)"
@@ -653,7 +779,37 @@ function ReportProteinView({
             </g>
           )
         })}
-      </svg>
+        </svg>
+      </div>
+
+      {ranges.length > 0 && (
+        <div style={proteinLegendStyle}>
+          {lanes
+            .filter((lane) => ranges.some((feature) => feature.lane === lane.id))
+            .map((lane) => {
+              const color = laneColor(lane.id)
+              return (
+                <span key={lane.id} style={proteinLegendItemStyle}>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 7,
+                      borderRadius: 3,
+                      background: color.fill,
+                      border: `0.5px solid ${color.stroke}`,
+                      display: 'inline-block',
+                    }}
+                  />
+                  {lane.label}
+                </span>
+              )
+            })}
+          <span style={proteinLegendItemStyle}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ink)', display: 'inline-block' }} />
+            Query
+          </span>
+        </div>
+      )}
 
       <div style={proteinFootStyle}>
         <span>{sourceLabel}</span>
@@ -673,14 +829,25 @@ function ReportProteinView({
         )}
       </div>
 
-      {ranges.length > 0 && (
+      {legendItems.length > 0 && (
         <div style={featureGridStyle}>
-          {ranges.slice(0, 6).map((feature, index) => (
-            <div key={`${feature.label}-${index}`} style={featureChipStyle} title={feature.label}>
-              <span style={featureKindStyle}>{feature.kind.replace(/_/g, ' ')}</span>
-              <span style={featureLabelStyle}>{feature.short}</span>
-              <span style={featureCoordStyle}>aa {feature.start}-{feature.end}</span>
-            </div>
+          {legendItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              style={featureChipStyle(selectedFeatureKeys.has(item.key), item.color)}
+              title={item.title}
+              onClick={() => toggleFeatureKey(item.key)}
+              aria-pressed={selectedFeatureKeys.has(item.key)}
+            >
+              <span style={featureKindStyle}>{item.kindLabel}</span>
+              <span style={featureLabelStyle}>
+                {item.short}
+                {item.count > 1 ? ` x${item.count}` : ''}
+              </span>
+              {item.description && <span style={featureDescriptionStyle}>{item.description}</span>}
+              <span style={featureCoordStyle}>{item.coordLabel}</span>
+            </button>
           ))}
         </div>
       )}
@@ -690,26 +857,42 @@ function ReportProteinView({
 
 function featuresFromTrack(features: ProteinDomainTrackFeature[]): ProteinFeatureRender[] {
   return features
-    .filter((feature) => feature.kind !== 'site')
     .map((feature) => ({
       start: feature.aa_start,
-      end: feature.aa_end,
+      end: Math.max(feature.aa_start, feature.aa_end),
       label: feature.label,
       short: feature.short_label ?? shortLabel(feature.label),
       kind: feature.kind,
+      lane: normalizeProteinLane(feature.lane, feature.kind),
+      description: feature.description,
       source: feature.source,
       accession: feature.accession ?? feature.source_accession,
     }))
+    .sort((a, b) => laneRank(a.lane) - laneRank(b.lane) || a.start - b.start || a.end - b.end)
 }
 
 function featuresFromViewer(data: GeneWindowData): ProteinFeatureRender[] {
   return [
+    ...(data.proteinFeatures.signalPeptide
+      ? [
+          {
+            start: data.proteinFeatures.signalPeptide.aaStart,
+            end: data.proteinFeatures.signalPeptide.aaEnd,
+            label: 'Signal peptide',
+            short: 'SP',
+            kind: 'signal_peptide',
+            lane: 'topology' as const,
+            source: 'viewer protein_features',
+          },
+        ]
+      : []),
     ...data.proteinFeatures.domains.map((feature) => ({
       start: feature.aaStart,
       end: feature.aaEnd,
       label: feature.label,
       short: shortLabel(feature.label),
       kind: 'domain',
+      lane: 'domains' as const,
       source: 'viewer protein_features',
     })),
     ...data.proteinFeatures.transmembrane.map((feature) => ({
@@ -718,6 +901,7 @@ function featuresFromViewer(data: GeneWindowData): ProteinFeatureRender[] {
       label: feature.label,
       short: shortLabel(feature.label),
       kind: 'transmembrane',
+      lane: 'topology' as const,
       source: 'viewer protein_features',
     })),
     ...data.proteinFeatures.membraneBinding.map((feature) => ({
@@ -726,9 +910,28 @@ function featuresFromViewer(data: GeneWindowData): ProteinFeatureRender[] {
       label: feature.label,
       short: shortLabel(feature.label),
       kind: 'region',
+      lane: 'motifs' as const,
       source: 'viewer protein_features',
     })),
-  ]
+    ...data.proteinFeatures.activeSites.map((feature) => ({
+      start: feature.aa,
+      end: feature.aa,
+      label: feature.label,
+      short: feature.residue ? `${feature.residue}${feature.aa}` : `aa ${feature.aa}`,
+      kind: 'site',
+      lane: 'sites' as const,
+      source: 'viewer protein_features',
+    })),
+    ...data.proteinFeatures.palmitoylation.map((feature) => ({
+      start: feature.aa,
+      end: feature.aa,
+      label: feature.label,
+      short: feature.residue ? `${feature.residue}${feature.aa}` : `aa ${feature.aa}`,
+      kind: 'site',
+      lane: 'sites' as const,
+      source: 'viewer protein_features',
+    })),
+  ].sort((a, b) => laneRank(a.lane) - laneRank(b.lane) || a.start - b.start || a.end - b.end)
 }
 
 function shortLabel(label: string): string {
@@ -741,14 +944,219 @@ function proteinTicks(length: number): number[] {
   ).sort((a, b) => a - b)
 }
 
-function featureColor(kind: string): { fill: string; stroke: string; text: string } {
-  if (kind === 'transmembrane' || kind === 'topological_domain') {
-    return { fill: 'rgba(170, 92, 44, 0.18)', stroke: 'rgba(170, 92, 44, 0.55)', text: 'var(--ink-2)' }
+function proteinCanvasWidth(proteinLength: number, featureCount: number): number {
+  const lengthWidth = PROTEIN_LEFT + PROTEIN_RIGHT + proteinLength * 0.95
+  const densityWidth = PROTEIN_LEFT + PROTEIN_RIGHT + featureCount * 42
+  return Math.round(Math.min(PROTEIN_MAX_W, Math.max(PROTEIN_W, lengthWidth, densityWidth)))
+}
+
+function packProteinFeatures(
+  features: ProteinFeatureRender[],
+  lanes: ProteinLaneDef[],
+  xFor: (aa: number) => number,
+): {
+  packedFeatures: PackedProteinFeature[]
+  laneOffsets: Map<ProteinLaneId, number>
+  laneRowCounts: Map<ProteinLaneId, number>
+  totalHeight: number
+} {
+  const laneFeatures = new Map<ProteinLaneId, PackedProteinFeature[]>()
+  const laneRowCounts = new Map<ProteinLaneId, number>()
+
+  lanes.forEach((lane) => {
+    const rowEnds: number[] = []
+    const packed = features
+      .filter((feature) => feature.lane === lane.id)
+      .sort((a, b) => a.start - b.start || b.end - a.end)
+      .map((feature) => {
+        const x = xFor(feature.start)
+        const width = Math.max(3, xFor(feature.end) - x)
+        const paddedEnd = x + width + 8
+        let row = rowEnds.findIndex((end) => x >= end)
+        if (row === -1) {
+          row = rowEnds.length
+          rowEnds.push(paddedEnd)
+        } else {
+          rowEnds[row] = paddedEnd
+        }
+        return {
+          ...feature,
+          legendKey: featureLegendKey(feature),
+          row,
+          x,
+          width,
+        }
+      })
+    laneFeatures.set(lane.id, packed)
+    laneRowCounts.set(lane.id, Math.max(1, rowEnds.length))
+  })
+
+  const laneOffsets = new Map<ProteinLaneId, number>()
+  let cursor = PROTEIN_LANE_TOP
+  lanes.forEach((lane) => {
+    laneOffsets.set(lane.id, cursor)
+    const rows = laneRowCounts.get(lane.id) ?? 1
+    cursor += rows * PROTEIN_LANE_H + Math.max(0, rows - 1) * PROTEIN_LANE_ROW_GAP + PROTEIN_LANE_GAP
+  })
+
+  return {
+    packedFeatures: lanes.flatMap((lane) => laneFeatures.get(lane.id) ?? []),
+    laneOffsets,
+    laneRowCounts,
+    totalHeight: Math.max(PROTEIN_LANE_H, cursor - PROTEIN_LANE_TOP - PROTEIN_LANE_GAP),
   }
-  if (kind === 'signal_peptide' || kind === 'motif' || kind === 'repeat') {
-    return { fill: 'rgba(136, 104, 190, 0.16)', stroke: 'rgba(136, 104, 190, 0.5)', text: 'var(--ink-2)' }
+}
+
+function proteinLanesFor(features: ProteinFeatureRender[]): ProteinLaneDef[] {
+  const present = new Set(features.map((feature) => feature.lane))
+  const lanes = PROTEIN_LANES.filter((lane) => present.has(lane.id))
+  return lanes.length > 0 ? lanes : PROTEIN_LANES.filter((lane) => lane.id === 'domains')
+}
+
+function normalizeProteinLane(lane: string | null | undefined, kind: string): ProteinLaneId {
+  if (lane === 'topology' || lane === 'domains' || lane === 'motifs' || lane === 'sites') return lane
+  if (kind === 'signal_peptide' || kind === 'transmembrane' || kind === 'topological_domain') return 'topology'
+  if (kind === 'motif' || kind === 'repeat' || kind === 'coiled_coil' || kind === 'low_complexity') return 'motifs'
+  if (kind === 'site' || kind === 'epitope') return 'sites'
+  if (kind === 'domain' || kind === 'family' || kind === 'region') return 'domains'
+  return 'other'
+}
+
+function laneRank(lane: ProteinLaneId): number {
+  const index = PROTEIN_LANES.findIndex((entry) => entry.id === lane)
+  return index === -1 ? PROTEIN_LANES.length : index
+}
+
+function laneColor(lane: ProteinLaneId): { fill: string; stroke: string; text: string } {
+  if (lane === 'topology') {
+    return { fill: 'rgba(191, 116, 58, 0.18)', stroke: 'rgba(155, 87, 34, 0.58)', text: 'var(--ink-2)' }
+  }
+  if (lane === 'motifs') {
+    return { fill: 'rgba(136, 104, 190, 0.16)', stroke: 'rgba(111, 82, 164, 0.52)', text: 'var(--ink-2)' }
+  }
+  if (lane === 'sites') {
+    return { fill: 'rgba(216, 179, 82, 0.24)', stroke: 'rgba(172, 132, 34, 0.58)', text: 'var(--ink-2)' }
+  }
+  if (lane === 'other') {
+    return { fill: 'rgba(92, 107, 122, 0.13)', stroke: 'rgba(92, 107, 122, 0.42)', text: 'var(--ink-2)' }
   }
   return { fill: 'var(--teal-tint)', stroke: 'var(--teal-bdr)', text: 'var(--teal-deep)' }
+}
+
+function featureColor(feature: ProteinFeatureRender): { fill: string; stroke: string; text: string } {
+  if (feature.lane === 'domains') {
+    return domainPaletteColor(feature)
+  }
+  if (feature.kind === 'coiled_coil') {
+    return { fill: 'rgba(47, 125, 121, 0.13)', stroke: 'rgba(47, 125, 121, 0.48)', text: 'var(--teal-deep)' }
+  }
+  if (feature.kind === 'low_complexity' || feature.kind === 'repeat') {
+    return { fill: 'rgba(121, 137, 153, 0.14)', stroke: 'rgba(92, 107, 122, 0.4)', text: 'var(--ink-2)' }
+  }
+  return laneColor(feature.lane)
+}
+
+function domainPaletteColor(feature: Pick<ProteinFeatureRender, 'short' | 'label'>): { fill: string; stroke: string; text: string } {
+  const palette = [
+    ['rgba(44, 123, 182, 0.18)', 'rgba(44, 123, 182, 0.58)', 'rgb(22, 78, 121)'],
+    ['rgba(86, 160, 103, 0.18)', 'rgba(72, 137, 87, 0.58)', 'rgb(39, 96, 55)'],
+    ['rgba(196, 118, 62, 0.18)', 'rgba(173, 93, 42, 0.58)', 'rgb(123, 66, 29)'],
+    ['rgba(129, 102, 181, 0.18)', 'rgba(111, 82, 164, 0.58)', 'rgb(78, 56, 125)'],
+    ['rgba(196, 87, 112, 0.16)', 'rgba(174, 66, 93, 0.56)', 'rgb(125, 45, 65)'],
+    ['rgba(37, 151, 143, 0.16)', 'rgba(26, 126, 120, 0.56)', 'rgb(20, 92, 88)'],
+    ['rgba(184, 143, 50, 0.18)', 'rgba(158, 118, 31, 0.58)', 'rgb(113, 83, 20)'],
+    ['rgba(89, 111, 173, 0.17)', 'rgba(70, 91, 151, 0.55)', 'rgb(50, 66, 112)'],
+    ['rgba(159, 104, 70, 0.17)', 'rgba(138, 82, 49, 0.55)', 'rgb(96, 58, 37)'],
+    ['rgba(90, 138, 156, 0.16)', 'rgba(70, 116, 135, 0.54)', 'rgb(47, 83, 98)'],
+  ] as const
+  const key = domainPaletteKey(feature)
+  const [fill, stroke, text] = palette[hashString(key) % palette.length]
+  return { fill, stroke, text }
+}
+
+function domainPaletteKey(feature: Pick<ProteinFeatureRender, 'short' | 'label'>): string {
+  const short = feature.short.trim().toLowerCase()
+  if (short && short.length <= 18 && !short.endsWith('...')) return short
+  return feature.label.trim().toLowerCase()
+}
+
+function hashString(value: string): number {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  }
+  return hash
+}
+
+function labelForFeatureWidth(feature: ProteinFeatureRender, width: number): string | null {
+  if (feature.start === feature.end || feature.kind === 'site' || width < 28) return null
+  const maxChars = Math.max(3, Math.floor(width / 6.4))
+  if (feature.short.length <= maxChars) return feature.short
+  if (maxChars <= 5) return feature.short.slice(0, maxChars)
+  return `${feature.short.slice(0, maxChars - 3)}...`
+}
+
+function featureLegendItems(features: ProteinFeatureRender[]): Array<{
+  key: string
+  short: string
+  kindLabel: string
+  description: string | null
+  coordLabel: string
+  count: number
+  title: string
+  color: { fill: string; stroke: string; text: string }
+}> {
+  const groups = new Map<
+    string,
+    {
+      short: string
+      kindLabel: string
+      description: string | null
+      features: ProteinFeatureRender[]
+    }
+  >()
+
+  features.forEach((feature) => {
+    const description = feature.description || (feature.label !== feature.short ? feature.label : null)
+    const key = featureLegendKey(feature)
+    const existing = groups.get(key)
+    if (existing) {
+      existing.features.push(feature)
+      return
+    }
+    groups.set(key, {
+      short: feature.short,
+      kindLabel: `${feature.lane} / ${feature.kind}`.replace(/_/g, ' '),
+      description,
+      features: [feature],
+    })
+  })
+
+  return Array.from(groups.entries()).map(([key, group]) => {
+    const sorted = group.features.sort((a, b) => a.start - b.start || a.end - b.end)
+    const min = Math.min(...sorted.map((feature) => feature.start))
+    const max = Math.max(...sorted.map((feature) => feature.end))
+    const coords = sorted
+      .slice(0, 5)
+      .map((feature) => `aa ${feature.start}${feature.start === feature.end ? '' : `-${feature.end}`}`)
+      .join(', ')
+    const overflow = sorted.length > 5 ? `, +${sorted.length - 5} more` : ''
+    return {
+      key,
+      short: group.short,
+      kindLabel: group.kindLabel,
+      description: group.description,
+      coordLabel: sorted.length === 1 ? coords : `${sorted.length}x | aa ${min}-${max}`,
+      count: sorted.length,
+      title: sorted.map(featureTitle).join('\n') + overflow,
+      color: featureColor(sorted[0]),
+    }
+  })
+}
+
+function featureLegendKey(feature: Pick<ProteinFeatureRender, 'lane' | 'kind' | 'short' | 'label' | 'description'>): string {
+  const description = feature.description || (feature.label !== feature.short ? feature.label : null)
+  return [feature.lane, feature.kind, feature.short, description ?? ''].join('|')
 }
 
 function alphaColor(score: number): string {
@@ -840,6 +1248,14 @@ const subStyle: React.CSSProperties = {
   color: 'var(--ink-4)',
 }
 
+const trackScrollStyle: React.CSSProperties = {
+  width: '100%',
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  borderRadius: 8,
+  scrollbarWidth: 'thin',
+}
+
 const legendRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -913,27 +1329,51 @@ const proteinFootStyle: React.CSSProperties = {
   color: 'var(--ink-4)',
 }
 
+const proteinLegendStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+  fontSize: 10.5,
+  color: 'var(--ink-4)',
+}
+
+const proteinLegendItemStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+  fontWeight: 700,
+}
+
 const featureGridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
   gap: 6,
 }
 
-const featureChipStyle: React.CSSProperties = {
+function featureChipStyle(selected: boolean, color: { fill: string; stroke: string }): React.CSSProperties {
+  return {
   border: '0.5px solid var(--line)',
   borderRadius: 6,
-  background: 'var(--bg-soft)',
+    background: selected ? 'rgba(225, 164, 35, 0.13)' : 'var(--bg-soft)',
   padding: '7px 8px',
   display: 'grid',
   gap: 2,
   minWidth: 0,
+    textAlign: 'left',
+    cursor: 'pointer',
+    appearance: 'none',
+    font: 'inherit',
+    color: 'inherit',
+    boxShadow: selected ? `inset 0 0 0 1.5px rgba(225, 164, 35, 0.88), 3px 0 0 ${color.stroke}` : `3px 0 0 ${color.stroke}`,
+  }
 }
 
 const featureKindStyle: React.CSSProperties = {
   fontSize: 9.5,
   color: 'var(--ink-5)',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   fontWeight: 800,
 }
 
@@ -944,6 +1384,12 @@ const featureLabelStyle: React.CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+}
+
+const featureDescriptionStyle: React.CSSProperties = {
+  fontSize: 10,
+  color: 'var(--ink-3)',
+  lineHeight: 1.25,
 }
 
 const featureCoordStyle: React.CSSProperties = {

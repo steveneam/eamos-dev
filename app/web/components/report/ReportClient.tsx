@@ -65,6 +65,7 @@ import type {
   LookupRequest,
   LookupResponse,
   LookupSectionId,
+  ProteinDomainTrack,
   PublicationLiterature,
   SearchInputCandidate,
   SearchInputInterpretation,
@@ -655,6 +656,10 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
   // already-formatted strings (transcript_hgvs is "NM_...:c.260A>G"; split off
   // the transcript so the ribbon can recombine).
   const ribbonGene = header?.gene ?? row0?.gene ?? undefined
+  const reportProteinDomainTrack =
+    (payload.report_profile?.gene_context_snapshot?.protein_domain_track ??
+      payload.report_profile?.molecular_context?.protein_domain_track ??
+      null) as ProteinDomainTrack | null
   const transcriptHgvs = row0?.transcript_hgvs ?? null
   const ribbonTranscript = header?.transcript ?? transcriptHgvs?.split(':')[0] ?? undefined
   const ribbonHgvsC = header?.cdna ?? transcriptHgvs?.split(':')[1] ?? undefined
@@ -929,6 +934,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               gene={header.gene}
               cdna={header.cdna}
               transcript={header.transcript ?? null}
+              proteinDomainTrack={reportProteinDomainTrack}
               demo={demo}
             />
           )}
