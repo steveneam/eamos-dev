@@ -709,6 +709,7 @@ def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(
             protein_annotation_uniprot_features_enabled=True,
             protein_annotation_uniprot_dat_path=flatfile_path,
             protein_annotation_uniprot_feature_index_path=tmp_path / "missing.features.jsonl",
+            protein_annotation_hmmscan_max_residues=0,
         ),
         cache_repo=cache,
         runner=ReadyHmmerRunner(domtblout=DOMTBLOUT),
@@ -731,6 +732,92 @@ def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(
     assert "Signal peptide" in labels
     assert labels["Helical"].kind == "transmembrane"
     assert labels["PDZ-binding"].kind == "motif"
+
+
+def test_feature_flag_off_uses_legacy_release_cache_for_large_protein_without_hmmer() -> None:
+    sequence = "M" + "A" * 5201
+    normalized = normalize_protein_input(sequence, input_type="protein")
+    pfam_release = DEFAULT_DATA_SOURCE_REGISTRY.get("interpro_pfam_protein_matches").source_version
+    hmmer_release = DEFAULT_DATA_SOURCE_REGISTRY.get("hmmer_pfam_a").source_version
+    uniprot_release = DEFAULT_DATA_SOURCE_REGISTRY.get(
+        "uniprotkb_reviewed_swissprot"
+    ).source_version
+    cache = MemoryProteinAnnotationCache()
+    cache.upsert(
+        ProteinDomainTrack(
+            status="available",
+            protein_sequence_hash=normalized.sequence_hash,
+            protein_length=len(normalized.protein_sequence),
+            translated_from="protein",
+            cache_key=(
+                f"protein_annotation:sha256:{normalized.sequence_hash}:"
+                f"pfam:{pfam_release}:hmmer:{hmmer_release}:uniprot:{uniprot_release}"
+            ),
+            cache_status="stored",
+            pfam_release=pfam_release,
+            hmmer_release=hmmer_release,
+            uniprot_release=uniprot_release,
+            features=parse_hmmer_domtblout(
+                DOMTBLOUT,
+                pfam_release=pfam_release,
+                pfam_checksum_sha256="abc123",
+            ),
+        )
+    )
+    runner = ReadyHmmerRunner()
+    service = ProteinAnnotationService(
+        settings=Settings(
+            jwt_secret="test-secret",
+            protein_annotation_enabled=True,
+            protein_annotation_uniprot_features_enabled=False,
+        ),
+        cache_repo=cache,
+        runner=runner,
+    )
+
+    track = service.annotate(
+        ProteinAnnotationRequest(
+            sequence=sequence,
+            input_type="protein",
+            sequence_label="USH2A reference",
+            gene_symbol="USH2A",
+            allow_run=True,
+        )
+    )
+
+    assert track.status == "cache_hit"
+    assert track.uniprot_release == uniprot_release
+    assert "protein_annotation_cache_hit" in track.warnings
+    assert runner.calls == 0
+
+
+def test_cache_miss_skips_hmmer_for_large_protein_without_uniprot_features() -> None:
+    runner = ReadyHmmerRunner()
+    service = ProteinAnnotationService(
+        settings=Settings(
+            jwt_secret="test-secret",
+            protein_annotation_enabled=True,
+            protein_annotation_uniprot_features_enabled=False,
+            protein_annotation_hmmscan_max_residues=5000,
+        ),
+        cache_repo=MemoryProteinAnnotationCache(),
+        runner=runner,
+    )
+
+    track = service.annotate(
+        ProteinAnnotationRequest(
+            sequence="M" + "A" * 5201,
+            input_type="protein",
+            sequence_label="USH2A reference",
+            gene_symbol="USH2A",
+            allow_run=True,
+        )
+    )
+
+    assert track.status == "unavailable"
+    assert track.fail_closed_reason == "protein_annotation_hmmscan_sequence_too_long"
+    assert "protein_annotation_hmmscan_max_residues:5000" in track.warnings
+    assert runner.calls == 0
 
 
 def test_service_returns_uniprot_feature_index_partial_track_when_hmmer_unavailable(

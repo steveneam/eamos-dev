@@ -309,6 +309,57 @@ def test_hybrid_protein_cache_uses_local_first_and_ignores_remote_read_failure(
     )
 
 
+def test_local_protein_cache_keeps_uniprot_release_dimensions_distinct(tmp_path: Path) -> None:
+    local_repo = ProteinAnnotationCacheRepo(_session_factory(tmp_path))
+    common = {
+        "status": "available",
+        "protein_sequence_hash": "c" * 64,
+        "protein_length": 5202,
+        "translated_from": "protein",
+        "pfam_release": "Pfam 37.0",
+        "hmmer_release": "HMMER 3.4",
+    }
+
+    local_repo.upsert(
+        ProteinDomainTrack(
+            **common,
+            cache_key="protein_annotation:release-keyed",
+            cache_status="stored",
+            uniprot_release="UniProtKB 2026_02",
+            warnings=["legacy_release_keyed_track"],
+        )
+    )
+    local_repo.upsert(
+        ProteinDomainTrack(
+            **common,
+            cache_key="protein_annotation:none-keyed",
+            cache_status="stored",
+            uniprot_release=None,
+            warnings=["flag_off_none_keyed_track"],
+        )
+    )
+
+    release_keyed = local_repo.get(
+        sequence_hash="c" * 64,
+        pfam_release="Pfam 37.0",
+        hmmer_release="HMMER 3.4",
+        uniprot_release="UniProtKB 2026_02",
+    )
+    none_keyed = local_repo.get(
+        sequence_hash="c" * 64,
+        pfam_release="Pfam 37.0",
+        hmmer_release="HMMER 3.4",
+        uniprot_release=None,
+    )
+
+    assert release_keyed is not None
+    assert release_keyed.cache_key == "protein_annotation:release-keyed"
+    assert "legacy_release_keyed_track" in release_keyed.warnings
+    assert none_keyed is not None
+    assert none_keyed.cache_key == "protein_annotation:none-keyed"
+    assert "flag_off_none_keyed_track" in none_keyed.warnings
+
+
 def test_clinical_gene_disease_summary_merges_private_source_rows() -> None:
     summary = _clinical_gene_disease_summary(
         gene="RPE65",

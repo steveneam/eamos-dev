@@ -51,6 +51,7 @@ class ProteinAnnotationCacheRepo:
                     ProteinAnnotationCacheRecord.sequence_hash == track.protein_sequence_hash,
                     ProteinAnnotationCacheRecord.pfam_release == track.pfam_release,
                     ProteinAnnotationCacheRecord.hmmer_release == track.hmmer_release,
+                    ProteinAnnotationCacheRecord.uniprot_release == track.uniprot_release,
                 )
             ).scalar_one_or_none()
             if record is None:

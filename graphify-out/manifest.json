@@ -185,8 +185,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "app/backend/app/core/config.py": {
-    "mtime": 1781514885.3023615,
-    "ast_hash": "22765ccf28d48e8acd2ccfed068375ac",
+    "mtime": 1781526475.203366,
+    "ast_hash": "b25f13b130addf5667cccfa3837a129e",
     "semantic_hash": ""
   },
   "app/backend/app/core/db.py": {
@@ -415,9 +415,9 @@
     "semantic_hash": "fdbeaddbadaa3982962ef2b1d0822143"
   },
   "app/backend/app/repos/protein_annotation_cache_repo.py": {
-    "mtime": 1780064857.348431,
-    "ast_hash": "bb054f27620247c9d0e82dd76993844b",
-    "semantic_hash": "bb054f27620247c9d0e82dd76993844b"
+    "mtime": 1781526508.2957184,
+    "ast_hash": "b41bdeabffb9fea07133bb3fa8cbed21",
+    "semantic_hash": ""
   },
   "app/backend/app/repos/reports_repo.py": {
     "mtime": 1775909166.0,
@@ -740,8 +740,8 @@
     "semantic_hash": "8ce40ca9ffe8dc2b3fd87350fd40008d"
   },
   "app/backend/app/services/protein_annotation.py": {
-    "mtime": 1781516946.2953062,
-    "ast_hash": "93f017d8dacf42410d4a2481d11df1f2",
+    "mtime": 1781526579.7869742,
+    "ast_hash": "b3d05cab575f2494402603548bcb0ad0",
     "semantic_hash": ""
   },
   "app/backend/app/services/protein_runtime.py": {
@@ -1240,8 +1240,8 @@
     "semantic_hash": "3ceb90e74aa1f9b5d5b4f97067a5a420"
   },
   "app/backend/tests/test_protein_annotation_service.py": {
-    "mtime": 1781517108.9854646,
-    "ast_hash": "56493d39e552120ccadc338daaa64371",
+    "mtime": 1781526641.541629,
+    "ast_hash": "6d50926ac6452f99956288d1b98c7006",
     "semantic_hash": ""
   },
   "app/backend/tests/test_protein_runtime_prepare.py": {
@@ -1375,9 +1375,9 @@
     "semantic_hash": "780df8c43ebfb9f66d7f4877d5339734"
   },
   "app/backend/tests/test_supabase_local_model_cache.py": {
-    "mtime": 1780657473.9855733,
-    "ast_hash": "1c62f95ca50f74b7069954ed21ef921d",
-    "semantic_hash": "1c62f95ca50f74b7069954ed21ef921d"
+    "mtime": 1781526672.4536977,
+    "ast_hash": "6b98dab58beb7b4e9ff9f7d231dcc630",
+    "semantic_hash": ""
   },
   "app/backend/tests/test_supabase_migrations.py": {
     "mtime": 1781431534.5730915,
@@ -3105,8 +3105,8 @@
     "semantic_hash": "49f9288621bec22b511ab003edad447d"
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1781513687.358118,
-    "ast_hash": "a1bda8490ed388d0627e90d602b66eaa",
+    "mtime": 1781526329.2469766,
+    "ast_hash": "f60b56c040aedad65bba207a7c039b68",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -3120,9 +3120,9 @@
     "semantic_hash": "aab8fc6ad310bad98a9bcc05529637e3"
   },
   "agent_handoff/RISKS.md": {
-    "mtime": 1781194949.4736588,
-    "ast_hash": "0da262f34a1d2161cbc8c833718e279d",
-    "semantic_hash": "0da262f34a1d2161cbc8c833718e279d"
+    "mtime": 1781525389.440671,
+    "ast_hash": "75bcfd7a8c88ba387890d07fdf1486b0",
+    "semantic_hash": ""
   },
   "agent_handoff/TASKS.md": {
     "mtime": 1780311746.132795,

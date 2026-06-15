@@ -370,7 +370,7 @@ class ProteinAnnotationService:
         pfam_release = self.registry.get("interpro_pfam_protein_matches").source_version
         hmmer_release = self.registry.get("hmmer_pfam_a").source_version
         uniprot_release = self.registry.get("uniprotkb_reviewed_swissprot").source_version
-        cache_uniprot_release = uniprot_release if self.feature_provider is not None else None
+        cache_uniprot_release = uniprot_release
         if not pfam_release or not hmmer_release:
             return _unavailable_track(
                 "protein_annotation_provenance_missing",
@@ -391,32 +391,44 @@ class ProteinAnnotationService:
             uniprot_release=cache_uniprot_release,
         )
         if request.use_cache and self.cache_repo is not None:
-            cached = self.cache_repo.get(
-                sequence_hash=normalized.sequence_hash,
-                pfam_release=pfam_release,
-                hmmer_release=hmmer_release,
-                uniprot_release=cache_uniprot_release,
-            )
-            if cached is not None and _cached_track_satisfies_request(
-                cached,
-                request=request,
-                feature_provider_enabled=self.feature_provider is not None,
+            fallback_cached: ProteinDomainTrack | None = None
+            for cache_lookup_uniprot_release in _cache_lookup_uniprot_releases(
+                cache_uniprot_release
             ):
-                return cached.model_copy(
-                    update={
-                        "status": "cache_hit",
-                        "cache_status": "cache_hit",
-                        "sequence_label": request.sequence_label,
-                        "gene_symbol": request.gene_symbol,
-                        "transcript": request.transcript,
-                        "protein_accession": request.protein_accession,
-                        "warnings": _dedupe(
-                            [*cached.warnings, *normalized.warnings, "protein_annotation_cache_hit"]
-                        ),
-                    }
+                cached = self.cache_repo.get(
+                    sequence_hash=normalized.sequence_hash,
+                    pfam_release=pfam_release,
+                    hmmer_release=hmmer_release,
+                    uniprot_release=cache_lookup_uniprot_release,
                 )
-            if cached is not None and not request.allow_run:
-                return cached.model_copy(
+                if cached is None:
+                    continue
+                if fallback_cached is None:
+                    fallback_cached = cached
+                if _cached_track_satisfies_request(
+                    cached,
+                    request=request,
+                    feature_provider_enabled=self.feature_provider is not None,
+                ):
+                    return cached.model_copy(
+                        update={
+                            "status": "cache_hit",
+                            "cache_status": "cache_hit",
+                            "sequence_label": request.sequence_label,
+                            "gene_symbol": request.gene_symbol,
+                            "transcript": request.transcript,
+                            "protein_accession": request.protein_accession,
+                            "warnings": _dedupe(
+                                [
+                                    *cached.warnings,
+                                    *normalized.warnings,
+                                    "protein_annotation_cache_hit",
+                                ]
+                            ),
+                        }
+                    )
+            if fallback_cached is not None and not request.allow_run:
+                return fallback_cached.model_copy(
                     update={
                         "status": "cache_hit",
                         "cache_status": "cache_hit",
@@ -426,7 +438,7 @@ class ProteinAnnotationService:
                         "protein_accession": request.protein_accession,
                         "warnings": _dedupe(
                             [
-                                *cached.warnings,
+                                *fallback_cached.warnings,
                                 *normalized.warnings,
                                 "protein_annotation_cache_hit",
                                 "protein_annotation_cache_hit_uniprot_feature_table_not_checked",
@@ -559,6 +571,38 @@ class ProteinAnnotationService:
                 hmmer_release=hmmer_release,
                 uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, *runtime.warnings, "no_live_protein_api_fallback"],
+            )
+
+        max_hmmscan_residues = (
+            self.settings.protein_annotation_hmmscan_max_residues
+            if self.settings is not None
+            else 0
+        )
+        if max_hmmscan_residues > 0 and len(normalized.protein_sequence) > max_hmmscan_residues:
+            reason = "protein_annotation_hmmscan_sequence_too_long"
+            warnings = [
+                *provider_warnings,
+                "no_live_protein_api_fallback",
+                reason,
+                f"protein_annotation_hmmscan_max_residues:{max_hmmscan_residues}",
+            ]
+            if provider_result.features:
+                return partial_track_from_provider(reason, warnings)
+            return _unavailable_track(
+                reason,
+                protein_length=len(normalized.protein_sequence),
+                sequence_hash=normalized.sequence_hash,
+                sequence_label=request.sequence_label,
+                gene_symbol=request.gene_symbol,
+                transcript=request.transcript,
+                protein_accession=request.protein_accession,
+                translated_from=normalized.translated_from,
+                cache_key=cache_key,
+                cache_status="cache_miss",
+                pfam_release=pfam_release,
+                hmmer_release=hmmer_release,
+                uniprot_release=cache_uniprot_release,
+                warnings=warnings,
             )
 
         try:
@@ -871,11 +915,7 @@ def _find_uniprot_feature_index_record(
                 for accession in record.get("accessions", [])
                 if str(accession).strip()
             }
-            genes = {
-                str(gene).upper()
-                for gene in record.get("genes", [])
-                if str(gene).strip()
-            }
+            genes = {str(gene).upper() for gene in record.get("genes", []) if str(gene).strip()}
             if requested_accession and requested_accession in accessions:
                 return record
             if requested_gene and requested_gene in genes:
@@ -951,8 +991,7 @@ def _uniprot_feature_index_record(entry_text: str) -> dict[str, Any] | None:
     accessions = _uniprot_accessions(entry_text)
     genes = _uniprot_gene_symbols(entry_text)
     features = [
-        _uniprot_feature_index_feature(record)
-        for record in _uniprot_feature_records(entry_text)
+        _uniprot_feature_index_feature(record) for record in _uniprot_feature_records(entry_text)
     ]
     features = [feature for feature in features if feature is not None]
     if not accessions or not features:
@@ -1290,6 +1329,16 @@ def _cache_key(
     if uniprot_release:
         key = f"{key}:uniprot:{uniprot_release}"
     return key
+
+
+def _cache_lookup_uniprot_releases(primary_release: str | None) -> tuple[str | None, ...]:
+    releases: list[str | None] = [primary_release, None]
+    result: list[str | None] = []
+    for release in releases:
+        if release in result:
+            continue
+        result.append(release)
+    return tuple(result)
 
 
 def _cached_track_satisfies_request(
