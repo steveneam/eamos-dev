@@ -634,6 +634,39 @@ def test_provider_cache_health_reports_available_protein_annotation_without_path
     assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
 
 
+def test_provider_cache_health_reports_partial_uniprot_index_without_hmmer_paths(
+    tmp_path: Path,
+) -> None:
+    feature_index = tmp_path / "uniprot_sprot.features.jsonl"
+    feature_index.write_text(
+        '{"primary_accession":"O75445","accessions":["O75445"],"genes":["USH2A"],"features":[]}\n',
+        encoding="utf-8",
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        protein_annotation_enabled=True,
+        protein_annotation_hmmscan_path=tmp_path / "missing-hmmscan",
+        protein_annotation_uniprot_features_enabled=True,
+        protein_annotation_uniprot_feature_index_path=feature_index,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    protein = response.json()["providers"]["protein_annotation"]
+    assert protein["enabled"] is True
+    assert protein["available"] is True
+    assert protein["status"] == "partial"
+    assert protein["uniprot_feature_index"] == {"configured": True, "ready": True}
+    assert protein["hmmer"]["ready"] is False
+    assert protein["hmmer"]["reason"] == "hmmscan_executable_missing"
+    assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
+
+
 def test_coordinate_resolver_startup_materialization_flag_fails_closed(
     tmp_path: Path,
 ) -> None:

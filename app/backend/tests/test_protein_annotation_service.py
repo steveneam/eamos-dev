@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from hashlib import md5, sha256
 from pathlib import Path
 
 import pytest
 
+from app.cli.eamos_uniprot_feature_index import main as uniprot_feature_index_main
 from app.core.config import Settings
 from app.data_sources.protein_assets import (
     ProteinAssetSpec,
@@ -20,6 +22,7 @@ from app.services.protein_annotation import (
     normalize_protein_input,
     parse_hmmer_domtblout,
     parse_uniprot_flatfile_features,
+    write_uniprot_feature_index,
 )
 
 DOMTBLOUT = (
@@ -84,6 +87,15 @@ FT   DOMAIN          2015..2093
 FT                   /note="Fibronectin type-III 1"
 FT   REGION          1002..1042
 FT                   /note="Collagen IV/fibronectin interaction region"
+FT   SIGNAL          1..31
+FT   TOPO_DOM        32..5042
+FT                   /note="Extracellular"
+FT   TRANSMEM        5043..5063
+FT                   /note="Helical"
+FT   TOPO_DOM        5064..5202
+FT                   /note="Cytoplasmic"
+FT   MOTIF           5200..5202
+FT                   /note="PDZ-binding"
 //
 """
 DNM1_UNIPROT_ENTRY = """\
@@ -172,6 +184,23 @@ class ReadyHmmerRunner:
         assert protein_sequence
         assert sequence_hash
         return self.domtblout
+
+
+class UnavailableHmmerRunner:
+    def __init__(self, reason: str = "hmmscan_executable_missing") -> None:
+        self.reason = reason
+        self.calls = 0
+
+    def status(self) -> HmmerRuntimeStatus:
+        return HmmerRuntimeStatus(
+            ready=False,
+            reason=self.reason,
+            warnings=(self.reason,),
+        )
+
+    def run(self, *, protein_sequence: str, sequence_hash: str) -> str:
+        self.calls += 1
+        raise AssertionError("hmmscan should not run when runtime status is unavailable")
 
 
 class MemoryProteinAnnotationCache:
@@ -330,7 +359,7 @@ def test_uniprot_flatfile_parser_preserves_specific_rpe65_sites() -> None:
     assert "Signal peptide" not in labels
 
 
-def test_uniprot_flatfile_parser_preserves_specific_ush2a_matrix_domain_names() -> None:
+def test_uniprot_flatfile_parser_preserves_specific_ush2a_architecture_features() -> None:
     features = parse_uniprot_flatfile_features(
         USH2A_UNIPROT_ENTRY,
         protein_length=5202,
@@ -349,6 +378,20 @@ def test_uniprot_flatfile_parser_preserves_specific_ush2a_matrix_domain_names() 
     assert labels["Fibronectin type-III 1"].kind == "domain"
     assert labels["Fibronectin type-III 1"].short_label == "FN3"
     assert labels["Collagen IV/fibronectin interaction region"].kind == "region"
+    assert labels["Signal peptide"].kind == "signal_peptide"
+    assert labels["Signal peptide"].short_label == "SP"
+    assert labels["Signal peptide"].aa_start == 1
+    assert labels["Signal peptide"].aa_end == 31
+    assert labels["Helical"].kind == "transmembrane"
+    assert labels["Helical"].short_label == "TM"
+    assert labels["Helical"].aa_start == 5043
+    assert labels["Helical"].aa_end == 5063
+    assert labels["PDZ-binding"].kind == "motif"
+    assert labels["PDZ-binding"].short_label == "PDZ-binding"
+    assert labels["PDZ-binding"].aa_start == 5200
+    assert labels["PDZ-binding"].aa_end == 5202
+    assert labels["Extracellular"].lane == "topology"
+    assert labels["Cytoplasmic"].lane == "topology"
 
 
 def test_uniprot_flatfile_parser_preserves_specific_dnm1_domain_names() -> None:
@@ -422,6 +465,7 @@ def test_uniprot_provider_retrieves_specific_features_by_gene_without_gene_hardc
         Settings(
             jwt_secret="test-secret",
             protein_annotation_uniprot_dat_path=flatfile_path,
+            protein_annotation_uniprot_feature_index_path=tmp_path / "missing.features.jsonl",
         )
     )
 
@@ -444,6 +488,142 @@ def test_uniprot_provider_retrieves_specific_features_by_gene_without_gene_hardc
     assert all(feature.accession == "Q8N118" for feature in result.features)
 
 
+def test_uniprot_feature_index_retrieves_reference_architecture_matrix(tmp_path: Path) -> None:
+    flatfile_path = tmp_path / "uniprot_sprot.dat"
+    flatfile_path.write_text(
+        RPE65_UNIPROT_ENTRY
+        + PCARE_UNIPROT_ENTRY
+        + USH2A_UNIPROT_ENTRY
+        + DNM1_UNIPROT_ENTRY
+        + FZD5_UNIPROT_ENTRY,
+        encoding="utf-8",
+    )
+    index_path = tmp_path / "uniprot_sprot.features.jsonl"
+
+    summary = write_uniprot_feature_index(flatfile_path, index_path)
+
+    assert summary["records"] == 5
+    assert index_path.is_file()
+
+    provider = UniProtFlatfileFeatureProvider(
+        Settings(
+            jwt_secret="test-secret",
+            protein_annotation_uniprot_dat_path=tmp_path / "missing.dat.gz",
+            protein_annotation_uniprot_feature_index_path=index_path,
+            protein_annotation_uniprot_scan_timeout_seconds=1,
+        )
+    )
+    cases = [
+        (
+            "RPE65",
+            533,
+            {
+                "Iron-binding site": ("site", "Fe", 180, 180),
+                "S-palmitoyl cysteine; in membrane form": ("site", "Palm", 112, 112),
+            },
+        ),
+        (
+            "PCARE",
+            1289,
+            {
+                "Helical/coiled-coil region": ("coiled_coil", "CC", 171, 338),
+                "WH2": ("motif", "WH2", 597, 615),
+                "Proline-rich domain": ("region", "PRD", 1013, 1095),
+                "Nuclear localization signal": ("motif", "NLS", 1042, 1049),
+            },
+        ),
+        (
+            "USH2A",
+            5202,
+            {
+                "Signal peptide": ("signal_peptide", "SP", 1, 31),
+                "Laminin G-like 2": ("domain", "LamG", 1714, 1891),
+                "Helical": ("transmembrane", "TM", 5043, 5063),
+                "PDZ-binding": ("motif", "PDZ-binding", 5200, 5202),
+            },
+        ),
+        (
+            "DNM1",
+            864,
+            {
+                "Dynamin-type G domain": ("domain", "GTPase", 39, 312),
+                "Middle/stalk domain": ("region", "Middle", 319, 495),
+                "Pleckstrin homology domain": ("domain", "PH", 515, 625),
+                "GTPase effector domain": ("domain", "GED", 659, 750),
+                "Proline-rich domain": ("region", "PRD", 746, 864),
+            },
+        ),
+        (
+            "FZD5",
+            585,
+            {
+                "Signal peptide": ("signal_peptide", "SP", 1, 26),
+                "FZ": ("domain", "CRD", 28, 150),
+                "PDZ-binding": ("motif", "PDZ-binding", 583, 585),
+            },
+        ),
+    ]
+
+    for gene, protein_length, expected in cases:
+        result = provider.features_for_request(
+            ProteinAnnotationRequest(
+                sequence="M" + "A" * (protein_length - 1),
+                input_type="protein",
+                gene_symbol=gene,
+            ),
+            protein_length=protein_length,
+        )
+        labels: dict[str, list] = {}
+        for feature in result.features:
+            labels.setdefault(feature.label, []).append(feature)
+        for label, (kind, short_label, start, end) in expected.items():
+            assert any(
+                feature.kind == kind
+                and feature.short_label == short_label
+                and feature.aa_start == start
+                and feature.aa_end == end
+                and feature.source == "UniProtKB/Swiss-Prot feature table"
+                for feature in labels[label]
+            )
+
+    fzd5 = provider.features_for_request(
+        ProteinAnnotationRequest(
+            sequence="M" + "A" * 584,
+            input_type="protein",
+            gene_symbol="FZD5",
+        ),
+        protein_length=585,
+    )
+    assert len([feature for feature in fzd5.features if feature.kind == "transmembrane"]) == 7
+
+
+def test_uniprot_feature_index_cli_builds_compact_index(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    flatfile_path = tmp_path / "uniprot_sprot.dat"
+    output_path = tmp_path / "uniprot_sprot.features.jsonl"
+    flatfile_path.write_text(USH2A_UNIPROT_ENTRY + FZD5_UNIPROT_ENTRY, encoding="utf-8")
+
+    exit_code = uniprot_feature_index_main(
+        [
+            "--input",
+            str(flatfile_path),
+            "--output",
+            str(output_path),
+            "--compact",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["status"] == "ok"
+    assert payload["records"] == 2
+    assert payload["features"] > 0
+    assert output_path.read_text(encoding="utf-8").count("\n") == 2
+
+
 def test_service_merges_rpe65_uniprot_sites_with_local_hmmer_hits(tmp_path: Path) -> None:
     flatfile_path = tmp_path / "uniprot_sprot.dat"
     flatfile_path.write_text(RPE65_UNIPROT_ENTRY, encoding="utf-8")
@@ -452,6 +632,7 @@ def test_service_merges_rpe65_uniprot_sites_with_local_hmmer_hits(tmp_path: Path
         protein_annotation_enabled=True,
         protein_annotation_uniprot_features_enabled=True,
         protein_annotation_uniprot_dat_path=flatfile_path,
+        protein_annotation_uniprot_feature_index_path=tmp_path / "missing.features.jsonl",
     )
     runner = ReadyHmmerRunner(domtblout=RPE65_DOMTBLOUT)
     service = ProteinAnnotationService(
@@ -487,6 +668,112 @@ def test_service_merges_rpe65_uniprot_sites_with_local_hmmer_hits(tmp_path: Path
     )
 
 
+def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(
+    tmp_path: Path,
+) -> None:
+    flatfile_path = tmp_path / "uniprot_sprot.dat"
+    flatfile_path.write_text(USH2A_UNIPROT_ENTRY, encoding="utf-8")
+    sequence = "M" + "A" * 5201
+    normalized = normalize_protein_input(sequence, input_type="protein")
+    pfam_release = DEFAULT_DATA_SOURCE_REGISTRY.get("interpro_pfam_protein_matches").source_version
+    hmmer_release = DEFAULT_DATA_SOURCE_REGISTRY.get("hmmer_pfam_a").source_version
+    uniprot_release = DEFAULT_DATA_SOURCE_REGISTRY.get(
+        "uniprotkb_reviewed_swissprot"
+    ).source_version
+    cache = MemoryProteinAnnotationCache()
+    cache.upsert(
+        ProteinDomainTrack(
+            status="available",
+            protein_sequence_hash=normalized.sequence_hash,
+            protein_length=len(normalized.protein_sequence),
+            translated_from="protein",
+            cache_key=(
+                f"protein_annotation:sha256:{normalized.sequence_hash}:"
+                f"pfam:{pfam_release}:hmmer:{hmmer_release}:uniprot:{uniprot_release}"
+            ),
+            cache_status="stored",
+            pfam_release=pfam_release,
+            hmmer_release=hmmer_release,
+            uniprot_release=uniprot_release,
+            features=parse_hmmer_domtblout(
+                DOMTBLOUT,
+                pfam_release=pfam_release,
+                pfam_checksum_sha256="abc123",
+            ),
+        )
+    )
+    service = ProteinAnnotationService(
+        settings=Settings(
+            jwt_secret="test-secret",
+            protein_annotation_enabled=True,
+            protein_annotation_uniprot_features_enabled=True,
+            protein_annotation_uniprot_dat_path=flatfile_path,
+            protein_annotation_uniprot_feature_index_path=tmp_path / "missing.features.jsonl",
+        ),
+        cache_repo=cache,
+        runner=ReadyHmmerRunner(domtblout=DOMTBLOUT),
+    )
+
+    track = service.annotate(
+        ProteinAnnotationRequest(
+            sequence=sequence,
+            input_type="protein",
+            sequence_label="USH2A reference",
+            gene_symbol="USH2A",
+            allow_run=True,
+        )
+    )
+
+    labels = {feature.label: feature for feature in track.features}
+    assert track.status == "available"
+    assert "protein_annotation_cache_hit" not in track.warnings
+    assert "uniprot_feature_table_checked" in track.warnings
+    assert "Signal peptide" in labels
+    assert labels["Helical"].kind == "transmembrane"
+    assert labels["PDZ-binding"].kind == "motif"
+
+
+def test_service_returns_uniprot_feature_index_partial_track_when_hmmer_unavailable(
+    tmp_path: Path,
+) -> None:
+    flatfile_path = tmp_path / "uniprot_sprot.dat"
+    flatfile_path.write_text(USH2A_UNIPROT_ENTRY, encoding="utf-8")
+    index_path = tmp_path / "uniprot_sprot.features.jsonl"
+    write_uniprot_feature_index(flatfile_path, index_path)
+    runner = UnavailableHmmerRunner()
+    service = ProteinAnnotationService(
+        settings=Settings(
+            jwt_secret="test-secret",
+            protein_annotation_enabled=True,
+            protein_annotation_uniprot_features_enabled=True,
+            protein_annotation_uniprot_dat_path=tmp_path / "missing.dat.gz",
+            protein_annotation_uniprot_feature_index_path=index_path,
+        ),
+        cache_repo=MemoryProteinAnnotationCache(),
+        runner=runner,
+    )
+
+    track = service.annotate(
+        ProteinAnnotationRequest(
+            sequence="M" + "A" * 5201,
+            input_type="protein",
+            sequence_label="USH2A reference",
+            gene_symbol="USH2A",
+            allow_run=True,
+        )
+    )
+
+    labels = {feature.label: feature for feature in track.features}
+    assert track.status == "partial"
+    assert track.fail_closed_reason == "hmmscan_executable_missing"
+    assert "uniprot_feature_table_checked" in track.warnings
+    assert "no_live_protein_api_fallback" in track.warnings
+    assert "Signal peptide" in labels
+    assert labels["Helical"].kind == "transmembrane"
+    assert labels["PDZ-binding"].kind == "motif"
+    assert runner.calls == 0
+
+
 def test_cache_hit_is_fail_closed_to_local_cache_without_runner_call() -> None:
     normalized = normalize_protein_input("MAAAA", input_type="protein")
     pfam_release = DEFAULT_DATA_SOURCE_REGISTRY.get("interpro_pfam_protein_matches").source_version
@@ -502,9 +789,7 @@ def test_cache_hit_is_fail_closed_to_local_cache_without_runner_call() -> None:
             cache_status="stored",
             pfam_release=pfam_release,
             hmmer_release=hmmer_release,
-            uniprot_release=DEFAULT_DATA_SOURCE_REGISTRY.get(
-                "uniprotkb_reviewed_swissprot"
-            ).source_version,
+            uniprot_release=None,
             features=parse_hmmer_domtblout(
                 DOMTBLOUT,
                 pfam_release=pfam_release,

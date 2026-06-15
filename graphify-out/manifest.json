@@ -65,9 +65,9 @@
     "semantic_hash": "090fe47d3af71ae553fd9c645eccb0e1"
   },
   "app/backend/app/api/routes/health.py": {
-    "mtime": 1781191874.3490374,
-    "ast_hash": "041b9a8dc20d75849003f7613e288f01",
-    "semantic_hash": "041b9a8dc20d75849003f7613e288f01"
+    "mtime": 1781517623.8890288,
+    "ast_hash": "d4c47d1bf4fd3c6e8be8d3625c92e423",
+    "semantic_hash": ""
   },
   "app/backend/app/api/routes/lookup.py": {
     "mtime": 1780839827.1345017,
@@ -145,9 +145,9 @@
     "semantic_hash": "15cb988b89cb2d95c68b746c86a74ae7"
   },
   "app/backend/app/cli/eamos_source_asset_preflight.py": {
-    "mtime": 1781191585.2150342,
-    "ast_hash": "2b8d5d554f077702192a4d696b618b2a",
-    "semantic_hash": "2b8d5d554f077702192a4d696b618b2a"
+    "mtime": 1781515488.8697338,
+    "ast_hash": "4cf0ec087d2202eb8ef503f2ef513692",
+    "semantic_hash": ""
   },
   "app/backend/app/cli/eamos_source_download.py": {
     "mtime": 1780207758.8526082,
@@ -185,9 +185,9 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "app/backend/app/core/config.py": {
-    "mtime": 1781367641.1244223,
-    "ast_hash": "ca206ae9436ff86bf5e836a9a110ba6e",
-    "semantic_hash": "ca206ae9436ff86bf5e836a9a110ba6e"
+    "mtime": 1781514885.3023615,
+    "ast_hash": "22765ccf28d48e8acd2ccfed068375ac",
+    "semantic_hash": ""
   },
   "app/backend/app/core/db.py": {
     "mtime": 1781431322.8397977,
@@ -680,9 +680,9 @@
     "semantic_hash": "28f272c605b1144316826230d5c0730a"
   },
   "app/backend/app/services/gene_viewer.py": {
-    "mtime": 1781449591.2506135,
-    "ast_hash": "a4c15debcb924db4e80329ac7a4afdcc",
-    "semantic_hash": "a4c15debcb924db4e80329ac7a4afdcc"
+    "mtime": 1781516960.4299107,
+    "ast_hash": "6f51ade81ec0552f0d15a288dd54a5ec",
+    "semantic_hash": ""
   },
   "app/backend/app/services/indexed_sources.py": {
     "mtime": 1780491471.6906888,
@@ -740,9 +740,9 @@
     "semantic_hash": "8ce40ca9ffe8dc2b3fd87350fd40008d"
   },
   "app/backend/app/services/protein_annotation.py": {
-    "mtime": 1780159718.0669909,
-    "ast_hash": "97f3046e915bf0282f41168f2bb54dba",
-    "semantic_hash": "97f3046e915bf0282f41168f2bb54dba"
+    "mtime": 1781516946.2953062,
+    "ast_hash": "93f017d8dacf42410d4a2481d11df1f2",
+    "semantic_hash": ""
   },
   "app/backend/app/services/protein_runtime.py": {
     "mtime": 1780159770.753078,
@@ -1170,9 +1170,9 @@
     "semantic_hash": "b9f0f8e1ae15c1173407fb94068d41b1"
   },
   "app/backend/tests/test_health_api.py": {
-    "mtime": 1781359205.3830307,
-    "ast_hash": "86dc04104120935ed1c70ebf503d4f2e",
-    "semantic_hash": "86dc04104120935ed1c70ebf503d4f2e"
+    "mtime": 1781519246.0016627,
+    "ast_hash": "d19e5958a5ea7ba086c50b7e6d88ef7b",
+    "semantic_hash": ""
   },
   "app/backend/tests/test_hg38_runtime_asset_config.py": {
     "mtime": 1780657346.08471,
@@ -1240,9 +1240,9 @@
     "semantic_hash": "3ceb90e74aa1f9b5d5b4f97067a5a420"
   },
   "app/backend/tests/test_protein_annotation_service.py": {
-    "mtime": 1780069336.4348805,
-    "ast_hash": "5978223cf41b737de0391894e952aaf1",
-    "semantic_hash": "5978223cf41b737de0391894e952aaf1"
+    "mtime": 1781517108.9854646,
+    "ast_hash": "56493d39e552120ccadc338daaa64371",
+    "semantic_hash": ""
   },
   "app/backend/tests/test_protein_runtime_prepare.py": {
     "mtime": 1780159770.7779367,
@@ -2400,8 +2400,8 @@
     "semantic_hash": ""
   },
   "app/web/components/report/ReportGeneViewer.tsx": {
-    "mtime": 1781501293.1955223,
-    "ast_hash": "cb3a83af9bf6f5acfab4cbca655a7802",
+    "mtime": 1781520521.9256096,
+    "ast_hash": "4bdd56f36f01e4a2a75a21e2ca6269b6",
     "semantic_hash": ""
   },
   "app/web/components/report/ReportLoadingState.tsx": {
@@ -3105,8 +3105,8 @@
     "semantic_hash": "49f9288621bec22b511ab003edad447d"
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1781498338.5083115,
-    "ast_hash": "c68aca46ddb29e07d45b992829ea25e7",
+    "mtime": 1781513687.358118,
+    "ast_hash": "a1bda8490ed388d0627e90d602b66eaa",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -4842,6 +4842,11 @@
   "app/web/app/api/v1/lookup/route.ts": {
     "mtime": 1781495796.628174,
     "ast_hash": "087502eeb76fde37bc3a3030d08ce75f",
+    "semantic_hash": ""
+  },
+  "app/backend/app/cli/eamos_uniprot_feature_index.py": {
+    "mtime": 1781515076.7439423,
+    "ast_hash": "676ad8c60df006e7d057dce846344ef1",
     "semantic_hash": ""
   }
 }

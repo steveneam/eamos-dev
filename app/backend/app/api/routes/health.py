@@ -445,12 +445,20 @@ def _settings_path(settings, path: Path) -> Path:
 
 def _protein_annotation_health(settings, service) -> dict[str, object]:
     enabled = bool(settings.protein_annotation_enabled)
+    uniprot_feature_index_ready = _settings_path(
+        settings,
+        settings.protein_annotation_uniprot_feature_index_path,
+    ).is_file()
     result: dict[str, object] = {
         "enabled": enabled,
         "available": False,
         "status": "disabled" if not enabled else "unavailable",
         "cache_enabled": bool(getattr(service, "cache_repo", None) is not None),
         "uniprot_features_enabled": bool(settings.protein_annotation_uniprot_features_enabled),
+        "uniprot_feature_index": {
+            "configured": bool(settings.protein_annotation_uniprot_feature_index_path),
+            "ready": uniprot_feature_index_ready,
+        },
         "hmmer": {
             "ready": False,
             "reason": "protein_annotation_disabled" if not enabled else "runner_unconfigured",
@@ -479,11 +487,26 @@ def _protein_annotation_health(settings, service) -> dict[str, object]:
         }
         return result
 
-    available = bool(enabled and runtime.ready)
+    hmmer_available = bool(enabled and runtime.ready)
+    uniprot_partial_available = bool(
+        enabled
+        and settings.protein_annotation_uniprot_features_enabled
+        and uniprot_feature_index_ready
+    )
+    available = hmmer_available or uniprot_partial_available
+    status = (
+        "available"
+        if hmmer_available
+        else "partial"
+        if uniprot_partial_available
+        else "disabled"
+        if not enabled
+        else "unavailable"
+    )
     result.update(
         {
             "available": available,
-            "status": "available" if available else ("disabled" if not enabled else "unavailable"),
+            "status": status,
             "hmmer": {
                 "ready": bool(runtime.ready),
                 "reason": runtime.reason,

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import re
+import gzip
+import json
 import shutil
 import subprocess
 import tempfile
-import gzip
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.core.config import Settings
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
@@ -24,27 +26,44 @@ from app.schemas.protein_annotation import (
 )
 
 PROTEIN_ANNOTATION_SOURCE = "eamos_protein_annotation_super_tool"
+UNIPROT_FEATURE_SOURCE = "UniProtKB/Swiss-Prot feature table"
+UNIPROT_FEATURE_TABLE_CHECKED_WARNING = "uniprot_feature_table_checked"
 _PROTEIN_ALPHABET_RE = re.compile(r"^[ABCDEFGHIKLMNPQRSTVWXYZUO*]+$")
 _DNA_RE = re.compile(r"^[ACGTUNacgtun]+$")
 HMMPRESS_SUFFIXES = (".h3f", ".h3i", ".h3m", ".h3p")
 _UNIPROT_FEATURE_KIND_MAP = {
+    "CHAIN": "region",
+    "INIT_MET": "site",
+    "PEPTIDE": "region",
+    "PROPEP": "region",
     "DOMAIN": "domain",
+    "DNA_BIND": "domain",
+    "ZN_FING": "domain",
+    "NP_BIND": "region",
+    "CA_BIND": "site",
     "REGION": "region",
     "MOTIF": "motif",
     "REPEAT": "repeat",
     "SITE": "site",
     "ACT_SITE": "site",
     "BINDING": "site",
+    "METAL": "site",
     "MOD_RES": "site",
     "CARBOHYD": "site",
     "LIPID": "site",
     "DISULFID": "site",
+    "CROSSLNK": "site",
     "NON_STD": "site",
     "COILED": "coiled_coil",
     "COMPBIAS": "low_complexity",
     "SIGNAL": "signal_peptide",
+    "TRANSIT": "region",
     "TRANSMEM": "transmembrane",
+    "INTRAMEM": "transmembrane",
     "TOPO_DOM": "topological_domain",
+    "HELIX": "region",
+    "STRAND": "region",
+    "TURN": "region",
 }
 
 _CODON_TABLE = {
@@ -253,6 +272,35 @@ class UniProtFlatfileFeatureProvider:
         if not request.gene_symbol and not request.protein_accession:
             return ProteinFeatureProviderResult()
 
+        source_release = self.registry.get("uniprotkb_reviewed_swissprot").source_version
+        source_checksum = _asset_sha256("uniprot_sprot_dat_gz")
+        index_path = resolve_protein_runtime_path(
+            self.settings,
+            self.settings.protein_annotation_uniprot_feature_index_path,
+        )
+        if index_path.is_file():
+            started_at = time.monotonic()
+            try:
+                indexed = _find_uniprot_feature_index_record(
+                    path=index_path,
+                    gene_symbol=request.gene_symbol,
+                    protein_accession=request.protein_accession,
+                    timeout_seconds=self.settings.protein_annotation_uniprot_scan_timeout_seconds,
+                    started_at=started_at,
+                )
+            except TimeoutError:
+                return ProteinFeatureProviderResult(
+                    warnings=("uniprot_feature_index_scan_timeout_no_live_api_fallback",)
+                )
+            if indexed is not None:
+                features = _features_from_uniprot_feature_index_record(
+                    indexed,
+                    protein_length=protein_length,
+                    source_release=source_release,
+                    source_checksum_sha256=source_checksum,
+                )
+                return ProteinFeatureProviderResult(features=tuple(features))
+
         path = resolve_protein_runtime_path(
             self.settings,
             self.settings.protein_annotation_uniprot_dat_path,
@@ -278,12 +326,11 @@ class UniProtFlatfileFeatureProvider:
         if entry is None:
             return ProteinFeatureProviderResult(warnings=("uniprot_entry_not_found",))
 
-        source_release = self.registry.get("uniprotkb_reviewed_swissprot").source_version
         features = parse_uniprot_flatfile_features(
             entry,
             protein_length=protein_length,
             source_release=source_release,
-            source_checksum_sha256=_asset_sha256("uniprot_sprot_dat_gz"),
+            source_checksum_sha256=source_checksum,
         )
         return ProteinFeatureProviderResult(features=tuple(features))
 
@@ -323,6 +370,7 @@ class ProteinAnnotationService:
         pfam_release = self.registry.get("interpro_pfam_protein_matches").source_version
         hmmer_release = self.registry.get("hmmer_pfam_a").source_version
         uniprot_release = self.registry.get("uniprotkb_reviewed_swissprot").source_version
+        cache_uniprot_release = uniprot_release if self.feature_provider is not None else None
         if not pfam_release or not hmmer_release:
             return _unavailable_track(
                 "protein_annotation_provenance_missing",
@@ -340,16 +388,20 @@ class ProteinAnnotationService:
             sequence_hash=normalized.sequence_hash,
             pfam_release=pfam_release,
             hmmer_release=hmmer_release,
-            uniprot_release=uniprot_release,
+            uniprot_release=cache_uniprot_release,
         )
         if request.use_cache and self.cache_repo is not None:
             cached = self.cache_repo.get(
                 sequence_hash=normalized.sequence_hash,
                 pfam_release=pfam_release,
                 hmmer_release=hmmer_release,
-                uniprot_release=uniprot_release,
+                uniprot_release=cache_uniprot_release,
             )
-            if cached is not None:
+            if cached is not None and _cached_track_satisfies_request(
+                cached,
+                request=request,
+                feature_provider_enabled=self.feature_provider is not None,
+            ):
                 return cached.model_copy(
                     update={
                         "status": "cache_hit",
@@ -360,6 +412,25 @@ class ProteinAnnotationService:
                         "protein_accession": request.protein_accession,
                         "warnings": _dedupe(
                             [*cached.warnings, *normalized.warnings, "protein_annotation_cache_hit"]
+                        ),
+                    }
+                )
+            if cached is not None and not request.allow_run:
+                return cached.model_copy(
+                    update={
+                        "status": "cache_hit",
+                        "cache_status": "cache_hit",
+                        "sequence_label": request.sequence_label,
+                        "gene_symbol": request.gene_symbol,
+                        "transcript": request.transcript,
+                        "protein_accession": request.protein_accession,
+                        "warnings": _dedupe(
+                            [
+                                *cached.warnings,
+                                *normalized.warnings,
+                                "protein_annotation_cache_hit",
+                                "protein_annotation_cache_hit_uniprot_feature_table_not_checked",
+                            ]
                         ),
                     }
                 )
@@ -378,7 +449,7 @@ class ProteinAnnotationService:
                 cache_status="cache_miss",
                 pfam_release=pfam_release,
                 hmmer_release=hmmer_release,
-                uniprot_release=uniprot_release,
+                uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, "protein_annotation_cache_miss_no_runtime_run"],
             )
         if self.settings is None or not self.settings.protein_annotation_enabled:
@@ -395,12 +466,61 @@ class ProteinAnnotationService:
                 cache_status="cache_miss",
                 pfam_release=pfam_release,
                 hmmer_release=hmmer_release,
-                uniprot_release=uniprot_release,
+                uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, "no_live_protein_api_fallback"],
             )
+
+        provider_result = (
+            self.feature_provider.features_for_request(
+                request,
+                protein_length=len(normalized.protein_sequence),
+            )
+            if self.feature_provider is not None
+            else ProteinFeatureProviderResult()
+        )
+        provider_warnings = [*normalized.warnings, *provider_result.warnings]
+        if self.feature_provider is not None and (request.gene_symbol or request.protein_accession):
+            if provider_result.features:
+                provider_warnings.append(UNIPROT_FEATURE_TABLE_CHECKED_WARNING)
+            elif not provider_result.warnings:
+                provider_warnings.append(UNIPROT_FEATURE_TABLE_CHECKED_WARNING)
+
+        def partial_track_from_provider(reason: str, warnings: list[str]) -> ProteinDomainTrack:
+            track = ProteinDomainTrack(
+                status="partial",
+                fail_closed_reason=reason,
+                sequence_label=request.sequence_label,
+                gene_symbol=request.gene_symbol,
+                transcript=request.transcript,
+                protein_accession=request.protein_accession,
+                protein_sequence_hash=normalized.sequence_hash,
+                protein_length=len(normalized.protein_sequence),
+                translated_from=normalized.translated_from,
+                cache_key=cache_key,
+                cache_status="stored" if self.cache_repo is not None else "not_used",
+                pfam_release=pfam_release,
+                hmmer_release=hmmer_release,
+                uniprot_release=cache_uniprot_release,
+                features=sorted(
+                    _dedupe_features(list(provider_result.features)),
+                    key=lambda item: (item.aa_start, item.aa_end, item.source, item.label),
+                ),
+                provenance=_protein_track_provenance(self.registry),
+                warnings=_dedupe(warnings),
+            )
+            if request.use_cache and self.cache_repo is not None:
+                self.cache_repo.upsert(track)
+            return track
+
         if self.runner is None:
+            reason = "protein_annotation_runner_unconfigured"
+            if provider_result.features:
+                return partial_track_from_provider(
+                    reason,
+                    [*provider_warnings, "no_live_protein_api_fallback", reason],
+                )
             return _unavailable_track(
-                "protein_annotation_runner_unconfigured",
+                reason,
                 protein_length=len(normalized.protein_sequence),
                 sequence_hash=normalized.sequence_hash,
                 sequence_label=request.sequence_label,
@@ -412,14 +532,20 @@ class ProteinAnnotationService:
                 cache_status="cache_miss",
                 pfam_release=pfam_release,
                 hmmer_release=hmmer_release,
-                uniprot_release=uniprot_release,
+                uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, "no_live_protein_api_fallback"],
             )
 
         runtime = self.runner.status()
         if not runtime.ready:
+            reason = runtime.reason or "protein_annotation_runtime_unavailable"
+            if provider_result.features:
+                return partial_track_from_provider(
+                    reason,
+                    [*provider_warnings, *runtime.warnings, "no_live_protein_api_fallback", reason],
+                )
             return _unavailable_track(
-                runtime.reason or "protein_annotation_runtime_unavailable",
+                reason,
                 protein_length=len(normalized.protein_sequence),
                 sequence_hash=normalized.sequence_hash,
                 sequence_label=request.sequence_label,
@@ -431,7 +557,7 @@ class ProteinAnnotationService:
                 cache_status="cache_miss",
                 pfam_release=pfam_release,
                 hmmer_release=hmmer_release,
-                uniprot_release=uniprot_release,
+                uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, *runtime.warnings, "no_live_protein_api_fallback"],
             )
 
@@ -441,8 +567,14 @@ class ProteinAnnotationService:
                 sequence_hash=normalized.sequence_hash,
             )
         except Exception as exc:
+            reason = f"hmmscan_failed:{type(exc).__name__}"
+            if provider_result.features:
+                return partial_track_from_provider(
+                    reason,
+                    [*provider_warnings, "no_live_protein_api_fallback", reason],
+                )
             return _unavailable_track(
-                f"hmmscan_failed:{type(exc).__name__}",
+                reason,
                 protein_length=len(normalized.protein_sequence),
                 sequence_hash=normalized.sequence_hash,
                 sequence_label=request.sequence_label,
@@ -454,7 +586,7 @@ class ProteinAnnotationService:
                 cache_status="cache_miss",
                 pfam_release=pfam_release,
                 hmmer_release=hmmer_release,
-                uniprot_release=uniprot_release,
+                uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, "no_live_protein_api_fallback"],
             )
 
@@ -463,20 +595,11 @@ class ProteinAnnotationService:
             pfam_release=pfam_release,
             pfam_checksum_sha256=_asset_sha256("pfam_a_hmm_gz"),
         )
-        provider_result = (
-            self.feature_provider.features_for_request(
-                request,
-                protein_length=len(normalized.protein_sequence),
-            )
-            if self.feature_provider is not None
-            else ProteinFeatureProviderResult()
-        )
         features = sorted(
             _dedupe_features([*provider_result.features, *hmmer_features]),
             key=lambda item: (item.aa_start, item.aa_end, item.source, item.label),
         )
-        warnings = [*normalized.warnings]
-        warnings.extend(provider_result.warnings)
+        warnings = [*provider_warnings]
         if (
             self.feature_provider is None
             and (request.gene_symbol or request.protein_accession)
@@ -498,7 +621,7 @@ class ProteinAnnotationService:
             cache_status="stored" if self.cache_repo is not None else "not_used",
             pfam_release=pfam_release,
             hmmer_release=hmmer_release,
-            uniprot_release=uniprot_release,
+            uniprot_release=cache_uniprot_release,
             features=features,
             provenance=_protein_track_provenance(self.registry),
             warnings=_dedupe(warnings),
@@ -609,33 +732,7 @@ def parse_uniprot_flatfile_features(
 ) -> list[ProteinDomainTrackFeature]:
     accession = _primary_uniprot_accession(entry_text)
     features: list[ProteinDomainTrackFeature] = []
-    current: dict[str, object] | None = None
-    for raw_line in entry_text.splitlines():
-        if not raw_line.startswith("FT"):
-            continue
-        payload = raw_line[5:].rstrip() if len(raw_line) > 5 else ""
-        if not payload.strip():
-            continue
-        if payload[0].isspace():
-            if current is not None:
-                _apply_uniprot_feature_qualifier(current, payload.strip())
-            continue
-
-        if current is not None:
-            feature = _uniprot_feature_from_current(
-                current,
-                accession=accession,
-                protein_length=protein_length,
-                source_release=source_release,
-                source_checksum_sha256=source_checksum_sha256,
-                ordinal=len(features) + 1,
-            )
-            if feature is not None:
-                features.append(feature)
-        parts = payload.split(None, 1)
-        current = {"feature_key": parts[0], "location": parts[1] if len(parts) > 1 else ""}
-
-    if current is not None:
+    for current in _uniprot_feature_records(entry_text):
         feature = _uniprot_feature_from_current(
             current,
             accession=accession,
@@ -748,6 +845,167 @@ def _find_uniprot_entry(
     return None
 
 
+def _find_uniprot_feature_index_record(
+    *,
+    path: Path,
+    gene_symbol: str | None,
+    protein_accession: str | None,
+    timeout_seconds: float,
+    started_at: float,
+) -> dict[str, Any] | None:
+    requested_gene = (gene_symbol or "").upper()
+    requested_accession = (protein_accession or "").upper()
+    with path.open("rt", encoding="utf-8") as handle:
+        for raw_line in handle:
+            if time.monotonic() - started_at > timeout_seconds:
+                raise TimeoutError("uniprot_feature_index_scan_timeout")
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            accessions = {
+                str(accession).upper()
+                for accession in record.get("accessions", [])
+                if str(accession).strip()
+            }
+            genes = {
+                str(gene).upper()
+                for gene in record.get("genes", [])
+                if str(gene).strip()
+            }
+            if requested_accession and requested_accession in accessions:
+                return record
+            if requested_gene and requested_gene in genes:
+                return record
+    return None
+
+
+def _features_from_uniprot_feature_index_record(
+    record: dict[str, Any],
+    *,
+    protein_length: int,
+    source_release: str | None,
+    source_checksum_sha256: str | None,
+) -> list[ProteinDomainTrackFeature]:
+    accession = str(record.get("primary_accession") or "").strip() or None
+    features: list[ProteinDomainTrackFeature] = []
+    for raw_feature in record.get("features", []):
+        if not isinstance(raw_feature, dict):
+            continue
+        current: dict[str, object] = {
+            "feature_key": str(raw_feature.get("feature_key") or ""),
+            "location": str(raw_feature.get("location") or ""),
+        }
+        qualifiers = raw_feature.get("qualifiers")
+        if isinstance(qualifiers, dict):
+            for key in ("note", "id", "ligand", "ligand_id"):
+                value = qualifiers.get(key)
+                if value:
+                    current[key] = str(value)
+        feature = _uniprot_feature_from_current(
+            current,
+            accession=accession,
+            protein_length=protein_length,
+            source_release=source_release,
+            source_checksum_sha256=source_checksum_sha256,
+            ordinal=len(features) + 1,
+        )
+        if feature is not None:
+            features.append(feature)
+    return sorted(
+        _dedupe_features(features),
+        key=lambda item: (item.aa_start, item.aa_end, item.source, item.label),
+    )
+
+
+def iter_uniprot_feature_index_records(path: Path) -> Iterator[dict[str, Any]]:
+    entry_lines: list[str] = []
+    with _open_uniprot_text(path) as handle:
+        for line in handle:
+            entry_lines.append(line)
+            if not line.startswith("//"):
+                continue
+            entry = "".join(entry_lines)
+            record = _uniprot_feature_index_record(entry)
+            if record is not None:
+                yield record
+            entry_lines = []
+
+
+def write_uniprot_feature_index(dat_path: Path, output_path: Path) -> dict[str, int]:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    record_count = 0
+    feature_count = 0
+    with output_path.open("w", encoding="utf-8", newline="\n") as handle:
+        for record in iter_uniprot_feature_index_records(dat_path):
+            record_count += 1
+            feature_count += len(record.get("features", []))
+            handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+    return {"records": record_count, "features": feature_count}
+
+
+def _uniprot_feature_index_record(entry_text: str) -> dict[str, Any] | None:
+    accessions = _uniprot_accessions(entry_text)
+    genes = _uniprot_gene_symbols(entry_text)
+    features = [
+        _uniprot_feature_index_feature(record)
+        for record in _uniprot_feature_records(entry_text)
+    ]
+    features = [feature for feature in features if feature is not None]
+    if not accessions or not features:
+        return None
+    return {
+        "primary_accession": accessions[0],
+        "accessions": accessions,
+        "genes": genes,
+        "features": features,
+    }
+
+
+def _uniprot_feature_index_feature(record: dict[str, object]) -> dict[str, Any] | None:
+    feature_key = str(record.get("feature_key") or "")
+    location = str(record.get("location") or "")
+    if not feature_key or not location:
+        return None
+    qualifiers: dict[str, str] = {}
+    for key in ("note", "id", "ligand", "ligand_id"):
+        value = str(record.get(key) or "").strip()
+        if value:
+            qualifiers[key] = value
+    return {
+        "feature_key": feature_key,
+        "location": location,
+        "qualifiers": qualifiers,
+    }
+
+
+def _uniprot_feature_records(entry_text: str) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    current: dict[str, object] | None = None
+    for raw_line in entry_text.splitlines():
+        if not raw_line.startswith("FT"):
+            continue
+        payload = raw_line[5:].rstrip() if len(raw_line) > 5 else ""
+        if not payload.strip():
+            continue
+        if payload[0].isspace():
+            if current is not None:
+                _apply_uniprot_feature_qualifier(current, payload.strip())
+            continue
+
+        if current is not None:
+            records.append(current)
+        parts = payload.split(None, 1)
+        current = {"feature_key": parts[0], "location": parts[1] if len(parts) > 1 else ""}
+
+    if current is not None:
+        records.append(current)
+    return records
+
+
 def _open_uniprot_text(path: Path):
     if path.suffix.lower() == ".gz":
         return gzip.open(path, "rt", encoding="utf-8", errors="replace")
@@ -838,7 +1096,7 @@ def _uniprot_feature_from_current(
         aa_start=aa_start,
         aa_end=aa_end,
         accession=accession,
-        source="UniProtKB/Swiss-Prot feature table",
+        source=UNIPROT_FEATURE_SOURCE,
         source_accession=source_accession,
         source_release=source_release,
         source_checksum_sha256=source_checksum_sha256,
@@ -1032,6 +1290,19 @@ def _cache_key(
     if uniprot_release:
         key = f"{key}:uniprot:{uniprot_release}"
     return key
+
+
+def _cached_track_satisfies_request(
+    track: ProteinDomainTrack,
+    *,
+    request: ProteinAnnotationRequest,
+    feature_provider_enabled: bool,
+) -> bool:
+    if not feature_provider_enabled or not (request.gene_symbol or request.protein_accession):
+        return True
+    if UNIPROT_FEATURE_TABLE_CHECKED_WARNING in track.warnings:
+        return True
+    return any(feature.source == UNIPROT_FEATURE_SOURCE for feature in track.features)
 
 
 def _dedupe(items: list[str]) -> list[str]:

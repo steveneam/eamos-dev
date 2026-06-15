@@ -180,6 +180,9 @@ class Settings(BaseSettings):
     protein_annotation_uniprot_dat_path: Path = Path(
         "./data/bio_assets/protein_annotation/downloads/uniprot_sprot.dat.gz"
     )
+    protein_annotation_uniprot_feature_index_path: Path = Path(
+        "./data/bio_assets/protein_annotation/uniprot_sprot.features.jsonl"
+    )
     protein_annotation_uniprot_scan_timeout_seconds: float = 20.0
     alphamissense_hg38_runtime_asset_path: Path = Path(
         "./data/bio_assets/predictors/alphamissense/AlphaMissense_hg38.tsv.gz"

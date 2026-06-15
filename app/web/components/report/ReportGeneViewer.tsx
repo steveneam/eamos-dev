@@ -517,10 +517,16 @@ function ReportProteinView({
   onToggleAlphaMissense: (value: boolean) => void
 }) {
   const [selectedFeatureKeys, setSelectedFeatureKeys] = useState<Set<string>>(() => new Set())
+  const [visibleFeatureLanes, setVisibleFeatureLanes] = useState<Set<ProteinLaneId>>(
+    () => new Set(['topology', 'domains', 'motifs']),
+  )
+  const [showProteinScale, setShowProteinScale] = useState(true)
   const trackFeatures = track?.features ?? []
   const rawRanges = trackFeatures.length > 0 ? featuresFromTrack(trackFeatures) : featuresFromViewer(data)
-  const ranges = proteinArchitectureFeatures(rawRanges)
-  const collapsedFeatureCount = Math.max(0, rawRanges.length - ranges.length)
+  const architectureRanges = proteinArchitectureFeatures(rawRanges)
+  const ranges = architectureRanges.filter((feature) => visibleFeatureLanes.has(feature.lane))
+  const summarizedFeatureCount = Math.max(0, rawRanges.length - architectureRanges.length)
+  const hiddenFeatureCount = Math.max(0, architectureRanges.length - ranges.length)
   const proteinLength = Math.max(
     1,
     track?.protein_length ??
@@ -529,7 +535,7 @@ function ReportProteinView({
       data.proteinLength ??
       1,
   )
-  const proteinWidth = proteinCanvasWidth(proteinLength, ranges.length)
+  const proteinWidth = proteinCanvasWidth(proteinLength, architectureRanges.length)
   const proteinTrackW = proteinWidth - PROTEIN_LEFT - PROTEIN_RIGHT
   const product = data.proteinProduct
   const queriedAa = clamp(
@@ -539,9 +545,9 @@ function ReportProteinView({
   )
   const xFor = (aa: number) =>
     PROTEIN_LEFT + ((clamp(aa, 1, proteinLength) - 1) / Math.max(1, proteinLength - 1)) * proteinTrackW
-  const ticks = proteinTicks(proteinLength)
+  const scaleTicks = proteinScaleTicks(proteinLength)
   const sourceLabel = proteinSourceLabel(track, ranges.length > 0)
-  const lanes = proteinLanesFor(ranges)
+  const lanes = proteinLanesFor(architectureRanges)
   const { packedFeatures, laneOffsets, laneRowCounts, totalHeight: laneBlockHeight } = packProteinFeatures(
     ranges,
     lanes,
@@ -552,15 +558,28 @@ function ReportProteinView({
     laneY(feature.lane)
   const firstLaneY = PROTEIN_LANE_TOP
   const lastLaneBottom = PROTEIN_LANE_TOP + laneBlockHeight
+  // Reserve optional-track space so toggles alter visibility without resizing the figure.
   const proteinHeatY = lastLaneBottom + 18
-  const proteinAxisY = proteinHeatY + (includeAlphaMissense ? PROTEIN_HEAT_H + 24 : 12)
-  const proteinHeight = proteinAxisY + 28
+  const proteinScaleY = proteinHeatY + PROTEIN_HEAT_H + 24
+  const proteinHeight = proteinScaleY + 34
   const legendItems = featureLegendItems(ranges)
+  const categoryItems = featureCategoryLegendItems(architectureRanges)
   const toggleFeatureKey = (key: string) => {
     setSelectedFeatureKeys((current) => {
       const next = new Set(current)
       if (next.has(key)) next.delete(key)
       else next.add(key)
+      return next
+    })
+  }
+  const toggleVisibleLane = (lane: ProteinLaneId) => {
+    setVisibleFeatureLanes((current) => {
+      const next = new Set(current)
+      if (next.has(lane)) {
+        next.delete(lane)
+      } else {
+        next.add(lane)
+      }
       return next
     })
   }
@@ -575,15 +594,15 @@ function ReportProteinView({
     <div style={proteinShellStyle}>
       <div style={proteinHeadStyle}>
         <div style={{ minWidth: 0 }}>
-          <span className="eamos-kicker">Protein product &amp; domains</span>
+          <span className="eamos-kicker">Protein architecture &amp; features</span>
           <div style={proteinTitleStyle}>
             {product?.label ?? (data.queriedVariant.hgvsP || data.queriedVariant.hgvsC)}
           </div>
         </div>
         <div style={proteinControlsStyle}>
           <StatPill label={`${formatInt(proteinLength)} aa`} />
-          <StatPill label={`${ranges.length} architecture blocks`} />
-          {collapsedFeatureCount > 0 && <StatPill label={`${rawRanges.length} source hits`} />}
+          <StatPill label={`${ranges.length} visible features`} />
+          {rawRanges.length > 0 && <StatPill label={`${rawRanges.length} source hits`} />}
           <label style={toggleLabelStyle}>
             <input
               type="checkbox"
@@ -593,16 +612,62 @@ function ReportProteinView({
             />
             AlphaMissense
           </label>
+          <label style={toggleLabelStyle}>
+            <input
+              type="checkbox"
+              checked={showProteinScale}
+              onChange={(event) => setShowProteinScale(event.target.checked)}
+              style={{ accentColor: 'var(--teal)' }}
+            />
+            Scale
+          </label>
         </div>
       </div>
+      {categoryItems.length > 0 && (
+        <div style={featureToggleRowStyle} aria-label="Protein feature visibility">
+          {categoryItems.map((item) => (
+            <label
+              key={item.lane}
+              style={categoryToggleStyle(visibleFeatureLanes.has(item.lane), item.color)}
+            >
+              <input
+                type="checkbox"
+                checked={visibleFeatureLanes.has(item.lane)}
+                onChange={() => toggleVisibleLane(item.lane)}
+                style={{ accentColor: item.color.stroke }}
+              />
+              <span style={categorySwatchStyle(item.lane, item.color)} />
+              {item.label}
+            </label>
+          ))}
+        </div>
+      )}
 
       <div style={trackScrollStyle}>
         <svg
           viewBox={`0 0 ${proteinWidth} ${proteinHeight}`}
           role="img"
-          aria-label={`${data.gene} protein view with domain annotations`}
+          aria-label={`${data.gene} protein view with architecture feature annotations`}
           style={{ display: 'block', width: proteinWidth, maxWidth: 'none', height: 'auto' }}
         >
+          <defs>
+            <pattern id="protein-pattern-topology" width="8" height="8" patternUnits="userSpaceOnUse">
+              <path
+                d="M-2 8 L8 -2 M2 10 L10 2"
+                stroke="rgba(155, 87, 34, 0.46)"
+                strokeWidth="1"
+              />
+            </pattern>
+            <pattern id="protein-pattern-motifs" width="7" height="7" patternUnits="userSpaceOnUse">
+              <path d="M1 0 V7 M5 0 V7" stroke="rgba(111, 82, 164, 0.42)" strokeWidth="0.9" />
+            </pattern>
+            <pattern id="protein-pattern-sites" width="7" height="7" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.1" fill="rgba(172, 132, 34, 0.52)" />
+            </pattern>
+            <pattern id="protein-pattern-other" width="8" height="8" patternUnits="userSpaceOnUse">
+              <path d="M0 2 H8 M0 6 H8" stroke="rgba(92, 107, 122, 0.36)" strokeWidth="0.9" />
+            </pattern>
+          </defs>
           <rect x="0" y="0" width={proteinWidth} height={proteinHeight} rx="8" fill="var(--bg-soft)" />
 
         {lanes.map((lane) => {
@@ -645,7 +710,8 @@ function ReportProteinView({
           const y = featureY(feature)
           const color = featureColor(feature)
           const label = labelForFeatureWidth(feature, width)
-          const pointFeature = feature.start === feature.end || feature.kind === 'site'
+          const pointFeature = isPointProteinFeature(feature)
+          const patternId = proteinFeaturePatternId(feature)
           const highlighted = selectedFeatureKeys.has(feature.legendKey)
           const stroke = highlighted ? 'rgba(225, 164, 35, 0.96)' : 'var(--ink)'
           const strokeWidth = highlighted ? 3 : 0.85
@@ -669,6 +735,15 @@ function ReportProteinView({
                     stroke={stroke}
                     strokeWidth={highlighted ? 2 : 1}
                   />
+                  {patternId && (
+                    <circle
+                      cx={x}
+                      cy={y + PROTEIN_LANE_H / 2}
+                      r="4.2"
+                      fill={`url(#${patternId})`}
+                      pointerEvents="none"
+                    />
+                  )}
                 </>
               ) : (
                 <>
@@ -682,6 +757,17 @@ function ReportProteinView({
                     stroke={stroke}
                     strokeWidth={strokeWidth}
                   />
+                  {patternId && (
+                    <rect
+                      x={x}
+                      y={y}
+                      width={width}
+                      height={PROTEIN_LANE_H}
+                      rx="2"
+                      fill={`url(#${patternId})`}
+                      pointerEvents="none"
+                    />
+                  )}
                   {label && (
                     <text
                       x={x + width / 2}
@@ -760,49 +846,87 @@ function ReportProteinView({
           {data.queriedVariant.hgvsP || `aa ${queriedAa}`}
         </text>
 
-        {ticks.map((tick) => {
-          const x = xFor(tick)
-          return (
-            <g key={tick}>
-              <line x1={x} y1={proteinAxisY - 4} x2={x} y2={proteinAxisY + 5} stroke="var(--ink-4)" />
-              <text
-                x={x}
-                y={proteinAxisY + 18}
-                textAnchor={tick === 1 ? 'start' : tick === proteinLength ? 'end' : 'middle'}
-                fontSize="10"
-                fill="var(--ink-4)"
-                fontFamily="var(--mono)"
-              >
-                {tick}
-              </text>
-            </g>
-          )
-        })}
+        {showProteinScale && (
+          <g aria-hidden="true">
+            <line
+              x1={PROTEIN_LEFT}
+              y1={proteinScaleY}
+              x2={PROTEIN_LEFT + proteinTrackW}
+              y2={proteinScaleY}
+              stroke="var(--ink-3)"
+              strokeWidth="0.8"
+            />
+            {scaleTicks.map((tick) => {
+              const x = xFor(tick.aa)
+              const terminalTick = scaleTicks.find((candidate) => candidate.terminal)
+              const closeToTerminal =
+                !tick.terminal && terminalTick != null && Math.abs(x - xFor(terminalTick.aa)) < 46
+              const label =
+                tick.aa === 1
+                  ? '1'
+                  : tick.terminal
+                    ? `${tick.aa} aa`
+                    : tick.major && !closeToTerminal
+                      ? String(tick.aa)
+                      : null
+              return (
+                <g key={tick.aa}>
+                  <line
+                    x1={x}
+                    y1={proteinScaleY - (tick.major ? 7 : 4)}
+                    x2={x}
+                    y2={proteinScaleY + (tick.major ? 8 : 5)}
+                    stroke={tick.major ? 'var(--ink-3)' : 'var(--ink-5)'}
+                    strokeWidth={tick.major ? 0.85 : 0.55}
+                  />
+                  {label && (
+                    <text
+                      x={x}
+                      y={proteinScaleY + 21}
+                      textAnchor={tick.aa === 1 ? 'start' : tick.terminal ? 'end' : 'middle'}
+                      fontSize="10"
+                      fill="var(--ink-4)"
+                      fontFamily="var(--mono)"
+                    >
+                      {label}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+          </g>
+        )}
         </svg>
       </div>
 
       {ranges.length > 0 && (
         <div style={proteinLegendStyle}>
           {lanes
-            .filter((lane) => ranges.some((feature) => feature.lane === lane.id))
+            .filter((lane) => ranges.length > 0 && lane.id === 'domains')
             .map((lane) => {
-              const color = laneColor(lane.id)
+              const color = { fill: 'var(--bg)', stroke: 'var(--ink)' }
               return (
                 <span key={lane.id} style={proteinLegendItemStyle}>
                   <span
                     style={{
                       width: 12,
                       height: 7,
-                      borderRadius: 3,
+                      borderRadius: 2,
                       background: color.fill,
                       border: `0.5px solid ${color.stroke}`,
                       display: 'inline-block',
                     }}
                   />
-                  {lane.label}
+                  Protein backbone
                 </span>
               )
             })}
+          {featureCategoryLegendItems(ranges).map((item) => (
+            <span key={item.label} style={proteinLegendItemStyle}>
+              <span style={categorySwatchStyle(item.lane, item.color)} />
+              {item.label}
+            </span>
+          ))}
           <span style={proteinLegendItemStyle}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ink)', display: 'inline-block' }} />
             Query
@@ -812,8 +936,11 @@ function ReportProteinView({
 
       <div style={proteinFootStyle}>
         <span>{sourceLabel}</span>
-        {collapsedFeatureCount > 0 && (
-          <span>{`${collapsedFeatureCount} overlapping, alternate, or weak source hit${collapsedFeatureCount === 1 ? '' : 's'} summarized outside the primary architecture figure.`}</span>
+        {summarizedFeatureCount > 0 && (
+          <span>{`${summarizedFeatureCount} overlapping, alternate, or weak source hit${summarizedFeatureCount === 1 ? '' : 's'} summarized outside the primary architecture figure.`}</span>
+        )}
+        {hiddenFeatureCount > 0 && (
+          <span>{`${hiddenFeatureCount} feature${hiddenFeatureCount === 1 ? '' : 's'} hidden by category filters.`}</span>
         )}
         {product?.description && <span>{product.description}</span>}
         {alphaAvailable && (
@@ -882,7 +1009,6 @@ function featuresFromTrack(features: ProteinDomainTrackFeature[]): ProteinFeatur
       eValue: feature.e_value,
     }))
     .map(canonicalProteinFeature)
-    .map((feature) => ({ ...feature, lane: 'domains' as const }))
     .sort((a, b) => laneRank(a.lane) - laneRank(b.lane) || a.start - b.start || a.end - b.end)
 }
 
@@ -953,7 +1079,6 @@ function featuresFromViewer(data: GeneWindowData): ProteinFeatureRender[] {
       architecturePriority: 75,
     })),
   ].map(canonicalProteinFeature)
-    .map((feature) => ({ ...feature, lane: 'domains' as const }))
     .sort((a, b) => laneRank(a.lane) - laneRank(b.lane) || a.start - b.start || a.end - b.end)
 }
 
@@ -961,10 +1086,32 @@ function shortLabel(label: string): string {
   return label.length > 34 ? `${label.slice(0, 31)}...` : label
 }
 
-function proteinTicks(length: number): number[] {
-  return Array.from(
-    new Set([1, Math.round(length / 4), Math.round(length / 2), Math.round((length * 3) / 4), length].map((tick) => clamp(tick, 1, length))),
-  ).sort((a, b) => a - b)
+interface ProteinScaleTick {
+  aa: number
+  major: boolean
+  terminal: boolean
+}
+
+function proteinScaleTicks(length: number): ProteinScaleTick[] {
+  const clampedLength = Math.max(1, Math.round(length))
+  const ticks = new Map<number, ProteinScaleTick>()
+  const setTick = (aa: number, major: boolean, terminal = false) => {
+    const clampedAa = clamp(Math.round(aa), 1, clampedLength)
+    const existing = ticks.get(clampedAa)
+    ticks.set(clampedAa, {
+      aa: clampedAa,
+      major: major || existing?.major === true,
+      terminal: terminal || existing?.terminal === true,
+    })
+  }
+
+  setTick(1, true)
+  for (let aa = 100; aa < clampedLength; aa += 100) {
+    setTick(aa, aa % 200 === 0)
+  }
+  setTick(clampedLength, true, true)
+
+  return Array.from(ticks.values()).sort((a, b) => a.aa - b.aa)
 }
 
 function proteinCanvasWidth(proteinLength: number, featureCount: number): number {
@@ -1008,6 +1155,7 @@ function proteinArchitectureFeatures(features: ProteinFeatureRender[]): ProteinF
 }
 
 function isPrimaryArchitectureFeature(feature: ProteinFeatureRender, hasCanonicalInLane: boolean): boolean {
+  if (feature.kind === 'topological_domain') return false
   if (feature.lane !== 'domains') return true
   if (architecturePriority(feature) >= 70) return true
   if (hasCanonicalInLane) return false
@@ -1118,8 +1266,11 @@ function packProteinFeatures(
   const laneRowCounts = new Map<ProteinLaneId, number>()
 
   lanes.forEach((lane) => {
-    const packed = features
-      .filter((feature) => feature.lane === lane.id)
+    const rowFeatures =
+      lanes.length === 1
+        ? features
+        : features.filter((feature) => feature.lane === lane.id)
+    const packed = rowFeatures
       .sort((a, b) => a.start - b.start || b.end - a.end)
       .map((feature) => {
         const x = xFor(feature.start)
@@ -1153,7 +1304,7 @@ function packProteinFeatures(
 }
 
 function proteinLanesFor(features: ProteinFeatureRender[]): ProteinLaneDef[] {
-  return features.length > 0 ? PROTEIN_LANES.filter((lane) => lane.id === 'domains') : []
+  return features.length > 0 ? [{ id: 'domains', label: 'Architecture' }] : []
 }
 
 function normalizeProteinLane(lane: string | null | undefined, kind: string): ProteinLaneId {
@@ -1232,11 +1383,92 @@ function hashString(value: string): number {
 }
 
 function labelForFeatureWidth(feature: ProteinFeatureRender, width: number): string | null {
-  if (feature.start === feature.end || feature.kind === 'site' || width < 28) return null
+  if (isPointProteinFeature(feature) || width < 28) return null
   const maxChars = Math.max(3, Math.floor(width / 6.4))
   if (feature.short.length <= maxChars) return feature.short
   if (maxChars <= 5) return feature.short.slice(0, maxChars)
   return `${feature.short.slice(0, maxChars - 3)}...`
+}
+
+function isPointProteinFeature(feature: ProteinFeatureRender): boolean {
+  return feature.start === feature.end || feature.kind === 'site' || (feature.kind === 'motif' && featureLength(feature) <= 5)
+}
+
+function proteinFeaturePatternId(feature: Pick<ProteinFeatureRender, 'lane'>): string | null {
+  if (feature.lane === 'topology') return 'protein-pattern-topology'
+  if (feature.lane === 'motifs') return 'protein-pattern-motifs'
+  if (feature.lane === 'sites') return 'protein-pattern-sites'
+  if (feature.lane === 'other') return 'protein-pattern-other'
+  return null
+}
+
+function categorySwatchStyle(
+  lane: ProteinLaneId,
+  color: { fill: string; stroke: string; text: string },
+): React.CSSProperties {
+  return {
+    width: 13,
+    height: 8,
+    borderRadius: 2,
+    border: `0.5px solid ${color.stroke}`,
+    display: 'inline-block',
+    flex: '0 0 auto',
+    ...categorySwatchBackgroundStyle(lane, color),
+  }
+}
+
+function categorySwatchBackgroundStyle(
+  lane: ProteinLaneId,
+  color: { fill: string; stroke: string; text: string },
+): React.CSSProperties {
+  if (lane === 'domains') {
+    return {
+      background:
+        'linear-gradient(90deg, rgba(44, 123, 182, 0.28) 0 20%, rgba(86, 160, 103, 0.28) 20% 40%, rgba(196, 118, 62, 0.28) 40% 60%, rgba(129, 102, 181, 0.28) 60% 80%, rgba(196, 87, 112, 0.24) 80% 100%)',
+    }
+  }
+  if (lane === 'topology') {
+    return {
+      backgroundColor: color.fill,
+      backgroundImage: `repeating-linear-gradient(135deg, transparent 0 4px, ${color.stroke} 4px 5px, transparent 5px 9px)`,
+    }
+  }
+  if (lane === 'motifs') {
+    return {
+      backgroundColor: color.fill,
+      backgroundImage: `repeating-linear-gradient(90deg, transparent 0 4px, ${color.stroke} 4px 5px, transparent 5px 8px)`,
+    }
+  }
+  if (lane === 'sites') {
+    return {
+      backgroundColor: color.fill,
+      backgroundImage: `radial-gradient(circle at 2px 2px, ${color.stroke} 1.1px, transparent 1.4px)`,
+      backgroundSize: '6px 6px',
+    }
+  }
+  if (lane === 'other') {
+    return {
+      backgroundColor: color.fill,
+      backgroundImage: `repeating-linear-gradient(0deg, transparent 0 4px, ${color.stroke} 4px 5px, transparent 5px 8px)`,
+    }
+  }
+  return { background: color.fill }
+}
+
+function featureCategoryLegendItems(features: ProteinFeatureRender[]): Array<{
+  lane: ProteinLaneId
+  label: string
+  color: { fill: string; stroke: string; text: string }
+}> {
+  const categories: Array<{ lane: ProteinLaneId; label: string }> = [
+    { lane: 'topology', label: 'Topology' },
+    { lane: 'domains', label: 'Domains / regions' },
+    { lane: 'motifs', label: 'Motifs' },
+    { lane: 'sites', label: 'Sites' },
+  ]
+  return categories
+    .filter((category) => features.some((feature) => feature.lane === category.lane))
+    .map((category) => ({ lane: category.lane, label: category.label, color: laneColor(category.lane) }))
 }
 
 function featureLegendItems(features: ProteinFeatureRender[]): Array<{
@@ -1322,13 +1554,14 @@ function featureTitle(feature: ProteinFeatureRender): string {
 }
 
 function proteinSourceLabel(track: ProteinDomainTrack | null, hasFallbackFeatures: boolean): string {
-  if (!track) return hasFallbackFeatures ? 'Viewer protein_features' : 'No protein domain features returned'
-  if (track.status !== 'available' && track.status !== 'cache_hit') {
-    return track.fail_closed_reason ? `Protein domains unavailable: ${track.fail_closed_reason}` : `Protein domains unavailable: ${track.status}`
+  if (!track) return hasFallbackFeatures ? 'Viewer protein_features' : 'No protein architecture features returned'
+  if (track.status !== 'available' && track.status !== 'cache_hit' && track.status !== 'partial') {
+    return track.fail_closed_reason ? `Protein architecture unavailable: ${track.fail_closed_reason}` : `Protein architecture unavailable: ${track.status}`
   }
   const sources = Array.from(new Set(track.features.map((feature) => feature.source).filter(Boolean)))
   const release = track.pfam_release ?? track.uniprot_release ?? track.hmmer_release
-  return ['Source-backed', sources.slice(0, 2).join(' + '), release].filter(Boolean).join(' | ')
+  const status = track.status === 'partial' ? 'Source-backed partial' : 'Source-backed'
+  return [status, sources.slice(0, 2).join(' + '), release].filter(Boolean).join(' | ')
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -1463,6 +1696,32 @@ const toggleLabelStyle: React.CSSProperties = {
   fontSize: 10.5,
   fontWeight: 700,
   whiteSpace: 'nowrap',
+}
+
+const featureToggleRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  flexWrap: 'wrap',
+}
+
+function categoryToggleStyle(
+  active: boolean,
+  color: { fill: string; stroke: string; text: string },
+): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    border: `0.5px solid ${active ? color.stroke : 'var(--line)'}`,
+    borderRadius: 999,
+    background: active ? color.fill : 'var(--bg-soft)',
+    color: active ? color.text : 'var(--ink-4)',
+    padding: '3px 9px',
+    fontSize: 10.5,
+    fontWeight: 700,
+    whiteSpace: 'nowrap',
+  }
 }
 
 const proteinFootStyle: React.CSSProperties = {

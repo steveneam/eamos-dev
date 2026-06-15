@@ -1396,7 +1396,7 @@ def _hydrate_response_with_record_protein_track(
             allow_run=False,
         )
     )
-    if track.status not in {"available", "cache_hit"}:
+    if track.status not in {"available", "cache_hit", "partial"}:
         return
     response.tracks.protein_features = protein_features_from_domain_track(
         response.tracks.protein_features,
@@ -1474,7 +1474,7 @@ def _hydrate_response_with_source_protein_track(
         response.tracks.protein_features,
         track,
     )
-    if track.status in {"available", "cache_hit"}:
+    if track.status in {"available", "cache_hit", "partial"}:
         warning = "protein_domain_track_from_local_annotation"
     else:
         warning = "protein_domain_track_unavailable:" f"{track.fail_closed_reason or track.status}"
