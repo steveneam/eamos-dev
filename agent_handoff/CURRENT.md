@@ -14,13 +14,15 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-15 21:52 +1000 - **Vercel recovery.** `eamos-dev` had not auto-deployed Codex's `1e86a78` (`fix(protein)`): the GitHub->Vercel webhook for that one push dropped (auto-deploy itself healthy - every commit through parent `1c2df8b` deployed). Render SG was already on `1e86a78`; only the Vercel FE lagged at `1c2df8b` (missing `ReportGeneViewer.tsx` +359). Re-triggered via this combined handoff commit (+ `app/web/.gitignore` now ignores `.vercel`); removed the stray local `app/web/.vercel` link that had sent Codex's manual `vercel --prod` to the wrong `web` project (`web-beryl-delta-96`, never the real domain). Remote `web` project left intact per Steven. Held files still excluded; `LLM_PROVIDER=mock` held; no Supabase/provider/env flip.
+- **Claude:** IDLE @ 2026-06-15 22:16 +1000 - **Vercel deploy recovered, then found `1e86a78` is a degraded prod release.** Re-triggered the dropped-webhook deploy (`50d9dc8` -> live on `eamos-dev.vercel.app` 200), removed the stray `app/web/.vercel` link, and **deleted the wrong `web` Vercel project** (Steven OK; only `eamos-dev` remains). THEN `1e86a78` (first time live on Vercel) showed two regressions: Render SG **OOM >2GB** (instance 8wqsn, 22:00, on USH2A protein annotation) + **protein features missing** (new UniProt-first path needs the Render feature index, off/not-ready). Recorded for Codex in RISKS.md (`814c1fd`). **Steven deferred the fix to next session and authorized Claude to drive backend+frontend+web-server CROSS-LANE to fix it.** Prod left on `1e86a78` (degraded); rollback-first is a valid opener. `LLM_PROVIDER=mock` held; no Supabase/provider flip.
+
 
 - **Codex:** IDLE @ 2026-06-15 21:15 +1000 - **Protein architecture consistency fix is local and verified, not committed/deployed.** USH2A now uses local UniProtKB/Swiss-Prot feature-table records before Pfam/HMMER so signal peptide, TM, PDZ-binding motif, topology/motif/site categories, and source-backed partial tracks are not hidden when HMMER is unavailable. UI has category filters, sites hidden by default, persistent aa scale, pattern legend, no-resize/no-twitch toggle behavior, and browser proof screenshots under `.tmp/`. Guardrails held: no Supabase mutation, provider/env flip, Render/Vercel deploy, or bundle of held AI-gateway doc / encoding-scan helper.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-15 21:52 +1000 - Claude (Vercel recovery: re-triggered eamos-dev deploy of 1e86a78 via this combined handoff commit; removed stray local app/web/.vercel)
+UNLOCKED - 2026-06-15 22:16 +1000 - Claude (deploy recovery + wrong `web` project deleted; 1e86a78 prod regression recorded for Codex in RISKS.md; fix deferred to next session, Claude cross-lane authorized)
+
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
 `LOCKED: <agent> - <stamp> - <file/section>` before editing any of them;
@@ -327,38 +329,43 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-15 21:52 +1000 - Claude - Vercel deploy recovery):** Codex pushed
-`1e86a78` (`fix(protein): hydrate curated feature architecture` - `ReportGeneViewer.tsx`
-+359 + backend protein_annotation/health/config/CLI/tests + graphify) and deployed it to
-Render SG, but Vercel `eamos-dev` never auto-deployed it. Diagnosed via the Vercel MCP:
-auto-deploy is healthy (every commit through the parent `1c2df8b` deployed as a
-`githubDeployment` build) - the GitHub->Vercel webhook for the single `1e86a78` push was
-dropped (no build created at all). The mistaken `web`-project deploy Codex did from
-`app/web` never touched the real domain (it sits on `web-beryl-delta-96.vercel.app`).
-- **Fix (Steven-approved):** re-triggered the GitHub auto-deploy with this combined handoff
-  commit (handoff state + `app/web/.gitignore` now ignoring `.vercel`); removed the stray
-  local `app/web/.vercel` link so a future `vercel deploy` from `app/web` can't target `web`.
-- **Excluded** (held, per Steven): `docs/proprietary/eamos-ai-gateway.md`,
-  `scripts/eamos-encoding-scan.mjs`, untracked `graphify-out/2026-06-15/`. No `git add -A`.
-- **Did NOT touch:** the remote `web` Vercel project/deployment (Steven's call), Render env
-  (`uniprot_features_enabled=false` held), Supabase, `LLM_PROVIDER=mock`.
+**Latest (2026-06-15 22:16 +1000 - Claude - deploy recovery + OPEN prod incident):**
+Recovered the dropped-webhook Vercel deploy of Codex's `1e86a78`, then discovered `1e86a78`
+is a degraded prod release.
+- **Deploy recovery (DONE):** `1e86a78` never auto-deployed to `eamos-dev` (one-off dropped
+  GitHub->Vercel webhook; auto-deploy otherwise healthy). Re-triggered via `50d9dc8` (handoff +
+  `app/web/.gitignore` ignores `.vercel`) -> Vercel built `dpl_8Hced...` READY, aliased to
+  `eamos-dev.vercel.app` (200), carrying `1e86a78`'s `ReportGeneViewer.tsx`. Removed the stray
+  local `app/web/.vercel` link and **deleted the wrong `web` Vercel project** (Steven OK; Codex's
+  manual `vercel --prod` from `app/web` had gone there, to `web-beryl-delta-96`, never the real
+  domain). `vercel project ls` -> only `eamos-dev`. **Always deploy from repo root, never `app/web`.**
+- **OPEN INCIDENT (next session):** `1e86a78` reached Vercel prod for the first time and showed
+  two regressions, both backend-rooted: (1) **Render SG OOM >2GB** (instance 8wqsn, 22:00, on the
+  USH2A 5,202 aa protein annotation via the reworked `protein_annotation.py` - inefficient/leak);
+  (2) **protein features missing** vs Codex's earlier "50 blocks/248 hits" because the new
+  UniProt-first path needs `uniprot_features_enabled` + a seeded Render feature index, both
+  off/not-ready. Full write-up: RISKS.md top section (committed `814c1fd`).
+- **Steven deferred the fix to next session + authorized Claude CROSS-LANE** (backend + frontend +
+  Render/Vercel) to fix it. Prod left on `1e86a78` (degraded). Rollback-first is a valid opener
+  (Vercel target `dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc` = `1c2df8b`).
+- Guardrails held: `LLM_PROVIDER=mock`; no Supabase apply / provider flip; held files excluded
+  (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`).
 
 **Next (priority):**
-1. Verify the new Vercel deploy goes READY and serves `1e86a78`'s `ReportGeneViewer.tsx`
-   curated protein feature architecture on `https://eamos-dev.vercel.app`.
-2. Original work resumes: **genomic view Section 4 not started** (pairs with Codex's
-   gene-view figure-style refresh follow-up tracked in its own section).
-3. Optional, on Steven's go: clean up / delete the remote `web` Vercel project + its stray
-   `web-beryl-delta-96` deployment.
-4. graphify semantic pass still owed at a deliberate checkpoint (Codex lane; AST `update`
-   is current).
+1. **Fix the `1e86a78` regression** (cross-lane authorized): profile + fix `protein_annotation.py`
+   memory on large proteins (USH2A); fix the flag-off fallback so the full Pfam/HMMER architecture
+   shows (no feature loss), OR provision+seed the Render UniProt index + flip the flag. Coordinate
+   with Codex (locks). Then redeploy (Render hook + Vercel) and live-verify USH2A.
+2. If the fix isn't quick, **roll back first** (Vercel `1c2df8b` + Render pre-`1e86a78`) to restore
+   the verified-good protein architecture, then fix offline.
+3. Backlog: genomic view Section 4 (not started); graphify semantic pass; B1 forest/B7 beeswarm.
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-06-15 21:52 +1000 - Claude (Vercel deploy recovery; 1e86a78 re-triggered)
-Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md. First: git -C D:/eamos fetch origin && git status --short --branch && git log -5 --oneline.
-Delta: Codex's 1e86a78 (fix(protein): ReportGeneViewer.tsx +359 + backend) deployed to Render SG but Vercel eamos-dev never auto-deployed it (dropped GitHub webhook; auto-deploy otherwise healthy). Re-triggered via a combined handoff commit (+ app/web/.gitignore ignores .vercel) and removed the stray local app/web/.vercel link that had sent Codex's manual vercel --prod to the wrong `web` project (web-beryl-delta-96; never the real domain). Held files excluded; remote `web` project left intact per Steven; Render env / LLM_PROVIDER=mock untouched.
-Next: (1) confirm the new Vercel deploy is READY + serves 1e86a78's protein feature architecture on eamos-dev.vercel.app; (2) resume original work = genomic view Section 4 (not started); (3) optional on Steven's go: delete the remote `web` Vercel project + web-beryl-delta-96 deploy; (4) graphify semantic pass owed (Codex lane). Guardrails: reuse-first, mock-first, never cd (git -C / npm --prefix), LLM stays mock, no Supabase apply / provider/env flip without Steven, new routes/nav need Steven OK, never git add -A (held files). End clear-safe.
+# Resume prompt - 2026-06-15 22:16 +1000 - Claude (OPEN prod incident: fix 1e86a78, cross-lane authorized)
+Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md (TOP section = the 1e86a78 incident). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
+Context: Tonight Claude recovered a dropped-webhook Vercel deploy of Codex's 1e86a78 (re-triggered via 50d9dc8 -> live on eamos-dev.vercel.app), removed the stray app/web/.vercel link, and deleted the wrong `web` Vercel project (Steven OK). But 1e86a78 reached prod for the first time and is DEGRADED: (1) Render SG OOM >2GB on the USH2A protein annotation (reworked protein_annotation.py - inefficient/leak), and (2) protein features missing because the new UniProt-first path needs uniprot_features_enabled + a seeded Render feature index, both off/not-ready. Full detail in RISKS.md (committed 814c1fd).
+Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this session - drive backend + frontend + web server (Render + Vercel). Plan: reproduce USH2A locally + watch RSS; fix protein_annotation memory (stream/cap, no whole-payload buffering); make flag-off fall back to full Pfam/HMMER architecture without dropping features OR provision+seed the Render UniProt index (pre-seed, no startup-download) + flip the flag; verify (pytest + local browser); deploy Render via .render-deploy-hook + Vercel auto on push; live-verify USH2A full architecture + no OOM under load. Rollback-first is a valid opener if the fix isn't quick (Vercel dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc = 1c2df8b; Render pre-1e86a78). COORDINATE with Codex (Log Edit-Lock + Shared File Locks; he got the same handoff - don't double-drive app/backend/**). Guardrails: never cd (git -C / npm --prefix), explicit pathspecs never git add -A, LLM stays mock, no Supabase apply/provider flip without Steven, held files (ai-gateway doc, encoding-scan, graphify-out/2026-06-15) stay excluded, deploy from repo root never app/web. End clear-safe.
 ```
 
 ## Codex - Last Task & Resume
