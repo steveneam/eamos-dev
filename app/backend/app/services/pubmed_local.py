@@ -713,7 +713,10 @@ def materialize_pubmed_local_store(
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     manifest_destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="eamos-pubmed-local-") as tmp_dir:
+    with tempfile.TemporaryDirectory(
+        prefix="eamos-pubmed-local-",
+        dir=destination.parent,
+    ) as tmp_dir:
         temp_path = Path(tmp_dir) / "pubmed-local.sqlite"
         with closing(sqlite3.connect(temp_path)) as conn:
             conn.row_factory = sqlite3.Row

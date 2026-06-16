@@ -254,17 +254,66 @@ schema, writes the runtime manifest sidecar, and atomically replaces the runtime
 file. It does not register `source_asset_objects`, mutate Render env, create
 signed URLs, or set `LOCAL_EVIDENCE_ENABLED`.
 
+### 7. Tier 2 Predictor Artifact Sets
+
+Goal: prepare ESM1b, CI-SpliceAI, and CAPICE runtime artifacts for the same
+private Storage perimeter without pretending partial files are deployable.
+
+The Tier 2 upload lane is code-backed and plan-only by default:
+
+```bash
+python -m app.cli.eamos_tier2_predictor_artifact_upload --compact
+python -m app.cli.eamos_tier2_predictor_artifact_upload --artifact esm1b_hg38_scores --upload --upload-mode s3_multipart
+```
+
+Artifact sets covered:
+
+| Artifact set | Required components | Runtime settings |
+| --- | --- | --- |
+| `esm1b_hg38_scores` | bgzip TSV plus `.tbi` | `ESM1B_HG38_RUNTIME_ASSET_PATH` |
+| `ci_spliceai` | model, reference bundle, bgzip score cache plus `.tbi` | `CI_SPLICEAI_MODEL_PATH`, `CI_SPLICEAI_REFERENCE_PATH`, `CI_SPLICEAI_SCORE_CACHE_PATH` |
+| `capice` | model, bgzip feature cache plus `.tbi` | `CAPICE_MODEL_PATH`, `CAPICE_FEATURE_CACHE_PATH` |
+
+Current inventory, 2026-06-17: no approved local Tier 2 artifacts are present.
+The default predictor root `app/backend/data/bio_assets/predictors/` is missing,
+and the read-only upload plan reports `planned_count=0` with
+`missing_local_file=9`.
+
+| Artifact set | Component | Expected default path | Current status |
+| --- | --- | --- | --- |
+| `esm1b_hg38_scores` | score cache | `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz` | missing |
+| `esm1b_hg38_scores` | score cache index | `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz.tbi` | missing |
+| `ci_spliceai` | model | `app/backend/data/bio_assets/predictors/ci_spliceai/ci_spliceai.keras` | missing |
+| `ci_spliceai` | reference bundle | `app/backend/data/bio_assets/predictors/ci_spliceai/hg38_reference.json` | missing |
+| `ci_spliceai` | score cache | `app/backend/data/bio_assets/predictors/ci_spliceai/ci_spliceai_hg38_scores.vcf.gz` | missing |
+| `ci_spliceai` | score cache index | `app/backend/data/bio_assets/predictors/ci_spliceai/ci_spliceai_hg38_scores.vcf.gz.tbi` | missing |
+| `capice` | model | `app/backend/data/bio_assets/predictors/capice/capice_model.json` | missing |
+| `capice` | feature cache | `app/backend/data/bio_assets/predictors/capice/capice_hg38_features.tsv.gz` | missing |
+| `capice` | feature cache index | `app/backend/data/bio_assets/predictors/capice/capice_hg38_features.tsv.gz.tbi` | missing |
+
+The CLI blocks partial artifact-set uploads. For example, a CI-SpliceAI model
+file is not upload-eligible unless the reference bundle, score cache, and score
+cache index are also present. It writes private Storage identity manifests with
+MD5/SHA256, component role, source id, and launch-gate metadata, but it does not
+register Supabase metadata rows, mutate Render env, seed Render disk, create
+signed URLs, flip providers, or unlock restricted predictor launch behavior.
+
 ## Immediate Next Tasks
 
-1. Run the Tier 1 generated-artifact upload/sync lane for ClinGen local, PubMed
-   local, and literature embeddings after the offline artifacts are built.
-2. Register the uploaded generated artifacts in `source_asset_objects` /
+1. Keep PubMed full-corpus materialization paused until the corpus logistics
+   spec is explicitly accepted for storage scope, staging, and costs.
+2. Run the Tier 2 predictor artifact plan once local ESM1b, CI-SpliceAI, or
+   CAPICE artifacts are staged; upload only complete artifact sets.
+3. Run the Tier 1 generated-artifact upload/sync lane for ClinGen local and
+   literature embeddings after the offline artifacts are built. Do not upload
+   the 200-PMID PubMed proof as production PubMed-local.
+4. Register the uploaded generated artifacts in `source_asset_objects` /
    `source_asset_materializations` once the Storage object identities are
    approved.
-3. Add production settings/probes for dbSNP, phyloP, ClinVar, and RepeatMasker
+5. Add production settings/probes for dbSNP, phyloP, ClinVar, and RepeatMasker
    runtime paths.
-4. Register dbSNP and phyloP Storage objects in `source_asset_objects`.
-5. Seed dbSNP and phyloP onto Render as the first heavy local-adapter batch.
+6. Register dbSNP and phyloP Storage objects in `source_asset_objects`.
+7. Seed dbSNP and phyloP onto Render as the first heavy local-adapter batch.
 
 ## Verification Commands
 

@@ -54,6 +54,10 @@ from app.services.source_storage_uploads import (
     build_source_storage_upload_items,
     execute_source_storage_uploads,
 )
+from app.services.tier2_predictor_artifacts import (
+    build_tier2_predictor_artifact_upload_items,
+    execute_tier2_predictor_artifact_uploads,
+)
 
 CURRENT_WEB_RUNTIME_RENDER_DISK_GB = 15
 FULL_NONCOMMERCIAL_RENDER_DISK_GB = 60
@@ -205,6 +209,9 @@ def build_source_asset_preflight_report(
         "reader_compatibility_proofs": _reader_compatibility_proof_summary(),
         "private_storage_upload_plan": _private_storage_upload_plan_summary(),
         "generated_artifact_upload_plan": _generated_artifact_upload_plan_summary(settings),
+        "tier2_predictor_artifact_upload_plan": _tier2_predictor_artifact_upload_plan_summary(
+            settings
+        ),
         "hg38_runtime_asset": hg38_summary,
         "runtime_materialization_probe": _runtime_materialization_probe_summary(
             settings=settings,
@@ -362,6 +369,27 @@ def _generated_artifact_upload_plan_summary(settings: Settings) -> dict[str, Any
         ),
         "status_counts": dict(sorted(status_counts.items())),
         "items": [item.to_sanitized_dict() for item in result.items],
+    }
+
+
+def _tier2_predictor_artifact_upload_plan_summary(settings: Settings) -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="eamos-tier2-predictor-preflight-") as temp_dir:
+        result = execute_tier2_predictor_artifact_uploads(
+            build_tier2_predictor_artifact_upload_items(
+                settings,
+                manifest_staging_root=Path(temp_dir),
+            ),
+            upload=False,
+        )
+    payload = result.to_sanitized_dict()
+    return {
+        "network_used": False,
+        "upload_performed": False,
+        "eligible_private_upload_count": payload["status_counts"].get(
+            SourceStorageUploadStatus.PLANNED.value,
+            0,
+        ),
+        **payload,
     }
 
 
