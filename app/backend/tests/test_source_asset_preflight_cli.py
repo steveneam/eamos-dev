@@ -30,6 +30,14 @@ def test_source_asset_preflight_reports_guarded_readiness(
     monkeypatch.delenv("LOCAL_EVIDENCE_ENABLED", raising=False)
     monkeypatch.delenv("LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW", raising=False)
     monkeypatch.delenv("USE_REAL_APIS", raising=False)
+    monkeypatch.setenv("CLINGEN_LOCAL_SQLITE_PATH", str(tmp_path / "missing-clingen.sqlite"))
+    monkeypatch.setenv(
+        "CLINGEN_LOCAL_MANIFEST_PATH", str(tmp_path / "missing-clingen.manifest.json")
+    )
+    monkeypatch.setenv("PUBMED_LOCAL_SQLITE_PATH", str(tmp_path / "missing-pubmed.sqlite"))
+    monkeypatch.setenv("PUBMED_LOCAL_MANIFEST_PATH", str(tmp_path / "missing-pubmed.manifest.json"))
+    monkeypatch.setenv("RAG_SQLITE_PATH", str(tmp_path / "missing-literature.sqlite"))
+    monkeypatch.setenv("RAG_MANIFEST_PATH", str(tmp_path / "missing-literature.manifest.json"))
 
     exit_code = main(
         [
@@ -70,6 +78,12 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert output["private_storage_upload_plan"]["network_used"] is False
     assert output["private_storage_upload_plan"]["upload_performed"] is False
     assert output["private_storage_upload_plan"]["planned_count"] >= 0
+    generated_artifacts = output["generated_artifact_upload_plan"]
+    assert generated_artifacts["network_used"] is False
+    assert generated_artifacts["upload_performed"] is False
+    assert generated_artifacts["planned_count"] == 0
+    assert generated_artifacts["status_counts"]["missing_local_file"] == 3
+    assert all(item["local_path_values_emitted"] is False for item in generated_artifacts["items"])
     assert output["reader_compatibility_proofs"]["network_used"] is False
     assert output["reader_compatibility_proofs"]["runtime_mutation_performed"] is False
     assert "status_counts" in output["reader_compatibility_proofs"]

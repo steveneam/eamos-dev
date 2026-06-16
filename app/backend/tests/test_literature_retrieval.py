@@ -253,14 +253,16 @@ def test_materialize_respects_license_gene_scope_and_retraction(tmp_path: Path) 
     src = tmp_path / "pubmed.sqlite"
     out = tmp_path / "lit.sqlite"
     _make_pubmed_db(src)
+    fake = FakeEmbedder([1.0, 0.0, 0.0, 0.0])
 
     result = materialize_literature_embeddings(
         _materialize_settings(),
-        embedder=FakeEmbedder([1.0, 0.0, 0.0, 0.0]),
+        embedder=fake,
         source_db_path=src,
         output_path=out,
         manifest_path=tmp_path / "lit.manifest.json",
         source_version="cli-v1",
+        batch_size=1,
     )
 
     assert result.ready is True
@@ -268,6 +270,7 @@ def test_materialize_respects_license_gene_scope_and_retraction(tmp_path: Path) 
     assert result.licensed_snippet_count == 1  # only 111 persists abstract text
     assert result.metadata_only_count == 1  # 222 metadata-only
     assert result.gene_pair_count == 2
+    assert [len(call) for call in fake.calls] == [1, 1]
 
     store = LiteratureEmbeddingStore(out)
     rpe = store.query(["RPE65"], [1.0, 0.0, 0.0, 0.0], min_score=0.0)
@@ -289,6 +292,22 @@ def test_materialize_missing_source_is_not_ready(tmp_path: Path) -> None:
     )
     assert result.ready is False
     assert "missing" in result.message
+
+
+def test_materialize_rejects_non_positive_batch_size(tmp_path: Path) -> None:
+    src = tmp_path / "pubmed.sqlite"
+    _make_pubmed_db(src)
+
+    result = materialize_literature_embeddings(
+        _materialize_settings(),
+        embedder=FakeEmbedder([1.0, 0.0, 0.0, 0.0]),
+        source_db_path=src,
+        output_path=tmp_path / "lit.sqlite",
+        batch_size=0,
+    )
+
+    assert result.ready is False
+    assert result.message == "batch_size must be positive"
 
 
 # --- CLI ------------------------------------------------------------------

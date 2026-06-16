@@ -5,6 +5,7 @@ import json
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+import tempfile
 from typing import Any
 
 from app.core.config import Settings
@@ -42,6 +43,10 @@ from app.services.source_downloads import (
     SourceDownloadStatus,
     build_source_download_items,
     execute_source_downloads,
+)
+from app.services.generated_source_artifacts import (
+    build_generated_source_artifact_upload_items,
+    execute_generated_source_artifact_uploads,
 )
 from app.services.source_reader_proofs import execute_source_reader_proofs
 from app.services.source_storage_uploads import (
@@ -199,6 +204,7 @@ def build_source_asset_preflight_report(
         "download_staging": _download_staging_summary(),
         "reader_compatibility_proofs": _reader_compatibility_proof_summary(),
         "private_storage_upload_plan": _private_storage_upload_plan_summary(),
+        "generated_artifact_upload_plan": _generated_artifact_upload_plan_summary(settings),
         "hg38_runtime_asset": hg38_summary,
         "runtime_materialization_probe": _runtime_materialization_probe_summary(
             settings=settings,
@@ -330,6 +336,32 @@ def _private_storage_upload_plan_summary() -> dict[str, Any]:
             }
             for item in result.items
         ],
+    }
+
+
+def _generated_artifact_upload_plan_summary(settings: Settings) -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="eamos-generated-artifact-preflight-") as temp_dir:
+        result = execute_generated_source_artifact_uploads(
+            build_generated_source_artifact_upload_items(
+                settings,
+                manifest_staging_root=Path(temp_dir),
+            ),
+            upload=False,
+        )
+    status_counts = Counter(item.status.value for item in result.items)
+    return {
+        "network_used": False,
+        "upload_performed": False,
+        "planned_count": result.planned_count,
+        "uploaded_count": result.uploaded_count,
+        "blocked_count": result.blocked_count,
+        "failed_count": result.failed_count,
+        "eligible_private_upload_count": status_counts.get(
+            SourceStorageUploadStatus.PLANNED.value,
+            0,
+        ),
+        "status_counts": dict(sorted(status_counts.items())),
+        "items": [item.to_sanitized_dict() for item in result.items],
     }
 
 

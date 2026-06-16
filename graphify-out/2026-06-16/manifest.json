@@ -685,8 +685,8 @@
     "semantic_hash": ""
   },
   "app/backend/app/services/indexed_sources.py": {
-    "mtime": 1781611340.1389163,
-    "ast_hash": "967a2a8c153b8e9bbac68a58bdcc0a94",
+    "mtime": 1781611924.5763545,
+    "ast_hash": "8235a3012759f960b27ea6e8c25548ad",
     "semantic_hash": ""
   },
   "app/backend/app/services/intake.py": {
@@ -3105,8 +3105,8 @@
     "semantic_hash": "49f9288621bec22b511ab003edad447d"
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1781610491.396268,
-    "ast_hash": "6cf58c2eb1e70d1da328d387a3bbfa55",
+    "mtime": 1781611838.4852498,
+    "ast_hash": "d51dd170863d61385af9c8383a56268f",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -3120,8 +3120,8 @@
     "semantic_hash": "aab8fc6ad310bad98a9bcc05529637e3"
   },
   "agent_handoff/RISKS.md": {
-    "mtime": 1781609371.7871342,
-    "ast_hash": "9747e15141f6de9e40fc6a192bf4ff0f",
+    "mtime": 1781611885.5099647,
+    "ast_hash": "8e1471f7396df4b29640c11e314ed8ab",
     "semantic_hash": ""
   },
   "agent_handoff/TASKS.md": {

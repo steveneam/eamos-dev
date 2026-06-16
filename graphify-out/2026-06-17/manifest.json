@@ -2845,19 +2845,19 @@
     "semantic_hash": "7b142c215d03031b64b0054a2aec9c35"
   },
   "app/web/next-env.d.ts": {
-    "mtime": 1781619822.2330368,
-    "ast_hash": "b698cdd97fe8e3bd16dcd74899ad7cef",
+    "mtime": 1781495539.6891878,
+    "ast_hash": "29f60a376e12bf72b67d4994fcc84214",
     "semantic_hash": ""
   },
   "app/web/next.config.mjs": {
-    "mtime": 1781620019.7363467,
-    "ast_hash": "a8ee7e5ee1db13b9c2a57a3fb971fff6",
-    "semantic_hash": ""
+    "mtime": 1779603226.4911182,
+    "ast_hash": "7ed3e1203b6fef5efffd7c91d18808a2",
+    "semantic_hash": "7ed3e1203b6fef5efffd7c91d18808a2"
   },
   "app/web/package.json": {
-    "mtime": 1781619417.5904746,
-    "ast_hash": "83daff2d943ab46367d1bfcb49c72e0b",
-    "semantic_hash": ""
+    "mtime": 1780158319.3289754,
+    "ast_hash": "ba49a97153ed896e0da9a7d76dbc9194",
+    "semantic_hash": "ba49a97153ed896e0da9a7d76dbc9194"
   },
   "app/web/postcss.config.mjs": {
     "mtime": 1779522119.9877486,
@@ -3105,8 +3105,8 @@
     "semantic_hash": "49f9288621bec22b511ab003edad447d"
   },
   "agent_handoff/CURRENT.md": {
-    "mtime": 1781618816.5412872,
-    "ast_hash": "1d2e7116b2ee6c83fa5e79f2860736c3",
+    "mtime": 1781616216.3652093,
+    "ast_hash": "01c4abc1be62630a22a64406666c166f",
     "semantic_hash": ""
   },
   "agent_handoff/DECISIONS.md": {
@@ -4885,48 +4885,13 @@
     "semantic_hash": ""
   },
   "app/backend/app/services/generated_source_artifacts.py": {
-    "mtime": 1781621529.375425,
-    "ast_hash": "dee34a3c5c42914fe115d8b12a166a49",
+    "mtime": 1781617305.406995,
+    "ast_hash": "96c7e4f531d0ce50fa492b958f352c73",
     "semantic_hash": ""
   },
   "app/backend/tests/test_generated_source_artifacts.py": {
-    "mtime": 1781621465.1481624,
-    "ast_hash": "59dac4655f08d71399708b57b4a45abf",
-    "semantic_hash": ""
-  },
-  "app/web/app/global-error.tsx": {
-    "mtime": 1781619072.3308766,
-    "ast_hash": "92de34f4fc4d42b154e1701c3aae7a1b",
-    "semantic_hash": ""
-  },
-  "app/web/instrumentation-client.ts": {
-    "mtime": 1781619066.8884103,
-    "ast_hash": "32e04751579da7718850b6bc1ea85cc5",
-    "semantic_hash": ""
-  },
-  "app/web/instrumentation.ts": {
-    "mtime": 1781619064.836924,
-    "ast_hash": "6e0674ed9a62badcad6309fd39264d8c",
-    "semantic_hash": ""
-  },
-  "app/web/lib/sentry.shared.ts": {
-    "mtime": 1781619060.163976,
-    "ast_hash": "6ce163f2da75206a31d649f990976f58",
-    "semantic_hash": ""
-  },
-  "app/web/sentry.edge.config.ts": {
-    "mtime": 1781619062.9172149,
-    "ast_hash": "1dfd5929f829345c905057fc52d84ff9",
-    "semantic_hash": ""
-  },
-  "app/web/sentry.server.config.ts": {
-    "mtime": 1781619061.544414,
-    "ast_hash": "730f34cdccd348c34cb298f24751c54b",
-    "semantic_hash": ""
-  },
-  "docs/tech-stack.md": {
-    "mtime": 1781618387.3645427,
-    "ast_hash": "f33df1ce59470c789c0b9cd4e884b3a6",
+    "mtime": 1781617305.0575385,
+    "ast_hash": "5d15180bff1e311d74cb43ae556f5c6b",
     "semantic_hash": ""
   }
 }

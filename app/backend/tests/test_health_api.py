@@ -14,6 +14,7 @@ import app.services.build_ledger as build_ledger_module
 from app.core.config import Settings
 from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.main import create_app
+from app.services.ai_gateway.retrieval import LiteratureEmbeddingStore, LiteratureSourceRecord
 from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
@@ -82,6 +83,16 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert clingen_local["request_time_materialization_allowed"] is False
     assert clingen_local["local_path_values_emitted"] is False
     assert clingen_local["raw_source_rows_emitted"] is False
+    literature_embeddings = body["source_assets"]["literature_embeddings"]
+    assert literature_embeddings["source_id"] == "eamos_literature_embeddings"
+    assert literature_embeddings["ready"] is False
+    assert literature_embeddings["enabled"] is False
+    assert literature_embeddings["status"] == "db_missing"
+    assert literature_embeddings["startup_download_allowed"] is False
+    assert literature_embeddings["request_time_materialization_allowed"] is False
+    assert literature_embeddings["local_path_values_emitted"] is False
+    assert literature_embeddings["abstract_values_emitted"] is False
+    assert literature_embeddings["vector_values_emitted"] is False
     crispr = body["providers"]["crispr"]
     assert crispr["configured_provider"] == "local_deterministic"
     assert crispr["available"] is True
@@ -138,6 +149,7 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "ci_spliceai",
         "esm1b",
         "gene_view",
+        "literature_rag_embeddings",
         "nmdetective_pvs1",
         "protein_pfam",
     }
@@ -174,6 +186,12 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert items["literature_engine"]["status"] == "local_adapter_disabled"
     assert items["literature_engine"]["runtime_wired"] is True
     assert items["literature_engine"]["blockers"] == ["pubmed_local_materialization"]
+    assert items["literature_rag_embeddings"]["status"] == "rag_disabled"
+    assert items["literature_rag_embeddings"]["runtime_wired"] is True
+    assert items["literature_rag_embeddings"]["render_disk_role"] == "runtime_cache_required"
+    assert items["literature_rag_embeddings"]["blockers"] == [
+        "literature_embedding_materialization"
+    ]
     encoded_ledger = json.dumps(ledger).lower()
     assert "supabase://" not in encoded_ledger
     assert "service_role" not in encoded_ledger
@@ -314,6 +332,64 @@ def test_provider_cache_health_reports_compact_coordinate_index_ready_without_pa
     encoded = json.dumps(body).lower()
     assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded
     assert "eamos-coordinate-index" not in encoded
+
+
+def test_provider_cache_health_reports_literature_embeddings_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "literature.sqlite"
+    manifest_path = tmp_path / "literature.manifest.json"
+    store = LiteratureEmbeddingStore(db_path, manifest_path=manifest_path)
+    store.write(
+        [
+            (
+                LiteratureSourceRecord(
+                    pmid="111",
+                    genes=["RPE65"],
+                    title="RPE65 retinal study",
+                    snippet="Licensed abstract snippet",
+                    embed_text="",
+                    year=2022,
+                    source_url="https://pubmed.ncbi.nlm.nih.gov/111/",
+                    license_profile="cc_by",
+                ),
+                [1.0, 0.0, 0.0, 0.0],
+            )
+        ],
+        embedding_model="test-embed",
+        embedding_dim=4,
+        source_version="lit-v1",
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        rag_sqlite_path=db_path,
+        rag_manifest_path=manifest_path,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    body = response.json()
+    source_asset = body["source_assets"]["literature_embeddings"]
+    assert source_asset["ready"] is True
+    assert source_asset["status"] == "ready"
+    assert source_asset["enabled"] is False
+    assert source_asset["article_count"] == 1
+    assert source_asset["gene_pair_count"] == 1
+    assert source_asset["embedding_model"] == "test-embed"
+    assert source_asset["embedding_dim"] == 4
+    assert source_asset["actual_size_bytes"] > 0
+    ledger_items = {item["item_id"]: item for item in body["build_ledger"]["items"]}
+    assert ledger_items["literature_rag_embeddings"]["status"] == "ready"
+    assert ledger_items["literature_rag_embeddings"]["blockers"] == []
+    encoded = json.dumps(body).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "literature.sqlite" not in encoded
+    assert "supabase://" not in encoded
 
 
 def test_build_ledger_marks_gene_view_ready_when_runtime_dependencies_are_ready(

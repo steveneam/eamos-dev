@@ -219,14 +219,52 @@ Only after the full batch is present and probes are green:
 5. Expand to `search` and `workbench` only after contract tests cover those
    surfaces.
 
+### 6. Tier 1 Generated SQLite Artifacts
+
+Goal: move ClinGen local, PubMed local, and literature RAG embedding SQLite
+artifacts through the same offline -> private Storage -> Render disk pattern
+without startup downloads or provider flips.
+
+The generated-asset lane is now code-backed:
+
+```bash
+python -m app.cli.eamos_generated_artifact_upload --compact
+python -m app.cli.eamos_generated_artifact_upload --artifact pubmed_local --upload --upload-mode s3_multipart
+
+python -m app.cli.eamos_generated_artifact_sync \
+  --artifact pubmed_local \
+  --source-object-uri supabase://eamos-source-assets/generated/eamos_pubmed_local/.../pubmed-local.sqlite \
+  --force \
+  --require-ready \
+  --compact
+```
+
+Artifacts covered:
+
+| Artifact id | Runtime path setting | Manifest setting | Source id |
+| --- | --- | --- | --- |
+| `clingen_local` | `CLINGEN_LOCAL_SQLITE_PATH` | `CLINGEN_LOCAL_MANIFEST_PATH` | `eamos_clingen_local` |
+| `pubmed_local` | `PUBMED_LOCAL_SQLITE_PATH` | `PUBMED_LOCAL_MANIFEST_PATH` | `eamos_pubmed_local` |
+| `literature_embeddings` | `RAG_SQLITE_PATH` | `RAG_MANIFEST_PATH` | `eamos_literature_embeddings` |
+
+The upload CLI computes MD5/SHA256 and writes a private Storage identity
+manifest for each generated SQLite artifact. The sync CLI downloads or copies
+through a temp file, validates size/checksum and the artifact-specific SQLite
+schema, writes the runtime manifest sidecar, and atomically replaces the runtime
+file. It does not register `source_asset_objects`, mutate Render env, create
+signed URLs, or set `LOCAL_EVIDENCE_ENABLED`.
+
 ## Immediate Next Tasks
 
-1. Deploy the local build-ledger fix so Gene View stops reporting the stale
-   compact-index blocker after the asset is ready.
-2. Add production settings/probes for dbSNP, phyloP, ClinVar, and RepeatMasker
+1. Run the Tier 1 generated-artifact upload/sync lane for ClinGen local, PubMed
+   local, and literature embeddings after the offline artifacts are built.
+2. Register the uploaded generated artifacts in `source_asset_objects` /
+   `source_asset_materializations` once the Storage object identities are
+   approved.
+3. Add production settings/probes for dbSNP, phyloP, ClinVar, and RepeatMasker
    runtime paths.
-3. Register dbSNP and phyloP Storage objects in `source_asset_objects`.
-4. Seed dbSNP and phyloP onto Render as the first local-adapter batch.
+4. Register dbSNP and phyloP Storage objects in `source_asset_objects`.
+5. Seed dbSNP and phyloP onto Render as the first heavy local-adapter batch.
 
 ## Verification Commands
 

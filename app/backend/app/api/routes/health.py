@@ -22,6 +22,7 @@ from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.clingen_local import inspect_clingen_local_store
 from app.services.pubmed_local import inspect_pubmed_local_store
+from app.services.ai_gateway.retrieval import inspect_literature_store
 from app.services.crispr_design import (
     CRISPR_PROVIDER_CRISPRSCORE_R,
     CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
@@ -135,6 +136,7 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
         "compact_coordinate_index": _compact_coordinate_index_health(settings),
         "clingen_local": _clingen_local_health(settings),
         "pubmed_local": _pubmed_local_health(settings),
+        "literature_embeddings": _literature_embedding_health(settings),
     }
 
 
@@ -225,6 +227,36 @@ def _clingen_local_health(settings) -> dict[str, object]:
             "raw_source_rows_emitted": False,
             "public_serialization_allowed": True,
             "launch_gate": "clingen_local_materialization",
+        }
+
+
+def _literature_embedding_health(settings) -> dict[str, object]:
+    try:
+        return inspect_literature_store(settings).to_sanitized_dict(
+            enabled=bool(settings.rag_enabled)
+        )
+    except Exception:
+        return {
+            "source_id": "eamos_literature_embeddings",
+            "status": "runtime_asset_probe_failed",
+            "ready": False,
+            "enabled": bool(settings.rag_enabled),
+            "schema_version": None,
+            "source_version": None,
+            "article_count": 0,
+            "gene_pair_count": 0,
+            "embedding_model": None,
+            "embedding_dim": 0,
+            "actual_size_bytes": None,
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "abstract_values_emitted": False,
+            "vector_values_emitted": False,
+            "public_serialization_allowed": True,
+            "launch_gate": "literature_rag_materialization",
+            "message": "literature embedding store probe failed",
         }
 
 

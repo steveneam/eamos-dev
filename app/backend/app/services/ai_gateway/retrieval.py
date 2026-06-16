@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import lru_cache
 from hashlib import sha256
+from itertools import islice
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Protocol
 
@@ -32,6 +33,7 @@ from app.services.ai_gateway.guard import contains_forbidden_token
 
 logger = logging.getLogger(__name__)
 
+LITERATURE_EMBEDDING_SOURCE_ID = "eamos_literature_embeddings"
 SCHEMA_VERSION = "literature-embedding-v1"
 CLI_VERSION = "literature-embed-cli-v1"
 SOURCE_VERSION_PREFIX = "literature-embedding"
@@ -179,7 +181,32 @@ class LiteratureStoreInspection:
     embedding_model: str = ""
     embedding_dim: int = 0
     source_version: str = ""
+    actual_size_bytes: int | None = None
     message: str = ""
+
+    def to_sanitized_dict(self, *, enabled: bool = False) -> dict[str, Any]:
+        return {
+            "source_id": LITERATURE_EMBEDDING_SOURCE_ID,
+            "status": self.status,
+            "ready": self.ready,
+            "enabled": enabled,
+            "schema_version": SCHEMA_VERSION if self.ready else None,
+            "source_version": self.source_version or None,
+            "article_count": self.article_count,
+            "gene_pair_count": self.gene_pair_count,
+            "embedding_model": self.embedding_model or None,
+            "embedding_dim": self.embedding_dim,
+            "actual_size_bytes": self.actual_size_bytes,
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "abstract_values_emitted": False,
+            "vector_values_emitted": False,
+            "public_serialization_allowed": True,
+            "launch_gate": None if self.ready else "literature_rag_materialization",
+            "message": self.message,
+        }
 
 
 class LiteratureEmbeddingStore:
@@ -211,6 +238,10 @@ class LiteratureEmbeddingStore:
                 ).fetchone()["c"]
         except sqlite3.DatabaseError:
             return LiteratureStoreInspection(False, "db_unreadable", message="store is unreadable")
+        try:
+            actual_size_bytes = self.db_path.stat().st_size
+        except OSError:
+            actual_size_bytes = None
         return LiteratureStoreInspection(
             True,
             "ready",
@@ -219,6 +250,7 @@ class LiteratureEmbeddingStore:
             embedding_model=str(manifest["embedding_model"]),
             embedding_dim=int(manifest["embedding_dim"]),
             source_version=str(manifest["source_version"]),
+            actual_size_bytes=actual_size_bytes,
             message="ready",
         )
 
@@ -308,7 +340,7 @@ class LiteratureEmbeddingStore:
 
     def write(
         self,
-        records: list[tuple[LiteratureSourceRecord, list[float]]],
+        records: Iterable[tuple[LiteratureSourceRecord, list[float]]],
         *,
         embedding_model: str,
         embedding_dim: int,
@@ -324,59 +356,68 @@ class LiteratureEmbeddingStore:
         if temp_path.exists():
             temp_path.unlink()
 
-        gene_pair_count = 0
-        with closing(sqlite3.connect(temp_path)) as conn:
-            conn.executescript(_SCHEMA_SQL)
-            for record, vector in records:
-                if len(vector) != embedding_dim:
-                    raise ValueError(
-                        f"embedding dim {len(vector)} != expected {embedding_dim} "
-                        f"for pmid {record.pmid}"
+        article_count = 0
+        try:
+            with closing(sqlite3.connect(temp_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                conn.executescript(_SCHEMA_SQL)
+                for record, vector in records:
+                    if len(vector) != embedding_dim:
+                        raise ValueError(
+                            f"embedding dim {len(vector)} != expected {embedding_dim} "
+                            f"for pmid {record.pmid}"
+                        )
+                    conn.execute(
+                        """
+                        insert or replace into literature_embedding
+                        (pmid, title, snippet, year, source_url, license, embedding)
+                        values (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            record.pmid,
+                            record.title,
+                            record.snippet,
+                            record.year,
+                            record.source_url,
+                            record.license_profile,
+                            _pack_vector(vector),
+                        ),
                     )
+                    for gene in record.genes:
+                        conn.execute(
+                            "insert or ignore into literature_gene (pmid, gene) values (?, ?)",
+                            (record.pmid, gene),
+                        )
+                    article_count += 1
+                gene_pair_count = int(
+                    conn.execute("select count(*) as c from literature_gene").fetchone()["c"]
+                )
+                checksum = _logical_checksum_from_conn(conn)
                 conn.execute(
                     """
-                    insert or replace into literature_embedding
-                    (pmid, title, snippet, year, source_url, license, embedding)
-                    values (?, ?, ?, ?, ?, ?, ?)
+                    insert into literature_manifest
+                    (id, schema_version, source_version, cli_version, embedding_model,
+                     embedding_dim, article_count, gene_pair_count, materialized_at,
+                     checksum_algorithm, checksum_value)
+                    values (1, ?, ?, ?, ?, ?, ?, ?, ?, 'sha256', ?)
                     """,
                     (
-                        record.pmid,
-                        record.title,
-                        record.snippet,
-                        record.year,
-                        record.source_url,
-                        record.license_profile,
-                        _pack_vector(vector),
+                        SCHEMA_VERSION,
+                        source_version,
+                        CLI_VERSION,
+                        embedding_model,
+                        embedding_dim,
+                        article_count,
+                        gene_pair_count,
+                        datetime.now(timezone.utc).isoformat(),
+                        checksum,
                     ),
                 )
-                for gene in record.genes:
-                    conn.execute(
-                        "insert or ignore into literature_gene (pmid, gene) values (?, ?)",
-                        (record.pmid, gene),
-                    )
-                    gene_pair_count += 1
-            checksum = _logical_checksum(records)
-            conn.execute(
-                """
-                insert into literature_manifest
-                (id, schema_version, source_version, cli_version, embedding_model,
-                 embedding_dim, article_count, gene_pair_count, materialized_at,
-                 checksum_algorithm, checksum_value)
-                values (1, ?, ?, ?, ?, ?, ?, ?, ?, 'sha256', ?)
-                """,
-                (
-                    SCHEMA_VERSION,
-                    source_version,
-                    CLI_VERSION,
-                    embedding_model,
-                    embedding_dim,
-                    len(records),
-                    gene_pair_count,
-                    datetime.now(timezone.utc).isoformat(),
-                    checksum,
-                ),
-            )
-            conn.commit()
+                conn.commit()
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
         temp_path.replace(self.db_path)
         if self.manifest_path is not None:
@@ -389,7 +430,7 @@ class LiteratureEmbeddingStore:
                         "cli_version": CLI_VERSION,
                         "embedding_model": embedding_model,
                         "embedding_dim": embedding_dim,
-                        "article_count": len(records),
+                        "article_count": article_count,
                         "gene_pair_count": gene_pair_count,
                         "checksum_algorithm": "sha256",
                         "checksum_value": checksum,
@@ -398,7 +439,7 @@ class LiteratureEmbeddingStore:
                     sort_keys=True,
                 )
             )
-        return {"article_count": len(records), "gene_pair_count": gene_pair_count}
+        return {"article_count": article_count, "gene_pair_count": gene_pair_count}
 
 
 _SCHEMA_SQL = """
@@ -433,13 +474,30 @@ create table literature_manifest (
 """
 
 
-def _logical_checksum(
-    records: list[tuple[LiteratureSourceRecord, list[float]]],
-) -> str:
+def _logical_checksum_from_conn(conn: sqlite3.Connection) -> str:
     digest = sha256()
-    for record, _ in sorted(records, key=lambda item: item[0].pmid):
-        genes = ",".join(sorted(record.genes))
-        digest.update(f"{record.pmid}|{genes}\n".encode("utf-8"))
+    current_pmid: str | None = None
+    genes: list[str] = []
+
+    def flush() -> None:
+        if current_pmid is not None:
+            digest.update(f"{current_pmid}|{','.join(genes)}\n".encode("utf-8"))
+
+    rows = conn.execute("""
+        select e.pmid, g.gene
+        from literature_embedding e
+        left join literature_gene g on g.pmid = e.pmid
+        order by e.pmid, g.gene
+        """)
+    for row in rows:
+        pmid = str(row["pmid"])
+        if current_pmid is not None and pmid != current_pmid:
+            flush()
+            genes = []
+        current_pmid = pmid
+        if row["gene"] is not None:
+            genes.append(str(row["gene"]))
+    flush()
     return digest.hexdigest()
 
 
@@ -608,7 +666,8 @@ def _iter_source_records(
                    abstract_text, mesh_terms_json
             from pubmed_article
             where is_retracted = 0
-            """).fetchall()
+            order by pmid
+            """)
         for article in articles:
             pmid = str(article["pmid"])
             gene_rows = conn.execute(
@@ -686,9 +745,18 @@ def materialize_literature_embeddings(
             source_version=version,
             message="pubmed_local source SQLite is missing",
         )
+    if batch_size <= 0:
+        return MaterializeResult(
+            ready=False,
+            embedding_model=model,
+            embedding_dim=dim,
+            source_version=version,
+            message="batch_size must be positive",
+        )
 
-    records = list(_iter_source_records(source, snippet_max_chars=settings.rag_snippet_max_chars))
-    if not records:
+    records_iter = _iter_source_records(source, snippet_max_chars=settings.rag_snippet_max_chars)
+    first_batch = list(islice(records_iter, batch_size))
+    if not first_batch:
         return MaterializeResult(
             ready=False,
             embedding_model=model,
@@ -697,30 +765,55 @@ def materialize_literature_embeddings(
             message="no gene-scoped articles to embed",
         )
 
-    vectors: list[list[float]] = []
-    texts = [record.embed_text for record in records]
-    for start in range(0, len(texts), batch_size):
-        vectors.extend(embedder.embed(texts[start : start + batch_size]))
-    if len(vectors) != len(records):
+    licensed_count = 0
+    metadata_only_count = 0
+
+    def source_batches() -> Iterator[list[LiteratureSourceRecord]]:
+        yield first_batch
+        while True:
+            batch = list(islice(records_iter, batch_size))
+            if not batch:
+                break
+            yield batch
+
+    def paired_records() -> Iterator[tuple[LiteratureSourceRecord, list[float]]]:
+        nonlocal licensed_count, metadata_only_count
+        for batch in source_batches():
+            vectors = embedder.embed([record.embed_text for record in batch])
+            if len(vectors) != len(batch):
+                raise ValueError(
+                    f"embedder returned {len(vectors)} vectors for {len(batch)} records"
+                )
+            for record, vector in zip(batch, vectors):
+                if record.snippet:
+                    licensed_count += 1
+                else:
+                    metadata_only_count += 1
+                yield record, vector
+
+    store = LiteratureEmbeddingStore(out, manifest_path=manifest)
+    try:
+        counts = store.write(
+            paired_records(),
+            embedding_model=model,
+            embedding_dim=dim,
+            source_version=version,
+        )
+    except ValueError as exc:
         return MaterializeResult(
             ready=False,
             embedding_model=model,
             embedding_dim=dim,
             source_version=version,
-            message=f"embedder returned {len(vectors)} vectors for {len(records)} records",
+            message=str(exc),
         )
 
-    paired = list(zip(records, vectors))
-    store = LiteratureEmbeddingStore(out, manifest_path=manifest)
-    counts = store.write(paired, embedding_model=model, embedding_dim=dim, source_version=version)
-
-    licensed = sum(1 for record in records if record.snippet)
     return MaterializeResult(
         ready=True,
         article_count=counts["article_count"],
         gene_pair_count=counts["gene_pair_count"],
-        licensed_snippet_count=licensed,
-        metadata_only_count=len(records) - licensed,
+        licensed_snippet_count=licensed_count,
+        metadata_only_count=metadata_only_count,
         embedding_model=model,
         embedding_dim=dim,
         source_version=version,

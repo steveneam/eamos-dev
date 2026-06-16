@@ -15,6 +15,10 @@ from app.data_sources import (
 )
 from app.data_sources.registry import DataSourceRegistry
 from app.data_sources.source_manifest import build_post_reference_source_readiness
+from app.services.ai_gateway.retrieval import (
+    LITERATURE_EMBEDDING_SOURCE_ID,
+    inspect_literature_store,
+)
 from app.services.clinvar_local import CLINVAR_SOURCE_ID
 from app.services.clingen_local import CLINGEN_LOCAL_SOURCE_ID, inspect_clingen_local_store
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
@@ -102,6 +106,7 @@ def build_backend_build_ledger(
     coordinate_index_status = _compact_coordinate_index_status(settings)
     clingen_local_status = _clingen_local_status(settings)
     pubmed_local_status = _pubmed_local_status(settings)
+    literature_embedding_status = _literature_embedding_status(settings)
     pvs1_nmd_status = _pvs1_nmd_status()
 
     items = (
@@ -378,6 +383,41 @@ def build_backend_build_ledger(
             ),
         ),
         BuildLedgerItem(
+            item_id="literature_rag_embeddings",
+            label="Literature RAG embedding store",
+            group="literature",
+            source_ids=(LITERATURE_EMBEDDING_SOURCE_ID, "pubmed"),
+            engine="LiteratureEmbeddingStore over gateway-materialized embeddings",
+            durable_source="supabase_private_storage",
+            runtime_source="render_disk_literature_embedding_sqlite",
+            render_disk_role="runtime_cache_required",
+            storage_decision=(
+                "The embedding SQLite is built offline from PubMed local through the AI Gateway, "
+                "uploaded to private Supabase Storage as the durable artifact, and synced to "
+                "Render disk for runtime RAG. It is never built or downloaded at startup."
+            ),
+            status=literature_embedding_status,
+            runtime_wired=True,
+            public_serialization_allowed=True,
+            launch_gate=(
+                None if literature_embedding_status == "ready" else "literature_rag_materialization"
+            ),
+            blockers=(
+                ()
+                if literature_embedding_status == "ready"
+                else ("literature_embedding_materialization",)
+            ),
+            wired_surfaces=("variant_chat",),
+            next_action=(
+                None
+                if literature_embedding_status == "ready"
+                else (
+                    "Materialize PubMed local, embed license-permitted gene-scoped rows offline, "
+                    "upload the SQLite artifact to private Storage, sync to Render disk, and pass preflight."
+                )
+            ),
+        ),
+        BuildLedgerItem(
             item_id="ai_gateway",
             label="AI gateway",
             group="ai",
@@ -629,6 +669,18 @@ def _clingen_local_status(settings: Settings) -> str:
         return "ready"
     if not settings.clingen_local_enabled:
         return "local_adapter_disabled"
+    return inspection.status
+
+
+def _literature_embedding_status(settings: Settings) -> str:
+    try:
+        inspection = inspect_literature_store(settings)
+    except Exception:
+        return "runtime_asset_probe_failed"
+    if inspection.ready:
+        return "ready"
+    if not settings.rag_enabled:
+        return "rag_disabled"
     return inspection.status
 
 
