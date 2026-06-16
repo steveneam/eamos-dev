@@ -281,7 +281,12 @@ def test_provider_cache_health_reports_forced_crispr_offtarget_index_missing_as_
 
 def test_provider_cache_health_reports_compact_coordinate_index_ready_without_paths(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    def fail_full_load(*_args, **_kwargs):
+        raise AssertionError("provider-cache health must not full-load the compact index")
+
+    monkeypatch.setattr("app.services.compact_coordinate_index._load_index", fail_full_load)
     settings = Settings(
         upload_dir=tmp_path / "uploads",
         final_report_dir=tmp_path / "final_reports",

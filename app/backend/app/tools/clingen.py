@@ -123,6 +123,7 @@ class ClingenTool(FixtureBackedTool):
                 gene=gene,
                 terms=terms,
                 limit=self.settings.clingen_local_max_results,
+                verify_checksum=False,
             )
         except Exception as exc:
             if self.settings.use_real_apis and self.settings.clingen_local_fallback_on_no_hit:

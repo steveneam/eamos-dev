@@ -303,7 +303,11 @@ def _local_readiness(
 ) -> dict[str, Any]:
     off_target = build_crispr_offtarget_preflight(settings=settings)
     primer_specificity = _primer_specificity_readiness(settings)
-    compact_index = inspect_compact_coordinate_index(settings, verify_checksum=False)
+    compact_index = inspect_compact_coordinate_index(
+        settings,
+        verify_checksum=False,
+        load_records=False,
+    )
     crispr_score = inspect_crisprscore_r_runtime(
         configured_provider=settings.crispr_provider,
         rscript_path=settings.crispr_rscript_path,

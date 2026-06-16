@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast
 from urllib.parse import urlencode
@@ -17,6 +16,11 @@ from app.schemas.run import (
     FunctionalEvidenceSourceTag,
     FunctionalEvidenceSummary,
     FunctionalStudy,
+)
+from app.services import clinvar_vcv
+from app.services.clinvar_vcv import (
+    DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
+    EutilsClinVarVcvClient,
 )
 from app.services.publication_literature import VariantLiteratureTerms
 
@@ -215,27 +219,6 @@ class ClinGenERepoFunctionalClient:
         )
 
 
-class ClinVarVcvFunctionalClient:
-    def __init__(self, settings: Settings, *, timeout_seconds: float = 12.0) -> None:
-        self.settings = settings
-        self.timeout_seconds = timeout_seconds
-
-    def fetch_vcv_xml(self, variation_id: str) -> str:
-        response = httpx.get(
-            f"{self.settings.clinvar_base_url.rstrip('/')}/efetch.fcgi",
-            params={
-                "db": "clinvar",
-                "id": variation_id,
-                "rettype": "vcv",
-                "is_variationid": "true",
-                "from_esearch": "true",
-            },
-            timeout=self.timeout_seconds,
-        )
-        response.raise_for_status()
-        return response.text
-
-
 class FunctionalEvidenceExtractor:
     """Count functional-study PMIDs without assigning ACMG PS3/BS3 strength."""
 
@@ -245,13 +228,20 @@ class FunctionalEvidenceExtractor:
         settings: Settings | None = None,
         clingen_client: ClinGenFunctionalClient | None = None,
         clinvar_client: ClinVarFunctionalClient | None = None,
+        clinvar_vcv_max_xml_bytes: int = DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     ) -> None:
         self.settings = settings
+        self.clinvar_vcv_max_xml_bytes = clinvar_vcv_max_xml_bytes
         self.clingen_client = clingen_client or (
             ClinGenERepoFunctionalClient(settings) if settings is not None else None
         )
         self.clinvar_client = clinvar_client or (
-            ClinVarVcvFunctionalClient(settings) if settings is not None else None
+            EutilsClinVarVcvClient(
+                base_url=settings.clinvar_base_url,
+                max_xml_bytes=clinvar_vcv_max_xml_bytes,
+            )
+            if settings is not None
+            else None
         )
 
     def build_for_lookup(
@@ -389,34 +379,39 @@ class FunctionalEvidenceExtractor:
         if _source_failed("clinvar", source_statuses):
             return
         clinvar_raw = (evidence_raw or {}).get("clinvar")
-        xml_text = _clinvar_xml_from_raw(clinvar_raw)
+        xml_text = clinvar_vcv.clinvar_vcv_xml_from_raw(clinvar_raw)
         if not xml_text and allow_live and self.clinvar_client is not None:
             variation_id = _clinvar_variation_id(clinvar_raw, evidence_map.get("clinvar", {}))
             if variation_id:
                 try:
                     xml_text = self.clinvar_client.fetch_vcv_xml(variation_id)
+                    clinvar_vcv.store_clinvar_vcv_xml(clinvar_raw, xml_text)
                 except Exception as exc:
                     warnings.append(f"functional_clinvar_vcv_failed:{type(exc).__name__}")
-        if not xml_text:
+        parse_result = clinvar_vcv.clinvar_vcv_parse_result(
+            clinvar_raw,
+            xml_text=xml_text,
+            max_xml_bytes=self.clinvar_vcv_max_xml_bytes,
+        )
+        if parse_result.extraction is None and parse_result.error_code is None:
             return
-        self._collect_clinvar_xml(collector, xml_text, warnings)
+        self._collect_clinvar_extraction(collector, parse_result, warnings)
 
-    def _collect_clinvar_xml(
+    def _collect_clinvar_extraction(
         self,
         collector: _FunctionalEvidenceCollector,
-        xml_text: str,
+        parse_result: clinvar_vcv.ClinVarVcvParseResult,
         warnings: list[str],
     ) -> None:
-        try:
-            root = ET.fromstring(xml_text)
-        except ET.ParseError:
+        if parse_result.error_code == "xml_too_large":
+            warnings.append("functional_clinvar_vcv_too_large")
+            return
+        if parse_result.error_code == "parse_failed":
             warnings.append("functional_clinvar_vcv_parse_failed")
             return
-        for elem in root.iter():
-            tag = _local_name(elem.tag)
-            if tag not in {"Comment", "Attribute"}:
-                continue
-            text = "".join(elem.itertext())
+        if parse_result.extraction is None:
+            return
+        for text in parse_result.extraction.texts_for(("Comment", "Attribute")):
             for sentence in _functional_sentences_with_pmids(text):
                 codes = _functional_codes_from_text(sentence)
                 asserted_codes = _asserted_functional_codes_from_text(sentence)
@@ -439,16 +434,6 @@ def _coerce_clingen_records(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
         return [record for record in value if isinstance(record, dict)]
     return []
-
-
-def _clinvar_xml_from_raw(raw: Any) -> str | None:
-    if isinstance(raw, str) and "<ClinVarResult-Set" in raw:
-        return raw
-    if isinstance(raw, dict):
-        xml_text = raw.get("vcv_xml")
-        if isinstance(xml_text, str) and xml_text.strip():
-            return xml_text
-    return None
 
 
 def _clinvar_variation_id(raw: Any, summary: dict[str, Any]) -> str | None:
@@ -704,10 +689,6 @@ def _split_sentences(text: str) -> list[str]:
 
 def _normalize_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
-
-
-def _local_name(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
 
 
 def _source_failed(source: str, source_statuses: dict[str, str] | None) -> bool:

@@ -7,6 +7,7 @@ from uuid import uuid4
 from urllib.parse import unquote
 
 from app.schemas.batch import (
+    BATCH_MAX_VARIANTS,
     BatchCreateRequest,
     BatchCreateResponse,
     BatchFilters,
@@ -16,7 +17,7 @@ from app.schemas.batch import (
     ParsedVariant,
 )
 from app.services.panels import PanelService
-from app.services.vcf_ingest import parse_vcf_upload_bytes
+from app.services.vcf_ingest import DEFAULT_MAX_DECOMPRESSED_BYTES, parse_vcf_upload_bytes
 
 BATCH_EST_SECONDS_PER_LOOKUP = 0.25
 
@@ -68,9 +69,16 @@ class BatchService:
         payload: bytes,
         *,
         filename: str | None = None,
+        max_decompressed_bytes: int = DEFAULT_MAX_DECOMPRESSED_BYTES,
+        max_variants: int = BATCH_MAX_VARIANTS,
     ) -> str:
         upload_ref = f"batch-upload-{uuid4().hex[:12]}"
-        parsed = parse_vcf_upload_bytes(payload, filename=filename)
+        parsed = parse_vcf_upload_bytes(
+            payload,
+            filename=filename,
+            max_decompressed_bytes=max_decompressed_bytes,
+            max_variants=max_variants,
+        )
         stored = StoredUpload(
             upload_ref=upload_ref,
             filename=filename,

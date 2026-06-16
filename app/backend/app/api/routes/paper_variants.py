@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
@@ -29,6 +31,7 @@ _ALLOWED_PDF_CONTENT_TYPES = {
     "application/x-pdf",
     "application/octet-stream",
 }
+_T = TypeVar("_T")
 
 
 @router.post("/extract", response_model=PaperVariantsExtractResponse)
@@ -40,7 +43,12 @@ async def extract_paper_variants(
 
     settings = request.app.state.settings
     paper_text, pdf_meta = await _paper_text_from_request(request)
-    result = PaperVariantsService(settings).extract(paper_text, validate=True)
+    result = await _run_with_deadline(
+        request,
+        lambda: PaperVariantsService(settings).extract(paper_text, validate=True),
+        timeout_attr="paper_variants_extract_timeout_seconds",
+        timeout_detail="Paper variant extraction timed out.",
+    )
     return _response(settings, result=result, pdf_meta=pdf_meta)
 
 
@@ -97,11 +105,22 @@ async def _text_from_pdf_upload(
         ) as handle:
             handle.write(content)
             temp_path = Path(handle.name)
-        extracted = extract_pdf_text(temp_path, engine=request.app.state.settings.pdf_text_engine)
+        extracted = await _run_with_deadline(
+            request,
+            lambda: extract_pdf_text(
+                temp_path,
+                engine=request.app.state.settings.pdf_text_engine,
+            ),
+            timeout_attr="paper_variants_pdf_timeout_seconds",
+            timeout_detail="PDF text extraction timed out.",
+        )
     finally:
         await upload.close()
         if temp_path is not None:
-            temp_path.unlink(missing_ok=True)
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     pdf_meta = PaperVariantsPdfMeta(
         page_count=int(extracted.get("page_count", 0) or 0),
@@ -163,3 +182,31 @@ def _response(
         warnings=result.warnings,
         provenance=result.provenance,
     )
+
+
+async def _run_with_deadline(
+    request: Request,
+    func: Callable[[], _T],
+    *,
+    timeout_attr: str,
+    timeout_detail: str,
+) -> _T:
+    timeout_seconds = _positive_float(
+        getattr(request.app.state.settings, timeout_attr, None),
+        default=10.0,
+    )
+    try:
+        return await asyncio.wait_for(run_in_threadpool(func), timeout=timeout_seconds)
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=timeout_detail,
+        ) from exc
+
+
+def _positive_float(value, *, default: float) -> float:
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if coerced > 0 else default

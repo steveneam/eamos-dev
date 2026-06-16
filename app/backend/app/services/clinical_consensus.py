@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Any, Protocol
-
-import httpx
 
 from app.core.config import Settings
 from app.schemas.run import (
     AcmgCriteriaScaffold,
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
+)
+from app.services import clinvar_vcv
+from app.services.clinvar_vcv import (
+    DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
+    EutilsClinVarVcvClient,
 )
 
 _CLINGEN_SOURCE = "ClinGen Evidence Repository"
@@ -47,27 +49,6 @@ class ClinVarVcvClinicalClient(Protocol):
         """Return ClinVar VCV XML for a ClinVar Variation ID."""
 
 
-class EutilsClinVarVcvClinicalClient:
-    def __init__(self, settings: Settings, *, timeout_seconds: float = 12.0) -> None:
-        self.settings = settings
-        self.timeout_seconds = timeout_seconds
-
-    def fetch_vcv_xml(self, variation_id: str) -> str:
-        response = httpx.get(
-            f"{self.settings.clinvar_base_url.rstrip('/')}/efetch.fcgi",
-            params={
-                "db": "clinvar",
-                "id": variation_id,
-                "rettype": "vcv",
-                "is_variationid": "true",
-                "from_esearch": "true",
-            },
-            timeout=self.timeout_seconds,
-        )
-        response.raise_for_status()
-        return response.text
-
-
 @dataclass(frozen=True)
 class ClinicalConsensusResult:
     summary: dict[str, Any]
@@ -84,10 +65,17 @@ class ClinicalConsensusBuilder:
         *,
         settings: Settings | None = None,
         clinvar_client: ClinVarVcvClinicalClient | None = None,
+        clinvar_vcv_max_xml_bytes: int = DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     ) -> None:
         self.settings = settings
+        self.clinvar_vcv_max_xml_bytes = clinvar_vcv_max_xml_bytes
         self.clinvar_client = clinvar_client or (
-            EutilsClinVarVcvClinicalClient(settings) if settings is not None else None
+            EutilsClinVarVcvClient(
+                base_url=settings.clinvar_base_url,
+                max_xml_bytes=clinvar_vcv_max_xml_bytes,
+            )
+            if settings is not None
+            else None
         )
 
     def build_for_lookup(
@@ -101,30 +89,37 @@ class ClinicalConsensusBuilder:
         allow_live: bool = False,
     ) -> ClinicalConsensusResult:
         warnings: list[str] = []
-        raw = evidence_raw or {}
+        raw = evidence_raw if evidence_raw is not None else {}
         statuses = source_statuses or {}
+        clinvar_raw = raw.get("clinvar")
         clingen_records = _coerce_clingen_records(raw.get("clingen"))
         clinvar_summary = evidence_map.get("clinvar", {})
 
         clingen_consensus = _clingen_consensus(clingen_records)
         clinvar_consensus = _clinvar_consensus(clinvar_summary)
-        clinvar_xml = _clinvar_xml_from_raw(raw.get("clinvar"))
+        clinvar_xml = clinvar_vcv.clinvar_vcv_xml_from_raw(clinvar_raw)
         if (
             not clinvar_xml
             and allow_live
             and self.clinvar_client is not None
             and not _source_failed("clinvar", statuses)
         ):
-            variation_id = _clinvar_variation_id(raw.get("clinvar"), clinvar_summary)
+            variation_id = _clinvar_variation_id(clinvar_raw, clinvar_summary)
             if variation_id:
                 try:
                     clinvar_xml = self.clinvar_client.fetch_vcv_xml(variation_id)
+                    clinvar_vcv.store_clinvar_vcv_xml(clinvar_raw, clinvar_xml)
                 except Exception as exc:
                     warnings.append(f"clinical_consensus_clinvar_vcv_failed:{type(exc).__name__}")
+        clinvar_parse_result = clinvar_vcv.clinvar_vcv_parse_result(
+            clinvar_raw,
+            xml_text=clinvar_xml,
+            max_xml_bytes=self.clinvar_vcv_max_xml_bytes,
+        )
 
         source_rows = [
             *_clingen_criteria_rows(clingen_records),
-            *_clinvar_criteria_rows(clinvar_xml, warnings),
+            *_clinvar_criteria_rows(clinvar_parse_result, warnings),
         ]
 
         classification = None
@@ -252,22 +247,21 @@ def _clingen_criteria_rows(records: list[dict[str, Any]]) -> list[AcmgWorksheetC
 
 
 def _clinvar_criteria_rows(
-    xml_text: str | None,
+    parse_result: clinvar_vcv.ClinVarVcvParseResult,
     warnings: list[str],
 ) -> list[AcmgWorksheetCriterion]:
-    if not xml_text:
+    if parse_result.error_code == "xml_too_large":
+        warnings.append("clinical_consensus_clinvar_vcv_too_large")
         return []
-    try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError:
+    if parse_result.error_code == "parse_failed":
         warnings.append("clinical_consensus_clinvar_vcv_parse_failed")
+        return []
+    if parse_result.extraction is None:
         return []
 
     rows: list[AcmgWorksheetCriterion] = []
-    for elem in root.iter():
-        if _local_name(elem.tag) not in {"Comment", "Attribute", "Description"}:
-            continue
-        text = _normalize_space("".join(elem.itertext()))
+    for text in parse_result.extraction.texts_for(("Comment", "Attribute", "Description")):
+        text = _normalize_space(text)
         if not text:
             continue
         for sentence in _split_sentences(text):
@@ -407,16 +401,6 @@ def _state_from_context(text: str):
     return "met"
 
 
-def _clinvar_xml_from_raw(raw: Any) -> str | None:
-    if isinstance(raw, str) and "<ClinVarResult-Set" in raw:
-        return raw
-    if isinstance(raw, dict):
-        xml_text = raw.get("vcv_xml")
-        if isinstance(xml_text, str) and xml_text.strip():
-            return xml_text
-    return None
-
-
 def _clinvar_variation_id(raw: Any, summary: dict[str, Any]) -> str | None:
     if isinstance(raw, dict):
         for key in ("uid", "variation_id", "clinvar_id"):
@@ -475,10 +459,6 @@ def _pmids(text: str) -> set[str]:
 
 def _normalize_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
-
-
-def _local_name(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
 
 
 def _text(value: Any) -> str | None:

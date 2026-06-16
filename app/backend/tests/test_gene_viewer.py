@@ -305,8 +305,10 @@ def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeyp
     class ReferenceStore:
         def __init__(self) -> None:
             self.closed = False
+            self.calls = 0
 
         def get_sequence(self, chrom: str, start: int, end: int, build: str | None = None):
+            self.calls += 1
             assert (chrom, start, end, build) == ("chr7", 10, 13, "GRCh38")
             return ReferenceWindow(
                 requested_chrom=chrom,
@@ -329,6 +331,13 @@ def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeyp
         checksum_value="dcc3ea27079aa6dc3f9deccd7275e0f8",
     )
     store = ReferenceStore()
+    factory_calls = 0
+
+    def reference_store_factory(_resolved):
+        nonlocal factory_calls
+        factory_calls += 1
+        return store
+
     monkeypatch.setattr(
         "app.services.gene_viewer.resolve_hg38_materialized_runtime_asset",
         lambda *_args, **_kwargs: resolved,
@@ -336,12 +345,18 @@ def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeyp
     client = HttpGeneViewerSourceClient(
         Settings(jwt_secret="test-secret"),
         materialization_store=object(),
-        reference_store_factory=lambda _resolved: store,
+        reference_store_factory=reference_store_factory,
     )
 
     sequence = client.fetch_sequence(chrom="chr7", start=10, end=13, strand="-")
+    second_sequence = client.fetch_sequence(chrom="chr7", start=10, end=13, strand="-")
 
     assert sequence == "GCTT"
+    assert second_sequence == "GCTT"
+    assert factory_calls == 1
+    assert store.calls == 2
+    assert store.closed is False
+    client.close()
     assert store.closed is True
 
 
@@ -1216,13 +1231,13 @@ def test_source_backed_provider_hydrates_local_protein_domain_track_from_full_cd
     request = protein_service.requests[0]
     assert request.sequence == "AAACCCGGGTTT"
     assert request.input_type == "coding_dna"
-    assert request.allow_run is True
+    assert request.allow_run is False
     assert request.gene_symbol == "CFTR"
     assert request.transcript == "ENSTGENERIC.1"
     assert response.tracks.protein_features.domain_track is not None
     assert response.tracks.protein_features.domain_track.status == "available"
     assert response.tracks.protein_features.domains[0].label == ("Generic source-backed domain")
-    assert "protein_domain_track_from_local_annotation" in response.provenance.warnings
+    assert "protein_domain_track_from_local_cache" in response.provenance.warnings
 
 
 def test_source_backed_provider_hydrates_alphamissense_heatmap_when_requested() -> None:

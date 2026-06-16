@@ -101,7 +101,9 @@ def parse_lookup_input(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Lookup service is unavailable.",
         )
-    return service.parse_search_input(payload)
+    # Public parse must not let callers force the heavier coordinate-resolution path.
+    safe_payload = payload.model_copy(update={"resolve_coordinates": False})
+    return service.parse_search_input(safe_payload)
 
 
 @router.post("/publications", response_model=PublicationLiterature)

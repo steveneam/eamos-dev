@@ -1,5 +1,189 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-16 18:44 +1000 - Codex - Epic A A9 workflow/run-chat deadlines
+
+Completed locally; no push/deploy.
+
+- `WorkflowService.create_run()` now fans out VEP, SpliceAI, ClinVar, gnomAD,
+  and PubMed evidence calls through a bounded worker pool with an overall tool
+  deadline. Slow or failing tools degrade that evidence source with explicit
+  warnings instead of pinning the request.
+- LLM draft rendering now runs through the same bounded workflow worker pool
+  with a configured timeout and deterministic fallback.
+- `/runs/{run_id}/chat` and `/runs/{run_id}/chat/stream` now use the existing
+  authenticated chat rate-limit bucket.
+- `RunChatService` now executes answer generation in a bounded worker, enforces
+  a run-chat timeout, caps indexed chunks, and caches the vector index by
+  `run_id` + content hash so repeated questions do not re-embed the whole run
+  corpus.
+- Paper-variant PDF text extraction and variant extraction now run from the
+  async route through the threadpool with explicit 504 deadlines.
+- `EamosSearchInputResolver` live MANE/VV/rsID HTTP calls now use configured
+  per-call timeouts and a shared overall resolver deadline instead of the old
+  15s-per-call default.
+- While verifying A9, fixed the adjacent A8 ClinGen local term-index regression:
+  materialized protein records now include same-position prefix terms, so a
+  source row such as `p.His241Arg` can satisfy a same-residue protein candidate
+  query such as `p.His241Ala` without raw JSON scans.
+
+Verification:
+- `python -m py_compile app/backend/app/core/config.py app/backend/app/main.py app/backend/app/api/routes/runs.py app/backend/app/api/routes/paper_variants.py app/backend/app/services/run_chat.py app/backend/app/services/workflow.py app/backend/app/services/search_input_resolver.py app/backend/tests/test_run_chat_api.py app/backend/tests/test_rate_limits.py app/backend/tests/test_run_flow.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py`
+- `python -m pytest app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py app/backend/tests/test_rate_limits.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py -q`
+- `python -m ruff check app/backend/app/core/config.py app/backend/app/main.py app/backend/app/api/routes/runs.py app/backend/app/api/routes/paper_variants.py app/backend/app/services/run_chat.py app/backend/app/services/workflow.py app/backend/app/services/search_input_resolver.py app/backend/app/services/clingen_local.py app/backend/tests/test_run_chat_api.py app/backend/tests/test_rate_limits.py app/backend/tests/test_run_flow.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py`
+- `python -m pytest app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py app/backend/tests/test_rate_limits.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py app/backend/tests/test_clingen_local.py -q`
+- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py -q`
+- `python -m compileall app/backend/app/core/config.py app/backend/app/main.py app/backend/app/api/routes/runs.py app/backend/app/api/routes/paper_variants.py app/backend/app/services/run_chat.py app/backend/app/services/workflow.py app/backend/app/services/search_input_resolver.py app/backend/app/services/clingen_local.py`
+- `python -m black --check --fast ...` on touched A9 service/route/test files.
+- `git diff --check -- ...` on touched A9 tracked files passed apart from
+  existing LF/CRLF warnings.
+- `python -m graphify update .` passed after the final code edit; graphify refreshed
+  `graphify-out/graph.json`, `GRAPH_REPORT.md`, and `manifest.json`, skipped
+  `graph.html` because the graph has 13,886 nodes (>5,000 limit), and created
+  the expected local backup folder `graphify-out/2026-06-16/`.
+
+## 2026-06-16 04:25 +1000 - Codex - Epic A A8 bounded result sets and payloads
+
+Completed locally; no push/deploy.
+
+- `LiteratureEmbeddingStore.query()` now caps gene-filtered candidate rows,
+  streams the SQLite cursor instead of `fetchall()`, and uses an optional numpy
+  fast path (`np.frombuffer`/dot/norm) when numpy is installed, with the
+  stdlib `array("f")` scorer retained as the declared-dependency fallback.
+  Follow-up: consider making numpy a normal Windows dependency in
+  `app/backend/requirements.txt` if the install path is acceptable.
+- Indexed local readers now fail closed before materializing unbounded results:
+  VCF tabix range queries enforce max window bp and max row count,
+  predictor-position tabix reads enforce max rows, and bigWig conservation
+  summaries enforce max window bp while computing the mean in one pass.
+- ClinGen local protein/cDNA candidate search now uses the normalized indexed
+  term table on the request path instead of `lower(raw_json) LIKE`; offline
+  materialization now adds cDNA/protein search tokens extracted from source
+  strings so rematerialized stores preserve HGVS/protein lookup coverage.
+- Variant-library reads are capped/paginated (`GET /api/v1/library` gains
+  bounded `limit`, `offset`, and `folder_limit` query params), and both SQLite
+  and Supabase-backed `save_variants()` use one batched upsert instead of
+  per-variant SELECT/UPSERT or per-variant HTTP POST.
+- Chat/report inbound payloads now reject oversized client-supplied arrays and
+  text before lookup-chat context slicing (`ChatRequest.history`,
+  Workbench scratchpad edits, `ReportPayload` list fields).
+- Existing A8 guards confirmed already present: bulk save request `max_length=100`
+  and CRISPR screening-primer sites `max_length=50`.
+
+Verification:
+- `python -m compileall app/backend/app/services/ai_gateway/retrieval.py app/backend/app/schemas/chat.py app/backend/app/schemas/run.py app/backend/app/services/indexed_sources.py app/backend/app/services/clingen_local.py app/backend/app/repos/variant_library_repo.py app/backend/app/services/variant_library.py app/backend/app/api/routes/variant_library.py`
+- `python -m pytest app/backend/tests/test_literature_retrieval.py app/backend/tests/test_indexed_source_readers.py app/backend/tests/test_variant_library_api.py app/backend/tests/test_variant_library_supabase.py app/backend/tests/test_chat_service.py app/backend/tests/test_clingen_local.py -q`
+- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_run_chat_api.py -q`
+- `python -m ruff check ...` on touched A8 service/schema/route/test files.
+- `python -m black --check --fast ...` on touched A8 service/schema/route/test files.
+- `git diff --check -- ...` on touched A8 tracked files passed apart from existing LF/CRLF warnings.
+- `python -m graphify update .` first timed out at 120s, then passed with a
+  300s timeout; graphify reported no code-graph topology changes and left
+  outputs untouched.
+
+## 2026-06-16 03:43 +1000 - Codex - Epic A A7 worker-local asset reuse
+
+Completed locally; no push/deploy.
+
+- `MaterializedHg38SequenceResolver` and `HttpGeneViewerSourceClient` now keep
+  one materialized hg38 `.2bit` reader open per resolved asset key and reuse it
+  across request/exon reads, with explicit `close()` hooks and lock-guarded
+  access.
+- ssODN local transcript donor design now reuses one process-local hg38 `.2bit`
+  store for both codon lookup and donor-window construction, instead of opening
+  the same asset twice per request.
+- AlphaMissense and ESM1b local adapters now reuse one tabix reader per ready
+  asset path, guarded by a lock, and expose explicit close hooks.
+- `ComputationalAnnotationsTool` now caches its local predictor adapters on the
+  tool instance instead of rebuilding them for every evidence call.
+- `FixtureBackedTool.load_fixture()` now uses a stat-keyed process cache and
+  returns a defensive deep copy, removing repeated fixture JSON disk reads
+  without allowing caller mutation to bleed across requests.
+- Added regression coverage for 2bit store factory reuse, AlphaMissense reader
+  reuse, local predictor adapter reuse, and fixture cache copy isolation.
+
+Verification:
+- `python -m pytest app/backend/tests/test_sequence_context.py::test_materialized_hg38_resolver_reads_private_runtime_asset app/backend/tests/test_gene_viewer.py::test_http_gene_viewer_source_client_reads_materialized_hg38_sequence app/backend/tests/test_alphamissense_local_adapter.py::test_alphamissense_adapter_reuses_reader_across_calls app/backend/tests/test_tool_invariants.py::test_computational_annotations_reuses_local_predictor_adapters app/backend/tests/test_tool_invariants.py::test_fixture_backed_tool_cache_returns_independent_copy -q`
+- `python -m pytest app/backend/tests/test_sequence_context.py app/backend/tests/test_gene_viewer.py app/backend/tests/test_alphamissense_local_adapter.py app/backend/tests/test_tool_invariants.py app/backend/tests/test_workbench_api.py::test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor app/backend/tests/test_workbench_api.py::test_crispr_ssodn_public_rpe65_examples_match_expected_ordered_donor app/backend/tests/test_workbench_api.py::test_crispr_ssodn_non_default_length_recalculates_centered_offset -q`
+- `python -m pytest app/backend/tests/test_variant_search_integration.py app/backend/tests/test_lookup_section_fetch_contract.py -q`
+- `python -m pytest app/backend/tests/test_workbench_api.py -q`
+- `python -m ruff check ...` on touched A7 service/tool/test files.
+- `python -m black --check --fast ...` on touched A7 service/tool/test files.
+- `python -m compileall ...` on touched A7 service/tool modules.
+- `git diff --check` on touched A7 tracked files passed apart from existing
+  LF/CRLF warnings.
+- `python -m graphify update .` ran AST-only, refreshed graph JSON/report, and
+  skipped `graph.html` because the graph has 13,805 nodes (>5,000 limit).
+
+## 2026-06-16 02:57 +1000 - Codex - Epic A A5 bounded ClinVar VCV extraction
+
+Completed locally; no push/deploy.
+
+- Added shared `clinvar_vcv` service helper for ClinVar VCV XML:
+  live E-utilities VCV fetches now stream through a fixed byte ceiling, reject
+  oversized `Content-Length` before body iteration, and abort chunked bodies
+  once the cap is crossed.
+- Replaced the two service-local VCV clients in `clinical_consensus` and
+  `functional_evidence` with the shared capped streaming client.
+- Replaced `ET.fromstring(...).iter()` full-DOM VCV parsing in both consumers
+  with one bounded `iterparse` extraction of `Comment`, `Attribute`, and
+  `Description` text.
+- Shared the parse result through the mutable ClinVar raw payload so
+  functional evidence and clinical consensus reuse one extraction during a
+  lookup, including live-fetched VCV XML written back for downstream reuse.
+- Oversized or unparsable VCV XML now fails closed with service-specific
+  warnings instead of building a full in-memory DOM.
+
+Verification:
+- `python -m pytest app/backend/tests/test_clinvar_vcv.py app/backend/tests/test_clinical_consensus.py app/backend/tests/test_functional_evidence.py -q`
+- `python -m pytest app/backend/tests/test_variant_search_integration.py app/backend/tests/test_lookup_section_fetch_contract.py app/backend/tests/test_variant_report_orchestration.py app/backend/tests/test_variant_report_publication_functional_integration.py -q`
+- `python -m ruff check ...` on touched A5 service/test files.
+- `python -m black --check --fast ...` on touched A5 service/test files.
+- `python -m compileall ...` on touched A5 service modules.
+- `git diff --check` on touched A5 tracked files passed except existing
+  LF/CRLF warnings.
+- `python -m graphify update .` ran AST-only, refreshed graph JSON/report, and
+  skipped `graph.html` because the graph has 13,770 nodes (>5,000 limit).
+
+## 2026-06-16 02:36 +1000 - Codex - Epic A A4 compact-index and health full-load hardening
+
+Completed locally; no push/deploy.
+
+- Compact coordinate index health/preflight/build-ledger probes now use
+  metadata-only inspection (`load_records=False`) instead of materializing the
+  full JSONL artifact.
+- Runtime compact-index loads now stream records directly into indexes, avoid
+  the duplicate `rows = tuple(...)` copy, use a single load lock, cache at
+  `maxsize=2`, and no longer duplicate cache entries for checksum vs
+  non-checksum inspection.
+- Added configurable runtime ceilings:
+  `coordinate_resolver_compact_index_max_variants` and
+  `coordinate_resolver_compact_index_max_transcripts`; oversize artifacts fail
+  closed as `index_too_large`.
+- Offline compact-index builder now writes `variant_count` and
+  `transcript_count` into metadata so public probes can report counts without a
+  full load.
+- `EamosLocalCoordinateResolver` no longer defaults to raw MANE/RefSeq GFF
+  scans; raw scans are explicit opt-in only.
+- Public `/api/v1/lookup/parse` ignores client-forced `resolve_coordinates`
+  so anonymous callers cannot force the heavier coordinate-resolution path.
+  The interpreter reuses one coordinate-enabled resolver for allowed internal
+  coordinate resolution.
+- `/api/v1/health/provider-cache` source-cache summary now uses SQL aggregates
+  and grouped counts instead of selecting every source-cache row into Python.
+
+Verification:
+- `python -m pytest app/backend/tests/test_eamos_coordinate_resolver.py app/backend/tests/test_search_input_resolver.py app/backend/tests/test_health_api.py app/backend/tests/test_source_cache.py app/backend/tests/test_compact_coordinate_index_build_cli.py app/backend/tests/test_compact_coordinate_index_materialization.py app/backend/tests/test_source_asset_preflight_cli.py app/backend/tests/test_variant_search_integration.py -q`
+- Post-format focused rerun:
+  `python -m pytest app/backend/tests/test_eamos_coordinate_resolver.py app/backend/tests/test_health_api.py app/backend/tests/test_source_cache.py app/backend/tests/test_variant_search_integration.py -q`
+- `python -m pytest app/backend/tests/test_compact_coordinate_index_build_cli.py app/backend/tests/test_compact_coordinate_index_materialization.py app/backend/tests/test_source_asset_preflight_cli.py app/backend/tests/test_frontend_contract.py -q`
+- `python -m ruff check ...` on touched backend/test files.
+- `python -m black --check --fast ...` on touched backend/test files.
+- `python -m compileall ...` on touched backend modules.
+- `git diff --check` on touched backend/test files passed except existing
+  LF/CRLF warnings.
+- `python -m graphify update .` ran AST-only, refreshed graph JSON/report, and
+  skipped `graph.html` because the graph has 13,723 nodes (>5,000 limit).
+
 ## 2026-06-14 02:26 +1000 - Claude - Coordinated release: 4 uncommitted lanes committed, pushed, deployed
 
 Steven-directed combined commit/push/deploy/verify. Codex handed Claude full

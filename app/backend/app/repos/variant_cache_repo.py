@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert
 
 from app.core.db import VariantCacheRecord, session_scope
@@ -21,9 +21,6 @@ class VariantCacheRepo:
     def get_fresh(self, query_string: str, ttl_days: int) -> dict[str, Any] | None:
         cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
         with session_scope(self.session_factory) as session:
-            session.execute(
-                delete(VariantCacheRecord).where(VariantCacheRecord.created_at < cutoff)
-            )
             record = session.execute(
                 select(VariantCacheRecord).where(VariantCacheRecord.query_string == query_string)
             ).scalar_one_or_none()
@@ -35,6 +32,7 @@ class VariantCacheRepo:
                 "total_publications": record.total_publications,
                 "publication_data": json.loads(record.publication_data or "{}"),
                 "strict_genomic_cache": json.loads(record.strict_genomic_cache or "{}"),
+                "gene_context_snapshot": json.loads(record.gene_context_snapshot or "{}"),
                 "created_at": record.created_at,
             }
 
@@ -46,6 +44,7 @@ class VariantCacheRepo:
         total_publications: int | None,
         publication_data: dict[str, Any],
         strict_genomic_cache: dict[str, Any],
+        gene_context_snapshot: dict[str, Any] | None = None,
     ) -> None:
         with session_scope(self.session_factory) as session:
             now = datetime.now(timezone.utc)
@@ -55,6 +54,7 @@ class VariantCacheRepo:
                 "total_publications": total_publications,
                 "publication_data": json.dumps(publication_data),
                 "strict_genomic_cache": json.dumps(strict_genomic_cache),
+                "gene_context_snapshot": json.dumps(gene_context_snapshot or {}),
                 "created_at": now,
             }
             statement = insert(VariantCacheRecord).values(**values)
@@ -66,7 +66,22 @@ class VariantCacheRepo:
                         "total_publications": statement.excluded.total_publications,
                         "publication_data": statement.excluded.publication_data,
                         "strict_genomic_cache": statement.excluded.strict_genomic_cache,
+                        "gene_context_snapshot": statement.excluded.gene_context_snapshot,
                         "created_at": statement.excluded.created_at,
                     },
                 )
             )
+
+    def update_gene_context_snapshot(
+        self,
+        query_string: str,
+        *,
+        gene_context_snapshot: dict[str, Any],
+    ) -> None:
+        with session_scope(self.session_factory) as session:
+            record = session.execute(
+                select(VariantCacheRecord).where(VariantCacheRecord.query_string == query_string)
+            ).scalar_one_or_none()
+            if record is None:
+                return
+            record.gene_context_snapshot = json.dumps(gene_context_snapshot)

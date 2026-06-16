@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy import event
+
 from app.core.config import Settings
 from app.core.db import (
     build_session_factory,
@@ -243,6 +245,65 @@ def test_source_cache_repo_returns_fresh_and_stale_rows(tmp_path: Path) -> None:
     assert stale_result.status == "stale"
     assert stale_result.summary == {"total": 2}
     assert stale_result.warnings == ["old_warning", "live_status:fallback"]
+
+
+def test_source_cache_health_summary_uses_aggregate_queries(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    repo.upsert(
+        "gnomad",
+        "gnomad:gnomad_r4:1-68444869-t-c",
+        normalized_identity={"gene": "RPE65", "cdna": "c.260A>G"},
+        request_identity={"variant_id": "1-68444869-T-C", "dataset": "gnomad_r4"},
+        status="live",
+        summary={"variant_id": "1-68444869-T-C", "allele_frequency": 0.00001},
+        raw={"cached": True, "variant": "RPE65 c.260A>G"},
+        warnings=["cached_warning"],
+        source_url="https://gnomad.example.test/variant/1-68444869-T-C",
+        ttl_days=30,
+        source_version="gnomad_r4",
+    )
+    repo.upsert(
+        "pubmed",
+        "RPE65:c.260A>G",
+        normalized_identity={"gene": "RPE65", "cdna": "c.260A>G"},
+        request_identity={"query": "RPE65 c.260A>G"},
+        status="fallback",
+        summary={"total": 0},
+        raw={"cached": True, "query": "RPE65 c.260A>G"},
+        warnings=["old_warning"],
+        source_url="https://pubmed.example.test/?term=RPE65+c.260A%3EG",
+        ttl_days=-1,
+    )
+
+    engine = repo.session_factory.kw["bind"]
+    statements: list[str] = []
+
+    def capture_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(str(statement).lower())
+
+    event.listen(engine, "before_cursor_execute", capture_sql)
+    try:
+        summary = repo.health_summary()
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_sql)
+
+    assert summary["total_rows"] == 2
+    assert summary["fresh_rows"] == 1
+    assert summary["sources"]["gnomad"]["status_counts"] == {"live": 1}
+    assert summary["sources"]["pubmed"]["status_counts"] == {"fallback": 1}
+    selected_sql = "\n".join(statement for statement in statements if "source_cache" in statement)
+    assert "group by source_cache.source" in selected_sql
+    assert "group by source_cache.source, source_cache.status" in selected_sql
+    for column in (
+        "source_cache.cache_key",
+        "source_cache.normalized_identity",
+        "source_cache.request_identity",
+        "source_cache.summary",
+        "source_cache.raw",
+        "source_cache.warnings",
+        "source_cache.source_url",
+    ):
+        assert column not in selected_sql
 
 
 def test_hero_example_lookup_uses_fresh_source_cache(tmp_path: Path) -> None:

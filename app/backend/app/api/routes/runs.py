@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.core.deps import require_authenticated_user
+from app.core.rate_limit import RATE_LIMIT_CHAT, enforce_rate_limit
 from app.schemas.chat import RunChatRequest, RunChatResponse
 from app.schemas.draft import (
     ApproveResult,
@@ -58,8 +59,9 @@ def chat_on_run(
     run_id: str,
     payload: RunChatRequest,
     request: Request,
-    _current_user: AuthUser = Depends(require_authenticated_user),
+    current_user: AuthUser = Depends(require_authenticated_user),
 ) -> RunChatResponse:
+    enforce_rate_limit(request, RATE_LIMIT_CHAT, subject=current_user.user_id)
     return request.app.state.run_chat_service.answer(run_id, payload)
 
 
@@ -68,8 +70,9 @@ def chat_on_run_stream(
     run_id: str,
     payload: RunChatRequest,
     request: Request,
-    _current_user: AuthUser = Depends(require_authenticated_user),
+    current_user: AuthUser = Depends(require_authenticated_user),
 ) -> StreamingResponse:
+    enforce_rate_limit(request, RATE_LIMIT_CHAT, subject=current_user.user_id)
     iterator = request.app.state.run_chat_service.stream(run_id, payload)
     return StreamingResponse(iterator, media_type="text/plain")
 

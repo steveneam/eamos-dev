@@ -7,6 +7,7 @@ from pathlib import Path
 from app.cli import eamos_literature_embed_materialize as cli
 from app.cli import eamos_literature_embed_preflight as preflight_cli
 from app.core.config import Settings
+from app.services.ai_gateway import retrieval as retrieval_module
 from app.services.ai_gateway.retrieval import (
     LiteratureEmbeddingStore,
     LiteratureRetriever,
@@ -168,6 +169,22 @@ def test_query_returns_empty_on_dim_mismatch(tmp_path: Path) -> None:
 
 
 # --- materialization (read pubmed_local → embed → write store) -------------
+
+
+def test_query_caps_gene_filtered_candidate_rows(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(retrieval_module, "LITERATURE_QUERY_MAX_CANDIDATES", 2)
+    store = _store(
+        tmp_path,
+        [
+            (_record("P1", ["RPE65"]), [1.0, 0.0, 0.0, 0.0]),
+            (_record("P2", ["RPE65"]), [0.9, 0.1, 0.0, 0.0]),
+            (_record("P3", ["RPE65"]), [0.8, 0.2, 0.0, 0.0]),
+        ],
+    )
+
+    hits = store.query(["RPE65"], [1.0, 0.0, 0.0, 0.0], min_score=0.0)
+
+    assert [hit.pmid for hit in hits] == ["P1", "P2"]
 
 
 def _make_pubmed_db(path: Path) -> None:

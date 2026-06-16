@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import gzip
 
-from app.services.vcf_ingest import parse_vcf_text, parse_vcf_upload_bytes
+import pytest
+
+from app.services.vcf_ingest import VcfIngestLimitError, parse_vcf_text, parse_vcf_upload_bytes
 
 
 def test_parse_vcf_text_recovers_whitespace_rows_and_normalizes_variant_fields() -> None:
@@ -47,3 +49,34 @@ def test_parse_vcf_upload_bytes_accepts_gzip_payload() -> None:
     assert parsed.variants[0].query == "7-117509068-C-T"
     assert parsed.variants[0].gene == "CFTR"
     assert parsed.variants[0].info_af == 0.03
+
+
+def test_parse_vcf_upload_bytes_rejects_gzip_over_decompressed_limit() -> None:
+    payload = gzip.compress(
+        b"##fileformat=VCFv4.2\n"
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        + b"1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n" * 20
+    )
+
+    with pytest.raises(VcfIngestLimitError) as exc:
+        parse_vcf_upload_bytes(
+            payload,
+            filename="sample.vcf.gz",
+            max_decompressed_bytes=64,
+        )
+
+    assert exc.value.code == "vcf_decompressed_size_limit_exceeded"
+
+
+def test_parse_vcf_upload_bytes_caps_parsed_variant_count() -> None:
+    payload = (
+        b"##fileformat=VCFv4.2\n"
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        b"1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
+        b"1\t11\t.\tA\tG\t.\tPASS\tGENE=BRCA1\n"
+    )
+
+    with pytest.raises(VcfIngestLimitError) as exc:
+        parse_vcf_upload_bytes(payload, filename="sample.vcf", max_variants=1)
+
+    assert exc.value.code == "vcf_variant_count_limit_exceeded"

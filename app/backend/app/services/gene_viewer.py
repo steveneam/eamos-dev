@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -391,6 +392,17 @@ def _materialized_hg38_gene_viewer_store(
     )
 
 
+def _resolved_asset_store_key(
+    resolved: ResolvedRuntimeAsset,
+) -> tuple[str, str, int | None, str | None]:
+    return (
+        str(getattr(resolved, "path", "")),
+        str(getattr(resolved, "source_id", "")),
+        getattr(resolved, "byte_size", None),
+        getattr(resolved, "checksum_value", None),
+    )
+
+
 class HttpGeneViewerSourceClient:
     """HTTP source client boundary for future live viewer hydration.
 
@@ -420,6 +432,32 @@ class HttpGeneViewerSourceClient:
             reference_store_factory or _materialized_hg38_gene_viewer_store
         )
         self.timeout_seconds = timeout_seconds
+        self._reference_store_lock = threading.RLock()
+        self._reference_store_key: tuple[str, str, int | None, str | None] | None = None
+        self._reference_store: GeneViewerReferenceReader | None = None
+
+    def close(self) -> None:
+        with self._reference_store_lock:
+            self._close_reference_store_unlocked()
+
+    def _reference_store_for_resolved(
+        self,
+        resolved: ResolvedRuntimeAsset,
+    ) -> GeneViewerReferenceReader:
+        key = _resolved_asset_store_key(resolved)
+        if self._reference_store is None or self._reference_store_key != key:
+            self._close_reference_store_unlocked()
+            self._reference_store = self.reference_store_factory(resolved)
+            self._reference_store_key = key
+        return self._reference_store
+
+    def _close_reference_store_unlocked(self) -> None:
+        store = self._reference_store
+        self._reference_store = None
+        self._reference_store_key = None
+        close = getattr(store, "close", None)
+        if callable(close):
+            close()
 
     def resolve_variant(
         self,
@@ -591,18 +629,14 @@ class HttpGeneViewerSourceClient:
                 self.materialization_store,
                 verify_checksum=False,
             )
-            reference_store = self.reference_store_factory(resolved)
-            try:
+            with self._reference_store_lock:
+                reference_store = self._reference_store_for_resolved(resolved)
                 sequence = reference_store.get_sequence(
                     chrom,
                     start,
                     end,
                     build="GRCh38",
                 ).sequence
-            finally:
-                close = getattr(reference_store, "close", None)
-                if callable(close):
-                    close()
         except SourceAssetMaterializationError as exc:
             code = f"{GENE_VIEWER_PROVIDER_UNAVAILABLE}:{exc.code}"
             raise GeneViewerError(
@@ -1458,7 +1492,7 @@ def _hydrate_response_with_source_protein_track(
                 gene_symbol=transcript_source.gene.upper(),
                 transcript=transcript_source.transcript,
                 use_cache=True,
-                allow_run=True,
+                allow_run=False,
             )
         )
     except Exception as exc:
@@ -1475,7 +1509,7 @@ def _hydrate_response_with_source_protein_track(
         track,
     )
     if track.status in {"available", "cache_hit", "partial"}:
-        warning = "protein_domain_track_from_local_annotation"
+        warning = "protein_domain_track_from_local_cache"
     else:
         warning = "protein_domain_track_unavailable:" f"{track.fail_closed_reason or track.status}"
     response.provenance.warnings = _dedupe_warnings([*response.provenance.warnings, warning])

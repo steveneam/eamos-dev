@@ -331,6 +331,67 @@ def test_clinvar_failed_source_status_skips_live_vcv_fetch() -> None:
     assert clinvar_client.calls == 0
 
 
+def test_clinvar_vcv_over_size_limit_is_skipped_with_warning() -> None:
+    xml_text = """<?xml version="1.0" encoding="UTF-8"?>
+<ClinVarResult-Set>
+  <VariationArchive VariationID="2356">
+    <ClassifiedRecord>
+      <ClinicalAssertionList>
+        <ClinicalAssertion>
+          <Classification>
+            <Comment>Published functional studies show altered expression
+            (PMID: 35672333, PS3_Supporting).</Comment>
+          </Classification>
+        </ClinicalAssertion>
+      </ClinicalAssertionList>
+    </ClassifiedRecord>
+  </VariationArchive>
+</ClinVarResult-Set>"""
+    extractor = FunctionalEvidenceExtractor(clinvar_vcv_max_xml_bytes=64)
+
+    summary = extractor.build_for_lookup(
+        _variant(gene="USH2A", transcript_hgvs="NM_206933.2:c.2276G>T"),
+        {"clinvar": {"accession": "VCV000002356"}},
+        evidence_raw={"clinvar": {"vcv_xml": xml_text}},
+    )
+
+    assert summary.total_count == 0
+    assert summary.source_breakdown.clinvar == 0
+    assert "functional_clinvar_vcv_too_large" in summary.warnings
+
+
+def test_clinvar_live_vcv_fetch_is_written_to_shared_raw_for_reuse() -> None:
+    xml_text = """<?xml version="1.0" encoding="UTF-8"?>
+<ClinVarResult-Set>
+  <VariationArchive VariationID="2356">
+    <ClassifiedRecord>
+      <ClinicalAssertionList>
+        <ClinicalAssertion>
+          <Classification>
+            <Comment>Published functional studies show altered expression
+            (PMID: 35672333, PS3_Supporting).</Comment>
+          </Classification>
+        </ClinicalAssertion>
+      </ClinicalAssertionList>
+    </ClassifiedRecord>
+  </VariationArchive>
+</ClinVarResult-Set>"""
+    clinvar_client = _StaticClinVarClient(xml_text)
+    extractor = FunctionalEvidenceExtractor(clinvar_client=clinvar_client)
+    evidence_raw = {"clinvar": {"uid": "2356"}}
+
+    summary = extractor.build_for_lookup(
+        _variant(gene="USH2A", transcript_hgvs="NM_206933.2:c.2276G>T"),
+        {"clinvar": {"accession": "VCV000002356"}},
+        evidence_raw=evidence_raw,
+        allow_live=True,
+    )
+
+    assert clinvar_client.calls == 1
+    assert evidence_raw["clinvar"]["vcv_xml"] == xml_text
+    assert summary.source_breakdown.clinvar == 1
+
+
 def test_functional_evidence_dedupes_pmids_across_sources() -> None:
     extractor = FunctionalEvidenceExtractor(
         clingen_client=_StaticClinGenClient(

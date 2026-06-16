@@ -484,7 +484,7 @@ class PubMedLocalStore:
             )
 
     def search_tool_result(self, variant: Any, *, limit: int) -> tuple[ToolResult, bool]:
-        inspection = self.inspect(verify_checksum=True)
+        inspection = self.inspect(verify_checksum=False)
         gene = str(getattr(variant, "gene", "") or "").strip().upper()
         source_url = _gene_scope_url(gene) if gene else None
         if not inspection.ready:

@@ -7,6 +7,11 @@ from pathlib import Path
 import re
 from typing import Any, Iterable, Mapping
 
+DEFAULT_INDEXED_VCF_MAX_WINDOW_BP = 1_000_000
+DEFAULT_INDEXED_VCF_MAX_RECORDS = 10_000
+DEFAULT_PREDICTOR_POSITION_MAX_RECORDS = 1_000
+DEFAULT_CONSERVATION_MAX_WINDOW_BP = 100_000
+
 
 class IndexedSourceError(ValueError):
     """Structured error for local indexed-source reader failures."""
@@ -114,10 +119,14 @@ class PysamIndexedVcfReader:
         *,
         source_id: str,
         index_path: Path | None = None,
+        max_window_bp: int = DEFAULT_INDEXED_VCF_MAX_WINDOW_BP,
+        max_records: int = DEFAULT_INDEXED_VCF_MAX_RECORDS,
     ) -> None:
         self._path = path
         self._index_path = index_path or Path(f"{path}.tbi")
         self._source_id = source_id
+        self._max_window_bp = max(1, int(max_window_bp))
+        self._max_records = max(1, int(max_records))
         self._validate_indexed_file()
         self._pysam = _load_pysam()
         self._vcf = self._pysam.VariantFile(str(path))
@@ -157,6 +166,13 @@ class PysamIndexedVcfReader:
     ) -> tuple[IndexedVcfRecord, ...]:
         contig = self._normalize_contig(chrom)
         _validate_interval(contig, start, end)
+        _validate_window_width(
+            contig,
+            start,
+            end,
+            max_window_bp=self._max_window_bp,
+            code="indexed_query_window_too_large",
+        )
         try:
             records = self._vcf.fetch(contig, start - 1, end)
         except ValueError as exc:
@@ -165,7 +181,21 @@ class PysamIndexedVcfReader:
                 "pysam failed to query indexed VCF",
                 {"chrom": contig, "start": start, "end": end},
             ) from exc
-        return tuple(self._to_record(chrom, record) for record in records)
+        out: list[IndexedVcfRecord] = []
+        for record in records:
+            if len(out) >= self._max_records:
+                raise IndexedSourceError(
+                    "indexed_query_too_many_records",
+                    "indexed VCF query returned more records than the configured cap",
+                    {
+                        "chrom": contig,
+                        "start": start,
+                        "end": end,
+                        "max_records": self._max_records,
+                    },
+                )
+            out.append(self._to_record(chrom, record))
+        return tuple(out)
 
     def _to_record(self, requested_chrom: str, raw_record: Any) -> IndexedVcfRecord:
         alts = tuple(str(alt) for alt in (raw_record.alts or ()))
@@ -219,12 +249,14 @@ class TabixTsvPredictorReader:
         columns: TabixTsvPredictorColumns = TabixTsvPredictorColumns(),
         index_path: Path | None = None,
         delimiter: str = "\t",
+        max_records: int = DEFAULT_PREDICTOR_POSITION_MAX_RECORDS,
     ) -> None:
         self._path = path
         self._index_path = index_path or Path(f"{path}.tbi")
         self._source_id = source_id
         self._columns = columns
         self._delimiter = delimiter
+        self._max_records = max(1, int(max_records))
         self._validate_indexed_file()
         self._validate_columns()
         self._pysam = _load_pysam()
@@ -276,13 +308,25 @@ class TabixTsvPredictorReader:
                 "pysam failed to query indexed predictor TSV",
                 {"chrom": contig, "position": position},
             ) from exc
-        return tuple(
-            score
-            for line in lines
-            if line and not line.startswith("#")
-            for score in (self._to_score(chrom, line),)
-            if score.position == position
-        )
+        out: list[IndexedPredictorScore] = []
+        for line in lines:
+            if not line or line.startswith("#"):
+                continue
+            score = self._to_score(chrom, line)
+            if score.position != position:
+                continue
+            if len(out) >= self._max_records:
+                raise IndexedSourceError(
+                    "indexed_predictor_query_too_many_records",
+                    "indexed predictor TSV query returned more rows than the configured cap",
+                    {
+                        "chrom": contig,
+                        "position": position,
+                        "max_records": self._max_records,
+                    },
+                )
+            out.append(score)
+        return tuple(out)
 
     def _to_score(self, requested_chrom: str, line: str) -> IndexedPredictorScore:
         fields = tuple(line.rstrip("\n").split(self._delimiter))
@@ -373,9 +417,16 @@ class TabixTsvPredictorReader:
 class PyBigWigConservationReader:
     """pyBigWig-backed conservation reader using 1-based inclusive coordinates."""
 
-    def __init__(self, path: Path, *, source_id: str = "ucsc_phylop100way_hg38") -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        source_id: str = "ucsc_phylop100way_hg38",
+        max_window_bp: int = DEFAULT_CONSERVATION_MAX_WINDOW_BP,
+    ) -> None:
         self._path = path
         self._source_id = source_id
+        self._max_window_bp = max(1, int(max_window_bp))
         _validate_file(path, code_prefix="bigwig")
         self._pybigwig = _load_pybigwig()
         self._bigwig = self._pybigwig.open(str(path))
@@ -430,11 +481,25 @@ class PyBigWigConservationReader:
         contig = self._normalize_contig(chrom)
         _validate_interval(contig, start, end)
         _validate_bounds(contig, start, end, self._chroms[contig])
+        _validate_window_width(
+            contig,
+            start,
+            end,
+            max_window_bp=self._max_window_bp,
+            code="conservation_window_too_large",
+        )
         values = self._bigwig.values(contig, start - 1, end)
-        numeric_values = [
-            float(value) for value in values if value is not None and not math.isnan(float(value))
-        ]
-        if not numeric_values:
+        total = 0.0
+        count = 0
+        for value in values:
+            if value is None:
+                continue
+            numeric = float(value)
+            if math.isnan(numeric):
+                continue
+            total += numeric
+            count += 1
+        if count == 0:
             raise IndexedSourceError(
                 "missing_conservation_score",
                 "no conservation values are present for this window",
@@ -445,8 +510,8 @@ class PyBigWigConservationReader:
             chrom=_normalize_contig_alias(contig),
             start=start,
             end=end,
-            mean_score=sum(numeric_values) / len(numeric_values),
-            bases_with_scores=len(numeric_values),
+            mean_score=total / count,
+            bases_with_scores=count,
             source_id=self._source_id,
         )
 
@@ -611,6 +676,29 @@ def _validate_bounds(chrom: str, start: int, end: int, contig_length: int) -> No
                 "start": start,
                 "end": end,
                 "contig_length": contig_length,
+            },
+        )
+
+
+def _validate_window_width(
+    chrom: str,
+    start: int,
+    end: int,
+    *,
+    max_window_bp: int,
+    code: str,
+) -> None:
+    width = end - start + 1
+    if width > max_window_bp:
+        raise IndexedSourceError(
+            code,
+            "indexed source query window exceeds the configured base-pair cap",
+            {
+                "chrom": _normalize_contig_alias(chrom),
+                "start": start,
+                "end": end,
+                "window_bp": width,
+                "max_window_bp": max_window_bp,
             },
         )
 

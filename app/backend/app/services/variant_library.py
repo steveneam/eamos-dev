@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 
 from app.core.deps import AuthenticatedPrincipal
 from app.repos.variant_library_repo import (
+    DEFAULT_LIBRARY_FOLDER_LIMIT,
+    DEFAULT_LIBRARY_VARIANT_LIMIT,
     FolderRecord,
     SavedVariantRecord,
     UserLibraryDocumentRecord,
@@ -26,18 +28,38 @@ class VariantLibraryService:
     def __init__(self, repo) -> None:
         self.repo = repo
 
-    def get_library(self, principal: AuthenticatedPrincipal) -> LibraryStore:
+    def get_library(
+        self,
+        principal: AuthenticatedPrincipal,
+        *,
+        variant_limit: int = DEFAULT_LIBRARY_VARIANT_LIMIT,
+        variant_offset: int = 0,
+        folder_limit: int = DEFAULT_LIBRARY_FOLDER_LIMIT,
+    ) -> LibraryStore:
         try:
             document = self.repo.get_document(user_id=principal.user_id)
             if document is not None:
-                return _library_store_from_document(document)
+                return _library_store_from_document(
+                    document,
+                    variant_limit=variant_limit,
+                    variant_offset=variant_offset,
+                    folder_limit=folder_limit,
+                )
             return LibraryStore(
                 variants=[
                     _saved_variant_schema(row)
-                    for row in self.repo.list_variants(user_id=principal.user_id)
+                    for row in self.repo.list_variants(
+                        user_id=principal.user_id,
+                        limit=variant_limit,
+                        offset=variant_offset,
+                    )
                 ],
                 folders=[
-                    _folder_schema(row) for row in self.repo.list_folders(user_id=principal.user_id)
+                    _folder_schema(row)
+                    for row in self.repo.list_folders(
+                        user_id=principal.user_id,
+                        limit=folder_limit,
+                    )
                 ],
             )
         except VariantLibraryRepoError as exc:
@@ -210,10 +232,18 @@ def _popularity_schema(row: VariantPopularityRecord) -> VariantPopularity:
     )
 
 
-def _library_store_from_document(row: UserLibraryDocumentRecord) -> LibraryStore:
+def _library_store_from_document(
+    row: UserLibraryDocumentRecord,
+    *,
+    variant_limit: int = DEFAULT_LIBRARY_VARIANT_LIMIT,
+    variant_offset: int = 0,
+    folder_limit: int = DEFAULT_LIBRARY_FOLDER_LIMIT,
+) -> LibraryStore:
+    offset = max(0, int(variant_offset))
+    end = offset + max(1, int(variant_limit))
     return LibraryStore(
-        variants=[SavedVariant.model_validate(item) for item in row.variants],
-        folders=[Folder.model_validate(item) for item in row.folders],
+        variants=[SavedVariant.model_validate(item) for item in row.variants[offset:end]],
+        folders=[Folder.model_validate(item) for item in row.folders[: max(1, int(folder_limit))]],
         updated_at=row.updated_at,
     )
 

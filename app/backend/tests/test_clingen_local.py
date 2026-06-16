@@ -8,10 +8,12 @@ from urllib.parse import parse_qs
 import httpx
 from fastapi.testclient import TestClient
 
+import app.services.clingen_local as clingen_local_module
 from app.cli.eamos_clingen_local_preflight import main as preflight_main
 from app.core.config import Settings
 from app.main import create_app
 from app.services.clingen_local import (
+    ClinGenLocalStore,
     inspect_clingen_local_store,
     materialize_clingen_local_store,
 )
@@ -142,6 +144,63 @@ def test_clingen_tool_uses_local_rows_without_fixture_bleed(tmp_path: Path) -> N
     assert no_hit.status == "missing"
     assert no_hit.raw == {"records": []}
     assert "clingen_local_variant_not_found" in no_hit.warnings
+
+
+def test_clingen_tool_local_request_path_skips_logical_checksum(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = _materialized_settings(tmp_path)
+
+    def fail_checksum(*_args, **_kwargs):
+        raise AssertionError("request-path ClinGen lookup must not logical-checksum the corpus")
+
+    monkeypatch.setattr(clingen_local_module, "_logical_checksum", fail_checksum)
+
+    result = ClingenTool(settings).get_evidence(_variant())
+
+    assert result.status == "local"
+    assert result.summary["classification"] == "Likely Pathogenic"
+
+
+def test_clingen_raw_text_search_uses_indexed_terms_not_raw_json_like(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = _materialized_settings(tmp_path)
+
+    def fail_raw_json_like(*_args, **_kwargs):
+        raise AssertionError("request-path ClinGen search must not scan raw_json")
+
+    monkeypatch.setattr(clingen_local_module, "_search_records_by_raw_text", fail_raw_json_like)
+
+    rows, inspection, needs_live_fallback = ClinGenLocalStore(
+        settings.clingen_local_sqlite_path,
+        manifest_path=settings.clingen_local_manifest_path,
+        enabled=True,
+    ).search_records_by_raw_text(
+        gene="RPE65",
+        terms=["CA1421454"],
+        limit=5,
+        verify_checksum=False,
+    )
+
+    assert inspection.ready is True
+    assert needs_live_fallback is False
+    assert rows[0]["caId"] == "CA1421454"
+
+    protein_rows, _inspection, _needs_live_fallback = ClinGenLocalStore(
+        settings.clingen_local_sqlite_path,
+        manifest_path=settings.clingen_local_manifest_path,
+        enabled=True,
+    ).search_records_by_raw_text(
+        gene="RPE65",
+        terms=["p.Asp87Gly"],
+        limit=5,
+        verify_checksum=False,
+    )
+
+    assert protein_rows[0]["caId"] == "CA1421454"
 
 
 def test_lookup_sections_render_clingen_vcep_from_local_materialization(tmp_path: Path) -> None:
@@ -291,8 +350,8 @@ def _erepo_record() -> dict:
         "sourceUrl": "https://erepo.genome.network/evrepo/ui/classification/rpe65-local",
         "summaryDesc": (
             "RPE65 local fixture: a minigene assay showed abnormal splicing "
-            "for NM_000329.3:c.260A>G (PMID:31194252, PS3_Supporting). "
-            "This variant also meets PM2_Moderate."
+            "for NM_000329.3:c.260A>G / p.Asp87Gly "
+            "(PMID:31194252, PS3_Supporting). This variant also meets PM2_Moderate."
         ),
         "uuid": "local-rpe65-vcep",
         "vcepId": "50081",

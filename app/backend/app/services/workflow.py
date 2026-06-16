@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import re
 from uuid import uuid4
 
@@ -8,6 +10,7 @@ from fastapi import HTTPException, status
 from app.rules.base import DecisionInput
 from app.services.lookup_service import GENE_THERAPY_MAP
 from app.services.variant_decoder import decode_variant
+from app.tools.base import ToolResult
 from app.schemas.report import ExtractedCase, ExtractedVariant
 from app.schemas.run import (
     EvidenceSourceSummary,
@@ -22,13 +25,27 @@ from app.schemas.run import (
 
 class WorkflowService:
     def __init__(
-        self, reports_repo, run_repo, tool_registry, rule_engine, draft_render_service=None
+        self,
+        reports_repo,
+        run_repo,
+        tool_registry,
+        rule_engine,
+        draft_render_service=None,
+        settings=None,
     ) -> None:
+        self.settings = settings
         self.reports_repo = reports_repo
         self.run_repo = run_repo
         self.tool_registry = tool_registry
         self.rule_engine = rule_engine
         self.draft_render_service = draft_render_service
+        self._executor = ThreadPoolExecutor(
+            max_workers=_positive_int(
+                getattr(settings, "workflow_worker_max_workers", 5),
+                default=5,
+            ),
+            thread_name_prefix="eamos-workflow",
+        )
 
     def create_run(self, payload: RunRequest) -> RunResponse:
         if not payload.report_ids:
@@ -66,25 +83,9 @@ class WorkflowService:
             else None
         )
 
-        evidence = []
-        evidence_map = {}
-        evidence_statuses = {}
-        warnings: list[str] = []
-        for name in ("vep", "spliceai", "clinvar", "gnomad", "pubmed"):
-            tool = self.tool_registry[name]
-            result = tool.get_evidence(variant=primary_variant)
-            summary = EvidenceSourceSummary(
-                source=result.source,
-                status=result.status,
-                request_identity=result.request_identity,
-                summary=result.summary,
-                warnings=result.warnings,
-                source_url=result.source_url,
-            )
-            evidence.append(summary)
-            evidence_map[name] = result.summary
-            evidence_statuses[name] = result.status
-            warnings.extend(result.warnings)
+        evidence, evidence_map, evidence_statuses, warnings = self._collect_evidence(
+            primary_variant
+        )
 
         run_status = self._derive_run_status(report_statuses, evidence_statuses, warnings)
         variant_descriptions = [self._describe_variant(item) for item in variant_rows]
@@ -153,6 +154,66 @@ class WorkflowService:
             reviewed_at=None,
             approved_pdf_path=None,
         )
+
+    def _collect_evidence(self, primary_variant) -> tuple[
+        list[EvidenceSourceSummary],
+        dict[str, dict],
+        dict[str, str],
+        list[str],
+    ]:
+        tool_names = ("vep", "spliceai", "clinvar", "gnomad", "pubmed")
+        timeout_seconds = _positive_float(
+            getattr(self.settings, "workflow_tool_timeout_seconds", 10.0),
+            default=10.0,
+        )
+        futures = {
+            name: self._executor.submit(
+                self.tool_registry[name].get_evidence,
+                variant=primary_variant,
+            )
+            for name in tool_names
+        }
+        deadline = time.monotonic() + timeout_seconds
+        results: dict[str, ToolResult] = {}
+        for name, future in futures.items():
+            remaining = max(0.001, deadline - time.monotonic())
+            try:
+                result = future.result(timeout=remaining)
+            except FutureTimeoutError:
+                future.cancel()
+                result = _degraded_tool_result(
+                    name,
+                    warning=f"{name}_evidence_timeout:{timeout_seconds:g}s",
+                )
+            except Exception as exc:
+                result = _degraded_tool_result(
+                    name,
+                    warning=f"{name}_evidence_failed:{type(exc).__name__}",
+                )
+            results[name] = result
+
+        evidence: list[EvidenceSourceSummary] = []
+        evidence_map: dict[str, dict] = {}
+        evidence_statuses: dict[str, str] = {}
+        warnings: list[str] = []
+        for name in tool_names:
+            result = results[name]
+            summary = EvidenceSourceSummary(
+                source=result.source,
+                status=result.status,
+                request_identity=result.request_identity,
+                summary=result.summary,
+                warnings=result.warnings,
+                source_url=result.source_url,
+                fetched_at=result.fetched_at,
+                source_version=result.source_version,
+                cache_status=result.cache_status,
+            )
+            evidence.append(summary)
+            evidence_map[name] = result.summary
+            evidence_statuses[name] = result.status
+            warnings.extend(result.warnings)
+        return evidence, evidence_map, evidence_statuses, warnings
 
     def get_run(self, run_id: str) -> RunResponse:
         run = self.run_repo.get_run(run_id)
@@ -520,7 +581,7 @@ class WorkflowService:
         if self.draft_render_service is None:
             return base_payload, []
 
-        draft_payload, draft_warnings = self.draft_render_service.render(
+        draft_payload, draft_warnings = self._render_draft_with_deadline(
             case_title=case_title,
             patient_context=patient_context,
             clinical_phenotype=clinical_findings,
@@ -530,6 +591,8 @@ class WorkflowService:
             warnings=[*warnings, *decision.warnings],
             base_payload=base_payload,
         )
+        if draft_payload is None:
+            return base_payload, draft_warnings
         base_payload.ai_clinical_summary = draft_payload.ai_clinical_summary
         base_payload.expanded_evidence = draft_payload.expanded_evidence
         base_payload.clinical_integration = draft_payload.clinical_integration
@@ -542,3 +605,41 @@ class WorkflowService:
             "recommendations",
         ]
         return base_payload, draft_warnings
+
+    def _render_draft_with_deadline(self, **kwargs):
+        timeout_seconds = _positive_float(
+            getattr(self.settings, "workflow_draft_timeout_seconds", 10.0),
+            default=10.0,
+        )
+        future = self._executor.submit(self.draft_render_service.render, **kwargs)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except FutureTimeoutError:
+            future.cancel()
+            return None, [f"llm_draft_fallback:TimeoutError:{timeout_seconds:g}s"]
+
+
+def _degraded_tool_result(source: str, *, warning: str) -> ToolResult:
+    return ToolResult(
+        source=source,
+        status="degraded",
+        request_identity={},
+        summary={},
+        warnings=[warning],
+    )
+
+
+def _positive_int(value, *, default: int) -> int:
+    try:
+        coerced = int(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if coerced > 0 else default
+
+
+def _positive_float(value, *, default: float) -> float:
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if coerced > 0 else default

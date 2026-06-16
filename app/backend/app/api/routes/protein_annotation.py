@@ -33,4 +33,5 @@ def _protein_annotation_service(request: Request) -> ProteinAnnotationServicePro
 @router.post("/protein/annotate", response_model=ProteinDomainTrack)
 def annotate_protein(payload: ProteinAnnotationRequest, request: Request) -> ProteinDomainTrack:
     enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
-    return _protein_annotation_service(request).annotate(payload)
+    cache_only_payload = payload.model_copy(update={"allow_run": False, "use_cache": True})
+    return _protein_annotation_service(request).annotate(cache_only_payload)

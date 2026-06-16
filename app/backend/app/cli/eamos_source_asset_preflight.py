@@ -162,6 +162,7 @@ def build_source_asset_preflight_report(
     compact_coordinate_index = inspect_compact_coordinate_index(
         settings,
         verify_checksum=False,
+        load_records=False,
     )
     clingen_local = inspect_clingen_local_store(settings, verify_checksum=False)
     protein_summary = _protein_asset_summary(

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 import gzip
 from hashlib import sha256
 import json
 from pathlib import Path
 import re
+from threading import Lock
 from typing import Any, Iterable, Mapping
 
 from app.core.config import Settings
@@ -21,6 +22,9 @@ DEFAULT_COMPACT_COORDINATE_INDEX_PATH = (
     / "transcripts"
     / "eamos-coordinate-index.latest.jsonl.gz"
 )
+DEFAULT_COMPACT_COORDINATE_INDEX_MAX_VARIANTS = 250_000
+DEFAULT_COMPACT_COORDINATE_INDEX_MAX_TRANSCRIPTS = 100_000
+_INDEX_LOAD_LOCK = Lock()
 
 
 class CompactCoordinateIndexError(ValueError):
@@ -139,12 +143,38 @@ class _LoadedCompactCoordinateIndex:
 class CompactCoordinateIndex:
     """Read-only compact coordinate index for runtime coordinate resolution."""
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(
+        self,
+        path: Path | None = None,
+        *,
+        max_variants: int = DEFAULT_COMPACT_COORDINATE_INDEX_MAX_VARIANTS,
+        max_transcripts: int = DEFAULT_COMPACT_COORDINATE_INDEX_MAX_TRANSCRIPTS,
+    ) -> None:
         self.path = path or DEFAULT_COMPACT_COORDINATE_INDEX_PATH
+        self.max_variants = max(0, int(max_variants))
+        self.max_transcripts = max(0, int(max_transcripts))
 
-    def inspection(self, *, verify_checksum: bool = False) -> CompactCoordinateIndexInspection:
-        loaded = _load_index(self.path, verify_checksum=verify_checksum)
-        return loaded.inspection
+    def inspection(
+        self,
+        *,
+        verify_checksum: bool = False,
+        load_records: bool = True,
+    ) -> CompactCoordinateIndexInspection:
+        if not load_records:
+            return _inspect_index_metadata(self.path, verify_checksum=verify_checksum)
+
+        loaded = _load_index(
+            self.path,
+            max_variants=self.max_variants,
+            max_transcripts=self.max_transcripts,
+        )
+        if not verify_checksum or not self.path.is_file():
+            return loaded.inspection
+        return replace(
+            loaded.inspection,
+            checksum_verified=True,
+            actual_sha256=_sha256_file(self.path),
+        )
 
     def resolve_variant(
         self,
@@ -155,7 +185,11 @@ class CompactCoordinateIndex:
         accession: str | None = None,
         clinvar_variation_id: str | None = None,
     ) -> CompactCoordinateVariant | None:
-        loaded = _load_index(self.path, verify_checksum=False)
+        loaded = _load_index(
+            self.path,
+            max_variants=self.max_variants,
+            max_transcripts=self.max_transcripts,
+        )
         if not loaded.inspection.ready:
             return None
 
@@ -185,7 +219,11 @@ class CompactCoordinateIndex:
         gene: str,
         transcript: str | None = None,
     ) -> CompactCoordinateTranscript | None:
-        loaded = _load_index(self.path, verify_checksum=False)
+        loaded = _load_index(
+            self.path,
+            max_variants=self.max_variants,
+            max_transcripts=self.max_transcripts,
+        )
         if not loaded.inspection.ready:
             return None
 
@@ -210,7 +248,17 @@ def compact_coordinate_index_from_settings(settings: Settings | None) -> Compact
         _resolve_settings_path(
             settings,
             getattr(settings, "coordinate_resolver_compact_index_path", None),
-        )
+        ),
+        max_variants=getattr(
+            settings,
+            "coordinate_resolver_compact_index_max_variants",
+            DEFAULT_COMPACT_COORDINATE_INDEX_MAX_VARIANTS,
+        ),
+        max_transcripts=getattr(
+            settings,
+            "coordinate_resolver_compact_index_max_transcripts",
+            DEFAULT_COMPACT_COORDINATE_INDEX_MAX_TRANSCRIPTS,
+        ),
     )
 
 
@@ -218,18 +266,35 @@ def inspect_compact_coordinate_index(
     settings: Settings,
     *,
     verify_checksum: bool = False,
+    load_records: bool = True,
 ) -> CompactCoordinateIndexInspection:
     return compact_coordinate_index_from_settings(settings).inspection(
-        verify_checksum=verify_checksum
+        verify_checksum=verify_checksum,
+        load_records=load_records,
     )
 
 
 def clear_compact_coordinate_index_cache() -> None:
-    _load_index.cache_clear()
+    with _INDEX_LOAD_LOCK:
+        _load_index_cached.cache_clear()
 
 
-@lru_cache(maxsize=16)
-def _load_index(path: Path, *, verify_checksum: bool) -> _LoadedCompactCoordinateIndex:
+def _load_index(
+    path: Path,
+    *,
+    max_variants: int,
+    max_transcripts: int,
+) -> _LoadedCompactCoordinateIndex:
+    with _INDEX_LOAD_LOCK:
+        return _load_index_cached(path, max(0, int(max_variants)), max(0, int(max_transcripts)))
+
+
+@lru_cache(maxsize=2)
+def _load_index_cached(
+    path: Path,
+    max_variants: int,
+    max_transcripts: int,
+) -> _LoadedCompactCoordinateIndex:
     if not path.exists():
         return _empty_loaded(
             CompactCoordinateIndexInspection(
@@ -251,8 +316,11 @@ def _load_index(path: Path, *, verify_checksum: bool) -> _LoadedCompactCoordinat
 
     try:
         actual_size = path.stat().st_size
-        rows = tuple(_iter_jsonl(path))
-        loaded = _build_loaded_index(rows)
+        loaded = _build_loaded_index(
+            _iter_jsonl(path),
+            max_variants=max_variants,
+            max_transcripts=max_transcripts,
+        )
     except CompactCoordinateIndexError as exc:
         return _empty_loaded(
             CompactCoordinateIndexInspection(
@@ -274,29 +342,9 @@ def _load_index(path: Path, *, verify_checksum: bool) -> _LoadedCompactCoordinat
             )
         )
 
-    actual_sha256 = _sha256_file(path) if verify_checksum else None
-    inspection = CompactCoordinateIndexInspection(
-        source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
-        status="ready",
-        ready=True,
-        schema_version=str(loaded.metadata.get("schema_version") or ""),
-        artifact_version=_optional_str(loaded.metadata.get("artifact_version")),
-        genome_build=_optional_str(loaded.metadata.get("genome_build")),
-        variant_count=len(
-            {
-                (variant.gene, variant.transcript, variant.cdna, variant.genomic_hg38)
-                for variant in loaded.variants_by_key.values()
-            }
-        ),
-        transcript_count=sum(len(items) for items in loaded.transcripts_by_gene.values()),
+    inspection = replace(
+        loaded.inspection,
         actual_size_bytes=actual_size,
-        checksum_verified=verify_checksum,
-        actual_sha256=actual_sha256,
-        warnings=tuple(
-            str(item)
-            for item in loaded.metadata.get("warnings", [])
-            if isinstance(item, str) and item
-        ),
     )
     return _LoadedCompactCoordinateIndex(
         metadata=loaded.metadata,
@@ -309,20 +357,16 @@ def _load_index(path: Path, *, verify_checksum: bool) -> _LoadedCompactCoordinat
     )
 
 
-def _build_loaded_index(rows: tuple[dict[str, Any], ...]) -> _LoadedCompactCoordinateIndex:
-    metadata_rows = [row for row in rows if row.get("record_type") == "metadata"]
-    if len(metadata_rows) != 1:
-        raise CompactCoordinateIndexError(
-            "metadata_record_invalid",
-            "compact coordinate index requires exactly one metadata record",
-        )
-    metadata = metadata_rows[0]
-    if metadata.get("schema_version") != COMPACT_COORDINATE_INDEX_SCHEMA_VERSION:
-        raise CompactCoordinateIndexError(
-            "schema_version_mismatch",
-            "compact coordinate index schema version is not supported",
-        )
-
+def _build_loaded_index(
+    rows: Iterable[dict[str, Any]],
+    *,
+    max_variants: int,
+    max_transcripts: int,
+) -> _LoadedCompactCoordinateIndex:
+    metadata: dict[str, Any] | None = None
+    metadata_count = 0
+    variant_count = 0
+    transcript_count = 0
     variants_by_key: dict[str, CompactCoordinateVariant] = {}
     transcripts_by_gene: dict[str, list[CompactCoordinateTranscript]] = {}
     transcripts_by_alias: dict[str, CompactCoordinateTranscript] = {}
@@ -332,8 +376,16 @@ def _build_loaded_index(rows: tuple[dict[str, Any], ...]) -> _LoadedCompactCoord
     for row in rows:
         record_type = row.get("record_type")
         if record_type == "metadata":
+            metadata_count += 1
+            metadata = dict(row)
             continue
         if record_type == "variant":
+            variant_count += 1
+            _enforce_index_limit(
+                count=variant_count,
+                limit=max_variants,
+                record_type="variant",
+            )
             variant = _variant_from_row(row)
             for key in (
                 _variant_key(variant.gene, variant.transcript, variant.cdna),
@@ -356,6 +408,12 @@ def _build_loaded_index(rows: tuple[dict[str, Any], ...]) -> _LoadedCompactCoord
                 )
             continue
         if record_type == "transcript":
+            transcript_count += 1
+            _enforce_index_limit(
+                count=transcript_count,
+                limit=max_transcripts,
+                record_type="transcript",
+            )
             transcript = _transcript_from_row(row)
             transcripts_by_gene.setdefault(transcript.gene, []).append(transcript)
             for alias in (
@@ -377,6 +435,17 @@ def _build_loaded_index(rows: tuple[dict[str, Any], ...]) -> _LoadedCompactCoord
             {"record_type": str(record_type)},
         )
 
+    if metadata_count != 1 or metadata is None:
+        raise CompactCoordinateIndexError(
+            "metadata_record_invalid",
+            "compact coordinate index requires exactly one metadata record",
+        )
+    if metadata.get("schema_version") != COMPACT_COORDINATE_INDEX_SCHEMA_VERSION:
+        raise CompactCoordinateIndexError(
+            "schema_version_mismatch",
+            "compact coordinate index schema version is not supported",
+        )
+
     if not variants_by_key and not transcripts_by_gene:
         raise CompactCoordinateIndexError(
             "empty_index",
@@ -394,8 +463,134 @@ def _build_loaded_index(rows: tuple[dict[str, Any], ...]) -> _LoadedCompactCoord
             source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
             status="ready",
             ready=True,
+            schema_version=str(metadata.get("schema_version") or ""),
+            artifact_version=_optional_str(metadata.get("artifact_version")),
+            genome_build=_optional_str(metadata.get("genome_build")),
+            variant_count=variant_count,
+            transcript_count=transcript_count,
+            warnings=_metadata_warnings(metadata),
         ),
     )
+
+
+def _inspect_index_metadata(
+    path: Path,
+    *,
+    verify_checksum: bool,
+) -> CompactCoordinateIndexInspection:
+    if not path.exists():
+        return CompactCoordinateIndexInspection(
+            source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
+            status="missing",
+            ready=False,
+            message="compact coordinate index artifact is not present",
+        )
+    if not path.is_file():
+        return CompactCoordinateIndexInspection(
+            source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
+            status="not_file",
+            ready=False,
+            message="compact coordinate index path is not a file",
+        )
+
+    actual_size = path.stat().st_size
+    try:
+        metadata = _read_metadata_row(path)
+    except CompactCoordinateIndexError as exc:
+        return CompactCoordinateIndexInspection(
+            source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
+            status=exc.code,
+            ready=False,
+            actual_size_bytes=actual_size,
+            message=str(exc),
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return CompactCoordinateIndexInspection(
+            source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
+            status="malformed",
+            ready=False,
+            actual_size_bytes=actual_size,
+            message=type(exc).__name__,
+        )
+
+    if metadata.get("schema_version") != COMPACT_COORDINATE_INDEX_SCHEMA_VERSION:
+        return CompactCoordinateIndexInspection(
+            source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
+            status="schema_version_mismatch",
+            ready=False,
+            schema_version=_optional_str(metadata.get("schema_version")),
+            actual_size_bytes=actual_size,
+            message="compact coordinate index schema version is not supported",
+        )
+
+    variant_count = _metadata_count(metadata, "variant_count")
+    transcript_count = _metadata_count(metadata, "transcript_count")
+    warnings = list(_metadata_warnings(metadata))
+    if "variant_count" not in metadata or "transcript_count" not in metadata:
+        warnings.append("compact_coordinate_index_metadata_counts_unavailable")
+
+    return CompactCoordinateIndexInspection(
+        source_id=COMPACT_COORDINATE_INDEX_SOURCE_ID,
+        status="ready",
+        ready=True,
+        schema_version=str(metadata.get("schema_version") or ""),
+        artifact_version=_optional_str(metadata.get("artifact_version")),
+        genome_build=_optional_str(metadata.get("genome_build")),
+        variant_count=variant_count,
+        transcript_count=transcript_count,
+        actual_size_bytes=actual_size,
+        checksum_verified=verify_checksum,
+        actual_sha256=_sha256_file(path) if verify_checksum else None,
+        warnings=tuple(warnings),
+    )
+
+
+def _read_metadata_row(path: Path) -> dict[str, Any]:
+    for row in _iter_jsonl(path):
+        if row.get("record_type") != "metadata":
+            raise CompactCoordinateIndexError(
+                "metadata_record_invalid",
+                "compact coordinate index metadata record must be first",
+            )
+        return row
+    raise CompactCoordinateIndexError(
+        "metadata_record_invalid",
+        "compact coordinate index requires a metadata record",
+    )
+
+
+def _enforce_index_limit(
+    *,
+    count: int,
+    limit: int,
+    record_type: str,
+) -> None:
+    if count <= limit:
+        return
+    raise CompactCoordinateIndexError(
+        "index_too_large",
+        "compact coordinate index exceeds the configured runtime load ceiling",
+        {
+            "record_type": record_type,
+            "count": count,
+            "limit": limit,
+        },
+    )
+
+
+def _metadata_warnings(metadata: Mapping[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        str(item) for item in metadata.get("warnings", []) if isinstance(item, str) and item
+    )
+
+
+def _metadata_count(metadata: Mapping[str, Any], field: str) -> int:
+    value = metadata.get(field)
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, parsed)
 
 
 def _iter_jsonl(path: Path) -> Iterable[dict[str, Any]]:

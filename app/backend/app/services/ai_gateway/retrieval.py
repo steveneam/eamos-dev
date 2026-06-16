@@ -23,6 +23,7 @@ from array import array
 from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Protocol
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 SCHEMA_VERSION = "literature-embedding-v1"
 CLI_VERSION = "literature-embed-cli-v1"
 SOURCE_VERSION_PREFIX = "literature-embedding"
+LITERATURE_QUERY_MAX_CANDIDATES = 2_000
 
 
 # -- public retrieval record ------------------------------------------------
@@ -88,23 +90,41 @@ def _pack_vector(vector: Iterable[float]) -> bytes:
     return array("f", vector).tobytes()
 
 
-def _unpack_vector(blob: bytes) -> list[float]:
+def _unpack_vector(blob: bytes) -> array:
     arr = array("f")
     arr.frombytes(blob)
-    return arr.tolist()
+    return arr
 
 
-def _cosine(a: list[float], b: list[float]) -> float:
+def _vector_norm(vector: Iterable[float]) -> float:
+    total = 0.0
+    for value in vector:
+        total += value * value
+    return math.sqrt(total)
+
+
+def _cosine(a: Iterable[float], b: Iterable[float], *, norm_a: float | None = None) -> float:
     dot = 0.0
-    norm_a = 0.0
+    computed_norm_a = 0.0
     norm_b = 0.0
     for x, y in zip(a, b):
         dot += x * y
-        norm_a += x * x
+        if norm_a is None:
+            computed_norm_a += x * x
         norm_b += y * y
-    if norm_a == 0.0 or norm_b == 0.0:
+    left_norm = math.sqrt(computed_norm_a) if norm_a is None else norm_a
+    if left_norm == 0.0 or norm_b == 0.0:
         return 0.0
-    return dot / math.sqrt(norm_a) / math.sqrt(norm_b)
+    return dot / left_norm / math.sqrt(norm_b)
+
+
+@lru_cache(maxsize=1)
+def _numpy_module() -> Any | None:
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    return np
 
 
 def _sanitize_snippet(text: str | None, max_chars: int) -> str:
@@ -215,6 +235,16 @@ class LiteratureEmbeddingStore:
         """
         if not genes or not embedding or not self.db_path.is_file():
             return []
+        np = _numpy_module()
+        if np is not None:
+            query_vector = np.asarray(embedding, dtype=np.float32)
+            query_norm = float(np.linalg.norm(query_vector))
+        else:
+            query_vector = array("f", embedding)
+            query_norm = _vector_norm(query_vector)
+        if query_norm == 0.0:
+            return []
+
         try:
             with closing(_connect_readonly(self.db_path)) as conn:
                 manifest = conn.execute(
@@ -230,27 +260,37 @@ class LiteratureEmbeddingStore:
                 placeholders = ",".join("?" * len(genes))
                 rows = conn.execute(
                     f"""
-                    select e.pmid, e.title, e.snippet, e.year, e.source_url, e.embedding
+                    select distinct e.pmid, e.title, e.snippet, e.year, e.source_url, e.embedding
                     from literature_embedding e
-                    where e.pmid in (
-                        select pmid from literature_gene where gene in ({placeholders})
-                    )
+                    join literature_gene g on g.pmid = e.pmid
+                    where g.gene in ({placeholders})
+                    order by e.pmid
+                    limit ?
                     """,
-                    tuple(genes),
-                ).fetchall()
+                    (*tuple(genes), LITERATURE_QUERY_MAX_CANDIDATES),
+                )
+                scored: list[tuple[float, sqlite3.Row]] = []
+                for row in rows:
+                    if np is not None:
+                        vector = np.frombuffer(row["embedding"], dtype=np.float32)
+                        if vector.shape[0] != query_vector.shape[0]:
+                            continue
+                        vector_norm = float(np.linalg.norm(vector))
+                        if vector_norm == 0.0:
+                            continue
+                        score = float(np.dot(query_vector, vector) / query_norm / vector_norm)
+                    else:
+                        vector = _unpack_vector(row["embedding"])
+                        if len(vector) != len(query_vector):
+                            continue
+                        score = _cosine(query_vector, vector, norm_a=query_norm)
+                    if score < min_score:
+                        continue
+                    scored.append((score, row))
         except sqlite3.DatabaseError:
             logger.warning("literature store unreadable", exc_info=True)
             return []
 
-        scored: list[tuple[float, sqlite3.Row]] = []
-        for row in rows:
-            vector = _unpack_vector(row["embedding"])
-            if len(vector) != len(embedding):
-                continue
-            score = _cosine(embedding, vector)
-            if score < min_score:
-                continue
-            scored.append((score, row))
         scored.sort(key=lambda item: item[0], reverse=True)
         return [
             RetrievedLiterature(

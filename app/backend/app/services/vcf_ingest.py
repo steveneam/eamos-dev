@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+import codecs
 from dataclasses import dataclass, field
-from gzip import BadGzipFile, decompress
+from gzip import BadGzipFile, GzipFile
+from io import BytesIO
 from pathlib import Path
+from typing import Iterable, Iterator
 from urllib.parse import unquote
 
-from app.schemas.batch import ParsedVariant
+from app.schemas.batch import BATCH_MAX_VARIANTS, ParsedVariant
+
+DEFAULT_MAX_DECOMPRESSED_BYTES = 20 * 1024 * 1024
+_STREAM_CHUNK_BYTES = 64 * 1024
+
+
+class VcfIngestLimitError(ValueError):
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -15,9 +27,19 @@ class ParsedVcfUpload:
     skipped_rows: int = 0
 
 
-def parse_vcf_upload_bytes(payload: bytes, *, filename: str | None = None) -> ParsedVcfUpload:
-    text, warnings = _decode_payload(payload, filename=filename)
-    parsed = parse_vcf_text(text)
+def parse_vcf_upload_bytes(
+    payload: bytes,
+    *,
+    filename: str | None = None,
+    max_decompressed_bytes: int = DEFAULT_MAX_DECOMPRESSED_BYTES,
+    max_variants: int = BATCH_MAX_VARIANTS,
+) -> ParsedVcfUpload:
+    lines, warnings = _decode_payload_lines(
+        payload,
+        filename=filename,
+        max_decompressed_bytes=max_decompressed_bytes,
+    )
+    parsed = parse_vcf_lines(lines, max_variants=max_variants)
     return ParsedVcfUpload(
         variants=parsed.variants,
         warnings=[*warnings, *parsed.warnings],
@@ -25,14 +47,26 @@ def parse_vcf_upload_bytes(payload: bytes, *, filename: str | None = None) -> Pa
     )
 
 
-def parse_vcf_text(text: str) -> ParsedVcfUpload:
+def parse_vcf_text(
+    text: str,
+    *,
+    max_variants: int = BATCH_MAX_VARIANTS,
+) -> ParsedVcfUpload:
+    return parse_vcf_lines(text.replace("\r\n", "\n").splitlines(), max_variants=max_variants)
+
+
+def parse_vcf_lines(
+    lines: Iterable[str],
+    *,
+    max_variants: int = BATCH_MAX_VARIANTS,
+) -> ParsedVcfUpload:
     warnings: list[str] = []
     variants: list[ParsedVariant] = []
     skipped_rows = 0
     sample_names: list[str] = []
     saw_header = False
 
-    for source_index, raw_line in enumerate(text.replace("\r\n", "\n").splitlines()):
+    for source_index, raw_line in enumerate(lines):
         line = raw_line.strip()
         if source_index == 0:
             line = line.removeprefix("\ufeff")
@@ -68,21 +102,73 @@ def parse_vcf_text(text: str) -> ParsedVcfUpload:
             warnings.extend(_row_warning(source_index, "unusable_vcf_row"))
             skipped_rows += 1
             continue
+        if len(variants) + len(row_variants) > max_variants:
+            raise VcfIngestLimitError(
+                f"Uploaded VCF exceeds the maximum of {max_variants} parsed variants.",
+                code="vcf_variant_count_limit_exceeded",
+            )
         variants.extend(row_variants)
 
     return ParsedVcfUpload(variants=variants, warnings=warnings, skipped_rows=skipped_rows)
 
 
-def _decode_payload(payload: bytes, *, filename: str | None) -> tuple[str, list[str]]:
+def _decode_payload_lines(
+    payload: bytes,
+    *,
+    filename: str | None,
+    max_decompressed_bytes: int,
+) -> tuple[Iterator[str], list[str]]:
     warnings: list[str] = []
-    data = payload
     if payload.startswith(b"\x1f\x8b") or (filename or "").lower().endswith(".gz"):
-        try:
-            data = decompress(payload)
-        except (BadGzipFile, OSError):
-            warnings.append("gzip_decompression_failed_treating_as_plain_text")
-            data = payload
-    return data.decode("utf-8-sig", errors="replace"), warnings
+        return (
+            _iter_gzip_text_lines(payload, max_decompressed_bytes=max_decompressed_bytes),
+            warnings,
+        )
+    return (
+        _iter_text_lines(BytesIO(payload), max_bytes=max_decompressed_bytes),
+        warnings,
+    )
+
+
+def _iter_gzip_text_lines(
+    payload: bytes,
+    *,
+    max_decompressed_bytes: int,
+) -> Iterator[str]:
+    try:
+        with GzipFile(fileobj=BytesIO(payload), mode="rb") as handle:
+            yield from _iter_text_lines(handle, max_bytes=max_decompressed_bytes)
+    except (BadGzipFile, EOFError, OSError) as exc:
+        raise VcfIngestLimitError(
+            "Uploaded gzip VCF could not be decompressed.",
+            code="gzip_decompression_failed",
+        ) from exc
+
+
+def _iter_text_lines(handle, *, max_bytes: int) -> Iterator[str]:
+    limit = max(1, int(max_bytes))
+    bytes_seen = 0
+    pending = ""
+    decoder = codecs.getincrementaldecoder("utf-8-sig")(errors="replace")
+
+    while True:
+        chunk = handle.read(_STREAM_CHUNK_BYTES)
+        if not chunk:
+            break
+        bytes_seen += len(chunk)
+        if bytes_seen > limit:
+            raise VcfIngestLimitError(
+                f"Uploaded VCF exceeds the decompressed size limit of {limit} bytes.",
+                code="vcf_decompressed_size_limit_exceeded",
+            )
+        text = pending + decoder.decode(chunk, final=False).replace("\r\n", "\n")
+        parts = text.split("\n")
+        pending = parts.pop()
+        yield from parts
+
+    tail = pending + decoder.decode(b"", final=True)
+    if tail:
+        yield tail
 
 
 def _data_columns(line: str) -> tuple[list[str], list[str]]:

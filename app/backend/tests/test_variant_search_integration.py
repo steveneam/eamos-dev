@@ -43,6 +43,18 @@ def test_lookup_parse_endpoint_returns_deterministic_source_inputs(client) -> No
     assert "deterministic_parser" in interpretation["provenance"]
 
 
+def test_lookup_parse_endpoint_ignores_client_forced_coordinate_resolution(client) -> None:
+    response = client.post(
+        "/api/v1/lookup/parse",
+        json={"search_text": "RPE65:c.260A>G", "resolve_coordinates": True},
+    )
+
+    assert response.status_code == 200
+    audit = response.json()["interpretation"]["coordinate_resolution_audit"]
+    assert audit["coordinate_resolution_requested"] is False
+    assert audit["resolver_path"] == "not_requested"
+
+
 def test_lookup_parse_endpoint_preserves_trailing_protein_alias(client) -> None:
     response = client.post(
         "/api/v1/lookup/parse",

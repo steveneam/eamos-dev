@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.schemas.chat import ChatRequest, WorkbenchContext
@@ -53,6 +54,23 @@ def _chat_payload(question: str = "What does the current evidence show?") -> Cha
         ),
         workbench=WorkbenchContext(active_tool="primer"),
     )
+
+
+def test_chat_request_rejects_oversized_history_before_context_building() -> None:
+    with pytest.raises(ValidationError):
+        ChatRequest(
+            question="What does the current evidence show?",
+            variant_context=ReportPayload(patient_id="lookup-test"),
+            history=[{"role": "user", "content": f"turn {idx}"} for idx in range(25)],
+        )
+
+
+def test_report_payload_rejects_oversized_variant_summary_rows() -> None:
+    with pytest.raises(ValidationError):
+        ReportPayload(
+            patient_id="lookup-test",
+            variant_summary_rows=[VariantSummaryRow(gene=f"GENE{idx}") for idx in range(101)],
+        )
 
 
 class FakeLookupChatChain:

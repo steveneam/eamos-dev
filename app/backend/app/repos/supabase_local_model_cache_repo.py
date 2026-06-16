@@ -1230,6 +1230,7 @@ class SupabaseVariantCacheRepo:
             "total_publications": entry.payload.get("total_publications"),
             "publication_data": dict(entry.payload.get("publication_data") or {}),
             "strict_genomic_cache": dict(entry.payload.get("strict_genomic_cache") or {}),
+            "gene_context_snapshot": dict(entry.payload.get("gene_context_snapshot") or {}),
             "created_at": created_at,
         }
 
@@ -1241,6 +1242,7 @@ class SupabaseVariantCacheRepo:
         total_publications: int | None,
         publication_data: dict[str, Any],
         strict_genomic_cache: dict[str, Any],
+        gene_context_snapshot: dict[str, Any] | None = None,
     ) -> None:
         self.store.upsert_entry(
             LocalModelCacheEntry(
@@ -1255,9 +1257,47 @@ class SupabaseVariantCacheRepo:
                     "total_publications": total_publications,
                     "publication_data": publication_data,
                     "strict_genomic_cache": strict_genomic_cache,
+                    "gene_context_snapshot": gene_context_snapshot or {},
                 },
                 provenance={"repo": "SupabaseVariantCacheRepo"},
                 fetched_at=_now(),
+            )
+        )
+
+    def update_gene_context_snapshot(
+        self,
+        query_string: str,
+        *,
+        gene_context_snapshot: dict[str, Any],
+    ) -> None:
+        entry = self.store.get_entry(
+            cache_family=self.cache_family,
+            source_id=self.source_id,
+            cache_key=query_string,
+        )
+        if entry is None:
+            return
+        payload = dict(entry.payload)
+        payload["gene_context_snapshot"] = gene_context_snapshot
+        self.store.upsert_entry(
+            LocalModelCacheEntry(
+                cache_family=self.cache_family,
+                source_id=self.source_id,
+                cache_key=query_string,
+                normalized_identity=dict(entry.normalized_identity),
+                request_identity=dict(entry.request_identity),
+                status=entry.status,
+                payload=payload,
+                raw_payload=entry.raw_payload,
+                provenance=dict(entry.provenance),
+                warnings=list(entry.warnings),
+                source_url=entry.source_url,
+                source_release=entry.source_release,
+                source_checksum_sha256=entry.source_checksum_sha256,
+                fetched_at=entry.fetched_at or _now(),
+                expires_at=entry.expires_at,
+                created_at=entry.created_at,
+                updated_at=_now(),
             )
         )
 
@@ -1466,6 +1506,30 @@ class HybridVariantCacheRepo:
         self.local_repo.upsert(query_string, **kwargs)
         try:
             self.remote_repo.upsert(query_string, **kwargs)
+        except SupabaseLocalModelCacheError as exc:
+            _log_remote_cache_fallback(
+                operation="write",
+                cache_family="variant_report",
+                source_id="variant_cache",
+                error=exc,
+            )
+            return
+
+    def update_gene_context_snapshot(
+        self,
+        query_string: str,
+        *,
+        gene_context_snapshot: dict[str, Any],
+    ) -> None:
+        self.local_repo.update_gene_context_snapshot(
+            query_string,
+            gene_context_snapshot=gene_context_snapshot,
+        )
+        try:
+            self.remote_repo.update_gene_context_snapshot(
+                query_string,
+                gene_context_snapshot=gene_context_snapshot,
+            )
         except SupabaseLocalModelCacheError as exc:
             _log_remote_cache_fallback(
                 operation="write",

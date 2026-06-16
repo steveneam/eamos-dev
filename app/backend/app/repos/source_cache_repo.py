@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 
 from app.core.db import SourceCacheRecord, session_scope
 from app.tools.base import ToolResult
@@ -14,7 +14,9 @@ def _as_aware(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
-def _iso(value: datetime) -> str:
+def _iso(value: datetime | str) -> str:
+    if isinstance(value, str):
+        return value
     return _as_aware(value).isoformat()
 
 
@@ -89,27 +91,63 @@ class SourceCacheRepo:
     def health_summary(self) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         with session_scope(self.session_factory) as session:
-            rows = session.execute(
+            total_row = session.execute(
+                select(
+                    func.count(SourceCacheRecord.cache_id),
+                    func.sum(case((SourceCacheRecord.expires_at > now, 1), else_=0)),
+                    func.sum(case((SourceCacheRecord.source_version.is_not(None), 1), else_=0)),
+                    func.min(SourceCacheRecord.fetched_at),
+                    func.max(SourceCacheRecord.fetched_at),
+                )
+            ).one()
+            source_rows = session.execute(
+                select(
+                    SourceCacheRecord.source,
+                    func.count(SourceCacheRecord.cache_id),
+                    func.sum(case((SourceCacheRecord.expires_at > now, 1), else_=0)),
+                    func.sum(case((SourceCacheRecord.source_version.is_not(None), 1), else_=0)),
+                    func.min(SourceCacheRecord.fetched_at),
+                    func.max(SourceCacheRecord.fetched_at),
+                ).group_by(SourceCacheRecord.source)
+            ).all()
+            status_rows = session.execute(
                 select(
                     SourceCacheRecord.source,
                     SourceCacheRecord.status,
-                    SourceCacheRecord.source_version,
-                    SourceCacheRecord.fetched_at,
-                    SourceCacheRecord.expires_at,
-                )
+                    func.count(SourceCacheRecord.cache_id),
+                ).group_by(SourceCacheRecord.source, SourceCacheRecord.status)
             ).all()
 
         sources: dict[str, dict[str, Any]] = {}
-        latest_fetched_at: datetime | None = None
-        oldest_fetched_at: datetime | None = None
-        total_rows = 0
-        fresh_rows = 0
-        stale_rows = 0
-        versioned_rows = 0
-        for source, status, source_version, fetched_at, expires_at in rows:
-            total_rows += 1
+        total_rows = int(total_row[0] or 0)
+        fresh_rows = int(total_row[1] or 0)
+        versioned_rows = int(total_row[2] or 0)
+        oldest_fetched_at = total_row[3]
+        latest_fetched_at = total_row[4]
+        stale_rows = total_rows - fresh_rows
+        for (
+            source,
+            row_count,
+            source_fresh_rows,
+            source_versioned_rows,
+            oldest,
+            latest,
+        ) in source_rows:
+            rows = int(row_count or 0)
+            fresh = int(source_fresh_rows or 0)
+            sources[str(source)] = {
+                "rows": rows,
+                "fresh_rows": fresh,
+                "stale_rows": rows - fresh,
+                "versioned_rows": int(source_versioned_rows or 0),
+                "status_counts": {},
+                "oldest_fetched_at": oldest,
+                "latest_fetched_at": latest,
+            }
+
+        for source, status, row_count in status_rows:
             source_summary = sources.setdefault(
-                source,
+                str(source),
                 {
                     "rows": 0,
                     "fresh_rows": 0,
@@ -120,35 +158,7 @@ class SourceCacheRepo:
                     "latest_fetched_at": None,
                 },
             )
-            source_summary["rows"] += 1
-            status_counts = source_summary["status_counts"]
-            status_counts[status] = status_counts.get(status, 0) + 1
-
-            is_fresh = expires_at is not None and _as_aware(expires_at) > now
-            if is_fresh:
-                fresh_rows += 1
-                source_summary["fresh_rows"] += 1
-            else:
-                stale_rows += 1
-                source_summary["stale_rows"] += 1
-
-            if source_version:
-                versioned_rows += 1
-                source_summary["versioned_rows"] += 1
-
-            if fetched_at is None:
-                continue
-            aware_fetched_at = _as_aware(fetched_at)
-            if latest_fetched_at is None or aware_fetched_at > latest_fetched_at:
-                latest_fetched_at = aware_fetched_at
-            if oldest_fetched_at is None or aware_fetched_at < oldest_fetched_at:
-                oldest_fetched_at = aware_fetched_at
-            current_latest = source_summary["latest_fetched_at"]
-            if current_latest is None or aware_fetched_at > current_latest:
-                source_summary["latest_fetched_at"] = aware_fetched_at
-            current_oldest = source_summary["oldest_fetched_at"]
-            if current_oldest is None or aware_fetched_at < current_oldest:
-                source_summary["oldest_fetched_at"] = aware_fetched_at
+            source_summary["status_counts"][str(status)] = int(row_count or 0)
 
         return {
             "total_rows": total_rows,

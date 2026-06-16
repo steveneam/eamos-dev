@@ -234,6 +234,7 @@ class VariantCacheRecord(Base):
     total_publications: Mapped[int | None] = mapped_column(Integer, nullable=True)
     publication_data: Mapped[str] = mapped_column(Text, default="{}")
     strict_genomic_cache: Mapped[str] = mapped_column(Text, default="{}")
+    gene_context_snapshot: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
@@ -369,6 +370,7 @@ def initialize_database(session_factory) -> None:
     Base.metadata.create_all(engine)
     _ensure_user_evidence_submission_payload_column(engine)
     _ensure_protein_annotation_cache_uniprot_release_column(engine)
+    _ensure_variant_cache_gene_context_snapshot_column(engine)
     _ensure_postgres_search_indexes(engine)
 
 
@@ -403,6 +405,21 @@ def _ensure_protein_annotation_cache_uniprot_release_column(engine) -> None:
         return
 
     statement = "ALTER TABLE protein_annotation_cache ADD COLUMN uniprot_release VARCHAR(160)"
+    with engine.begin() as connection:
+        connection.execute(text(statement))
+
+
+def _ensure_variant_cache_gene_context_snapshot_column(engine) -> None:
+    if "variant_cache" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("variant_cache")}
+    if "gene_context_snapshot" in columns:
+        return
+
+    if engine.dialect.name == "postgresql":
+        statement = "ALTER TABLE variant_cache ADD COLUMN IF NOT EXISTS gene_context_snapshot TEXT DEFAULT '{}'"
+    else:
+        statement = "ALTER TABLE variant_cache ADD COLUMN gene_context_snapshot TEXT DEFAULT '{}'"
     with engine.begin() as connection:
         connection.execute(text(statement))
 

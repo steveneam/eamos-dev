@@ -14,6 +14,7 @@ BatchVariantState = Literal[
     "filtered_post_lookup",
     "failed",
 ]
+BATCH_MAX_VARIANTS = 5000
 
 
 class ParsedVariant(BaseModel):
@@ -98,7 +99,9 @@ class BatchUploadResponse(BaseModel):
 
 
 class BatchCreateRequest(BaseModel):
-    variants: list[ParsedVariant] | None = Field(default=None, min_length=1, max_length=5000)
+    variants: list[ParsedVariant] | None = Field(
+        default=None, min_length=1, max_length=BATCH_MAX_VARIANTS
+    )
     upload_ref: str | None = Field(default=None, max_length=256)
     filters: BatchFilters = Field(default_factory=BatchFilters)
 

@@ -197,8 +197,10 @@ def test_materialized_hg38_resolver_reads_private_runtime_asset(monkeypatch) -> 
     class ReferenceStore:
         def __init__(self) -> None:
             self.closed = False
+            self.calls = 0
 
         def get_sequence(self, chrom: str, start: int, end: int, build: str | None = None):
+            self.calls += 1
             assert (chrom, start, end, build) == ("1", 8, 12, "GRCh38")
             return ReferenceWindow(
                 requested_chrom=chrom,
@@ -223,6 +225,12 @@ def test_materialized_hg38_resolver_reads_private_runtime_asset(monkeypatch) -> 
         checksum_value="dcc3ea27079aa6dc3f9deccd7275e0f8",
     )
     store = ReferenceStore()
+    factory_calls = 0
+
+    def reference_store_factory(_resolved):
+        nonlocal factory_calls
+        factory_calls += 1
+        return store
 
     monkeypatch.setattr(
         "app.services.sequence_context.resolve_hg38_materialized_runtime_asset",
@@ -237,19 +245,25 @@ def test_materialized_hg38_resolver_reads_private_runtime_asset(monkeypatch) -> 
         _settings(use_real_apis=True),
         materialization_store=object(),
         flank_bp=2,
-        reference_store_factory=lambda _resolved: store,
+        reference_store_factory=reference_store_factory,
     )
     query = normalize_sequence_query("RPE65", "c.260A>G")
 
     context = resolver.resolve(query, "human")
+    second_context = resolver.resolve(query, "human")
 
     assert context is not None
+    assert second_context is not None
     assert context.genomic_hg38 == "1-10-T-C"
     assert context.window_sequence == "AACGT"
     assert context.source_metadata["sequence_source"] == "ucsc_hg38_2bit_materialized"
     assert context.source_metadata["checksum_value"] == resolved.checksum_value
     assert "object_path" not in context.source_metadata
     assert "path" not in context.source_metadata
+    assert factory_calls == 1
+    assert store.calls == 2
+    assert store.closed is False
+    resolver.close()
     assert store.closed is True
 
 

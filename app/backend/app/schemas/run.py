@@ -898,15 +898,27 @@ class VariantReportProfile(BaseModel):
     provenance: list[SourceProvenance] = Field(default_factory=list)
 
 
+REPORT_SOURCE_FILENAMES_MAX = 32
+REPORT_VARIANT_SUMMARY_ROWS_MAX = 100
+REPORT_PUBMED_ARTICLES_MAX = 100
+REPORT_AI_GENERATED_SECTIONS_MAX = 64
+REPORT_ASSOCIATED_CONDITIONS_MAX = 100
+
+
 class ReportPayload(BaseModel):
     patient_id: str
     case_label: str | None = None
     report_title: str | None = None
-    source_filenames: list[str] = Field(default_factory=list)
+    source_filenames: list[str] = Field(
+        default_factory=list, max_length=REPORT_SOURCE_FILENAMES_MAX
+    )
     patient_context: str | None = None
     clinical_phenotype: str | None = None
     ai_clinical_summary: str | None = None
-    variant_summary_rows: list[VariantSummaryRow] = Field(default_factory=list)
+    variant_summary_rows: list[VariantSummaryRow] = Field(
+        default_factory=list,
+        max_length=REPORT_VARIANT_SUMMARY_ROWS_MAX,
+    )
     expanded_evidence: str | None = None
     acmg_classification: str | None = None
     clinical_integration: str | None = None
@@ -915,13 +927,22 @@ class ReportPayload(BaseModel):
     limitations: str | None = None
     variant_decoder: str | None = None
     therapeutic_landscape: str | None = None
-    pubmed_articles: list[PubMedArticle] = Field(default_factory=list)
-    ai_generated_sections: list[str] = Field(default_factory=list)
+    pubmed_articles: list[PubMedArticle] = Field(
+        default_factory=list,
+        max_length=REPORT_PUBMED_ARTICLES_MAX,
+    )
+    ai_generated_sections: list[str] = Field(
+        default_factory=list,
+        max_length=REPORT_AI_GENERATED_SECTIONS_MAX,
+    )
     locus_context: LocusContext | None = None
     in_silico_predictions: InSilicoPredictions | None = None
     acmg_criteria_scaffold: AcmgCriteriaScaffold | None = None
     curated_variants_distribution: CuratedVariantsDistribution | None = None
-    associated_conditions: list[AssociatedCondition] = Field(default_factory=list)
+    associated_conditions: list[AssociatedCondition] = Field(
+        default_factory=list,
+        max_length=REPORT_ASSOCIATED_CONDITIONS_MAX,
+    )
     publications_callout: PublicationsCallout | None = None
     publications_literature: PublicationLiterature | None = None
     functional_evidence: FunctionalEvidenceSummary | None = None

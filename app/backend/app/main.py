@@ -229,6 +229,7 @@ def create_app(settings=None) -> FastAPI:
         settings, reports_repo, report_pdf_tool, extraction_chain
     )
     app.state.workflow_service = WorkflowService(
+        settings=settings,
         reports_repo=reports_repo,
         run_repo=run_repo,
         tool_registry=tool_registry,

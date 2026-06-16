@@ -16,8 +16,7 @@ DEFAULT_SPLICEAI_THRESHOLD = 0.2
 ALPHAMISSENSE_KEYS = {"alphamissense", "alpha_missense", "alpha missense"}
 ESM1B_KEYS = {"esm1b", "esm1b llr", "esm1b_llr", "esm1b-llr"}
 _VARIANT_ID_RE = re.compile(
-    r"^(?:chr)?(?P<chrom>[0-9XYM]+|MT)-(?P<pos>[1-9][0-9]*)-"
-    r"(?P<ref>[ACGT]+)-(?P<alt>[ACGT]+)$",
+    r"^(?:chr)?(?P<chrom>[0-9XYM]+|MT)-(?P<pos>[1-9][0-9]*)-" r"(?P<ref>[ACGT]+)-(?P<alt>[ACGT]+)$",
     flags=re.IGNORECASE,
 )
 _GENOMIC_HGVS_SNV_RE = re.compile(
@@ -176,9 +175,7 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
         alt: str,
     ) -> dict[str, Any] | None:
         try:
-            adapter = self._alphamissense_adapter or AlphaMissenseLocalAdapter.from_settings(
-                self.settings
-            )
+            adapter = self._alphamissense_adapter_for_lookup()
             lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
         except Exception as exc:
             return {
@@ -203,7 +200,7 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
         alt: str,
     ) -> dict[str, Any] | None:
         try:
-            adapter = self._esm1b_adapter or Esm1bLocalAdapter.from_settings(self.settings)
+            adapter = self._esm1b_adapter_for_lookup()
             lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
         except Exception as exc:
             return {
@@ -219,6 +216,16 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
             "provenance": [_prediction_provenance("ESM1b", prediction.provenance)],
             "warnings": list(lookup.warnings),
         }
+
+    def _alphamissense_adapter_for_lookup(self) -> Any:
+        if self._alphamissense_adapter is None:
+            self._alphamissense_adapter = AlphaMissenseLocalAdapter.from_settings(self.settings)
+        return self._alphamissense_adapter
+
+    def _esm1b_adapter_for_lookup(self) -> Any:
+        if self._esm1b_adapter is None:
+            self._esm1b_adapter = Esm1bLocalAdapter.from_settings(self.settings)
+        return self._esm1b_adapter
 
 
 def normalize_computational_record(

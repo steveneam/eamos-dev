@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
@@ -118,6 +119,9 @@ class AlphaMissenseLocalAdapter:
         self._inspection = inspection
         self._record = registry.get(ALPHAMISSENSE_SOURCE_ID)
         self._reader_factory = reader_factory or _default_reader_factory
+        self._reader_lock = threading.RLock()
+        self._reader_path: Path | None = None
+        self._reader: AlphaMissenseReader | None = None
 
     @classmethod
     def from_settings(
@@ -153,7 +157,8 @@ class AlphaMissenseLocalAdapter:
                 warnings=("alphamissense_invalid_coordinates",),
             )
         try:
-            with self._reader_factory(self._inspection.path) as reader:
+            with self._reader_lock:
+                reader = self._reader_for_ready_asset()
                 matches = reader.query_variant(chrom, position, ref, alt)
         except IndexedSourceError as exc:
             return AlphaMissenseLookup(
@@ -236,7 +241,8 @@ class AlphaMissenseLocalAdapter:
         queried_calibrated_label: str | None = None
         position_cache: dict[int, tuple[IndexedPredictorScore, ...]] = {}
         try:
-            with self._reader_factory(self._inspection.path) as reader:
+            with self._reader_lock:
+                reader = self._reader_for_ready_asset()
                 for aa in range(aa_start, bounded_end + 1):
                     codon_start = (aa - 1) * 3
                     scores: list[float] = []
@@ -319,6 +325,23 @@ class AlphaMissenseLocalAdapter:
                 () if scored_count == len(residues) else ("alphamissense_heatmap_partial_window",)
             ),
         )
+
+    def close(self) -> None:
+        with self._reader_lock:
+            reader = self._reader
+            self._reader = None
+            self._reader_path = None
+            close = getattr(reader, "close", None)
+            if callable(close):
+                close()
+
+    def _reader_for_ready_asset(self) -> AlphaMissenseReader:
+        path = self._inspection.path
+        if self._reader is None or self._reader_path != path:
+            self.close()
+            self._reader = self._reader_factory(path)
+            self._reader_path = path
+        return self._reader
 
     def _prediction_from_score(
         self,

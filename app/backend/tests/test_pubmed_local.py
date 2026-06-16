@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import app.services.pubmed_local as pubmed_local_module
 from app.cli import eamos_pubmed_local_materialize, eamos_pubmed_local_preflight
 from app.core.config import Settings
 from app.services.pubmed_local import (
@@ -552,6 +553,30 @@ def test_pubmed_tool_uses_local_without_live_call(
         raise AssertionError("live PubMed should not be called for local hit")
 
     monkeypatch.setattr(PubmedTool, "_fetch_live", fail_live)
+
+    result = PubmedTool(settings).get_evidence(_variant())
+
+    assert result.status == "local"
+    assert result.summary["articles"][0]["pmid"] == "38191234"
+
+
+def test_pubmed_tool_local_request_path_skips_logical_checksum(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings(tmp_path, pubmed_local_enabled=True, use_real_apis=True)
+    materialize_pubmed_local_store(
+        settings,
+        xml_files=[PUBMED_XML],
+        query_file=_seed_file(tmp_path),
+        source_version="pubmed-local-test",
+        force=True,
+    )
+
+    def fail_checksum(*_args, **_kwargs):
+        raise AssertionError("request-path PubMed lookup must not logical-checksum the corpus")
+
+    monkeypatch.setattr(pubmed_local_module, "_logical_checksum", fail_checksum)
 
     result = PubmedTool(settings).get_evidence(_variant())
 

@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
     rate_limit_default_max_requests: int = 60
     rate_limit_auth_max_requests: int = 20
+    rate_limit_batch_upload_max_requests: int = 10
     rate_limit_lookup_max_requests: int = 30
     rate_limit_chat_max_requests: int = 10
     rate_limit_evidence_max_requests: int = 10
@@ -64,7 +65,18 @@ class Settings(BaseSettings):
     lookup_chat_timeout_seconds: float = 10.0
     search_input_ai_enabled: bool = False
     search_input_ai_timeout_seconds: float = 8.0
+    search_input_resolver_timeout_seconds: float = 5.0
+    search_input_resolver_deadline_seconds: float = 8.0
     run_chat_top_k: int = 4
+    run_chat_timeout_seconds: float = 10.0
+    run_chat_worker_max_workers: int = 2
+    run_chat_vector_cache_max_entries: int = 32
+    run_chat_max_chunks: int = 256
+    workflow_worker_max_workers: int = 5
+    workflow_tool_timeout_seconds: float = 10.0
+    workflow_draft_timeout_seconds: float = 10.0
+    paper_variants_pdf_timeout_seconds: float = 10.0
+    paper_variants_extract_timeout_seconds: float = 20.0
 
     # --- AI gateway (variant chat) — docs/ai-gateway/plan.md ---
     # Activated when llm_provider == "gateway"; key env var AI_GATEWAY_API_KEY.
@@ -151,6 +163,8 @@ class Settings(BaseSettings):
     coordinate_resolver_compact_index_path: Path = Path(
         "./data/bio_assets/transcripts/eamos-coordinate-index.latest.jsonl.gz"
     )
+    coordinate_resolver_compact_index_max_variants: int = 250_000
+    coordinate_resolver_compact_index_max_transcripts: int = 100_000
     coordinate_resolver_compact_index_object_uri: str | None = None
     coordinate_resolver_compact_index_materialize_timeout_seconds: float = 1200.0
     coordinate_resolver_hg38_2bit_path: Path | None = None
@@ -175,6 +189,7 @@ class Settings(BaseSettings):
     protein_annotation_pfam_materialize_timeout_seconds: float = 1200.0
     protein_annotation_hmmscan_timeout_seconds: float = 30.0
     protein_annotation_hmmscan_max_residues: int = 5000
+    protein_annotation_hmmscan_memory_limit_mb: int = 1536
     protein_annotation_hmmpress_timeout_seconds: float = 900.0
     protein_annotation_require_pfam_indexes: bool = True
     protein_annotation_uniprot_features_enabled: bool = False

@@ -173,8 +173,8 @@ class EamosLocalCoordinateResolver:
     def __init__(
         self,
         *,
-        mane_gff_path: Path | None = DEFAULT_MANE_GFF_PATH,
-        refseq_gff_path: Path | None = DEFAULT_REFSEQ_GFF_PATH,
+        mane_gff_path: Path | None = None,
+        refseq_gff_path: Path | None = None,
         compact_index_path: Path | None = None,
         compact_index: CompactCoordinateIndex | None = None,
         coordinate_catalog_path: Path | None = None,

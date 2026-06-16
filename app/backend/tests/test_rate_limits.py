@@ -7,7 +7,8 @@ import time
 
 from fastapi.testclient import TestClient
 
-from app.schemas.chat import ChatResponse
+from app.core.rate_limit import InMemoryRateLimiter
+from app.schemas.chat import ChatResponse, RunChatResponse
 
 
 def _set_limit(client: TestClient, scope: str, max_requests: int = 1) -> None:
@@ -32,6 +33,14 @@ class FakeChatService:
 
     def respond_stream(self, _payload):
         yield "Mock answer."
+
+
+class FakeRunChatService:
+    def answer(self, _run_id, payload):
+        return RunChatResponse(question=payload.question, answer="Mock run answer.")
+
+    def stream(self, _run_id, _payload):
+        yield "Mock run answer."
 
 
 def test_auth_register_is_rate_limited_per_ip(client: TestClient) -> None:
@@ -136,6 +145,35 @@ def test_chat_is_rate_limited_per_user_across_ips(auth_client: TestClient) -> No
         "/api/v1/chat",
         json=_chat_payload(),
         headers={"X-Forwarded-For": "203.0.113.41"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
+def test_run_chat_endpoint_uses_chat_rate_limit(auth_client: TestClient) -> None:
+    _set_limit(auth_client, "chat")
+    auth_client.app.state.run_chat_service = FakeRunChatService()
+
+    first = auth_client.post("/api/v1/runs/run_rate/chat", json={"question": "What changed?"})
+    second = auth_client.post("/api/v1/runs/run_rate/chat", json={"question": "What changed?"})
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
+def test_run_chat_stream_endpoint_uses_chat_rate_limit(auth_client: TestClient) -> None:
+    _set_limit(auth_client, "chat")
+    auth_client.app.state.rate_limiter = InMemoryRateLimiter()
+    auth_client.app.state.run_chat_service = FakeRunChatService()
+
+    first = auth_client.post(
+        "/api/v1/runs/run_rate/chat/stream",
+        json={"question": "What changed?"},
+    )
+    second = auth_client.post(
+        "/api/v1/runs/run_rate/chat/stream",
+        json={"question": "What changed?"},
     )
 
     assert first.status_code == 200

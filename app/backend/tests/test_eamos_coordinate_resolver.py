@@ -124,6 +124,40 @@ def test_compact_coordinate_index_reader_resolves_variant_and_transcript() -> No
     assert transcript.exons[1].genomic_start == 68444805
 
 
+def test_compact_coordinate_index_refuses_configured_runtime_ceiling() -> None:
+    index = CompactCoordinateIndex(COMPACT_INDEX_FIXTURE, max_transcripts=1)
+
+    inspection = index.inspection()
+
+    assert inspection.ready is False
+    assert inspection.status == "index_too_large"
+
+
+def test_eamos_local_coordinate_resolver_default_does_not_scan_raw_gff(
+    monkeypatch,
+) -> None:
+    def raw_gff_loader_should_not_run(*_args, **_kwargs):
+        raise AssertionError("default resolver construction must not scan raw GFF")
+
+    monkeypatch.setattr(
+        coordinate_resolver_module,
+        "_load_gff_transcript_models_for_genes",
+        raw_gff_loader_should_not_run,
+    )
+    resolver = EamosLocalCoordinateResolver(
+        coordinate_catalog_path=None,
+        reference_store_factory=_missing_reference_store,
+    )
+
+    resolved = resolver.resolve(
+        gene="TEST",
+        transcript="NM_TEST.1",
+        cdna="c.3G>T",
+    )
+
+    assert resolved is None
+
+
 def test_runtime_search_resolver_uses_compact_index_without_raw_gff_scan(
     monkeypatch,
 ) -> None:
@@ -310,7 +344,11 @@ def test_eamos_local_coordinate_resolver_maps_project_100_stack_without_catalog(
     if missing_assets:
         pytest.skip(f"ignored local resolver assets are absent: {', '.join(missing_assets)}")
 
-    resolver = EamosLocalCoordinateResolver(coordinate_catalog_path=None)
+    resolver = EamosLocalCoordinateResolver(
+        mane_gff_path=DEFAULT_MANE_GFF_PATH,
+        refseq_gff_path=DEFAULT_REFSEQ_GFF_PATH,
+        coordinate_catalog_path=None,
+    )
     unresolved: list[str] = []
     try:
         for row in _project_100_source_rows():

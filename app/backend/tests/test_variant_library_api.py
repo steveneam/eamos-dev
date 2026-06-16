@@ -157,6 +157,36 @@ def test_variant_library_bulk_save_reports_added_count(auth_client: TestClient) 
     assert len(second.json()["library"]["variants"]) == 2
 
 
+def test_variant_library_get_library_paginates_saved_variants(auth_client: TestClient) -> None:
+    payload = {
+        "variants": [
+            _saved_variant_payload(id="variant-a", query="variant a", savedAt=10),
+            _saved_variant_payload(id="variant-b", query="variant b", savedAt=20),
+            _saved_variant_payload(id="variant-c", query="variant c", savedAt=30),
+        ]
+    }
+    saved = auth_client.post("/api/v1/library/variants/bulk", json=payload)
+    assert saved.status_code == 200
+
+    page = auth_client.get("/api/v1/library?limit=2&offset=1")
+
+    assert page.status_code == 200
+    assert [variant["id"] for variant in page.json()["variants"]] == ["variant-b", "variant-a"]
+
+
+def test_variant_library_rejects_oversized_bulk_save(auth_client: TestClient) -> None:
+    payload = {
+        "variants": [
+            _saved_variant_payload(id=f"variant-{idx}", query=f"variant {idx}")
+            for idx in range(101)
+        ]
+    }
+
+    response = auth_client.post("/api/v1/library/variants/bulk", json=payload)
+
+    assert response.status_code == 422
+
+
 def test_variant_library_path_ids_allow_slashes_for_move_and_delete(
     auth_client: TestClient,
 ) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import json
+import time
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
@@ -119,12 +120,23 @@ class EamosSearchInputResolver:
         self,
         settings=None,
         *,
-        timeout_seconds: float = 15.0,
+        timeout_seconds: float | None = None,
         resolve_coordinates: bool = False,
         local_coordinate_resolver: EamosLocalCoordinateResolver | None = None,
     ) -> None:
         self.settings = settings
-        self.timeout_seconds = timeout_seconds
+        default_timeout = getattr(settings, "search_input_resolver_timeout_seconds", 5.0)
+        self.timeout_seconds = _positive_float(
+            default_timeout if timeout_seconds is None else timeout_seconds,
+            default=5.0,
+        )
+        self.deadline_seconds = max(
+            self.timeout_seconds,
+            _positive_float(
+                getattr(settings, "search_input_resolver_deadline_seconds", self.timeout_seconds),
+                default=self.timeout_seconds,
+            ),
+        )
         self.resolve_coordinates = resolve_coordinates
         self._local_coordinate_resolver = local_coordinate_resolver
 
@@ -167,6 +179,7 @@ class EamosSearchInputResolver:
         )
         warnings: list[str] = []
         provenance: list[str] = []
+        deadline = time.monotonic() + self.deadline_seconds
 
         transcript_hgvs = f"{normalized_transcript}:{hgvs}" if normalized_transcript else hgvs
         resolver_transcript = normalized_transcript
@@ -176,7 +189,8 @@ class EamosSearchInputResolver:
                 provenance.append("local_canonical_transcript_map")
             else:
                 resolver_transcript, resolver_warnings = self._resolve_mane_transcript(
-                    normalized_gene
+                    normalized_gene,
+                    deadline=deadline,
                 )
                 warnings.extend(resolver_warnings)
                 if resolver_transcript is not None:
@@ -198,7 +212,10 @@ class EamosSearchInputResolver:
                 genomic_hgvs = genomic_variant_id_to_refseq_hgvs(genomic_hg38)
             provenance.append("submitted_genomic_variant_id")
         elif kind == "rsid":
-            rsid_candidates, rsid_warnings, rsid_provenance = self._resolve_rsid_candidates(hgvs)
+            rsid_candidates, rsid_warnings, rsid_provenance = self._resolve_rsid_candidates(
+                hgvs,
+                deadline=deadline,
+            )
             warnings.extend(rsid_warnings)
             provenance.extend(rsid_provenance)
         elif self.resolve_coordinates and kind == "cdna" and resolver_transcript is not None:
@@ -221,7 +238,10 @@ class EamosSearchInputResolver:
                     variant_validator_raw,
                     variant_validator_url,
                     coordinate_warnings,
-                ) = self._resolve_variant_validator_coordinates(resolver_transcript_hgvs)
+                ) = self._resolve_variant_validator_coordinates(
+                    resolver_transcript_hgvs,
+                    deadline=deadline,
+                )
                 warnings.extend(coordinate_warnings)
                 if genomic_hg38 is None:
                     warnings.append("eamos_local_coordinate_unresolved")
@@ -306,7 +326,12 @@ class EamosSearchInputResolver:
             self._local_coordinate_resolver = resolver
         return resolver.resolve(gene=gene, cdna=cdna, transcript=transcript)
 
-    def _resolve_mane_transcript(self, gene: str) -> tuple[str | None, list[str]]:
+    def _resolve_mane_transcript(
+        self,
+        gene: str,
+        *,
+        deadline: float,
+    ) -> tuple[str | None, list[str]]:
         if self.settings is None or not getattr(self.settings, "use_real_apis", False):
             return None, []
 
@@ -318,7 +343,7 @@ class EamosSearchInputResolver:
             response = httpx.get(
                 url,
                 headers={"Content-Type": "application/json", "Accept": "application/json"},
-                timeout=self.timeout_seconds,
+                timeout=self._http_timeout_seconds(deadline),
             )
             response.raise_for_status()
             payload = response.json()
@@ -365,6 +390,8 @@ class EamosSearchInputResolver:
     def _resolve_variant_validator_coordinates(
         self,
         transcript_hgvs: str,
+        *,
+        deadline: float,
     ) -> tuple[
         str | None, str | None, dict[str, Any] | None, dict[str, Any] | None, str | None, list[str]
     ]:
@@ -376,7 +403,7 @@ class EamosSearchInputResolver:
             f"/VariantValidator/variantvalidator/GRCh38/{quote(transcript_hgvs, safe='')}/all"
         )
         try:
-            response = httpx.get(url, timeout=self.timeout_seconds)
+            response = httpx.get(url, timeout=self._http_timeout_seconds(deadline))
             response.raise_for_status()
             payload = response.json()
         except Exception as exc:
@@ -402,6 +429,8 @@ class EamosSearchInputResolver:
     def _resolve_rsid_candidates(
         self,
         rsid: str,
+        *,
+        deadline: float,
     ) -> tuple[tuple[RsidResolutionCandidate, ...], list[str], list[str]]:
         fixture_candidates = _fixture_rsid_candidates(rsid)
         if self.settings is None or not getattr(self.settings, "use_real_apis", False):
@@ -420,7 +449,7 @@ class EamosSearchInputResolver:
                     "mane": "1",
                 },
                 headers={"Accept": "application/json"},
-                timeout=self.timeout_seconds,
+                timeout=self._http_timeout_seconds(deadline),
             )
             response.raise_for_status()
             payload = response.json()
@@ -439,6 +468,12 @@ class EamosSearchInputResolver:
         if not candidates:
             warnings.append(f"rsid_resolution_unavailable:{rsid}")
         return candidates, warnings, ["ensembl_vep_rsid_lookup"]
+
+    def _http_timeout_seconds(self, deadline: float) -> float:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("search input resolver deadline exceeded")
+        return min(self.timeout_seconds, max(0.001, remaining))
 
     def _clinvar_input(
         self,
@@ -1003,3 +1038,11 @@ def _format_exon(value: Any) -> str | None:
     if start and end and start != end:
         return f"{start}-{end}"
     return start or end
+
+
+def _positive_float(value, *, default: float) -> float:
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if coerced > 0 else default

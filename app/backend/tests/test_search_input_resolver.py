@@ -90,6 +90,27 @@ def test_eamos_search_input_resolver_accepts_refseq_genomic_hgvs() -> None:
     assert resolution.source_inputs.variant_validator == "NC_000001.11:g.216247118C>A"
 
 
+def test_eamos_search_input_resolver_uses_configured_live_timeout(monkeypatch) -> None:
+    seen_timeouts: list[float] = []
+
+    def fake_get(_url: str, **kwargs):
+        seen_timeouts.append(kwargs["timeout"])
+        return _Response({"Transcript": []})
+
+    monkeypatch.setattr("app.services.search_input_resolver.httpx.get", fake_get)
+
+    resolution = EamosSearchInputResolver(
+        _settings(
+            use_real_apis=True,
+            search_input_resolver_timeout_seconds=3.5,
+            search_input_resolver_deadline_seconds=4.0,
+        )
+    ).resolve(gene="NOTCH2", cdna="c.1A>G")
+
+    assert resolution.resolver_transcript is None
+    assert seen_timeouts == [3.5]
+
+
 def test_parse_search_text_accepts_gene_prefixed_cdna() -> None:
     parsed = parse_search_text("abca4:c.1622T>C")
 

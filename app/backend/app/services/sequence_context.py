@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Literal, Protocol
@@ -466,6 +467,32 @@ class MaterializedHg38SequenceResolver:
             timeout_seconds=timeout_seconds,
         )
         self.reference_store_factory = reference_store_factory or _materialized_hg38_reference_store
+        self._reference_store_lock = threading.RLock()
+        self._reference_store_key: tuple[str, str, int | None, str | None] | None = None
+        self._reference_store: ReferenceSequenceReader | None = None
+
+    def close(self) -> None:
+        with self._reference_store_lock:
+            self._close_reference_store_unlocked()
+
+    def _reference_store_for_resolved(
+        self,
+        resolved: ResolvedRuntimeAsset,
+    ) -> ReferenceSequenceReader:
+        key = _resolved_asset_store_key(resolved)
+        if self._reference_store is None or self._reference_store_key != key:
+            self._close_reference_store_unlocked()
+            self._reference_store = self.reference_store_factory(resolved)
+            self._reference_store_key = key
+        return self._reference_store
+
+    def _close_reference_store_unlocked(self) -> None:
+        store = self._reference_store
+        self._reference_store = None
+        self._reference_store_key = None
+        close = getattr(store, "close", None)
+        if callable(close):
+            close()
 
     def resolve(self, query: NormalizedVariantQuery, species: str) -> SequenceContext | None:
         if species != "human" or query.kind != "cdna" or not query.resolver_transcript_hgvs:
@@ -492,13 +519,9 @@ class MaterializedHg38SequenceResolver:
                 self.materialization_store,
                 verify_checksum=False,
             )
-            reference_store = self.reference_store_factory(resolved)
-            try:
+            with self._reference_store_lock:
+                reference_store = self._reference_store_for_resolved(resolved)
                 window = reference_store.get_sequence(chrom, start, end, build="GRCh38")
-            finally:
-                close = getattr(reference_store, "close", None)
-                if callable(close):
-                    close()
         except (
             SourceAssetMaterializationError,
             ReferenceGenomeStoreError,
@@ -534,6 +557,17 @@ class MaterializedHg38SequenceResolver:
                 "variant_validator_url": self.coordinate_resolver._variant_validator_url(query),
             },
         )
+
+
+def _resolved_asset_store_key(
+    resolved: ResolvedRuntimeAsset,
+) -> tuple[str, str, int | None, str | None]:
+    return (
+        str(getattr(resolved, "path", "")),
+        str(getattr(resolved, "source_id", "")),
+        getattr(resolved, "byte_size", None),
+        getattr(resolved, "checksum_value", None),
+    )
 
 
 @lru_cache(maxsize=1)

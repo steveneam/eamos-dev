@@ -228,17 +228,12 @@ class ClinGenLocalStore:
             return [], inspection, True
 
         normalized_gene = gene.strip().upper()
-        raw_terms = [term for term in (_raw_like_term(item) for item in terms) if term]
-        if not normalized_gene or not raw_terms:
+        indexed_terms = [term for term in (_normalize_term(item) for item in terms) if term]
+        if not normalized_gene or not indexed_terms:
             return [], inspection, False
 
         with closing(_connect_readonly(self.db_path)) as conn:
-            rows = _search_records_by_raw_text(
-                conn,
-                normalized_gene,
-                raw_terms,
-                limit=limit,
-            )
+            rows = _search_records(conn, normalized_gene, indexed_terms, limit=limit)
             complete = _coverage_complete(conn)
         return rows, inspection, not rows and not complete
 
@@ -773,6 +768,8 @@ def _erepo_terms(record: dict[str, Any]) -> list[tuple[str, str]]:
     if isinstance(expert_panel, dict):
         for value in _string_values(expert_panel):
             _append_term(terms, "expertPanel", value)
+    for value in _variant_search_tokens(_string_values(record)):
+        _append_term(terms, "variant_token", value)
     return terms
 
 
@@ -932,6 +929,37 @@ def _string_values(value: Any) -> list[str]:
     if value is None:
         return []
     return [str(value).strip()]
+
+
+def _variant_search_tokens(values: Iterable[str]) -> list[str]:
+    tokens: list[str] = []
+    for value in values:
+        tokens.extend(re.findall(r"\bc\.[0-9+\-*?_]+[ACGT]>[ACGT]\b", value, re.IGNORECASE))
+        tokens.extend(
+            re.findall(
+                r"\bp\.?\(?[A-Za-z*]{1,16}\d{1,7}[A-Za-z*=?]{0,16}\)?",
+                value,
+                re.IGNORECASE,
+            )
+        )
+    expanded: list[str] = []
+    for token in tokens:
+        expanded.append(token)
+        if token.lower().startswith("p."):
+            expanded.append(token[2:])
+        prefix = _protein_position_prefix(token)
+        if prefix:
+            expanded.append(prefix)
+            expanded.append(prefix.removeprefix("p."))
+    return _dedupe(expanded)
+
+
+def _protein_position_prefix(value: str) -> str | None:
+    cleaned = value.strip().strip("()")
+    match = re.match(r"p\.?\(?([A-Za-z*]{1,16}\d{1,7})", cleaned, re.IGNORECASE)
+    if match is None:
+        return None
+    return f"p.{match.group(1)}"
 
 
 def _normalize_term(value: Any) -> str:

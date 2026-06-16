@@ -21,9 +21,13 @@ from app.schemas.run import (
     FunctionalEvidenceSourceBreakdown,
     FunctionalEvidenceSummary,
     FunctionalStudy,
+    GeneContextSnapshot,
+    GeneContextVariantProjection,
 )
+from app.schemas.protein_annotation import ProteinDomainTrack, ProteinDomainTrackFeature
 from app.services.lookup_service import (
     FUNCTIONAL_EVIDENCE_CACHE_VERSION,
+    GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
     PUBLICATION_DATA_CACHE_VERSION,
     STRICT_GENOMIC_CACHE_VERSION,
     LookupService,
@@ -58,6 +62,10 @@ def test_variant_cache_hit_miss_and_expiry(tmp_path: Path) -> None:
         record.created_at = datetime.now(timezone.utc) - timedelta(days=31)
 
     assert repo.get_fresh("RPE65:c.260A>G", ttl_days=30) is None
+    with session_scope(session_factory) as session:
+        assert session.execute(select(VariantCacheRecord)).scalar_one().query_string == (
+            "RPE65:c.260A>G"
+        )
 
 
 class _StaticTool:
@@ -113,6 +121,43 @@ class _NoopFunctionalEvidenceExtractor:
     def build_for_lookup(self, *args, **kwargs) -> FunctionalEvidenceSummary:
         self.calls += 1
         return self.summary
+
+
+class _CountingGeneContextSnapshotService:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def build(
+        self,
+        *,
+        gene: str,
+        cdna: str,
+        transcript: str | None = None,
+        species: str = "human",
+    ) -> GeneContextSnapshot:
+        self.calls += 1
+        return GeneContextSnapshot(
+            source_status="live",
+            gene=gene,
+            transcript=transcript,
+            variant=GeneContextVariantProjection(hgvs_c=cdna, membership="exon"),
+            protein_domain_track=ProteinDomainTrack(
+                status="cache_hit",
+                gene_symbol=gene,
+                protein_length=533,
+                features=[
+                    ProteinDomainTrackFeature(
+                        feature_id="pfam-fn3",
+                        kind="domain",
+                        label="Fibronectin type III",
+                        aa_start=20,
+                        aa_end=90,
+                        source="pfam",
+                    )
+                ],
+            ),
+            warnings=[f"snapshot_build_species:{species}"],
+        )
 
 
 def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path) -> None:
@@ -338,6 +383,77 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
         == FUNCTIONAL_EVIDENCE_CACHE_VERSION
     )
     assert hit["publication_data"]["functional_evidence"]["total_count"] == 1
+
+
+def test_resolved_lookup_reuses_cached_gene_context_snapshot(tmp_path: Path) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    gene_context_snapshot = _CountingGeneContextSnapshotService()
+    tools = {
+        "vep": _StaticTool("vep", {"most_severe_consequence": "missense_variant"}),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool(
+            "spliceai",
+            {
+                "acceptor_loss": 0.0,
+                "donor_loss": 0.0,
+                "acceptor_gain": 0.0,
+                "donor_gain": 0.0,
+            },
+        ),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
+        "clinical_trials": _ClinicalTrialsTool(),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+        gene_context_snapshot=gene_context_snapshot,
+    )
+
+    first = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+    second = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    assert gene_context_snapshot.calls == 1
+    assert first.report_payload.report_profile is not None
+    assert second.report_payload.report_profile is not None
+    first_snapshot = first.report_payload.report_profile.gene_context_snapshot
+    second_snapshot = second.report_payload.report_profile.gene_context_snapshot
+    assert first_snapshot is not None
+    assert second_snapshot is not None
+    assert second_snapshot.protein_domain_track is not None
+    assert second_snapshot.protein_domain_track.status == "cache_hit"
+    assert second_snapshot.protein_domain_track.features[0].label == "Fibronectin type III"
+
+    hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    assert hit is not None
+    cached_snapshot = hit["gene_context_snapshot"]
+    assert (
+        cached_snapshot["gene_context_snapshot_cache_version"]
+        == GENE_CONTEXT_SNAPSHOT_CACHE_VERSION
+    )
+    assert cached_snapshot["snapshot"]["protein_domain_track"]["features"][0]["label"] == (
+        "Fibronectin type III"
+    )
 
 
 def test_legacy_cached_functional_evidence_rebuilds_and_refreshes_cache(

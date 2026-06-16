@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -94,6 +95,9 @@ class Esm1bLocalAdapter:
         self._inspection = inspection
         self._record = registry.get(ESM1B_SOURCE_ID)
         self._reader_factory = reader_factory or _default_reader_factory
+        self._reader_lock = threading.RLock()
+        self._reader_path: Path | None = None
+        self._reader: Esm1bReader | None = None
 
     @classmethod
     def from_settings(
@@ -129,7 +133,8 @@ class Esm1bLocalAdapter:
                 warnings=("esm1b_invalid_coordinates",),
             )
         try:
-            with self._reader_factory(self._inspection.path) as reader:
+            with self._reader_lock:
+                reader = self._reader_for_ready_asset()
                 matches = reader.query_variant(chrom, position, ref, alt)
         except IndexedSourceError as exc:
             return Esm1bLookup(
@@ -195,6 +200,23 @@ class Esm1bLocalAdapter:
                 license_gate=ESM1B_LICENSE_GATE,
             ),
         )
+
+    def close(self) -> None:
+        with self._reader_lock:
+            reader = self._reader
+            self._reader = None
+            self._reader_path = None
+            close = getattr(reader, "close", None)
+            if callable(close):
+                close()
+
+    def _reader_for_ready_asset(self) -> Esm1bReader:
+        path = self._inspection.path
+        if self._reader is None or self._reader_path != path:
+            self.close()
+            self._reader = self._reader_factory(path)
+            self._reader_path = path
+        return self._reader
 
 
 def _default_reader_factory(path: Path) -> Esm1bReader:

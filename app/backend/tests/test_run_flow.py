@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 
 from app.services.draft_render import DraftRenderService
@@ -155,3 +157,34 @@ def test_run_falls_back_cleanly_when_llm_draft_fails(
     assert "patient-specific interpretation step" in body["report_payload"]["ai_clinical_summary"]
     assert "Ravi" not in body["report_payload"]["ai_clinical_summary"]
     assert "llm_draft_fallback:RuntimeError" in body["warnings"]
+
+
+def test_run_degrades_slow_evidence_tool_after_deadline(
+    auth_client: TestClient, app, pdf_bytes: bytes, monkeypatch
+) -> None:
+    report_id = _upload_report(auth_client, pdf_bytes)
+    app.state.workflow_service.settings.workflow_tool_timeout_seconds = 0.01
+
+    def slow_vep_result(**_kwargs) -> ToolResult:
+        time.sleep(0.05)
+        return ToolResult(
+            source="vep",
+            status="live",
+            request_identity={},
+            summary={"consequence": "missense_variant"},
+        )
+
+    monkeypatch.setattr(
+        app.state.workflow_service.tool_registry["vep"], "get_evidence", slow_vep_result
+    )
+
+    response = auth_client.post(
+        "/api/v1/runs", json={"patient_id": "RP-007", "report_ids": [report_id]}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_status"] == "degraded"
+    evidence = {item["source"]: item for item in body["evidence"]}
+    assert evidence["vep"]["status"] == "degraded"
+    assert any("vep_evidence_timeout" in warning for warning in body["warnings"])

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
 from app.cli import eamos_paper_variants as cli
 from app.core.config import Settings
+from app.schemas.paper_variants import PaperVariantsResult
 from app.services.clingen_local import materialize_clingen_local_store
 from app.services.paper_variants import PaperVariantsService
 from app.services.search_candidate_resolver import SearchCandidateResolver
@@ -442,3 +444,21 @@ def test_api_extract_pdf_upload_returns_pdf_meta(auth_client, pdf_bytes: bytes) 
     assert body["source_metadata"] is None
     assert body["guardrails"]["raw_paper_text_in_output"] == "blocked"
     assert body["candidate_count"] >= 1
+
+
+def test_api_extract_times_out_slow_extraction(auth_client, monkeypatch) -> None:
+    auth_client.app.state.settings.paper_variants_extract_timeout_seconds = 0.01
+
+    def slow_extract(self, paper_text: str, *, validate: bool = True):  # noqa: ARG001
+        time.sleep(0.05)
+        return PaperVariantsResult()
+
+    monkeypatch.setattr(PaperVariantsService, "extract", slow_extract)
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        json={"text": "RPE65 c.260A>G was identified in a patient."},
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == "Paper variant extraction timed out."

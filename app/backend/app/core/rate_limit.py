@@ -11,6 +11,7 @@ from typing import Iterable
 from fastapi import HTTPException, Request, status
 
 RATE_LIMIT_AUTH = "auth"
+RATE_LIMIT_BATCH_UPLOAD = "batch_upload"
 RATE_LIMIT_CHAT = "chat"
 RATE_LIMIT_EVIDENCE = "evidence"
 RATE_LIMIT_LIBRARY = "library"
@@ -21,6 +22,7 @@ RATE_LIMIT_WORKBENCH = "workbench"
 
 _MAX_REQUESTS_BY_SCOPE = {
     RATE_LIMIT_AUTH: "rate_limit_auth_max_requests",
+    RATE_LIMIT_BATCH_UPLOAD: "rate_limit_batch_upload_max_requests",
     RATE_LIMIT_CHAT: "rate_limit_chat_max_requests",
     RATE_LIMIT_EVIDENCE: "rate_limit_evidence_max_requests",
     RATE_LIMIT_LIBRARY: "rate_limit_library_max_requests",

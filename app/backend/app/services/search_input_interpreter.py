@@ -33,6 +33,10 @@ class SearchInputInterpreter:
         self.candidate_resolver = candidate_resolver or SearchCandidateResolver(settings=settings)
         self.ai_extractor = ai_extractor or SearchInputAiExtractor(settings=settings)
         self.resolver = EamosSearchInputResolver(settings=settings)
+        self.coordinate_resolver = EamosSearchInputResolver(
+            settings=settings,
+            resolve_coordinates=True,
+        )
 
     def interpret(
         self,
@@ -316,10 +320,7 @@ class SearchInputInterpreter:
     def _resolver(self, *, resolve_coordinates: bool) -> EamosSearchInputResolver:
         if not resolve_coordinates:
             return self.resolver
-        return EamosSearchInputResolver(
-            settings=self.settings,
-            resolve_coordinates=True,
-        )
+        return self.coordinate_resolver
 
     def _deterministic(
         self,

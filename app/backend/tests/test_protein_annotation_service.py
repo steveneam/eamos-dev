@@ -709,7 +709,7 @@ def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(
             protein_annotation_uniprot_features_enabled=True,
             protein_annotation_uniprot_dat_path=flatfile_path,
             protein_annotation_uniprot_feature_index_path=tmp_path / "missing.features.jsonl",
-            protein_annotation_hmmscan_max_residues=0,
+            protein_annotation_hmmscan_max_residues=6000,
         ),
         cache_repo=cache,
         runner=ReadyHmmerRunner(domtblout=DOMTBLOUT),
@@ -799,6 +799,34 @@ def test_cache_miss_skips_hmmer_for_large_protein_without_uniprot_features() -> 
             protein_annotation_enabled=True,
             protein_annotation_uniprot_features_enabled=False,
             protein_annotation_hmmscan_max_residues=5000,
+        ),
+        cache_repo=MemoryProteinAnnotationCache(),
+        runner=runner,
+    )
+
+    track = service.annotate(
+        ProteinAnnotationRequest(
+            sequence="M" + "A" * 5201,
+            input_type="protein",
+            sequence_label="USH2A reference",
+            gene_symbol="USH2A",
+            allow_run=True,
+        )
+    )
+
+    assert track.status == "unavailable"
+    assert track.fail_closed_reason == "protein_annotation_hmmscan_sequence_too_long"
+    assert "protein_annotation_hmmscan_max_residues:5000" in track.warnings
+    assert runner.calls == 0
+
+
+def test_zero_hmmscan_cap_uses_safe_default_not_unbounded() -> None:
+    runner = ReadyHmmerRunner()
+    service = ProteinAnnotationService(
+        settings=Settings(
+            jwt_secret="test-secret",
+            protein_annotation_enabled=True,
+            protein_annotation_hmmscan_max_residues=0,
         ),
         cache_repo=MemoryProteinAnnotationCache(),
         runner=runner,
@@ -953,6 +981,41 @@ def test_protein_annotation_endpoint_returns_disabled_fail_closed_state(client) 
     assert body["sequence_label"] == "RPE65 NM_000329.3 reference control"
     assert body["gene_symbol"] == "RPE65"
     assert "no_live_protein_api_fallback" in body["warnings"]
+
+
+def test_protein_annotation_endpoint_forces_cache_only_even_if_client_allows_run(client) -> None:
+    class CapturingProteinAnnotationService:
+        def __init__(self) -> None:
+            self.requests: list[ProteinAnnotationRequest] = []
+
+        def annotate(self, request: ProteinAnnotationRequest) -> ProteinDomainTrack:
+            self.requests.append(request)
+            return ProteinDomainTrack(
+                status="unavailable",
+                fail_closed_reason="protein_annotation_cache_miss",
+                cache_status="cache_miss",
+                warnings=["protein_annotation_cache_miss_no_runtime_run"],
+            )
+
+    service = CapturingProteinAnnotationService()
+    client.app.state.protein_annotation_service = service
+
+    response = client.post(
+        "/api/v1/protein/annotate",
+        json={
+            "sequence": "MAAAA",
+            "input_type": "protein",
+            "gene_symbol": "RPE65",
+            "use_cache": False,
+            "allow_run": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["fail_closed_reason"] == "protein_annotation_cache_miss"
+    assert len(service.requests) == 1
+    assert service.requests[0].allow_run is False
+    assert service.requests[0].use_cache is True
 
 
 def test_protein_asset_inspection_verifies_size_and_hashes(tmp_path: Path) -> None:

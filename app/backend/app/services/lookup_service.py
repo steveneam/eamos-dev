@@ -79,6 +79,7 @@ SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
 PUBLICATION_DATA_CACHE_VERSION = 2
 STRICT_GENOMIC_CACHE_VERSION = 2
 FUNCTIONAL_EVIDENCE_CACHE_VERSION = 2
+GENE_CONTEXT_SNAPSHOT_CACHE_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -197,6 +198,16 @@ def _strict_genomic_cache_is_current(cached_strict: dict[str, Any]) -> bool:
         cached_strict.get("evidence"),
         dict,
     )
+
+
+def _gene_context_snapshot_cache_is_current(cached_snapshot: dict[str, Any]) -> bool:
+    if (
+        cached_snapshot.get("gene_context_snapshot_cache_version")
+        != GENE_CONTEXT_SNAPSHOT_CACHE_VERSION
+    ):
+        return False
+    snapshot = cached_snapshot.get("snapshot")
+    return isinstance(snapshot, dict) and "protein_domain_track" in snapshot
 
 
 def _evidence_summary_to_result(item: dict[str, Any]) -> ToolResult:
@@ -1035,24 +1046,58 @@ class LookupService:
         elif sequence_context_result.warnings:
             evidence_map["sequence_context"] = {"warnings": list(sequence_context_result.warnings)}
             evidence_statuses["sequence_context"] = "missing"
-        try:
-            gene_context_snapshot = self.gene_context_snapshot.build(
-                gene=gene,
-                cdna=cdna,
-                transcript=input_resolution.resolver_transcript,
-                species=request.species,
+
+        cached_gene_context = (
+            (cache_hit or {}).get("gene_context_snapshot", {})
+            if isinstance(cache_hit, dict)
+            else {}
+        )
+        if not (
+            isinstance(cached_gene_context, dict)
+            and _gene_context_snapshot_cache_is_current(cached_gene_context)
+        ):
+            cached_gene_context = {}
+        gene_context_snapshot_payload = (
+            cached_gene_context.get("snapshot") if isinstance(cached_gene_context, dict) else None
+        )
+        rebuild_gene_context_snapshot_cache = not isinstance(
+            gene_context_snapshot_payload,
+            dict,
+        )
+        if isinstance(gene_context_snapshot_payload, dict):
+            evidence_map["gene_context_snapshot"] = gene_context_snapshot_payload
+            evidence_statuses["gene_context_snapshot"] = str(
+                gene_context_snapshot_payload.get("source_status") or "cache"
             )
-            evidence_map["gene_context_snapshot"] = gene_context_snapshot.model_dump(mode="json")
-            evidence_statuses["gene_context_snapshot"] = gene_context_snapshot.source_status
-        except Exception as exc:
-            warnings.append(f"gene_context_snapshot_failed:{type(exc).__name__}")
+        else:
+            gene_context_snapshot_payload = None
+            try:
+                gene_context_snapshot = self.gene_context_snapshot.build(
+                    gene=gene,
+                    cdna=cdna,
+                    transcript=input_resolution.resolver_transcript,
+                    species=request.species,
+                )
+                gene_context_snapshot_payload = gene_context_snapshot.model_dump(mode="json")
+                evidence_map["gene_context_snapshot"] = gene_context_snapshot_payload
+                evidence_statuses["gene_context_snapshot"] = gene_context_snapshot.source_status
+            except Exception as exc:
+                warnings.append(f"gene_context_snapshot_failed:{type(exc).__name__}")
         if query_kind == "unknown":
             base_payload.limitations = (
                 f"We could not parse '{cdna}' as cDNA, rsID, protein, or genomic HGVS. "
                 "Check the variant syntax and retry."
             )
 
-        if (
+        gene_context_snapshot_cache = (
+            {
+                "gene_context_snapshot_cache_version": GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
+                "snapshot": gene_context_snapshot_payload,
+            }
+            if gene_context_snapshot_payload is not None
+            else None
+        )
+        should_upsert_variant_cache = (
             self.settings is not None
             and self.settings.use_real_apis
             and self.variant_cache_repo is not None
@@ -1062,7 +1107,17 @@ class LookupService:
                 or rebuild_functional_evidence_cache
             )
             and variant.genomic_hg38
-        ):
+        )
+        should_update_gene_context_snapshot_cache = (
+            self.settings is not None
+            and self.settings.use_real_apis
+            and self.variant_cache_repo is not None
+            and not should_upsert_variant_cache
+            and rebuild_gene_context_snapshot_cache
+            and gene_context_snapshot_cache is not None
+            and variant.genomic_hg38
+        )
+        if should_upsert_variant_cache:
             cached_names = ("vep", "variant_validator", *STRICT_GENOMIC_PLUGINS)
             evidence_by_source = {item.source: item.model_dump() for item in evidence}
             ep_vlex_cache = (
@@ -1108,6 +1163,12 @@ class LookupService:
                         if name in evidence_by_source
                     },
                 },
+                gene_context_snapshot=gene_context_snapshot_cache or {},
+            )
+        elif should_update_gene_context_snapshot_cache:
+            self.variant_cache_repo.update_gene_context_snapshot(
+                cache_key,
+                gene_context_snapshot=gene_context_snapshot_cache,
             )
 
         if self.draft_render_service is not None:

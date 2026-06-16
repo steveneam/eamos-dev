@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
-from json import JSONDecodeError
+from copy import deepcopy
 from dataclasses import dataclass, field
+from functools import lru_cache
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +41,18 @@ class FixtureBackedTool:
 
     def load_fixture(self) -> dict[str, Any]:
         try:
-            return json.loads(self.fixture_path().read_text(encoding="utf-8"))
-        except (FileNotFoundError, JSONDecodeError):
+            path = self.fixture_path()
+            stat = path.stat()
+            return deepcopy(_load_fixture_cached(str(path), stat.st_mtime_ns, stat.st_size))
+        except (FileNotFoundError, OSError):
             return {}
+
+
+@lru_cache(maxsize=64)
+def _load_fixture_cached(path: str, mtime_ns: int, size: int) -> dict[str, Any]:
+    del mtime_ns, size
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}

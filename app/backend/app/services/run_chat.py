@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from dataclasses import dataclass
+from threading import Lock
 from typing import Iterator
 
 from fastapi import HTTPException, status
@@ -8,6 +14,12 @@ from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.schemas.chat import RunChatCitation, RunChatRequest, RunChatResponse
+
+
+@dataclass(frozen=True)
+class _RunChatIndex:
+    vector_store: InMemoryVectorStore
+    chunk_count: int
 
 
 class RunChatService:
@@ -19,6 +31,15 @@ class RunChatService:
         self.reports_repo = reports_repo
         self.answer_chain = answer_chain
         self.embeddings = embeddings
+        self._executor = ThreadPoolExecutor(
+            max_workers=_positive_int(
+                getattr(settings, "run_chat_worker_max_workers", 2),
+                default=2,
+            ),
+            thread_name_prefix="eamos-run-chat",
+        )
+        self._index_cache: OrderedDict[tuple[str, str], _RunChatIndex] = OrderedDict()
+        self._index_cache_lock = Lock()
 
     def stream(self, run_id: str, payload: RunChatRequest) -> Iterator[str]:
         # Streaming is text/plain word-chunks of the full answer. Token-level streaming
@@ -34,6 +55,21 @@ class RunChatService:
             yield text[i : i + window]
 
     def answer(self, run_id: str, payload: RunChatRequest) -> RunChatResponse:
+        timeout_seconds = _positive_float(
+            getattr(self.settings, "run_chat_timeout_seconds", 10.0),
+            default=10.0,
+        )
+        future = self._executor.submit(self._answer_impl, run_id, payload)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except FutureTimeoutError as exc:
+            future.cancel()
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Run chat timed out.",
+            ) from exc
+
+    def _answer_impl(self, run_id: str, payload: RunChatRequest) -> RunChatResponse:
         run = self.run_repo.get_run(run_id)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
@@ -57,18 +93,9 @@ class RunChatService:
                 citations=[],
             )
 
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=900,
-            chunk_overlap=150,
-            add_start_index=True,
-        )
-        chunks = splitter.split_documents(documents)
-        for idx, chunk in enumerate(chunks, start=1):
-            chunk.metadata["chunk_id"] = idx
-
-        vector_store = InMemoryVectorStore(self.embeddings)
-        vector_store.add_documents(chunks)
-        retrieved_docs = vector_store.similarity_search(
+        content_hash = self._content_hash(run, reports)
+        index = self._get_or_build_index(run_id, content_hash, documents)
+        retrieved_docs = index.vector_store.similarity_search(
             payload.question, k=self.settings.run_chat_top_k
         )
         retrieved_context = self._serialize_docs(retrieved_docs)
@@ -90,6 +117,54 @@ class RunChatService:
             grounded=bool(draft.get("grounded", True)),
             citations=citations,
         )
+
+    def _get_or_build_index(
+        self,
+        run_id: str,
+        content_hash: str,
+        documents: list[Document],
+    ) -> _RunChatIndex:
+        cache_key = (run_id, content_hash)
+        with self._index_cache_lock:
+            cached = self._index_cache.get(cache_key)
+            if cached is not None:
+                self._index_cache.move_to_end(cache_key)
+                return cached
+
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=900,
+            chunk_overlap=150,
+            add_start_index=True,
+        )
+        chunks = splitter.split_documents(documents)
+        max_chunks = _positive_int(getattr(self.settings, "run_chat_max_chunks", 256), default=256)
+        if len(chunks) > max_chunks:
+            chunks = chunks[:max_chunks]
+        for idx, chunk in enumerate(chunks, start=1):
+            chunk.metadata["chunk_id"] = idx
+
+        vector_store = InMemoryVectorStore(self.embeddings)
+        vector_store.add_documents(chunks)
+        index = _RunChatIndex(vector_store=vector_store, chunk_count=len(chunks))
+
+        max_entries = _positive_int(
+            getattr(self.settings, "run_chat_vector_cache_max_entries", 32),
+            default=32,
+        )
+        with self._index_cache_lock:
+            self._index_cache[cache_key] = index
+            self._index_cache.move_to_end(cache_key)
+            while len(self._index_cache) > max_entries:
+                self._index_cache.popitem(last=False)
+        return index
+
+    def _content_hash(self, run, reports) -> str:
+        payload = {
+            "run": run.model_dump(mode="json"),
+            "reports": [report.model_dump(mode="json") for report in reports],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
 
     def _build_documents(self, run, reports) -> list[Document]:
         docs: list[Document] = []
@@ -332,3 +407,19 @@ class RunChatService:
         if len(normalized) <= 220:
             return normalized
         return normalized[:217].rstrip() + "..."
+
+
+def _positive_int(value, *, default: int) -> int:
+    try:
+        coerced = int(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if coerced > 0 else default
+
+
+def _positive_float(value, *, default: float) -> float:
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if coerced > 0 else default

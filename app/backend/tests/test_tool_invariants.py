@@ -559,6 +559,64 @@ def test_computational_annotations_serializes_local_alpha_and_esm1b_rows() -> No
     }
 
 
+def test_computational_annotations_reuses_local_predictor_adapters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = {"alphamissense": 0, "esm1b": 0}
+
+    def alphamissense_from_settings(_settings):
+        calls["alphamissense"] += 1
+        return FakeAlphaMissenseAdapter()
+
+    def esm1b_from_settings(_settings):
+        calls["esm1b"] += 1
+        return FakeEsm1bAdapter()
+
+    monkeypatch.setattr(
+        "app.tools.computational_annotations.AlphaMissenseLocalAdapter.from_settings",
+        alphamissense_from_settings,
+    )
+    monkeypatch.setattr(
+        "app.tools.computational_annotations.Esm1bLocalAdapter.from_settings",
+        esm1b_from_settings,
+    )
+    variant = SimpleNamespace(
+        gene="RPE65",
+        genomic_hg38="1-68444869-T-C",
+        genomic_hgvs="NC_000001.11:g.68444869T>C",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        protein_change="p.Asp87Gly",
+        dbsnp_rsid="",
+    )
+    tool = ComputationalAnnotationsTool(_settings(use_real_apis=False))
+
+    first = tool.get_evidence(variant)
+    second = tool.get_evidence(variant)
+
+    assert first.status == "fixture"
+    assert second.status == "fixture"
+    assert calls == {"alphamissense": 1, "esm1b": 1}
+
+
+def test_fixture_backed_tool_cache_returns_independent_copy(tmp_path: Path) -> None:
+    class TinyTool(FixtureBackedTool):
+        fixture_name = "tiny.json"
+
+        def fixture_path(self) -> Path:
+            return tools_dir / self.fixture_name
+
+    tools_dir = tmp_path / "tools"
+    tools_dir.mkdir()
+    (tools_dir / "tiny.json").write_text('{"nested": {"value": 1}}', encoding="utf-8")
+    tool = TinyTool(_settings())
+
+    first = tool.load_fixture()
+    first["nested"]["value"] = 9
+    second = tool.load_fixture()
+
+    assert second == {"nested": {"value": 1}}
+
+
 def test_computational_annotations_fixture_no_match_returns_missing_without_bleed() -> None:
     variant = SimpleNamespace(
         gene="ABCA4",

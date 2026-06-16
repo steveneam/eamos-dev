@@ -11,27 +11,27 @@ WorkbenchTool = Literal["viewer", "primer", "crispr", "align", "compare"]
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(min_length=1, max_length=4_000)
 
 
 class WorkbenchEdit(BaseModel):
     position: int
     ref_base: Literal["A", "T", "C", "G"]
     new_base: Literal["A", "T", "C", "G", "del"]
-    consequence: str
+    consequence: str = Field(max_length=256)
 
 
 class WorkbenchContext(BaseModel):
     active_tool: WorkbenchTool
-    scratchpad: list[WorkbenchEdit] = Field(default_factory=list)
+    scratchpad: list[WorkbenchEdit] = Field(default_factory=list, max_length=200)
     selected_primer_pair: int | None = None
     selected_guide: int | None = None
 
 
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=4_000)
     variant_context: ReportPayload
-    history: list[ChatMessage] = Field(default_factory=list)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=24)
     workbench: WorkbenchContext | None = None
 
 

@@ -63,6 +63,67 @@ def test_supabase_variant_library_upserts_saved_variant_with_owner_from_backend(
     assert request.headers["prefer"] == "resolution=merge-duplicates,return=representation"
 
 
+def test_supabase_variant_library_bulk_upserts_saved_variants_in_one_request() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "GET":
+            url = str(request.url)
+            assert "saved_variant" in url
+            assert "select=id" in url
+            assert "user_id=eq.23fc93e9-d351-4a9f-b5a7-f23dd7ceab11" in url
+            return httpx.Response(status_code=200, json=[{"id": "existing"}])
+        body = json.loads(request.content.decode("utf-8"))
+        assert request.method == "POST"
+        assert isinstance(body, list)
+        assert [row["id"] for row in body] == ["existing", "new"]
+        assert {row["user_id"] for row in body} == {"23fc93e9-d351-4a9f-b5a7-f23dd7ceab11"}
+        return httpx.Response(status_code=201, json=body)
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co/",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    added, rows = repo.save_variants(
+        user_id="23fc93e9-d351-4a9f-b5a7-f23dd7ceab11",
+        variants=[
+            SavedVariantRecord(
+                id="existing",
+                gene="RPE65",
+                variant="c.260A>G",
+                query="RPE65 c.260A>G",
+                raw="RPE65 c.260A>G",
+                saved_at=1_780_000_000_000,
+                folder_id=None,
+                classification=None,
+                hgvs_full=None,
+            ),
+            SavedVariantRecord(
+                id="new",
+                gene="USH2A",
+                variant="c.2276G>T",
+                query="USH2A c.2276G>T",
+                raw="USH2A c.2276G>T",
+                saved_at=1_780_000_000_001,
+                folder_id=None,
+                classification="likely_pathogenic",
+                hgvs_full="NM_206933.4:c.2276G>T",
+            ),
+        ],
+    )
+
+    assert added == 1
+    assert [row.id for row in rows] == ["existing", "new"]
+    assert [request.method for request in requests] == ["GET", "POST"]
+    assert str(requests[1].url) == (
+        "https://cpdjxsgasaesysvxkpmi.supabase.co/rest/v1/" "saved_variant?on_conflict=id%2Cuser_id"
+    )
+    assert requests[1].headers["prefer"] == "resolution=merge-duplicates,return=representation"
+
+
 def test_supabase_variant_library_replaces_whole_document_with_owner_from_backend() -> None:
     requests: list[httpx.Request] = []
 

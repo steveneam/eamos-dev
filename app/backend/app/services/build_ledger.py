@@ -599,7 +599,11 @@ def _source_backed_local_item(
 
 def _compact_coordinate_index_status(settings: Settings) -> str:
     try:
-        return inspect_compact_coordinate_index(settings, verify_checksum=False).status
+        return inspect_compact_coordinate_index(
+            settings,
+            verify_checksum=False,
+            load_records=False,
+        ).status
     except Exception:
         return "runtime_asset_probe_failed"
 

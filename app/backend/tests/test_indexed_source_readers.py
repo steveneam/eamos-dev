@@ -75,6 +75,23 @@ def test_pysam_reader_unknown_contig_and_invalid_window_fail_closed(tmp_path: Pa
     assert coordinate_exc.value.details == {"chrom": "1", "start": 102, "end": 101}
 
 
+def test_pysam_reader_rejects_overlarge_range_before_materializing(tmp_path: Path) -> None:
+    pysam = pytest.importorskip("pysam")
+    vcf_path = _write_tiny_indexed_vcf(tmp_path, pysam)
+
+    with PysamIndexedVcfReader(
+        vcf_path,
+        source_id="ncbi_clinvar_vcf",
+        max_window_bp=2,
+    ) as reader:
+        with pytest.raises(IndexedSourceError) as exc_info:
+            reader.query_range("chr1", 100, 102)
+
+    assert exc_info.value.code == "indexed_query_window_too_large"
+    assert exc_info.value.details["window_bp"] == 3
+    assert exc_info.value.details["max_window_bp"] == 2
+
+
 def test_tabix_predictor_reader_reports_missing_index_before_opening_tsv(tmp_path: Path) -> None:
     tsv_path = tmp_path / "scores.tsv.gz"
     tsv_path.write_bytes(b"not a real bgzip tsv")
@@ -144,6 +161,26 @@ def test_tabix_predictor_reader_unknown_contig_and_bad_schema_fail_closed(
         )
 
     assert schema_exc.value.code == "invalid_predictor_tsv_schema"
+
+
+def test_tabix_predictor_reader_enforces_position_row_cap(tmp_path: Path) -> None:
+    pysam = pytest.importorskip("pysam")
+    tsv_path = _write_tiny_indexed_predictor_tsv(tmp_path, pysam)
+
+    with TabixTsvPredictorReader(
+        tsv_path,
+        source_id="google_deepmind_alphamissense_hg38",
+        columns=TabixTsvPredictorColumns(
+            score=4,
+            extra_columns=(("protein_variant", 5), ("source_class", 6)),
+        ),
+        max_records=1,
+    ) as reader:
+        with pytest.raises(IndexedSourceError) as exc_info:
+            reader.query_position("chr1", 101)
+
+    assert exc_info.value.code == "indexed_predictor_query_too_many_records"
+    assert exc_info.value.details["max_records"] == 1
 
 
 def test_pybigwig_reader_rejects_missing_file_before_import(tmp_path: Path) -> None:
@@ -216,6 +253,19 @@ def test_pybigwig_reader_unknown_contig_and_out_of_range_fail_closed(tmp_path: P
         "end": 11,
         "contig_length": 10,
     }
+
+
+def test_pybigwig_reader_rejects_overlarge_window_before_materializing(tmp_path: Path) -> None:
+    pybigwig = pytest.importorskip("pyBigWig")
+    bw_path = _write_tiny_bigwig(tmp_path, pybigwig)
+
+    with PyBigWigConservationReader(bw_path, max_window_bp=2) as reader:
+        with pytest.raises(IndexedSourceError) as exc_info:
+            reader.window_summary("chr1", 2, 4)
+
+    assert exc_info.value.code == "conservation_window_too_large"
+    assert exc_info.value.details["window_bp"] == 3
+    assert exc_info.value.details["max_window_bp"] == 2
 
 
 def test_repeatmasker_path_decision_records_conversion_first_strategy() -> None:

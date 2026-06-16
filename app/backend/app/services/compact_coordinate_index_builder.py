@@ -113,6 +113,8 @@ def build_compact_coordinate_index(
 
     transcript_count = len(rows) - 1
     gene_count = len({row["gene"] for row in rows[1:]})
+    rows[0]["variant_count"] = 0
+    rows[0]["transcript_count"] = transcript_count
     warnings: list[str] = []
     if gene_count < len(requested_genes):
         warnings.append("one_or_more_requested_genes_missing")

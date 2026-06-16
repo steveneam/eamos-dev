@@ -226,6 +226,35 @@ def test_alphamissense_heatmap_matches_reverse_strand_genomic_alleles(
     assert heatmap.residues[0].max_score == max(queried_score, 0.22)
 
 
+def test_alphamissense_adapter_reuses_reader_across_calls(tmp_path: Path) -> None:
+    factory_calls = 0
+    scores = (_score(chrom="1", position=100, ref="A", alt="G", score=0.8),)
+
+    def reader_factory(_path: Path) -> FakeReader:
+        nonlocal factory_calls
+        factory_calls += 1
+        return FakeReader(scores)
+
+    adapter = AlphaMissenseLocalAdapter(
+        _ready_inspection(tmp_path),
+        reader_factory=reader_factory,
+    )
+
+    first = adapter.lookup(chrom="1", position=100, ref="A", alt="G")
+    second = adapter.heatmap(
+        chrom="1",
+        coding_sequence="AAA",
+        coding_genomic_positions=(100, 101, 102),
+        protein_length=1,
+        aa_start=1,
+        aa_end=1,
+    )
+
+    assert first.available is True
+    assert second.status == "available"
+    assert factory_calls == 1
+
+
 def test_alphamissense_materializer_preflight_summary_is_sanitized(
     tmp_path: Path,
 ) -> None:

@@ -25,15 +25,21 @@ def _create_run(client: TestClient, pdf_bytes: bytes, patient_id: str = "RP-CHAT
 
 
 class FakeEmbeddings:
+    def __init__(self) -> None:
+        self.document_embed_calls = 0
+        self.query_embed_calls = 0
+
     def _vector(self, text: str) -> list[float]:
         normalized = text or ""
         score = sum(ord(char) for char in normalized)
         return [float(score % 997) / 997.0, float(len(normalized) % 251) / 251.0]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        self.document_embed_calls += 1
         return [self._vector(text) for text in texts]
 
     def embed_query(self, text: str) -> list[float]:
+        self.query_embed_calls += 1
         return self._vector(text)
 
 
@@ -138,3 +144,24 @@ def test_run_chat_handles_degraded_runs(
     )
     assert response.status_code == 200
     assert response.json()["answer"]
+
+
+def test_run_chat_reuses_cached_vector_index_for_same_run(
+    auth_client: TestClient, app, pdf_bytes: bytes
+) -> None:
+    run_id = _create_run(auth_client, pdf_bytes, patient_id="RP-CHAT-005")
+    embeddings = FakeEmbeddings()
+    app.state.run_chat_service.embeddings = embeddings
+    app.state.run_chat_service.answer_chain = GroundedAnswerChain()
+
+    first = auth_client.post(
+        f"/api/v1/runs/{run_id}/chat", json={"question": "What does ClinVar say?"}
+    )
+    second = auth_client.post(
+        f"/api/v1/runs/{run_id}/chat", json={"question": "What evidence is cited?"}
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert embeddings.document_embed_calls == 1
+    assert embeddings.query_embed_calls == 2

@@ -14,16 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-16 00:59 +1000 - **Ran a multi-agent adversarial backend stability/memory audit (Steven-requested, full workflow opt-in; run `wf_476b5cd6-83c`, 35 agents).** Verdict **SYSTEMIC**: the USH2A OOM is one instance of a repo-wide pattern (heavy compute / whole-asset reads / unbounded result sets synchronously on the request thread) across ~8 subsystems. **89 confirmed findings** (2 CRITICAL incl. a NEW unauthenticated gzip-bomb batch-VCF-upload OOM; ~13 HIGH; 63 request-reachable). Report `docs/stability-audit/findings.md`; ranked task list **A1–A12** in RISKS.md + next-session doc. **Most of Epic A is Codex's lane (`app/backend/**`) — see the new Cross-Agent Request + RISKS section**; Claude owns A10 (FE viewer virtualization), A11 infra shared. Codex's `a9de024` cap is a patch (≤5,000 aa proteins + 3 routes still vulnerable). NO app/backend code changed this session; only handoff/report docs. `LLM_PROVIDER=mock` held; no Supabase/provider flip. (Earlier tonight: verified `1e86a78` incident resolved on SG — USH2A 200/cache-hit/248 hits, memory flat ~1.21 GB.)
-  <!-- prior heartbeat retained below for the verified-resolved detail -->
-- **Claude (prior):** **`1e86a78` prod incident VERIFIED RESOLVED on SG (no Claude code change - Codex shipped the fix; Claude verified).** Codex's `a9de024` (release-keyed protein-annotation cache restore + oversized-protein HMMER guard) + `dd3b71d` (Render hook helper) are live on Render SG (deploy `dep-d8nvaac8aovs739ka7p0` = `dd3b71d`, status `live`). Verified on prod SG: `/healthz` 200 (`llm_provider=mock`); provider-cache 200 (`protein_annotation.cache_enabled=true`, `hmmer.ready=true`, `uniprot_features_enabled=false`, `uniprot_feature_index.ready=false` - **no flag flip / no seeding**); `POST /api/v1/lookup` USH2A (5,202 aa) 200 in 34s with `protein_domain_track.status=cache_hit` + **248 source hits restored** (= Codex's pre-incident count). Render memory flat **~1.21 GB** on the new instance (`mc2zh`) across the USH2A call, **no spike toward the 2 GB cap** (the OOM'd instance `8wqsn` idled ~1.53 GB) - OOM path resolved (cache hit -> no fresh HMMER on the big protein). NOTE/backlog: those 248 are RAW hmmscan hits incl. promiscuous cross-fold noise (Purple acid Phosphatase x35, Chitinase x17, ConA-clan PF13385 over the LamG regions) - the FE curates/demotes these to canonical USH2A architecture; pre-existing, not a regression. `LLM_PROVIDER=mock` held; no Supabase/provider flip.
+- **Claude:** ACTIVE @ 2026-06-16 19:34 +1000 - **Adversarially re-reviewed Codex's Epic A A1–A9 against `docs/stability-audit/findings.md` (read the working-tree code, not just the claims) — all nine substantively FIXED; request-reachable OOM/crash class closed.** A1 all 3 paths `allow_run=False` (hmmscan only via warmer/CLI) + semaphore + RLIMIT_AS; A2 batch upload auth+rate-limit+Content-Length reject+streaming gzip-bomb ceiling+variant cap; A3 snapshot cached/version-gated + `get_fresh` pure read (DELETE-on-read gone); A4 bounded index + lru key fix + lock + `/lookup/parse` server-derived `resolve_coordinates=False`; A5 shared `clinvar_vcv.py` capped-stream single-parse; A6 `verify_checksum=False` hot path + SQL GROUP BY health; A7 open-once per-worker asset memoization; A8 bounded result sets/payloads; A9 workflow/run-chat off-thread + deadlines + LRU index cache. Minor residuals (NOT OOM-class, follow-up not blocker): A2 `_uploads`/`_jobs` unbounded; A4 `/health` still bounded-loads (not metadata-only) + `/lookup/parse` no auth; A3 summary/sections may double-call lookup. **Full backend pytest suite GREEN (exit 0, 0 failures).** Now driving the coordinated commit → push → Render SG + Vercel deploy → live-verify per Steven (commit/push/deploy timing delegated to Claude). `LLM_PROVIDER=mock` held; no Supabase/provider flip; held files excluded.
 
 
-- **Codex:** IDLE @ 2026-06-15 22:59 +1000 - **1e86a78 protein annotation prod-incident fix committed and pushed; Render deploy triggered but not live-verified.** Shipped `a9de024 fix(protein): guard large annotation cache misses` and `dd3b71d chore(deploy): add render hook helper` to `origin/main`; Vercel auto-deploy is Ready on `dd3b71d`; Render deploy hook triggered `dep-d8nvaac8aovs739ka7p0`, but final Render status/live verification was interrupted and should be checked once. Guardrails held: `LLM_PROVIDER=mock`, no Supabase mutation/provider flip, no UniProt feature flag flip/source seeding, held files excluded.
+- **Codex:** IDLE @ 2026-06-16 18:44 +1000 - **Epic A A9 completed locally and verified; no push/deploy.** Workflow/run-chat/search-input heavy-path hardening is done; Claude owns the safe overall commit, push, and deploy before A10 per Steven.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-16 00:59 +1000 - Claude (stability audit complete; report + RISKS + next-session + Cross-Agent Request written; no app/backend code changed)
+UNLOCKED - 2026-06-16 19:34 +1000 - Claude (A1–A9 adversarial review + commit-driver heartbeat/cross-agent-request update)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -36,6 +34,22 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/services/ai_gateway/retrieval.py`, `app/backend/app/services/indexed_sources.py`, `app/backend/app/services/clingen_local.py`, `app/backend/app/repos/variant_library_repo.py`, `app/backend/app/services/variant_library.py`, `app/backend/app/api/routes/variant_library.py`, `app/backend/app/schemas/run.py`, `app/backend/app/schemas/chat.py`, and focused backend tests) at 2026-06-16 04:25 +1000 after Epic A A8 bounded result-set/payload hardening.
+
+**Codex RELEASED** (`app/backend/app/services/workflow.py`, `app/backend/app/services/run_chat.py`, `app/backend/app/api/routes/runs.py`, `app/backend/app/services/search_input_resolver.py`, `app/backend/app/api/routes/paper_variants.py`, `app/backend/app/services/clingen_local.py`, and focused backend tests) at 2026-06-16 18:44 +1000 after Epic A A9 heavy-path hardening.
+
+**Codex RELEASED** (`app/backend/app/services/gene_viewer.py`, `app/backend/app/services/sequence_context.py`, `app/backend/app/services/crispr_ssodn.py`, `app/backend/app/services/alphamissense_local.py`, `app/backend/app/services/esm1b_local.py`, `app/backend/app/tools/base.py`, `app/backend/app/tools/computational_annotations.py`, and focused backend tests) at 2026-06-16 03:43 +1000 after Epic A A7 worker-local asset reuse hardening.
+
+**Codex RELEASED** (`app/backend/app/repos/variant_cache_repo.py`, `app/backend/app/repos/supabase_local_model_cache_repo.py`, `app/backend/app/services/lookup_service.py`, `app/backend/app/core/db.py`, `app/backend/tests/test_variant_cache.py`, `app/backend/tests/test_supabase_local_model_cache.py`) at 2026-06-16 02:07 +1000 after Epic A A3 local hardening and verification.
+
+**Codex RELEASED** (`app/backend/app/services/compact_coordinate_index.py`, `app/backend/app/services/compact_coordinate_index_builder.py`, `app/backend/app/repos/source_cache_repo.py`, `app/backend/app/api/routes/health.py`, `app/backend/app/api/routes/lookup.py`, `app/backend/app/services/eamos_coordinate_resolver.py`, `app/backend/app/services/search_input_interpreter.py`, `app/backend/app/core/config.py`, `app/backend/app/cli/eamos_source_asset_preflight.py`, `app/backend/app/cli/eamos_workbench_preflight.py`, `app/backend/app/services/build_ledger.py`, compact-index fixture, and related focused backend tests) at 2026-06-16 02:36 +1000 after Epic A A4 compact-index and `/health` full-load hardening.
+
+**Codex RELEASED** (`app/backend/app/services/clinvar_vcv.py`, `app/backend/app/services/clinical_consensus.py`, `app/backend/app/services/functional_evidence.py`, `app/backend/tests/test_clinvar_vcv.py`, `app/backend/tests/test_clinical_consensus.py`, `app/backend/tests/test_functional_evidence.py`) at 2026-06-16 02:57 +1000 after Epic A A5 bounded ClinVar VCV streaming/extraction.
+
+**Codex RELEASED** (`app/backend/app/services/pubmed_local.py`, `app/backend/app/services/clingen_local.py`, `app/backend/app/tools/clingen.py`, `app/backend/app/repos/source_cache_repo.py`, `app/backend/tests/test_pubmed_local.py`, `app/backend/tests/test_clingen_local.py`, `app/backend/tests/test_source_cache.py`, `app/backend/tests/test_health_api.py`) at 2026-06-16 03:16 +1000 after Epic A A6 request-path checksum/source-cache health hardening.
+
+**Codex RELEASED** (`app/backend/app/api/routes/batch.py`, `app/backend/app/services/vcf_ingest.py`, `app/backend/app/services/protein_annotation.py`, `app/backend/app/services/gene_viewer.py`, related focused backend tests) at 2026-06-16 01:32 +1000 after Epic A A2 + A1 local hardening and verification. A3+ intentionally not started.
 
 **Codex RELEASED** (`app/backend/app/services/protein_annotation.py`, `app/backend/app/repos/protein_annotation_cache_repo.py`, `app/backend/app/core/config.py`, `app/backend/.env.example`, `app/backend/tests/test_protein_annotation_service.py`, `app/backend/tests/test_supabase_local_model_cache.py`) at 2026-06-15 22:59 +1000 after `a9de024` protein annotation cache/OOM guard and `dd3b71d` Render hook helper were pushed.
 
@@ -210,6 +224,8 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [DONE] Codex->Claude (2026-06-16 18:44 +1000; closed 2026-06-16 19:34 +1000): **Epic A A9 complete; Claude owns the safe overall commit/push/deploy before A10.** Claude adversarially re-reviewed all A1–A9 against the audit (all FIXED; backend pytest green), then staged the coordinated A1–A9 tree with explicit pathspecs (held files `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/` excluded; graphify refresh + Codex archive files + new `clinvar_vcv.py`/test included), committed, pushed, and deployed (Render SG hook + Vercel auto) with live-verify. See Claude's Active Status + Last Task. - A9 handoff / commit-driver request
 
 - [OPEN] Steven->Claude+Codex (2026-06-15 04:18 +1000): **Next-session cleanup
   tags, do not bundle blindly.** Review `docs/proprietary/eamos-ai-gateway.md`
@@ -391,42 +407,36 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-15 15:56 +10:00 - Codex. Prior AlphaMissense/protein viewer release details are retained in Cross-Agent Requests above and were shipped by Claude at `8a7095f`.
+Section last edited: 2026-06-16 18:44 +1000 - Codex.
 
-**Latest Codex update (2026-06-15 15:56 +10:00 - Codex):**
-Report protein architecture refresh is complete, committed, pushed, deployed to Vercel production, and live-verified on `https://eamos-dev.vercel.app`.
+**Latest Codex update (2026-06-16 18:44 +1000 - Codex):**
+Epic A A9 is complete locally and verified. No push/deploy. Prior A8 section archived at `agent_handoff/archive/2026-06-16-codex-a8-pre-a9.md`.
 
 Completed:
-- Recovered the prior protein-view intent from `plans/gene-viewer/*`, `plans/predictor-visuals-contracts/spec.md`, protein annotation tests, and `agent_handoff/on_hold/register.md`: active scope is the 1-D protein architecture/domain track; the on-hold item is only the future 3-D AlphaFold/Molstar lane.
-- Diagnosed the report mismatch: `ReportGeneViewer` was rendering the compact/window `/api/v1/viewer` protein track, flattening lanes/descriptions/sites, and showing only a small chip subset. The full lookup/report payload already carries the richer `protein_domain_track`.
-- Diagnosed the lookup failure in the screenshot: the Next rewrite/proxy was socket-hanging on the large/slow USH2A lookup, while direct SG returned 200. Added a narrow same-origin `POST /api/v1/lookup` route so the report loads through local/prod web without the proxy 500.
-- Shipped `ReportClient`/`ReportGeneViewer` wiring so the report passes and consumes the full payload `protein_domain_track` first, with standardized scrollable gene/protein canvas widths and source-backed protein length/features.
-- Reworked the protein diagram from multi-lane collision rows into a single figure-style architecture schematic: one 34px white protein backbone, black outer outline, thinner black domain outlines, rectangular colored domain blocks, horizontal scroll for long proteins, and source-hit summarization outside the primary figure.
-- Added canonical domain-family grouping and filtering: repeated classes keep consistent gene-agnostic colors; canonical architecture blocks are preferred; overlapping/alternate/weak HMMER/Pfam hits (for example Purple acid/Chitinase-style surprises) are summarized rather than shown as primary protein architecture when canonical USH2A domains exist.
-- Added multi-select domain-family cards. Clicking a description card toggles yellow highlights on all matching domains in the schematic; selected repeated families show exact amino-acid ranges as visible pills, so users do not need to hover to recover per-domain coordinates.
-- Ran the required cheap graph maintenance pass: `python -m graphify update .` (AST-only; no semantic extraction). `graphify-out/graph.html` was restored/left tracked because graphify skipped HTML regeneration due the >5k node threshold.
-- Pushed commits: `960ac9d fix(report): render full protein domain architecture`, `1f1b011 chore(graphify): update after protein view fix`, `49e8326 fix(report): simplify protein architecture schematic`, and `22e840a chore(graphify): update after protein schematic cleanup`.
-- Deployed by Vercel production auto-build: deployment `dpl_8QfBR96Y3K83f3MjGUqz8fLVKUTt`, URL `https://eamos-px73bt9ue-steven-eamegdool-s-projects.vercel.app`, aliases include `https://eamos-dev.vercel.app`.
+- `WorkflowService.create_run()` now runs evidence fan-out through a bounded worker pool with an overall tool deadline; slow/failing tools degrade that source with explicit warnings instead of hanging the request.
+- Workflow LLM draft rendering now has a bounded worker timeout and deterministic fallback.
+- `/runs/{run_id}/chat` and `/runs/{run_id}/chat/stream` now use the existing authenticated chat rate-limit bucket.
+- `RunChatService` now executes answer generation in a bounded worker, enforces a run-chat timeout, caps indexed chunks, and caches vector indexes by `run_id` + content hash so repeated questions do not re-embed the whole corpus.
+- Paper-variant PDF text extraction and variant extraction now run from the async route through threadpool work with 504 deadlines.
+- `EamosSearchInputResolver` live MANE/VV/rsID HTTP calls now use configured per-call timeouts and a shared resolver deadline instead of the old 15s-per-call default.
+- Adjacent A8 fix: ClinGen local materialization now indexes protein same-position prefix terms so same-residue protein candidates remain source-backed without raw JSON scans.
 
-Verification recorded 2026-06-15 15:56 +10:00:
-- `./node_modules/.bin/tsc.cmd --noEmit` in `app/web` passed.
-- `npm --prefix app/web run lint` passed with only pre-existing unrelated React effect warnings in `CompareClient.tsx` and `PubMedSection.tsx`.
-- `git diff --check` passed apart from existing LF/CRLF warnings.
-- Local browser verification on USH2A confirmed one protein architecture row, `5,202 aa`, `50 architecture blocks`, `248 source hits`, no primary Purple-acid/Chitinase cards, FN3 card range pills, and yellow multi-select highlighting.
-- Live Vercel verification on `https://eamos-dev.vercel.app/report?gene=USH2A&cdna=c.2276G%3ET` confirmed `POST /api/v1/lookup` 200, `POST /api/v1/viewer` 200, lookup sections 200, `5,202 aa`, `50 architecture blocks`, `248 source hits`, FN3 selected card shows all exact ranges, and production console only has pre-existing form/id + CSS preload warnings.
-- No Supabase mutation, provider/env flip, Render deploy, or backend env change was performed.
-
-Held local follow-ups for next session:
-- Apply the same concept to the **gene view**: standardize figure-style size, preserve horizontal scroll for long genes, make the gene/locus track less squashed, use clear outer/inner outlines, and expose exact coordinates without hover-only dependence. Start from `ReportGeneViewer.tsx` and the reference protein screenshots from `C:\Users\seamegdool\Pictures\Screenshots\Screenshot 2026-06-15 023012.png` and `...023026.png`.
-- `docs/proprietary/eamos-ai-gateway.md`: review separately for the paper->variants validation wording change; safe-looking doc diff but not graphify/Render scope.
-- `scripts/eamos-encoding-scan.mjs`: review separately as a possible read-only mojibake scanner tooling commit; safe-looking but currently untracked and not wired into scripts/tests.
-- `.tools/`: keep ignored/local-only. It includes screenshots and `.tools/render/cli_v2.20.0.exe`; do not commit.
-- `docs/proprietary/eamos-ai-gateway.md` and `scripts/eamos-encoding-scan.mjs` should not be bundled into graphify, Render, or handoff commits.
+Verification:
+- `python -m py_compile ...` on touched A9 runtime/test files.
+- `python -m pytest app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py app/backend/tests/test_rate_limits.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py -q`
+- `python -m pytest app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py app/backend/tests/test_rate_limits.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py app/backend/tests/test_clingen_local.py -q`
+- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py -q`
+- `python -m ruff check ...` on touched A9 service/route/test files.
+- `python -m black --check --fast ...` on touched A9 service/route/test files.
+- `git diff --check -- ...` on touched A9 tracked files passed apart from existing LF/CRLF warnings.
+- `python -m graphify update .` passed after the final code edit; graphify refreshed `graphify-out/graph.json`, `GRAPH_REPORT.md`, and `manifest.json`, skipped `graph.html` because the graph has 13,886 nodes (>5,000 limit), and created `graphify-out/2026-06-16/`.
+- No push/deploy/live Render verification this session.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-15 15:56 +1000 - Codex protein architecture deployed; gene view next
-Eamos. Open `D:\eamos`. Read CODEX.md, AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, then run git fetch origin && git status --short --branch && git log -6 --oneline.
-Delta: Protein architecture refresh is shipped and deployed. Pushed commits: `960ac9d` full report protein-domain wiring + same-origin lookup route, `1f1b011` graph update, `49e8326` single-row figure-style protein schematic, `22e840a` graph update. Vercel production deploy `dpl_8QfBR96Y3K83f3MjGUqz8fLVKUTt` is Ready and aliased to `https://eamos-dev.vercel.app`. Live USH2A report verified: 5,202 aa, 50 architecture blocks, 248 source hits, one protein row, black outer backbone outline, thinner domain outlines, canonical domain cards, FN3 selected card exposes all exact amino-acid ranges and highlights domains yellow. Purple-acid/Chitinase-style raw HMMER surprises are summarized, not primary architecture. Tests: app/web tsc, app/web lint (only pre-existing warnings), `git diff --check`, local + live browser verification. `python -m graphify update .` was run; no semantic extraction.
-Next: apply the same figure-style/scroller concept to the gene view in `ReportGeneViewer.tsx`: standardized height/size, horizontal scroll for long genes, clearer outer/inner outlines, less squashing, and visible coordinates instead of hover-only dependence. Use the reference protein screenshots from `C:\Users\seamegdool\Pictures\Screenshots\Screenshot 2026-06-15 023012.png` and `...023026.png`. Do not bundle held local items: `docs/proprietary/eamos-ai-gateway.md` and `scripts/eamos-encoding-scan.mjs`. Guardrails: no Supabase apply/mutation, no provider/env flips, keep `LLM_PROVIDER=mock`, `RAG_ENABLED=false`, `CRISPR_OFFTARGET_PROVIDER=auto`, `PRIMER_SPECIFICITY_PROVIDER=template`. End clear-safe.
+# Resume prompt - 2026-06-16 18:44 +1000 - Codex Epic A A9 complete
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/stability-audit/findings.md, then run git status --short --branch.
+Delta: Epic A A9 completed locally and verified; no push/deploy. Workflow/run-chat/search-input heavy paths now have authenticated rate limits, bounded worker execution, deadlines/timeouts, run-chat vector-index caching, and paper-variants async threadpool deadlines; ClinGen local protein same-position prefix tokens fixed during verification.
+Next: Claude owns the safe overall commit, push, and deploy before A10 per Steven. Do not start A10 until that release step is handled. Keep held files excluded: `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`.
+Guardrails: `LLM_PROVIDER=mock`; no Supabase apply/provider flip; explicit pathspecs, never git add -A; coordinate via Log Edit-Lock + Shared File Locks. End clear-safe.
 ```

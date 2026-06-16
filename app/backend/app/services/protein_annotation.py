@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import gzip
+import os
 import json
 import shutil
 import subprocess
@@ -11,6 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Any, Protocol
 
 from app.core.config import Settings
@@ -28,6 +30,9 @@ from app.schemas.protein_annotation import (
 PROTEIN_ANNOTATION_SOURCE = "eamos_protein_annotation_super_tool"
 UNIPROT_FEATURE_SOURCE = "UniProtKB/Swiss-Prot feature table"
 UNIPROT_FEATURE_TABLE_CHECKED_WARNING = "uniprot_feature_table_checked"
+SAFE_DEFAULT_HMMSCAN_MAX_RESIDUES = 5000
+SAFE_DEFAULT_HMMSCAN_MEMORY_LIMIT_MB = 1536
+_HMMSCAN_RUN_SEMAPHORE = BoundedSemaphore(value=1)
 _PROTEIN_ALPHABET_RE = re.compile(r"^[ABCDEFGHIKLMNPQRSTVWXYZUO*]+$")
 _DNA_RE = re.compile(r"^[ACGTUNacgtun]+$")
 HMMPRESS_SUFFIXES = (".h3f", ".h3i", ".h3m", ".h3p")
@@ -233,20 +238,26 @@ class LocalHmmerRunner:
             fasta_path = temp_path / "query.faa"
             domtblout_path = temp_path / "hmmscan.domtblout"
             fasta_path.write_text(f">eamos_{sequence_hash[:16]}\n{protein_sequence}\n")
-            result = subprocess.run(
-                [
-                    runtime.hmmscan_path,
-                    "--noali",
-                    "--domtblout",
-                    str(domtblout_path),
-                    runtime.pfam_hmm_path,
-                    str(fasta_path),
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=self.settings.protein_annotation_hmmscan_timeout_seconds,
-            )
+            kwargs: dict[str, Any] = {}
+            preexec_fn = _hmmscan_preexec_fn(self.settings)
+            if preexec_fn is not None:
+                kwargs["preexec_fn"] = preexec_fn
+            with _HMMSCAN_RUN_SEMAPHORE:
+                result = subprocess.run(
+                    [
+                        runtime.hmmscan_path,
+                        "--noali",
+                        "--domtblout",
+                        str(domtblout_path),
+                        runtime.pfam_hmm_path,
+                        str(fasta_path),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.settings.protein_annotation_hmmscan_timeout_seconds,
+                    **kwargs,
+                )
             if result.returncode != 0:
                 stderr = result.stderr.strip() or result.stdout.strip()
                 raise RuntimeError(f"hmmscan_failed:{stderr[:200]}")
@@ -447,23 +458,6 @@ class ProteinAnnotationService:
                     }
                 )
 
-        if not request.allow_run:
-            return _unavailable_track(
-                "protein_annotation_cache_miss",
-                protein_length=len(normalized.protein_sequence),
-                sequence_hash=normalized.sequence_hash,
-                sequence_label=request.sequence_label,
-                gene_symbol=request.gene_symbol,
-                transcript=request.transcript,
-                protein_accession=request.protein_accession,
-                translated_from=normalized.translated_from,
-                cache_key=cache_key,
-                cache_status="cache_miss",
-                pfam_release=pfam_release,
-                hmmer_release=hmmer_release,
-                uniprot_release=cache_uniprot_release,
-                warnings=[*normalized.warnings, "protein_annotation_cache_miss_no_runtime_run"],
-            )
         if self.settings is None or not self.settings.protein_annotation_enabled:
             return _unavailable_track(
                 "protein_annotation_disabled",
@@ -480,6 +474,23 @@ class ProteinAnnotationService:
                 hmmer_release=hmmer_release,
                 uniprot_release=cache_uniprot_release,
                 warnings=[*normalized.warnings, "no_live_protein_api_fallback"],
+            )
+        if not request.allow_run:
+            return _unavailable_track(
+                "protein_annotation_cache_miss",
+                protein_length=len(normalized.protein_sequence),
+                sequence_hash=normalized.sequence_hash,
+                sequence_label=request.sequence_label,
+                gene_symbol=request.gene_symbol,
+                transcript=request.transcript,
+                protein_accession=request.protein_accession,
+                translated_from=normalized.translated_from,
+                cache_key=cache_key,
+                cache_status="cache_miss",
+                pfam_release=pfam_release,
+                hmmer_release=hmmer_release,
+                uniprot_release=cache_uniprot_release,
+                warnings=[*normalized.warnings, "protein_annotation_cache_miss_no_runtime_run"],
             )
 
         provider_result = (
@@ -573,12 +584,8 @@ class ProteinAnnotationService:
                 warnings=[*normalized.warnings, *runtime.warnings, "no_live_protein_api_fallback"],
             )
 
-        max_hmmscan_residues = (
-            self.settings.protein_annotation_hmmscan_max_residues
-            if self.settings is not None
-            else 0
-        )
-        if max_hmmscan_residues > 0 and len(normalized.protein_sequence) > max_hmmscan_residues:
+        max_hmmscan_residues = _safe_hmmscan_max_residues(self.settings)
+        if len(normalized.protein_sequence) > max_hmmscan_residues:
             reason = "protein_annotation_hmmscan_sequence_too_long"
             warnings = [
                 *provider_warnings,
@@ -673,6 +680,9 @@ class ProteinAnnotationService:
         if request.use_cache and self.cache_repo is not None:
             self.cache_repo.upsert(track)
         return track
+
+    def warm_cache(self, request: ProteinAnnotationRequest) -> ProteinDomainTrack:
+        return self.annotate(request.model_copy(update={"allow_run": True, "use_cache": True}))
 
 
 def normalize_protein_input(sequence: str, *, input_type: str = "auto") -> NormalizedProteinInput:
@@ -1390,3 +1400,33 @@ def resolve_protein_runtime_path(settings: Settings, path: Path) -> Path:
 
 def resolve_executable(path: Path) -> str | None:
     return shutil.which(str(path))
+
+
+def _safe_hmmscan_max_residues(settings: Settings | None) -> int:
+    if settings is None:
+        return SAFE_DEFAULT_HMMSCAN_MAX_RESIDUES
+    try:
+        configured = int(settings.protein_annotation_hmmscan_max_residues)
+    except (TypeError, ValueError):
+        return SAFE_DEFAULT_HMMSCAN_MAX_RESIDUES
+    return configured if configured > 0 else SAFE_DEFAULT_HMMSCAN_MAX_RESIDUES
+
+
+def _hmmscan_preexec_fn(settings: Settings):
+    if os.name == "nt":
+        return None
+    try:
+        import resource
+    except ImportError:
+        return None
+    try:
+        configured = int(settings.protein_annotation_hmmscan_memory_limit_mb)
+    except (TypeError, ValueError):
+        configured = SAFE_DEFAULT_HMMSCAN_MEMORY_LIMIT_MB
+    limit_mb = configured if configured > 0 else SAFE_DEFAULT_HMMSCAN_MEMORY_LIMIT_MB
+    limit_bytes = limit_mb * 1024 * 1024
+
+    def apply_limits() -> None:
+        resource.setrlimit(resource.RLIMIT_AS, (limit_bytes, limit_bytes))
+
+    return apply_limits

@@ -119,6 +119,7 @@ def test_variant_cache_reads_supabase_dev_cache_on_local_miss(tmp_path: Path) ->
         total_publications=3,
         publication_data={"ep_vlex": {"total_count": 3}},
         strict_genomic_cache={"variant": {"genomic_hg38": "1-68444869-T-C"}},
+        gene_context_snapshot={"snapshot": {"protein_domain_track": {"status": "cache_hit"}}},
     )
 
     hit = hybrid.get_fresh("RPE65:c.260A>G", ttl_days=30)
@@ -127,6 +128,9 @@ def test_variant_cache_reads_supabase_dev_cache_on_local_miss(tmp_path: Path) ->
     assert hit["litvar_id"] == "litvar-rpe65-c260ag"
     assert hit["publication_data"]["ep_vlex"]["total_count"] == 3
     assert hit["strict_genomic_cache"]["variant"]["genomic_hg38"] == "1-68444869-T-C"
+    assert hit["gene_context_snapshot"]["snapshot"]["protein_domain_track"]["status"] == (
+        "cache_hit"
+    )
 
 
 def test_variant_cache_write_through_keeps_local_cache_when_supabase_fails(
@@ -148,15 +152,56 @@ def test_variant_cache_write_through_keeps_local_cache_when_supabase_fails(
         total_publications=1,
         publication_data={"summary": {"total_publications": 1}},
         strict_genomic_cache={"variant": {"genomic_hg38": "1-216247118-C-A"}},
+        gene_context_snapshot={"snapshot": {"protein_domain_track": {"status": "cache_hit"}}},
     )
 
     hit = local_repo.get_fresh("USH2A:c.2276G>T", ttl_days=30)
     assert hit is not None
     assert hit["strict_genomic_cache"]["variant"]["genomic_hg38"] == "1-216247118-C-A"
+    assert hit["gene_context_snapshot"]["snapshot"]["protein_domain_track"]["status"] == (
+        "cache_hit"
+    )
     assert store.entries == {}
     assert "Supabase local model cache write failed; using local fallback" in caplog.text
     assert "cache_family=variant_report" in caplog.text
     assert "USH2A:c.2276G>T" not in caplog.text
+
+
+def test_variant_cache_partial_gene_context_update_preserves_other_payloads(
+    tmp_path: Path,
+) -> None:
+    local_repo = VariantCacheRepo(_session_factory(tmp_path))
+    store = FakeLocalModelCacheStore()
+    remote_repo = SupabaseVariantCacheRepo(store)
+    hybrid = HybridVariantCacheRepo(local_repo=local_repo, remote_repo=remote_repo)
+
+    hybrid.upsert(
+        "RPE65:c.260A>G",
+        litvar_id="litvar-rpe65-c260ag",
+        total_publications=3,
+        publication_data={"ep_vlex": {"legacy_shape": True}},
+        strict_genomic_cache={"variant": {"genomic_hg38": "1-68444869-T-C"}},
+    )
+    hybrid.update_gene_context_snapshot(
+        "RPE65:c.260A>G",
+        gene_context_snapshot={
+            "gene_context_snapshot_cache_version": 1,
+            "snapshot": {"protein_domain_track": {"status": "cache_hit"}},
+        },
+    )
+
+    local_hit = local_repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    remote_hit = remote_repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    assert local_hit is not None
+    assert remote_hit is not None
+    assert local_hit["publication_data"]["ep_vlex"]["legacy_shape"] is True
+    assert remote_hit["publication_data"]["ep_vlex"]["legacy_shape"] is True
+    assert local_hit["gene_context_snapshot"]["snapshot"]["protein_domain_track"]["status"] == (
+        "cache_hit"
+    )
+    assert remote_hit["gene_context_snapshot"]["snapshot"]["protein_domain_track"]["status"] == (
+        "cache_hit"
+    )
 
 
 def test_source_cache_remote_round_trip_preserves_freshness_and_warnings() -> None:

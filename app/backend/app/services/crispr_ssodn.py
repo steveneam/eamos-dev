@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import re
+import threading
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -36,6 +37,7 @@ _PAM_BLOCK_SWAP = {
     "T": "C",
 }
 _TRANSCRIPT_COMPLEMENT = str.maketrans("ACGT", "TGCA")
+_LOCAL_HG38_REFERENCE_LOCK = threading.RLock()
 
 
 class CrisprSsodnInputError(Exception):
@@ -261,14 +263,16 @@ def _local_transcript_window(payload: CrisprSsodnRequest) -> _ResolvedSsodnWindo
     if variant_offset < 0 or variant_offset >= payload.oligo_length:
         return None
 
-    codon_ref, codon_alt = _codons_for_variant(
-        model=model,
-        cpos=cpos,
-        reference=reference,
-        alternate=alternate,
-    )
     try:
-        with TwoBitReferenceGenomeStore.local_hg38() as reference_store:
+        with _LOCAL_HG38_REFERENCE_LOCK:
+            reference_store = _local_hg38_reference_store()
+            codon_ref, codon_alt = _codons_for_variant(
+                reference_store=reference_store,
+                model=model,
+                cpos=cpos,
+                reference=reference,
+                alternate=alternate,
+            )
             reference_sequence, variant_sequence, intron_mask = _build_transcript_window(
                 reference_store=reference_store,
                 model=model,
@@ -379,6 +383,11 @@ def _load_transcript_model(
     )
 
 
+@lru_cache(maxsize=1)
+def _local_hg38_reference_store() -> TwoBitReferenceGenomeStore:
+    return TwoBitReferenceGenomeStore.local_hg38()
+
+
 def _build_transcript_window(
     *,
     reference_store: TwoBitReferenceGenomeStore,
@@ -452,6 +461,7 @@ def _same_exon_transcript_bases_before(
 
 def _codons_for_variant(
     *,
+    reference_store: TwoBitReferenceGenomeStore,
     model: _TranscriptSsodnModel,
     cpos: int,
     reference: str,
@@ -462,15 +472,14 @@ def _codons_for_variant(
     if codon_start < 1 or codon_start + 2 > len(model.cds_coordinates):
         return None, None
     try:
-        with TwoBitReferenceGenomeStore.local_hg38() as reference_store:
-            bases = [
-                _transcript_base_at(
-                    reference_store,
-                    model=model,
-                    coordinate=model.cds_coordinates[codon_start + offset - 1],
-                )
-                for offset in range(3)
-            ]
+        bases = [
+            _transcript_base_at(
+                reference_store,
+                model=model,
+                coordinate=model.cds_coordinates[codon_start + offset - 1],
+            )
+            for offset in range(3)
+        ]
     except (OSError, ReferenceGenomeStoreError):
         return None, None
     if bases[codon_index] != reference:

@@ -4,6 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
 from app.core.rate_limit import RATE_LIMIT_LIBRARY, enforce_rate_limit
+from app.repos.variant_library_repo import (
+    DEFAULT_LIBRARY_FOLDER_LIMIT,
+    DEFAULT_LIBRARY_VARIANT_LIMIT,
+    MAX_LIBRARY_FOLDER_LIMIT,
+    MAX_LIBRARY_VARIANT_LIMIT,
+)
 from app.schemas.variant_library import (
     CreateFolderRequest,
     Folder,
@@ -24,10 +30,26 @@ router = APIRouter(prefix="/api/v1/library", tags=["variant-library"])
 @router.get("", response_model=LibraryStore)
 def get_library(
     request: Request,
+    limit: int = Query(
+        default=DEFAULT_LIBRARY_VARIANT_LIMIT,
+        ge=1,
+        le=MAX_LIBRARY_VARIANT_LIMIT,
+    ),
+    offset: int = Query(default=0, ge=0),
+    folder_limit: int = Query(
+        default=DEFAULT_LIBRARY_FOLDER_LIMIT,
+        ge=1,
+        le=MAX_LIBRARY_FOLDER_LIMIT,
+    ),
     principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> LibraryStore:
     enforce_rate_limit(request, RATE_LIMIT_LIBRARY, subject=principal.user_id)
-    return _service(request).get_library(principal)
+    return _service(request).get_library(
+        principal,
+        variant_limit=limit,
+        variant_offset=offset,
+        folder_limit=folder_limit,
+    )
 
 
 @router.put("", response_model=LibraryStore)
@@ -105,10 +127,15 @@ def remove_variant(
 @router.get("/folders", response_model=list[Folder])
 def list_folders(
     request: Request,
+    limit: int = Query(
+        default=DEFAULT_LIBRARY_FOLDER_LIMIT,
+        ge=1,
+        le=MAX_LIBRARY_FOLDER_LIMIT,
+    ),
     principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> list[Folder]:
     enforce_rate_limit(request, RATE_LIMIT_LIBRARY, subject=principal.user_id)
-    return _service(request).get_library(principal).folders
+    return _service(request).get_library(principal, folder_limit=limit).folders
 
 
 @router.post("/folders", response_model=Folder, status_code=status.HTTP_201_CREATED)

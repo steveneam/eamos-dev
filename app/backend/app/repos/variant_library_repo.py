@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Iterable
 from uuid import uuid4
 
 import httpx
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects.sqlite import insert
 
 from app.core.db import (
     UserLibraryRecord,
@@ -15,6 +16,11 @@ from app.core.db import (
     VariantViewCountRecord,
     session_scope,
 )
+
+DEFAULT_LIBRARY_VARIANT_LIMIT = 500
+MAX_LIBRARY_VARIANT_LIMIT = 500
+DEFAULT_LIBRARY_FOLDER_LIMIT = 500
+MAX_LIBRARY_FOLDER_LIMIT = 500
 
 
 class VariantLibraryRepoError(RuntimeError):
@@ -92,21 +98,38 @@ class VariantLibraryRepo:
             session.flush()
             return _library_document_from_record(record)
 
-    def list_variants(self, *, user_id: str) -> list[SavedVariantRecord]:
+    def list_variants(
+        self,
+        *,
+        user_id: str,
+        limit: int = DEFAULT_LIBRARY_VARIANT_LIMIT,
+        offset: int = 0,
+    ) -> list[SavedVariantRecord]:
+        bounded_limit = _bounded_limit(limit, max_limit=MAX_LIBRARY_VARIANT_LIMIT)
+        bounded_offset = max(0, int(offset))
         with session_scope(self.session_factory) as session:
             rows = session.execute(
                 select(VariantLibrarySavedVariantRecord)
                 .where(VariantLibrarySavedVariantRecord.user_id == user_id)
                 .order_by(VariantLibrarySavedVariantRecord.saved_at.desc())
+                .offset(bounded_offset)
+                .limit(bounded_limit)
             ).scalars()
             return [_saved_variant_from_record(row) for row in rows]
 
-    def list_folders(self, *, user_id: str) -> list[FolderRecord]:
+    def list_folders(
+        self,
+        *,
+        user_id: str,
+        limit: int = DEFAULT_LIBRARY_FOLDER_LIMIT,
+    ) -> list[FolderRecord]:
+        bounded_limit = _bounded_limit(limit, max_limit=MAX_LIBRARY_FOLDER_LIMIT)
         with session_scope(self.session_factory) as session:
             rows = session.execute(
                 select(VariantLibraryCollectionRecord)
                 .where(VariantLibraryCollectionRecord.user_id == user_id)
                 .order_by(VariantLibraryCollectionRecord.created_at.asc())
+                .limit(bounded_limit)
             ).scalars()
             return [_folder_from_record(row) for row in rows]
 
@@ -143,13 +166,62 @@ class VariantLibraryRepo:
         user_id: str,
         variants: list[SavedVariantRecord],
     ) -> tuple[int, list[SavedVariantRecord]]:
-        saved: list[SavedVariantRecord] = []
-        added = 0
-        for variant in variants:
-            existing = self.get_variant(user_id=user_id, variant_id=variant.id)
-            if existing is None:
-                added += 1
-            saved.append(self.save_variant(user_id=user_id, variant=variant))
+        if not variants:
+            return 0, []
+        latest_by_id = {variant.id: variant for variant in variants}
+        ordered_ids = list(dict.fromkeys(variant.id for variant in variants))
+        folder_ids = {variant.folder_id for variant in latest_by_id.values() if variant.folder_id}
+        with session_scope(self.session_factory) as session:
+            if folder_ids:
+                existing_folder_ids = set(
+                    session.execute(
+                        select(VariantLibraryCollectionRecord.id).where(
+                            VariantLibraryCollectionRecord.user_id == user_id,
+                            VariantLibraryCollectionRecord.id.in_(folder_ids),
+                        )
+                    ).scalars()
+                )
+                if existing_folder_ids != folder_ids:
+                    raise VariantLibraryNotFoundError("folder not found")
+
+            existing_ids = set(
+                session.execute(
+                    select(VariantLibrarySavedVariantRecord.id).where(
+                        VariantLibrarySavedVariantRecord.user_id == user_id,
+                        VariantLibrarySavedVariantRecord.id.in_(ordered_ids),
+                    )
+                ).scalars()
+            )
+            values = [
+                _saved_variant_values(user_id=user_id, variant=latest_by_id[variant_id])
+                for variant_id in ordered_ids
+            ]
+            statement = insert(VariantLibrarySavedVariantRecord).values(values)
+            update_values = {
+                "gene": statement.excluded.gene,
+                "variant": statement.excluded.variant,
+                "query": statement.excluded.query,
+                "raw": statement.excluded.raw,
+                "saved_at": statement.excluded.saved_at,
+                "folder_id": statement.excluded.folder_id,
+                "classification": statement.excluded.classification,
+                "hgvs_full": statement.excluded.hgvs_full,
+            }
+            session.execute(
+                statement.on_conflict_do_update(
+                    index_elements=["id", "user_id"],
+                    set_=update_values,
+                )
+            )
+            saved_rows = session.execute(
+                select(VariantLibrarySavedVariantRecord).where(
+                    VariantLibrarySavedVariantRecord.user_id == user_id,
+                    VariantLibrarySavedVariantRecord.id.in_(ordered_ids),
+                )
+            ).scalars()
+            by_id = {row.id: _saved_variant_from_record(row) for row in saved_rows}
+        saved = [by_id[variant.id] for variant in variants]
+        added = len([variant_id for variant_id in ordered_ids if variant_id not in existing_ids])
         return added, saved
 
     def get_variant(self, *, user_id: str, variant_id: str) -> SavedVariantRecord | None:
@@ -314,24 +386,41 @@ class SupabaseVariantLibraryRepo:
             raise VariantLibraryWriteError("user library upsert returned no row")
         return _library_document_from_row(rows[0])
 
-    def list_variants(self, *, user_id: str) -> list[SavedVariantRecord]:
+    def list_variants(
+        self,
+        *,
+        user_id: str,
+        limit: int = DEFAULT_LIBRARY_VARIANT_LIMIT,
+        offset: int = 0,
+    ) -> list[SavedVariantRecord]:
+        bounded_limit = _bounded_limit(limit, max_limit=MAX_LIBRARY_VARIANT_LIMIT)
+        bounded_offset = max(0, int(offset))
         rows = self._get_rows(
             "saved_variant",
             params={
                 "select": "id,gene,variant,query,raw,saved_at,folder_id,classification,hgvs_full",
                 "user_id": f"eq.{user_id}",
                 "order": "saved_at.desc",
+                "limit": str(bounded_limit),
+                "offset": str(bounded_offset),
             },
         )
         return [_saved_variant_from_row(row) for row in rows]
 
-    def list_folders(self, *, user_id: str) -> list[FolderRecord]:
+    def list_folders(
+        self,
+        *,
+        user_id: str,
+        limit: int = DEFAULT_LIBRARY_FOLDER_LIMIT,
+    ) -> list[FolderRecord]:
+        bounded_limit = _bounded_limit(limit, max_limit=MAX_LIBRARY_FOLDER_LIMIT)
         rows = self._get_rows(
             "collection",
             params={
                 "select": "id,name,created_at",
                 "user_id": f"eq.{user_id}",
                 "order": "created_at.asc",
+                "limit": str(bounded_limit),
             },
         )
         return [_folder_from_row(row) for row in rows]
@@ -369,13 +458,49 @@ class SupabaseVariantLibraryRepo:
         user_id: str,
         variants: list[SavedVariantRecord],
     ) -> tuple[int, list[SavedVariantRecord]]:
-        existing_ids = {
-            row.id
-            for row in self.list_variants(user_id=user_id)
-            if row.id in {v.id for v in variants}
-        }
-        saved = [self.save_variant(user_id=user_id, variant=variant) for variant in variants]
-        return len([variant for variant in variants if variant.id not in existing_ids]), saved
+        if not variants:
+            return 0, []
+        latest_by_id = {variant.id: variant for variant in variants}
+        ordered_ids = list(dict.fromkeys(variant.id for variant in variants))
+        folder_ids = {variant.folder_id for variant in latest_by_id.values() if variant.folder_id}
+        if folder_ids:
+            existing_folder_rows = self._get_rows(
+                "collection",
+                params={
+                    "select": "id",
+                    "user_id": f"eq.{user_id}",
+                    "id": _postgrest_in_filter(folder_ids),
+                    "limit": str(len(folder_ids)),
+                },
+            )
+            if {str(row["id"]) for row in existing_folder_rows} != folder_ids:
+                raise VariantLibraryNotFoundError("folder not found")
+
+        existing_rows = self._get_rows(
+            "saved_variant",
+            params={
+                "select": "id",
+                "user_id": f"eq.{user_id}",
+                "id": _postgrest_in_filter(ordered_ids),
+                "limit": str(len(ordered_ids)),
+            },
+        )
+        existing_ids = {str(row["id"]) for row in existing_rows}
+        rows = self._post_rows(
+            "saved_variant",
+            json=[
+                _saved_variant_values(user_id=user_id, variant=latest_by_id[variant_id])
+                for variant_id in ordered_ids
+            ],
+            params={"on_conflict": "id,user_id"},
+            prefer="resolution=merge-duplicates,return=representation",
+        )
+        if not rows:
+            raise VariantLibraryWriteError("saved variant bulk upsert returned no rows")
+        by_id = {_saved_variant_from_row(row).id: _saved_variant_from_row(row) for row in rows}
+        saved = [by_id[variant.id] for variant in variants]
+        added = len([variant_id for variant_id in ordered_ids if variant_id not in existing_ids])
+        return added, saved
 
     def get_variant(self, *, user_id: str, variant_id: str) -> SavedVariantRecord | None:
         rows = self._get_rows(
@@ -507,7 +632,7 @@ class SupabaseVariantLibraryRepo:
         self,
         path: str,
         *,
-        json: dict[str, Any],
+        json: Any,
         params: dict[str, str] | None = None,
         prefer: str,
     ) -> list[dict[str, Any]]:
@@ -545,7 +670,7 @@ class SupabaseVariantLibraryRepo:
         path: str,
         *,
         params: dict[str, str] | None = None,
-        json: dict[str, Any] | None = None,
+        json: Any = None,
         prefer: str | None = None,
     ) -> httpx.Response:
         headers = {
@@ -586,6 +711,33 @@ class SupabaseVariantLibraryRepo:
 def _folder_exists(session, *, user_id: str, folder_id: str) -> bool:
     record = session.get(VariantLibraryCollectionRecord, folder_id)
     return record is not None and record.user_id == user_id
+
+
+def _bounded_limit(value: int, *, max_limit: int) -> int:
+    return max(1, min(int(value), max_limit))
+
+
+def _saved_variant_values(*, user_id: str, variant: SavedVariantRecord) -> dict[str, Any]:
+    return {
+        "id": variant.id,
+        "user_id": user_id,
+        "gene": variant.gene,
+        "variant": variant.variant,
+        "query": variant.query,
+        "raw": variant.raw,
+        "saved_at": variant.saved_at,
+        "folder_id": variant.folder_id,
+        "classification": variant.classification,
+        "hgvs_full": variant.hgvs_full,
+    }
+
+
+def _postgrest_in_filter(values: Iterable[str]) -> str:
+    escaped_values = []
+    for value in values:
+        escaped = str(value).replace('"', '""')
+        escaped_values.append(f'"{escaped}"')
+    return f"in.({','.join(escaped_values)})"
 
 
 def _saved_variant_from_record(row: VariantLibrarySavedVariantRecord) -> SavedVariantRecord:

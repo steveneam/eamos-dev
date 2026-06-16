@@ -143,6 +143,7 @@ def _compact_coordinate_index_health(settings) -> dict[str, object]:
         return inspect_compact_coordinate_index(
             settings,
             verify_checksum=False,
+            load_records=False,
         ).to_sanitized_dict()
     except Exception:
         return {
@@ -497,11 +498,9 @@ def _protein_annotation_health(settings, service) -> dict[str, object]:
     status = (
         "available"
         if hmmer_available
-        else "partial"
-        if uniprot_partial_available
-        else "disabled"
-        if not enabled
-        else "unavailable"
+        else (
+            "partial" if uniprot_partial_available else "disabled" if not enabled else "unavailable"
+        )
     )
     result.update(
         {
