@@ -6,11 +6,20 @@
 // variant-derived summaries (type / indel / substitution / per-gene / panel
 // coverage) light up from a parsed cohort today; the classification
 // distribution fills in once the async engine (C1) returns real ACMG calls.
-import type { BatchResult } from './backend'
-
 export type VariantClass = 'P' | 'LP' | 'VUS' | 'LB' | 'B' | 'unclassified'
 
 export const CLASS_ORDER: VariantClass[] = ['P', 'LP', 'VUS', 'LB', 'B', 'unclassified']
+
+/** The minimal per-variant shape the cohort summary needs. Both the parsed
+ *  preview rows and the server-annotated BatchResult rows satisfy it, so one
+ *  summary serves both states (variant-shape from `variant_key`; classification
+ *  from acmg/clinvar — null pre-lookup). */
+export interface CohortInput {
+  variant_key: string
+  gene?: string | null
+  acmg_classification?: string | null
+  clinvar_verdict?: string | null
+}
 
 /** Normalise an ACMG / ClinVar verdict string to a 5-tier class (+unclassified).
  *  ACMG takes precedence; ClinVar (incl. INFO/CLNSIG passthrough) is the
@@ -30,26 +39,14 @@ export function classifyVerdict(
   return 'unclassified'
 }
 
-const CLASS_RANK: Record<VariantClass, number> = {
+/** Severity rank for actionable-first ordering (P then LP pinned to top). */
+export const CLASS_RANK: Record<VariantClass, number> = {
   P: 0,
   LP: 1,
   VUS: 2,
   LB: 3,
   B: 4,
   unclassified: 5,
-}
-
-/** Severity rank for actionable-first ordering (P/LP pinned to top). */
-export function resultRank(r: BatchResult): number {
-  return CLASS_RANK[classifyVerdict(r.acmg_classification, r.clinvar_verdict)]
-}
-
-/** Stable sort that pins P then LP to the top; ties keep input order. */
-export function sortByActionable(results: BatchResult[]): BatchResult[] {
-  return results
-    .map((r, i) => ({ r, i }))
-    .sort((a, b) => resultRank(a.r) - resultRank(b.r) || a.i - b.i)
-    .map((x) => x.r)
 }
 
 export interface ParsedKey {
@@ -134,7 +131,7 @@ function emptySpectrum(): Record<SbsClass, number> {
 /** Compute the cohort summary. `panelGenes` (uppercased symbols, deduped across
  *  active panels) drives the panel-coverage card when ≥1 panel is active. */
 export function summarizeCohort(
-  results: BatchResult[],
+  results: CohortInput[],
   panelGenes?: string[],
 ): CohortSummary {
   const classDist = emptyClassDist()

@@ -18,7 +18,7 @@ import {
   type ActiveFilter,
   type FilterKind,
 } from '@/lib/compare-filters'
-import { KeywordPanelBuilder, LlmPanelComingSoon } from './CustomPanelBuilder'
+import { KeywordPanelBuilder } from './CustomPanelBuilder'
 
 /**
  * Scope controls for /compare, rendered as <WorkRail> content (left rail).
@@ -29,7 +29,7 @@ import { KeywordPanelBuilder, LlmPanelComingSoon } from './CustomPanelBuilder'
  */
 const DT = 'text/plain'
 type DragPayload = { t: 'new'; kind: FilterKind; panelSlug?: string } | { t: 'chip'; index: number }
-type RailTab = 'panels' | 'keywords' | 'llm'
+type RailTab = 'panels' | 'keywords'
 
 interface ScopeGateProps {
   variants: ParsedVariant[]
@@ -233,13 +233,9 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
           <TabButton active={tab === 'keywords'} onClick={() => setTab('keywords')}>
             Keywords
           </TabButton>
-          <TabButton active={tab === 'llm'} onClick={() => setTab('llm')}>
-            LLM
-          </TabButton>
         </div>
         {tab === 'panels' && <PresetList filters={filters} catalog={catalog} onAdd={add} />}
         {tab === 'keywords' && <KeywordPanelBuilder onCreate={addCustom} />}
-        {tab === 'llm' && <LlmPanelComingSoon />}
       </WorkRailSection>
     </>
   )

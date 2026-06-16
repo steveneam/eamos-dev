@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type DragEvent } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { WorkRailSection } from '@/components/layout/WorkRail'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import { stashCompareVariants, type ParsedVariant } from '@/lib/variant-file'
@@ -55,6 +55,10 @@ export interface LibrarySectionProps {
 
 export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySectionProps) {
   const router = useRouter()
+  // On the Batch page (/compare) the "Import VCF → /compare" link is circular and
+  // redundant — import lives in the central column there (drop zone + Add file).
+  // Keep it on /report and /workbench, where it correctly routes you to Batch.
+  const onBatch = usePathname() === '/compare'
   const { variants, folders } = useLibrary()
 
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -177,9 +181,11 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
   return (
     <>
       <WorkRailSection title="Saved variants" icon={<IconBookmark size={14} />} meta={topLevel.length}>
-        <div className="lib-secbar">
-          <Link href="/compare">Import VCF <IconArrowRight size={12} /></Link>
-        </div>
+        {!onBatch && (
+          <div className="lib-secbar">
+            <Link href="/compare">Import VCF <IconArrowRight size={12} /></Link>
+          </div>
+        )}
 
         <div
           onDragOver={(e) => {
@@ -201,8 +207,14 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
               <span className="lib-empty-glyph" aria-hidden><IconBookmark size={18} /></span>
               <strong>No saved variants yet.</strong>
               <p>
-                Save the variant you’re viewing, drag one here, or{' '}
-                <Link href="/compare">import a VCF in Batch</Link> to build a worklist.
+                {onBatch ? (
+                  <>Select rows from the table, or drag a variant here, to build a worklist.</>
+                ) : (
+                  <>
+                    Save the variant you’re viewing, drag one here, or{' '}
+                    <Link href="/compare">import a VCF in Batch</Link> to build a worklist.
+                  </>
+                )}
               </p>
             </div>
           ) : (

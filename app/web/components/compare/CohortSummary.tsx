@@ -127,13 +127,13 @@ export function CohortSummary({
           )}
         </div>
 
-        {/* Substitution spectrum */}
+        {/* Base-change spectrum (strand-collapsed 6-class single-base changes) */}
         <div style={CARD}>
-          <p style={CAP}>Substitutions</p>
+          <p style={CAP}>Base changes</p>
           {subTotal > 0 ? (
             <SubSpectrum spectrum={subSpectrum} />
           ) : (
-            <p style={{ fontSize: 11.5, color: 'var(--ink-4)', margin: '12px 0 0' }}>No single-base substitutions.</p>
+            <p style={{ fontSize: 11.5, color: 'var(--ink-4)', margin: '12px 0 0' }}>No single-base changes.</p>
           )}
         </div>
 

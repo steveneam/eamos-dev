@@ -7,15 +7,21 @@ import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
 import { RailFoot } from '@/components/layout/RailFoot'
-import { readCompareVariants, type CompareStash } from '@/lib/variant-file'
+import {
+  readCompareVariants,
+  stashCompareVariants,
+  type CompareStash,
+  type ParsedVariant,
+} from '@/lib/variant-file'
 import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
 import { getPanel } from '@/lib/panels'
 import { createBatch, getBatchJob } from '@/lib/batch'
 import type { BatchFilters, BatchResult, ParsedVariant as BatchVariant } from '@/lib/backend'
 import { LibrarySection } from '@/components/library/LibrarySection'
 import { ScopeGate } from './ScopeGate'
-import { VariantTable } from './VariantTable'
-import { BatchResultsTable } from './BatchResultsTable'
+import { BatchTable, rowFromParsed, rowFromResult } from './BatchTable'
+import { VariantImport } from './VariantImport'
+import { CompareAiPanel } from './CompareAiPanel'
 import './compare.css'
 
 /**
@@ -54,6 +60,9 @@ export function CompareClient() {
   const [status, setStatus] = useState<RunStatus>('idle')
   // Server-computed batch results (real backend); null = none yet / mock-offline.
   const [results, setResults] = useState<BatchResult[] | null>(null)
+  // True when the scope changed after a run — the visible output no longer matches
+  // the filters, so Regenerate is the prompt (we keep the table rather than wipe it).
+  const [stale, setStale] = useState(false)
   // Bumped when a panel's full gene list resolves so applyFilters re-runs.
   const [, bumpCache] = useState(0)
   const loadedSlugs = useRef<Set<string>>(new Set())
@@ -90,6 +99,7 @@ export function CompareClient() {
     async (runFilters: ActiveFilter[]) => {
       setStatus('running')
       setResults(null)
+      setStale(false)
       try {
         const job = await createBatch({
           variants: variants.map(toBatchVariant),
@@ -127,12 +137,42 @@ export function CompareClient() {
     [variants],
   )
 
-  // Changing the scope invalidates output — you re-run, like resubmitting a job.
+  // Changing the scope makes the current run stale, but DON'T wipe the table —
+  // keep it on screen and surface Regenerate so you can re-run with the new scope
+  // (the offline preview re-filters live, so staleness only matters once you've run).
   const changeFilters = (next: ActiveFilter[]) => {
     setFilters(next)
-    setStatus('idle')
-    setResults(null)
+    if (status !== 'idle') setStale(true)
   }
+
+  // Load variants from an in-page import (drop / browse / paste) without bouncing
+  // back to the search bar. `merge` appends to the current cohort (dedup by query)
+  // so a second VCF combines with the first; otherwise it replaces. Persists to
+  // the same sessionStorage stash the search bar writes, then re-renders in place.
+  const loadVariants = useCallback(
+    (parsed: ParsedVariant[], source: string, merge = false) => {
+      if (parsed.length === 0) return
+      setStash((prev) => {
+        const base = merge && prev ? prev.variants : []
+        const seen = new Set(base.map((v) => v.query.toLowerCase()))
+        const merged = base.slice()
+        for (const v of parsed) {
+          const key = v.query.toLowerCase()
+          if (seen.has(key)) continue
+          seen.add(key)
+          merged.push(v)
+        }
+        const nextSource = merge && prev ? `${prev.source} + ${source}` : source
+        stashCompareVariants(merged, nextSource)
+        return { savedAt: Date.now(), source: nextSource, variants: merged }
+      })
+      // The cohort changed — reset to a fresh idle state (re-scope, re-run).
+      setStatus('idle')
+      setResults(null)
+      setStale(false)
+    },
+    [],
+  )
 
   // Sample-VCF deep link (/compare?demo=1) — auto-generate the dropped cohort
   // once it hydrates so the landing pill lands on a populated result.
@@ -154,44 +194,62 @@ export function CompareClient() {
           className="mx-auto"
           style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '40px 32px 80px' }}
         >
-          <EmptyState />
+          <EmptyState onVariants={(v, s) => loadVariants(v, s, false)} />
         </main>
       ) : (
-        <div style={{ padding: '16px 0 80px' }}>
+        // No top padding on the shell — the sticky rail then clamps flush under
+        // the nav and its full-viewport height lands the pinned foot exactly at
+        // the bottom (a short, unscrolled page used to push it ~16px past the
+        // fold). The output column carries the top/bottom breathing room instead.
+        <div>
           <WorkRail
             surface="compare"
             title="Scope"
+            aiTitle="Ask Eamos"
+            aiPanel={<CompareAiPanel count={variants.length} source={stash?.source} />}
             foot={<RailFoot />}
             output={
-              <div style={{ padding: '0 22px 0 24px' }}>
-                {/* The idle GeneratePrompt card already carries the CTA — only show
-                    the top Generate/Regenerate control once there's output to re-run,
-                    so the idle state doesn't leave a lone button over empty space. */}
-                {status !== 'idle' && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-                    <button
-                      type="button"
-                      onClick={() => runBatch(filters)}
-                      disabled={status === 'running'}
-                      className={`cmp-cta ${status === 'done' ? 'cmp-cta--done' : 'cmp-cta--solid'}${status === 'running' ? ' cmp-cta--running' : ''}`}
-                    >
-                      {status === 'running' ? (
-                        <>
-                          <Spinner /> Generating…
-                        </>
-                      ) : (
-                        'Regenerate →'
+              <div style={{ padding: '16px 22px 80px 24px' }}>
+                {/* Output toolbar — Add file lives here, in the central column
+                    (not tucked in the rail corner), so loading another VCF into the
+                    cohort is always one click away. The Generate/Regenerate control
+                    rides the right once there's output to re-run; on a stale scope
+                    it turns solid with a hint so Regenerate gets its moment. */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <VariantImport compact onVariants={(v, s) => loadVariants(v, s, true)} />
+                  {status !== 'idle' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {stale && status === 'done' && (
+                        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                          Scope changed — regenerate to apply
+                        </span>
                       )}
-                    </button>
-                  </div>
-                )}
+                      <button
+                        type="button"
+                        onClick={() => runBatch(filters)}
+                        disabled={status === 'running'}
+                        className={`cmp-cta ${status === 'running' ? 'cmp-cta--solid cmp-cta--running' : stale ? 'cmp-cta--solid' : 'cmp-cta--done'}`}
+                      >
+                        {status === 'running' ? (
+                          <>
+                            <Spinner /> Generating…
+                          </>
+                        ) : (
+                          'Regenerate →'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {status === 'idle' ? (
                   <GeneratePrompt scoped={res.activePanels.length > 0} onGenerate={() => runBatch(filters)} />
                 ) : status === 'running' ? (
                   <LoadingCard />
                 ) : results && results.length > 0 ? (
-                  <BatchResultsTable
-                    results={results}
+                  <BatchTable
+                    rows={results.map(rowFromResult)}
+                    annotated
+                    activePanels={res.activePanels}
                     panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
                     panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
                   />
@@ -202,7 +260,13 @@ export function CompareClient() {
                     total={res.total}
                   />
                 ) : (
-                  <VariantTable rows={res.shown} activePanels={res.activePanels} />
+                  <BatchTable
+                    rows={res.shown.map(rowFromParsed)}
+                    annotated={false}
+                    activePanels={res.activePanels}
+                    panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                    panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                  />
                 )}
               </div>
             }
@@ -330,7 +394,7 @@ function LoadingCard() {
   )
 }
 
-function EmptyState() {
+function EmptyState({ onVariants }: { onVariants: (variants: ParsedVariant[], source: string) => void }) {
   return (
     <section
       style={{
@@ -342,29 +406,20 @@ function EmptyState() {
       }}
     >
       <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 16, margin: 0, color: 'var(--ink)' }}>
-        No variants loaded yet
+        Load a cohort to compare
       </h2>
-      <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '10px 0 0' }}>
-        Attach a variant file from the search bar — a VCF, or a CSV/TSV/plain-text list with one
-        variant per line — and the parsed variants will appear here.
+      <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '8px 0 18px' }}>
+        Drop a variant file here, or browse — a VCF, or a CSV/TSV/plain-text list with one variant
+        per line. The parsed cohort appears here, ready to scope and run.
       </p>
-      <Link
-        href="/"
-        style={{
-          display: 'inline-block',
-          marginTop: 16,
-          padding: '7px 14px',
-          borderRadius: 10,
-          border: '0.5px solid var(--ink-2)',
-          background: 'var(--ink-2)',
-          color: '#fff',
-          fontSize: 12.5,
-          fontWeight: 600,
-          textDecoration: 'none',
-        }}
-      >
-        Back to search
-      </Link>
+      <VariantImport onVariants={onVariants} />
+      <p style={{ fontSize: 12.5, color: 'var(--ink-4)', margin: '16px 0 0' }}>
+        Or attach one from the{' '}
+        <Link href="/" style={{ color: 'var(--ink-3)', textDecoration: 'underline' }}>
+          search bar
+        </Link>
+        .
+      </p>
     </section>
   )
 }

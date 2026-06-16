@@ -3,8 +3,10 @@ import { streamReportChat, type ReportChatTurn } from '@/lib/chat'
 import type { ReportPayload } from '@/lib/backend'
 
 interface AskEamosProps {
-  /** The report payload — sent as the evidence context the chat is grounded in. */
-  payload: ReportPayload
+  /** The report payload — sent as the evidence context the chat is grounded in.
+   *  Optional: cohort surfaces (Batch) reuse the shell in its coming-soon state,
+   *  where `send` is gated off and no payload is dereferenced. */
+  payload?: ReportPayload
   /** Capability flag — flips the chat from the coming-soon state to live. */
   enabled: boolean
   suggestions?: string[]
@@ -42,7 +44,7 @@ export function AskEamos({ payload, enabled, suggestions = DEFAULT_SUGGESTIONS, 
   const disabled = !enabled
 
   const send = async (question: string) => {
-    if (!enabled || !question.trim() || streaming) return
+    if (!enabled || !payload || !question.trim() || streaming) return
     setError(null)
     setInput('')
     // Prior completed turns become multi-turn history (the new pair is appended after).
