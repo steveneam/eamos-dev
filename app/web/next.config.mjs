@@ -1,3 +1,5 @@
+import { withSentryConfig } from '@sentry/nextjs'
+
 // Backend stays the FastAPI contract authority (see plans/v2-nextjs-migration/
 // design.md). The browser calls same-origin `/api/*`; this rewrite proxies to
 // the FastAPI dev server, mirroring the Vite dev proxy (`/api → :8000`) and
@@ -21,4 +23,11 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  // Source-map upload (readable stack traces) only runs when these are set,
+  // e.g. on Vercel/CI; local builds without a token just skip the upload.
+  org: process.env.SENTRY_ORG ?? 'eamos',
+  project: process.env.SENTRY_PROJECT ?? 'javascript-nextjs',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+})
