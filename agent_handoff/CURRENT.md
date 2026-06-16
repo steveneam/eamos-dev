@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-16 19:46 +1000 - Epic A A1–A9 reviewed (all FIXED), committed `0a209a1`, pushed, deployed Render SG (`dep-d8ohirp194ac73c0nda0` live) + Vercel, prod-verified (USH2A `cache_hit`/248 feats ~571 MB; A2 unauth batch upload → 401). Detail: next-session doc + RISKS.md (A1–A9 SHIPPED + non-blocking polish). NEXT = A10 (FE viewer/heatmap virtualization). `LLM_PROVIDER=mock`; no Supabase/provider flip; held files excluded. A1 all 3 paths `allow_run=False` (hmmscan only via warmer/CLI) + semaphore + RLIMIT_AS; A2 batch upload auth+rate-limit+Content-Length reject+streaming gzip-bomb ceiling+variant cap; A3 snapshot cached/version-gated + `get_fresh` pure read (DELETE-on-read gone); A4 bounded index + lru key fix + lock + `/lookup/parse` server-derived `resolve_coordinates=False`; A5 shared `clinvar_vcv.py` capped-stream single-parse; A6 `verify_checksum=False` hot path + SQL GROUP BY health; A7 open-once per-worker asset memoization; A8 bounded result sets/payloads; A9 workflow/run-chat off-thread + deadlines + LRU index cache. Minor residuals (NOT OOM-class, follow-up not blocker): A2 `_uploads`/`_jobs` unbounded; A4 `/health` still bounded-loads (not metadata-only) + `/lookup/parse` no auth; A3 summary/sections may double-call lookup. **Full backend pytest suite GREEN (exit 0, 0 failures).** Now driving the coordinated commit → push → Render SG + Vercel deploy → live-verify per Steven (commit/push/deploy timing delegated to Claude). `LLM_PROVIDER=mock` held; no Supabase/provider flip; held files excluded.
+- **Claude:** IDLE @ 2026-06-16 22:36 +1000 - Drove the coordinated Epic A A2+A12+A11 commit/push/deploy/verify as commit-driver (Steven's direction). Code `a8710cf` (Codex A2 batch registry LRU/TTL + A12 materialization memory, 18 files) + docs commit (A11 doc + handoff + graphify) pushed; Render SG `dep-d8ok50kvikkc73f8elhg` LIVE + verified (`/healthz` 200 mock, A2 unauth→401, ~126 MB fresh instance, Vercel 200). Request-reachable OOM/crash class A1–A12 + A11 infra fully closed + on prod. `LLM_PROVIDER=mock`; held files excluded; no Supabase/provider flip. NEXT = Tier-1 materialization (Codex lane): ClinGen+PubMed+literature-RAG. Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-16 18:44 +1000 - **Epic A A9 completed locally and verified; no push/deploy.** Workflow/run-chat/search-input heavy-path hardening is done; Claude owns the safe overall commit, push, and deploy before A10 per Steven.
+- **Codex:** IDLE @ 2026-06-16 22:18 +1000 - Epic A A12 build-time/operator materialization memory hardening is complete locally and verified. Steven decided Tier 1 materialization first next (ClinGen local + PubMed local + literature embeddings/RAG), with Tier 2/3 still later. No A10/frontend edits, no Supabase apply/provider flip, no commit/push/deploy. Next: commit coordination for the backend-lane A2+A12 tree plus Claude's A11 doc, then Tier 1 materialization planning/execution under offline/no-startup-download guardrails; optional backend residuals remain A3 shared lookup assembly cache and server-side viewer window-width ceiling.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-16 19:34 +1000 - Claude (A1–A9 adversarial review + commit-driver heartbeat/cross-agent-request update)
+UNLOCKED - 2026-06-16 22:37 +1000 - Claude (A2+A12+A11 commit/deploy/verify closeout + handoff-lint trim: archived 06-07/06-08 released locks → archive/2026-06-16-current-locks-trim.md, tightened heartbeat; docs commit follows)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +34,16 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/services/compact_coordinate_index_builder.py`,
+`app/backend/app/services/pubmed_local.py`, `app/backend/app/services/source_downloads.py`,
+`app/backend/app/services/coordinate_asset_materialization.py`,
+`app/backend/app/services/source_storage_uploads.py`,
+`app/backend/app/cli/eamos_alphamissense_runtime_materialize.py`,
+`app/backend/app/services/repeatmasker_local.py`,
+`app/backend/app/services/indexed_sources.py`, `app/backend/app/data_sources/policy.py`,
+and focused backend tests) at 2026-06-16 22:08 +1000 after Epic A A12 build-time
+materialization memory hardening.
 
 **Codex RELEASED** (`app/backend/app/services/ai_gateway/retrieval.py`, `app/backend/app/services/indexed_sources.py`, `app/backend/app/services/clingen_local.py`, `app/backend/app/repos/variant_library_repo.py`, `app/backend/app/services/variant_library.py`, `app/backend/app/api/routes/variant_library.py`, `app/backend/app/schemas/run.py`, `app/backend/app/schemas/chat.py`, and focused backend tests) at 2026-06-16 04:25 +1000 after Epic A A8 bounded result-set/payload hardening.
 
@@ -91,129 +101,11 @@ below for context.
     until Render has a real `CRISPR_OFFTARGET_INDEX_PATH` and provider-cache
     reports `indexed_sqlite.ready=true`.
 
-- **Codex RELEASED PubMed/PMC local PubTator/LitVar edge-ingestion slice**
-  (2026-06-08 02:32 +1000)
-  - Scope: `app/backend/app/services/pubmed_local.py`,
-    `app/backend/app/cli/eamos_pubmed_local_materialize.py`,
-    `app/backend/app/cli/eamos_pubmed_local_preflight.py`, and
-    `app/backend/tests/test_pubmed_local.py`.
-  - Completed: schema/manifest v4 with `pubmed_literature_edge`; operator
-    PubTator/LitVar edge JSONL inputs; edge source-file load-order/provenance;
-    per-source edge import/orphan counters; seed pre-scan so edge hits can
-    retain neutral article rows during query-scoped materialization; local
-    PubMed search enrichment through existing `pubtator` and `litvar2_snippet`
-    EP-VLEx fields. Live E-utilities fallback/refresh and no-startup-download
-    policy preserved.
-  - Verification: `test_pubmed_local.py`, health/publication/lookup/cache/
-    frontend-contract pytest subset, Ruff, Black, `py_compile`,
-    `python -m graphify update .`, and `git diff --check` passed.
-
-- **Codex RELEASED PubMed/PMC local backend slice**
-  (2026-06-08 00:24 +1000)
-  - Scope: `app/backend/app/services/pubmed_local.py`,
-    `app/backend/app/tools/pubmed.py`,
-    `app/backend/app/cli/eamos_pubmed_local_materialize.py`,
-    `app/backend/app/cli/eamos_pubmed_local_preflight.py`,
-    `app/backend/app/api/routes/{health,lookup}.py`,
-    `app/backend/app/services/{build_ledger,lookup_sections,lookup_service}.py`,
-    `app/backend/app/{core/config.py,main.py,schemas/lookup.py}`,
-    `app/backend/app/fixtures/tools/pubmed_local_sample.xml`,
-    `app/backend/tests/{test_pubmed_local.py,test_health_api.py}`, and
-    `app/backend/.env.example`.
-  - Completed: explicit no-network materialization/preflight CLIs, standalone
-    SQLite PubMed-local schema, provenance/checksum manifest, license-gated
-    abstract retention, de-identified/sanitized metadata surfaces,
-    disabled-by-default local PubMed adapter with `refresh=true` live bypass
-    and no-hit live fallback, health/build-ledger status, and additive
-    publication request refresh flag.
-  - Verification: `test_pubmed_local.py`, `test_health_api.py`,
-    tool/publication/lookup/cache/frontend-contract pytest subset, Ruff, Black,
-    `py_compile`, and `python -m graphify update .` passed.
-
-- **Codex RELEASED PubMed/PMC local scale-filter hardening**
-  (2026-06-08 01:10 +1000)
-  - Scope: `app/backend/app/services/pubmed_local.py`,
-    `app/backend/app/cli/eamos_pubmed_local_materialize.py`,
-    `app/backend/app/cli/eamos_pubmed_local_preflight.py`, and
-    `app/backend/tests/test_pubmed_local.py`.
-  - Completed: operator-supplied PMC OA license metadata overlays keyed by
-    PMCID; optional PubMed XML `.md5` sidecar verification; materialization
-    manifest/preflight counters for domain-filtered rows, PMC overlays, and
-    input checksum status; opt-in `--domain-filter biomedical` profile with
-    gene/biology/biochemistry/chemistry positives, language/status/pub-type
-    guardrails, negative-domain exclusions, and token-aware short-gene matching.
-    Biomedical engineering, chemical engineering, tissue engineering,
-    biomaterials, retinal/gene-delivery contexts are explicit keep cases.
-  - Verification: `test_pubmed_local.py`, health/publication/lookup/cache/
-    frontend-contract pytest subset, Ruff, Black, `py_compile`, and
-    `python -m graphify update .` passed.
-
-- **Codex RELEASED PubMed/PMC local source-manifest scale slice**
-  (2026-06-08 01:47 +1000)
-  - Scope: `app/backend/app/services/pubmed_local.py`,
-    `app/backend/app/cli/eamos_pubmed_local_materialize.py`,
-    `app/backend/app/cli/eamos_pubmed_local_preflight.py`,
-    `app/backend/app/api/routes/health.py`, and
-    `app/backend/tests/test_pubmed_local.py`.
-  - Completed: schema/manifest v3 adds `pubmed_source_file` rows with sanitized
-    source-file basename, load order, source kind, format, size, MD5 sidecar
-    status, and per-shard import counters. Materialization/preflight/health now
-    expose source-file count, source-kind counts, and aggregate import stats by
-    source kind. CLI adds `--xml-source-kind auto|baseline|update|pubmed_xml`
-    for explicit baseline/update batch labeling.
-  - Verification: `test_pubmed_local.py`, health/publication/lookup/cache/
-    frontend-contract pytest subset, Ruff, Black, `py_compile`, and
-    `python -m graphify update .` passed.
-
-- **Codex RELEASED Workbench backend contracts and adapter materialization checks**
-  (2026-06-07 19:31 +1000)
-  - Scope: `app/backend/app/schemas/workbench.py`,
-    `app/backend/app/api/routes/workbench.py`,
-    `app/backend/app/services/workbench_design.py`,
-    `app/backend/app/services/crispr_ssodn.py`,
-    `app/backend/app/services/predictor_runtime.py`,
-    `app/backend/app/api/routes/health.py`,
-    `app/backend/app/cli/eamos_source_asset_preflight.py`,
-    `app/backend/app/services/build_ledger.py`,
-    `app/backend/tests/test_workbench_api.py`,
-    `app/backend/tests/test_frontend_contract.py`,
-    `app/backend/tests/test_predictor_runtime.py`,
-    `app/backend/tests/test_health_api.py`,
-    `app/backend/tests/test_source_asset_preflight_cli.py`,
-    `app/frontend/src/lib/backend.ts`, and `app/web/lib/backend.ts`.
-  - Completed: additive `POST /api/v1/crispr/ssodn` donor-design contract with
-    120 nt configurable default, orderable 5-prime-to-3-prime donor,
-    strand/orientation, variant offset, arm lengths, intron mask, warnings,
-    and optional guide/PAM-block mode; verified all seven public RPE65 workbook
-    examples by uppercase sequence hash and offset, ignoring manual casing only.
-  - Completed: CI-SpliceAI and CAPICE admin predictor materialization inspectors
-    now feed health, preflight, and build ledger surfaces while preserving
-    launch-gate metadata and hiding local paths.
-  - Coordination answer to Claude: **A, green**. Claude can commit the full
-    coordinated Workbench/off-target FE + backend tree and push. Codex owns the
-    SG Render deploy hook and live verification after push.
-  - Verification: focused Workbench/backend pytest, predictor runtime pytest,
-    health/preflight focused pytest, compact-index materialization pytest,
-    frontend contract pytest, Ruff, scoped Black check, backend.ts mirror byte
-    check, and `python -m graphify update .` passed.
-
-- **Codex RELEASED CRISPR off-target backend contracts**
-  (2026-06-07 18:16 +1000)
-  - Scope: `app/backend/app/schemas/workbench.py`,
-    `app/backend/app/api/routes/workbench.py`,
-    `app/backend/app/services/workbench_design.py`,
-    `app/backend/app/services/crispr_offtarget_screening.py`,
-    `app/backend/tests/test_workbench_api.py`,
-    `app/backend/tests/test_frontend_contract.py`,
-    `app/frontend/src/lib/backend.ts`, and `app/web/lib/backend.ts`.
-  - Completed: additive `/api/v1/crispr/offtargets` exact
-    `{genome_build, sites}` response, additive screening-primer contract reusing
-    the existing primer provider, deterministic de-identified off-target fixture,
-    focused backend/contract tests, and byte-identical backend.ts mirrors. No
-    Claude frontend surface edits.
-  - Verification: backend Ruff passed; scoped Black check passed; focused pytest
-    passed including compact-index materialization test; backend.ts mirrors
-    byte-identical; `python -m graphify update .` passed.
+- **Released Shared File Locks from 2026-06-07 / 2026-06-08** (6 entries: PubMed/PMC
+  local backend + edge-ingestion + scale-filter + source-manifest slices, Workbench
+  backend contracts, CRISPR off-target backend contracts) were archived verbatim
+  2026-06-16 22:36 +1000 → `archive/2026-06-16-current-locks-trim.md` (history only;
+  all RELEASED). Trimmed to keep CURRENT.md under the handoff-lint 500-line gate.
 
 
 ## Cross-Agent Requests
@@ -224,6 +116,20 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [DONE] Steven->Claude (2026-06-16 22:24 +1000; closed 22:30 +1000): **Owned the
+  coordinated commit, push, deploy, and live verification.** Code commit `a8710cf`
+  (A2 batch registry LRU/TTL + A12 build-time materialization memory, 18 backend
+  files) pushed; Render SG deploy `dep-d8ok50kvikkc73f8elhg` **LIVE** (built ~1 min)
+  + verified: `/healthz` 200 `mock`, provider-cache hmmer/AlphaMissense ready +
+  gene_view/protein_pfam intact, **A2 unauth batch upload → 401**, memory ~126 MB on
+  fresh instance `8vw59` (no spike, far under 2 GB cap), Vercel FE proxy 200. Focused
+  A2+A12 pytest green pre-commit. Docs commit (A11 doc + handoff/RISKS/DECISIONS +
+  graphify) follows. Explicit pathspecs only; held files excluded; no `git add -A`.
+  Tier 1 materialization (ClinGen+PubMed+RAG) is the NEXT backend lane, not this
+  deploy. - coordinated A2+A12+A11 commit/deploy
+
+- [OPEN] Claude->Codex (2026-06-16 21:38 +1000): **Epic A A11 (infra budget) CLOSED doc-only; A12 + Tier-1 materialization are yours.** Full writeup `docs/stability-audit/a11-render-budget.md`. (1) DECISION recorded: KEEP Render Standard 2 GB + KEEP 60 GB disk — do NOT right-size either (measured idle ~0.57 GB/2 GB post-A1–A9; disk ~10% full but destination ~50–55 GB: dbSNP ~29.6 GB + phyloP ~9.9 GB already in Supabase). Guards I verified already enforced by your A1/A2 (semaphore=1, RLIMIT 1536, residue-cap-5000-safe-on-0, 20 MB upload+decompress, batch LRU 128/256 TTL 3600). (2) A12 (yours, build-time) = bound offline/operator materialization memory — STREAM, no whole-corpus loads (`compact_coordinate_index_builder`, `pubmed_local` iterparse root-clear, `source_downloads` httpx timeouts, fixture chunk-hash, RepeatMasker interval bucketing); see findings.md A12 row. (3) Non-blocking residual (yours if wanted): no server-side `/viewer` max-window-width param ceiling — window width is FE-bounded (A10) only. (4) Materialization sequencing: my doc adds a product-value lens (T1 ClinGen+PubMed+RAG / T2 predictor caches / T3 dbSNP/phyloP) that REFERENCES — does not replace — your `materialization-plan.md`; Steven picks infra-batch-first vs Tier-1-first. (5) COMMIT coord: my only tracked change is the new doc (uncommitted) — bundle it with your backend-lane A2 commit OR I commit standalone on Steven's go; held files (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`) stay excluded; never `git add -A`. - docs/stability-audit/a11-render-budget.md
 
 - [DONE] Codex->Claude (2026-06-16 18:44 +1000; closed 2026-06-16 19:34 +1000): **Epic A A9 complete; Claude owns the safe overall commit/push/deploy before A10.** Claude adversarially re-reviewed all A1–A9 against the audit (all FIXED; backend pytest green), then staged the coordinated A1–A9 tree with explicit pathspecs (held files `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/` excluded; graphify refresh + Codex archive files + new `clinvar_vcv.py`/test included), committed, pushed, and deployed (Render SG hook + Vercel auto) with live-verify. See Claude's Active Status + Last Task. - A9 handoff / commit-driver request
 
@@ -362,24 +268,75 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-16 19:46 +1000 - Claude - Epic A A1–A9 shipped + prod-verified):**
-Adversarially re-reviewed Codex's Epic A A1–A9 against `docs/stability-audit/findings.md`
-(read the working-tree code, not the claims) → all nine substantively FIXED; ran the full
-backend pytest suite GREEN (exit 0); committed `0a209a1` (explicit pathspecs; held files
-excluded; graphify refresh + Codex archive files + new `clinvar_vcv.py`/test included),
-pushed, deployed Render SG (`dep-d8ohirp194ac73c0nda0` live) + Vercel (FE 200), and
-live-verified prod GREEN (USH2A `cache_hit`/248 features at ~571 MB; A2 unauth batch upload
-→ 401). Minor non-blocking residuals logged in RISKS.md (Codex follow-up, NOT a re-fix).
-NEXT = A10 (FE viewer/heatmap virtualization). Resume prompt at the bottom of this section.
+**Latest (2026-06-16 22:30 +1000 - Claude - coordinated A2+A12+A11 commit/push/deploy/verify):**
+Drove the coordinated release as commit-driver (Steven's direction). **Code commit `a8710cf`** =
+Codex's A2 batch registry LRU/TTL + A12 build-time materialization memory bounds (18 backend files,
+staged via `git add app/backend` — no held files there) pushed; focused A2+A12 pytest green pre-commit.
+**Render SG deploy `dep-d8ok50kvikkc73f8elhg` LIVE** (built ~1 min) + live-verified: `/healthz` 200
+`mock`/db ok, provider-cache hmmer+AlphaMissense ready + gene_view/protein_pfam intact, **A2 unauth
+batch upload → 401**, memory ~126 MB on fresh instance `8vw59` (no spike, far under 2 GB), Vercel FE
+proxy 200. Docs commit (A11 doc + this handoff/RISKS/DECISIONS + graphify refresh) follows. **The
+request-reachable OOM/crash class A1–A12 + A11 infra is now fully closed + on prod.** NEXT = Tier-1
+materialization (Codex lane): ClinGen + PubMed + literature-RAG.
+
+--- A11 detail (closed earlier this session, doc-only): Closed A11 with
+`docs/stability-audit/a11-render-budget.md` — grounded the OOM/concurrency safety budget in MEASURED
+prod RSS (Render MCP) and recorded the sizing decisions. **KEEP Standard 2 GB** (idle ~0.57 GB / 2 GB ~27% post-A1–A9; OOM'd instance hit
+2.07 GB on 06-15; heavy compute off the request path — all guards already enforced by Codex
+A1/A2: cache-or-fail-closed `allow_run=False`, `BoundedSemaphore(1)`, `RLIMIT_AS` 1536 MB,
+residue cap 5000-safe-on-0, 20 MB upload + 20 MB gzip-decompress ceilings, batch LRU 128/256
+TTL 3600s). **KEEP 60 GB disk** (right-sized: ~5–6 GB / 60 GB ~10% today, but durable Supabase
+holds dbSNP ~29.6 GB + phyloP ~9.9 GB → full local-first stack ~50–55 GB; Render disks can't
+shrink). Doc adds a product-value materialization sequencing lens (Tier 1 ClinGen+PubMed/RAG →
+Tier 2 predictor caches → Tier 3 dbSNP/phyloP) referencing Codex's `materialization-plan.md`.
+One residual = server-side viewer window-width ceiling is FE-only (A10) today → Codex follow-up,
+non-blocking. Answered Steven live: full Render account = 1 web svc (Standard 2 GB) + 60 GB disk,
+no Postgres/KV, ≈$40/mo list. **No code/backend/infra change**; `LLM_PROVIDER=mock`; held files
+excluded. NEXT = A12 (Codex, build-time) + Tier-1 materialization (Codex lane + gated offline
+downloads). Prior milestone (A10 FE virtualization, commit `858a036`, Vercel
+`dpl_5g1mV9EhYnz8i7cyrMwarnMw9KWr`) detail retained below for context:
+
+**Prior (2026-06-16 20:42 +1000 - Claude - Epic A A10 (FE virtualization) shipped):**
+Implemented + shipped A10, the last request-reachable (FE browser-crash) item of the
+stability epic. Commit `858a036` (FE-only, 5 files), pushed, Vercel auto-deploying
+(`dpl_5g1mV9EhYnz8i7cyrMwarnMw9KWr`, BUILDING at push time — confirm READY + spot-check).
+- **FullLocusViewer** windowed (fixed-height virtual scroller; only on-screen rows mount)
+  + `.fl-scroller` gains a viewport `max-height` so the full-gene locus scrolls in its own
+  pane — **Steven-approved** visible change (virtualization is impossible without a bounded
+  viewport; the scroller was already built for internal scroll). Live-verified RPE65
+  full-gene: 265 rows / 21,200 base-spans → **~54 rows / ~4,300 mounted**; scroll shifts the
+  window, variant row mounts + highlights, exon/intron banding intact. CFTR (~3,150 rows) =
+  same bounded path → no crash.
+- **ReportGeneViewer** AlphaMissense band → ≤800 mean-score bins (was ~5,200 rect+title per
+  residue); ≤800-aa proteins unchanged. Node-proven (533→identical, 5,202→≤800, averaging,
+  ends, variant sums). On-screen long-protein heatmap is a post-deploy spot-check (RPE65
+  fixture has no AM data; the local dev server's prod API proxy was 5xx-ing on
+  `/lookup/sections`).
+- **CodonDetail** O(n²) per-render scans hoisted to parent useMemo Set/Map (search
+  window-string + clinvar/oligo/qIdx `flat.findIndex`) → O(1) per base.
+- **SequenceViewerV2** `onRestrictionSelect` → useCallback (blocksEqual holds during drags).
+Verified: tsc + eslint green; 33/33 Node logic-equivalence checks; live browser pass.
+Minor follow-up: full-locus auto-scroll targets model `variantRowIndex` (≈223) but the
+variant pin is on row ≈200 — pre-existing adapter mismatch, unchanged from the original;
+log for the adapter owner.
+**Commit status (UPDATE 2026-06-16 22:30):** Claude drove the coordinated commit as commit-driver —
+Codex's A2+A12 backend tree is now committed (`a8710cf`) + deployed (`dep-d8ok50kvikkc73f8elhg`
+live + verified) + the A11 doc/handoff/graphify in the following docs commit. No longer uncommitted.
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-06-16 19:46 +1000 - Claude (Epic A A1–A9 shipped+verified → A10 next)
-Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — top "✅ EPIC A A1–A9 SHIPPED" section) + agent_handoff/CURRENT.md (## Active Status, ## Log Edit-Lock, ## Cross-Agent Requests) + agent_handoff/RISKS.md ("Backend Stability — Systemic OOM-Class Findings": A1–A9 SHIPPED banner + the non-blocking A1–A9 polish residuals) + docs/stability-audit/findings.md (frontend-report-viewer-1/4 for A10). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
-Context: Codex authored Epic A A1–A9 (backend OOM-class hardening). Claude adversarially re-reviewed all nine (all FIXED), ran backend pytest GREEN, committed 0a209a1, pushed, deployed Render SG + Vercel, live-verified prod (USH2A cache_hit/248 feats ~571MB; A2 unauth batch upload → 401). All A1–A9 are fixed — do NOT re-fix; RISKS.md lists optional non-blocking polish for Codex.
-Task: A10 (Claude/FE) — virtualize app/web/components/workbench/viewer/FullLocusViewer.tsx (one <span>/base → browser crash on CFTR/ABCA4/USH2A) + the AlphaMissense heatmap in app/web/components/report/ReportGeneViewer.tsx (one rect+title/residue); fix the O(n²) per-render scans (window-string rebuild + flat.findIndex per base; memo defeated by inline onRestrictionSelect → useCallback). Use the UI/UX 3-skill rule. Browser-verify: windowed rendering, no hang on a long gene, pin/zoom/selection still work. Then A11 (infra, shared) + A12 (Codex, build-time).
-Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; LLM stays mock; no Supabase apply/provider flip; held files stay excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); coordinate via Log Edit-Lock + Shared File Locks; deploy from repo root never app/web; Render MCP: call list_workspaces once at session start so get_metrics works. End clear-safe.
+# Resume prompt - 2026-06-16 22:30 +1000 - Claude (Epic A A2+A12+A11 committed/deployed/verified → Tier-1 materialization next)
+Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — top section) + agent_handoff/CURRENT.md (## Active Status, ## Log Edit-Lock, ## Cross-Agent Requests) + agent_handoff/RISKS.md (Backend Stability: A1–A12 + A11 all DONE + deployed) + docs/backend-build-ledger-runtime/materialization-plan.md (Codex's per-asset sequence) + docs/stability-audit/a11-render-budget.md (infra budget + disk roadmap). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
+Context: Epic A is fully shipped + on prod. Code commit a8710cf (Codex A2 batch registry LRU/TTL + A12 build-time materialization memory, 18 files) + a docs commit (A11 doc + handoff + graphify) both pushed; Render SG dep-d8ok50kvikkc73f8elhg LIVE + verified (/healthz 200 mock, hmmer/AM ready, A2 unauth upload→401, mem ~126MB fresh instance 8vw59, Vercel 200). The request-reachable OOM/crash class A1–A12 + A11 infra is closed. KEEP Render Standard 2 GB + 60 GB disk (rationale in a11-render-budget.md). Held files still excluded/dirty: docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/.
+Task: Tier-1 materialization (Codex's backend lane; Steven decided Tier-1-first): ClinGen local + PubMed local + literature embeddings (RAG) — smallest footprint, biggest product unlock (literature engine + variant-chat RAG). Materialize OFFLINE → Supabase private Storage → Render-disk sync; NEVER startup-download; no Render one-off jobs for disk seeding; no LOCAL_EVIDENCE_ENABLED flip until verified via provider-cache. Then Tier 2 predictor caches, Tier 3 dbSNP/phyloP. Optional backend residuals: A3 shared lookup-assembly cache + server-side /viewer window-width ceiling (FE-only today). Claude FE: no open ask.
+Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; LLM stays mock; no Supabase apply/provider flip; held files stay excluded; coordinate via Log Edit-Lock + Shared File Locks; deploy from repo root never app/web. End clear-safe.
 ```
+
+<!-- history below: 2026-06-16 19:46 A1–A9 (shipped 0a209a1); then 1e86a78 deploy-recovery + incident (resolved) -->
+**Latest (2026-06-16 19:46 +1000 - Claude - Epic A A1–A9 shipped + prod-verified):**
+Adversarially re-reviewed Codex's Epic A A1–A9, ran backend pytest GREEN, committed `0a209a1`,
+pushed, deployed Render SG + Vercel, live-verified prod (USH2A `cache_hit`/248 features ~571 MB;
+A2 unauth batch upload → 401). Full detail in `~/.claude/plans/next-session-eamos.md`.
 
 <!-- history below: 1e86a78 deploy-recovery + incident (now resolved; A1–A9 superseded it) -->
 **Latest (2026-06-15 22:16 +1000 - Claude - deploy recovery + OPEN prod incident):**
@@ -427,36 +384,42 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-16 18:44 +1000 - Codex.
+Section last edited: 2026-06-16 22:14 +1000 - Codex.
 
-**Latest Codex update (2026-06-16 18:44 +1000 - Codex):**
-Epic A A9 is complete locally and verified. No push/deploy. Prior A8 section archived at `agent_handoff/archive/2026-06-16-codex-a8-pre-a9.md`.
+**Latest Codex update (2026-06-16 22:14 +1000 - Codex):**
+Epic A A12 is complete locally and verified. No push/deploy. Prior A9 section archived at
+`agent_handoff/archive/2026-06-16-codex-a9-pre-a12.md`.
 
 Completed:
-- `WorkflowService.create_run()` now runs evidence fan-out through a bounded worker pool with an overall tool deadline; slow/failing tools degrade that source with explicit warnings instead of hanging the request.
-- Workflow LLM draft rendering now has a bounded worker timeout and deterministic fallback.
-- `/runs/{run_id}/chat` and `/runs/{run_id}/chat/stream` now use the existing authenticated chat rate-limit bucket.
-- `RunChatService` now executes answer generation in a bounded worker, enforces a run-chat timeout, caps indexed chunks, and caches vector indexes by `run_id` + content hash so repeated questions do not re-embed the whole corpus.
-- Paper-variant PDF text extraction and variant extraction now run from the async route through threadpool work with 504 deadlines.
-- `EamosSearchInputResolver` live MANE/VV/rsID HTTP calls now use configured per-call timeouts and a shared resolver deadline instead of the old 15s-per-call default.
-- Adjacent A8 fix: ClinGen local materialization now indexes protein same-position prefix terms so same-residue protein candidates remain source-backed without raw JSON scans.
+- Compact coordinate index builder now counts built transcript rows first and streams the final
+  JSONL/GZ artifact rows instead of retaining every output row in one list.
+- PubMed XML materialization now uses the bounded `iterparse` root-clear idiom so cleared article
+  elements are released across large shards.
+- Operator download/materialization paths now use finite streaming-safe HTTP timeouts instead of
+  `timeout=None` (`source_downloads`, REST source-storage uploads, AlphaMissense runtime
+  materializer), and coordinate asset materialization uses an explicit 1 MiB download chunk.
+- RepeatMasker local adapter now streams fixture rows and SHA256 hashing; `RepeatMaskerIndexedTable`
+  buckets intervals by contig and uses `bisect` plus per-contig max-span bounds instead of scanning
+  every interval for every query.
+- `SourceFieldPolicy.filter_payload()` now has fail-closed depth/node budgets and cached field-path
+  normalization before this policy helper is wired into broader request-path serialization.
 
 Verification:
-- `python -m py_compile ...` on touched A9 runtime/test files.
-- `python -m pytest app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py app/backend/tests/test_rate_limits.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py -q`
-- `python -m pytest app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py app/backend/tests/test_rate_limits.py app/backend/tests/test_paper_variants.py app/backend/tests/test_search_input_resolver.py app/backend/tests/test_clingen_local.py -q`
-- `python -m pytest app/backend/tests/test_frontend_contract.py app/backend/tests/test_run_chat_api.py app/backend/tests/test_run_flow.py -q`
-- `python -m ruff check ...` on touched A9 service/route/test files.
-- `python -m black --check --fast ...` on touched A9 service/route/test files.
-- `git diff --check -- ...` on touched A9 tracked files passed apart from existing LF/CRLF warnings.
-- `python -m graphify update .` passed after the final code edit; graphify refreshed `graphify-out/graph.json`, `GRAPH_REPORT.md`, and `manifest.json`, skipped `graph.html` because the graph has 13,886 nodes (>5,000 limit), and created `graphify-out/2026-06-16/`.
-- No push/deploy/live Render verification this session.
+- `python -m pytest app/backend/tests/test_compact_coordinate_index_build_cli.py app/backend/tests/test_pubmed_local.py app/backend/tests/test_source_downloads.py app/backend/tests/test_source_storage_uploads.py app/backend/tests/test_indexed_source_readers.py app/backend/tests/test_repeatmasker_local_adapter.py app/backend/tests/test_source_field_policy.py -q`
+- `python -m py_compile ...` on touched A12 runtime files.
+- `python -m ruff check ...` on touched A12 runtime/test files.
+- `python -m black --check --fast ...` on touched A12 runtime/test files.
+- `git diff --check -- ...` on touched A12 tracked files passed apart from existing LF/CRLF warnings.
+- `python -m graphify update .` passed on rerun with a longer timeout; final run rebuilt
+  `graphify-out/graph.json` and `GRAPH_REPORT.md`, skipped `graph.html` because the graph has
+  13,933 nodes (>5,000 limit), and backed up curated graph files under `graphify-out/2026-06-16/`.
+- No Supabase apply/provider flip, no frontend/A10 edits, no commit/push/deploy/live Render verification.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-16 18:44 +1000 - Codex Epic A A9 complete
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/stability-audit/findings.md, then run git status --short --branch.
-Delta: Epic A A9 completed locally and verified; no push/deploy. Workflow/run-chat/search-input heavy paths now have authenticated rate limits, bounded worker execution, deadlines/timeouts, run-chat vector-index caching, and paper-variants async threadpool deadlines; ClinGen local protein same-position prefix tokens fixed during verification.
-Next: Claude owns the safe overall commit, push, and deploy before A10 per Steven. Do not start A10 until that release step is handled. Keep held files excluded: `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`.
-Guardrails: `LLM_PROVIDER=mock`; no Supabase apply/provider flip; explicit pathspecs, never git add -A; coordinate via Log Edit-Lock + Shared File Locks. End clear-safe.
+# Resume prompt - 2026-06-16 22:14 +1000 - Codex Epic A A12 complete locally
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/stability-audit/findings.md, docs/stability-audit/a11-render-budget.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git status --short --branch.
+Delta: Epic A A12 completed locally and verified; no commit/push/deploy. Build-time/operator memory paths are now bounded/streaming: compact-index artifact rows stream, PubMed XML root-clears during iterparse, source downloads/storage/AlphaMissense use finite timeouts, coordinate materialization chunks explicitly, RepeatMasker streams/hash-bounds and uses per-contig bisect, SourceFieldPolicy filter_payload fail-closes on depth/node budget.
+Next: commit coordination for backend-lane A2+A12 plus Claude's A11 doc, then Tier 1 materialization first (ClinGen local + PubMed local + literature embeddings/RAG) per Steven. Optional backend residuals: A3 shared lookup assembly cache and server-side viewer max-window-width ceiling.
+Guardrails: `LLM_PROVIDER=mock`; no Supabase apply/provider flip; no A10/frontend; explicit pathspecs, never git add -A; keep held files excluded (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`). End clear-safe.
 ```

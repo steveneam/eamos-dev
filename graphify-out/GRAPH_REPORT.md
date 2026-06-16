@@ -1,16 +1,16 @@
 # Graph Report - eamos  (2026-06-16)
 
 ## Corpus Check
-- 872 files · ~964,270 words
+- 873 files · ~969,191 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 13886 nodes · 32934 edges · 775 communities (668 shown, 107 thin omitted)
-- Extraction: 68% EXTRACTED · 32% INFERRED · 0% AMBIGUOUS · INFERRED: 10505 edges (avg confidence: 0.54)
+- 13933 nodes · 33039 edges · 798 communities (687 shown, 111 thin omitted)
+- Extraction: 68% EXTRACTED · 32% INFERRED · 0% AMBIGUOUS · INFERRED: 10525 edges (avg confidence: 0.54)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d649022a`
+- Built from commit: `858a0360`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -497,14 +497,17 @@
 - [[_COMMUNITY_Community 491|Community 491]]
 - [[_COMMUNITY_Community 492|Community 492]]
 - [[_COMMUNITY_Fixtures Search Input|Fixtures Search Input]]
+- [[_COMMUNITY_Community 494|Community 494]]
 - [[_COMMUNITY_Fixtures Search Input|Fixtures Search Input]]
 - [[_COMMUNITY_Fixtures Search Input|Fixtures Search Input]]
 - [[_COMMUNITY_Community 497|Community 497]]
 - [[_COMMUNITY_Community 498|Community 498]]
+- [[_COMMUNITY_Community 499|Community 499]]
 - [[_COMMUNITY_Fixtures Search Input|Fixtures Search Input]]
 - [[_COMMUNITY_Fixtures Search Input|Fixtures Search Input]]
 - [[_COMMUNITY_Tsconfig Json Files|Tsconfig Json Files]]
 - [[_COMMUNITY_Limitationssection Tsx Src|Limitationssection Tsx Src]]
+- [[_COMMUNITY_Community 504|Community 504]]
 - [[_COMMUNITY_Hairline Tsx Src|Hairline Tsx Src]]
 - [[_COMMUNITY_Textarea Tsx Src|Textarea Tsx Src]]
 - [[_COMMUNITY_Plans Section Orchestration|Plans Section Orchestration]]
@@ -539,6 +542,7 @@
 - [[_COMMUNITY_Community 575|Community 575]]
 - [[_COMMUNITY_Community 576|Community 576]]
 - [[_COMMUNITY_Community 577|Community 577]]
+- [[_COMMUNITY_Community 578|Community 578]]
 - [[_COMMUNITY_Community 579|Community 579]]
 - [[_COMMUNITY_Community 580|Community 580]]
 - [[_COMMUNITY_Community 581|Community 581]]
@@ -573,6 +577,7 @@
 - [[_COMMUNITY_Community 610|Community 610]]
 - [[_COMMUNITY_Community 611|Community 611]]
 - [[_COMMUNITY_Community 612|Community 612]]
+- [[_COMMUNITY_Community 613|Community 613]]
 - [[_COMMUNITY_Community 614|Community 614]]
 - [[_COMMUNITY_Community 615|Community 615]]
 - [[_COMMUNITY_Community 616|Community 616]]
@@ -591,6 +596,7 @@
 - [[_COMMUNITY_Community 629|Community 629]]
 - [[_COMMUNITY_Community 630|Community 630]]
 - [[_COMMUNITY_Community 631|Community 631]]
+- [[_COMMUNITY_Community 632|Community 632]]
 - [[_COMMUNITY_Community 633|Community 633]]
 - [[_COMMUNITY_Community 634|Community 634]]
 - [[_COMMUNITY_Community 635|Community 635]]
@@ -604,6 +610,7 @@
 - [[_COMMUNITY_Community 643|Community 643]]
 - [[_COMMUNITY_Community 644|Community 644]]
 - [[_COMMUNITY_Community 645|Community 645]]
+- [[_COMMUNITY_Community 646|Community 646]]
 - [[_COMMUNITY_Community 647|Community 647]]
 - [[_COMMUNITY_Community 648|Community 648]]
 - [[_COMMUNITY_Community 649|Community 649]]
@@ -616,7 +623,9 @@
 - [[_COMMUNITY_Community 656|Community 656]]
 - [[_COMMUNITY_Community 657|Community 657]]
 - [[_COMMUNITY_Community 658|Community 658]]
+- [[_COMMUNITY_Community 659|Community 659]]
 - [[_COMMUNITY_Community 660|Community 660]]
+- [[_COMMUNITY_Community 661|Community 661]]
 - [[_COMMUNITY_Community 662|Community 662]]
 - [[_COMMUNITY_Community 663|Community 663]]
 - [[_COMMUNITY_Community 664|Community 664]]
@@ -670,6 +679,8 @@
 - [[_COMMUNITY_Community 712|Community 712]]
 - [[_COMMUNITY_Community 713|Community 713]]
 - [[_COMMUNITY_Community 714|Community 714]]
+- [[_COMMUNITY_Community 715|Community 715]]
+- [[_COMMUNITY_Community 716|Community 716]]
 - [[_COMMUNITY_Community 717|Community 717]]
 - [[_COMMUNITY_Community 718|Community 718]]
 - [[_COMMUNITY_Community 719|Community 719]]
@@ -700,10 +711,13 @@
 - [[_COMMUNITY_Community 744|Community 744]]
 - [[_COMMUNITY_Community 745|Community 745]]
 - [[_COMMUNITY_Community 746|Community 746]]
+- [[_COMMUNITY_Community 747|Community 747]]
 - [[_COMMUNITY_Community 748|Community 748]]
 - [[_COMMUNITY_Community 749|Community 749]]
+- [[_COMMUNITY_Community 750|Community 750]]
 - [[_COMMUNITY_Community 751|Community 751]]
 - [[_COMMUNITY_Community 752|Community 752]]
+- [[_COMMUNITY_Community 753|Community 753]]
 - [[_COMMUNITY_Community 754|Community 754]]
 - [[_COMMUNITY_Community 755|Community 755]]
 - [[_COMMUNITY_Community 756|Community 756]]
@@ -715,7 +729,9 @@
 - [[_COMMUNITY_Community 762|Community 762]]
 - [[_COMMUNITY_Community 763|Community 763]]
 - [[_COMMUNITY_Community 764|Community 764]]
+- [[_COMMUNITY_Community 765|Community 765]]
 - [[_COMMUNITY_Community 766|Community 766]]
+- [[_COMMUNITY_Community 767|Community 767]]
 - [[_COMMUNITY_Community 768|Community 768]]
 - [[_COMMUNITY_Community 769|Community 769]]
 - [[_COMMUNITY_Community 770|Community 770]]
@@ -730,15 +746,22 @@
 - [[_COMMUNITY_Community 779|Community 779]]
 - [[_COMMUNITY_Community 780|Community 780]]
 - [[_COMMUNITY_Community 781|Community 781]]
+- [[_COMMUNITY_Community 782|Community 782]]
 - [[_COMMUNITY_Community 783|Community 783]]
 - [[_COMMUNITY_Community 784|Community 784]]
 - [[_COMMUNITY_Community 785|Community 785]]
 - [[_COMMUNITY_Community 786|Community 786]]
 - [[_COMMUNITY_Community 787|Community 787]]
+- [[_COMMUNITY_Community 788|Community 788]]
 - [[_COMMUNITY_Community 789|Community 789]]
+- [[_COMMUNITY_Community 790|Community 790]]
+- [[_COMMUNITY_Community 791|Community 791]]
+- [[_COMMUNITY_Community 792|Community 792]]
+- [[_COMMUNITY_Community 793|Community 793]]
+- [[_COMMUNITY_Community 794|Community 794]]
 - [[_COMMUNITY_Community 795|Community 795]]
-- [[_COMMUNITY_Community 803|Community 803]]
-- [[_COMMUNITY_Community 804|Community 804]]
+- [[_COMMUNITY_Community 797|Community 797]]
+- [[_COMMUNITY_Community 798|Community 798]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Settings` - 492 edges
@@ -753,12 +776,12 @@
 10. `PrimerRequest` - 115 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Coordination protocol — single home` --semantically_similar_to--> `Single Protocol Home`  [INFERRED] [semantically similar]
+  CLAUDE.md → agent_handoff/README.md
 - `Variant Evidence Report Name` --semantically_similar_to--> `Variant Report Surface`  [INFERRED] [semantically similar]
   agent_handoff/DECISIONS.md → README.md
 - `WorkRail Phase History` --semantically_similar_to--> `WorkRail Primitive`  [INFERRED] [semantically similar]
   plans/v2-frontend.md → docs/workspace-rail/spec.md
-- `Coordination protocol — single home` --semantically_similar_to--> `Single Protocol Home`  [INFERRED] [semantically similar]
-  CLAUDE.md → agent_handoff/README.md
 - `Direct Codex Substantive Backend Work` --semantically_similar_to--> `Direct Codex Role`  [INFERRED] [semantically similar]
   agent_handoff/DECISIONS.md → CODEX.md
 - `Trust Is The Brand` --semantically_similar_to--> `Source Link On Every Data Point`  [INFERRED] [semantically similar]
@@ -820,7 +843,7 @@
 - **gnomAD Population Frequency Disclosure Pattern** — variant_report_data_orchestration_plan_section_3_gnomad_expansion_panel, variant_report_data_orchestration_spec_population_frequency_report_section, variant_report_data_orchestration_design_gnomad_population_frequency_detail, variant_report_layout_spec_population_frequency_detail, variant_report_layout_spec_gnomad_browser_graphql [INFERRED 0.85]
 - **Supabase Auth Email Confirmation Flow** — email_templates_confirm_signup_confirm_link, email_templates_magic_link_magic_signin_link, email_templates_change_email_confirm_new_email_link, email_templates_confirm_signup_signed_in_account_redirect [INFERRED 0.85]
 
-## Communities (775 total, 107 thin omitted)
+## Communities (798 total, 111 thin omitted)
 
 ### Community 0 - "Web Lib Acmgcode"
 Cohesion: 0.01
@@ -832,63 +855,63 @@ Nodes (270): AcmgCode, AcmgCriteriaScaffold, AcmgCriterion, AcmgVerdictTier, Acm
 
 ### Community 2 - "Gene Viewer Paper"
 Cohesion: 0.02
-Nodes (148): ProteinDomainTrack, Path, BaseModel, EamosComputedBenignCut, EamosComputedClassification, EamosComputedCriterion, EamosComputedDirection, EamosComputedTier (+140 more)
+Nodes (161): ProteinDomainTrack, BaseModel, AuthUser, LoginRequest, RegisterRequest, TokenResponse, BatchCreateRequest, BatchCreateResponse (+153 more)
 
 ### Community 3 - "Gene Viewer Snapshot"
 Cohesion: 0.05
-Nodes (54): GeneViewerError, GeneViewerRequest, GeneViewerResponse, Path, ProteinFeatures, SourceTranscriptModel, TranscriptModel, VariantProjection (+46 more)
+Nodes (53): GeneViewerError, NoReturn, Request, GeneViewerRequest, ProteinFeatures, SourceTranscriptModel, TranscriptModel, VariantProjection (+45 more)
 
 ### Community 4 - "Gene Viewer Coordinate"
-Cohesion: 0.08
-Nodes (94): AlphaMissenseLocalAdapter, GeneViewerRequest, GeneViewerResponse, Any, CompactCoordinateIndex, Path, CompactCoordinateIndex, GeneViewerRequest (+86 more)
+Cohesion: 0.09
+Nodes (100): AlphaMissenseLocalAdapter, GeneViewerRequest, GeneViewerResponse, ProteinAnnotationRequest, Connection, Any, CompactCoordinateIndex, CompactCoordinateIndex (+92 more)
 
 ### Community 5 - "Viewer Gene Full"
-Cohesion: 0.07
-Nodes (75): Any, NormalizedVariantQuery, _aa_to_one_letter(), _as_list(), _build_full_locus_sequence(), _cds_to_genomic_map(), _clean_dna(), _coding_dna_and_positions_from_source_transcript() (+67 more)
+Cohesion: 0.06
+Nodes (71): Any, _aa_to_one_letter(), _as_list(), _build_full_locus_sequence(), _cds_to_genomic_map(), _clean_dna(), _coding_dna_and_positions_from_source_transcript(), _coding_dna_from_record() (+63 more)
 
 ### Community 6 - "Protein Annotation Assets"
 Cohesion: 0.04
-Nodes (106): ProteinAnnotationRequest, Request, DataSourceRegistry, Path, Any, DataSourceRegistry, Path, ProteinAnnotationRequest (+98 more)
+Nodes (99): DataSourceRegistry, Path, Any, DataSourceRegistry, Path, ProteinAnnotationRequest, ProteinAssetSpec, ProteinDomainTrack (+91 more)
 
 ### Community 7 - "Design Crispr Screening"
-Cohesion: 0.27
-Nodes (88): AlignTraceHetCall, AlignTraceTrimRange, AlignReferenceRequest, AlignReferenceResponse, AlignRequest, AlignResponse, AlignTraceRequest, AlignTraceResponse (+80 more)
+Cohesion: 0.30
+Nodes (109): AlignTraceHetCall, AlignTraceTrimRange, AlignReferenceRequest, AlignReferenceResponse, AlignRequest, AlignResponse, AlignTraceRequest, AlignTraceResponse (+101 more)
 
 ### Community 8 - "Frequency Section Population"
 Cohesion: 0.11
-Nodes (95): PopulationAgeDistribution, PopulationAgeHistogram, PopulationFrequencyAncestryGroup, PopulationFrequencyDetail, Any, PopulationAgeDistribution, PopulationAgeHistogram, PopulationFrequencyAncestryGroup (+87 more)
+Nodes (96): PopulationAgeDistribution, PopulationAgeHistogram, PopulationFrequencyAncestryGroup, PopulationFrequencyDetail, Any, PopulationAgeDistribution, PopulationAgeHistogram, PopulationFrequencyAncestryGroup (+88 more)
 
 ### Community 9 - "Batch Panels Vcf"
-Cohesion: 0.06
-Nodes (87): AuthenticatedPrincipal, BatchCreateRequest, BatchCreateResponse, BatchJob, Request, StarletteUploadFile, UploadFile, Panel (+79 more)
+Cohesion: 0.14
+Nodes (28): ParsedVariant, Path, _af_values(), _data_columns(), _decode_payload(), _decode_payload_lines(), _first_info_value(), _gene_from_info() (+20 more)
 
 ### Community 10 - "Functional Evidence Cache"
-Cohesion: 0.06
-Nodes (32): Step, STEPS, Faq(), ITEMS, QA, feat, Shot, SHOTS (+24 more)
+Cohesion: 0.05
+Nodes (39): Step, STEPS, Faq(), ITEMS, QA, feat, Shot, SHOTS (+31 more)
 
 ### Community 11 - "Acmg Points Engine"
 Cohesion: 0.05
 Nodes (85): ReportPayload, EamosComputedStrength, AcmgCriterionApplication, _application_from_code_strength(), _applications_from_report(), _best_computational_row(), _clinical_consensus_worksheet(), _computational_application() (+77 more)
 
 ### Community 12 - "Chat Smoke Cli"
-Cohesion: 0.26
-Nodes (4): Any, ChatRequest, ChatService, Gene-scoped literature snippets for the gateway RAG path.          Empty (the ch
+Cohesion: 0.23
+Nodes (6): EvidenceContextError, Raised when the outbound chat context fails the evidence-only allowlist., Any, ChatRequest, ChatService, Gene-scoped literature snippets for the gateway RAG path.          Empty (the ch
 
 ### Community 13 - "Tsx Web Landing"
-Cohesion: 0.07
-Nodes (20): metadata, Audience, ctaStyle(), EnterpriseCard(), PlanCard(), Pricing(), BillingCycle, ENTERPRISE (+12 more)
+Cohesion: 0.09
+Nodes (15): metadata, BillingCycle, ENTERPRISE, formatAud(), getPlan(), gstComponent(), Plan, PlanId (+7 more)
 
 ### Community 14 - "Source Cache Sections"
-Cohesion: 0.07
-Nodes (96): LookupInitialSummaryResponse, LookupRequest, LookupResponse, LookupSectionFetchResponse, PublicationLiterature, PublicationPageRequest, Request, SearchInputParseRequest (+88 more)
+Cohesion: 0.28
+Nodes (19): Path, _expert_panel_summary(), _MutatingVariantValidatorTool, _repo(), _service(), _settings(), _StaticTool, test_arbitrary_gnomad_no_hit_is_not_persisted_as_fresh_success() (+11 more)
 
 ### Community 15 - "Design Crispr Init"
 Cohesion: 0.01
 Nodes (150): 2026-05-18 14:38 +1000 - Codex - Gene viewer GV-001/GV-002 backend core, 2026-05-18 14:56 +1000 - Codex - Gene viewer GV-003/GV-004 provider + API, 2026-05-18 15:18 +1000 - Codex - Gene viewer GV-008 live smoke + protein-view direction, 2026-05-18 17:35 +1000 - Codex - Report backend hardening audit slice, 2026-05-19 14:22 +1000 - Codex - Variant Evidence Report AlphaMissense hold fixture alignment, 2026-05-19 19:30 +1000 - Codex - Variant literature extraction design/spec/plan, 2026-05-19 19:56 +1000 - Codex - EP-VLEx backend implementation, 2026-05-19 20:59 +1000 - Codex - Functional evidence backend count (+142 more)
 
 ### Community 16 - "Offtarget Crispr Index"
-Cohesion: 0.06
-Nodes (27): AuthUser, LoginRequest, RegisterRequest, TokenResponse, BatchCreateRequest, BatchCreateResponse, BatchFilters, BatchJob (+19 more)
+Cohesion: 0.07
+Nodes (27): Agent Handoff, AI Gateway Inert In Production, Current State, Excluded Generated Graph Output, Graphify Update Owed, Agent Handoff Sync Point Decision, Protocol Single Home Decision, Legacy Handoff Redirect (+19 more)
 
 ### Community 17 - "Compact Index Coordinate"
 Cohesion: 0.06
@@ -896,7 +919,7 @@ Nodes (81): Client, Path, Settings, Any, Path, Settings, Path, main() (+73 more)
 
 ### Community 18 - "Library Repo Repos"
 Cohesion: 0.09
-Nodes (53): Any, Client, datetime, Response, datetime, Folder, HTTPException, LibraryReplaceRequest (+45 more)
+Nodes (47): Any, Client, datetime, Response, Base, SubscriptionStateRecord, UserLibraryRecord, UserRecord (+39 more)
 
 ### Community 19 - "Compact Index Coordinate"
 Cohesion: 0.05
@@ -907,48 +930,48 @@ Cohesion: 0.11
 Nodes (45): Any, ToolResult, _alphamissense_prediction_row(), _annotation_blocks(), _chromosome_from_nc_accession(), _component_values(), ComputationalVariantIdentity, _conservation_rows() (+37 more)
 
 ### Community 21 - "Crispr Real Sequence"
-Cohesion: 0.07
-Nodes (73): Path, SequenceContextResult, normalize_sequence_query(), unsupported_input_warning(), WorkbenchDesignService, A VariantValidator/Ensembl read timeout must degrade to a partial section     wi, _settings(), test_ensembl_resolver_builds_context_from_variant_validator_and_sequence() (+65 more)
+Cohesion: 0.06
+Nodes (78): Path, SequenceContextResult, normalize_sequence_query(), unsupported_input_warning(), WorkbenchDesignService, A VariantValidator/Ensembl read timeout must degrade to a partial section     wi, _settings(), test_ensembl_resolver_builds_context_from_variant_validator_and_sequence() (+70 more)
 
 ### Community 22 - "Web Compare Lib"
 Cohesion: 0.04
-Nodes (51): CompareClient(), RunStatus, KeywordPanelBuilder(), LlmPanelComingSoon(), DragPayload, FilterChip(), RailTab, ScopeGate() (+43 more)
+Nodes (49): CompareClient(), RunStatus, KeywordPanelBuilder(), LlmPanelComingSoon(), DragPayload, FilterChip(), RailTab, ScopeGate() (+41 more)
 
 ### Community 23 - "Workflow Chat Text"
-Cohesion: 0.07
-Nodes (17): AuthMenu(), OpenMode, Placement, LandingNav(), NAV_LINKS, RailFoot(), buildFeedbackMailto(), resolveVariantDisplay() (+9 more)
+Cohesion: 0.09
+Nodes (14): AuthMenu(), OpenMode, Placement, buildFeedbackMailto(), resolveVariantDisplay(), navLink(), PageHeader(), metadata (+6 more)
 
 ### Community 24 - "Publication Literature Vlex"
-Cohesion: 0.12
-Nodes (56): datetime, Any, normalize_source_status(), _parse_timestamp(), provenance_for_source(), provenance_from_evidence(), _string_query_identity(), _build_acmg_worksheet() (+48 more)
+Cohesion: 0.11
+Nodes (60): Any, datetime, EvidenceSourceSummary, SourceProvenance, Any, normalize_source_status(), _parse_timestamp(), provenance_for_source() (+52 more)
 
 ### Community 25 - "Run Orchestrator Clinical"
-Cohesion: 0.45
-Nodes (13): Request, align(), analyze_crispr_tide(), analyze_trace(), design_crispr_screening_primers(), design_crispr_ssodn(), design_guides(), design_primers() (+5 more)
+Cohesion: 0.13
+Nodes (76): AcmgWorksheetLedger, LookupSectionId, ClinVarVcvParseResult, Settings, EvidenceSourceSummary, GeneContextSnapshot, ProteinDomainTrack, ReportPayload (+68 more)
 
 ### Community 26 - "Pubmed Local Edge"
-Cohesion: 0.12
-Nodes (36): SequenceContext, AlignResponse, CrisprResponse, PrimerPair, PrimerResponse, SequenceContext, WorkbenchDesignError, PrimerSpecificityResult (+28 more)
+Cohesion: 0.20
+Nodes (10): ParsedVariant, BatchService, _cursor_offset(), _dedupe_variants(), _in_regions(), _parse_region(), _positive_int_or_default(), _raw_info_value() (+2 more)
 
 ### Community 27 - "Design Alignment Primer3"
 Cohesion: 0.06
-Nodes (35): _align_sequences(), _alignment_blocks(), _alignment_matrix_cells(), _alignment_read(), _alignment_response(), _alignment_score(), AlignmentCell, _bio_pairwise_alignment() (+27 more)
+Nodes (39): PrimerRequest, SequenceContext, _align_sequences(), _alignment_blocks(), _alignment_matrix_cells(), _alignment_read(), _alignment_response(), _alignment_score() (+31 more)
 
 ### Community 28 - "Local Evidence Orchestrator"
-Cohesion: 0.21
-Nodes (37): DbSnpLocalStore, ReferenceBaseCheck, ReferenceWindow, ClinVarLocalLookup, ClinVarLocalStore, DbSnpAlleleIdentity, DbSnpLocalLookup, DbSnpLocalRecord (+29 more)
+Cohesion: 0.19
+Nodes (38): DbSnpLocalStore, ReferenceBaseCheck, ReferenceGenomeMetadata, ReferenceWindow, ClinVarLocalLookup, ClinVarLocalStore, DbSnpAlleleIdentity, DbSnpLocalLookup (+30 more)
 
 ### Community 29 - "Tsx Web Icon"
-Cohesion: 0.04
-Nodes (42): AIStackProps, buildCrossDbChips(), CrossDbChip, deriveClassificationLabel(), ENSEMBL_BY_GENE, VariantHeader(), VariantHeaderProps, ALLELES (+34 more)
+Cohesion: 0.05
+Nodes (30): AIStackProps, ALLELES, CanvasHeaderProps, STRANDS, TRACKS, SidePanelProps, VARIANT_LINKS, ViewerToolbar (+22 more)
 
 ### Community 30 - "Orchestrator Provenance Context"
-Cohesion: 0.10
-Nodes (40): Connection, Path, Any, DataSourceRegistry, Path, Settings, SourceAssetMaterializationRecord, SourceAssetMaterializationStore (+32 more)
+Cohesion: 0.43
+Nodes (4): Path, ensure_runtime_dirs(), get_settings(), _resolve_runtime_path()
 
 ### Community 31 - "Coordinate Resolver Transcript"
-Cohesion: 0.10
-Nodes (31): _catalog_key(), _default_reference_store(), _digits(), EamosCoordinateResolution, EamosLocalCoordinateResolver, _exon_number(), _genomic_interval(), _genomic_to_transcript_position() (+23 more)
+Cohesion: 0.13
+Nodes (20): ArgumentParser, ArgumentParser, CompactCoordinateVariant, _CdnaCoordinateToken, _CdnaEvent, EamosCoordinateResolution, EamosLocalCoordinateResolver, _genomic_interval() (+12 more)
 
 ### Community 32 - "Web Populationfrequencysection Tsx"
 Cohesion: 0.05
@@ -959,24 +982,24 @@ Cohesion: 0.06
 Nodes (47): AbifChannel, DirEntry, parseAbif(), ParsedAbif, readAscii(), readBytes(), readChars(), readDirEntry() (+39 more)
 
 ### Community 34 - "Local Alphamissense Esm1b"
-Cohesion: 0.10
-Nodes (38): DataSourceRegistry, IndexedPredictorScore, Path, PredictorRuntimeInspection, Settings, DataSourceRegistry, IndexedPredictorScore, Path (+30 more)
+Cohesion: 0.03
+Nodes (107): DataSourceRegistry, IndexedPredictorScore, Path, PredictorRuntimeInspection, Settings, LocalEvidenceRuntimeGate, DataSourceRegistry, IndexedPredictorScore (+99 more)
 
 ### Community 35 - "Clingen Local Records"
-Cohesion: 0.10
-Nodes (52): Any, Connection, Path, Row, Settings, main(), main(), _append_term() (+44 more)
+Cohesion: 0.16
+Nodes (34): Any, Connection, Row, _append_term(), _classification(), ClinGenLocalSchemaError, _clinvar_variation_id(), _count_profile() (+26 more)
 
 ### Community 36 - "Claim Provenance Section"
-Cohesion: 0.14
-Nodes (56): Any, _acmg_code(), _acmg_section(), _article_matched_terms(), _as_dict(), _as_float(), _as_int(), build_assertion() (+48 more)
+Cohesion: 0.11
+Nodes (68): Any, LookupRequest, Namespace, Any, _assertion_for_args(), _build_parser(), _lookup_http(), _lookup_in_process() (+60 more)
 
 ### Community 37 - "Search Input Reference"
-Cohesion: 0.08
-Nodes (18): Any, AminoAcidHint, ConsequenceHint, default_search_input_reference(), DiseaseGeneHint, DisplayTerm, GeneHint, Curated helper facts for search input parsing and AI extraction.      This layer (+10 more)
+Cohesion: 0.06
+Nodes (33): SearchInputConfidence, Any, SearchInputReference, _ai_enabled(), _confidence(), _extract_cdna_hint(), _extract_gene_hint(), _extract_genomic_hint() (+25 more)
 
 ### Community 38 - "Input Search Resolver"
-Cohesion: 0.10
-Nodes (39): Any, EamosCoordinateResolution, Path, QueryKind, QueryKind, EamosLocalCoordinateResolver, _as_list(), build_runtime_coordinate_resolver() (+31 more)
+Cohesion: 0.11
+Nodes (34): Any, EamosCoordinateResolution, Path, QueryKind, EamosLocalCoordinateResolver, _as_list(), build_runtime_coordinate_resolver(), _coordinate_resolution_audit() (+26 more)
 
 ### Community 39 - "Progress Contract Local"
 Cohesion: 0.17
@@ -995,43 +1018,43 @@ Cohesion: 0.16
 Nodes (37): Any, DataSourceRegistry, Path, _build_provenance_by_path(), ClinicalSourceFixturePaths, ClinicalSourceTableError, _definition_from_metadata(), _dict_rows() (+29 more)
 
 ### Community 43 - "Tsx Web Auth"
-Cohesion: 0.04
-Nodes (40): ibmPlexMono, inter, metadata, spectral, PostHogIdentify(), Providers(), AskEamosProps, DEFAULT_SUGGESTIONS (+32 more)
+Cohesion: 0.05
+Nodes (37): ibmPlexMono, inter, metadata, spectral, PostHogIdentify(), Providers(), ChatChunk, AuthPageClient() (+29 more)
 
 ### Community 44 - "Docs Proprietary Local"
 Cohesion: 0.20
 Nodes (12): Source Asset Materialization, Supabase Private Storage Metadata, PubMed Local Adapter and Materialization Plan, Filtered Publication Proof, PubMed Health Preflight, Supabase Corpus Budget Gate, PubMed Local Adapter and Materialization Spec, License-Gated Abstract Policy (+4 more)
 
 ### Community 45 - "Source Imports Clinical"
-Cohesion: 0.14
-Nodes (32): Any, Any, ClinicalTableProvenance, DataSourceRecord, DataSourceRegistry, build_source_import_report(), main(), ClinicalSourceTableStore (+24 more)
+Cohesion: 0.12
+Nodes (35): Any, Any, ClinicalTableProvenance, DataSourceRecord, DataSourceRegistry, build_source_import_report(), main(), ClinicalSourceTableStore (+27 more)
 
 ### Community 46 - "Batch Panels Search"
-Cohesion: 0.05
-Nodes (38): ProteinDomainTrack, UploadedReport, SearchDocumentWrite, datetime, Any, datetime, TestClient, Base (+30 more)
+Cohesion: 0.09
+Nodes (12): ProteinDomainTrack, UploadedReport, datetime, ProteinAnnotationCacheRecord, ReportRecord, session_scope(), ReportsRepo, RunRepo (+4 more)
 
 ### Community 47 - "Indexed Sources Validate"
-Cohesion: 0.10
-Nodes (61): Any, PublicationLiterature, PubMedArticle, Pattern, PublicationScope, PublicationScopeCount, PublicationSnippet, PublicationSourceBreakdown (+53 more)
+Cohesion: 0.08
+Nodes (101): LookupInitialSummaryResponse, LookupRequest, LookupResponse, LookupSectionFetchResponse, PublicationLiterature, PublicationPageRequest, Request, SearchInputParseRequest (+93 more)
 
 ### Community 48 - "Evidence Submissions Repo"
 Cohesion: 0.11
-Nodes (31): AuthenticatedPrincipal, EvidenceSubmissionRequest, EvidenceSubmissionResponse, Request, Any, Client, datetime, Response (+23 more)
+Nodes (32): AuthenticatedPrincipal, EvidenceSubmissionRequest, EvidenceSubmissionResponse, Request, Any, Client, datetime, Response (+24 more)
 
 ### Community 49 - "Policy Sources Field"
-Cohesion: 0.12
-Nodes (34): Any, DataSourceRecord, DataSourceRegistry, _allow(), _deny(), _field_matches(), FieldPolicyDecision, _flatten_warning_text() (+26 more)
+Cohesion: 0.10
+Nodes (39): Any, DataSourceRecord, DataSourceRegistry, _allow(), _deny(), _field_matches(), FieldPolicyDecision, _FilterPayloadBudget (+31 more)
 
 ### Community 50 - "Clinvar Local Adapter"
 Cohesion: 0.10
 Nodes (36): DataSourceRegistry, Path, Path, _build_alias_map(), ClinVarLocalError, ClinVarLocalProvenance, ClinVarLocalRecord, _condition_values() (+28 more)
 
 ### Community 51 - "Web Tsx Reportclient"
-Cohesion: 0.14
-Nodes (32): Any, ArgumentParser, Path, Settings, Any, Path, Settings, _build_arg_parser() (+24 more)
+Cohesion: 0.10
+Nodes (46): DataSourceRegistry, Path, Settings, DataSourceRegistry, Path, Settings, SourceAssetMaterializationRecord, SourceAssetMaterializationStore (+38 more)
 
 ### Community 52 - "Tool Invariants Fixture"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (39): Settings, MonkeyPatch, Path, FakeAlphaMissenseAdapter, FakeEsm1bAdapter, _settings(), test_clingen_fixture_filters_to_matching_variant(), test_clingen_fixture_missing_for_neighboring_rpe65_allele_without_fixture_bleed() (+31 more)
 
 ### Community 53 - "Transcript Required Exon"
@@ -1051,32 +1074,32 @@ Cohesion: 0.05
 Nodes (20): AUDIT_ROWS, classificationToTier(), mockEamosComputed(), Trig, TRIGGERED_BY_TIER, CardProps, IconExport(), RPE65_NEGATIVE_CONTROL_SAMPLE (+12 more)
 
 ### Community 57 - "Tsx Web Reportgeneviewer"
-Cohesion: 0.03
-Nodes (64): FRIENDLY, ProvenanceNote(), ProvenanceNoteProps, architecturePriority(), cardShellStyle, categorySwatchBackgroundStyle(), categorySwatchStyle(), clamp() (+56 more)
+Cohesion: 0.04
+Nodes (32): cardShellStyle, CLASS_COLOR, featureCoordStyle, featureDescriptionStyle, featureGridStyle, featureKindStyle, featureLabelStyle, featureRangeListStyle (+24 more)
 
 ### Community 58 - "Web Tsx Full"
 Cohesion: 0.08
 Nodes (35): TOOL_META, TOOL_ORDER, ToolMeta, PANEL_TOOLS, WorkbenchShell(), WorkbenchShellProps, BaseKind, CoordinateMode (+27 more)
 
 ### Community 59 - "Payments Plan Subscription"
-Cohesion: 0.19
-Nodes (31): AuthenticatedPrincipal, CheckoutSessionRequest, CheckoutSessionResponse, CurrentPlanResponse, Request, StripeWebhookResponse, Any, AuthenticatedPrincipal (+23 more)
+Cohesion: 0.18
+Nodes (30): AuthenticatedPrincipal, CheckoutSessionRequest, CheckoutSessionResponse, CurrentPlanResponse, Request, StripeWebhookResponse, Any, AuthenticatedPrincipal (+22 more)
 
 ### Community 60 - "Dbsnp Local Adapter"
-Cohesion: 0.09
-Nodes (33): Path, DataSourceRegistry, Path, Path, find_project_root(), Find the checkout or backend root from either local or Docker layouts., repo_relative_path(), IndexedVcfRecord (+25 more)
+Cohesion: 0.10
+Nodes (30): DataSourceRegistry, Path, Path, IndexedVcfRecord, _assembly_accession(), _build_alias_map(), DbSnpLocalProvenance, _file_date() (+22 more)
 
 ### Community 61 - "Candidate Resolver Search"
-Cohesion: 0.13
-Nodes (28): Any, Path, SearchInputCandidate, SearchInputConfidence, SearchInputResolution, _candidate_from_clingen_record(), _candidate_id_terms(), _candidate_records() (+20 more)
+Cohesion: 0.12
+Nodes (26): Any, Path, SearchInputCandidate, SearchInputConfidence, SearchInputResolution, _candidate_from_clingen_record(), _candidate_id_terms(), _candidate_records() (+18 more)
 
 ### Community 62 - "Library Folder Repos"
-Cohesion: 0.23
-Nodes (14): AuthenticatedPrincipal, LibraryStore, SavedVariant, _epoch_ms(), _folder_schema(), _library_store_from_document(), _normalize_id(), _not_found() (+6 more)
+Cohesion: 0.14
+Nodes (42): Any, PublicationLiterature, PubMedArticle, Pattern, PublicationScope, PublicationScopeCount, PublicationSnippet, PublicationSourceBreakdown (+34 more)
 
 ### Community 63 - "Crispr Design Spcas9"
 Cohesion: 0.07
-Nodes (53): ArgumentParser, Any, CrisprRequest, CrisprResponse, Path, SequenceContext, _build_arg_parser(), cli_main() (+45 more)
+Nodes (58): Any, CrisprRequest, CrisprResponse, Path, SequenceContext, SequenceContext, CrisprGuide, HdrSsodn (+50 more)
 
 ### Community 64 - "Web Tsx Pricing"
 Cohesion: 0.15
@@ -1095,32 +1118,32 @@ Cohesion: 0.07
 Nodes (21): AccountClient(), EVIDENCE_CODES, labelStyle, rowStyle, metadata, addSavedVariant(), clinvarReadiness, CollectionMethod (+13 more)
 
 ### Community 68 - "Pfam Materialization Cli"
-Cohesion: 0.12
-Nodes (29): Path, Settings, Client, Path, ProteinAssetSpec, Settings, Path, _fixture_cds_start_for_sort() (+21 more)
+Cohesion: 0.09
+Nodes (34): Path, Settings, Client, Path, ProteinAssetSpec, Settings, Path, _fixture_cds_start_for_sort() (+26 more)
 
 ### Community 69 - "Fixtures Search Input"
 Cohesion: 0.05
-Nodes (40): consequence_terms, deleted, deletion, delins, duplicated, frame shift, frameshift, inserted (+32 more)
+Nodes (40): consequence_terms, deleted, deletion, delins, duplication, frame shift, frameshift, insertion (+32 more)
 
 ### Community 70 - "Gateway Guard Chat"
 Cohesion: 0.08
-Nodes (32): build_gateway_messages(), Compose the OpenAI-style message list for a gateway variant-chat turn:     syste, assert_evidence_only(), contains_forbidden_token(), Outbound allowlist guard for the variant-chat gateway context.  `/report` is var, True if `text` carries a PHI- or secret-shaped token.      Single-sources the gu, Fail closed unless `context`/`serialized` is evidence-only.      Args:         c, AIGatewayEngine (+24 more)
+Nodes (34): build_gateway_chat_client(), build_gateway_messages(), Compose the OpenAI-style message list for a gateway variant-chat turn:     syste, Lookup-chat client backed by the Vercel AI Gateway broker.      Returns None unl, assert_evidence_only(), contains_forbidden_token(), Outbound allowlist guard for the variant-chat gateway context.  `/report` is var, True if `text` carries a PHI- or secret-shaped token.      Single-sources the gu (+26 more)
 
 ### Community 71 - "Runs Run Draft"
-Cohesion: 0.16
-Nodes (48): ApproveResult, AuthUser, ClinicianReviewPayload, DropResult, ReportDraftUpdatePayload, Request, ReviewResult, RunChatRequest (+40 more)
+Cohesion: 0.10
+Nodes (67): AuthUser, AuthUser, ClinicianReviewPayload, Request, ReviewResult, ApproveResult, AuthUser, ClinicianReviewPayload (+59 more)
 
 ### Community 72 - "Coordinate Asset Materialization"
-Cohesion: 0.14
-Nodes (32): Any, Client, Path, Settings, Client, Path, _coordinate_asset_specs(), _CoordinateAssetMaterializationError (+24 more)
+Cohesion: 0.13
+Nodes (33): Any, Client, Path, Settings, Client, Path, _coordinate_asset_specs(), _CoordinateAssetMaterializationError (+25 more)
 
 ### Community 73 - "Pubmed Local Source"
-Cohesion: 0.17
-Nodes (33): Settings, CaptureFixture, MonkeyPatch, Path, CaptureFixture, main(), main(), _import_stats_by_source() (+25 more)
+Cohesion: 0.18
+Nodes (32): Settings, CaptureFixture, MonkeyPatch, Path, CaptureFixture, main(), main(), _import_stats_by_source() (+24 more)
 
 ### Community 74 - "Paper Protein Mock"
-Cohesion: 0.08
-Nodes (31): Path, SimpleNamespace, ToolResult, PaperVariantsExtraction, _looks_like_protein_or_catalog_token(), PaperVariantsService, Deterministic offline extractor: cDNA mentions plus single-/three-letter, Normalize a residue substitution to HGVS p. form via the curated lexicon. (+23 more)
+Cohesion: 0.13
+Nodes (17): SimpleNamespace, ToolResult, BoomChain, FakeChain, FakeValidator, _gateway_settings(), Legacy compatibility seam. Phase 3 no longer calls this directly., Legacy compatibility seam. Phase 3 no longer calls this directly. (+9 more)
 
 ### Community 75 - "Alignment Pairwise Src"
 Cohesion: 0.08
@@ -1132,7 +1155,7 @@ Nodes (35): AlignApiResponseShape, AlignApiTraceChannel, AlignmentCell, Alignmen
 
 ### Community 77 - "Fixtures Search Input"
 Cohesion: 0.05
-Nodes (37): one_letter, three_letter, amino_acids, alanine, asparagine, aspartate, glutamine, glycine (+29 more)
+Nodes (37): one_letter, three_letter, amino_acids, alanine, asparagine, aspartic acid, glutamine, glycine (+29 more)
 
 ### Community 78 - "Tsx Web Calibratedinsilicotable"
 Cohesion: 0.08
@@ -1143,8 +1166,8 @@ Cohesion: 0.08
 Nodes (27): AcmgExplainer(), exploreResult(), ghostBtn, linkBtn, linkInline, pct(), resetVariantBtn, signed() (+19 more)
 
 ### Community 80 - "Health Cache Provider"
-Cohesion: 0.10
-Nodes (30): APIRouter, MonkeyPatch, Path, SourceAssetMaterializationRecord, _build_evidence_submissions_repo(), _build_variant_library_repo(), create_app(), configure_logging() (+22 more)
+Cohesion: 0.14
+Nodes (20): MonkeyPatch, Path, SourceAssetMaterializationRecord, _fake_executable(), FakeMaterializationStore, test_build_ledger_marks_gene_view_ready_when_runtime_dependencies_are_ready(), test_coordinate_resolver_startup_materialization_flag_fails_closed(), test_provider_cache_health_reports_available_protein_annotation_without_paths() (+12 more)
 
 ### Community 81 - "Pubmed Litvar Edges"
 Cohesion: 0.17
@@ -1152,27 +1175,27 @@ Nodes (29): Any, Namespace, Path, TextIO, _annotation_id(), _clean_optional(), _
 
 ### Community 82 - "Storage Source Uploads"
 Cohesion: 0.13
-Nodes (28): Any, Client, Path, Path, main(), _build_s3_client(), build_source_storage_upload_items(), _execute_item() (+20 more)
+Nodes (29): Any, Client, Path, Path, main(), _build_s3_client(), build_source_storage_upload_items(), _execute_item() (+21 more)
 
 ### Community 83 - "Reference Genome Store"
-Cohesion: 0.13
-Nodes (18): Any, DataSourceRegistry, Path, _build_alias_map(), _build_twobit_alias_map(), _grch38_ncbi_aliases(), _load_fixture(), _load_twobit_file_class() (+10 more)
+Cohesion: 0.17
+Nodes (17): Any, DataSourceRegistry, Path, _build_alias_map(), _build_twobit_alias_map(), _grch38_ncbi_aliases(), _load_fixture(), _load_twobit_file_class() (+9 more)
 
 ### Community 84 - "Run Repo Repos"
-Cohesion: 0.06
-Nodes (81): CrisprOffTargetRequest, CrisprOffTargetResponse, Exception, ArgumentParser, Connection, CrisprOffTargetRequest, CrisprOffTargetResponse, Path (+73 more)
+Cohesion: 0.10
+Nodes (40): Exception, CrisprOffTargetRequest, CrisprOffTargetResponse, Any, CrisprOffTargetRequest, CrisprOffTargetResponse, CrisprScreeningPrimerRequest, PrimerPair (+32 more)
 
 ### Community 85 - "Local Pubmed Gene"
-Cohesion: 0.08
-Nodes (70): Any, Path, Row, Element, abstract_policy_for_license(), _apply_pmc_license_overlay(), _article_edge_snippets(), _article_from_pubmed_xml() (+62 more)
+Cohesion: 0.09
+Nodes (62): Any, Element, abstract_policy_for_license(), _apply_pmc_license_overlay(), _article_from_pubmed_xml(), _article_id(), _article_matches_allowed_domains(), _article_search_fields() (+54 more)
 
 ### Community 86 - "Functional Evidence Publication"
-Cohesion: 0.14
-Nodes (13): ReferenceGenomeMetadata, LocalEvidenceOrchestrator, Backend-only composition layer for fixture-first local evidence models.      Thi, _Rpe65ReferenceStore, test_malformed_variant_alleles_fail_closed_before_local_source_composition(), test_multiallelic_rsid_explicit_alt_allowlist_composes_selected_allele(), test_multiallelic_rsid_requires_explicit_allele_before_orchestration(), test_no_hit_local_sources_remain_visible_and_do_not_substitute_fixture_records() (+5 more)
+Cohesion: 0.09
+Nodes (26): _as_bool(), _cdna_hgvs_from_clinvar(), _configured_local_evidence_flows(), _coordinate_strand(), _dedupe(), _gene_from_clinvar(), LocalEvidenceOrchestrator, _normalize_chrom() (+18 more)
 
 ### Community 87 - "Consensus Clinical Record"
 Cohesion: 0.14
-Nodes (33): AcmgWorksheetCriterion, Any, _classification_from_record(), _clingen_consensus(), _clingen_criteria_rows(), _clinvar_consensus(), _clinvar_criteria_rows(), _clinvar_source_url() (+25 more)
+Nodes (35): AcmgCriteriaScaffold, AcmgWorksheetCriterion, Any, _classification_from_record(), _clingen_consensus(), _clingen_criteria_rows(), ClinicalConsensusResult, _clinvar_consensus() (+27 more)
 
 ### Community 88 - "Retrieval Gateway Literature"
 Cohesion: 0.12
@@ -1183,16 +1206,16 @@ Cohesion: 0.07
 Nodes (28): All confirmed findings, Cache-read amplification and unconditional rebuilds defeating the caching layer — DELETE-on-read in the variant cache, gene_context_snapshot rebuilt on full cac, CRITICAL (2), [CRITICAL] gzip-bomb + whole-file VCF materialization on an unauthenticated, size-unlimited upload route, [CRITICAL/HIGH] Synchronous hmmscan reachable from 3 request paths incl. EVERY lookup (the production OOM class), Eamos Backend — Adversarial Stability / Memory Audit (Epic A), Epic A — task backlog, Executive summary (+20 more)
 
 ### Community 90 - "Tsx Web Variantheader"
-Cohesion: 0.08
-Nodes (75): Any, ClinVarVcvParseResult, FunctionalEvidenceSummary, Settings, FunctionalEvidenceSummary, GeneContextSnapshot, Path, ToolResult (+67 more)
+Cohesion: 0.13
+Nodes (29): Any, FunctionalEvidenceCode, _asserted_functional_codes_from_text(), _asserted_functional_codes_from_values(), _citation_from_sentence(), _clinvar_variation_id(), _clinvar_xml_from_raw(), _code_rests_on() (+21 more)
 
 ### Community 91 - "Package Json Web"
 Cohesion: 0.06
 Nodes (33): dependencies, clsx, framer-motion, gsap, @gsap/react, next, posthog-js, react (+25 more)
 
 ### Community 92 - "Runtime Predictor Alphamissense"
-Cohesion: 0.13
-Nodes (41): Path, DataSourceRegistry, Path, SourceAssetMaterializationRecord, _build_tabix_index(), _download(), _hash_file(), main() (+33 more)
+Cohesion: 0.09
+Nodes (55): Path, IndexedPredictorScore, Path, Path, SourceAssetMaterializationRecord, _build_tabix_index(), _download(), _hash_file() (+47 more)
 
 ### Community 93 - "Legacyrunsapp Tsx Src"
 Cohesion: 0.08
@@ -1203,20 +1226,20 @@ Cohesion: 0.15
 Nodes (32): CrisprSsodnRequest, SequenceContext, TwoBitReferenceGenomeStore, _apply_intron_case(), _apply_pam_blocking_edit(), _build_transcript_window(), _codons_for_variant(), _context_window() (+24 more)
 
 ### Community 95 - "Window Sequence Reference"
-Cohesion: 0.09
-Nodes (29): Any, Path, _build_alias_map(), ConservationScore, ConservationWindowSummary, _float_or_text(), _grch38_ncbi_aliases(), IndexedReaderMetadata (+21 more)
+Cohesion: 0.05
+Nodes (39): buildCrossDbChips(), CrossDbChip, deriveClassificationLabel(), ENSEMBL_BY_GENE, VariantHeader(), VariantHeaderProps, IconCalendar(), IconCheck() (+31 more)
 
 ### Community 96 - "Source Reader Proofs"
-Cohesion: 0.15
-Nodes (32): Any, ClinicalTableProvenance, DataSourceRegistry, Path, Deterministic RepeatMasker interval index from UCSC rmsk.txt-style rows., Deterministic RepeatMasker interval index from UCSC rmsk.txt-style rows., RepeatMaskerIndexedTable, _asset_path() (+24 more)
+Cohesion: 0.19
+Nodes (32): Any, ClinicalTableProvenance, DataSourceRegistry, Path, Deterministic RepeatMasker interval index from UCSC rmsk.txt-style rows., Deterministic RepeatMasker interval index from UCSC rmsk.txt-style rows., Deterministic RepeatMasker interval index from UCSC rmsk.txt-style rows., RepeatMaskerIndexedTable (+24 more)
 
 ### Community 97 - "Gnomad Tools Tool"
 Cohesion: 0.13
 Nodes (24): ToolResult, Path, _FakeResponse, _NoHitResponse, test_gnomad_fixture_top_level_source_url_does_not_duplicate(), test_gnomad_fixture_uses_variant_source_url(), test_gnomad_live_fallback_does_not_attach_mismatched_fixture_detail(), test_gnomad_live_no_hit_does_not_attach_fixture_metrics() (+16 more)
 
 ### Community 98 - "Web Library Lib"
-Cohesion: 0.09
-Nodes (36): IconBookmark(), IconCheck(), IconShare(), createFolder(), dispatch(), EMPTY, Folder, folderId() (+28 more)
+Cohesion: 0.14
+Nodes (29): IconArrowRight(), IconBookmark(), IconFolder(), IconFolderMove(), IconPlus(), IconRemove(), createFolder(), dispatch() (+21 more)
 
 ### Community 99 - "Alignpanel Tsx Src"
 Cohesion: 0.08
@@ -1224,23 +1247,23 @@ Nodes (13): AlignApiStatus, AlignmentSummary(), AlignPanelForm(), apiStatusLabel
 
 ### Community 100 - "Runtime Predictor Inspect"
 Cohesion: 0.13
-Nodes (82): AcmgCriteriaScaffold, AcmgWorksheetLedger, LookupSectionId, ClinVarVcvParseResult, Settings, Any, EvidenceSourceSummary, SourceProvenance (+74 more)
+Nodes (8): VariantSummaryRow, _decode_cdna(), _decode_protein(), decode_variant(), _degraded_tool_result(), _positive_float(), _positive_int(), WorkflowService
 
 ### Community 101 - "Reference Genome Validate"
-Cohesion: 0.19
-Nodes (37): GeneViewerError, NoReturn, Request, GeneContextSnapshot, GeneViewerResponse, Settings, SourceBackedViewerBundle, SourceProvenance (+29 more)
+Cohesion: 0.24
+Nodes (29): GeneContextSnapshot, GeneViewerResponse, Settings, SourceBackedViewerBundle, SourceProvenance, SourceTranscriptModel, ViewerProvenanceSource, GeneContextRenderHints (+21 more)
 
 ### Community 102 - "Search Integration Parse"
 Cohesion: 0.09
 Nodes (10): Path, _ai_enabled_client(), test_lookup_parse_allow_ai_false_bypasses_plain_language_extractor(), test_lookup_parse_exact_input_does_not_use_ai_when_enabled(), test_lookup_parse_mock_ai_ambiguous_disease_gene_hint_stays_low_confidence(), test_lookup_parse_mock_ai_auto_selects_single_source_backed_deletion(), test_lookup_parse_mock_ai_extracts_plain_language_cftr_frameshift(), test_lookup_parse_mock_ai_gene_only_hint_still_requires_variant_detail() (+2 more)
 
 ### Community 103 - "Tsx Web Expertpanelsection"
-Cohesion: 0.09
-Nodes (24): REVIEW_STATUS_STARS, reviewStatusToStars(), ClinVarBlock(), ClinVarBlockProps, readString(), readSubmitterSegments(), SUBMITTER_VERDICTS, CompositeVerdictBar() (+16 more)
+Cohesion: 0.15
+Nodes (16): REVIEW_STATUS_STARS, reviewStatusToStars(), ClinVarBlock(), ClinVarBlockProps, readString(), readSubmitterSegments(), SUBMITTER_VERDICTS, CompositeVerdictBar() (+8 more)
 
 ### Community 104 - "Structured Gateway Extract"
-Cohesion: 0.10
-Nodes (31): build_gateway_search_input_chain(), build_search_input_ai_chain(), Messy-text → structured search intent via the gateway broker.      Routes the se, search_input_extraction_prompt(), _coerce_json_object(), extract_structured(), Structured-output extraction over the AI Gateway broker (validate + repair).  Th, Raised when the model cannot produce schema-valid JSON after repairs. (+23 more)
+Cohesion: 0.12
+Nodes (27): _coerce_json_object(), extract_structured(), Structured-output extraction over the AI Gateway broker (validate + repair).  Th, Raised when the model cannot produce schema-valid JSON after repairs., Best-effort extraction of one JSON object from a model response., Return a validated `schema` instance from a gateway completion.      Parses the, _repair_instruction(), StructuredOutputError (+19 more)
 
 ### Community 105 - "Search Answer Searchanswerrequest"
 Cohesion: 0.14
@@ -1251,20 +1274,20 @@ Cohesion: 0.24
 Nodes (26): Any, ToolResult, _classification(), _conditions(), _criteria(), _dedupe(), _erepo_url(), _expert_panel() (+18 more)
 
 ### Community 107 - "Paper Extract Resolve"
-Cohesion: 0.27
-Nodes (20): Any, AuthenticatedPrincipal, PaperVariantsResult, Request, StarletteUploadFile, _T, EamosSearchInputResolver, SearchCandidateResolver (+12 more)
+Cohesion: 0.35
+Nodes (18): Any, AuthenticatedPrincipal, PaperVariantsResult, Request, StarletteUploadFile, _T, PaperVariantsExtractResponse, PaperVariantsPdfMeta (+10 more)
 
 ### Community 108 - "Draft Render Agents"
-Cohesion: 0.14
-Nodes (19): MockDraftChain, MockExtractionChain, Any, Path, DecisionOutput, ReportPayload, DecisionOutput, ReportPayload (+11 more)
+Cohesion: 0.12
+Nodes (21): MockDraftChain, MockExtractionChain, Any, Path, DecisionOutput, DecisionOutput, ReportPayload, DecisionOutput (+13 more)
 
 ### Community 109 - "Auth Token Authuser"
-Cohesion: 0.22
-Nodes (18): AuthUser, HTTPAuthorizationCredentials, LoginRequest, RegisterRequest, Request, Response, TokenResponse, AuthUser (+10 more)
+Cohesion: 0.20
+Nodes (17): HTTPAuthorizationCredentials, LoginRequest, RegisterRequest, Request, Response, TokenResponse, AuthUser, HTTPException (+9 more)
 
 ### Community 110 - "Library Folder Rate"
-Cohesion: 0.44
-Nodes (28): AuthenticatedPrincipal, Folder, LibraryReplaceRequest, LibraryStore, Request, Response, SavedVariant, enforce_rate_limit() (+20 more)
+Cohesion: 0.17
+Nodes (53): AuthenticatedPrincipal, Folder, LibraryReplaceRequest, LibraryStore, Request, Response, SavedVariant, AuthenticatedPrincipal (+45 more)
 
 ### Community 111 - "Ledger Status Local"
 Cohesion: 0.12
@@ -1287,12 +1310,12 @@ Cohesion: 0.07
 Nodes (29): acmg_criteria, BA1, BP4, BS3, PM2, PP3, PS3, PVS1 (+21 more)
 
 ### Community 116 - "Hg38 Asset Runtime"
-Cohesion: 0.13
-Nodes (7): _decode_cdna(), _decode_protein(), decode_variant(), _degraded_tool_result(), _positive_float(), _positive_int(), WorkflowService
+Cohesion: 0.15
+Nodes (21): Any, Path, _catalog_key(), _default_reference_store(), _digits(), _exon_number(), _genomic_to_transcript_position(), _gff_source_label() (+13 more)
 
 ### Community 117 - "Cache Supabase Local"
-Cohesion: 0.14
-Nodes (24): Settings, Path, _build_cache_repos(), FastAPI, LocalModelCacheEntry, build_supabase_local_model_cache_store(), HybridProteinAnnotationCacheRepo, HybridVariantCacheRepo (+16 more)
+Cohesion: 0.08
+Nodes (43): APIRouter, Settings, Any, datetime, ToolResult, Path, _build_variant_library_repo(), create_app() (+35 more)
 
 ### Community 118 - "Tsx Web Molecularcontextblock"
 Cohesion: 0.10
@@ -1327,16 +1350,16 @@ Cohesion: 0.22
 Nodes (8): RunChatRequest, RunChatResponse, Document, RunChatCitation, _positive_float(), _positive_int(), _RunChatIndex, RunChatService
 
 ### Community 126 - "Search Input Interpreter"
-Cohesion: 0.19
-Nodes (26): EamosSearchInputResolver, SearchCandidateResolver, SearchInputCandidate, SearchInputInterpretation, SearchInputResolution, SearchInputSourceInputs, RsidResolutionCandidate, SearchInputAiExtraction (+18 more)
+Cohesion: 0.15
+Nodes (31): EamosSearchInputResolver, PaperVariantsResult, SearchCandidateResolver, EamosSearchInputResolver, SearchCandidateResolver, SearchInputCandidate, SearchInputInterpretation, SearchInputResolution (+23 more)
 
 ### Community 127 - "Source Downloads Download"
 Cohesion: 0.16
-Nodes (22): Client, DataSourceRegistry, Path, Path, main(), build_source_download_items(), _execute_item(), execute_source_downloads() (+14 more)
+Nodes (23): Client, DataSourceRegistry, Path, Path, main(), build_source_download_items(), _execute_item(), execute_source_downloads() (+15 more)
 
 ### Community 128 - "Alphamissense Adapter Local"
-Cohesion: 0.21
-Nodes (16): IndexedPredictorScore, Path, ExplodingReader, FakeReader, _ready_inspection(), _score(), test_alphamissense_adapter_builds_bounded_residue_heatmap(), test_alphamissense_adapter_fails_closed_on_duplicate_records() (+8 more)
+Cohesion: 0.15
+Nodes (26): Any, datetime, FunctionalEvidenceSummary, Path, ToolResult, main(), build_engine(), build_session_factory() (+18 more)
 
 ### Community 129 - "Src Lib Analyzetide"
 Cohesion: 0.16
@@ -1347,16 +1370,16 @@ Cohesion: 0.16
 Nodes (15): AIGatewayEngine, _extract_metadata(), GatewayError, GatewayResult, OpenAI-compatible broker for the Vercel AI Gateway.  Points the variant-chat LLM, Return one embedding vector per input via the gateway's OpenAI-compatible, Yield text-content deltas as they arrive.          Pass a fresh `GatewayResult`, Outcome of a gateway call: the text plus best-effort routing metadata. (+7 more)
 
 ### Community 131 - "Local Inventory Sources"
-Cohesion: 0.10
-Nodes (30): DataSourceRecord, DataSourceRegistry, Path, Any, compute_md5(), inventory_local_asset(), inventory_local_hg38_2bit(), LocalAssetInventory (+22 more)
+Cohesion: 0.15
+Nodes (19): DataSourceRecord, DataSourceRegistry, Path, compute_md5(), inventory_local_asset(), inventory_local_hg38_2bit(), LocalAssetInventory, LocalAssetInventoryError (+11 more)
 
 ### Community 132 - "Supabase Local Cache"
-Cohesion: 0.25
-Nodes (10): Any, datetime, ToolResult, SourceCacheRecord, _as_aware(), _iso(), _payload_from_record(), SourceCachePayload (+2 more)
+Cohesion: 0.34
+Nodes (21): AuthenticatedPrincipal, BatchCreateRequest, BatchCreateResponse, BatchJob, StarletteUploadFile, UploadFile, PanelService, BatchCreateRequest (+13 more)
 
 ### Community 133 - "Fetch Clingen Source"
-Cohesion: 0.09
-Nodes (38): ReportPayload, Any, SimpleNamespace, FunctionalEvidenceExtractor, Count functional-study PMIDs without assigning ACMG PS3/BS3 strength., Count functional-study PMIDs without assigning ACMG PS3/BS3 strength., _payload(), test_acmg_rationales_scrub_raw_population_metrics() (+30 more)
+Cohesion: 0.19
+Nodes (20): FunctionalEvidenceExtractor, Count functional-study PMIDs without assigning ACMG PS3/BS3 strength., Count functional-study PMIDs without assigning ACMG PS3/BS3 strength., _FailingClinGenClient, _StaticClinGenClient, _StaticClinVarClient, test_clingen_bs3_supporting_counts_unique_pubmed_functional_studies(), test_clingen_live_failure_records_warning_and_keeps_pubmed_hits() (+12 more)
 
 ### Community 134 - "Esm1b Adapter Local"
 Cohesion: 0.05
@@ -1379,12 +1402,12 @@ Cohesion: 0.19
 Nodes (19): Any, Client, ToolResult, _article_from_pubmed_summary(), _author_display(), _empty_result(), _eutils_params(), _extract_cdna() (+11 more)
 
 ### Community 139 - "Vcf Project Mock"
-Cohesion: 0.16
-Nodes (20): Any, ArgumentParser, EamosCoordinateResolution, Path, _chrom_sort_value(), CoordinateResolver, generate_project_100_mock_vcf(), _generate_rows() (+12 more)
+Cohesion: 0.17
+Nodes (19): Any, EamosCoordinateResolution, Path, _chrom_sort_value(), CoordinateResolver, generate_project_100_mock_vcf(), _generate_rows(), _generated_row() (+11 more)
 
 ### Community 140 - "Web Classification Lib"
-Cohesion: 0.10
-Nodes (21): Classification, ClassificationBadge(), ClassificationBadgeProps, BENIGN, ClassificationConfig, ClassificationTierKey, CONFIGS, LIKELY_BENIGN (+13 more)
+Cohesion: 0.08
+Nodes (26): Classification, ClassificationBadge(), ClassificationBadgeProps, BENIGN, ClassificationConfig, ClassificationTierKey, CONFIGS, LIKELY_BENIGN (+18 more)
 
 ### Community 141 - "Tsx Web Mavefunctionalblock"
 Cohesion: 0.05
@@ -1395,15 +1418,15 @@ Cohesion: 0.11
 Nodes (15): args, buildLazyProbeFn(), buildUrl(), CDP, findChrome(), LAZY_FORCE, LAZY_POLL_MS, LAZY_SETTLE_MS (+7 more)
 
 ### Community 143 - "Agents Prompts Prompt"
-Cohesion: 0.14
-Nodes (15): build_draft_chain(), build_embeddings_model(), build_extraction_chain(), build_gateway_chat_client(), build_gateway_paper_variants_chain(), build_lookup_chat_chain(), build_run_chat_chain(), build_tool_enabled_llm() (+7 more)
+Cohesion: 0.12
+Nodes (17): build_draft_chain(), build_embeddings_model(), build_extraction_chain(), build_gateway_paper_variants_chain(), build_gateway_search_input_chain(), build_lookup_chat_chain(), build_run_chat_chain(), build_search_input_ai_chain() (+9 more)
 
 ### Community 144 - "Pdf Text Extract"
 Cohesion: 0.17
 Nodes (18): Any, Path, Path, Path, main(), _empty(), _extract_fitz(), extract_pdf_text() (+10 more)
 
 ### Community 145 - "Gene Disease Tools"
-Cohesion: 0.27
+Cohesion: 0.29
 Nodes (18): Any, ToolResult, _add_live_hgnc_provenance(), ClinicalGeneDiseaseStore, _conditions(), _dedupe(), _fixture_record(), _gene_search_url() (+10 more)
 
 ### Community 146 - "Web Gnomad Basemap"
@@ -1431,32 +1454,32 @@ Cohesion: 0.22
 Nodes (25): Path, LiteratureEmbeddingStore, FakeEmbedder, _make_pubmed_db(), _materialize_settings(), Returns a fixed vector for every input (one per item), no network., Returns a fixed vector for every input (one per item), no network., _record() (+17 more)
 
 ### Community 153 - "Source Cache Fresh"
-Cohesion: 0.31
-Nodes (18): Path, _expert_panel_summary(), _repo(), _service(), _settings(), _StaticTool, test_arbitrary_gnomad_no_hit_is_not_persisted_as_fresh_success(), test_arbitrary_lookup_ignores_source_cache_for_unselected_sources() (+10 more)
+Cohesion: 0.25
+Nodes (22): ClinVarVcvParseResult, FunctionalEvidenceSummary, Settings, FunctionalEvidenceCodeRestsOn, FunctionalEvidenceDisplayMetrics, FunctionalEvidenceSourceTag, FunctionalEvidenceCodeRestsOn, FunctionalEvidenceDisplayMetrics (+14 more)
 
 ### Community 154 - "Intake Reportuploadresponse Reportkind"
 Cohesion: 0.22
 Nodes (16): AuthUser, ReportKind, ReportUploadResponse, Request, UploadFile, ExtractedCase, ReportKind, ReportUploadResponse (+8 more)
 
 ### Community 155 - "Local Repeatmasker Paths"
-Cohesion: 0.18
-Nodes (17): Any, Path, CrisprTideResponse, ParsedTrace, BaseException, _error_report(), _file_summary(), main() (+9 more)
+Cohesion: 0.33
+Nodes (10): CrisprTideResponse, ParsedTrace, _analysis_windows(), analyze_crispr_tide_observed(), _consensus_indel_events(), _fit_proxy(), _mean_quality_near_cut(), _notes() (+2 more)
 
 ### Community 156 - "Runtime Assets Sources"
 Cohesion: 0.25
 Nodes (19): Path, Response, Settings, _cspec_record(), _erepo_record(), _json_response(), _materialized_settings(), _settings() (+11 more)
 
 ### Community 157 - "Trace Parser Rejects"
-Cohesion: 0.23
-Nodes (20): Any, _ascii_text(), _base_calls(), _bio_seqio(), _clean_sequence(), _first_value(), _int_tuple(), _normalized_values() (+12 more)
+Cohesion: 0.15
+Nodes (28): Any, Path, Any, BaseException, _error_report(), _file_summary(), main(), _read_trace() (+20 more)
 
 ### Community 158 - "Sequenceviewerv2 Tsx Web"
 Cohesion: 0.12
 Nodes (16): buildSelectionSummary(), ScratchEntry, SelectionRange, SequenceViewerHandle, SequenceViewerV2, SequenceViewerV2Props, spanSummary(), buildPrimerAmpliconOverlay() (+8 more)
 
 ### Community 159 - "Web Lib Sample"
-Cohesion: 0.13
-Nodes (12): getGeneViewer(), isDefaultGeneViewerPayload(), parseResponse(), variantLookup(), designScreeningPrimers(), designSsodn(), lookupPublications(), lookupSummary() (+4 more)
+Cohesion: 0.14
+Nodes (11): getGeneViewer(), isDefaultGeneViewerPayload(), parseResponse(), variantLookup(), designScreeningPrimers(), lookupPublications(), lookupSummary(), PublicationPageRequest (+3 more)
 
 ### Community 160 - "Tsconfig Json Compileroptions"
 Cohesion: 0.10
@@ -1471,12 +1494,12 @@ Cohesion: 0.11
 Nodes (14): bg, contrast(), CVD, deltaE(), dots, linToOklab(), N, oklch() (+6 more)
 
 ### Community 163 - "Handoff Agent Claude"
-Cohesion: 0.06
-Nodes (87): Path, Request, DataSourceRegistry, Path, Settings, Any, DataSourceRegistry, LocalEvidenceRuntimeGate (+79 more)
+Cohesion: 0.07
+Nodes (70): Path, Request, Any, DataSourceRegistry, Settings, SourceAssetMaterializationStore, DataSourceRegistry, Path (+62 more)
 
 ### Community 164 - "Tsx Web Callcardsgrid"
-Cohesion: 0.18
-Nodes (18): IndexedPredictorScore, Path, PredictorRuntimeInspection, PredictorRuntimeStatus, Esm1bLocalAdapter, Internal ESM1b tabix adapter.      The report evidence path reads this adapter a, Internal ESM1b tabix adapter.      The report evidence path reads this adapter a, PredictorRuntimeStatus (+10 more)
+Cohesion: 0.13
+Nodes (15): ToolResult, _cdna_from_transcript_hgvs(), _connect_readonly(), _count_gene_pmids(), _coverage_for(), _coverage_key(), _gene_scope_count(), _gene_scope_query() (+7 more)
 
 ### Community 165 - "Plan Json Plans"
 Cohesion: 0.10
@@ -1499,8 +1522,8 @@ Cohesion: 0.17
 Nodes (39): buildFullReportExport(), clinvarEvidenceRows(), escapeHtml(), filenameBase(), FullReportExport, variantLine(), banner(), bodyRow() (+31 more)
 
 ### Community 170 - "Tide Crispr Cli"
-Cohesion: 0.06
-Nodes (35): Variant Evidence Report Name, 15. AlphaMissense tool implementation plan, 16. Therapeutic Landscape + ClinicalTrials.gov — discovered as already complete, 17. Karpathy coding guidelines added to CLAUDE.md, 1. AI prompt refinement, 2. Export to standalone HTML file, 3. Source hyperlinks in Section 4 (classification snapshot), 4. Variant / gene lookup mode (search bar) (+27 more)
+Cohesion: 0.05
+Nodes (42): 10. Backend README rewritten, 11. CLAUDE.md created at E:\HSIL-2026, 12. PubMed publications tool, 13. Frontend publications section, 14. Species selector, 15. AlphaMissense tool implementation plan, 16. Therapeutic Landscape + ClinicalTrials.gov — discovered as already complete, 17. Karpathy coding guidelines added to CLAUDE.md (+34 more)
 
 ### Community 171 - "Deps Core Supabase"
 Cohesion: 0.20
@@ -1515,16 +1538,16 @@ Cohesion: 0.07
 Nodes (32): Age Distribution Data, gnomAD Age Distribution Panels, Caveats, gnomAD Ancestry Map, gnomAD Genetic Ancestry Map Regions, Source Of Truth, What It Does, Why It Is Eamos-Original (+24 more)
 
 ### Community 174 - "Codex Agent Handoff"
-Cohesion: 0.07
-Nodes (26): 2026-05-17: Create `agent_handoff/` As Universal Sync Point, 2026-05-17: Direct Codex Access Changes The Work Dynamic, 2026-05-17: Sequential First, Parallel Later — SUPERSEDED 2026-05-17, 2026-05-17: Stable Docs Need A Small Workflow Sync — DONE 2026-05-17, 2026-05-18: Dedup Protocol Into One Home + Trim CURRENT.md, 2026-05-19: AlphaMissense On Hold (user decision), 2026-05-19: Naming Convention + Patient Report Pipeline On Hold, 2026-05-21: Variant Input Architecture - Eamos Resolver Orchestrates Sources (+18 more)
+Cohesion: 0.13
+Nodes (14): 2026-05-17: Create `agent_handoff/` As Universal Sync Point, 2026-05-17: Direct Codex Access Changes The Work Dynamic, 2026-05-17: Sequential First, Parallel Later — SUPERSEDED 2026-05-17, 2026-05-17: Stable Docs Need A Small Workflow Sync — DONE 2026-05-17, 2026-05-18: Dedup Protocol Into One Home + Trim CURRENT.md, 2026-05-19: AlphaMissense On Hold (user decision), 2026-05-19: Naming Convention + Patient Report Pipeline On Hold, 2026-05-21: Variant Input Architecture - Eamos Resolver Orchestrates Sources (+6 more)
 
 ### Community 175 - "Paper Text Pdf"
-Cohesion: 0.13
-Nodes (15): Path, PyBigWigConservationReader, pyBigWig-backed conservation reader using 1-based inclusive coordinates., pyBigWig-backed conservation reader using 1-based inclusive coordinates., test_pybigwig_reader_rejects_missing_file_before_import(), test_pybigwig_reader_rejects_overlarge_window_before_materializing(), test_pybigwig_reader_returns_position_score_and_window_summary(), test_pybigwig_reader_unknown_contig_and_out_of_range_fail_closed() (+7 more)
+Cohesion: 0.20
+Nodes (21): Panel, PanelListResponse, PanelResolveRequest, Request, Panel, PanelListResponse, PanelResolveRequest, PanelGene (+13 more)
 
 ### Community 176 - "Manifest Source Sources"
-Cohesion: 0.19
-Nodes (15): DataSourceRecord, DataSourceRegistry, build_post_reference_source_readiness(), _is_backend_owned_storage(), _missing_requirements(), _needs_reader_proof(), source_asset_readiness(), SourceAssetReadiness (+7 more)
+Cohesion: 0.23
+Nodes (17): _settings(), test_ep_vlex_clinvar_pmid_extraction_ignores_reference_allele_numbers(), test_ep_vlex_dedupes_sources_sorts_recent_first_and_extracts_snippets(), test_ep_vlex_extracts_exact_variant_snippet_from_table_text(), test_ep_vlex_gene_scope_returns_source_count_without_articles(), test_ep_vlex_marks_abstract_text_without_variant_or_gene(), test_ep_vlex_marks_litvar_only_rows_without_fabricating_snippets(), test_ep_vlex_marks_pubmed_gene_only_rows_without_fabricating_snippets() (+9 more)
 
 ### Community 177 - "Validator Tools Tool"
 Cohesion: 0.24
@@ -1536,23 +1559,23 @@ Nodes (26): One retrieved abstract, shaped for the bounded-context contract (§6
 
 ### Community 179 - "Clingen Local Settings"
 Cohesion: 0.12
-Nodes (31): Path, Any, Path, Path, main(), _read_genes(), _report(), build_compact_coordinate_index() (+23 more)
+Nodes (34): Path, Any, Path, Path, main(), _read_genes(), _report(), build_compact_coordinate_index() (+26 more)
 
 ### Community 180 - "Tsx Web Primerresultcard"
-Cohesion: 0.21
-Nodes (3): HybridSourceCacheRepo, _log_remote_cache_fallback(), SourceCachePayload
+Cohesion: 0.12
+Nodes (8): ClinGenGeneValidityRecord, ClinicalSourceTableStore, GenCcAssertionRecord, HpoDiseasePhenotype, HpoGenePhenotype, HpoPhenotypeLink, MondoDisease, Fixture-first parsers for small clinical source tables.
 
 ### Community 181 - "Tsconfig Node Json"
 Cohesion: 0.11
 Nodes (17): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, moduleResolution, noEmit (+9 more)
 
 ### Community 182 - "Viewer Gene Plans"
-Cohesion: 0.11
-Nodes (20): Ensembl REST Sources, Gene Agnostic Viewer Service, Gene Viewer Architecture, NCBI ClinVar E-utilities, Render Ready Payload, Shared Sequence Authority, Source Labelled Annotations, Honest Fallback Banner (+12 more)
+Cohesion: 0.12
+Nodes (18): Ensembl REST Sources, Gene Agnostic Viewer Service, Gene Viewer Architecture, NCBI ClinVar E-utilities, Render Ready Payload, Shared Sequence Authority, Source Labelled Annotations, Honest Fallback Banner (+10 more)
 
 ### Community 183 - "Cache Repos Supabase"
-Cohesion: 0.25
-Nodes (11): DataSourceRegistry, Path, Structured error for local RepeatMasker fixture failures., _read_fixture_lines(), RepeatMaskerLocalError, RepeatMaskerLocalHit, RepeatMaskerLocalProvenance, _repo_relative_path() (+3 more)
+Cohesion: 0.17
+Nodes (16): Path, DataSourceRegistry, Path, find_project_root(), Find the checkout or backend root from either local or Docker layouts., repo_relative_path(), _iter_fixture_lines(), Structured error for local RepeatMasker fixture failures. (+8 more)
 
 ### Community 184 - "Supabase Migrations Migration"
 Cohesion: 0.22
@@ -1563,28 +1586,28 @@ Cohesion: 0.38
 Nodes (7): gnomAD Population Frequency Detail, gnomAD Ancestry Region Mapping Algorithm, Section 3 gnomAD Expansion Panel, PopulationFrequencyReportSection, Population Frequency Card Design, Population Frequency Card, PopulationFrequencyDetail
 
 ### Community 186 - "Readme Roadmap Design"
-Cohesion: 0.08
-Nodes (23): Render Plan Layout For Live Local First Assets, Pre Seed Assets Not Startup Download, Private Source Storage Guardrails, Protein Annotation Disabled Gate, Render Persistent Disk Runtime Only, Agents Instructions, Backend Predictor Wiring Admin Interpretation, AGENTS Graphify Rules (+15 more)
+Cohesion: 0.06
+Nodes (32): Patient Report Pipeline On Hold, Protein Annotation Disabled Gate, Click To Edit Popover, Legacy Runs Surface Frozen, Sequence Viewer Tracks, Workbench Layout Chrome, Product purpose, Active voice, clinical register, no hedging (+24 more)
 
 ### Community 187 - "Claude Docs Vcf"
 Cohesion: 0.16
 Nodes (16): Protein Construct Resolution, Tiered Variant Resolution, Backend Navigation Guide, Advisory ACMG And PVS1 Engines, Backend Variant Pipeline, Evidence tools, Fixture Fallback Mode, Cohort Results At Scale (+8 more)
 
 ### Community 188 - "Registry Sources String"
-Cohesion: 0.14
-Nodes (14): IconList(), initialCollapsed(), WorkRail(), WorkRailProps, WorkRailSection(), WorkRailSectionProps, paneKey(), readCollapsed() (+6 more)
+Cohesion: 0.21
+Nodes (14): DataSourceRecord, DataSourceRegistry, build_post_reference_source_readiness(), _is_backend_owned_storage(), _missing_requirements(), _needs_reader_proof(), source_asset_readiness(), SourceAssetReadiness (+6 more)
 
 ### Community 189 - "Source Cache Repo"
-Cohesion: 0.27
-Nodes (3): datetime, _record_to_run_response(), RunRepo
+Cohesion: 0.18
+Nodes (13): Path, _looks_like_protein_or_catalog_token(), PaperVariantsService, Deterministic offline extractor: cDNA mentions plus single-/three-letter, Normalize a residue substitution to HGVS p. form via the curated lexicon., _settings(), test_mock_extract_pairs_gene_cdna_and_protein(), test_mock_extract_validates_fixture_variant_and_rejects_unknown() (+5 more)
 
 ### Community 190 - "Cache Supabase Local"
-Cohesion: 0.09
-Nodes (26): Any, datetime, ProteinDomainTrack, SourceAssetMaterializationRecord, _append_unique(), _as_aware(), _aware_or_none(), _clinical_disease_ids() (+18 more)
+Cohesion: 0.07
+Nodes (32): Any, datetime, ProteinDomainTrack, SourceAssetMaterializationRecord, _ensure_protein_annotation_cache_uniprot_release_column(), _ensure_user_evidence_submission_payload_column(), _ensure_variant_cache_gene_context_snapshot_column(), _append_unique() (+24 more)
 
 ### Community 191 - "Extraction Plan Identity"
-Cohesion: 0.40
-Nodes (10): SearchInputInterpretation, SearchInputResolution, _as_list(), _canonical_identity(), _clinical_trials_terms(), _dedupe(), _has_variant_identity(), _identity_terms() (+2 more)
+Cohesion: 0.30
+Nodes (14): SearchInputInterpretation, SearchInputResolution, ReportExtractionPlan, ReportExtractionSectionTarget, ReportExtractionPlan, ReportExtractionSectionTarget, _as_list(), _canonical_identity() (+6 more)
 
 ### Community 192 - "Index Search Run"
 Cohesion: 0.25
@@ -1595,28 +1618,28 @@ Cohesion: 0.12
 Nodes (14): AppliedCriterion, CRITERIA, CRITERIA_BY_CODE, CRITERIA_CATEGORIES, CriteriaDirection, CriteriaResult, CriteriaState, criteriaStateFromComputed() (+6 more)
 
 ### Community 194 - "Tsx Web Publicationmodal"
-Cohesion: 0.12
-Nodes (8): ClinGenGeneValidityRecord, ClinicalSourceTableStore, GenCcAssertionRecord, HpoDiseasePhenotype, HpoGenePhenotype, HpoPhenotypeLink, MondoDisease, Fixture-first parsers for small clinical source tables.
+Cohesion: 0.18
+Nodes (10): CAS_OPTIONS, DesignTab(), DesignTabProps, SortKey, SsodnBlock(), ssodnSpans(), STRANDS, ScreenSeed (+2 more)
 
 ### Community 195 - "Criteria Web Lib"
 Cohesion: 0.12
 Nodes (14): AppliedCriterion, CRITERIA, CRITERIA_BY_CODE, CRITERIA_CATEGORIES, CriteriaDirection, CriteriaResult, CriteriaState, criteriaStateFromComputed() (+6 more)
 
 ### Community 196 - "Local Evidence Orchestrator"
-Cohesion: 0.19
-Nodes (20): EvidenceContextError, Raised when the outbound chat context fails the evidence-only allowlist., AuthenticatedPrincipal, ChatRequest, ChatResponse, Request, StreamingResponse, ArgumentParser (+12 more)
+Cohesion: 0.22
+Nodes (18): AuthenticatedPrincipal, ChatRequest, ChatResponse, Request, StreamingResponse, ArgumentParser, ChatRequest, Namespace (+10 more)
 
 ### Community 197 - "Agent Handoff Risks"
-Cohesion: 0.13
-Nodes (16): CRISPR Provider Planning Risks, Gated Work, Gene Viewer Contract Risks, Primer Provider Limitations, Current Candidate Tasks, Functional Evidence E1 Dedicated PubMed Stream, Gene Viewer Real Data Contract Task, gnomAD PopFreq Backend Contract (+8 more)
+Cohesion: 0.11
+Nodes (18): Practical Ownership, CRISPR Provider Planning Risks, Gated Work, Gene Viewer Contract Risks, Primer Provider Limitations, Agent Task Queue, Current Candidate Tasks, Functional Evidence E1 Dedicated PubMed Stream (+10 more)
 
 ### Community 198 - "Retrieval Literature Gateway"
 Cohesion: 0.51
 Nodes (9): TestClient, test_create_run_with_multiple_reports(), test_patient_blocked_run_status_is_marked_blocked(), test_run_applies_llm_rewrite_only_to_narrative_fields(), test_run_degrades_slow_evidence_tool_after_deadline(), test_run_falls_back_cleanly_when_llm_draft_fails(), test_run_includes_evidence_without_nulls(), test_run_surface_degraded_evidence_when_tool_falls_back() (+1 more)
 
 ### Community 199 - "Search Repo Repos"
-Cohesion: 0.25
-Nodes (19): Any, ArgumentParser, EamosCoordinateResolution, Path, _clinvar_coordinate(), _coordinate_match(), _fetch_clinvar_summaries(), _gene_from_summary() (+11 more)
+Cohesion: 0.27
+Nodes (18): Any, EamosCoordinateResolution, Path, _clinvar_coordinate(), _coordinate_match(), _fetch_clinvar_summaries(), _gene_from_summary(), _get_json() (+10 more)
 
 ### Community 200 - "Run Chat Returns"
 Cohesion: 0.26
@@ -1635,16 +1658,16 @@ Cohesion: 0.15
 Nodes (15): LLM Clients And Prompts, Fake Gateway Test Double, Mock Provider Chat Test, Evidence Only Context, AI Gateway Follow On Roadmap, Gateway Broker, True Token SSE Streaming, AI Gateway Variant Chat MVP (+7 more)
 
 ### Community 204 - "Search Input Cli"
-Cohesion: 0.20
-Nodes (14): ArgumentParser, EamosSearchInputResolver, Namespace, _build_parser(), main(), _queries_from_args(), _resolution_to_dict(), _settings_for_args() (+6 more)
+Cohesion: 0.18
+Nodes (15): ArgumentParser, EamosSearchInputResolver, Namespace, _build_parser(), main(), _queries_from_args(), _resolution_to_dict(), _settings_for_args() (+7 more)
 
 ### Community 205 - "Render Approval Bundle"
 Cohesion: 0.22
 Nodes (12): ArgumentParser, _build_arg_parser(), build_render_approval_bundle(), _crispr_offtarget_full_index_runbook(), _env_changes(), main(), _operator_preflight(), _post_flip_smoke() (+4 more)
 
 ### Community 206 - "Cache Repos Supabase"
-Cohesion: 0.18
-Nodes (14): _as_bool(), _cdna_hgvs_from_clinvar(), _configured_local_evidence_flows(), _coordinate_strand(), _dedupe(), _gene_from_clinvar(), _normalize_chrom(), _normalize_flow_name() (+6 more)
+Cohesion: 0.11
+Nodes (17): A11 — Render instance & disk budget (Epic A, infra), Current fill (live, 2026-06-16 21:27 +1000), Destination footprint (why 60 GB is right-sized), Enforced guards (already in code — the safety budget), Hard gates (unchanged, from `materialization-plan.md`), Measured RSS (prod, `srv-d8ctvoh9rddc73a27nb0`, 2 GB hard cap = 2,147,483,600 B), Part A — Compute budget (instance sizing), Part B — Storage budget (disk sizing & fill) (+9 more)
 
 ### Community 207 - "Cache Source Key"
 Cohesion: 0.23
@@ -1667,16 +1690,16 @@ Cohesion: 0.29
 Nodes (12): finiteMetric(), formatAmplicon(), formatGenomicRange(), formatHairpin(), formatMetric(), formatRange(), hashSeq(), illustrativeStruct() (+4 more)
 
 ### Community 212 - "Tsx Web Designtab"
-Cohesion: 0.31
-Nodes (11): PaperVariantsResult, SearchInputCandidate, SearchInputResolution, SearchInputSourceInputs, PaperVariantCandidate, Paper → variants: extract variant mentions from publication text, then resolve, _resolved(), _resolved_from_candidate() (+3 more)
+Cohesion: 0.34
+Nodes (10): SearchInputCandidate, SearchInputResolution, SearchInputSourceInputs, PaperVariantCandidate, Paper → variants: extract variant mentions from publication text, then resolve, _resolved(), _resolved_from_candidate(), _source_inputs_schema() (+2 more)
 
 ### Community 213 - "Auth Plans Pricing"
 Cohesion: 0.22
 Nodes (9): Auth and Pricing UI Requirements, Expandable Auth Panel, Authenticated RLS Grants, OAuth Provider Set, Payment Success Receipt, Pricing Page, Stripe Checkout Recommendation, Supabase Auth (+1 more)
 
 ### Community 214 - "Design Product Interaction"
-Cohesion: 0.06
-Nodes (35): Amino-acid biochem class pill backgrounds (Workbench only), Appendix — Legacy `/runs` surface (frozen), Brand-surface primitives (`app/web/components/landing/ui/`), Buttons, Card (`.card` / `<Card>`), Classification badge (`<ClassificationBadge>`), ACMG Classification Color Ramp, Classification colours (semantic — the ACMG ramp) (+27 more)
+Cohesion: 0.08
+Nodes (26): Amino-acid biochem class pill backgrounds (Workbench only), Appendix — Legacy `/runs` surface (frozen), ACMG Classification Color Ramp, Classification colours (semantic — the ACMG ramp), Click-to-edit popover (the differentiator), Color Tokens, Design Philosophy, Eamos Design System — v2 (+18 more)
 
 ### Community 215 - "Email Supabase Templates"
 Cohesion: 0.18
@@ -1687,8 +1710,8 @@ Cohesion: 0.18
 Nodes (15): Deterministic Parse Preview, Mock First AI Extractor, Raw Lookup Path, Search AI Input Delivery Plan, Search Candidate Resolver, Search Input AI Smoke, Search Input Reference Lexicon, AI Extraction Fallback (+7 more)
 
 ### Community 217 - "Normalize Genomic Sequence"
-Cohesion: 0.18
-Nodes (15): genomic_variant_id_to_refseq_hgvs(), normalize_variant_query(), _normalize_variant_text(), parse_genomic_variant_id(), Return gnomAD-style chr-pos-ref-alt for simple genomic SNV/indel input., Return gnomAD-style chr-pos-ref-alt for simple genomic SNV/indel input., Return simple RefSeq genomic HGVS for chr-pos-ref-alt variants on GRCh38., Return simple RefSeq genomic HGVS for chr-pos-ref-alt variants on GRCh38. (+7 more)
+Cohesion: 0.16
+Nodes (16): _resolution_from_compact_variant(), genomic_variant_id_to_refseq_hgvs(), normalize_variant_query(), _normalize_variant_text(), parse_genomic_variant_id(), Return gnomAD-style chr-pos-ref-alt for simple genomic SNV/indel input., Return gnomAD-style chr-pos-ref-alt for simple genomic SNV/indel input., Return simple RefSeq genomic HGVS for chr-pos-ref-alt variants on GRCh38. (+8 more)
 
 ### Community 219 - "Spec Docs Align"
 Cohesion: 0.22
@@ -1699,12 +1722,12 @@ Cohesion: 0.19
 Nodes (15): Cross-Surface Vocabulary Fragmentation, Flagged Durable Decision Pass, Green Then Yellow Sequence, Verdict Color Ramp Alignment, Workbench Report Design Sweep Orchestration Plan, ACMG Strength Coloring, AF Thermometer Classification Ramp Alignment, Badge Chip Vocabulary Fragmentation (+7 more)
 
 ### Community 221 - "Crispr Design Align"
-Cohesion: 0.31
-Nodes (8): Request, _client_identifier(), _digest(), _prune_bucket(), _rate_limit_keys(), RateLimitResult, _scope_max_requests(), deque
+Cohesion: 0.26
+Nodes (11): Any, _as_optional_string_tuple(), _as_string_tuple(), DataSourceRecord, _optional_string(), Raised when runtime source registry metadata is incomplete or unsafe., RegistryValidationError, _require_bool() (+3 more)
 
 ### Community 222 - "Docx Blueprint Sources"
-Cohesion: 0.38
-Nodes (12): Any, LookupRequest, Namespace, _assertion_for_args(), _build_parser(), _lookup_http(), _lookup_in_process(), _lookup_request_from_args() (+4 more)
+Cohesion: 0.27
+Nodes (9): SearchDocumentWrite, _build_search_documents_fts_expression(), _ensure_postgres_search_indexes(), SearchDocumentRecord, SearchVariantRecord, SearchRepo, SearchDocumentRecord, SearchRepoMatch (+1 more)
 
 ### Community 223 - "Resolver Coordinate Local"
 Cohesion: 0.06
@@ -1727,8 +1750,8 @@ Cohesion: 0.21
 Nodes (6): BaseHTTPRequestHandler, _extract(), _generation_id(), Handler, Local fake of the Vercel AI Gateway — OpenAI-compatible, zero-cost, offline.  Sp, Pull a believable variant + clinvar label out of the last user message.
 
 ### Community 228 - "Plans Batch Crispr"
-Cohesion: 0.11
-Nodes (19): CRISPR Design Panel, CRISPR Integration Plan, Deterministic-First CRISPR Scoring, Editing Outcome Analytics, gRNA Design Blueprint, Mock-First Backend-Led Contract, Real CRISPR Design Engine, Shared AB1 Parser (+11 more)
+Cohesion: 0.12
+Nodes (18): CRISPR Design Panel, CRISPR Integration Plan, Deterministic-First CRISPR Scoring, Editing Outcome Analytics, gRNA Design Blueprint, Mock-First Backend-Led Contract, Real CRISPR Design Engine, Shared AB1 Parser (+10 more)
 
 ### Community 229 - "Plans Registry Source"
 Cohesion: 0.09
@@ -1747,8 +1770,8 @@ Cohesion: 0.16
 Nodes (14): CRISPR Coordinate Fields, Off-Target Index Guardrails, Provider Cache Health Contract, Workbench Backend Wiring Ledger, Source-Backed Muted Scores, Env Flip And Rollback, No-Mutation Guardrails, Render Approval Bundle (+6 more)
 
 ### Community 233 - "Press Cli Args"
-Cohesion: 0.22
-Nodes (9): 10. Backend README rewritten, 11. CLAUDE.md created at E:\HSIL-2026, 12. PubMed publications tool, 13. Frontend publications section, 14. Species selector, 8. JWT secret hardening, 9. franklin.py dead-code typo removed, Changes made this session (+1 more)
+Cohesion: 0.27
+Nodes (10): Path, _dedupe(), _file_md5(), _insert_source_file_import_stats(), _md5_sidecar_path(), _pubmed_xml_source_kind(), _read_md5_sidecar(), _safe_size() (+2 more)
 
 ### Community 234 - "Rate Limit Core"
 Cohesion: 0.06
@@ -1795,8 +1818,8 @@ Cohesion: 0.07
 Nodes (29): 0. Token discipline (what I use, what I do NOT invent), 10. Token proposal (NOT assumed), 1.1 Anatomy (one line, dot + identity + optional expand), 1.2 Layout & sizing, 1.3 Progressive disclosure — the locked "full transcript HGVS" reveal, 1.4 Hover / interactive state, 1. `<VariantCardRow>` — the shared presentational row, 2.1 Layout (+21 more)
 
 ### Community 245 - "Source Imports Upsert"
-Cohesion: 0.15
-Nodes (8): apply_clinical_source_import_bundle(), apply_storage_pilot_registration(), SourceImportStore, FakeSourceImportStore, test_clinical_source_import_apply_records_source_versions_and_idempotent_rows(), test_clinvar_storage_pilot_fails_until_checksum_is_recorded(), test_source_import_apply_uses_configured_store_and_smoke(), test_storage_pilot_apply_records_object_and_fail_closed_materialization()
+Cohesion: 0.19
+Nodes (5): FakeSourceImportStore, test_clinical_source_import_apply_records_source_versions_and_idempotent_rows(), test_clinvar_storage_pilot_fails_until_checksum_is_recorded(), test_source_import_apply_uses_configured_store_and_smoke(), test_storage_pilot_apply_records_object_and_fail_closed_materialization()
 
 ### Community 246 - "Plans Plan Orchestration"
 Cohesion: 0.16
@@ -1815,12 +1838,12 @@ Cohesion: 0.26
 Nodes (13): Workbench SidePanel WorkRail Fork, AuthMenu Rail Foot Variant, Cite Feedback Relocation, Cite Modal Report Scoped Deep Link, Feedback Account Menu Item, Global WorkRail Cluster Cross Surface, Persistent Shell Chrome Utility Cluster Spec, Popover Portal For Rail Overflow (+5 more)
 
 ### Community 250 - "Readme Agent Handoff"
-Cohesion: 0.48
-Nodes (6): AuthUser, ClinicianReviewPayload, Request, ReviewResult, review_report(), review_run()
+Cohesion: 0.25
+Nodes (12): Any, _caid(), clingen_vcep_source_cache_key(), _first_caid(), _hgvs_token(), is_hero_example_variant(), _iter_text(), Return the CAR #3 ClinGen ERepo cache key with explicit precedence. (+4 more)
 
 ### Community 251 - "Alphamissense Materialize Runtime"
-Cohesion: 0.33
-Nodes (6): 5. DNA notation as primary in variant table and sidebar, 6. Backend tool parameterisation — all four tools now gene-agnostic, 7. Plain language variant decoder, Changes made this session, Infrastructure: project moved to E:\HSIL-2026, Session 4 — 08 May 2026
+Cohesion: 0.17
+Nodes (10): Codex Owns Backend Render Redeploys, Direct Codex Substantive Backend Work, WSL RAM Guardrail, Codex Backend Lane, Codex Clear Safe Close, Coordination Protocol — single home, Direct Codex Role, Start Here (every fresh Codex session) (+2 more)
 
 ### Community 252 - "Library Round Trip"
 Cohesion: 0.34
@@ -1839,16 +1862,16 @@ Cohesion: 0.24
 Nodes (10): ARMS_MARKERS, extractApiError(), isRecord(), parsePrimerConstraints(), PrimerConstraintInput, PrimerConstraintResult, PrimerConstraintValues, primerErrorMessage() (+2 more)
 
 ### Community 256 - "Offtargettab Tsx Web"
-Cohesion: 0.22
-Nodes (15): SearchInputConfidence, SearchInputReference, _ai_enabled(), _confidence(), _extract_cdna_hint(), _extract_gene_hint(), _extract_genomic_hint(), _extract_protein_hint() (+7 more)
+Cohesion: 0.17
+Nodes (12): Render Plan Layout For Live Local First Assets, Pre Seed Assets Not Startup Download, Private Source Storage Guardrails, Render Persistent Disk Runtime Only, Agents Instructions, Backend Predictor Wiring Admin Interpretation, AGENTS Graphify Rules, Claude Graphify Rules (+4 more)
 
 ### Community 257 - "Gene Full Plans"
-Cohesion: 0.22
-Nodes (10): ABCA4 DOM Virtualization Decision, full-locus-adapter, FullLocusViewer, ABCA4 Stress Matrix, Biological Color Policy, Full Gene Row Renderer, Full Gene Workbench, Full Locus Request Mode (+2 more)
+Cohesion: 0.33
+Nodes (7): ABCA4 DOM Virtualization Decision, ABCA4 Stress Matrix, Biological Color Policy, Full Gene Workbench, Full Locus Request Mode, Scratchpad Persistence Boundary, Full Locus Amendment
 
 ### Community 258 - "Migration Plans Nextjs"
-Cohesion: 0.11
-Nodes (19): Protein View Replaces Exon Mode, Viewer Mode Toggle, Protein Lollipop Projection, Frontend Backend Handshake, Predictor Calibration Confidence, Predictor Visuals Contracts, Protein Domain Track Contract, Splice Outcome Contract (+11 more)
+Cohesion: 0.18
+Nodes (12): Frontend Contract Mirror, API Mapping, Client Server Boundary, Contract Drift Risk, Next 16 and Node 24 Toolchain, Next.js App Router Migration, Parallel App Strategy, Pure Workbench Lib Portability (+4 more)
 
 ### Community 259 - "Redesign Plans Gnomad"
 Cohesion: 0.11
@@ -1931,12 +1954,12 @@ Cohesion: 0.25
 Nodes (9): Execution-Ready Cleanup Plan, SequenceViewer Handle Last, Verified Implementation Anchors, Control Cleanup Spec, No New Backend Except Outcomes Gate, Outcomes Preview Brand, Single-Base Edit Affordance, Viewer Legends (+1 more)
 
 ### Community 280 - "Agent Handoff Current"
-Cohesion: 0.14
-Nodes (14): ACMG Viz Release, Active Status Heartbeat, Active Status (heartbeat - set when you start and stop), AlphaMissense Protein Viewer Live, Claude - Last Task & Resume, Codex - Last Task & Resume, Cross-Agent Requests, Current Agent State (+6 more)
+Cohesion: 0.12
+Nodes (16): ACMG Viz Release, Active Status Heartbeat, Active Status (heartbeat - set when you start and stop), AlphaMissense Protein Viewer Live, Claude - Last Task & Resume, Codex - Last Task & Resume, Cross-Agent Requests, Current Agent State (+8 more)
 
 ### Community 281 - "Agent Handoff Risks"
-Cohesion: 0.05
-Nodes (39): AI Gateway Inert In Production, Current State, Excluded Generated Graph Output, Graphify Update Owed, Agent Handoff Protocol — Canonical Source, Hard Rules (user-mandated — breaking any needs explicit per-instance user OK), Idle / Usage-Exhaustion Protocol, Integration Checkpoint (+31 more)
+Cohesion: 0.09
+Nodes (22): 1e86a78 Protein Annotation — Render OOM + Protein-Feature Regression (→ Codex), Agent Risks And Guardrails, AI Gateway Chat — Pre-Launch Security Gate, Backend Launch Security Findings, Backend Stability — Systemic OOM-Class Findings (Epic A), Dirty Worktree, Dirty Worktree Guardrail, Gene Viewer Dynamic Product Risks (+14 more)
 
 ### Community 282 - "Evidence Submissions Submission"
 Cohesion: 0.38
@@ -1975,8 +1998,8 @@ Cohesion: 0.07
 Nodes (26): 1. Treat The Ledger As A Readiness Board, 2. Add A Narrow Compact-Index Materialization Path, 3. Use Runtime Shell Or Service Process For SG Disk Seeding, 4. Sequence Ledger Recovery Horizontally, Alternatives Considered, Architecture View, Backend Build Ledger Runtime Design, Build or pre-deploy command (+18 more)
 
 ### Community 291 - "Lazysection Tsx Web"
-Cohesion: 0.32
-Nodes (3): test_batch_upload_is_rate_limited(), test_batch_upload_requires_authentication(), _valid_vcf()
+Cohesion: 0.26
+Nodes (8): Path, _parsed_variant(), test_batch_inline_job_uses_compact_coordinate_index_for_cdna_rows(), test_batch_service_bounds_upload_and_job_registries(), test_batch_service_expires_stale_uploads_and_jobs(), test_batch_upload_is_rate_limited(), test_batch_upload_requires_authentication(), _valid_vcf()
 
 ### Community 292 - "Plans Contract Additive"
 Cohesion: 0.20
@@ -1991,8 +2014,8 @@ Cohesion: 0.15
 Nodes (13): ClinVar NC Genomic HGVS Preference, Eamos Search Input Resolver, Ensembl MANE Transcript Resolver, gnomAD VCF Style IDs, Literature Term Bundle, Variant Input Architecture, VariantValidator Specialist, Database Stack (+5 more)
 
 ### Community 296 - "Askeamos Tsx Web"
-Cohesion: 0.17
-Nodes (10): DesignTabProps, ScreenSeed, autoPickKeys(), locusLabel(), OffTargetTab(), OffTargetTabProps, siteKey(), SortKey (+2 more)
+Cohesion: 0.21
+Nodes (7): autoPickKeys(), locusLabel(), OffTargetTab(), siteKey(), SortKey, toTSV(), enumerateOffTargets()
 
 ### Community 297 - "Ensembl Vep Tools"
 Cohesion: 0.42
@@ -2019,8 +2042,8 @@ Cohesion: 0.56
 Nodes (8): TestClient, _prepare_run(), test_approve_generates_frozen_pdf(), test_drop_marks_run_dropped_and_blocks_pdf(), test_patch_report_payload_is_blocked_after_approve(), test_patch_report_payload_updates_preview_pdf_and_preserves_locked_fields(), test_review_only_stores_note_and_timestamp(), test_review_requires_note_text()
 
 ### Community 303 - "Run Flow Blocked"
-Cohesion: 0.67
-Nodes (3): aspartic acid, one_letter, three_letter
+Cohesion: 0.19
+Nodes (14): Request, align(), analyze_crispr_tide(), analyze_trace(), design_crispr_screening_primers(), design_crispr_ssodn(), design_guides(), design_primers() (+6 more)
 
 ### Community 304 - "Curatedvariantsgrid Tsx Src"
 Cohesion: 0.25
@@ -2051,12 +2074,12 @@ Cohesion: 0.25
 Nodes (9): Additive CRISPR Off-Target Backend Contracts, Cas-OFFinder And CFD Engine, Off-Target Screening Pipeline, Screening Primer Panel, Lab Genomic ssODN Protocol, Local-First ssODN Sequence Sources, CRISPR ssODN Endpoint, Workbench CRISPR Off-Target Runtime (+1 more)
 
 ### Community 311 - "Ssodnlabdonor Tsx Web"
-Cohesion: 0.09
-Nodes (31): Connection, ToolResult, _article_exists(), _cdna_from_transcript_hgvs(), _connect_readonly(), _count_gene_pmids(), _count_profile(), _coverage_for() (+23 more)
+Cohesion: 0.14
+Nodes (20): Connection, Row, _article_edge_snippets(), _article_exists(), _count_profile(), _fts_status(), _import_stats_by_source_from_db(), _initialize_schema() (+12 more)
 
 ### Community 312 - "Truth Press Plans"
-Cohesion: 0.24
-Nodes (10): ACMG Worksheet Truth Source, Claim Provenance Debugger, Clinical Trials Empty Matched Terms, Demo Sample Audit Mode, eamos_press CLI, In Process Evidence Tap, PM2 versus BS1 Contradiction, Source Backed Pills Assertion (+2 more)
+Cohesion: 0.28
+Nodes (9): ACMG Worksheet Truth Source, Claim Provenance Debugger, Clinical Trials Empty Matched Terms, Demo Sample Audit Mode, eamos_press CLI, In Process Evidence Tap, PM2 versus BS1 Contradiction, Source Backed Pills Assertion (+1 more)
 
 ### Community 313 - "Pubmed Local Article"
 Cohesion: 0.07
@@ -2099,28 +2122,28 @@ Cohesion: 0.25
 Nodes (9): Popularity counter, Related Variants Visual Treatment, LookupResponse Report Payload Contract, Report Section Anchors, RelatedVariants Component, ReportSectionNav, VariantLibraryRail, Evidence-Grounded Related Variants Feed (+1 more)
 
 ### Community 323 - "Agents Roadmap Private"
-Cohesion: 0.07
-Nodes (29): Agent Handoff, Agent Handoff Sync Point Decision, Protocol Single Home Decision, Legacy Handoff Redirect, Agent Handoff Protocol, Idle Usage Exhaustion Protocol, Practical Ownership, Handoff Read Order (+21 more)
+Cohesion: 0.15
+Nodes (13): 1. Think Before Coding, 2. Simplicity First, 3. Surgical Changes, 4. Goal-Driven Execution, Coding Guidelines, Collaboration model — Golden rule, Coordination protocol — single home, Development (+5 more)
 
 ### Community 324 - "Askeamos Tsx Src"
 Cohesion: 0.25
 Nodes (3): AskEamosProps, DEFAULT_SUGGESTIONS, Message
 
 ### Community 325 - "Spliceai Tools Toolresult"
-Cohesion: 0.67
-Nodes (3): leucine, one_letter, three_letter
+Cohesion: 0.17
+Nodes (12): Variant Evidence Report Name, Report v2 modules, Report Workbench Mode Pill, Trust Is The Brand, Verifiability Over Flash, DNA Notation Is Primary, Layer 1 Lookup Pipeline, Lookup Homepage And Ghost Patient Report Entry (+4 more)
 
 ### Community 326 - "Auth Login Rejects"
-Cohesion: 0.25
-Nodes (5): _coverage_key(), _dedupe_term_matches(), _edge_matched_seed_terms(), _edge_seed_terms_by_pmid(), PubMedSeedQuery
+Cohesion: 0.34
+Nodes (10): Any, DataSourceRegistry, build_docx_supplemental_matrix(), build_docx_task_matrix(), docx_blueprint_summary(), DocxBlueprintLine, DocxSupplementalRequest, _line_summary() (+2 more)
 
 ### Community 327 - "Demo Payload Encoding"
 Cohesion: 0.39
 Nodes (7): Any, Path, _assert_no_mojibake(), test_fixture_backed_tool_reads_fixtures_as_utf8(), test_lookup_payload_does_not_emit_utf8_as_latin1_mojibake(), test_report_demo_sample_json_carries_calibrated_predictor_fields(), test_report_demo_sample_json_does_not_ship_utf8_as_latin1_mojibake()
 
 ### Community 328 - "Protein Runtime Prepare"
-Cohesion: 0.67
-Nodes (3): Path, test_offtarget_index_estimate_cli_reports_sanitized_capacity(), test_offtarget_index_verify_and_manifest_cli_are_sanitized()
+Cohesion: 0.06
+Nodes (72): Any, ArgumentParser, Path, Settings, Any, Path, Settings, Connection (+64 more)
 
 ### Community 329 - "Acmgcriteriafold Tsx Src"
 Cohesion: 0.29
@@ -2159,12 +2182,12 @@ Cohesion: 0.32
 Nodes (8): M8 M9 Live Data Gap Audit, Runbook P3 M8 Lazy Wire, Runbook P4 M9 Lazy Wire, Varsome Runbook Verification Gates, LazySection Contract, M8 In Silico Lazy Wire, M9 Expert Panel Lazy Wire, M9 Partial State Note
 
 ### Community 338 - "Docs Align Benchling"
-Cohesion: 0.67
-Nodes (3): valine, one_letter, three_letter
+Cohesion: 0.33
+Nodes (8): COMP, complement(), deriveReference(), editedCodon(), isMock(), revcomp(), SsodnLabDonor(), designSsodn()
 
 ### Community 339 - "Scorebullet Tsx Web"
-Cohesion: 0.09
-Nodes (28): CAS_OPTIONS, DesignTab(), SortKey, SsodnBlock(), ssodnSpans(), STRANDS, finiteMetric(), formatAmplicon() (+20 more)
+Cohesion: 0.22
+Nodes (14): finiteMetric(), formatAmplicon(), formatGenomicRange(), formatHairpin(), formatMetric(), formatRange(), hashSeq(), illustrativeStruct() (+6 more)
 
 ### Community 340 - "Reviews Review Authuser"
 Cohesion: 0.07
@@ -2227,8 +2250,8 @@ Cohesion: 0.31
 Nodes (9): Test Deployment Guide, Compact Coordinate Resolver Runtime, Private Source Asset Storage, Compact Coordinate Index Materialization, Render SG Provider Flips, Reusable Source Asset Materialization Workflow, Post-Reference Source Asset Rollout, Indexed Reader Proofs (+1 more)
 
 ### Community 355 - "Product Brand Surface"
-Cohesion: 0.10
-Nodes (19): Brand Surface Primitives, Click To Edit Popover, Sequence Viewer Tracks, Workbench Layout Chrome, Anti-references (do NOT look like these), Where Boldness Is Allowed, Brand, Clinical Geneticists And Genetic Counsellors (+11 more)
+Cohesion: 0.14
+Nodes (13): Brand Surface Primitives, Anti-references (do NOT look like these), Where Boldness Is Allowed, Brand, Clinical Geneticists And Genetic Counsellors, Dual Register Product, Eamos — Product Brief, Lab Directors And PIs (+5 more)
 
 ### Community 356 - "Source Local First"
 Cohesion: 0.20
@@ -2431,8 +2454,8 @@ Cohesion: 0.40
 Nodes (5): Ask Eamos Home Consolidation, Bottom Left Utility Cluster, Cite Feedback Relocation, Dead Chrome Removal, Rail Glyph Sweep
 
 ### Community 419 - "Docs Workspace Rail"
-Cohesion: 0.17
-Nodes (12): Backend-First Batch Contract, Batch and Panel Schemas, Batch Upload and Polling Engine, Results Summary and Export Contract, Async Batch Job Engine, Batch FE-BE Contract, Cohort Results Dashboard, API Contract Surface (+4 more)
+Cohesion: 0.26
+Nodes (8): Any, SimpleNamespace, _report_call_card(), _section_targets(), test_lookup_keeps_publication_inventory_and_functional_count_distinct(), test_non_rpe65_publication_inventory_is_not_the_functional_count(), test_report_profile_references_publication_and_functional_sections_without_rows(), _variant()
 
 ### Community 421 - "Crispr Score Preflight"
 Cohesion: 0.10
@@ -2535,20 +2558,24 @@ Cohesion: 0.09
 Nodes (21): 10. Alignment Completion, 1. Primer Live-Field Consumption, 2. Primer SNP Avoidance, 3. Primer Whole-Genome Specificity, 4. CRISPR Advanced Guide Scoring, 5. CRISPR Off-Target SQLite Index, 6. CRISPR Screening Primers, 7. CRISPR Outcomes Backend Route (+13 more)
 
 ### Community 490 - "Community 490"
-Cohesion: 0.67
-Nodes (3): histidine, one_letter, three_letter
+Cohesion: 0.25
+Nodes (3): AskEamosProps, DEFAULT_SUGGESTIONS, Message
 
 ### Community 491 - "Community 491"
-Cohesion: 0.67
-Nodes (3): duplication, suffix, variant_class
+Cohesion: 0.17
+Nodes (12): featureCategoryLegendItems(), featureLegendItems(), featuresFromTrack(), featuresFromViewer(), packProteinFeatures(), proteinArchitectureFeatures(), proteinCanvasWidth(), proteinLanesFor() (+4 more)
 
 ### Community 492 - "Community 492"
-Cohesion: 0.67
-Nodes (3): insertion, suffix, variant_class
+Cohesion: 0.44
+Nodes (10): ReportPayload, _payload(), test_acmg_rationales_scrub_raw_population_metrics(), test_clingen_consensus_outranks_clinvar_and_source_asserts_criteria(), test_clinvar_classification_and_vcv_criteria_fill_when_clingen_missing(), test_clinvar_vcv_over_size_limit_is_skipped_with_warning(), test_clinvar_vcv_parse_is_reused_by_functional_and_consensus(), test_eamos_hints_do_not_overwrite_source_classification() (+2 more)
 
 ### Community 493 - "Fixtures Search Input"
 Cohesion: 0.67
 Nodes (3): glutamic acid, one_letter, three_letter
+
+### Community 494 - "Community 494"
+Cohesion: 0.22
+Nodes (9): Brand-surface primitives (`app/web/components/landing/ui/`), Buttons, Card (`.card` / `<Card>`), Classification badge (`<ClassificationBadge>`), Core Components, Cross-DB jump chip, Hairline utility, Mode pill — Report ⇄ Workbench (+1 more)
 
 ### Community 495 - "Fixtures Search Input"
 Cohesion: 0.67
@@ -2563,16 +2590,24 @@ Cohesion: 0.22
 Nodes (10): Affordance cheat-sheet, Affordance Clarity, Dashboard Interaction Language, Elevation, Honest Motion, Motion, Three Layer Progressive Disclosure Pattern, The five principles (+2 more)
 
 ### Community 498 - "Community 498"
-Cohesion: 0.67
-Nodes (3): arginine, one_letter, three_letter
+Cohesion: 0.49
+Nodes (9): Request, create_batch_job(), get_batch_job(), _read_upload_bytes(), _reject_oversized_content_length(), _service(), upload_batch_file(), _upload_size_limit_bytes() (+1 more)
+
+### Community 499 - "Community 499"
+Cohesion: 0.43
+Nodes (7): TestClient, _auth_headers(), test_existing_health_endpoint_remains_public(), test_login_me_logout_flow(), test_login_rejects_invalid_password(), test_register_rejects_duplicate_username(), test_register_returns_token_and_persists_argon2_hash()
 
 ### Community 500 - "Fixtures Search Input"
-Cohesion: 0.16
-Nodes (24): TestClient, InMemoryRateLimiter, Small first-launch limiter for single-instance deployments., Small first-launch limiter for single-instance deployments., _chat_payload(), _evidence_payload(), FakeChatService, FakeRunChatService (+16 more)
+Cohesion: 0.11
+Nodes (32): Request, TestClient, _client_identifier(), _digest(), InMemoryRateLimiter, _prune_bucket(), _rate_limit_keys(), RateLimitResult (+24 more)
 
 ### Community 501 - "Fixtures Search Input"
 Cohesion: 0.10
 Nodes (20): 1. Surface map, 2. Findings, 3. Implementation spec (P0/P1, directly applicable), 4. Flagged — needs Steven approval (durable / structural / net-new), 5. Don't-touch (intentional-but-odd), Checkout (`CheckoutClient.tsx`), Commerce surface sweep — pricing → checkout → receipt, Cross-surface (+12 more)
+
+### Community 504 - "Community 504"
+Cohesion: 0.60
+Nodes (4): Request, annotate_protein(), _protein_annotation_service(), ProteinAnnotationServiceProtocol
 
 ### Community 509 - "Plans Section Orchestration"
 Cohesion: 0.18
@@ -2599,12 +2634,16 @@ Cohesion: 0.10
 Nodes (20): Alternatives Considered, Constraints, Context And Scope, Decision, Goals, Interfaces And Data, Live E-utilities Fallback, Local-First PubMed Lane (+12 more)
 
 ### Community 576 - "Community 576"
-Cohesion: 0.23
-Nodes (15): Path, Settings, Path, main(), _extract_gzip_atomic(), _missing_pfam_indexes(), prepare_protein_annotation_runtime(), ProteinRuntimePreparationResult (+7 more)
+Cohesion: 0.64
+Nodes (7): Path, _fake_executable(), _hmmpress_script(), _no_op_script(), test_prepare_protein_runtime_extracts_pfam_and_runs_hmmpress(), test_prepare_protein_runtime_fails_closed_without_hmmpress(), test_protein_runtime_prepare_cli_emits_sanitized_ready_report()
 
 ### Community 577 - "Community 577"
 Cohesion: 0.10
 Nodes (19): §0 Ground-truth audit, §1 Problem & goals, 2.1 Surface shape (unchanged chrome, reuse `WorkRail`), 2.2 Intake flow (the big FE gap), 2.3 Scope flow (mostly built — complete it), 2.4 Scope-confirmation gate (PARTIAL → complete) — the guardrail, 2.5 Results flow (scale it), 2.6 State matrix (+11 more)
+
+### Community 578 - "Community 578"
+Cohesion: 0.33
+Nodes (6): Primer Badge Taxonomy, Dashboard Interaction Language, Honest Loading State, Defensive Primer Notes Parser, Primer Panel, Primer Result Card
 
 ### Community 579 - "Community 579"
 Cohesion: 0.10
@@ -2623,8 +2662,8 @@ Cohesion: 0.11
 Nodes (18): 1. Surface map, 2. Findings, 3. Implementation spec (P0 + P1), 4. Flagged — needs Steven approval (durable structural / major-visual), 5. Don't-touch (intentional-but-odd), P0, P1, P2 (+10 more)
 
 ### Community 583 - "Community 583"
-Cohesion: 0.06
-Nodes (34): Patient Report Pipeline On Hold, Legacy Runs Surface Frozen, Active voice, clinical register, no hedging, AI drafts, human checks, All tools are gene-agnostic — no hardcoding, Architecture, Clinical bullets require numeric values with units, Default operating mode (+26 more)
+Cohesion: 0.11
+Nodes (19): Architecture, Default operating mode, Directory Map, Eamos — Genomic Intelligence Platform, HGVS Nomenclature, Human hg38 Database Stack, Information Hierarchy (important design decision), Layer 1 — Variant Lookup (the landing page) (+11 more)
 
 ### Community 584 - "Community 584"
 Cohesion: 0.11
@@ -2647,8 +2686,8 @@ Cohesion: 0.12
 Nodes (16): Alternatives Considered, Architecture Views, ClinGen Local Materialization Design, Constraints, Context And Scope, Cross-Cutting Concerns, Decision, Goals (+8 more)
 
 ### Community 589 - "Community 589"
-Cohesion: 0.14
-Nodes (23): Any, DataSourceRegistry, Path, SourceAssetMaterializationRecord, build_docx_supplemental_matrix(), build_docx_task_matrix(), docx_blueprint_summary(), DocxBlueprintLine (+15 more)
+Cohesion: 0.21
+Nodes (14): Path, SourceAssetMaterializationRecord, ExplodingMaterializationStore, test_docx_supplement_records_local_protein_annotation_gap_without_api_dependency(), test_docx_task_matrix_maps_every_noncommercial_line_to_coverage_or_blocker(), test_docx_task_matrix_marks_restricted_predictors_launch_gated(), test_render_disk_gate_separates_current_runtime_from_full_stack(), test_source_asset_preflight_can_run_sanitized_materialization_probe() (+6 more)
 
 ### Community 590 - "Community 590"
 Cohesion: 0.12
@@ -2742,6 +2781,10 @@ Nodes (12): 0. What the real paper exposed, 1. The reframing (drives the design)
 Cohesion: 0.15
 Nodes (12): 10. Craft synthesis — impeccable + ui-ux-pro-max + frontend-design, 11. Verification, 1. Problem & intent, 2. UX guardrails (ui-ux-pro-max `ux` pass), 3. State model, 4. The toggle — top of the rail, 5. AI-mode body, 6. Account foot → icon, hidden in AI (+4 more)
 
+### Community 613 - "Community 613"
+Cohesion: 0.67
+Nodes (3): ArgumentParser, _build_arg_parser(), cli_main()
+
 ### Community 614 - "Community 614"
 Cohesion: 0.15
 Nodes (12): 1. Compact Coordinate Index, 2. Metadata Reconciliation, 3. Runtime Path Wiring, 4. Render Disk Seeding, 5. Local Evidence Gate, Backend Build Ledger Materialization Plan, Current State, Hard Gates (+4 more)
@@ -2775,8 +2818,8 @@ Cohesion: 0.15
 Nodes (12): Codex dependency lane (separate — blocks nothing in P0–P4), Phase 0 — Orphaned CSS fix (un-gated, prerequisite for P2's reflow)  ❌ SUPERSEDED (Comparator dropped — see REVISION at top), Phase 1 — Align offline mock fallback (un-gated, self-contained), Phase 2 — Comparator components, **UN-WIRED** (un-gated; the bulk of the work)  ❌ SUPERSEDED (Comparator dropped — see REVISION at top), Phase 3 — ⚠ GATED rail wiring (durable nav change — needs Steven OK before ship)  ❌ SUPERSEDED (no 5th rail tool — see REVISION at top), Phase 4 — ⚠ GATED AskEamos placeholder shell (optional this cycle — recommend deferring), Phase order (one line), Recommended first 3 steps (+4 more)
 
 ### Community 622 - "Community 622"
-Cohesion: 0.25
-Nodes (12): Any, _caid(), clingen_vcep_source_cache_key(), _first_caid(), _hgvs_token(), is_hero_example_variant(), _iter_text(), Return the CAR #3 ClinGen ERepo cache key with explicit precedence. (+4 more)
+Cohesion: 0.33
+Nodes (8): Path, Settings, main(), _extract_gzip_atomic(), _missing_pfam_indexes(), prepare_protein_annotation_runtime(), ProteinRuntimePreparationResult, _result()
 
 ### Community 623 - "Community 623"
 Cohesion: 0.17
@@ -2866,6 +2909,10 @@ Nodes (10): Approval Questions, CRISPR Off-Target Full-Index Runbook, Disk Layou
 Cohesion: 0.18
 Nodes (10): 1. Snapshot, 2. Findings, 3. 🟡 FLAGGED — needs Steven's OK (durable / structural / layout), 4. Quick wins (token-only, safe to ship now), ALIGN (`align/AlignPanel.tsx`, `AlignedTrace.tsx`, `PairwiseView.tsx`, `ReadRow.tsx`), CRISPR (`crispr/CrisprPanel.tsx`, `DesignTab.tsx`, `OffTargetTab.tsx`, `GuideTrack.tsx`, `IndelSpectrum.tsx`, `OutcomesTab.tsx`), CROSS-TOOL, Notes / non-issues (so they aren't "fixed") (+2 more)
 
+### Community 646 - "Community 646"
+Cohesion: 0.15
+Nodes (13): Protein View Replaces Exon Mode, full-locus-adapter, FullLocusViewer, Viewer Mode Toggle, Full Gene Row Renderer, Protein Lollipop Projection, ACMG Point Breakdown Contract, Frontend Backend Handshake (+5 more)
+
 ### Community 647 - "Community 647"
 Cohesion: 0.40
 Nodes (6): Dead Orphan Chrome And Raw Hex, Interpretability Set, Safe Batch Cleanup, Task A Three-Column Layout, Workbench Audit Synthesis, Quick Token Wins
@@ -2914,9 +2961,17 @@ Nodes (8): Batch VCF And Panels Implementation Plan, Coordination Notes, Task 1 
 Cohesion: 0.22
 Nodes (8): Batch VCF + Gene Panels — Build Runbook (Frontend), BUILDABLE-NOW lane (mock-first FE shell), CODEX-BLOCKED lane (real data lands later), How to read this runbook, Invariants (must stay green across all phases), Recommended first 3 steps (callout), Risks, Verify gate (every step) — `app/web` has NO test runner
 
+### Community 659 - "Community 659"
+Cohesion: 0.67
+Nodes (3): arginine, one_letter, three_letter
+
 ### Community 660 - "Community 660"
 Cohesion: 0.22
 Nodes (9): Implementation Phases, Phase 0: Registry And Policy Skeleton, Phase 0A: `hg38.2bit` Reference Proof, Phase 1: Restricted Annotation Field Filter, Phase 2: MyVariant gnomAD-Only Adapter, Phase 3: Local Identity Stores, Phase 4: Local Sequence And Transcript Layer, Phase 5: Object-Storage Runtime Proof (+1 more)
+
+### Community 661 - "Community 661"
+Cohesion: 0.29
+Nodes (7): Backend-First Batch Contract, Batch and Panel Schemas, Batch Upload and Polling Engine, Results Summary and Export Contract, Async Batch Job Engine, Batch FE-BE Contract, Cohort Results Dashboard
 
 ### Community 662 - "Community 662"
 Cohesion: 0.22
@@ -3130,6 +3185,10 @@ Nodes (8): Acceptance Criteria, Context, Goal, Out Of Scope, Proposed Approach, 
 Cohesion: 0.25
 Nodes (8): Acceptance Criteria, Context, Goal, Out Of Scope, Proposed Approach, Relevant Files, Task 15 - phyloP Conservation Reader Proof, Verify
 
+### Community 715 - "Community 715"
+Cohesion: 0.67
+Nodes (3): glutamate, one_letter, three_letter
+
 ### Community 717 - "Community 717"
 Cohesion: 0.25
 Nodes (7): Caveats, Current Examples, Current Verification, Local-First Source Model Workflows, Source Of Truth, What It Does, Why It Is Eamos-Original
@@ -3258,6 +3317,10 @@ Nodes (4): PubMed Local Adapter And Materialization Plan, Shared Decisions, Sour
 Cohesion: 0.60
 Nodes (3): Any, Path, _load_fixture_cached()
 
+### Community 750 - "Community 750"
+Cohesion: 0.67
+Nodes (3): histidine, one_letter, three_letter
+
 ### Community 751 - "Community 751"
 Cohesion: 0.50
 Nodes (3): app/, Subdirectories, Files
@@ -3266,29 +3329,65 @@ Nodes (3): app/, Subdirectories, Files
 Cohesion: 0.50
 Nodes (3): Development, app/, Subdirectories
 
+### Community 753 - "Community 753"
+Cohesion: 0.13
+Nodes (18): Path, Settings, main(), main(), ClinGenLocalInspection, ClinGenLocalMaterializationResult, ClinGenLocalStore, _connect_readonly() (+10 more)
+
 ### Community 754 - "Community 754"
 Cohesion: 0.50
 Nodes (3): Files, src/, Subdirectories
+
+### Community 765 - "Community 765"
+Cohesion: 0.40
+Nodes (3): FRIENDLY, ProvenanceNote(), ProvenanceNoteProps
 
 ### Community 766 - "Community 766"
 Cohesion: 0.44
 Nodes (11): ReportPayload, _call_card(), _population_card(), test_computational_card_does_not_upgrade_fallback_annotations_to_live(), test_computational_card_prefers_source_labeled_annotation_metrics(), test_lab_functional_card_status_includes_clingen_backed_evidence(), test_population_card_can_show_explicit_eamos_frequency_hint_badge(), test_population_card_distinguishes_bs1_frequency_label() (+3 more)
 
+### Community 767 - "Community 767"
+Cohesion: 0.40
+Nodes (5): domainPaletteColor(), domainPaletteKey(), featureColor(), hashString(), laneColor()
+
 ### Community 770 - "Community 770"
 Cohesion: 0.67
 Nodes (3): FE-5 — Sequence Viewer + click-to-edit, Session 15 — 15 May 2026 (continued), What's next
+
+### Community 782 - "Community 782"
+Cohesion: 0.50
+Nodes (4): clamp(), formatInt(), geneTrackWidth(), ReportGeneViewer()
 
 ### Community 787 - "Community 787"
 Cohesion: 0.67
 Nodes (3): cysteine, one_letter, three_letter
 
-### Community 803 - "Community 803"
-Cohesion: 0.67
-Nodes (3): glutamate, one_letter, three_letter
+### Community 788 - "Community 788"
+Cohesion: 0.50
+Nodes (4): featureLength(), isPointProteinFeature(), labelForFeatureWidth(), significantOverlap()
 
-### Community 804 - "Community 804"
+### Community 789 - "Community 789"
+Cohesion: 0.67
+Nodes (3): aspartate, one_letter, three_letter
+
+### Community 790 - "Community 790"
+Cohesion: 0.67
+Nodes (3): leucine, one_letter, three_letter
+
+### Community 791 - "Community 791"
 Cohesion: 0.67
 Nodes (3): proline, one_letter, three_letter
+
+### Community 792 - "Community 792"
+Cohesion: 0.67
+Nodes (3): duplicated, suffix, variant_class
+
+### Community 793 - "Community 793"
+Cohesion: 0.67
+Nodes (3): valine, one_letter, three_letter
+
+### Community 794 - "Community 794"
+Cohesion: 0.67
+Nodes (3): inserted, suffix, variant_class
 
 ## Ambiguous Edges - Review These
 - `M7 — Matrix overture` → `MatrixOverture Removal`  [AMBIGUOUS]
@@ -3301,9 +3400,9 @@ Nodes (3): proline, one_letter, three_letter
   docs/workspace-rail/illustrae-complement-design.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **4301 isolated node(s):** `APIRouter`, `Path`, `Path`, `ArgumentParser`, `ListingSource` (+4296 more)
+- **4314 isolated node(s):** `APIRouter`, `Path`, `Path`, `ArgumentParser`, `ListingSource` (+4309 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **107 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **111 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -3316,9 +3415,9 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Count Chip Visual Choice` and `Bare Section Meta Recommendation`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `Settings` connect `Orchestrator Provenance Context` to `Gene Viewer Snapshot`, `Gene Viewer Coordinate`, `Viewer Gene Full`, `Protein Annotation Assets`, `Design Crispr Screening`, `Fetch Clingen Source`, `Search Input Smoke`, `Source Cache Sections`, `Agents Prompts Prompt`, `Pdf Text Extract`, `Compact Index Coordinate`, `Crispr Real Sequence`, `Literature Retrieval Retrieve`, `Source Cache Fresh`, `Pubmed Local Edge`, `Community 795`, `Runtime Assets Sources`, `Local Evidence Orchestrator`, `Design Alignment Primer3`, `Local Alphamissense Esm1b`, `Handoff Agent Claude`, `Clingen Local Records`, `Tsx Web Callcardsgrid`, `Input Search Resolver`, `Litvar Pubmed Edges`, `Source Imports Clinical`, `Pubtator Pubmed Edges`, `Evidence Submissions Repo`, `Project Validate Coordinates`, `Web Tsx Reportclient`, `Tool Invariants Fixture`, `Trials Clinical Tools`, `Ssodnlabdonor Tsx Web`, `Community 576`, `Local Evidence Orchestrator`, `Pfam Materialization Cli`, `Auth Login Rejects`, `Demo Payload Encoding`, `Coordinate Asset Materialization`, `Pubmed Local Source`, `Paper Protein Mock`, `Community 589`, `Cache Source Key`, `Health Cache Provider`, `Run Repo Repos`, `Local Pubmed Gene`, `Functional Evidence Publication`, `Consensus Clinical Record`, `Tsx Web Variantheader`, `Runtime Predictor Alphamissense`, `Docx Blueprint Sources`, `Gnomad Tools Tool`, `Runtime Predictor Inspect`, `Reference Genome Validate`, `Search Integration Parse`, `Draft Render Agents`, `Sample Align Web`, `Community 749`, `Upload Rejects Extraction`, `Indexed Readers Source`, `Search Input Resolver`, `Conftest Path Auth`, `Cache Supabase Local`, `Source Asset Preflight`?**
-  _High betweenness centrality (0.104) - this node is a cross-community bridge._
-- **Why does `FastAPI` connect `Cache Supabase Local` to `Gene Viewer Snapshot`, `Supabase Local Cache`, `Gene Viewer Coordinate`, `Protein Annotation Assets`, `Design Crispr Screening`, `Viewer Gene Full`, `Batch Panels Vcf`, `Chat Smoke Cli`, `Source Cache Sections`, `Pdf Text Extract`, `Library Repo Repos`, `Community 789`, `Crispr Real Sequence`, `Run Orchestrator Clinical`, `Intake Reportuploadresponse Reportkind`, `Design Alignment Primer3`, `Handoff Agent Claude`, `Deps Core Supabase`, `Batch Panels Search`, `Evidence Submissions Repo`, `Project Validate Coordinates`, `Tsx Web Primerresultcard`, `Payments Plan Subscription`, `Source Cache Repo`, `Library Folder Repos`, `Local Evidence Orchestrator`, `Runs Run Draft`, `Health Cache Provider`, `Functional Evidence Publication`, `Tsx Web Variantheader`, `Crispr Design Align`, `Reference Genome Validate`, `Search Answer Searchanswerrequest`, `Paper Extract Resolve`, `Draft Render Agents`, `Auth Token Authuser`, `Library Folder Rate`, `Fixtures Search Input`, `Hg38 Asset Runtime`, `Readme Agent Handoff`, `Chat Run Recommendation`?**
+- **Why does `Settings` connect `Gene Viewer Coordinate` to `Alphamissense Adapter Local`, `Gene Viewer Snapshot`, `Viewer Gene Full`, `Protein Annotation Assets`, `Design Crispr Screening`, `Fetch Clingen Source`, `Search Input Smoke`, `Source Cache Sections`, `Agents Prompts Prompt`, `Pdf Text Extract`, `Compact Index Coordinate`, `Crispr Real Sequence`, `Literature Retrieval Retrieve`, `Run Orchestrator Clinical`, `Source Cache Fresh`, `Design Alignment Primer3`, `Runtime Assets Sources`, `Local Evidence Orchestrator`, `Orchestrator Provenance Context`, `Coordinate Resolver Transcript`, `Local Alphamissense Esm1b`, `Handoff Agent Claude`, `Claim Provenance Section`, `Clingen Local Records`, `Tsx Web Callcardsgrid`, `Litvar Pubmed Edges`, `Source Imports Clinical`, `Pubtator Pubmed Edges`, `Indexed Sources Validate`, `Evidence Submissions Repo`, `Project Validate Coordinates`, `Web Tsx Reportclient`, `Tool Invariants Fixture`, `Trials Clinical Tools`, `Ssodnlabdonor Tsx Web`, `Source Cache Repo`, `Community 576`, `Local Evidence Orchestrator`, `Pfam Materialization Cli`, `Demo Payload Encoding`, `Protein Runtime Prepare`, `Coordinate Asset Materialization`, `Pubmed Local Source`, `Paper Protein Mock`, `Community 589`, `Cache Source Key`, `Health Cache Provider`, `Run Repo Repos`, `Local Pubmed Gene`, `Functional Evidence Publication`, `Consensus Clinical Record`, `Tsx Web Variantheader`, `Runtime Predictor Alphamissense`, `Gnomad Tools Tool`, `Reference Genome Validate`, `Search Integration Parse`, `Press Cli Args`, `Community 747`, `Draft Render Agents`, `Sample Align Web`, `Community 622`, `Community 749`, `Indexed Readers Source`, `Community 753`, `Conftest Path Auth`, `Upload Rejects Extraction`, `Search Input Resolver`, `Cache Supabase Local`, `Source Asset Preflight`?**
+  _High betweenness centrality (0.106) - this node is a cross-community bridge._
+- **Why does `FastAPI` connect `Cache Supabase Local` to `Alphamissense Adapter Local`, `Gene Viewer Snapshot`, `Supabase Local Cache`, `Gene Viewer Coordinate`, `Protein Annotation Assets`, `Design Crispr Screening`, `Viewer Gene Full`, `Chat Smoke Cli`, `Pdf Text Extract`, `Library Repo Repos`, `Crispr Real Sequence`, `Intake Reportuploadresponse Reportkind`, `Design Alignment Primer3`, `Handoff Agent Claude`, `Deps Core Supabase`, `Batch Panels Search`, `Indexed Sources Validate`, `Evidence Submissions Repo`, `Paper Text Pdf`, `Run Flow Blocked`, `Project Validate Coordinates`, `Payments Plan Subscription`, `Local Evidence Orchestrator`, `Runs Run Draft`, `Functional Evidence Publication`, `Runtime Predictor Inspect`, `Search Answer Searchanswerrequest`, `Paper Extract Resolve`, `Draft Render Agents`, `Auth Token Authuser`, `Library Folder Rate`, `Community 498`, `Fixtures Search Input`, `Community 504`, `Chat Run Recommendation`?**
   _High betweenness centrality (0.025) - this node is a cross-community bridge._
-- **Why does `ReportPayload` connect `Runtime Predictor Inspect` to `Gene Viewer Paper`, `Fetch Clingen Source`, `Runs Run Draft`, `Frequency Section Population`, `Acmg Points Engine`, `Draft Render Agents`, `Source Cache Sections`, `Offtarget Crispr Index`, `Project Validate Coordinates`, `Hg38 Asset Runtime`, `Publication Literature Vlex`, `Source Cache Fresh`, `Source Cache Repo`, `Community 766`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+- **Why does `ReportPayload` connect `Run Orchestrator Clinical` to `Gene Viewer Paper`, `Runtime Predictor Inspect`, `Runs Run Draft`, `Frequency Section Population`, `Acmg Points Engine`, `Draft Render Agents`, `Community 492`, `Source Cache Sections`, `Indexed Sources Validate`, `Batch Panels Search`, `Project Validate Coordinates`, `Publication Literature Vlex`, `Community 766`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._

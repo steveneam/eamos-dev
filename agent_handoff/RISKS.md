@@ -68,27 +68,66 @@ working-tree code), ran the full backend pytest suite green, then committed/push
 deployed and live-verified. The request-reachable OOM/crash class is closed: the
 unauthenticated batch-upload gzip-bomb (A2) now returns 401; the USH2A protein path
 (A1) serves `cache_hit` with `allow_run=False` (no in-request hmmscan) at ~571 MB RSS
-(no spike toward the 2 GB cap). **A10 (FE viewer/heatmap virtualization) is the
-remaining request-reachable item; A11 infra + A12 build-time are still open.**
+(no spike toward the 2 GB cap). **✅ A10 (FE viewer/heatmap virtualization) SHIPPED
+2026-06-16 20:42 +1000 (commit `858a036`, FE-only; Vercel `dpl_5g1mV9EhYnz8i7cyrMwarnMw9KWr`):
+FullLocusViewer windowed + `.fl-scroller` bounded to an internal-scroll pane (RPE65 full-gene
+265→~54 rows mounted; CFTR/ABCA4 = same bounded path → no browser crash); AlphaMissense band
+→ ≤800 mean-score bins (was ~5,200 rect+title/residue); CodonDetail O(n²) scans → useMemo
+Set/Map; `onRestrictionSelect` → useCallback. tsc + eslint + 33/33 Node-equivalence + live
+browser verified. The request-reachable OOM/crash class (A1–A10) is now closed. **✅ A11
+(infra: instance + disk budget) CLOSED 2026-06-16 21:27 +1000 (Claude) — documentation +
+sizing decision; guards already enforced by A1/A2. Doc: `docs/stability-audit/a11-render-budget.md`.
+Decisions (grounded in measured prod RSS, not round numbers): KEEP Render Standard 2 GB (idle
+~0.57 GB / 2 GB ~27% post-A1–A9; hmmscan off the request path via cache-or-fail-closed +
+`BoundedSemaphore(1)` + `RLIMIT_AS` 1536 MB + residue cap 5000-safe-on-0; 20 MB upload + 20 MB
+gzip-decompress ceiling; batch registry LRU 128/256 TTL 3600s) — no upsize, no dedicated worker.
+KEEP the 60 GB disk: right-sized (NOT over-provisioned) for the local-first destination — durable
+Supabase already holds dbSNP ~29.6 GB + phyloP ~9.9 GB; full stack ~50–55 GB; currently ~5–6 GB
+(~10%) materialized; Render disks can't shrink. One residual (server-side viewer window-width
+ceiling is FE-only today) = Codex-lane follow-up, non-blocking. A12 (build-time/operator
+materialization memory) COMPLETE locally 2026-06-16 22:08 +1000 (Codex) - compact-index
+artifact rows stream, PubMed XML root-clears during iterparse, source-download/storage/
+AlphaMissense operator HTTP clients have finite streaming-safe timeouts, coordinate asset
+downloads use explicit 1 MiB chunks, RepeatMasker fixture/hash/index queries are bounded, and
+`SourceFieldPolicy.filter_payload()` fail-closes on depth/node budget. **✅ A2 polish + A12
+COMMITTED + DEPLOYED + PROD-VERIFIED 2026-06-16 22:30 +1000 (Claude commit-driver): code commit
+`a8710cf` (18 backend files), Render SG deploy `dep-d8ok50kvikkc73f8elhg` LIVE + verified
+(`/healthz` 200 mock, hmmer/AlphaMissense ready + gene_view/protein_pfam intact, A2 unauth batch
+upload → 401, memory ~126 MB fresh instance no spike, Vercel FE 200). Epic A A1–A12 + A11 infra is
+now fully shipped + on prod.**
 
-**A1–A9 polish (NON-BLOCKING residuals from Claude's review — follow-up, not a re-fix;
-all A1–A9 are functionally fixed):**
-- **A2** — in-process `_uploads`/`_jobs` dicts in `services/batch.py` are still unbounded
-  (audit's A2 also asked for LRU/TTL). Low exploitability now that auth + rate-limit gate
-  the route, but bound them (LRU/TTL) for a long-running instance.
-- **A4** — the `/health` compact-index route calls `inspect_compact_coordinate_index(...)`
-  without `load_records=False`, so it still triggers a *bounded+cached+locked* load instead
-  of metadata-only. Can't OOM (hard ceiling + `maxsize=2` + load lock), but pass
-  `load_records=False` on the health path for true metadata-only.
-- **A4** — `/lookup/parse` derives `resolve_coordinates=False` server-side + is rate-limited
-  but is NOT auth-gated (audit asked for auth to match `/search`). Heavy path is closed;
-  add auth only if the public parse box should require login (product call).
-- **A3** — `/lookup/summary` + `/lookup/sections` may still each call `lookup()` (redundant
-  *light* work now that the snapshot is cached; not the OOM amplifier). Optional: assemble
-  one `LookupResponse` and slice both from it.
-- **A8** — `save_variants` bulk-upsert batching and a couple of payload `max_length` caps
-  (ReportPayload list fields, screening-primer `le=50`) were not individually re-verified by
-  Claude; representative bounds are in place. Spot-confirm at leisure.
+**Epic A polish/residuals (follow-up, not a re-fix):**
+- **A2 - RESOLVED locally 2026-06-16 20:12 +1000 (Codex):** in-process
+  `_uploads`/`_jobs` in `services/batch.py` are now settings-backed bounded
+  ordered registries (`BATCH_UPLOAD_REGISTRY_MAX_ENTRIES`,
+  `BATCH_JOB_REGISTRY_MAX_ENTRIES`, `BATCH_REGISTRY_TTL_SECONDS`) with LRU
+  eviction + TTL pruning. Upload snapshots now stream JSONL writes instead of
+  building one joined string. Focused tests cover LRU and TTL expiry.
+- **A4 - VERIFIED locally 2026-06-16 20:12 +1000 (Codex):** the `/health`
+  compact-index path already passes `load_records=False`; `test_health_api.py`
+  includes a guard that fails if provider-cache health full-loads the compact index.
+- **A4 - PRODUCT DECISION LEFT OPEN:** `/lookup/parse` remains public,
+  server-derives `resolve_coordinates=False`, and is rate-limited. The heavy path
+  is closed; auth-gating the public parse box should be an explicit product call.
+- **A3 - OPTIONAL:** `/lookup/summary` + `/lookup/sections` may still each call
+  `lookup()` (redundant *light* work now that the snapshot is cached; not the OOM
+  amplifier). A shared cross-request `LookupResponse` assembly cache was not added
+  in the A2 polish pass because it is a broader behavior/cache-invalidation change.
+- **A8 - VERIFIED locally 2026-06-16 20:12 +1000 (Codex):** `save_variants`
+  bulk-upsert batching is covered for both SQLite and Supabase repos, and the
+  representative payload caps are present (`ReportPayload` list `max_length`
+  fields, screening-primer `sites` `max_length=50`). Focused API/repo/contract
+  tests are green.
+- **A12 - RESOLVED locally 2026-06-16 22:08 +1000 (Codex):** build-time/operator
+  materialization memory hazards are bounded without runtime/provider flips:
+  compact-coordinate-index artifact rows stream instead of accumulating the full
+  output row list; PubMed XML iterparse root-clears finished records; source
+  downloads, REST storage uploads, and AlphaMissense runtime materialization use
+  finite streaming-safe HTTP timeouts; coordinate asset materialization uses an
+  explicit 1 MiB chunk; RepeatMasker streams fixture rows and chunk-hashes files,
+  with per-contig `bisect` interval lookup; and `SourceFieldPolicy.filter_payload`
+  now fail-closes on depth/node budget. Focused pytest, py_compile, Ruff, Black,
+  diff-check, and `graphify update .` passed.
 
 **Verdict: SYSTEMIC.** The USH2A protein OOM was the acute instance of a repo-wide
 pattern — heavy compute / whole-asset reads / unbounded result sets executed

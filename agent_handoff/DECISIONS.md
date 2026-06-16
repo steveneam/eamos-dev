@@ -1,5 +1,22 @@
 # Agent Coordination Decisions
 
+## 2026-06-16: Tier 1 Materialization First
+
+Section edited: 2026-06-16 22:18 +1000 - Codex.
+
+Decision (Steven, 2026-06-16): after Epic A A12, prioritize the product-value
+Tier 1 materialization lane first: ClinGen local, PubMed local, and literature
+embeddings/RAG. Tier 2 predictor score caches and Tier 3 dbSNP/phyloP infra
+batch remain important, but Tier 1 should be the next materialization sequence
+unless Steven redirects.
+
+Rationale: Tier 1 is small relative to dbSNP/phyloP, unlocks visible evidence
+quality sooner, and can proceed alongside later infrastructure batching without
+replacing `docs/backend-build-ledger-runtime/materialization-plan.md`. Guardrails
+remain unchanged: materialize offline first, no startup downloads, no Supabase
+apply/provider flip without explicit approval, no `LOCAL_EVIDENCE_ENABLED` flip
+until the selected batch is verified.
+
 ## 2026-06-02: Render Plan Layout For Live Local-First Assets
 
 Section edited: 2026-06-02 01:44 +1000 - Claude (Steven-decided; Codex-verified).
