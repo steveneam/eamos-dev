@@ -18,6 +18,7 @@ from app.core.config import ensure_runtime_dirs, get_settings
 from app.core.db import build_session_factory, initialize_database
 from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import InMemoryRateLimiter
+from app.core.sentry import init_sentry
 from app.repos.reports_repo import ReportsRepo
 from app.repos.evidence_submissions_repo import (
     EvidenceSubmissionsRepo,
@@ -86,6 +87,7 @@ def create_app(settings=None) -> FastAPI:
     settings = settings or get_settings()
     ensure_runtime_dirs(settings)
     configure_logging(settings.debug)
+    init_sentry()
     db_session_factory = build_session_factory(settings.database_url)
 
     @asynccontextmanager
