@@ -1,17 +1,27 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import { CopyButton } from '@/components/ui/CopyButton'
 import type { BatchResult } from '@/lib/backend'
+import { sortByActionable, summarizeCohort } from '@/lib/batch-summary'
+import { CohortSummary } from './CohortSummary'
 
 /**
- * Server-computed batch results table. Rendered once a real /batch job completes
- * and returns BatchResult[] (gene · HGVS · ClinVar · ACMG · gnomAD AF · report
- * link) — distinct from the client-side scope preview (VariantTable), which
- * stands in offline / mock. Spec: Phase 1b live wiring.
+ * Server-computed batch results dashboard. Rendered once a real /batch job
+ * completes and returns BatchResult[]. Adds the cohort summary (spec §5.5b)
+ * above an actionable-first table: P/LP pinned to top, a post-lookup gnomAD-AF
+ * filter, and a TSV export. Distinct from the client-side scope preview
+ * (VariantTable) that stands in offline / mock.
  */
+
+const AF_OPTIONS: { label: string; value: number | null }[] = [
+  { label: 'All', value: null },
+  { label: '≤ 5%', value: 0.05 },
+  { label: '≤ 1%', value: 0.01 },
+  { label: '≤ 0.1%', value: 0.001 },
+]
 
 function verdictColor(v?: string | null): string {
   const s = (v ?? '').toLowerCase()
@@ -38,7 +48,7 @@ function escHtml(s: string): string {
 }
 
 function copyPayload(results: BatchResult[]): { html: string; text: string } {
-  const headers = ['Gene', 'HGVS (c.)', 'HGVS (p.)', 'ClinVar', 'ACMG', 'gnomAD AF']
+  const headers = ['Gene', 'HGVS (c.)', 'HGVS (p.)', 'ClinVar', 'ACMG', 'gnomAD AF', 'Variant key']
   const cells = results.map((r) => [
     r.gene ?? '',
     r.hgvs_c ?? r.variant_key,
@@ -46,6 +56,7 @@ function copyPayload(results: BatchResult[]): { html: string; text: string } {
     r.clinvar_verdict ?? '',
     r.acmg_classification ?? '',
     r.gnomad_af == null ? '' : String(r.gnomad_af),
+    r.variant_key,
   ])
   const text = [headers, ...cells].map((row) => row.join('\t')).join('\n')
   const thead = `<tr>${headers.map((h) => `<th>${escHtml(h)}</th>`).join('')}</tr>`
@@ -53,16 +64,112 @@ function copyPayload(results: BatchResult[]): { html: string; text: string } {
   return { html: `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`, text }
 }
 
-export function BatchResultsTable({ results }: { results: BatchResult[] }) {
-  const payload = useMemo(() => copyPayload(results), [results])
+function downloadTsv(results: BatchResult[]): void {
+  const { text } = copyPayload(results)
+  const blob = new Blob([text], { type: 'text/tab-separated-values;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `eamos-batch-${results.length}-variants.tsv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+export function BatchResultsTable({
+  results,
+  panelGenes,
+  panelLabel,
+}: {
+  results: BatchResult[]
+  /** Active panel gene symbols (union, any case) → panel-coverage card. */
+  panelGenes?: string[]
+  panelLabel?: string
+}) {
+  const [afMax, setAfMax] = useState<number | null>(null)
+
+  const summary = useMemo(() => summarizeCohort(results, panelGenes), [results, panelGenes])
+  const sorted = useMemo(() => sortByActionable(results), [results])
+  const visible = useMemo(
+    () => (afMax == null ? sorted : sorted.filter((r) => r.gnomad_af == null || r.gnomad_af <= afMax)),
+    [sorted, afMax],
+  )
+  const hidden = sorted.length - visible.length
+  const payload = useMemo(() => copyPayload(visible), [visible])
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>
-          {results.length} annotated · server-computed
-        </span>
-        <CopyButton text={payload} label="Copy results for spreadsheet" />
+      <CohortSummary summary={summary} panelLabel={panelLabel} />
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          marginBottom: 8,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>
+            {hidden > 0 ? `${visible.length} of ${sorted.length}` : `${sorted.length}`} annotated · server-computed
+          </span>
+          <span aria-hidden style={{ color: 'var(--line-2)' }}>·</span>
+          <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>gnomAD AF</span>
+          <div role="group" aria-label="Filter by gnomAD allele frequency" style={{ display: 'inline-flex', gap: 4 }}>
+            {AF_OPTIONS.map((opt) => {
+              const active = afMax === opt.value
+              return (
+                <button
+                  key={opt.label}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setAfMax(opt.value)}
+                  style={{
+                    padding: '3px 9px',
+                    borderRadius: 7,
+                    border: `0.5px solid ${active ? 'var(--teal-bdr)' : 'var(--line-2)'}`,
+                    background: active ? 'var(--teal-tint)' : 'var(--bg)',
+                    color: active ? 'var(--teal-deep)' : 'var(--ink-3)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontFamily: 'var(--mono)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CopyButton text={payload} label="Copy results for spreadsheet" />
+          <button
+            type="button"
+            onClick={() => downloadTsv(visible)}
+            disabled={visible.length === 0}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 11px',
+              borderRadius: 8,
+              border: '0.5px solid var(--line-2)',
+              background: 'var(--bg)',
+              color: 'var(--ink-2)',
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: visible.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: visible.length === 0 ? 0.5 : 1,
+            }}
+          >
+            <span aria-hidden>↓</span> Download TSV
+          </button>
+        </div>
       </div>
 
       <div style={{ maxHeight: 560, overflow: 'auto', border: '0.5px solid var(--line)', borderRadius: 14 }}>
@@ -79,7 +186,7 @@ export function BatchResultsTable({ results }: { results: BatchResult[] }) {
             </tr>
           </thead>
           <tbody>
-            {results.map((r, i) => {
+            {visible.map((r, i) => {
               const href = reportLink(r)
               return (
                 <tr key={`${r.variant_key}-${i}`} style={{ borderTop: '0.5px solid var(--line)' }}>

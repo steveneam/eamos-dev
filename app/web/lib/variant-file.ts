@@ -15,7 +15,9 @@ export interface ParsedVariant {
   query: string
 }
 
-const MAX_VARIANTS = 50
+// Client-parse cap for the small-file inline path. Sits under the backend's
+// BATCH_MAX_VARIANTS (5000); larger files negotiate a server-side upload+parse.
+const MAX_VARIANTS = 2000
 
 function clip(line: string): string {
   return line.length > 120 ? `${line.slice(0, 117)}…` : line

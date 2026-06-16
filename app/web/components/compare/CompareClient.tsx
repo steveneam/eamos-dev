@@ -190,7 +190,11 @@ export function CompareClient() {
                 ) : status === 'running' ? (
                   <LoadingCard />
                 ) : results && results.length > 0 ? (
-                  <BatchResultsTable results={results} />
+                  <BatchResultsTable
+                    results={results}
+                    panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                    panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                  />
                 ) : res.shown.length === 0 ? (
                   <EmptyScope
                     onClear={() => changeFilters([])}
