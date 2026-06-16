@@ -14,7 +14,7 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** ACTIVE @ 2026-06-16 19:34 +1000 - **Adversarially re-reviewed Codex's Epic A A1–A9 against `docs/stability-audit/findings.md` (read the working-tree code, not just the claims) — all nine substantively FIXED; request-reachable OOM/crash class closed.** A1 all 3 paths `allow_run=False` (hmmscan only via warmer/CLI) + semaphore + RLIMIT_AS; A2 batch upload auth+rate-limit+Content-Length reject+streaming gzip-bomb ceiling+variant cap; A3 snapshot cached/version-gated + `get_fresh` pure read (DELETE-on-read gone); A4 bounded index + lru key fix + lock + `/lookup/parse` server-derived `resolve_coordinates=False`; A5 shared `clinvar_vcv.py` capped-stream single-parse; A6 `verify_checksum=False` hot path + SQL GROUP BY health; A7 open-once per-worker asset memoization; A8 bounded result sets/payloads; A9 workflow/run-chat off-thread + deadlines + LRU index cache. Minor residuals (NOT OOM-class, follow-up not blocker): A2 `_uploads`/`_jobs` unbounded; A4 `/health` still bounded-loads (not metadata-only) + `/lookup/parse` no auth; A3 summary/sections may double-call lookup. **Full backend pytest suite GREEN (exit 0, 0 failures).** Now driving the coordinated commit → push → Render SG + Vercel deploy → live-verify per Steven (commit/push/deploy timing delegated to Claude). `LLM_PROVIDER=mock` held; no Supabase/provider flip; held files excluded.
+- **Claude:** IDLE @ 2026-06-16 19:46 +1000 - Epic A A1–A9 reviewed (all FIXED), committed `0a209a1`, pushed, deployed Render SG (`dep-d8ohirp194ac73c0nda0` live) + Vercel, prod-verified (USH2A `cache_hit`/248 feats ~571 MB; A2 unauth batch upload → 401). Detail: next-session doc + RISKS.md (A1–A9 SHIPPED + non-blocking polish). NEXT = A10 (FE viewer/heatmap virtualization). `LLM_PROVIDER=mock`; no Supabase/provider flip; held files excluded. A1 all 3 paths `allow_run=False` (hmmscan only via warmer/CLI) + semaphore + RLIMIT_AS; A2 batch upload auth+rate-limit+Content-Length reject+streaming gzip-bomb ceiling+variant cap; A3 snapshot cached/version-gated + `get_fresh` pure read (DELETE-on-read gone); A4 bounded index + lru key fix + lock + `/lookup/parse` server-derived `resolve_coordinates=False`; A5 shared `clinvar_vcv.py` capped-stream single-parse; A6 `verify_checksum=False` hot path + SQL GROUP BY health; A7 open-once per-worker asset memoization; A8 bounded result sets/payloads; A9 workflow/run-chat off-thread + deadlines + LRU index cache. Minor residuals (NOT OOM-class, follow-up not blocker): A2 `_uploads`/`_jobs` unbounded; A4 `/health` still bounded-loads (not metadata-only) + `/lookup/parse` no auth; A3 summary/sections may double-call lookup. **Full backend pytest suite GREEN (exit 0, 0 failures).** Now driving the coordinated commit → push → Render SG + Vercel deploy → live-verify per Steven (commit/push/deploy timing delegated to Claude). `LLM_PROVIDER=mock` held; no Supabase/provider flip; held files excluded.
 
 
 - **Codex:** IDLE @ 2026-06-16 18:44 +1000 - **Epic A A9 completed locally and verified; no push/deploy.** Workflow/run-chat/search-input heavy-path hardening is done; Claude owns the safe overall commit, push, and deploy before A10 per Steven.
@@ -362,6 +362,26 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
+**Latest (2026-06-16 19:46 +1000 - Claude - Epic A A1–A9 shipped + prod-verified):**
+Adversarially re-reviewed Codex's Epic A A1–A9 against `docs/stability-audit/findings.md`
+(read the working-tree code, not the claims) → all nine substantively FIXED; ran the full
+backend pytest suite GREEN (exit 0); committed `0a209a1` (explicit pathspecs; held files
+excluded; graphify refresh + Codex archive files + new `clinvar_vcv.py`/test included),
+pushed, deployed Render SG (`dep-d8ohirp194ac73c0nda0` live) + Vercel (FE 200), and
+live-verified prod GREEN (USH2A `cache_hit`/248 features at ~571 MB; A2 unauth batch upload
+→ 401). Minor non-blocking residuals logged in RISKS.md (Codex follow-up, NOT a re-fix).
+NEXT = A10 (FE viewer/heatmap virtualization). Resume prompt at the bottom of this section.
+
+**Resume prompt:**
+```
+# Resume prompt - 2026-06-16 19:46 +1000 - Claude (Epic A A1–A9 shipped+verified → A10 next)
+Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — top "✅ EPIC A A1–A9 SHIPPED" section) + agent_handoff/CURRENT.md (## Active Status, ## Log Edit-Lock, ## Cross-Agent Requests) + agent_handoff/RISKS.md ("Backend Stability — Systemic OOM-Class Findings": A1–A9 SHIPPED banner + the non-blocking A1–A9 polish residuals) + docs/stability-audit/findings.md (frontend-report-viewer-1/4 for A10). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
+Context: Codex authored Epic A A1–A9 (backend OOM-class hardening). Claude adversarially re-reviewed all nine (all FIXED), ran backend pytest GREEN, committed 0a209a1, pushed, deployed Render SG + Vercel, live-verified prod (USH2A cache_hit/248 feats ~571MB; A2 unauth batch upload → 401). All A1–A9 are fixed — do NOT re-fix; RISKS.md lists optional non-blocking polish for Codex.
+Task: A10 (Claude/FE) — virtualize app/web/components/workbench/viewer/FullLocusViewer.tsx (one <span>/base → browser crash on CFTR/ABCA4/USH2A) + the AlphaMissense heatmap in app/web/components/report/ReportGeneViewer.tsx (one rect+title/residue); fix the O(n²) per-render scans (window-string rebuild + flat.findIndex per base; memo defeated by inline onRestrictionSelect → useCallback). Use the UI/UX 3-skill rule. Browser-verify: windowed rendering, no hang on a long gene, pin/zoom/selection still work. Then A11 (infra, shared) + A12 (Codex, build-time).
+Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; LLM stays mock; no Supabase apply/provider flip; held files stay excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); coordinate via Log Edit-Lock + Shared File Locks; deploy from repo root never app/web; Render MCP: call list_workspaces once at session start so get_metrics works. End clear-safe.
+```
+
+<!-- history below: 1e86a78 deploy-recovery + incident (now resolved; A1–A9 superseded it) -->
 **Latest (2026-06-15 22:16 +1000 - Claude - deploy recovery + OPEN prod incident):**
 Recovered the dropped-webhook Vercel deploy of Codex's `1e86a78`, then discovered `1e86a78`
 is a degraded prod release.

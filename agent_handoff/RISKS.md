@@ -61,6 +61,35 @@ Section added: 2026-06-16 00:59 +1000 · Claude (from the multi-agent adversaria
 stability/memory audit, run `wf_476b5cd6-83c`, 35 agents; full report
 `docs/stability-audit/findings.md`). **Owner: Codex (backend lane); Claude owns A10 (FE).**
 
+**✅ A1–A9 SHIPPED + PROD-VERIFIED 2026-06-16 19:46 +1000 (commit `0a209a1`, Render SG
+deploy `dep-d8ohirp194ac73c0nda0` live; Vercel FE 200).** Codex authored the backend
+fixes; Claude adversarially re-reviewed all nine against the audit (read the
+working-tree code), ran the full backend pytest suite green, then committed/pushed/
+deployed and live-verified. The request-reachable OOM/crash class is closed: the
+unauthenticated batch-upload gzip-bomb (A2) now returns 401; the USH2A protein path
+(A1) serves `cache_hit` with `allow_run=False` (no in-request hmmscan) at ~571 MB RSS
+(no spike toward the 2 GB cap). **A10 (FE viewer/heatmap virtualization) is the
+remaining request-reachable item; A11 infra + A12 build-time are still open.**
+
+**A1–A9 polish (NON-BLOCKING residuals from Claude's review — follow-up, not a re-fix;
+all A1–A9 are functionally fixed):**
+- **A2** — in-process `_uploads`/`_jobs` dicts in `services/batch.py` are still unbounded
+  (audit's A2 also asked for LRU/TTL). Low exploitability now that auth + rate-limit gate
+  the route, but bound them (LRU/TTL) for a long-running instance.
+- **A4** — the `/health` compact-index route calls `inspect_compact_coordinate_index(...)`
+  without `load_records=False`, so it still triggers a *bounded+cached+locked* load instead
+  of metadata-only. Can't OOM (hard ceiling + `maxsize=2` + load lock), but pass
+  `load_records=False` on the health path for true metadata-only.
+- **A4** — `/lookup/parse` derives `resolve_coordinates=False` server-side + is rate-limited
+  but is NOT auth-gated (audit asked for auth to match `/search`). Heavy path is closed;
+  add auth only if the public parse box should require login (product call).
+- **A3** — `/lookup/summary` + `/lookup/sections` may still each call `lookup()` (redundant
+  *light* work now that the snapshot is cached; not the OOM amplifier). Optional: assemble
+  one `LookupResponse` and slice both from it.
+- **A8** — `save_variants` bulk-upsert batching and a couple of payload `max_length` caps
+  (ReportPayload list fields, screening-primer `le=50`) were not individually re-verified by
+  Claude; representative bounds are in place. Spot-confirm at leisure.
+
 **Verdict: SYSTEMIC.** The USH2A protein OOM was the acute instance of a repo-wide
 pattern — heavy compute / whole-asset reads / unbounded result sets executed
 synchronously on the FastAPI request thread — confirmed across ~8 subsystems.
