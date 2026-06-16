@@ -19,6 +19,12 @@ DEFAULT_TARGET_PATH = Path(
 )
 DEFAULT_EXPECTED_SIZE_BYTES = 642_961_469
 DEFAULT_EXPECTED_MD5 = "9fd167735f16a1b87da6eb3e4c25fcb5"
+ALPHAMISSENSE_DOWNLOAD_TIMEOUT = httpx.Timeout(
+    connect=30.0,
+    read=120.0,
+    write=120.0,
+    pool=30.0,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -151,7 +157,7 @@ def _download(
     final_url = source_url
     with httpx.Client(
         follow_redirects=True,
-        timeout=None,
+        timeout=ALPHAMISSENSE_DOWNLOAD_TIMEOUT,
         headers={"User-Agent": "Eamos-alphamissense-materializer/1.0"},
     ) as client:
         with client.stream("GET", source_url) as response:

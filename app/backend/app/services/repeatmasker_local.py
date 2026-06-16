@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Mapping
+from typing import Iterable, Mapping
 
 from app.core.paths import find_project_root, repo_relative_path
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
@@ -75,7 +75,7 @@ class RepeatMaskerLocalStore:
         self._rmsk_path = rmsk_path or DEFAULT_REPEATMASKER_FIXTURE_PATH
         self._provenance = _source_provenance(self._rmsk_path, registry)
         self._table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
-            _read_fixture_lines(self._rmsk_path)
+            _iter_fixture_lines(self._rmsk_path)
         )
 
     def provenance(self) -> RepeatMaskerLocalProvenance:
@@ -137,9 +137,10 @@ def _source_provenance(
     )
 
 
-def _read_fixture_lines(path: Path) -> list[str]:
+def _iter_fixture_lines(path: Path) -> Iterable[str]:
     try:
-        return path.read_text(encoding="utf-8").splitlines()
+        with path.open("r", encoding="utf-8") as handle:
+            yield from handle
     except OSError as exc:
         raise RepeatMaskerLocalError(
             "fixture_unavailable",
@@ -149,7 +150,11 @@ def _read_fixture_lines(path: Path) -> list[str]:
 
 
 def _sha256_file(path: Path) -> str:
-    return sha256(path.read_bytes()).hexdigest()
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _repo_relative_path(path: Path) -> str:

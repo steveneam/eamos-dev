@@ -23,6 +23,12 @@ S3_READ_TIMEOUT_SECONDS = 300
 S3_RETRY_ATTEMPTS = 10
 S3_MULTIPART_CHUNK_BYTES = 128 * 1024 * 1024
 S3_MULTIPART_MAX_CONCURRENCY = 3
+REST_UPLOAD_TIMEOUT = httpx.Timeout(
+    connect=S3_CONNECT_TIMEOUT_SECONDS,
+    read=S3_READ_TIMEOUT_SECONDS,
+    write=S3_READ_TIMEOUT_SECONDS,
+    pool=S3_CONNECT_TIMEOUT_SECONDS,
+)
 
 
 class SourceStorageUploadStatus(str, Enum):
@@ -156,7 +162,7 @@ def execute_source_storage_uploads(
     resolved_upload_mode = SourceStorageUploadMode(upload_mode)
     owns_client = client is None and resolved_upload_mode is SourceStorageUploadMode.REST
     if client is None and resolved_upload_mode is SourceStorageUploadMode.REST:
-        client = httpx.Client(timeout=None)
+        client = httpx.Client(timeout=REST_UPLOAD_TIMEOUT)
     try:
         resolved = tuple(
             _execute_item(

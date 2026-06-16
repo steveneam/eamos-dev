@@ -133,6 +133,45 @@ def test_source_download_execute_writes_manifest_with_sanitized_final_url(
     assert "token" not in manifest["final_url_sanitized"]
 
 
+def test_source_download_default_client_uses_finite_streaming_timeout(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class DummyClient:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+
+        def close(self) -> None:
+            captured["closed"] = True
+
+    item = SourceDownloadItem(
+        source_id="test_source",
+        display_name="Test Source",
+        asset_id="test_asset",
+        url="https://example.test/source.bin",
+        destination=tmp_path / "source.bin",
+        large_asset=False,
+        expected_size_bytes=None,
+        role="test_role",
+        download_allowed=True,
+        status=SourceDownloadStatus.PLANNED,
+    )
+
+    monkeypatch.setattr("app.services.source_downloads.httpx.Client", DummyClient)
+
+    execute_source_downloads((item,), download=False)
+
+    timeout = captured["timeout"]
+    assert isinstance(timeout, httpx.Timeout)
+    assert timeout.connect is not None
+    assert timeout.read is not None
+    assert timeout.write is not None
+    assert timeout.pool is not None
+    assert captured["closed"] is True
+
+
 def test_source_download_execute_resumes_existing_part_file(tmp_path: Path) -> None:
     destination = tmp_path / "source.bin"
     temp_path = destination.with_name(".source.bin.part")

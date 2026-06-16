@@ -106,6 +106,44 @@ def test_storage_upload_requires_credentials_without_network(tmp_path: Path) -> 
     assert result.items[0].status is SourceStorageUploadStatus.CREDENTIALS_MISSING
 
 
+def test_storage_upload_rest_default_client_uses_finite_timeout(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "source_assets"
+    asset = root / "gencc_download" / "gencc-download.csv"
+    asset.parent.mkdir(parents=True)
+    asset.write_text("uuid,gene_symbol\n", encoding="utf-8")
+    asset.with_suffix(asset.suffix + ".manifest.json").write_text(
+        json.dumps({"md5": "a" * 32, "sha256": "d" * 64}),
+        encoding="utf-8",
+    )
+    [item] = build_source_storage_upload_items(
+        source_ids=("gencc_download",),
+        small_staging_root=root,
+    )
+    captured: dict[str, object] = {}
+
+    class DummyClient:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+
+        def close(self) -> None:
+            captured["closed"] = True
+
+    monkeypatch.setattr("app.services.source_storage_uploads.httpx.Client", DummyClient)
+
+    execute_source_storage_uploads([item], upload=False)
+
+    timeout = captured["timeout"]
+    assert isinstance(timeout, httpx.Timeout)
+    assert timeout.connect is not None
+    assert timeout.read is not None
+    assert timeout.write is not None
+    assert timeout.pool is not None
+    assert captured["closed"] is True
+
+
 def test_storage_upload_s3_multipart_requires_credentials_without_network(
     tmp_path: Path,
 ) -> None:

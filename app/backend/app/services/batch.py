@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from time import monotonic
 from typing import Iterable, Protocol
 from uuid import uuid4
 from urllib.parse import unquote
@@ -20,6 +23,9 @@ from app.services.panels import PanelService
 from app.services.vcf_ingest import DEFAULT_MAX_DECOMPRESSED_BYTES, parse_vcf_upload_bytes
 
 BATCH_EST_SECONDS_PER_LOOKUP = 0.25
+BATCH_DEFAULT_UPLOAD_REGISTRY_MAX_ENTRIES = 128
+BATCH_DEFAULT_JOB_REGISTRY_MAX_ENTRIES = 256
+BATCH_DEFAULT_REGISTRY_TTL_SECONDS = 60 * 60
 
 
 class BatchCoordinateResolver(Protocol):
@@ -31,6 +37,7 @@ class StoredUpload:
     upload_ref: str
     filename: str | None
     variants: list[ParsedVariant]
+    created_at_monotonic: float
     warnings: list[str] = field(default_factory=list)
     skipped_rows: int = 0
 
@@ -39,6 +46,7 @@ class StoredUpload:
 class StoredBatchJob:
     job_id: str
     status: str
+    created_at_monotonic: float
     n_input: int
     n_to_lookup: int
     n_after_filters: int | None
@@ -56,13 +64,27 @@ class BatchService:
         upload_dir: Path,
         panel_service: PanelService,
         coordinate_resolver: BatchCoordinateResolver | None = None,
+        max_upload_entries: int = BATCH_DEFAULT_UPLOAD_REGISTRY_MAX_ENTRIES,
+        max_job_entries: int = BATCH_DEFAULT_JOB_REGISTRY_MAX_ENTRIES,
+        entry_ttl_seconds: int = BATCH_DEFAULT_REGISTRY_TTL_SECONDS,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         self.upload_dir = upload_dir / "batch"
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.panel_service = panel_service
         self.coordinate_resolver = coordinate_resolver
-        self._uploads: dict[str, StoredUpload] = {}
-        self._jobs: dict[str, StoredBatchJob] = {}
+        self._max_upload_entries = _positive_int_or_default(
+            max_upload_entries,
+            BATCH_DEFAULT_UPLOAD_REGISTRY_MAX_ENTRIES,
+        )
+        self._max_job_entries = _positive_int_or_default(
+            max_job_entries,
+            BATCH_DEFAULT_JOB_REGISTRY_MAX_ENTRIES,
+        )
+        self._entry_ttl_seconds = max(0, int(entry_ttl_seconds))
+        self._clock = clock or monotonic
+        self._uploads: OrderedDict[str, StoredUpload] = OrderedDict()
+        self._jobs: OrderedDict[str, StoredBatchJob] = OrderedDict()
 
     def store_upload(
         self,
@@ -72,6 +94,7 @@ class BatchService:
         max_decompressed_bytes: int = DEFAULT_MAX_DECOMPRESSED_BYTES,
         max_variants: int = BATCH_MAX_VARIANTS,
     ) -> str:
+        self._prune_registries()
         upload_ref = f"batch-upload-{uuid4().hex[:12]}"
         parsed = parse_vcf_upload_bytes(
             payload,
@@ -83,14 +106,17 @@ class BatchService:
             upload_ref=upload_ref,
             filename=filename,
             variants=parsed.variants,
+            created_at_monotonic=self._clock(),
             warnings=parsed.warnings,
             skipped_rows=parsed.skipped_rows,
         )
         self._uploads[upload_ref] = stored
+        self._trim_registry(self._uploads, max_entries=self._max_upload_entries)
         self._write_upload_snapshot(stored)
         return upload_ref
 
     def create_job(self, request: BatchCreateRequest) -> BatchCreateResponse:
+        self._prune_registries()
         variants, warnings = self._request_variants(request)
         filtered, filter_warnings = self._apply_prelookup_filters(variants, request.filters)
         warnings.extend(filter_warnings)
@@ -103,6 +129,7 @@ class BatchService:
         job = StoredBatchJob(
             job_id=job_id,
             status="completed",
+            created_at_monotonic=self._clock(),
             n_input=len(variants),
             n_to_lookup=len(deduped),
             n_after_filters=len(results),
@@ -113,6 +140,7 @@ class BatchService:
             warnings=warnings,
         )
         self._jobs[job_id] = job
+        self._trim_registry(self._jobs, max_entries=self._max_job_entries)
         return BatchCreateResponse(
             job_id=job_id,
             n_input=job.n_input,
@@ -121,9 +149,11 @@ class BatchService:
         )
 
     def get_job(self, job_id: str, *, limit: int, cursor: str | None = None) -> BatchJob | None:
+        self._prune_registries()
         job = self._jobs.get(job_id)
         if job is None:
             return None
+        self._jobs.move_to_end(job_id)
         offset = _cursor_offset(cursor)
         page_results = job.results[offset : offset + limit]
         next_offset = offset + len(page_results)
@@ -150,6 +180,7 @@ class BatchService:
         upload = self._uploads.get(request.upload_ref or "")
         if upload is None:
             raise KeyError(request.upload_ref or "")
+        self._uploads.move_to_end(request.upload_ref or "")
         warnings = list(upload.warnings)
         if upload.skipped_rows:
             warnings.append(f"upload_skipped_rows:{upload.skipped_rows}")
@@ -190,10 +221,38 @@ class BatchService:
 
     def _write_upload_snapshot(self, upload: StoredUpload) -> None:
         snapshot = self.upload_dir / f"{upload.upload_ref}.json"
-        snapshot.write_text(
-            "\n".join(variant.model_dump_json() for variant in upload.variants) + "\n",
-            encoding="utf-8",
-        )
+        with snapshot.open("w", encoding="utf-8") as handle:
+            for variant in upload.variants:
+                handle.write(variant.model_dump_json())
+                handle.write("\n")
+
+    def _prune_registries(self) -> None:
+        if self._entry_ttl_seconds <= 0:
+            return
+        expires_before = self._clock() - self._entry_ttl_seconds
+        self._prune_expired(self._uploads, expires_before=expires_before)
+        self._prune_expired(self._jobs, expires_before=expires_before)
+
+    @staticmethod
+    def _prune_expired(
+        registry: OrderedDict[str, StoredUpload] | OrderedDict[str, StoredBatchJob],
+        *,
+        expires_before: float,
+    ) -> None:
+        expired = [
+            key for key, value in registry.items() if value.created_at_monotonic < expires_before
+        ]
+        for key in expired:
+            registry.pop(key, None)
+
+    @staticmethod
+    def _trim_registry(
+        registry: OrderedDict[str, StoredUpload] | OrderedDict[str, StoredBatchJob],
+        *,
+        max_entries: int,
+    ) -> None:
+        while len(registry) > max_entries:
+            registry.popitem(last=False)
 
     def _result_from_variant(self, variant: ParsedVariant) -> BatchResult:
         resolved_variant_key: str | None = None
@@ -316,3 +375,11 @@ def _cursor_offset(cursor: str | None) -> int:
     except ValueError:
         return 0
     return max(0, offset)
+
+
+def _positive_int_or_default(value: int, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default

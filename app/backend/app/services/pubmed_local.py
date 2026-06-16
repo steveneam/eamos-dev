@@ -1507,19 +1507,30 @@ def _parse_pubmed_xml(
     pmc_license_map: dict[str, dict[str, str]],
 ) -> Iterable[dict[str, Any]]:
     with _open_binary(path) as handle:
-        context = ET.iterparse(handle, events=("end",))
-        for _event, elem in context:
+        context = ET.iterparse(handle, events=("start", "end"))
+        root: ET.Element | None = None
+        for event, elem in context:
+            if event == "start":
+                if root is None:
+                    root = elem
+                continue
             if elem.tag == "PubmedArticle":
                 article = _article_from_pubmed_xml(elem, source_version=source_version)
                 if article is not None:
                     yield _apply_pmc_license_overlay(article, pmc_license_map)
-                elem.clear()
+                _clear_parsed_xml_element(elem, root)
             elif elem.tag == "DeleteCitation":
                 for pmid_el in elem.findall(".//PMID"):
                     pmid = (pmid_el.text or "").strip()
                     if re.fullmatch(r"\d{1,9}", pmid):
                         yield _deleted_article(pmid, source_version=source_version)
-                elem.clear()
+                _clear_parsed_xml_element(elem, root)
+
+
+def _clear_parsed_xml_element(elem: ET.Element, root: ET.Element | None) -> None:
+    elem.clear()
+    if root is not None and root is not elem:
+        root.clear()
 
 
 def _article_from_pubmed_xml(elem: ET.Element, *, source_version: str) -> dict[str, Any] | None:

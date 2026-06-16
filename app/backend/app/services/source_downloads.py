@@ -79,6 +79,12 @@ DEFAULT_LARGE_STAGING_ROOT = (
     if os.name == "nt"
     else Path(__file__).resolve().parents[2] / "data" / "source_assets_large"
 )
+SOURCE_DOWNLOAD_TIMEOUT = httpx.Timeout(
+    connect=30.0,
+    read=120.0,
+    write=120.0,
+    pool=30.0,
+)
 
 
 SOURCE_DOWNLOAD_FILE_SPECS: tuple[SourceDownloadFileSpec, ...] = (
@@ -324,7 +330,7 @@ def execute_source_downloads(
     if client is None:
         client = httpx.Client(
             follow_redirects=True,
-            timeout=None,
+            timeout=SOURCE_DOWNLOAD_TIMEOUT,
             headers={"User-Agent": "Eamos-source-downloader/1.0"},
         )
     try:

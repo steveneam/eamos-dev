@@ -192,6 +192,9 @@ def create_app(settings=None) -> FastAPI:
         upload_dir=settings.upload_dir,
         panel_service=panel_service,
         coordinate_resolver=runtime_coordinate_resolver,
+        max_upload_entries=settings.batch_upload_registry_max_entries,
+        max_job_entries=settings.batch_job_registry_max_entries,
+        entry_ttl_seconds=settings.batch_registry_ttl_seconds,
     )
 
     app.state.settings = settings

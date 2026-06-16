@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from importlib import metadata as importlib_metadata
 import math
@@ -531,15 +532,29 @@ class RepeatMaskerIndexedTable:
     """Deterministic RepeatMasker interval index from UCSC rmsk.txt-style rows."""
 
     def __init__(self, intervals: Iterable[RepeatMaskerInterval]) -> None:
-        self._intervals = tuple(
+        sorted_intervals = tuple(
             sorted(intervals, key=lambda item: (item.chrom, item.start, item.end))
         )
-        if not self._intervals:
+        if not sorted_intervals:
             raise IndexedSourceError(
                 "empty_repeatmasker_index",
                 "RepeatMasker interval index has no records",
             )
-        self._contigs = tuple(dict.fromkeys(interval.chrom for interval in self._intervals))
+        intervals_by_contig: dict[str, list[RepeatMaskerInterval]] = {}
+        for interval in sorted_intervals:
+            intervals_by_contig.setdefault(interval.chrom, []).append(interval)
+        self._intervals_by_contig = {
+            contig: tuple(items) for contig, items in intervals_by_contig.items()
+        }
+        self._starts_by_contig = {
+            contig: tuple(item.start for item in items)
+            for contig, items in self._intervals_by_contig.items()
+        }
+        self._max_span_by_contig = {
+            contig: max(item.end - item.start + 1 for item in items)
+            for contig, items in self._intervals_by_contig.items()
+        }
+        self._contigs = tuple(self._intervals_by_contig)
         self._alias_to_contig = _build_alias_map(self._contigs)
 
     @classmethod
@@ -549,10 +564,14 @@ class RepeatMaskerIndexedTable:
     def query(self, chrom: str, start: int, end: int) -> tuple[RepeatMaskerInterval, ...]:
         contig = self._normalize_contig(chrom)
         _validate_interval(contig, start, end)
+        intervals = self._intervals_by_contig[contig]
+        starts = self._starts_by_contig[contig]
+        max_span = self._max_span_by_contig[contig]
+        lower_start = max(1, start - max_span + 1)
+        lower_index = bisect_left(starts, lower_start)
+        upper_index = bisect_right(starts, end)
         return tuple(
-            interval
-            for interval in self._intervals
-            if interval.chrom == contig and interval.start <= end and interval.end >= start
+            interval for interval in intervals[lower_index:upper_index] if interval.end >= start
         )
 
     def _normalize_contig(self, chrom: str) -> str:

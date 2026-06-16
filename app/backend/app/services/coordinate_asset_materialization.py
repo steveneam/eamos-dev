@@ -12,6 +12,8 @@ import httpx
 
 from app.core.config import Settings
 
+COORDINATE_ASSET_DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+
 
 @dataclass(frozen=True)
 class CoordinateAssetMaterializationItem:
@@ -314,7 +316,7 @@ def _download_asset(
                 raise _CoordinateAssetMaterializationError("source_object_missing")
             if response.status_code < 200 or response.status_code >= 300:
                 raise _CoordinateAssetMaterializationError("source_object_download_failed")
-            for chunk in response.iter_bytes():
+            for chunk in response.iter_bytes(chunk_size=COORDINATE_ASSET_DOWNLOAD_CHUNK_BYTES):
                 if not chunk:
                     continue
                 destination.write(chunk)

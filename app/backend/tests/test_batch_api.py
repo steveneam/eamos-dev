@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from app.schemas.batch import BatchCreateRequest, ParsedVariant
 from app.services.batch import BatchService
 from app.services.panels import PanelService
 from app.services.search_input_resolver import build_runtime_coordinate_resolver
@@ -179,9 +182,71 @@ def test_batch_unknown_upload_ref_returns_404(client) -> None:
     assert response.status_code == 404
 
 
+def test_batch_service_bounds_upload_and_job_registries(tmp_path: Path) -> None:
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        max_upload_entries=1,
+        max_job_entries=1,
+    )
+
+    first_upload = service.store_upload(_valid_vcf().encode("utf-8"), filename="first.vcf")
+    second_upload = service.store_upload(_valid_vcf().encode("utf-8"), filename="second.vcf")
+
+    with pytest.raises(KeyError):
+        service.create_job(BatchCreateRequest(upload_ref=first_upload))
+
+    created_from_upload = service.create_job(BatchCreateRequest(upload_ref=second_upload))
+    first_job = service.create_job(
+        BatchCreateRequest(variants=[_parsed_variant("first-job", pos=11)])
+    ).job_id
+    second_job = service.create_job(
+        BatchCreateRequest(variants=[_parsed_variant("second-job", pos=12)])
+    ).job_id
+
+    assert service.get_job(created_from_upload.job_id, limit=100) is None
+    assert service.get_job(first_job, limit=100) is None
+    assert service.get_job(second_job, limit=100) is not None
+
+
+def test_batch_service_expires_stale_uploads_and_jobs(tmp_path: Path) -> None:
+    now = 0.0
+
+    def clock() -> float:
+        return now
+
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        entry_ttl_seconds=60,
+        clock=clock,
+    )
+    upload_ref = service.store_upload(_valid_vcf().encode("utf-8"), filename="stale.vcf")
+    created = service.create_job(BatchCreateRequest(variants=[_parsed_variant("stale-job")]))
+
+    now = 61.0
+
+    with pytest.raises(KeyError):
+        service.create_job(BatchCreateRequest(upload_ref=upload_ref))
+    assert service.get_job(created.job_id, limit=100) is None
+
+
 def _valid_vcf() -> str:
     return (
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
+    )
+
+
+def _parsed_variant(query: str, *, pos: int = 10) -> ParsedVariant:
+    return ParsedVariant(
+        query=query,
+        chrom="1",
+        pos=pos,
+        ref="A",
+        alt="C",
+        gene="BRCA1",
+        variant="c.1A>C",
+        filter="PASS",
     )

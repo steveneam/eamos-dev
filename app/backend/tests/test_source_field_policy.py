@@ -147,3 +147,20 @@ def test_internal_fixture_without_warning_still_filters_restricted_examples() ->
         )
         == {}
     )
+
+
+def test_filter_payload_fails_closed_when_depth_bound_exceeded() -> None:
+    policy = SourceFieldPolicy(max_filter_depth=1)
+    payload = {"gnomad_genome": {"af": 0.001}}
+
+    assert policy.filter_payload("myvariant_gnomad_only", payload) == {}
+
+
+def test_filter_payload_fails_closed_when_node_bound_exceeded() -> None:
+    policy = SourceFieldPolicy(max_filter_nodes=2)
+    payload = {
+        "gnomad_genome": {"af": 0.001},
+        "gnomad_exome": {"af": 0.002},
+    }
+
+    assert policy.filter_payload("myvariant_gnomad_only", payload) == {}

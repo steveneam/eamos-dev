@@ -97,24 +97,16 @@ def build_compact_coordinate_index(
     )
     merged = _merge_transcript_sources(*source_records)
 
-    rows: list[dict[str, Any]] = [
-        _metadata_row(
-            artifact_version=artifact_version or _default_artifact_version(),
-            genome_build=genome_build,
-            source_ids=source_ids,
-            generated_at=generated_at,
-        )
-    ]
-    for gene in sorted(merged):
-        for record in sorted(merged[gene], key=lambda item: _versionless(item.transcript)):
-            row = _transcript_row(record)
-            if row is not None:
-                rows.append(row)
-
-    transcript_count = len(rows) - 1
-    gene_count = len({row["gene"] for row in rows[1:]})
-    rows[0]["variant_count"] = 0
-    rows[0]["transcript_count"] = transcript_count
+    metadata = _metadata_row(
+        artifact_version=artifact_version or _default_artifact_version(),
+        genome_build=genome_build,
+        source_ids=source_ids,
+        generated_at=generated_at,
+    )
+    transcript_count, built_genes = _count_transcript_rows(merged)
+    gene_count = len(built_genes)
+    metadata["variant_count"] = 0
+    metadata["transcript_count"] = transcript_count
     warnings: list[str] = []
     if gene_count < len(requested_genes):
         warnings.append("one_or_more_requested_genes_missing")
@@ -123,7 +115,7 @@ def build_compact_coordinate_index(
         return CompactCoordinateIndexBuildResult(
             status="no_transcripts_built",
             ready=False,
-            artifact_version=str(rows[0]["artifact_version"]),
+            artifact_version=str(metadata["artifact_version"]),
             genome_build=genome_build,
             requested_gene_count=len(requested_genes),
             source_ids=source_ids,
@@ -131,14 +123,14 @@ def build_compact_coordinate_index(
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    _write_jsonl(rows, output_path)
+    _write_jsonl(_iter_index_rows(metadata, merged), output_path)
     clear_compact_coordinate_index_cache()
     inspection = CompactCoordinateIndex(output_path).inspection(verify_checksum=True)
     artifact_sha256 = _sha256_file(output_path) if output_path.is_file() else None
     return CompactCoordinateIndexBuildResult(
         status="ready" if inspection.ready else inspection.status,
         ready=inspection.ready,
-        artifact_version=str(rows[0]["artifact_version"]),
+        artifact_version=str(metadata["artifact_version"]),
         genome_build=genome_build,
         requested_gene_count=len(requested_genes),
         gene_count=gene_count,
@@ -204,6 +196,35 @@ def _transcript_row(record: _TranscriptRecord) -> dict[str, Any] | None:
         "exons": exons,
     }
     return row
+
+
+def _count_transcript_rows(
+    merged: Mapping[str, Sequence[_TranscriptRecord]],
+) -> tuple[int, set[str]]:
+    transcript_count = 0
+    built_genes: set[str] = set()
+    for row in _iter_transcript_rows(merged):
+        transcript_count += 1
+        built_genes.add(str(row["gene"]))
+    return transcript_count, built_genes
+
+
+def _iter_index_rows(
+    metadata: Mapping[str, Any],
+    merged: Mapping[str, Sequence[_TranscriptRecord]],
+) -> Iterable[Mapping[str, Any]]:
+    yield metadata
+    yield from _iter_transcript_rows(merged)
+
+
+def _iter_transcript_rows(
+    merged: Mapping[str, Sequence[_TranscriptRecord]],
+) -> Iterable[dict[str, Any]]:
+    for gene in sorted(merged):
+        for record in sorted(merged[gene], key=lambda item: _versionless(item.transcript)):
+            row = _transcript_row(record)
+            if row is not None:
+                yield row
 
 
 def _coding_exon_rows(record: _TranscriptRecord) -> list[dict[str, int]]:
@@ -298,7 +319,7 @@ def _normalize_genes(genes: Iterable[str]) -> tuple[str, ...]:
     return tuple(sorted(normalized))
 
 
-def _write_jsonl(rows: Sequence[Mapping[str, Any]], path: Path) -> None:
+def _write_jsonl(rows: Iterable[Mapping[str, Any]], path: Path) -> None:
     if path.suffix.lower() == ".gz":
         with path.open("wb") as raw_handle:
             with gzip.GzipFile(filename="", mode="wb", fileobj=raw_handle, mtime=0) as gzip_handle:
@@ -310,7 +331,7 @@ def _write_jsonl(rows: Sequence[Mapping[str, Any]], path: Path) -> None:
         _write_rows(rows, handle)
 
 
-def _write_rows(rows: Sequence[Mapping[str, Any]], handle: Any) -> None:
+def _write_rows(rows: Iterable[Mapping[str, Any]], handle: Any) -> None:
     for row in rows:
         handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")))
         handle.write("\n")

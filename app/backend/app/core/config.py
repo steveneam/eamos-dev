@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     rate_limit_payments_webhook_max_requests: int = 60
     rate_limit_workbench_max_requests: int = 20
     rate_limit_trust_proxy_headers: bool = False
+    batch_upload_registry_max_entries: int = 128
+    batch_job_registry_max_entries: int = 256
+    batch_registry_ttl_seconds: int = 3600
 
     llm_provider: str = "mock"
     openai_api_key: str | None = None

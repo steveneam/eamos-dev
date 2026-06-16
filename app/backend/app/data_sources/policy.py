@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 import re
 from typing import Any, Mapping
 
@@ -11,6 +12,9 @@ from app.data_sources.registry import (
     DataSourceRegistry,
     LicenseStatus,
 )
+
+DEFAULT_FILTER_PAYLOAD_MAX_DEPTH = 32
+DEFAULT_FILTER_PAYLOAD_MAX_NODES = 10_000
 
 
 class PolicyAction(str, Enum):
@@ -39,8 +43,16 @@ class FieldPolicyDecision:
 class SourceFieldPolicy:
     """Backend field allowlist/denylist for source adapters and payloads."""
 
-    def __init__(self, registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY) -> None:
+    def __init__(
+        self,
+        registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+        *,
+        max_filter_depth: int = DEFAULT_FILTER_PAYLOAD_MAX_DEPTH,
+        max_filter_nodes: int = DEFAULT_FILTER_PAYLOAD_MAX_NODES,
+    ) -> None:
         self._registry = registry
+        self._max_filter_depth = max(0, int(max_filter_depth))
+        self._max_filter_nodes = max(1, int(max_filter_nodes))
 
     def can_request(
         self,
@@ -195,14 +207,17 @@ class SourceFieldPolicy:
     ) -> dict[str, Any]:
         product_tier_value = _normalize_product_tier(product_tier)
         has_fixture_warning = _has_internal_fixture_warning(payload)
+        budget = _FilterPayloadBudget(max_nodes=self._max_filter_nodes)
         filtered = self._filter_value(
             source_id,
             payload,
             field_path="",
             product_tier=product_tier_value,
             has_fixture_warning=has_fixture_warning,
+            depth=0,
+            budget=budget,
         )
-        return filtered if isinstance(filtered, dict) else {}
+        return filtered if isinstance(filtered, dict) and not budget.exceeded else {}
 
     def _filter_value(
         self,
@@ -212,7 +227,13 @@ class SourceFieldPolicy:
         field_path: str,
         product_tier: ProductTier,
         has_fixture_warning: bool,
+        depth: int,
+        budget: _FilterPayloadBudget,
     ) -> Any | None:
+        if depth > self._max_filter_depth or not budget.take():
+            budget.exceeded = True
+            return None
+
         if isinstance(value, Mapping):
             kept: dict[str, Any] = {}
             for key, child in value.items():
@@ -231,6 +252,8 @@ class SourceFieldPolicy:
                     field_path=child_path,
                     product_tier=product_tier,
                     has_fixture_warning=has_fixture_warning,
+                    depth=depth + 1,
+                    budget=budget,
                 )
                 if child_value is not None and child_value != {} and child_value != []:
                     kept[str(key)] = child_value
@@ -247,6 +270,8 @@ class SourceFieldPolicy:
                         field_path=field_path,
                         product_tier=product_tier,
                         has_fixture_warning=has_fixture_warning,
+                        depth=depth + 1,
+                        budget=budget,
                     )
                 )
                 is not None
@@ -287,6 +312,20 @@ class SourceFieldPolicy:
         except KeyError:
             return False
         return _matches_any_field(record.restricted_fields, _normalize_field_path(field_path))
+
+
+@dataclass
+class _FilterPayloadBudget:
+    max_nodes: int
+    seen: int = 0
+    exceeded: bool = False
+
+    def take(self) -> bool:
+        if self.seen >= self.max_nodes:
+            self.exceeded = True
+            return False
+        self.seen += 1
+        return True
 
 
 def _allow(
@@ -398,6 +437,7 @@ def _join_field_path(parent: str, child: str) -> str:
     return child if not parent else f"{parent}.{child}"
 
 
+@lru_cache(maxsize=8192)
 def _normalize_field_path(field_path: str) -> str:
     return ".".join(
         segment
@@ -429,7 +469,9 @@ def _has_internal_fixture_warning(payload: Mapping[str, Any]) -> bool:
     )
 
 
-def _flatten_warning_text(values: tuple[Any, ...]) -> list[str]:
+def _flatten_warning_text(values: tuple[Any, ...], *, depth: int = 0) -> list[str]:
+    if depth > 8:
+        return []
     flattened: list[str] = []
     for value in values:
         if value is None:
@@ -437,9 +479,9 @@ def _flatten_warning_text(values: tuple[Any, ...]) -> list[str]:
         if isinstance(value, str):
             flattened.append(value)
         elif isinstance(value, Mapping):
-            flattened.extend(_flatten_warning_text(tuple(value.values())))
+            flattened.extend(_flatten_warning_text(tuple(value.values()), depth=depth + 1))
         elif isinstance(value, list):
-            flattened.extend(_flatten_warning_text(tuple(value)))
+            flattened.extend(_flatten_warning_text(tuple(value), depth=depth + 1))
         else:
             flattened.append(str(value))
     return flattened

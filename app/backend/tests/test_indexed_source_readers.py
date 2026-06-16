@@ -299,6 +299,20 @@ def test_repeatmasker_index_queries_ucsc_rmsk_text_rows_by_alias() -> None:
     assert no_hit == ()
 
 
+def test_repeatmasker_index_bisect_keeps_long_overlapping_intervals() -> None:
+    table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
+        [
+            "585\t1200\t12\t1\t0\tchr1\t100\t1000\t-870\t+\tLongRep\tLINE\tL1\t1\t900\t0\t1",
+            "585\t900\t20\t2\t0\tchr1\t1100\t1120\t-580\tC\tAfter\tSINE\tAlu\t5\t25\t0\t2",
+            "585\t700\t18\t2\t0\tchr2\t500\t520\t-480\t+\tOther\tDNA\tTcMar\t1\t20\t0\t3",
+        ]
+    )
+
+    overlaps = table.query("chr1", 900, 905)
+
+    assert [item.name for item in overlaps] == ["LongRep"]
+
+
 def test_repeatmasker_index_malformed_unknown_and_invalid_queries_fail_closed() -> None:
     with pytest.raises(IndexedSourceError) as malformed_exc:
         RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(["too\tshort"])
