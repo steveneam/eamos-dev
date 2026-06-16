@@ -30,6 +30,8 @@ Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2
 | Node.js (Windows) | IT-managed system install at `C:\Program Files\nodejs\` (already on PATH) |
 | Python (Windows) | `C:\Program Files\Python310\` |
 
+> **Production services / vendor stack** (Vercel · Render · Supabase · Stripe · Resend · PostHog · Sentry · AI Gateway · Groq · Llama · Porkbun) and the deliberate "not using" list (Pinecone / Clerk / Cloudflare / Aceternity) live in [`docs/tech-stack.md`](docs/tech-stack.md).
+
 **Key paths:**
 
 | Item | Path |
