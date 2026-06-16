@@ -3706,6 +3706,11 @@
 
 .fl-scroller {
   flex: 1; min-height: 0;
+  /* Bound the locus to a real viewport so the row list virtualizes (only the
+     on-screen window mounts) instead of growing to the full gene height and
+     page-scrolling every base — a whole-gene locus is otherwise tens of
+     thousands of base nodes (CFTR/ABCA4 → browser crash). */
+  max-height: calc(100vh - var(--nav-h) - var(--ctx-h) - 152px);
   overflow-y: auto; overflow-x: hidden;
   padding: 12px 14px 24px;
   scrollbar-gutter: stable;

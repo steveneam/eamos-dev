@@ -494,6 +494,11 @@ const PROTEIN_LANE_TOP = 64
 const PROTEIN_LANE_H = 34
 const PROTEIN_LANE_GAP = 24
 const PROTEIN_HEAT_H = 12
+// Cap the AlphaMissense band at a bounded column count. A 5,200-aa protein has
+// ~5,200 scored residues; one rect+title per residue is ~10k DOM nodes in one
+// SVG. Beyond this budget we aggregate residues into mean-score bins (the band
+// is horizontally scrolled, so sub-pixel residues are not separable anyway).
+const HEAT_MAX_BINS = 800
 
 const PROTEIN_LANES: ProteinLaneDef[] = [
   { id: 'topology', label: 'Topology' },
@@ -589,6 +594,33 @@ function ReportProteinView({
     (alphaHeatmap.status === 'available' || alphaHeatmap.status === 'partial') &&
     alphaHeatmap.residues.length > 0
   const alphaUnavailable = includeAlphaMissense && !alphaAvailable
+  // Aggregate the scored residues into at most HEAT_MAX_BINS mean-score bins so
+  // the heatmap stays a bounded number of SVG nodes regardless of protein
+  // length. groupSize === 1 (proteins ≤ HEAT_MAX_BINS aa) is the unchanged
+  // per-residue band.
+  const alphaBins = useMemo(() => {
+    const residues = alphaHeatmap?.residues ?? []
+    if (residues.length === 0) return []
+    const groupSize = Math.max(1, Math.ceil(residues.length / HEAT_MAX_BINS))
+    const bins: { aaStart: number; aaEnd: number; score: number; variants: number }[] = []
+    for (let i = 0; i < residues.length; i += groupSize) {
+      const end = Math.min(i + groupSize, residues.length)
+      let sum = 0
+      let scored = 0
+      let variants = 0
+      for (let j = i; j < end; j += 1) {
+        const s = residues[j].mean_score
+        if (s != null) {
+          sum += s
+          scored += 1
+        }
+        variants += residues[j].scored_variant_count ?? 0
+      }
+      if (scored === 0) continue
+      bins.push({ aaStart: residues[i].aa, aaEnd: residues[end - 1].aa, score: sum / scored, variants })
+    }
+    return bins
+  }, [alphaHeatmap])
 
   return (
     <div style={proteinShellStyle}>
@@ -788,21 +820,20 @@ function ReportProteinView({
         })}
 
         {alphaAvailable &&
-          alphaHeatmap.residues.map((residue, index) => {
-            const score = residue.mean_score
-            if (score == null) return null
-            const next = alphaHeatmap.residues[index + 1]
-            const width = Math.max(2, (next ? xFor(next.aa) : xFor(residue.aa + 1)) - xFor(residue.aa))
+          alphaBins.map((bin) => {
+            const x = xFor(bin.aaStart)
+            const width = Math.max(2, xFor(bin.aaEnd + 1) - x)
+            const range = bin.aaStart === bin.aaEnd ? `aa ${bin.aaStart}` : `aa ${bin.aaStart}–${bin.aaEnd}`
             return (
               <rect
-                key={`am-${residue.aa}`}
-                x={xFor(residue.aa)}
+                key={`am-${bin.aaStart}`}
+                x={x}
                 y={proteinHeatY}
                 width={width}
                 height={PROTEIN_HEAT_H}
-                fill={alphaColor(score)}
+                fill={alphaColor(bin.score)}
               >
-                <title>{`AlphaMissense mean ${score.toFixed(3)} | aa ${residue.aa} | ${residue.scored_variant_count} substitutions`}</title>
+                <title>{`AlphaMissense mean ${bin.score.toFixed(3)} | ${range} | ${bin.variants} substitutions`}</title>
               </rect>
             )
           })}

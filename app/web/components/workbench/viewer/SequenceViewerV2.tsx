@@ -325,6 +325,12 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       [applyReplace, selectionRange],
     )
     const clearSelection = useCallback(() => setLiveSelection(null), [setLiveSelection])
+    // Stable ref so CodonDetail's blocksEqual memo holds during selection drags
+    // (an inline arrow here re-rendered every Block on each base-crossing tick).
+    const handleRestrictionSelect = useCallback(
+      (start: number, end: number) => setLiveSelection({ start, end }),
+      [setLiveSelection],
+    )
 
     // ── Scratchpad: exon substitutions, mirrored to the side panel ──
     useEffect(() => {
@@ -918,7 +924,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
                 onBlankMouseDown={clearSelection}
                 onClinvarClick={handleClinvarClick}
                 onRestrictionHover={setRestrictionHover}
-                onRestrictionSelect={(s, en) => setLiveSelection({ start: s, end: en })}
+                onRestrictionSelect={handleRestrictionSelect}
               />
             </>
           )}

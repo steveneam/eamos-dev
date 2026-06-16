@@ -6,7 +6,7 @@
    minimap, or color schemes this slice — those land in FGV-004+ once we
    know what the row model actually feels like on RPE65/ABCA4. */
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type {
   FullLocusRow,
   FullLocusRows,
@@ -167,35 +167,70 @@ function LocusHeader({
   )
 }
 
+const ROW_GAP = 1
+const ESTIMATED_ROW_HEIGHT = 22
+const OVERSCAN_ROWS = 10
+
 export function FullLocusViewer({ model }: FullLocusViewerProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const variantRowRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement | null>(null)
+  const didInitialScrollRef = useRef(false)
   const [coordinateMode, setCoordinateMode] = useState<CoordinateMode>('sequence')
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewportH, setViewportH] = useState(0)
+  const [rowHeight, setRowHeight] = useState(ESTIMATED_ROW_HEIGHT)
 
   const rows = model.rows
+  const rowCount = rows.rows.length
+  const rowSlot = rowHeight + ROW_GAP
+  const totalHeight = Math.max(0, rowCount * rowSlot - ROW_GAP)
 
+  // Windowing math needs the live viewport height and a real row height. Rows
+  // are uniform single-line monospace, so any mounted row is representative —
+  // measure one and reuse it for every off-screen row we never mount.
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current
+    if (!scroller) return
+    const sync = () => {
+      setViewportH(scroller.clientHeight)
+      const rowEl = measureRef.current
+      if (rowEl) {
+        const h = rowEl.getBoundingClientRect().height
+        if (h > 0) setRowHeight((prev) => (Math.abs(prev - h) > 0.5 ? h : prev))
+      }
+    }
+    sync()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(sync)
+    ro.observe(scroller)
+    return () => ro.disconnect()
+  }, [])
+
+  const overscanPx = OVERSCAN_ROWS * rowSlot
+  const startIndex = Math.max(0, Math.floor((scrollTop - overscanPx) / rowSlot))
+  const endIndex = Math.min(rowCount, Math.ceil((scrollTop + viewportH + overscanPx) / rowSlot))
+
+  const visibleRows = useMemo(() => {
+    const out: FullLocusRow[] = []
+    for (let i = startIndex; i < endIndex; i += 1) {
+      const row = rows.rows[i]
+      if (row) out.push(row)
+    }
+    return out
+  }, [rows, startIndex, endIndex])
+
+  // Centre the variant row once — only after a measured row height + viewport
+  // exist, so the index→pixel math lands on the right row even when it never
+  // mounted at scrollTop 0.
   useEffect(() => {
     if (rows.variantRowIndex == null) return
+    if (didInitialScrollRef.current || viewportH <= 0) return
     const scroller = scrollerRef.current
-    const target = variantRowRef.current
-    if (!scroller || !target) return
-    const offset = target.offsetTop - scroller.clientHeight * 0.3
-    scroller.scrollTo({ top: Math.max(0, offset), behavior: reducedMotionScrollBehavior() })
-  }, [rows.variantRowIndex])
-
-  const renderedRows = useMemo(
-    () =>
-      rows.rows.map((row) => (
-        <div
-          key={row.rowIndex}
-          ref={row.rowIndex === rows.variantRowIndex ? variantRowRef : undefined}
-          className="fl-row-anchor"
-        >
-          <MemoRowDOM row={row} basesPerRow={rows.basesPerRow} coordinateMode={coordinateMode} />
-        </div>
-      )),
-    [coordinateMode, rows],
-  )
+    if (!scroller) return
+    didInitialScrollRef.current = true
+    const target = rows.variantRowIndex * rowSlot - scroller.clientHeight * 0.3
+    scroller.scrollTo({ top: Math.max(0, target), behavior: reducedMotionScrollBehavior() })
+  }, [rows.variantRowIndex, rowSlot, viewportH])
 
   const warnings = model.warnings
 
@@ -207,8 +242,23 @@ export function FullLocusViewer({ model }: FullLocusViewerProps) {
         coordinateMode={coordinateMode}
         onCoordinateMode={setCoordinateMode}
       />
-      <div className="fl-scroller" ref={scrollerRef}>
-        <div className="fl-rows">{renderedRows}</div>
+      <div
+        className="fl-scroller"
+        ref={scrollerRef}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
+        <div className="fl-rows" style={{ position: 'relative', height: totalHeight }}>
+          {visibleRows.map((row, k) => (
+            <div
+              key={row.rowIndex}
+              ref={k === 0 ? measureRef : undefined}
+              className="fl-row-anchor"
+              style={{ position: 'absolute', left: 0, right: 0, top: row.rowIndex * rowSlot }}
+            >
+              <MemoRowDOM row={row} basesPerRow={rows.basesPerRow} coordinateMode={coordinateMode} />
+            </div>
+          ))}
+        </div>
       </div>
       {warnings.length > 0 ? (
         <div className="fl-provenance" role="note">

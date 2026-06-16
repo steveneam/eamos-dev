@@ -61,7 +61,7 @@ interface CodonDetailProps {
 }
 
 export function CodonDetail(props: CodonDetailProps) {
-  const { flat, basesPerRow, baseW, onBlankMouseDown } = props
+  const { data, flat, basesPerRow, baseW, searchQuery, restrictionHover, onBlankMouseDown } = props
   const detailRef = useRef<HTMLDivElement>(null)
   const [contentWidth, setContentWidth] = useState(0)
 
@@ -113,6 +113,52 @@ export function CodonDetail(props: CodonDetailProps) {
     return m
   }, [flat])
 
+  // Hoisted projections so each Block does O(1) lookups instead of rescanning
+  // `flat` per base / per variant on every render (a per-block O(n²) before).
+  // cdsPos → flat index (exon bases) for ClinVar + oligo projection.
+  const exonCdsToFlat = useMemo(() => {
+    const m = new Map<number, number>()
+    flat.forEach((b, i) => {
+      if (b.kind === 'exon' && !m.has(b.cdsPos)) m.set(b.cdsPos, i)
+    })
+    return m
+  }, [flat])
+
+  // (intronNum, intronOffset) → flat index for splice-variant ClinVar dots.
+  const intronOffsetToFlat = useMemo(() => {
+    const m = new Map<string, number>()
+    flat.forEach((b, i) => {
+      if (b.kind === 'intron') {
+        const key = `${b.intronNum}:${b.intronOffset}`
+        if (!m.has(key)) m.set(key, i)
+      }
+    })
+    return m
+  }, [flat])
+
+  // Sequence-search hits: build the window string + scan it once, not per base.
+  const searchHitSet = useMemo(() => {
+    const set = new Set<number>()
+    const q = searchQuery.trim().toUpperCase()
+    if (!/^[ATCG]{3,}$/.test(q)) return set
+    const s = flat.map((b) => (b.kind === 'intron-gap' ? '_' : b.base.toUpperCase())).join('')
+    let pos = -1
+    while ((pos = s.indexOf(q, pos + 1)) >= 0) {
+      for (let k = 0; k < q.length; k += 1) set.add(pos + k)
+    }
+    return set
+  }, [flat, searchQuery])
+
+  // Hovered restriction-site footprint, resolved once.
+  const restrictionHitSet = useMemo(() => {
+    const set = new Set<number>()
+    if (!restrictionHover) return set
+    const re = data.restriction.find((r) => r.name === restrictionHover)
+    if (!re) return set
+    for (let i = re.flatPos; i < re.flatPos + re.site.length; i += 1) set.add(i)
+    return set
+  }, [data.restriction, restrictionHover])
+
   return (
     <div
       className="sv-detail"
@@ -143,6 +189,10 @@ export function CodonDetail(props: CodonDetailProps) {
             key={`row${item.indices[0]}`}
             indices={item.indices}
             baseFlatIndex={baseFlatIndex}
+            exonCdsToFlat={exonCdsToFlat}
+            intronOffsetToFlat={intronOffsetToFlat}
+            searchHitSet={searchHitSet}
+            restrictionHitSet={restrictionHitSet}
             blockMinWidth={blockMinWidth}
             {...props}
           />
@@ -155,6 +205,10 @@ export function CodonDetail(props: CodonDetailProps) {
 interface BlockProps extends CodonDetailProps {
   indices: number[]
   baseFlatIndex: Map<number, number>
+  exonCdsToFlat: Map<number, number>
+  intronOffsetToFlat: Map<string, number>
+  searchHitSet: Set<number>
+  restrictionHitSet: Set<number>
   blockMinWidth?: number
 }
 
@@ -170,10 +224,12 @@ const Block = memo(function Block(props: BlockProps) {
     edits,
     selection,
     activeClinvar,
-    searchQuery,
-    restrictionHover,
     indices,
     baseFlatIndex,
+    exonCdsToFlat,
+    intronOffsetToFlat,
+    searchHitSet,
+    restrictionHitSet,
     blockMinWidth,
     onSequencePointerDown,
     onBaseContextMenu,
@@ -276,8 +332,8 @@ const Block = memo(function Block(props: BlockProps) {
     const oligos = data.features
       .filter((f) => f.type === 'oligo')
       .map((f, oi) => {
-        const fStart = flat.findIndex((b) => b.kind === 'exon' && b.cdsPos === f.cdsStart)
-        const fEnd = flat.findIndex((b) => b.kind === 'exon' && b.cdsPos === f.cdsEnd)
+        const fStart = exonCdsToFlat.get(f.cdsStart) ?? -1
+        const fEnd = exonCdsToFlat.get(f.cdsEnd) ?? -1
         if (fStart < 0 || fEnd < 0) return null
         const oStart = Math.max(fStart, startIdx)
         const oEnd = Math.min(fEnd, endIdx)
@@ -314,15 +370,13 @@ const Block = memo(function Block(props: BlockProps) {
           : data.exons.find((e) => e.cdsStart === exonEdge)
       if (!exon) return -1
       const intronNum = sign === '+' ? exon.num : exon.num - 1
-      return flat.findIndex(
-        (b) => b.kind === 'intron' && b.intronNum === intronNum && b.intronOffset === off,
-      )
+      return intronOffsetToFlat.get(`${intronNum}:${off}`) ?? -1
     }
 
     return data.clinvar.map((v) => {
       let idx = -1
       if (typeof v.cdsPos === 'number') {
-        idx = flat.findIndex((b) => b.kind === 'exon' && b.cdsPos === v.cdsPos)
+        idx = exonCdsToFlat.get(v.cdsPos) ?? -1
       } else if (v.splice) {
         idx = intronicIndex(v.cdsPos)
       }
@@ -404,29 +458,10 @@ const Block = memo(function Block(props: BlockProps) {
   }
 
   // ── Bases (one strand) ──
-  function searchHit(i: number): boolean {
-    const q = searchQuery.trim().toUpperCase()
-    if (!/^[ATCG]{3,}$/.test(q)) return false
-    const s = flat.map((b) => (b.kind === 'intron-gap' ? '_' : b.base.toUpperCase())).join('')
-    let pos = -1
-    while ((pos = s.indexOf(q, pos + 1)) >= 0) {
-      if (i >= pos && i < pos + q.length) return true
-    }
-    return false
-  }
-  function restrictionHit(i: number): boolean {
-    if (!restrictionHover) return false
-    const re = data.restriction.find((r) => r.name === restrictionHover)
-    if (!re) return false
-    return i >= re.flatPos && i < re.flatPos + re.site.length
-  }
-
   function bases(which: 'top' | 'complement') {
     const isComp = which === 'complement'
     const isRev = strandMode === 'rev'
-    const qIdx = flat.findIndex(
-      (b) => b.kind === 'exon' && b.cdsPos === data.queriedVariant.cdsPos,
-    )
+    const qIdx = exonCdsToFlat.get(data.queriedVariant.cdsPos) ?? -1
     const cells = indices.map((i) => {
       const b = flat[i]
       const left = posOf(i) * baseW
@@ -468,8 +503,8 @@ const Block = memo(function Block(props: BlockProps) {
       ) {
         cls.push('selected')
       }
-      if (searchHit(i)) cls.push('search-hit')
-      if (restrictionHit(i)) cls.push('restriction-hit')
+      if (searchHitSet.has(i)) cls.push('search-hit')
+      if (restrictionHitSet.has(i)) cls.push('restriction-hit')
       const title =
         b.kind === 'exon'
           ? `c.${b.cdsPos} · ref ${b.base.toUpperCase()}${edit ? ' → edited' : ''}`
