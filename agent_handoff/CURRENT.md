@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-17 04:26 +1000 - Batch (/compare) FE UX pass, committed (NOT pushed). `999d0e9` cohort summary + actionable table; `c1ff060` unified the two Batch tables into one `BatchTable` (split-pane + drag-select + save-to-library + cohort summary + ClinVar/ACMG/gnomAD cols + AF filter + TSV), added in-page VCF import (empty-state dropzone + central-column "Add file"), brought the WorkRail in line with /report (Scope ⇄ Ask Eamos rail-head toggle via `CompareAiPanel`, dropped the LLM filter tab, `--rail-top` fix so the foot pins to the viewport bottom), fixed the scope-change-wipes-table bug (stale + Regenerate), renamed "Substitutions"→"Base changes", removed the redundant circular "Import VCF" link on Batch. tsc+lint clean; browser-verified against the live local backend (split view, save round-trip 1→3, Ask-Eamos coming-soon panel, foot). 2 local dev servers (web :3000 + backend :8000) still running — STOP before /clear. `LLM_PROVIDER=mock`; held files excluded; only `app/web/**` touched (Codex's Tier-2 ESM1b tree untouched + unstaged). NEXT = push c1ff060+999d0e9 on Steven's go (→ Vercel prod) + Batch C3-on-C1 (real progress UI, server upload-parse) once Codex's C1 engine lands. Detail → `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-06-18 00:49 +1000 - Shipped Batch + workbench FE; planned AI-gateway report-chat enablement for NEXT session (Steven granted Claude BE+FE charge for it; Codex stays on Tier-2). PUSHED to origin/main (Vercel auto-deploy): `af17fdb` Batch state unification + paper rail parity + global-error redesign; `505250b` per-source provenance for Batch cohorts; `ebbfea3` workbench rail names the active tool + tool-scoped Ask Eamos (rail-head Library⇄Ask Eamos toggle w/ active-tool label, persistent "<tool> expert" persona pill, Scratchpad→Log+Notes, Primer/CRISPR "AI assist" sections retired). All FE-only, build+tsc+eslint green, browser-verified. `LLM_PROVIDER=mock` (unchanged); held files still excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); Codex's Tier-2 ESM1b tree untouched. Dev server STOPPED. NEXT = AI-gateway report-chat enablement (full runbook in `~/.claude/plans/next-session-eamos.md`): gateway+RAG already built/inert, enable locally→gated demo, 1-chat/day dev cap, report-payload grounding first then literature RAG (Codex Tier-1 corpus). Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-17 19:09 +1000 - Commit/push/deploy complete. Pushed `1f6f45c` plus prior local commits to `origin/main`; triggered Render SG deploy `dep-d8p66f37uimc739s5a60`, now LIVE on commit `1f6f45c`; Vercel prod deploy `dpl_6HCs7UZmmp7FeMn1xYnnj61BHczi` Ready and aliased. Live checks: `/healthz` ok/db ok/mock, Vercel proxy provider-cache ok with ESM1b `missing_source_file` + `esm1b_mit_regeneration_required`, `/compare` desktop+mobile browser smoke clean except one benign Next CSS preload warning. No materialization, Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or `LOCAL_EVIDENCE_ENABLED` flip.
+- **Codex:** IDLE @ 2026-06-17 20:00 +1000 - Tier 2 ESM1b MANE input helper + staging complete. Added backend CLI/service/tests for MIT-regeneration inputs; staged `C:\EamosDataStaging\esm1b\esm1b-mane-codon-contexts.jsonl` (11,135,143 contexts; 2.105 GB), `esm1b-mane-proteins.fasta` (19,228 proteins; 13.9 MB), and manifest. `esm1b-mit-regenerated-scores.csv` remains missing, so no `esm1b_hg38.tsv.gz/.tbi/manifest` materialization yet. No HF score zip, Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or `LOCAL_EVIDENCE_ENABLED` flip. Focused tests/lint/black/preflight passed; graphify AST updated.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-17 19:11 +1000 - Codex (ESM1b commit/push/deploy closeout recorded)
+UNLOCKED - 2026-06-18 00:52 +1000 - Claude (session-wrap heartbeat + AI-gateway enablement plan recorded)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -141,6 +141,17 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [OPEN] Steven->Claude (2026-06-18 00:49 +1000): **Claude takes BE+FE charge of the
+  AI-gateway report-chat enablement next session** (extends the standing [[project_ai_gateway]]
+  Claude-owns-both-lanes exception). Codex stays on Tier-2 ESM1b — do NOT hand this to Codex.
+  Coordination point: the literature-RAG corpus materialization (PubMed/ClinGen embeddings) is
+  Codex's Tier-1 lane; the report chat goes live on report-payload grounding FIRST (no corpus
+  needed), literature RAG added once Codex's Tier-1 corpus lands. Backend chat files
+  (`routes/chat.py`, `chat_service.py`, `ai_gateway/*`, `agents/client.py`, `main.py`,
+  `core/config.py` gateway block) are NOT in Codex's active Tier-2 (esm1b_*) set — but claim
+  Shared File Locks before editing `config.py`/`main.py`. Key already minted + in env (Steven,
+  a few days ago); $5 credit; NO re-mint needed. - full runbook in next-session-eamos.md
 
 - [DONE] Steven->Claude (2026-06-16 22:24 +1000; closed 22:30 +1000): **Owned the
   coordinated commit, push, deploy, and live verification.** Code commit `a8710cf`
@@ -293,16 +304,16 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-16 22:30 +1000 - Claude - coordinated A2+A12+A11 commit/push/deploy/verify):**
-Drove the coordinated release as commit-driver (Steven's direction). **Code commit `a8710cf`** =
-Codex's A2 batch registry LRU/TTL + A12 build-time materialization memory bounds (18 backend files,
-staged via `git add app/backend` — no held files there) pushed; focused A2+A12 pytest green pre-commit.
-**Render SG deploy `dep-d8ok50kvikkc73f8elhg` LIVE** (built ~1 min) + live-verified: `/healthz` 200
-`mock`/db ok, provider-cache hmmer+AlphaMissense ready + gene_view/protein_pfam intact, **A2 unauth
-batch upload → 401**, memory ~126 MB on fresh instance `8vw59` (no spike, far under 2 GB), Vercel FE
-proxy 200. Docs commit (A11 doc + this handoff/RISKS/DECISIONS + graphify refresh) follows. **The
-request-reachable OOM/crash class A1–A12 + A11 infra is now fully closed + on prod.** NEXT = Tier-1
-materialization (Codex lane): ClinGen + PubMed + literature-RAG.
+**Latest (2026-06-18 00:49 +1000 - Claude - Batch+workbench FE shipped; AI-gateway report-chat enablement planned for next session):**
+Shipped three FE commits to origin/main (Vercel auto-deploy), all FE-only + build/tsc/eslint green + browser-verified:
+- `af17fdb` Batch state unification + paper rail parity + global-error redesign.
+- `505250b` per-source provenance for Batch cohorts (sources bar: per-source chips, add/remove, start over, view-pasted-text).
+- `ebbfea3` **workbench rail names the active tool + tool-scoped Ask Eamos** — rail-head Library⇄Ask Eamos toggle whose Library segment shows the active tool (icon+name, new `WorkRail.titleIcon`); new `WorkbenchAiPanel` with a persistent "<tool> expert" persona pill (Sequence/Primer/CRISPR/Alignment) + per-tool intro/suggestions, coming-soon gated; Scratchpad → Log+Notes (Ask tab removed); Primer/CRISPR "AI assist" sections retired (chips became the scoped suggestions). Browser-verified: head relabels Sequence→Primer, persona re-scopes, Ask mode persists across tool switch.
+
+**NEXT SESSION (Steven granted Claude BE+FE charge; Codex stays on Tier-2): AI-gateway report-chat enablement.**
+Key finding from this session's research: the gateway + RAG are **already built and inert** (`ai_gateway/{engine,guard,retrieval,structured}.py`, `chat_service.py`, FE `AskEamos`). Real on/off = backend `LLM_PROVIDER` (NOT the FE flag). Decisions LOCKED (Steven 2026-06-18): (1) enable surfaces left-to-right, **report chat first**; (2) Vercel-credit billing, **$5 credit, key already minted + in env — NO re-mint**; (3) build/iterate **locally** (fake_gateway.py, $0 unlimited) → gated demo on the **shared Render backend + a 1-chat/day global dev cap** (Steven's "1/day" = dev guardrail, not a launch limit); (4) **report-payload grounding FIRST** (no corpus needed), literature RAG added when Codex's Tier-1 corpus lands; (5) RAG store **stays local sqlite-vec** (swappable seam → pgvector only if multi-instance scaling arrives). Full step-by-step runbook in `~/.claude/plans/next-session-eamos.md`.
+
+--- Older Epic-A (A1–A12, A10, A11) detail below is HISTORICAL (all shipped + on prod 2026-06-16). ---
 
 --- A11 detail (closed earlier this session, doc-only): Closed A11 with
 `docs/stability-audit/a11-render-budget.md` — grounded the OOM/concurrency safety budget in MEASURED
@@ -350,11 +361,11 @@ live + verified) + the A11 doc/handoff/graphify in the following docs commit. No
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-06-16 22:30 +1000 - Claude (Epic A A2+A12+A11 committed/deployed/verified → Tier-1 materialization next)
-Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE — top section) + agent_handoff/CURRENT.md (## Active Status, ## Log Edit-Lock, ## Cross-Agent Requests) + agent_handoff/RISKS.md (Backend Stability: A1–A12 + A11 all DONE + deployed) + docs/backend-build-ledger-runtime/materialization-plan.md (Codex's per-asset sequence) + docs/stability-audit/a11-render-budget.md (infra budget + disk roadmap). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
-Context: Epic A is fully shipped + on prod. Code commit a8710cf (Codex A2 batch registry LRU/TTL + A12 build-time materialization memory, 18 files) + a docs commit (A11 doc + handoff + graphify) both pushed; Render SG dep-d8ok50kvikkc73f8elhg LIVE + verified (/healthz 200 mock, hmmer/AM ready, A2 unauth upload→401, mem ~126MB fresh instance 8vw59, Vercel 200). The request-reachable OOM/crash class A1–A12 + A11 infra is closed. KEEP Render Standard 2 GB + 60 GB disk (rationale in a11-render-budget.md). Held files still excluded/dirty: docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/.
-Task: Tier-1 materialization (Codex's backend lane; Steven decided Tier-1-first): ClinGen local + PubMed local + literature embeddings (RAG) — smallest footprint, biggest product unlock (literature engine + variant-chat RAG). Materialize OFFLINE → Supabase private Storage → Render-disk sync; NEVER startup-download; no Render one-off jobs for disk seeding; no LOCAL_EVIDENCE_ENABLED flip until verified via provider-cache. Then Tier 2 predictor caches, Tier 3 dbSNP/phyloP. Optional backend residuals: A3 shared lookup-assembly cache + server-side /viewer window-width ceiling (FE-only today). Claude FE: no open ask.
-Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; LLM stays mock; no Supabase apply/provider flip; held files stay excluded; coordinate via Log Edit-Lock + Shared File Locks; deploy from repo root never app/web. End clear-safe.
+# Resume prompt - 2026-06-18 00:49 +1000 - Claude (AI-gateway report-chat enablement — Claude owns BE+FE; Codex on Tier-2)
+Eamos. Open from D:\eamos (Claude lane, this session = BE+FE for the AI gateway). START: ~/.claude/plans/next-session-eamos.md (full runbook) + agent_handoff/CURRENT.md (## Active Status, ## Log Edit-Lock, ## Cross-Agent Requests) + docs/ai-gateway/{plan.md,pre-launch-security.md} + docs/ai-gateway-rag/spec.md + app/backend/app/schemas/chat.py. First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
+Context: Gateway + RAG are ALREADY BUILT + inert (ai_gateway/{engine,guard,retrieval,structured}.py, chat_service.py, FE AskEamos). Real on/off = backend LLM_PROVIDER (NOT the FE flag — security doc). Vercel AI Gateway: Groq Llama primary, order:['groq','bedrock']; key already minted + in env, $5 credit, NO re-mint.
+Task (Steven's decisions LOCKED 2026-06-18): enable the /report variant chat, report-payload grounding FIRST (no corpus). 1) Build/iterate LOCALLY against scripts/fake_gateway.py ($0). 2) Add a server-side 1-chat/day global DEV cap on POST /api/v1/chat/stream (env-gated dev guardrail, NOT the launch per-user budget). 3) Flip LLM_PROVIDER=gateway + NEXT_PUBLIC_AI_CHAT_ENABLED locally, verify real Groq tokens stream end-to-end on /report; mock still works. 4) Then a gated live demo on the shared Render backend (the 1/day cap is the spend backstop) — keep prod UX hidden via the FE flag. 5) Literature RAG (sqlite-vec, already built) waits on Codex's Tier-1 corpus materialization — report chat goes live on report-payload grounding without it. Then proceed left-to-right: Paper → Batch → Workbench (workbench FE already built this session: WorkbenchAiPanel posts WorkbenchContext; note variant_context is currently REQUIRED in ChatRequest → make optional for workbench-only context).
+Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; claim Shared File Locks on config.py/main.py before editing; coordinate via Log Edit-Lock (Codex on Tier-2 esm1b_* — different files); held files stay excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); deploy from repo root never app/web; do NOT flip prod to gateway (security gate: per-user budget + auth still pending). End clear-safe.
 ```
 
 <!-- history below: 2026-06-16 19:46 A1–A9 (shipped 0a209a1); then 1e86a78 deploy-recovery + incident (resolved) -->
@@ -409,64 +420,69 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-17 19:09 +1000 - Codex.
+Section last edited: 2026-06-17 20:00 +1000 - Codex.
 
-**Latest Codex update (2026-06-17 19:09 +1000 - Codex):**
-Committed, pushed, deployed, and live-verified the ESM1b MIT-regeneration path plus the
-already-local web Batch commits.
+**Latest Codex update (2026-06-17 20:00 +1000 - Codex):**
+Built the safe local half of the commercial ESM1b Tier 2 materialization path.
 
 Completed:
-- Created commit `1f6f45c` (`feat(backend): support MIT-regenerated ESM1b scores`).
-- Pushed `dc9ec94`, `999d0e9`, `c1ff060`, and `1f6f45c` to `origin/main`.
-- Triggered Render SG deploy `dep-d8p66f37uimc739s5a60`; Render API reports `status=live`,
-  commit `1f6f45c`.
-- Vercel production deploy `dpl_6HCs7UZmmp7FeMn1xYnnj61BHczi` is Ready and aliased to
-  `https://eamos-dev.vercel.app`.
-- Live backend: `https://eamos-dev-sg.onrender.com/healthz` returns ok/db ok/mock.
-- Live Vercel proxy provider-cache returns ok and ESM1b remains correctly gated:
-  build-ledger ESM1b `status=missing_source_file`,
-  `launch_gate=esm1b_mit_regeneration_required`.
-- Browser-smoked `https://eamos-dev.vercel.app/compare` desktop and mobile; page/network
-  requests were 200. Console had one benign Next CSS preload warning only.
-
-Verification:
-- Backend focused pytest: `tests/test_esm1b_assembly.py`,
-  `tests/test_esm1b_local_adapter.py`, `tests/test_predictor_runtime.py`,
-  `tests/test_tier2_predictor_artifacts.py`, `tests/test_health_api.py`,
-  `tests/test_source_asset_preflight_cli.py`, `tests/test_data_source_registry.py`,
-  `tests/test_tool_invariants.py`.
-- `ruff check`, `black --check`, `py_compile`, `git diff --check`, and
-  `node scripts/eamos-handoff-lint.mjs` passed.
-- `npm --prefix app/web run lint` exited 0 with two existing React hook warnings.
-- `npm --prefix app/web run build` passed.
+- Added `app/backend/app/services/esm1b_mane_contexts.py`, a MANE RefSeq GFF + local
+  `hg38.2bit` context builder that emits codon contexts and matching protein FASTA for
+  operator-side MIT ESM1b scoring.
+- Added `app/backend/app/cli/eamos_esm1b_mane_context_build.py`; it does not run ESM1b,
+  download the HF score zip, upload to Storage, mutate Supabase, seed Render, or flip providers.
+- Added focused tests in `app/backend/tests/test_esm1b_mane_contexts.py`.
+- Staged derived inputs under `C:\EamosDataStaging\esm1b\`:
+  - `esm1b-mane-codon-contexts.jsonl` - 11,135,143 contexts, 2,105,750,995 bytes,
+    SHA256 `40e16c3f39a06c31c2429d256fadc8a3dfb6178bb49a31123e34622d85c3df3b`.
+  - `esm1b-mane-proteins.fasta` - 19,228 proteins, 13,896,079 bytes,
+    SHA256 `7cde82864fe71ef2b7fea45ff44e8c8d10f22a05943189b7f65900f8d211344a`.
+  - `esm1b-mane-codon-contexts.manifest.json` - records `MANE Select v1.5`,
+    `sequence_id_field=protein_id`, `primary_chromosomes_only=true`,
+    `nonstandard_codon_policy=skip`, `invalid_cds_policy=skip`,
+    MANE GFF SHA256 `040f0d4056de2e9a416cd52bc20ff07ef403baadf5f5968faf188907893f6002`,
+    and hg38 SHA256 `1f67aaa17a77b327738fe750ab37430a85dddf73c7d9189385ad1839259acec0`.
 
 Still true:
-- No MIT-regenerated ESM1b score CSV or MANE codon-context JSONL is present locally.
-- No ESM1b materialization was performed.
+- `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` is missing.
+- `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz` and `.tbi` are missing.
+- No ESM1b runtime materialization was performed.
 - No Hugging Face precomputed/non-commercial score zip was downloaded, staged, or used.
 - No Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or
   `LOCAL_EVIDENCE_ENABLED` flip occurred.
 
-Clean-path command contract once the operator-side files exist:
+Verification:
+- `python -m pytest tests\test_esm1b_mane_contexts.py tests\test_esm1b_assembly.py tests\test_tier2_predictor_artifacts.py tests\test_predictor_runtime.py -q`
+- `python -m ruff check app\services\esm1b_mane_contexts.py app\cli\eamos_esm1b_mane_context_build.py tests\test_esm1b_mane_contexts.py`
+- `python -m black --check --target-version py310 app\services\esm1b_mane_contexts.py app\cli\eamos_esm1b_mane_context_build.py tests\test_esm1b_mane_contexts.py`
+- `python -m py_compile app\services\esm1b_mane_contexts.py app\cli\eamos_esm1b_mane_context_build.py`
+- `git diff --check`
+- `python -m app.cli.eamos_tier2_predictor_artifact_upload --artifact esm1b_hg38_scores --compact`
+  still reports the score cache and `.tbi` as `missing_local_file`.
+- `python -m app.cli.eamos_source_asset_preflight --compact` stayed read-only; Tier 2 plan still
+  reports predictor artifacts missing.
+- `python -m graphify update .` completed; HTML export skipped because the graph exceeds 5,000 nodes.
+
+Next clean-path command once the MIT score CSV exists:
 
 ```powershell
 cd app/backend
 python -m app.cli.eamos_esm1b_regenerated_scores_materialize `
-  --score-csv <staging>/esm1b-mit-regenerated-scores.csv `
-  --codon-context-jsonl <staging>/esm1b-mane-codon-contexts.jsonl `
+  --score-csv C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv `
+  --codon-context-jsonl C:\EamosDataStaging\esm1b\esm1b-mane-codon-contexts.jsonl `
   --target-path data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz `
-  --mane-version <MANE release/version> `
-  --grch38-reference-sha256 <hg38 reference SHA256> `
+  --mane-version "MANE Select v1.5" `
+  --grch38-reference-sha256 1f67aaa17a77b327738fe750ab37430a85dddf73c7d9189385ad1839259acec0 `
   --require-ready `
   --compact
 ```
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-17 19:09 +1000 - Codex ESM1b MIT-regeneration path deployed
+# Resume prompt - 2026-06-17 20:00 +1000 - Codex ESM1b MANE context input staged
 Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/pubmed-corpus-materialization/spec.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git status --short --branch and git log -8 --oneline.
-Delta: `1f6f45c` deployed the MIT-regenerated ESM1b materialization/provenance path; Render SG deploy `dep-d8p66f37uimc739s5a60` is live on `1f6f45c`, and Vercel prod `dpl_6HCs7UZmmp7FeMn1xYnnj61BHczi` is Ready/aliased.
-Current result: no `esm1b-mit-regenerated-scores.csv`, no `esm1b-mane-codon-contexts.jsonl`, and no local `esm1b_hg38.tsv.gz/.tbi/manifest`; live provider-cache via Vercel still shows ESM1b `missing_source_file` with `launch_gate=esm1b_mit_regeneration_required`, which is the expected clean-path gate.
-Next: obtain or place the MIT-regenerated score CSV plus MANE codon-context JSONL in staging, then run `python -m app.cli.eamos_esm1b_regenerated_scores_materialize ... --require-ready --compact`; expected output is `esm1b_hg38.tsv.gz`, `.tbi`, and sidecar manifest with MIT-regenerated provenance and `license_gate: null`.
-Guardrails: no HF score zip for the commercial path; no Storage upload; no Supabase metadata/apply; no Render disk sync; no provider/env flips; no `LOCAL_EVIDENCE_ENABLED` flip; explicit pathspecs only; keep held/unrelated files excluded (`app/web` compare files, `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`, unrelated handoff archives). End clear-safe.
+Delta: Added the backend ESM1b MANE context/FASTA builder CLI and staged the safe MIT-regeneration inputs under `C:\EamosDataStaging\esm1b\`: context JSONL (11,135,143 rows, SHA256 `40e16c3f...df3b`), protein FASTA (19,228 proteins, SHA256 `7cde8286...344a`), and manifest. Graphify AST was updated.
+Current result: `esm1b-mit-regenerated-scores.csv` is still missing, so no `esm1b_hg38.tsv.gz/.tbi/manifest` was materialized; the read-only Tier 2 planner still reports ESM1b score cache/index `missing_local_file`.
+Next: run or place the MIT ESM1b score CSV at `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` with CSV `seq_id` values matching the FASTA `protein_id` IDs, then run `python -m app.cli.eamos_esm1b_regenerated_scores_materialize ... --require-ready --compact`.
+Guardrails: no HF score zip for the commercial path; no Storage upload; no Supabase metadata/apply; no Render disk sync; no provider/env flips; no `LOCAL_EVIDENCE_ENABLED` flip; keep held/unrelated files excluded (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`, unrelated handoff archives). End clear-safe.
 ```
