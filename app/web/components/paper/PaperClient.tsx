@@ -7,8 +7,11 @@ import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
 import { RailFoot } from '@/components/layout/RailFoot'
 import { LibrarySection } from '@/components/library/LibrarySection'
+import { EamosSearch } from '@/components/landing/EamosSearch'
 import { CandidateCard, formatToken } from '@/components/report/CandidateCard'
+import { PaperAiPanel } from './PaperAiPanel'
 import { saveVariant } from '@/lib/variant-library'
+import { reportHrefForQuery } from '@/lib/variant-search'
 import { stashCompareVariants, type ParsedVariant } from '@/lib/variant-file'
 import { extractPaperVariants, isMockResponse } from '@/lib/paperVariants'
 import type {
@@ -625,6 +628,7 @@ export function PaperClient() {
     })
   const [toast, setToast] = useState<string | null>(null)
   const [showMeta, setShowMeta] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
   const idRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -635,6 +639,13 @@ export function PaperClient() {
   const flash = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(null), 2400)
+  }
+
+  // Top-nav variant search → report, mirroring /report and /compare so the search
+  // bar behaves identically across surfaces.
+  const handleSearch = (raw: string) => {
+    const href = reportHrefForQuery(raw)
+    if (href) router.push(href)
   }
 
   const addFiles = async (files: FileList | File[]) => {
@@ -1181,11 +1192,35 @@ export function PaperClient() {
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
-      <TopNav right={<ModePill current="paper" />} />
+      <TopNav right={<ModePill current="paper" />}>
+        {/* Compact variant search, same as /report: expands on focus, routes to
+            the report. Keeps the search bar consistent across every surface. */}
+        <div
+          className="mx-auto"
+          onFocus={() => setSearchFocused(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSearchFocused(false)
+          }}
+          style={{
+            width: '100%',
+            maxWidth: searchFocused ? 760 : 640,
+            transition: 'max-width 460ms var(--ease-emphasized)',
+          }}
+        >
+          <EamosSearch size="compact" tone="light" onSubmit={handleSearch} />
+        </div>
+      </TopNav>
       {/* WorkRail rendered directly (like /report) — no padded wrapper, so the
           sticky rail reaches the viewport bottom instead of stopping short. The
           output pane owns its own bottom spacing. */}
-      <WorkRail surface="paper" title="Library" foot={<RailFoot />} output={output}>
+      <WorkRail
+        surface="paper"
+        title="Library"
+        aiTitle="Ask Eamos"
+        aiPanel={<PaperAiPanel count={merged.length} sources={result?.bySource.length ?? 0} />}
+        foot={<RailFoot />}
+        output={output}
+      >
         <LibrarySection openLabel="Open report" />
       </WorkRail>
 

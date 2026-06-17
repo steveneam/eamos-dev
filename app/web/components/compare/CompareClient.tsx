@@ -22,7 +22,14 @@ import { ScopeGate } from './ScopeGate'
 import { BatchTable, rowFromParsed, rowFromResult } from './BatchTable'
 import { VariantImport } from './VariantImport'
 import { CompareAiPanel } from './CompareAiPanel'
+import { IconScope, IconCheck } from '@/components/icons/Icon'
 import './compare.css'
+
+// Stable empty references for the no-cohort scope preview (so the dimmed rail
+// doesn't churn props each render).
+const NO_VARIANTS: ParsedVariant[] = []
+const NO_FILTERS: ActiveFilter[] = []
+const noop = () => {}
 
 /**
  * Multi-variant view (`/compare`). Parse a dropped file into a cohort, scope it
@@ -189,18 +196,16 @@ export function CompareClient() {
         <NavContext count={hydrated ? variants.length : 0} source={stash?.source} />
       </TopNav>
 
-      {!hydrated ? null : variants.length === 0 ? (
-        <main
-          className="mx-auto"
-          style={{ width: '100%', maxWidth: 'var(--maxw-report-frame)', padding: '40px 32px 80px' }}
-        >
-          <EmptyState onVariants={(v, s) => loadVariants(v, s, false)} />
-        </main>
-      ) : (
-        // No top padding on the shell — the sticky rail then clamps flush under
-        // the nav and its full-viewport height lands the pinned foot exactly at
-        // the bottom (a short, unscrolled page used to push it ~16px past the
-        // fold). The output column carries the top/bottom breathing room instead.
+      {!hydrated ? null : (
+        // One frame for both states. The rail + output column are always mounted,
+        // so loading a cohort fills this frame in place instead of swapping a
+        // separate centered empty card for the full rail layout. Empty → the import
+        // hero sits in the output column and the scope rail shows a dimmed preview;
+        // loaded → the toolbar + cohort table, with the scope rail live. No top
+        // padding on the shell so the sticky rail clamps flush under the nav and its
+        // full-viewport height lands the pinned foot exactly at the bottom (a short
+        // page used to push it ~16px past the fold); the output column carries the
+        // top/bottom breathing room instead.
         <div>
           <WorkRail
             surface="compare"
@@ -210,69 +215,96 @@ export function CompareClient() {
             foot={<RailFoot />}
             output={
               <div style={{ padding: '16px 22px 80px 24px' }}>
-                {/* Output toolbar — Add file lives here, in the central column
-                    (not tucked in the rail corner), so loading another VCF into the
-                    cohort is always one click away. The Generate/Regenerate control
-                    rides the right once there's output to re-run; on a stale scope
-                    it turns solid with a hint so Regenerate gets its moment. */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-                  <VariantImport compact onVariants={(v, s) => loadVariants(v, s, true)} />
-                  {status !== 'idle' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      {stale && status === 'done' && (
-                        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                          Scope changed — regenerate to apply
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => runBatch(filters)}
-                        disabled={status === 'running'}
-                        className={`cmp-cta ${status === 'running' ? 'cmp-cta--solid cmp-cta--running' : stale ? 'cmp-cta--solid' : 'cmp-cta--done'}`}
-                      >
-                        {status === 'running' ? (
-                          <>
-                            <Spinner /> Generating…
-                          </>
-                        ) : (
-                          'Regenerate →'
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {status === 'idle' ? (
-                  <GeneratePrompt scoped={res.activePanels.length > 0} onGenerate={() => runBatch(filters)} />
-                ) : status === 'running' ? (
-                  <LoadingCard />
-                ) : results && results.length > 0 ? (
-                  <BatchTable
-                    rows={results.map(rowFromResult)}
-                    annotated
-                    activePanels={res.activePanels}
-                    panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
-                    panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
-                  />
-                ) : res.shown.length === 0 ? (
-                  <EmptyScope
-                    onClear={() => changeFilters([])}
-                    intervalPending={res.intervalPending}
-                    total={res.total}
-                  />
+                {variants.length === 0 ? (
+                  <div style={{ maxWidth: 640, margin: '4px auto 0' }}>
+                    <EmptyState onVariants={(v, s) => loadVariants(v, s, false)} />
+                  </div>
                 ) : (
-                  <BatchTable
-                    rows={res.shown.map(rowFromParsed)}
-                    annotated={false}
-                    activePanels={res.activePanels}
-                    panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
-                    panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
-                  />
+                  <>
+                    {/* Output toolbar — Add file lives here, in the central column
+                        (not tucked in the rail corner), so loading another VCF into the
+                        cohort is always one click away. The Generate/Regenerate control
+                        rides the right once there's output to re-run; on a stale scope
+                        it turns solid with a hint so Regenerate gets its moment. */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+                      <VariantImport compact onVariants={(v, s) => loadVariants(v, s, true)} />
+                      {status !== 'idle' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {stale && status === 'done' && (
+                            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                              Scope changed — regenerate to apply
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => runBatch(filters)}
+                            disabled={status === 'running'}
+                            className={`cmp-cta ${status === 'running' ? 'cmp-cta--solid cmp-cta--running' : stale ? 'cmp-cta--solid' : 'cmp-cta--done'}`}
+                          >
+                            {status === 'running' ? (
+                              <>
+                                <Spinner /> Generating…
+                              </>
+                            ) : (
+                              'Regenerate →'
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {status === 'idle' ? (
+                      <GeneratePrompt
+                        count={variants.length}
+                        source={stash?.source}
+                        scoped={res.activePanels.length > 0}
+                        onGenerate={() => runBatch(filters)}
+                      />
+                    ) : status === 'running' ? (
+                      <LoadingCard />
+                    ) : results && results.length > 0 ? (
+                      <BatchTable
+                        rows={results.map(rowFromResult)}
+                        annotated
+                        activePanels={res.activePanels}
+                        panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                        panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                      />
+                    ) : res.shown.length === 0 ? (
+                      <EmptyScope
+                        onClear={() => changeFilters([])}
+                        intervalPending={res.intervalPending}
+                        total={res.total}
+                      />
+                    ) : (
+                      <BatchTable
+                        rows={res.shown.map(rowFromParsed)}
+                        annotated={false}
+                        activePanels={res.activePanels}
+                        panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                        panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             }
           >
-            <ScopeGate variants={variants} filters={filters} onChange={changeFilters} />
-            <LibrarySection />
+            {variants.length === 0 ? (
+              <>
+                <ScopeLockedNotice />
+                {/* Dimmed, inert preview of the scope rail — shows what unlocks once a
+                    cohort loads (frame continuity) without pretending to be live. */}
+                <div style={{ opacity: 0.5, pointerEvents: 'none' }} aria-hidden>
+                  <ScopeGate variants={NO_VARIANTS} filters={NO_FILTERS} onChange={noop} />
+                </div>
+                <LibrarySection />
+              </>
+            ) : (
+              <>
+                <ScopeGate variants={variants} filters={filters} onChange={changeFilters} />
+                <LibrarySection />
+              </>
+            )}
           </WorkRail>
         </div>
       )}
@@ -347,23 +379,58 @@ function generateBtn(status: RunStatus): React.CSSProperties {
   }
 }
 
-function GeneratePrompt({ scoped, onGenerate }: { scoped: boolean; onGenerate: () => void }) {
+/** The idle-with-cohort state. Doubles as the "you added something" confirmation:
+ *  a cohort is loaded but not yet run, so it names the count + source with a
+ *  success accent (the rail un-dimming alone read as too quiet) and points at the
+ *  next step — scope, then generate. */
+function GeneratePrompt({
+  count,
+  source,
+  scoped,
+  onGenerate,
+}: {
+  count: number
+  source?: string
+  scoped: boolean
+  onGenerate: () => void
+}) {
   return (
     <section
       style={{
         background: 'var(--bg)',
-        border: '0.5px dashed var(--line-2)',
+        border: '0.5px solid var(--teal-bdr)',
+        borderTop: '2px solid var(--teal)',
         borderRadius: 14,
-        padding: '36px 28px',
+        padding: '26px 28px 32px',
         textAlign: 'center',
       }}
     >
-      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 17, margin: 0, color: 'var(--ink)' }}>
-        Generate to run the lookup
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '4px 11px',
+          borderRadius: 999,
+          background: 'var(--teal-tint)',
+          border: '0.5px solid var(--teal-bdr)',
+          color: 'var(--teal-deep)',
+          fontSize: 11,
+          fontWeight: 700,
+          fontFamily: 'var(--mono)',
+          letterSpacing: '0.03em',
+          textTransform: 'uppercase',
+        }}
+      >
+        <IconCheck size={12} /> Cohort loaded
+      </span>
+      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 19, margin: '12px 0 0', color: 'var(--ink)' }}>
+        {count} variant{count === 1 ? '' : 's'} ready
+        {source ? <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}> · {source}</span> : null}
       </h2>
-      <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', margin: '8px auto 0', maxWidth: 460 }}>
-        Large VCFs aren’t filtered in real time. Set your scope above
-        {scoped ? ' (filters applied)' : ''}, then generate to run the per-variant lookup.
+      <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', margin: '8px auto 0', maxWidth: 470 }}>
+        Scope it with the filters on the left{scoped ? ' (filters applied)' : ''}, then generate to run the
+        per-variant lookup. Large VCFs aren’t filtered in real time.
       </p>
       <button type="button" onClick={onGenerate} className="cmp-cta cmp-cta--solid" style={{ marginTop: 18 }}>
         Generate results →
@@ -421,6 +488,31 @@ function EmptyState({ onVariants }: { onVariants: (variants: ParsedVariant[], so
         .
       </p>
     </section>
+  )
+}
+
+/** No-cohort scope-rail header — explains why the scope preview below is dimmed,
+ *  so the inert rail reads as "this unlocks with a cohort" rather than broken. */
+function ScopeLockedNotice() {
+  return (
+    <div
+      style={{
+        margin: '0 0 6px',
+        padding: '12px 14px',
+        borderRadius: 12,
+        border: '0.5px solid var(--line)',
+        background: 'var(--bg-soft)',
+        color: 'var(--ink-3)',
+        fontSize: 12.5,
+        lineHeight: 1.5,
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 4 }}>
+        <IconScope size={13} /> Scope unlocks with a cohort
+      </span>
+      Drop a file or paste a list to load variants — your gene panels and quality / frequency
+      filters become active here.
+    </div>
   )
 }
 

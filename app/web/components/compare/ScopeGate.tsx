@@ -18,14 +18,15 @@ import {
   type ActiveFilter,
   type FilterKind,
 } from '@/lib/compare-filters'
-import { KeywordPanelBuilder } from './CustomPanelBuilder'
+import { KeywordPanelBuilder, LlmPanelComingSoon } from './CustomPanelBuilder'
 
 /**
  * Scope controls for /compare, rendered as <WorkRail> content (left rail).
  * "Active scope" holds the applied filters as removable chips + a slim summary;
  * "Add a filter" is the tabbed builder — Gene panels (preset list + quality /
- * region / frequency), Keywords (the custom-panel builder), and LLM (coming
- * soon). Panel chips filter live (mock); PASS/Region/AF apply server-side.
+ * region / frequency) and Keywords (the custom-panel builder: deterministic
+ * keyword/symbol resolution now + the conversational "describe it" flavour,
+ * coming soon). Panel chips filter live (mock); PASS/Region/AF apply server-side.
  */
 const DT = 'text/plain'
 type DragPayload = { t: 'new'; kind: FilterKind; panelSlug?: string } | { t: 'chip'; index: number }
@@ -235,7 +236,15 @@ export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
           </TabButton>
         </div>
         {tab === 'panels' && <PresetList filters={filters} catalog={catalog} onAdd={add} />}
-        {tab === 'keywords' && <KeywordPanelBuilder onCreate={addCustom} />}
+        {tab === 'keywords' && (
+          <>
+            <KeywordPanelBuilder onCreate={addCustom} />
+            {/* The conversational builder lives under the deterministic one — same
+                "build a panel" job, the natural-language flavour (coming soon). */}
+            <div style={{ height: 1, background: 'var(--line)', margin: '14px 2px 12px' }} />
+            <LlmPanelComingSoon />
+          </>
+        )}
       </WorkRailSection>
     </>
   )

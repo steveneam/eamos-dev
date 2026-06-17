@@ -76,7 +76,10 @@ export function rowFromResult(r: BatchResult, i: number): BatchRow {
     clinvar: r.clinvar_verdict ?? null,
     acmg: r.acmg_classification ?? null,
     gnomadAf: r.gnomad_af ?? null,
-    reportHref: r.report_href ?? withFromCompare(reportHrefForQuery(query)),
+    // The backend's report_href points at the legacy /lookup route, which is not
+    // a page in this app (it 404s). Derive the /report href locally — exactly as
+    // the preview rows do — so both states open the same working report.
+    reportHref: withFromCompare(reportHrefForQuery(query)),
   }
 }
 

@@ -7,7 +7,8 @@ import type { Panel } from '@/lib/backend'
 import { IconDropInto, IconSparkle } from '@/components/icons/Icon'
 
 /**
- * Custom gene-panel builders (spec §6.3). Two tabs in the scope rail:
+ * Custom gene-panel builders (spec §6.3). Both live in the Keywords tab of the
+ * scope rail, stacked — same "build a panel → add as filter" job, two flavours:
  *   - KeywordPanelBuilder (Tier A, ships now): type keywords / paste gene symbols
  *     / attach a list → deterministic resolution (mock → POST /panels/resolve).
  *   - LlmPanelComingSoon (Tier B): conversational + voice, COMING SOON, gated on
