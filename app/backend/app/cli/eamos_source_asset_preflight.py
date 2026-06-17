@@ -448,7 +448,7 @@ def _predictor_runtime_asset_summary(
         "esm1b": _predictor_runtime_summary(
             esm1b,
             public_serialization_allowed=True,
-            launch_gate="esm1b_score_file_terms_unconfirmed",
+            launch_gate=esm1b.launch_gate,
         ),
         "pvs1_nmd": {
             "source_id": pvs1_nmd.source_id,
@@ -463,7 +463,7 @@ def _predictor_runtime_asset_summary(
         "ci_spliceai": inspect_ci_spliceai_runtime_assets(settings).to_sanitized_dict(),
         "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
         "public_serialization_locked": [],
-        "launch_gated": ["esm1b", "ci_spliceai", "capice"],
+        "launch_gated": _launch_gated_predictors(esm1b.launch_gate),
     }
 
 
@@ -485,6 +485,12 @@ def _predictor_runtime_summary(
         "public_serialization_allowed": public_serialization_allowed,
         "launch_gate": launch_gate,
     }
+
+
+def _launch_gated_predictors(esm1b_launch_gate: str | None) -> list[str]:
+    gated = ["esm1b"] if esm1b_launch_gate else []
+    gated.extend(["ci_spliceai", "capice"])
+    return gated
 
 
 def _runtime_materialization_probe_summary(

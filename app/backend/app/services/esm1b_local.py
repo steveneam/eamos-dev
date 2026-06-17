@@ -8,7 +8,6 @@ from typing import Protocol
 from app.core.config import Settings
 from app.data_sources.registry import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
 from app.services.computational_calibration import calibration_field_values
-from app.services.esm1b_assembly import ESM1B_LICENSE_GATE
 from app.services.indexed_sources import (
     IndexedPredictorScore,
     IndexedSourceError,
@@ -47,7 +46,7 @@ class Esm1bProvenance:
     source_url: str | None
     file_name: str
     reader: str
-    license_gate: str
+    license_gate: str | None
 
 
 @dataclass(frozen=True)
@@ -166,10 +165,15 @@ class Esm1bLocalAdapter:
                 unavailable_reason="malformed_score",
                 warnings=("esm1b_malformed_score",),
             )
+        warnings = (
+            ("esm1b_license_gate_metadata", self._inspection.launch_gate)
+            if self._inspection.launch_gate
+            else ()
+        )
         return Esm1bLookup(
             available=True,
             prediction=prediction,
-            warnings=("esm1b_license_gate_metadata", ESM1B_LICENSE_GATE),
+            warnings=warnings,
         )
 
     def _prediction_from_score(self, score: IndexedPredictorScore) -> Esm1bPrediction | None:
@@ -197,7 +201,7 @@ class Esm1bLocalAdapter:
                 source_url=self._record.source_url,
                 file_name=self._inspection.path.name,
                 reader="tabix_tsv_predictor_reader",
-                license_gate=ESM1B_LICENSE_GATE,
+                license_gate=self._inspection.launch_gate,
             ),
         )
 

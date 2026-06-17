@@ -12,6 +12,7 @@ from typing import Any, Callable, Iterable
 import httpx
 
 from app.core.config import Settings
+from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 from app.services.predictor_runtime import (
     CAPICE_FEATURE_CACHE_ASSET_ROLE,
     CAPICE_FEATURE_CACHE_SOURCE_ID,
@@ -40,6 +41,7 @@ TIER2_PREDICTOR_ARTIFACT_IDS = (
     "ci_spliceai",
     "capice",
 )
+_DEFAULT_LAUNCH_GATE = object()
 
 
 class Tier2PredictorArtifactStatus(str, Enum):
@@ -170,7 +172,7 @@ TIER2_PREDICTOR_ARTIFACT_FILES: tuple[Tier2PredictorArtifactFileDefinition, ...]
         asset_id="esm1b_hg38_tsv_gz",
         role=ESM1B_ASSET_ROLE,
         path_setting="esm1b_hg38_runtime_asset_path",
-        launch_gate="esm1b_score_file_terms_unconfirmed",
+        launch_gate=ESM1B_REGENERATION_REQUIRED_GATE,
     ),
     Tier2PredictorArtifactFileDefinition(
         artifact_id="esm1b_hg38_scores",
@@ -180,7 +182,7 @@ TIER2_PREDICTOR_ARTIFACT_FILES: tuple[Tier2PredictorArtifactFileDefinition, ...]
         role="predictor_tabix_index",
         path_setting="esm1b_hg38_runtime_asset_path",
         path_suffix=".tbi",
-        launch_gate="esm1b_score_file_terms_unconfirmed",
+        launch_gate=ESM1B_REGENERATION_REQUIRED_GATE,
     ),
     Tier2PredictorArtifactFileDefinition(
         artifact_id="ci_spliceai",
@@ -389,6 +391,7 @@ def _build_upload_item(
         local_path=local_path,
         sha256_value=sha256_value,
     )
+    launch_gate = _resolved_launch_gate(definition, local_path)
     if byte_size > bucket_file_size_limit:
         return _upload_item(
             definition,
@@ -398,6 +401,7 @@ def _build_upload_item(
             byte_size=byte_size,
             md5_value=md5_value,
             sha256_value=sha256_value,
+            launch_gate=launch_gate,
             status=Tier2PredictorArtifactStatus.EXCEEDS_BUCKET_LIMIT,
             message="Tier 2 predictor artifact exceeds current private bucket file-size limit",
             local_path=local_path,
@@ -414,6 +418,7 @@ def _build_upload_item(
                 byte_size=byte_size,
                 md5_value=md5_value,
                 sha256_value=sha256_value,
+                launch_gate=launch_gate,
             ),
             indent=2,
             sort_keys=True,
@@ -428,6 +433,7 @@ def _build_upload_item(
         byte_size=byte_size,
         md5_value=md5_value,
         sha256_value=sha256_value,
+        launch_gate=launch_gate,
         status=Tier2PredictorArtifactStatus.PLANNED,
         message="eligible for private Storage upload",
         local_path=local_path,
@@ -493,6 +499,7 @@ def _manifest_payload(
     byte_size: int,
     md5_value: str,
     sha256_value: str,
+    launch_gate: str | None,
 ) -> dict[str, Any]:
     return {
         "artifact_id": definition.artifact_id,
@@ -507,7 +514,7 @@ def _manifest_payload(
         "md5": md5_value,
         "sha256": sha256_value,
         "checksums": {"md5": md5_value, "sha256": sha256_value},
-        "launch_gate": definition.launch_gate,
+        "launch_gate": launch_gate,
         "storage_contract": {
             "bucket_policy": "private",
             "frontend_direct_access_allowed": False,
@@ -543,6 +550,37 @@ def _object_path(
     )
 
 
+def _resolved_launch_gate(
+    definition: Tier2PredictorArtifactFileDefinition,
+    local_path: Path,
+) -> str | None:
+    if definition.artifact_id != "esm1b_hg38_scores":
+        return definition.launch_gate
+    manifest_path = _esm1b_runtime_manifest_path(
+        local_path, is_index=definition.path_suffix == ".tbi"
+    )
+    if not manifest_path.is_file():
+        return definition.launch_gate
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return definition.launch_gate
+    for key in ("license_gate", "launch_gate"):
+        if key not in manifest:
+            continue
+        value = manifest.get(key)
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+    return definition.launch_gate
+
+
+def _esm1b_runtime_manifest_path(local_path: Path, *, is_index: bool) -> Path:
+    score_path = Path(str(local_path)[: -len(".tbi")]) if is_index else local_path
+    return score_path.with_suffix(score_path.suffix + ".manifest.json")
+
+
 def _upload_item(
     definition: Tier2PredictorArtifactFileDefinition,
     *,
@@ -554,6 +592,7 @@ def _upload_item(
     byte_size: int | None = None,
     md5_value: str | None = None,
     sha256_value: str | None = None,
+    launch_gate: str | None | object = _DEFAULT_LAUNCH_GATE,
     local_path: Path | None = None,
     manifest_path: Path | None = None,
 ) -> Tier2PredictorArtifactUploadItem:
@@ -570,7 +609,9 @@ def _upload_item(
         byte_size=byte_size,
         md5=md5_value,
         sha256=sha256_value,
-        launch_gate=definition.launch_gate,
+        launch_gate=(
+            definition.launch_gate if launch_gate is _DEFAULT_LAUNCH_GATE else launch_gate
+        ),
         status=status,
         message=message,
         local_path=local_path,

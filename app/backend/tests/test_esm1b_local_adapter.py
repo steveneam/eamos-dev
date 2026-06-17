@@ -60,6 +60,32 @@ def test_esm1b_adapter_maps_exact_hit_with_calibration_and_license_metadata(
     assert prediction.provenance.license_gate == ESM1B_LICENSE_GATE
 
 
+def test_esm1b_adapter_omits_launch_gate_for_clean_regenerated_manifest(
+    tmp_path: Path,
+) -> None:
+    adapter = Esm1bLocalAdapter(
+        _ready_inspection(tmp_path, launch_gate=None),
+        reader_factory=lambda path: FakeReader(
+            (
+                _score(
+                    chrom="7",
+                    position=117509068,
+                    ref="C",
+                    alt="T",
+                    score=-14.0,
+                ),
+            )
+        ),
+    )
+
+    lookup = adapter.lookup(chrom="chr7", position=117509068, ref="C", alt="T")
+
+    assert lookup.available is True
+    assert lookup.warnings == ()
+    assert lookup.prediction is not None
+    assert lookup.prediction.provenance.license_gate is None
+
+
 def test_esm1b_adapter_returns_no_hit_without_guessing(tmp_path: Path) -> None:
     adapter = Esm1bLocalAdapter(
         _ready_inspection(tmp_path),
@@ -178,6 +204,7 @@ def _ready_inspection(
     tmp_path: Path,
     *,
     status: PredictorRuntimeStatus = PredictorRuntimeStatus.READY,
+    launch_gate: str | None = ESM1B_LICENSE_GATE,
 ) -> PredictorRuntimeInspection:
     asset = tmp_path / "esm1b_hg38.tsv.gz"
     asset.write_bytes(b"tiny")
@@ -197,6 +224,7 @@ def _ready_inspection(
         bucket_file_size_limit=50 * 1024 * 1024 * 1024,
         materialization_status=None,
         message="ready" if status is PredictorRuntimeStatus.READY else status.value,
+        launch_gate=launch_gate,
     )
 
 

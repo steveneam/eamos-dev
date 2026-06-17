@@ -262,6 +262,11 @@ def _literature_embedding_health(settings) -> dict[str, object]:
 
 def _indexed_predictor_health(settings, materialization_store) -> dict[str, object]:
     pvs1_nmd = inspect_pvs1_nmd_runtime()
+    esm1b = inspect_esm1b_runtime_asset(
+        settings,
+        materialization_store=materialization_store,
+        verify_checksum=False,
+    )
     return {
         "alphamissense": _predictor_inspection_health(
             inspect_alphamissense_runtime_asset(
@@ -272,13 +277,9 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             public_serialization_allowed=True,
         ),
         "esm1b": _predictor_inspection_health(
-            inspect_esm1b_runtime_asset(
-                settings,
-                materialization_store=materialization_store,
-                verify_checksum=False,
-            ),
+            esm1b,
             public_serialization_allowed=True,
-            launch_gate="esm1b_score_file_terms_unconfirmed",
+            launch_gate=esm1b.launch_gate,
         ),
         "ci_spliceai": inspect_ci_spliceai_runtime_assets(settings).to_sanitized_dict(),
         "pvs1_nmd": {

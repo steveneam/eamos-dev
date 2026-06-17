@@ -16,6 +16,7 @@ from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.main import create_app
 from app.services.ai_gateway.retrieval import LiteratureEmbeddingStore, LiteratureSourceRecord
 from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
+from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
@@ -109,7 +110,7 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert indexed["alphamissense"]["public_serialization_allowed"] is True
     assert indexed["esm1b"]["status"] == "missing_source_file"
     assert indexed["esm1b"]["public_serialization_allowed"] is True
-    assert indexed["esm1b"]["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert indexed["esm1b"]["launch_gate"] == ESM1B_REGENERATION_REQUIRED_GATE
     assert indexed["ci_spliceai"]["status"] == "score_cache_missing"
     assert indexed["ci_spliceai"]["runtime_wired"] is True
     assert indexed["ci_spliceai"]["public_serialization_allowed"] is True
@@ -159,7 +160,7 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert items["alphamissense"]["public_serialization_allowed"] is True
     assert items["esm1b"]["runtime_wired"] is True
     assert items["esm1b"]["public_serialization_allowed"] is True
-    assert items["esm1b"]["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert items["esm1b"]["launch_gate"] == ESM1B_REGENERATION_REQUIRED_GATE
     assert items["ci_spliceai"]["runtime_wired"] is True
     assert items["ci_spliceai"]["public_serialization_allowed"] is True
     assert items["ci_spliceai"]["launch_gate"] == "ci_spliceai_launch_filter_metadata"
@@ -482,6 +483,35 @@ def test_provider_cache_health_reports_ready_admin_predictors_without_paths(
     encoded = json.dumps(body).lower()
     assert str(tmp_path).lower() not in encoded
     assert "supabase://" not in encoded
+
+
+def test_provider_cache_health_reports_clean_esm1b_manifest_without_launch_gate(
+    tmp_path: Path,
+) -> None:
+    esm1b = _write_indexed_runtime_file(tmp_path / "esm1b" / "esm1b_hg38.tsv.gz", b"scores")
+    esm1b.with_suffix(esm1b.suffix + ".manifest.json").write_text(
+        '{"license_gate": null, "score_generation_method": "mit_model_regeneration"}',
+        encoding="utf-8",
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        esm1b_hg38_runtime_asset_path=esm1b,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    body = response.json()
+    indexed = body["providers"]["indexed_predictors"]
+    assert indexed["esm1b"]["status"] == "ready"
+    assert indexed["esm1b"]["launch_gate"] is None
+    ledger_items = {item["item_id"]: item for item in body["build_ledger"]["items"]}
+    assert ledger_items["esm1b"]["status"] == "ready"
+    assert ledger_items["esm1b"]["launch_gate"] is None
 
 
 def test_provider_cache_health_summarizes_source_cache_without_identity_leaks(client) -> None:

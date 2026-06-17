@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import md5
+import json
 from pathlib import Path
 
 from app.core.config import Settings
@@ -10,6 +11,10 @@ from app.data_sources import (
     DEFAULT_SOURCE_RECORDS,
     DataSourceRegistry,
     SourceAssetMaterializationRecord,
+)
+from app.services.esm1b_assembly import (
+    ESM1B_LICENSE_GATE,
+    ESM1B_REGENERATION_REQUIRED_GATE,
 )
 from app.services.predictor_runtime import (
     ALPHAMISSENSE_ASSET_ROLE,
@@ -99,6 +104,7 @@ def test_esm1b_preflight_reports_missing_file(tmp_path: Path) -> None:
     assert inspection.ready is False
     assert inspection.status is PredictorRuntimeStatus.MISSING_SOURCE_FILE
     assert inspection.actual_size_bytes is None
+    assert inspection.launch_gate == ESM1B_REGENERATION_REQUIRED_GATE
 
 
 def test_ci_spliceai_runtime_reports_missing_artifacts(tmp_path: Path) -> None:
@@ -392,6 +398,30 @@ def test_esm1b_materialization_reports_ready_without_requiring_expected_registry
     assert inspection.actual_md5 == _md5(payload)
     assert inspection.materialization_status == "ready"
     assert inspection.bucket_file_size_limit == 50 * 1024 * 1024 * 1024
+    assert inspection.launch_gate == ESM1B_LICENSE_GATE
+
+
+def test_esm1b_materialization_reads_clean_regenerated_manifest_launch_gate(
+    tmp_path: Path,
+) -> None:
+    payload = b"tiny-esm1b"
+    asset = _write_materialized_asset(
+        tmp_path,
+        payload,
+        file_name="esm1b_hg38.tsv.gz",
+        manifest_extra={
+            "license_gate": None,
+            "score_generation_method": "mit_model_regeneration",
+            "model_source_license": "MIT",
+        },
+    )
+    settings = Settings(jwt_secret="test-secret", esm1b_hg38_runtime_asset_path=asset)
+
+    inspection = inspect_esm1b_runtime_asset(settings)
+
+    assert inspection.ready is True
+    assert inspection.status is PredictorRuntimeStatus.READY
+    assert inspection.launch_gate is None
 
 
 def test_esm1b_materialization_rejects_public_metadata(
@@ -499,13 +529,16 @@ def _write_materialized_asset(
     payload: bytes,
     *,
     file_name: str = "AlphaMissense_hg38.tsv.gz",
+    manifest_extra: dict[str, object] | None = None,
 ) -> Path:
     tmp_path.mkdir(parents=True, exist_ok=True)
     asset = tmp_path / file_name
     asset.write_bytes(payload)
     Path(f"{asset}.tbi").write_bytes(b"index")
+    manifest = {"md5": _md5(payload), "sha256": "a" * 64}
+    manifest.update(manifest_extra or {})
     asset.with_suffix(asset.suffix + ".manifest.json").write_text(
-        '{"md5":"%s","sha256":"%s"}' % (_md5(payload), "a" * 64),
+        json.dumps(manifest),
         encoding="utf-8",
     )
     return asset

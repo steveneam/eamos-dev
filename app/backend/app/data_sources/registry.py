@@ -621,13 +621,13 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         display_name="ESM1b hg38 assembled missense LLR scores",
         priority="p6_free_tier_modern_ai_predictor",
         tier="tier_1_object_storage_asset",
-        day1_status="buildable_score_file_terms_pending",
+        day1_status="buildable_mit_regeneration_required",
         files_or_api=("esm1b_hg38.tsv.gz", "esm1b_hg38.tsv.gz.tbi", "manifest.json"),
         upstream_source="EAMOS MANE assembly from ESM1b missense LLR scores",
-        source_url="https://huggingface.co/spaces/ntranoslab/esm_variants/tree/main",
-        source_url_status="score_zip_terms_unconfirmed_2026_06_03",
+        source_url="https://github.com/ntranoslab/esm-variants",
+        source_url_status="mit_code_verified_precomputed_hf_zip_noncommercial_2026_06_17",
         expected_size="about 2-4 GB compressed assembled MANE Select hg38 table",
-        storage_target="mounted_volume_or_object_storage_after_score_terms_or_regeneration",
+        storage_target="mounted_volume_or_object_storage_after_mit_regeneration",
         temporary_staging="offline_build_workspace",
         adapter="tabix_tsv_predictor_reader",
         license_status=LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED,
@@ -650,20 +650,23 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
             "Record source score SHA256, MANE release, GRCh38 reference checksum, "
             "assembly code version, bgzip SHA256, and tabix index SHA256."
         ),
-        terms_url=None,
+        terms_url="https://huggingface.co/spaces/ntranoslab/esm_variants/blob/main/README.md",
         terms_status=(
-            "The ESM1b model and ntranoslab/esm-variants code are MIT, but the "
-            "precomputed ALL_hum_isoforms_ESM1b_LLR.zip score-file terms are "
-            "unconfirmed. Commercial ship requires confirmed score-file terms "
-            "or regeneration from the MIT model."
+            "Reviewed 2026-06-17: the ntranoslab/esm-variants GitHub code is "
+            "MIT, but the Hugging Face Space that carries the precomputed "
+            "ALL_hum_isoforms_ESM1b_LLR.zip score file declares CC-BY-NC-4.0. "
+            "Do not treat that score zip as commercial-safe. Internal-only "
+            "staging still requires explicit terms acceptance; commercial ship "
+            "requires regeneration from the MIT model with manifest provenance."
         ),
         runtime_delivery_modes=("local_path", "object_storage_local_cache", "mounted_volume"),
         reader_requires_local_path=True,
         reader_compatibility_proofed=True,
         notes=(
-            "Pure-code assembly and runtime adapter are buildable now. Public "
-            "serialization stays gated until the assembled score provenance is "
-            "commercial-safe."
+            "Pure-code assembly and runtime adapter are buildable now. The "
+            "precomputed Hugging Face zip stays non-commercial/internal-only; "
+            "public launch clears only when the runtime manifest proves MIT "
+            "model regeneration and carries no launch gate."
         ),
     ),
     DataSourceRecord(

@@ -1,15 +1,23 @@
 from __future__ import annotations
 
-from hashlib import sha256
+import json
+from hashlib import md5, sha256
+from pathlib import Path
 
 import pytest
 
 from app.services.esm1b_assembly import (
+    ESM1B_LICENSE_GATE,
+    ESM1B_REGENERATED_SCORE_METHOD,
+    ESM1B_REGENERATED_SCORE_WARNING,
     Esm1bManeCodonContext,
     Esm1bAssemblyError,
     Esm1bScoreRow,
     assemble_esm1b_mane_fixture_snv_table,
     esm1b_genomic_snv_rows,
+    load_esm1b_codon_contexts_from_jsonl,
+    load_esm1b_score_rows_from_csv,
+    materialize_regenerated_esm1b_runtime_asset,
     parse_esm1b_mutation_name,
     translate_codon,
 )
@@ -151,12 +159,100 @@ def test_assemble_esm1b_mane_fixture_snv_table_emits_tsv_and_manifest() -> None:
     assert payload["input_score_row_count"] == 2
     assert payload["internal_fixture_only"] is False
     assert payload["public_serialization_allowed"] is True
-    assert payload["license_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert payload["license_gate"] == ESM1B_LICENSE_GATE
     assert payload["warnings"] == [
         "fixture rows are synthetic",
         "esm1b_license_gate_metadata",
-        "esm1b_score_file_terms_unconfirmed",
+        ESM1B_LICENSE_GATE,
     ]
+
+
+def test_assemble_esm1b_mane_fixture_snv_table_supports_clean_mit_regeneration() -> None:
+    result = assemble_esm1b_mane_fixture_snv_table(
+        score_rows=(
+            Esm1bScoreRow(
+                mutation_name="V1M",
+                esm1b_llr=-14.0,
+                uniprot_isoform="P00001-1",
+            ),
+        ),
+        codon_contexts=(
+            Esm1bManeCodonContext(
+                uniprot_isoform="P00001-1",
+                protein_position=1,
+                chrom="chr1",
+                ref_codon="GTG",
+                codon_positions=(100, 101, 102),
+                strand="+",
+                mane_tx="NM_000001.1",
+            ),
+        ),
+        score_source_checksum="a" * 64,
+        mane_version="MANE Select v1.4",
+        grch38_reference_checksum="b" * 64,
+        license_gate=None,
+        warnings=(ESM1B_REGENERATED_SCORE_WARNING,),
+        score_generation_method=ESM1B_REGENERATED_SCORE_METHOD,
+        model_name="esm1b_t33_650M_UR50S",
+        model_source_license="MIT",
+        scoring_code_license="MIT",
+    )
+
+    payload = result.manifest_payload()
+    assert payload["license_gate"] is None
+    assert payload["score_generation_method"] == "mit_model_regeneration"
+    assert payload["model_source_license"] == "MIT"
+    assert payload["scoring_code_license"] == "MIT"
+    assert payload["warnings"] == [ESM1B_REGENERATED_SCORE_WARNING]
+
+
+def test_materialize_regenerated_esm1b_runtime_asset_writes_clean_manifest(
+    tmp_path: Path,
+) -> None:
+    score_csv = tmp_path / "scores.csv"
+    score_csv.write_text("seq_id,mut_name,esm_score\nP00001-1,V1M,-14.0\n", encoding="utf-8")
+    contexts_jsonl = tmp_path / "contexts.jsonl"
+    contexts_jsonl.write_text(
+        json.dumps(
+            {
+                "uniprot_isoform": "P00001-1",
+                "protein_position": 1,
+                "chrom": "chr1",
+                "ref_codon": "GTG",
+                "codon_positions": [100, 101, 102],
+                "strand": "+",
+                "mane_tx": "NM_000001.1",
+                "gene": "TST",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    target = tmp_path / "esm1b_hg38.tsv.gz"
+
+    result = materialize_regenerated_esm1b_runtime_asset(
+        score_rows=load_esm1b_score_rows_from_csv(score_csv),
+        codon_contexts=load_esm1b_codon_contexts_from_jsonl(contexts_jsonl),
+        target_path=target,
+        score_source_checksum=sha256(score_csv.read_bytes()).hexdigest(),
+        mane_version="MANE Select v1.4",
+        grch38_reference_checksum="b" * 64,
+        bgzip_tabix_writer=_fake_bgzip_tabix_writer,
+    )
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert result.launch_gate is None
+    assert manifest["license_gate"] is None
+    assert manifest["launch_gate"] is None
+    assert manifest["commercial_use_allowed"] is True
+    assert manifest["precomputed_huggingface_score_zip_used"] is False
+    assert manifest["score_generation_method"] == ESM1B_REGENERATED_SCORE_METHOD
+    assert manifest["model_source_license"] == "MIT"
+    assert manifest["scoring_code_license"] == "MIT"
+    assert manifest["row_count"] == 1
+    assert manifest["input_score_row_count"] == 1
+    assert manifest["md5"] == md5(target.read_bytes()).hexdigest()
+    assert result.to_sanitized_dict()["local_path_values_emitted"] is False
 
 
 def test_assemble_esm1b_mane_fixture_snv_table_rejects_ref_codon_mismatch() -> None:
@@ -184,6 +280,13 @@ def test_assemble_esm1b_mane_fixture_snv_table_rejects_ref_codon_mismatch() -> N
             mane_version="MANE Select v1.4",
             grch38_reference_checksum="b" * 64,
         )
+
+
+def _fake_bgzip_tabix_writer(tsv: str, target_path: Path) -> Path:
+    target_path.write_text(tsv, encoding="utf-8")
+    index_path = Path(f"{target_path}.tbi")
+    index_path.write_text("fake-index", encoding="utf-8")
+    return index_path
 
 
 def test_assemble_esm1b_mane_fixture_snv_table_requires_explicit_codon_context() -> None:

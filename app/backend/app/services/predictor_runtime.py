@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from enum import Enum
+import json
 from pathlib import Path
 import re
 
@@ -17,6 +19,10 @@ from app.data_sources.runtime_assets import (
     _resolve_materialization_path,
 )
 from app.services.source_storage_uploads import DEFAULT_SOURCE_ASSET_BUCKET_FILE_SIZE_LIMIT
+from app.services.esm1b_assembly import (
+    ESM1B_LICENSE_GATE,
+    ESM1B_REGENERATION_REQUIRED_GATE,
+)
 
 ALPHAMISSENSE_SOURCE_ID = "google_deepmind_alphamissense_hg38"
 ALPHAMISSENSE_ASSET_ROLE = "predictor_tabix_tsv"
@@ -91,6 +97,7 @@ class PredictorRuntimeInspection:
     bucket_file_size_limit: int
     materialization_status: str | None
     message: str
+    launch_gate: str | None = None
 
     @property
     def ready(self) -> bool:
@@ -279,7 +286,8 @@ def inspect_esm1b_runtime_asset(
         require_manifest=require_manifest,
     )
     if not base.ready:
-        return base
+        return replace(base, launch_gate=ESM1B_REGENERATION_REQUIRED_GATE)
+    base = replace(base, launch_gate=_esm1b_launch_gate_from_manifest(plan.manifest_path))
     if materialization_store is None:
         if plan.mode == RuntimeAssetMode.OBJECT_STORAGE_LOCAL_CACHE.value:
             return _inspection(
@@ -289,6 +297,7 @@ def inspect_esm1b_runtime_asset(
                 actual_size_bytes=base.actual_size_bytes,
                 actual_md5=base.actual_md5,
                 materialization_status="metadata_store_unavailable",
+                launch_gate=base.launch_gate,
             )
         return base
 
@@ -311,6 +320,7 @@ def inspect_esm1b_runtime_asset(
             actual_size_bytes=base.actual_size_bytes,
             actual_md5=base.actual_md5,
             materialization_status=exc.code,
+            launch_gate=base.launch_gate,
         )
 
     return _inspection(
@@ -320,6 +330,7 @@ def inspect_esm1b_runtime_asset(
         actual_size_bytes=base.actual_size_bytes,
         actual_md5=base.actual_md5,
         materialization_status="ready",
+        launch_gate=base.launch_gate,
     )
 
 
@@ -716,6 +727,7 @@ def _inspection(
     actual_size_bytes: int | None = None,
     actual_md5: str | None = None,
     materialization_status: str | None = None,
+    launch_gate: str | None = None,
 ) -> PredictorRuntimeInspection:
     return PredictorRuntimeInspection(
         source_id=plan.source_id,
@@ -733,7 +745,25 @@ def _inspection(
         bucket_file_size_limit=plan.bucket_file_size_limit,
         materialization_status=materialization_status,
         message=message,
+        launch_gate=launch_gate,
     )
+
+
+def _esm1b_launch_gate_from_manifest(manifest_path: Path) -> str | None:
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ESM1B_LICENSE_GATE
+
+    for key in ("license_gate", "launch_gate"):
+        if key not in manifest:
+            continue
+        value = manifest.get(key)
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+    return ESM1B_LICENSE_GATE
 
 
 def _resolve_backend_path(settings: Settings, path: Path) -> Path:

@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-16 22:36 +1000 - Drove the coordinated Epic A A2+A12+A11 commit/push/deploy/verify as commit-driver (Steven's direction). Code `a8710cf` (Codex A2 batch registry LRU/TTL + A12 materialization memory, 18 files) + docs commit (A11 doc + handoff + graphify) pushed; Render SG `dep-d8ok50kvikkc73f8elhg` LIVE + verified (`/healthz` 200 mock, A2 unauth→401, ~126 MB fresh instance, Vercel 200). Request-reachable OOM/crash class A1–A12 + A11 infra fully closed + on prod. `LLM_PROVIDER=mock`; held files excluded; no Supabase/provider flip. NEXT = Tier-1 materialization (Codex lane): ClinGen+PubMed+literature-RAG. Detail → `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-06-17 04:26 +1000 - Batch (/compare) FE UX pass, committed (NOT pushed). `999d0e9` cohort summary + actionable table; `c1ff060` unified the two Batch tables into one `BatchTable` (split-pane + drag-select + save-to-library + cohort summary + ClinVar/ACMG/gnomAD cols + AF filter + TSV), added in-page VCF import (empty-state dropzone + central-column "Add file"), brought the WorkRail in line with /report (Scope ⇄ Ask Eamos rail-head toggle via `CompareAiPanel`, dropped the LLM filter tab, `--rail-top` fix so the foot pins to the viewport bottom), fixed the scope-change-wipes-table bug (stale + Regenerate), renamed "Substitutions"→"Base changes", removed the redundant circular "Import VCF" link on Batch. tsc+lint clean; browser-verified against the live local backend (split view, save round-trip 1→3, Ask-Eamos coming-soon panel, foot). 2 local dev servers (web :3000 + backend :8000) still running — STOP before /clear. `LLM_PROVIDER=mock`; held files excluded; only `app/web/**` touched (Codex's Tier-2 ESM1b tree untouched + unstaged). NEXT = push c1ff060+999d0e9 on Steven's go (→ Vercel prod) + Batch C3-on-C1 (real progress UI, server upload-parse) once Codex's C1 engine lands. Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-17 00:58 +1000 - Tier 1 generated-artifact lane committed locally at current `HEAD` and ClinGen local generated SQLite artifact + manifest uploaded to private Supabase Storage via S3 multipart. Upload-safe patch landed after first attempt exposed unsupported SQLite MIME + unsanitized failure text; final retry uploaded `eamos_clingen_local` SHA256 `4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d`. PubMed local and literature embeddings are not present locally yet. Guardrails held: no Supabase metadata registration/apply, no provider flip, no `LOCAL_EVIDENCE_ENABLED` flip, no Render/Vercel mutation, held/unrelated files excluded.
+- **Codex:** IDLE @ 2026-06-17 18:32 +1000 - ESM1b MIT-regenerated staging-input check complete. No `esm1b-mit-regenerated-scores.csv`, no `esm1b-mane-codon-contexts.jsonl`, and no local `esm1b_hg38.tsv.gz/.tbi/manifest` found under repo/default paths or exact-name D: search; read-only Tier 2 planner/preflight still report `planned_count=0`, `missing_local_file=9`, ESM1b launch gate `esm1b_mit_regeneration_required`. No materialization performed and no HF precomputed zip substitution. Guardrails held: no Storage upload, no Supabase metadata/apply, no Render/Vercel/env/provider mutation, no `LOCAL_EVIDENCE_ENABLED` flip, held/unrelated files excluded.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-17 00:58 +1000 - Codex (Tier 1 commit amended with upload-safe fix; ClinGen generated artifact uploaded; metadata/provider flips still gated)
+UNLOCKED - 2026-06-17 18:34 +1000 - Codex (ESM1b MIT-regeneration input check closeout; no materialization)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +34,15 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/services/esm1b_assembly.py`,
+`app/backend/app/services/esm1b_local.py`, `app/backend/app/services/predictor_runtime.py`,
+`app/backend/app/services/tier2_predictor_artifacts.py`,
+`app/backend/app/services/build_ledger.py`, `app/backend/app/api/routes/health.py`,
+`app/backend/app/cli/eamos_source_asset_preflight.py`, ESM1b-focused backend tests,
+and `docs/backend-build-ledger-runtime/materialization-plan.md`) at
+2026-06-17 04:01 +1000 after Steven-approved MIT-regenerated ESM1b artifact
+provenance/readiness work; focused verification passed.
 
 **Codex RELEASED** (`app/backend/app/services/ai_gateway/retrieval.py`,
 `app/backend/app/api/routes/health.py`, `app/backend/app/services/build_ledger.py`,
@@ -400,63 +409,55 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-17 00:58 +1000 - Codex.
+Section last edited: 2026-06-17 18:32 +1000 - Codex.
 
-**Latest Codex update (2026-06-17 00:58 +1000 - Codex):**
-Tier 1 materialization readiness plus the generated-artifact upload/sync lane is committed locally.
-ClinGen local generated SQLite was also uploaded to private Supabase Storage after Steven approval.
-No push/deploy/provider flip and no Supabase metadata registration/apply. Prior section archived at
-`agent_handoff/archive/2026-06-17-codex-tier1-readiness-pre-generated-artifact.md`.
+**Latest Codex update (2026-06-17 18:32 +1000 - Codex):**
+Checked the ESM1b clean MIT-regeneration continuation point after Steven rejected the
+HF precomputed score zip for the commercial path. The MIT-regeneration code path remains
+wired locally, but the operator-generated inputs are not present.
 
 Completed:
-- Committed the slice locally at current `HEAD` (`feat(backend): add Tier 1 generated artifact sync lane`)
-  with explicit pathspecs; held/unrelated files were left out.
-- Literature embedding materializer is streaming/batched; provider-cache now reports sanitized
-  `source_assets.literature_embeddings`; build ledger includes `literature_rag_embeddings`.
-- Added generated Tier 1 artifact service for ClinGen local, PubMed local, and literature RAG
-  SQLite assets. It computes checksum identity manifests, plans/uploads to private Supabase
-  Storage through the existing REST/S3 transports, and syncs from local file or private Storage
-  to Render-disk runtime paths via temp-file, checksum, schema validation, manifest sidecar, and
-  atomic replace.
-- Added CLIs: `python -m app.cli.eamos_generated_artifact_upload` and
-  `python -m app.cli.eamos_generated_artifact_sync`.
-- `eamos_source_asset_preflight` now includes a read-only `generated_artifact_upload_plan`.
-- `docs/backend-build-ledger-runtime/materialization-plan.md` now documents the generated SQLite
-  upload/sync lane and keeps metadata registration as the next separate step.
-- Non-mutating upload plan found one ready local artifact: `clingen_local` 463,036,416 bytes,
-  schema `eamos.clingen_local.v1`, SHA256
-  `4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d`. PubMed local and
-  literature embeddings were missing locally.
-- First approved ClinGen S3 upload attempt failed because Supabase rejected
-  `application/vnd.sqlite3`; it also exposed unsanitized local-path text in failure messages.
-  Fixed generated-artifact uploads to use `application/octet-stream` and sanitize merged upload
-  failures, added regression coverage, amended the commit, reran graphify, then retried.
-- Final approved ClinGen upload succeeded: asset and manifest are in private Storage at
-  `generated/eamos_clingen_local/clingen_local_sqlite/sha256-4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d/`.
+- Read the required handoff/docs and current git state.
+- Confirmed `main...origin/main [ahead 3]`; recent commits are Claude web `c1ff060`,
+  Claude web `999d0e9`, and Codex Tier 2 `dc9ec94`.
+- Searched for clean-path inputs by exact filename:
+  `esm1b-mit-regenerated-scores.csv` and `esm1b-mane-codon-contexts.jsonl`.
+- Confirmed the default ESM1b runtime outputs are absent:
+  `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz`,
+  `.tbi`, and `.manifest.json`.
+- Reran read-only Tier 2 planner and source preflight from `app/backend`.
 
-Verification:
-- Focused pytest files passed individually:
-  `test_generated_source_artifacts.py`, `test_source_storage_uploads.py`,
-  `test_compact_coordinate_index_materialization.py`, `test_literature_retrieval.py`,
-  `test_health_api.py`, and `test_source_asset_preflight_cli.py` (`-p no:langsmith` for the slow
-  preflight file so teardown returned cleanly).
-- `python -m py_compile ...` on touched runtime/test files.
-- `python -m ruff check ...` on touched runtime/test files.
-- `python -m black --check --fast ...` on touched runtime/test files.
-- `git diff --check -- ...` passed with only existing LF/CRLF warnings.
-- `python -m graphify update .` passed after the upload-safe code fix; graph rebuilt to 14,055
-  nodes / 33,487 edges and backed up curated files under `graphify-out/2026-06-17/`.
-- `python -m app.cli.eamos_generated_artifact_upload --compact` planned one ready artifact and two
-  missing artifacts; `python -m app.cli.eamos_generated_artifact_upload --artifact clingen_local
-  --upload --upload-mode s3_multipart --compact` succeeded on retry.
-- No Supabase metadata registration/apply, no `LOCAL_EVIDENCE_ENABLED` flip, no Render/Vercel
-  mutation, no push/deploy/live Render verification.
+Current result:
+- No ESM1b materialization was performed because the required MIT-regenerated score CSV
+  and MANE codon-context JSONL were not found.
+- No Hugging Face precomputed/non-commercial score zip was downloaded, staged, or used.
+- `eamos_tier2_predictor_artifact_upload --compact` still reports `planned_count=0`,
+  `missing_local_file=9`; ESM1b components are `missing_local_file`.
+- `eamos_source_asset_preflight --compact` still reports the ESM1b build-ledger item as
+  `missing_source_file` with launch gate `esm1b_mit_regeneration_required`.
+- No Storage upload, no Supabase metadata/apply, no Render disk sync, no provider/env flip,
+  and no `LOCAL_EVIDENCE_ENABLED` flip.
+
+Clean-path command contract once the operator-side files exist:
+
+```powershell
+cd app/backend
+python -m app.cli.eamos_esm1b_regenerated_scores_materialize `
+  --score-csv <staging>/esm1b-mit-regenerated-scores.csv `
+  --codon-context-jsonl <staging>/esm1b-mane-codon-contexts.jsonl `
+  --target-path data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz `
+  --mane-version <MANE release/version> `
+  --grch38-reference-sha256 <hg38 reference SHA256> `
+  --require-ready `
+  --compact
+```
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-17 00:58 +1000 - Codex Tier 1 generated-artifact commit + ClinGen upload
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, agent_handoff/DECISIONS.md, docs/backend-build-ledger-runtime/materialization-plan.md, docs/stability-audit/a11-render-budget.md, then run git status --short --branch and git log -5 --oneline.
-Delta: Tier 1 generated-artifact lane committed locally at current `HEAD`; approved ClinGen local generated SQLite artifact + manifest uploaded to private Storage under the SHA256 `4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d` path. Upload-safe fix amended into the commit after Supabase rejected `application/vnd.sqlite3` and exposed unsanitized failure text.
-Next: add Supabase metadata registration rows for the uploaded ClinGen generated artifact (`source_asset_objects` / `source_asset_materializations`) when Steven approves metadata mutation, or build/upload PubMed local + literature embeddings first if the next priority is completing the Tier 1 trio before registration. Render-disk sync remains separate and gated.
-Guardrails: `LLM_PROVIDER=mock`; no Supabase apply/provider flip without Steven; no `LOCAL_EVIDENCE_ENABLED` flip until provider-cache/materialization verification is green; no Render one-off disk seeding; deploy from repo root only; explicit pathspecs never `git add -A`; keep held files excluded (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`); unrelated `README.md`/`docs/tech-stack.md` should be reviewed separately if still dirty. End clear-safe.
+# Resume prompt - 2026-06-17 18:32 +1000 - Codex ESM1b MIT-regeneration input check
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/pubmed-corpus-materialization/spec.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git status --short --branch and git log -8 --oneline.
+Delta: MIT-regenerated ESM1b materialization path is wired locally, but no clean staging inputs were found; no materialization was run and no HF precomputed zip was substituted.
+Current result: exact-name D: search found no `esm1b-mit-regenerated-scores.csv`, no `esm1b-mane-codon-contexts.jsonl`, and no local `esm1b_hg38.tsv.gz/.tbi/manifest`; read-only Tier 2 planner/preflight still show ESM1b `missing_local_file` / `missing_source_file` with `launch_gate=esm1b_mit_regeneration_required`.
+Next: obtain or place the MIT-regenerated score CSV plus MANE codon-context JSONL in staging, then run `python -m app.cli.eamos_esm1b_regenerated_scores_materialize ... --require-ready --compact`; expected output is `esm1b_hg38.tsv.gz`, `.tbi`, and sidecar manifest with MIT-regenerated provenance and `license_gate: null`.
+Guardrails: no HF score zip for the commercial path; no Storage upload; no Supabase metadata/apply; no Render disk sync; no provider/env flips; no `LOCAL_EVIDENCE_ENABLED` flip; explicit pathspecs only; keep held/unrelated files excluded (`app/web` compare files, `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`, unrelated handoff archives). End clear-safe.
 ```

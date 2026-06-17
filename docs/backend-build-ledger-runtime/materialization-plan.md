@@ -279,6 +279,42 @@ The default predictor root `app/backend/data/bio_assets/predictors/` is missing,
 and the read-only upload plan reports `planned_count=0` with
 `missing_local_file=9`.
 
+ESM1b source gate checked 2026-06-17: the ntranoslab/esm-variants GitHub code is
+MIT, but the Hugging Face Space that carries `ALL_hum_isoforms_ESM1b_LLR.zip`
+declares `cc-by-nc-4.0` in its Space metadata and lists the zip as a 1.34 GB
+file. Do not download or stage that precomputed score zip as a production
+artifact unless Steven explicitly accepts an internal-only, non-commercial
+source path. The commercial-safe path remains regeneration from the MIT model
+with MANE/reference/source checksums recorded in the Eamos manifest.
+
+Steven decision 2026-06-17: use the commercial-safe MIT regeneration path. The
+runtime artifact launch gate is now manifest-driven:
+
+- missing or legacy ESM1b artifacts report `esm1b_mit_regeneration_required`;
+- manifests that identify the precomputed/non-commercial score zip stay gated;
+- manifests written from MIT-regenerated scores carry `license_gate: null` and
+  clear the ESM1b launch gate in provider-cache/build-ledger output.
+
+After the operator-side MIT ESM1b scoring run produces a score CSV, run from
+`app/backend` and materialize the Eamos runtime artifact without using the
+Hugging Face score zip:
+
+```bash
+python -m app.cli.eamos_esm1b_regenerated_scores_materialize \
+  --score-csv <staging>/esm1b-mit-regenerated-scores.csv \
+  --codon-context-jsonl <staging>/esm1b-mane-codon-contexts.jsonl \
+  --target-path data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz \
+  --mane-version <MANE release/version> \
+  --grch38-reference-sha256 <hg38 reference SHA256> \
+  --require-ready \
+  --compact
+```
+
+Then rerun the read-only upload planner. The expected clean result is a complete
+`esm1b_hg38_scores` plan with two components and `launch_gate: null`; Storage
+upload, Supabase metadata registration, Render disk sync, and provider/env flips
+remain separate approvals.
+
 | Artifact set | Component | Expected default path | Current status |
 | --- | --- | --- | --- |
 | `esm1b_hg38_scores` | score cache | `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz` | missing |

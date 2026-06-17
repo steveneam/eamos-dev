@@ -38,6 +38,7 @@ from app.services.predictor_runtime import (
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
 )
+from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.pubmed_local import inspect_pubmed_local_store
 from app.services.repeatmasker_local import REPEATMASKER_SOURCE_ID
@@ -195,7 +196,11 @@ def build_backend_build_ledger(
                 "metadata for launch filtering, not as a backend integration blocker."
             ),
             public_serialization_allowed=True,
-            launch_gate="esm1b_score_file_terms_unconfirmed",
+            launch_gate=_esm1b_launch_gate(
+                settings,
+                registry=registry,
+                materialization_store=materialization_store,
+            ),
         ),
         BuildLedgerItem(
             item_id="gpn_msa",
@@ -538,6 +543,23 @@ def _safe_admin_predictor_status(inspector, settings: Settings) -> str:
         return str(inspector(settings).status)
     except Exception:
         return "runtime_asset_probe_failed"
+
+
+def _esm1b_launch_gate(
+    settings: Settings,
+    *,
+    registry: DataSourceRegistry,
+    materialization_store: SourceAssetMaterializationStore | None,
+) -> str | None:
+    try:
+        return inspect_esm1b_runtime_asset(
+            settings,
+            registry=registry,
+            materialization_store=materialization_store,
+            verify_checksum=False,
+        ).launch_gate
+    except Exception:
+        return ESM1B_REGENERATION_REQUIRED_GATE
 
 
 def _protein_status(

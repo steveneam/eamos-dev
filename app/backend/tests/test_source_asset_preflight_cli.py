@@ -17,6 +17,7 @@ from app.data_sources import (
     build_docx_task_matrix,
     SourceAssetMaterializationRecord,
 )
+from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
@@ -149,7 +150,7 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert predictors["alphamissense"]["public_serialization_allowed"] is True
     assert predictors["esm1b"]["status"] == "missing_source_file"
     assert predictors["esm1b"]["public_serialization_allowed"] is True
-    assert predictors["esm1b"]["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert predictors["esm1b"]["launch_gate"] == ESM1B_REGENERATION_REQUIRED_GATE
     assert predictors["pvs1_nmd"]["status"] == "pure_code_available"
     assert predictors["pvs1_nmd"]["storage_required"] is False
     assert predictors["public_serialization_locked"] == []

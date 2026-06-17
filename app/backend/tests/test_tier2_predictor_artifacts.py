@@ -7,6 +7,7 @@ import httpx
 
 from app.cli import eamos_tier2_predictor_artifact_upload
 from app.core.config import Settings
+from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 from app.services.tier2_predictor_artifacts import (
     Tier2PredictorArtifactStatus,
     build_tier2_predictor_artifact_upload_items,
@@ -62,8 +63,37 @@ def test_tier2_predictor_upload_plan_includes_complete_esm1b_components(
     assert by_component["score_cache"].manifest_path is not None
     manifest = json.loads(by_component["score_cache"].manifest_path.read_text(encoding="utf-8"))
     assert manifest["tier"] == "tier_2_predictor_cache"
-    assert manifest["launch_gate"] == "esm1b_score_file_terms_unconfirmed"
+    assert manifest["launch_gate"] == ESM1B_REGENERATION_REQUIRED_GATE
     assert manifest["storage_contract"]["frontend_direct_access_allowed"] is False
+
+
+def test_tier2_predictor_upload_plan_honors_clean_esm1b_runtime_manifest(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    _write_file(settings.esm1b_hg38_runtime_asset_path, b"esm1b scores")
+    _write_file(Path(f"{settings.esm1b_hg38_runtime_asset_path}.tbi"), b"esm1b index")
+    settings.esm1b_hg38_runtime_asset_path.with_suffix(
+        settings.esm1b_hg38_runtime_asset_path.suffix + ".manifest.json"
+    ).write_text(
+        '{"license_gate": null, "score_generation_method": "mit_model_regeneration"}',
+        encoding="utf-8",
+    )
+
+    items = build_tier2_predictor_artifact_upload_items(
+        settings,
+        artifact_ids=("esm1b_hg38_scores",),
+        bucket_id="eamos-source-assets",
+        manifest_staging_root=tmp_path / "manifests",
+    )
+    result = execute_tier2_predictor_artifact_uploads(items, upload=False)
+    by_component = {item.component_id: item for item in result.items}
+
+    assert result.planned_count == 2
+    assert by_component["score_cache"].launch_gate is None
+    assert by_component["score_cache_index"].launch_gate is None
+    manifest = json.loads(by_component["score_cache"].manifest_path.read_text(encoding="utf-8"))
+    assert manifest["launch_gate"] is None
 
 
 def test_tier2_predictor_upload_blocks_partial_ci_spliceai_set(
