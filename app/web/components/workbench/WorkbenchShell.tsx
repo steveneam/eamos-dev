@@ -9,7 +9,9 @@ import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
 import type { ClinvarVariant, GeneWindowData } from '@/lib/workbench/gene-window'
 import { CanvasHeader, type ViewerMode } from './CanvasHeader'
 import { SidePanel } from './SidePanel'
-import { defaultViewerPane, type ViewerPane } from './tools'
+import { ToolIcon } from './ToolIcon'
+import { WorkbenchAiPanel } from './WorkbenchAiPanel'
+import { defaultViewerPane, TOOL_META, type ViewerPane } from './tools'
 import { readPane, writePane } from '@/lib/work-rail-collapse'
 import { PrimerPanel } from './primer/PrimerPanel'
 import { CrisprPanel } from './crispr/CrisprPanel'
@@ -408,9 +410,15 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
     <div className="wb-work-shell-wrap" style={{ '--rail-top': 'calc(var(--nav-h) + var(--ctx-h))' } as CSSProperties}>
       <WorkRail
         surface="workbench"
-        title="Workbench"
+        title={TOOL_META[tool].rail}
+        titleIcon={
+          <span className="wb-tool-ic" aria-hidden>
+            <ToolIcon tool={tool} />
+          </span>
+        }
         output={canvasOutput}
         foot={<RailFoot />}
+        aiPanel={<WorkbenchAiPanel tool={tool} gene={gene} cdna={cdna} />}
         className="wb-work-shell"
       >
         {railContent}

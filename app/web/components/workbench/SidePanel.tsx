@@ -236,7 +236,7 @@ function ClinvarFocusCard({
   )
 }
 
-type ScratchTab = 'log' | 'notes' | 'ask'
+type ScratchTab = 'log' | 'notes'
 
 /** Scratchpad is the user's workbench — a log of edits + free-form notes +
  *  variant-aware chat. Sits at the top of the side panel on a warm yellow
@@ -304,15 +304,6 @@ function ScratchpadSection({
         >
           Notes
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'ask'}
-          className={`scratch-tab${tab === 'ask' ? ' active' : ''}`}
-          onClick={() => setTab('ask')}
-        >
-          Ask Eamos
-        </button>
       </div>
 
       {tab === 'log' && (
@@ -366,29 +357,6 @@ function ScratchpadSection({
           <div className="scratch-notes-hint">
             Notes live in this tab for the session. Persistent saving lands with
             the account workspace.
-          </div>
-        </div>
-      )}
-
-      {tab === 'ask' && (
-        <div className="scratch-ask">
-          <div className="scratch-ask-badge">COMING SOON</div>
-          <p className="scratch-ask-copy">
-            Variant-aware chat. Ask follow-up questions about this gene, this
-            variant, the literature, the call cards, or what to do next — Eamos
-            answers with cited sources from the report.
-          </p>
-          <div className="scratch-ask-input-row">
-            <input
-              type="text"
-              className="scratch-ask-input"
-              placeholder="Ask about this variant…"
-              disabled
-              aria-label="Ask Eamos (coming soon)"
-            />
-            <button type="button" className="scratch-ask-btn" disabled aria-label="Send (coming soon)">
-              →
-            </button>
           </div>
         </div>
       )}
@@ -660,17 +628,6 @@ function CrisprSide({ data }: { data: GeneWindowData }) {
           result; whole-genome off-target lands with the engine (M-002D).
         </div>
       </CollapsibleSection>
-
-      <CollapsibleSection title="AI assist" icon={<IconSparkle size={14} />}>
-        <div className="side-info">
-          Guided design help arrives with the CRISPR engine (FE-6 / M-002D).
-        </div>
-        <div className="side-chips">
-          <span className="side-chip">Pick the safest guide</span>
-          <span className="side-chip">Explain off-target risk</span>
-          <span className="side-chip">HDR design rationale</span>
-        </div>
-      </CollapsibleSection>
     </>
   )
 }
@@ -707,17 +664,6 @@ function PrimerSide({ data }: { data: GeneWindowData }) {
         <div className="side-source">
           Pairs are screened against the resolved design template; whole-genome
           specificity needs the local UCSC isPcr provider (M-002C, gated).
-        </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="AI assist" icon={<IconSparkle size={14} />}>
-        <div className="side-info">
-          Guided primer help arrives with the design engine (FE-6 / M-002C).
-        </div>
-        <div className="side-chips">
-          <span className="side-chip">Pick the safest pair</span>
-          <span className="side-chip">Explain specificity</span>
-          <span className="side-chip">Redesign for qPCR</span>
         </div>
       </CollapsibleSection>
     </>

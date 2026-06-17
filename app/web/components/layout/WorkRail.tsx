@@ -93,6 +93,9 @@ export interface WorkRailProps {
   surface: string
   /** Rail header label (and the Library segment label when `aiPanel` is set). */
   title: string
+  /** Optional leading glyph for the Library segment (defaults to a list icon).
+   *  Workbench passes the active tool's icon so the rail head names the tool. */
+  titleIcon?: ReactNode
   /** Primary "new" action rendered at the top of the rail header. */
   action?: ReactNode
   /** The right-hand output pane (flex:1, fills the remainder). */
@@ -110,7 +113,7 @@ export interface WorkRailProps {
   className?: string
 }
 
-export function WorkRail({ surface, title, action, output, children, foot, aiPanel, aiTitle = 'Ask Eamos', className }: WorkRailProps) {
+export function WorkRail({ surface, title, titleIcon, action, output, children, foot, aiPanel, aiTitle = 'Ask Eamos', className }: WorkRailProps) {
   // Viewport <1200 → drawer mode (external store, SSR-safe). Collapse pref is
   // local + persisted. Drawer-open is only meaningful in drawer mode, so it's
   // derived (isOpen) rather than reset via an effect.
@@ -206,7 +209,7 @@ export function WorkRail({ surface, title, action, output, children, foot, aiPan
                 className="wr-mode-seg"
                 onClick={() => setMode('library')}
               >
-                <IconList size={13} />
+                {titleIcon ?? <IconList size={13} />}
                 <span>{title}</span>
               </button>
               <button

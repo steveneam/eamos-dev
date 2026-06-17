@@ -677,6 +677,67 @@
   white-space: nowrap;
 }
 
+/* Workbench: the Ask-Eamos strip stacks two rows so a persistent
+   "<tool> expert" scope pill always announces what the assistant is grounded
+   in — selecting a tool is the context boundary, so its state must stay legible. */
+.wb-ai-strip {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+}
+.wb-ai-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.wr-ai-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 7px;
+  font-family: var(--body);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--teal);
+  background: var(--teal-tint);
+  border: 0.5px solid var(--teal-bdr);
+  border-radius: 999px;
+}
+.wr-ai-scope-ic {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+}
+.wr-ai-scope-ic svg {
+  width: 13px;
+  height: 13px;
+}
+.wr-ai-scope-note {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+/* Active-tool glyph on the rail-head Library segment (sizes the unsized ToolIcon). */
+.wb-tool-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+}
+.wb-tool-ic svg {
+  width: 13px;
+  height: 13px;
+}
+
 /* Chat shell — scroll area over a composer pinned at the bottom (Claude / Grok). */
 .wr-chat {
   flex: 1 1 auto;
