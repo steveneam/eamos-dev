@@ -8,9 +8,15 @@ import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
 import { RailFoot } from '@/components/layout/RailFoot'
 import {
+  clearCompareStash,
+  makeSourceId,
+  mergeSources,
   readCompareVariants,
-  stashCompareVariants,
+  sourcesLabel,
+  stashCompareSources,
   type CompareStash,
+  type ImportMeta,
+  type ImportSource,
   type ParsedVariant,
 } from '@/lib/variant-file'
 import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
@@ -22,13 +28,14 @@ import { ScopeGate } from './ScopeGate'
 import { BatchTable, rowFromParsed, rowFromResult } from './BatchTable'
 import { VariantImport } from './VariantImport'
 import { CompareAiPanel } from './CompareAiPanel'
-import { IconScope, IconCheck } from '@/components/icons/Icon'
+import { IconScope, IconCheck, IconList, IconPlus, IconRemove, IconChevron } from '@/components/icons/Icon'
 import './compare.css'
 
 // Stable empty references for the no-cohort scope preview (so the dimmed rail
 // doesn't churn props each render).
 const NO_VARIANTS: ParsedVariant[] = []
 const NO_FILTERS: ActiveFilter[] = []
+const NO_SOURCES: ImportSource[] = []
 const noop = () => {}
 
 /**
@@ -72,6 +79,9 @@ export function CompareClient() {
   const [stale, setStale] = useState(false)
   // Bumped when a panel's full gene list resolves so applyFilters re-runs.
   const [, bumpCache] = useState(0)
+  // The in-place import panel (drop / browse / paste) shown when adding a source
+  // to an existing cohort — so you can get back to import without losing output.
+  const [addingSource, setAddingSource] = useState(false)
   const loadedSlugs = useRef<Set<string>>(new Set())
 
   useEffect(() => {
@@ -152,34 +162,59 @@ export function CompareClient() {
     if (status !== 'idle') setStale(true)
   }
 
+  // The cohort changed (source added / removed / cleared) — reset to a fresh idle
+  // state so the user re-scopes and re-runs against the new inputs.
+  const resetRun = useCallback(() => {
+    setStatus('idle')
+    setResults(null)
+    setStale(false)
+  }, [])
+
   // Load variants from an in-page import (drop / browse / paste) without bouncing
-  // back to the search bar. `merge` appends to the current cohort (dedup by query)
-  // so a second VCF combines with the first; otherwise it replaces. Persists to
+  // back to the search bar. `merge` appends the import as a NEW source (tracked
+  // individually for provenance); otherwise it replaces the cohort. Persists to
   // the same sessionStorage stash the search bar writes, then re-renders in place.
   const loadVariants = useCallback(
-    (parsed: ParsedVariant[], source: string, merge = false) => {
+    (parsed: ParsedVariant[], meta: ImportMeta, merge = false) => {
       if (parsed.length === 0) return
+      const source: ImportSource = { id: makeSourceId(), name: meta.name, kind: meta.kind, text: meta.text, variants: parsed }
       setStash((prev) => {
-        const base = merge && prev ? prev.variants : []
-        const seen = new Set(base.map((v) => v.query.toLowerCase()))
-        const merged = base.slice()
-        for (const v of parsed) {
-          const key = v.query.toLowerCase()
-          if (seen.has(key)) continue
-          seen.add(key)
-          merged.push(v)
-        }
-        const nextSource = merge && prev ? `${prev.source} + ${source}` : source
-        stashCompareVariants(merged, nextSource)
-        return { savedAt: Date.now(), source: nextSource, variants: merged }
+        const sources = merge && prev ? [...prev.sources, source] : [source]
+        stashCompareSources(sources)
+        return { savedAt: Date.now(), source: sourcesLabel(sources), variants: mergeSources(sources), sources }
       })
-      // The cohort changed — reset to a fresh idle state (re-scope, re-run).
-      setStatus('idle')
-      setResults(null)
-      setStale(false)
+      resetRun()
     },
-    [],
+    [resetRun],
   )
+
+  // Remove one source — the deduped cohort re-derives from what remains; removing
+  // the last one returns to the empty import state.
+  const removeSource = useCallback(
+    (id: string) => {
+      setStash((prev) => {
+        if (!prev) return prev
+        const sources = prev.sources.filter((s) => s.id !== id)
+        if (sources.length === 0) {
+          clearCompareStash()
+          return null
+        }
+        stashCompareSources(sources)
+        return { savedAt: Date.now(), source: sourcesLabel(sources), variants: mergeSources(sources), sources }
+      })
+      resetRun()
+    },
+    [resetRun],
+  )
+
+  // Start over — drop the whole cohort + scope and return to the import hero.
+  const clearCohort = useCallback(() => {
+    clearCompareStash()
+    setStash(null)
+    setFilters([])
+    setAddingSource(false)
+    resetRun()
+  }, [resetRun])
 
   // Sample-VCF deep link (/compare?demo=1) — auto-generate the dropped cohort
   // once it hydrates so the landing pill lands on a populated result.
@@ -217,41 +252,56 @@ export function CompareClient() {
               <div style={{ padding: '16px 22px 80px 24px' }}>
                 {variants.length === 0 ? (
                   <div style={{ maxWidth: 640, margin: '4px auto 0' }}>
-                    <EmptyState onVariants={(v, s) => loadVariants(v, s, false)} />
+                    <EmptyState onVariants={(v, meta) => loadVariants(v, meta, false)} />
                   </div>
                 ) : (
                   <>
-                    {/* Output toolbar — Add file lives here, in the central column
-                        (not tucked in the rail corner), so loading another VCF into the
-                        cohort is always one click away. The Generate/Regenerate control
-                        rides the right once there's output to re-run; on a stale scope
-                        it turns solid with a hint so Regenerate gets its moment. */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-                      <VariantImport compact onVariants={(v, s) => loadVariants(v, s, true)} />
-                      {status !== 'idle' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          {stale && status === 'done' && (
-                            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                              Scope changed — regenerate to apply
-                            </span>
+                    {/* Sources — every input that produced this cohort, always on
+                        screen so its provenance is auditable. Remove one, add more
+                        (drop / browse / paste, in place), or start over. */}
+                    <SourcesBar
+                      sources={stash?.sources ?? NO_SOURCES}
+                      total={variants.length}
+                      addingOpen={addingSource}
+                      onToggleAdd={() => setAddingSource((o) => !o)}
+                      onRemove={removeSource}
+                      onClear={clearCohort}
+                    />
+                    {addingSource && (
+                      <div style={{ marginBottom: 14 }}>
+                        <VariantImport
+                          onVariants={(v, meta) => {
+                            loadVariants(v, meta, true)
+                            setAddingSource(false)
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* The Generate/Regenerate control rides the right once there's
+                        output to re-run; on a stale scope it turns solid with a hint. */}
+                    {status !== 'idle' && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                        {stale && status === 'done' && (
+                          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                            Scope changed — regenerate to apply
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => runBatch(filters)}
+                          disabled={status === 'running'}
+                          className={`cmp-cta ${status === 'running' ? 'cmp-cta--solid cmp-cta--running' : stale ? 'cmp-cta--solid' : 'cmp-cta--done'}`}
+                        >
+                          {status === 'running' ? (
+                            <>
+                              <Spinner /> Generating…
+                            </>
+                          ) : (
+                            'Regenerate →'
                           )}
-                          <button
-                            type="button"
-                            onClick={() => runBatch(filters)}
-                            disabled={status === 'running'}
-                            className={`cmp-cta ${status === 'running' ? 'cmp-cta--solid cmp-cta--running' : stale ? 'cmp-cta--solid' : 'cmp-cta--done'}`}
-                          >
-                            {status === 'running' ? (
-                              <>
-                                <Spinner /> Generating…
-                              </>
-                            ) : (
-                              'Regenerate →'
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        </button>
+                      </div>
+                    )}
                     {status === 'idle' ? (
                       <GeneratePrompt
                         count={variants.length}
@@ -461,7 +511,152 @@ function LoadingCard() {
   )
 }
 
-function EmptyState({ onVariants }: { onVariants: (variants: ParsedVariant[], source: string) => void }) {
+function sourceActionBtn(active: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '5px 10px',
+    borderRadius: 9,
+    border: `0.5px solid ${active ? 'var(--teal-bdr)' : 'var(--line-2)'}`,
+    background: active ? 'var(--teal-tint)' : 'var(--bg)',
+    color: active ? 'var(--teal-deep)' : 'var(--ink-2)',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  }
+}
+
+/** The always-on provenance strip: every input that produced the cohort, with a
+ *  per-source remove, an Add (drop / browse / paste in place), and Start over. */
+function SourcesBar({
+  sources,
+  total,
+  addingOpen,
+  onToggleAdd,
+  onRemove,
+  onClear,
+}: {
+  sources: ImportSource[]
+  total: number
+  addingOpen: boolean
+  onToggleAdd: () => void
+  onRemove: (id: string) => void
+  onClear: () => void
+}) {
+  return (
+    <section style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 7 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)' }}>
+            Sources
+          </span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>
+            {sources.length} · {total} variant{total === 1 ? '' : 's'}
+          </span>
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button type="button" onClick={onToggleAdd} aria-expanded={addingOpen} style={sourceActionBtn(addingOpen)}>
+            <IconPlus size={12} /> {addingOpen ? 'Close' : 'Add'}
+          </button>
+          <button type="button" onClick={onClear} title="Clear the cohort and start over" style={sourceActionBtn(false)}>
+            Start over
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {sources.map((s) => (
+          <SourceChip key={s.id} source={s} onRemove={() => onRemove(s.id)} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** One source chip: name + its own variant count + remove. Pasted-text sources
+ *  expand to show exactly what was typed (the source-consistency record). */
+function SourceChip({ source, onRemove }: { source: ImportSource; onRemove: () => void }) {
+  const [open, setOpen] = useState(false)
+  const viewable = source.kind === 'paste' && !!source.text
+  const nameStyle: React.CSSProperties = { maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  return (
+    <div style={{ display: 'inline-flex', flexDirection: 'column', maxWidth: '100%' }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 6px 5px 9px',
+          borderRadius: 9,
+          border: '0.5px solid var(--line-2)',
+          background: 'var(--bg)',
+          fontSize: 12,
+          color: 'var(--ink)',
+          maxWidth: '100%',
+        }}
+      >
+        <span aria-hidden style={{ color: 'var(--ink-4)', display: 'inline-flex' }}>
+          <IconList size={12} />
+        </span>
+        {viewable ? (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            title="View the pasted text"
+            style={{ ...nameStyle, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'var(--ink)', cursor: 'pointer' }}
+          >
+            {source.name}
+            <span
+              aria-hidden
+              style={{ display: 'inline-flex', color: 'var(--ink-4)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }}
+            >
+              <IconChevron size={11} />
+            </span>
+          </button>
+        ) : (
+          <span style={nameStyle} title={source.name}>
+            {source.name}
+          </span>
+        )}
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-4)' }}>{source.variants.length}</span>
+        <button
+          type="button"
+          aria-label={`Remove ${source.name}`}
+          onClick={onRemove}
+          title="Remove this source"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 5, border: 'none', background: 'transparent', color: 'var(--ink-4)', cursor: 'pointer' }}
+        >
+          <IconRemove size={13} />
+        </button>
+      </span>
+      {viewable && open && (
+        <pre
+          style={{
+            margin: '6px 0 0',
+            padding: '8px 10px',
+            maxHeight: 160,
+            maxWidth: 340,
+            overflow: 'auto',
+            borderRadius: 8,
+            border: '0.5px solid var(--line-2)',
+            background: 'var(--bg-soft)',
+            fontFamily: 'var(--mono)',
+            fontSize: 11,
+            lineHeight: 1.5,
+            color: 'var(--ink-2)',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {source.text}
+        </pre>
+      )}
+    </div>
+  )
+}
+
+function EmptyState({ onVariants }: { onVariants: (variants: ParsedVariant[], meta: ImportMeta) => void }) {
   return (
     <section
       style={{

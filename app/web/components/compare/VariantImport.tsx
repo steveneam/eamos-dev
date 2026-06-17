@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, type DragEvent } from 'react'
-import { parseVariantFile, type ParsedVariant } from '@/lib/variant-file'
+import { parseVariantFile, type ImportMeta, type ParsedVariant } from '@/lib/variant-file'
 import { IconDropInto, IconPlus } from '@/components/icons/Icon'
 
 /**
@@ -43,8 +43,9 @@ export function VariantImport({
   onVariants,
   compact = false,
 }: {
-  /** Called with the parsed (deduped) variants + a source label for the stash. */
-  onVariants: (variants: ParsedVariant[], source: string) => void
+  /** Called with the parsed (deduped) variants + per-source meta (name, kind,
+   *  and the raw pasted text) so /compare can track and review each source. */
+  onVariants: (variants: ParsedVariant[], meta: ImportMeta) => void
   compact?: boolean
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -61,7 +62,7 @@ export function VariantImport({
       return
     }
     setNote(null)
-    onVariants(variants, source)
+    onVariants(variants, { name: source, kind: 'file' })
   }
 
   const loadPasted = () => {
@@ -75,7 +76,7 @@ export function VariantImport({
     setNote(null)
     setPasteText('')
     setPasteOpen(false)
-    onVariants(variants, 'pasted list')
+    onVariants(variants, { name: 'Pasted text', kind: 'paste', text })
   }
 
   // Shared hidden file input for both variants.

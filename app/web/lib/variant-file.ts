@@ -85,19 +85,90 @@ export function parseVariantFile(text: string, filename: string): ParsedVariant[
 // sessionStorage handoff between the search bar and /compare.
 const COMPARE_KEY = 'eamos.compare.v1'
 
-export interface CompareStash {
-  savedAt: number
-  source: string
+export type SourceKind = 'file' | 'paste'
+
+/** One input that contributed to the cohort — a dropped/attached file or a paste.
+ *  Tracked individually (not merged into one blob) so /compare can show every
+ *  source, let a clinician remove one, and view exactly what was typed: source
+ *  consistency. The working variant list is derived via mergeSources(). */
+export interface ImportSource {
+  id: string
+  /** File name(s), or "Pasted text". */
+  name: string
+  kind: SourceKind
+  /** Raw pasted text, kept so the user can review exactly what they typed. */
+  text?: string
   variants: ParsedVariant[]
 }
 
-export function stashCompareVariants(variants: ParsedVariant[], source: string): void {
+/** What VariantImport hands back per import (everything but the id, assigned here). */
+export interface ImportMeta {
+  name: string
+  kind: SourceKind
+  text?: string
+}
+
+export interface CompareStash {
+  savedAt: number
+  /** Derived label (sources joined) — kept for back-compat readers. */
+  source: string
+  /** Derived deduped working list — kept for back-compat readers. */
+  variants: ParsedVariant[]
+  sources: ImportSource[]
+}
+
+let sourceSeq = 0
+export function makeSourceId(): string {
+  sourceSeq += 1
+  return `src-${Date.now().toString(36)}-${sourceSeq}`
+}
+
+/** Flatten sources into the deduped working cohort (first occurrence wins). */
+export function mergeSources(sources: ImportSource[]): ParsedVariant[] {
+  const seen = new Set<string>()
+  const out: ParsedVariant[] = []
+  for (const s of sources) {
+    for (const v of s.variants) {
+      const key = v.query.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(v)
+    }
+  }
+  return out
+}
+
+export function sourcesLabel(sources: ImportSource[]): string {
+  return sources.map((s) => s.name).join(' + ')
+}
+
+function buildStash(sources: ImportSource[]): CompareStash {
+  return { savedAt: Date.now(), source: sourcesLabel(sources), variants: mergeSources(sources), sources }
+}
+
+/** Rich write used by /compare — persists the per-source provenance. */
+export function stashCompareSources(sources: ImportSource[]): void {
   if (typeof window === 'undefined') return
   try {
-    const stash: CompareStash = { savedAt: Date.now(), source, variants }
-    window.sessionStorage.setItem(COMPARE_KEY, JSON.stringify(stash))
+    window.sessionStorage.setItem(COMPARE_KEY, JSON.stringify(buildStash(sources)))
   } catch {
     // sessionStorage unavailable (private mode / quota) — non-fatal.
+  }
+}
+
+/** Compat write for the other surfaces (search bar, library, paper) that hand
+ *  over a merged list + a label: wrapped as a single source. */
+export function stashCompareVariants(variants: ParsedVariant[], source: string): void {
+  const kind: SourceKind = /paste/i.test(source) ? 'paste' : 'file'
+  stashCompareSources([{ id: makeSourceId(), name: source, kind, variants }])
+}
+
+export function clearCompareStash(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(COMPARE_KEY)
+  } catch {
+    // non-fatal
   }
 }
 
@@ -106,9 +177,15 @@ export function readCompareVariants(): CompareStash | null {
   try {
     const raw = window.sessionStorage.getItem(COMPARE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as CompareStash
+    const parsed = JSON.parse(raw) as Partial<CompareStash>
     if (!Array.isArray(parsed.variants)) return null
-    return parsed
+    // Migrate a pre-sources stash (one merged blob) into a single source.
+    if (!Array.isArray(parsed.sources)) {
+      const name = parsed.source || 'Imported variants'
+      const kind: SourceKind = /paste/i.test(name) ? 'paste' : 'file'
+      return buildStash([{ id: makeSourceId(), name, kind, variants: parsed.variants }])
+    }
+    return parsed as CompareStash
   } catch {
     return null
   }
