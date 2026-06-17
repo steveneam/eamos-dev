@@ -17,11 +17,11 @@
 - **Claude:** IDLE @ 2026-06-17 04:26 +1000 - Batch (/compare) FE UX pass, committed (NOT pushed). `999d0e9` cohort summary + actionable table; `c1ff060` unified the two Batch tables into one `BatchTable` (split-pane + drag-select + save-to-library + cohort summary + ClinVar/ACMG/gnomAD cols + AF filter + TSV), added in-page VCF import (empty-state dropzone + central-column "Add file"), brought the WorkRail in line with /report (Scope ⇄ Ask Eamos rail-head toggle via `CompareAiPanel`, dropped the LLM filter tab, `--rail-top` fix so the foot pins to the viewport bottom), fixed the scope-change-wipes-table bug (stale + Regenerate), renamed "Substitutions"→"Base changes", removed the redundant circular "Import VCF" link on Batch. tsc+lint clean; browser-verified against the live local backend (split view, save round-trip 1→3, Ask-Eamos coming-soon panel, foot). 2 local dev servers (web :3000 + backend :8000) still running — STOP before /clear. `LLM_PROVIDER=mock`; held files excluded; only `app/web/**` touched (Codex's Tier-2 ESM1b tree untouched + unstaged). NEXT = push c1ff060+999d0e9 on Steven's go (→ Vercel prod) + Batch C3-on-C1 (real progress UI, server upload-parse) once Codex's C1 engine lands. Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-17 18:32 +1000 - ESM1b MIT-regenerated staging-input check complete. No `esm1b-mit-regenerated-scores.csv`, no `esm1b-mane-codon-contexts.jsonl`, and no local `esm1b_hg38.tsv.gz/.tbi/manifest` found under repo/default paths or exact-name D: search; read-only Tier 2 planner/preflight still report `planned_count=0`, `missing_local_file=9`, ESM1b launch gate `esm1b_mit_regeneration_required`. No materialization performed and no HF precomputed zip substitution. Guardrails held: no Storage upload, no Supabase metadata/apply, no Render/Vercel/env/provider mutation, no `LOCAL_EVIDENCE_ENABLED` flip, held/unrelated files excluded.
+- **Codex:** IDLE @ 2026-06-17 19:09 +1000 - Commit/push/deploy complete. Pushed `1f6f45c` plus prior local commits to `origin/main`; triggered Render SG deploy `dep-d8p66f37uimc739s5a60`, now LIVE on commit `1f6f45c`; Vercel prod deploy `dpl_6HCs7UZmmp7FeMn1xYnnj61BHczi` Ready and aliased. Live checks: `/healthz` ok/db ok/mock, Vercel proxy provider-cache ok with ESM1b `missing_source_file` + `esm1b_mit_regeneration_required`, `/compare` desktop+mobile browser smoke clean except one benign Next CSS preload warning. No materialization, Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or `LOCAL_EVIDENCE_ENABLED` flip.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-17 18:34 +1000 - Codex (ESM1b MIT-regeneration input check closeout; no materialization)
+UNLOCKED - 2026-06-17 19:11 +1000 - Codex (ESM1b commit/push/deploy closeout recorded)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -409,34 +409,43 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-17 18:32 +1000 - Codex.
+Section last edited: 2026-06-17 19:09 +1000 - Codex.
 
-**Latest Codex update (2026-06-17 18:32 +1000 - Codex):**
-Checked the ESM1b clean MIT-regeneration continuation point after Steven rejected the
-HF precomputed score zip for the commercial path. The MIT-regeneration code path remains
-wired locally, but the operator-generated inputs are not present.
+**Latest Codex update (2026-06-17 19:09 +1000 - Codex):**
+Committed, pushed, deployed, and live-verified the ESM1b MIT-regeneration path plus the
+already-local web Batch commits.
 
 Completed:
-- Read the required handoff/docs and current git state.
-- Confirmed `main...origin/main [ahead 3]`; recent commits are Claude web `c1ff060`,
-  Claude web `999d0e9`, and Codex Tier 2 `dc9ec94`.
-- Searched for clean-path inputs by exact filename:
-  `esm1b-mit-regenerated-scores.csv` and `esm1b-mane-codon-contexts.jsonl`.
-- Confirmed the default ESM1b runtime outputs are absent:
-  `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz`,
-  `.tbi`, and `.manifest.json`.
-- Reran read-only Tier 2 planner and source preflight from `app/backend`.
+- Created commit `1f6f45c` (`feat(backend): support MIT-regenerated ESM1b scores`).
+- Pushed `dc9ec94`, `999d0e9`, `c1ff060`, and `1f6f45c` to `origin/main`.
+- Triggered Render SG deploy `dep-d8p66f37uimc739s5a60`; Render API reports `status=live`,
+  commit `1f6f45c`.
+- Vercel production deploy `dpl_6HCs7UZmmp7FeMn1xYnnj61BHczi` is Ready and aliased to
+  `https://eamos-dev.vercel.app`.
+- Live backend: `https://eamos-dev-sg.onrender.com/healthz` returns ok/db ok/mock.
+- Live Vercel proxy provider-cache returns ok and ESM1b remains correctly gated:
+  build-ledger ESM1b `status=missing_source_file`,
+  `launch_gate=esm1b_mit_regeneration_required`.
+- Browser-smoked `https://eamos-dev.vercel.app/compare` desktop and mobile; page/network
+  requests were 200. Console had one benign Next CSS preload warning only.
 
-Current result:
-- No ESM1b materialization was performed because the required MIT-regenerated score CSV
-  and MANE codon-context JSONL were not found.
+Verification:
+- Backend focused pytest: `tests/test_esm1b_assembly.py`,
+  `tests/test_esm1b_local_adapter.py`, `tests/test_predictor_runtime.py`,
+  `tests/test_tier2_predictor_artifacts.py`, `tests/test_health_api.py`,
+  `tests/test_source_asset_preflight_cli.py`, `tests/test_data_source_registry.py`,
+  `tests/test_tool_invariants.py`.
+- `ruff check`, `black --check`, `py_compile`, `git diff --check`, and
+  `node scripts/eamos-handoff-lint.mjs` passed.
+- `npm --prefix app/web run lint` exited 0 with two existing React hook warnings.
+- `npm --prefix app/web run build` passed.
+
+Still true:
+- No MIT-regenerated ESM1b score CSV or MANE codon-context JSONL is present locally.
+- No ESM1b materialization was performed.
 - No Hugging Face precomputed/non-commercial score zip was downloaded, staged, or used.
-- `eamos_tier2_predictor_artifact_upload --compact` still reports `planned_count=0`,
-  `missing_local_file=9`; ESM1b components are `missing_local_file`.
-- `eamos_source_asset_preflight --compact` still reports the ESM1b build-ledger item as
-  `missing_source_file` with launch gate `esm1b_mit_regeneration_required`.
-- No Storage upload, no Supabase metadata/apply, no Render disk sync, no provider/env flip,
-  and no `LOCAL_EVIDENCE_ENABLED` flip.
+- No Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or
+  `LOCAL_EVIDENCE_ENABLED` flip occurred.
 
 Clean-path command contract once the operator-side files exist:
 
@@ -454,10 +463,10 @@ python -m app.cli.eamos_esm1b_regenerated_scores_materialize `
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-17 18:32 +1000 - Codex ESM1b MIT-regeneration input check
+# Resume prompt - 2026-06-17 19:09 +1000 - Codex ESM1b MIT-regeneration path deployed
 Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/pubmed-corpus-materialization/spec.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git status --short --branch and git log -8 --oneline.
-Delta: MIT-regenerated ESM1b materialization path is wired locally, but no clean staging inputs were found; no materialization was run and no HF precomputed zip was substituted.
-Current result: exact-name D: search found no `esm1b-mit-regenerated-scores.csv`, no `esm1b-mane-codon-contexts.jsonl`, and no local `esm1b_hg38.tsv.gz/.tbi/manifest`; read-only Tier 2 planner/preflight still show ESM1b `missing_local_file` / `missing_source_file` with `launch_gate=esm1b_mit_regeneration_required`.
+Delta: `1f6f45c` deployed the MIT-regenerated ESM1b materialization/provenance path; Render SG deploy `dep-d8p66f37uimc739s5a60` is live on `1f6f45c`, and Vercel prod `dpl_6HCs7UZmmp7FeMn1xYnnj61BHczi` is Ready/aliased.
+Current result: no `esm1b-mit-regenerated-scores.csv`, no `esm1b-mane-codon-contexts.jsonl`, and no local `esm1b_hg38.tsv.gz/.tbi/manifest`; live provider-cache via Vercel still shows ESM1b `missing_source_file` with `launch_gate=esm1b_mit_regeneration_required`, which is the expected clean-path gate.
 Next: obtain or place the MIT-regenerated score CSV plus MANE codon-context JSONL in staging, then run `python -m app.cli.eamos_esm1b_regenerated_scores_materialize ... --require-ready --compact`; expected output is `esm1b_hg38.tsv.gz`, `.tbi`, and sidecar manifest with MIT-regenerated provenance and `license_gate: null`.
 Guardrails: no HF score zip for the commercial path; no Storage upload; no Supabase metadata/apply; no Render disk sync; no provider/env flips; no `LOCAL_EVIDENCE_ENABLED` flip; explicit pathspecs only; keep held/unrelated files excluded (`app/web` compare files, `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`, unrelated handoff archives). End clear-safe.
 ```
