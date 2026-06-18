@@ -31,22 +31,22 @@ Live SG health was checked on 2026-06-14:
 | `protein_pfam` | `available` | Pfam/HMMER is materialized and enabled on SG. |
 | `coordinate_compact_index` | `ready` | Compact artifact is registered in Supabase, materialized on SG Render disk, schema-validated, and visible in provider-cache. |
 | `gene_view` | `runtime_partial` | Asset blockers are cleared; deployed commit `550641d` still has the stale ledger blocker. Local `build_ledger.py` already fixes this and needs a coordinated code deploy. |
-| `dbsnp_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; production object exists in Storage but metadata/runtime wiring is incomplete. |
-| `phylop_conservation_reader` | `source_ready_for_materialization` | Reader proof exists; production object exists in Storage but metadata/runtime wiring is incomplete. |
+| `dbsnp_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; production object metadata is verified/private in Supabase, but SG runtime files are not seeded. |
+| `phylop_conservation_reader` | `source_ready_for_materialization` | Reader proof exists; production object metadata is verified/private in Supabase, but SG runtime files are not seeded. |
 | `clinvar_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; no durable production object was found in this pass. |
 | `repeatmasker_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; no durable production object was found in this pass. |
 | `local_evidence_orchestrator` | `disabled` | Correct until the full indexed-source batch is runtime-configured and verified. |
 | `clinical_source_tables` | `import_ready` | Supabase tables are present but still fixture-scale. |
 
-Supabase inventory checked on 2026-06-13:
+Supabase inventory checked on 2026-06-19:
 
 | Area | Observed state | Required action |
 | --- | --- | --- |
-| `source_asset_objects` | Rows exist for hg38, Pfam, and the compact coordinate index artifact + manifest. | Register dbSNP, phyloP, ClinVar, and RepeatMasker objects before treating them as durable approved assets. |
-| `source_asset_materializations` | hg38, Pfam, and compact coordinate index SG rows are `ready`. | Register remaining local-adapter materializations before runtime flips. |
+| `source_asset_objects` | Rows exist for hg38, Pfam, compact coordinate index artifact + manifest, and five dbSNP/phyloP existing-object rows. The dbSNP/phyloP rows are `verified`, `approved`, and private. | Register ClinVar and RepeatMasker objects before treating them as durable approved assets. |
+| `source_asset_materializations` | hg38, Pfam, and compact coordinate index SG rows are `ready`. Five dbSNP/phyloP SG rows exist and are intentionally `not_materialized` with `render_disk_seed_not_performed`. | Register ClinVar/RepeatMasker materializations, then seed dbSNP/phyloP/ClinVar/RepeatMasker only through explicit runtime gates. |
 | Storage prefix `transcripts/eamos_coordinate_index` | Compact index artifact and manifest uploaded, registered, and materialized on SG on 2026-06-14. | No repeat action; next blocker is deploying the local build-ledger Gene View fix. |
-| Storage prefix `ncbi_dbsnp_gcf_000001405_40` | Six objects totaling about 29.6 GB exist. | Register metadata rows, then seed bgzip and `.tbi` onto Render. |
-| Storage prefix `ucsc_phylop100way_hg38` | Four objects totaling about 9.9 GB exist. | Register metadata rows, then seed bigWig onto Render. |
+| Storage prefix `ncbi_dbsnp_gcf_000001405_40` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bgzip VCF, tabix index, and upstream checksum. | Seed bgzip and `.tbi` onto Render only after the explicit runtime gate. |
+| Storage prefix `ucsc_phylop100way_hg38` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bigWig and upstream checksum. | Seed bigWig onto Render only after the explicit runtime gate. |
 | ClinVar / RepeatMasker prefixes | No durable objects observed. | Locate, upload, register, and verify before runtime work. |
 | Clinical tables | MONDO/HPO/ClinGen/GenCC tables contain fixture-scale rows only. | Import release-pinned full tables separately from Render disk work. |
 
@@ -158,13 +158,19 @@ Steps:
 1. **Done 2026-06-14 01:19 +1000:** reconciled the Pfam materialization row
    from `download_pending` to the live SG proof, preserving checksum, verified
    timestamp, persistent-disk path, and HMMER provider-cache readiness.
-2. Register dbSNP Storage objects under `source_asset_objects`:
+2. **Done 2026-06-19 02:02 +1000:** registered dbSNP Storage objects under
+   `source_asset_objects`:
    - source id `ncbi_dbsnp_gcf_000001405_40`;
    - roles for bgzip VCF, tabix index, checksum/manifest objects;
-   - approval and license status copied from the source rollout plan.
-3. Register phyloP Storage objects under `source_asset_objects`:
+   - approval and license status copied from the source rollout plan;
+   - matching SG materialization rows remain fail-closed as
+     `not_materialized`.
+3. **Done 2026-06-19 02:02 +1000:** registered phyloP Storage objects under
+   `source_asset_objects`:
    - source id `ucsc_phylop100way_hg38`;
-   - roles for bigWig and checksum/manifest objects.
+   - roles for bigWig and checksum/manifest objects;
+   - matching SG materialization rows remain fail-closed as
+     `not_materialized`.
 4. Locate or upload ClinVar GRCh38 VCF plus `.tbi` before any ClinVar runtime
    flip.
 5. Locate or upload RepeatMasker official source plus the derived compact
@@ -172,6 +178,10 @@ Steps:
 
 Prefer committed metadata CLIs/importers over manual SQL. If SQL is used for a
 one-time reconciliation, capture the exact query in a follow-up runbook.
+M2 used the committed `eamos_source_import --existing-object-set dbsnp_phylop`
+path for planning and S3 head verification; the local CLI database apply gate
+remained unset, so the verified registration payload was applied through the
+available Supabase connector and read back from `eamos_private`.
 
 ### 3. Runtime Path Wiring
 

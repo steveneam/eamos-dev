@@ -62,6 +62,11 @@ from app.services.tier2_predictor_artifacts import (
 CURRENT_WEB_RUNTIME_RENDER_DISK_GB = 15
 FULL_NONCOMMERCIAL_RENDER_DISK_GB = 60
 
+_M2_METADATA_REQUIRED_ROLES: dict[str, tuple[str, ...]] = {
+    "ncbi_dbsnp_gcf_000001405_40": ("dbsnp_bgzip_vcf", "dbsnp_tabix_index"),
+    "ucsc_phylop100way_hg38": ("phylop_bigwig",),
+}
+
 _RENDER_RUNTIME_ENV_NAMES = (
     "HG38_2BIT_RUNTIME_ASSET_MODE",
     "HG38_2BIT_RUNTIME_ASSET_PATH",
@@ -219,6 +224,10 @@ def build_source_asset_preflight_report(
             registry=registry,
             probe_materialization=probe_materialization,
             verify_checksum=verify_hg38_checksum,
+        ),
+        "source_asset_metadata_probe": _source_asset_metadata_probe_summary(
+            materialization_store=materialization_store,
+            probe_materialization=probe_materialization,
         ),
         "compact_coordinate_index": compact_coordinate_index.to_sanitized_dict(),
         "clingen_local": clingen_local.to_sanitized_dict(),
@@ -526,6 +535,117 @@ def _runtime_materialization_probe_summary(
             verify_checksum=verify_checksum,
         ),
         **common,
+    }
+
+
+def _source_asset_metadata_probe_summary(
+    *,
+    materialization_store: SourceAssetMaterializationStore | None,
+    probe_materialization: bool,
+) -> dict[str, Any]:
+    common = {
+        "read_only": True,
+        "mutations_performed": False,
+        "secret_values_emitted": False,
+        "local_path_values_emitted": False,
+        "object_uri_values_emitted": False,
+        "sources": [],
+    }
+    if not probe_materialization:
+        return {
+            **common,
+            "enabled": materialization_store is not None,
+            "probe_performed": False,
+            "status": "not_requested",
+        }
+    if materialization_store is None:
+        return {
+            **common,
+            "enabled": False,
+            "probe_performed": False,
+            "status": "materialization_store_unavailable",
+        }
+
+    sources = []
+    for source_id, roles in _M2_METADATA_REQUIRED_ROLES.items():
+        role_results = [
+            _source_asset_metadata_role_probe(
+                materialization_store,
+                source_id=source_id,
+                asset_role=role,
+            )
+            for role in roles
+        ]
+        sources.append(
+            {
+                "source_id": source_id,
+                "metadata_ready": all(item["metadata_ready"] for item in role_results),
+                "status": (
+                    "metadata_ready"
+                    if all(item["metadata_ready"] for item in role_results)
+                    else "metadata_unknown"
+                ),
+                "roles": role_results,
+            }
+        )
+    return {
+        **common,
+        "enabled": True,
+        "probe_performed": True,
+        "status": (
+            "metadata_ready"
+            if all(source["metadata_ready"] for source in sources)
+            else "metadata_unknown"
+        ),
+        "sources": sources,
+    }
+
+
+def _source_asset_metadata_role_probe(
+    materialization_store: SourceAssetMaterializationStore,
+    *,
+    source_id: str,
+    asset_role: str,
+) -> dict[str, Any]:
+    try:
+        record = materialization_store.get_source_asset_materialization(
+            source_id=source_id,
+            asset_role=asset_role,
+            environment="sg-render",
+        )
+    except Exception:
+        return {
+            "asset_role": asset_role,
+            "metadata_ready": False,
+            "status": "metadata_probe_failed",
+        }
+    if record is None:
+        return {
+            "asset_role": asset_role,
+            "metadata_ready": False,
+            "status": "metadata_unknown",
+        }
+    object_ready = (
+        record.upload_status == "verified"
+        and record.approval_status == "approved"
+        and record.public_access_allowed is False
+        and record.frontend_direct_access_allowed is False
+        and bool(record.byte_size)
+        and bool(record.checksum_algorithm)
+        and bool(record.checksum_value)
+    )
+    return {
+        "asset_role": asset_role,
+        "metadata_ready": object_ready,
+        "status": "metadata_ready" if object_ready else "metadata_incomplete",
+        "upload_status": record.upload_status,
+        "approval_status": record.approval_status,
+        "public_access_allowed": record.public_access_allowed,
+        "frontend_direct_access_allowed": record.frontend_direct_access_allowed,
+        "byte_size": record.byte_size,
+        "checksum_algorithm": record.checksum_algorithm,
+        "materialization_status": record.materialization_status,
+        "fail_closed_reason": record.fail_closed_reason,
     }
 
 

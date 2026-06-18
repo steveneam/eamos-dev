@@ -372,6 +372,42 @@ def test_source_asset_preflight_can_run_sanitized_materialization_probe(
     assert str(tmp_path).lower() not in encoded
 
 
+def test_source_asset_preflight_reports_m2_metadata_without_runtime_ready(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=tmp_path / "missing-hg38.2bit",
+    )
+
+    output = build_source_asset_preflight_report(
+        settings=settings,
+        probe_materialization=True,
+        materialization_store=FakeM2MetadataStore(),
+    )
+
+    probe = output["source_asset_metadata_probe"]
+    assert probe["enabled"] is True
+    assert probe["probe_performed"] is True
+    assert probe["status"] == "metadata_ready"
+    by_source = {item["source_id"]: item for item in probe["sources"]}
+    assert by_source["ncbi_dbsnp_gcf_000001405_40"]["metadata_ready"] is True
+    assert by_source["ucsc_phylop100way_hg38"]["metadata_ready"] is True
+    dbsnp_roles = {
+        item["asset_role"]: item for item in by_source["ncbi_dbsnp_gcf_000001405_40"]["roles"]
+    }
+    assert dbsnp_roles["dbsnp_bgzip_vcf"]["upload_status"] == "verified"
+    assert dbsnp_roles["dbsnp_bgzip_vcf"]["approval_status"] == "approved"
+    assert dbsnp_roles["dbsnp_bgzip_vcf"]["materialization_status"] == "not_materialized"
+    assert dbsnp_roles["dbsnp_bgzip_vcf"]["fail_closed_reason"] == (
+        "render_disk_seed_not_performed"
+    )
+    encoded = json.dumps(probe).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "supabase://" not in encoded
+    assert "object_path" not in encoded
+
+
 def test_docx_task_matrix_maps_every_noncommercial_line_to_coverage_or_blocker() -> None:
     matrix = build_docx_task_matrix()
 
@@ -448,6 +484,30 @@ class ExplodingMaterializationStore:
         raise RuntimeError("database unavailable at postgresql://private.example/path")
 
 
+class FakeM2MetadataStore:
+    def __init__(self) -> None:
+        self.records = {
+            ("ncbi_dbsnp_gcf_000001405_40", "dbsnp_bgzip_vcf"): _metadata_record(
+                source_id="ncbi_dbsnp_gcf_000001405_40",
+                asset_role="dbsnp_bgzip_vcf",
+                byte_size=29_552_227_779,
+            ),
+            ("ncbi_dbsnp_gcf_000001405_40", "dbsnp_tabix_index"): _metadata_record(
+                source_id="ncbi_dbsnp_gcf_000001405_40",
+                asset_role="dbsnp_tabix_index",
+                byte_size=3_140_346,
+            ),
+            ("ucsc_phylop100way_hg38", "phylop_bigwig"): _metadata_record(
+                source_id="ucsc_phylop100way_hg38",
+                asset_role="phylop_bigwig",
+                byte_size=9_870_053_206,
+            ),
+        }
+
+    def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord | None:
+        return self.records.get((kwargs["source_id"], kwargs["asset_role"]))
+
+
 def _write_runtime_file(path: Path, payload: bytes) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(payload)
@@ -458,3 +518,32 @@ def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
     _write_runtime_file(path, payload)
     Path(f"{path}.tbi").write_bytes(b"index")
     return path
+
+
+def _metadata_record(
+    *,
+    source_id: str,
+    asset_role: str,
+    byte_size: int,
+) -> SourceAssetMaterializationRecord:
+    return SourceAssetMaterializationRecord(
+        source_id=source_id,
+        asset_role=asset_role,
+        bucket_id="eamos-source-assets",
+        object_path=f"{source_id}/{asset_role}/sha256-{'1' * 64}/asset.dat",
+        upload_status="verified",
+        approval_status="approved",
+        public_access_allowed=False,
+        frontend_direct_access_allowed=False,
+        environment="sg-render",
+        backend_runtime="render_backend",
+        local_cache_path=f"/var/data/eamos/bio_assets/{asset_role}/asset.dat",
+        materialization_status="not_materialized",
+        byte_size=byte_size,
+        checksum_algorithm="sha256",
+        checksum_value="1" * 64,
+        verified_at=None,
+        fail_closed_reason="render_disk_seed_not_performed",
+        metadata={"metadata_set_id": "dbsnp_phylop"},
+        warnings=[],
+    )

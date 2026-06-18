@@ -7,15 +7,20 @@ import pytest
 from app.cli import eamos_source_import
 from app.services.source_imports import (
     CLINVAR_STORAGE_PILOT_ID,
+    DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
     HG38_STORAGE_PILOT_ID,
     SourceImportError,
     apply_clinical_source_import_bundle,
+    apply_existing_source_asset_metadata_registration,
     apply_storage_pilot_registration,
     build_clinical_source_import_bundle,
+    build_existing_source_asset_metadata_registration,
     build_storage_pilot_registration,
     clinical_bundle_report,
+    existing_source_asset_metadata_report,
     storage_pilot_report,
 )
+from app.services.source_storage_uploads import build_source_storage_upload_items
 
 
 class FakeSourceImportStore:
@@ -133,6 +138,72 @@ def test_storage_pilot_apply_records_object_and_fail_closed_materialization() ->
     assert store.source_asset_materializations[0]["materialization_status"] == "not_materialized"
 
 
+def test_existing_dbsnp_phylop_metadata_registration_is_private_and_fail_closed(
+    tmp_path,
+) -> None:
+    items = _dbsnp_phylop_upload_items(tmp_path)
+
+    registration = build_existing_source_asset_metadata_registration(
+        metadata_set_id=DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
+        upload_items=items,
+        storage_heads_verified=True,
+    )
+    report = existing_source_asset_metadata_report(registration)
+
+    assert len(registration.source_versions) == 2
+    assert len(registration.objects) == 5
+    assert len(registration.materializations) == 5
+    by_role = {source_object.asset_role: source_object for source_object in registration.objects}
+    assert by_role["dbsnp_bgzip_vcf"].upload_status == "verified"
+    assert by_role["dbsnp_bgzip_vcf"].approval_status == "approved"
+    assert by_role["dbsnp_bgzip_vcf"].metadata["public_access_allowed"] is False
+    assert by_role["dbsnp_bgzip_vcf"].metadata["frontend_direct_access_allowed"] is False
+    assert by_role["dbsnp_bgzip_vcf"].checksum_algorithm == "sha256"
+    assert by_role["phylop_bigwig"].byte_size == 11
+    assert by_role["upstream_checksum"].materialization_required is False
+    assert {item.materialization_status for item in registration.materializations} == {
+        "not_materialized"
+    }
+    assert {item.fail_closed_reason for item in registration.materializations} == {
+        "render_disk_seed_not_performed"
+    }
+    dbsnp_materialization = next(
+        item
+        for item in registration.materializations
+        if item.metadata["asset_role"] == "dbsnp_bgzip_vcf"
+    )
+    assert dbsnp_materialization.metadata["reader_requires_local_path"] is True
+    assert "mounted_volume" in dbsnp_materialization.metadata["runtime_delivery_modes"]
+    assert report["guardrails"]["render_disk_seed"] == "not_used"
+    assert report["guardrails"]["local_evidence_enablement"] == "not_used"
+
+
+def test_existing_dbsnp_phylop_metadata_apply_records_objects_and_materializations(
+    tmp_path,
+) -> None:
+    store = FakeSourceImportStore()
+    registration = build_existing_source_asset_metadata_registration(
+        upload_items=_dbsnp_phylop_upload_items(tmp_path),
+        storage_heads_verified=True,
+    )
+
+    result = apply_existing_source_asset_metadata_registration(store, registration)
+
+    assert result.applied is True
+    assert result.metadata_set_id == DBSNP_PHYLOP_EXISTING_OBJECTS_ID
+    assert result.materialization_count == 5
+    assert len(store.source_versions) == 2
+    assert len(store.source_asset_objects) == 5
+    assert len(store.source_asset_materializations) == 5
+    assert store.source_asset_objects[0]["upload_status"] == "verified"
+    assert store.source_asset_objects[0]["approval_status"] == "approved"
+    assert store.source_asset_objects[0]["metadata"]["public_access_allowed"] is False
+    assert store.source_asset_materializations[0]["materialization_status"] == "not_materialized"
+    assert store.source_asset_materializations[0]["fail_closed_reason"] == (
+        "render_disk_seed_not_performed"
+    )
+
+
 def test_source_import_cli_plans_clinical_and_storage_without_supabase(
     capsys,
 ) -> None:
@@ -145,6 +216,69 @@ def test_source_import_cli_plans_clinical_and_storage_without_supabase(
     assert output["clinical_fixtures"]["row_counts"]["clinical_mondo_diseases"] == 2
     assert output["storage_pilot"]["pilot_id"] == HG38_STORAGE_PILOT_ID
     assert output["guardrails"]["secrets_in_output"] == "blocked"
+
+
+def test_source_import_cli_plans_existing_dbsnp_phylop_metadata(
+    tmp_path,
+    capsys,
+    monkeypatch,
+) -> None:
+    items = _dbsnp_phylop_upload_items(tmp_path)
+    monkeypatch.setattr(eamos_source_import, "build_source_storage_upload_items", lambda **_: items)
+
+    exit_code = eamos_source_import.main(
+        [
+            "--skip-clinical-fixtures",
+            "--storage-pilot",
+            "none",
+            "--existing-object-set",
+            DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
+            "--storage-heads-verified",
+            "--compact",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    metadata = output["existing_object_metadata"]
+    assert output["status"] == "planned"
+    assert metadata["metadata_set_id"] == DBSNP_PHYLOP_EXISTING_OBJECTS_ID
+    assert metadata["storage_heads_verified"] is True
+    assert len(metadata["objects"]) == 5
+    assert metadata["objects"][0]["upload_status"] == "verified"
+    assert metadata["materializations"][0]["materialization_status"] == "not_materialized"
+
+
+def test_source_import_cli_can_verify_existing_storage_heads(
+    tmp_path,
+    capsys,
+    monkeypatch,
+) -> None:
+    items = _dbsnp_phylop_upload_items(tmp_path)
+    monkeypatch.setattr(eamos_source_import, "build_source_storage_upload_items", lambda **_: items)
+    monkeypatch.setattr(
+        eamos_source_import,
+        "_verify_existing_storage_heads",
+        lambda settings, upload_items: True,
+    )
+
+    exit_code = eamos_source_import.main(
+        [
+            "--skip-clinical-fixtures",
+            "--storage-pilot",
+            "none",
+            "--existing-object-set",
+            DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
+            "--verify-storage-heads",
+            "--compact",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    metadata = output["existing_object_metadata"]
+    assert metadata["storage_heads_verified"] is True
+    assert {item["upload_status"] for item in metadata["objects"]} == {"verified"}
 
 
 def test_source_import_apply_uses_configured_store_and_smoke(monkeypatch) -> None:
@@ -166,4 +300,35 @@ def test_source_import_apply_uses_configured_store_and_smoke(monkeypatch) -> Non
     )
     assert output["storage_pilot"]["apply_result"]["source_asset_object_id"] == (
         "source-asset-object-1"
+    )
+
+
+def _dbsnp_phylop_upload_items(tmp_path):
+    large_root = tmp_path / "large"
+    files = {
+        "ncbi_dbsnp_gcf_000001405_40/GCF_000001405.40.gz": b"dbsnp-vcf",
+        "ncbi_dbsnp_gcf_000001405_40/GCF_000001405.40.gz.tbi": b"dbsnp-tbi",
+        "ncbi_dbsnp_gcf_000001405_40/GCF_000001405.40.gz.md5": b"dbsnp-md5",
+        "ucsc_phylop100way_hg38/hg38.phyloP100way.bw": b"phylop-bwig",
+        "ucsc_phylop100way_hg38/md5sum.txt": b"phylop-md5",
+    }
+    for relative, payload in files.items():
+        path = large_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        path.with_suffix(path.suffix + ".manifest.json").write_text(
+            json.dumps(
+                {
+                    "md5": "a" * 32,
+                    "sha256": f"{len(payload):064x}"[-64:],
+                }
+            ),
+            encoding="utf-8",
+        )
+    return build_source_storage_upload_items(
+        source_ids=(
+            "ncbi_dbsnp_gcf_000001405_40",
+            "ucsc_phylop100way_hg38",
+        ),
+        large_staging_root=large_root,
     )

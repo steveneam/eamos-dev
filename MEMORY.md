@@ -11,3 +11,4 @@ Persistent one-fact memories for generalizable project lessons.
 - [[batch-cache-preserves-vcf-metadata]] - Batch lookup cache hits must be enriched with current parsed VCF metadata.
 - [[batch-dedupe-by-resolved-identity]] - Batch dedupe should use resolved genomic identity and merge richer duplicate metadata before lookup.
 - [[generated-artifact-s3-sync-parity]] - Generated SQLite artifact upload and sync both need Supabase S3-compatible transport support when REST service-role credentials are absent.
+- [[source-asset-metadata-runtime-separation]] - Private source object metadata can be verified and approved while runtime materializations stay fail-closed until the target service disk is seeded and verified.

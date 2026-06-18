@@ -185,6 +185,28 @@ python -m app.cli.eamos_source_asset_preflight --compact
 
 Out of scope: ClinVar/RepeatMasker upload, runtime file placement.
 
+2026-06-19 checkpoint:
+
+- Added the committed `eamos_source_import --existing-object-set dbsnp_phylop`
+  planning/apply path plus read-only Supabase S3 `head_object` verification for
+  existing private Storage objects and manifest sidecars.
+- S3 head verification passed for the dbSNP bgzip VCF, dbSNP tabix index,
+  dbSNP upstream checksum, phyloP bigWig, and phyloP upstream checksum. The
+  importer marks the metadata plan `verified` only after this proof.
+- Supabase `eamos_private.source_asset_objects` now has five dbSNP/phyloP rows
+  with `upload_status=verified`, `approval_status=approved`, private access
+  flags false, role, size, SHA256, license/provenance metadata, and no frontend
+  direct access.
+- Supabase `eamos_private.source_asset_materializations` now has five matching
+  SG rows for `sg-render` / `render_backend`; every row remains
+  `materialization_status=not_materialized`, `verified_at=null`, and
+  `fail_closed_reason=render_disk_seed_not_performed`.
+- Local CLI apply remains gated by the app's configured materialization-store
+  DB URL. In this session the committed importer generated and verified the
+  registration payload, and the available Supabase connector path applied and
+  read back the same rows. No Render disk seed, env/provider flip, local
+  evidence enablement, PubMed/RAG work, or ESM1b work occurred.
+
 ### M3 - Small Clinical Table Imports
 
 Goal: import release-pinned MONDO, HPO, ClinGen gene-validity, and GenCC tables
