@@ -492,7 +492,9 @@ class BatchService:
             cached = self._lookup_cache.get(identity.variant_key)
             if cached is not None:
                 self._lookup_cache.move_to_end(identity.variant_key)
-                return cached.model_copy(deep=True)
+                result = _enrich_batch_result_from_variant(cached, variant)
+                self._lookup_cache[identity.variant_key] = result.model_copy(deep=True)
+                return result
 
         lookup_service = self.lookup_service
         if lookup_service is None:
@@ -512,6 +514,7 @@ class BatchService:
             identity=identity,
             response=response,
         )
+        result = _enrich_batch_result_from_variant(result, variant)
         if result.state == "completed":
             with self._lock:
                 self._lookup_cache[identity.variant_key] = result.model_copy(deep=True)
@@ -633,6 +636,36 @@ def _batch_result_from_lookup_response(
         report_href=f"/lookup?query={quote_plus(query)}",
         warnings=list(dict.fromkeys(warnings)),
     )
+
+
+def _enrich_batch_result_from_variant(result: BatchResult, variant: ParsedVariant) -> BatchResult:
+    updates: dict[str, Any] = {}
+    variant_cdna = variant.variant if _is_cdna_hgvs(variant.variant) else None
+
+    gene = result.gene or variant.gene
+    hgvs_c = result.hgvs_c
+    if variant_cdna and not _is_cdna_hgvs(hgvs_c):
+        hgvs_c = variant_cdna
+
+    if not result.gene and variant.gene:
+        updates["gene"] = variant.gene
+    if hgvs_c != result.hgvs_c:
+        updates["hgvs_c"] = hgvs_c
+    if not result.hgvs_p:
+        hgvs_p = _raw_info_value(variant.raw, "HGVS_P")
+        if hgvs_p:
+            updates["hgvs_p"] = hgvs_p
+    if result.gnomad_af is None and variant.info_af is not None:
+        updates["gnomad_af"] = variant.info_af
+    if updates and gene and hgvs_c:
+        updates["report_href"] = f"/lookup?query={quote_plus(f'{gene}:{hgvs_c}')}"
+    if not updates:
+        return result.model_copy(deep=True)
+    return result.model_copy(update=updates, deep=True)
+
+
+def _is_cdna_hgvs(value: str | None) -> bool:
+    return bool(value and value.startswith("c."))
 
 
 def _predictor_ensemble(payload) -> dict[str, Any]:

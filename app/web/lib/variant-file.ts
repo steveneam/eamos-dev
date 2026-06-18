@@ -13,6 +13,13 @@ export interface ParsedVariant {
   variant: string | null
   /** Freeform query string fed to reportHrefForQuery / the lookup. */
   query: string
+  chrom?: string | null
+  pos?: number | null
+  ref?: string | null
+  alt?: string | null
+  filter?: string | null
+  info_af?: number | null
+  warnings?: string[]
 }
 
 // Client-parse cap for the small-file inline path. Sits under the backend's
@@ -42,14 +49,80 @@ function parseVcf(text: string): ParsedVariant[] {
     if (!trimmed || trimmed.startsWith('#')) continue
     const cols = trimmed.split(/\s+/)
     if (cols.length < 5) continue
-    const [chrom, pos, , ref, altField] = cols
+    const [chrom, pos, , ref, altField, , filter] = cols
     if (!chrom || !pos || !ref || !altField || !/^\d+$/.test(pos)) continue
+    const info = parseVcfInfo(cols[7])
+    const gene = geneFromVcfInfo(info)
+    const variant = firstInfoValue(info, ['HGVS_C', 'HGVSC'])
+    const normalizedChrom = chrom.replace(/^chr/i, '')
+    const normalizedRef = ref.toUpperCase()
     // Multi-allelic ALT (A,T) → take the first ALT for the v1 single row.
-    const alt = altField.split(',')[0]
-    const query = `${chrom.replace(/^chr/i, '')}-${pos}-${ref}-${alt}`
-    out.push({ raw: clip(trimmed), gene: null, variant: null, query })
+    const alt = altField.split(',')[0].toUpperCase()
+    const query = `${normalizedChrom}-${pos}-${normalizedRef}-${alt}`
+    out.push({
+      raw: clip(trimmed),
+      gene,
+      variant,
+      query,
+      chrom: normalizedChrom,
+      pos: Number(pos),
+      ref: normalizedRef,
+      alt,
+      filter: filter || null,
+      info_af: firstAfValue(info),
+    })
   }
   return out
+}
+
+function parseVcfInfo(raw: string | undefined): Record<string, string | true> {
+  const info: Record<string, string | true> = {}
+  if (!raw || raw === '.') return info
+  for (const item of raw.split(';')) {
+    if (!item) continue
+    const eq = item.indexOf('=')
+    if (eq < 0) {
+      info[item.trim().toUpperCase()] = true
+      continue
+    }
+    info[item.slice(0, eq).trim().toUpperCase()] = item.slice(eq + 1).trim()
+  }
+  return info
+}
+
+function decodeInfoValue(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+function firstInfoValue(info: Record<string, string | true>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = info[key]
+    if (typeof value === 'string' && value.trim()) return decodeInfoValue(value.trim())
+  }
+  return null
+}
+
+function firstAfValue(info: Record<string, string | true>): number | null {
+  const value = info.AF
+  if (typeof value !== 'string') return null
+  const first = Number(value.split(',')[0])
+  return Number.isFinite(first) && first >= 0 && first <= 1 ? first : null
+}
+
+function geneFromVcfInfo(info: Record<string, string | true>): string | null {
+  const direct = firstInfoValue(info, ['GENE', 'SYMBOL', 'HGNC_SYMBOL'])
+  if (direct) return direct.toUpperCase()
+  const ann = info.ANN
+  if (typeof ann === 'string' && ann.trim()) {
+    const first = ann.split(',', 1)[0]?.split('|')
+    const gene = first?.[3]?.trim()
+    if (gene) return gene.toUpperCase()
+  }
+  return null
 }
 
 function parseList(text: string): ParsedVariant[] {

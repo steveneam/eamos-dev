@@ -244,6 +244,65 @@ def test_batch_service_runs_lookup_in_background_and_maps_summary(tmp_path: Path
     assert len(lookup.calls) == 2
 
 
+def test_batch_lookup_cache_preserves_richer_variant_metadata(tmp_path: Path) -> None:
+    lookup = _CoordinateOnlyLookupService()
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        lookup_service=lookup,
+        max_lookup_workers=1,
+    )
+
+    coordinate_only = service.create_job(
+        BatchCreateRequest(
+            variants=[
+                ParsedVariant(
+                    query="1-94014568-A-T",
+                    chrom="1",
+                    pos=94014568,
+                    ref="A",
+                    alt="T",
+                    filter="PASS",
+                )
+            ]
+        )
+    )
+    first_job = _wait_for_service_job(service, coordinate_only.job_id)
+    assert first_job.results[0].gene is None
+    assert first_job.results[0].hgvs_c is None
+    assert len(lookup.calls) == 1
+
+    with_vcf_metadata = service.create_job(
+        BatchCreateRequest(
+            variants=[
+                ParsedVariant(
+                    raw=(
+                        "1\t94014568\t.\tA\tT\t.\tPASS\t"
+                        "GENE=ABCA4;HGVS_C=c.5435T>A;HGVS_P=p.Leu1812Ter;AF=0.00042"
+                    ),
+                    query="1-94014568-A-T",
+                    gene="ABCA4",
+                    variant="c.5435T>A",
+                    chrom="1",
+                    pos=94014568,
+                    ref="A",
+                    alt="T",
+                    filter="PASS",
+                    info_af=0.00042,
+                )
+            ]
+        )
+    )
+    second_job = _wait_for_service_job(service, with_vcf_metadata.job_id)
+
+    assert len(lookup.calls) == 1
+    assert second_job.results[0].gene == "ABCA4"
+    assert second_job.results[0].hgvs_c == "c.5435T>A"
+    assert second_job.results[0].hgvs_p == "p.Leu1812Ter"
+    assert second_job.results[0].gnomad_af == 0.00042
+    assert second_job.results[0].report_href == "/lookup?query=ABCA4%3Ac.5435T%3EA"
+
+
 def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -> None:
     service = BatchService(
         upload_dir=tmp_path,
@@ -492,6 +551,24 @@ class _FakeLookupService:
                         classification_source="Eamos",
                     ),
                 ),
+            ),
+        )
+
+
+class _CoordinateOnlyLookupService:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def lookup(self, request, refresh: bool = False) -> LookupResponse:
+        self.calls.append(request)
+        return LookupResponse(
+            query=str(request.search_text or request.query or request.cdna or "1-94014568-A-T"),
+            species="human",
+            evidence=[],
+            warnings=[],
+            report_payload=ReportPayload(
+                patient_id="batch-cache-test",
+                report_title="coordinate-only",
             ),
         )
 

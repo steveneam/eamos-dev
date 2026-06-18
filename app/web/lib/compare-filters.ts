@@ -2,8 +2,9 @@
 //
 // Filters are added as removable chips. Only PANEL filters compute client-side
 // today (gene-symbol membership over the browser-parsed rows); Quality(PASS),
-// Region, and Allele-frequency are configured here but APPLY SERVER-SIDE once
-// Codex's batch engine lands — our parsed rows don't yet carry FILTER/AF/coords.
+// Region, and Allele-frequency are configured here but apply server-side. Browser
+// VCF rows carry common FILTER/AF/coords, while upload_ref parsing remains the
+// authoritative path for advanced VCF normalization.
 // Maps to spec §5.2 (filter order panel → PASS → region → AF) + the BatchFilters
 // contract in lib/backend.ts.
 import type { ParsedVariant } from './variant-file'

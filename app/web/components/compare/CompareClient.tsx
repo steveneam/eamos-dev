@@ -68,8 +68,20 @@ type BatchProgress = {
 }
 
 /** Map a browser-parsed cohort row to the backend batch variant shape. */
-function toBatchVariant(v: { raw: string; gene: string | null; variant: string | null; query: string }): BatchVariant {
-  return { raw: v.raw, query: v.query, gene: v.gene, variant: v.variant, warnings: [] }
+function toBatchVariant(v: ParsedVariant): BatchVariant {
+  return {
+    raw: v.raw,
+    query: v.query,
+    gene: v.gene,
+    variant: v.variant,
+    chrom: v.chrom,
+    pos: v.pos,
+    ref: v.ref,
+    alt: v.alt,
+    filter: v.filter,
+    info_af: v.info_af,
+    warnings: v.warnings ?? [],
+  }
 }
 
 /** Translate the active scope chips into the batch filter payload. */
