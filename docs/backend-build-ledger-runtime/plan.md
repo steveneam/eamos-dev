@@ -82,6 +82,25 @@ python -m app.cli.eamos_source_asset_preflight --compact
 
 Out of scope: downloads, uploads, Render disk writes, provider flips.
 
+2026-06-19 checkpoint:
+
+- Local preflight grouped `ready`: `clingen_local_adapter`, `hg38_2bit`.
+  Local `source_ready_for_materialization`: `clinvar_local_adapter`,
+  `dbsnp_local_adapter`, `phylop_conservation_reader`,
+  `repeatmasker_local_adapter`. Local `disabled`: `local_evidence_orchestrator`.
+  Local missing/gated rows include `coordinate_compact_index=missing`,
+  `alphamissense=missing_source_file`, `esm1b=missing_source_file`,
+  `ci_spliceai=score_cache_missing`, `capice=model_artifact_missing`,
+  `literature_rag_embeddings=rag_disabled`, and
+  `literature_engine=local_adapter_disabled`.
+- Live SG differs from local for five rows: `coordinate_compact_index=ready`,
+  `gene_view=ready`, `protein_pfam=available`, and `alphamissense=ready` on
+  live; `clingen_local_adapter=local_adapter_disabled` on live while local is
+  ready.
+- Live SG `source_assets.clingen_local` remains `db_missing` with zero
+  eRepo/CSpec counts. No Storage, Supabase metadata, Render, or env mutation
+  was performed during the baseline.
+
 ### M1 - ClinGen/CSpec Generated SQLite Sync
 
 Goal: move the already-built ClinGen eRepo/CSpec local SQLite artifact through
@@ -120,6 +139,26 @@ python -m app.cli.eamos_generated_artifact_upload --artifact clingen_local --com
 ```
 
 Out of scope: PubMed local, literature RAG, CSpec UI rendering.
+
+2026-06-19 checkpoint:
+
+- Local ClinGen preflight is ready for schema `eamos.clingen_local.v1`,
+  source version `ClinGen eRepo/CSpec full snapshot 2026-06-11`, with 12,675
+  eRepo classification rows, 77,799 CSpec entities, 25,762 CSpec links, and a
+  verified checksum.
+- The generated artifact upload plan is upload-eligible for private bucket
+  `eamos-source-assets`: object
+  `generated/eamos_clingen_local/clingen_local_sqlite/sha256-4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d/clingen-local.sqlite`,
+  size `463036416`, MD5 `7d6525308af1fbd64734491477adee06`, SHA256
+  `4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d`.
+- Read-only S3 `head_object` proved both the artifact and manifest sidecar
+  already exist in private Storage at that identity. No re-upload was needed.
+- `eamos_generated_artifact_sync` now supports explicit
+  `--download-mode s3_multipart`; a temp-destination sync from the private
+  object downloaded, size/MD5/SHA256 verified, schema-validated, wrote the
+  manifest sidecar, and emitted sanitized output. Live SG still needs an
+  explicit runtime sync on the service disk before relying on local-first
+  ClinGen behavior.
 
 ### M2 - Existing-Object Metadata Reconciliation
 

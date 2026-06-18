@@ -168,6 +168,85 @@ def test_generated_artifact_sync_downloads_private_pubmed_object(
     assert str(tmp_path).lower() not in encoded
 
 
+def test_generated_artifact_sync_downloads_private_pubmed_object_from_s3(
+    tmp_path: Path,
+) -> None:
+    source_settings = _settings(tmp_path / "source")
+    _materialize_pubmed(source_settings, tmp_path / "source")
+    [item] = build_generated_source_artifact_upload_items(
+        source_settings,
+        artifact_ids=("pubmed_local",),
+        bucket_id="eamos-source-assets",
+        manifest_staging_root=tmp_path / "upload-manifests",
+    )
+    source_payload = source_settings.pubmed_local_sqlite_path.read_bytes()
+    manifest_payload = item.manifest_path.read_bytes()
+    payloads = {
+        item.object_path: source_payload,
+        item.manifest_object_path: manifest_payload,
+    }
+
+    class Body:
+        def __init__(self, payload: bytes) -> None:
+            self.payload = payload
+
+        def read(self) -> bytes:
+            return self.payload
+
+    class FakeS3Client:
+        def get_object(self, *, Bucket: str, Key: str) -> dict[str, object]:
+            assert Bucket == "eamos-source-assets"
+            return {"Body": Body(payloads[Key])}
+
+        def download_fileobj(self, bucket: str, key: str, fileobj, **_kwargs: object) -> None:
+            assert bucket == "eamos-source-assets"
+            fileobj.write(payloads[key])
+
+    runtime_settings = _settings(tmp_path / "runtime")
+
+    result = materialize_generated_source_artifact(
+        runtime_settings,
+        artifact_id="pubmed_local",
+        source_object_uri=f"supabase://eamos-source-assets/{item.object_path}",
+        download_mode=SourceStorageUploadMode.S3_MULTIPART,
+        s3_client=FakeS3Client(),
+    )
+
+    assert result.ready is True
+    assert result.status == "ready"
+    assert result.source_kind == "supabase_private_storage_s3"
+    assert result.downloaded is True
+    assert result.copied is False
+    assert result.manifest_written is True
+    assert result.md5_verified is True
+    assert result.sha256_verified is True
+    assert runtime_settings.pubmed_local_sqlite_path.read_bytes() == source_payload
+    assert inspect_pubmed_local_store(runtime_settings).ready is True
+    encoded = json.dumps(result.to_sanitized_dict()).lower()
+    assert item.object_path.lower() not in encoded
+    assert str(tmp_path).lower() not in encoded
+
+
+def test_generated_artifact_sync_s3_requires_credentials_without_network(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path / "runtime")
+
+    result = materialize_generated_source_artifact(
+        settings,
+        artifact_id="pubmed_local",
+        source_object_uri="supabase://eamos-source-assets/generated/example.sqlite",
+        download_mode=SourceStorageUploadMode.S3_MULTIPART,
+    )
+
+    assert result.ready is False
+    assert result.status == "supabase_storage_s3_credentials_missing"
+    assert result.source_kind == "supabase_private_storage_s3"
+    encoded = json.dumps(result.to_sanitized_dict()).lower()
+    assert "example.sqlite" not in encoded
+    assert str(tmp_path).lower() not in encoded
+
+
 def test_generated_artifact_sync_rejects_schema_invalid_local_artifact(
     tmp_path: Path,
 ) -> None:

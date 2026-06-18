@@ -24,6 +24,11 @@ from app.services.source_imports import DEFAULT_SOURCE_ASSET_BUCKET
 from app.services.source_storage_uploads import (
     DEFAULT_SOURCE_ASSET_BUCKET_FILE_SIZE_LIMIT,
     REST_UPLOAD_TIMEOUT,
+    S3_CONNECT_TIMEOUT_SECONDS,
+    S3_MULTIPART_CHUNK_BYTES,
+    S3_MULTIPART_MAX_CONCURRENCY,
+    S3_READ_TIMEOUT_SECONDS,
+    S3_RETRY_ATTEMPTS,
     SourceStorageUploadItem,
     SourceStorageUploadMode,
     SourceStorageUploadResult,
@@ -351,6 +356,13 @@ def materialize_generated_source_artifact(
     expected_size_bytes: int | None = None,
     expected_md5: str | None = None,
     expected_sha256: str | None = None,
+    download_mode: SourceStorageUploadMode | str = SourceStorageUploadMode.REST,
+    s3_endpoint_url: str | None = None,
+    s3_region: str | None = None,
+    s3_access_key_id: str | None = None,
+    s3_secret_access_key: str | None = None,
+    s3_client: Any | None = None,
+    s3_client_factory: Any | None = None,
 ) -> GeneratedSourceArtifactMaterializationResult:
     definition = _definition_for(artifact_id)
     destination = _resolve_backend_path(
@@ -412,6 +424,13 @@ def materialize_generated_source_artifact(
             expected_size_bytes=expected_size_bytes,
             expected_md5=expected_md5,
             expected_sha256=expected_sha256,
+            download_mode=download_mode,
+            s3_endpoint_url=s3_endpoint_url,
+            s3_region=s3_region,
+            s3_access_key_id=s3_access_key_id,
+            s3_secret_access_key=s3_secret_access_key,
+            s3_client=s3_client,
+            s3_client_factory=s3_client_factory,
         )
     return _materialization_result(
         definition,
@@ -594,6 +613,13 @@ def _materialize_from_private_storage(
     expected_size_bytes: int | None,
     expected_md5: str | None,
     expected_sha256: str | None,
+    download_mode: SourceStorageUploadMode | str,
+    s3_endpoint_url: str | None,
+    s3_region: str | None,
+    s3_access_key_id: str | None,
+    s3_secret_access_key: str | None,
+    s3_client: Any | None,
+    s3_client_factory: Any | None,
 ) -> GeneratedSourceArtifactMaterializationResult:
     try:
         bucket_id, object_path = _parse_supabase_object_uri(source_object_uri)
@@ -604,6 +630,25 @@ def _materialize_from_private_storage(
             source_kind="supabase_private_storage",
             source_configured=True,
         )
+    resolved_download_mode = SourceStorageUploadMode(download_mode)
+    if resolved_download_mode is SourceStorageUploadMode.S3_MULTIPART:
+        return _materialize_from_private_storage_s3(
+            definition,
+            bucket_id=bucket_id,
+            object_path=object_path,
+            destination=destination,
+            manifest_destination=manifest_destination,
+            expected_size_bytes=expected_size_bytes,
+            expected_md5=expected_md5,
+            expected_sha256=expected_sha256,
+            s3_endpoint_url=s3_endpoint_url,
+            s3_region=s3_region,
+            s3_access_key_id=s3_access_key_id,
+            s3_secret_access_key=s3_secret_access_key,
+            s3_client=s3_client,
+            s3_client_factory=s3_client_factory,
+        )
+
     if not settings.supabase_url or not settings.supabase_service_role_key:
         return _materialization_result(
             definition,
@@ -677,6 +722,121 @@ def _materialize_from_private_storage(
         manifest_destination=manifest_destination,
         manifest_payload=identity.manifest_payload,
         source_kind="supabase_private_storage",
+        bucket_id=bucket_id,
+        downloaded=True,
+        expected_size=identity.expected_size_bytes,
+        expected_md5=identity.expected_md5,
+        expected_sha256=identity.expected_sha256,
+        warnings=identity.warnings,
+    )
+
+
+def _materialize_from_private_storage_s3(
+    definition: GeneratedSourceArtifactDefinition,
+    *,
+    bucket_id: str,
+    object_path: str,
+    destination: Path,
+    manifest_destination: Path,
+    expected_size_bytes: int | None,
+    expected_md5: str | None,
+    expected_sha256: str | None,
+    s3_endpoint_url: str | None,
+    s3_region: str | None,
+    s3_access_key_id: str | None,
+    s3_secret_access_key: str | None,
+    s3_client: Any | None,
+    s3_client_factory: Any | None,
+) -> GeneratedSourceArtifactMaterializationResult:
+    has_injected_client = s3_client is not None or s3_client_factory is not None
+    if not has_injected_client and (
+        not s3_endpoint_url or not s3_access_key_id or not s3_secret_access_key
+    ):
+        return _materialization_result(
+            definition,
+            "supabase_storage_s3_credentials_missing",
+            source_kind="supabase_private_storage_s3",
+            source_configured=True,
+            bucket_id=bucket_id,
+        )
+    try:
+        resolved_client = s3_client
+        if resolved_client is None:
+            resolved_client = (
+                s3_client_factory()
+                if s3_client_factory is not None
+                else _build_s3_client(
+                    endpoint_url=s3_endpoint_url,
+                    region=s3_region,
+                    access_key_id=s3_access_key_id,
+                    secret_access_key=s3_secret_access_key,
+                )
+            )
+    except Exception:
+        return _materialization_result(
+            definition,
+            "supabase_storage_s3_client_unavailable",
+            source_kind="supabase_private_storage_s3",
+            source_configured=True,
+            bucket_id=bucket_id,
+        )
+
+    identity = _identity_from_storage_manifest_or_args_s3(
+        resolved_client,
+        bucket_id=bucket_id,
+        object_path=object_path,
+        definition=definition,
+        expected_size_bytes=expected_size_bytes,
+        expected_md5=expected_md5,
+        expected_sha256=expected_sha256,
+    )
+    if identity.status != "ready":
+        return _materialization_result(
+            definition,
+            identity.status,
+            source_kind="supabase_private_storage_s3",
+            source_configured=True,
+            bucket_id=bucket_id,
+            expected_size_bytes=identity.expected_size_bytes,
+            warnings=identity.warnings,
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_name = temp_file.name
+            _download_storage_object_s3(
+                resolved_client,
+                bucket_id=bucket_id,
+                object_path=object_path,
+                destination=temp_file,
+            )
+    except _StorageDownloadError as exc:
+        if temp_name is not None:
+            Path(temp_name).unlink(missing_ok=True)
+        return _materialization_result(
+            definition,
+            exc.status,
+            source_kind="supabase_private_storage_s3",
+            source_configured=True,
+            bucket_id=bucket_id,
+            expected_size_bytes=identity.expected_size_bytes,
+            warnings=exc.warnings,
+        )
+
+    return _verify_and_replace(
+        definition,
+        temp_path=Path(temp_name),
+        destination=destination,
+        manifest_destination=manifest_destination,
+        manifest_payload=identity.manifest_payload,
+        source_kind="supabase_private_storage_s3",
         bucket_id=bucket_id,
         downloaded=True,
         expected_size=identity.expected_size_bytes,
@@ -1014,6 +1174,50 @@ def _identity_from_storage_manifest_or_args(
     return _identity_from_manifest(definition, manifest)
 
 
+def _identity_from_storage_manifest_or_args_s3(
+    client: Any,
+    *,
+    bucket_id: str,
+    object_path: str,
+    definition: GeneratedSourceArtifactDefinition,
+    expected_size_bytes: int | None,
+    expected_md5: str | None,
+    expected_sha256: str | None,
+) -> _ExpectedIdentity:
+    if expected_size_bytes is not None or expected_md5 is not None or expected_sha256 is not None:
+        explicit = _identity_from_manifest(
+            definition,
+            {
+                "byte_size": expected_size_bytes,
+                "md5": expected_md5,
+                "sha256": expected_sha256,
+                "checksums": {"md5": expected_md5, "sha256": expected_sha256},
+            },
+        )
+        if explicit.status == "ready":
+            return explicit
+    try:
+        response = client.get_object(Bucket=bucket_id, Key=f"{object_path}.manifest.json")
+        body = response.get("Body")
+        content = body.read() if hasattr(body, "read") else body
+    except Exception as exc:
+        if _s3_error_code(exc) in {"404", "NoSuchKey", "NotFound"}:
+            return _ExpectedIdentity(status="manifest_missing")
+        return _ExpectedIdentity(
+            status="manifest_download_failed",
+            warnings=("private_storage_manifest_download_failed",),
+        )
+    try:
+        manifest = json.loads(
+            content.decode("utf-8") if isinstance(content, bytes) else str(content)
+        )
+    except json.JSONDecodeError:
+        return _ExpectedIdentity(status="manifest_invalid_json")
+    if not isinstance(manifest, dict):
+        return _ExpectedIdentity(status="manifest_invalid_json")
+    return _identity_from_manifest(definition, manifest)
+
+
 def _identity_from_manifest(
     definition: GeneratedSourceArtifactDefinition,
     manifest: dict[str, Any],
@@ -1087,6 +1291,82 @@ def _download_storage_object(
             "source_object_download_failed",
             ("private_storage_download_failed_no_public_fallback",),
         ) from None
+
+
+def _download_storage_object_s3(
+    client: Any,
+    *,
+    bucket_id: str,
+    object_path: str,
+    destination,
+) -> None:
+    config = _s3_transfer_config()
+    config_kwargs = {"Config": config} if config is not None else {}
+    try:
+        client.download_fileobj(
+            bucket_id,
+            object_path,
+            destination,
+            **config_kwargs,
+        )
+    except Exception as exc:
+        if _s3_error_code(exc) in {"404", "NoSuchKey", "NotFound"}:
+            raise _StorageDownloadError("source_object_missing") from None
+        raise _StorageDownloadError(
+            "source_object_download_failed",
+            ("private_storage_download_failed_no_public_fallback",),
+        ) from None
+
+
+def _build_s3_client(
+    *,
+    endpoint_url: str | None,
+    region: str | None,
+    access_key_id: str | None,
+    secret_access_key: str | None,
+) -> Any:
+    try:
+        import boto3
+        from botocore.config import Config
+    except ImportError as exc:  # pragma: no cover - depends on deployment environment
+        raise RuntimeError("boto3 is required for s3 generated artifact sync") from exc
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        region_name=region or "auto",
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        config=Config(
+            s3={"addressing_style": "path"},
+            connect_timeout=S3_CONNECT_TIMEOUT_SECONDS,
+            read_timeout=S3_READ_TIMEOUT_SECONDS,
+            retries={"max_attempts": S3_RETRY_ATTEMPTS, "mode": "standard"},
+            tcp_keepalive=True,
+        ),
+    )
+
+
+def _s3_transfer_config() -> Any | None:
+    try:
+        from boto3.s3.transfer import TransferConfig
+    except ImportError:  # pragma: no cover - real S3 client construction checks boto3 separately
+        return None
+
+    return TransferConfig(
+        multipart_threshold=S3_MULTIPART_CHUNK_BYTES,
+        multipart_chunksize=S3_MULTIPART_CHUNK_BYTES,
+        max_concurrency=S3_MULTIPART_MAX_CONCURRENCY,
+    )
+
+
+def _s3_error_code(exc: Exception) -> str | None:
+    response = getattr(exc, "response", None)
+    if isinstance(response, dict):
+        error = response.get("Error")
+        if isinstance(error, dict):
+            code = error.get("Code")
+            return str(code) if code is not None else None
+    return None
 
 
 def _merge_upload_statuses(

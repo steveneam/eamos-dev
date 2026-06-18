@@ -17,11 +17,11 @@
 - **Claude:** IDLE @ 2026-06-18 21:24 +1000 - Planning turn only (NO code/state change): at Steven's request, drafted a Codex 2-day priority plan (CAR below) to unblock Claude's Batch + literature-RAG lanes. The AI-gateway report-chat enablement is still the queued Claude task (runbook in `~/.claude/plans/next-session-eamos.md`), deferred this turn. `LLM_PROVIDER=mock` unchanged; no source files touched; held files still excluded. PRIOR (still true): Shipped Batch + workbench FE; planned AI-gateway report-chat enablement for NEXT session (Steven granted Claude BE+FE charge for it; Codex stays on Tier-2). PUSHED to origin/main (Vercel auto-deploy): `af17fdb` Batch state unification + paper rail parity + global-error redesign; `505250b` per-source provenance for Batch cohorts; `ebbfea3` workbench rail names the active tool + tool-scoped Ask Eamos (rail-head Library⇄Ask Eamos toggle w/ active-tool label, persistent "<tool> expert" persona pill, Scratchpad→Log+Notes, Primer/CRISPR "AI assist" sections retired). All FE-only, build+tsc+eslint green, browser-verified. `LLM_PROVIDER=mock` (unchanged); held files still excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); Codex's Tier-2 ESM1b tree untouched. Dev server STOPPED. NEXT = AI-gateway report-chat enablement (full runbook in `~/.claude/plans/next-session-eamos.md`): gateway+RAG already built/inert, enable locally→gated demo, 1-chat/day dev cap, report-payload grounding first then literature RAG (Codex Tier-1 corpus). Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-19 00:30 +1000 - Focused Batch backend hardening complete: async jobs now dedupe by resolved genomic identity and merge richer duplicate metadata before lookup, with a real compact-index resolver test covering coordinate + HGVS duplicates. Verified Batch/panels/project-100/frontend-contract pytest slice, Ruff, Black, py_compile, diff-check, and graphify AST update. Stayed off ESM1b regeneration, chat/gateway, PubMed/RAG, Supabase/Storage/Render/provider/env flips, and held files.
+- **Codex:** IDLE @ 2026-06-19 01:18 +1000 - Build-ledger materialization M0/M1 checkpoint complete: compared local source/ClinGen preflights with live SG provider-cache, proved local ClinGen eRepo/CSpec ready while live SG still lacks the runtime ClinGen SQLite, confirmed the private Storage ClinGen SQLite + manifest already exist, and added/verified S3-compatible generated-artifact sync for the configured credential path. Focused tests, Ruff, Black, py_compile, diff-check, and graphify AST update passed. No PubMed/RAG, ESM1b, provider/env flip, Render mutation, Supabase metadata mutation, or live runtime sync.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-19 00:30 +1000 - Codex (Batch resolved-identity dedupe hardening verified)
+UNLOCKED - 2026-06-19 01:20 +1000 - Codex (M0/M1 materialization checkpoint verified)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -449,37 +449,45 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-18 21:58 +1000 - Codex.
+Section last edited: 2026-06-19 01:18 +1000 - Codex.
 
-**Latest Codex update (2026-06-18 21:58 +1000 - Codex):**
-Completed Batch C1/C2/C6 backend MVP locally after confirming ESM1b remains blocked on `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv`.
+**Latest Codex update (2026-06-19 01:18 +1000 - Codex):**
+Completed build-ledger materialization M0/M1 locally.
 
 Completed:
-- C1 async Batch engine: `create_job` enqueues `queued`, background workers call `lookup_service.lookup()` per deduped unique variant, summary fields map into `BatchResult`, `done/total` advances, and an in-process cache avoids repeated lookup work.
-- C2 interval-backed panel filter: no-INFO-gene VCF rows now intersect compact-coordinate-index hg38 gene intervals when available; INFO gene matches remain a fast path.
-- C6 parser hardening: hg19/GRCh37 VCFs are refused, gVCF `<NON_REF>` rows are rejected, and alleles are normalized to a parsimonious VCF key before Batch lookup.
-- Did not touch PubMed/literature/RAG corpus, chat/gateway files, `config.py`, `main.py`, Supabase/Render/Storage, or provider/env flags. `LLM_PROVIDER=mock` / `RAG_ENABLED=false` remain unchanged.
+- M0 baseline: local source preflight and live SG provider-cache were compared. Local-only ready rows include `clingen_local_adapter`; live-only ready/available rows include `coordinate_compact_index`, `gene_view`, `protein_pfam`, and `alphamissense`. Live SG `source_assets.clingen_local` is still `db_missing` with zero rows, while local ClinGen preflight is ready.
+- M1 ClinGen generated SQLite: local `eamos.clingen_local.v1` is ready with 12,675 eRepo classifications, 77,799 CSpec entities, 25,762 CSpec links, source version `ClinGen eRepo/CSpec full snapshot 2026-06-11`, and verified checksum.
+- The generated upload plan found the ClinGen SQLite upload-eligible at 463,036,416 bytes, MD5 `7d6525308af1fbd64734491477adee06`, SHA256 `4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d`. Read-only S3 `head_object` proved the artifact and manifest already exist, so no upload was needed.
+- Added explicit `--download-mode s3_multipart` support to `eamos_generated_artifact_sync` because this environment has Supabase S3 credentials configured but no REST service-role URL/key. A temp-destination S3 sync from the private ClinGen object downloaded, size/MD5/SHA256 verified, schema-validated, and wrote the manifest sidecar with sanitized output.
+- Updated `docs/backend-build-ledger-runtime/plan.md` with the M0/M1 checkpoint and added `[[generated-artifact-s3-sync-parity]]` to `MEMORY.md`.
+- Did not touch PubMed/literature/RAG corpus, ESM1b materialization, chat/gateway files, provider/env flags, Render, Supabase metadata rows, or live SG runtime files. `LLM_PROVIDER=mock` remains unchanged.
 
 Verification:
-- `python -m pytest tests\test_batch_api.py tests\test_vcf_ingest.py -q`
-- `python -m pytest tests\test_batch_api.py tests\test_vcf_ingest.py tests\test_batch_panel_schemas.py tests\test_panels_api.py tests\test_project_100_mock_vcf_generator.py tests\test_frontend_contract.py -q`
-- `python -m ruff check app\services\batch.py app\services\vcf_ingest.py app\api\routes\batch.py tests\test_batch_api.py tests\test_vcf_ingest.py`
-- `python -m black --check --target-version py310 app\services\batch.py app\services\vcf_ingest.py app\api\routes\batch.py tests\test_batch_api.py tests\test_vcf_ingest.py`
-- `python -m py_compile app\services\batch.py app\services\vcf_ingest.py app\api\routes\batch.py`
+- `python -m app.cli.eamos_source_asset_preflight --compact`
+- `python -m app.cli.eamos_clingen_local_preflight --compact`
+- `python -m app.cli.eamos_clingen_local_preflight --compact --require-ready`
+- `python -m app.cli.eamos_generated_artifact_upload --artifact clingen_local --compact`
+- S3 `head_object` proof for the ClinGen generated SQLite object and manifest sidecar.
+- Temp-destination `python -m app.cli.eamos_generated_artifact_sync --artifact clingen_local --source-object-uri <private ClinGen object> --download-mode s3_multipart --expected-size-bytes 463036416 --expected-md5 7d6525308af1fbd64734491477adee06 --expected-sha256 4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d --force --require-ready --compact`
+- `python -m pytest tests\test_generated_source_artifacts.py -q`
+- `python -m pytest tests\test_generated_source_artifacts.py tests\test_clingen_local.py tests\test_health_api.py -q`
+- `python -m ruff check app\services\generated_source_artifacts.py app\cli\eamos_generated_artifact_sync.py tests\test_generated_source_artifacts.py`
+- `python -m black --check --target-version py310 app\services\generated_source_artifacts.py app\cli\eamos_generated_artifact_sync.py tests\test_generated_source_artifacts.py`
+- `python -m py_compile app\services\generated_source_artifacts.py app\cli\eamos_generated_artifact_sync.py`
 - `git diff --check`
-- `python -m graphify update .` (first 3-minute run timed out; rerun with longer timeout completed, no topology changes detected)
+- `python -m graphify update .`
 
 Next:
-- Claude can wire C3-on-C1 FE progress/upload flow against the live `done/total` polling shape.
-- Backend next unblocked Batch item is C5 real panels only when the asset/source gate is cleared; otherwise continue with focused backend hardening.
-- ESM1b resumes only after Steven/operator places `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` with `seq_id` matching FASTA protein IDs.
+- Review/commit the M0/M1 delta, then proceed to M2 existing-object metadata reconciliation for dbSNP and phyloP using committed CLIs/importers rather than manual SQL.
+- Live SG ClinGen still needs an explicit runtime sync on the service disk before relying on local-first ClinGen behavior; do not flip providers/env from this checkpoint.
+- PubMed/RAG remains deferred until Steven approves corpus logistics. ESM1b remains blocked until the operator provides `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv`.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-18 21:58 +1000 - Codex Batch C1/C2/C6 local MVP
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, plans/batch-vcf-and-panels/completion-plan.md section 4, then run git -C D:/eamos status --short --branch and git -C D:/eamos log -8 --oneline.
-Delta: Batch C1/C2/C6 completed locally: async lookup-backed Batch jobs with done/total + cache, compact-index interval panel filtering for no-INFO-gene VCFs, and parser hardening for hg19/gVCF/allele normalization.
-Verification: focused Batch/VCF tests + broader Batch/panels/project-100/frontend-contract suite + Ruff/Black/py_compile/diff-check passed; graphify AST update completed on rerun. ESM1b remains blocked on missing `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv`.
-Next: Claude can take Batch C3-on-C1 FE progress/upload wiring; Codex backend next is asset-gated Batch C5 real panels or targeted hardening. Do not touch PubMed/literature/RAG corpus yet; keep `LLM_PROVIDER=mock` and `RAG_ENABLED=false`; no Supabase/Storage/Render/provider/env flips; held files stay excluded.
+# Resume prompt - 2026-06-19 01:18 +1000 - Codex build-ledger M0/M1 materialization checkpoint
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md (M0/M1 checkpoint), docs/backend-build-ledger-runtime/materialization-plan.md, docs/clingen-local-materialization/plan.md, then run git -C D:/eamos fetch origin && git -C D:/eamos status --short --branch && git -C D:/eamos log -8 --oneline.
+Delta: M0/M1 completed locally. Local ClinGen eRepo/CSpec is ready, live SG still reports `source_assets.clingen_local=db_missing`, private Storage already has the SHA-addressed ClinGen SQLite + manifest, and `eamos_generated_artifact_sync` now supports `--download-mode s3_multipart`; temp S3 sync verified checksum/schema without Render/env/provider mutation.
+Verification: local source + ClinGen preflights, upload plan, S3 head-object proof, temp S3 sync, generated/ClinGen/health pytest slice, Ruff, Black, py_compile, diff-check, and graphify AST update all passed.
+Next: review/commit the M0/M1 delta, then proceed to M2 existing-object metadata reconciliation for dbSNP/phyloP with committed CLIs/importers. Do not touch PubMed/RAG corpus yet; no ESM1b until the MIT score CSV exists; keep `LLM_PROVIDER=mock`; no provider/env flips or live runtime sync without an explicit gate.
 End clear-safe.
 ```

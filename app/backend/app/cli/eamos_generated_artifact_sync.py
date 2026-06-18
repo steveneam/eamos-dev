@@ -9,6 +9,7 @@ from app.services.generated_source_artifacts import (
     GENERATED_SOURCE_ARTIFACT_IDS,
     materialize_generated_source_artifact,
 )
+from app.services.source_storage_uploads import SourceStorageUploadMode
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +29,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expected-size-bytes", type=int)
     parser.add_argument("--expected-md5")
     parser.add_argument("--expected-sha256")
+    parser.add_argument(
+        "--download-mode",
+        choices=[mode.value for mode in SourceStorageUploadMode],
+        default=SourceStorageUploadMode.REST.value,
+        help=(
+            "private Storage download transport. Use s3_multipart for Supabase "
+            "S3-compatible sync when service-role REST credentials are not configured."
+        ),
+    )
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--compact", action="store_true", help="emit compact JSON")
     parser.add_argument("--require-ready", action="store_true", help="exit non-zero unless ready")
@@ -45,16 +55,31 @@ def main(argv: list[str] | None = None) -> int:
         expected_size_bytes=args.expected_size_bytes,
         expected_md5=args.expected_md5,
         expected_sha256=args.expected_sha256,
+        download_mode=args.download_mode,
+        s3_endpoint_url=settings.supabase_storage_s3_endpoint_url,
+        s3_region=settings.supabase_storage_s3_region,
+        s3_access_key_id=settings.supabase_storage_s3_access_key_id,
+        s3_secret_access_key=settings.supabase_storage_s3_secret_access_key,
     )
     report = {
         "mode": "eamos_generated_artifact_sync",
         "ready": result.ready,
         "status": result.status,
+        "download_mode": args.download_mode,
+        "supabase_url_configured": bool(settings.supabase_url),
+        "storage_read_key_configured": bool(settings.supabase_service_role_key),
+        "s3_endpoint_configured": bool(settings.supabase_storage_s3_endpoint_url),
+        "s3_access_key_id_configured": bool(settings.supabase_storage_s3_access_key_id),
+        "s3_secret_access_key_configured": bool(settings.supabase_storage_s3_secret_access_key),
         "guardrails": {
             "startup_download": "not_used",
             "request_time_materialization": "not_used",
             "network": (
-                "supabase_private_storage_only"
+                (
+                    "supabase_private_storage_s3"
+                    if args.download_mode == SourceStorageUploadMode.S3_MULTIPART.value
+                    else "supabase_private_storage_rest"
+                )
                 if args.source_object_uri
                 else "not_used_for_local_artifact"
             ),
