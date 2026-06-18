@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-18 00:49 +1000 - Shipped Batch + workbench FE; planned AI-gateway report-chat enablement for NEXT session (Steven granted Claude BE+FE charge for it; Codex stays on Tier-2). PUSHED to origin/main (Vercel auto-deploy): `af17fdb` Batch state unification + paper rail parity + global-error redesign; `505250b` per-source provenance for Batch cohorts; `ebbfea3` workbench rail names the active tool + tool-scoped Ask Eamos (rail-head Library⇄Ask Eamos toggle w/ active-tool label, persistent "<tool> expert" persona pill, Scratchpad→Log+Notes, Primer/CRISPR "AI assist" sections retired). All FE-only, build+tsc+eslint green, browser-verified. `LLM_PROVIDER=mock` (unchanged); held files still excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); Codex's Tier-2 ESM1b tree untouched. Dev server STOPPED. NEXT = AI-gateway report-chat enablement (full runbook in `~/.claude/plans/next-session-eamos.md`): gateway+RAG already built/inert, enable locally→gated demo, 1-chat/day dev cap, report-payload grounding first then literature RAG (Codex Tier-1 corpus). Detail → `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-06-18 21:24 +1000 - Planning turn only (NO code/state change): at Steven's request, drafted a Codex 2-day priority plan (CAR below) to unblock Claude's Batch + literature-RAG lanes. The AI-gateway report-chat enablement is still the queued Claude task (runbook in `~/.claude/plans/next-session-eamos.md`), deferred this turn. `LLM_PROVIDER=mock` unchanged; no source files touched; held files still excluded. PRIOR (still true): Shipped Batch + workbench FE; planned AI-gateway report-chat enablement for NEXT session (Steven granted Claude BE+FE charge for it; Codex stays on Tier-2). PUSHED to origin/main (Vercel auto-deploy): `af17fdb` Batch state unification + paper rail parity + global-error redesign; `505250b` per-source provenance for Batch cohorts; `ebbfea3` workbench rail names the active tool + tool-scoped Ask Eamos (rail-head Library⇄Ask Eamos toggle w/ active-tool label, persistent "<tool> expert" persona pill, Scratchpad→Log+Notes, Primer/CRISPR "AI assist" sections retired). All FE-only, build+tsc+eslint green, browser-verified. `LLM_PROVIDER=mock` (unchanged); held files still excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); Codex's Tier-2 ESM1b tree untouched. Dev server STOPPED. NEXT = AI-gateway report-chat enablement (full runbook in `~/.claude/plans/next-session-eamos.md`): gateway+RAG already built/inert, enable locally→gated demo, 1-chat/day dev cap, report-payload grounding first then literature RAG (Codex Tier-1 corpus). Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-17 20:00 +1000 - Tier 2 ESM1b MANE input helper + staging complete. Added backend CLI/service/tests for MIT-regeneration inputs; staged `C:\EamosDataStaging\esm1b\esm1b-mane-codon-contexts.jsonl` (11,135,143 contexts; 2.105 GB), `esm1b-mane-proteins.fasta` (19,228 proteins; 13.9 MB), and manifest. `esm1b-mit-regenerated-scores.csv` remains missing, so no `esm1b_hg38.tsv.gz/.tbi/manifest` materialization yet. No HF score zip, Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or `LOCAL_EVIDENCE_ENABLED` flip. Focused tests/lint/black/preflight passed; graphify AST updated.
+- **Codex:** IDLE @ 2026-06-19 00:30 +1000 - Focused Batch backend hardening complete: async jobs now dedupe by resolved genomic identity and merge richer duplicate metadata before lookup, with a real compact-index resolver test covering coordinate + HGVS duplicates. Verified Batch/panels/project-100/frontend-contract pytest slice, Ruff, Black, py_compile, diff-check, and graphify AST update. Stayed off ESM1b regeneration, chat/gateway, PubMed/RAG, Supabase/Storage/Render/provider/env flips, and held files.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-18 00:52 +1000 - Claude (session-wrap heartbeat + AI-gateway enablement plan recorded)
+UNLOCKED - 2026-06-19 00:30 +1000 - Codex (Batch resolved-identity dedupe hardening verified)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -141,6 +141,35 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [OPEN] Claude->Codex (2026-06-18 21:24 +1000): **Codex 2-day priority plan (Steven-requested) —
+  unblock Claude's Batch + literature-RAG lanes.** Priority order:
+  **(1) Batch C1 async engine** (`plans/batch-vcf-and-panels/completion-plan.md` §4) — DECIDED+unblocked
+  (D-B), the #1 unblock. Claude's Batch C3-independent FE is shipped (`999d0e9`); C3-on-C1 (live
+  `done/total` progress UI + `uploadBatch`→create-with-`upload_ref` for >cap files) waits ONLY on this.
+  `create_job` enqueue (`status=queued`) → background task: filter→dedup→per-unique
+  `lookup_service.lookup()` summary-only (reuse `LOOKUP_EAGER_RESPONSE_EXCLUDE`) → cache → status +
+  `done/total`; map `LookupResponse`→`BatchResult` (clinvar_verdict, gnomad_af, predictor_ensemble,
+  acmg_classification, report_href); concurrency 2-3 on the 2 GB box; tests over the project-100 mock VCF.
+  Works over the network today — NOT blocked on your Tier-1 materialization.
+  **(2) Batch C2 MANE→hg38 BED + interval intersection** (§4 C2) — reuse the MANE RefSeq GFF you already
+  staged for ESM1b (`esm1b_mane_contexts.py`); replace the gene-only match in `_apply_prelookup_filters`
+  so the panel filter is correct on no-INFO-gene VCFs (the common clinical case).
+  **(3) Batch C6 — parser hardening** (§4 C6) — fully unblocked, pure code in `services/vcf_ingest.py`,
+  no assets/corpus/operator dependency: genome-build detection (refuse hg19 with a clear message — spec
+  §11), gVCF rejection (`<NON_REF>` rows must not slip through as junk alts), indel left-align/
+  normalization so keys match ClinVar/gnomAD. Tests per §4 C6. Hardens the same surface Claude's FE
+  drives → together C1+C2+C6 (Codex) + C3-on-C1 (Claude) = a usable, hardened Batch MVP.
+  **DEFERRED — corpus stays untouched (Steven 2026-06-18 21:28):** do NOT build any PubMed / literature
+  corpus or RAG embeddings yet (incl. `targeted_seed`) — that waits until the very end, after Steven
+  signs off the full corpus logistics. So Claude's literature-RAG follow-on stays parked; the report
+  chat ships on report-payload grounding only for now.
+  **FLAGS:** ESM1b Tier-2 is BLOCKED on the operator (Steven) MIT score CSV — not a Codex task this
+  window, don't spin on it. (Next backend item after C6 = Batch C5 real panels, but it's asset-gated —
+  not this window.) **LANE BOUNDARY:** Claude takes the chat/gateway BE lane next (`config.py`
+  gateway block, `main.py`, `chat_service.py`, `ai_gateway/{engine,guard,structured}.py`,
+  `routes/chat.py`) — Codex stays off those; WATCH the shared-file overlap on `build_ledger.py` +
+  `ai_gateway/retrieval.py` and coordinate via Log Edit-Lock. - this plan + completion-plan.md §4
 
 - [OPEN] Steven->Claude (2026-06-18 00:49 +1000): **Claude takes BE+FE charge of the
   AI-gateway report-chat enablement next session** (extends the standing [[project_ai_gateway]]
@@ -420,69 +449,37 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-17 20:00 +1000 - Codex.
+Section last edited: 2026-06-18 21:58 +1000 - Codex.
 
-**Latest Codex update (2026-06-17 20:00 +1000 - Codex):**
-Built the safe local half of the commercial ESM1b Tier 2 materialization path.
+**Latest Codex update (2026-06-18 21:58 +1000 - Codex):**
+Completed Batch C1/C2/C6 backend MVP locally after confirming ESM1b remains blocked on `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv`.
 
 Completed:
-- Added `app/backend/app/services/esm1b_mane_contexts.py`, a MANE RefSeq GFF + local
-  `hg38.2bit` context builder that emits codon contexts and matching protein FASTA for
-  operator-side MIT ESM1b scoring.
-- Added `app/backend/app/cli/eamos_esm1b_mane_context_build.py`; it does not run ESM1b,
-  download the HF score zip, upload to Storage, mutate Supabase, seed Render, or flip providers.
-- Added focused tests in `app/backend/tests/test_esm1b_mane_contexts.py`.
-- Staged derived inputs under `C:\EamosDataStaging\esm1b\`:
-  - `esm1b-mane-codon-contexts.jsonl` - 11,135,143 contexts, 2,105,750,995 bytes,
-    SHA256 `40e16c3f39a06c31c2429d256fadc8a3dfb6178bb49a31123e34622d85c3df3b`.
-  - `esm1b-mane-proteins.fasta` - 19,228 proteins, 13,896,079 bytes,
-    SHA256 `7cde82864fe71ef2b7fea45ff44e8c8d10f22a05943189b7f65900f8d211344a`.
-  - `esm1b-mane-codon-contexts.manifest.json` - records `MANE Select v1.5`,
-    `sequence_id_field=protein_id`, `primary_chromosomes_only=true`,
-    `nonstandard_codon_policy=skip`, `invalid_cds_policy=skip`,
-    MANE GFF SHA256 `040f0d4056de2e9a416cd52bc20ff07ef403baadf5f5968faf188907893f6002`,
-    and hg38 SHA256 `1f67aaa17a77b327738fe750ab37430a85dddf73c7d9189385ad1839259acec0`.
-
-Still true:
-- `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` is missing.
-- `app/backend/data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz` and `.tbi` are missing.
-- No ESM1b runtime materialization was performed.
-- No Hugging Face precomputed/non-commercial score zip was downloaded, staged, or used.
-- No Storage upload, Supabase metadata/apply, Render disk sync, provider/env flip, or
-  `LOCAL_EVIDENCE_ENABLED` flip occurred.
+- C1 async Batch engine: `create_job` enqueues `queued`, background workers call `lookup_service.lookup()` per deduped unique variant, summary fields map into `BatchResult`, `done/total` advances, and an in-process cache avoids repeated lookup work.
+- C2 interval-backed panel filter: no-INFO-gene VCF rows now intersect compact-coordinate-index hg38 gene intervals when available; INFO gene matches remain a fast path.
+- C6 parser hardening: hg19/GRCh37 VCFs are refused, gVCF `<NON_REF>` rows are rejected, and alleles are normalized to a parsimonious VCF key before Batch lookup.
+- Did not touch PubMed/literature/RAG corpus, chat/gateway files, `config.py`, `main.py`, Supabase/Render/Storage, or provider/env flags. `LLM_PROVIDER=mock` / `RAG_ENABLED=false` remain unchanged.
 
 Verification:
-- `python -m pytest tests\test_esm1b_mane_contexts.py tests\test_esm1b_assembly.py tests\test_tier2_predictor_artifacts.py tests\test_predictor_runtime.py -q`
-- `python -m ruff check app\services\esm1b_mane_contexts.py app\cli\eamos_esm1b_mane_context_build.py tests\test_esm1b_mane_contexts.py`
-- `python -m black --check --target-version py310 app\services\esm1b_mane_contexts.py app\cli\eamos_esm1b_mane_context_build.py tests\test_esm1b_mane_contexts.py`
-- `python -m py_compile app\services\esm1b_mane_contexts.py app\cli\eamos_esm1b_mane_context_build.py`
+- `python -m pytest tests\test_batch_api.py tests\test_vcf_ingest.py -q`
+- `python -m pytest tests\test_batch_api.py tests\test_vcf_ingest.py tests\test_batch_panel_schemas.py tests\test_panels_api.py tests\test_project_100_mock_vcf_generator.py tests\test_frontend_contract.py -q`
+- `python -m ruff check app\services\batch.py app\services\vcf_ingest.py app\api\routes\batch.py tests\test_batch_api.py tests\test_vcf_ingest.py`
+- `python -m black --check --target-version py310 app\services\batch.py app\services\vcf_ingest.py app\api\routes\batch.py tests\test_batch_api.py tests\test_vcf_ingest.py`
+- `python -m py_compile app\services\batch.py app\services\vcf_ingest.py app\api\routes\batch.py`
 - `git diff --check`
-- `python -m app.cli.eamos_tier2_predictor_artifact_upload --artifact esm1b_hg38_scores --compact`
-  still reports the score cache and `.tbi` as `missing_local_file`.
-- `python -m app.cli.eamos_source_asset_preflight --compact` stayed read-only; Tier 2 plan still
-  reports predictor artifacts missing.
-- `python -m graphify update .` completed; HTML export skipped because the graph exceeds 5,000 nodes.
+- `python -m graphify update .` (first 3-minute run timed out; rerun with longer timeout completed, no topology changes detected)
 
-Next clean-path command once the MIT score CSV exists:
-
-```powershell
-cd app/backend
-python -m app.cli.eamos_esm1b_regenerated_scores_materialize `
-  --score-csv C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv `
-  --codon-context-jsonl C:\EamosDataStaging\esm1b\esm1b-mane-codon-contexts.jsonl `
-  --target-path data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz `
-  --mane-version "MANE Select v1.5" `
-  --grch38-reference-sha256 1f67aaa17a77b327738fe750ab37430a85dddf73c7d9189385ad1839259acec0 `
-  --require-ready `
-  --compact
-```
+Next:
+- Claude can wire C3-on-C1 FE progress/upload flow against the live `done/total` polling shape.
+- Backend next unblocked Batch item is C5 real panels only when the asset/source gate is cleared; otherwise continue with focused backend hardening.
+- ESM1b resumes only after Steven/operator places `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` with `seq_id` matching FASTA protein IDs.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-17 20:00 +1000 - Codex ESM1b MANE context input staged
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, docs/pubmed-corpus-materialization/spec.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git status --short --branch and git log -8 --oneline.
-Delta: Added the backend ESM1b MANE context/FASTA builder CLI and staged the safe MIT-regeneration inputs under `C:\EamosDataStaging\esm1b\`: context JSONL (11,135,143 rows, SHA256 `40e16c3f...df3b`), protein FASTA (19,228 proteins, SHA256 `7cde8286...344a`), and manifest. Graphify AST was updated.
-Current result: `esm1b-mit-regenerated-scores.csv` is still missing, so no `esm1b_hg38.tsv.gz/.tbi/manifest` was materialized; the read-only Tier 2 planner still reports ESM1b score cache/index `missing_local_file`.
-Next: run or place the MIT ESM1b score CSV at `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` with CSV `seq_id` values matching the FASTA `protein_id` IDs, then run `python -m app.cli.eamos_esm1b_regenerated_scores_materialize ... --require-ready --compact`.
-Guardrails: no HF score zip for the commercial path; no Storage upload; no Supabase metadata/apply; no Render disk sync; no provider/env flips; no `LOCAL_EVIDENCE_ENABLED` flip; keep held/unrelated files excluded (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`, unrelated handoff archives). End clear-safe.
+# Resume prompt - 2026-06-18 21:58 +1000 - Codex Batch C1/C2/C6 local MVP
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, plans/batch-vcf-and-panels/completion-plan.md section 4, then run git -C D:/eamos status --short --branch and git -C D:/eamos log -8 --oneline.
+Delta: Batch C1/C2/C6 completed locally: async lookup-backed Batch jobs with done/total + cache, compact-index interval panel filtering for no-INFO-gene VCFs, and parser hardening for hg19/gVCF/allele normalization.
+Verification: focused Batch/VCF tests + broader Batch/panels/project-100/frontend-contract suite + Ruff/Black/py_compile/diff-check passed; graphify AST update completed on rerun. ESM1b remains blocked on missing `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv`.
+Next: Claude can take Batch C3-on-C1 FE progress/upload wiring; Codex backend next is asset-gated Batch C5 real panels or targeted hardening. Do not touch PubMed/literature/RAG corpus yet; keep `LLM_PROVIDER=mock` and `RAG_ENABLED=false`; no Supabase/Storage/Render/provider/env flips; held files stay excluded.
+End clear-safe.
 ```

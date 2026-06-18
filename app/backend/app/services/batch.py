@@ -172,7 +172,10 @@ class BatchService:
             variants, warnings = self._request_variants(request)
         filtered, filter_warnings = self._apply_prelookup_filters(variants, request.filters)
         warnings.extend(filter_warnings)
-        deduped, dedupe_warnings = _dedupe_variants(filtered)
+        deduped, dedupe_warnings = _dedupe_variants(
+            filtered,
+            key_fn=lambda variant: self._variant_identity(variant).variant_key,
+        )
         warnings.extend(dedupe_warnings)
 
         job_id = f"batch-{uuid4().hex[:12]}"
@@ -557,19 +560,61 @@ class BatchService:
             job.status = "completed" if any_completed or job.total == 0 else "failed"
 
 
-def _dedupe_variants(variants: Iterable[ParsedVariant]) -> tuple[list[ParsedVariant], list[str]]:
+def _dedupe_variants(
+    variants: Iterable[ParsedVariant],
+    *,
+    key_fn: Callable[[ParsedVariant], str] | None = None,
+) -> tuple[list[ParsedVariant], list[str]]:
     seen: set[str] = set()
+    key_to_index: dict[str, int] = {}
     deduped: list[ParsedVariant] = []
     duplicate_count = 0
     for variant in variants:
-        key = _variant_key(variant)
+        key = key_fn(variant) if key_fn is not None else _variant_key(variant)
         if key in seen:
             duplicate_count += 1
+            deduped[key_to_index[key]] = _merge_variant_metadata(
+                deduped[key_to_index[key]], variant
+            )
             continue
         seen.add(key)
+        key_to_index[key] = len(deduped)
         deduped.append(variant)
     warnings = [f"deduplicated_variants:{duplicate_count}"] if duplicate_count else []
     return deduped, warnings
+
+
+def _merge_variant_metadata(primary: ParsedVariant, duplicate: ParsedVariant) -> ParsedVariant:
+    updates: dict[str, Any] = {}
+    for field_name in (
+        "raw",
+        "gene",
+        "variant",
+        "chrom",
+        "pos",
+        "ref",
+        "alt",
+        "filter",
+        "info_af",
+        "source_index",
+        "sample_id",
+        "genotype",
+    ):
+        if _has_value(getattr(primary, field_name)) or not _has_value(
+            getattr(duplicate, field_name)
+        ):
+            continue
+        updates[field_name] = getattr(duplicate, field_name)
+    warnings = list(dict.fromkeys([*primary.warnings, *duplicate.warnings]))
+    if warnings != primary.warnings:
+        updates["warnings"] = warnings
+    if not updates:
+        return primary
+    return primary.model_copy(update=updates)
+
+
+def _has_value(value: Any) -> bool:
+    return value is not None and value != ""
 
 
 def _variant_key(variant: ParsedVariant) -> str:

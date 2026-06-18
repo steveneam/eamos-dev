@@ -342,6 +342,50 @@ def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -
     assert "panel_filter_interval_match" in job.results[0].warnings
 
 
+def test_batch_dedupes_by_resolved_identity_and_preserves_metadata(tmp_path: Path) -> None:
+    settings = _settings_with_compact_index()
+    lookup = _CoordinateOnlyLookupService()
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        coordinate_resolver=build_runtime_coordinate_resolver(settings),
+        lookup_service=lookup,
+        max_lookup_workers=1,
+    )
+
+    created = service.create_job(
+        BatchCreateRequest(
+            variants=[
+                ParsedVariant(
+                    query="1-68444869-T-C",
+                    chrom="1",
+                    pos=68444869,
+                    ref="T",
+                    alt="C",
+                    filter="PASS",
+                ),
+                ParsedVariant(
+                    query="RPE65:c.260A>G",
+                    gene="RPE65",
+                    variant="c.260A>G",
+                    filter="PASS",
+                ),
+            ]
+        )
+    )
+    job = _wait_for_service_job(service, created.job_id)
+
+    assert created.n_input == 2
+    assert created.n_to_lookup == 1
+    assert "deduplicated_variants:1" in job.warnings
+    assert len(lookup.calls) == 1
+    assert lookup.calls[0].gene == "RPE65"
+    assert lookup.calls[0].cdna == "c.260A>G"
+    assert job.results[0].variant_key == "1-68444869-T-C"
+    assert job.results[0].gene == "RPE65"
+    assert job.results[0].hgvs_c == "c.260A>G"
+
+
 def test_batch_project_100_mock_vcf_uses_lookup_summary_not_info_passthrough(
     tmp_path: Path,
 ) -> None:
@@ -434,6 +478,15 @@ def _valid_vcf() -> str:
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
+    )
+
+
+def _settings_with_compact_index():
+    from app.core.config import Settings
+
+    return Settings(
+        jwt_secret="test-secret",
+        coordinate_resolver_compact_index_path=COMPACT_INDEX_FIXTURE,
     )
 
 
