@@ -21,8 +21,14 @@ import {
 } from '@/lib/variant-file'
 import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
 import { getPanel } from '@/lib/panels'
-import { createBatch, getBatchJob } from '@/lib/batch'
-import type { BatchFilters, BatchResult, ParsedVariant as BatchVariant } from '@/lib/backend'
+import { collectBatchResults, createBatch, pollBatchJob, uploadBatch } from '@/lib/batch'
+import type {
+  BatchFilters,
+  BatchJob,
+  BatchJobStatus,
+  BatchResult,
+  ParsedVariant as BatchVariant,
+} from '@/lib/backend'
 import { LibrarySection } from '@/components/library/LibrarySection'
 import { ScopeGate } from './ScopeGate'
 import { BatchTable, rowFromParsed, rowFromResult } from './BatchTable'
@@ -48,6 +54,19 @@ const noop = () => {}
  */
 type RunStatus = 'idle' | 'running' | 'done'
 
+type BatchProgress = {
+  stage: 'uploading' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'mock'
+  status?: BatchJobStatus
+  jobId?: string
+  done: number
+  total: number
+  nInput?: number
+  nToLookup?: number
+  estSeconds?: number
+  usedUpload?: boolean
+  error?: string
+}
+
 /** Map a browser-parsed cohort row to the backend batch variant shape. */
 function toBatchVariant(v: { raw: string; gene: string | null; variant: string | null; query: string }): BatchVariant {
   return { raw: v.raw, query: v.query, gene: v.gene, variant: v.variant, warnings: [] }
@@ -66,6 +85,25 @@ function toBatchFilters(filters: ActiveFilter[]): BatchFilters {
   return out
 }
 
+function progressFromJob(job: BatchJob, usedUpload: boolean): BatchProgress {
+  return {
+    stage: job.status,
+    status: job.status,
+    jobId: job.job_id,
+    done: job.done,
+    total: job.total,
+    nInput: job.n_input,
+    nToLookup: job.n_to_lookup,
+    estSeconds: job.est_seconds,
+    usedUpload,
+    error: job.status === 'failed' ? 'Batch lookup failed.' : undefined,
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Batch lookup failed.'
+}
+
 export function CompareClient() {
   const searchParams = useSearchParams()
   const [stash, setStash] = useState<CompareStash | null>(null)
@@ -74,6 +112,7 @@ export function CompareClient() {
   const [status, setStatus] = useState<RunStatus>('idle')
   // Server-computed batch results (real backend); null = none yet / mock-offline.
   const [results, setResults] = useState<BatchResult[] | null>(null)
+  const [progress, setProgress] = useState<BatchProgress | null>(null)
   // True when the scope changed after a run — the visible output no longer matches
   // the filters, so Regenerate is the prompt (we keep the table rather than wipe it).
   const [stale, setStale] = useState(false)
@@ -83,10 +122,16 @@ export function CompareClient() {
   // to an existing cohort — so you can get back to import without losing output.
   const [addingSource, setAddingSource] = useState(false)
   const loadedSlugs = useRef<Set<string>>(new Set())
+  const uploadFilesRef = useRef<Map<string, File>>(new Map())
+  const runSeq = useRef(0)
 
   useEffect(() => {
     setStash(readCompareVariants())
     setHydrated(true)
+  }, [])
+
+  useEffect(() => () => {
+    runSeq.current += 1
   }, [])
 
   const variants = useMemo(() => stash?.variants ?? [], [stash])
@@ -109,49 +154,89 @@ export function CompareClient() {
     }
   }, [filters])
 
-  // Generate = submit a batch job + poll to completion. The backend's immediate
-  // in-memory summary path returns done==total at once; offline it falls back to
-  // a mock job and the client-side table (already computed) stands in.
+  // Generate = submit a batch job + poll to completion. Oversized single-file
+  // VCF imports keep their original File in memory, so Generate can hand the
+  // backend an upload_ref instead of the browser-capped preview rows.
   const runBatch = useCallback(
     async (runFilters: ActiveFilter[]) => {
+      const runId = runSeq.current + 1
+      runSeq.current = runId
+      const isCurrentRun = () => runSeq.current === runId
       setStatus('running')
       setResults(null)
+      setProgress(null)
       setStale(false)
       try {
-        const job = await createBatch({
-          variants: variants.map(toBatchVariant),
-          filters: toBatchFilters(runFilters),
+        const filtersPayload = toBatchFilters(runFilters)
+        const uploadSource = stash?.sources.length === 1 ? stash.sources[0] : null
+        const uploadFile =
+          uploadSource?.clientTruncated ? uploadFilesRef.current.get(uploadSource.id) : undefined
+        let usedUpload = false
+        let job: Awaited<ReturnType<typeof createBatch>>
+
+        if (uploadFile) {
+          setProgress({
+            stage: 'uploading',
+            done: 0,
+            total: uploadSource?.clientParsedCount ?? variants.length,
+            usedUpload: true,
+          })
+          const upload = await uploadBatch(uploadFile)
+          usedUpload = true
+          job = await createBatch({
+            upload_ref: upload.upload_ref,
+            filters: filtersPayload,
+          })
+        } else {
+          job = await createBatch({
+            variants: variants.map(toBatchVariant),
+            filters: filtersPayload,
+          })
+        }
+
+        if (!isCurrentRun()) return
+        setProgress({
+          stage: job.job_id.startsWith('mock-') ? 'mock' : 'queued',
+          jobId: job.job_id,
+          done: job.job_id.startsWith('mock-') ? job.n_to_lookup : 0,
+          total: job.n_to_lookup,
+          nInput: job.n_input,
+          nToLookup: job.n_to_lookup,
+          estSeconds: job.est_seconds,
+          usedUpload,
         })
         if (!job.job_id.startsWith('mock-')) {
-          // Poll to completion, then page through the server-computed results.
-          let final = await getBatchJob(job.job_id, { limit: 200 })
-          for (
-            let i = 0;
-            i < 30 &&
-            final.status !== 'completed' &&
-            final.status !== 'failed' &&
-            final.status !== 'cancelled' &&
-            !(final.total > 0 && final.done >= final.total);
-            i++
-          ) {
-            await new Promise((r) => setTimeout(r, 500))
-            final = await getBatchJob(job.job_id, { limit: 200 })
+          const final = await pollBatchJob(job.job_id, {
+            limit: 200,
+            onUpdate: (next) => {
+              if (isCurrentRun()) setProgress(progressFromJob(next, usedUpload))
+            },
+            shouldContinue: isCurrentRun,
+          })
+          if (!isCurrentRun()) return
+          if (final.status !== 'completed') {
+            throw new Error(final.status === 'cancelled' ? 'Batch lookup was cancelled.' : 'Batch lookup failed.')
           }
-          const collected = [...final.results]
-          let cursor = final.page?.next_cursor ?? null
-          for (let guard = 0; cursor && guard < 20; guard++) {
-            const page = await getBatchJob(job.job_id, { limit: 200, cursor })
-            collected.push(...page.results)
-            cursor = page.page?.next_cursor ?? null
-          }
-          if (collected.length > 0) setResults(collected)
+          const collected = await collectBatchResults(final, { limit: 200, shouldContinue: isCurrentRun })
+          if (isCurrentRun() && collected.length > 0) setResults(collected)
         }
-      } catch {
-        // Offline / network — the mock job + client-side table already cover it.
+      } catch (error) {
+        if (!isCurrentRun()) return
+        setProgress((prev) => ({
+          stage: 'failed',
+          done: prev?.done ?? 0,
+          total: prev?.total ?? variants.length,
+          jobId: prev?.jobId,
+          nInput: prev?.nInput,
+          nToLookup: prev?.nToLookup,
+          estSeconds: prev?.estSeconds,
+          usedUpload: prev?.usedUpload,
+          error: errorMessage(error),
+        }))
       }
-      setStatus('done')
+      if (isCurrentRun()) setStatus('done')
     },
-    [variants],
+    [stash?.sources, variants],
   )
 
   // Changing the scope makes the current run stale, but DON'T wipe the table —
@@ -165,8 +250,10 @@ export function CompareClient() {
   // The cohort changed (source added / removed / cleared) — reset to a fresh idle
   // state so the user re-scopes and re-runs against the new inputs.
   const resetRun = useCallback(() => {
+    runSeq.current += 1
     setStatus('idle')
     setResults(null)
+    setProgress(null)
     setStale(false)
   }, [])
 
@@ -177,7 +264,18 @@ export function CompareClient() {
   const loadVariants = useCallback(
     (parsed: ParsedVariant[], meta: ImportMeta, merge = false) => {
       if (parsed.length === 0) return
-      const source: ImportSource = { id: makeSourceId(), name: meta.name, kind: meta.kind, text: meta.text, variants: parsed }
+      const source: ImportSource = {
+        id: makeSourceId(),
+        name: meta.name,
+        kind: meta.kind,
+        text: meta.text,
+        variants: parsed,
+        clientTruncated: meta.clientTruncated,
+        clientParseLimit: meta.clientParseLimit,
+        clientParsedCount: meta.clientParsedCount,
+      }
+      if (!merge) uploadFilesRef.current.clear()
+      if (meta.uploadFile) uploadFilesRef.current.set(source.id, meta.uploadFile)
       setStash((prev) => {
         const sources = merge && prev ? [...prev.sources, source] : [source]
         stashCompareSources(sources)
@@ -192,11 +290,13 @@ export function CompareClient() {
   // the last one returns to the empty import state.
   const removeSource = useCallback(
     (id: string) => {
+      uploadFilesRef.current.delete(id)
       setStash((prev) => {
         if (!prev) return prev
         const sources = prev.sources.filter((s) => s.id !== id)
         if (sources.length === 0) {
           clearCompareStash()
+          uploadFilesRef.current.clear()
           return null
         }
         stashCompareSources(sources)
@@ -210,6 +310,7 @@ export function CompareClient() {
   // Start over — drop the whole cohort + scope and return to the import hero.
   const clearCohort = useCallback(() => {
     clearCompareStash()
+    uploadFilesRef.current.clear()
     setStash(null)
     setFilters([])
     setAddingSource(false)
@@ -310,7 +411,26 @@ export function CompareClient() {
                         onGenerate={() => runBatch(filters)}
                       />
                     ) : status === 'running' ? (
-                      <LoadingCard />
+                      <LoadingCard progress={progress} />
+                    ) : progress?.stage === 'failed' ? (
+                      <>
+                        <BatchRunError progress={progress} />
+                        {res.shown.length === 0 ? (
+                          <EmptyScope
+                            onClear={() => changeFilters([])}
+                            intervalPending={res.intervalPending}
+                            total={res.total}
+                          />
+                        ) : (
+                          <BatchTable
+                            rows={res.shown.map(rowFromParsed)}
+                            annotated={false}
+                            activePanels={res.activePanels}
+                            panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                            panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                          />
+                        )}
+                      </>
                     ) : results && results.length > 0 ? (
                       <BatchTable
                         rows={results.map(rowFromResult)}
@@ -489,24 +609,103 @@ function GeneratePrompt({
   )
 }
 
-function LoadingCard() {
+function LoadingCard({ progress }: { progress: BatchProgress | null }) {
+  const done = Math.max(0, progress?.done ?? 0)
+  const total = Math.max(0, progress?.total ?? 0)
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0
+  const statusLabel =
+    progress?.stage === 'uploading'
+      ? 'Uploading VCF'
+      : progress?.status === 'queued' || progress?.stage === 'queued'
+        ? 'Queued'
+        : progress?.status === 'running' || progress?.stage === 'running'
+          ? 'Running lookup'
+          : progress?.status === 'completed' || progress?.stage === 'completed'
+            ? 'Completed'
+            : progress?.stage === 'mock'
+              ? 'Preview ready'
+            : 'Preparing job'
+
   return (
     <section
+      aria-live="polite"
       style={{
         background: 'var(--bg)',
         border: '0.5px solid var(--line)',
         borderRadius: 14,
-        padding: '44px 28px',
-        textAlign: 'center',
+        padding: '24px 26px',
         color: 'var(--ink-2)',
       }}
     >
-      <Spinner light={false} />
-      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Running lookup…</span>
-      <p style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-4)', margin: '10px auto 0', maxWidth: 420 }}>
-        Filtering and looking up your variants. Larger cohorts run as a background job — results appear
-        here as they complete.
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+          <Spinner light={false} />
+          <span style={{ fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>{statusLabel}</span>
+        </span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>
+          {total > 0 ? `${done} / ${total}` : 'waiting'}
+          {progress?.usedUpload ? ' · server parsed' : ''}
+        </span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Batch lookup progress"
+        aria-valuemin={0}
+        aria-valuemax={total || 100}
+        aria-valuenow={total > 0 ? done : undefined}
+        style={{
+          position: 'relative',
+          height: 9,
+          borderRadius: 999,
+          background: 'var(--bg-soft2)',
+          border: '0.5px solid var(--line)',
+          overflow: 'hidden',
+          marginTop: 15,
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: `${pct}%`,
+            background: 'var(--teal-deep)',
+            borderRadius: 999,
+            transition: 'width var(--dur-2) var(--ease-standard)',
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 11, fontSize: 11.5, color: 'var(--ink-4)' }}>
+        {progress?.nInput != null && <span>Input {progress.nInput.toLocaleString()}</span>}
+        {progress?.nToLookup != null && <span>Lookup {progress.nToLookup.toLocaleString()}</span>}
+        {progress?.estSeconds != null && progress.estSeconds > 0 && <span>Est. {Math.ceil(progress.estSeconds)}s</span>}
+        {progress?.jobId && <span style={{ fontFamily: 'var(--mono)' }}>{progress.jobId}</span>}
+      </div>
+    </section>
+  )
+}
+
+function BatchRunError({ progress }: { progress: BatchProgress }) {
+  return (
+    <section
+      role="alert"
+      style={{
+        background: 'var(--warn-tint)',
+        border: '0.5px solid var(--warn-bdr)',
+        borderRadius: 14,
+        padding: '20px 22px',
+        color: 'var(--warn-text)',
+        marginBottom: 14,
+      }}
+    >
+      <h2 style={{ fontSize: 14, fontWeight: 650, color: 'var(--warn-text)', margin: 0 }}>Batch lookup did not complete</h2>
+      <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: '7px 0 0' }}>
+        {progress.error ?? 'The backend returned a failed batch status.'}
       </p>
+      {progress.done > 0 || progress.total > 0 ? (
+        <p style={{ fontFamily: 'var(--mono)', fontSize: 11.5, margin: '9px 0 0' }}>
+          {progress.done} / {progress.total} variants completed
+        </p>
+      ) : null}
     </section>
   )
 }
@@ -619,7 +818,16 @@ function SourceChip({ source, onRemove }: { source: ImportSource; onRemove: () =
             {source.name}
           </span>
         )}
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-4)' }}>{source.variants.length}</span>
+        <span
+          title={
+            source.clientTruncated
+              ? `${source.variants.length} shown in preview; full file parses on Generate`
+              : undefined
+          }
+          style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: source.clientTruncated ? 'var(--teal-deep)' : 'var(--ink-4)' }}
+        >
+          {source.clientTruncated ? `${source.variants.length}+` : source.variants.length}
+        </span>
         <button
           type="button"
           aria-label={`Remove ${source.name}`}
@@ -630,6 +838,11 @@ function SourceChip({ source, onRemove }: { source: ImportSource; onRemove: () =
           <IconRemove size={13} />
         </button>
       </span>
+      {source.clientTruncated && (
+        <span style={{ margin: '5px 0 0 4px', fontSize: 10.5, color: 'var(--ink-4)' }}>
+          Full file runs server-side
+        </span>
+      )}
       {viewable && open && (
         <pre
           style={{

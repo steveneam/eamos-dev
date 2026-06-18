@@ -1,7 +1,13 @@
 'use client'
 
 import { useRef, useState, type DragEvent } from 'react'
-import { parseVariantFile, type ImportMeta, type ParsedVariant } from '@/lib/variant-file'
+import {
+  CLIENT_PARSE_VARIANT_LIMIT,
+  parseVariantFile,
+  parseVariantFileDetailed,
+  type ImportMeta,
+  type ParsedVariant,
+} from '@/lib/variant-file'
 import { IconDropInto, IconPlus } from '@/components/icons/Icon'
 
 /**
@@ -19,14 +25,25 @@ const ACCEPT = '.vcf,.csv,.tsv,.txt,text/plain'
 
 /** Parse one or more files into a single deduped variant list (same dedup the
  *  search bar applies across multiple dropped files). */
-async function parseFiles(files: FileList | File[]): Promise<{ variants: ParsedVariant[]; source: string }> {
+async function parseFiles(files: FileList | File[]): Promise<{
+  variants: ParsedVariant[]
+  source: string
+  uploadFile?: File
+  clientTruncated: boolean
+  clientParsedCount: number
+}> {
   const arr = Array.from(files)
   const seen = new Set<string>()
   const variants: ParsedVariant[] = []
+  let uploadFile: File | undefined
+  let clientParsedCount = 0
   for (const file of arr) {
     try {
       const text = await file.text()
-      for (const v of parseVariantFile(text, file.name)) {
+      const parsed = parseVariantFileDetailed(text, file.name)
+      if (arr.length === 1 && parsed.truncated) uploadFile = file
+      clientParsedCount += parsed.totalParsed
+      for (const v of parsed.variants) {
         const key = v.query.toLowerCase()
         if (seen.has(key)) continue
         seen.add(key)
@@ -36,7 +53,13 @@ async function parseFiles(files: FileList | File[]): Promise<{ variants: ParsedV
       // Unreadable file — skip it; any other selected files still parse.
     }
   }
-  return { variants, source: arr.map((f) => f.name).join(', ') }
+  return {
+    variants,
+    source: arr.map((f) => f.name).join(', '),
+    uploadFile,
+    clientTruncated: Boolean(uploadFile),
+    clientParsedCount,
+  }
 }
 
 export function VariantImport({
@@ -56,13 +79,20 @@ export function VariantImport({
 
   const ingest = async (files: FileList | null) => {
     if (!files || files.length === 0) return
-    const { variants, source } = await parseFiles(files)
+    const { variants, source, uploadFile, clientTruncated, clientParsedCount } = await parseFiles(files)
     if (variants.length === 0) {
       setNote('No variants found in that file — expected a VCF, or one variant per line.')
       return
     }
     setNote(null)
-    onVariants(variants, { name: source, kind: 'file' })
+    onVariants(variants, {
+      name: source,
+      kind: 'file',
+      uploadFile,
+      clientTruncated,
+      clientParseLimit: CLIENT_PARSE_VARIANT_LIMIT,
+      clientParsedCount,
+    })
   }
 
   const loadPasted = () => {

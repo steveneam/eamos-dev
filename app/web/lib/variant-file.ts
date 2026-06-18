@@ -17,7 +17,14 @@ export interface ParsedVariant {
 
 // Client-parse cap for the small-file inline path. Sits under the backend's
 // BATCH_MAX_VARIANTS (5000); larger files negotiate a server-side upload+parse.
-const MAX_VARIANTS = 2000
+export const CLIENT_PARSE_VARIANT_LIMIT = 2000
+
+export interface ParseVariantFileResult {
+  variants: ParsedVariant[]
+  totalParsed: number
+  truncated: boolean
+  limit: number
+}
 
 function clip(line: string): string {
   return line.length > 120 ? `${line.slice(0, 117)}…` : line
@@ -68,18 +75,34 @@ function parseList(text: string): ParsedVariant[] {
   return out
 }
 
-export function parseVariantFile(text: string, filename: string): ParsedVariant[] {
+export function parseVariantFileDetailed(
+  text: string,
+  filename: string,
+  limit = CLIENT_PARSE_VARIANT_LIMIT,
+): ParseVariantFileResult {
   const parsed = isVcf(text, filename) ? parseVcf(text) : parseList(text)
   const seen = new Set<string>()
   const deduped: ParsedVariant[] = []
+  const max = Math.max(1, limit)
+  let totalParsed = 0
   for (const v of parsed) {
     const key = v.query.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
-    deduped.push(v)
-    if (deduped.length >= MAX_VARIANTS) break
+    totalParsed += 1
+    if (deduped.length < max) deduped.push(v)
+    if (totalParsed > max) break
   }
-  return deduped
+  return {
+    variants: deduped,
+    totalParsed,
+    truncated: totalParsed > max,
+    limit: max,
+  }
+}
+
+export function parseVariantFile(text: string, filename: string): ParsedVariant[] {
+  return parseVariantFileDetailed(text, filename).variants
 }
 
 // sessionStorage handoff between the search bar and /compare.
@@ -99,6 +122,10 @@ export interface ImportSource {
   /** Raw pasted text, kept so the user can review exactly what they typed. */
   text?: string
   variants: ParsedVariant[]
+  /** True when the browser preview was capped and Generate should prefer upload_ref. */
+  clientTruncated?: boolean
+  clientParseLimit?: number
+  clientParsedCount?: number
 }
 
 /** What VariantImport hands back per import (everything but the id, assigned here). */
@@ -106,6 +133,10 @@ export interface ImportMeta {
   name: string
   kind: SourceKind
   text?: string
+  uploadFile?: File
+  clientTruncated?: boolean
+  clientParseLimit?: number
+  clientParsedCount?: number
 }
 
 export interface CompareStash {
@@ -185,7 +216,16 @@ export function readCompareVariants(): CompareStash | null {
       const kind: SourceKind = /paste/i.test(name) ? 'paste' : 'file'
       return buildStash([{ id: makeSourceId(), name, kind, variants: parsed.variants }])
     }
-    return parsed as CompareStash
+    const stash = parsed as CompareStash
+    return {
+      ...stash,
+      sources: stash.sources.map((source) => ({
+        ...source,
+        clientTruncated: undefined,
+        clientParseLimit: undefined,
+        clientParsedCount: undefined,
+      })),
+    }
   } catch {
     return null
   }
