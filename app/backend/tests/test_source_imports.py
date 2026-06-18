@@ -14,6 +14,7 @@ from app.services.source_imports import (
     apply_existing_source_asset_metadata_registration,
     apply_storage_pilot_registration,
     build_clinical_source_import_bundle,
+    build_clinical_release_source_import_bundle,
     build_existing_source_asset_metadata_registration,
     build_storage_pilot_registration,
     clinical_bundle_report,
@@ -61,6 +62,7 @@ def test_clinical_source_import_bundle_plans_fixture_rows_and_versions() -> None
     bundle = build_clinical_source_import_bundle()
     report = clinical_bundle_report(bundle)
 
+    assert bundle.import_scope == "dev_fixture"
     assert bundle.row_counts == {
         "clinical_mondo_diseases": 2,
         "clinical_hpo_terms": 3,
@@ -78,6 +80,49 @@ def test_clinical_source_import_bundle_plans_fixture_rows_and_versions() -> None
     }
     assert report["guardrails"]["production_downloads"] == "not_used"
     assert report["guardrails"]["frontend_direct_sql"] == "blocked"
+
+
+def test_clinical_release_source_import_bundle_uses_staged_release_paths(tmp_path) -> None:
+    root = _clinical_release_asset_root(tmp_path)
+
+    bundle = build_clinical_release_source_import_bundle(
+        source_asset_root=root,
+        source_version_overrides={
+            "mondo_disease_ontology": "MONDO pytest release",
+            "human_phenotype_ontology": "HPO pytest release",
+            "clingen_gene_validity": "ClinGen pytest export",
+            "gencc_download": "GenCC pytest export",
+        },
+    )
+    report = clinical_bundle_report(bundle)
+
+    assert bundle.import_scope == "release_files"
+    assert bundle.asset_role == "tier3_clinical_source_release_file"
+    assert bundle.row_counts == {
+        "clinical_mondo_diseases": 1,
+        "clinical_hpo_terms": 1,
+        "clinical_hpo_disease_phenotypes": 1,
+        "clinical_hpo_gene_phenotypes": 1,
+        "clinical_clingen_gene_validity": 1,
+        "clinical_gencc_assertions": 1,
+    }
+    assert {version.asset_role for version in bundle.source_versions} == {
+        "tier3_clinical_source_release_file"
+    }
+    assert {version.metadata["import_scope"] for version in bundle.source_versions} == {
+        "release_files"
+    }
+    assert {version.metadata["production_download_used"] for version in bundle.source_versions} == {
+        True
+    }
+    assert {version.source_id: version.source_release for version in bundle.source_versions} == {
+        "mondo_disease_ontology": "MONDO pytest release",
+        "human_phenotype_ontology": "HPO pytest release",
+        "clingen_gene_validity": "ClinGen pytest export",
+        "gencc_download": "GenCC pytest export",
+    }
+    assert report["mode"] == "tier3_clinical_source_release_files_import"
+    assert report["guardrails"]["storage_uploads"] == "not_used"
 
 
 def test_clinical_source_import_apply_records_source_versions_and_idempotent_rows() -> None:
@@ -218,6 +263,37 @@ def test_source_import_cli_plans_clinical_and_storage_without_supabase(
     assert output["guardrails"]["secrets_in_output"] == "blocked"
 
 
+def test_source_import_cli_plans_clinical_release_files(tmp_path, capsys) -> None:
+    root = _clinical_release_asset_root(tmp_path)
+
+    exit_code = eamos_source_import.main(
+        [
+            "--clinical-release-files",
+            "--clinical-source-asset-root",
+            str(root),
+            "--mondo-source-version",
+            "MONDO pytest release",
+            "--hpo-source-version",
+            "HPO pytest release",
+            "--clingen-source-version",
+            "ClinGen pytest export",
+            "--gencc-source-version",
+            "GenCC pytest export",
+            "--storage-pilot",
+            "none",
+            "--compact",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    clinical = output["clinical_fixtures"]
+    assert clinical["import_scope"] == "release_files"
+    assert clinical["row_counts"]["clinical_mondo_diseases"] == 1
+    assert clinical["row_counts"]["clinical_hpo_terms"] == 1
+    assert "storage_pilot" not in output
+
+
 def test_source_import_cli_plans_existing_dbsnp_phylop_metadata(
     tmp_path,
     capsys,
@@ -332,3 +408,97 @@ def _dbsnp_phylop_upload_items(tmp_path):
         ),
         large_staging_root=large_root,
     )
+
+
+def _clinical_release_asset_root(tmp_path):
+    root = tmp_path / "source_assets"
+    (root / "mondo_disease_ontology").mkdir(parents=True)
+    (root / "human_phenotype_ontology").mkdir(parents=True)
+    (root / "clingen_gene_validity").mkdir(parents=True)
+    (root / "gencc_download").mkdir(parents=True)
+    (root / "mondo_disease_ontology" / "mondo.json").write_text(
+        """
+        {
+          "graphs": [
+            {
+              "nodes": [
+                {
+                  "id": "http://purl.obolibrary.org/obo/MONDO_0008765",
+                  "lbl": "Leber congenital amaurosis 2"
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    (root / "human_phenotype_ontology" / "hp.json").write_text(
+        """
+        {
+          "graphs": [
+            {
+              "nodes": [
+                {
+                  "id": "http://purl.obolibrary.org/obo/HP_0000510",
+                  "lbl": "Visual impairment"
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    (root / "human_phenotype_ontology" / "phenotype.hpoa").write_text(
+        "\n".join(
+            [
+                "#version: 2026-02-16",
+                "database_id\tdisease_name\tqualifier\thpo_id\treference\tevidence\tonset\t"
+                "frequency\tsex\tmodifier\taspect\tbiocuration",
+                "OMIM:204100\tLeber congenital amaurosis 2\t\tHP:0000510\tPMID:1\tPCS\t\t1/2\t\t\tP\tHPO:test",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "human_phenotype_ontology" / "genes_to_phenotype.txt").write_text(
+        "\n".join(
+            [
+                "ncbi_gene_id\tgene_symbol\thpo_id\thpo_name\tfrequency\tdisease_id",
+                "6121\tRPE65\tHP:0000510\tVisual impairment\t1/2\tOMIM:204100",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "clingen_gene_validity" / "clingen_gene_validity.csv").write_text(
+        "\n".join(
+            [
+                '"CLINGEN GENE DISEASE VALIDITY CURATIONS","","","","","","","","",""',
+                (
+                    '"GENE SYMBOL","GENE ID (HGNC)","DISEASE LABEL","DISEASE ID (MONDO)",'
+                    '"MOI","SOP","CLASSIFICATION","ONLINE REPORT","CLASSIFICATION DATE","GCEP"'
+                ),
+                (
+                    '"RPE65","HGNC:10294","Leber congenital amaurosis 2","MONDO:0008765",'
+                    '"AR","SOP10","Definitive","https://example.test","2024-03-14","Panel"'
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "gencc_download" / "gencc-download.csv").write_text(
+        "\n".join(
+            [
+                "uuid,gene_curie,gene_symbol,disease_curie,disease_title,classification_title,"
+                "submitter_title,submitted_as_date,submitted_as_public_report_url",
+                "GENCC_1,HGNC:10294,RPE65,MONDO:0008765,Leber congenital amaurosis 2,"
+                "Definitive,ClinGen,2024-03-14,https://example.test/gencc",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return root

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict
 import json
+from pathlib import Path
 from typing import Any
 
 from app.core.config import Settings
@@ -19,6 +20,7 @@ from app.services.source_imports import (
     apply_existing_source_asset_metadata_registration,
     apply_storage_pilot_registration,
     build_clinical_source_import_bundle,
+    build_clinical_release_source_import_bundle,
     build_existing_source_asset_metadata_registration,
     build_storage_pilot_registration,
     clinical_bundle_report,
@@ -45,6 +47,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="plan/apply the dev fixture import for MONDO/HPO/ClinGen/GenCC private tables",
     )
+    parser.add_argument(
+        "--clinical-release-files",
+        action="store_true",
+        help=(
+            "plan/apply release-scale staged MONDO/HPO/ClinGen/GenCC files from "
+            "app/backend/data/source_assets by default"
+        ),
+    )
+    parser.add_argument(
+        "--clinical-source-asset-root",
+        type=Path,
+        default=None,
+        help="override the staged clinical source asset root for --clinical-release-files",
+    )
+    parser.add_argument("--mondo-source-version", default=None)
+    parser.add_argument("--hpo-source-version", default=None)
+    parser.add_argument("--clingen-source-version", default=None)
+    parser.add_argument("--gencc-source-version", default=None)
     parser.add_argument(
         "--skip-clinical-fixtures",
         action="store_true",
@@ -107,11 +127,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--compact", action="store_true", help="emit compact JSON")
     args = parser.parse_args(argv)
 
-    include_clinical = args.clinical_fixtures or not args.skip_clinical_fixtures
+    include_clinical = (
+        args.clinical_release_files or args.clinical_fixtures or not args.skip_clinical_fixtures
+    )
+    clinical_source_version_overrides = {
+        source_id: version
+        for source_id, version in (
+            ("mondo_disease_ontology", args.mondo_source_version),
+            ("human_phenotype_ontology", args.hpo_source_version),
+            ("clingen_gene_validity", args.clingen_source_version),
+            ("gencc_download", args.gencc_source_version),
+        )
+        if version
+    }
 
     try:
         report = build_source_import_report(
             include_clinical=include_clinical,
+            clinical_release_files=args.clinical_release_files,
+            clinical_source_asset_root=args.clinical_source_asset_root,
+            clinical_source_version_overrides=clinical_source_version_overrides or None,
             storage_pilot_id=None if args.storage_pilot == "none" else args.storage_pilot,
             existing_object_set_id=(
                 None if args.existing_object_set == "none" else args.existing_object_set
@@ -161,6 +196,9 @@ def main(argv: list[str] | None = None) -> int:
 def build_source_import_report(
     *,
     include_clinical: bool = True,
+    clinical_release_files: bool = False,
+    clinical_source_asset_root: Path | None = None,
+    clinical_source_version_overrides: dict[str, str] | None = None,
     storage_pilot_id: str | None = HG38_STORAGE_PILOT_ID,
     existing_object_set_id: str | None = None,
     storage_heads_verified: bool = False,
@@ -203,7 +241,17 @@ def build_source_import_report(
     }
 
     if include_clinical:
-        clinical_bundle = build_clinical_source_import_bundle()
+        if clinical_release_files:
+            release_kwargs: dict[str, Any] = {
+                "source_version_overrides": clinical_source_version_overrides,
+            }
+            if clinical_source_asset_root is not None:
+                release_kwargs["source_asset_root"] = clinical_source_asset_root
+            clinical_bundle = build_clinical_release_source_import_bundle(**release_kwargs)
+        else:
+            clinical_bundle = build_clinical_source_import_bundle(
+                source_version_overrides=clinical_source_version_overrides,
+            )
         clinical_report = clinical_bundle_report(clinical_bundle)
         if store is not None:
             clinical_report["apply_result"] = asdict(

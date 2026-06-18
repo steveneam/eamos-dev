@@ -232,6 +232,32 @@ python -m app.cli.eamos_source_asset_preflight --compact
 
 Out of scope: local-evidence gate, PubMed/RAG.
 
+2026-06-19 checkpoint:
+
+- Added a code-backed release-file import mode to `eamos_source_import`:
+  `--clinical-release-files` reads the staged release-scale MONDO, HPO,
+  ClinGen gene-validity, and GenCC files under `app/backend/data/source_assets`
+  by default. The existing dev fixture import remains the default for tests and
+  small local smoke runs.
+- The release-file planner records explicit source-version overrides,
+  SHA256-backed `local_source_versions`, release-file asset roles, row counts,
+  and guardrails. It does not download, upload, seed Render, flip providers, or
+  enable local evidence.
+- Real staged-file planning passed with row counts:
+  `clinical_mondo_diseases=31886`, `clinical_hpo_terms=19944`,
+  `clinical_hpo_disease_phenotypes=281996`,
+  `clinical_hpo_gene_phenotypes=329339`,
+  `clinical_clingen_gene_validity=3596`, and
+  `clinical_gencc_assertions=29845`.
+- Live Supabase `eamos_private` currently remains fixture-scale by readback:
+  MONDO 2, HPO terms 3, HPO disease phenotypes 2, HPO gene phenotypes 3,
+  ClinGen validity 2, GenCC assertions 2. The private Postgres DB URL gate was
+  added locally after this checkpoint, but the committed importer apply path
+  timed out before writing rows because this workstation cannot open TCP
+  connections to the Supabase pooler host (`aws-1-ap-southeast-2.pooler.supabase.com`)
+  on port 5432. Connector SQL remains limited to readback/verification and is
+  not the right path for streaming roughly 666k clinical rows.
+
 ### M4 - Local Evidence Runtime Probes
 
 Goal: ensure dbSNP, ClinVar, RepeatMasker, and phyloP production runtime paths

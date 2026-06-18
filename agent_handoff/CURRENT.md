@@ -17,11 +17,11 @@
 - **Claude:** IDLE @ 2026-06-18 21:24 +1000 - Planning turn only (NO code/state change): at Steven's request, drafted a Codex 2-day priority plan (CAR below) to unblock Claude's Batch + literature-RAG lanes. The AI-gateway report-chat enablement is still the queued Claude task (runbook in `~/.claude/plans/next-session-eamos.md`), deferred this turn. `LLM_PROVIDER=mock` unchanged; no source files touched; held files still excluded. PRIOR (still true): Shipped Batch + workbench FE; planned AI-gateway report-chat enablement for NEXT session (Steven granted Claude BE+FE charge for it; Codex stays on Tier-2). PUSHED to origin/main (Vercel auto-deploy): `af17fdb` Batch state unification + paper rail parity + global-error redesign; `505250b` per-source provenance for Batch cohorts; `ebbfea3` workbench rail names the active tool + tool-scoped Ask Eamos (rail-head Library⇄Ask Eamos toggle w/ active-tool label, persistent "<tool> expert" persona pill, Scratchpad→Log+Notes, Primer/CRISPR "AI assist" sections retired). All FE-only, build+tsc+eslint green, browser-verified. `LLM_PROVIDER=mock` (unchanged); held files still excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); Codex's Tier-2 ESM1b tree untouched. Dev server STOPPED. NEXT = AI-gateway report-chat enablement (full runbook in `~/.claude/plans/next-session-eamos.md`): gateway+RAG already built/inert, enable locally→gated demo, 1-chat/day dev cap, report-payload grounding first then literature RAG (Codex Tier-1 corpus). Detail → `~/.claude/plans/next-session-eamos.md`.
 
 
-- **Codex:** IDLE @ 2026-06-19 02:05 +1000 - Build-ledger materialization M2 checkpoint complete locally: committed importer/preflight paths reconcile existing dbSNP/phyloP private Storage metadata, S3 head proof passed for five objects plus manifests, and Supabase `eamos_private` readback shows five verified/approved/private object rows with fail-closed `not_materialized` SG rows. No Render disk seed, env/provider flip, local evidence enablement, PubMed/RAG, or ESM1b work.
+- **Codex:** IDLE @ 2026-06-19 03:35 +1000 - Build-ledger materialization M3 release-file importer checkpoint complete locally and ready to commit: release-file planning uses staged MONDO/HPO/ClinGen/GenCC source assets and verified full row counts; local `.env` now has the private Postgres DB URL gate, but the committed importer apply path timed out to the Supabase pooler before writes. Live `eamos_private` clinical tables remain fixture-scale by connector readback. No manual bulk SQL, Render disk seed, env/provider flip, local evidence enablement, PubMed/RAG, or ESM1b work.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-19 02:05 +1000 - Codex (M2 checkpoint heartbeat updated)
+UNLOCKED - 2026-06-19 03:35 +1000 - Codex (M3 DB URL/network checkpoint docs complete)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -449,45 +449,51 @@ Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this sessi
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-19 01:18 +1000 - Codex.
+Section last edited: 2026-06-19 03:35 +1000 - Codex.
 
-**Latest Codex update (2026-06-19 01:18 +1000 - Codex):**
-Completed build-ledger materialization M0/M1 locally.
+**Latest Codex update (2026-06-19 03:35 +1000 - Codex):**
+Completed build-ledger materialization M3 release-file importer checkpoint
+locally.
 
 Completed:
-- M0 baseline: local source preflight and live SG provider-cache were compared. Local-only ready rows include `clingen_local_adapter`; live-only ready/available rows include `coordinate_compact_index`, `gene_view`, `protein_pfam`, and `alphamissense`. Live SG `source_assets.clingen_local` is still `db_missing` with zero rows, while local ClinGen preflight is ready.
-- M1 ClinGen generated SQLite: local `eamos.clingen_local.v1` is ready with 12,675 eRepo classifications, 77,799 CSpec entities, 25,762 CSpec links, source version `ClinGen eRepo/CSpec full snapshot 2026-06-11`, and verified checksum.
-- The generated upload plan found the ClinGen SQLite upload-eligible at 463,036,416 bytes, MD5 `7d6525308af1fbd64734491477adee06`, SHA256 `4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d`. Read-only S3 `head_object` proved the artifact and manifest already exist, so no upload was needed.
-- Added explicit `--download-mode s3_multipart` support to `eamos_generated_artifact_sync` because this environment has Supabase S3 credentials configured but no REST service-role URL/key. A temp-destination S3 sync from the private ClinGen object downloaded, size/MD5/SHA256 verified, schema-validated, and wrote the manifest sidecar with sanitized output.
-- Updated `docs/backend-build-ledger-runtime/plan.md` with the M0/M1 checkpoint and added `[[generated-artifact-s3-sync-parity]]` to `MEMORY.md`.
-- Did not touch PubMed/literature/RAG corpus, ESM1b materialization, chat/gateway files, provider/env flags, Render, Supabase metadata rows, or live SG runtime files. `LLM_PROVIDER=mock` remains unchanged.
+- M0/M1/M2 were already committed locally (`21f72fe`, `cc9c349`).
+- Added release-file planning to `eamos_source_import` with
+  `--clinical-release-files`, staged clinical source asset paths, explicit
+  source-version overrides, SHA256-backed `local_source_versions`, release-file
+  asset roles, row counts, and guardrails.
+- The release-file planner verified staged full counts:
+  MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene
+  phenotypes 329,339; ClinGen gene-validity 3,596; GenCC assertions 29,845.
+- Steven added the private Supabase Postgres DB URL to ignored
+  `app/backend/.env`; format checks passed (`postgresql+psycopg`, session
+  pooler, `/postgres`, SSL, schema `eamos_private`, `LLM_PROVIDER=mock`).
+- The committed importer apply command was attempted. It failed before writes
+  with TCP timeouts to `aws-1-ap-southeast-2.pooler.supabase.com:5432`; connector
+  readback confirmed clinical tables remain fixture-scale.
 
 Verification:
-- `python -m app.cli.eamos_source_asset_preflight --compact`
-- `python -m app.cli.eamos_clingen_local_preflight --compact`
-- `python -m app.cli.eamos_clingen_local_preflight --compact --require-ready`
-- `python -m app.cli.eamos_generated_artifact_upload --artifact clingen_local --compact`
-- S3 `head_object` proof for the ClinGen generated SQLite object and manifest sidecar.
-- Temp-destination `python -m app.cli.eamos_generated_artifact_sync --artifact clingen_local --source-object-uri <private ClinGen object> --download-mode s3_multipart --expected-size-bytes 463036416 --expected-md5 7d6525308af1fbd64734491477adee06 --expected-sha256 4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d --force --require-ready --compact`
-- `python -m pytest tests\test_generated_source_artifacts.py -q`
-- `python -m pytest tests\test_generated_source_artifacts.py tests\test_clingen_local.py tests\test_health_api.py -q`
-- `python -m ruff check app\services\generated_source_artifacts.py app\cli\eamos_generated_artifact_sync.py tests\test_generated_source_artifacts.py`
-- `python -m black --check --target-version py310 app\services\generated_source_artifacts.py app\cli\eamos_generated_artifact_sync.py tests\test_generated_source_artifacts.py`
-- `python -m py_compile app\services\generated_source_artifacts.py app\cli\eamos_generated_artifact_sync.py`
-- `git diff --check`
-- `python -m graphify update .`
+- `python -m pytest tests\test_source_imports.py tests\test_clinical_source_tables.py tests\test_health_api.py -q`
+- `python -m ruff check app\services\clinical_source_tables.py app\services\source_imports.py app\cli\eamos_source_import.py tests\test_source_imports.py`
+- `python -m black --check --target-version py310 app\services\clinical_source_tables.py app\services\source_imports.py app\cli\eamos_source_import.py tests\test_source_imports.py`
+- `python -m py_compile app\services\clinical_source_tables.py app\services\source_imports.py app\cli\eamos_source_import.py`
+- `python -m app.cli.eamos_source_import --clinical-release-files ... --apply-supabase --compact` failed before writes with Supabase pooler TCP timeout.
+- Supabase connector readback: MONDO 2, HPO terms 3, HPO disease phenotypes 2,
+  HPO gene phenotypes 3, ClinGen validity 2, GenCC assertions 2.
 
 Next:
-- Review/commit the M0/M1 delta, then proceed to M2 existing-object metadata reconciliation for dbSNP and phyloP using committed CLIs/importers rather than manual SQL.
-- Live SG ClinGen still needs an explicit runtime sync on the service disk before relying on local-first ClinGen behavior; do not flip providers/env from this checkpoint.
-- PubMed/RAG remains deferred until Steven approves corpus logistics. ESM1b remains blocked until the operator provides `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv`.
+- Run the committed importer apply path from a host/network that can reach the
+  Supabase Postgres pooler, keeping `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true`,
+  `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` set securely outside git, and
+  `LLM_PROVIDER=mock`.
+- Do not bulk-apply the roughly 666k clinical rows through manual connector SQL.
+- Do not touch PubMed/RAG corpus, ESM1b, provider/env flips, live runtime sync,
+  or Render disk seed without the explicit gate.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-19 01:18 +1000 - Codex build-ledger M0/M1 materialization checkpoint
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md (M0/M1 checkpoint), docs/backend-build-ledger-runtime/materialization-plan.md, docs/clingen-local-materialization/plan.md, then run git -C D:/eamos fetch origin && git -C D:/eamos status --short --branch && git -C D:/eamos log -8 --oneline.
-Delta: M0/M1 completed locally. Local ClinGen eRepo/CSpec is ready, live SG still reports `source_assets.clingen_local=db_missing`, private Storage already has the SHA-addressed ClinGen SQLite + manifest, and `eamos_generated_artifact_sync` now supports `--download-mode s3_multipart`; temp S3 sync verified checksum/schema without Render/env/provider mutation.
-Verification: local source + ClinGen preflights, upload plan, S3 head-object proof, temp S3 sync, generated/ClinGen/health pytest slice, Ruff, Black, py_compile, diff-check, and graphify AST update all passed.
-Next: review/commit the M0/M1 delta, then proceed to M2 existing-object metadata reconciliation for dbSNP/phyloP with committed CLIs/importers. Do not touch PubMed/RAG corpus yet; no ESM1b until the MIT score CSV exists; keep `LLM_PROVIDER=mock`; no provider/env flips or live runtime sync without an explicit gate.
+# Resume prompt - 2026-06-19 03:28 +1000 - Codex build-ledger M3 importer checkpoint
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git -C D:/eamos fetch origin && git -C D:/eamos status --short --branch && git -C D:/eamos log -8 --oneline.
+Delta: M3 release-file importer is code-backed; staged MONDO/HPO/ClinGen/GenCC full counts plan correctly, but local apply timed out to the Supabase session pooler before writes. Live clinical tables remain fixture-scale by connector readback.
+Next: rerun the committed importer apply path only from a host/network that can reach Supabase Postgres, with the private DB URL in ignored env and `LLM_PROVIDER=mock`; no manual bulk connector SQL, PubMed/RAG, ESM1b, provider flips, or Render disk seed.
 End clear-safe.
 ```

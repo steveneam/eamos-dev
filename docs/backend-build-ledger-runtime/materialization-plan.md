@@ -48,7 +48,7 @@ Supabase inventory checked on 2026-06-19:
 | Storage prefix `ncbi_dbsnp_gcf_000001405_40` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bgzip VCF, tabix index, and upstream checksum. | Seed bgzip and `.tbi` onto Render only after the explicit runtime gate. |
 | Storage prefix `ucsc_phylop100way_hg38` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bigWig and upstream checksum. | Seed bigWig onto Render only after the explicit runtime gate. |
 | ClinVar / RepeatMasker prefixes | No durable objects observed. | Locate, upload, register, and verify before runtime work. |
-| Clinical tables | MONDO/HPO/ClinGen/GenCC tables contain fixture-scale rows only. | Import release-pinned full tables separately from Render disk work. |
+| Clinical tables | MONDO/HPO/ClinGen/GenCC tables contain fixture-scale rows only. Release-file importer now plans the staged full tables: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845. | Apply through the committed importer from a host that can reach the Supabase Postgres pooler; the local DB URL gate is configured, but this workstation timed out to the pooler before writes. No Render disk work is involved. |
 
 ## Hard Gates
 

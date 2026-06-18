@@ -18,6 +18,7 @@ GENCC_SOURCE_ID = "gencc_download"
 DEFAULT_CLINICAL_SOURCE_FIXTURE_DIR = (
     Path(__file__).resolve().parents[1] / "fixtures" / "source_tables"
 )
+DEFAULT_CLINICAL_SOURCE_ASSET_ROOT = Path(__file__).resolve().parents[2] / "data" / "source_assets"
 
 
 class ClinicalSourceTableError(ValueError):
@@ -47,20 +48,38 @@ class ClinicalTableProvenance:
 class ClinicalSourceFixturePaths:
     mondo_json: Path
     phenotype_hpoa: Path
-    hpo_terms_tsv: Path
     genes_to_phenotype: Path
     clingen_gene_validity_csv: Path
     gencc_download_csv: Path
+    hpo_terms_tsv: Path | None = None
+    hpo_terms_json: Path | None = None
+
+    def __post_init__(self) -> None:
+        if (self.hpo_terms_tsv is None) == (self.hpo_terms_json is None):
+            raise ValueError("exactly one HPO term source must be configured")
 
     @classmethod
     def from_dir(cls, fixture_dir: Path) -> ClinicalSourceFixturePaths:
         return cls(
             mondo_json=fixture_dir / "mondo_tiny.json",
             phenotype_hpoa=fixture_dir / "phenotype_tiny.hpoa",
-            hpo_terms_tsv=fixture_dir / "hpo_terms_tiny.tsv",
             genes_to_phenotype=fixture_dir / "genes_to_phenotype_tiny.txt",
             clingen_gene_validity_csv=fixture_dir / "clingen_gene_validity_tiny.csv",
             gencc_download_csv=fixture_dir / "gencc_download_tiny.csv",
+            hpo_terms_tsv=fixture_dir / "hpo_terms_tiny.tsv",
+        )
+
+    @classmethod
+    def from_source_asset_root(cls, source_asset_root: Path) -> ClinicalSourceFixturePaths:
+        return cls(
+            mondo_json=source_asset_root / MONDO_SOURCE_ID / "mondo.json",
+            phenotype_hpoa=source_asset_root / HPO_SOURCE_ID / "phenotype.hpoa",
+            genes_to_phenotype=source_asset_root / HPO_SOURCE_ID / "genes_to_phenotype.txt",
+            clingen_gene_validity_csv=(
+                source_asset_root / CLINGEN_GENE_VALIDITY_SOURCE_ID / "clingen_gene_validity.csv"
+            ),
+            gencc_download_csv=source_asset_root / GENCC_SOURCE_ID / "gencc-download.csv",
+            hpo_terms_json=source_asset_root / HPO_SOURCE_ID / "hp.json",
         )
 
 
@@ -137,18 +156,26 @@ class ClinicalSourceTableStore:
     def __init__(
         self,
         fixture_dir: Path | None = None,
+        paths: ClinicalSourceFixturePaths | None = None,
         registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+        source_version_overrides: Mapping[str, str] | None = None,
     ) -> None:
+        if fixture_dir is not None and paths is not None:
+            raise ValueError("fixture_dir and paths are mutually exclusive")
         self._fixture_dir = fixture_dir or DEFAULT_CLINICAL_SOURCE_FIXTURE_DIR
-        self._paths = ClinicalSourceFixturePaths.from_dir(self._fixture_dir)
-        self._provenance_by_path = _build_provenance_by_path(self._paths, registry)
+        self._paths = paths or ClinicalSourceFixturePaths.from_dir(self._fixture_dir)
+        self._provenance_by_path = _build_provenance_by_path(
+            self._paths,
+            registry,
+            source_version_overrides=source_version_overrides,
+        )
         self._mondo_records = tuple(
             parse_mondo_json(
                 self._paths.mondo_json,
                 provenance=self._provenance_by_path[self._paths.mondo_json],
             )
         )
-        self._hpo_terms = parse_hpo_terms_tsv(self._paths.hpo_terms_tsv)
+        self._hpo_terms = _parse_hpo_terms(self._paths)
         self._hpo_disease_records = tuple(
             parse_phenotype_hpoa(
                 self._paths.phenotype_hpoa,
@@ -596,11 +623,14 @@ def parse_gencc_download_csv(
 def _build_provenance_by_path(
     paths: ClinicalSourceFixturePaths,
     registry: DataSourceRegistry,
+    *,
+    source_version_overrides: Mapping[str, str] | None = None,
 ) -> dict[Path, ClinicalTableProvenance]:
-    return {
+    hpo_terms_path = _hpo_terms_path(paths)
+    provenance = {
         paths.mondo_json: _provenance(paths.mondo_json, MONDO_SOURCE_ID, registry),
         paths.phenotype_hpoa: _provenance(paths.phenotype_hpoa, HPO_SOURCE_ID, registry),
-        paths.hpo_terms_tsv: _provenance(paths.hpo_terms_tsv, HPO_SOURCE_ID, registry),
+        hpo_terms_path: _provenance(hpo_terms_path, HPO_SOURCE_ID, registry),
         paths.genes_to_phenotype: _provenance(paths.genes_to_phenotype, HPO_SOURCE_ID, registry),
         paths.clingen_gene_validity_csv: _provenance(
             paths.clingen_gene_validity_csv,
@@ -609,6 +639,43 @@ def _build_provenance_by_path(
         ),
         paths.gencc_download_csv: _provenance(paths.gencc_download_csv, GENCC_SOURCE_ID, registry),
     }
+    if not source_version_overrides:
+        return provenance
+    return {
+        path: _replace_source_version(item, source_version_overrides.get(item.source_id))
+        for path, item in provenance.items()
+    }
+
+
+def _parse_hpo_terms(paths: ClinicalSourceFixturePaths) -> Mapping[str, str]:
+    if paths.hpo_terms_tsv is not None:
+        return parse_hpo_terms_tsv(paths.hpo_terms_tsv)
+    if paths.hpo_terms_json is not None:
+        return parse_hpo_terms_json(paths.hpo_terms_json)
+    raise ValueError("exactly one HPO term source must be configured")
+
+
+def _hpo_terms_path(paths: ClinicalSourceFixturePaths) -> Path:
+    return paths.hpo_terms_tsv or paths.hpo_terms_json or _missing_hpo_terms_path()
+
+
+def _missing_hpo_terms_path() -> Path:
+    raise ValueError("exactly one HPO term source must be configured")
+
+
+def _replace_source_version(
+    provenance: ClinicalTableProvenance,
+    source_version: str | None,
+) -> ClinicalTableProvenance:
+    if not source_version:
+        return provenance
+    return ClinicalTableProvenance(
+        source_id=provenance.source_id,
+        source_version=source_version,
+        checksum_algorithm=provenance.checksum_algorithm,
+        checksum=provenance.checksum,
+        relative_path=provenance.relative_path,
+    )
 
 
 def _provenance(

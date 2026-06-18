@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+from pathlib import Path
 import re
 from typing import Any, Iterable, Mapping, Protocol
 
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRecord, DataSourceRegistry
 from app.services.clinical_source_tables import (
     CLINGEN_GENE_VALIDITY_SOURCE_ID,
+    DEFAULT_CLINICAL_SOURCE_ASSET_ROOT,
     GENCC_SOURCE_ID,
     HPO_SOURCE_ID,
     MONDO_SOURCE_ID,
+    ClinicalSourceFixturePaths,
     ClinicalSourceTableStore,
     ClinicalTableProvenance,
 )
@@ -96,6 +99,8 @@ class SourceVersionRegistration:
 
 @dataclass(frozen=True)
 class ClinicalSourceImportBundle:
+    import_scope: str
+    asset_role: str
     source_versions: tuple[SourceVersionRegistration, ...]
     mondo_rows: tuple[dict[str, Any], ...]
     hpo_term_rows: tuple[dict[str, Any], ...]
@@ -199,30 +204,46 @@ class ExistingSourceAssetMetadataApplyResult:
 def build_clinical_source_import_bundle(
     *,
     fixture_store: ClinicalSourceTableStore | None = None,
+    paths: ClinicalSourceFixturePaths | None = None,
+    source_asset_root: Path | None = None,
+    source_version_overrides: Mapping[str, str] | None = None,
+    import_scope: str = "dev_fixture",
+    asset_role: str = "tier3_clinical_source_fixture",
+    production_download_used: bool = False,
     registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
 ) -> ClinicalSourceImportBundle:
-    fixture_store = fixture_store or ClinicalSourceTableStore(registry=registry)
+    if fixture_store is not None and (paths is not None or source_asset_root is not None):
+        raise SourceImportError(
+            "clinical_import_store_conflict",
+            "fixture_store cannot be combined with explicit clinical source paths",
+        )
+    if paths is None and source_asset_root is not None:
+        paths = ClinicalSourceFixturePaths.from_source_asset_root(source_asset_root)
+    fixture_store = fixture_store or ClinicalSourceTableStore(
+        paths=paths,
+        registry=registry,
+        source_version_overrides=source_version_overrides,
+    )
     provenance_by_path = {item.relative_path: item for item in fixture_store.provenance()}
     source_versions = tuple(
         _source_version_from_provenance(
             provenance,
             registry=registry,
             row_count=_row_count_for_provenance(fixture_store, provenance),
-            asset_role="tier3_clinical_source_fixture",
+            asset_role=asset_role,
             metadata={
-                "import_scope": "dev_fixture",
+                "import_scope": import_scope,
                 "relative_path": provenance.relative_path,
-                "production_download_used": False,
+                "production_download_used": production_download_used,
             },
         )
         for provenance in fixture_store.provenance()
     )
-    hpo_terms_provenance = _provenance_for_suffix(
-        provenance_by_path,
-        "hpo_terms_tiny.tsv",
-    )
+    hpo_terms_provenance = _hpo_terms_provenance(provenance_by_path)
 
     return ClinicalSourceImportBundle(
+        import_scope=import_scope,
+        asset_role=asset_role,
         source_versions=source_versions,
         mondo_rows=tuple(
             {
@@ -322,6 +343,22 @@ def build_clinical_source_import_bundle(
             }
             for record in fixture_store.gencc_records()
         ),
+    )
+
+
+def build_clinical_release_source_import_bundle(
+    *,
+    source_asset_root: Path = DEFAULT_CLINICAL_SOURCE_ASSET_ROOT,
+    source_version_overrides: Mapping[str, str] | None = None,
+    registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+) -> ClinicalSourceImportBundle:
+    return build_clinical_source_import_bundle(
+        source_asset_root=source_asset_root,
+        source_version_overrides=source_version_overrides,
+        import_scope="release_files",
+        asset_role="tier3_clinical_source_release_file",
+        production_download_used=True,
+        registry=registry,
     )
 
 
@@ -767,7 +804,9 @@ def apply_existing_source_asset_metadata_registration(
 
 def clinical_bundle_report(bundle: ClinicalSourceImportBundle) -> dict[str, Any]:
     return {
-        "mode": "tier3_clinical_source_fixture_import",
+        "mode": f"tier3_clinical_source_{bundle.import_scope}_import",
+        "import_scope": bundle.import_scope,
+        "asset_role": bundle.asset_role,
         "source_versions": [asdict(version) for version in bundle.source_versions],
         "row_counts": bundle.row_counts,
         "guardrails": _guardrails(),
@@ -842,11 +881,13 @@ def _row_count_for_provenance(
     if provenance.source_id == GENCC_SOURCE_ID:
         return len(fixture_store.gencc_records())
     if provenance.source_id == HPO_SOURCE_ID:
-        if provenance.relative_path.endswith("hpo_terms_tiny.tsv"):
+        if provenance.relative_path.endswith(("hpo_terms_tiny.tsv", "hp.json")):
             return len(fixture_store.hpo_terms())
-        if provenance.relative_path.endswith("phenotype_tiny.hpoa"):
+        if provenance.relative_path.endswith(("phenotype_tiny.hpoa", "phenotype.hpoa")):
             return len(fixture_store.hpo_disease_records())
-        if provenance.relative_path.endswith("genes_to_phenotype_tiny.txt"):
+        if provenance.relative_path.endswith(
+            ("genes_to_phenotype_tiny.txt", "genes_to_phenotype.txt")
+        ):
             return len(fixture_store.hpo_gene_records())
     raise SourceImportError(
         "unknown_clinical_provenance",
@@ -866,6 +907,21 @@ def _provenance_for_suffix(
         "clinical_provenance_missing",
         "expected clinical fixture provenance was not present",
         {"suffix": suffix},
+    )
+
+
+def _hpo_terms_provenance(
+    provenance_by_path: Mapping[str, ClinicalTableProvenance],
+) -> ClinicalTableProvenance:
+    for suffix in ("hpo_terms_tiny.tsv", "hp.json"):
+        try:
+            return _provenance_for_suffix(provenance_by_path, suffix)
+        except SourceImportError:
+            continue
+    raise SourceImportError(
+        "clinical_provenance_missing",
+        "expected HPO term provenance was not present",
+        {"suffixes": ["hpo_terms_tiny.tsv", "hp.json"]},
     )
 
 
