@@ -12,6 +12,15 @@ from app.schemas.batch import BATCH_MAX_VARIANTS, ParsedVariant
 
 DEFAULT_MAX_DECOMPRESSED_BYTES = 20 * 1024 * 1024
 _STREAM_CHUNK_BYTES = 64 * 1024
+_GVCF_SYMBOLIC_ALTS = {"<NON_REF>", "<*>"}
+_HG19_CONTIG_LENGTHS = {
+    "1": 249250621,
+    "2": 243199373,
+    "X": 155270560,
+    "Y": 59373566,
+    "M": 16571,
+    "MT": 16571,
+}
 
 
 class VcfIngestLimitError(ValueError):
@@ -73,6 +82,15 @@ def parse_vcf_lines(
         if not line:
             continue
         if line.startswith("##"):
+            unsupported_build = _unsupported_genome_build(line)
+            if unsupported_build:
+                raise VcfIngestLimitError(
+                    (
+                        "Uploaded VCF appears to use hg19/GRCh37 coordinates. "
+                        "Batch VCF lookup v1 supports hg38/GRCh38 only."
+                    ),
+                    code="vcf_unsupported_genome_build",
+                )
             continue
         if line.startswith("#CHROM"):
             saw_header = True
@@ -204,6 +222,11 @@ def _row_variants(
     sample_id, genotype = _sample_context(columns, sample_names)
     if not chrom or pos is None or not ref or not alts:
         return []
+    if any(alt in _GVCF_SYMBOLIC_ALTS for alt in alts):
+        raise VcfIngestLimitError(
+            "gVCF rows with <NON_REF> symbolic alleles are not supported. Upload a called-sites VCF.",
+            code="gvcf_not_supported",
+        )
 
     variants: list[ParsedVariant] = []
     af_values = _af_values(info.get("AF"))
@@ -211,10 +234,17 @@ def _row_variants(
         warnings = list(row_warnings)
         if len(alts) > 1:
             warnings.append("multiallelic_alt_split")
-        if not _looks_like_bases(ref) or not _looks_like_bases(alt):
+        normalized_pos, normalized_ref, normalized_alt, normalized = _normalize_alleles(
+            pos,
+            ref,
+            alt,
+        )
+        if normalized:
+            warnings.append("parsimonious_allele_normalized")
+        if not _looks_like_bases(normalized_ref) or not _looks_like_bases(normalized_alt):
             warnings.append("non_acgtn_allele_preserved")
         info_af = af_values[alt_index] if alt_index < len(af_values) else None
-        query = f"{chrom}-{pos}-{ref}-{alt}"
+        query = f"{chrom}-{normalized_pos}-{normalized_ref}-{normalized_alt}"
         variants.append(
             ParsedVariant(
                 raw=raw,
@@ -222,9 +252,9 @@ def _row_variants(
                 gene=gene,
                 variant=variant,
                 chrom=chrom,
-                pos=pos,
-                ref=ref,
-                alt=alt,
+                pos=normalized_pos,
+                ref=normalized_ref,
+                alt=normalized_alt,
                 filter=filter_value,
                 info_af=info_af,
                 source_index=source_index,
@@ -306,6 +336,64 @@ def _normalize_chrom(value: str) -> str:
     if chrom.lower().startswith("chr"):
         chrom = chrom[3:]
     return chrom.upper() if chrom.upper() in {"X", "Y", "M", "MT"} else chrom
+
+
+def _unsupported_genome_build(line: str) -> str | None:
+    text = line.strip()
+    lower = text.lower()
+    if lower.startswith("##reference=") or lower.startswith("##genome-build="):
+        if any(token in lower for token in ("grch37", "hg19", "b37")):
+            return "hg19"
+        return None
+    if not lower.startswith("##contig=<"):
+        return None
+    payload = text.split("<", 1)[1].rsplit(">", 1)[0]
+    fields = _parse_header_fields(payload)
+    assembly = str(fields.get("assembly") or fields.get("genome") or "").lower()
+    if any(token in assembly for token in ("grch37", "hg19", "b37")):
+        return "hg19"
+    contig = _normalize_chrom(str(fields.get("id") or fields.get("ID") or ""))
+    length = _positive_int(str(fields.get("length") or fields.get("Length") or ""))
+    if contig in _HG19_CONTIG_LENGTHS and length == _HG19_CONTIG_LENGTHS[contig]:
+        return "hg19"
+    return None
+
+
+def _parse_header_fields(payload: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for item in payload.split(","):
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        fields[key.strip().lower()] = value.strip().strip('"')
+    return fields
+
+
+def _normalize_alleles(pos: int, ref: str, alt: str) -> tuple[int, str, str, bool]:
+    if not (_looks_like_bases(ref) and _looks_like_bases(alt)):
+        return pos, ref, alt, False
+    normalized_pos = pos
+    normalized_ref = ref
+    normalized_alt = alt
+    changed = False
+    while (
+        len(normalized_ref) > 1
+        and len(normalized_alt) > 1
+        and normalized_ref[-1] == normalized_alt[-1]
+    ):
+        normalized_ref = normalized_ref[:-1]
+        normalized_alt = normalized_alt[:-1]
+        changed = True
+    while (
+        len(normalized_ref) > 1
+        and len(normalized_alt) > 1
+        and normalized_ref[0] == normalized_alt[0]
+    ):
+        normalized_ref = normalized_ref[1:]
+        normalized_alt = normalized_alt[1:]
+        normalized_pos += 1
+        changed = True
+    return normalized_pos, normalized_ref, normalized_alt, changed
 
 
 def _positive_int(value: str) -> int | None:

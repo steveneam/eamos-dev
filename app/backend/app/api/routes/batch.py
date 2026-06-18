@@ -47,8 +47,17 @@ async def upload_batch_file(
             max_variants=BATCH_MAX_VARIANTS,
         )
     except VcfIngestLimitError as exc:
+        status_code = (
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            if exc.code
+            in {
+                "vcf_decompressed_size_limit_exceeded",
+                "vcf_variant_count_limit_exceeded",
+            }
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status_code,
             detail=str(exc),
         ) from exc
     return BatchUploadResponse(upload_ref=upload_ref)
@@ -89,6 +98,7 @@ def _service(request: Request) -> BatchService:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Batch service is unavailable.",
         )
+    service.bind_lookup_service(getattr(request.app.state, "lookup_service", None))
     return service
 
 

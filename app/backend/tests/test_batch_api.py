@@ -1,16 +1,32 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 
 import pytest
 
 from app.schemas.batch import BatchCreateRequest, ParsedVariant
+from app.schemas.lookup import LookupResponse
+from app.schemas.run import (
+    AcmgWorksheetLedger,
+    ComputationalDeepDiveSection,
+    ComputationalPredictorRow,
+    EvidenceSourceSummary,
+    PopulationFrequencyDetail,
+    ReportPayload,
+    VariantReportHeader,
+    VariantReportProfile,
+    VariantSummaryRow,
+)
+from app.services.compact_coordinate_index import CompactCoordinateIndex
 from app.services.batch import BatchService
 from app.services.panels import PanelService
 from app.services.search_input_resolver import build_runtime_coordinate_resolver
+from app.services.vcf_ingest import read_vcf_upload_file
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
+PROJECT_100_VCF = FIXTURES_DIR / "hardening" / "project_100_mock_stack.vcf"
 
 
 def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
@@ -48,9 +64,7 @@ def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
     assert created["n_input"] == 2
     assert created["n_to_lookup"] == 1
 
-    job_response = client.get(f"/api/v1/batch/{created['job_id']}?limit=1")
-    assert job_response.status_code == 200
-    job = job_response.json()
+    job = _wait_for_http_job(client, created["job_id"], limit=1)
     assert job["status"] == "completed"
     assert job["done"] == 1
     assert job["page"] == {"limit": 1, "next_cursor": None, "total": 1}
@@ -89,7 +103,7 @@ def test_batch_inline_job_uses_compact_coordinate_index_for_cdna_rows(
 
     assert response.status_code == 200
     created = response.json()
-    job = client.get(f"/api/v1/batch/{created['job_id']}").json()
+    job = _wait_for_http_job(client, created["job_id"])
 
     assert job["results"][0]["variant_key"] == "1-68444869-T-C"
     assert "compact_coordinate_index_batch_resolution" in job["results"][0]["warnings"]
@@ -132,6 +146,23 @@ def test_batch_upload_rejects_oversized_file(auth_client) -> None:
     assert upload.status_code == 413
 
 
+def test_batch_upload_rejects_hg19_vcf_with_clear_422(auth_client) -> None:
+    hg19_vcf = (
+        "##fileformat=VCFv4.2\n"
+        "##reference=GRCh37\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        "1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
+    )
+
+    upload = auth_client.post(
+        "/api/v1/batch/uploads",
+        files={"file": ("hg19.vcf", hg19_vcf, "text/plain")},
+    )
+
+    assert upload.status_code == 422
+    assert "hg19/GRCh37" in upload.json()["detail"]
+
+
 def test_batch_upload_vcf_cleans_rows_and_filters_before_lookup(auth_client) -> None:
     messy_vcf = (
         "##fileformat=VCFv4.2\n"
@@ -164,13 +195,121 @@ def test_batch_upload_vcf_cleans_rows_and_filters_before_lookup(auth_client) -> 
     assert payload["n_input"] == 3
     assert payload["n_to_lookup"] == 1
 
-    job = auth_client.get(f"/api/v1/batch/{payload['job_id']}").json()
+    job = _wait_for_http_job(auth_client, payload["job_id"])
     assert job["n_after_filters"] == 1
     assert job["results"][0]["variant_key"] == "17-43092673-C-A"
     assert job["results"][0]["hgvs_c"] == "c.2858G>T"
     assert job["results"][0]["hgvs_p"] == "p.Cys953Phe"
-    assert job["results"][0]["gnomad_af"] == 0.01
     assert "whitespace_delimited_vcf_row_recovered" in job["results"][0]["warnings"]
+
+
+def test_batch_service_runs_lookup_in_background_and_maps_summary(tmp_path: Path) -> None:
+    lookup = _FakeLookupService(delay_seconds=0.05)
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        lookup_service=lookup,
+        max_lookup_workers=1,
+    )
+
+    created = service.create_job(
+        BatchCreateRequest(
+            variants=[
+                _parsed_variant("RPE65:c.260A>G", gene="RPE65", variant="c.260A>G", pos=10),
+                _parsed_variant("BRCA1:c.1A>C", gene="BRCA1", variant="c.1A>C", pos=11),
+            ]
+        )
+    )
+
+    queued = service.get_job(created.job_id, limit=100)
+    assert queued is not None
+    assert queued.status in {"queued", "running", "completed"}
+    assert queued.total == 2
+
+    job = _wait_for_service_job(service, created.job_id)
+    assert job.status == "completed"
+    assert job.done == 2
+    assert job.results[0].clinvar_verdict == "Likely pathogenic"
+    assert job.results[0].gnomad_af == 0.00012
+    assert job.results[0].predictor_ensemble["AlphaMissense"]["interpretation"] == "damaging"
+    assert job.results[0].acmg_classification == "Likely pathogenic"
+    assert len(lookup.calls) == 2
+
+    cached = service.create_job(
+        BatchCreateRequest(
+            variants=[_parsed_variant("RPE65:c.260A>G", gene="RPE65", variant="c.260A>G", pos=10)]
+        )
+    )
+    _wait_for_service_job(service, cached.job_id)
+    assert len(lookup.calls) == 2
+
+
+def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -> None:
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        panel_interval_index=CompactCoordinateIndex(COMPACT_INDEX_FIXTURE),
+    )
+
+    created = service.create_job(
+        BatchCreateRequest(
+            variants=[
+                ParsedVariant(
+                    query="1-68444869-T-C",
+                    chrom="1",
+                    pos=68444869,
+                    ref="T",
+                    alt="C",
+                    filter="PASS",
+                ),
+                ParsedVariant(
+                    query="7-117509068-C-T",
+                    chrom="7",
+                    pos=117509068,
+                    ref="C",
+                    alt="T",
+                    filter="PASS",
+                ),
+            ],
+            filters={"panel_slug": "inherited-retinal-disease"},
+        )
+    )
+    job = service.get_job(created.job_id, limit=100)
+
+    assert job is not None
+    assert job.status == "completed"
+    assert job.n_to_lookup == 1
+    assert job.results[0].variant_key == "1-68444869-T-C"
+    assert "panel_filter_interval_match" in job.results[0].warnings
+
+
+def test_batch_project_100_mock_vcf_uses_lookup_summary_not_info_passthrough(
+    tmp_path: Path,
+) -> None:
+    parsed = read_vcf_upload_file(PROJECT_100_VCF)
+    lookup = _FakeLookupService()
+    service = BatchService(
+        upload_dir=tmp_path,
+        panel_service=PanelService(),
+        lookup_service=lookup,
+        max_lookup_workers=3,
+    )
+
+    created = service.create_job(
+        BatchCreateRequest(
+            variants=parsed.variants,
+            filters={"panel_slug": "project-100-hardening"},
+        )
+    )
+    job = _wait_for_service_job(service, created.job_id)
+
+    assert job.status == "completed"
+    assert job.n_input == 100
+    assert job.done == 90
+    assert job.total == 90
+    assert len(lookup.calls) == 90
+    assert {result.acmg_classification for result in job.results} == {"Likely pathogenic"}
+    assert all(result.predictor_ensemble for result in job.results)
 
 
 def test_batch_unknown_upload_ref_returns_404(client) -> None:
@@ -239,14 +378,124 @@ def _valid_vcf() -> str:
     )
 
 
-def _parsed_variant(query: str, *, pos: int = 10) -> ParsedVariant:
+def _parsed_variant(
+    query: str,
+    *,
+    pos: int = 10,
+    gene: str = "BRCA1",
+    variant: str = "c.1A>C",
+) -> ParsedVariant:
     return ParsedVariant(
         query=query,
         chrom="1",
         pos=pos,
         ref="A",
         alt="C",
-        gene="BRCA1",
-        variant="c.1A>C",
+        gene=gene,
+        variant=variant,
         filter="PASS",
     )
+
+
+def _wait_for_http_job(client, job_id: str, *, limit: int = 100) -> dict:
+    deadline = time.monotonic() + 5
+    last = None
+    while time.monotonic() < deadline:
+        response = client.get(f"/api/v1/batch/{job_id}?limit={limit}")
+        assert response.status_code == 200
+        last = response.json()
+        if last["status"] in {"completed", "failed"}:
+            return last
+        time.sleep(0.02)
+    raise AssertionError(f"batch job did not finish: {last}")
+
+
+def _wait_for_service_job(service: BatchService, job_id: str):
+    deadline = time.monotonic() + 5
+    last = None
+    while time.monotonic() < deadline:
+        last = service.get_job(job_id, limit=500)
+        if last is not None and last.status in {"completed", "failed"}:
+            return last
+        time.sleep(0.02)
+    raise AssertionError(f"batch job did not finish: {last}")
+
+
+class _FakeLookupService:
+    def __init__(self, *, delay_seconds: float = 0.0) -> None:
+        self.delay_seconds = delay_seconds
+        self.calls = []
+
+    def lookup(self, request, refresh: bool = False) -> LookupResponse:
+        if self.delay_seconds:
+            time.sleep(self.delay_seconds)
+        self.calls.append(request)
+        gene = request.gene or "BATCH"
+        cdna = request.cdna or request.search_text or request.query or "c.1A>C"
+        query = f"{gene}:{cdna}" if request.gene else str(cdna)
+        variant_id = _variant_id_for_query(query)
+        return LookupResponse(
+            query=query,
+            species="human",
+            evidence=[
+                EvidenceSourceSummary(
+                    source="clinvar",
+                    status="fixture",
+                    summary={"classification": "Likely pathogenic"},
+                ),
+                EvidenceSourceSummary(
+                    source="gnomad",
+                    status="fixture",
+                    summary={"allele_frequency": 0.00012},
+                ),
+            ],
+            warnings=[],
+            report_payload=ReportPayload(
+                patient_id="batch-test",
+                report_title=query,
+                variant_summary_rows=[
+                    VariantSummaryRow(
+                        gene=gene,
+                        transcript_hgvs=cdna,
+                        protein_change="p.Arg1Gly",
+                        genomic_hg38=variant_id,
+                    )
+                ],
+                population_frequency_detail=PopulationFrequencyDetail(
+                    dataset="gnomAD r4",
+                    variant_id=variant_id,
+                    allele_frequency=0.00012,
+                ),
+                report_profile=VariantReportProfile(
+                    header=VariantReportHeader(
+                        display_name=query,
+                        gene=gene,
+                        cdna=cdna,
+                        protein_change="p.Arg1Gly",
+                        genomic_hg38=variant_id,
+                        classification="Likely pathogenic",
+                        classification_source="ClinVar",
+                    ),
+                    computational_deep_dive=ComputationalDeepDiveSection(
+                        predictors=[
+                            ComputationalPredictorRow(
+                                name="AlphaMissense",
+                                score=0.91,
+                                threshold=0.56,
+                                interpretation="damaging",
+                                source="AlphaMissense",
+                            )
+                        ]
+                    ),
+                    acmg_worksheet=AcmgWorksheetLedger(
+                        classification="Likely pathogenic",
+                        classification_source="Eamos",
+                    ),
+                ),
+            ),
+        )
+
+
+def _variant_id_for_query(query: str) -> str:
+    token = abs(hash(query)) % 100000
+    return f"1-{token + 100}-A-C"

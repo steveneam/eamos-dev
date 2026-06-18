@@ -80,3 +80,56 @@ def test_parse_vcf_upload_bytes_caps_parsed_variant_count() -> None:
         parse_vcf_upload_bytes(payload, filename="sample.vcf", max_variants=1)
 
     assert exc.value.code == "vcf_variant_count_limit_exceeded"
+
+
+def test_parse_vcf_text_rejects_hg19_reference_header() -> None:
+    with pytest.raises(VcfIngestLimitError) as exc:
+        parse_vcf_text(
+            "##fileformat=VCFv4.2\n"
+            "##reference=hg19\n"
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+            "1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
+        )
+
+    assert exc.value.code == "vcf_unsupported_genome_build"
+    assert "hg19/GRCh37" in str(exc.value)
+
+
+def test_parse_vcf_text_rejects_grch37_contig_length_header() -> None:
+    with pytest.raises(VcfIngestLimitError) as exc:
+        parse_vcf_text(
+            "##fileformat=VCFv4.2\n"
+            "##contig=<ID=1,length=249250621>\n"
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+            "1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
+        )
+
+    assert exc.value.code == "vcf_unsupported_genome_build"
+
+
+def test_parse_vcf_text_rejects_gvcf_non_ref_symbolic_alt() -> None:
+    with pytest.raises(VcfIngestLimitError) as exc:
+        parse_vcf_text(
+            "##fileformat=VCFv4.2\n"
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+            "1\t10\t.\tA\t<NON_REF>\t.\tPASS\tEND=12\n"
+        )
+
+    assert exc.value.code == "gvcf_not_supported"
+
+
+def test_parse_vcf_text_normalizes_common_indel_context() -> None:
+    parsed = parse_vcf_text(
+        "##fileformat=VCFv4.2\n"
+        "##reference=GRCh38\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        "1\t100\t.\tACGT\tACG\t.\tPASS\tGENE=BRCA1\n"
+    )
+
+    assert len(parsed.variants) == 1
+    variant = parsed.variants[0]
+    assert variant.query == "1-102-GT-G"
+    assert variant.pos == 102
+    assert variant.ref == "GT"
+    assert variant.alt == "G"
+    assert "parsimonious_allele_normalized" in variant.warnings
