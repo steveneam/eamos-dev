@@ -1,5 +1,124 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-20 04:16 +1000 - Claude - Large coordinated release shipped + deployed + prod-verified; Supabase pooler-password incident fixed
+
+Drove the commit/push/deploy with Codex (Steven coordinating).
+
+- Two commits to origin/main (clean fast-forward off `64af763`, explicit pathspecs, no `git add -A`):
+  - `1cdfed7` feat(backend): gated local-evidence runtime adapters + materialization tooling (Codex's backend lane).
+  - `2cb0fbd` feat(web): report Section 5 source governance + ACMG/viewer polish (Claude FE lane; includes Codex's 4 report-preflight fixes; `ProteinTrack.tsx` + `acmg/mock.ts` removed).
+  - `app/web` `next build` green (TypeScript + all 18 routes); the two deletions verified to leave no dangling imports.
+  - Held files left uncommitted per Codex scope: `docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`.
+- Deploy: Vercel FE prod READY (`dpl_6Wi4Ft…`, ~79s build); Render `eamos-dev-sg` redeployed via deploy hook (`dep-d8qntn…`, live, zero-downtime swap confirmed by a clean `/healthz` poll across the swap).
+- Incident (resolved): post-deploy, `POST /api/v1/lookup/summary` + `GET /api/v1/health/provider-cache` returned 500. Root cause = Steven's Supabase **session-pooler password reset** left Render's `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` stale → `FATAL: password authentication failed for user "postgres"` at `aws-1-ap-southeast-2.pooler.supabase.com:5432`, escalating to `ECIRCUITBREAKER`. `/healthz` + `/lookup/parse` stayed green (local SQLite). `supabase_local_model_cache_repo` cache reads degrade to local fallback, but the source-asset materialization read raises → 500.
+  - Fix: updated the Render env var `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` with the new pooler password (Steven-authorized; the ONLY Render env change — not a provider/flag flip) → env-triggered redeploy `dep-d8qo92…` live → re-verified green: `/healthz` 200 `mock`, `/provider-cache` 200, `/lookup/summary` 200 (full RPE65 payload).
+  - Also rotated both local `app/backend/.env` pooler passwords (Claude this machine; Codex confirmed theirs). `.env` is gitignored — not committed.
+  - Operational note: rotating the Supabase session-pooler/DB password requires updating Render `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` **and** every per-machine `app/backend/.env`; reset via the Supabase dashboard (a raw `ALTER USER` does not reliably re-sync Supavisor).
+- Follow-up (Codex, agreed): fail-open the source-asset materialization read so a future pooler outage degrades to not-ready instead of 500.
+- Guardrails held: `LLM_PROVIDER=mock`, `LOCAL_EVIDENCE_ENABLED` unchanged, no seed/materialize/startup-download, no manual bulk connector SQL.
+
+## 2026-06-19 22:44 +1000 - Codex - M12/M13 report-row wiring and PubMed eUtils key
+
+Completed locally; no push/deploy and no live Storage/Supabase/Render mutation.
+
+- Added local coordinate-key runtime readers for CI-SpliceAI score caches and
+  CAPICE feature/score caches. They read only staged local indexed artifacts
+  that pass the complete-artifact-set sidecar manifest gates.
+- Wired those readers into `ComputationalAnnotationsTool` so
+  `computational_deep_dive` emits real gene-agnostic `CI-SpliceAI` and
+  `CAPICE` predictor rows when local artifacts are present.
+- Relaxed the local predictor path to work from genomic coordinates without a
+  gene; CI-SpliceAI and CAPICE are coordinate metrics, not gene-scoped metrics.
+- Kept launch/commercial/provenance metadata on rows, health, preflight, and
+  build-ledger output. Launch gates do not hide backend/internal rows.
+- Added regression coverage for the local adapters, gene-agnostic report rows,
+  adapter reuse, health/preflight complete-artifact-set readiness, and PubMed
+  eUtils API-key propagation.
+- Activated the NCBI eUtils API key in ignored `app/backend/.env`; no key was
+  committed, and `Settings` loads it for the current PubMed path.
+- No manual bulk connector SQL, PubMed/RAG corpus materialization, ESM1b
+  materialization, provider flip, `LOCAL_EVIDENCE_ENABLED` flip, startup
+  materialization, ungated Render disk seed, or live upload/register/seed
+  occurred.
+
+Verification:
+- `python -m pytest tests/test_ci_capice_local_adapters.py tests/test_tool_invariants.py::test_computational_annotations_serializes_gene_agnostic_gated_predictor_rows tests/test_tool_invariants.py::test_computational_annotations_serializes_local_alpha_and_esm1b_rows tests/test_tool_invariants.py::test_computational_annotations_reuses_local_predictor_adapters tests/test_tool_invariants.py::test_pubmed_no_hit_miss_uses_empty_raw tests/test_health_api.py::test_provider_cache_health_reports_ready_admin_predictors_without_paths tests/test_frontend_contract.py::test_computational_predictor_calibration_contract_uses_ramp_verdict -q`
+- `python -m pytest tests/test_variant_report_orchestration.py tests/test_lookup_section_fetch_contract.py tests/test_report_call_cards.py tests/test_tool_invariants.py -q`
+- `python -m pytest tests/test_predictor_lane_scaffolds.py tests/test_predictor_runtime.py -q`
+- `python -m pytest tests/test_source_asset_preflight_cli.py -q --durations=11`
+- `python -m pytest tests/test_publication_literature.py::test_pubmed_variant_no_hit_keeps_gene_scope_out_of_variant_articles -q`
+- `python -m ruff check app/services/ci_spliceai.py app/services/capice.py app/tools/computational_annotations.py tests/test_ci_capice_local_adapters.py tests/test_tool_invariants.py tests/test_health_api.py`
+- `python -m black --check --target-version py310 app/services/ci_spliceai.py app/services/capice.py app/tools/computational_annotations.py tests/test_ci_capice_local_adapters.py tests/test_tool_invariants.py tests/test_health_api.py`
+- `git diff --check`
+
+## 2026-06-19 20:45 +1000 - Codex - Build-ledger M10 MaveDB CC0 code gate
+
+Completed locally; no push/deploy and no live Storage/Supabase/Render mutation.
+
+- Added `eamos_mavedb_local_materialize`, a guarded offline MaveDB CC0 JSONL to
+  SQLite materializer with sanitized manifest output and logical SHA256 checks.
+- Added MaveDB runtime settings, provider-cache/source-preflight/build-ledger
+  readiness, and functional-evidence integration. MaveDB hits are exposed as
+  uncurated functional studies with public score/accession fields only; no
+  PS3/BS3 assertion or ACMG verdict semantics are introduced.
+- Wired the existing `/report` MaveDB block to show live local MaveDB CC0 hits
+  when present and keep its current mock MAVE/OddsPath display only as the
+  no-data fallback.
+- Isolated backend tests from workstation Supabase local-model-cache env values
+  so health checks do not attempt remote pooler probes unless a test opts in.
+- Reviewed M11/M12/M13: ESM1b remains blocked on the private MIT-regenerated
+  score CSV; CI-SpliceAI and CAPICE remain complete-artifact-set gated.
+- No M7 upload/register/seed, M8 dbSNP seed, M9 local-evidence gate flip,
+  PubMed/RAG, ESM1b materialization, provider/env flip, startup materialization,
+  manual bulk connector SQL, or partial Claude-summary action occurred.
+
+Verification:
+- `python -m black --check --target-version py310 app/services/mavedb_local.py app/services/functional_evidence.py app/cli/eamos_mavedb_local_materialize.py app/core/config.py app/schemas/run.py app/api/routes/health.py app/cli/eamos_source_asset_preflight.py app/services/build_ledger.py tests/test_mavedb_local.py tests/test_functional_evidence.py tests/test_health_api.py tests/conftest.py`
+- `python -m ruff check app/services/mavedb_local.py app/services/functional_evidence.py app/cli/eamos_mavedb_local_materialize.py app/core/config.py app/schemas/run.py app/api/routes/health.py app/cli/eamos_source_asset_preflight.py app/services/build_ledger.py tests/test_mavedb_local.py tests/test_functional_evidence.py tests/test_health_api.py tests/conftest.py`
+- `python -m pytest tests\test_mavedb_local.py tests\test_functional_evidence.py tests\test_predictor_lane_scaffolds.py tests\test_variant_cache.py -q`
+- `python -m pytest tests\test_health_api.py -q`
+- `python -m pytest tests\test_source_asset_preflight_cli.py -q`
+- `python -m pytest tests\test_frontend_contract.py -q`
+- `npx eslint components/report/MaveFunctionalBlock.tsx components/report/ReportClient.tsx`
+- `npx tsc --noEmit`
+
+## 2026-06-19 19:38 +1000 - Codex - Build-ledger M7 RepeatMasker production compact index
+
+Completed a local-only production build for the M7 RepeatMasker runtime index;
+no push/deploy.
+
+- Re-ran the resume handoff: read `AGENTS.md`, handoff files, `MEMORY.md`, and
+  backend build-ledger plans; fetched origin; `main` is ahead of `origin/main`
+  by 5 with the M5/M7 backend tree still uncommitted.
+- Confirmed preferred M5 remains live-gated: Supabase metadata shows the
+  phyloP BigWig is approved/private with SG materialization still
+  `not_materialized` / `render_disk_seed_not_performed`; live SG health remains
+  `LLM_PROVIDER=mock`, and provider-cache still reports phyloP and RepeatMasker
+  as `source_ready_for_materialization`.
+- Built the approved staged RepeatMasker source
+  `app/backend/data/source_assets/repeatmasker_rmsk_bb/rmsk.txt.gz` into
+  `.scratch/repeatmasker-compact-index/repeatmasker.interval-index.jsonl`.
+- Source identity: size `155633856`, MD5
+  `b2e108b535550ba9e3cf83c77417380f`, SHA256
+  `db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276`.
+- Derived compact artifact: schema `eamos.repeatmasker.interval_index.v1`,
+  `5683690` intervals, size `701514606`, SHA256
+  `6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98`.
+- Wrote the exact private M5 Render Shell seed command to ignored local note
+  `.scratch/m5-phylop-render-seed-command.local.md`; tracked docs do not emit
+  the private object URI.
+- No live Render seed, Supabase write, Storage upload, provider/env flip,
+  `LOCAL_EVIDENCE_ENABLED` flip, startup materialization, PubMed/RAG, ESM1b, or
+  manual bulk connector SQL occurred.
+
+Verification:
+- `python -m app.cli.eamos_repeatmasker_compact_index_build --source-rmsk-path data\source_assets\repeatmasker_rmsk_bb\rmsk.txt.gz --output ..\..\.scratch\repeatmasker-compact-index\repeatmasker.interval-index.jsonl --require-ready --compact`
+- `REPEATMASKER_RUNTIME_INDEX_PATH=<scratch artifact> python -m app.cli.eamos_source_asset_preflight --compact` reported
+  `repeatmasker_local_adapter.status=ready`, `fixture_default_used=false`,
+  `source_runtime_scan_allowed=false`, and no path/secret emission.
+- `python -m pytest tests\test_repeatmasker_local_adapter.py tests\test_indexed_source_readers.py tests\test_source_asset_preflight_cli.py -q`
+- `python -m pytest tests\test_health_api.py::test_provider_cache_health_reports_local_evidence_runtime_assets_without_paths -q`
+
 ## 2026-06-16 18:44 +1000 - Codex - Epic A A9 workflow/run-chat deadlines
 
 Completed locally; no push/deploy.

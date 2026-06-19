@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-18 21:24 +1000 - Planning turn only (NO code/state change): at Steven's request, drafted a Codex 2-day priority plan (CAR below) to unblock Claude's Batch + literature-RAG lanes. The AI-gateway report-chat enablement is still the queued Claude task (runbook in `~/.claude/plans/next-session-eamos.md`), deferred this turn. `LLM_PROVIDER=mock` unchanged; no source files touched; held files still excluded. PRIOR (still true): Shipped Batch + workbench FE; planned AI-gateway report-chat enablement for NEXT session (Steven granted Claude BE+FE charge for it; Codex stays on Tier-2). PUSHED to origin/main (Vercel auto-deploy): `af17fdb` Batch state unification + paper rail parity + global-error redesign; `505250b` per-source provenance for Batch cohorts; `ebbfea3` workbench rail names the active tool + tool-scoped Ask Eamos (rail-head Library⇄Ask Eamos toggle w/ active-tool label, persistent "<tool> expert" persona pill, Scratchpad→Log+Notes, Primer/CRISPR "AI assist" sections retired). All FE-only, build+tsc+eslint green, browser-verified. `LLM_PROVIDER=mock` (unchanged); held files still excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); Codex's Tier-2 ESM1b tree untouched. Dev server STOPPED. NEXT = AI-gateway report-chat enablement (full runbook in `~/.claude/plans/next-session-eamos.md`): gateway+RAG already built/inert, enable locally→gated demo, 1-chat/day dev cap, report-payload grounding first then literature RAG (Codex Tier-1 corpus). Detail → `~/.claude/plans/next-session-eamos.md`.
+- **Claude:** IDLE @ 2026-06-20 04:16 +1000 - Drove the large coordinated release commit/push/deploy with Codex. Shipped to origin/main (clean fast-forward off `64af763`, explicit pathspecs, no `git add -A`): `1cdfed7` feat(backend) gated local-evidence runtime adapters + materialization tooling (Codex lane) + `2cb0fbd` feat(web) report Section 5 source governance + ACMG/viewer polish. Vercel FE prod READY; Render `eamos-dev-sg` redeployed live. Post-deploy 500s on `/lookup/summary` + `/health/provider-cache` traced to Steven's Supabase **session-pooler password reset** (stale Render `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL`) → fixed by updating that Render env var (Steven-authorized; the ONLY env change, not a flag flip) + both local `app/backend/.env`s (Claude this machine; Codex confirmed theirs); re-verified green (`/healthz`, `/provider-cache`, `/lookup/summary` RPE65 all 200). Held files still excluded + uncommitted (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs). `LLM_PROVIDER=mock` + `LOCAL_EVIDENCE_ENABLED` unchanged; no seed/materialize/startup-download. Codex owns a follow-up hardening patch (fail-open the source-asset materialization read). NEXT = AI-gateway report-chat enablement (runbook `~/.claude/plans/next-session-eamos.md`). Detail → PROGRESS.md + next-session-eamos.md.
 
 
-- **Codex:** IDLE @ 2026-06-19 03:35 +1000 - Build-ledger materialization M3 release-file importer checkpoint complete locally and ready to commit: release-file planning uses staged MONDO/HPO/ClinGen/GenCC source assets and verified full row counts; local `.env` now has the private Postgres DB URL gate, but the committed importer apply path timed out to the Supabase pooler before writes. Live `eamos_private` clinical tables remain fixture-scale by connector readback. No manual bulk SQL, Render disk seed, env/provider flip, local evidence enablement, PubMed/RAG, or ESM1b work.
+- **Codex:** IDLE @ 2026-06-20 00:17 +1000 - Full variant report scan/view-metric slice complete locally: report header and WorkRail related variants display backend-backed view counts/update dates via public, rate-limited aggregate view endpoints; offline fixtures skip view-metric API calls. Active report/ACMG mock markers and dead mock fixtures were removed; unused `ProteinTrack.tsx` and `app/web/lib/acmg/mock.ts` deleted. Protein view browser-verified; corrected fixture preflight clean at 390/768; Ask-Eamos mock CLI/tests, project-100 stack, frontend lint, focused backend tests, diff-check, and graphify update passed. M12/M13 CI-SpliceAI/CAPICE state unchanged: rows appear only when complete local artifacts exist. PubMed key remains only in ignored `.env`; `LLM_PROVIDER=mock`; no live seed/upload/write/provider flip/local-evidence flip/startup materialization.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-19 03:35 +1000 - Codex (M3 DB URL/network checkpoint docs complete)
+UNLOCKED - 2026-06-20 04:18 +1000 - Claude (large-release deploy + Supabase pooler-password fix closeout complete)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +34,68 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/web/components/report/ReportClient.tsx`,
+`app/web/components/report/VariantHeader.tsx`,
+`app/web/components/report/RelatedVariants.tsx`,
+`app/web/components/report/VariantLibraryRail.tsx`,
+`app/web/components/report/MaveFunctionalBlock.tsx`,
+`app/web/components/report/LossOfFunctionBlock.tsx`,
+`app/web/components/report/CalibratedInSilicoTable.tsx`,
+`app/web/components/report/AfThermometer.tsx`,
+`app/web/components/report/GeneDiseaseBlock.tsx`,
+`app/web/components/layout/WorkRail.tsx`,
+`app/web/components/layout/work-rail.css`,
+`app/web/components/ui/Card.tsx`,
+`app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`,
+`app/web/lib/report-views.ts`,
+`app/web/app/api/v1/library/views/[...query_id]/route.ts`,
+`scripts/eamos-report-preflight.mjs`,
+`app/backend/app/api/routes/variant_library.py`,
+`app/backend/app/repos/variant_library_repo.py`,
+`app/backend/app/services/variant_library.py`,
+`app/backend/app/schemas/variant_library.py`,
+`app/backend/app/repos/supabase_local_model_cache_repo.py`,
+`app/backend/app/tools/gene_disease.py`, and focused tests) at
+2026-06-20 00:17 +1000 after full variant report mock/unwired metric scan,
+view-count/update-date wiring, protein-view browser verification, fixture
+preflight hardening, and focused verification.
+
+**Codex RELEASED** (`app/backend/app/services/predictor_runtime.py`,
+`app/backend/app/services/ci_spliceai.py`,
+`app/backend/app/services/capice.py`,
+`app/backend/app/tools/computational_annotations.py`,
+`app/backend/tests/test_ci_capice_local_adapters.py`,
+`app/backend/tests/test_tool_invariants.py`,
+`app/backend/tests/test_health_api.py`,
+`docs/backend-build-ledger-runtime/plan.md`,
+`docs/backend-build-ledger-runtime/materialization-plan.md`, and
+handoff/progress docs) at 2026-06-19 22:44 +1000 after M12/M13
+CI-SpliceAI/CAPICE local coordinate reader and report-row wiring, plus PubMed
+eUtils key setup in ignored `.env`; focused verification passed.
+
+**Codex RELEASED** (`app/backend/app/services/predictor_runtime.py`,
+`app/backend/tests/test_predictor_runtime.py`,
+`app/backend/tests/test_source_asset_preflight_cli.py`,
+`docs/backend-build-ledger-runtime/plan.md`, and
+`docs/backend-build-ledger-runtime/materialization-plan.md`) at
+2026-06-19 21:59 +1000 after M12/M13 CI-SpliceAI/CAPICE runtime manifest
+readiness gate and design note; focused verification passed.
+
+**Codex RELEASED** (`app/backend/app/schemas/run.py`,
+`app/backend/app/services/mavedb_local.py`,
+`app/backend/app/services/functional_evidence.py`,
+`app/backend/app/api/routes/health.py`,
+`app/backend/app/services/build_ledger.py`,
+`app/backend/app/core/config.py`,
+`app/backend/app/cli/eamos_source_asset_preflight.py`,
+`app/web/components/report/MaveFunctionalBlock.tsx`,
+`app/web/components/report/ReportClient.tsx`,
+`app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`,
+MaveDB/functional-evidence focused backend/frontend contract tests, and
+`docs/backend-build-ledger-runtime/plan.md`) at 2026-06-19 20:43 +1000 after
+M10 MaveDB CC0 local materialization/report code gate; focused verification
+passed.
 
 **Codex RELEASED** (`app/backend/app/services/esm1b_assembly.py`,
 `app/backend/app/services/esm1b_local.py`, `app/backend/app/services/predictor_runtime.py`,
@@ -141,6 +203,21 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [DONE] Steven->Claude (2026-06-20 04:16 +1000): **Drove the large coordinated commit/push/deploy with Codex.** `1cdfed7` (backend local-evidence runtime, Codex lane) + `2cb0fbd` (web Section 5 governance + ACMG/viewer polish) pushed to origin/main (clean FF, explicit pathspecs, held files excluded); Vercel FE READY + Render eamos-dev-sg redeployed live. Post-deploy pooler-auth 500s fixed by updating Render `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` after Steven's Supabase session-pooler password reset (Steven-authorized; only env change) + both local `.env`s; re-verified green. - this closeout
+
+- [OPEN] Claude->Codex (2026-06-20 04:16 +1000): **Backend hardening follow-up (Codex agreed).** Wrap the source-asset materialization read in `app/backend/app/repos/supabase_local_model_cache_repo.py` in the same fail-open → sanitized-not-ready/local-fallback path the cache reads already use, so a Supabase pooler auth/network failure degrades to "not ready" instead of 500ing `/lookup/summary` + `/health/provider-cache`. Matches the fail-closed intent in the build-ledger guardrails. - post-closeout backend patch
+
+- [OPEN] Codex->Claude (2026-06-19 18:47 +1000): **Build-ledger M-lane status if Claude helps.**
+  M3 importer apply is code-backed but blocked only by this workstation's TCP path to the Supabase
+  pooler; do not bulk-load the ~666k clinical rows through connector SQL. M4 runtime probes are
+  code-ready. M5 code gate is ready via `eamos_local_evidence_runtime_seed` for one local-evidence
+  role at a time; phyloP is tested for local operator file, Supabase REST, and S3-compatible private
+  Storage seed flows. No live Render seed/env/provider/`LOCAL_EVIDENCE_ENABLED` flip happened.
+  Help if you take it: from a reachable host/operator context, either run the M3 importer apply or
+  run the M5 phyloP seed command in `docs/backend-build-ledger-runtime/plan.md` with the private
+  source URI + expected identity, then SG provider-cache + targeted lookup/report conservation smoke.
+  Keep `LLM_PROVIDER=mock`; PubMed/RAG and ESM1b remain gated. - docs/backend-build-ledger-runtime/plan.md M3-M5
 
 - [OPEN] Claude->Codex (2026-06-18 21:24 +1000): **Codex 2-day priority plan (Steven-requested) —
   unblock Claude's Batch + literature-RAG lanes.** Priority order:
@@ -333,60 +410,17 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-18 00:49 +1000 - Claude - Batch+workbench FE shipped; AI-gateway report-chat enablement planned for next session):**
-Shipped three FE commits to origin/main (Vercel auto-deploy), all FE-only + build/tsc/eslint green + browser-verified:
-- `af17fdb` Batch state unification + paper rail parity + global-error redesign.
-- `505250b` per-source provenance for Batch cohorts (sources bar: per-source chips, add/remove, start over, view-pasted-text).
-- `ebbfea3` **workbench rail names the active tool + tool-scoped Ask Eamos** — rail-head Library⇄Ask Eamos toggle whose Library segment shows the active tool (icon+name, new `WorkRail.titleIcon`); new `WorkbenchAiPanel` with a persistent "<tool> expert" persona pill (Sequence/Primer/CRISPR/Alignment) + per-tool intro/suggestions, coming-soon gated; Scratchpad → Log+Notes (Ask tab removed); Primer/CRISPR "AI assist" sections retired (chips became the scoped suggestions). Browser-verified: head relabels Sequence→Primer, persona re-scopes, Ask mode persists across tool switch.
+**Latest (2026-06-20 04:16 +1000 - Claude - large coordinated release shipped + deployed + prod-verified; Supabase pooler-password incident fixed):**
+Drove the commit/push/deploy with Codex. Two commits to origin/main (clean fast-forward off `64af763`, explicit pathspecs, no `git add -A`):
+- `1cdfed7` feat(backend): gated local-evidence runtime adapters + materialization tooling (Codex's backend lane — ClinVar/ClinGen/MAVEDB/RepeatMasker local readers, ESM1b MANE contexts, restricted predictors REVEL/PrimateAI-3D, build_ledger, config/.env, new CLIs/services + tests, build-ledger docs).
+- `2cb0fbd` feat(web): report Section 5 source governance + ACMG/viewer polish (DiseaseValidityDashboard + library views route + report-views; ProteinTrack.tsx + acmg/mock.ts removed; Codex's 4 report-preflight fixes). app/web `next build` green (TS + 18 routes).
+Held files still excluded + uncommitted: docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs.
+Deploy: Vercel FE prod READY (`dpl_6Wi4Ft…`); Render eamos-dev-sg redeployed live (`dep-d8qntn…`).
+**Incident (resolved):** post-deploy, `/lookup/summary` + `/health/provider-cache` 500'd → Steven's Supabase session-pooler password reset left Render's `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` stale (`password authentication failed for user "postgres"` → ECIRCUITBREAKER). `supabase_local_model_cache_repo` cache reads fail-open (local fallback) but the source-asset materialization read raises → 500. Fixed: updated the Render env var (Steven-authorized; ONLY env change, not a flag flip) → redeploy `dep-d8qo92…` live → re-verified green (`/healthz`, `/provider-cache`, `/lookup/summary` RPE65 200). Also rotated both local `app/backend/.env`s (Claude this machine; Codex confirmed theirs). `LLM_PROVIDER=mock` + `LOCAL_EVIDENCE_ENABLED` unchanged; no seed/materialize/startup-download.
 
-**NEXT SESSION (Steven granted Claude BE+FE charge; Codex stays on Tier-2): AI-gateway report-chat enablement.**
-Key finding from this session's research: the gateway + RAG are **already built and inert** (`ai_gateway/{engine,guard,retrieval,structured}.py`, `chat_service.py`, FE `AskEamos`). Real on/off = backend `LLM_PROVIDER` (NOT the FE flag). Decisions LOCKED (Steven 2026-06-18): (1) enable surfaces left-to-right, **report chat first**; (2) Vercel-credit billing, **$5 credit, key already minted + in env — NO re-mint**; (3) build/iterate **locally** (fake_gateway.py, $0 unlimited) → gated demo on the **shared Render backend + a 1-chat/day global dev cap** (Steven's "1/day" = dev guardrail, not a launch limit); (4) **report-payload grounding FIRST** (no corpus needed), literature RAG added when Codex's Tier-1 corpus lands; (5) RAG store **stays local sqlite-vec** (swappable seam → pgvector only if multi-instance scaling arrives). Full step-by-step runbook in `~/.claude/plans/next-session-eamos.md`.
+**NEXT SESSION (still queued; Steven granted Claude BE+FE charge; Codex on Tier-2): AI-gateway report-chat enablement.** Gateway + RAG already built/inert (`ai_gateway/{engine,guard,retrieval,structured}.py`, `chat_service.py`, FE `AskEamos`); real on/off = backend `LLM_PROVIDER`. Decisions LOCKED (Steven 2026-06-18): report chat first; $5 Vercel credit, key minted + in env (no re-mint); build locally (fake_gateway.py) → gated demo on shared Render + 1-chat/day dev cap; report-payload grounding FIRST then literature RAG (Codex Tier-1 corpus); RAG stays local sqlite-vec. Full runbook in `~/.claude/plans/next-session-eamos.md`; the detailed AI-gateway resume prompt is retained below (note: after this session origin/main == local, no longer ahead 5).
 
---- Older Epic-A (A1–A12, A10, A11) detail below is HISTORICAL (all shipped + on prod 2026-06-16). ---
-
---- A11 detail (closed earlier this session, doc-only): Closed A11 with
-`docs/stability-audit/a11-render-budget.md` — grounded the OOM/concurrency safety budget in MEASURED
-prod RSS (Render MCP) and recorded the sizing decisions. **KEEP Standard 2 GB** (idle ~0.57 GB / 2 GB ~27% post-A1–A9; OOM'd instance hit
-2.07 GB on 06-15; heavy compute off the request path — all guards already enforced by Codex
-A1/A2: cache-or-fail-closed `allow_run=False`, `BoundedSemaphore(1)`, `RLIMIT_AS` 1536 MB,
-residue cap 5000-safe-on-0, 20 MB upload + 20 MB gzip-decompress ceilings, batch LRU 128/256
-TTL 3600s). **KEEP 60 GB disk** (right-sized: ~5–6 GB / 60 GB ~10% today, but durable Supabase
-holds dbSNP ~29.6 GB + phyloP ~9.9 GB → full local-first stack ~50–55 GB; Render disks can't
-shrink). Doc adds a product-value materialization sequencing lens (Tier 1 ClinGen+PubMed/RAG →
-Tier 2 predictor caches → Tier 3 dbSNP/phyloP) referencing Codex's `materialization-plan.md`.
-One residual = server-side viewer window-width ceiling is FE-only (A10) today → Codex follow-up,
-non-blocking. Answered Steven live: full Render account = 1 web svc (Standard 2 GB) + 60 GB disk,
-no Postgres/KV, ≈$40/mo list. **No code/backend/infra change**; `LLM_PROVIDER=mock`; held files
-excluded. NEXT = A12 (Codex, build-time) + Tier-1 materialization (Codex lane + gated offline
-downloads). Prior milestone (A10 FE virtualization, commit `858a036`, Vercel
-`dpl_5g1mV9EhYnz8i7cyrMwarnMw9KWr`) detail retained below for context:
-
-**Prior (2026-06-16 20:42 +1000 - Claude - Epic A A10 (FE virtualization) shipped):**
-Implemented + shipped A10, the last request-reachable (FE browser-crash) item of the
-stability epic. Commit `858a036` (FE-only, 5 files), pushed, Vercel auto-deploying
-(`dpl_5g1mV9EhYnz8i7cyrMwarnMw9KWr`, BUILDING at push time — confirm READY + spot-check).
-- **FullLocusViewer** windowed (fixed-height virtual scroller; only on-screen rows mount)
-  + `.fl-scroller` gains a viewport `max-height` so the full-gene locus scrolls in its own
-  pane — **Steven-approved** visible change (virtualization is impossible without a bounded
-  viewport; the scroller was already built for internal scroll). Live-verified RPE65
-  full-gene: 265 rows / 21,200 base-spans → **~54 rows / ~4,300 mounted**; scroll shifts the
-  window, variant row mounts + highlights, exon/intron banding intact. CFTR (~3,150 rows) =
-  same bounded path → no crash.
-- **ReportGeneViewer** AlphaMissense band → ≤800 mean-score bins (was ~5,200 rect+title per
-  residue); ≤800-aa proteins unchanged. Node-proven (533→identical, 5,202→≤800, averaging,
-  ends, variant sums). On-screen long-protein heatmap is a post-deploy spot-check (RPE65
-  fixture has no AM data; the local dev server's prod API proxy was 5xx-ing on
-  `/lookup/sections`).
-- **CodonDetail** O(n²) per-render scans hoisted to parent useMemo Set/Map (search
-  window-string + clinvar/oligo/qIdx `flat.findIndex`) → O(1) per base.
-- **SequenceViewerV2** `onRestrictionSelect` → useCallback (blocksEqual holds during drags).
-Verified: tsc + eslint green; 33/33 Node logic-equivalence checks; live browser pass.
-Minor follow-up: full-locus auto-scroll targets model `variantRowIndex` (≈223) but the
-variant pin is on row ≈200 — pre-existing adapter mismatch, unchanged from the original;
-log for the adapter owner.
-**Commit status (UPDATE 2026-06-16 22:30):** Claude drove the coordinated commit as commit-driver —
-Codex's A2+A12 backend tree is now committed (`a8710cf`) + deployed (`dep-d8ok50kvikkc73f8elhg`
-live + verified) + the A11 doc/handoff/graphify in the following docs commit. No longer uncommitted.
+--- Older Epic-A (A1-A12) + A10/A11 closeout detail archived 2026-06-20 -> `agent_handoff/archive/2026-06-20-claude-lasttask-trim.md` (all shipped + on prod 2026-06-16; full detail in git history + `~/.claude/plans/next-session-eamos.md`). ---
 
 **Resume prompt:**
 ```
@@ -397,103 +431,45 @@ Task (Steven's decisions LOCKED 2026-06-18): enable the /report variant chat, re
 Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; claim Shared File Locks on config.py/main.py before editing; coordinate via Log Edit-Lock (Codex on Tier-2 esm1b_* — different files); held files stay excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); deploy from repo root never app/web; do NOT flip prod to gateway (security gate: per-user budget + auth still pending). End clear-safe.
 ```
 
-<!-- history below: 2026-06-16 19:46 A1–A9 (shipped 0a209a1); then 1e86a78 deploy-recovery + incident (resolved) -->
-**Latest (2026-06-16 19:46 +1000 - Claude - Epic A A1–A9 shipped + prod-verified):**
-Adversarially re-reviewed Codex's Epic A A1–A9, ran backend pytest GREEN, committed `0a209a1`,
-pushed, deployed Render SG + Vercel, live-verified prod (USH2A `cache_hit`/248 features ~571 MB;
-A2 unauth batch upload → 401). Full detail in `~/.claude/plans/next-session-eamos.md`.
-
-<!-- history below: 1e86a78 deploy-recovery + incident (now resolved; A1–A9 superseded it) -->
-**Latest (2026-06-15 22:16 +1000 - Claude - deploy recovery + OPEN prod incident):**
-Recovered the dropped-webhook Vercel deploy of Codex's `1e86a78`, then discovered `1e86a78`
-is a degraded prod release.
-- **Deploy recovery (DONE):** `1e86a78` never auto-deployed to `eamos-dev` (one-off dropped
-  GitHub->Vercel webhook; auto-deploy otherwise healthy). Re-triggered via `50d9dc8` (handoff +
-  `app/web/.gitignore` ignores `.vercel`) -> Vercel built `dpl_8Hced...` READY, aliased to
-  `eamos-dev.vercel.app` (200), carrying `1e86a78`'s `ReportGeneViewer.tsx`. Removed the stray
-  local `app/web/.vercel` link and **deleted the wrong `web` Vercel project** (Steven OK; Codex's
-  manual `vercel --prod` from `app/web` had gone there, to `web-beryl-delta-96`, never the real
-  domain). `vercel project ls` -> only `eamos-dev`. **Always deploy from repo root, never `app/web`.**
-- **OPEN INCIDENT (next session):** `1e86a78` reached Vercel prod for the first time and showed
-  two regressions, both backend-rooted: (1) **Render SG OOM >2GB** (instance 8wqsn, 22:00, on the
-  USH2A 5,202 aa protein annotation via the reworked `protein_annotation.py` - inefficient/leak);
-  (2) **protein features missing** vs Codex's earlier "50 blocks/248 hits" because the new
-  UniProt-first path needs `uniprot_features_enabled` + a seeded Render feature index, both
-  off/not-ready. Full write-up: RISKS.md top section (committed `814c1fd`).
-- **Steven deferred the fix to next session + authorized Claude CROSS-LANE** (backend + frontend +
-  Render/Vercel) to fix it. Prod left on `1e86a78` (degraded). Rollback-first is a valid opener
-  (Vercel target `dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc` = `1c2df8b`).
-- Guardrails held: `LLM_PROVIDER=mock`; no Supabase apply / provider flip; held files excluded
-  (`docs/proprietary/eamos-ai-gateway.md`, `scripts/eamos-encoding-scan.mjs`, `graphify-out/2026-06-15/`).
-
-**Next (priority):**
-1. **Fix the `1e86a78` regression** (cross-lane authorized): profile + fix `protein_annotation.py`
-   memory on large proteins (USH2A); fix the flag-off fallback so the full Pfam/HMMER architecture
-   shows (no feature loss), OR provision+seed the Render UniProt index + flip the flag. Coordinate
-   with Codex (locks). Then redeploy (Render hook + Vercel) and live-verify USH2A.
-2. If the fix isn't quick, **roll back first** (Vercel `1c2df8b` + Render pre-`1e86a78`) to restore
-   the verified-good protein architecture, then fix offline.
-3. Backlog: genomic view Section 4 (not started); graphify semantic pass; B1 forest/B7 beeswarm.
-
-**Resume prompt:**
-```
-# Resume prompt - 2026-06-15 23:30 +1000 - Claude (1e86a78 incident RESOLVED + verified on prod)
-# NOTE: the 1e86a78 fix task in the body below is DONE (Codex shipped a9de024/dd3b71d; Claude verified live on SG at 23:30 - USH2A 200 cache_hit/248 hits, memory flat ~1.21GB, no OOM). Do NOT re-fix. Next work = backlog: genomic view Section 4, a backend hmmscan e-value/overlap threshold (raw 248 hits incl. cross-fold noise), graphify semantic pass. START HERE = ~/.claude/plans/next-session-eamos.md (✅ RESOLVED section). Body kept verbatim for history:
-# --- historical resume prompt (1e86a78 fix, now complete) ---
-# Resume prompt - 2026-06-15 22:16 +1000 - Claude (OPEN prod incident: fix 1e86a78, cross-lane authorized)
-Eamos. Open from D:\eamos. Read ~/.claude/plans/next-session-eamos.md (START HERE) + agent_handoff/CURRENT.md (## Active Status + ## Log Edit-Lock + ## Current State + ## Claude; protocol -> README.md) + agent_handoff/RISKS.md (TOP section = the 1e86a78 incident). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
-Context: Tonight Claude recovered a dropped-webhook Vercel deploy of Codex's 1e86a78 (re-triggered via 50d9dc8 -> live on eamos-dev.vercel.app), removed the stray app/web/.vercel link, and deleted the wrong `web` Vercel project (Steven OK). But 1e86a78 reached prod for the first time and is DEGRADED: (1) Render SG OOM >2GB on the USH2A protein annotation (reworked protein_annotation.py - inefficient/leak), and (2) protein features missing because the new UniProt-first path needs uniprot_features_enabled + a seeded Render feature index, both off/not-ready. Full detail in RISKS.md (committed 814c1fd).
-Task: FIX the 1e86a78 regression. STEVEN AUTHORIZED CLAUDE CROSS-LANE this session - drive backend + frontend + web server (Render + Vercel). Plan: reproduce USH2A locally + watch RSS; fix protein_annotation memory (stream/cap, no whole-payload buffering); make flag-off fall back to full Pfam/HMMER architecture without dropping features OR provision+seed the Render UniProt index (pre-seed, no startup-download) + flip the flag; verify (pytest + local browser); deploy Render via .render-deploy-hook + Vercel auto on push; live-verify USH2A full architecture + no OOM under load. Rollback-first is a valid opener if the fix isn't quick (Vercel dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc = 1c2df8b; Render pre-1e86a78). COORDINATE with Codex (Log Edit-Lock + Shared File Locks; he got the same handoff - don't double-drive app/backend/**). Guardrails: never cd (git -C / npm --prefix), explicit pathspecs never git add -A, LLM stays mock, no Supabase apply/provider flip without Steven, held files (ai-gateway doc, encoding-scan, graphify-out/2026-06-15) stay excluded, deploy from repo root never app/web. End clear-safe.
-```
+<!-- Historical 2026-06-15/16 Latest narratives + resume prompts (A1-A9 0a209a1; 1e86a78 deploy-recovery + incident, resolved) archived 2026-06-20 -> `agent_handoff/archive/2026-06-20-claude-lasttask-trim.md`. -->
 
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-19 03:35 +1000 - Codex.
+Section last edited: 2026-06-20 00:17 +1000 - Codex.
 
-**Latest Codex update (2026-06-19 03:35 +1000 - Codex):**
-Completed build-ledger materialization M3 release-file importer checkpoint
-locally.
+**Latest Codex update (2026-06-20 00:17 +1000 - Codex):**
+Full variant-report scan/view-metric slice is complete locally. The report
+header now shows backend-backed view count and report update date; WorkRail
+related variant rows fetch/display their own per-variant view count and
+last-viewed update date from the same aggregate metric path. The backend exposes
+public, length-validated, rate-limited `GET`/`POST /api/v1/library/views/{query}`
+over aggregate `variant_view_count`; saved-library CRUD remains authenticated,
+and Supabase writes stay service-role/RPC only. Offline fixtures skip the
+view-metric API so browser/preflight checks do not need a backend. Active
+report/ACMG mock markers and dead report fixtures were removed; unused
+`app/web/lib/acmg/mock.ts` and `app/web/components/report/ProteinTrack.tsx` were
+deleted. Protein architecture view was browser-verified; the report preflight
+URL parser was fixed and the fixture report is clean at 390/768 with no console
+errors/overflow offenders. Ask-Eamos mock CLI and chat tests passed; live CLI
+correctly skipped with `LLM_PROVIDER=mock`. Project-100 stack, focused backend
+tests, frontend lint, diff-check (only LF/CRLF warnings), active report mock
+scan, and graphify update passed.
 
-Completed:
-- M0/M1/M2 were already committed locally (`21f72fe`, `cc9c349`).
-- Added release-file planning to `eamos_source_import` with
-  `--clinical-release-files`, staged clinical source asset paths, explicit
-  source-version overrides, SHA256-backed `local_source_versions`, release-file
-  asset roles, row counts, and guardrails.
-- The release-file planner verified staged full counts:
-  MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene
-  phenotypes 329,339; ClinGen gene-validity 3,596; GenCC assertions 29,845.
-- Steven added the private Supabase Postgres DB URL to ignored
-  `app/backend/.env`; format checks passed (`postgresql+psycopg`, session
-  pooler, `/postgres`, SSL, schema `eamos_private`, `LLM_PROVIDER=mock`).
-- The committed importer apply command was attempted. It failed before writes
-  with TCP timeouts to `aws-1-ap-southeast-2.pooler.supabase.com:5432`; connector
-  readback confirmed clinical tables remain fixture-scale.
-
-Verification:
-- `python -m pytest tests\test_source_imports.py tests\test_clinical_source_tables.py tests\test_health_api.py -q`
-- `python -m ruff check app\services\clinical_source_tables.py app\services\source_imports.py app\cli\eamos_source_import.py tests\test_source_imports.py`
-- `python -m black --check --target-version py310 app\services\clinical_source_tables.py app\services\source_imports.py app\cli\eamos_source_import.py tests\test_source_imports.py`
-- `python -m py_compile app\services\clinical_source_tables.py app\services\source_imports.py app\cli\eamos_source_import.py`
-- `python -m app.cli.eamos_source_import --clinical-release-files ... --apply-supabase --compact` failed before writes with Supabase pooler TCP timeout.
-- Supabase connector readback: MONDO 2, HPO terms 3, HPO disease phenotypes 2,
-  HPO gene phenotypes 3, ClinGen validity 2, GenCC assertions 2.
-
-Next:
-- Run the committed importer apply path from a host/network that can reach the
-  Supabase Postgres pooler, keeping `SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true`,
-  `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` set securely outside git, and
-  `LLM_PROVIDER=mock`.
-- Do not bulk-apply the roughly 666k clinical rows through manual connector SQL.
-- Do not touch PubMed/RAG corpus, ESM1b, provider/env flips, live runtime sync,
-  or Render disk seed without the explicit gate.
+M12/M13 CI-SpliceAI/CAPICE state remains as previously recorded: backend rows
+emit only when complete local artifacts and sidecar manifests exist, with
+commercial/launch/provenance metadata preserved. PubMed eUtils key remains only
+in ignored `app/backend/.env`; do not echo or commit it. No live
+seed/upload/write/provider flip/local-evidence flip/startup materialization
+occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-19 03:28 +1000 - Codex build-ledger M3 importer checkpoint
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git -C D:/eamos fetch origin && git -C D:/eamos status --short --branch && git -C D:/eamos log -8 --oneline.
-Delta: M3 release-file importer is code-backed; staged MONDO/HPO/ClinGen/GenCC full counts plan correctly, but local apply timed out to the Supabase session pooler before writes. Live clinical tables remain fixture-scale by connector readback.
-Next: rerun the committed importer apply path only from a host/network that can reach Supabase Postgres, with the private DB URL in ignored env and `LLM_PROVIDER=mock`; no manual bulk connector SQL, PubMed/RAG, ESM1b, provider flips, or Render disk seed.
+# Resume prompt - 2026-06-20 00:17 +1000 - Codex variant report scan/view metrics complete
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git -C D:/eamos fetch origin; git -C D:/eamos status --short --branch; git -C D:/eamos log -8 --oneline.
+Delta: full variant report scan/view-metric slice is locally complete. Header and WorkRail related variants now display backend-backed per-variant view counts/update dates via public, rate-limited aggregate view endpoints. Offline fixtures skip view-metric API calls. Active report/ACMG mock markers were removed, dead report mock/protein files were deleted, WorkRail hydration/mobile overflow issues found by preflight were fixed, and the protein architecture view browser-rendered correctly. Corrected report preflight is clean at 390/768. Ask-Eamos mock CLI/tests passed; live CLI skips while `LLM_PROVIDER=mock`.
+Verification passed: frontend lint; active report mock scan; fixture browser protein SVG check; corrected `eamos-report-preflight` at 390/768; `python -m pytest app/backend/tests/test_variant_library_api.py app/backend/tests/test_frontend_contract.py -q`; chat service/AI-gateway/rate-limit focused tests; project-100 stack; `git diff --check` except existing LF/CRLF warnings; `python -m graphify update .`.
+State/guardrails: branch remains main...origin/main [ahead 5] with broad dirty worktree; do not `git add -A`. No commit/push was done. M12/M13 CI-SpliceAI/CAPICE rows still require complete local artifacts; PubMed eUtils key stays only in ignored `app/backend/.env`; keep `LLM_PROVIDER=mock`. No manual bulk connector SQL, PubMed/RAG corpus materialization, ESM1b materialization, provider flips, LOCAL_EVIDENCE_ENABLED flip, startup materialization, ungated Render disk seed, live upload/register/seed, or partial Claude summary.
+Next: either isolate/stage intended paths carefully, or continue backend code gates for additional gated predictors (REVEL, PrimateAI-3D, SpliceAI/dbNSFP-style caches) using the same coordinate-key local-reader/report-row pattern and preserving source_id/license_gate/launch_gate/public_serialization/source version/provenance metadata. Recommended variants/workrail ranking/spec can be planned next session; current rows now have the metric display plumbing.
 End clear-safe.
 ```
