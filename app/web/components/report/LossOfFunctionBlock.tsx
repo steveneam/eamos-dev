@@ -1,13 +1,13 @@
 import type React from 'react'
 import { TierTag } from '@/components/ui/TierTag'
 import { EvidenceChip } from '@/components/ui/EvidenceChip'
+import type { EamosComputedClassification, EamosComputedCriterion } from '@/lib/backend'
 
 // §2 Loss-of-function (PVS1) block — the null-variant ACMG axis (NMDetective-B +
 // the clean-room Abou-Tayoun PVS1 decision tree). These are computational, so the
-// block sits with the in-silico predictions. Mock-first: it shows the planned
-// NMD / PVS1 surface, labelled until the backend lands. For non-null variants
-// (e.g. missense) PVS1 is genuinely N/A — the block says so rather than inventing
-// a strength.
+// block sits with the in-silico predictions. For non-null variants (e.g.
+// missense) PVS1 is genuinely N/A; for null variants, render only the backend
+// points-engine criterion when it exists.
 
 const PVS1_TIP =
   'PVS1 — Very Strong evidence that the variant abolishes gene function (a true null / loss-of-function). The single strongest ACMG criterion; applies only to truncating changes.'
@@ -15,7 +15,6 @@ const NMD_TIP =
   'Nonsense-mediated decay: the cell destroys mRNAs carrying a premature stop, so no protein is made. Whether a null variant triggers or escapes NMD sets the PVS1 strength.'
 const PROTLOST_TIP =
   'How much of the protein is lost or garbled downstream of the change. Larger loss — especially of important regions — strengthens the PVS1 call.'
-const MOCK_TIP = 'Preview — not yet wired to live data. Illustrative until the NMD / PVS1 engine is connected.'
 
 // Consequence types that invoke PVS1 (Abou-Tayoun 2018 branches A–E).
 const NULL_CONSEQUENCES = [
@@ -73,9 +72,32 @@ function FlagChip({ label, state }: { label: string; state: 'yes' | 'no' | 'na' 
   )
 }
 
-export function LossOfFunctionBlock({ consequence }: { consequence?: string | null }) {
+function pvs1StrengthLabel(row: EamosComputedCriterion): string {
+  if (!row.triggered) return 'Not triggered'
+  const strength = row.applied_strength?.replace('_', ' ') ?? 'triggered'
+  return `PVS1 ${strength}`
+}
+
+function pvs1Tone(row: EamosComputedCriterion) {
+  if (!row.triggered) {
+    return { bg: 'var(--cls-na-bg)', border: 'var(--cls-na-bdr)', text: 'var(--cls-na-text)' }
+  }
+  if (row.applied_strength === 'very_strong') {
+    return { bg: 'var(--cls-path-bg)', border: 'var(--cls-path-bdr)', text: 'var(--cls-path-text)' }
+  }
+  return { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', text: 'var(--cls-lpath-text)' }
+}
+
+export function LossOfFunctionBlock({
+  consequence,
+  computed,
+}: {
+  consequence?: string | null
+  computed?: EamosComputedClassification | null
+}) {
   const applicable = isNullVariant(consequence)
   const consequenceLabel = consequence ? consequence.replace(/_/g, ' ') : 'this variant'
+  const pvs1 = computed?.per_criterion.find((row) => row.code === 'PVS1') ?? null
 
   return (
     <div style={{ marginTop: 'var(--report-subpanel-gap)', border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg-soft)', padding: 'var(--report-subpanel-pad)' }}>
@@ -90,35 +112,45 @@ export function LossOfFunctionBlock({ consequence }: { consequence?: string | nu
 
       {applicable ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-            <span className="eamos-mock" title={MOCK_TIP}>Illustrative</span>
-            <span style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>preview values until the NMD / PVS1 engine is wired</span>
-          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 10 }}>
             <Tile label="PVS1 strength" tip={PVS1_TIP}>
-              <EvidenceChip size="md" tone={{ bg: 'var(--cls-path-bg)', border: 'var(--cls-path-bdr)', text: 'var(--cls-path-text)' }}>
-                Very Strong · +8
-              </EvidenceChip>
+              {pvs1 ? (
+                <EvidenceChip size="md" tone={pvs1Tone(pvs1)}>
+                  {pvs1StrengthLabel(pvs1)} · {pvs1.points >= 0 ? '+' : ''}{pvs1.points}
+                </EvidenceChip>
+              ) : (
+                <span style={{ color: 'var(--ink-4)' }}>Unavailable</span>
+              )}
             </Tile>
             <Tile label="Predicted NMD" tip={NMD_TIP}>
-              <div style={{ fontWeight: 600 }}>Triggers NMD</div>
-              <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>50-nt rule — PTC well before the final junction</div>
+              <div style={{ fontWeight: 600 }}>{pvs1?.triggered ? 'PVS1 triggered' : 'No source-backed call'}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>
+                {typeof pvs1?.evidence_value === 'string' ? pvs1.evidence_value : 'NMD detail unavailable'}
+              </div>
             </Tile>
             <Tile label="Protein lost" tip={PROTLOST_TIP}>
-              <div style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>62%</div>
-              <div style={{ marginTop: 4, height: 5, borderRadius: 3, background: 'var(--bg-soft2)', overflow: 'hidden' }}>
-                <span style={{ display: 'block', width: '62%', height: '100%', background: 'var(--cls-lpath-dot)' }} />
-              </div>
+              <div style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{pvs1?.threshold ?? 'unavailable'}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>Backend threshold/source detail</div>
             </Tile>
           </div>
           <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: '10px 0 0', lineHeight: 1.55 }}>
-            Nonsense in a biologically-relevant transcript, predicted to undergo NMD → no protein (true null) ⇒{' '}
-            <strong style={{ color: 'var(--ink-2)' }}>PVS1 Very Strong</strong>. PTC at aa 178 / 466 · MANE Select · exon 4.
+            {pvs1?.triggered ? (
+              <>
+                Backend points engine applied{' '}
+                <strong style={{ color: 'var(--ink-2)' }}>{pvs1StrengthLabel(pvs1)}</strong>
+                {pvs1.source_db ? ` from ${pvs1.source_db}` : ''}{pvs1.source_version ? ` (${pvs1.source_version})` : ''}.
+              </>
+            ) : (
+              <>
+                This looks like a possible loss-of-function consequence, but no source-backed PVS1/NMD criterion was
+                applied for this report.
+              </>
+            )}
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-            <FlagChip label="Biologically-relevant transcript" state="yes" />
-            <FlagChip label="Clinically-relevant region" state="na" />
-            <FlagChip label="Exon LoF-tolerant" state="no" />
+            <FlagChip label="PVS1 criterion" state={pvs1?.triggered ? 'yes' : 'no'} />
+            <FlagChip label="Source threshold" state={pvs1?.threshold != null ? 'yes' : 'na'} />
+            <FlagChip label="Source version" state={pvs1?.source_version ? 'yes' : 'na'} />
           </div>
         </>
       ) : (

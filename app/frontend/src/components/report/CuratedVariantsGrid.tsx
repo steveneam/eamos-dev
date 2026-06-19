@@ -5,7 +5,7 @@ type RowKind = 'p' | 'vus' | 'b'
 interface DistRow {
   kind: RowKind
   label: string
-  cells: Array<{ value: number; heat?: string }>  // 4 cells: LOF / Missense+Indel / Non-coding / Synonymous
+  cells: Array<{ key: string; value: number; heat?: string; isQuery: boolean }>
   total: number
 }
 
@@ -26,6 +26,12 @@ const ROW_DEFS: Array<{
 ]
 
 const COL_SUFFIXES = ['lof', 'missense', 'noncoding', 'synonymous']
+const COL_LABELS: Record<string, string> = {
+  lof: 'LOF',
+  missense: 'Missense + Indel',
+  noncoding: 'Non-coding',
+  synonymous: 'Synonymous',
+}
 
 function heatClass(value: number, max: number, heatPrefix: string, levels: number): string | undefined {
   if (value <= 0 || max <= 0) return undefined
@@ -37,18 +43,39 @@ function heatClass(value: number, max: number, heatPrefix: string, levels: numbe
 function mapRows(
   cells: Record<string, number>,
   rowTotals: Record<string, number>,
+  queryCell: string | null | undefined,
 ): DistRow[] {
   return ROW_DEFS.map(({ kind, label, prefix, heatPrefix, levels }) => {
-    const values = COL_SUFFIXES.map((suffix) => cells[`${prefix}_${suffix}`] ?? 0)
+    const keyedValues = COL_SUFFIXES.map((suffix) => {
+      const key = `${prefix}_${suffix}`
+      return { key, value: cells[key] ?? 0 }
+    })
+    const values = keyedValues.map((item) => item.value)
     const max = Math.max(...values)
     const total = rowTotals[prefix] ?? values.reduce((a, b) => a + b, 0)
     return {
       kind,
       label,
-      cells: values.map((value) => ({ value, heat: heatClass(value, max, heatPrefix, levels) })),
+      cells: keyedValues.map(({ key, value }) => ({
+        key,
+        value,
+        heat: heatClass(value, max, heatPrefix, levels),
+        isQuery: key === queryCell,
+      })),
       total,
     }
   })
+}
+
+function queryBucketLabel(queryCell: string | null | undefined): string | null {
+  if (!queryCell) return null
+  for (const row of ROW_DEFS) {
+    const prefix = `${row.prefix}_`
+    if (!queryCell.startsWith(prefix)) continue
+    const suffix = queryCell.slice(prefix.length)
+    return `${row.label} / ${COL_LABELS[suffix] ?? suffix}`
+  }
+  return queryCell
 }
 
 export function CuratedVariantsGrid({ data }: CuratedVariantsGridProps) {
@@ -60,9 +87,13 @@ export function CuratedVariantsGrid({ data }: CuratedVariantsGridProps) {
     )
   }
 
-  const rows = mapRows(data.cells, data.row_totals ?? {})
+  const rows = mapRows(data.cells, data.row_totals ?? {}, data.query_cell)
   const sub = data.subtitle || `${data.total.toLocaleString()} classified variants`
   const reading = data.reading
+  const queryLabel = data.query_accession
+    ? `${data.query_accession}${data.query_classification ? ` · ${data.query_classification}` : ''}`
+    : 'Query variant'
+  const queryBucket = queryBucketLabel(data.query_cell)
 
   return (
     <div className="vardist-wrap">
@@ -85,10 +116,16 @@ export function CuratedVariantsGrid({ data }: CuratedVariantsGridProps) {
             </div>
             {row.cells.map((cell, i) => (
               <div
-                key={i}
-                className={cell.heat ? `vd-cell ${cell.heat}` : 'vd-cell'}
+                key={cell.key}
+                className={[
+                  'vd-cell',
+                  cell.heat,
+                  cell.isQuery ? 'query-hit' : null,
+                ].filter(Boolean).join(' ')}
+                title={cell.isQuery ? queryLabel : undefined}
               >
                 {cell.value}
+                {cell.isQuery && <span className="vd-query-badge">Query</span>}
               </div>
             ))}
             <div className="vd-cell total">{row.total}</div>
@@ -98,6 +135,11 @@ export function CuratedVariantsGrid({ data }: CuratedVariantsGridProps) {
       <div className="vardist-reading">
         <strong>Reading:</strong> {reading}
       </div>
+      {queryBucket && (
+        <div className="vardist-query-note">
+          <strong>Query bucket:</strong> {queryLabel} maps to {queryBucket}.
+        </div>
+      )}
     </div>
   )
 }

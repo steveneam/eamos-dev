@@ -59,6 +59,10 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
   const reviewStatus = readString(summary.review_status)
   const conditions = readString(summary.conditions)
   const consequence = readString(summary.consequence)
+  const interpretationText =
+    readString(summary.submitter_interpretation) ??
+    readString(summary.interpretation) ??
+    readString(summary.comment)
   const submitterSegments = readSubmitterSegments(summary.submitter_counts)
   const submitterTotal = submitterSegments.reduce((sum, s) => sum + s.count, 0)
   const stars = reviewStatusToStars(reviewStatus)
@@ -111,9 +115,7 @@ export function ClinVarBlock({ evidence }: ClinVarBlockProps) {
         </div>
       )}
 
-      {/* Same curator-quote grammar as ClinGen above; the submitter free-text
-          interpretation is backend-gated, so the quote is mock-marked. */}
-      <CuratorQuote mock />
+      {interpretationText && <CuratorQuote>{interpretationText}</CuratorQuote>}
 
       {submitterSegments.length > 0 && (
         <div className="flex flex-col gap-1">

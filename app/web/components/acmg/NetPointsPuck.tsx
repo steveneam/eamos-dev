@@ -46,8 +46,6 @@ export interface NetPointsPuckProps {
   /** Domain overrides; defaults expand to keep both thumb + ghost in view. */
   min?: number
   max?: number
-  /** Mute the thumb (illustrative / not-yet-wired). */
-  mock?: boolean
   /** aria-label prefix, e.g. "Hypothetical net points". */
   label?: string
   /** Hide the formula stamp when a host already shows one. */
@@ -61,7 +59,6 @@ export function NetPointsPuck({
   computedNet = null,
   min,
   max,
-  mock = false,
   label = 'Net points',
   hideStamp = false,
 }: NetPointsPuckProps) {
@@ -146,7 +143,7 @@ export function NetPointsPuck({
   }
 
   const valueText = `net ${signed(net)}, ${tier}, posterior ${pct(post)}`
-  const thumbColor = mock ? 'var(--ink-4)' : tokens.ink
+  const thumbColor = tokens.ink
 
   return (
     <div style={{ userSelect: 'none' }}>

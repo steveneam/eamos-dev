@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer, geneViewerScaffoldWarnings } from '@/lib/workbench/gene-viewer-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
@@ -54,12 +54,14 @@ const TRACK_LEFT = 36
 const TRACK_RIGHT = 28
 const TRACK_Y = 96
 const EXON_H = 26
-const VIEW_H = 184
+const UTR_H = 16
+const GENE_SCALE_Y = 156
+const VIEW_H = 218
 const TRACK_MAX_W = 4200
 
 interface OverviewSeg {
   key: string
-  kind: 'exon' | 'intron'
+  kind: 'utr5' | 'exon' | 'intron' | 'utr3'
   num: number
   leftPct: number
   widthPct: number
@@ -67,12 +69,29 @@ interface OverviewSeg {
   /** CDS-coordinate start of the segment (exons only) for variant projection. */
   cdsStart?: number
   cdsEnd?: number
+  transcriptStart: number
+  transcriptEnd: number
 }
 
 function buildSegments(data: GeneWindowData): OverviewSeg[] {
   const raw: Array<Omit<OverviewSeg, 'leftPct' | 'widthPct'> & { units: number }> = []
   const minExon = 14
+  const minUtr = 18
   const maxIntron = 60
+  let transcriptCursor = 1
+
+  if (data.utr5Length > 0) {
+    raw.push({
+      key: 'utr5',
+      kind: 'utr5',
+      num: 5,
+      bp: data.utr5Length,
+      transcriptStart: transcriptCursor,
+      transcriptEnd: transcriptCursor + data.utr5Length - 1,
+      units: Math.max(minUtr, Math.sqrt(data.utr5Length) * 2),
+    })
+    transcriptCursor += data.utr5Length
+  }
 
   // Interleave exons + introns (intron N follows exon N).
   data.exons.forEach((exon, i) => {
@@ -84,8 +103,11 @@ function buildSegments(data: GeneWindowData): OverviewSeg[] {
       bp,
       cdsStart: exon.cdsStart,
       cdsEnd: exon.cdsEnd,
+      transcriptStart: transcriptCursor,
+      transcriptEnd: transcriptCursor + bp - 1,
       units: Math.max(minExon, Math.sqrt(bp) * 2.4),
     })
+    transcriptCursor += bp
     const intron = data.introns[i]
     if (intron) {
       raw.push({
@@ -93,10 +115,25 @@ function buildSegments(data: GeneWindowData): OverviewSeg[] {
         kind: 'intron',
         num: intron.num,
         bp: intron.lenBp,
+        transcriptStart: transcriptCursor,
+        transcriptEnd: transcriptCursor + intron.lenBp - 1,
         units: Math.min(maxIntron, Math.max(10, Math.log10(intron.lenBp + 1) * 14)),
       })
+      transcriptCursor += intron.lenBp
     }
   })
+
+  if (data.utr3Length > 0) {
+    raw.push({
+      key: 'utr3',
+      kind: 'utr3',
+      num: 3,
+      bp: data.utr3Length,
+      transcriptStart: transcriptCursor,
+      transcriptEnd: transcriptCursor + data.utr3Length - 1,
+      units: Math.max(minUtr, Math.sqrt(data.utr3Length) * 2),
+    })
+  }
 
   const total = raw.reduce((s, r) => s + r.units, 0) || 1
   let cursor = 0
@@ -111,6 +148,8 @@ function buildSegments(data: GeneWindowData): OverviewSeg[] {
       bp: r.bp,
       cdsStart: r.cdsStart,
       cdsEnd: r.cdsEnd,
+      transcriptStart: r.transcriptStart,
+      transcriptEnd: r.transcriptEnd,
       leftPct,
       widthPct,
     }
@@ -128,6 +167,82 @@ function projectCdsToPct(cdsPos: number, segments: OverviewSeg[]): number | null
 
 function formatInt(n: number): string {
   return n.toLocaleString('en-US')
+}
+
+function segmentKindLabel(seg: OverviewSeg): string {
+  if (seg.kind === 'utr5') return "5' UTR"
+  if (seg.kind === 'utr3') return "3' UTR"
+  if (seg.kind === 'intron') return `Intron ${seg.num}`
+  return `Exon ${seg.num}`
+}
+
+function segmentTitle(seg: OverviewSeg): string {
+  if (seg.kind === 'exon') {
+    return `${segmentKindLabel(seg)} | ${formatInt(seg.bp)} bp CDS | c.${seg.cdsStart}-${seg.cdsEnd} | transcript bp ${formatInt(seg.transcriptStart)}-${formatInt(seg.transcriptEnd)}`
+  }
+  if (seg.kind === 'intron') {
+    return `${segmentKindLabel(seg)} | ${formatInt(seg.bp)} bp | transcript bp ${formatInt(seg.transcriptStart)}-${formatInt(seg.transcriptEnd)}`
+  }
+  return `${segmentKindLabel(seg)} | ${formatInt(seg.bp)} bp | transcript bp ${formatInt(seg.transcriptStart)}-${formatInt(seg.transcriptEnd)}`
+}
+
+type GeneClinvarMarkerKind = 'missense' | 'truncating' | 'splice'
+
+interface GeneScaleTick {
+  bp: number
+  major: boolean
+  terminal: boolean
+}
+
+function clinvarMarkerKind(v: GeneWindowData['clinvar'][number]): GeneClinvarMarkerKind {
+  if (v.splice) return 'splice'
+  const text = `${v.hgvsC} ${v.hgvsP}`.toLowerCase()
+  if (
+    text.includes('ter') ||
+    text.includes('*') ||
+    text.includes('fs') ||
+    text.includes('frameshift') ||
+    text.includes('stop') ||
+    text.includes('nonsense') ||
+    text.includes('trunc')
+  ) {
+    return 'truncating'
+  }
+  return 'missense'
+}
+
+function niceStep(value: number): number {
+  const exponent = Math.floor(Math.log10(Math.max(1, value)))
+  const magnitude = 10 ** exponent
+  const normalized = value / magnitude
+  if (normalized <= 1) return magnitude
+  if (normalized <= 2) return 2 * magnitude
+  if (normalized <= 5) return 5 * magnitude
+  return 10 * magnitude
+}
+
+function geneScaleTicks(length: number): GeneScaleTick[] {
+  const clampedLength = Math.max(1, Math.round(length))
+  const majorStep = niceStep(clampedLength / 4)
+  const minorStep = Math.max(1, Math.round(majorStep / 5))
+  const ticks = new Map<number, GeneScaleTick>()
+  const setTick = (bp: number, major: boolean, terminal = false) => {
+    const clampedBp = clamp(Math.round(bp), 1, clampedLength)
+    const existing = ticks.get(clampedBp)
+    ticks.set(clampedBp, {
+      bp: clampedBp,
+      major: major || existing?.major === true,
+      terminal: terminal || existing?.terminal === true,
+    })
+  }
+
+  setTick(1, true)
+  for (let bp = minorStep; bp < clampedLength; bp += minorStep) {
+    setTick(bp, bp % majorStep === 0)
+  }
+  setTick(clampedLength, true, true)
+
+  return Array.from(ticks.values()).sort((a, b) => a.bp - b.bp)
 }
 
 function geneTrackWidth(data: GeneWindowData, totalClinvar: number): number {
@@ -162,6 +277,8 @@ export function ReportGeneViewer({
     demo ? GENE_VIEWER_SAMPLE.tracks.alphamissense_heatmap ?? null : null,
   )
   const [includeAlphaMissense, setIncludeAlphaMissense] = useState(false)
+  const [showGeneScale, setShowGeneScale] = useState(true)
+  const [selectedGeneFeatureKey, setSelectedGeneFeatureKey] = useState<string | null>(null)
   // Provenance warnings (sample-bounded / not-live-hydrated / RPE65 scaffold)
   // surfaced as a per-section note so non-live data is never silent.
   const [warnings, setWarnings] = useState<string[]>(() =>
@@ -241,7 +358,7 @@ export function ReportGeneViewer({
       .map((v) => {
         const pct = projectCdsToPct(v.cdsPos as number, segments)
         if (pct == null) return null
-        return { pct, cls: v.cls, label: v.hgvsP || v.hgvsC, cv: v.cv }
+        return { pct, cls: v.cls, label: v.hgvsP || v.hgvsC, cv: v.cv, kind: clinvarMarkerKind(v) }
       })
       .filter((m): m is NonNullable<typeof m> => m != null)
   }, [data, segments])
@@ -251,6 +368,10 @@ export function ReportGeneViewer({
     for (const m of clinvarMarks) counts[m.cls] = (counts[m.cls] ?? 0) + 1
     return counts
   }, [clinvarMarks])
+  const selectedGeneFeature = useMemo(
+    () => segments.find((seg) => seg.key === selectedGeneFeatureKey) ?? null,
+    [segments, selectedGeneFeatureKey],
+  )
   const renderedProteinTrack = proteinDomainTrack ?? proteinTrack
   const renderedWarnings = useMemo(
     () => Array.from(new Set([...warnings, ...(proteinDomainTrack?.warnings ?? [])])),
@@ -279,6 +400,13 @@ export function ReportGeneViewer({
   const totalClinvar = clinvarMarks.length
   const geneWidth = geneTrackWidth(data, totalClinvar)
   const geneTrackW = geneWidth - TRACK_LEFT - TRACK_RIGHT
+  const geneScaleEnd = segments.length > 0 ? segments[segments.length - 1].transcriptEnd : data.geneLength
+  const geneTicks = geneScaleTicks(geneScaleEnd)
+  const xForGeneBp = (bp: number) =>
+    TRACK_LEFT + ((clamp(bp, 1, geneScaleEnd) - 1) / Math.max(1, geneScaleEnd - 1)) * geneTrackW
+  const toggleGeneFeatureKey = (key: string) => {
+    setSelectedGeneFeatureKey((current) => (current === key ? null : key))
+  }
 
   return (
     <div style={cardShellStyle}>
@@ -290,8 +418,18 @@ export function ReportGeneViewer({
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <StatPill label={data.nativeStrand === 'reverse' ? 'reverse strand' : 'forward strand'} />
           {data.geneLength > 0 && <StatPill label={`${formatInt(data.geneLength)} bp`} />}
+          {data.utr5Length > 0 && <StatPill label={`5' UTR ${formatInt(data.utr5Length)} bp`} />}
+          {data.utr3Length > 0 && <StatPill label={`3' UTR ${formatInt(data.utr3Length)} bp`} />}
           <StatPill label={`${data.exons.length} exons`} />
           {totalClinvar > 0 && <StatPill label={`${totalClinvar} ClinVar`} />}
+          <label style={toggleLabelStyle}>
+            <input
+              type="checkbox"
+              checked={showGeneScale}
+              onChange={(event) => setShowGeneScale(event.currentTarget.checked)}
+            />
+            bp scale
+          </label>
         </div>
       </div>
 
@@ -302,6 +440,30 @@ export function ReportGeneViewer({
         aria-label={`${data.gene} ${data.transcript} gene track with queried variant and ClinVar markers`}
         style={{ display: 'block', width: geneWidth, maxWidth: 'none', height: 'auto' }}
       >
+        <style>{`
+          .gv-feature { cursor: pointer; outline: none; }
+          .gv-feature-box,
+          .gv-intron-line {
+            transition: fill var(--dur-1) var(--ease-standard),
+              stroke var(--dur-1) var(--ease-standard),
+              stroke-width var(--dur-1) var(--ease-standard),
+              filter var(--dur-1) var(--ease-standard);
+          }
+          .gv-feature:hover .gv-feature-box,
+          .gv-feature:focus-visible .gv-feature-box,
+          .gv-feature.is-selected .gv-feature-box {
+            fill: var(--warn-tint);
+            stroke: var(--warn);
+            stroke-width: 2;
+            filter: drop-shadow(0 1px 3px rgba(186, 117, 23, 0.18));
+          }
+          .gv-feature:hover .gv-intron-line,
+          .gv-feature:focus-visible .gv-intron-line,
+          .gv-feature.is-selected .gv-intron-line {
+            stroke: var(--warn);
+            stroke-width: 3;
+          }
+        `}</style>
         <rect x="0" y="0" width={geneWidth} height={VIEW_H} rx="8" fill="var(--bg-soft)" />
 
         {/* baseline line for introns */}
@@ -317,43 +479,89 @@ export function ReportGeneViewer({
         {segments.map((seg) => {
           const x = TRACK_LEFT + (seg.leftPct / 100) * geneTrackW
           const w = Math.max(3, (seg.widthPct / 100) * geneTrackW)
+          const title = segmentTitle(seg)
+          const selected = selectedGeneFeatureKey === seg.key
+          const onKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              toggleGeneFeatureKey(seg.key)
+            }
+          }
           if (seg.kind === 'intron') {
             return (
-              <line
+              <g
                 key={seg.key}
-                x1={x}
-                y1={TRACK_Y + EXON_H / 2}
-                x2={x + w}
-                y2={TRACK_Y + EXON_H / 2}
-                stroke="var(--ink-5)"
-                strokeWidth="1.5"
-              />
+                className={`gv-feature gv-intron${selected ? ' is-selected' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selected}
+                aria-label={title}
+                onClick={() => toggleGeneFeatureKey(seg.key)}
+                onKeyDown={onKeyDown}
+              >
+                <rect
+                  x={x}
+                  y={TRACK_Y - 8}
+                  width={w}
+                  height={EXON_H + 16}
+                  fill="transparent"
+                  pointerEvents="all"
+                />
+                <line
+                  className="gv-intron-line"
+                  x1={x}
+                  y1={TRACK_Y + EXON_H / 2}
+                  x2={x + w}
+                  y2={TRACK_Y + EXON_H / 2}
+                  stroke="var(--ink-5)"
+                  strokeWidth="1.5"
+                />
+                <title>{title}</title>
+              </g>
             )
           }
+          const isUtr = seg.kind === 'utr5' || seg.kind === 'utr3'
+          const featureH = isUtr ? UTR_H : EXON_H
+          const featureY = isUtr ? TRACK_Y + (EXON_H - UTR_H) / 2 : TRACK_Y
+          const fill = isUtr ? 'var(--bg-soft2)' : 'var(--bg)'
+          const label = isUtr ? (seg.kind === 'utr5' ? "5'" : "3'") : String(seg.num)
           return (
-            <g key={seg.key}>
+            <g
+              key={seg.key}
+              className={`gv-feature gv-${seg.kind}${selected ? ' is-selected' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-pressed={selected}
+              aria-label={title}
+              onClick={() => toggleGeneFeatureKey(seg.key)}
+              onKeyDown={onKeyDown}
+            >
               <rect
+                className="gv-feature-box"
                 x={x}
-                y={TRACK_Y}
+                y={featureY}
                 width={w}
-                height={EXON_H}
-                rx="3"
-                fill="var(--teal)"
-                opacity="0.86"
+                height={featureH}
+                rx={isUtr ? 2 : 3}
+                fill={fill}
+                stroke="var(--ink)"
+                strokeWidth={isUtr ? 0.9 : 1.25}
               />
-              {w > 18 && (
+              {w > (isUtr ? 16 : 18) && (
                 <text
                   x={x + w / 2}
                   y={TRACK_Y + EXON_H / 2 + 4}
                   textAnchor="middle"
                   fontSize="11"
                   fontWeight="700"
-                  fill="var(--bg)"
+                  fill={isUtr ? 'var(--ink-3)' : 'var(--ink)'}
                   fontFamily="var(--mono)"
+                  pointerEvents="none"
                 >
-                  {seg.num}
+                  {label}
                 </text>
               )}
+              <title>{title}</title>
             </g>
           )
         })}
@@ -362,14 +570,29 @@ export function ReportGeneViewer({
         {clinvarMarks.map((m, i) => {
           const x = TRACK_LEFT + (m.pct / 100) * geneTrackW
           const y = TRACK_Y + EXON_H + 6
+          const fill = CLASS_COLOR[m.cls] ?? 'var(--cls-na-dot)'
+          if (m.kind === 'truncating') {
+            return (
+              <circle key={`cv-${i}`} cx={x} cy={y + 4} r="4.3" fill={fill} opacity="0.86">
+                <title>{`${m.label} | ${m.cv} | truncating variant`}</title>
+              </circle>
+            )
+          }
+          if (m.kind === 'splice') {
+            return (
+              <rect key={`cv-${i}`} x={x - 4} y={y} width="8" height="8" fill={fill} opacity="0.86">
+                <title>{`${m.label} | ${m.cv} | splice-site variant`}</title>
+              </rect>
+            )
+          }
           return (
             <polygon
               key={`cv-${i}`}
               points={`${x - 3.5},${y + 7} ${x + 3.5},${y + 7} ${x},${y}`}
-              fill={CLASS_COLOR[m.cls] ?? 'var(--cls-na-dot)'}
+              fill={fill}
               opacity="0.85"
             >
-              <title>{`${m.label} — ${m.cv}`}</title>
+              <title>{`${m.label} | ${m.cv} | missense/coding variant`}</title>
             </polygon>
           )
         })}
@@ -411,6 +634,57 @@ export function ReportGeneViewer({
           </g>
         )}
 
+        {showGeneScale && (
+          <g aria-label="Transcript feature scale">
+            <line
+              x1={TRACK_LEFT}
+              y1={GENE_SCALE_Y}
+              x2={TRACK_LEFT + geneTrackW}
+              y2={GENE_SCALE_Y}
+              stroke="var(--ink-3)"
+              strokeWidth="0.8"
+            />
+            {geneTicks.map((tick) => {
+              const x = xForGeneBp(tick.bp)
+              const terminalTick = geneTicks.find((candidate) => candidate.terminal)
+              const closeToTerminal =
+                !tick.terminal && terminalTick != null && Math.abs(x - xForGeneBp(terminalTick.bp)) < 112
+              const label =
+                tick.bp === 1
+                  ? '1'
+                  : tick.terminal
+                    ? `${formatInt(tick.bp)} bp model`
+                    : tick.major && !closeToTerminal
+                      ? formatInt(tick.bp)
+                      : null
+              return (
+                <g key={`gene-scale-${tick.bp}`}>
+                  <line
+                    x1={x}
+                    y1={GENE_SCALE_Y - (tick.major ? 7 : 4)}
+                    x2={x}
+                    y2={GENE_SCALE_Y + (tick.major ? 8 : 5)}
+                    stroke={tick.major ? 'var(--ink-3)' : 'var(--ink-5)'}
+                    strokeWidth={tick.major ? 0.85 : 0.55}
+                  />
+                  {label && (
+                    <text
+                      x={x}
+                      y={GENE_SCALE_Y + 21}
+                      textAnchor={tick.bp === 1 ? 'start' : tick.terminal ? 'end' : 'middle'}
+                      fontSize="10"
+                      fill="var(--ink-4)"
+                      fontFamily="var(--mono)"
+                    >
+                      {label}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+          </g>
+        )}
+
         {/* axis labels */}
         <text
           x={TRACK_LEFT}
@@ -441,7 +715,52 @@ export function ReportGeneViewer({
         <LegendDot color={CLASS_COLOR.vus} label={`VUS (${clinvarCounts.vus})`} />
         <LegendDot color={CLASS_COLOR.lb} label={`LB (${clinvarCounts.lb})`} />
         <LegendDot color={CLASS_COLOR.b} label={`B (${clinvarCounts.b})`} />
+        <span style={legendLabel}>Shape:</span>
+        <LegendShape kind="missense" label="Missense/coding" />
+        <LegendShape kind="truncating" label="Truncating" />
+        <LegendShape kind="splice" label="Splice site" />
       </div>
+
+      {selectedGeneFeature && (
+        <div style={geneFeaturePanelStyle} aria-label="Selected gene feature details">
+          <div style={geneFeaturePanelHeadStyle}>
+            <div>
+              <span style={geneFeatureKindStyle}>{segmentKindLabel(selectedGeneFeature)}</span>
+              <div style={geneFeatureTitleStyle}>{formatInt(selectedGeneFeature.bp)} bp</div>
+            </div>
+            <button
+              type="button"
+              style={geneFeatureCloseStyle}
+              aria-label="Close gene feature details"
+              onClick={() => setSelectedGeneFeatureKey(null)}
+            >
+              Close
+            </button>
+          </div>
+          <dl style={geneFeatureDlStyle}>
+            <dt style={geneFeatureDtStyle}>Transcript span</dt>
+            <dd style={geneFeatureDdStyle}>
+              {formatInt(selectedGeneFeature.transcriptStart)}-{formatInt(selectedGeneFeature.transcriptEnd)} bp
+            </dd>
+            {selectedGeneFeature.kind === 'exon' && (
+              <>
+                <dt style={geneFeatureDtStyle}>CDS span</dt>
+                <dd style={geneFeatureDdStyle}>
+                  c.{selectedGeneFeature.cdsStart}-{selectedGeneFeature.cdsEnd}
+                </dd>
+              </>
+            )}
+            <dt style={geneFeatureDtStyle}>Feature class</dt>
+            <dd style={geneFeatureDdStyle}>
+              {selectedGeneFeature.kind === 'intron'
+                ? 'Intron'
+                : selectedGeneFeature.kind === 'exon'
+                  ? 'Exon'
+                  : 'Untranslated region'}
+            </dd>
+          </dl>
+        </div>
+      )}
 
       <ReportProteinView
         data={data}
@@ -1627,6 +1946,29 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   )
 }
 
+function LegendShape({ kind, label }: { kind: GeneClinvarMarkerKind; label: string }) {
+  const swatch =
+    kind === 'truncating'
+      ? { borderRadius: '50%' }
+      : kind === 'splice'
+        ? { borderRadius: 1 }
+        : { clipPath: 'polygon(50% 0, 0 100%, 100% 100%)' }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span
+        style={{
+          width: 9,
+          height: 9,
+          background: 'var(--ink-4)',
+          display: 'inline-block',
+          ...swatch,
+        }}
+      />
+      <span style={{ fontSize: 10.5, color: 'var(--ink-4)', fontWeight: 600 }}>{label}</span>
+    </span>
+  )
+}
+
 const cardShellStyle: React.CSSProperties = {
   border: '0.5px solid var(--line)',
   borderRadius: 'var(--r-md)',
@@ -1680,6 +2022,69 @@ const legendLabel: React.CSSProperties = {
   color: 'var(--ink-4)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+}
+
+const geneFeaturePanelStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  border: '0.5px solid var(--warn-bdr)',
+  borderRadius: 8,
+  background: 'var(--warn-tint)',
+  color: 'var(--ink-2)',
+  padding: '10px 12px',
+}
+
+const geneFeaturePanelHeadStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+}
+
+const geneFeatureKindStyle: React.CSSProperties = {
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: 'var(--warn)',
+}
+
+const geneFeatureTitleStyle: React.CSSProperties = {
+  marginTop: 2,
+  fontSize: 15,
+  fontWeight: 700,
+  color: 'var(--ink)',
+  fontVariantNumeric: 'tabular-nums',
+}
+
+const geneFeatureCloseStyle: React.CSSProperties = {
+  border: '0.5px solid var(--warn-bdr)',
+  borderRadius: 7,
+  background: 'var(--bg)',
+  color: 'var(--ink-3)',
+  padding: '4px 8px',
+  fontSize: 11,
+  fontWeight: 600,
+  cursor: 'pointer',
+}
+
+const geneFeatureDlStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto 1fr',
+  gap: '5px 12px',
+  margin: 0,
+}
+
+const geneFeatureDtStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: 'var(--ink-4)',
+}
+
+const geneFeatureDdStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 11.5,
+  fontWeight: 600,
+  color: 'var(--ink-2)',
+  fontVariantNumeric: 'tabular-nums',
 }
 
 const proteinShellStyle: React.CSSProperties = {

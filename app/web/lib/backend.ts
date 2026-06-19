@@ -641,6 +641,18 @@ export interface CuratedVariantsDistribution {
   total: number
   subtitle?: string
   reading: string
+  source_status?: string | null
+  source_id?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  public_serialization_allowed?: boolean | null
+  launch_gate?: string | null
+  license_gate?: string | null
+  query_cell?: string | null
+  query_variant_id?: string | null
+  query_accession?: string | null
+  query_classification?: string | null
+  warnings?: string[]
 }
 
 export type EvidenceLevel = 'definitive' | 'strong' | 'moderate' | 'limited'
@@ -737,6 +749,7 @@ export interface PublicationLiterature {
 export interface FunctionalEvidenceSourceBreakdown {
   clingen: number
   clinvar: number
+  mavedb: number
   pubmed: number
 }
 
@@ -766,9 +779,12 @@ export interface FunctionalStudy {
   pmid?: string | null
   url?: string | null
   citation?: string | null
+  source_accession?: string | null
   source_tags: string[]
   evidence_codes: string[]
   asserted_codes: string[]
+  functional_score?: number | null
+  functional_score_label?: string | null
   snippet?: string | null
 }
 
@@ -966,6 +982,13 @@ export interface VariantReportHeader {
   cdna?: string | null
   protein_change?: string | null
   genomic_hg38?: string | null
+  dbsnp_rsid?: string | null
+  ensembl_gene_id?: string | null
+  ensembl_transcript?: string | null
+  transcript_aliases: string[]
+  mane_select?: boolean | null
+  view_count?: number | null
+  updated_at?: string | null
   classification?: string | null
   classification_source?: string | null
   verification_badges: string[]
@@ -1247,6 +1270,7 @@ export interface GeneContextSnapshot {
   source_status: SourceStatus
   gene: string
   transcript?: string | null
+  transcript_aliases: string[]
   genome_build: string
   chromosome?: string | null
   strand: GenomeStrand

@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { IconChevron, IconList, IconSparkle } from '@/components/icons/Icon'
 import { readCollapsed, writeCollapsed } from '@/lib/work-rail-collapse'
 import './work-rail.css'
@@ -31,6 +31,7 @@ const BP_COMPACT = '(max-width: 1199px)'
  *  value, falling back to "collapsed on small screens". Lazy useState
  *  initializer (no setState-in-effect), mirroring WorkbenchShell. */
 function initialCollapsed(surface: string): boolean {
+  // Called only after mount; the first client render intentionally matches SSR.
   if (typeof window === 'undefined') return false
   const stored = readCollapsed(surface)
   if (stored !== null) return stored
@@ -118,12 +119,22 @@ export function WorkRail({ surface, title, titleIcon, action, output, children, 
   // local + persisted. Drawer-open is only meaningful in drawer mode, so it's
   // derived (isOpen) rather than reset via an effect.
   const drawer = useSyncExternalStore(subscribeCompact, getCompactSnapshot, getServerCompactSnapshot)
-  const [collapsed, setCollapsed] = useState(() => initialCollapsed(surface))
+  const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [mode, setMode] = useState<'library' | 'ai'>('library')
   const [aiWide, setAiWide] = useState(false)
   const isOpen = drawer && drawerOpen
   const aiActive = !!aiPanel && mode === 'ai'
+
+  useEffect(() => {
+    let cancelled = false
+    void Promise.resolve().then(() => {
+      if (!cancelled) setCollapsed(initialCollapsed(surface))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [surface])
 
   const toggle = useCallback(() => {
     if (drawer) {
@@ -165,12 +176,11 @@ export function WorkRail({ surface, title, titleIcon, action, output, children, 
   return (
     <div className={shellCls}>
       {/* Drawer scrim — closes the overlay on <1200. */}
-      {drawer && (
+      {drawer && isOpen && (
         <button
           type="button"
           className="work-rail-scrim"
           aria-label="Close panel"
-          tabIndex={isOpen ? 0 : -1}
           onClick={() => setDrawerOpen(false)}
         />
       )}

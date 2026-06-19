@@ -106,14 +106,12 @@ function criteriaDiffer(current: CriteriaState, seed: CriteriaState): boolean {
 export function AcmgExplainer({
   initialState,
   anchor = null,
-  mock = false,
 }: {
   /** Pre-tick the criteria from a real variant (the engine's per_criterion). */
   initialState?: CriteriaState
   /** The engine's computed call — anchored as the fixed truth + the reset target
    *  (report context). Omitted on the blank /account authoring tool. */
   anchor?: EamosComputedClassification | null
-  mock?: boolean
 } = {}) {
   const [criteria, setCriteria] = useState<CriteriaState>(() => initialState ?? initialCriteriaState())
   const [benignCut, setBenignCut] = useState<'tavtigian_2020' | 'acgs_panel'>(anchor?.benign_cut ?? 'tavtigian_2020')
@@ -213,11 +211,6 @@ export function AcmgExplainer({
             <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
               net {signed(anchor.net_points)} · posterior {pct(anchor.posterior)}
             </span>
-            {mock && (
-              <span className="eamos-mock" title="Illustrative — the EAMOS points engine is not yet wired to live data for this variant.">
-                illustrative
-              </span>
-            )}
           </div>
           <p style={{ margin: '8px 0 0', fontSize: 11, lineHeight: 1.5, color: 'var(--ink-4)' }}>
             Advisory — the engine is authoritative. Toggle criteria or drag the puck below to explore{' '}

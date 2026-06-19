@@ -96,13 +96,17 @@ export function PubMedSection({ payload, number, actions }: PubMedSectionProps) 
   useEffect(() => {
     const param = searchParams.get('pub')
     if (!param) {
-      if (openArticle) setOpenArticle(null)
+      if (openArticle) {
+        void Promise.resolve().then(() => setOpenArticle(null))
+      }
       return
     }
     const targetPmid = param.startsWith('PMID:') ? param.slice(5) : param
     if (openArticle?.pmid === targetPmid) return
     const match = allLoadedArticles.find((a) => a.pmid === targetPmid)
-    if (match) setOpenArticle(match)
+    if (match) {
+      void Promise.resolve().then(() => setOpenArticle(match))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, allLoadedArticles.length])
 

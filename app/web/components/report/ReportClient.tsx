@@ -12,15 +12,12 @@ import { VariantHeader } from '@/components/report/VariantHeader'
 import { VariantDecoder } from '@/components/report/VariantDecoder'
 import { AIStack } from '@/components/aistack/AIStack'
 import { ClinVarBlock } from '@/components/report/ClinVarBlock'
-import { DiseaseSection } from '@/components/report/DiseaseSection'
 import { TrialsSection } from '@/components/report/TrialsSection'
 import { PubMedSection } from '@/components/report/PubMedSection'
 import { LazySection } from '@/components/report/LazySection'
 import { CalibratedInSilicoTable } from '@/components/report/CalibratedInSilicoTable'
 import { CompositeVerdictBar } from '@/components/report/CompositeVerdictBar'
 import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
-import { CuratedVariantsGrid } from '@/components/report/CuratedVariantsGrid'
-import { AssociatedConditions } from '@/components/report/AssociatedConditions'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
 import { AfThermometer } from '@/components/report/AfThermometer'
 import { EamosAcmgClassifier } from '@/components/report/EamosAcmgClassifier'
@@ -28,7 +25,6 @@ import { LossOfFunctionBlock } from '@/components/report/LossOfFunctionBlock'
 import { MaveFunctionalBlock } from '@/components/report/MaveFunctionalBlock'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
 import { AdvisorySummaryStrip } from '@/components/report/AdvisorySummaryStrip'
-import { classificationToTier, mockEamosComputed } from '@/lib/acmg/mock'
 import { ReportLoadingState } from '@/components/report/ReportLoadingState'
 import { ExportMenu } from '@/components/report/ExportMenu'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
@@ -36,12 +32,13 @@ import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
-import { GeneDiseaseBlock } from '@/components/report/GeneDiseaseBlock'
+import { DiseaseValidityDashboard } from '@/components/report/DiseaseValidityDashboard'
 import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
 import { reportHrefForQuery } from '@/lib/variant-search'
+import { recordReportView, type VariantViewMetric } from '@/lib/report-views'
 import { RPE65_NEGATIVE_CONTROL_SAMPLE } from '@/lib/sample-report'
 import {
   tsvDiseaseAndConditions,
@@ -249,7 +246,7 @@ export function ReportClient() {
   const [searchFocused, setSearchFocused] = useState(false)
 
   // M7 live-wire: mirror the LookupRequest the report itself uses so the
-  // MatrixOverture can call lookupSummary() and upgrade its mock tiles.
+  // MatrixOverture can call lookupSummary() and upgrade its summary tiles.
   // Redirect and fixture modes leave request undefined so no live lookup runs.
   const summaryRequest = useMemo<LookupRequest | undefined>(() => {
     if (demo || negativeFixture) return undefined
@@ -336,6 +333,12 @@ export function ReportClient() {
         cancelled = true
         controller.abort()
       }
+    }
+
+    if ((gene && !cdna && !q) || (!gene && cdna && !q)) {
+      const href = reportHrefForQuery(`${gene} ${cdna}`.trim())
+      if (href) router.replace(href)
+      return () => controller.abort()
     }
 
     if (!gene || !cdna) {
@@ -502,7 +505,11 @@ export function ReportClient() {
             </CenteredMain>
           }
         >
-          <VariantLibraryRail data={activeState.data} query={queryLabel} />
+          <VariantLibraryRail
+            data={activeState.data}
+            query={queryLabel}
+            viewMetricsEnabled={!negativeFixture}
+          />
         </WorkRail>
       ) : (
         // Loading / error / offline / malformed / unresolved / interpretation:
@@ -664,6 +671,23 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
   const ribbonTranscript = header?.transcript ?? transcriptHgvs?.split(':')[0] ?? undefined
   const ribbonHgvsC = header?.cdna ?? transcriptHgvs?.split(':')[1] ?? undefined
   const ribbonHgvsP = header?.protein_change ?? row0?.protein_change ?? undefined
+  const [viewMetric, setViewMetric] = useState<VariantViewMetric | null>(null)
+  const viewQueryId = useMemo(() => reportViewQueryId(data, query), [data, query])
+  const activeViewMetric =
+    viewMetric && viewQueryId && viewMetric.query_id === viewQueryId.toLowerCase() ? viewMetric : null
+
+  useEffect(() => {
+    let cancelled = false
+    if (!viewQueryId || demo) return () => {
+      cancelled = true
+    }
+    void recordReportView(viewQueryId).then((metric) => {
+      if (!cancelled && metric) setViewMetric(metric)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [viewQueryId, demo])
 
   // Derive verdict for Card accent + (future) review stars from optional fields.
   const verdict = deriveClassificationVerdict(
@@ -696,15 +720,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
       : payload.report_profile?.population_frequency
   const populationAf = populationSection?.overall?.total?.allele_frequency ?? null
 
-  // EAMOS-computed ACMG/AMP advisory (points engine). The contract is frozen but
-  // the engine does not populate the payload yet (Codex's report-population slice
-  // is gated), so fall back to an illustrative mock — built to agree in direction
-  // with the curated verdict so it never contradicts the precedence call — and
-  // flag every instrument `.eamos-mock` until the live block lands. Mock-first,
-  // same as §2 in-silico.
-  const computedClassification =
-    payload.eamos_computed_classification ?? mockEamosComputed(classificationToTier(verdict))
-  const computedIsMock = !payload.eamos_computed_classification
+  const computedClassification = payload.eamos_computed_classification ?? null
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -737,6 +753,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         payload={payload}
         data={data}
         query={query}
+        viewMetric={activeViewMetric}
         exportSlot={<ExportMenu data={data} variant="header" />}
       />
 
@@ -750,12 +767,13 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             chip), directly under the call cards. The full drawn decision (plane +
             waterfall + gauge) is the synthesis capstone of §2; this strip links
             down to it so the verdict is never buried. */}
-        <AdvisorySummaryStrip
-          payload={payload}
-          computed={computedClassification}
-          mock={computedIsMock}
-          populationAf={populationAf}
-        />
+        {computedClassification && (
+          <AdvisorySummaryStrip
+            payload={payload}
+            computed={computedClassification}
+            populationAf={populationAf}
+          />
+        )}
 
         {/* 1 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
             ClinGen leads (highest weight for classification), then ClinVar,
@@ -813,7 +831,15 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           <ClinVarBlock evidence={data.evidence} />
           {/* Functional evidence (PS3/BS3) from MaveDB — wet-lab MAVE/DMS assays;
               sits with the clinical evidence that drives the classification. */}
-          <MaveFunctionalBlock gene={row0?.gene} query={query} />
+          <MaveFunctionalBlock
+            gene={row0?.gene}
+            query={query}
+            study={
+              payload.functional_evidence?.studies.find((study) =>
+                study.source_tags.includes('mavedb'),
+              ) ?? null
+            }
+          />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
 
@@ -853,14 +879,17 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             {(section) => (
               <>
                 <CompositeVerdictBar predictors={section.predictors} />
-                <CalibratedInSilicoTable predictors={section.predictors} />
+                <CalibratedInSilicoTable predictors={section.predictors} warnings={section.warnings} />
               </>
             )}
           </LazySection>
           {/* Loss-of-function (PVS1) — NMD prediction + Abou-Tayoun PVS1 tree.
               Computational, so it lives with the in-silico predictions; N/A for
               non-null variants (e.g. missense). */}
-          <LossOfFunctionBlock consequence={row0?.consequence ?? row0?.variation_type ?? null} />
+          <LossOfFunctionBlock
+            consequence={row0?.consequence ?? row0?.variation_type ?? null}
+            computed={computedClassification}
+          />
           {/* EAMOS-computed ACMG/AMP advisory — the synthesis capstone of §2:
               draws the points decision (gauge + plane + waterfall) by combining
               the predictors above with population/LoF/functional evidence. The
@@ -868,7 +897,6 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           <EamosAcmgClassifier
             data={payload.acmg_criteria_scaffold}
             computed={computedClassification}
-            mock={computedIsMock}
           />
         </Card>
 
@@ -971,10 +999,11 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           }
         >
-          <DiseaseSection payload={payload} embedded sectionTarget={targetFor('disease_mechanism')} />
-          <CuratedVariantsGrid data={payload.curated_variants_distribution} />
-          <AssociatedConditions data={payload.associated_conditions} />
-          <GeneDiseaseBlock evidence={data.evidence} />
+          <DiseaseValidityDashboard
+            payload={payload}
+            evidence={data.evidence}
+            sectionTarget={targetFor('disease_mechanism')}
+          />
         </Card>
 
         {/* 6 · Publication literature. */}
@@ -1049,6 +1078,17 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
       </div>
     </div>
   )
+}
+
+function reportViewQueryId(data: LookupResponse, query: string): string | null {
+  const payload = data.report_payload
+  const header = payload.report_profile?.header
+  const row0 = payload.variant_summary_rows[0]
+  const gene = header?.gene ?? row0?.gene ?? null
+  const transcriptHgvs = row0?.transcript_hgvs ?? null
+  const cdna = header?.cdna ?? transcriptHgvs?.split(':').pop() ?? null
+  if (!gene || !cdna) return null
+  return `${gene} ${cdna}`.trim() || query.trim() || data.query
 }
 
 

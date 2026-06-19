@@ -49,10 +49,8 @@ function tierContext(net: number, tier: string): string {
 
 export function PointWaterfall({
   computed,
-  mock = false,
 }: {
   computed: EamosComputedClassification
-  mock?: boolean
 }) {
   const steps = computed.per_criterion
     .filter((c) => c.triggered && c.points !== 0)
@@ -82,11 +80,6 @@ export function PointWaterfall({
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 2 }}>
         <span className="eamos-kicker">Point waterfall</span>
-        {mock && (
-          <span className="eamos-mock" title="Illustrative — applied points are not yet wired to live engine output for this variant.">
-            illustrative
-          </span>
-        )}
       </div>
       <p style={{ margin: '0 0 10px', fontSize: 10.5, color: 'var(--ink-4)', lineHeight: 1.4 }}>
         Each bar = the points that criterion applied (strength varies per variant). Pathogenic right, benign left.
@@ -154,7 +147,7 @@ export function PointWaterfall({
                 </span>
               ))}
             </div>
-            <ScaleTrack bands={axisBands} height={14} radius={4} separators pin={{ pos: xNet(net) / 100, muted: mock }} />
+            <ScaleTrack bands={axisBands} height={14} radius={4} separators pin={{ pos: xNet(net) / 100 }} />
             <div style={{ position: 'relative', height: 14, marginTop: 2 }} aria-hidden>
               {netTicks.map((t) => (
                 <span key={t} style={{ position: 'absolute', left: `${xNet(t)}%`, transform: 'translateX(-50%)', fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)' }}>

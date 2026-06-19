@@ -103,7 +103,7 @@ export function tierTokens(tier: EamosComputedTier): TierTokens {
 /**
  * The five tier band segments in NET-POINTS space, for the posterior gauge and
  * the waterfall's net→tier axis (matches the vault `posterior-gauge.svg`
- * mockup). The gauge axis is linear in net points — points are linear in
+ * visual reference). The gauge axis is linear in net points — points are linear in
  * log-odds — and the posterior value is labelled at each boundary (so the
  * "compress near 1.0" honesty lives in the labels, not in invisible slivers).
  * Band boundaries sit on the half-integer between net scores so an exact-boundary

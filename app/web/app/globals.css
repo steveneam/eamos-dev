@@ -369,6 +369,35 @@ textarea {
   border-radius: 4px;
 }
 
+/* Tailwind's generated `.sr-only` is not guaranteed to load before report
+   component CSS in dev. Define the utility explicitly, then add a table-specific
+   clamp because visually hidden tables can retain intrinsic table width in
+   Chromium and widen the root scroll area on narrow report viewports. */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border-width: 0 !important;
+}
+
+table.sr-only {
+  display: block !important;
+  width: 1px !important;
+  max-width: 1px !important;
+  table-layout: fixed !important;
+}
+
+table.sr-only :where(caption, tbody, tr, th, td) {
+  display: block !important;
+  max-width: 1px !important;
+  overflow: hidden !important;
+}
+
 @media (forced-colors: active) {
   :focus-visible {
     outline: 3px solid ButtonText;
@@ -743,8 +772,20 @@ textarea {
 .vardist .vd-cell.heat-b-3 { background: color-mix(in oklab, var(--cls-ben-dot) 26%, transparent); }
 .vardist .vd-cell.heat-v-1 { background: color-mix(in oklab, var(--cls-vus-dot) 12%, transparent); }
 .vardist .vd-cell.heat-v-2 { background: color-mix(in oklab, var(--cls-vus-dot) 24%, transparent); }
+.vardist .vd-cell.query-hit { position: relative; outline: 2px solid var(--warn); outline-offset: -2px; background: color-mix(in oklab, var(--warn) 16%, var(--bg)); }
+.vardist .vd-cell.query-hit.heat-1,
+.vardist .vd-cell.query-hit.heat-2,
+.vardist .vd-cell.query-hit.heat-3,
+.vardist .vd-cell.query-hit.heat-b-1,
+.vardist .vd-cell.query-hit.heat-b-2,
+.vardist .vd-cell.query-hit.heat-b-3,
+.vardist .vd-cell.query-hit.heat-v-1,
+.vardist .vd-cell.query-hit.heat-v-2 { background: color-mix(in oklab, var(--warn) 22%, var(--bg)); }
+.vd-query-badge { display: block; width: max-content; max-width: 100%; margin: 3px auto 0; padding: 1px 5px; border-radius: 999px; background: var(--warn); color: var(--bg); font-family: var(--body); font-size: 9px; font-weight: 700; line-height: 1.25; text-transform: uppercase; letter-spacing: 0.04em; }
 .vardist-reading { font-size: 11.5px; color: var(--ink-4); margin-top: 8px; line-height: 1.5; }
 .vardist-reading strong { color: var(--ink-3); }
+.vardist-query-note { font-size: 11px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
+.vardist-query-note strong { color: var(--warn-text); }
 
 /* ─── Structured associated conditions ─── */
 .conds { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }

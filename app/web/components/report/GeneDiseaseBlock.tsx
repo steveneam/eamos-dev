@@ -126,7 +126,6 @@ const GENCC_TIP =
   'GenCC aggregates gene–disease validity assertions from member submitters (ClinGen, Genomics England PanelApp, Orphanet, Invitae, and others). Consensus = the agreed classification across them.'
 const MONDO_TIP =
   'MONDO — the cross-ontology disease identifier that unifies OMIM, Orphanet and MedGen. Opens the Monarch Initiative page.'
-const GENCC_MOCK_TIP = 'Illustrative — GenCC consensus / submitter count not yet wired to live data.'
 
 export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
   const row = evidence.find((e) => e.source?.toLowerCase() === 'gene_disease')
@@ -150,10 +149,13 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
 
   const tone = validityTone(validity)
   const orderedIds = orderDiseaseIds(readStringArray(summary.disease_ids))
-  // GenCC consensus is gated → illustrative mock, kept coherent with the live
-  // ClinGen validity tier on the same gene.
-  const genccConsensus = validity ? titleCase(validity) : 'Definitive'
-  const genccSubmitters = 5
+  const genccAssertions = readStringArray(summary.gencc_assertions)
+  const genccSubmitters = readStringArray(summary.gencc_submitters)
+  const genccCount =
+    typeof summary.gencc_assertion_count === 'number' && Number.isFinite(summary.gencc_assertion_count)
+      ? summary.gencc_assertion_count
+      : genccAssertions.length
+  const genccConsensus = genccAssertions[0] ?? null
 
   return (
     <div
@@ -189,7 +191,6 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
               ClinGen · {validity}
             </span>
           )}
-          {/* GenCC consensus — second validity source, mock until wired. */}
           <span
             title={GENCC_TIP}
             style={{
@@ -198,14 +199,15 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
               fontSize: 11,
               fontWeight: 600,
               background: 'var(--bg)',
-              border: `0.5px solid ${tone.bd}`,
-              color: tone.ink,
+              border: `0.5px solid ${genccConsensus ? tone.bd : 'var(--line)'}`,
+              color: genccConsensus ? tone.ink : 'var(--ink-4)',
               cursor: 'help',
             }}
           >
-            GenCC · {genccConsensus} · {genccSubmitters} submitters
+            {genccConsensus
+              ? `GenCC · ${titleCase(genccConsensus)} · ${genccCount} assertion${genccCount === 1 ? '' : 's'}`
+              : 'GenCC · unavailable'}
           </span>
-          <span className="eamos-mock" title={GENCC_MOCK_TIP}>Mock</span>
         </span>
       </div>
 
@@ -284,6 +286,27 @@ export function GeneDiseaseBlock({ evidence }: GeneDiseaseBlockProps) {
         <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink-2)' }}>
           {mechanism}
         </p>
+      )}
+
+      {genccSubmitters.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          <span className="eamos-kicker">GenCC submitters</span>
+          {genccSubmitters.slice(0, 6).map((submitter) => (
+            <span
+              key={submitter}
+              style={{
+                fontSize: 10.5,
+                color: 'var(--ink-3)',
+                border: '0.5px solid var(--line)',
+                borderRadius: 999,
+                padding: '2px 8px',
+                background: 'var(--bg)',
+              }}
+            >
+              {submitter}
+            </span>
+          ))}
+        </div>
       )}
 
       {conditions.length > 0 && (

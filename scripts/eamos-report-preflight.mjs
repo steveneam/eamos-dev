@@ -40,8 +40,10 @@ import { join } from 'node:path'
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
-    const [k, v = 'true'] = a.replace(/^--/, '').split('=')
-    return [k, v]
+    const raw = a.replace(/^--/, '')
+    const sep = raw.indexOf('=')
+    if (sep === -1) return [raw, 'true']
+    return [raw.slice(0, sep), raw.slice(sep + 1)]
   }),
 )
 const URL_BASE = args.url ?? 'http://localhost:3000/report?demo'
@@ -159,6 +161,7 @@ const SCAN_FN = `
   const seen = new Set();
   for (const el of document.querySelectorAll('*')) {
     if (!(el instanceof HTMLElement)) continue;
+    if (el.closest('.sr-only')) continue;
     const sw = el.scrollWidth, cw = el.clientWidth;
     if (sw > cw + 1 && cw > 0) {
       const rect = el.getBoundingClientRect();

@@ -1,10 +1,6 @@
-// B5 — Evidence Fingerprint. Four independent axes (rarity · predictors ·
-// conservation · constraint) on ONE shared benign↔pathogenic baseline, plus an
-// "N of 4 agree" convergence read. This is a glance at whether the evidence
-// *axes* point the same way — deliberately NOT styled like the ACMG verdict
-// (no tier badge, no cls-* fill): it answers "do the lines of evidence converge?",
-// not "what is the classification?". Missing axes render "—" (gnomAD no-data
-// pattern), never a fabricated midpoint.
+// B5 - Evidence Fingerprint. Four independent axes (rarity, predictors,
+// conservation, constraint) on one benign-to-pathogenic baseline. Missing axes
+// render as no-data markers; no axis is fabricated.
 
 export interface FingerprintAxis {
   key: string
@@ -12,7 +8,6 @@ export interface FingerprintAxis {
   /** 0 = benign end, 1 = pathogenic end; null = no data for this axis. */
   value: number | null
   detail?: string
-  mock?: boolean
 }
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
@@ -24,14 +19,19 @@ export function EvidenceFingerprint({ axes }: { axes: FingerprintAxis[] }) {
   const consensusPath = pathCount >= benCount
   const agree = consensusPath ? pathCount : benCount
   const direction = consensusPath ? 'pathogenic' : 'benign'
-
-  const summary =
-    scored.length === 0
-      ? 'No axes available'
-      : `${agree} of ${scored.length} axes point ${direction}`
-
+  const summary = scored.length === 0 ? 'No axes available' : `${agree} of ${scored.length} axes point ${direction}`
   const ariaLabel = `Evidence fingerprint: ${summary}. ${axes
-    .map((a) => `${a.label} ${a.value == null ? 'no data' : a.value > 0.5 ? 'pathogenic-leaning' : a.value < 0.5 ? 'benign-leaning' : 'neutral'}`)
+    .map((a) =>
+      `${a.label} ${
+        a.value == null
+          ? 'no data'
+          : a.value > 0.5
+            ? 'pathogenic-leaning'
+            : a.value < 0.5
+              ? 'benign-leaning'
+              : 'neutral'
+      }`,
+    )
     .join('; ')}.`
 
   return (
@@ -46,14 +46,8 @@ export function EvidenceFingerprint({ axes }: { axes: FingerprintAxis[] }) {
           <div key={a.key} style={{ display: 'grid', gridTemplateColumns: '74px 1fr', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }} title={a.detail}>
               {a.label}
-              {a.mock && (
-                <span className="eamos-mock" style={{ marginLeft: 4 }} title="Illustrative — this axis is not yet wired to live data.">
-                  mock
-                </span>
-              )}
             </span>
             <div style={{ position: 'relative', height: 12 }}>
-              {/* benign → pathogenic baseline (muted two-tone, NOT the verdict ramp). */}
               <div
                 aria-hidden
                 style={{
@@ -68,7 +62,7 @@ export function EvidenceFingerprint({ axes }: { axes: FingerprintAxis[] }) {
                 }}
               />
               {a.value == null ? (
-                <span style={{ position: 'absolute', right: 0, top: -2, fontSize: 10, color: 'var(--ink-5)' }}>—</span>
+                <span style={{ position: 'absolute', right: 0, top: -2, fontSize: 10, color: 'var(--ink-5)' }}>-</span>
               ) : (
                 <span
                   aria-hidden
@@ -98,12 +92,20 @@ export function EvidenceFingerprint({ axes }: { axes: FingerprintAxis[] }) {
       </div>
 
       <table className="sr-only">
-        <caption>Evidence fingerprint — four axes on a benign-to-pathogenic scale</caption>
+        <caption>Evidence fingerprint - four axes on a benign-to-pathogenic scale</caption>
         <tbody>
           {axes.map((a) => (
             <tr key={a.key}>
               <th scope="row">{a.label}</th>
-              <td>{a.value == null ? 'no data' : a.value > 0.5 ? 'pathogenic-leaning' : a.value < 0.5 ? 'benign-leaning' : 'neutral'}</td>
+              <td>
+                {a.value == null
+                  ? 'no data'
+                  : a.value > 0.5
+                    ? 'pathogenic-leaning'
+                    : a.value < 0.5
+                      ? 'benign-leaning'
+                      : 'neutral'}
+              </td>
             </tr>
           ))}
         </tbody>

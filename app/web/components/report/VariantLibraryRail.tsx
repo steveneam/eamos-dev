@@ -15,11 +15,19 @@ import { IconBookmark, IconCheck } from '@/components/icons/Icon'
  * RelatedVariants lanes and the section-nav scroll-spy. The Save-current action
  * (rail head) is exported separately for WorkRail's `action` slot. Spec §1.4.
  */
-export function VariantLibraryRail({ data, query }: { data: LookupResponse; query: string }) {
+export function VariantLibraryRail({
+  data,
+  query,
+  viewMetricsEnabled = true,
+}: {
+  data: LookupResponse
+  query: string
+  viewMetricsEnabled?: boolean
+}) {
   return (
     <>
       <LibrarySection currentQuery={query} />
-      <RelatedVariants data={data} />
+      <RelatedVariants data={data} viewMetricsEnabled={viewMetricsEnabled} />
       <ReportSectionNav />
     </>
   )

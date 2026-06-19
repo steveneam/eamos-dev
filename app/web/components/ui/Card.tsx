@@ -174,7 +174,18 @@ export function Card({
           )}
         </div>
       </div>
-      {open && <div className="px-6 py-5">{children}</div>}
+      {open && (
+        <div
+          style={{
+            minWidth: 0,
+            maxWidth: '100%',
+            overflowX: 'auto',
+            padding: '20px clamp(14px, 4vw, 24px)',
+          }}
+        >
+          {children}
+        </div>
+      )}
     </div>
   )
 }

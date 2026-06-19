@@ -12,16 +12,16 @@ import { PosteriorGauge } from './PosteriorGauge'
 export function AdvisorySummaryStrip({
   payload,
   computed,
-  mock = false,
   populationAf,
 }: {
   payload: ReportPayload
   computed: EamosComputedClassification
-  mock?: boolean
   populationAf?: number | null
 }) {
-  void payload // reserved for future axis sources (conservation / constraint)
-  const axes = deriveFingerprintAxes(populationAf, computed, mock)
+  const axes = deriveFingerprintAxes(populationAf, computed, {
+    conservation: payload.report_profile?.computational_deep_dive?.conservation ?? [],
+    loeuf: payload.report_profile?.molecular_context?.loeuf ?? null,
+  })
 
   return (
     <section
@@ -38,7 +38,7 @@ export function AdvisorySummaryStrip({
       <EvidenceFingerprint axes={axes} />
 
       <div className="flex flex-col items-start gap-2 sm:items-end sm:border-l sm:pl-4" style={{ borderColor: 'var(--line)' }}>
-        <PosteriorGauge computed={computed} mock={mock} variant="chip" />
+        <PosteriorGauge computed={computed} variant="chip" />
         <a
           href="#evidence_by_source"
           style={{

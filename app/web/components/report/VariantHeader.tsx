@@ -5,12 +5,18 @@ import { IconCalendar, IconEye, IconShare } from '@/components/icons/Icon'
 import type { LookupResponse, ReportPayload, VariantSummaryRow } from '@/lib/backend'
 import { SaveCurrentButton } from './VariantLibraryRail'
 
+interface VariantHeaderViewMetric {
+  view_count: number
+  last_viewed?: string | null
+}
+
 interface VariantHeaderProps {
   payload: ReportPayload
   /** Full lookup response — threaded so the hero Save reuses the one library
    *  save path (no second, drifting save system). */
   data: LookupResponse
   query?: string
+  viewMetric?: VariantHeaderViewMetric | null
   /** When provided, replaces the plain "Export PDF" button (e.g. the ExportMenu dropdown). */
   exportSlot?: ReactNode
 }
@@ -21,7 +27,7 @@ interface CrossDbChip {
 }
 
 // Genoox/Franklin deliberately excluded — competitor, no outbound link.
-function buildCrossDbChips(row: VariantSummaryRow | undefined, gene: string): CrossDbChip[] {
+function buildCrossDbChips(row: VariantSummaryRow | undefined, gene: string, ensemblGeneId?: string | null): CrossDbChip[] {
   const cdna = row?.transcript_hgvs?.split(':').pop() ?? ''
   const enc = encodeURIComponent(`${gene} ${cdna}`.trim())
 
@@ -32,7 +38,9 @@ function buildCrossDbChips(row: VariantSummaryRow | undefined, gene: string): Cr
     },
     {
       label: 'gnomAD',
-      href: `https://gnomad.broadinstitute.org/gene/${ENSEMBL_BY_GENE[gene] ?? gene}?dataset=gnomad_r4`,
+      href: ensemblGeneId
+        ? `https://gnomad.broadinstitute.org/gene/${ensemblGeneId}?dataset=gnomad_r4`
+        : `https://gnomad.broadinstitute.org/search?query=${encodeURIComponent(gene)}`,
     },
     {
       label: 'SpliceAI',
@@ -53,16 +61,8 @@ function buildCrossDbChips(row: VariantSummaryRow | undefined, gene: string): Cr
   ]
 }
 
-const ENSEMBL_BY_GENE: Record<string, string> = {
-  RPE65: 'ENSG00000116745',
-  USH2A: 'ENSG00000042781',
-  ABCA4: 'ENSG00000198691',
-  RPGR:  'ENSG00000156313',
-  CNGA3: 'ENSG00000144348',
-}
-
 // GRCh38 RefSeq chromosome accessions — to build the genomic HGVS (g.) from the
-// VCF triple. (The g. nomenclature is derivable; not a mock.)
+// VCF triple. The g. nomenclature is derivable from the resolved coordinates.
 const CHROM_NC: Record<string, string> = {
   '1': 'NC_000001.11', '2': 'NC_000002.12', '3': 'NC_000003.12', '4': 'NC_000004.12',
   '5': 'NC_000005.10', '6': 'NC_000006.12', '7': 'NC_000007.14', '8': 'NC_000008.11',
@@ -97,29 +97,122 @@ function genomicCoordFromVcf(vcf: string | null): string | null {
   return `chr${parts[0]}:${pos.toLocaleString()}`
 }
 
-const MOCK_TIP =
-  'Preview value — not yet wired to live data. This number is illustrative and will update once the data source is connected.'
+function readString(raw: unknown): string | null {
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null
+}
 
-export function VariantHeader({ payload, data, query, exportSlot }: VariantHeaderProps) {
+type GeneContextVariantProjection = NonNullable<
+  NonNullable<ReportPayload['report_profile']>['gene_context_snapshot']
+>['variant']
+
+function codonFromProjection(variant: GeneContextVariantProjection | null | undefined): string | null {
+  if (!variant) return null
+  const aaRef = readString(variant.aa_ref)
+  const aaAlt = readString(variant.aa_alt)
+  const number = typeof variant.codon_number === 'number' && variant.codon_number > 0 ? variant.codon_number : null
+  if (aaRef && number && aaAlt) return `${aaRef}${number}${aaAlt}`
+  if (number) return `codon ${number}`
+  return null
+}
+
+function firstEnsemblTranscript(...aliases: Array<string[] | null | undefined>): string | null {
+  for (const list of aliases) {
+    const match = list?.find((alias) => /^ENST\d+(?:\.\d+)?$/i.test(alias.trim()))
+    if (match) return match.trim()
+  }
+  return null
+}
+
+function firstEvidenceRsid(data: LookupResponse): string | null {
+  for (const row of data.evidence) {
+    const summaryRsid = readString(row.summary?.dbsnp_rsid)
+    if (summaryRsid && /^rs\d+$/i.test(summaryRsid)) return summaryRsid
+    const request = row.request_identity ?? {}
+    const query = readString(request.query)
+    if (query && /^rs\d+$/i.test(query)) return query
+    const aliases = Array.isArray(request.variant_aliases) ? request.variant_aliases : []
+    for (const alias of aliases) {
+      const value = readString(alias)
+      if (value && /^rs\d+$/i.test(value)) return value
+    }
+  }
+  return null
+}
+
+function firstEvidenceEnsemblTranscript(data: LookupResponse): string | null {
+  const matches: string[] = []
+  for (const row of data.evidence) {
+    const summaryTranscript = readString(row.summary?.transcript_id)
+    if (summaryTranscript && /^ENST\d+(?:\.\d+)?$/i.test(summaryTranscript)) {
+      matches.push(summaryTranscript)
+    }
+    const requestTranscript = readString(row.request_identity?.transcript_id)
+    if (requestTranscript && /^ENST\d+(?:\.\d+)?$/i.test(requestTranscript)) {
+      matches.push(requestTranscript)
+    }
+  }
+  return matches.find((value) => /\.\d+$/.test(value)) ?? matches[0] ?? null
+}
+
+function unavailable(label = 'Unavailable') {
+  return <span style={{ color: 'var(--ink-5)', fontFamily: 'var(--body)' }}>{label}</span>
+}
+
+function latestFetchedAt(data: LookupResponse): string | null {
+  const dates = data.evidence
+    .map((row) => row.fetched_at)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .sort()
+  return dates.at(-1) ?? null
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+export function VariantHeader({ payload, data, query, viewMetric, exportSlot }: VariantHeaderProps) {
   const row = payload.variant_summary_rows[0]
   // report_profile.header is richer than the summary row (it carries the protein
   // change + transcript even when the row's are null), so prefer it.
   const reportHeader = payload.report_profile?.header
+  const geneContext = payload.report_profile?.gene_context_snapshot ?? null
+  const geneContextVariant = geneContext?.variant ?? null
   const gene = row?.gene ?? reportHeader?.gene ?? '—'
-  const proteinChange = reportHeader?.protein_change ?? row?.protein_change ?? null
-  const transcriptHgvs = row?.transcript_hgvs ?? null
-  const cdna = reportHeader?.cdna ?? transcriptHgvs?.split(':').pop() ?? null
-  const transcriptId = reportHeader?.transcript ?? (transcriptHgvs?.includes(':') ? transcriptHgvs.split(':')[0] : null)
-  const vcf = row?.genomic_hg38 ?? reportHeader?.genomic_hg38 ?? null
+  const proteinChange = reportHeader?.protein_change ?? row?.protein_change ?? geneContextVariant?.hgvs_p ?? null
+  const transcriptHgvs = row?.transcript_hgvs ?? geneContextVariant?.hgvs_c ?? null
+  const cdna = reportHeader?.cdna ?? transcriptHgvs?.split(':').pop() ?? geneContextVariant?.hgvs_c ?? null
+  const transcriptId =
+    reportHeader?.transcript ??
+    geneContext?.transcript ??
+    (transcriptHgvs?.includes(':') ? transcriptHgvs.split(':')[0] : null)
+  const vcf = row?.genomic_hg38 ?? reportHeader?.genomic_hg38 ?? geneContextVariant?.genomic_hg38 ?? null
   const genomicCoord = genomicCoordFromVcf(vcf)
-  const consequence = row?.consequence ?? row?.variation_type ?? null
-  const ensgId = ENSEMBL_BY_GENE[gene] ?? null
   // Exon comes from the molecular-context evidence row (same source MolecularContextBlock reads).
   const mcRow = data.evidence?.find((e) => e.source?.toLowerCase() === 'molecular_context')
   const mcSummary = (mcRow?.summary ?? null) as Record<string, unknown> | null
-  const exon = mcSummary && typeof mcSummary.exon === 'string' ? (mcSummary.exon as string) : null
-  const codon = mcSummary && typeof mcSummary.codon_change === 'string' ? (mcSummary.codon_change as string) : null
-  // Genomic HGVS (g.) — derived from the VCF triple + GRCh38 accession (real, not mock).
+  const clinvarRow = data.evidence?.find((e) => e.source?.toLowerCase() === 'clinvar')
+  const clinvarSummary = (clinvarRow?.summary ?? null) as Record<string, unknown> | null
+  const consequence = row?.consequence ?? row?.variation_type ?? readString(clinvarSummary?.consequence)
+  const exon =
+    mcSummary && typeof mcSummary.exon === 'string'
+      ? (mcSummary.exon as string)
+      : geneContextVariant?.exon_number != null
+        ? String(geneContextVariant.exon_number)
+        : null
+  const codon =
+    mcSummary && typeof mcSummary.codon_change === 'string'
+      ? (mcSummary.codon_change as string)
+      : codonFromProjection(geneContextVariant)
+  const dbsnpRsid = reportHeader?.dbsnp_rsid ?? readString(clinvarSummary?.dbsnp_rsid) ?? firstEvidenceRsid(data)
+  const ensgId = reportHeader?.ensembl_gene_id ?? geneContext?.ensembl_gene_id ?? null
+  const ensemblTranscript =
+    reportHeader?.ensembl_transcript ??
+    firstEnsemblTranscript(reportHeader?.transcript_aliases, geneContext?.transcript_aliases) ??
+    firstEvidenceEnsemblTranscript(data)
+  const maneSelect = reportHeader?.mane_select === true
+  // Genomic HGVS (g.) - derived from the VCF triple + GRCh38 accession.
   const hgvsG = (() => {
     if (!vcf) return null
     const parts = vcf.split('-')
@@ -132,7 +225,10 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
       payload.report_profile?.acmg_worksheet?.classification ??
       payload.acmg_classification,
   )
-  const chips = buildCrossDbChips(row, gene)
+  const chips = buildCrossDbChips(row, gene, ensgId)
+  const latestFetch = latestFetchedAt(data)
+  const updatedAt = reportHeader?.updated_at ?? latestFetch
+  const viewCount = viewMetric?.view_count ?? reportHeader?.view_count ?? null
 
   return (
     <header>
@@ -175,18 +271,32 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
           )}
         </div>
 
-        {/* Row 2 — engagement metrics (left) + Save / Export / Share (right) */}
+        {/* Row 2 — source status (left) + Save / Export / Share (right) */}
         <div className="vh-actions">
-          <div className="vh-metrics" aria-label={`Engagement metrics. ${MOCK_TIP}`}>
-            <span className="vh-metric" title="How many times this report has been viewed">
+          <div className="vh-metrics" aria-label="Report source status">
+            <span className="vh-metric" title="Report views recorded by the backend for this resolved variant">
               <IconEye />
-              <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>1,204</span> views
+              {typeof viewCount === 'number' ? (
+                <>
+                  <b>{viewCount.toLocaleString()}</b> views
+                </>
+              ) : (
+                'Views unavailable'
+              )}
             </span>
-            <span className="vh-metric" title="When the evidence for this variant was last updated">
+            <span className="vh-metric" title="Number of evidence source rows returned by the backend">
+              <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>{data.evidence.length}</span> sources
+            </span>
+            <span className="vh-metric" title="Backend report update timestamp; falls back to the latest fetched_at source timestamp">
               <IconCalendar />
-              Updated <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>5 Jun 2026</span>
+              {updatedAt ? (
+                <>
+                  Updated <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>{formatDate(updatedAt)}</span>
+                </>
+              ) : (
+                'Source timestamps unavailable'
+              )}
             </span>
-            <span className="eamos-mock" title={MOCK_TIP}>preview</span>
           </div>
           <div className="v-tools">
             <SaveCurrentButton data={data} variant="hero" />
@@ -212,13 +322,13 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
                 <dt title="HGVS coding-DNA nomenclature (c.)">HGVS c.</dt>
                 <dd>{transcriptHgvs ?? cdna ?? '—'}</dd>
                 <dt title="HGVS protein nomenclature (p.)">HGVS p.</dt>
-                <dd>{proteinChange ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dd>{proteinChange ?? unavailable()}</dd>
                 <dt title="HGVS genomic nomenclature (g.) on GRCh38">HGVS g.</dt>
-                <dd>{hgvsG ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dd>{hgvsG ?? unavailable()}</dd>
                 <dt title="The exon containing this variant">Exon</dt>
-                <dd>{exon ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dd>{exon ?? unavailable()}</dd>
                 <dt title="Codon change at the affected residue">Codon</dt>
-                <dd>{codon ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}</dd>
+                <dd>{codon ?? unavailable()}</dd>
                 <dt>Consequence</dt>
                 <dd>{consequence ?? '—'}</dd>
               </dl>
@@ -229,13 +339,22 @@ export function VariantHeader({ payload, data, query, exportSlot }: VariantHeade
                 <dt title="Variant Call Format — chrom-pos-ref-alt">VCF</dt>
                 <dd>{vcf ?? '—'}</dd>
                 <dt title="dbSNP reference SNP identifier">rsID</dt>
-                <dd><a href="https://www.ncbi.nlm.nih.gov/snp/rs62637009" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--teal-deep)', textDecoration: 'none' }}>rs62637009</a>{' '}<span className="eamos-mock" title={MOCK_TIP}>mock</span></dd>
+                <dd>
+                  {dbsnpRsid ? (
+                    <a href={`https://www.ncbi.nlm.nih.gov/snp/${dbsnpRsid}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--teal-deep)', textDecoration: 'none' }}>
+                      {dbsnpRsid}
+                    </a>
+                  ) : unavailable()}
+                </dd>
                 <dt title="RefSeq (NCBI / Entrez) transcript">Transcript · RefSeq</dt>
-                <dd>{transcriptId ?? <span className="eamos-mock" title={MOCK_TIP}>Needs live data</span>}{' '}<span className="eamos-mock" title="MANE Select — the single NCBI/EMBL-EBI agreed clinical transcript for this gene. Mock until wired.">MANE Select</span></dd>
+                <dd>
+                  {transcriptId ?? unavailable()}
+                  {maneSelect && <span title="MANE Select transcript alias returned by backend gene-context data.">MANE Select</span>}
+                </dd>
                 <dt title="Ensembl gene identifier (ENSG)">Ensembl gene</dt>
-                <dd>{ensgId ?? <>ENSG00000116745{' '}<span className="eamos-mock" title={MOCK_TIP}>mock</span></>}</dd>
+                <dd>{ensgId ?? unavailable()}</dd>
                 <dt title="Ensembl transcript identifier (ENST)">Ensembl transcript</dt>
-                <dd>ENST00000262340.6{' '}<span className="eamos-mock" title={MOCK_TIP}>mock</span></dd>
+                <dd>{ensemblTranscript ?? unavailable()}</dd>
               </dl>
             </div>
             <div className="v-jump" style={{ marginTop: 12 }}>

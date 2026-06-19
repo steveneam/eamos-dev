@@ -1,13 +1,10 @@
 import { type ReactNode } from 'react'
 
 /**
- * Shared "curator quote" block (report v3, design §6) — the curator's free-text
- * assessment, set off with a teal left-rule + faint wash so §1 reads as one
- * consistent grammar whether the source is ClinGen (VCEP) or ClinVar. The
- * left-rule + indent carry the "quote" semantics (DESIGN bans decorative
- * glyphs). `mock` marks a not-yet-wired interpretation.
+ * Shared curator quote block for ClinGen/VCEP and ClinVar free-text
+ * interpretations. The left rule and indent carry the quote semantics.
  */
-export function CuratorQuote({ children, mock = false }: { children?: ReactNode; mock?: boolean }) {
+export function CuratorQuote({ children }: { children?: ReactNode }) {
   return (
     <blockquote
       style={{
@@ -26,14 +23,6 @@ export function CuratorQuote({ children, mock = false }: { children?: ReactNode;
       }}
     >
       {children}
-      {mock && (
-        <span
-          className="eamos-mock"
-          title="The per-submitter interpretation free-text is not yet wired to live data; the classification, review status and submitter mix above are live."
-        >
-          Submitter interpretation — needs live data
-        </span>
-      )}
     </blockquote>
   )
 }

@@ -5,10 +5,8 @@ import { ScaleTrack, type ScaleBand } from './ScoreScale'
 
 interface CalibratedInSilicoTableProps {
   predictors?: ComputationalPredictorRow[] | null
+  warnings?: string[] | null
 }
-
-const MOCK_TIP =
-  'Preview row — this engine is not yet wired to live data. Scores populate once the data source is connected.'
 
 type PredictorCategory = 'Missense' | 'Splice' | 'Genome-wide' | 'Other'
 
@@ -245,14 +243,14 @@ function EvidenceBar({ cal, score }: { cal: Calibration | null; score: number | 
       summaryTip = `Raw ${formatScore(score)} → ${tier} (${meta && meta.points >= 0 ? '+' : ''}${meta?.points} ACMG pt), calibrated per ${cal.source}.`
     } else {
       captionRight = 'score pending'
-      summaryTip = `Calibrated ACMG evidence scale (${cal.source}). Hover a band for its strength. Score not yet wired.`
+      summaryTip = `Calibrated ACMG evidence scale (${cal.source}). Hover a band for its strength. Score unavailable.`
     }
   } else if (binary != null) {
     captionLeft = `cutoff ${fmtNum(binary)}`
     captionRight = `${cal.source} · display`
     summaryTip = hasScore
       ? `Raw ${formatScore(score)} vs cutoff ${fmtNum(binary)} → ${(score as number) >= binary ? 'damaging' : 'tolerated'} (${cal.source}; binary cutoff, not ClinGen-graded).`
-      : `Tool-native cutoff ${fmtNum(binary)} (${cal.source}; not ClinGen-graded). Score not yet wired.`
+      : `Tool-native cutoff ${fmtNum(binary)} (${cal.source}; not ClinGen-graded). Score unavailable.`
   } else {
     captionLeft = 'raw score'
     captionRight = 'not ACMG-calibrated'
@@ -354,6 +352,8 @@ interface RowData {
   tip: string | null
   cal: Calibration | null
   live: ComputationalPredictorRow | null
+  availability: string | null
+  availabilityTip: string | null
 }
 
 function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
@@ -376,7 +376,12 @@ function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
   }
 
   // Version now lives in the engine-name hover (its own column was removed).
-  const engineTitle = [rd.tip, live?.version ? `Version: ${live.version}` : null].filter(Boolean).join('  ·  ') || undefined
+  const engineTitle = [
+    rd.tip,
+    live?.version ? `Version: ${live.version}` : null,
+    live?.source_id ? `Source ID: ${live.source_id}` : null,
+    live?.launch_gate ? `Gate: ${live.launch_gate}` : null,
+  ].filter(Boolean).join('  ·  ') || undefined
 
   return (
     <tr>
@@ -388,6 +393,18 @@ function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
           {rd.tier && <TierTag tier={rd.tier} />}
         </div>
         {subCaption && <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>{subCaption}</div>}
+        {live && (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
+            {live.source_id && <MetaChip label={live.source_id} title="Backend source_id for this predictor artifact." />}
+            {live.launch_gate && <MetaChip label={live.launch_gate} title="Launch or license gate carried from backend metadata." />}
+            {live.public_serialization_allowed === false && (
+              <MetaChip label="private serialization" title="Backend marked this row as not publicly serializable." />
+            )}
+            {live.warnings.slice(0, 2).map((warning) => (
+              <MetaChip key={warning} label={warning} title="Backend predictor warning." />
+            ))}
+          </div>
+        )}
       </td>
       <td style={{ ...cell, whiteSpace: 'nowrap' }}>
         {!rd.acmg ? (
@@ -415,8 +432,11 @@ function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
         ) : live ? (
           <span style={{ fontSize: 11.5, color: 'var(--ink-4)', fontStyle: 'italic' }}>No published calibration</span>
         ) : (
-          <span className="eamos-mock" title={MOCK_TIP}>
-            Needs live data
+          <span
+            title={rd.availabilityTip ?? undefined}
+            style={{ fontSize: 11.5, color: 'var(--ink-4)', borderBottom: '1px dotted var(--ink-5)', cursor: rd.availabilityTip ? 'help' : 'default' }}
+          >
+            {rd.availability ?? 'Unavailable'}
           </span>
         )}
       </td>
@@ -425,6 +445,29 @@ function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
         <EvidenceBar cal={rd.cal} score={live ? toNum(live.score) : null} />
       </td>
     </tr>
+  )
+}
+
+function MetaChip({ label, title }: { label: string; title: string }) {
+  return (
+    <span
+      title={title}
+      style={{
+        display: 'inline-block',
+        boxSizing: 'border-box',
+        fontSize: 9.5,
+        color: 'var(--ink-4)',
+        border: '0.5px solid var(--line)',
+        borderRadius: 999,
+        padding: '1px 6px',
+        maxWidth: 220,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
   )
 }
 
@@ -447,7 +490,40 @@ function matchEntry(liveName: string): CatalogEntry | null {
   return best
 }
 
-export function CalibratedInSilicoTable({ predictors }: CalibratedInSilicoTableProps) {
+function missingAvailability(entry: CatalogEntry, warnings: string[]): { label: string; tip: string } {
+  const keys: Record<string, string[]> = {
+    AlphaMissense: ['alphamissense'],
+    ESM1b: ['esm1b'],
+    REVEL: ['revel', 'dbnsfp'],
+    'PrimateAI-3D': ['primateai', 'dbnsfp'],
+    MetaLR: ['metalr', 'dbnsfp'],
+    'CI-SpliceAI': ['ci_spliceai'],
+    SpliceAI: ['spliceai'],
+    Pangolin: ['pangolin'],
+    CADD: ['cadd', 'dbnsfp'],
+    'GPN-MSA': ['gpn'],
+    CAPICE: ['capice'],
+  }
+  const matched = warnings
+    .map((warning) => warning.toLowerCase())
+    .find((warning) => (keys[entry.name] ?? [normalizeName(entry.name)]).some((key) => warning.includes(key.toLowerCase())))
+
+  if (matched?.includes('missing') || matched?.includes('not_ready') || matched?.includes('unavailable')) {
+    return { label: 'Awaiting artifact', tip: matched }
+  }
+  if (matched?.includes('gate') || matched?.includes('license')) {
+    return { label: 'Gated', tip: matched }
+  }
+  if (entry.tier === 'Pro') {
+    return {
+      label: 'Commercial-gated source',
+      tip: 'This predictor is in the gated source catalog and will render when the backend emits a source-backed row.',
+    }
+  }
+  return { label: 'Unavailable', tip: 'No source-backed predictor row was returned for this variant.' }
+}
+
+export function CalibratedInSilicoTable({ predictors, warnings = [] }: CalibratedInSilicoTableProps) {
   // AlphaMissense re-enabled in §2 (Steven 2026-06-08) — no longer filtered out.
   const live = predictors ?? []
 
@@ -461,17 +537,22 @@ export function CalibratedInSilicoTable({ predictors }: CalibratedInSilicoTableP
     else others.push(row)
   }
 
-  const ordered: RowData[] = PREDICTOR_CATALOG.map((entry) => ({
-    key: entry.name,
-    category: entry.category,
-    name: entry.name,
-    tier: entry.tier,
-    acmg: entry.acmg,
-    metric: entry.metric,
-    tip: ENGINE_TIP[entry.name] ?? null,
-    cal: entry.cal,
-    live: liveForEntry.get(entry.name) ?? null,
-  }))
+  const ordered: RowData[] = PREDICTOR_CATALOG.map((entry) => {
+    const availability = missingAvailability(entry, warnings ?? [])
+    return {
+      key: entry.name,
+      category: entry.category,
+      name: entry.name,
+      tier: entry.tier,
+      acmg: entry.acmg,
+      metric: entry.metric,
+      tip: ENGINE_TIP[entry.name] ?? null,
+      cal: entry.cal,
+      live: liveForEntry.get(entry.name) ?? null,
+      availability: availability.label,
+      availabilityTip: availability.tip,
+    }
+  })
   for (const row of others) {
     ordered.push({
       key: `other-${row.name}`,
@@ -483,6 +564,8 @@ export function CalibratedInSilicoTable({ predictors }: CalibratedInSilicoTableP
       tip: ENGINE_TIP[row.name] ?? null,
       cal: null,
       live: row,
+      availability: null,
+      availabilityTip: null,
     })
   }
 
@@ -496,11 +579,8 @@ export function CalibratedInSilicoTable({ predictors }: CalibratedInSilicoTableP
       </div>
       <p style={{ fontSize: 11.5, color: 'var(--ink-4)', margin: '0 0 10px', lineHeight: 1.5 }}>
         The full predictor panel, grouped by what each engine scores. The bar shows where the raw score sits on each
-        engine&apos;s benign↔pathogenic scale (calibrated to ClinGen thresholds where they exist). Rows marked{' '}
-        <span className="eamos-mock" title={MOCK_TIP} style={{ verticalAlign: 'middle' }}>
-          Needs live data
-        </span>{' '}
-        are part of the planned panel but not yet wired ({liveCount} of {sorted.length} engines live).
+        engine&apos;s benign-to-pathogenic scale (calibrated to ClinGen thresholds where they exist).
+        Missing engines are marked unavailable or gated until the backend emits a source-backed row ({liveCount} of {sorted.length} engines live).
       </p>
 
       <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>

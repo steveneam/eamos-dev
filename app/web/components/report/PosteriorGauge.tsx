@@ -43,11 +43,9 @@ function overrideNote(computed: EamosComputedClassification): string | null {
 
 export function PosteriorGauge({
   computed,
-  mock = false,
   variant = 'gauge',
 }: {
   computed: EamosComputedClassification
-  mock?: boolean
   variant?: 'gauge' | 'chip'
 }) {
   const net = computed.net_points
@@ -114,7 +112,7 @@ export function PosteriorGauge({
       >
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.02em', color: tokens.ink }}>{pct(p)}</span>
         <span style={{ width: 72 }}>
-          <ScaleTrack bands={scaleBands} height={6} radius={3} pin={{ pos: xNet(net) / 100, muted: mock }} />
+          <ScaleTrack bands={scaleBands} height={6} radius={3} pin={{ pos: xNet(net) / 100 }} />
         </span>
         <span style={{ fontSize: 10, color: 'var(--ink-4)' }}>posterior</span>
         {dataTable}
@@ -133,11 +131,6 @@ export function PosteriorGauge({
             posterior · <span style={{ color: tokens.ink, fontWeight: 600 }}>{computed.tier}</span> · net {netLabel}
           </span>
         </div>
-        {mock && (
-          <span className="eamos-mock" title="Illustrative — the EAMOS points engine is not yet wired to live data for this variant.">
-            illustrative
-          </span>
-        )}
       </div>
 
       {/* Tier labels above their bands. */}
@@ -160,7 +153,7 @@ export function PosteriorGauge({
         ))}
       </div>
 
-      <ScaleTrack bands={scaleBands} height={16} radius={5} separators pin={{ pos: xNet(net) / 100, muted: mock }} />
+      <ScaleTrack bands={scaleBands} height={16} radius={5} separators pin={{ pos: xNet(net) / 100 }} />
 
       {/* Posterior value labelled under each tier divider. */}
       <div style={{ position: 'relative', height: 16, marginTop: 3 }} aria-hidden>

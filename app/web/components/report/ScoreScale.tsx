@@ -14,7 +14,7 @@ const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
 
 /**
  * The shared value marker: a down-triangle on a short stem with a `--bg` ring so
- * it reads on any band colour. `muted` (mock / not-yet-wired) drops it to ink-4.
+ * it reads on any band colour. `muted` drops it to ink-4 for low-emphasis marks.
  * Positioned absolutely against a relatively-positioned track whose top is y=0.
  */
 export function ScorePin({ pos, muted, title }: { pos: number; muted?: boolean; title?: string }) {

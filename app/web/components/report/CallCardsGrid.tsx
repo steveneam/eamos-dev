@@ -67,6 +67,23 @@ export const STATE_THEME: Record<string, { bg: string; border: string; color: st
   neutral_slate_state: { bg: 'var(--cls-na-bg)', border: 'var(--cls-na-bdr)', color: 'var(--cls-na-text)' },
 }
 
+export type ReportCallCardTheme = { bg: string; border: string; color: string }
+
+export function themeForCallCard(
+  card: ReportCallCard,
+  populationAf?: number | null,
+): ReportCallCardTheme | null {
+  const backendTheme = STATE_THEME[card.ui_color_theme] ?? null
+  if (card.card_id === 'population_frequency' && populationAf != null) {
+    return STATE_THEME[afToState(populationAf)] ?? backendTheme
+  }
+  if (card.card_id === 'computational' || card.card_id === 'clinical_consensus') {
+    const derived = verdictToState(card.primary_label)
+    if (derived) return STATE_THEME[derived] ?? backendTheme
+  }
+  return backendTheme
+}
+
 // Locked L→R display order (Computational · Clinical · Population · Lab &
 // Functional). The backend payload array order is not guaranteed, so the FE
 // sorts deterministically; unknown ids sort last.
@@ -177,14 +194,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
           //   • Computational / Clinical → classification label (verdictToState)
           //   • Functional  → backend display_metrics state (kept; richest signal)
           // Each falls back to the backend theme when it can't derive one.
-          const backendTheme = STATE_THEME[card.ui_color_theme] ?? null
-          let cardTheme = backendTheme
-          if (card.card_id === 'population_frequency' && populationAf != null) {
-            cardTheme = STATE_THEME[afToState(populationAf)] ?? backendTheme
-          } else if (card.card_id === 'computational' || card.card_id === 'clinical_consensus') {
-            const derived = verdictToState(card.primary_label)
-            if (derived) cardTheme = STATE_THEME[derived] ?? backendTheme
-          }
+          const cardTheme = themeForCallCard(card, populationAf)
           const fnMetrics = isFunctionalCard
             ? payload.functional_evidence?.display_metrics ?? null
             : null

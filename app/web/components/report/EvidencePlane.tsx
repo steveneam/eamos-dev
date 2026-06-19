@@ -54,11 +54,9 @@ const TIER_SHORT: Record<EamosComputedTier, string> = {
 
 export function EvidencePlane({
   computed,
-  mock = false,
   onChange,
 }: {
   computed: EamosComputedClassification
-  mock?: boolean
   /** When provided, the marker becomes draggable (2-D reverse-calculator): drag
    *  sets ΣP (y) and ΣB (x) independently → net = ΣP − ΣB. Static when omitted. */
   onChange?: (sumPathogenic: number, sumBenign: number) => void
@@ -164,11 +162,6 @@ export function EvidencePlane({
     <figure role={interactive ? 'group' : 'img'} aria-label={ariaLabel} style={{ margin: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
         <span className="eamos-kicker">Evidence plane{interactive ? ' — drag the marker' : ''}</span>
-        {mock && (
-          <span className="eamos-mock" title="Illustrative — evidence-point sums are not yet wired to live engine output for this variant.">
-            illustrative
-          </span>
-        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>

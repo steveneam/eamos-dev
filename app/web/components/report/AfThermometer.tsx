@@ -18,12 +18,8 @@ const AF_CHIP_TIP: Record<string, string> = {
 }
 const INTERMEDIATE_TIP =
   'Uncommon — between the benign and pathogenic frequency thresholds; not decisive on its own.'
-const MIS_Z_TIP =
-  'Missense Z-score: how depleted the gene is of missense variation vs expectation. Higher = more constrained; Z ≥ 3.1 marks a missense-constrained gene.'
 const MIS_OE_TIP =
   'Missense observed/expected ratio: fraction of expected missense variants actually seen. Toward 0 = strong depletion (constrained); ≈ 1 = tolerant.'
-const MOCK_TIP =
-  'Preview value — not yet wired to live data. This number is illustrative and will update once the data source is connected.'
 const CONSTRAINT_TIP =
   'gnomAD gene constraint — how depleted this gene is of variation vs expectation. Low LOEUF / high pLI = the gene poorly tolerates loss-of-function; high missense constraint = it poorly tolerates missense change.'
 const LOEUF_TIP =
@@ -45,18 +41,36 @@ const LOEUF_BANDS: GaugeBand[] = [
   { upTo: 1.0, color: 'var(--cls-vus-dot)', label: 'Moderately tolerant' },
   { upTo: 1.5, color: 'var(--cls-ben-dot)', label: 'LoF-tolerant' },
 ]
-const MIS_OE_BANDS: GaugeBand[] = [
-  { upTo: 0.4, color: 'var(--cls-path-dot)', label: 'Strongly depleted' },
-  { upTo: 0.6, color: 'var(--cls-lpath-dot)', label: 'Depleted' },
-  { upTo: 0.8, color: 'var(--cls-vus-dot)', label: 'Mild depletion' },
-  { upTo: 1.2, color: 'var(--cls-ben-dot)', label: 'Tolerant' },
-]
-
 function loeufStatus(l: number): { text: string; color: string } {
   if (l < 0.33) return { text: 'Highly constrained', color: 'var(--cls-path-text)' }
   if (l < 0.6) return { text: 'Constrained', color: 'var(--cls-lpath-text)' }
   if (l < 1.0) return { text: 'Moderately tolerant', color: 'var(--cls-vus-text)' }
   return { text: 'LoF-tolerant', color: 'var(--cls-ben-text)' }
+}
+
+function UnavailableConstraintTile({
+  label,
+  tip,
+  text,
+}: {
+  label: string
+  tip: string
+  text: string
+}) {
+  return (
+    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', background: 'var(--bg)', padding: '11px 13px 9px' }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+        <InfoHint tip={tip} />
+      </div>
+      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-4)' }}>{text}</div>
+      <div style={{ marginTop: 10, height: 12, borderRadius: 6, border: '0.5px solid var(--line)', background: 'var(--bg-soft2)' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--ink-5)', marginTop: 6 }}>
+        <span>more constrained</span>
+        <span>more tolerant</span>
+      </div>
+    </div>
+  )
 }
 
 function readConstraint(evidence?: EvidenceSourceSummary[]): {
@@ -74,7 +88,7 @@ function readConstraint(evidence?: EvidenceSourceSummary[]): {
 }
 
 function ConstraintGauge({
-  label, infoTip, axisMax, bands, value, valueText, badge, badgeTip, threshold, thresholdLabel, status, statusColor, mock,
+  label, infoTip, axisMax, bands, value, valueText, badge, badgeTip, threshold, thresholdLabel, status, statusColor,
 }: {
   label: string
   infoTip: string
@@ -88,7 +102,6 @@ function ConstraintGauge({
   thresholdLabel?: string
   status: string
   statusColor: string
-  mock?: boolean
 }) {
   // Convert the cumulative-`upTo` gauge bands into the shared scale's per-band
   // fractions; the value pin + constrained threshold ride the same primitive §2 uses.
@@ -113,13 +126,12 @@ function ConstraintGauge({
           <InfoHint tip={infoTip} />
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 7 }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 600, color: mock ? 'var(--ink-4)' : 'var(--ink)', lineHeight: 1 }}>{valueText}</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 600, color: 'var(--ink)', lineHeight: 1 }}>{valueText}</span>
           {badge && (
             <span title={badgeTip} style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', border: '0.5px solid var(--line)', borderRadius: 999, padding: '0 6px', cursor: badgeTip ? 'help' : 'default' }}>
               {badge}
             </span>
           )}
-          {mock && <span className="eamos-mock" title={MOCK_TIP}>Mock</span>}
         </span>
       </div>
 
@@ -137,7 +149,7 @@ function ConstraintGauge({
         border="0.5px solid var(--line)"
         separators
         threshold={thresholdPos != null ? { pos: thresholdPos, title: thresholdLabel } : null}
-        pin={{ pos: value / axisMax, muted: mock }}
+        pin={{ pos: value / axisMax }}
       />
 
       {/* numeric axis — min · constrained cutoff · max (the scale §2 has) */}
@@ -300,19 +312,14 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
       </div>
 
       {/* Gene constraint readout (gnomAD), gnomAD-style coloured thermometers.
-          LOEUF + pLI are LIVE from molecular_context; the o/e bar geometry +
-          the missense axis are illustrative (tagged) until wired. "LoF Z" was
-          dropped — gnomAD has no LoF Z-score; LOEUF is its LoF-constraint metric. */}
+          Values render only when molecular_context returns source-backed
+          constraint data. "LoF Z" is intentionally not shown; gnomAD leads with
+          LOEUF. */}
       {(() => {
         const { loeuf: realLoeuf, pli: realPli, sourceUrl: constraintSrc } = readConstraint(evidence)
-        const loeufMock = realLoeuf == null
-        const loeuf = realLoeuf ?? 0.41
-        const pli = realPli ?? 0.86
-        const ls = loeufStatus(loeuf)
-        // Missense axis is gated → illustrative o/e + Z, coherent with the gene's LoF tolerance.
-        const misOe = 0.94
-        const misZ = 1.86
-        const misConstrained = misZ >= 3.1
+        const loeuf = realLoeuf
+        const pli = realPli
+        const ls = loeuf == null ? null : loeufStatus(loeuf)
         return (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--line)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -329,35 +336,32 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
               )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-              <ConstraintGauge
-                label="LoF · LOEUF"
-                infoTip={LOEUF_TIP}
-                axisMax={1.5}
-                bands={LOEUF_BANDS}
-                value={loeuf}
-                valueText={loeuf.toFixed(2)}
-                badge={`pLI ${pli.toFixed(2)}`}
-                badgeTip={PLI_TIP}
-                threshold={0.6}
-                thresholdLabel="Constrained threshold (LOEUF < 0.6, gnomAD v4)"
-                status={ls.text}
-                statusColor={ls.color}
-                mock={loeufMock}
-              />
-              <ConstraintGauge
+              {loeuf == null ? (
+                <UnavailableConstraintTile
+                  label="LoF · LOEUF"
+                  tip={LOEUF_TIP}
+                  text="gnomAD constraint unavailable"
+                />
+              ) : (
+                <ConstraintGauge
+                  label="LoF · LOEUF"
+                  infoTip={LOEUF_TIP}
+                  axisMax={1.5}
+                  bands={LOEUF_BANDS}
+                  value={loeuf}
+                  valueText={loeuf.toFixed(2)}
+                  badge={pli == null ? undefined : `pLI ${pli.toFixed(2)}`}
+                  badgeTip={pli == null ? undefined : PLI_TIP}
+                  threshold={0.6}
+                  thresholdLabel="Constrained threshold (LOEUF < 0.6, gnomAD v4)"
+                  status={ls?.text ?? 'Unavailable'}
+                  statusColor={ls?.color ?? 'var(--ink-4)'}
+                />
+              )}
+              <UnavailableConstraintTile
                 label="Missense · o/e"
-                infoTip={MIS_OE_TIP}
-                axisMax={1.2}
-                bands={MIS_OE_BANDS}
-                value={misOe}
-                valueText={misOe.toFixed(2)}
-                badge={`Z ${misZ.toFixed(2)}`}
-                badgeTip={MIS_Z_TIP}
-                threshold={0.6}
-                thresholdLabel="Region of missense constraint (lower o/e)"
-                status={misConstrained ? 'Constrained' : 'Not constrained'}
-                statusColor={misConstrained ? 'var(--cls-lpath-text)' : 'var(--cls-ben-text)'}
-                mock
+                tip={MIS_OE_TIP}
+                text="missense constraint not materialized"
               />
             </div>
           </div>
