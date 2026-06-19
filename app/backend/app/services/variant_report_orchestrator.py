@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import re
 from typing import Any
 
@@ -131,6 +132,10 @@ def _build_header(
         badges.append("grch38_resolved")
     if classification:
         badges.append("clinical_consensus_available")
+    gene_context = _dict_or_empty(evidence_map.get("gene_context_snapshot"))
+    transcript_aliases = _string_list(gene_context.get("transcript_aliases"))
+    ensembl_transcript = _first_prefixed(transcript_aliases, "ENST")
+    mane_select = any(alias.strip().lower() == "mane select" for alias in transcript_aliases)
 
     return VariantReportHeader(
         display_name=display_name or payload.report_title or "Variant Evidence Report",
@@ -139,6 +144,12 @@ def _build_header(
         cdna=display_cdna,
         protein_change=resolution.protein_change or row.protein_change,
         genomic_hg38=row.genomic_hg38 or resolution.genomic_hg38,
+        dbsnp_rsid=_optional_text(clinvar.get("dbsnp_rsid")),
+        ensembl_gene_id=_optional_text(gene_context.get("ensembl_gene_id")),
+        ensembl_transcript=ensembl_transcript,
+        transcript_aliases=transcript_aliases,
+        mane_select=mane_select if transcript_aliases else None,
+        updated_at=_latest_report_timestamp(evidence),
         classification=classification,
         classification_source=classification_source,
         verification_badges=badges,
@@ -810,6 +821,23 @@ def _dedupe_text(items: list[str]) -> list[str]:
         seen.add(text)
         result.append(text)
     return result
+
+
+def _first_prefixed(items: list[str], prefix: str) -> str | None:
+    prefix_upper = prefix.upper()
+    return next((item for item in items if item.upper().startswith(prefix_upper)), None)
+
+
+def _latest_report_timestamp(evidence: list[EvidenceSourceSummary]) -> str:
+    fetched = sorted(
+        value
+        for item in evidence
+        for value in [item.fetched_at]
+        if isinstance(value, str) and value.strip()
+    )
+    if fetched:
+        return fetched[-1]
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _dict_or_empty(value: Any) -> dict[str, Any]:

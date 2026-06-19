@@ -21,6 +21,10 @@ def _unavailable_summary(gene: str | None, warnings: list[str] | None = None) ->
         "gene_disease_validity": None,
         "mechanism": None,
         "conditions": [],
+        "source_counts": {},
+        "gencc_assertion_count": 0,
+        "gencc_submitters": [],
+        "gencc_assertions": [],
         "provenance": [],
         "warnings": list(warnings or []),
     }

@@ -19,6 +19,7 @@ from app.schemas.lookup import (
     SearchInputParseResponse,
 )
 from app.schemas.run import (
+    CuratedVariantsDistribution,
     EvidenceSourceSummary,
     FunctionalEvidenceSummary,
     PublicationLiterature,
@@ -29,6 +30,11 @@ from app.schemas.run import (
 )
 from app.services.clinical_consensus import ClinicalConsensusBuilder
 from app.services.acmg_points_engine import compute_report_acmg_classification
+from app.services.clinvar_local import (
+    ClinVarLocalError,
+    ClinVarLocalStore,
+    build_clinvar_gene_distribution,
+)
 from app.services.functional_evidence import FunctionalEvidenceExtractor
 from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
@@ -78,7 +84,7 @@ SOURCE_CACHE_FAILURE_STATUSES = {"fallback", "degraded", "error", "failed"}
 SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
 PUBLICATION_DATA_CACHE_VERSION = 2
 STRICT_GENOMIC_CACHE_VERSION = 2
-FUNCTIONAL_EVIDENCE_CACHE_VERSION = 2
+FUNCTIONAL_EVIDENCE_CACHE_VERSION = 3
 GENE_CONTEXT_SNAPSHOT_CACHE_VERSION = 1
 
 
@@ -114,6 +120,31 @@ def _lookup_v2_modules_fixture() -> dict:
 
 def _lookup_v2_modules(gene: str, cdna: str) -> dict:
     return _lookup_v2_modules_fixture().get(gene, {}).get(cdna, {})
+
+
+@lru_cache(maxsize=4)
+def _clinvar_distribution_store(vcf_path: str | None) -> ClinVarLocalStore:
+    return ClinVarLocalStore(Path(vcf_path)) if vcf_path else ClinVarLocalStore()
+
+
+def _clinvar_distribution_runtime_path(settings: Any) -> str | None:
+    raw_path = getattr(settings, "clinvar_runtime_vcf_path", None)
+    raw_index_path = getattr(settings, "clinvar_runtime_index_path", None)
+    if raw_path is None:
+        return None
+    path = Path(raw_path)
+    index_path = Path(raw_index_path) if raw_index_path is not None else Path(f"{path}.tbi")
+    return str(path) if path.is_file() and index_path.is_file() else None
+
+
+def _local_clinvar_gene_distribution(
+    gene: str,
+    settings: Any,
+    *,
+    variant_id: str | None = None,
+) -> CuratedVariantsDistribution:
+    store = _clinvar_distribution_store(_clinvar_distribution_runtime_path(settings))
+    return build_clinvar_gene_distribution(gene, store=store, query_variant_id=variant_id)
 
 
 def _result_to_evidence(result: ToolResult) -> EvidenceSourceSummary:
@@ -779,9 +810,14 @@ class LookupService:
                         else tool.get_evidence(variant=variant)
                     ),
                 )
-            record_result(name, result)
             if name == "clinvar":
                 variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
+                if variant.dbsnp_rsid:
+                    result.summary = {
+                        **(result.summary or {}),
+                        "dbsnp_rsid": variant.dbsnp_rsid,
+                    }
+            record_result(name, result)
 
         if isinstance(publication_cache, dict) and publication_cache:
             litvar_summary = publication_cache.get("summary", {})
@@ -926,6 +962,15 @@ class LookupService:
             pubmed_articles=pubmed_articles,
             **_lookup_v2_modules(gene, cdna),
         )
+        try:
+            base_payload.curated_variants_distribution = _local_clinvar_gene_distribution(
+                gene,
+                self.settings,
+                variant_id=variant.genomic_hg38 or None,
+            )
+        except ClinVarLocalError as exc:
+            base_payload.curated_variants_distribution = None
+            warnings.append(f"clinvar_local_gene_distribution_failed:{exc.code}")
 
         litvar_summary = evidence_map.get("litvar2", {})
         try:

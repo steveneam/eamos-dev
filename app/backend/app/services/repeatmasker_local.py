@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import gzip
 from hashlib import sha256
 from pathlib import Path
 from typing import Iterable, Mapping
@@ -9,6 +10,7 @@ from app.core.paths import find_project_root, repo_relative_path
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
 from app.services.indexed_sources import (
     IndexedSourceError,
+    REPEATMASKER_COMPACT_INDEX_SCHEMA,
     RepeatMaskerIndexedTable,
     repeatmasker_path_decision,
 )
@@ -64,18 +66,41 @@ class RepeatMaskerLocalQuery:
     warnings: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class RepeatMaskerCompactIndexBuildResult:
+    source_id: str
+    source_version: str | None
+    source_format: str
+    output_schema: str
+    interval_count: int
+    output_byte_size: int
+    output_sha256: str
+    source_sha256: str
+
+
 class RepeatMaskerLocalStore:
     """Fixture-first RepeatMasker adapter using deterministic rmsk.txt rows."""
 
     def __init__(
         self,
         rmsk_path: Path | None = None,
+        compact_index_path: Path | None = None,
         registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
     ) -> None:
-        self._rmsk_path = rmsk_path or DEFAULT_REPEATMASKER_FIXTURE_PATH
-        self._provenance = _source_provenance(self._rmsk_path, registry)
-        self._table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
-            _iter_fixture_lines(self._rmsk_path)
+        if compact_index_path is not None:
+            self._source_path = compact_index_path
+            self._source_format = REPEATMASKER_COMPACT_INDEX_SCHEMA
+            self._table = RepeatMaskerIndexedTable.from_compact_jsonl(compact_index_path)
+        else:
+            self._source_path = rmsk_path or DEFAULT_REPEATMASKER_FIXTURE_PATH
+            self._source_format = "ucsc_rmsk_txt_rows"
+            self._table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
+                _iter_ucsc_rmsk_lines(self._source_path)
+            )
+        self._provenance = _source_provenance(
+            self._source_path,
+            registry,
+            source_format=self._source_format,
         )
 
     def provenance(self) -> RepeatMaskerLocalProvenance:
@@ -120,9 +145,36 @@ class RepeatMaskerLocalStore:
         )
 
 
+def build_repeatmasker_compact_index(
+    *,
+    source_rmsk_path: Path,
+    output_path: Path,
+    registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+) -> RepeatMaskerCompactIndexBuildResult:
+    record = registry.get(REPEATMASKER_SOURCE_ID)
+    table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(_iter_ucsc_rmsk_lines(source_rmsk_path))
+    interval_count = table.write_compact_jsonl(
+        output_path,
+        source_id=REPEATMASKER_SOURCE_ID,
+        source_version=record.source_version,
+    )
+    return RepeatMaskerCompactIndexBuildResult(
+        source_id=REPEATMASKER_SOURCE_ID,
+        source_version=record.source_version,
+        source_format="ucsc_rmsk_txt_rows",
+        output_schema=REPEATMASKER_COMPACT_INDEX_SCHEMA,
+        interval_count=interval_count,
+        output_byte_size=output_path.stat().st_size,
+        output_sha256=_sha256_file(output_path),
+        source_sha256=_sha256_file(source_rmsk_path),
+    )
+
+
 def _source_provenance(
     path: Path,
     registry: DataSourceRegistry,
+    *,
+    source_format: str,
 ) -> RepeatMaskerLocalProvenance:
     record = registry.get(REPEATMASKER_SOURCE_ID)
     decision = repeatmasker_path_decision()
@@ -133,14 +185,18 @@ def _source_provenance(
         checksum=_sha256_file(path),
         relative_path=_repo_relative_path(path),
         conversion_strategy=decision.strategy,
-        source_format=decision.fixture_format,
+        source_format=source_format,
     )
 
 
-def _iter_fixture_lines(path: Path) -> Iterable[str]:
+def _iter_ucsc_rmsk_lines(path: Path) -> Iterable[str]:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            yield from handle
+        if path.suffix == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                yield from handle
+        else:
+            with path.open("r", encoding="utf-8") as handle:
+                yield from handle
     except OSError as exc:
         raise RepeatMaskerLocalError(
             "fixture_unavailable",

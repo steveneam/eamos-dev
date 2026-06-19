@@ -7,8 +7,23 @@ import pytest
 
 from app.core.config import Settings
 from app.services.alphamissense_local import AlphaMissensePrediction, AlphaMissenseProvenance
+from app.services.capice import CapiceProvenance, CapiceScore
+from app.services.ci_spliceai import CiSpliceAiProvenance, CiSpliceAiScore
 from app.services.esm1b_assembly import ESM1B_LICENSE_GATE
 from app.services.esm1b_local import Esm1bPrediction, Esm1bProvenance
+from app.services.predictor_runtime import (
+    CAPICE_LAUNCH_GATE,
+    CI_SPLICEAI_LAUNCH_GATE,
+    PRIMATEAI3D_LAUNCH_GATE,
+    PRIMATEAI3D_SOURCE_ID,
+    REVEL_LAUNCH_GATE,
+    REVEL_SOURCE_ID,
+)
+from app.services.restricted_predictors import (
+    RestrictedPredictorLookup,
+    RestrictedPredictorProvenance,
+    RestrictedPredictorScore,
+)
 from app.tools.base import FixtureBackedTool
 from app.tools.clingen import ClingenTool
 from app.tools.clinvar import ClinvarTool
@@ -147,9 +162,21 @@ def test_pubmed_no_hit_miss_uses_empty_raw(monkeypatch: pytest.MonkeyPatch) -> N
         dbsnp_rsid="rs1645931040",
     )
 
-    result = PubmedTool(_settings(use_real_apis=True)).get_evidence(variant)
+    result = PubmedTool(
+        _settings(
+            use_real_apis=True,
+            ncbi_eutils_api_key="test-ncbi-key",
+            ncbi_eutils_email="pubmed@example.test",
+            ncbi_eutils_tool="eamos-test",
+        )
+    ).get_evidence(variant)
 
     assert len(calls) == 2
+    for _, kwargs in calls:
+        params = kwargs["params"]
+        assert params["api_key"] == "test-ncbi-key"
+        assert params["email"] == "pubmed@example.test"
+        assert params["tool"] == "eamos-test"
     assert result.status == "live"
     assert result.summary == {"articles": [], "total": 0}
     assert result.raw == {}
@@ -559,10 +586,68 @@ def test_computational_annotations_serializes_local_alpha_and_esm1b_rows() -> No
     }
 
 
+def test_computational_annotations_serializes_gene_agnostic_gated_predictor_rows() -> None:
+    variant = SimpleNamespace(
+        gene="",
+        genomic_hg38="1-101-A-G",
+        genomic_hgvs="",
+        transcript_hgvs="",
+        protein_change="",
+        dbsnp_rsid="",
+    )
+
+    result = ComputationalAnnotationsTool(
+        _settings(use_real_apis=False),
+        ci_spliceai_adapter=FakeCiSpliceAiAdapter(),
+        capice_adapter=FakeCapiceAdapter(),
+        revel_adapter=FakeRevelAdapter(),
+        primateai3d_adapter=FakePrimateAi3dAdapter(),
+    ).get_evidence(variant)
+
+    assert result.status == "local"
+    assert result.request_identity == {"genomic_hg38": "1-101-A-G"}
+    rows_by_name = {row["name"]: row for row in result.summary["predictors"]}
+    assert rows_by_name["CI-SpliceAI"]["score"] == 0.72
+    assert rows_by_name["CI-SpliceAI"]["calibrated_label"] == "Strong splice impact"
+    assert rows_by_name["CI-SpliceAI"]["source_id"] == "ci_spliceai_model"
+    assert rows_by_name["CI-SpliceAI"]["public_serialization_allowed"] is True
+    assert rows_by_name["CI-SpliceAI"]["launch_gate"] == CI_SPLICEAI_LAUNCH_GATE
+    assert rows_by_name["CAPICE"]["score"] == 0.83
+    assert rows_by_name["CAPICE"]["source_id"] == "capice_model"
+    assert rows_by_name["CAPICE"]["public_serialization_allowed"] is True
+    assert rows_by_name["CAPICE"]["launch_gate"] == CAPICE_LAUNCH_GATE
+    assert rows_by_name["REVEL"]["score"] == 0.78
+    assert rows_by_name["REVEL"]["source_id"] == REVEL_SOURCE_ID
+    assert rows_by_name["REVEL"]["public_serialization_allowed"] is True
+    assert rows_by_name["REVEL"]["launch_gate"] == REVEL_LAUNCH_GATE
+    assert rows_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
+    assert rows_by_name["PrimateAI-3D"]["score"] == 0.61
+    assert rows_by_name["PrimateAI-3D"]["source_id"] == PRIMATEAI3D_SOURCE_ID
+    assert rows_by_name["PrimateAI-3D"]["public_serialization_allowed"] is True
+    assert rows_by_name["PrimateAI-3D"]["launch_gate"] == PRIMATEAI3D_LAUNCH_GATE
+    assert CI_SPLICEAI_LAUNCH_GATE in result.summary["warnings"]
+    assert CAPICE_LAUNCH_GATE in result.summary["warnings"]
+    assert REVEL_LAUNCH_GATE in result.summary["warnings"]
+    assert PRIMATEAI3D_LAUNCH_GATE in result.summary["warnings"]
+    assert {item["source"] for item in result.summary["provenance"]} >= {
+        "CI-SpliceAI",
+        "CAPICE",
+        "REVEL",
+        "PrimateAI-3D",
+    }
+
+
 def test_computational_annotations_reuses_local_predictor_adapters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls = {"alphamissense": 0, "esm1b": 0}
+    calls = {
+        "alphamissense": 0,
+        "esm1b": 0,
+        "ci_spliceai": 0,
+        "capice": 0,
+        "revel": 0,
+        "primateai3d": 0,
+    }
 
     def alphamissense_from_settings(_settings):
         calls["alphamissense"] += 1
@@ -572,6 +657,22 @@ def test_computational_annotations_reuses_local_predictor_adapters(
         calls["esm1b"] += 1
         return FakeEsm1bAdapter()
 
+    def ci_spliceai_from_settings(_settings):
+        calls["ci_spliceai"] += 1
+        return FakeCiSpliceAiAdapter()
+
+    def capice_from_settings(_settings):
+        calls["capice"] += 1
+        return FakeCapiceAdapter()
+
+    def revel_from_settings(_settings):
+        calls["revel"] += 1
+        return FakeRevelAdapter()
+
+    def primateai3d_from_settings(_settings):
+        calls["primateai3d"] += 1
+        return FakePrimateAi3dAdapter()
+
     monkeypatch.setattr(
         "app.tools.computational_annotations.AlphaMissenseLocalAdapter.from_settings",
         alphamissense_from_settings,
@@ -579,6 +680,22 @@ def test_computational_annotations_reuses_local_predictor_adapters(
     monkeypatch.setattr(
         "app.tools.computational_annotations.Esm1bLocalAdapter.from_settings",
         esm1b_from_settings,
+    )
+    monkeypatch.setattr(
+        "app.tools.computational_annotations.CiSpliceAiLocalAdapter.from_settings",
+        ci_spliceai_from_settings,
+    )
+    monkeypatch.setattr(
+        "app.tools.computational_annotations.CapiceLocalAdapter.from_settings",
+        capice_from_settings,
+    )
+    monkeypatch.setattr(
+        "app.tools.computational_annotations.RevelLocalAdapter.from_settings",
+        revel_from_settings,
+    )
+    monkeypatch.setattr(
+        "app.tools.computational_annotations.PrimateAi3dLocalAdapter.from_settings",
+        primateai3d_from_settings,
     )
     variant = SimpleNamespace(
         gene="RPE65",
@@ -595,7 +712,14 @@ def test_computational_annotations_reuses_local_predictor_adapters(
 
     assert first.status == "fixture"
     assert second.status == "fixture"
-    assert calls == {"alphamissense": 1, "esm1b": 1}
+    assert calls == {
+        "alphamissense": 1,
+        "esm1b": 1,
+        "ci_spliceai": 1,
+        "capice": 1,
+        "revel": 1,
+        "primateai3d": 1,
+    }
 
 
 def test_fixture_backed_tool_cache_returns_independent_copy(tmp_path: Path) -> None:
@@ -698,6 +822,151 @@ class FakeEsm1bAdapter:
                 ),
             ),
             warnings=("esm1b_license_gate_metadata", ESM1B_LICENSE_GATE),
+        )
+
+
+class FakeCiSpliceAiAdapter:
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+        assert (chrom, position, ref, alt) in {
+            ("1", 101, "A", "G"),
+            ("1", 68444869, "T", "C"),
+        }
+        return SimpleNamespace(
+            available=True,
+            score=CiSpliceAiScore(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                ds_ag=0.01,
+                ds_al=0.72,
+                ds_dg=0.02,
+                ds_dl=0.03,
+                dp_al=-4,
+            ),
+            calibrated_label="Strong splice impact",
+            calibration_bucket="Pathogenic",
+            calibration_method="Walker 2023 / ClinGen SVI splicing",
+            calibration_version="PMID:37352859",
+            warnings=("ci_spliceai_launch_gate_metadata", CI_SPLICEAI_LAUNCH_GATE),
+            public_serialization_allowed=True,
+            launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+            provenance_details=CiSpliceAiProvenance(
+                source_id="ci_spliceai_model",
+                source_version="CI-SpliceAI test cache",
+                source_url=None,
+                file_name="ci_spliceai_hg38_scores.vcf.gz",
+                reader="pysam_indexed_vcf_reader",
+                launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+            ),
+        )
+
+
+class FakeCapiceAdapter:
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+        assert (chrom, position, ref, alt) in {
+            ("1", 101, "A", "G"),
+            ("1", 68444869, "T", "C"),
+        }
+        return SimpleNamespace(
+            available=True,
+            score=CapiceScore(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                score=0.83,
+                source_version="CAPICE test cache",
+                interpretation="deleterious",
+            ),
+            warnings=("capice_launch_gate_metadata", CAPICE_LAUNCH_GATE),
+            public_serialization_allowed=True,
+            launch_gate=CAPICE_LAUNCH_GATE,
+            provenance_details=CapiceProvenance(
+                source_id="capice_model",
+                feature_cache_source_id="illumina_spliceai_precomputed_hg38",
+                source_version="CAPICE test cache",
+                source_url=None,
+                file_name="capice_hg38_features.tsv.gz",
+                reader="tabix_tsv_predictor_reader",
+                launch_gate=CAPICE_LAUNCH_GATE,
+            ),
+        )
+
+
+class FakeRevelAdapter:
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+        assert (chrom, position, ref, alt) in {
+            ("1", 101, "A", "G"),
+            ("1", 68444869, "T", "C"),
+        }
+        return RestrictedPredictorLookup(
+            available=True,
+            score=RestrictedPredictorScore(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                name="REVEL",
+                score=0.78,
+                threshold=0.5,
+                interpretation="damaging",
+                source_label="dbNSFP",
+                source_version="REVEL test cache",
+            ),
+            calibrated_label="Moderate damaging",
+            calibration_bucket="Likely pathogenic",
+            calibration_method="Pejaver 2022 / ClinGen SVI PP3/BP4",
+            calibration_version="PMID:36413997",
+            warnings=("revel_launch_gate_metadata", REVEL_LAUNCH_GATE),
+            public_serialization_allowed=True,
+            launch_gate=REVEL_LAUNCH_GATE,
+            provenance_details=RestrictedPredictorProvenance(
+                source_id=REVEL_SOURCE_ID,
+                source_version="REVEL test cache",
+                source_url=None,
+                file_name="revel_hg38_scores.tsv.gz",
+                reader="tabix_tsv_predictor_reader",
+                launch_gate=REVEL_LAUNCH_GATE,
+            ),
+        )
+
+
+class FakePrimateAi3dAdapter:
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+        assert (chrom, position, ref, alt) in {
+            ("1", 101, "A", "G"),
+            ("1", 68444869, "T", "C"),
+        }
+        return RestrictedPredictorLookup(
+            available=True,
+            score=RestrictedPredictorScore(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                name="PrimateAI-3D",
+                score=0.61,
+                threshold=0.5,
+                interpretation="deleterious",
+                source_label="PrimateAI-3D",
+                source_version="PrimateAI-3D test cache",
+            ),
+            calibrated_label=None,
+            calibration_bucket=None,
+            calibration_method=None,
+            calibration_version=None,
+            warnings=("primateai3d_launch_gate_metadata", PRIMATEAI3D_LAUNCH_GATE),
+            public_serialization_allowed=True,
+            launch_gate=PRIMATEAI3D_LAUNCH_GATE,
+            provenance_details=RestrictedPredictorProvenance(
+                source_id=PRIMATEAI3D_SOURCE_ID,
+                source_version="PrimateAI-3D test cache",
+                source_url=None,
+                file_name="primateai3d_hg38_scores.tsv.gz",
+                reader="tabix_tsv_predictor_reader",
+                launch_gate=PRIMATEAI3D_LAUNCH_GATE,
+            ),
         )
 
 

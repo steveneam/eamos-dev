@@ -453,6 +453,10 @@ def test_clinical_gene_disease_summary_merges_private_source_rows() -> None:
     assert summary["hgnc_id"] == "HGNC:10294"
     assert summary["disease_ids"] == ["MONDO:0008765", "OMIM:204100"]
     assert summary["conditions"][0]["phenotypes"][0]["hpo_id"] == "HP:0000510"
+    assert summary["source_counts"]["gencc_assertions"] == 1
+    assert summary["gencc_assertion_count"] == 1
+    assert summary["gencc_submitters"] == ["ClinGen"]
+    assert summary["gencc_assertions"] == ["Definitive"]
     assert {item["source"] for item in summary["provenance"]} == {
         "ClinGen Gene-Disease Validity",
         "GenCC",

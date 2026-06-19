@@ -187,17 +187,29 @@ available Supabase connector and read back from `eamos_private`.
 
 Goal: make production local adapters configurable, not fixture-default.
 
-The current local adapters are fixture-first and accept constructor paths, but
-they are not yet fully exposed as production settings/runtime probes. Before
-enabling local evidence, add or verify:
+The local adapters are fixture-first and accept constructor paths. Production
+runtime settings and sanitized probes were added on 2026-06-19, but the actual
+Render runtime files are still missing until the explicit seed steps below.
+Before enabling local evidence, verify:
 
-- dbSNP runtime path and index path settings;
-- ClinVar runtime path and index path settings;
-- RepeatMasker compact interval index path setting;
-- phyloP bigWig path setting;
-- sanitized provider-cache or preflight probes for each runtime file;
-- tests proving fixture defaults are not used when production settings are
-  configured.
+- dbSNP runtime path and index path settings exist and are pointed at the seeded
+  bgzip VCF plus `.tbi`;
+- ClinVar runtime path and index path settings exist and are pointed at the
+  seeded bgzip VCF plus `.tbi`;
+- RepeatMasker compact interval index path setting exists and points at the
+  derived runtime index, not raw source scans;
+- phyloP bigWig path setting exists and points at the seeded bigWig;
+- `local_evidence_runtime_assets` in provider-cache/source preflight reports the
+  expected roles as `ready`;
+- health/preflight output remains sanitized: no local paths, object URIs,
+  secrets, raw rows, or private checksums.
+
+2026-06-19 checkpoint: M4 code-only probe work is complete locally. Current
+preflight reports dbSNP, ClinVar, RepeatMasker, and phyloP runtime roles as
+`missing_runtime_file`, with `source_runtime_scan_allowed=false` and no reader
+opened. The build ledger keeps those rows `source_ready_for_materialization`
+with `seed_verified_render_disk_cache` blockers until the runtime files are
+actually seeded. No Render seed or local evidence gate flip occurred.
 
 ### 4. Render Disk Seeding
 
@@ -214,6 +226,66 @@ Batch order:
 Use Render Shell, SSH/SCP, or a committed runtime CLI from the SG service
 instance. Each seed must use temp-file download/copy, checksum verification,
 and atomic rename. Health and preflight outputs must stay path-sanitized.
+
+2026-06-19 M5 code gate: `eamos_local_evidence_runtime_seed` now provides the
+committed runtime CLI for one local-evidence asset role at a time. It is
+off-startup only, supports local operator files plus Supabase private Storage
+REST/S3-compatible downloads, verifies expected size and MD5/SHA256 before
+atomic rename, and emits only sanitized role/status/size output. It does not
+mutate Supabase metadata, Render env/deploy state, provider settings, or
+`LOCAL_EVIDENCE_ENABLED`.
+
+First live use is the phyloP BigWig seed from the SG service runtime:
+
+```bash
+python -m app.cli.eamos_local_evidence_runtime_seed \
+  --role phylop_bigwig \
+  --source-object-uri supabase://eamos-source-assets/<private-phylop-object-path> \
+  --destination /var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw \
+  --download-mode s3_multipart \
+  --expected-size-bytes <verified-byte-size> \
+  --expected-sha256 <verified-sha256> \
+  --require-ready \
+  --compact
+```
+
+After the live seed, verify the SG provider-cache reports
+`phylop_conservation_reader.status=ready`, then run a targeted lookup/report
+conservation smoke. Do not flip the local-evidence gate during M5.
+
+2026-06-19 M7 code gate: RepeatMasker now has a build-time compact-index path
+ready for the later runtime seed. `eamos_repeatmasker_compact_index_build`
+converts an approved local `rmsk.txt` / `rmsk.txt.gz` source into
+`eamos.repeatmasker.interval_index.v1` JSONL, and `RepeatMaskerLocalStore` can
+load that compact index explicitly instead of reparsing raw UCSC rows at
+runtime.
+
+2026-06-19 production build: the approved staged UCSC source
+`app/backend/data/source_assets/repeatmasker_rmsk_bb/rmsk.txt.gz` was converted
+locally into `.scratch/repeatmasker-compact-index/repeatmasker.interval-index.jsonl`.
+The source is size `155633856`, MD5 `b2e108b535550ba9e3cf83c77417380f`,
+SHA256 `db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276`.
+The derived compact artifact has schema `eamos.repeatmasker.interval_index.v1`,
+`5683690` intervals, size `701514606`, and SHA256
+`6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98`. Local
+preflight with `REPEATMASKER_RUNTIME_INDEX_PATH` pointed at that artifact
+reported the RepeatMasker runtime source ready without path or secret emission,
+and focused RepeatMasker/source-preflight/health tests passed.
+
+This did not upload Storage objects, mutate Supabase metadata, seed Render, flip
+providers, enable local evidence, or add startup materialization. The remaining
+M7 live steps are explicitly gated: upload/register the compact artifact, seed
+it onto SG Render disk, then verify provider-cache/preflight readiness.
+
+Operator shape for a repeat build step:
+
+```bash
+python -m app.cli.eamos_repeatmasker_compact_index_build \
+  --source-rmsk-path <approved-local-rmsk.txt.gz> \
+  --output <staging>/repeatmasker.interval-index.jsonl \
+  --require-ready \
+  --compact
+```
 
 ### 5. Local Evidence Gate
 
@@ -264,6 +336,27 @@ schema, writes the runtime manifest sidecar, and atomically replaces the runtime
 file. It does not register `source_asset_objects`, mutate Render env, create
 signed URLs, or set `LOCAL_EVIDENCE_ENABLED`.
 
+### 6.5. MaveDB CC0 Functional Scores
+
+MaveDB now has a code-backed local materialization lane for public CC0
+functional-score rows:
+
+```bash
+python -m app.cli.eamos_mavedb_local_materialize \
+  --input-jsonl <approved-mavedb-export.jsonl> \
+  --output data/bio_assets/mavedb/mavedb-local.sqlite \
+  --manifest-path data/bio_assets/mavedb/mavedb-local.manifest.json \
+  --source-version <reviewed-source-version> \
+  --require-ready \
+  --compact
+```
+
+The materializer filters to CC0 rows with a present score, writes a sanitized
+manifest, and never downloads, uploads, seeds Render, writes Supabase metadata,
+or flips providers. The lookup/report path treats MaveDB hits as uncurated
+functional studies with public score/accession fields; it does not assert PS3 or
+BS3 strength.
+
 ### 7. Tier 2 Predictor Artifact Sets
 
 Goal: prepare ESM1b, CI-SpliceAI, and CAPICE runtime artifacts for the same
@@ -283,6 +376,34 @@ Artifact sets covered:
 | `esm1b_hg38_scores` | bgzip TSV plus `.tbi` | `ESM1B_HG38_RUNTIME_ASSET_PATH` |
 | `ci_spliceai` | model, reference bundle, bgzip score cache plus `.tbi` | `CI_SPLICEAI_MODEL_PATH`, `CI_SPLICEAI_REFERENCE_PATH`, `CI_SPLICEAI_SCORE_CACHE_PATH` |
 | `capice` | model, bgzip feature cache plus `.tbi` | `CAPICE_MODEL_PATH`, `CAPICE_FEATURE_CACHE_PATH` |
+
+M12/M13 artifact-set design slice, 2026-06-19:
+
+- CI-SpliceAI stays a self-hosted backend/admin lane: no hosted web-service
+  dependency, no assumed genome-wide trusted precomputed score file, and no
+  frontend direct artifact access.
+- CAPICE stays launch-gated/display-safe until the SpliceAI-derived feature
+  cache provenance is approved. The stock model path requires a model artifact,
+  a bgzip feature cache, and the feature-cache tabix index as one complete set.
+- Upload-planner manifests are private Storage identity manifests. Runtime
+  readiness separately requires a local sidecar beside each runtime file:
+  `<artifact path>.manifest.json`.
+- Each local sidecar must match artifact/component/source/asset/role identity,
+  match file byte size, carry MD5 or SHA256, preserve the expected launch gate,
+  and assert the private runtime storage contract:
+  `bucket_policy=private`, no frontend direct access, no signed URLs, no startup
+  download, no request-time materialization, and `runtime_sync_required=true`.
+- Provider-cache, source preflight, health, and build-ledger output may expose
+  sanitized component readiness, manifest status, byte size, and launch gate,
+  but must not emit local paths or unlock launch filtering.
+- Runtime report wiring is local-file only. `ComputationalAnnotationsTool` reads
+  CI-SpliceAI and CAPICE coordinate-keyed caches after the complete artifact-set
+  gates pass, then emits real gene-agnostic `CI-SpliceAI` and `CAPICE`
+  `ComputationalPredictorRow` values into `computational_deep_dive`.
+- Commercial/launch gating remains metadata, not a backend/internal visibility
+  filter: report rows, health, preflight, and build-ledger output keep the
+  launch/provenance tags so public commercialization filtering can be decided
+  later.
 
 Current inventory, 2026-06-17: no approved local Tier 2 artifacts are present.
 The default predictor root `app/backend/data/bio_assets/predictors/` is missing,
@@ -346,18 +467,19 @@ signed URLs, flip providers, or unlock restricted predictor launch behavior.
 
 ## Immediate Next Tasks
 
-1. Keep PubMed full-corpus materialization paused until the corpus logistics
+1. Run the MaveDB CC0 materializer only after an approved public-field JSONL
+   export is staged and reviewed; then verify health/preflight/report behavior
+   before any live Storage or Render movement.
+2. Keep PubMed full-corpus materialization paused until the corpus logistics
    spec is explicitly accepted for storage scope, staging, and costs.
-2. Run the Tier 2 predictor artifact plan once local ESM1b, CI-SpliceAI, or
+3. Run the Tier 2 predictor artifact plan once local ESM1b, CI-SpliceAI, or
    CAPICE artifacts are staged; upload only complete artifact sets.
-3. Run the Tier 1 generated-artifact upload/sync lane for ClinGen local and
+4. Run the Tier 1 generated-artifact upload/sync lane for ClinGen local and
    literature embeddings after the offline artifacts are built. Do not upload
    the 200-PMID PubMed proof as production PubMed-local.
-4. Register the uploaded generated artifacts in `source_asset_objects` /
+5. Register the uploaded generated artifacts in `source_asset_objects` /
    `source_asset_materializations` once the Storage object identities are
    approved.
-5. Add production settings/probes for dbSNP, phyloP, ClinVar, and RepeatMasker
-   runtime paths.
 6. Register dbSNP and phyloP Storage objects in `source_asset_objects`.
 7. Seed dbSNP and phyloP onto Render as the first heavy local-adapter batch.
 

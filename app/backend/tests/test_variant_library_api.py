@@ -252,3 +252,20 @@ def test_variant_library_popularity_counter(auth_client: TestClient) -> None:
     assert popular.status_code == 200
     assert popular.json()["variants"][0]["query_id"] == "ush2a c.2276g>t"
     assert popular.json()["variants"][0]["view_count"] == 2
+
+
+def test_variant_report_view_counter_is_public_and_rate_limited(client: TestClient) -> None:
+    query_id = quote("USH2A NM_206933.4:c.2276G>T", safe="")
+
+    before = client.get(f"/api/v1/library/views/{query_id}")
+    first = client.post(f"/api/v1/library/views/{query_id}")
+    after = client.get(f"/api/v1/library/views/{query_id}")
+
+    assert before.status_code == 200
+    assert before.json()["variant"]["view_count"] == 0
+    assert before.json()["variant"]["last_viewed"] is None
+    assert first.status_code == 200
+    assert first.json()["variant"]["query_id"] == "ush2a nm_206933.4:c.2276g>t"
+    assert first.json()["variant"]["view_count"] == 1
+    assert after.status_code == 200
+    assert after.json()["variant"]["view_count"] == 1

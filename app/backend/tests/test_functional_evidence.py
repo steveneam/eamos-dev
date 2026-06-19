@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
+from app.core.config import Settings
 from app.services.functional_evidence import FunctionalEvidenceExtractor
+from app.services.mavedb_local import materialize_mavedb_local_store
 
 
 def _variant(
@@ -226,6 +230,58 @@ def test_pubmed_functional_screen_requires_variant_alias_not_gene_only() -> None
     assert summary.display_metrics.verdict_source == "uncurated"
     assert summary.display_metrics.study_count_badge_text == "1 Unique"
     assert summary.studies[0].pmid == "23456789"
+
+
+def test_mavedb_local_cc0_hit_counts_as_uncurated_functional_evidence(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "mavedb.jsonl"
+    source.write_text(
+        json.dumps(
+            {
+                "score_set_id": "urn:mavedb:0001",
+                "gene": "RPE65",
+                "variant": "NM_000329.3:c.1301C>T",
+                "score": 0.12,
+                "license": "CC0-1.0",
+                "url": "https://www.mavedb.org/score-sets/urn:mavedb:0001",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    settings = Settings(
+        jwt_secret="test-secret",
+        mavedb_local_enabled=True,
+        mavedb_local_sqlite_path=tmp_path / "mavedb-local.sqlite",
+        mavedb_local_manifest_path=tmp_path / "mavedb-local.manifest.json",
+    )
+    materialized = materialize_mavedb_local_store(
+        settings,
+        jsonl_files=[source],
+        source_version="mavedb-test-v1",
+    )
+    assert materialized.ready is True
+    extractor = FunctionalEvidenceExtractor(settings=settings)
+
+    summary = extractor.build_for_lookup(
+        _variant(transcript_hgvs="NM_000329.3:c.1301C>T", protein_change="p.Ala434Val"),
+        {},
+    )
+
+    assert summary.total_count == 1
+    assert summary.source_breakdown.mavedb == 1
+    assert summary.evidence_codes == []
+    assert summary.source_asserted_codes == []
+    assert summary.display_metrics.state == "uncurated"
+    assert summary.display_metrics.verdict_source == "uncurated"
+    assert summary.studies[0].source_tags == ["mavedb"]
+    assert summary.studies[0].citation == "MaveDB urn:mavedb:0001"
+    assert summary.studies[0].source_accession == "urn:mavedb:0001"
+    assert summary.studies[0].url == "https://www.mavedb.org/score-sets/urn:mavedb:0001"
+    assert summary.studies[0].functional_score == 0.12
+    assert summary.studies[0].functional_score_label == "Functional score"
+    assert "CC0 score 0.12" in (summary.studies[0].snippet or "")
 
 
 def test_no_functional_evidence_has_neutral_call_card_metrics() -> None:

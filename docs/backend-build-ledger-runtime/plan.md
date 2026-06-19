@@ -257,6 +257,11 @@ Out of scope: local-evidence gate, PubMed/RAG.
   connections to the Supabase pooler host (`aws-1-ap-southeast-2.pooler.supabase.com`)
   on port 5432. Connector SQL remains limited to readback/verification and is
   not the right path for streaming roughly 666k clinical rows.
+- 2026-06-19 follow-up: the apply path now performs a fast sanitized TCP
+  preflight before parsing/applying release files. On this workstation it fails
+  in seconds with `supabase_import_database_unreachable` and host/port/timeout
+  only; no secrets, release rows, writes, connector bulk SQL, or provider flips
+  are involved.
 
 ### M4 - Local Evidence Runtime Probes
 
@@ -279,6 +284,22 @@ python -m pytest tests/test_source_asset_preflight_cli.py tests/test_health_api.
 
 Out of scope: Render seeding and `LOCAL_EVIDENCE_ENABLED=true`.
 
+2026-06-19 checkpoint:
+
+- Added production runtime path settings for dbSNP VCF/index, ClinVar
+  VCF/index, RepeatMasker compact interval index, and phyloP bigWig.
+- Added a sanitized `local_evidence_runtime_assets` probe to source-asset
+  preflight and `/api/v1/health/provider-cache`. The probe reports ready/missing
+  roles and byte sizes only; it emits no local paths, object URIs, secrets, raw
+  rows, or private checksums, and it does not instantiate pysam/pyBigWig readers.
+- Build-ledger rows for dbSNP, ClinVar, RepeatMasker, and phyloP stay
+  `source_ready_for_materialization` with `seed_verified_render_disk_cache`
+  blockers until configured production runtime files are present, then promote
+  to `ready`.
+- Focused tests cover missing-runtime and ready-runtime paths without leaking
+  configured temp paths. No Render seed, local-evidence enablement, downloads,
+  uploads, PubMed/RAG, ESM1b, or provider/env flips were performed.
+
 ### M5 - phyloP Runtime Seed
 
 Goal: place the verified phyloP bigWig on the SG Render service disk.
@@ -293,6 +314,33 @@ Acceptance criteria:
 Verify: live SG provider-cache plus a targeted lookup/report conservation smoke.
 
 Out of scope: local-evidence gate flip.
+
+2026-06-19 code gate:
+
+- Added `eamos_local_evidence_runtime_seed`, an explicit one-role-at-a-time
+  runtime seed CLI for dbSNP, ClinVar, RepeatMasker, and phyloP roles.
+- The M5 phyloP path is now covered for local operator files, Supabase private
+  Storage REST downloads, and Supabase S3-compatible downloads. The S3 mode is
+  the expected transport for the large production BigWig.
+- The CLI verifies size plus MD5 and/or SHA256 before atomic rename, emits no
+  local paths, object URIs, secrets, private checksums, or signed URLs, and does
+  not mutate Supabase metadata, Render env/deploy state, providers, or
+  `LOCAL_EVIDENCE_ENABLED`.
+- Live SG is not seeded yet. The runtime command must be run from the approved
+  Render Shell/operator context with the private source object URI and expected
+  identity:
+
+```powershell
+python -m app.cli.eamos_local_evidence_runtime_seed `
+  --role phylop_bigwig `
+  --source-object-uri supabase://eamos-source-assets/<private-phylop-object-path> `
+  --destination /var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw `
+  --download-mode s3_multipart `
+  --expected-size-bytes <verified-byte-size> `
+  --expected-sha256 <verified-sha256> `
+  --require-ready `
+  --compact
+```
 
 ### M6 - ClinVar Runtime Seed
 
@@ -327,8 +375,50 @@ Verify:
 
 ```powershell
 cd app/backend
-python -m pytest tests/test_repeatmasker_local.py tests/test_source_asset_preflight_cli.py -q
+python -m pytest tests/test_repeatmasker_local_adapter.py tests/test_indexed_source_readers.py tests/test_source_asset_preflight_cli.py -q
 ```
+
+2026-06-19 code gate:
+
+- Added the `eamos_repeatmasker_compact_index_build` build-time CLI and service
+  helper for deriving a compact JSONL interval index from an approved UCSC
+  `rmsk.txt` / `rmsk.txt.gz` source.
+- `RepeatMaskerIndexedTable` now round-trips the compact
+  `eamos.repeatmasker.interval_index.v1` JSONL schema and keeps bounded
+  bisect-backed interval queries.
+- `RepeatMaskerLocalStore` can load the compact interval index explicitly
+  instead of reparsing raw UCSC source rows at runtime. Fixture defaults remain
+  unchanged.
+- The builder is build-time/operator-only: no download, Storage upload, Render
+  seed, provider flip, `LOCAL_EVIDENCE_ENABLED` flip, startup materialization,
+  PubMed/RAG, or ESM1b work occurred.
+- Live SG is not seeded with the RepeatMasker compact index yet.
+
+2026-06-19 production-build checkpoint:
+
+- Built the production compact interval index locally from the approved staged
+  UCSC source
+  `app/backend/data/source_assets/repeatmasker_rmsk_bb/rmsk.txt.gz`.
+- Source identity: size `155633856`, MD5
+  `b2e108b535550ba9e3cf83c77417380f`, SHA256
+  `db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276`.
+- Derived compact artifact:
+  `.scratch/repeatmasker-compact-index/repeatmasker.interval-index.jsonl`;
+  schema `eamos.repeatmasker.interval_index.v1`; interval count `5683690`;
+  size `701514606`; SHA256
+  `6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98`.
+- Local sanitized preflight with `REPEATMASKER_RUNTIME_INDEX_PATH` pointed at
+  that artifact reports `repeatmasker_local_adapter.status=ready`,
+  `fixture_default_used=false`, `source_runtime_scan_allowed=false`, and no path
+  or secret emission.
+- Focused verification passed:
+  `python -m pytest tests\test_repeatmasker_local_adapter.py tests\test_indexed_source_readers.py tests\test_source_asset_preflight_cli.py -q`
+  and
+  `python -m pytest tests\test_health_api.py::test_provider_cache_health_reports_local_evidence_runtime_assets_without_paths -q`.
+- No Storage upload, Supabase metadata write, Render seed, provider flip,
+  `LOCAL_EVIDENCE_ENABLED` flip, startup materialization, PubMed/RAG, or ESM1b
+  work occurred. Live SG remains unseeded until explicit upload/register/seed
+  gates.
 
 ### M8 - dbSNP Runtime Seed
 
@@ -376,8 +466,31 @@ Verify:
 
 ```powershell
 cd app/backend
-python -m pytest tests/test_functional_evidence.py -q
+python -m pytest tests/test_mavedb_local.py tests/test_functional_evidence.py -q
 ```
+
+2026-06-19 code gate:
+
+- Added `eamos_mavedb_local_materialize`, an offline JSONL-to-SQLite
+  materializer for CC0 MaveDB functional-score rows. It filters out non-CC0
+  rows and score-missing rows, writes a sanitized manifest, computes a logical
+  SHA256 over public runtime tables, and performs no network, Supabase, Render,
+  provider/env, or startup-download action.
+- Added local MaveDB runtime settings and sanitized provider-cache, source
+  preflight, and build-ledger readiness. Missing assets report
+  `cc0_import_not_materialized`; ready assets set `public_serialization_allowed`
+  only after checksum/schema inspection.
+- `FunctionalEvidenceExtractor` can read the local CC0 store when explicitly
+  enabled and exposes MaveDB hits as uncurated functional studies with public
+  score/accession fields. It does not assert PS3/BS3 or change ACMG verdict
+  semantics.
+- The report page now uses the existing MaveDB functional-evidence block for
+  live local MaveDB hits and keeps the mock MAVE/OddsPath block only as the
+  no-data fallback. The live branch is labeled uncurated.
+- Focused backend, contract, health, preflight, variant-cache, and web
+  TypeScript/ESLint checks passed locally. No M7 live upload/register/seed,
+  M8 dbSNP seed, M9 local-evidence gate flip, PubMed/RAG, ESM1b, Storage,
+  Supabase write, Render seed, or provider/env flip occurred.
 
 ### M11 - ESM1b MIT-Regenerated Scores
 
@@ -386,6 +499,10 @@ Goal: materialize the MIT-regenerated ESM1b hg38 bgzip/tabix artifact.
 Blocker: operator must provide
 `C:\EamosDataStaging\esm1b\esm1b-mit-regenerated-scores.csv` with `seq_id`
 values matching the staged MANE protein FASTA IDs.
+
+2026-06-19 status: code support remains present, but the operator score CSV is
+not available in this workspace. M11 stays blocked until that private file and
+MANE/reference checksum metadata are supplied.
 
 Acceptance criteria:
 
@@ -413,6 +530,17 @@ Acceptance criteria:
 - Partial artifact-set uploads remain blocked.
 - Launch-gate/provenance metadata is preserved for commercialization filtering.
 
+2026-06-19 status: current code treats CI-SpliceAI as a complete artifact-set
+lane and wires the runtime score cache into the report path. When a local
+complete model/reference/score-cache set is staged with valid sidecar manifests,
+`ComputationalAnnotationsTool` reads the coordinate-keyed score cache and emits
+a real gene-agnostic `CI-SpliceAI` `ComputationalPredictorRow` into
+`computational_deep_dive`. The row preserves launch/provenance metadata for
+later commercial filtering; launch gates do not hide the backend/internal row.
+No local complete artifact set is staged, so runtime availability still remains
+gated on operator artifacts. Bare files with a tabix index no longer report
+`ready`.
+
 Verify:
 
 ```powershell
@@ -430,6 +558,17 @@ Acceptance criteria:
 - Model, feature cache, and feature-cache index are all present.
 - Partial artifact-set uploads remain blocked.
 - CAPICE scorer is connected only once artifacts pass preflight.
+
+2026-06-19 status: current code treats CAPICE as a complete artifact-set lane
+and wires the runtime feature/score cache into the report path. When a local
+complete model/feature-cache set is staged with valid sidecar manifests,
+`ComputationalAnnotationsTool` reads the coordinate-keyed feature cache and
+emits a real gene-agnostic `CAPICE` `ComputationalPredictorRow` into
+`computational_deep_dive`. The row preserves launch/provenance metadata for
+later commercial filtering; launch gates do not hide the backend/internal row.
+No local complete artifact set is staged, so runtime availability still remains
+gated on operator artifacts. Bare files with a tabix index no longer report
+`ready`.
 
 Verify:
 

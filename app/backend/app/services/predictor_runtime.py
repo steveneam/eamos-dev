@@ -38,6 +38,12 @@ CAPICE_MODEL_ASSET_ROLE = "xgboost_model"
 CAPICE_FEATURE_CACHE_SOURCE_ID = "illumina_spliceai_precomputed_hg38"
 CAPICE_FEATURE_CACHE_ASSET_ROLE = "spliceai_feature_cache"
 CAPICE_LAUNCH_GATE = "capice_launch_filter_metadata"
+REVEL_SOURCE_ID = "zenodo_revel_scores"
+REVEL_SCORE_CACHE_ASSET_ROLE = "predictor_score_cache"
+REVEL_LAUNCH_GATE = "revel_launch_filter_metadata"
+PRIMATEAI3D_SOURCE_ID = "illumina_primateai3d_scores"
+PRIMATEAI3D_SCORE_CACHE_ASSET_ROLE = "predictor_score_cache"
+PRIMATEAI3D_LAUNCH_GATE = "primateai3d_launch_filter_metadata"
 
 
 class PredictorRuntimeStatus(str, Enum):
@@ -113,6 +119,10 @@ class AdminPredictorComponentInspection:
     ready: bool
     actual_size_bytes: int | None
     reader_requires_local_path: bool = True
+    manifest_status: str = "not_checked"
+    manifest_expected_size_bytes: int | None = None
+    manifest_checksums_present: bool = False
+    launch_gate: str | None = None
 
     def to_sanitized_dict(self) -> dict[str, object]:
         return {
@@ -123,6 +133,10 @@ class AdminPredictorComponentInspection:
             "ready": self.ready,
             "actual_size_bytes": self.actual_size_bytes,
             "reader_requires_local_path": self.reader_requires_local_path,
+            "manifest_status": self.manifest_status,
+            "manifest_expected_size_bytes": self.manifest_expected_size_bytes,
+            "manifest_checksums_present": self.manifest_checksums_present,
+            "launch_gate": self.launch_gate,
         }
 
 
@@ -338,23 +352,36 @@ def inspect_ci_spliceai_runtime_assets(settings: Settings) -> AdminPredictorRunt
     """Inspect CI-SpliceAI admin-lane artifacts without exposing local paths."""
 
     model = _inspect_admin_component(
+        artifact_id="ci_spliceai",
+        component_id="model",
         source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_keras_model",
         asset_role=CI_SPLICEAI_MODEL_ASSET_ROLE,
         label="CI-SpliceAI model",
         path=_resolve_backend_path(settings, settings.ci_spliceai_model_path),
         missing_status="model_artifact_missing",
         path_not_file_status="model_artifact_path_not_file",
+        manifest_status_prefix="model",
+        expected_launch_gate=CI_SPLICEAI_LAUNCH_GATE,
     )
     reference = _inspect_admin_component(
+        artifact_id="ci_spliceai",
+        component_id="reference_bundle",
         source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_reference_bundle",
         asset_role=CI_SPLICEAI_REFERENCE_ASSET_ROLE,
         label="CI-SpliceAI reference bundle",
         path=_resolve_backend_path(settings, settings.ci_spliceai_reference_path),
         missing_status="reference_artifact_missing",
         path_not_file_status="reference_artifact_path_not_file",
+        manifest_status_prefix="reference",
+        expected_launch_gate=CI_SPLICEAI_LAUNCH_GATE,
     )
     score_cache = _inspect_admin_component(
+        artifact_id="ci_spliceai",
+        component_id="score_cache",
         source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_hg38_score_cache_vcf_gz",
         asset_role=CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
         label="CI-SpliceAI score cache",
         path=_resolve_backend_path(settings, settings.ci_spliceai_score_cache_path),
@@ -363,6 +390,8 @@ def inspect_ci_spliceai_runtime_assets(settings: Settings) -> AdminPredictorRunt
         indexed=True,
         missing_index_status="score_cache_index_missing",
         index_not_file_status="score_cache_index_path_not_file",
+        manifest_status_prefix="score_cache",
+        expected_launch_gate=CI_SPLICEAI_LAUNCH_GATE,
     )
     components = (model, reference, score_cache)
     status = _ci_spliceai_status(model, reference, score_cache)
@@ -380,15 +409,23 @@ def inspect_capice_runtime_assets(settings: Settings) -> AdminPredictorRuntimeIn
     """Inspect CAPICE admin-lane artifacts without exposing local paths."""
 
     model = _inspect_admin_component(
+        artifact_id="capice",
+        component_id="model",
         source_id=CAPICE_SOURCE_ID,
+        asset_id="capice_xgboost_model",
         asset_role=CAPICE_MODEL_ASSET_ROLE,
         label="CAPICE model",
         path=_resolve_backend_path(settings, settings.capice_model_path),
         missing_status="model_artifact_missing",
         path_not_file_status="model_artifact_path_not_file",
+        manifest_status_prefix="model",
+        expected_launch_gate=CAPICE_LAUNCH_GATE,
     )
     feature_cache = _inspect_admin_component(
+        artifact_id="capice",
+        component_id="feature_cache",
         source_id=CAPICE_FEATURE_CACHE_SOURCE_ID,
+        asset_id="capice_hg38_feature_cache_tsv_gz",
         asset_role=CAPICE_FEATURE_CACHE_ASSET_ROLE,
         label="CAPICE SpliceAI-derived feature cache",
         path=_resolve_backend_path(settings, settings.capice_feature_cache_path),
@@ -397,6 +434,8 @@ def inspect_capice_runtime_assets(settings: Settings) -> AdminPredictorRuntimeIn
         indexed=True,
         missing_index_status="feature_cache_index_missing",
         index_not_file_status="feature_cache_index_path_not_file",
+        manifest_status_prefix="feature_cache",
+        expected_launch_gate=CAPICE_LAUNCH_GATE,
     )
     components = (model, feature_cache)
     status = _capice_status(model, feature_cache)
@@ -407,6 +446,58 @@ def inspect_capice_runtime_assets(settings: Settings) -> AdminPredictorRuntimeIn
         launch_gate=CAPICE_LAUNCH_GATE,
         status_notes=_capice_status_notes(components),
         components=components,
+    )
+
+
+def inspect_revel_runtime_assets(settings: Settings) -> AdminPredictorRuntimeInspection:
+    """Inspect the REVEL coordinate-keyed score cache without exposing paths."""
+
+    score_cache = _inspect_admin_component(
+        artifact_id="revel",
+        component_id="score_cache",
+        source_id=REVEL_SOURCE_ID,
+        asset_id="revel_hg38_score_cache_tsv_gz",
+        asset_role=REVEL_SCORE_CACHE_ASSET_ROLE,
+        label="REVEL score cache",
+        path=_resolve_backend_path(settings, settings.revel_score_cache_path),
+        missing_status="score_cache_missing",
+        path_not_file_status="score_cache_path_not_file",
+        indexed=True,
+        missing_index_status="score_cache_index_missing",
+        index_not_file_status="score_cache_index_path_not_file",
+        manifest_status_prefix="score_cache",
+        expected_launch_gate=REVEL_LAUNCH_GATE,
+    )
+    return _single_cache_admin_inspection(
+        source_id=REVEL_SOURCE_ID,
+        launch_gate=REVEL_LAUNCH_GATE,
+        component=score_cache,
+    )
+
+
+def inspect_primateai3d_runtime_assets(settings: Settings) -> AdminPredictorRuntimeInspection:
+    """Inspect the PrimateAI-3D coordinate-keyed score cache without exposing paths."""
+
+    score_cache = _inspect_admin_component(
+        artifact_id="primateai3d",
+        component_id="score_cache",
+        source_id=PRIMATEAI3D_SOURCE_ID,
+        asset_id="primateai3d_hg38_score_cache_tsv_gz",
+        asset_role=PRIMATEAI3D_SCORE_CACHE_ASSET_ROLE,
+        label="PrimateAI-3D score cache",
+        path=_resolve_backend_path(settings, settings.primateai3d_score_cache_path),
+        missing_status="score_cache_missing",
+        path_not_file_status="score_cache_path_not_file",
+        indexed=True,
+        missing_index_status="score_cache_index_missing",
+        index_not_file_status="score_cache_index_path_not_file",
+        manifest_status_prefix="score_cache",
+        expected_launch_gate=PRIMATEAI3D_LAUNCH_GATE,
+    )
+    return _single_cache_admin_inspection(
+        source_id=PRIMATEAI3D_SOURCE_ID,
+        launch_gate=PRIMATEAI3D_LAUNCH_GATE,
+        component=score_cache,
     )
 
 
@@ -500,12 +591,17 @@ def _inspect_predictor_local_files(
 
 def _inspect_admin_component(
     *,
+    artifact_id: str,
+    component_id: str,
     source_id: str,
+    asset_id: str,
     asset_role: str,
     label: str,
     path: Path,
     missing_status: str,
     path_not_file_status: str,
+    manifest_status_prefix: str,
+    expected_launch_gate: str,
     indexed: bool = False,
     missing_index_status: str | None = None,
     index_not_file_status: str | None = None,
@@ -549,6 +645,29 @@ def _inspect_admin_component(
                 ready=False,
                 actual_size_bytes=actual_size,
             )
+    manifest = _inspect_admin_component_manifest(
+        artifact_id=artifact_id,
+        component_id=component_id,
+        source_id=source_id,
+        asset_id=asset_id,
+        asset_role=asset_role,
+        path=path,
+        actual_size=actual_size,
+        expected_launch_gate=expected_launch_gate,
+    )
+    if manifest["status"] != "ready":
+        return AdminPredictorComponentInspection(
+            source_id=source_id,
+            asset_role=asset_role,
+            label=label,
+            status=f"{manifest_status_prefix}_{manifest['status']}",
+            ready=False,
+            actual_size_bytes=actual_size,
+            manifest_status=str(manifest["status"]),
+            manifest_expected_size_bytes=manifest["expected_size"],
+            manifest_checksums_present=bool(manifest["checksums_present"]),
+            launch_gate=manifest["launch_gate"],
+        )
     return AdminPredictorComponentInspection(
         source_id=source_id,
         asset_role=asset_role,
@@ -556,7 +675,135 @@ def _inspect_admin_component(
         status="ready",
         ready=True,
         actual_size_bytes=actual_size,
+        manifest_status="ready",
+        manifest_expected_size_bytes=manifest["expected_size"],
+        manifest_checksums_present=bool(manifest["checksums_present"]),
+        launch_gate=manifest["launch_gate"],
     )
+
+
+def _inspect_admin_component_manifest(
+    *,
+    artifact_id: str,
+    component_id: str,
+    source_id: str,
+    asset_id: str,
+    asset_role: str,
+    path: Path,
+    actual_size: int,
+    expected_launch_gate: str,
+) -> dict[str, object]:
+    manifest_path = path.with_suffix(path.suffix + ".manifest.json")
+    if not manifest_path.is_file():
+        return _admin_manifest_result("manifest_missing")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return _admin_manifest_result("manifest_invalid_json")
+    if not isinstance(manifest, dict):
+        return _admin_manifest_result("manifest_invalid_json")
+
+    if manifest.get("artifact_id") not in (None, artifact_id):
+        return _admin_manifest_result("manifest_artifact_mismatch")
+    if manifest.get("component_id") not in (None, component_id):
+        return _admin_manifest_result("manifest_component_mismatch")
+    if manifest.get("source_id") not in (None, source_id):
+        return _admin_manifest_result("manifest_source_mismatch")
+    if manifest.get("asset_id") not in (None, asset_id):
+        return _admin_manifest_result("manifest_asset_mismatch")
+    if manifest.get("role") not in (None, asset_role):
+        return _admin_manifest_result("manifest_role_mismatch")
+
+    expected_size = manifest.get("byte_size")
+    if not isinstance(expected_size, int) or expected_size <= 0:
+        return _admin_manifest_result("manifest_size_missing")
+    if expected_size != actual_size:
+        return _admin_manifest_result("manifest_size_mismatch", expected_size=expected_size)
+
+    checksums = manifest.get("checksums") if isinstance(manifest.get("checksums"), dict) else {}
+    md5_value = _optional_text(manifest.get("md5") or checksums.get("md5"))
+    sha256_value = _optional_text(manifest.get("sha256") or checksums.get("sha256"))
+    checksums_present = bool(_looks_like_md5(md5_value) or _looks_like_sha256(sha256_value))
+    if not checksums_present:
+        return _admin_manifest_result(
+            "manifest_checksum_missing",
+            expected_size=expected_size,
+        )
+
+    launch_gate = manifest.get("launch_gate")
+    if not isinstance(launch_gate, str) or not launch_gate.strip():
+        return _admin_manifest_result(
+            "manifest_launch_gate_missing",
+            expected_size=expected_size,
+            checksums_present=checksums_present,
+        )
+    launch_gate = launch_gate.strip()
+    if launch_gate != expected_launch_gate:
+        return _admin_manifest_result(
+            "manifest_launch_gate_mismatch",
+            expected_size=expected_size,
+            checksums_present=checksums_present,
+            launch_gate=launch_gate,
+        )
+
+    storage_contract = manifest.get("storage_contract")
+    if not _admin_storage_contract_is_safe(storage_contract):
+        return _admin_manifest_result(
+            "manifest_storage_contract_unsafe",
+            expected_size=expected_size,
+            checksums_present=checksums_present,
+            launch_gate=launch_gate,
+        )
+
+    return _admin_manifest_result(
+        "ready",
+        expected_size=expected_size,
+        checksums_present=checksums_present,
+        launch_gate=launch_gate,
+    )
+
+
+def _admin_manifest_result(
+    status: str,
+    *,
+    expected_size: int | None = None,
+    checksums_present: bool = False,
+    launch_gate: str | None = None,
+) -> dict[str, object]:
+    return {
+        "status": status,
+        "expected_size": expected_size,
+        "checksums_present": checksums_present,
+        "launch_gate": launch_gate,
+    }
+
+
+def _admin_storage_contract_is_safe(value: object) -> bool:
+    if not isinstance(value, dict):
+        return False
+    return (
+        value.get("bucket_policy") == "private"
+        and value.get("frontend_direct_access_allowed") is False
+        and value.get("signed_urls_created") is False
+        and value.get("startup_download_allowed") is False
+        and value.get("request_time_materialization_allowed") is False
+        and value.get("runtime_sync_required") is True
+    )
+
+
+def _optional_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _looks_like_md5(value: str | None) -> bool:
+    return value is not None and re.fullmatch(r"[0-9a-fA-F]{32}", value) is not None
+
+
+def _looks_like_sha256(value: str | None) -> bool:
+    return value is not None and re.fullmatch(r"[0-9a-fA-F]{64}", value) is not None
 
 
 def _ci_spliceai_status(
@@ -610,6 +857,22 @@ def _capice_status_notes(
         elif component.asset_role == CAPICE_FEATURE_CACHE_ASSET_ROLE:
             notes.append("spliceai_feature_cache_materialization_required")
     return tuple(dict.fromkeys(notes))
+
+
+def _single_cache_admin_inspection(
+    *,
+    source_id: str,
+    launch_gate: str,
+    component: AdminPredictorComponentInspection,
+) -> AdminPredictorRuntimeInspection:
+    return AdminPredictorRuntimeInspection(
+        source_id=source_id,
+        status="ready" if component.ready else component.status,
+        available=component.ready,
+        launch_gate=launch_gate,
+        status_notes=() if component.ready else ("score_cache_materialization_required",),
+        components=(component,),
+    )
 
 
 def _validate_materialization_record(

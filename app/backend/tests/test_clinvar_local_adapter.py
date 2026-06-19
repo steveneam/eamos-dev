@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from app.services.lookup_service import _clinvar_distribution_runtime_path
 from app.services.clinvar_local import (
     CLINVAR_SOURCE_ID,
     ClinVarLocalError,
     ClinVarLocalProvenance,
     ClinVarLocalStore,
+    build_clinvar_gene_distribution,
     parse_clinvar_vcf,
 )
 
@@ -50,6 +53,92 @@ def test_tiny_fixture_resolves_rpe65_variant_by_gnomad_style_id() -> None:
     assert record.gene_symbols == ("RPE65",)
     assert record.provenance.source_id == CLINVAR_SOURCE_ID
     assert record.provenance.record_id == "VCV001421454"
+
+
+def test_gene_distribution_aggregates_installed_local_clinvar_records() -> None:
+    distribution = build_clinvar_gene_distribution("RPE65", query_variant_id="1-68444869-T-C")
+
+    assert distribution.source_id == CLINVAR_SOURCE_ID
+    assert distribution.source_status == "fixture"
+    assert distribution.source_version == (
+        "ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523"
+    )
+    assert distribution.public_serialization_allowed is True
+    assert distribution.total == 1
+    assert distribution.cells["vus_missense"] == 1
+    assert distribution.row_totals == {"pathogenic": 0, "vus": 1, "benign": 0}
+    assert distribution.query_cell == "vus_missense"
+    assert distribution.query_variant_id == "1-68444869-T-C"
+    assert distribution.query_accession == "VCV001421454"
+    assert distribution.query_classification == "Uncertain significance"
+    assert "clinvar_local_fixture_scope" in distribution.warnings
+    assert "legacy" not in distribution.subtitle.lower()
+
+
+def test_gene_distribution_buckets_classification_and_effect_types(tmp_path: Path) -> None:
+    vcf_path = tmp_path / "clinvar_gene_distribution.vcf"
+    vcf_path.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "##fileDate=20260523",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "1\t101\t1421454\tA\tT\t.\t.\t"
+                    "VCV=1421454;CLNSIG=Likely_pathogenic;"
+                    "CLNREVSTAT=criteria_provided;CLNDN=Example;"
+                    "HGVS=NM_000329.3:c.1A>T|NP_000320.1:p.Trp1Ter;GENEINFO=RPE65:6121"
+                ),
+                (
+                    "1\t102\t1421455\tA\tG\t.\t.\t"
+                    "VCV=1421455;CLNSIG=Benign;"
+                    "CLNREVSTAT=criteria_provided;CLNDN=Example;"
+                    "HGVS=NM_000329.3:c.3A>G|NP_000320.1:p.=;GENEINFO=RPE65:6121"
+                ),
+                (
+                    "1\t103\t1421456\tA\tG\t.\t.\t"
+                    "VCV=1421456;CLNSIG=Conflicting_classifications_of_pathogenicity;"
+                    "CLNREVSTAT=criteria_provided;CLNDN=Example;"
+                    "HGVS=NM_000329.3:c.4+1A>G;GENEINFO=RPE65:6121"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    distribution = build_clinvar_gene_distribution(
+        "RPE65",
+        store=ClinVarLocalStore(vcf_path),
+        query_variant_id="1-102-A-G",
+    )
+
+    assert distribution.source_status == "local"
+    assert distribution.total == 3
+    assert distribution.cells["pathogenic_lof"] == 1
+    assert distribution.cells["benign_synonymous"] == 1
+    assert distribution.cells["vus_noncoding"] == 1
+    assert distribution.row_totals == {"pathogenic": 1, "vus": 1, "benign": 1}
+    assert distribution.query_cell == "benign_synonymous"
+    assert distribution.query_accession == "VCV001421455"
+    assert "clinvar_local_fixture_scope" not in distribution.warnings
+
+
+def test_lookup_service_requires_vcf_and_index_before_full_clinvar_distribution(
+    tmp_path: Path,
+) -> None:
+    vcf_path = tmp_path / "clinvar.vcf.gz"
+    index_path = tmp_path / "clinvar.vcf.gz.tbi"
+    vcf_path.write_bytes(b"vcf")
+    settings = SimpleNamespace(
+        clinvar_runtime_vcf_path=vcf_path,
+        clinvar_runtime_index_path=index_path,
+    )
+
+    assert _clinvar_distribution_runtime_path(settings) is None
+
+    index_path.write_bytes(b"index")
+
+    assert _clinvar_distribution_runtime_path(settings) == str(vcf_path)
 
 
 def test_lookup_accepts_contig_alias_and_vcv_or_variation_id() -> None:

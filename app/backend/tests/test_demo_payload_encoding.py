@@ -27,8 +27,9 @@ def test_lookup_payload_does_not_emit_utf8_as_latin1_mojibake(client) -> None:
         "chr1 : 68,444,849 — 68,444,889  ·  RPE65 exon 4  ·  (+) strand"
     )
     assert report["curated_variants_distribution"]["subtitle"] == (
-        "1,286 classified variants · ClinVar + UniProt"
+        "1 ClinVar fixture record for RPE65"
     )
+    assert report["curated_variants_distribution"]["source_id"] == "ncbi_clinvar_vcf"
     assert "No disagreement to flag — the in-silico signal" in (
         report["in_silico_predictions"]["consensus_note"]
     )
@@ -65,6 +66,22 @@ def test_report_demo_sample_json_carries_calibrated_predictor_fields() -> None:
     assert predictors["SpliceAI"]["calibration_method"] == "Walker 2023 / ClinGen SVI splicing"
     assert predictors["PrimateAI-3D"]["calibrated_label"] is None
     assert predictors["MetaLR"]["calibration_version"] is None
+
+
+def test_report_demo_sample_json_carries_computed_acmg_advisory() -> None:
+    sample_path = Path(__file__).resolve().parents[2] / "web" / "lib" / "rpe65-sample.json"
+    payload = json.loads(sample_path.read_text(encoding="utf-8"))
+
+    computed = payload["report_payload"]["eamos_computed_classification"]
+    rows = {row["code"]: row for row in computed["per_criterion"]}
+
+    assert computed["tier"] == "VUS"
+    assert computed["net_points"] == 3
+    assert computed["sum_pathogenic"] == 3
+    assert computed["sum_benign"] == 0
+    assert rows["PM2"]["triggered"] is True
+    assert rows["PP3"]["triggered"] is True
+    assert rows["BA1"]["triggered"] is False
 
 
 def test_fixture_backed_tool_reads_fixtures_as_utf8(tmp_path: Path) -> None:

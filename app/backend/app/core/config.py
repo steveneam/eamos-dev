@@ -121,6 +121,15 @@ class Settings(BaseSettings):
     local_evidence_enabled: bool = False
     local_evidence_allowed_flows_raw: str = ""
     local_evidence_require_real_apis: bool = True
+    dbsnp_runtime_vcf_path: Path = Path("./data/bio_assets/dbsnp/GCF_000001405.40.gz")
+    dbsnp_runtime_index_path: Path = Path("./data/bio_assets/dbsnp/GCF_000001405.40.gz.tbi")
+    clinvar_runtime_vcf_path: Path = Path("./data/bio_assets/clinvar/clinvar.vcf.gz")
+    clinvar_runtime_index_path: Path = Path("./data/bio_assets/clinvar/clinvar.vcf.gz.tbi")
+    repeatmasker_runtime_index_path: Path = Path(
+        "./data/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
+    )
+    phylop_runtime_bigwig_path: Path = Path("./data/bio_assets/phylop/hg38.phyloP100way.bw")
+    local_evidence_runtime_seed_timeout_seconds: float = 1200.0
     pubmed_local_enabled: bool = False
     pubmed_local_sqlite_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.sqlite")
     pubmed_local_manifest_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.manifest.json")
@@ -137,6 +146,10 @@ class Settings(BaseSettings):
     clingen_local_fallback_on_no_hit: bool = True
     clingen_local_max_results: int = 25
     clingen_local_materialize_timeout_seconds: float = 1200.0
+    mavedb_local_enabled: bool = False
+    mavedb_local_sqlite_path: Path = Path("./data/bio_assets/mavedb/mavedb-local.sqlite")
+    mavedb_local_manifest_path: Path = Path("./data/bio_assets/mavedb/mavedb-local.manifest.json")
+    mavedb_local_max_results: int = 25
     ncbi_eutils_api_key: str | None = None
     ncbi_eutils_tool: str = "eamos"
     ncbi_eutils_email: str | None = None
@@ -225,6 +238,12 @@ class Settings(BaseSettings):
     capice_model_path: Path = Path("./data/bio_assets/predictors/capice/capice_model.json")
     capice_feature_cache_path: Path = Path(
         "./data/bio_assets/predictors/capice/capice_hg38_features.tsv.gz"
+    )
+    revel_score_cache_path: Path = Path(
+        "./data/bio_assets/predictors/revel/revel_hg38_scores.tsv.gz"
+    )
+    primateai3d_score_cache_path: Path = Path(
+        "./data/bio_assets/predictors/primateai3d/primateai3d_hg38_scores.tsv.gz"
     )
     vep_base_url: str = "https://rest.ensembl.org"
     spliceai_base_url: str = "https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/"

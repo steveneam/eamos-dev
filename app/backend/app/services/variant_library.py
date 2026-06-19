@@ -181,6 +181,12 @@ class VariantLibraryService:
         except VariantLibraryRepoError as exc:
             raise _service_unavailable() from exc
 
+    def get_view(self, query_id: str) -> VariantPopularity:
+        try:
+            return _popularity_schema(self.repo.get_view(query_id=_normalize_id(query_id)))
+        except VariantLibraryRepoError as exc:
+            raise _service_unavailable() from exc
+
     def popular(self, *, limit: int) -> list[VariantPopularity]:
         try:
             return [_popularity_schema(row) for row in self.repo.popular(limit=limit)]

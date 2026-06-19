@@ -59,7 +59,7 @@ class FolderRecord:
 class VariantPopularityRecord:
     query_id: str
     view_count: int
-    last_viewed: datetime
+    last_viewed: datetime | None
 
 
 @dataclass(frozen=True)
@@ -323,6 +323,13 @@ class VariantLibraryRepo:
             record.last_viewed = now
             session.add(record)
             session.flush()
+            return _popularity_from_record(record)
+
+    def get_view(self, *, query_id: str) -> VariantPopularityRecord:
+        with session_scope(self.session_factory) as session:
+            record = session.get(VariantViewCountRecord, query_id)
+            if record is None:
+                return VariantPopularityRecord(query_id=query_id, view_count=0, last_viewed=None)
             return _popularity_from_record(record)
 
     def popular(self, *, limit: int) -> list[VariantPopularityRecord]:
@@ -599,6 +606,19 @@ class SupabaseVariantLibraryRepo:
         )
         if not rows:
             raise VariantLibraryWriteError("view counter increment returned no row")
+        return _popularity_from_row(rows[0])
+
+    def get_view(self, *, query_id: str) -> VariantPopularityRecord:
+        rows = self._get_rows(
+            "variant_view_count",
+            params={
+                "select": "query_id,view_count,last_viewed",
+                "query_id": f"eq.{query_id}",
+                "limit": "1",
+            },
+        )
+        if not rows:
+            return VariantPopularityRecord(query_id=query_id, view_count=0, last_viewed=None)
         return _popularity_from_row(rows[0])
 
     def popular(self, *, limit: int) -> list[VariantPopularityRecord]:

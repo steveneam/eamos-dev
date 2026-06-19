@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import json
 import re
 
-from app.services.repeatmasker_local import REPEATMASKER_SOURCE_ID, RepeatMaskerLocalStore
+from app.cli import eamos_repeatmasker_compact_index_build
+from app.services.indexed_sources import REPEATMASKER_COMPACT_INDEX_SCHEMA, RepeatMaskerIndexedTable
+from app.services.repeatmasker_local import (
+    REPEATMASKER_SOURCE_ID,
+    RepeatMaskerLocalStore,
+    build_repeatmasker_compact_index,
+)
 
 
 def test_store_provenance_records_repeatmasker_fixture_and_conversion_strategy() -> None:
@@ -38,6 +45,79 @@ def test_tiny_fixture_returns_repeat_overlaps_and_no_hit_windows() -> None:
     assert overlaps.repeats[0].provenance.source_id == REPEATMASKER_SOURCE_ID
     assert no_hit.available is True
     assert no_hit.repeats == ()
+
+
+def test_compact_index_path_returns_repeat_overlaps_and_provenance(tmp_path) -> None:
+    index_path = tmp_path / "repeatmasker.interval-index.jsonl"
+    RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
+        [
+            "585\t1200\t12\t1\t0\tchr1\t100\t130\t-870\t+\tAluY\tSINE\tAlu\t1\t30\t0\t1",
+        ]
+    ).write_compact_jsonl(
+        index_path,
+        source_id=REPEATMASKER_SOURCE_ID,
+        source_version="pytest",
+    )
+    store = RepeatMaskerLocalStore(compact_index_path=index_path)
+
+    provenance = store.provenance()
+    overlaps = store.query_window(chrom="NC_000001.11", start=101, end=120)
+
+    assert provenance.source_id == REPEATMASKER_SOURCE_ID
+    assert provenance.source_format == REPEATMASKER_COMPACT_INDEX_SCHEMA
+    assert provenance.relative_path.endswith("repeatmasker.interval-index.jsonl")
+    assert overlaps.available is True
+    assert len(overlaps.repeats) == 1
+    assert overlaps.repeats[0].name == "AluY"
+
+
+def test_compact_index_builder_writes_runtime_index(tmp_path) -> None:
+    source_path = tmp_path / "rmsk.txt"
+    output_path = tmp_path / "repeatmasker.interval-index.jsonl"
+    source_path.write_text(
+        "585\t1200\t12\t1\t0\tchr1\t100\t130\t-870\t+\tAluY\tSINE\tAlu\t1\t30\t0\t1\n",
+        encoding="utf-8",
+    )
+
+    result = build_repeatmasker_compact_index(
+        source_rmsk_path=source_path,
+        output_path=output_path,
+    )
+    store = RepeatMaskerLocalStore(compact_index_path=output_path)
+
+    assert result.source_id == REPEATMASKER_SOURCE_ID
+    assert result.output_schema == REPEATMASKER_COMPACT_INDEX_SCHEMA
+    assert result.interval_count == 1
+    assert result.output_byte_size == output_path.stat().st_size
+    assert re.fullmatch(r"[0-9a-f]{64}", result.output_sha256)
+    assert store.query_window(chrom="1", start=101, end=101).repeats[0].name == "AluY"
+
+
+def test_compact_index_builder_cli_is_build_time_only(tmp_path, capsys) -> None:
+    source_path = tmp_path / "rmsk.txt"
+    output_path = tmp_path / "repeatmasker.interval-index.jsonl"
+    source_path.write_text(
+        "585\t1200\t12\t1\t0\tchr1\t100\t130\t-870\t+\tAluY\tSINE\tAlu\t1\t30\t0\t1\n",
+        encoding="utf-8",
+    )
+
+    exit_code = eamos_repeatmasker_compact_index_build.main(
+        [
+            "--source-rmsk-path",
+            str(source_path),
+            "--output",
+            str(output_path),
+            "--require-ready",
+            "--compact",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "ready"
+    assert output["result"]["interval_count"] == 1
+    assert output["guardrails"]["render_disk_seed"] == "not_used"
+    assert output["guardrails"]["local_evidence_enabled_flip"] == "not_used"
 
 
 def test_repeat_overlap_boundaries_are_inclusive() -> None:

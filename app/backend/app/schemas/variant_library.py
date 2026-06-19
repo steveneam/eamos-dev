@@ -121,7 +121,7 @@ class MoveVariantRequest(BaseModel):
 class VariantPopularity(BaseModel):
     query_id: str
     view_count: int
-    last_viewed: datetime
+    last_viewed: datetime | None = None
 
 
 class PopularVariantsResponse(BaseModel):

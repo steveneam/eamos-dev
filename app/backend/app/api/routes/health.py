@@ -16,11 +16,15 @@ from app.services.predictor_runtime import (
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_primateai3d_runtime_assets,
+    inspect_revel_runtime_assets,
 )
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.clingen_local import inspect_clingen_local_store
+from app.services.local_evidence_runtime_assets import inspect_local_evidence_runtime_assets
+from app.services.mavedb_local import inspect_mavedb_local_store
 from app.services.pubmed_local import inspect_pubmed_local_store
 from app.services.ai_gateway.retrieval import inspect_literature_store
 from app.services.crispr_design import (
@@ -135,9 +139,32 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
         },
         "compact_coordinate_index": _compact_coordinate_index_health(settings),
         "clingen_local": _clingen_local_health(settings),
+        "local_evidence_runtime_assets": _local_evidence_runtime_asset_health(settings),
         "pubmed_local": _pubmed_local_health(settings),
         "literature_embeddings": _literature_embedding_health(settings),
     }
+
+
+def _local_evidence_runtime_asset_health(settings) -> dict[str, object]:
+    try:
+        return inspect_local_evidence_runtime_assets(settings)
+    except Exception:
+        return {
+            "mode": "local_evidence_runtime_assets",
+            "ready": False,
+            "ready_count": 0,
+            "total_sources": 4,
+            "sources": [],
+            "status": "runtime_asset_probe_failed",
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "source_runtime_scan_allowed": False,
+            "runtime_reader_opened": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "object_uri_values_emitted": False,
+            "preflight_wires_runtime": False,
+        }
 
 
 def _compact_coordinate_index_health(settings) -> dict[str, object]:
@@ -292,13 +319,10 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             "storage_required": pvs1_nmd.storage_required,
             "status_notes": list(pvs1_nmd.warnings),
         },
-        "mavedb": {
-            "available": False,
-            "status": "cc0_import_not_materialized",
-            "runtime_wired": False,
-            "public_serialization_allowed": False,
-        },
+        "mavedb": inspect_mavedb_local_store(settings, verify_checksum=False).to_sanitized_dict(),
         "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
+        "revel": inspect_revel_runtime_assets(settings).to_sanitized_dict(),
+        "primateai3d": inspect_primateai3d_runtime_assets(settings).to_sanitized_dict(),
     }
 
 

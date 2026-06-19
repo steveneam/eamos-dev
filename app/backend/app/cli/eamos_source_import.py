@@ -4,7 +4,10 @@ import argparse
 from dataclasses import asdict
 import json
 from pathlib import Path
+import socket
 from typing import Any
+
+from sqlalchemy.engine import make_url
 
 from app.core.config import Settings
 from app.repos.supabase_local_model_cache_repo import (
@@ -33,6 +36,8 @@ from app.services.source_storage_uploads import (
     S3_RETRY_ATTEMPTS,
     build_source_storage_upload_items,
 )
+
+SUPABASE_TCP_PREFLIGHT_TIMEOUT_SECONDS = 8.0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -124,6 +129,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="skip the Supabase write/read/delete smoke before applying imports",
     )
+    parser.add_argument(
+        "--skip-supabase-tcp-check",
+        action="store_true",
+        help=(
+            "skip the fast TCP reachability preflight before --apply-supabase; "
+            "the SQLAlchemy smoke test still runs unless --skip-supabase-smoke is also set"
+        ),
+    )
     parser.add_argument("--compact", action="store_true", help="emit compact JSON")
     args = parser.parse_args(argv)
 
@@ -157,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
             backend_runtime=args.backend_runtime,
             apply_supabase=args.apply_supabase,
             skip_supabase_smoke=args.skip_supabase_smoke,
+            check_supabase_tcp=not args.skip_supabase_tcp_check,
         )
     except SourceImportError as exc:
         print(
@@ -207,12 +221,15 @@ def build_source_import_report(
     backend_runtime: str = "render_backend",
     apply_supabase: bool = False,
     skip_supabase_smoke: bool = False,
+    check_supabase_tcp: bool = True,
 ) -> dict[str, Any]:
     store = None
     settings = None
     if apply_supabase or verify_storage_heads:
         settings = Settings(jwt_secret="source-import-local")
     if apply_supabase:
+        if check_supabase_tcp:
+            _check_supabase_database_tcp_reachable(settings)
         store = build_supabase_local_model_cache_store(settings)
         if store is None:
             raise SourceImportError(
@@ -291,6 +308,56 @@ def build_source_import_report(
         report["existing_object_metadata"] = metadata_report
 
     return report
+
+
+def _check_supabase_database_tcp_reachable(
+    settings: Settings | None,
+    *,
+    timeout_seconds: float = SUPABASE_TCP_PREFLIGHT_TIMEOUT_SECONDS,
+) -> None:
+    if settings is None or not settings.supabase_local_model_cache_database_url:
+        raise SourceImportError(
+            "supabase_import_not_configured",
+            (
+                "Supabase import apply requires SUPABASE_LOCAL_MODEL_CACHE_ENABLED=true "
+                "and SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL"
+            ),
+        )
+    try:
+        parsed_url = make_url(settings.supabase_local_model_cache_database_url)
+    except Exception as exc:
+        raise SourceImportError(
+            "supabase_import_database_url_invalid",
+            "Supabase import apply could not parse the configured private DB URL",
+            {"error_type": type(exc).__name__},
+        ) from exc
+
+    host = parsed_url.host
+    port = parsed_url.port or 5432
+    if not host:
+        raise SourceImportError(
+            "supabase_import_database_url_invalid",
+            "Supabase import apply requires a TCP Postgres host in the private DB URL",
+            {"port": port},
+        )
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout_seconds):
+            return
+    except OSError as exc:
+        raise SourceImportError(
+            "supabase_import_database_unreachable",
+            (
+                "Supabase import apply could not open a TCP connection to the configured "
+                "Postgres host before parsing/applying release files"
+            ),
+            {
+                "host": host,
+                "port": port,
+                "timeout_seconds": timeout_seconds,
+                "error_type": type(exc).__name__,
+            },
+        ) from exc
 
 
 def _verify_existing_storage_heads(settings: Settings | None, upload_items) -> bool:

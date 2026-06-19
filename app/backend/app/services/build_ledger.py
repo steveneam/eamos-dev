@@ -27,16 +27,24 @@ from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
     LocalEvidenceRuntimeGate,
 )
+from app.services.local_evidence_runtime_assets import inspect_local_evidence_runtime_assets
+from app.services.mavedb_local import inspect_mavedb_local_store
 from app.services.predictor_runtime import (
     ALPHAMISSENSE_SOURCE_ID,
     CAPICE_FEATURE_CACHE_SOURCE_ID,
     CAPICE_SOURCE_ID,
     CI_SPLICEAI_SOURCE_ID,
     ESM1B_SOURCE_ID,
+    PRIMATEAI3D_LAUNCH_GATE,
+    PRIMATEAI3D_SOURCE_ID,
+    REVEL_LAUNCH_GATE,
+    REVEL_SOURCE_ID,
     inspect_alphamissense_runtime_asset,
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_primateai3d_runtime_assets,
+    inspect_revel_runtime_assets,
 )
 from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
@@ -108,6 +116,8 @@ def build_backend_build_ledger(
     clingen_local_status = _clingen_local_status(settings)
     pubmed_local_status = _pubmed_local_status(settings)
     literature_embedding_status = _literature_embedding_status(settings)
+    mavedb_status = _mavedb_status(settings)
+    local_evidence_runtime_statuses = _local_evidence_runtime_statuses(settings)
     pvs1_nmd_status = _pvs1_nmd_status()
 
     items = (
@@ -125,6 +135,7 @@ def build_backend_build_ledger(
                 "because pysam needs local bgzip/tabix files."
             ),
             wired_surfaces=("local_evidence_orchestrator",),
+            runtime_status=local_evidence_runtime_statuses.get("dbsnp_local_adapter"),
         ),
         _source_backed_local_item(
             item_id="clinvar_local_adapter",
@@ -139,6 +150,7 @@ def build_backend_build_ledger(
                 "for local ClinVar reads."
             ),
             wired_surfaces=("local_evidence_orchestrator", "acmg_classifier"),
+            runtime_status=local_evidence_runtime_statuses.get("clinvar_local_adapter"),
         ),
         _source_backed_local_item(
             item_id="repeatmasker_local_adapter",
@@ -153,6 +165,7 @@ def build_backend_build_ledger(
                 "compact runtime interval index, not source-file scans."
             ),
             wired_surfaces=("local_evidence_orchestrator",),
+            runtime_status=local_evidence_runtime_statuses.get("repeatmasker_local_adapter"),
         ),
         _source_backed_local_item(
             item_id="phylop_conservation_reader",
@@ -167,6 +180,7 @@ def build_backend_build_ledger(
                 "because the reader expects filesystem/range access."
             ),
             wired_surfaces=("lookup", "report"),
+            runtime_status=local_evidence_runtime_statuses.get("phylop_conservation_reader"),
         ),
         _coordinate_index_item(readiness_by_source, coordinate_index_status),
         _local_evidence_gate_item(local_gate),
@@ -289,6 +303,60 @@ def build_backend_build_ledger(
             next_action="Materialize CAPICE model and feature cache; connect scorer once artifacts exist.",
         ),
         BuildLedgerItem(
+            item_id="revel",
+            label="REVEL score cache",
+            group="predictor",
+            source_ids=(REVEL_SOURCE_ID,),
+            engine="bgzip/tabix local predictor reader",
+            durable_source="supabase_private_storage",
+            runtime_source="render_disk_bgzip_tabix_cache",
+            render_disk_role="runtime_cache_required",
+            storage_decision=(
+                "REVEL is wired as a backend/admin coordinate-keyed cache. License and launch "
+                "metadata stay on serialized rows for downstream filtering."
+            ),
+            status=predictor_statuses["revel"],
+            runtime_wired=True,
+            public_serialization_allowed=True,
+            launch_gate=REVEL_LAUNCH_GATE,
+            blockers=() if predictor_statuses["revel"] == "ready" else ("score_cache_materialization",),
+            wired_surfaces=("lookup", "report", "acmg_calibration"),
+            next_action=(
+                None
+                if predictor_statuses["revel"] == "ready"
+                else "Materialize REVEL score cache with checksum manifest through explicit process."
+            ),
+        ),
+        BuildLedgerItem(
+            item_id="primateai3d",
+            label="PrimateAI-3D score cache",
+            group="predictor",
+            source_ids=(PRIMATEAI3D_SOURCE_ID,),
+            engine="bgzip/tabix local predictor reader",
+            durable_source="supabase_private_storage",
+            runtime_source="render_disk_bgzip_tabix_cache",
+            render_disk_role="runtime_cache_required",
+            storage_decision=(
+                "PrimateAI-3D is wired as a backend/admin coordinate-keyed cache. License and "
+                "launch metadata stay on serialized rows for downstream filtering."
+            ),
+            status=predictor_statuses["primateai3d"],
+            runtime_wired=True,
+            public_serialization_allowed=True,
+            launch_gate=PRIMATEAI3D_LAUNCH_GATE,
+            blockers=(
+                ()
+                if predictor_statuses["primateai3d"] == "ready"
+                else ("score_cache_materialization",)
+            ),
+            wired_surfaces=("lookup", "report", "acmg_calibration"),
+            next_action=(
+                None
+                if predictor_statuses["primateai3d"] == "ready"
+                else "Materialize PrimateAI-3D score cache with checksum manifest through explicit process."
+            ),
+        ),
+        BuildLedgerItem(
             item_id="mavedb",
             label="MaveDB functional evidence",
             group="functional_evidence",
@@ -301,12 +369,16 @@ def build_backend_build_ledger(
                 "CC0 records fit Supabase Postgres first; add Render tabix only for measured "
                 "lookup pressure."
             ),
-            status="cc0_import_not_materialized",
+            status=mavedb_status,
             runtime_wired=True,
-            public_serialization_allowed=False,
-            blockers=("cc0_import_materialization", "public_field_review"),
+            public_serialization_allowed=mavedb_status == "ready",
+            blockers=() if mavedb_status == "ready" else ("cc0_import_materialization",),
             wired_surfaces=("lookup", "report"),
-            next_action="Materialize CC0 import and validate public field policy.",
+            next_action=(
+                None
+                if mavedb_status == "ready"
+                else "Materialize CC0 import and validate public field policy."
+            ),
         ),
         BuildLedgerItem(
             item_id="acmg_classifier",
@@ -528,6 +600,14 @@ def _predictor_statuses(
             inspect_capice_runtime_assets,
             settings,
         ),
+        "revel": _safe_admin_predictor_status(
+            inspect_revel_runtime_assets,
+            settings,
+        ),
+        "primateai3d": _safe_admin_predictor_status(
+            inspect_primateai3d_runtime_assets,
+            settings,
+        ),
     }
 
 
@@ -603,6 +683,18 @@ def _pvs1_nmd_status() -> dict[str, object]:
     }
 
 
+def _local_evidence_runtime_statuses(settings: Settings) -> dict[str, str]:
+    try:
+        inspection = inspect_local_evidence_runtime_assets(settings)
+    except Exception:
+        return {}
+    return {
+        str(source["item_id"]): str(source["status"])
+        for source in inspection.get("sources", [])
+        if isinstance(source, dict) and source.get("item_id") and source.get("status")
+    }
+
+
 def _hg38_item(status: str) -> BuildLedgerItem:
     return BuildLedgerItem(
         item_id="hg38_2bit",
@@ -637,9 +729,11 @@ def _source_backed_local_item(
     render_disk_role: str,
     storage_decision: str,
     wired_surfaces: tuple[str, ...],
+    runtime_status: str | None = None,
 ) -> BuildLedgerItem:
     readiness = readiness_by_source.get(source_id)
-    status = _readiness_status(readiness)
+    readiness_status = _readiness_status(readiness)
+    status = "ready" if runtime_status == "ready" else readiness_status
     return BuildLedgerItem(
         item_id=item_id,
         label=label,
@@ -653,10 +747,29 @@ def _source_backed_local_item(
         status=status,
         runtime_wired=True,
         public_serialization_allowed=False,
-        blockers=() if status == "source_ready_for_materialization" else ("source_readiness",),
+        blockers=_source_backed_local_blockers(
+            readiness_status=readiness_status,
+            runtime_status=runtime_status,
+        ),
         wired_surfaces=wired_surfaces,
-        next_action="Seed/materialize the indexed runtime artifact through an explicit process.",
+        next_action=(
+            None
+            if status == "ready"
+            else "Seed/materialize the indexed runtime artifact through an explicit process."
+        ),
     )
+
+
+def _source_backed_local_blockers(
+    *,
+    readiness_status: str,
+    runtime_status: str | None,
+) -> tuple[str, ...]:
+    if runtime_status == "ready":
+        return ()
+    if readiness_status != "source_ready_for_materialization":
+        return ("source_readiness",)
+    return ("seed_verified_render_disk_cache",)
 
 
 def _compact_coordinate_index_status(settings: Settings) -> str:
@@ -703,6 +816,14 @@ def _literature_embedding_status(settings: Settings) -> str:
         return "ready"
     if not settings.rag_enabled:
         return "rag_disabled"
+    return inspection.status
+
+
+def _mavedb_status(settings: Settings) -> str:
+    try:
+        inspection = inspect_mavedb_local_store(settings, verify_checksum=False)
+    except Exception:
+        return "runtime_asset_probe_failed"
     return inspection.status
 
 

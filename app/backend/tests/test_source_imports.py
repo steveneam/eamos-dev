@@ -5,6 +5,7 @@ import json
 import pytest
 
 from app.cli import eamos_source_import
+from app.core.config import Settings
 from app.services.source_imports import (
     CLINVAR_STORAGE_PILOT_ID,
     DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
@@ -56,6 +57,14 @@ class FakeSourceImportStore:
 
     def upsert_source_asset_materialization(self, **kwargs) -> None:
         self.source_asset_materializations.append(kwargs)
+
+
+class FakeSocket:
+    def __enter__(self) -> FakeSocket:
+        return self
+
+    def __exit__(self, *args) -> None:
+        return None
 
 
 def test_clinical_source_import_bundle_plans_fixture_rows_and_versions() -> None:
@@ -365,7 +374,10 @@ def test_source_import_apply_uses_configured_store_and_smoke(monkeypatch) -> Non
         lambda settings: store,
     )
 
-    output = eamos_source_import.build_source_import_report(apply_supabase=True)
+    output = eamos_source_import.build_source_import_report(
+        apply_supabase=True,
+        check_supabase_tcp=False,
+    )
 
     assert output["status"] == "applied"
     assert store.smoke_count == 1
@@ -377,6 +389,60 @@ def test_source_import_apply_uses_configured_store_and_smoke(monkeypatch) -> Non
     assert output["storage_pilot"]["apply_result"]["source_asset_object_id"] == (
         "source-asset-object-1"
     )
+
+
+def test_source_import_tcp_preflight_uses_sanitized_host_port(monkeypatch) -> None:
+    calls = []
+
+    def fake_create_connection(target, timeout):
+        calls.append((target, timeout))
+        return FakeSocket()
+
+    monkeypatch.setattr(eamos_source_import.socket, "create_connection", fake_create_connection)
+
+    settings = Settings(
+        jwt_secret="test-secret",
+        supabase_local_model_cache_enabled=True,
+        supabase_local_model_cache_database_url=(
+            "postgresql+psycopg://postgres.secret:super-secret"
+            "@pooler.example.supabase.co:6543/postgres?sslmode=require"
+        ),
+    )
+
+    eamos_source_import._check_supabase_database_tcp_reachable(
+        settings,
+        timeout_seconds=1.25,
+    )
+
+    assert calls == [(("pooler.example.supabase.co", 6543), 1.25)]
+
+
+def test_source_import_tcp_preflight_fails_without_secret_leak(monkeypatch) -> None:
+    def fake_create_connection(target, timeout):
+        raise TimeoutError("timed out while connecting")
+
+    monkeypatch.setattr(eamos_source_import.socket, "create_connection", fake_create_connection)
+
+    settings = Settings(
+        jwt_secret="test-secret",
+        supabase_local_model_cache_enabled=True,
+        supabase_local_model_cache_database_url=(
+            "postgresql+psycopg://postgres.secret:super-secret"
+            "@pooler.example.supabase.co:5432/postgres?sslmode=require"
+        ),
+    )
+
+    with pytest.raises(SourceImportError) as exc_info:
+        eamos_source_import._check_supabase_database_tcp_reachable(settings, timeout_seconds=0.1)
+
+    assert exc_info.value.code == "supabase_import_database_unreachable"
+    assert exc_info.value.details == {
+        "host": "pooler.example.supabase.co",
+        "port": 5432,
+        "timeout_seconds": 0.1,
+        "error_type": "TimeoutError",
+    }
+    assert "super-secret" not in str(exc_info.value)
 
 
 def _dbsnp_phylop_upload_items(tmp_path):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
-from hashlib import md5
+from hashlib import md5, sha256
 import json
 from pathlib import Path
 
@@ -31,13 +31,21 @@ from app.services.predictor_runtime import (
     CI_SPLICEAI_SOURCE_ID,
     ESM1B_ASSET_ROLE,
     ESM1B_SOURCE_ID,
+    PRIMATEAI3D_LAUNCH_GATE,
+    PRIMATEAI3D_SCORE_CACHE_ASSET_ROLE,
+    PRIMATEAI3D_SOURCE_ID,
     PredictorRuntimeStatus,
+    REVEL_LAUNCH_GATE,
+    REVEL_SCORE_CACHE_ASSET_ROLE,
+    REVEL_SOURCE_ID,
     build_alphamissense_runtime_plan,
     build_esm1b_runtime_plan,
     inspect_alphamissense_runtime_asset,
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_primateai3d_runtime_assets,
+    inspect_revel_runtime_assets,
 )
 
 
@@ -135,6 +143,33 @@ def test_ci_spliceai_runtime_reports_ready_when_all_artifacts_exist(tmp_path: Pa
     model = _write_plain_file(tmp_path / "ci_spliceai.keras", b"model")
     reference = _write_plain_file(tmp_path / "hg38_reference.json", b"reference")
     score_cache = _write_indexed_cache(tmp_path / "ci_spliceai_hg38_scores.vcf.gz", b"scores")
+    _write_admin_manifest(
+        model,
+        artifact_id="ci_spliceai",
+        component_id="model",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_keras_model",
+        role=CI_SPLICEAI_MODEL_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_manifest(
+        reference,
+        artifact_id="ci_spliceai",
+        component_id="reference_bundle",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_reference_bundle",
+        role=CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_manifest(
+        score_cache,
+        artifact_id="ci_spliceai",
+        component_id="score_cache",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_hg38_score_cache_vcf_gz",
+        role=CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
     settings = Settings(
         jwt_secret="test-secret",
         ci_spliceai_model_path=model,
@@ -150,6 +185,30 @@ def test_ci_spliceai_runtime_reports_ready_when_all_artifacts_exist(tmp_path: Pa
     assert inspection.status_notes == ()
     assert sanitized["status"] == "ready"
     assert str(tmp_path).lower() not in str(sanitized).lower()
+    assert all(component.manifest_status == "ready" for component in inspection.components)
+
+
+def test_ci_spliceai_runtime_rejects_bare_files_without_manifests(
+    tmp_path: Path,
+) -> None:
+    model = _write_plain_file(tmp_path / "ci_spliceai.keras", b"model")
+    reference = _write_plain_file(tmp_path / "hg38_reference.json", b"reference")
+    score_cache = _write_indexed_cache(tmp_path / "ci_spliceai_hg38_scores.vcf.gz", b"scores")
+    settings = Settings(
+        jwt_secret="test-secret",
+        ci_spliceai_model_path=model,
+        ci_spliceai_reference_path=reference,
+        ci_spliceai_score_cache_path=score_cache,
+    )
+
+    inspection = inspect_ci_spliceai_runtime_assets(settings)
+    components = {component.asset_role: component for component in inspection.components}
+
+    assert inspection.available is False
+    assert inspection.status == "score_cache_manifest_missing"
+    assert components[CI_SPLICEAI_MODEL_ASSET_ROLE].status == "model_manifest_missing"
+    assert components[CI_SPLICEAI_REFERENCE_ASSET_ROLE].status == "reference_manifest_missing"
+    assert components[CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE].status == "score_cache_manifest_missing"
 
 
 def test_capice_runtime_reports_missing_model_and_feature_cache(tmp_path: Path) -> None:
@@ -180,6 +239,24 @@ def test_capice_runtime_reports_ready_when_model_and_feature_cache_exist(
 ) -> None:
     model = _write_plain_file(tmp_path / "capice_model.json", b"model")
     feature_cache = _write_indexed_cache(tmp_path / "capice_hg38_features.tsv.gz", b"features")
+    _write_admin_manifest(
+        model,
+        artifact_id="capice",
+        component_id="model",
+        source_id=CAPICE_SOURCE_ID,
+        asset_id="capice_xgboost_model",
+        role=CAPICE_MODEL_ASSET_ROLE,
+        launch_gate=CAPICE_LAUNCH_GATE,
+    )
+    _write_admin_manifest(
+        feature_cache,
+        artifact_id="capice",
+        component_id="feature_cache",
+        source_id=CAPICE_FEATURE_CACHE_SOURCE_ID,
+        asset_id="capice_hg38_feature_cache_tsv_gz",
+        role=CAPICE_FEATURE_CACHE_ASSET_ROLE,
+        launch_gate=CAPICE_LAUNCH_GATE,
+    )
     settings = Settings(
         jwt_secret="test-secret",
         capice_model_path=model,
@@ -194,6 +271,110 @@ def test_capice_runtime_reports_ready_when_model_and_feature_cache_exist(
     assert inspection.status_notes == ()
     assert sanitized["status"] == "ready"
     assert str(tmp_path).lower() not in str(sanitized).lower()
+    assert all(component.manifest_status == "ready" for component in inspection.components)
+
+
+def test_capice_runtime_rejects_bare_files_without_manifests(
+    tmp_path: Path,
+) -> None:
+    model = _write_plain_file(tmp_path / "capice_model.json", b"model")
+    feature_cache = _write_indexed_cache(tmp_path / "capice_hg38_features.tsv.gz", b"features")
+    settings = Settings(
+        jwt_secret="test-secret",
+        capice_model_path=model,
+        capice_feature_cache_path=feature_cache,
+    )
+
+    inspection = inspect_capice_runtime_assets(settings)
+    components = {component.asset_role: component for component in inspection.components}
+
+    assert inspection.available is False
+    assert inspection.status == "model_manifest_missing"
+    assert components[CAPICE_MODEL_ASSET_ROLE].status == "model_manifest_missing"
+    assert components[CAPICE_FEATURE_CACHE_ASSET_ROLE].status == "feature_cache_manifest_missing"
+
+
+def test_revel_runtime_reports_missing_score_cache(tmp_path: Path) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        revel_score_cache_path=tmp_path / "missing-revel.tsv.gz",
+    )
+
+    inspection = inspect_revel_runtime_assets(settings)
+
+    assert inspection.source_id == REVEL_SOURCE_ID
+    assert inspection.available is False
+    assert inspection.status == "score_cache_missing"
+    assert inspection.launch_gate == REVEL_LAUNCH_GATE
+    assert inspection.status_notes == ("score_cache_materialization_required",)
+    assert inspection.components[0].asset_role == REVEL_SCORE_CACHE_ASSET_ROLE
+
+
+def test_revel_runtime_reports_ready_when_score_cache_exists(tmp_path: Path) -> None:
+    score_cache = _write_indexed_cache(tmp_path / "revel_hg38_scores.tsv.gz", b"scores")
+    _write_admin_manifest(
+        score_cache,
+        artifact_id="revel",
+        component_id="score_cache",
+        source_id=REVEL_SOURCE_ID,
+        asset_id="revel_hg38_score_cache_tsv_gz",
+        role=REVEL_SCORE_CACHE_ASSET_ROLE,
+        launch_gate=REVEL_LAUNCH_GATE,
+    )
+    settings = Settings(jwt_secret="test-secret", revel_score_cache_path=score_cache)
+
+    inspection = inspect_revel_runtime_assets(settings)
+    sanitized = inspection.to_sanitized_dict()
+
+    assert inspection.available is True
+    assert inspection.status == "ready"
+    assert inspection.status_notes == ()
+    assert sanitized["status"] == "ready"
+    assert str(tmp_path).lower() not in str(sanitized).lower()
+    assert inspection.components[0].manifest_status == "ready"
+
+
+def test_primateai3d_runtime_reports_missing_score_cache(tmp_path: Path) -> None:
+    settings = Settings(
+        jwt_secret="test-secret",
+        primateai3d_score_cache_path=tmp_path / "missing-primateai3d.tsv.gz",
+    )
+
+    inspection = inspect_primateai3d_runtime_assets(settings)
+
+    assert inspection.source_id == PRIMATEAI3D_SOURCE_ID
+    assert inspection.available is False
+    assert inspection.status == "score_cache_missing"
+    assert inspection.launch_gate == PRIMATEAI3D_LAUNCH_GATE
+    assert inspection.status_notes == ("score_cache_materialization_required",)
+    assert inspection.components[0].asset_role == PRIMATEAI3D_SCORE_CACHE_ASSET_ROLE
+
+
+def test_primateai3d_runtime_reports_ready_when_score_cache_exists(tmp_path: Path) -> None:
+    score_cache = _write_indexed_cache(
+        tmp_path / "primateai3d_hg38_scores.tsv.gz",
+        b"scores",
+    )
+    _write_admin_manifest(
+        score_cache,
+        artifact_id="primateai3d",
+        component_id="score_cache",
+        source_id=PRIMATEAI3D_SOURCE_ID,
+        asset_id="primateai3d_hg38_score_cache_tsv_gz",
+        role=PRIMATEAI3D_SCORE_CACHE_ASSET_ROLE,
+        launch_gate=PRIMATEAI3D_LAUNCH_GATE,
+    )
+    settings = Settings(jwt_secret="test-secret", primateai3d_score_cache_path=score_cache)
+
+    inspection = inspect_primateai3d_runtime_assets(settings)
+    sanitized = inspection.to_sanitized_dict()
+
+    assert inspection.available is True
+    assert inspection.status == "ready"
+    assert inspection.status_notes == ()
+    assert sanitized["status"] == "ready"
+    assert str(tmp_path).lower() not in str(sanitized).lower()
+    assert inspection.components[0].manifest_status == "ready"
 
 
 def test_alphamissense_preflight_reports_missing_index_before_manifest(
@@ -554,6 +735,47 @@ def _write_indexed_cache(path: Path, payload: bytes) -> Path:
     _write_plain_file(path, payload)
     Path(f"{path}.tbi").write_bytes(b"index")
     return path
+
+
+def _write_admin_manifest(
+    path: Path,
+    *,
+    artifact_id: str,
+    component_id: str,
+    source_id: str,
+    asset_id: str,
+    role: str,
+    launch_gate: str,
+) -> None:
+    payload = path.read_bytes()
+    md5_value = _md5(payload)
+    sha256_value = sha256(payload).hexdigest()
+    path.with_suffix(path.suffix + ".manifest.json").write_text(
+        json.dumps(
+            {
+                "artifact_id": artifact_id,
+                "component_id": component_id,
+                "source_id": source_id,
+                "asset_id": asset_id,
+                "role": role,
+                "byte_size": len(payload),
+                "md5": md5_value,
+                "sha256": sha256_value,
+                "checksums": {"md5": md5_value, "sha256": sha256_value},
+                "launch_gate": launch_gate,
+                "storage_contract": {
+                    "bucket_policy": "private",
+                    "frontend_direct_access_allowed": False,
+                    "signed_urls_created": False,
+                    "startup_download_allowed": False,
+                    "request_time_materialization_allowed": False,
+                    "runtime_sync_required": True,
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _tiny_registry(payload: bytes, *, expected_md5: str | None = None) -> DataSourceRegistry:

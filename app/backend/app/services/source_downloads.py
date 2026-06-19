@@ -120,7 +120,7 @@ SOURCE_DOWNLOAD_FILE_SPECS: tuple[SourceDownloadFileSpec, ...] = (
         asset_id="clinvar_grch38_vcf_gz",
         url="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz",
         file_name="clinvar.vcf.gz",
-        expected_size_bytes=191_912_185,
+        expected_size_bytes=192_127_389,
         role="clinvar_bgzip_vcf",
     ),
     SourceDownloadFileSpec(
@@ -128,7 +128,7 @@ SOURCE_DOWNLOAD_FILE_SPECS: tuple[SourceDownloadFileSpec, ...] = (
         asset_id="clinvar_grch38_vcf_tbi",
         url="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz.tbi",
         file_name="clinvar.vcf.gz.tbi",
-        expected_size_bytes=609_481,
+        expected_size_bytes=609_902,
         role="clinvar_tabix_index",
     ),
     SourceDownloadFileSpec(

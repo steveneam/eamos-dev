@@ -7,8 +7,11 @@ from typing import Any
 from urllib.parse import quote
 
 from app.services.alphamissense_local import AlphaMissenseLocalAdapter
+from app.services.capice import CapiceLocalAdapter
+from app.services.ci_spliceai import CiSpliceAiLocalAdapter
 from app.services.computational_calibration import calibration_field_values
 from app.services.esm1b_local import Esm1bLocalAdapter
+from app.services.restricted_predictors import PrimateAi3dLocalAdapter, RevelLocalAdapter
 from app.tools.base import FixtureBackedTool, ToolResult
 
 SPLICEAI_SOURCE_URL = "https://spliceailookup.broadinstitute.org/"
@@ -91,14 +94,22 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
         *,
         alphamissense_adapter: Any | None = None,
         esm1b_adapter: Any | None = None,
+        ci_spliceai_adapter: Any | None = None,
+        capice_adapter: Any | None = None,
+        revel_adapter: Any | None = None,
+        primateai3d_adapter: Any | None = None,
     ) -> None:
         super().__init__(settings)
         self._alphamissense_adapter = alphamissense_adapter
         self._esm1b_adapter = esm1b_adapter
+        self._ci_spliceai_adapter = ci_spliceai_adapter
+        self._capice_adapter = capice_adapter
+        self._revel_adapter = revel_adapter
+        self._primateai3d_adapter = primateai3d_adapter
 
     def get_evidence(self, variant=None) -> ToolResult:
         identity = _identity_from_variant(variant)
-        if not identity.gene or not identity.has_variant_level_identifier:
+        if not identity.has_variant_level_identifier:
             warnings = ["computational_annotations_requires_variant_identity"]
             return ToolResult(
                 source=self.source,
@@ -165,6 +176,30 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
             provenance.extend(esm1b["provenance"])
             warnings.extend(esm1b["warnings"])
 
+        ci_spliceai = self._lookup_ci_spliceai(chrom, position, ref, alt)
+        if ci_spliceai is not None:
+            rows.extend(ci_spliceai["rows"])
+            provenance.extend(ci_spliceai["provenance"])
+            warnings.extend(ci_spliceai["warnings"])
+
+        capice = self._lookup_capice(chrom, position, ref, alt)
+        if capice is not None:
+            rows.extend(capice["rows"])
+            provenance.extend(capice["provenance"])
+            warnings.extend(capice["warnings"])
+
+        revel = self._lookup_revel(chrom, position, ref, alt)
+        if revel is not None:
+            rows.extend(revel["rows"])
+            provenance.extend(revel["provenance"])
+            warnings.extend(revel["warnings"])
+
+        primateai3d = self._lookup_primateai3d(chrom, position, ref, alt)
+        if primateai3d is not None:
+            rows.extend(primateai3d["rows"])
+            provenance.extend(primateai3d["provenance"])
+            warnings.extend(primateai3d["warnings"])
+
         return {"rows": rows, "provenance": provenance, "warnings": warnings}
 
     def _lookup_alphamissense(
@@ -217,6 +252,122 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
             "warnings": list(lookup.warnings),
         }
 
+    def _lookup_ci_spliceai(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> dict[str, Any] | None:
+        try:
+            adapter = self._ci_spliceai_adapter_for_lookup()
+            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+        except Exception as exc:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": [f"ci_spliceai_local_lookup_failed:{type(exc).__name__}"],
+            }
+        if not lookup.available or lookup.score is None:
+            return {"rows": [], "provenance": [], "warnings": list(lookup.warnings)}
+        provenance = (
+            [_prediction_provenance("CI-SpliceAI", lookup.provenance_details)]
+            if getattr(lookup, "provenance_details", None) is not None
+            else []
+        )
+        return {
+            "rows": [_ci_spliceai_prediction_row(lookup)],
+            "provenance": provenance,
+            "warnings": list(lookup.warnings),
+        }
+
+    def _lookup_capice(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> dict[str, Any] | None:
+        try:
+            adapter = self._capice_adapter_for_lookup()
+            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+        except Exception as exc:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": [f"capice_local_lookup_failed:{type(exc).__name__}"],
+            }
+        if not lookup.available or lookup.score is None:
+            return {"rows": [], "provenance": [], "warnings": list(lookup.warnings)}
+        provenance = (
+            [_prediction_provenance("CAPICE", lookup.provenance_details)]
+            if getattr(lookup, "provenance_details", None) is not None
+            else []
+        )
+        return {
+            "rows": [_capice_prediction_row(lookup)],
+            "provenance": provenance,
+            "warnings": list(lookup.warnings),
+        }
+
+    def _lookup_revel(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> dict[str, Any] | None:
+        try:
+            adapter = self._revel_adapter_for_lookup()
+            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+        except Exception as exc:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": [f"revel_local_lookup_failed:{type(exc).__name__}"],
+            }
+        if not lookup.available or lookup.score is None:
+            return {"rows": [], "provenance": [], "warnings": list(lookup.warnings)}
+        provenance = (
+            [_prediction_provenance("REVEL", lookup.provenance_details)]
+            if getattr(lookup, "provenance_details", None) is not None
+            else []
+        )
+        return {
+            "rows": [_restricted_predictor_prediction_row(lookup)],
+            "provenance": provenance,
+            "warnings": list(lookup.warnings),
+        }
+
+    def _lookup_primateai3d(
+        self,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+    ) -> dict[str, Any] | None:
+        try:
+            adapter = self._primateai3d_adapter_for_lookup()
+            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+        except Exception as exc:
+            return {
+                "rows": [],
+                "provenance": [],
+                "warnings": [f"primateai3d_local_lookup_failed:{type(exc).__name__}"],
+            }
+        if not lookup.available or lookup.score is None:
+            return {"rows": [], "provenance": [], "warnings": list(lookup.warnings)}
+        provenance = (
+            [_prediction_provenance("PrimateAI-3D", lookup.provenance_details)]
+            if getattr(lookup, "provenance_details", None) is not None
+            else []
+        )
+        return {
+            "rows": [_restricted_predictor_prediction_row(lookup)],
+            "provenance": provenance,
+            "warnings": list(lookup.warnings),
+        }
+
     def _alphamissense_adapter_for_lookup(self) -> Any:
         if self._alphamissense_adapter is None:
             self._alphamissense_adapter = AlphaMissenseLocalAdapter.from_settings(self.settings)
@@ -226,6 +377,26 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
         if self._esm1b_adapter is None:
             self._esm1b_adapter = Esm1bLocalAdapter.from_settings(self.settings)
         return self._esm1b_adapter
+
+    def _ci_spliceai_adapter_for_lookup(self) -> Any:
+        if self._ci_spliceai_adapter is None:
+            self._ci_spliceai_adapter = CiSpliceAiLocalAdapter.from_settings(self.settings)
+        return self._ci_spliceai_adapter
+
+    def _capice_adapter_for_lookup(self) -> Any:
+        if self._capice_adapter is None:
+            self._capice_adapter = CapiceLocalAdapter.from_settings(self.settings)
+        return self._capice_adapter
+
+    def _revel_adapter_for_lookup(self) -> Any:
+        if self._revel_adapter is None:
+            self._revel_adapter = RevelLocalAdapter.from_settings(self.settings)
+        return self._revel_adapter
+
+    def _primateai3d_adapter_for_lookup(self) -> Any:
+        if self._primateai3d_adapter is None:
+            self._primateai3d_adapter = PrimateAi3dLocalAdapter.from_settings(self.settings)
+        return self._primateai3d_adapter
 
 
 def normalize_computational_record(
@@ -391,7 +562,7 @@ def _result_from_record(
         )
 
     summary = normalize_computational_record(record)
-    summary["predictors"] = _dedupe_rows([*summary.get("predictors", []), *local_rows])
+    summary["predictors"] = _merge_local_predictor_rows(summary.get("predictors", []), local_rows)
     summary["provenance"] = _dedupe_provenance_dicts(
         [*summary.get("provenance", []), *local_provenance]
     )
@@ -643,6 +814,89 @@ def _esm1b_prediction_row(prediction: Any, *, warnings: tuple[str, ...]) -> dict
     return {key: value for key, value in row.items() if value is not None}
 
 
+def _ci_spliceai_prediction_row(lookup: Any) -> dict[str, Any]:
+    score = lookup.score
+    row = {
+        "name": "CI-SpliceAI",
+        "score": score.max_delta,
+        "threshold": DEFAULT_SPLICEAI_THRESHOLD,
+        "interpretation": _ci_spliceai_interpretation(score),
+        "source": "CI-SpliceAI",
+        "source_id": getattr(lookup.provenance_details, "source_id", None),
+        "version": getattr(lookup.provenance_details, "source_version", None),
+        "source_url": getattr(lookup.provenance_details, "source_url", None),
+        "warnings": list(lookup.warnings),
+        "public_serialization_allowed": lookup.public_serialization_allowed,
+        "launch_gate": lookup.launch_gate,
+        "calibrated_label": lookup.calibrated_label,
+        "calibration_bucket": lookup.calibration_bucket,
+        "calibration_method": lookup.calibration_method,
+        "calibration_version": lookup.calibration_version,
+    }
+    return {key: value for key, value in row.items() if value is not None}
+
+
+def _capice_prediction_row(lookup: Any) -> dict[str, Any]:
+    score = lookup.score
+    row = {
+        "name": "CAPICE",
+        "score": score.score,
+        "threshold": None,
+        "interpretation": score.interpretation,
+        "source": "CAPICE",
+        "source_id": getattr(lookup.provenance_details, "source_id", None),
+        "version": score.source_version,
+        "source_url": getattr(lookup.provenance_details, "source_url", None),
+        "warnings": list(lookup.warnings),
+        "public_serialization_allowed": lookup.public_serialization_allowed,
+        "launch_gate": lookup.launch_gate,
+    }
+    return {key: value for key, value in row.items() if value is not None}
+
+
+def _restricted_predictor_prediction_row(lookup: Any) -> dict[str, Any]:
+    score = lookup.score
+    row = {
+        "name": score.name,
+        "score": score.score,
+        "threshold": score.threshold,
+        "interpretation": score.interpretation,
+        "source": score.source_label,
+        "source_id": getattr(lookup.provenance_details, "source_id", None),
+        "version": score.source_version,
+        "source_url": getattr(lookup.provenance_details, "source_url", None),
+        "warnings": list(lookup.warnings),
+        "public_serialization_allowed": lookup.public_serialization_allowed,
+        "launch_gate": lookup.launch_gate,
+        "calibrated_label": lookup.calibrated_label,
+        "calibration_bucket": lookup.calibration_bucket,
+        "calibration_method": lookup.calibration_method,
+        "calibration_version": lookup.calibration_version,
+    }
+    return {key: value for key, value in row.items() if value is not None}
+
+
+def _ci_spliceai_interpretation(score: Any) -> str | None:
+    component = score.max_component
+    if component is None:
+        return None
+    parts = [f"Max delta consequence: {component}."]
+    component_scores = {
+        "acceptor_gain": score.ds_ag,
+        "acceptor_loss": score.ds_al,
+        "donor_gain": score.ds_dg,
+        "donor_loss": score.ds_dl,
+    }
+    populated = [
+        f"{name}={value:.3g}"
+        for name, value in component_scores.items()
+        if isinstance(value, int | float)
+    ]
+    if populated:
+        parts.append("Component scores: " + ", ".join(populated) + ".")
+    return " ".join(parts)
+
+
 def _prediction_provenance(source_label: str, provenance: Any) -> dict[str, Any]:
     payload = asdict(provenance)
     query = {
@@ -655,7 +909,7 @@ def _prediction_provenance(source_label: str, provenance: Any) -> dict[str, Any]
         if value
     }
     warnings = []
-    license_gate = payload.get("license_gate")
+    license_gate = payload.get("license_gate") or payload.get("launch_gate")
     if license_gate:
         warnings.append(str(license_gate))
     return {
@@ -729,6 +983,17 @@ def _dedupe_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(key)
         result.append(row)
     return result
+
+
+def _merge_local_predictor_rows(
+    fixture_rows: list[dict[str, Any]],
+    local_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    local_names = {str(row.get("name")) for row in local_rows if row.get("name")}
+    retained_fixture_rows = [
+        row for row in fixture_rows if str(row.get("name")) not in local_names
+    ]
+    return _dedupe_rows([*local_rows, *retained_fixture_rows])
 
 
 def _primary_source_url(summary: dict[str, Any]) -> str | None:

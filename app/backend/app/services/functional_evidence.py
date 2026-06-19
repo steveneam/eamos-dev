@@ -22,11 +22,12 @@ from app.services.clinvar_vcv import (
     DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     EutilsClinVarVcvClient,
 )
+from app.services.mavedb_local import MaveDbLocalInspection, MaveDbLocalStore, MaveDbRecord
 from app.services.publication_literature import VariantLiteratureTerms
 
 _FUNCTIONAL_CODES = ("PS3", "BS3")
 _FUNCTIONAL_CODE_ORDER = {"PS3": 0, "BS3": 1}
-_SOURCE_ORDER = {"clingen": 0, "clinvar": 1, "pubmed": 2}
+_SOURCE_ORDER = {"clingen": 0, "clinvar": 1, "pubmed": 2, "mavedb": 3}
 _SOURCE_FAILED_STATUSES = {"fallback", "error", "failed"}
 _FUNCTIONAL_SIGNAL_RE = re.compile(
     r"\b("
@@ -63,17 +64,32 @@ class ClinVarFunctionalClient(Protocol):
         """Return ClinVar VCV XML for a ClinVar Variation ID."""
 
 
+class MaveDbFunctionalClient(Protocol):
+    def search_records(
+        self,
+        variant: Any,
+        *,
+        limit: int,
+        verify_checksum: bool = False,
+    ) -> tuple[list[MaveDbRecord], MaveDbLocalInspection]:
+        """Return local CC0 MaveDB records for a normalized variant."""
+
+
 @dataclass
 class _FunctionalHit:
     id: str
     pmid: str | None = None
+    url: str | None = None
     citation: str | None = None
+    source_accession: str | None = None
     source_tags: set[FunctionalEvidenceSourceTag] = field(default_factory=set)
     evidence_codes: set[FunctionalEvidenceCode] = field(default_factory=set)
     asserted_codes: set[str] = field(default_factory=set)
     asserted_codes_by_source: dict[FunctionalEvidenceSourceTag, set[str]] = field(
         default_factory=dict
     )
+    functional_score: float | None = None
+    functional_score_label: str | None = None
     snippets: list[str] = field(default_factory=list)
 
 
@@ -84,6 +100,7 @@ class _FunctionalEvidenceCollector:
             "clingen": set(),
             "clinvar": set(),
             "pubmed": set(),
+            "mavedb": set(),
         }
 
     def add(
@@ -91,22 +108,36 @@ class _FunctionalEvidenceCollector:
         *,
         source: FunctionalEvidenceSourceTag,
         pmid: str | None = None,
+        url: str | None = None,
         citation: str | None = None,
+        source_accession: str | None = None,
         fallback_id: str | None = None,
         evidence_codes: list[FunctionalEvidenceCode] | None = None,
         asserted_codes: list[str] | None = None,
+        functional_score: float | None = None,
+        functional_score_label: str | None = None,
         snippet: str | None = None,
     ) -> None:
         pmid = pmid.strip() if pmid else None
+        url = _normalize_space(url) if url else None
         citation = _normalize_space(citation) if citation else None
+        source_accession = _normalize_space(source_accession) if source_accession else None
         hit_id = pmid or citation or fallback_id
         if not hit_id:
             return
         hit = self.by_pmid.setdefault(hit_id, _FunctionalHit(id=hit_id))
         if pmid and hit.pmid is None:
             hit.pmid = pmid
+        if url and hit.url is None:
+            hit.url = url
         if citation and hit.citation is None:
             hit.citation = citation
+        if source_accession and hit.source_accession is None:
+            hit.source_accession = source_accession
+        if functional_score is not None and hit.functional_score is None:
+            hit.functional_score = functional_score
+        if functional_score_label and hit.functional_score_label is None:
+            hit.functional_score_label = _normalize_space(functional_score_label)
         hit.source_tags.add(source)
         self.per_source[source].add(hit_id)
         for code in evidence_codes or []:
@@ -124,11 +155,15 @@ class _FunctionalEvidenceCollector:
             FunctionalStudy(
                 id=hit.id,
                 pmid=hit.pmid,
-                url=f"https://pubmed.ncbi.nlm.nih.gov/{hit.pmid}/" if hit.pmid else None,
+                url=hit.url
+                or (f"https://pubmed.ncbi.nlm.nih.gov/{hit.pmid}/" if hit.pmid else None),
                 citation=hit.citation,
+                source_accession=hit.source_accession,
                 source_tags=sorted(hit.source_tags, key=lambda source: _SOURCE_ORDER[source]),
                 evidence_codes=sorted(hit.evidence_codes),
                 asserted_codes=sorted(hit.asserted_codes, key=_asserted_code_sort_key),
+                functional_score=hit.functional_score,
+                functional_score_label=hit.functional_score_label,
                 snippet=hit.snippets[0] if hit.snippets else None,
             )
             for hit in self.by_pmid.values()
@@ -172,6 +207,7 @@ class _FunctionalEvidenceCollector:
                 clingen=len(self.per_source["clingen"]),
                 clinvar=len(self.per_source["clinvar"]),
                 pubmed=len(self.per_source["pubmed"]),
+                mavedb=len(self.per_source["mavedb"]),
             ),
             evidence_codes=evidence_codes,
             source_asserted_codes=source_asserted_codes,
@@ -228,6 +264,7 @@ class FunctionalEvidenceExtractor:
         settings: Settings | None = None,
         clingen_client: ClinGenFunctionalClient | None = None,
         clinvar_client: ClinVarFunctionalClient | None = None,
+        mavedb_store: MaveDbFunctionalClient | None = None,
         clinvar_vcv_max_xml_bytes: int = DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     ) -> None:
         self.settings = settings
@@ -241,6 +278,15 @@ class FunctionalEvidenceExtractor:
                 max_xml_bytes=clinvar_vcv_max_xml_bytes,
             )
             if settings is not None
+            else None
+        )
+        self.mavedb_store = mavedb_store or (
+            MaveDbLocalStore(
+                _settings_path(settings, settings.mavedb_local_sqlite_path),
+                manifest_path=_settings_path(settings, settings.mavedb_local_manifest_path),
+                enabled=settings.mavedb_local_enabled,
+            )
+            if settings is not None and settings.mavedb_local_enabled
             else None
         )
 
@@ -263,6 +309,11 @@ class FunctionalEvidenceExtractor:
             variant,
             evidence_raw=evidence_raw,
             allow_live=allow_live,
+            warnings=warnings,
+        )
+        self._collect_mavedb(
+            collector,
+            variant,
             warnings=warnings,
         )
         self._collect_clinvar(
@@ -365,6 +416,40 @@ class FunctionalEvidenceExtractor:
         for term in _unique(terms):
             records.extend(self.clingen_client.search(gene=gene, hgvs=term))
         return records
+
+    def _collect_mavedb(
+        self,
+        collector: _FunctionalEvidenceCollector,
+        variant: Any,
+        *,
+        warnings: list[str],
+    ) -> None:
+        if self.mavedb_store is None:
+            return
+        limit = int(getattr(self.settings, "mavedb_local_max_results", 25) or 25)
+        try:
+            records, inspection = self.mavedb_store.search_records(
+                variant,
+                limit=limit,
+                verify_checksum=False,
+            )
+        except Exception as exc:
+            warnings.append(f"functional_mavedb_failed:{type(exc).__name__}")
+            return
+        if not inspection.ready:
+            warnings.append(f"functional_mavedb_unavailable:{inspection.status}")
+            return
+        for record in records:
+            collector.add(
+                source="mavedb",
+                url=record.source_url,
+                citation=f"MaveDB {record.score_set_id}",
+                source_accession=record.score_set_id,
+                fallback_id=f"mavedb:{record.score_set_id}:{record.variant}",
+                functional_score=record.score,
+                functional_score_label="Functional score",
+                snippet=_mavedb_public_snippet(record),
+            )
 
     def _collect_clinvar(
         self,
@@ -680,6 +765,14 @@ def _citation_from_sentence(sentence: str) -> str | None:
     return None
 
 
+def _mavedb_public_snippet(record: MaveDbRecord) -> str:
+    score = f"{record.score:g}" if record.score is not None else "unavailable"
+    gene = f"{record.gene} " if record.gene else ""
+    return (
+        f"MaveDB CC0 score {score} for {gene}{record.variant}; " f"score set {record.score_set_id}."
+    )
+
+
 def _split_sentences(text: str) -> list[str]:
     normalized = _normalize_space(text)
     if not normalized:
@@ -689,6 +782,10 @@ def _split_sentences(text: str) -> list[str]:
 
 def _normalize_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _settings_path(settings: Settings, path):
+    return path if path.is_absolute() else settings.backend_root / path
 
 
 def _source_failed(source: str, source_statuses: dict[str, str] | None) -> bool:

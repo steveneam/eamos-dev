@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
+import json
 from importlib import metadata as importlib_metadata
 import math
 from pathlib import Path
@@ -12,6 +13,7 @@ DEFAULT_INDEXED_VCF_MAX_WINDOW_BP = 1_000_000
 DEFAULT_INDEXED_VCF_MAX_RECORDS = 10_000
 DEFAULT_PREDICTOR_POSITION_MAX_RECORDS = 1_000
 DEFAULT_CONSERVATION_MAX_WINDOW_BP = 100_000
+REPEATMASKER_COMPACT_INDEX_SCHEMA = "eamos.repeatmasker.interval_index.v1"
 
 
 class IndexedSourceError(ValueError):
@@ -561,6 +563,58 @@ class RepeatMaskerIndexedTable:
     def from_ucsc_rmsk_rows(cls, rows: Iterable[str]) -> RepeatMaskerIndexedTable:
         return cls(_parse_ucsc_rmsk_row(row) for row in rows if row.strip())
 
+    @classmethod
+    def from_compact_jsonl(cls, path: Path) -> RepeatMaskerIndexedTable:
+        _validate_file(path, code_prefix="repeatmasker_compact_index")
+        return cls(_iter_repeatmasker_compact_jsonl(path))
+
+    def write_compact_jsonl(
+        self,
+        path: Path,
+        *,
+        source_id: str = "repeatmasker_rmsk_bb",
+        source_version: str | None = None,
+    ) -> int:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        count = 0
+        with path.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(
+                json.dumps(
+                    {
+                        "schema": REPEATMASKER_COMPACT_INDEX_SCHEMA,
+                        "source_id": source_id,
+                        "source_version": source_version,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                + "\n"
+            )
+            for interval in self.intervals():
+                handle.write(
+                    json.dumps(
+                        {
+                            "chrom": interval.chrom,
+                            "start": interval.start,
+                            "end": interval.end,
+                            "name": interval.name,
+                            "repeat_class": interval.repeat_class,
+                            "repeat_family": interval.repeat_family,
+                            "strand": interval.strand,
+                        },
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    + "\n"
+                )
+                count += 1
+        return count
+
+    def intervals(self) -> tuple[RepeatMaskerInterval, ...]:
+        return tuple(
+            interval for contig in self._contigs for interval in self._intervals_by_contig[contig]
+        )
+
     def query(self, chrom: str, start: int, end: int) -> tuple[RepeatMaskerInterval, ...]:
         contig = self._normalize_contig(chrom)
         _validate_interval(contig, start, end)
@@ -596,6 +650,87 @@ def repeatmasker_path_decision() -> RepeatMaskerPathDecision:
             "derive bigBed only after a separate conversion proof."
         ),
         fixture_format="ucsc_rmsk_txt_rows",
+    )
+
+
+def _iter_repeatmasker_compact_jsonl(path: Path) -> Iterable[RepeatMaskerInterval]:
+    with path.open("r", encoding="utf-8") as handle:
+        first_line = handle.readline()
+        if not first_line:
+            raise IndexedSourceError(
+                "empty_repeatmasker_compact_index",
+                "RepeatMasker compact interval index is empty",
+                {"path": str(path)},
+            )
+        try:
+            header = json.loads(first_line)
+        except ValueError as exc:
+            raise IndexedSourceError(
+                "malformed_repeatmasker_compact_index",
+                "RepeatMasker compact interval index header is not valid JSON",
+                {"path": str(path)},
+            ) from exc
+        if (
+            not isinstance(header, dict)
+            or header.get("schema") != REPEATMASKER_COMPACT_INDEX_SCHEMA
+        ):
+            raise IndexedSourceError(
+                "unsupported_repeatmasker_compact_index_schema",
+                "RepeatMasker compact interval index schema is not supported",
+                {
+                    "path": str(path),
+                    "schema": header.get("schema") if isinstance(header, dict) else None,
+                },
+            )
+        for line_number, line in enumerate(handle, start=2):
+            if not line.strip():
+                continue
+            yield _parse_repeatmasker_compact_interval(line, line_number=line_number, path=path)
+
+
+def _parse_repeatmasker_compact_interval(
+    line: str,
+    *,
+    line_number: int,
+    path: Path,
+) -> RepeatMaskerInterval:
+    try:
+        payload = json.loads(line)
+    except ValueError as exc:
+        raise IndexedSourceError(
+            "malformed_repeatmasker_compact_index",
+            "RepeatMasker compact interval row is not valid JSON",
+            {"path": str(path), "line_number": line_number},
+        ) from exc
+    if not isinstance(payload, dict):
+        raise IndexedSourceError(
+            "malformed_repeatmasker_compact_index",
+            "RepeatMasker compact interval row must be a JSON object",
+            {"path": str(path), "line_number": line_number},
+        )
+    try:
+        chrom = _normalize_contig_alias(str(payload["chrom"]))
+        start = int(payload["start"])
+        end = int(payload["end"])
+        name = str(payload["name"])
+        repeat_class = str(payload["repeat_class"])
+        repeat_family = str(payload["repeat_family"])
+        strand = str(payload["strand"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise IndexedSourceError(
+            "malformed_repeatmasker_compact_index",
+            "RepeatMasker compact interval row has missing or invalid fields",
+            {"path": str(path), "line_number": line_number},
+        ) from exc
+    _validate_interval(chrom, start, end)
+    return RepeatMaskerInterval(
+        chrom=chrom,
+        start=start,
+        end=end,
+        name=name,
+        repeat_class=repeat_class,
+        repeat_family=repeat_family,
+        strand=strand,
     )
 
 

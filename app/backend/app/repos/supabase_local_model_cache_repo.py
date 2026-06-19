@@ -1775,6 +1775,8 @@ def _clinical_gene_disease_summary(
         ),
         None,
     )
+    gencc_submitters = _dedupe_text(_row_text(row, "submitter") for row in gencc_rows)
+    gencc_assertions = _dedupe_text(_row_text(row, "assertion") for row in gencc_rows)
     warnings = ["private_clinical_source_tables", "penetrance_not_source_backed"]
     if not primary.get("mechanism"):
         warnings.append("mechanism_not_source_backed")
@@ -1793,6 +1795,15 @@ def _clinical_gene_disease_summary(
         "gene_disease_validity": primary.get("validity"),
         "mechanism": primary.get("mechanism"),
         "conditions": conditions,
+        "source_counts": {
+            "clingen_gene_validity": len(clingen_rows),
+            "gencc_assertions": len(gencc_rows),
+            "mondo_disease_terms": len(mondo_rows),
+            "hpo_annotations": len(hpo_rows),
+        },
+        "gencc_assertion_count": len(gencc_rows),
+        "gencc_submitters": gencc_submitters[:12],
+        "gencc_assertions": gencc_assertions[:12],
         "provenance": _clinical_gene_disease_provenance(
             gene=gene,
             clingen_rows=clingen_rows,

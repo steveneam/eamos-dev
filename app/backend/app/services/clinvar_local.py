@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
+import gzip
 from hashlib import sha256
 from pathlib import Path
 import re
@@ -8,11 +10,15 @@ from typing import Iterable, Mapping
 
 from app.core.paths import find_project_root, repo_relative_path
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
+from app.data_sources.registry import LicenseStatus
+from app.schemas.run import CuratedVariantsDistribution
 
 CLINVAR_SOURCE_ID = "ncbi_clinvar_vcf"
 DEFAULT_CLINVAR_VCF_FIXTURE_PATH = (
     Path(__file__).resolve().parents[1] / "fixtures" / "data_sources" / "clinvar_tiny.vcf"
 )
+CLINVAR_DISTRIBUTION_ROWS = ("pathogenic", "vus", "benign")
+CLINVAR_DISTRIBUTION_COLUMNS = ("lof", "missense", "noncoding", "synonymous")
 
 
 class ClinVarLocalError(ValueError):
@@ -120,6 +126,12 @@ class ClinVarLocalStore:
     def provenance(self) -> ClinVarLocalProvenance:
         return self._source_provenance
 
+    def source_path(self) -> Path:
+        return self._vcf_path
+
+    def source_status(self) -> str:
+        return "fixture" if _is_fixture_path(self._vcf_path) else "local"
+
     def records(self) -> tuple[ClinVarLocalRecord, ...]:
         return self._records
 
@@ -182,6 +194,82 @@ class ClinVarLocalStore:
             unavailable_reason="variant_not_found",
             warnings=("clinvar_local_variant_not_found",),
         )
+
+
+def build_clinvar_gene_distribution(
+    gene: str,
+    *,
+    store: ClinVarLocalStore | None = None,
+    registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+    query_variant_id: str | None = None,
+) -> CuratedVariantsDistribution:
+    """Aggregate all installed local ClinVar records for a gene into report buckets."""
+
+    clinvar_store = store or ClinVarLocalStore(registry=registry)
+    gene_symbol = gene.strip().upper()
+    records = tuple(
+        record
+        for record in clinvar_store.records()
+        if gene_symbol and gene_symbol in record.gene_symbols
+    )
+    source_record = registry.get(CLINVAR_SOURCE_ID)
+    counts: Counter[str] = Counter()
+    for record in records:
+        row = _classification_bucket(record.classification)
+        column = _variant_effect_bucket(record)
+        counts[f"{row}_{column}"] += 1
+
+    cells = {
+        f"{row}_{column}": int(counts.get(f"{row}_{column}", 0))
+        for row in CLINVAR_DISTRIBUTION_ROWS
+        for column in CLINVAR_DISTRIBUTION_COLUMNS
+    }
+    row_totals = {
+        row: sum(cells[f"{row}_{column}"] for column in CLINVAR_DISTRIBUTION_COLUMNS)
+        for row in CLINVAR_DISTRIBUTION_ROWS
+    }
+    total = sum(row_totals.values())
+    warnings = list(_distribution_warnings(gene_symbol, clinvar_store, total))
+    query_record, query_warnings = _query_record_for_distribution(
+        clinvar_store,
+        query_variant_id=query_variant_id,
+        gene_symbol=gene_symbol,
+    )
+    warnings.extend(query_warnings)
+    query_cell = None
+    if query_record is not None:
+        query_cell = (
+            f"{_classification_bucket(query_record.classification)}_"
+            f"{_variant_effect_bucket(query_record)}"
+        )
+    provenance = clinvar_store.provenance()
+    source_status = clinvar_store.source_status()
+    source_label = "fixture" if source_status == "fixture" else "local"
+    subtitle = (
+        f"{total:,} ClinVar {source_label} record{'s' if total != 1 else ''}"
+        f" for {gene_symbol or 'gene'}"
+    )
+    return CuratedVariantsDistribution(
+        cells=cells,
+        row_totals=row_totals,
+        total=total,
+        subtitle=subtitle,
+        reading=_distribution_reading(gene_symbol, row_totals, cells, total, source_status),
+        source_status=source_status,
+        source_id=CLINVAR_SOURCE_ID,
+        source_version=provenance.source_version,
+        source_url=source_record.source_url,
+        public_serialization_allowed=(
+            source_record.license_status is LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW
+        ),
+        launch_gate=None,
+        license_gate=None,
+        query_cell=query_cell,
+        query_variant_id=query_record.gnomad_variant_id if query_record is not None else None,
+        query_accession=query_record.accession if query_record is not None else None,
+        query_classification=query_record.classification if query_record is not None else None,
+        warnings=warnings,
+    )
 
 
 def parse_clinvar_vcf(
@@ -358,6 +446,9 @@ def _source_provenance(
 
 def _read_fixture_lines(path: Path) -> list[str]:
     try:
+        if path.suffix.lower() == ".gz":
+            with gzip.open(path, "rt", encoding="utf-8") as handle:
+                return handle.read().splitlines()
         return path.read_text(encoding="utf-8").splitlines()
     except OSError as exc:
         raise ClinVarLocalError(
@@ -552,3 +643,107 @@ def _repo_relative_path(path: Path) -> str:
 
 def _repo_root() -> Path:
     return find_project_root(__file__)
+
+
+def _is_fixture_path(path: Path) -> bool:
+    try:
+        return path.resolve() == DEFAULT_CLINVAR_VCF_FIXTURE_PATH.resolve()
+    except OSError:
+        return path == DEFAULT_CLINVAR_VCF_FIXTURE_PATH
+
+
+def _classification_bucket(classification: str) -> str:
+    normalized = classification.lower()
+    conflicting = "conflicting" in normalized
+    has_pathogenic = "pathogenic" in normalized
+    has_benign = "benign" in normalized
+    if has_pathogenic and not has_benign and not conflicting:
+        return "pathogenic"
+    if has_benign and not has_pathogenic and not conflicting:
+        return "benign"
+    return "vus"
+
+
+def _variant_effect_bucket(record: ClinVarLocalRecord) -> str:
+    aliases = tuple(alias.lower() for alias in record.hgvs_aliases)
+    protein_aliases = tuple(alias for alias in aliases if ":p." in alias or alias.startswith("p."))
+    if any("p.=" in alias or "synonymous" in alias for alias in protein_aliases):
+        return "synonymous"
+    if any(
+        token in alias
+        for alias in protein_aliases
+        for token in ("ter", "*", "fs", "frameshift", "splice")
+    ):
+        return "lof"
+    if protein_aliases:
+        return "missense"
+    if len(record.ref) != len(record.alt):
+        return "missense"
+    return "noncoding"
+
+
+def _distribution_warnings(
+    gene_symbol: str,
+    store: ClinVarLocalStore,
+    total: int,
+) -> tuple[str, ...]:
+    warnings: list[str] = []
+    if total == 0:
+        warnings.append("clinvar_local_gene_no_records")
+    if store.source_status() == "fixture":
+        warnings.append("clinvar_local_fixture_scope")
+    if not store.provenance().source_version:
+        warnings.append("clinvar_local_source_version_missing")
+    if not gene_symbol:
+        warnings.append("clinvar_local_gene_missing")
+    return tuple(warnings)
+
+
+def _query_record_for_distribution(
+    store: ClinVarLocalStore,
+    *,
+    query_variant_id: str | None,
+    gene_symbol: str,
+) -> tuple[ClinVarLocalRecord | None, tuple[str, ...]]:
+    if not query_variant_id:
+        return None, ()
+    lookup = store.lookup_variant_id(query_variant_id)
+    if not lookup.available or lookup.record is None:
+        return None, ("clinvar_local_query_variant_not_found", *lookup.warnings)
+    if gene_symbol and gene_symbol not in lookup.record.gene_symbols:
+        return None, ("clinvar_local_query_variant_gene_mismatch",)
+    return lookup.record, ()
+
+
+def _distribution_reading(
+    gene_symbol: str,
+    row_totals: Mapping[str, int],
+    cells: Mapping[str, int],
+    total: int,
+    source_status: str,
+) -> str:
+    label = gene_symbol or "this gene"
+    if total == 0:
+        return f"No ClinVar records for {label} are present in the installed local source."
+    top_key, top_count = max(cells.items(), key=lambda item: item[1])
+    top_row, top_col = top_key.split("_", 1)
+    row_label = {
+        "pathogenic": "pathogenic or likely pathogenic",
+        "vus": "uncertain or conflicting",
+        "benign": "benign or likely benign",
+    }.get(top_row, top_row)
+    col_label = {
+        "lof": "loss-of-function",
+        "missense": "missense/indel",
+        "noncoding": "non-coding",
+        "synonymous": "synonymous",
+    }.get(top_col, top_col)
+    pathogenic_total = row_totals.get("pathogenic", 0)
+    benign_total = row_totals.get("benign", 0)
+    scope = "fixture" if source_status == "fixture" else "local ClinVar"
+    return (
+        f"The installed {scope} aggregate contains {total:,} {label} ClinVar "
+        f"record{'s' if total != 1 else ''}. The largest bucket is {row_label} "
+        f"{col_label} ({top_count:,}); pathogenic/likely pathogenic total "
+        f"{pathogenic_total:,}, benign/likely benign total {benign_total:,}."
+    )

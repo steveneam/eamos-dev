@@ -32,11 +32,15 @@ from app.services.local_evidence_orchestrator import (
     LOCAL_EVIDENCE_RUNTIME_FLOWS,
     LocalEvidenceRuntimeGate,
 )
+from app.services.local_evidence_runtime_assets import inspect_local_evidence_runtime_assets
+from app.services.mavedb_local import inspect_mavedb_local_store
 from app.services.predictor_runtime import (
     inspect_alphamissense_runtime_asset,
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_primateai3d_runtime_assets,
+    inspect_revel_runtime_assets,
 )
 from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.source_downloads import (
@@ -229,6 +233,7 @@ def build_source_asset_preflight_report(
             materialization_store=materialization_store,
             probe_materialization=probe_materialization,
         ),
+        "local_evidence_runtime_assets": inspect_local_evidence_runtime_assets(settings),
         "compact_coordinate_index": compact_coordinate_index.to_sanitized_dict(),
         "clingen_local": clingen_local.to_sanitized_dict(),
         "predictor_runtime_assets": predictor_runtime_assets,
@@ -469,8 +474,11 @@ def _predictor_runtime_asset_summary(
             "storage_required": pvs1_nmd.storage_required,
             "status_notes": list(pvs1_nmd.warnings),
         },
+        "mavedb": inspect_mavedb_local_store(settings, verify_checksum=False).to_sanitized_dict(),
         "ci_spliceai": inspect_ci_spliceai_runtime_assets(settings).to_sanitized_dict(),
         "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
+        "revel": inspect_revel_runtime_assets(settings).to_sanitized_dict(),
+        "primateai3d": inspect_primateai3d_runtime_assets(settings).to_sanitized_dict(),
         "public_serialization_locked": [],
         "launch_gated": _launch_gated_predictors(esm1b.launch_gate),
     }
@@ -498,7 +506,7 @@ def _predictor_runtime_summary(
 
 def _launch_gated_predictors(esm1b_launch_gate: str | None) -> list[str]:
     gated = ["esm1b"] if esm1b_launch_gate else []
-    gated.extend(["ci_spliceai", "capice"])
+    gated.extend(["ci_spliceai", "capice", "revel", "primateai3d"])
     return gated
 
 

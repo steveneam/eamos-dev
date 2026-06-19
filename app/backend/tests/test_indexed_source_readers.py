@@ -6,6 +6,7 @@ import pytest
 
 from app.services.indexed_sources import (
     IndexedSourceError,
+    REPEATMASKER_COMPACT_INDEX_SCHEMA,
     TabixTsvPredictorColumns,
     TabixTsvPredictorReader,
     PysamIndexedVcfReader,
@@ -313,10 +314,40 @@ def test_repeatmasker_index_bisect_keeps_long_overlapping_intervals() -> None:
     assert [item.name for item in overlaps] == ["LongRep"]
 
 
-def test_repeatmasker_index_malformed_unknown_and_invalid_queries_fail_closed() -> None:
+def test_repeatmasker_compact_index_round_trips_jsonl(tmp_path: Path) -> None:
+    table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
+        [
+            "585\t1200\t12\t1\t0\tchr1\t100\t130\t-870\t+\tAluY\tSINE\tAlu\t1\t30\t0\t1",
+            "585\t900\t20\t2\t0\tchr2\t400\t420\t-580\tC\tL1PA2\tLINE\tL1\t5\t25\t0\t2",
+        ]
+    )
+    index_path = tmp_path / "repeatmasker.interval-index.jsonl"
+
+    count = table.write_compact_jsonl(
+        index_path,
+        source_id="repeatmasker_rmsk_bb",
+        source_version="pytest",
+    )
+    loaded = RepeatMaskerIndexedTable.from_compact_jsonl(index_path)
+
+    assert count == 2
+    assert index_path.read_text(encoding="utf-8").splitlines()[0] == (
+        '{"schema":"'
+        + REPEATMASKER_COMPACT_INDEX_SCHEMA
+        + '","source_id":"repeatmasker_rmsk_bb","source_version":"pytest"}'
+    )
+    overlaps = loaded.query("NC_000001.11", 101, 105)
+    assert len(overlaps) == 1
+    assert overlaps[0].name == "AluY"
+
+
+def test_repeatmasker_index_malformed_unknown_and_invalid_queries_fail_closed(
+    tmp_path: Path,
+) -> None:
     with pytest.raises(IndexedSourceError) as malformed_exc:
         RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(["too\tshort"])
 
+    bad_index = tmp_path / "unsupported-repeatmasker.interval-index.jsonl"
     table = RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
         ["585\t1200\t12\t1\t0\tchr1\t100\t130\t-870\t+\tAluY\tSINE\tAlu\t1\t30\t0\t1"]
     )
@@ -331,6 +362,14 @@ def test_repeatmasker_index_malformed_unknown_and_invalid_queries_fail_closed() 
     assert unknown_exc.value.details == {"requested_chrom": "chr7"}
     assert coordinate_exc.value.code == "invalid_coordinates"
     assert coordinate_exc.value.details == {"chrom": "1", "start": 105, "end": 101}
+
+    bad_index.write_text('{"schema":"old"}\n', encoding="utf-8")
+    try:
+        with pytest.raises(IndexedSourceError) as schema_exc:
+            RepeatMaskerIndexedTable.from_compact_jsonl(bad_index)
+        assert schema_exc.value.code == "unsupported_repeatmasker_compact_index_schema"
+    finally:
+        bad_index.unlink(missing_ok=True)
 
 
 def _write_tiny_indexed_vcf(tmp_path: Path, pysam: object) -> Path:

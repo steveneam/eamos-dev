@@ -75,10 +75,18 @@ def popular_variants(
 def record_variant_view(
     query_id: str,
     request: Request,
-    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> VariantViewResponse:
-    enforce_rate_limit(request, RATE_LIMIT_LIBRARY, subject=principal.user_id)
-    return VariantViewResponse(variant=_service(request).record_view(query_id))
+    enforce_rate_limit(request, RATE_LIMIT_LIBRARY)
+    return VariantViewResponse(variant=_service(request).record_view(_validated_view_query_id(query_id)))
+
+
+@router.get("/views/{query_id:path}", response_model=VariantViewResponse)
+def get_variant_view(
+    query_id: str,
+    request: Request,
+) -> VariantViewResponse:
+    enforce_rate_limit(request, RATE_LIMIT_LIBRARY)
+    return VariantViewResponse(variant=_service(request).get_view(_validated_view_query_id(query_id)))
 
 
 @router.post("/variants", response_model=SavedVariant, status_code=status.HTTP_201_CREATED)
@@ -178,3 +186,13 @@ def _service(request: Request):
             detail="Variant library service is unavailable.",
         )
     return service
+
+
+def _validated_view_query_id(query_id: str) -> str:
+    normalized = query_id.strip()
+    if not normalized or len(normalized) > 512:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="View query id must be between 1 and 512 characters.",
+        )
+    return normalized

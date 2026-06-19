@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import md5, sha256
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,6 +19,18 @@ from app.data_sources import (
     SourceAssetMaterializationRecord,
 )
 from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
+from app.services.predictor_runtime import (
+    CAPICE_FEATURE_CACHE_ASSET_ROLE,
+    CAPICE_FEATURE_CACHE_SOURCE_ID,
+    CAPICE_LAUNCH_GATE,
+    CAPICE_MODEL_ASSET_ROLE,
+    CAPICE_SOURCE_ID,
+    CI_SPLICEAI_LAUNCH_GATE,
+    CI_SPLICEAI_MODEL_ASSET_ROLE,
+    CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+    CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+    CI_SPLICEAI_SOURCE_ID,
+)
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
@@ -39,6 +52,18 @@ def test_source_asset_preflight_reports_guarded_readiness(
     monkeypatch.setenv("PUBMED_LOCAL_MANIFEST_PATH", str(tmp_path / "missing-pubmed.manifest.json"))
     monkeypatch.setenv("RAG_SQLITE_PATH", str(tmp_path / "missing-literature.sqlite"))
     monkeypatch.setenv("RAG_MANIFEST_PATH", str(tmp_path / "missing-literature.manifest.json"))
+    monkeypatch.setenv("DBSNP_RUNTIME_VCF_PATH", str(tmp_path / "missing-dbsnp.vcf.gz"))
+    monkeypatch.setenv("DBSNP_RUNTIME_INDEX_PATH", str(tmp_path / "missing-dbsnp.vcf.gz.tbi"))
+    monkeypatch.setenv("CLINVAR_RUNTIME_VCF_PATH", str(tmp_path / "missing-clinvar.vcf.gz"))
+    monkeypatch.setenv(
+        "CLINVAR_RUNTIME_INDEX_PATH",
+        str(tmp_path / "missing-clinvar.vcf.gz.tbi"),
+    )
+    monkeypatch.setenv(
+        "REPEATMASKER_RUNTIME_INDEX_PATH",
+        str(tmp_path / "missing-repeatmasker.index"),
+    )
+    monkeypatch.setenv("PHYLOP_RUNTIME_BIGWIG_PATH", str(tmp_path / "missing-phylop.bw"))
 
     exit_code = main(
         [
@@ -145,6 +170,20 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert compact_index["source_runtime_scan_allowed"] is False
     assert compact_index["startup_download_allowed"] is False
 
+    local_evidence_runtime = output["local_evidence_runtime_assets"]
+    assert local_evidence_runtime["ready"] is False
+    assert local_evidence_runtime["ready_count"] == 0
+    assert local_evidence_runtime["total_sources"] == 4
+    assert local_evidence_runtime["runtime_reader_opened"] is False
+    assert local_evidence_runtime["source_runtime_scan_allowed"] is False
+    assert local_evidence_runtime["local_path_values_emitted"] is False
+    runtime_sources = {item["item_id"]: item for item in local_evidence_runtime["sources"]}
+    assert runtime_sources["dbsnp_local_adapter"]["status"] == "missing_runtime_file"
+    assert runtime_sources["clinvar_local_adapter"]["status"] == "missing_runtime_file"
+    assert runtime_sources["repeatmasker_local_adapter"]["status"] == "missing_runtime_file"
+    assert runtime_sources["phylop_conservation_reader"]["status"] == "missing_runtime_file"
+    assert runtime_sources["repeatmasker_local_adapter"]["source_runtime_scan_allowed"] is False
+
     predictors = output["predictor_runtime_assets"]
     assert predictors["alphamissense"]["status"] == "missing_source_file"
     assert predictors["alphamissense"]["public_serialization_allowed"] is True
@@ -160,7 +199,19 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert predictors["capice"]["status"] == "model_artifact_missing"
     assert predictors["capice"]["runtime_wired"] is True
     assert predictors["capice"]["public_serialization_allowed"] is True
-    assert predictors["launch_gated"] == ["esm1b", "ci_spliceai", "capice"]
+    assert predictors["revel"]["status"] == "score_cache_missing"
+    assert predictors["revel"]["runtime_wired"] is True
+    assert predictors["revel"]["public_serialization_allowed"] is True
+    assert predictors["primateai3d"]["status"] == "score_cache_missing"
+    assert predictors["primateai3d"]["runtime_wired"] is True
+    assert predictors["primateai3d"]["public_serialization_allowed"] is True
+    assert predictors["launch_gated"] == [
+        "esm1b",
+        "ci_spliceai",
+        "capice",
+        "revel",
+        "primateai3d",
+    ]
 
     gate = output["local_evidence_gate"]
     assert gate["configured_runtime_flows_enabled"] is False
@@ -178,11 +229,19 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert items["ci_spliceai"]["runtime_wired"] is True
     assert items["capice"]["runtime_wired"] is True
     assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
+    assert items["revel"]["runtime_wired"] is True
+    assert items["revel"]["launch_gate"] == "revel_launch_filter_metadata"
+    assert items["primateai3d"]["runtime_wired"] is True
+    assert items["primateai3d"]["launch_gate"] == "primateai3d_launch_filter_metadata"
     assert items["clinical_source_tables"]["durable_source"] == "supabase_postgres"
     assert items["clinical_source_tables"]["render_disk_role"] == "not_required"
     assert items["coordinate_compact_index"]["runtime_source"] == (
         "render_disk_compact_immutable_index"
     )
+    assert items["dbsnp_local_adapter"]["status"] == "source_ready_for_materialization"
+    assert items["dbsnp_local_adapter"]["blockers"] == ["seed_verified_render_disk_cache"]
+    assert items["phylop_conservation_reader"]["status"] == "source_ready_for_materialization"
+    assert items["phylop_conservation_reader"]["blockers"] == ["seed_verified_render_disk_cache"]
     assert items["gene_view"]["runtime_wired"] is True
     assert items["protein_pfam"]["runtime_source"] == "render_disk_hmmer_indexes"
     encoded_ledger = json.dumps(ledger).lower()
@@ -225,6 +284,51 @@ def test_source_asset_preflight_reports_ready_admin_predictors_without_paths(
         tmp_path / "capice" / "features.tsv.gz",
         b"features",
     )
+    _write_admin_predictor_manifest(
+        ci_model,
+        artifact_id="ci_spliceai",
+        component_id="model",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_keras_model",
+        role=CI_SPLICEAI_MODEL_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        ci_reference,
+        artifact_id="ci_spliceai",
+        component_id="reference_bundle",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_reference_bundle",
+        role=CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        ci_cache,
+        artifact_id="ci_spliceai",
+        component_id="score_cache",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_hg38_score_cache_vcf_gz",
+        role=CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        capice_model,
+        artifact_id="capice",
+        component_id="model",
+        source_id=CAPICE_SOURCE_ID,
+        asset_id="capice_xgboost_model",
+        role=CAPICE_MODEL_ASSET_ROLE,
+        launch_gate=CAPICE_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        capice_features,
+        artifact_id="capice",
+        component_id="feature_cache",
+        source_id=CAPICE_FEATURE_CACHE_SOURCE_ID,
+        asset_id="capice_hg38_feature_cache_tsv_gz",
+        role=CAPICE_FEATURE_CACHE_ASSET_ROLE,
+        launch_gate=CAPICE_LAUNCH_GATE,
+    )
     settings = Settings(
         jwt_secret="test-secret",
         ci_spliceai_model_path=ci_model,
@@ -251,6 +355,58 @@ def test_source_asset_preflight_reports_ready_admin_predictors_without_paths(
     encoded = json.dumps(
         {
             "predictor_runtime_assets": predictors,
+            "build_ledger": output["build_ledger"],
+        }
+    ).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "supabase://" not in encoded
+
+
+def test_source_asset_preflight_reports_local_evidence_runtime_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    dbsnp_vcf = _write_indexed_runtime_file(tmp_path / "dbsnp" / "GCF_000001405.40.gz", b"vcf")
+    clinvar_vcf = _write_indexed_runtime_file(
+        tmp_path / "clinvar" / "clinvar.vcf.gz",
+        b"clinvar",
+    )
+    repeatmasker_index = _write_runtime_file(
+        tmp_path / "repeatmasker" / "repeatmasker.interval-index.jsonl",
+        b"index",
+    )
+    phylop_bigwig = _write_runtime_file(tmp_path / "phylop" / "hg38.phyloP100way.bw", b"bw")
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=tmp_path / "missing-hg38.2bit",
+        dbsnp_runtime_vcf_path=dbsnp_vcf,
+        dbsnp_runtime_index_path=Path(f"{dbsnp_vcf}.tbi"),
+        clinvar_runtime_vcf_path=clinvar_vcf,
+        clinvar_runtime_index_path=Path(f"{clinvar_vcf}.tbi"),
+        repeatmasker_runtime_index_path=repeatmasker_index,
+        phylop_runtime_bigwig_path=phylop_bigwig,
+    )
+
+    output = build_source_asset_preflight_report(settings=settings)
+
+    runtime = output["local_evidence_runtime_assets"]
+    assert runtime["ready"] is True
+    assert runtime["ready_count"] == 4
+    assert runtime["runtime_reader_opened"] is False
+    by_item = {item["item_id"]: item for item in runtime["sources"]}
+    assert {item["status"] for item in by_item.values()} == {"ready"}
+    assert by_item["dbsnp_local_adapter"]["ready_asset_count"] == 2
+    assert by_item["clinvar_local_adapter"]["ready_asset_count"] == 2
+    assert by_item["repeatmasker_local_adapter"]["ready_asset_count"] == 1
+    assert by_item["phylop_conservation_reader"]["ready_asset_count"] == 1
+    ledger_items = {item["item_id"]: item for item in output["build_ledger"]["items"]}
+    assert ledger_items["dbsnp_local_adapter"]["status"] == "ready"
+    assert ledger_items["dbsnp_local_adapter"]["blockers"] == []
+    assert ledger_items["clinvar_local_adapter"]["status"] == "ready"
+    assert ledger_items["repeatmasker_local_adapter"]["status"] == "ready"
+    assert ledger_items["phylop_conservation_reader"]["status"] == "ready"
+    encoded = json.dumps(
+        {
+            "runtime": runtime,
             "build_ledger": output["build_ledger"],
         }
     ).lower()
@@ -518,6 +674,47 @@ def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
     _write_runtime_file(path, payload)
     Path(f"{path}.tbi").write_bytes(b"index")
     return path
+
+
+def _write_admin_predictor_manifest(
+    path: Path,
+    *,
+    artifact_id: str,
+    component_id: str,
+    source_id: str,
+    asset_id: str,
+    role: str,
+    launch_gate: str,
+) -> None:
+    payload = path.read_bytes()
+    md5_value = md5(payload, usedforsecurity=False).hexdigest()
+    sha256_value = sha256(payload).hexdigest()
+    path.with_suffix(path.suffix + ".manifest.json").write_text(
+        json.dumps(
+            {
+                "artifact_id": artifact_id,
+                "component_id": component_id,
+                "source_id": source_id,
+                "asset_id": asset_id,
+                "role": role,
+                "byte_size": len(payload),
+                "md5": md5_value,
+                "sha256": sha256_value,
+                "checksums": {"md5": md5_value, "sha256": sha256_value},
+                "launch_gate": launch_gate,
+                "storage_contract": {
+                    "bucket_policy": "private",
+                    "frontend_direct_access_allowed": False,
+                    "signed_urls_created": False,
+                    "startup_download_allowed": False,
+                    "request_time_materialization_allowed": False,
+                    "runtime_sync_required": True,
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _metadata_record(

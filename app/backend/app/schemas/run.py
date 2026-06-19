@@ -73,7 +73,7 @@ PublicationSnippetConfidence = Literal[
 PublicationSourceTag = Literal["litvar2", "pubmed", "clinvar", "clingen"]
 PublicationScope = Literal["variant", "gene"]
 PublicationCountKind = Literal["deduped_pmids", "gene_wide_source_count", "unavailable"]
-FunctionalEvidenceSourceTag = Literal["clingen", "clinvar", "pubmed"]
+FunctionalEvidenceSourceTag = Literal["clingen", "clinvar", "pubmed", "mavedb"]
 FunctionalEvidenceCode = Literal["PS3", "BS3"]
 FunctionalEvidenceState = Literal[
     "strong_deficit",
@@ -189,6 +189,7 @@ class FunctionalEvidenceSourceBreakdown(BaseModel):
     clingen: int = 0
     clinvar: int = 0
     pubmed: int = 0
+    mavedb: int = 0
 
 
 class FunctionalEvidenceConflictSplit(BaseModel):
@@ -217,9 +218,12 @@ class FunctionalStudy(BaseModel):
     pmid: str | None = None
     url: str | None = None
     citation: str | None = None
+    source_accession: str | None = None
     source_tags: list[FunctionalEvidenceSourceTag] = Field(default_factory=list)
     evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
     asserted_codes: list[str] = Field(default_factory=list)
+    functional_score: float | None = None
+    functional_score_label: str | None = None
     snippet: str | None = None
 
 
@@ -444,6 +448,18 @@ class CuratedVariantsDistribution(BaseModel):
     total: int
     subtitle: str = ""
     reading: str
+    source_status: str | None = None
+    source_id: str | None = None
+    source_version: str | None = None
+    source_url: str | None = None
+    public_serialization_allowed: bool | None = None
+    launch_gate: str | None = None
+    license_gate: str | None = None
+    query_cell: str | None = None
+    query_variant_id: str | None = None
+    query_accession: str | None = None
+    query_classification: str | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class AssociatedCondition(BaseModel):
@@ -586,6 +602,13 @@ class VariantReportHeader(BaseModel):
     cdna: str | None = None
     protein_change: str | None = None
     genomic_hg38: str | None = None
+    dbsnp_rsid: str | None = None
+    ensembl_gene_id: str | None = None
+    ensembl_transcript: str | None = None
+    transcript_aliases: list[str] = Field(default_factory=list)
+    mane_select: bool | None = None
+    view_count: int | None = None
+    updated_at: str | None = None
     classification: str | None = None
     classification_source: str | None = None
     verification_badges: list[str] = Field(default_factory=list)
@@ -861,6 +884,7 @@ class GeneContextSnapshot(BaseModel):
     source_status: SourceStatus = "missing"
     gene: str
     transcript: str | None = None
+    transcript_aliases: list[str] = Field(default_factory=list)
     genome_build: str = "GRCh38"
     chromosome: str | None = None
     strand: Literal["+", "-", "unknown"] = "unknown"

@@ -4,6 +4,7 @@ import json
 import os
 import stat
 from datetime import datetime, timezone
+from hashlib import md5, sha256
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,6 +18,18 @@ from app.main import create_app
 from app.services.ai_gateway.retrieval import LiteratureEmbeddingStore, LiteratureSourceRecord
 from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
 from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
+from app.services.predictor_runtime import (
+    CAPICE_FEATURE_CACHE_ASSET_ROLE,
+    CAPICE_FEATURE_CACHE_SOURCE_ID,
+    CAPICE_LAUNCH_GATE,
+    CAPICE_MODEL_ASSET_ROLE,
+    CAPICE_SOURCE_ID,
+    CI_SPLICEAI_LAUNCH_GATE,
+    CI_SPLICEAI_MODEL_ASSET_ROLE,
+    CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+    CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+    CI_SPLICEAI_SOURCE_ID,
+)
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
@@ -39,7 +52,20 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
 
     assert body["status"] == "ok"
     assert body["database"] == "ok"
-    assert body["source_cache"] == {
+    source_cache = body["source_cache"]
+    assert {
+        key: source_cache[key]
+        for key in (
+            "enabled",
+            "total_rows",
+            "fresh_rows",
+            "stale_rows",
+            "versioned_rows",
+            "oldest_fetched_at",
+            "latest_fetched_at",
+            "sources",
+        )
+    } == {
         "enabled": True,
         "total_rows": 0,
         "fresh_rows": 0,
@@ -49,6 +75,7 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "latest_fetched_at": None,
         "sources": {},
     }
+    assert "remote_supabase_cache" not in source_cache
     assert body["source_assets"]["hg38_2bit"]["materialization_metadata"] == {
         "enabled": False,
         "failure_boundaries": {
@@ -119,6 +146,14 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert indexed["capice"]["runtime_wired"] is True
     assert indexed["capice"]["public_serialization_allowed"] is True
     assert indexed["capice"]["launch_gate"] == "capice_launch_filter_metadata"
+    assert indexed["revel"]["status"] == "score_cache_missing"
+    assert indexed["revel"]["runtime_wired"] is True
+    assert indexed["revel"]["public_serialization_allowed"] is True
+    assert indexed["revel"]["launch_gate"] == "revel_launch_filter_metadata"
+    assert indexed["primateai3d"]["status"] == "score_cache_missing"
+    assert indexed["primateai3d"]["runtime_wired"] is True
+    assert indexed["primateai3d"]["public_serialization_allowed"] is True
+    assert indexed["primateai3d"]["launch_gate"] == "primateai3d_launch_filter_metadata"
     assert indexed["pvs1_nmd"]["status"] == "pure_code_available"
     assert indexed["pvs1_nmd"]["source_id"] == "nmdetective_b_pvs1"
     assert indexed["pvs1_nmd"]["storage_required"] is False
@@ -127,6 +162,8 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "autopvs1_code_not_used",
     ]
     assert indexed["mavedb"]["status"] == "cc0_import_not_materialized"
+    assert indexed["mavedb"]["runtime_wired"] is True
+    assert indexed["mavedb"]["public_serialization_allowed"] is False
     protein = body["providers"]["protein_annotation"]
     assert protein["enabled"] is False
     assert protein["available"] is False
@@ -152,7 +189,9 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "gene_view",
         "literature_rag_embeddings",
         "nmdetective_pvs1",
+        "primateai3d",
         "protein_pfam",
+        "revel",
     }
     assert required_items <= items.keys()
     assert items["alphamissense"]["status"] == "missing_source_file"
@@ -167,6 +206,12 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert items["capice"]["runtime_wired"] is True
     assert items["capice"]["public_serialization_allowed"] is True
     assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
+    assert items["revel"]["runtime_wired"] is True
+    assert items["revel"]["public_serialization_allowed"] is True
+    assert items["revel"]["launch_gate"] == "revel_launch_filter_metadata"
+    assert items["primateai3d"]["runtime_wired"] is True
+    assert items["primateai3d"]["public_serialization_allowed"] is True
+    assert items["primateai3d"]["launch_gate"] == "primateai3d_launch_filter_metadata"
     assert items["clingen_local_adapter"]["status"] == "local_adapter_disabled"
     assert items["clingen_local_adapter"]["runtime_wired"] is True
     assert items["clingen_local_adapter"]["public_serialization_allowed"] is True
@@ -451,6 +496,51 @@ def test_provider_cache_health_reports_ready_admin_predictors_without_paths(
         tmp_path / "capice" / "features.tsv.gz",
         b"features",
     )
+    _write_admin_predictor_manifest(
+        ci_model,
+        artifact_id="ci_spliceai",
+        component_id="model",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_keras_model",
+        role=CI_SPLICEAI_MODEL_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        ci_reference,
+        artifact_id="ci_spliceai",
+        component_id="reference_bundle",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_reference_bundle",
+        role=CI_SPLICEAI_REFERENCE_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        ci_cache,
+        artifact_id="ci_spliceai",
+        component_id="score_cache",
+        source_id=CI_SPLICEAI_SOURCE_ID,
+        asset_id="ci_spliceai_hg38_score_cache_vcf_gz",
+        role=CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
+        launch_gate=CI_SPLICEAI_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        capice_model,
+        artifact_id="capice",
+        component_id="model",
+        source_id=CAPICE_SOURCE_ID,
+        asset_id="capice_xgboost_model",
+        role=CAPICE_MODEL_ASSET_ROLE,
+        launch_gate=CAPICE_LAUNCH_GATE,
+    )
+    _write_admin_predictor_manifest(
+        capice_features,
+        artifact_id="capice",
+        component_id="feature_cache",
+        source_id=CAPICE_FEATURE_CACHE_SOURCE_ID,
+        asset_id="capice_hg38_feature_cache_tsv_gz",
+        role=CAPICE_FEATURE_CACHE_ASSET_ROLE,
+        launch_gate=CAPICE_LAUNCH_GATE,
+    )
     settings = Settings(
         upload_dir=tmp_path / "uploads",
         final_report_dir=tmp_path / "final_reports",
@@ -689,6 +779,53 @@ def test_provider_cache_health_reports_sanitized_source_asset_materialization(
     assert object_path not in encoded
 
 
+def test_provider_cache_health_reports_local_evidence_runtime_assets_without_paths(
+    tmp_path: Path,
+) -> None:
+    dbsnp_vcf = _write_indexed_runtime_file(tmp_path / "dbsnp" / "GCF_000001405.40.gz", b"vcf")
+    clinvar_vcf = _write_indexed_runtime_file(
+        tmp_path / "clinvar" / "clinvar.vcf.gz",
+        b"clinvar",
+    )
+    repeatmasker_index = _write_runtime_file(
+        tmp_path / "repeatmasker" / "repeatmasker.interval-index.jsonl",
+        b"index",
+    )
+    phylop_bigwig = _write_runtime_file(tmp_path / "phylop" / "hg38.phyloP100way.bw", b"bw")
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        supabase_local_model_cache_enabled=False,
+        dbsnp_runtime_vcf_path=dbsnp_vcf,
+        dbsnp_runtime_index_path=Path(f"{dbsnp_vcf}.tbi"),
+        clinvar_runtime_vcf_path=clinvar_vcf,
+        clinvar_runtime_index_path=Path(f"{clinvar_vcf}.tbi"),
+        repeatmasker_runtime_index_path=repeatmasker_index,
+        phylop_runtime_bigwig_path=phylop_bigwig,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    runtime = response.json()["source_assets"]["local_evidence_runtime_assets"]
+    assert runtime["ready"] is True
+    assert runtime["ready_count"] == 4
+    assert runtime["runtime_reader_opened"] is False
+    assert runtime["source_runtime_scan_allowed"] is False
+    assert runtime["local_path_values_emitted"] is False
+    by_item = {item["item_id"]: item for item in runtime["sources"]}
+    assert {item["status"] for item in by_item.values()} == {"ready"}
+    ledger_items = {item["item_id"]: item for item in response.json()["build_ledger"]["items"]}
+    assert ledger_items["dbsnp_local_adapter"]["status"] == "ready"
+    assert ledger_items["clinvar_local_adapter"]["status"] == "ready"
+    assert ledger_items["repeatmasker_local_adapter"]["status"] == "ready"
+    assert ledger_items["phylop_conservation_reader"]["status"] == "ready"
+    assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
+
+
 def test_provider_cache_health_survives_source_asset_probe_failure(
     client,
     monkeypatch,
@@ -823,3 +960,44 @@ def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
     _write_runtime_file(path, payload)
     Path(f"{path}.tbi").write_bytes(b"index")
     return path
+
+
+def _write_admin_predictor_manifest(
+    path: Path,
+    *,
+    artifact_id: str,
+    component_id: str,
+    source_id: str,
+    asset_id: str,
+    role: str,
+    launch_gate: str,
+) -> None:
+    payload = path.read_bytes()
+    md5_value = md5(payload, usedforsecurity=False).hexdigest()
+    sha256_value = sha256(payload).hexdigest()
+    path.with_suffix(path.suffix + ".manifest.json").write_text(
+        json.dumps(
+            {
+                "artifact_id": artifact_id,
+                "component_id": component_id,
+                "source_id": source_id,
+                "asset_id": asset_id,
+                "role": role,
+                "byte_size": len(payload),
+                "md5": md5_value,
+                "sha256": sha256_value,
+                "checksums": {"md5": md5_value, "sha256": sha256_value},
+                "launch_gate": launch_gate,
+                "storage_contract": {
+                    "bucket_policy": "private",
+                    "frontend_direct_access_allowed": False,
+                    "signed_urls_created": False,
+                    "startup_download_allowed": False,
+                    "request_time_materialization_allowed": False,
+                    "runtime_sync_required": True,
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )

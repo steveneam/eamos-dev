@@ -10,6 +10,12 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 
+@pytest.fixture(autouse=True)
+def _local_test_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SUPABASE_LOCAL_MODEL_CACHE_ENABLED", "false")
+    monkeypatch.delenv("SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL", raising=False)
+
+
 @pytest.fixture()
 def app(tmp_path: Path):
     from app.core.config import Settings
@@ -28,6 +34,8 @@ def app(tmp_path: Path):
         max_upload_mb=5,
         debug=True,
         jwt_secret="test-secret",
+        supabase_local_model_cache_enabled=False,
+        supabase_local_model_cache_database_url=None,
         supabase_jwt_secret=None,
         supabase_url=None,
         supabase_service_role_key=None,
