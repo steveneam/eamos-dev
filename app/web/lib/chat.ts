@@ -109,3 +109,42 @@ export function streamWorkbenchChat(
 ): AsyncGenerator<string> {
   return postChatStream({ question, workbench, history }, 'Sign in to ask Eamos.', signal)
 }
+
+/** One resolved Paper → Variants candidate, bounded for the chat scope. Mirrors
+ *  the backend `PaperCandidateContext`: identity, resolution status, a short
+ *  evidence quote, and which papers mentioned it — never the full paper body. */
+export interface PaperCandidateScope {
+  gene?: string | null
+  hgvs?: string | null
+  level?: string
+  context?: string
+  validation_status?: string
+  validated?: boolean
+  evidence_quote?: string | null
+  source_support?: string[]
+  papers?: string[]
+}
+
+/** The Paper → Variants scope a report-less chat is grounded in — this run's
+ *  resolved candidates plus their source provenance. Mirrors the backend
+ *  `PaperContext`. */
+export interface PaperChatScope {
+  candidates: PaperCandidateScope[]
+  source_count: number
+  sources?: string[]
+}
+
+/**
+ * Streams the Paper-scoped Ask-Eamos chat (docs/ai-gateway-paper-variants/spec.md
+ * §8): no report payload, grounded only in this paper's resolved candidates + their
+ * evidence quotes + source provenance. The chat adjudicates "is this mention a real
+ * reported allele in this paper", it doesn't re-extract.
+ */
+export function streamPaperChat(
+  paper: PaperChatScope,
+  question: string,
+  history: ReportChatTurn[] = [],
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  return postChatStream({ question, paper, history }, 'Sign in to ask Eamos.', signal)
+}

@@ -119,23 +119,31 @@ class ChatService:
 
     def _mock_answer(self, payload: ChatRequest) -> str:
         report = payload.variant_context
-        gene = (
-            report.variant_summary_rows[0].gene
-            if report and report.variant_summary_rows
-            else "this variant"
-        )
-        tool = payload.workbench.active_tool if payload.workbench else "lookup"
-        return f"[mock] Asked about {gene} in {tool} mode: {payload.question}"
+        if report and report.variant_summary_rows:
+            gene = report.variant_summary_rows[0].gene
+        elif payload.paper and payload.paper.candidates:
+            gene = payload.paper.candidates[0].gene or "this variant"
+        else:
+            gene = "this variant"
+        if payload.workbench:
+            mode = payload.workbench.active_tool
+        elif payload.paper:
+            mode = "paper"
+        else:
+            mode = "lookup"
+        return f"[mock] Asked about {gene} in {mode} mode: {payload.question}"
 
     def _build_bounded_context(self, payload: ChatRequest) -> str:
         report = payload.variant_context
         if report is None:
             # Report-less surfaces ground the chat in their own scoped context
-            # only (Workbench active tool today; cohort / paper contexts later).
-            # No report payload means no call cards / predictors / publications /
-            # literature retrieval — just the surface scope, evidence-only.
+            # only (Workbench active tool, Paper → Variants candidates; cohort
+            # contexts later). No report payload means no call cards / predictors /
+            # publications / literature retrieval — just the surface scope,
+            # evidence-only.
             context = {
                 "workbench": self._workbench_context(payload),
+                "paper": self._paper_context(payload),
                 "warnings": [],
             }
             serialized = json.dumps(context, sort_keys=True, default=str)
@@ -274,6 +282,22 @@ class ChatService:
             "scratchpad_edit_count": len(payload.workbench.scratchpad),
             "selected_primer_pair": payload.workbench.selected_primer_pair,
             "selected_guide": payload.workbench.selected_guide,
+        }
+
+    def _paper_context(self, payload: ChatRequest) -> dict[str, Any] | None:
+        # Paper → Variants scope (spec §8): the resolved candidates already
+        # produced by the extractor, with a short evidence quote + source
+        # provenance — so the chat can adjudicate "is this mention a real reported
+        # allele in this paper" without ever seeing the raw paper body.
+        if payload.paper is None:
+            return None
+        return {
+            "source_count": payload.paper.source_count,
+            "sources": payload.paper.sources,
+            "candidates": [
+                candidate.model_dump(mode="json", exclude_none=True)
+                for candidate in payload.paper.candidates
+            ],
         }
 
     def _context_warnings(self, payload) -> list[str]:

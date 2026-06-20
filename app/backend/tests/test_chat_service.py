@@ -9,7 +9,12 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.schemas.chat import ChatRequest, WorkbenchContext
+from app.schemas.chat import (
+    ChatRequest,
+    PaperCandidateContext,
+    PaperContext,
+    WorkbenchContext,
+)
 from app.schemas.run import ReportPayload, VariantSummaryRow
 from app.services.ai_gateway.retrieval import RetrievedLiterature
 from app.services.chat_service import ChatService
@@ -62,6 +67,41 @@ def _workbench_payload(question: str = "Pick the safest primer pair.") -> ChatRe
     return ChatRequest(
         question=question,
         workbench=WorkbenchContext(active_tool="primer", selected_primer_pair=2),
+    )
+
+
+def _paper_payload(
+    question: str = "Which mentions resolved to a clinical allele?",
+) -> ChatRequest:
+    # A report-less, Paper-scoped request: no variant_context, just this paper's
+    # resolved candidates + source provenance (spec §8).
+    return ChatRequest(
+        question=question,
+        paper=PaperContext(
+            source_count=1,
+            sources=["Smith · 2021"],
+            candidates=[
+                PaperCandidateContext(
+                    gene="RPE65",
+                    hgvs="NM_000329.3:c.260A>G",
+                    level="cdna",
+                    context="clinical_allele",
+                    validation_status="resolved",
+                    validated=True,
+                    evidence_quote="The proband was homozygous for the RPE65 c.260A>G allele.",
+                    source_support=["VariantValidator", "ClinVar"],
+                    papers=["Smith · 2021"],
+                ),
+                PaperCandidateContext(
+                    gene="RPE65",
+                    hgvs="p.(His241Ala)",
+                    level="protein",
+                    context="experimental_construct",
+                    validation_status="experimental_construct",
+                    evidence_quote="We engineered the RPE65 p.His241Ala substitution by site-directed mutagenesis.",
+                ),
+            ],
+        ),
     )
 
 
@@ -166,6 +206,62 @@ def test_workbench_only_chat_skips_literature_retrieval() -> None:
     )
 
     service.respond(_workbench_payload())
+
+    # No report payload → no genes → retrieval is never attempted.
+    assert retriever.calls == []
+    context = json.loads(chain.payloads[0]["bounded_context"])
+    assert "retrieved_literature" not in context
+
+
+def test_chat_request_accepts_paper_only_context() -> None:
+    # The /paper surface grounds the chat in this paper's resolved candidates,
+    # no report payload — the scoped-context validator must accept it.
+    payload = _paper_payload()
+
+    assert payload.variant_context is None
+    assert payload.workbench is None
+    assert payload.paper is not None
+    assert payload.paper.candidates[0].gene == "RPE65"
+
+
+def test_paper_only_mock_answer_names_paper_mode() -> None:
+    service = ChatService(settings=_settings("mock"), llm_client=None)
+
+    response = service.respond(_paper_payload("Which are experimental constructs?"))
+
+    assert (
+        response.answer
+        == "[mock] Asked about RPE65 in paper mode: Which are experimental constructs?"
+    )
+
+
+def test_paper_only_chat_builds_paper_scoped_context() -> None:
+    chain = FakeLookupChatChain()
+    service = ChatService(settings=_settings(), llm_client=chain)
+
+    service.respond(_paper_payload())
+
+    sent = chain.payloads[0]["bounded_context"]
+    context = json.loads(sent)
+    # Scoped to the paper's resolved candidates only — no report-derived blocks.
+    assert context["paper"]["source_count"] == 1
+    assert context["paper"]["candidates"][0]["gene"] == "RPE65"
+    assert context["paper"]["candidates"][0]["context"] == "clinical_allele"
+    assert context["paper"]["candidates"][1]["validation_status"] == "experimental_construct"
+    assert "variant_summary_rows" not in context
+    assert "call_cards" not in context
+    assert context["workbench"] is None
+    assert "patient_id" not in sent
+
+
+def test_paper_only_chat_skips_literature_retrieval() -> None:
+    retriever = FakeRetriever([_hit()])
+    chain = FakeLookupChatChain()
+    service = ChatService(
+        settings=_settings("gateway"), llm_client=chain, literature_retriever=retriever
+    )
+
+    service.respond(_paper_payload())
 
     # No report payload → no genes → retrieval is never attempted.
     assert retriever.calls == []

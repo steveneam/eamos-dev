@@ -1334,13 +1334,33 @@ export interface WorkbenchContext {
   selected_guide?: number | null
 }
 
+export interface PaperCandidateContext {
+  gene?: string | null
+  hgvs?: string | null
+  level?: string
+  context?: string
+  validation_status?: string
+  validated?: boolean
+  evidence_quote?: string | null
+  source_support?: string[]
+  papers?: string[]
+}
+
+export interface PaperContext {
+  candidates: PaperCandidateContext[]
+  source_count: number
+  sources?: string[]
+}
+
 export interface ChatRequest {
   question: string
-  // Optional: report-less surfaces (Workbench) ground the chat in `workbench`
-  // instead. The backend requires at least one scoped context.
+  // Optional: report-less surfaces (Workbench, Paper → Variants) ground the chat
+  // in `workbench` / `paper` instead. The backend requires at least one scoped
+  // context.
   variant_context?: ReportPayload
   history?: ChatMessage[]
   workbench?: WorkbenchContext | null
+  paper?: PaperContext | null
 }
 
 export interface ChatResponse {

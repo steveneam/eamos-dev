@@ -24,6 +24,10 @@ ALLOWED_CONTEXT_KEYS = frozenset(
         "computational_predictors",
         "expert_panel",
         "workbench",
+        # Paper → Variants scope (spec §8): this paper's resolved candidates +
+        # their short evidence quote + source provenance. Bounded/sanitized by
+        # PaperContext; the full paper body never leaves the server.
+        "paper",
         "warnings",
         # Literature RAG (docs/ai-gateway-rag/spec.md D5): retrieved PubMed abstract
         # snippets, scoped to the variant's gene. Snippets are sanitized by retrieval

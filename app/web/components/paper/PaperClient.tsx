@@ -14,6 +14,7 @@ import { saveVariant } from '@/lib/variant-library'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import { stashCompareVariants, type ParsedVariant } from '@/lib/variant-file'
 import { extractPaperVariants, isMockResponse } from '@/lib/paperVariants'
+import type { PaperChatScope } from '@/lib/chat'
 import type {
   PaperPdfMeta,
   PaperSourceMetadata,
@@ -728,6 +729,29 @@ export function PaperClient() {
   }, [result, merged])
   const saveableRows = useMemo(() => merged.filter((m) => canSaveVariant(m.rep)), [merged])
 
+  // Ask-Eamos paper scope — this run's merged candidates + source provenance,
+  // bounded/sanitized to mirror the backend PaperContext (short evidence quote
+  // only, never the full paper body). Null until an extraction produces
+  // candidates, so the rail's chat stays idle until there's something to ground in.
+  const paperScope = useMemo<PaperChatScope | null>(() => {
+    if (!result || merged.length === 0) return null
+    return {
+      candidates: merged.slice(0, 50).map((m) => ({
+        gene: m.rep.gene,
+        hgvs: bestHgvs(m.rep),
+        level: m.rep.level,
+        context: m.rep.context,
+        validation_status: m.rep.validation_status,
+        validated: m.rep.validated,
+        evidence_quote: m.mentions.find((x) => x.quote)?.quote ?? null,
+        source_support: m.sourceSupport.slice(0, 12),
+        papers: m.sources.slice(0, 12),
+      })),
+      source_count: result.bySource.length,
+      sources: result.bySource.map((s) => sourceHeading(s).short).slice(0, 24),
+    }
+  }, [result, merged])
+
   const openReport = (v: ValidatedPaperVariant) => {
     const href = variantReportHref(v)
     if (href) router.push(href)
@@ -1217,7 +1241,7 @@ export function PaperClient() {
         surface="paper"
         title="Library"
         aiTitle="Ask Eamos"
-        aiPanel={<PaperAiPanel count={merged.length} sources={result?.bySource.length ?? 0} />}
+        aiPanel={<PaperAiPanel paper={paperScope} />}
         foot={<RailFoot />}
         output={output}
       >
