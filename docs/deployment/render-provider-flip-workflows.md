@@ -20,8 +20,12 @@ must not print API keys, service-role keys, JWTs, database URLs, or signed URLs.
 
 ## Hard Gates
 
-- Keep `LLM_PROVIDER=mock` unless the AI gateway security gate explicitly
-  clears a provider flip.
+- **Provider flips are gated.** SG currently runs `LLM_PROVIDER=gateway` — the
+  Steven-cleared gated chat demo (per-user + global daily caps satisfy the AI
+  gateway security gate; prod chat stays hidden behind the unset
+  `NEXT_PUBLIC_AI_CHAT_ENABLED` FE flag). Do not change the provider beyond what
+  the security gate has explicitly cleared; `mock` remains the safe default for
+  any new environment.
 - Do not use Render one-off jobs to materialize files onto the web service
   persistent disk. Use Render Shell, direct SSH/SCP, or a controlled command in
   the live service runtime.
@@ -34,6 +38,29 @@ must not print API keys, service-role keys, JWTs, database URLs, or signed URLs.
   default; raw GFF paths are offline build inputs, not runtime scan inputs.
 - Provider-cache and public health output must stay path/object-URI/secret
   sanitized.
+- **Env-as-code is REQUIRED, not optional.** Every runtime-path env var must
+  resolve to `/var/data/...` on the running service before seeding — via the
+  RENDER-aware `Settings` defaults (`_RENDER_RUNTIME_PATH_DEFAULTS`) and/or the
+  checked-in `render.yaml`. A seed against UNSET paths silently no-ops
+  provider-cache (the service reads ephemeral `./data`). Confirm PID 1 env, not
+  the dashboard.
+- **Resumable transport is REQUIRED for any multi-GB asset.** Provision
+  `SUPABASE_STORAGE_S3_*` on the service so `s3_multipart` works (use the rotated
+  secret); do not start a single-stream REST seed of dbSNP/phyloP.
+
+## Pre-Flight Checklist (required before any seed / provider flip)
+
+Run the read-only pre-flight in
+`docs/deployment/materialization-lessons-learned.md` ("Reusable pre-flight
+checklist") on the **live target** before mutating anything: disk headroom,
+readers present, path env truth (`/var/data` not `./data`), transport creds,
+memory cgroup, durable Storage object exists (incl. derived artifacts), and the
+metadata-reconciliation plan. Acceptance signal is **live health JSON**
+(`/api/v1/health/provider-cache` role `ready`), never file presence alone. The
+idempotent `eamos_materialize_all --manifest` orchestrator (pinned manifest:
+`docs/backend-build-ledger-runtime/materialization-manifest-sg.json`) performs
+the env-as-code + resumable-transport + metadata-reconcile steps in one command;
+prefer it over the per-asset manual commands below.
 
 ## Observe Live State
 

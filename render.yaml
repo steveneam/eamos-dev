@@ -1,0 +1,19 @@
+envVarGroups:
+  - name: eamos-sg-runtime-paths
+    envVars:
+      - key: DBSNP_RUNTIME_VCF_PATH
+        value: /var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz
+      - key: DBSNP_RUNTIME_INDEX_PATH
+        value: /var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz.tbi
+      - key: CLINVAR_RUNTIME_VCF_PATH
+        value: /var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz
+      - key: CLINVAR_RUNTIME_INDEX_PATH
+        value: /var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz.tbi
+      - key: REPEATMASKER_RUNTIME_INDEX_PATH
+        value: /var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl
+      - key: PHYLOP_RUNTIME_BIGWIG_PATH
+        value: /var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw
+      - key: CLINGEN_LOCAL_SQLITE_PATH
+        value: /var/data/eamos/bio_assets/clingen/clingen-local.sqlite
+      - key: CLINGEN_LOCAL_MANIFEST_PATH
+        value: /var/data/eamos/bio_assets/clingen/clingen-local.manifest.json

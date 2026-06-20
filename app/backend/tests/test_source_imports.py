@@ -6,10 +6,15 @@ import pytest
 
 from app.cli import eamos_source_import
 from app.core.config import Settings
+from app.services.derived_runtime_artifacts import build_repeatmasker_compact_upload_item
+from app.services.indexed_sources import REPEATMASKER_COMPACT_INDEX_SCHEMA
 from app.services.source_imports import (
+    CLINVAR_EXISTING_OBJECTS_ID,
     CLINVAR_STORAGE_PILOT_ID,
     DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
     HG38_STORAGE_PILOT_ID,
+    REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID,
+    REPEATMASKER_EXISTING_OBJECTS_ID,
     SourceImportError,
     apply_clinical_source_import_bundle,
     apply_existing_source_asset_metadata_registration,
@@ -232,6 +237,103 @@ def test_existing_dbsnp_phylop_metadata_registration_is_private_and_fail_closed(
     assert report["guardrails"]["local_evidence_enablement"] == "not_used"
 
 
+def test_existing_clinvar_metadata_registration_is_private_and_fail_closed(
+    tmp_path,
+) -> None:
+    items = _clinvar_upload_items(tmp_path)
+
+    registration = build_existing_source_asset_metadata_registration(
+        metadata_set_id=CLINVAR_EXISTING_OBJECTS_ID,
+        upload_items=items,
+        storage_heads_verified=True,
+    )
+    report = existing_source_asset_metadata_report(registration)
+
+    assert len(registration.source_versions) == 1
+    assert len(registration.objects) == 3
+    assert len(registration.materializations) == 3
+    by_role = {source_object.asset_role: source_object for source_object in registration.objects}
+    assert by_role["clinvar_bgzip_vcf"].upload_status == "verified"
+    assert by_role["clinvar_bgzip_vcf"].approval_status == "approved"
+    assert by_role["clinvar_bgzip_vcf"].metadata["public_access_allowed"] is False
+    assert by_role["clinvar_tabix_index"].materialization_required is True
+    assert by_role["upstream_checksum"].materialization_required is False
+    clinvar_materialization = next(
+        item
+        for item in registration.materializations
+        if item.metadata["asset_role"] == "clinvar_bgzip_vcf"
+    )
+    assert clinvar_materialization.local_cache_path == (
+        "/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz"
+    )
+    assert clinvar_materialization.fail_closed_reason == "render_disk_seed_not_performed"
+    assert clinvar_materialization.metadata["reader_requires_local_path"] is True
+    assert "mounted_volume" in clinvar_materialization.metadata["runtime_delivery_modes"]
+    assert report["guardrails"]["render_disk_seed"] == "not_used"
+
+
+def test_existing_repeatmasker_metadata_registration_is_source_only(
+    tmp_path,
+) -> None:
+    items = _repeatmasker_upload_items(tmp_path)
+
+    registration = build_existing_source_asset_metadata_registration(
+        metadata_set_id=REPEATMASKER_EXISTING_OBJECTS_ID,
+        upload_items=items,
+        storage_heads_verified=True,
+    )
+
+    assert len(registration.source_versions) == 1
+    assert len(registration.objects) == 1
+    assert len(registration.materializations) == 1
+    source_object = registration.objects[0]
+    materialization = registration.materializations[0]
+    assert source_object.asset_role == "repeatmasker_source_table"
+    assert source_object.materialization_required is False
+    assert source_object.upload_status == "verified"
+    assert source_object.metadata["public_access_allowed"] is False
+    assert materialization.local_cache_path == (
+        "source_only://repeatmasker_rmsk_bb/ucsc_hg38_rmsk_txt_gz"
+    )
+    assert materialization.fail_closed_reason == (
+        "runtime_uses_derived_compact_index_not_source_table"
+    )
+    assert materialization.metadata["reader_requires_local_path"] is False
+    assert materialization.metadata["runtime_delivery_modes"] == [
+        "offline_compact_index_build_input"
+    ]
+
+
+def test_existing_repeatmasker_compact_metadata_registration_materializes_runtime_index(
+    tmp_path,
+) -> None:
+    item = build_repeatmasker_compact_upload_item(
+        source_artifact_path=_repeatmasker_compact_index(tmp_path),
+        manifest_staging_root=tmp_path / "manifests",
+    )
+
+    registration = build_existing_source_asset_metadata_registration(
+        metadata_set_id=REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID,
+        upload_items=(item,),
+        storage_heads_verified=True,
+    )
+
+    assert len(registration.source_versions) == 1
+    assert len(registration.objects) == 1
+    assert len(registration.materializations) == 1
+    source_object = registration.objects[0]
+    materialization = registration.materializations[0]
+    assert source_object.asset_role == "repeatmasker_compact_interval_index"
+    assert source_object.materialization_required is True
+    assert source_object.object_path.startswith("generated/repeatmasker_rmsk_bb/")
+    assert materialization.local_cache_path == (
+        "/var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
+    )
+    assert materialization.fail_closed_reason == "render_disk_seed_not_performed"
+    assert materialization.metadata["reader_requires_local_path"] is True
+    assert "mounted_volume" in materialization.metadata["runtime_delivery_modes"]
+
+
 def test_existing_dbsnp_phylop_metadata_apply_records_objects_and_materializations(
     tmp_path,
 ) -> None:
@@ -366,6 +468,39 @@ def test_source_import_cli_can_verify_existing_storage_heads(
     assert {item["upload_status"] for item in metadata["objects"]} == {"verified"}
 
 
+def test_source_import_cli_plans_repeatmasker_compact_metadata(
+    tmp_path,
+    capsys,
+) -> None:
+    compact_index = _repeatmasker_compact_index(tmp_path)
+
+    exit_code = eamos_source_import.main(
+        [
+            "--skip-clinical-fixtures",
+            "--storage-pilot",
+            "none",
+            "--existing-object-set",
+            REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID,
+            "--repeatmasker-compact-artifact",
+            str(compact_index),
+            "--storage-heads-verified",
+            "--compact",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    metadata = output["existing_object_metadata"]
+    assert metadata["metadata_set_id"] == REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID
+    assert metadata["objects"][0]["asset_role"] == "repeatmasker_compact_interval_index"
+    assert metadata["objects"][0]["upload_status"] == "verified"
+    assert metadata["materializations"][0]["materialization_status"] == "not_materialized"
+    assert metadata["materializations"][0]["fail_closed_reason"] == (
+        "render_disk_seed_not_performed"
+    )
+    assert str(tmp_path).lower() not in json.dumps(output).lower()
+
+
 def test_source_import_apply_uses_configured_store_and_smoke(monkeypatch) -> None:
     store = FakeSourceImportStore()
     monkeypatch.setattr(
@@ -474,6 +609,70 @@ def _dbsnp_phylop_upload_items(tmp_path):
         ),
         large_staging_root=large_root,
     )
+
+
+def _clinvar_upload_items(tmp_path):
+    root = tmp_path / "source_assets"
+    files = {
+        "ncbi_clinvar_vcf/clinvar.vcf.gz": b"clinvar-vcf",
+        "ncbi_clinvar_vcf/clinvar.vcf.gz.tbi": b"clinvar-tbi",
+        "ncbi_clinvar_vcf/clinvar.vcf.gz.md5": b"clinvar-md5",
+    }
+    for relative, payload in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        path.with_suffix(path.suffix + ".manifest.json").write_text(
+            json.dumps(
+                {
+                    "md5": "b" * 32,
+                    "sha256": f"{len(payload):064x}"[-64:],
+                }
+            ),
+            encoding="utf-8",
+        )
+    return build_source_storage_upload_items(
+        source_ids=("ncbi_clinvar_vcf",),
+        small_staging_root=root,
+    )
+
+
+def _repeatmasker_upload_items(tmp_path):
+    root = tmp_path / "source_assets"
+    path = root / "repeatmasker_rmsk_bb" / "rmsk.txt.gz"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"repeatmasker-source")
+    path.with_suffix(path.suffix + ".manifest.json").write_text(
+        json.dumps(
+            {
+                "md5": "c" * 32,
+                "sha256": f"{path.stat().st_size:064x}"[-64:],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return build_source_storage_upload_items(
+        source_ids=("repeatmasker_rmsk_bb",),
+        small_staging_root=root,
+    )
+
+
+def _repeatmasker_compact_index(tmp_path):
+    path = tmp_path / "repeatmasker.interval-index.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "schema": REPEATMASKER_COMPACT_INDEX_SCHEMA,
+                "source_id": "repeatmasker_rmsk_bb",
+                "source_version": "pytest",
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def _clinical_release_asset_root(tmp_path):

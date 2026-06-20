@@ -5,6 +5,7 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 import socket
+import tempfile
 from typing import Any
 
 from sqlalchemy.engine import make_url
@@ -14,10 +15,14 @@ from app.repos.supabase_local_model_cache_repo import (
     SupabaseLocalModelCacheError,
     build_supabase_local_model_cache_store,
 )
+from app.services.derived_runtime_artifacts import build_repeatmasker_compact_upload_item
 from app.services.source_imports import (
+    CLINVAR_EXISTING_OBJECTS_ID,
     DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
     EXISTING_OBJECT_SET_SOURCE_IDS,
     HG38_STORAGE_PILOT_ID,
+    REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID,
+    REPEATMASKER_EXISTING_OBJECTS_ID,
     SourceImportError,
     apply_clinical_source_import_bundle,
     apply_existing_source_asset_metadata_registration,
@@ -83,11 +88,26 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--existing-object-set",
-        choices=("none", DBSNP_PHYLOP_EXISTING_OBJECTS_ID),
+        choices=(
+            "none",
+            DBSNP_PHYLOP_EXISTING_OBJECTS_ID,
+            CLINVAR_EXISTING_OBJECTS_ID,
+            REPEATMASKER_EXISTING_OBJECTS_ID,
+            REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID,
+        ),
         default="none",
         help=(
-            "plan/apply existing private Storage object metadata. Use dbsnp_phylop "
-            "for the M2 dbSNP + phyloP reconciliation."
+            "plan/apply existing private Storage object metadata. Approved sets: "
+            "dbsnp_phylop, clinvar_vcf, repeatmasker_source, repeatmasker_compact_index."
+        ),
+    )
+    parser.add_argument(
+        "--repeatmasker-compact-artifact",
+        type=Path,
+        default=None,
+        help=(
+            "local derived compact interval index to use when --existing-object-set "
+            "repeatmasker_compact_index is selected"
         ),
     )
     parser.add_argument(
@@ -164,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             existing_object_set_id=(
                 None if args.existing_object_set == "none" else args.existing_object_set
             ),
+            repeatmasker_compact_artifact_path=args.repeatmasker_compact_artifact,
             storage_heads_verified=args.storage_heads_verified,
             verify_storage_heads=args.verify_storage_heads,
             environment=args.environment,
@@ -215,6 +236,7 @@ def build_source_import_report(
     clinical_source_version_overrides: dict[str, str] | None = None,
     storage_pilot_id: str | None = HG38_STORAGE_PILOT_ID,
     existing_object_set_id: str | None = None,
+    repeatmasker_compact_artifact_path: Path | None = None,
     storage_heads_verified: bool = False,
     verify_storage_heads: bool = False,
     environment: str = "sg-render",
@@ -284,30 +306,59 @@ def build_source_import_report(
         report["storage_pilot"] = pilot_report
 
     if existing_object_set_id is not None:
-        upload_items = build_source_storage_upload_items(
-            source_ids=EXISTING_OBJECT_SET_SOURCE_IDS[existing_object_set_id],
-        )
-        resolved_storage_heads_verified = storage_heads_verified
-        if verify_storage_heads:
-            resolved_storage_heads_verified = _verify_existing_storage_heads(
-                settings,
-                upload_items,
+        with tempfile.TemporaryDirectory(prefix="eamos-existing-object-manifests-") as temp_dir:
+            upload_items = _build_existing_object_upload_items(
+                existing_object_set_id=existing_object_set_id,
+                repeatmasker_compact_artifact_path=repeatmasker_compact_artifact_path,
+                manifest_staging_root=Path(temp_dir),
             )
-        registration = build_existing_source_asset_metadata_registration(
-            metadata_set_id=existing_object_set_id,
-            upload_items=upload_items,
-            environment=environment,
-            backend_runtime=backend_runtime,
-            storage_heads_verified=resolved_storage_heads_verified,
-        )
-        metadata_report = existing_source_asset_metadata_report(registration)
-        if store is not None:
-            metadata_report["apply_result"] = asdict(
-                apply_existing_source_asset_metadata_registration(store, registration)
+            resolved_storage_heads_verified = storage_heads_verified
+            if verify_storage_heads:
+                resolved_storage_heads_verified = _verify_existing_storage_heads(
+                    settings,
+                    upload_items,
+                )
+            registration = build_existing_source_asset_metadata_registration(
+                metadata_set_id=existing_object_set_id,
+                upload_items=upload_items,
+                environment=environment,
+                backend_runtime=backend_runtime,
+                storage_heads_verified=resolved_storage_heads_verified,
             )
-        report["existing_object_metadata"] = metadata_report
+            metadata_report = existing_source_asset_metadata_report(registration)
+            if store is not None:
+                metadata_report["apply_result"] = asdict(
+                    apply_existing_source_asset_metadata_registration(store, registration)
+                )
+            report["existing_object_metadata"] = metadata_report
 
     return report
+
+
+def _build_existing_object_upload_items(
+    *,
+    existing_object_set_id: str,
+    repeatmasker_compact_artifact_path: Path | None,
+    manifest_staging_root: Path,
+):
+    if existing_object_set_id == REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID:
+        if repeatmasker_compact_artifact_path is None:
+            raise SourceImportError(
+                "repeatmasker_compact_artifact_missing",
+                (
+                    "--existing-object-set repeatmasker_compact_index requires "
+                    "--repeatmasker-compact-artifact"
+                ),
+            )
+        return (
+            build_repeatmasker_compact_upload_item(
+                source_artifact_path=repeatmasker_compact_artifact_path,
+                manifest_staging_root=manifest_staging_root,
+            ),
+        )
+    return build_source_storage_upload_items(
+        source_ids=EXISTING_OBJECT_SET_SOURCE_IDS[existing_object_set_id],
+    )
 
 
 def _check_supabase_database_tcp_reachable(

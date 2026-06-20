@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import re
 
-from app.cli import eamos_repeatmasker_compact_index_build
+from app.cli import (
+    eamos_repeatmasker_compact_artifact_upload,
+    eamos_repeatmasker_compact_index_build,
+)
 from app.services.indexed_sources import REPEATMASKER_COMPACT_INDEX_SCHEMA, RepeatMaskerIndexedTable
 from app.services.repeatmasker_local import (
     REPEATMASKER_SOURCE_ID,
@@ -118,6 +121,43 @@ def test_compact_index_builder_cli_is_build_time_only(tmp_path, capsys) -> None:
     assert output["result"]["interval_count"] == 1
     assert output["guardrails"]["render_disk_seed"] == "not_used"
     assert output["guardrails"]["local_evidence_enabled_flip"] == "not_used"
+
+
+def test_compact_index_upload_cli_plans_private_storage_object_without_paths(
+    tmp_path,
+    capsys,
+) -> None:
+    output_path = tmp_path / "repeatmasker.interval-index.jsonl"
+    RepeatMaskerIndexedTable.from_ucsc_rmsk_rows(
+        [
+            "585\t1200\t12\t1\t0\tchr1\t100\t130\t-870\t+\tAluY\tSINE\tAlu\t1\t30\t0\t1",
+        ]
+    ).write_compact_jsonl(
+        output_path,
+        source_id=REPEATMASKER_SOURCE_ID,
+        source_version="pytest",
+    )
+
+    exit_code = eamos_repeatmasker_compact_artifact_upload.main(
+        [
+            "--source-artifact",
+            str(output_path),
+            "--compact",
+        ]
+    )
+
+    assert exit_code == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["mode"] == "eamos_repeatmasker_compact_artifact_upload"
+    assert output["status"] == "planned"
+    assert output["guardrails"]["render_disk_seed"] == "not_used"
+    item = output["result"]["items"][0]
+    assert item["status"] == "planned"
+    assert item["object_path"].startswith("generated/repeatmasker_rmsk_bb/")
+    assert item["sha256"]
+    encoded = json.dumps(output).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "service_role" not in encoded
 
 
 def test_repeat_overlap_boundaries_are_inclusive() -> None:

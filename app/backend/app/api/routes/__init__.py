@@ -7,6 +7,7 @@ from app.api.routes.evidence import router as evidence_router
 from app.api.routes.gene_viewer import router as gene_viewer_router
 from app.api.routes.health import router as health_router
 from app.api.routes.lookup import router as lookup_router
+from app.api.routes.materialization import router as materialization_router
 from app.api.routes.panels import router as panels_router
 from app.api.routes.paper_variants import router as paper_variants_router
 from app.api.routes.payments import router as payments_router
@@ -27,6 +28,7 @@ def build_api_router() -> APIRouter:
     router.include_router(evidence_router)
     router.include_router(gene_viewer_router)
     router.include_router(lookup_router)
+    router.include_router(materialization_router)
     router.include_router(panels_router)
     router.include_router(paper_variants_router)
     router.include_router(payments_router)

@@ -237,6 +237,28 @@ hold:
   follow-on Codex task AFTER the disk is provisioned + seeded, not an immediate
   consequence of attaching the disk.
 
+Hardening added 2026-06-21 01:05 +1000 - Claude (from the 2026-06-20/21 hotspot
+seed dry-run; canonical write-up `docs/deployment/materialization-lessons-learned.md`):
+
+- **HIGH — manual seed without env-as-code silently no-ops provider-cache.** On
+  live SG the 8 runtime-path env vars (`*_RUNTIME_*_PATH`, `CLINGEN_LOCAL_*_PATH`)
+  were UNSET, so Pydantic defaulted to relative `./data/...` (ephemeral `/app`),
+  NOT `/var/data`. Seeding files onto the disk would NOT have flipped
+  provider-cache to `ready` because the service was reading a different (empty)
+  path. Mitigation now in code: `Settings` is RENDER-aware
+  (`_RENDER_RUNTIME_PATH_DEFAULTS` in `core/config.py` defaults these to
+  `/var/data/...` whenever a `RENDER*` env var is present) + a checked-in
+  `render.yaml` env group. **Pre-flight rule:** before any seed, confirm the path
+  env vars actually resolve to `/var/data` on the running service (read PID 1 env,
+  not the dashboard) — file presence on disk is NOT proof the service will use it.
+- **HIGH — non-resumable large-asset transport.** SG has no
+  `SUPABASE_STORAGE_S3_*` creds, so the only download mode is single-stream REST
+  with no range-resume. A dropped connection mid-transfer on the 29.55 GB dbSNP
+  object (or 9.87 GB phyloP) restarts from zero. **Pre-flight rule:** provision the
+  S3 creds on the service so `s3_multipart` works (use the ROTATED secret — the old
+  one was transcript-leaked 2026-06-20) before seeding any multi-GB asset; treat a
+  non-resumable multi-GB seed as a do-not-start condition.
+
 ## Backend Launch Security Findings
 
 Section edited: 2026-05-26 20:23 +1000 - Codex.

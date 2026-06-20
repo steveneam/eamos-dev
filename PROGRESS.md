@@ -6369,6 +6369,44 @@ Coordination:
 - Post-checkpoint backend changes remain uncommitted unless the user asks for
   another commit.
 
+## 2026-06-20 22:52 +1000 - Codex - M6/M7 Storage metadata gate
+
+Advanced the build-ledger materialization lane without runtime/provider flips.
+
+Completed:
+- Added approved `eamos_source_import --existing-object-set` paths for
+  `clinvar_vcf` and `repeatmasker_source`.
+- Uploaded ClinVar GRCh38 `clinvar.vcf.gz`, `.tbi`, and upstream checksum plus
+  RepeatMasker `rmsk.txt.gz` to private `eamos-source-assets` using S3
+  multipart upload.
+- Verified object and manifest visibility with S3 head-object checks.
+- Registered four Supabase private metadata rows through the connector after
+  the committed local apply path hit the known pooler TCP timeout from this
+  workstation.
+- Updated the build-ledger materialization docs with the new M6/M7 state.
+
+Verification:
+- `python -m pytest tests/test_source_imports.py tests/test_source_storage_uploads.py -q`
+  -> passed (26 tests).
+- `python -m ruff check app/cli/eamos_source_import.py app/services/source_imports.py tests/test_source_imports.py tests/test_source_storage_uploads.py`
+  -> passed.
+- `python -m black --check --target-version py310 app/cli/eamos_source_import.py app/services/source_imports.py tests/test_source_imports.py tests/test_source_storage_uploads.py`
+  -> passed.
+- `python -m pytest tests/test_health_api.py -q --durations=10`
+  -> passed (21 tests).
+- Targeted source-preflight tests for guarded readiness, M2 metadata, and local
+  evidence runtime assets -> passed (3 tests). Full
+  `tests/test_source_asset_preflight_cli.py` timed out under the earlier 5
+  minute limit.
+- `git diff --check` -> passed.
+- `python -m graphify update .` -> passed on the longer retry; no topology
+  changes detected.
+
+Guardrails:
+- No Render disk seed, Render env change, provider flip,
+  `LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG corpus work, Tier-2 upload, or
+  `app/backend/app/core/config.py` edit.
+
 ## 2026-06-01 18:51 +1000 - Codex - Example-pill cleanup and ClinicalTrials match hardening
 
 Implemented the safe parallel slice while Claude works on the printing-press

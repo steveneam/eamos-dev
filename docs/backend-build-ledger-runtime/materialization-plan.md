@@ -42,12 +42,12 @@ Supabase inventory checked on 2026-06-19:
 
 | Area | Observed state | Required action |
 | --- | --- | --- |
-| `source_asset_objects` | Rows exist for hg38, Pfam, compact coordinate index artifact + manifest, and five dbSNP/phyloP existing-object rows. The dbSNP/phyloP rows are `verified`, `approved`, and private. | Register ClinVar and RepeatMasker objects before treating them as durable approved assets. |
-| `source_asset_materializations` | hg38, Pfam, and compact coordinate index SG rows are `ready`. Five dbSNP/phyloP SG rows exist and are intentionally `not_materialized` with `render_disk_seed_not_performed`. | Register ClinVar/RepeatMasker materializations, then seed dbSNP/phyloP/ClinVar/RepeatMasker only through explicit runtime gates. |
+| `source_asset_objects` | Rows exist for hg38, Pfam, compact coordinate index artifact + manifest, five dbSNP/phyloP existing-object rows, three ClinVar rows, and one RepeatMasker source row. The dbSNP/phyloP, ClinVar, and RepeatMasker rows are `verified`, `approved`, and private. | Register the derived RepeatMasker compact runtime artifact before Storage-backed RepeatMasker runtime seeding. |
+| `source_asset_materializations` | hg38, Pfam, and compact coordinate index SG rows are `ready`. dbSNP/phyloP/ClinVar SG rows are intentionally `not_materialized` with `render_disk_seed_not_performed`. The RepeatMasker raw source row is source-only with `runtime_uses_derived_compact_index_not_source_table`. | Seed dbSNP/phyloP/ClinVar only through explicit runtime gates; upload/register the derived RepeatMasker compact artifact before its Storage-backed seed. |
 | Storage prefix `transcripts/eamos_coordinate_index` | Compact index artifact and manifest uploaded, registered, and materialized on SG on 2026-06-14. | No repeat action; next blocker is deploying the local build-ledger Gene View fix. |
 | Storage prefix `ncbi_dbsnp_gcf_000001405_40` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bgzip VCF, tabix index, and upstream checksum. | Seed bgzip and `.tbi` onto Render only after the explicit runtime gate. |
 | Storage prefix `ucsc_phylop100way_hg38` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bigWig and upstream checksum. | Seed bigWig onto Render only after the explicit runtime gate. |
-| ClinVar / RepeatMasker prefixes | No durable objects observed. | Locate, upload, register, and verify before runtime work. |
+| ClinVar / RepeatMasker prefixes | ClinVar VCF, ClinVar tabix, ClinVar upstream checksum, and the official RepeatMasker `rmsk.txt.gz` source are uploaded, registered, verified, approved, and private. | ClinVar next step is Render Shell runtime seed; RepeatMasker next step is derived compact artifact upload/register, not raw source runtime seed. |
 | Clinical tables | MONDO/HPO/ClinGen/GenCC tables contain fixture-scale rows only. Release-file importer now plans the staged full tables: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845. | Apply through the committed importer from a host that can reach the Supabase Postgres pooler; the local DB URL gate is configured, but this workstation timed out to the pooler before writes. No Render disk work is involved. |
 
 ## Hard Gates
@@ -171,10 +171,14 @@ Steps:
    - roles for bigWig and checksum/manifest objects;
    - matching SG materialization rows remain fail-closed as
      `not_materialized`.
-4. Locate or upload ClinVar GRCh38 VCF plus `.tbi` before any ClinVar runtime
-   flip.
-5. Locate or upload RepeatMasker official source plus the derived compact
-   runtime interval index before any RepeatMasker runtime flip.
+4. **Done 2026-06-20 22:27 +1000:** uploaded and registered ClinVar GRCh38 VCF,
+   `.tbi`, and upstream checksum objects as verified, approved, private
+   metadata. SG materialization rows remain `not_materialized` until Render
+   Shell seed.
+5. **Done 2026-06-20 22:27 +1000:** uploaded and registered the official
+   RepeatMasker `rmsk.txt.gz` source as verified, approved, private,
+   source-only metadata. The derived compact runtime interval index still needs
+   upload/register before any Storage-backed RepeatMasker runtime seed.
 
 Prefer committed metadata CLIs/importers over manual SQL. If SQL is used for a
 one-time reconciliation, capture the exact query in a follow-up runbook.
@@ -240,11 +244,12 @@ First live use is the phyloP BigWig seed from the SG service runtime:
 ```bash
 python -m app.cli.eamos_local_evidence_runtime_seed \
   --role phylop_bigwig \
-  --source-object-uri supabase://eamos-source-assets/<private-phylop-object-path> \
+  --source-object-uri supabase://eamos-source-assets/ucsc_phylop100way_hg38/ucsc_hg38_phylop100way_bw/sha256-445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973/hg38.phyloP100way.bw \
   --destination /var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw \
   --download-mode s3_multipart \
-  --expected-size-bytes <verified-byte-size> \
-  --expected-sha256 <verified-sha256> \
+  --expected-size-bytes 9870053206 \
+  --expected-md5 43858006bdf98145b6fd239490bd0478 \
+  --expected-sha256 445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973 \
   --require-ready \
   --compact
 ```
@@ -314,6 +319,18 @@ python -m app.cli.eamos_generated_artifact_upload --compact
 python -m app.cli.eamos_generated_artifact_upload --artifact pubmed_local --upload --upload-mode s3_multipart
 
 python -m app.cli.eamos_generated_artifact_sync \
+  --artifact clingen_local \
+  --source-object-uri supabase://eamos-source-assets/generated/eamos_clingen_local/clingen_local_sqlite/sha256-50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b/clingen-local.sqlite \
+  --destination /var/data/eamos/bio_assets/clingen/clingen-local.sqlite \
+  --manifest-destination /var/data/eamos/bio_assets/clingen/clingen-local.manifest.json \
+  --download-mode s3_multipart \
+  --expected-size-bytes 527925248 \
+  --expected-md5 60997c2c9a6837bd8614f489e79021fb \
+  --expected-sha256 50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b \
+  --require-ready \
+  --compact
+
+python -m app.cli.eamos_generated_artifact_sync \
   --artifact pubmed_local \
   --source-object-uri supabase://eamos-source-assets/generated/eamos_pubmed_local/.../pubmed-local.sqlite \
   --force \
@@ -335,6 +352,12 @@ through a temp file, validates size/checksum and the artifact-specific SQLite
 schema, writes the runtime manifest sidecar, and atomically replaces the runtime
 file. It does not register `source_asset_objects`, mutate Render env, create
 signed URLs, or set `LOCAL_EVIDENCE_ENABLED`.
+
+2026-06-20 M1 note: Codex uploaded the current ClinGen generated SQLite object
+and manifest to private Storage at the `sha256-50e12d4c...` identity above.
+This supersedes the older `sha256-4b4a93b...` 2026-06-11 object for runtime
+sync. No Render disk seed, Supabase metadata row, env change, provider flip, or
+local-evidence gate flip was performed.
 
 ### 6.5. MaveDB CC0 Functional Scores
 
@@ -477,11 +500,13 @@ signed URLs, flip providers, or unlock restricted predictor launch behavior.
 4. Run the Tier 1 generated-artifact upload/sync lane for ClinGen local and
    literature embeddings after the offline artifacts are built. Do not upload
    the 200-PMID PubMed proof as production PubMed-local.
-5. Register the uploaded generated artifacts in `source_asset_objects` /
-   `source_asset_materializations` once the Storage object identities are
-   approved.
-6. Register dbSNP and phyloP Storage objects in `source_asset_objects`.
-7. Seed dbSNP and phyloP onto Render as the first heavy local-adapter batch.
+5. Register the uploaded generated ClinGen artifact in `source_asset_objects` /
+   `source_asset_materializations` once that generated-artifact identity is
+   approved for source-asset metadata tracking.
+6. Upload/register the derived RepeatMasker compact interval index artifact;
+   the raw source object is already private and verified.
+7. Seed phyloP, ClinVar, and dbSNP onto Render through explicit runtime gates,
+   then verify provider-cache before any local-evidence enablement.
 
 ## Verification Commands
 

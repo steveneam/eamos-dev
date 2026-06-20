@@ -20,6 +20,9 @@ from app.services.clinical_source_tables import (
 HG38_STORAGE_PILOT_ID = "hg38_2bit"
 CLINVAR_STORAGE_PILOT_ID = "clinvar_vcf"
 DBSNP_PHYLOP_EXISTING_OBJECTS_ID = "dbsnp_phylop"
+CLINVAR_EXISTING_OBJECTS_ID = "clinvar_vcf"
+REPEATMASKER_EXISTING_OBJECTS_ID = "repeatmasker_source"
+REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID = "repeatmasker_compact_index"
 STORAGE_PILOT_SOURCE_IDS = {
     HG38_STORAGE_PILOT_ID: "ucsc_hg38_2bit",
     CLINVAR_STORAGE_PILOT_ID: "ncbi_clinvar_vcf",
@@ -29,19 +32,33 @@ EXISTING_OBJECT_SET_SOURCE_IDS = {
         "ncbi_dbsnp_gcf_000001405_40",
         "ucsc_phylop100way_hg38",
     ),
+    CLINVAR_EXISTING_OBJECTS_ID: ("ncbi_clinvar_vcf",),
+    REPEATMASKER_EXISTING_OBJECTS_ID: ("repeatmasker_rmsk_bb",),
+    REPEATMASKER_COMPACT_EXISTING_OBJECTS_ID: ("repeatmasker_rmsk_bb",),
 }
 DEFAULT_SOURCE_ASSET_BUCKET = "eamos-source-assets"
 
 _PLANNED_RUNTIME_PATHS_BY_ROLE = {
     "dbsnp_bgzip_vcf": "/var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz",
     "dbsnp_tabix_index": "/var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz.tbi",
+    "clinvar_bgzip_vcf": "/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz",
+    "clinvar_tabix_index": "/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz.tbi",
     "phylop_bigwig": "/var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw",
+    "repeatmasker_compact_interval_index": (
+        "/var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
+    ),
     "upstream_checksum": None,
 }
 _LOCAL_FILE_RUNTIME_ROLES = {
     "dbsnp_bgzip_vcf",
     "dbsnp_tabix_index",
+    "clinvar_bgzip_vcf",
+    "clinvar_tabix_index",
     "phylop_bigwig",
+    "repeatmasker_compact_interval_index",
+}
+_SOURCE_ONLY_ROLES = {
+    "repeatmasker_source_table",
 }
 _RUNTIME_DELIVERY_MODES_BY_ROLE = {
     "dbsnp_bgzip_vcf": (
@@ -52,10 +69,23 @@ _RUNTIME_DELIVERY_MODES_BY_ROLE = {
         "object_storage_local_cache",
         "mounted_volume",
     ),
+    "clinvar_bgzip_vcf": (
+        "object_storage_local_cache",
+        "mounted_volume",
+    ),
+    "clinvar_tabix_index": (
+        "object_storage_local_cache",
+        "mounted_volume",
+    ),
     "phylop_bigwig": (
         "object_storage_local_cache",
         "mounted_volume",
     ),
+    "repeatmasker_compact_interval_index": (
+        "object_storage_local_cache",
+        "mounted_volume",
+    ),
+    "repeatmasker_source_table": ("offline_compact_index_build_input",),
 }
 
 
@@ -707,7 +737,7 @@ def build_existing_source_asset_metadata_registration(
                 checksum_value=item.sha256 or item.md5,
                 ready_marker=None,
                 verified_at=None,
-                fail_closed_reason="render_disk_seed_not_performed",
+                fail_closed_reason=_fail_closed_reason(item.role),
                 metadata={
                     "metadata_set_id": metadata_set_id,
                     "asset_id": item.asset_id,
@@ -986,12 +1016,14 @@ def _source_version_asset_metadata(item: Any) -> dict[str, Any]:
 
 
 def _materialization_required_for_role(role: str) -> bool:
-    return role != "upstream_checksum"
+    return role != "upstream_checksum" and role not in _SOURCE_ONLY_ROLES
 
 
 def _planned_runtime_path(item: Any) -> str:
     if item.role == "upstream_checksum":
         return f"not_materialized://{item.source_id}/{item.asset_id}"
+    if item.role in _SOURCE_ONLY_ROLES:
+        return f"source_only://{item.source_id}/{item.asset_id}"
     planned = _PLANNED_RUNTIME_PATHS_BY_ROLE.get(item.role)
     if planned is not None:
         return planned
@@ -999,11 +1031,19 @@ def _planned_runtime_path(item: Any) -> str:
 
 
 def _reader_requires_local_path(role: str, record: DataSourceRecord) -> bool:
+    if role in _SOURCE_ONLY_ROLES:
+        return False
     return role in _LOCAL_FILE_RUNTIME_ROLES or record.reader_requires_local_path
 
 
 def _runtime_delivery_modes(role: str, record: DataSourceRecord) -> tuple[str, ...]:
     return _RUNTIME_DELIVERY_MODES_BY_ROLE.get(role, record.runtime_delivery_modes)
+
+
+def _fail_closed_reason(role: str) -> str:
+    if role in _SOURCE_ONLY_ROLES:
+        return "runtime_uses_derived_compact_index_not_source_table"
+    return "render_disk_seed_not_performed"
 
 
 def _guardrails() -> dict[str, str]:

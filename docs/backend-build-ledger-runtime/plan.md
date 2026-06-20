@@ -160,6 +160,40 @@ Out of scope: PubMed local, literature RAG, CSpec UI rendering.
   explicit runtime sync on the service disk before relying on local-first
   ClinGen behavior.
 
+2026-06-20 update:
+
+- The current local ClinGen artifact supersedes the 2026-06-11 private object:
+  schema `eamos.clingen_local.v1`, source version
+  `ClinGen eRepo/CSpec full snapshot 2026-06-19`, 12,690 eRepo rows, 77,801
+  CSpec entities, and 25,772 CSpec links.
+- Canonical M1 identity is now private Storage object
+  `generated/eamos_clingen_local/clingen_local_sqlite/sha256-50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b/clingen-local.sqlite`,
+  size `527925248`, MD5 `60997c2c9a6837bd8614f489e79021fb`, SHA256
+  `50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b`.
+  Codex uploaded the artifact and manifest to private Storage by S3 multipart;
+  no Render seed, Supabase metadata write, provider flip, or env change was
+  performed.
+- Render Shell sync command, after confirming SG has the required private S3
+  credentials:
+
+```bash
+python -m app.cli.eamos_generated_artifact_sync \
+  --artifact clingen_local \
+  --source-object-uri supabase://eamos-source-assets/generated/eamos_clingen_local/clingen_local_sqlite/sha256-50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b/clingen-local.sqlite \
+  --destination /var/data/eamos/bio_assets/clingen/clingen-local.sqlite \
+  --manifest-destination /var/data/eamos/bio_assets/clingen/clingen-local.manifest.json \
+  --download-mode s3_multipart \
+  --expected-size-bytes 527925248 \
+  --expected-md5 60997c2c9a6837bd8614f489e79021fb \
+  --expected-sha256 50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b \
+  --require-ready \
+  --compact
+```
+
+  If SG already has an older ClinGen runtime file and the command reports an
+  existing-artifact mismatch, rerun the same command with `--force` after
+  confirming the 2026-06-19 identity is still the intended target.
+
 ### M2 - Existing-Object Metadata Reconciliation
 
 Goal: reconcile durable metadata for private Storage objects that already
@@ -333,11 +367,12 @@ Out of scope: local-evidence gate flip.
 ```powershell
 python -m app.cli.eamos_local_evidence_runtime_seed `
   --role phylop_bigwig `
-  --source-object-uri supabase://eamos-source-assets/<private-phylop-object-path> `
+  --source-object-uri supabase://eamos-source-assets/ucsc_phylop100way_hg38/ucsc_hg38_phylop100way_bw/sha256-445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973/hg38.phyloP100way.bw `
   --destination /var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw `
   --download-mode s3_multipart `
-  --expected-size-bytes <verified-byte-size> `
-  --expected-sha256 <verified-sha256> `
+  --expected-size-bytes 9870053206 `
+  --expected-md5 43858006bdf98145b6fd239490bd0478 `
+  --expected-sha256 445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973 `
   --require-ready `
   --compact
 ```
@@ -358,6 +393,63 @@ Verify:
 ```powershell
 cd app/backend
 python -m pytest tests/test_clinvar_vcv.py tests/test_health_api.py -q
+```
+
+2026-06-20 update:
+
+- Staged ClinVar GRCh38 files were uploaded to private `eamos-source-assets`
+  by S3 multipart and verified by S3 head-object checks for each object plus
+  manifest. Supabase metadata registration is complete for three
+  `ncbi_clinvar_vcf` objects: `clinvar_bgzip_vcf`, `clinvar_tabix_index`, and
+  `upstream_checksum`. The VCF and tabix rows are `verified`/`approved` and
+  still fail closed as SG `not_materialized` with
+  `render_disk_seed_not_performed`; the checksum row is registered as
+  non-materializing metadata.
+- The committed importer now supports the exact metadata plan/apply path:
+
+```bash
+python -m app.cli.eamos_source_import \
+  --skip-clinical-fixtures \
+  --storage-pilot none \
+  --existing-object-set clinvar_vcf \
+  --verify-storage-heads \
+  --compact
+```
+
+- Upload command already run successfully:
+
+```bash
+python -m app.cli.eamos_source_storage_upload \
+  --source ncbi_clinvar_vcf \
+  --upload \
+  --upload-mode s3_multipart \
+  --compact
+```
+
+- Next gated step: seed both runtime roles from Render Shell:
+
+```bash
+python -m app.cli.eamos_local_evidence_runtime_seed \
+  --role clinvar_bgzip_vcf \
+  --source-object-uri supabase://eamos-source-assets/ncbi_clinvar_vcf/clinvar_grch38_vcf_gz/sha256-bd3cdbc07bf26aa5d136219e2db665b65c6e40edcbf15778b1096f5aba615302/clinvar.vcf.gz \
+  --destination /var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz \
+  --download-mode s3_multipart \
+  --expected-size-bytes 191912185 \
+  --expected-md5 f56bc2236287e25e472fda9bda9d7551 \
+  --expected-sha256 bd3cdbc07bf26aa5d136219e2db665b65c6e40edcbf15778b1096f5aba615302 \
+  --require-ready \
+  --compact
+
+python -m app.cli.eamos_local_evidence_runtime_seed \
+  --role clinvar_tabix_index \
+  --source-object-uri supabase://eamos-source-assets/ncbi_clinvar_vcf/clinvar_grch38_vcf_tbi/sha256-8163ba8700e54c674784ab61fbd0816030d69778675c16f9e1a80694a85b13b7/clinvar.vcf.gz.tbi \
+  --destination /var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz.tbi \
+  --download-mode s3_multipart \
+  --expected-size-bytes 609481 \
+  --expected-md5 974654a1d7e19a2d3ae216560c0926e7 \
+  --expected-sha256 8163ba8700e54c674784ab61fbd0816030d69778675c16f9e1a80694a85b13b7 \
+  --require-ready \
+  --compact
 ```
 
 ### M7 - RepeatMasker Runtime Index
@@ -420,6 +512,58 @@ python -m pytest tests/test_repeatmasker_local_adapter.py tests/test_indexed_sou
   work occurred. Live SG remains unseeded until explicit upload/register/seed
   gates.
 
+2026-06-20 update:
+
+- The official staged `rmsk.txt.gz` source was uploaded to private
+  `eamos-source-assets` by S3 multipart and verified by S3 head-object checks
+  for the object plus manifest. Supabase metadata registration is complete for
+  `repeatmasker_rmsk_bb` / `repeatmasker_source_table` with
+  `upload_status=verified`, `approval_status=approved`,
+  `materialization_required=false`, and SG `fail_closed_reason` set to
+  `runtime_uses_derived_compact_index_not_source_table`.
+- The committed importer now supports the exact metadata plan/apply path:
+
+```bash
+python -m app.cli.eamos_source_import \
+  --skip-clinical-fixtures \
+  --storage-pilot none \
+  --existing-object-set repeatmasker_source \
+  --verify-storage-heads \
+  --compact
+```
+
+- Upload command already run successfully:
+
+```bash
+python -m app.cli.eamos_source_storage_upload \
+  --source repeatmasker_rmsk_bb \
+  --upload \
+  --upload-mode s3_multipart \
+  --compact
+```
+
+- Source object identity from the plan:
+  `repeatmasker_rmsk_bb/ucsc_hg38_rmsk_txt_gz/sha256-db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276/rmsk.txt.gz`,
+  size `155633856`, MD5 `b2e108b535550ba9e3cf83c77417380f`, SHA256
+  `db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276`.
+- The runtime seed target is still the derived compact interval index, not the
+  source table. The compact artifact identity is size `701514606`, SHA256
+  `6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98`.
+  Upload/register of that derived compact artifact is still gated before a
+  Storage-backed Render seed. If the compact artifact is placed on the SG
+  instance by an approved operator channel instead, the seed command shape is:
+
+```bash
+python -m app.cli.eamos_local_evidence_runtime_seed \
+  --role repeatmasker_compact_interval_index \
+  --source-artifact /tmp/repeatmasker.interval-index.jsonl \
+  --destination /var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl \
+  --expected-size-bytes 701514606 \
+  --expected-sha256 6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98 \
+  --require-ready \
+  --compact
+```
+
 ### M8 - dbSNP Runtime Seed
 
 Goal: seed the dbSNP bgzip VCF plus `.tbi` from private Storage onto SG Render
@@ -433,6 +577,37 @@ Acceptance criteria:
 - dbSNP local adapter reports ready from production runtime files.
 - Allele identity lookup works from local indexed files.
 - Runtime memory remains bounded during probe/query.
+
+2026-06-20 prep:
+
+- Approved private Storage object identities are registered in
+  `source_asset_objects`; SG materialization rows remain
+  `not_materialized` with `render_disk_seed_not_performed`.
+- Render Shell seed commands:
+
+```bash
+python -m app.cli.eamos_local_evidence_runtime_seed \
+  --role dbsnp_bgzip_vcf \
+  --source-object-uri supabase://eamos-source-assets/ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_gz/sha256-43bb897b69177555a8e9edeb7d8c8ea3e581dddaefadfafe29f36bed0d870574/GCF_000001405.40.gz \
+  --destination /var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz \
+  --download-mode s3_multipart \
+  --expected-size-bytes 29552227779 \
+  --expected-md5 6a6f313e92a39c337571174dad12cfe1 \
+  --expected-sha256 43bb897b69177555a8e9edeb7d8c8ea3e581dddaefadfafe29f36bed0d870574 \
+  --require-ready \
+  --compact
+
+python -m app.cli.eamos_local_evidence_runtime_seed \
+  --role dbsnp_tabix_index \
+  --source-object-uri supabase://eamos-source-assets/ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_tbi/sha256-d6c38c0b715e5fe16c715f2aaed04b3964ed7f38f00c5921e10afd3649b2b104/GCF_000001405.40.gz.tbi \
+  --destination /var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz.tbi \
+  --download-mode s3_multipart \
+  --expected-size-bytes 3140346 \
+  --expected-md5 ba10bcbae4f0ad9b01244efdd564d6e2 \
+  --expected-sha256 d6c38c0b715e5fe16c715f2aaed04b3964ed7f38f00c5921e10afd3649b2b104 \
+  --require-ready \
+  --compact
+```
 
 Verify: provider-cache plus targeted dbSNP/local-evidence tests.
 

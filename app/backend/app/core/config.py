@@ -1,9 +1,38 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_RENDER_RUNTIME_PATH_DEFAULTS = {
+    "dbsnp_runtime_vcf_path": Path("/var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz"),
+    "dbsnp_runtime_index_path": Path("/var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz.tbi"),
+    "clinvar_runtime_vcf_path": Path("/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz"),
+    "clinvar_runtime_index_path": Path("/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz.tbi"),
+    "repeatmasker_runtime_index_path": Path(
+        "/var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
+    ),
+    "phylop_runtime_bigwig_path": Path("/var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw"),
+    "clingen_local_sqlite_path": Path("/var/data/eamos/bio_assets/clingen/clingen-local.sqlite"),
+    "clingen_local_manifest_path": Path(
+        "/var/data/eamos/bio_assets/clingen/clingen-local.manifest.json"
+    ),
+}
+
+_LOCAL_RUNTIME_PATH_DEFAULTS = {
+    "dbsnp_runtime_vcf_path": Path("./data/bio_assets/dbsnp/GCF_000001405.40.gz"),
+    "dbsnp_runtime_index_path": Path("./data/bio_assets/dbsnp/GCF_000001405.40.gz.tbi"),
+    "clinvar_runtime_vcf_path": Path("./data/bio_assets/clinvar/clinvar.vcf.gz"),
+    "clinvar_runtime_index_path": Path("./data/bio_assets/clinvar/clinvar.vcf.gz.tbi"),
+    "repeatmasker_runtime_index_path": Path(
+        "./data/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
+    ),
+    "phylop_runtime_bigwig_path": Path("./data/bio_assets/phylop/hg38.phyloP100way.bw"),
+    "clingen_local_sqlite_path": Path("./data/bio_assets/clingen/clingen-local.sqlite"),
+    "clingen_local_manifest_path": Path("./data/bio_assets/clingen/clingen-local.manifest.json"),
+}
 
 
 class Settings(BaseSettings):
@@ -53,6 +82,7 @@ class Settings(BaseSettings):
     rate_limit_chat_max_requests: int = 10
     rate_limit_evidence_max_requests: int = 10
     rate_limit_library_max_requests: int = 60
+    rate_limit_materialization_admin_max_requests: int = 2
     rate_limit_payments_checkout_max_requests: int = 6
     rate_limit_payments_webhook_max_requests: int = 60
     rate_limit_workbench_max_requests: int = 20
@@ -159,6 +189,12 @@ class Settings(BaseSettings):
     )
     phylop_runtime_bigwig_path: Path = Path("./data/bio_assets/phylop/hg38.phyloP100way.bw")
     local_evidence_runtime_seed_timeout_seconds: float = 1200.0
+    admin_materialization_enabled: bool = False
+    admin_materialization_token_sha256: str | None = None
+    admin_materialization_manifest_path: Path = Path(
+        "../../docs/backend-build-ledger-runtime/materialization-manifest-sg.json"
+    )
+    admin_materialization_max_items: int = 8
     pubmed_local_enabled: bool = False
     pubmed_local_sqlite_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.sqlite")
     pubmed_local_manifest_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.manifest.json")
@@ -311,9 +347,33 @@ class Settings(BaseSettings):
     def fixtures_root(self) -> Path:
         return self.backend_root / "app" / "fixtures"
 
+    def model_post_init(self, __context: object) -> None:
+        if not _running_on_render():
+            return
+        env_keys = {key.upper() for key in os.environ}
+        for attr, render_default in _RENDER_RUNTIME_PATH_DEFAULTS.items():
+            env_name = attr.upper()
+            if env_name in env_keys:
+                continue
+            current = Path(getattr(self, attr))
+            if current == _LOCAL_RUNTIME_PATH_DEFAULTS[attr]:
+                setattr(self, attr, render_default)
+
 
 def _resolve_runtime_path(settings: Settings, path: Path) -> Path:
     return path if path.is_absolute() else settings.backend_root / path
+
+
+def _running_on_render() -> bool:
+    return any(
+        os.environ.get(key)
+        for key in (
+            "RENDER",
+            "RENDER_SERVICE_ID",
+            "RENDER_EXTERNAL_HOSTNAME",
+            "RENDER_SERVICE_NAME",
+        )
+    )
 
 
 def ensure_runtime_dirs(settings: Settings) -> None:
