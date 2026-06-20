@@ -37,6 +37,7 @@ from app.services.clinvar_local import (
 )
 from app.services.functional_evidence import FunctionalEvidenceExtractor
 from app.services.gene_context_snapshot import GeneContextSnapshotService
+from app.services.local_evidence_orchestrator import LocalEvidenceRuntimeGate
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
 from app.services.report_call_cards import (
     build_population_frequency_detail,
@@ -128,6 +129,8 @@ def _clinvar_distribution_store(vcf_path: str | None) -> ClinVarLocalStore:
 
 
 def _clinvar_distribution_runtime_path(settings: Any) -> str | None:
+    if not LocalEvidenceRuntimeGate.from_settings(settings).allows("lookup"):
+        return None
     raw_path = getattr(settings, "clinvar_runtime_vcf_path", None)
     raw_index_path = getattr(settings, "clinvar_runtime_index_path", None)
     if raw_path is None:

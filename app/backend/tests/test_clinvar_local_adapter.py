@@ -132,13 +132,23 @@ def test_lookup_service_requires_vcf_and_index_before_full_clinvar_distribution(
     settings = SimpleNamespace(
         clinvar_runtime_vcf_path=vcf_path,
         clinvar_runtime_index_path=index_path,
+        local_evidence_enabled=False,
+        local_evidence_allowed_flows_raw="lookup",
+        local_evidence_require_real_apis=True,
+        use_real_apis=True,
     )
 
     assert _clinvar_distribution_runtime_path(settings) is None
 
     index_path.write_bytes(b"index")
 
+    assert _clinvar_distribution_runtime_path(settings) is None
+
+    settings.local_evidence_enabled = True
     assert _clinvar_distribution_runtime_path(settings) == str(vcf_path)
+
+    settings.local_evidence_allowed_flows_raw = "gene_viewer"
+    assert _clinvar_distribution_runtime_path(settings) is None
 
 
 def test_lookup_accepts_contig_alias_and_vcv_or_variation_id() -> None:
