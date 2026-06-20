@@ -1336,7 +1336,9 @@ export interface WorkbenchContext {
 
 export interface ChatRequest {
   question: string
-  variant_context: ReportPayload
+  // Optional: report-less surfaces (Workbench) ground the chat in `workbench`
+  // instead. The backend requires at least one scoped context.
+  variant_context?: ReportPayload
   history?: ChatMessage[]
   workbench?: WorkbenchContext | null
 }

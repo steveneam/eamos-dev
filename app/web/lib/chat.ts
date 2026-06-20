@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client'
-import type { ReportPayload } from '@/lib/backend'
+import type { ReportPayload, WorkbenchTool } from '@/lib/backend'
 
 // next.config rewrites same-origin `/api/*` to the FastAPI backend (no CORS).
 // Set NEXT_PUBLIC_API_BASE_URL to an absolute origin to call a remote backend.
@@ -14,25 +14,32 @@ export interface ReportChatTurn {
   content: string
 }
 
+/** The Workbench scope a report-less chat is grounded in — the active tool and
+ *  (optionally) the current selection. Mirrors the backend `WorkbenchContext`;
+ *  `scratchpad` is server-defaulted so callers only send what they have. */
+export interface WorkbenchChatScope {
+  active_tool: WorkbenchTool
+  selected_primer_pair?: number | null
+  selected_guide?: number | null
+}
+
 /**
- * Streams the Ask-Eamos variant chat (docs/ai-gateway/plan.md): posts the report
- * payload + question (+ prior turns) to the variant-lookup chat endpoint, which
- * grounds the answer in an evidence-only bounded context and streams tokens back
- * as text/plain. Yields decoded token chunks as they arrive.
+ * Shared transport for every Ask-Eamos surface: posts a scoped chat body to the
+ * gateway endpoint and streams text/plain tokens back. Ask-Eamos requires login
+ * (docs/ai-gateway/pre-launch-security.md) — the endpoint reaches the paid
+ * gateway, so we attach the Supabase bearer token and the backend derives the
+ * user from the JWT and rate-limits per user. Yields decoded chunks as they
+ * arrive. The `body` carries the surface's scoped context (report or workbench).
  */
-export async function* streamReportChat(
-  payload: ReportPayload,
-  question: string,
-  history: ReportChatTurn[] = [],
+async function* postChatStream(
+  body: Record<string, unknown>,
+  signInMessage: string,
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
-  // Ask-Eamos requires login (docs/ai-gateway/pre-launch-security.md): the chat
-  // endpoint reaches the paid gateway, so attach the Supabase bearer token. The
-  // backend derives the user from the JWT and rate-limits per user.
   const { data, error: sessionError } = await createClient().auth.getSession()
   const accessToken = data.session?.access_token
   if (sessionError || !accessToken) {
-    throw new Error('Sign in to ask Eamos about this variant.')
+    throw new Error(signInMessage)
   }
 
   const res = await fetch(`${API_BASE_URL}/api/v1/chat/stream`, {
@@ -41,7 +48,7 @@ export async function* streamReportChat(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ question, variant_context: payload, history }),
+    body: JSON.stringify(body),
     signal,
   })
 
@@ -49,8 +56,8 @@ export async function* streamReportChat(
     throw new Error('Your session expired — sign in again to ask Eamos.')
   }
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Chat request failed: ${res.status}${body ? ` — ${body}` : ''}`)
+    const text = await res.text().catch(() => '')
+    throw new Error(`Chat request failed: ${res.status}${text ? ` — ${text}` : ''}`)
   }
 
   if (!res.body) throw new Error('No response body')
@@ -68,4 +75,37 @@ export async function* streamReportChat(
   } finally {
     reader.releaseLock()
   }
+}
+
+/**
+ * Streams the Ask-Eamos variant chat (docs/ai-gateway/plan.md): grounds the
+ * answer in the full report payload as an evidence-only bounded context. Used by
+ * the /report (and /compare) rail.
+ */
+export function streamReportChat(
+  payload: ReportPayload,
+  question: string,
+  history: ReportChatTurn[] = [],
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  return postChatStream(
+    { question, variant_context: payload, history },
+    'Sign in to ask Eamos about this variant.',
+    signal,
+  )
+}
+
+/**
+ * Streams the Workbench-scoped Ask-Eamos chat: no report payload, grounded in
+ * the active tool's context only (docs/ai-gateway/plan.md). Selecting the tool
+ * IS the context boundary — keeps the prompt window tight and the assistant
+ * honest about what it can see.
+ */
+export function streamWorkbenchChat(
+  workbench: WorkbenchChatScope,
+  question: string,
+  history: ReportChatTurn[] = [],
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  return postChatStream({ question, workbench, history }, 'Sign in to ask Eamos.', signal)
 }

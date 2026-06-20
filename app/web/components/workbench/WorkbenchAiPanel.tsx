@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { IconSparkle } from '@/components/icons/Icon'
 import type { WorkbenchTool } from '@/lib/backend'
 import { AskEamos } from '@/components/aistack/AskEamos'
+import { streamWorkbenchChat } from '@/lib/chat'
 import { ToolIcon } from './ToolIcon'
 
 /**
@@ -104,6 +105,11 @@ export function WorkbenchAiPanel({
       </header>
       <AskEamos
         enabled={AI_CHAT_ENABLED}
+        // Scoped to the active tool only — selecting the tool IS the context
+        // boundary (no report payload reaches this surface).
+        stream={(question, history, signal) =>
+          streamWorkbenchChat({ active_tool: tool }, question, history, signal)
+        }
         suggestions={cfg.suggestions}
         intro={<p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--ink-2)' }}>{cfg.intro}</p>}
       />

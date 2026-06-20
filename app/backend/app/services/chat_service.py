@@ -118,9 +118,10 @@ class ChatService:
         return [{"role": m.role, "content": m.content} for m in payload.history]
 
     def _mock_answer(self, payload: ChatRequest) -> str:
+        report = payload.variant_context
         gene = (
-            payload.variant_context.variant_summary_rows[0].gene
-            if payload.variant_context.variant_summary_rows
+            report.variant_summary_rows[0].gene
+            if report and report.variant_summary_rows
             else "this variant"
         )
         tool = payload.workbench.active_tool if payload.workbench else "lookup"
@@ -128,6 +129,18 @@ class ChatService:
 
     def _build_bounded_context(self, payload: ChatRequest) -> str:
         report = payload.variant_context
+        if report is None:
+            # Report-less surfaces ground the chat in their own scoped context
+            # only (Workbench active tool today; cohort / paper contexts later).
+            # No report payload means no call cards / predictors / publications /
+            # literature retrieval — just the surface scope, evidence-only.
+            context = {
+                "workbench": self._workbench_context(payload),
+                "warnings": [],
+            }
+            serialized = json.dumps(context, sort_keys=True, default=str)
+            assert_evidence_only(context, serialized)
+            return serialized
         profile = report.report_profile
         computational = (
             profile.computational_deep_dive.predictors

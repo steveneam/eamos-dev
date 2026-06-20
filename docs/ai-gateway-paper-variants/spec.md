@@ -130,3 +130,44 @@ only extraction *quality* waits on the gateway flip.
 - Phase 4 needs the gateway enable pass (off-transcript key re-mint + credits).
 - Catalogue: fold these files into the `eamos-ai-gateway` entry once Codex's
   active `index.json` round settles.
+
+## 8. Ask-Eamos verification pass over the source paper (planned — Steven 2026-06-20)
+
+The `/paper` Ask-Eamos rail is **not** a generic chat over the extracted list — it
+should run a **semantic pass over the dropped-in / attached paper(s)** to *verify
+each candidate is genuinely the right variant* before the user trusts it. The
+deterministic/regex + tiered-resolution pipeline above answers "what strings look
+like variants and where do they resolve"; this pass answers "is this mention a
+real reported allele **in this paper**, or a false positive from somewhere it
+shouldn't count."
+
+Edge cases the pass must catch (fail-closed — when unsure, downgrade, don't assert):
+
+- **Reference / bibliography section** — an `c.`/`p.` token inside a cited paper's
+  title or a reference list is **not** a variant this paper reports.
+- **Background / "previously reported"** mentions vs the paper's **own** findings —
+  flag provenance (this paper's result vs a recounted prior one).
+- **Experimental constructs vs clinical alleles** — already a `context` discriminator
+  (§3); the pass should corroborate it from surrounding prose, not just the token.
+- **Figure/table captions, supplementary, primer/oligo sequences** — coordinate-ish
+  strings that aren't reported patient variants.
+
+Design constraints (consistent with the per-surface scoping model, [[project_ai_gateway]]):
+
+- **Scoped context, like every Ask-Eamos surface** — grounded only in *this* paper's
+  resolved candidates + their `evidence_quote` + section provenance, never a
+  free-floating chat (enforced now by `ChatRequest`'s require-a-scoped-context
+  validator). Needs a `PaperContext` shape (candidates + sources + per-candidate
+  section/locus) added to `ChatRequest` + the guard allowlist, mirroring how
+  `WorkbenchContext` was added.
+- **Reuse, don't rebuild** — the verification leans on the same structured-extraction
+  + source-backed resolution stack (§5); the chat pass *adjudicates* provenance, it
+  doesn't re-extract from scratch.
+- **Provenance, not raw text** — keep the sanitized-output guarantees (short
+  `evidence_quote` snippets only, never the full paper body leaving the server).
+- Gateway-gated; renders inert (`.eamos-mock`) until `LLM_PROVIDER=gateway`, like the
+  rest of the slice.
+
+This is a Paper-surface follow-on; the cross-surface chat foundation (optional
+`variant_context` + scoped-context validator + report-less grounding) already
+landed with the Workbench slice.

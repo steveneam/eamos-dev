@@ -56,6 +56,20 @@ def _chat_payload(question: str = "What does the current evidence show?") -> Cha
     )
 
 
+def _workbench_payload(question: str = "Pick the safest primer pair.") -> ChatRequest:
+    # A report-less, Workbench-scoped request: no variant_context, just the
+    # active-tool context the /workbench rail carries.
+    return ChatRequest(
+        question=question,
+        workbench=WorkbenchContext(active_tool="primer", selected_primer_pair=2),
+    )
+
+
+def test_chat_request_requires_a_scoped_context() -> None:
+    with pytest.raises(ValidationError):
+        ChatRequest(question="Tell me anything.")
+
+
 def test_chat_request_rejects_oversized_history_before_context_building() -> None:
     with pytest.raises(ValidationError):
         ChatRequest(
@@ -115,6 +129,48 @@ def test_live_chat_uses_invoke_adapter_with_bounded_context() -> None:
     assert context["workbench"]["active_tool"] == "primer"
     assert "patient_id" not in sent["bounded_context"]
     assert "sensitive patient details" not in sent["bounded_context"]
+
+
+def test_workbench_only_mock_answer_has_no_variant() -> None:
+    service = ChatService(settings=_settings("mock"), llm_client=None)
+
+    response = service.respond(_workbench_payload("Explain this primer design."))
+
+    assert (
+        response.answer
+        == "[mock] Asked about this variant in primer mode: Explain this primer design."
+    )
+
+
+def test_workbench_only_chat_builds_tool_scoped_context() -> None:
+    chain = FakeLookupChatChain()
+    service = ChatService(settings=_settings(), llm_client=chain)
+
+    service.respond(_workbench_payload())
+
+    sent = chain.payloads[0]["bounded_context"]
+    context = json.loads(sent)
+    # Scoped to the Workbench tool only — no report-derived evidence blocks.
+    assert context["workbench"]["active_tool"] == "primer"
+    assert context["workbench"]["selected_primer_pair"] == 2
+    assert "variant_summary_rows" not in context
+    assert "call_cards" not in context
+    assert "patient_id" not in sent
+
+
+def test_workbench_only_chat_skips_literature_retrieval() -> None:
+    retriever = FakeRetriever([_hit()])
+    chain = FakeLookupChatChain()
+    service = ChatService(
+        settings=_settings("gateway"), llm_client=chain, literature_retriever=retriever
+    )
+
+    service.respond(_workbench_payload())
+
+    # No report payload → no genes → retrieval is never attempted.
+    assert retriever.calls == []
+    context = json.loads(chain.payloads[0]["bounded_context"])
+    assert "retrieved_literature" not in context
 
 
 def test_live_chat_rejects_complete_only_clients() -> None:

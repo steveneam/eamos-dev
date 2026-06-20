@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.run import ReportPayload
 
@@ -30,9 +30,22 @@ class WorkbenchContext(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4_000)
-    variant_context: ReportPayload
+    # Optional so report-less surfaces (Workbench tool context today; cohort /
+    # paper contexts later) can ground a chat in their own scope. The /report
+    # surface still sends the full payload exactly as before.
+    variant_context: ReportPayload | None = None
     history: list[ChatMessage] = Field(default_factory=list, max_length=24)
     workbench: WorkbenchContext | None = None
+
+    @model_validator(mode="after")
+    def _require_scoped_context(self) -> "ChatRequest":
+        # Ask-Eamos is scoped per surface, never a free-floating assistant: every
+        # request must carry at least one grounding context (a report payload for
+        # /report, or a Workbench tool context for /workbench). This keeps the
+        # evidence-only guard meaningful and the prompt window tight.
+        if self.variant_context is None and self.workbench is None:
+            raise ValueError("ChatRequest requires a scoped context: variant_context or workbench.")
+        return self
 
 
 class ChatResponse(BaseModel):

@@ -7,6 +7,15 @@ interface AskEamosProps {
    *  Optional: cohort surfaces (Batch) reuse the shell in its coming-soon state,
    *  where `send` is gated off and no payload is dereferenced. */
   payload?: ReportPayload
+  /** Alternative scoped sender for report-less surfaces (Workbench tool context;
+   *  later cohort/paper). When provided it replaces the report-payload stream, so
+   *  this shell stays presentation-only and never learns the context shape. One of
+   *  `payload` or `stream` must be set for `send` to fire. */
+  stream?: (
+    question: string,
+    history: ReportChatTurn[],
+    signal: AbortSignal,
+  ) => AsyncGenerator<string>
   /** Capability flag — flips the chat from the coming-soon state to live. */
   enabled: boolean
   suggestions?: string[]
@@ -27,6 +36,13 @@ const DEFAULT_SUGGESTIONS = [
   'Are there any active trials?',
 ]
 
+/** Bind a report payload into the shared sender signature, so the shell drives
+ *  report and report-less surfaces through one code path. */
+function reportSender(payload: ReportPayload) {
+  return (question: string, history: ReportChatTurn[], signal: AbortSignal) =>
+    streamReportChat(payload, question, history, signal)
+}
+
 /**
  * The Ask-Eamos chat shell for the work-rail (docs/ai-work-rail/spec.md): a
  * scrollable conversation area (the evidence summary opens it, messages follow)
@@ -35,7 +51,13 @@ const DEFAULT_SUGGESTIONS = [
  * renders the guiding coming-soon state, and the AI gateway lights it up with no
  * rebuild. Layout lives in work-rail.css (`.wr-chat*`).
  */
-export function AskEamos({ payload, enabled, suggestions = DEFAULT_SUGGESTIONS, intro }: AskEamosProps) {
+export function AskEamos({
+  payload,
+  stream,
+  enabled,
+  suggestions = DEFAULT_SUGGESTIONS,
+  intro,
+}: AskEamosProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -43,8 +65,13 @@ export function AskEamos({ payload, enabled, suggestions = DEFAULT_SUGGESTIONS, 
   const abortRef = useRef<AbortController | null>(null)
   const disabled = !enabled
 
+  // One scoped sender: an explicit `stream` (Workbench tool context) wins;
+  // otherwise the report payload grounds it. Null when neither is set → `send`
+  // is a no-op (coming-soon shells that render but can't fire).
+  const sender = stream ?? (payload ? reportSender(payload) : null)
+
   const send = async (question: string) => {
-    if (!enabled || !payload || !question.trim() || streaming) return
+    if (!enabled || !sender || !question.trim() || streaming) return
     setError(null)
     setInput('')
     // Prior completed turns become multi-turn history (the new pair is appended after).
@@ -56,7 +83,7 @@ export function AskEamos({ payload, enabled, suggestions = DEFAULT_SUGGESTIONS, 
     const controller = new AbortController()
     abortRef.current = controller
     try {
-      for await (const chunk of streamReportChat(payload, question, history, controller.signal)) {
+      for await (const chunk of sender(question, history, controller.signal)) {
         setMessages((prev) => {
           const next = [...prev]
           const last = next[next.length - 1]
