@@ -138,6 +138,25 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+### 5. Compounding Learning — leave a ratchet
+
+**Every incident, review, or hard-won lesson should leave a durable artifact behind, not live only in chat.**
+
+The loop is **capture → route → compress → verify it fires** (not capture alone). Route each lesson to *one* canonical home by half-life, and link rather than duplicate:
+
+- Minutes–hours → chat / status update
+- This session's state → `agent_handoff/CURRENT.md`
+- Known risk / operational guardrail → `agent_handoff/RISKS.md` or the active plan
+- Cross-session invariant → `MEMORY.md` / `AGENTS.md` / this file / a skill
+- Repeatable action → a script or CLI
+- Behavioral guarantee → a test
+
+Two disciplines:
+- **Add-only is a leak.** A bloated store is anti-memory — recall degrades. Every add pairs with a prune or correction of the now-stale copy (delete/replace, don't just append).
+- **Shared rule layers are proposed, not unilaterally written.** Tests and scripts in owned code can be written directly; changes to `CLAUDE.md` / `AGENTS.md` should be coordinated, because bad or duplicated rules create drift.
+
+(Converged Claude + Codex, 2026-06-20.)
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
