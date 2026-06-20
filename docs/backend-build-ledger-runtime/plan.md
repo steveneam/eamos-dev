@@ -61,6 +61,24 @@ Also compare live SG provider-cache before any runtime decision. Do not flip
 providers, env vars, or startup materialization from this backlog unless the
 task explicitly reaches that acceptance gate.
 
+2026-06-21 live checkpoint:
+
+- M3 clinical release import is complete, live-run verified, and gate-off.
+  Counts: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO
+  gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845.
+- SG seed assets are ready for the local-evidence batch: hg38, compact
+  coordinate index, dbSNP, phyloP, ClinVar, RepeatMasker compact index, and
+  generated ClinGen local runtime.
+- `LOCAL_EVIDENCE_ENABLED=false`; `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW` was not
+  flipped; `CLINGEN_LOCAL_ENABLED` remains a separate gate.
+- Post-import RPE65 lookup stability is green after deploy `87af99b`:
+  `/healthz`, `/api/v1/health/provider-cache`, and
+  `/api/v1/lookup/summary` returned 200 on live SG, and sanitized output scan
+  passed.
+- M9 is proposal-only until Steven approves the env flip. The lookup flow must
+  not re-enable request-time full-VCF ClinVar distribution; keep that path
+  indexed/bounded or excluded before flipping `lookup`.
+
 ### M0 - Ledger Baseline
 
 Goal: capture the true current state from local preflight and live SG
@@ -100,6 +118,17 @@ Out of scope: downloads, uploads, Render disk writes, provider flips.
 - Live SG `source_assets.clingen_local` remains `db_missing` with zero
   eRepo/CSpec counts. No Storage, Supabase metadata, Render, or env mutation
   was performed during the baseline.
+
+2026-06-21 checkpoint:
+
+- Live SG provider-cache reports ready runtime lanes for hg38, compact
+  coordinate index, Gene View, Pfam, AlphaMissense, dbSNP, phyloP, ClinVar,
+  RepeatMasker, and ClinGen local runtime.
+- `source_assets.local_evidence_runtime_assets.ready_count=4` of `4`.
+- `source_assets.clingen_local.ready=true`, while `enabled=false` keeps
+  ClinGen local as a separate unflipped gate.
+- `local_evidence_orchestrator` remains disabled because
+  `LOCAL_EVIDENCE_ENABLED=false`.
 
 ### M1 - ClinGen/CSpec Generated SQLite Sync
 
@@ -283,19 +312,27 @@ Out of scope: local-evidence gate, PubMed/RAG.
   `clinical_hpo_gene_phenotypes=329339`,
   `clinical_clingen_gene_validity=3596`, and
   `clinical_gencc_assertions=29845`.
-- Live Supabase `eamos_private` currently remains fixture-scale by readback:
-  MONDO 2, HPO terms 3, HPO disease phenotypes 2, HPO gene phenotypes 3,
-  ClinGen validity 2, GenCC assertions 2. The private Postgres DB URL gate was
-  added locally after this checkpoint, but the committed importer apply path
-  timed out before writing rows because this workstation cannot open TCP
-  connections to the Supabase pooler host (`aws-1-ap-southeast-2.pooler.supabase.com`)
-  on port 5432. Connector SQL remains limited to readback/verification and is
-  not the right path for streaming roughly 666k clinical rows.
+- 2026-06-19 historical state: live Supabase `eamos_private` was still
+  fixture-scale by readback: MONDO 2, HPO terms 3, HPO disease phenotypes 2,
+  HPO gene phenotypes 3, ClinGen validity 2, GenCC assertions 2. This is
+  superseded by the 2026-06-21 M3 closeout below.
 - 2026-06-19 follow-up: the apply path now performs a fast sanitized TCP
   preflight before parsing/applying release files. On this workstation it fails
   in seconds with `supabase_import_database_unreachable` and host/port/timeout
   only; no secrets, release rows, writes, connector bulk SQL, or provider flips
   are involved.
+
+2026-06-21 closeout:
+
+- M3 release import is complete and live-run verified. Do not run it again
+  unless Steven explicitly asks for a re-import.
+- Imported row counts: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes
+  281,996; HPO gene phenotypes 329,339; ClinGen gene-validity 3,596; GenCC
+  assertions 29,845; total 676,606.
+- Final gate state after M3 remains `ADMIN_MATERIALIZATION_ENABLED=false` and
+  `LOCAL_EVIDENCE_ENABLED=false`.
+- Post-import lookup stability fix deployed in `87af99b`; live RPE65 summary
+  returns 200 and sanitized output scan passed.
 
 ### M4 - Local Evidence Runtime Probes
 
@@ -329,7 +366,8 @@ Out of scope: Render seeding and `LOCAL_EVIDENCE_ENABLED=true`.
 - Build-ledger rows for dbSNP, ClinVar, RepeatMasker, and phyloP stay
   `source_ready_for_materialization` with `seed_verified_render_disk_cache`
   blockers until configured production runtime files are present, then promote
-  to `ready`.
+  to `ready`. Superseding 2026-06-21 live status reports all four runtime
+  roles ready on SG.
 - Focused tests cover missing-runtime and ready-runtime paths without leaking
   configured temp paths. No Render seed, local-evidence enablement, downloads,
   uploads, PubMed/RAG, ESM1b, or provider/env flips were performed.
@@ -360,9 +398,9 @@ Out of scope: local-evidence gate flip.
   local paths, object URIs, secrets, private checksums, or signed URLs, and does
   not mutate Supabase metadata, Render env/deploy state, providers, or
   `LOCAL_EVIDENCE_ENABLED`.
-- Live SG is not seeded yet. The runtime command must be run from the approved
-  Render Shell/operator context with the private source object URI and expected
-  identity:
+- Superseding 2026-06-21 status: live SG is seeded and
+  `phylop_conservation_reader` reports ready. The command shape remains the
+  approved refresh path if this asset is replaced:
 
 ```powershell
 python -m app.cli.eamos_local_evidence_runtime_seed `
@@ -402,9 +440,10 @@ python -m pytest tests/test_clinvar_vcv.py tests/test_health_api.py -q
   manifest. Supabase metadata registration is complete for three
   `ncbi_clinvar_vcf` objects: `clinvar_bgzip_vcf`, `clinvar_tabix_index`, and
   `upstream_checksum`. The VCF and tabix rows are `verified`/`approved` and
-  still fail closed as SG `not_materialized` with
+  initially failed closed as SG `not_materialized` with
   `render_disk_seed_not_performed`; the checksum row is registered as
-  non-materializing metadata.
+  non-materializing metadata. Superseding 2026-06-21 live status reports
+  ClinVar runtime ready on SG.
 - The committed importer now supports the exact metadata plan/apply path:
 
 ```bash
@@ -426,7 +465,12 @@ python -m app.cli.eamos_source_storage_upload \
   --compact
 ```
 
-- Next gated step: seed both runtime roles from Render Shell:
+- Superseding 2026-06-21 status: live SG is seeded and
+  `clinvar_local_adapter` reports ready. The full gene-wide ClinVar
+  distribution path is currently gated behind `lookup` local evidence to avoid
+  request-time full-VCF parsing while local evidence is disabled. Before M9
+  enables `lookup`, make this path indexed/bounded or keep it excluded. The
+  command shape remains the approved refresh path:
 
 ```bash
 python -m app.cli.eamos_local_evidence_runtime_seed \
@@ -484,7 +528,8 @@ python -m pytest tests/test_repeatmasker_local_adapter.py tests/test_indexed_sou
 - The builder is build-time/operator-only: no download, Storage upload, Render
   seed, provider flip, `LOCAL_EVIDENCE_ENABLED` flip, startup materialization,
   PubMed/RAG, or ESM1b work occurred.
-- Live SG is not seeded with the RepeatMasker compact index yet.
+- Superseding 2026-06-21 status: live SG is seeded with the RepeatMasker compact
+  index and `repeatmasker_local_adapter` reports ready.
 
 2026-06-19 production-build checkpoint:
 
@@ -509,8 +554,8 @@ python -m pytest tests/test_repeatmasker_local_adapter.py tests/test_indexed_sou
   `python -m pytest tests\test_health_api.py::test_provider_cache_health_reports_local_evidence_runtime_assets_without_paths -q`.
 - No Storage upload, Supabase metadata write, Render seed, provider flip,
   `LOCAL_EVIDENCE_ENABLED` flip, startup materialization, PubMed/RAG, or ESM1b
-  work occurred. Live SG remains unseeded until explicit upload/register/seed
-  gates.
+  work occurred in that build slice. Superseding 2026-06-21 live status reports
+  the RepeatMasker compact index ready on SG.
 
 2026-06-20 update:
 
@@ -549,9 +594,9 @@ python -m app.cli.eamos_source_storage_upload \
 - The runtime seed target is still the derived compact interval index, not the
   source table. The compact artifact identity is size `701514606`, SHA256
   `6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98`.
-  Upload/register of that derived compact artifact is still gated before a
-  Storage-backed Render seed. If the compact artifact is placed on the SG
-  instance by an approved operator channel instead, the seed command shape is:
+  Refreshes should use the same explicit Storage/register/seed path, or an
+  approved operator channel that places the compact artifact on the SG instance.
+  The seed command shape is:
 
 ```bash
 python -m app.cli.eamos_local_evidence_runtime_seed \
@@ -581,8 +626,13 @@ Acceptance criteria:
 2026-06-20 prep:
 
 - Approved private Storage object identities are registered in
-  `source_asset_objects`; SG materialization rows remain
-  `not_materialized` with `render_disk_seed_not_performed`.
+  `source_asset_objects`; at the 2026-06-20 prep checkpoint, SG
+  materialization rows still read `not_materialized` with
+  `render_disk_seed_not_performed`.
+- Superseding 2026-06-21 status: live SG is seeded and
+  `dbsnp_local_adapter` reports ready. Reconcile stale metadata labels
+  separately if they still read `not_materialized`; do not reseed or flip local
+  evidence from that label alone.
 - Render Shell seed commands:
 
 ```bash
@@ -616,13 +666,51 @@ Verify: provider-cache plus targeted dbSNP/local-evidence tests.
 Goal: enable local evidence only after hg38, compact index, dbSNP, ClinVar,
 RepeatMasker, and phyloP are production-path verified.
 
+Status 2026-06-21: production-path seed assets and post-import lookup stability
+are green. This is now proposal-ready, not flip-approved.
+
 Acceptance criteria:
 
 - `LOCAL_EVIDENCE_ENABLED=true` is paired with narrow
-  `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW`, initially `lookup,gene_viewer`.
+  `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW=lookup,gene_viewer`.
 - `LOCAL_EVIDENCE_REQUIRE_REAL_APIS=true` remains set.
 - Lookup and Gene View smokes prove local evidence is active without broad
   fallback regressions.
+- `search` and `workbench` remain outside the allowed flows.
+- `CLINGEN_LOCAL_ENABLED=true` is reviewed as a separate gate.
+- The ClinVar gene-distribution lookup path is indexed/gene-bounded or excluded
+  before `lookup` is enabled. The post-M3 stabilization prevents request-time
+  full-VCF parsing only while local evidence remains off.
+
+Proposed M9 env delta, pending Steven approval:
+
+```text
+LOCAL_EVIDENCE_ENABLED=true
+LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW=lookup,gene_viewer
+LOCAL_EVIDENCE_REQUIRE_REAL_APIS=true
+```
+
+Preflight before any flip:
+
+1. Verify `/healthz` and `/api/v1/health/provider-cache` on live SG.
+2. Confirm `local_evidence_runtime_assets.ready_count=4` of `4`.
+3. Confirm `source_assets.clingen_local.enabled=false` unless the separate
+   ClinGen gate is intentionally being tested.
+4. Confirm lookup stability remains green for `RPE65:c.260A>G`.
+5. Confirm live output redaction: no local paths, object URIs, admin token,
+   bearer token, DB URL, service-role key, or secret-like values.
+
+Rollback:
+
+```text
+LOCAL_EVIDENCE_ENABLED=false
+```
+
+If the separate ClinGen gate is enabled during a later test, roll it back with:
+
+```text
+CLINGEN_LOCAL_ENABLED=false
+```
 
 Out of scope: search/workbench expansion until separate contract tests cover
 those surfaces.

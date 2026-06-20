@@ -2,7 +2,7 @@
 
 Status: Current execution plan
 Owner: Codex/backend
-Last verified: 2026-06-14 01:47 +1000
+Last verified: 2026-06-21 04:41 +1000
 
 ## Purpose
 
@@ -23,32 +23,44 @@ the user explicitly redirects.
 
 ## Current State
 
-Live SG health was checked on 2026-06-14:
+Live SG health was checked after the post-M3 lookup-stability deploy
+`87af99b` on 2026-06-21:
 
 | Ledger lane | Live status | Meaning |
 | --- | --- | --- |
 | `hg38_2bit` | `ready` | Render disk has the verified hg38.2bit runtime asset. |
 | `protein_pfam` | `available` | Pfam/HMMER is materialized and enabled on SG. |
 | `coordinate_compact_index` | `ready` | Compact artifact is registered in Supabase, materialized on SG Render disk, schema-validated, and visible in provider-cache. |
-| `gene_view` | `runtime_partial` | Asset blockers are cleared; deployed commit `550641d` still has the stale ledger blocker. Local `build_ledger.py` already fixes this and needs a coordinated code deploy. |
-| `dbsnp_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; production object metadata is verified/private in Supabase, but SG runtime files are not seeded. |
-| `phylop_conservation_reader` | `source_ready_for_materialization` | Reader proof exists; production object metadata is verified/private in Supabase, but SG runtime files are not seeded. |
-| `clinvar_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; no durable production object was found in this pass. |
-| `repeatmasker_local_adapter` | `source_ready_for_materialization` | Fixture adapter exists; no durable production object was found in this pass. |
-| `local_evidence_orchestrator` | `disabled` | Correct until the full indexed-source batch is runtime-configured and verified. |
-| `clinical_source_tables` | `import_ready` | Supabase tables are present but still fixture-scale. |
+| `gene_view` | `ready` | Gene View blockers are cleared on live SG. |
+| `dbsnp_local_adapter` | `ready` | Seeded runtime files are present on the SG service disk and provider-cache reports the role ready. |
+| `phylop_conservation_reader` | `ready` | Seeded runtime bigWig is present on the SG service disk and provider-cache reports the role ready. |
+| `clinvar_local_adapter` | `ready` | Seeded runtime VCF/index are present on the SG service disk. Full gene-wide distribution stays gated behind `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW=lookup` until that request path is indexed/bounded. |
+| `repeatmasker_local_adapter` | `ready` | Seeded compact interval index is present on the SG service disk and provider-cache reports the role ready. |
+| `clingen_local_adapter` | `ready` | Generated ClinGen eRepo/CSpec SQLite is synced on SG. `CLINGEN_LOCAL_ENABLED` remains a separate gate and is still off in source-asset health. |
+| `local_evidence_orchestrator` | `disabled` | Correct final gate state after M3: `LOCAL_EVIDENCE_ENABLED=false`; allowed flows were not flipped. |
+| `clinical_source_tables` | `complete/live-run verified` | M3 release import completed against live Supabase and remains gate-off. The current build-ledger label may still read `import_ready` until that display label is reconciled. |
 
-Supabase inventory checked on 2026-06-19:
+Supabase/runtime inventory checked on 2026-06-21:
 
 | Area | Observed state | Required action |
 | --- | --- | --- |
-| `source_asset_objects` | Rows exist for hg38, Pfam, compact coordinate index artifact + manifest, five dbSNP/phyloP existing-object rows, three ClinVar rows, and one RepeatMasker source row. The dbSNP/phyloP, ClinVar, and RepeatMasker rows are `verified`, `approved`, and private. | Register the derived RepeatMasker compact runtime artifact before Storage-backed RepeatMasker runtime seeding. |
-| `source_asset_materializations` | hg38, Pfam, and compact coordinate index SG rows are `ready`. dbSNP/phyloP/ClinVar SG rows are intentionally `not_materialized` with `render_disk_seed_not_performed`. The RepeatMasker raw source row is source-only with `runtime_uses_derived_compact_index_not_source_table`. | Seed dbSNP/phyloP/ClinVar only through explicit runtime gates; upload/register the derived RepeatMasker compact artifact before its Storage-backed seed. |
-| Storage prefix `transcripts/eamos_coordinate_index` | Compact index artifact and manifest uploaded, registered, and materialized on SG on 2026-06-14. | No repeat action; next blocker is deploying the local build-ledger Gene View fix. |
-| Storage prefix `ncbi_dbsnp_gcf_000001405_40` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bgzip VCF, tabix index, and upstream checksum. | Seed bgzip and `.tbi` onto Render only after the explicit runtime gate. |
-| Storage prefix `ucsc_phylop100way_hg38` | Objects and manifest sidecars were proved by S3 `head_object`; registered metadata covers bigWig and upstream checksum. | Seed bigWig onto Render only after the explicit runtime gate. |
-| ClinVar / RepeatMasker prefixes | ClinVar VCF, ClinVar tabix, ClinVar upstream checksum, and the official RepeatMasker `rmsk.txt.gz` source are uploaded, registered, verified, approved, and private. | ClinVar next step is Render Shell runtime seed; RepeatMasker next step is derived compact artifact upload/register, not raw source runtime seed. |
-| Clinical tables | MONDO/HPO/ClinGen/GenCC tables contain fixture-scale rows only. Release-file importer now plans the staged full tables: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845. | Apply through the committed importer from a host that can reach the Supabase Postgres pooler; the local DB URL gate is configured, but this workstation timed out to the pooler before writes. No Render disk work is involved. |
+| `source_asset_objects` | Rows exist for hg38, Pfam, compact coordinate index, dbSNP, phyloP, ClinVar, RepeatMasker, and generated ClinGen artifacts. Seed assets are ready/private for the live runtime batch. | No repeat registration for M5-M8 seed assets unless a replacement source identity is approved. |
+| `source_asset_materializations` | Live SG provider-cache reports `local_evidence_runtime_assets.ready_count=4` of `4` for dbSNP, phyloP, ClinVar, and RepeatMasker, plus ready hg38, compact index, Gene View, and ClinGen local runtime lanes. | Keep rows and runtime files gate-off until M9 is explicitly approved. Reconcile stale metadata labels separately if they still read `not_materialized`. |
+| Storage/runtime seed assets | Compact coordinate index, dbSNP, phyloP, ClinVar, RepeatMasker compact index, hg38, and ClinGen generated SQLite have been seeded/synced for SG runtime use. | No startup materialization. Any refresh uses the explicit offline/private Storage/Render-disk seed path. |
+| Clinical tables | M3 release import is complete and live-run verified with MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845. Total imported rows: 676,606. | Keep `ADMIN_MATERIALIZATION_ENABLED=false`; do not re-import unless Steven explicitly asks. `LOCAL_EVIDENCE_ENABLED` was not flipped. |
+
+2026-06-21 post-import lookup checkpoint:
+
+- Post-M3 RPE65 lookup instability was fixed in deploy `87af99b`.
+- Live `/healthz` and `/api/v1/health/provider-cache` returned 200.
+- Live `/api/v1/lookup/summary` for `RPE65:c.260A>G` returned 200 in about
+  22.8 seconds with no Render restart.
+- Sanitized live output scan passed: no local paths, object URIs, admin token,
+  bearer token, database URL, service-role key, or secret-like values were
+  emitted.
+- Final gate state remains: `ADMIN_MATERIALIZATION_ENABLED=false`;
+  `LOCAL_EVIDENCE_ENABLED=false`; `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW` not
+  flipped; `CLINGEN_LOCAL_ENABLED` not flipped.
 
 ## Hard Gates
 
@@ -60,9 +72,13 @@ Supabase inventory checked on 2026-06-19:
 - Do not point runtime at raw GFF scans.
 - Do not use Render one-off jobs to seed the service persistent disk; they do
   not write to the mounted web-service disk.
-- Do not enable `LOCAL_EVIDENCE_ENABLED=true` until dbSNP, ClinVar,
-  RepeatMasker, phyloP, compact index, and hg38 are all production-path
-  verified for the target flows.
+- Do not enable `LOCAL_EVIDENCE_ENABLED=true` without Steven's explicit M9
+  approval. The production-path assets are ready, but the gate flip is a
+  separate release action.
+- Treat `CLINGEN_LOCAL_ENABLED=true` as a separate gate from M9 local evidence.
+- Before enabling `lookup` local evidence, fix or keep excluded the current
+  full-VCF ClinVar gene-distribution path; the post-M3 fix only prevents that
+  expensive path while `LOCAL_EVIDENCE_ENABLED=false`.
 
 ## Sequence
 
@@ -94,10 +110,8 @@ Goal: make `coordinate_compact_index=ready` and unblock Gene View.
   target file. A deploy-only restart cleared the web-process missing cache.
 - Live SG now reports `source_assets.compact_coordinate_index.status=ready` and
   `build_ledger.items.coordinate_compact_index.status=ready`.
-- Live SG still reports `build_ledger.items.gene_view.status=runtime_partial`
-  because deployed commit `550641d` always appends the compact-index blocker in
-  `_gene_view_item`. The local worktree already passes `coordinate_index_status`
-  into `_gene_view_item`; deploy that code in the coordinated commit/deploy.
+- Superseding 2026-06-21 status: live SG now reports Gene View ready after the
+  coordinated code deploys.
 
 Steps:
 
@@ -144,10 +158,9 @@ python -m app.cli.eamos_compact_index_materialize \
      fix is deployed.
 
 Current code note: the compact-index reader, builder, and materializer exist.
-The local reader now validates gzip payloads by magic bytes as well as `.gz`
-suffix so private-storage temp downloads schema-validate correctly. That fix is
-not on live `550641d`; avoid repeating the Render Shell workaround after the
-fix is deployed.
+The reader validates gzip payloads by magic bytes as well as `.gz` suffix so
+private-storage temp downloads schema-validate correctly. The old live
+`550641d` workaround is superseded by the current deploys.
 
 ### 2. Metadata Reconciliation
 
@@ -163,22 +176,24 @@ Steps:
    - source id `ncbi_dbsnp_gcf_000001405_40`;
    - roles for bgzip VCF, tabix index, checksum/manifest objects;
    - approval and license status copied from the source rollout plan;
-   - matching SG materialization rows remain fail-closed as
-     `not_materialized`.
+   - matching SG materialization rows were initially fail-closed as
+     `not_materialized`; superseding 2026-06-21 live status reports dbSNP
+     runtime ready on SG.
 3. **Done 2026-06-19 02:02 +1000:** registered phyloP Storage objects under
    `source_asset_objects`:
    - source id `ucsc_phylop100way_hg38`;
    - roles for bigWig and checksum/manifest objects;
-   - matching SG materialization rows remain fail-closed as
-     `not_materialized`.
+   - matching SG materialization rows were initially fail-closed as
+     `not_materialized`; superseding 2026-06-21 live status reports phyloP
+     runtime ready on SG.
 4. **Done 2026-06-20 22:27 +1000:** uploaded and registered ClinVar GRCh38 VCF,
    `.tbi`, and upstream checksum objects as verified, approved, private
-   metadata. SG materialization rows remain `not_materialized` until Render
-   Shell seed.
+   metadata. Superseding 2026-06-21 live status reports ClinVar runtime ready
+   on SG, with lookup distribution still gate-protected.
 5. **Done 2026-06-20 22:27 +1000:** uploaded and registered the official
    RepeatMasker `rmsk.txt.gz` source as verified, approved, private,
-   source-only metadata. The derived compact runtime interval index still needs
-   upload/register before any Storage-backed RepeatMasker runtime seed.
+   source-only metadata. Superseding 2026-06-21 live status reports the
+   derived compact runtime interval index ready on SG.
 
 Prefer committed metadata CLIs/importers over manual SQL. If SQL is used for a
 one-time reconciliation, capture the exact query in a follow-up runbook.
@@ -192,8 +207,8 @@ available Supabase connector and read back from `eamos_private`.
 Goal: make production local adapters configurable, not fixture-default.
 
 The local adapters are fixture-first and accept constructor paths. Production
-runtime settings and sanitized probes were added on 2026-06-19, but the actual
-Render runtime files are still missing until the explicit seed steps below.
+runtime settings and sanitized probes were added on 2026-06-19; the first live
+seed batch is now present on SG as of 2026-06-21.
 Before enabling local evidence, verify:
 
 - dbSNP runtime path and index path settings exist and are pointed at the seeded
@@ -208,12 +223,12 @@ Before enabling local evidence, verify:
 - health/preflight output remains sanitized: no local paths, object URIs,
   secrets, raw rows, or private checksums.
 
-2026-06-19 checkpoint: M4 code-only probe work is complete locally. Current
-preflight reports dbSNP, ClinVar, RepeatMasker, and phyloP runtime roles as
-`missing_runtime_file`, with `source_runtime_scan_allowed=false` and no reader
-opened. The build ledger keeps those rows `source_ready_for_materialization`
-with `seed_verified_render_disk_cache` blockers until the runtime files are
-actually seeded. No Render seed or local evidence gate flip occurred.
+2026-06-21 checkpoint: M4 probe work is live and the M5-M8 seed batch is
+present on SG. Provider-cache reports dbSNP, ClinVar, RepeatMasker, and phyloP
+runtime roles as ready with sanitized status/size output only. No local paths,
+object URIs, secrets, private checksums, or raw rows are emitted. The local
+evidence orchestrator still reports disabled because `LOCAL_EVIDENCE_ENABLED`
+remains false.
 
 ### 4. Render Disk Seeding
 
@@ -239,7 +254,7 @@ atomic rename, and emits only sanitized role/status/size output. It does not
 mutate Supabase metadata, Render env/deploy state, provider settings, or
 `LOCAL_EVIDENCE_ENABLED`.
 
-First live use is the phyloP BigWig seed from the SG service runtime:
+The first live use was the phyloP BigWig seed from the SG service runtime:
 
 ```bash
 python -m app.cli.eamos_local_evidence_runtime_seed \
@@ -257,6 +272,13 @@ python -m app.cli.eamos_local_evidence_runtime_seed \
 After the live seed, verify the SG provider-cache reports
 `phylop_conservation_reader.status=ready`, then run a targeted lookup/report
 conservation smoke. Do not flip the local-evidence gate during M5.
+
+2026-06-21 checkpoint: the SG runtime seed batch is complete for the local
+evidence asset roles. Live provider-cache reports
+`source_assets.local_evidence_runtime_assets.ready_count=4` of `4`, and build
+ledger rows for dbSNP, phyloP, ClinVar, and RepeatMasker are ready. This did
+not flip `LOCAL_EVIDENCE_ENABLED`, `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW`, or
+`CLINGEN_LOCAL_ENABLED`.
 
 2026-06-19 M7 code gate: RepeatMasker now has a build-time compact-index path
 ready for the later runtime seed. `eamos_repeatmasker_compact_index_build`
@@ -278,9 +300,10 @@ reported the RepeatMasker runtime source ready without path or secret emission,
 and focused RepeatMasker/source-preflight/health tests passed.
 
 This did not upload Storage objects, mutate Supabase metadata, seed Render, flip
-providers, enable local evidence, or add startup materialization. The remaining
-M7 live steps are explicitly gated: upload/register the compact artifact, seed
-it onto SG Render disk, then verify provider-cache/preflight readiness.
+providers, enable local evidence, or add startup materialization. Superseding
+2026-06-21 status: the derived RepeatMasker compact runtime artifact is now
+present on the SG service disk and provider-cache reports the RepeatMasker
+runtime role ready. Refreshes remain gated through the same explicit seed path.
 
 Operator shape for a repeat build step:
 
@@ -296,14 +319,20 @@ python -m app.cli.eamos_repeatmasker_compact_index_build \
 
 Goal: enable only the flows backed by verified production assets.
 
-Only after the full batch is present and probes are green:
+The full seed batch is present and the post-M3 lookup stability check is green,
+so M9 can be proposed, but not flipped without Steven:
 
 1. Set `LOCAL_EVIDENCE_ENABLED=true`.
-2. Set `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW` narrowly, starting with one or two
-   flows such as `lookup,gene_viewer`.
+2. Set `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW=lookup,gene_viewer`.
 3. Keep `LOCAL_EVIDENCE_REQUIRE_REAL_APIS=true`.
-4. Verify provider-cache and targeted lookup/Gene View behavior.
-5. Expand to `search` and `workbench` only after contract tests cover those
+4. Keep `search` and `workbench` out.
+5. Treat `CLINGEN_LOCAL_ENABLED=true` as a separate gate.
+6. Before enabling `lookup`, handle the current ClinVar full-VCF distribution
+   path so lookup does not parse the full seeded VCF on request. The deployed
+   stabilization keeps that path disabled while local evidence is off; M9 must
+   either make it indexed/gene-bounded or exclude it from the lookup gate.
+7. Verify provider-cache and targeted lookup/Gene View behavior.
+8. Expand to `search` and `workbench` only after contract tests cover those
    surfaces.
 
 ### 6. Tier 1 Generated SQLite Artifacts
