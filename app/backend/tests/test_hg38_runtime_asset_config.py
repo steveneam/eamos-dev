@@ -354,7 +354,10 @@ def test_hg38_materialization_probe_catches_unexpected_errors() -> None:
     assert summary["enabled"] is True
     assert summary["probe_performed"] is True
     assert summary["ready"] is False
-    assert summary["status"] == "materialization_probe_failed"
+    assert summary["status"] == "materialization_metadata_unavailable"
+    encoded = str(summary).lower()
+    assert "private.example" not in encoded
+    assert "postgresql://" not in encoded
 
 
 def test_materialization_path_strips_app_backend_prefix_under_shallow_backend_root(

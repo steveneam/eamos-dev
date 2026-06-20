@@ -463,6 +463,32 @@ def test_alphamissense_object_mode_requires_materialization_metadata(
     assert inspection.materialization_status == "metadata_store_unavailable"
 
 
+def test_alphamissense_materialization_read_failure_degrades_to_not_ready(
+    tmp_path: Path,
+) -> None:
+    payload = b"tiny-alphamissense"
+    asset = _write_materialized_asset(tmp_path, payload)
+    object_path = "google_deepmind_alphamissense_hg38/md5-test/AlphaMissense_hg38.tsv.gz"
+    settings = Settings(
+        jwt_secret="test-secret",
+        alphamissense_hg38_runtime_asset_path=asset,
+        alphamissense_hg38_runtime_asset_object_uri=f"supabase://eamos-source-assets/{object_path}",
+    )
+
+    inspection = inspect_alphamissense_runtime_asset(
+        settings,
+        registry=_tiny_registry(payload),
+        materialization_store=ExplodingMaterializationStore(),
+    )
+
+    assert inspection.ready is False
+    assert inspection.status is PredictorRuntimeStatus.MATERIALIZATION_STORE_UNAVAILABLE
+    assert inspection.materialization_status == "materialization_metadata_unavailable"
+    encoded = str(inspection).lower()
+    assert "private.example" not in encoded
+    assert "postgresql://" not in encoded
+
+
 def test_alphamissense_materialization_rejects_public_metadata(
     tmp_path: Path,
 ) -> None:
@@ -703,6 +729,13 @@ class FakeMaterializationStore:
                 continue
             return record
         return None
+
+
+class ExplodingMaterializationStore:
+    def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord:
+        raise RuntimeError(
+            "database unavailable at postgresql://postgres:secret@private.example/path"
+        )
 
 
 def _write_materialized_asset(

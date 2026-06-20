@@ -107,6 +107,38 @@ def test_source_asset_materialization_query_casts_nullable_text_filters() -> Non
     assert ":local_cache_path is null" not in statement_text
 
 
+def test_source_asset_materialization_read_fails_open_without_sensitive_log(
+    caplog,
+) -> None:
+    def failing_session_factory():
+        raise RuntimeError(
+            "database unavailable at postgresql://postgres:secret@private.example/path "
+            "for supabase://eamos-source-assets/private/object and D:\\secret\\asset"
+        )
+
+    caplog.set_level(logging.WARNING, logger="app.repos.supabase_local_model_cache_repo")
+    store = SqlAlchemySupabaseLocalModelCacheStore(failing_session_factory)
+
+    record = store.get_source_asset_materialization(
+        source_id="ucsc_hg38_2bit",
+        asset_role="reference_genome_2bit",
+        bucket_id="eamos-source-assets",
+        object_path="private/object",
+        environment="sg-render",
+        local_cache_path="D:\\secret\\asset",
+    )
+
+    assert record is None
+    assert "treating metadata as unavailable" in caplog.text
+    assert "source_id=ucsc_hg38_2bit" in caplog.text
+    assert "asset_role=reference_genome_2bit" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "private.example" not in caplog.text
+    assert "secret" not in caplog.text
+    assert "supabase://" not in caplog.text
+    assert "D:\\secret\\asset" not in caplog.text
+
+
 def test_variant_cache_reads_supabase_dev_cache_on_local_miss(tmp_path: Path) -> None:
     local_repo = VariantCacheRepo(_session_factory(tmp_path))
     store = FakeLocalModelCacheStore()

@@ -517,7 +517,7 @@ def test_source_asset_preflight_can_run_sanitized_materialization_probe(
     assert probe["enabled"] is True
     assert probe["probe_performed"] is True
     assert probe["ready"] is False
-    assert probe["status"] == "materialization_probe_failed"
+    assert probe["status"] == "materialization_metadata_unavailable"
     assert probe["read_only"] is True
     assert probe["mutations_performed"] is False
     assert probe["secret_values_emitted"] is False

@@ -883,14 +883,23 @@ def _validate_materialization_record(
     environment: str | None,
 ) -> SourceAssetMaterializationRecord:
     bucket_id, object_path = _parse_supabase_object_uri(plan.object_uri)
-    record = materialization_store.get_source_asset_materialization(
-        source_id=plan.source_id,
-        asset_role=plan.asset_role,
-        bucket_id=bucket_id,
-        object_path=object_path,
-        environment=environment,
-        local_cache_path=str(plan.path),
-    )
+    try:
+        record = materialization_store.get_source_asset_materialization(
+            source_id=plan.source_id,
+            asset_role=plan.asset_role,
+            bucket_id=bucket_id,
+            object_path=object_path,
+            environment=environment,
+            local_cache_path=str(plan.path),
+        )
+    except SourceAssetMaterializationError:
+        raise
+    except Exception as exc:
+        raise SourceAssetMaterializationError(
+            "materialization_metadata_unavailable",
+            f"{plan.display_name} materialization metadata is unavailable",
+            {"source_id": plan.source_id, "asset_role": plan.asset_role},
+        ) from exc
     if record is None:
         raise SourceAssetMaterializationError(
             "materialization_metadata_missing",
@@ -1047,6 +1056,7 @@ def _supported_mode_values() -> set[str]:
 
 
 _MATERIALIZATION_ERROR_STATUS = {
+    "materialization_metadata_unavailable": PredictorRuntimeStatus.MATERIALIZATION_STORE_UNAVAILABLE,
     "materialization_metadata_missing": PredictorRuntimeStatus.MATERIALIZATION_METADATA_MISSING,
     "materialization_public_access_blocked": (
         PredictorRuntimeStatus.MATERIALIZATION_PUBLIC_ACCESS_BLOCKED

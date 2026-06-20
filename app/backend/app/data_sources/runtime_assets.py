@@ -247,14 +247,23 @@ def resolve_hg38_materialized_runtime_asset(
         )
 
     bucket_id, object_path = _parse_supabase_object_uri(plan.object_uri)
-    record = materialization_store.get_source_asset_materialization(
-        source_id=plan.source_id,
-        asset_role="reference_genome_2bit",
-        bucket_id=bucket_id,
-        object_path=object_path,
-        environment=environment,
-        local_cache_path=str(plan.path),
-    )
+    try:
+        record = materialization_store.get_source_asset_materialization(
+            source_id=plan.source_id,
+            asset_role="reference_genome_2bit",
+            bucket_id=bucket_id,
+            object_path=object_path,
+            environment=environment,
+            local_cache_path=str(plan.path),
+        )
+    except SourceAssetMaterializationError:
+        raise
+    except Exception as exc:
+        raise SourceAssetMaterializationError(
+            "materialization_metadata_unavailable",
+            "source asset materialization metadata is unavailable",
+            {"source_id": plan.source_id, "asset_role": "reference_genome_2bit"},
+        ) from exc
     if record is None:
         raise SourceAssetMaterializationError(
             "materialization_metadata_missing",

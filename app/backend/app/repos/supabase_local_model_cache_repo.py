@@ -1071,9 +1071,12 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                     .one_or_none()
                 )
         except Exception as exc:
-            raise SupabaseLocalModelCacheError(
-                _safe_error_message("Supabase source asset materialization read failed.", exc)
-            ) from exc
+            _log_source_asset_materialization_read_fallback(
+                source_id=source_id,
+                asset_role=asset_role,
+                error=exc,
+            )
+            return None
         if row is None:
             return None
         return SourceAssetMaterializationRecord(
@@ -1987,6 +1990,11 @@ def _safe_error_message(prefix: str, exc: Exception) -> str:
     return f"{prefix} {detail}".strip()
 
 
+def _safe_exception_type(exc: Exception) -> str:
+    original = getattr(exc, "orig", None)
+    return type(original or exc).__name__
+
+
 def _redact_secret_text(value: str) -> str:
     value = re.sub(r"(?i)(password=)[^\\s&]+", r"\1<redacted>", value)
     return re.sub(
@@ -2010,4 +2018,19 @@ def _log_remote_cache_fallback(
         cache_family,
         source_id,
         error,
+    )
+
+
+def _log_source_asset_materialization_read_fallback(
+    *,
+    source_id: str,
+    asset_role: str,
+    error: Exception,
+) -> None:
+    logger.warning(
+        "Supabase source asset materialization read failed; treating metadata "
+        "as unavailable (source_id=%s, asset_role=%s, error_type=%s)",
+        source_id,
+        asset_role,
+        _safe_exception_type(error),
     )

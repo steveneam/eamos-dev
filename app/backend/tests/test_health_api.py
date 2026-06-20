@@ -779,6 +779,48 @@ def test_provider_cache_health_reports_sanitized_source_asset_materialization(
     assert object_path not in encoded
 
 
+def test_provider_cache_health_survives_predictor_materialization_read_failure(
+    tmp_path: Path,
+) -> None:
+    alphamissense = _write_indexed_runtime_file(
+        tmp_path / "predictors" / "AlphaMissense_hg38.tsv.gz",
+        b"tiny-alphamissense",
+    )
+    alphamissense.with_suffix(alphamissense.suffix + ".manifest.json").write_text(
+        "{}",
+        encoding="utf-8",
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        alphamissense_hg38_runtime_asset_path=alphamissense,
+        alphamissense_hg38_runtime_asset_object_uri=(
+            "supabase://eamos-source-assets/google_deepmind_alphamissense_hg38/"
+            "md5-test/AlphaMissense_hg38.tsv.gz"
+        ),
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        test_client.app.state.supabase_local_model_cache_store = ExplodingMaterializationStore()
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    body = response.json()
+    alphamissense_status = body["providers"]["indexed_predictors"]["alphamissense"]
+    assert alphamissense_status["available"] is False
+    assert alphamissense_status["status"] == "materialization_store_unavailable"
+    assert alphamissense_status["materialization_status"] == (
+        "materialization_metadata_unavailable"
+    )
+    encoded = json.dumps(body).lower()
+    assert "private.example" not in encoded
+    assert "postgresql://" not in encoded
+    assert "supabase://" not in encoded
+    assert str(tmp_path).lower() not in encoded
+
+
 def test_provider_cache_health_reports_local_evidence_runtime_assets_without_paths(
     tmp_path: Path,
 ) -> None:
@@ -937,6 +979,14 @@ class FakeMaterializationStore:
 
     def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord | None:
         return self.record
+
+
+class ExplodingMaterializationStore:
+    def get_source_asset_materialization(self, **kwargs) -> SourceAssetMaterializationRecord:
+        raise RuntimeError(
+            "database unavailable at postgresql://postgres:secret@private.example/path "
+            "for supabase://eamos-source-assets/private/object and D:\\secret\\asset"
+        )
 
 
 def _fake_executable(tmp_path: Path, name: str) -> Path:
