@@ -8,36 +8,49 @@
 ## The launch gate (one server-side fact to hold)
 
 The chat only spends real money when the **backend** is set to `LLM_PROVIDER=gateway`.
-Until the items below are done, keep production on `LLM_PROVIDER=mock` (or simply do
-not set it to `gateway`). That single server-side setting — **not** the frontend
-`NEXT_PUBLIC_AI_CHAT_ENABLED` flag — is the real on/off switch.
+Until the per-user budget below is **enabled** in production, keep prod on
+`LLM_PROVIDER=mock` (or simply do not set it to `gateway`). That single server-side
+setting — **not** the frontend `NEXT_PUBLIC_AI_CHAT_ENABLED` flag — is the real on/off
+switch. (The gated dev demo runs on the shared Render service, bounded by the global
+dev cap — see `[[project_ai_gateway]]`.)
 
-## High — the paid chat endpoint is unauthenticated, rate-limit-only
+## High — the paid chat endpoint guard (IMPLEMENTED — must be ENABLED before launch)
 
-`POST /api/v1/chat/stream` (`app/backend/app/api/routes/chat.py`) enforces
-`RATE_LIMIT_CHAT` (10 requests / window / IP) but has **no auth and no per-user/tier
-token budget**. Wired to the paid gateway, this is a cost-abuse vector: a client
-rotating IPs (or simply many users) can drive gateway spend. The `$50/month` key cap
-bounds the damage but can be exhausted, which also denies service to legitimate users.
+> **Status (2026-06-20):** both halves of the High guard are now built. What remains
+> is a one-line deploy action: turn the per-user budget ON before any prod exposure.
 
-**Before prod-enabling, add a server-side guard on the paid path** — one or both of:
-- an **auth requirement** on the chat endpoint (decide first whether `/report` chat
-  should require login — `/report` is currently a public surface, so this is a
-  product call), and/or
-- a **per-user / per-tier daily token (or request) budget**, tracked server-side,
-  returning a clear error when exceeded.
+`POST /api/v1/chat` and `/api/v1/chat/stream` (`app/backend/app/api/routes/chat.py`)
+now enforce, in order:
+1. **Auth** — `require_authenticated_principal`. Login is the gate that makes every
+   request attributable and closes the anonymous rotating-IP cost-abuse vector. (The
+   product call was made: `/report` chat requires sign-in.)
+2. **Per-user burst limit** — `RATE_LIMIT_CHAT` (10 / window), keyed on the
+   authenticated `user_id` (not just IP).
+3. **Per-user daily budget** — `enforce_chat_user_daily_cap` (`core/rate_limit.py`):
+   a per-user daily *request* cap. Because every response is already token-bounded by
+   `ai_gateway_max_tokens` (700), a request cap deterministically bounds per-user
+   token spend. Flat across users for first launch; config-shaped to grow into
+   per-tier limits later. **Env-gated, OFF by default** (`ai_chat_user_daily_cap_*`).
+4. **Global dev backstop** — `enforce_chat_dev_daily_cap` (cross-user spend guard for
+   the dev/demo period; separate from the per-user budget above).
 
 ```python
-# Before — chat_stream(): rate-limit only
-enforce_rate_limit(request, RATE_LIMIT_CHAT)
-
-# After — also gate the paid path
-user = require_user(request)                      # if chat should be authed
-enforce_user_ai_budget(user, daily_token_cap)     # per-user/tier cap, server-side
+# routes/chat.py — the paid path now layers all four guards:
+principal = require_authenticated_principal(request)             # 1. auth
+enforce_rate_limit(request, RATE_LIMIT_CHAT, subject=principal.user_id)  # 2. burst
+enforce_chat_user_daily_cap(request, subject=principal.user_id) # 3. per-user budget
+enforce_chat_dev_daily_cap(request)                             # 4. global backstop
 ```
 
-Do **not** rely on the gateway's `$50/mo` cap alone (provider caps lag and are a blunt
-instrument).
+**Launch action (required before prod FE exposure of chat):** set
+`AI_CHAT_USER_DAILY_CAP_ENABLED=true` (and tune `AI_CHAT_USER_DAILY_CAP`, default 50)
+on the Render service. The per-user budget is OFF by default so it does not change the
+current gated demo; it is the explicit gate to flip at launch. Do **not** rely on the
+gateway's spend cap alone (provider caps lag and are a blunt instrument).
+
+**Future (not launch-blocking):** per-tier budgets (free vs paid) once the user's
+pricing tier is resolvable server-side (the `AuthenticatedPrincipal` carries no tier
+today), and/or true token-accounting if request-count proves too coarse.
 
 ## Medium — `NEXT_PUBLIC_AI_CHAT_ENABLED` is a UX gate, not a security boundary
 
@@ -48,8 +61,10 @@ boundary is server-side (the `LLM_PROVIDER` setting + the High-finding guard abo
 
 ## Also before / around launch (already flagged elsewhere)
 
-- **Re-mint the gateway key.** The `eamos-render-broker` key passed through a session
-  transcript and must be rotated before production. (Tracked in `[[project_ai_gateway]]`.)
+- **Gateway key rotation — DONE (2026-06-20).** A transcript-exposed gateway key was
+  revoked and verified dead; Render + local now run a fresh key. (Details in
+  `[[project_ai_gateway]]`.) Rotate again before broad public launch as a matter of
+  hygiene.
 - **Paid credits.** The free tier rate-limits `meta/llama-3.3-70b`; sustained/real
   usage needs paid credits topped up on the gateway.
 - **Low / dev-only:** `scripts/fake_gateway.py` is a localhost dev double — never run

@@ -199,6 +199,78 @@ def test_chat_dev_daily_cap_off_by_default(auth_client: TestClient) -> None:
     assert statuses == [200, 200, 200]
 
 
+def _enable_user_cap(client: TestClient, cap: int = 1) -> None:
+    # Isolate the per-USER daily budget from the per-user burst limit and the
+    # global dev cap: make the burst limit generous and leave the dev cap off so
+    # only the per-user daily budget can trip the 429.
+    client.app.state.rate_limiter = InMemoryRateLimiter()
+    client.app.state.settings.rate_limit_chat_max_requests = 100
+    client.app.state.settings.rate_limit_window_seconds = 60
+    client.app.state.settings.ai_chat_dev_daily_cap_enabled = False
+    client.app.state.settings.ai_chat_user_daily_cap_enabled = True
+    client.app.state.settings.ai_chat_user_daily_cap = cap
+    client.app.state.settings.ai_chat_user_daily_cap_window_seconds = 86_400
+
+
+def test_chat_user_daily_cap_blocks_after_user_limit(auth_client: TestClient) -> None:
+    _enable_user_cap(auth_client, cap=1)
+    auth_client.app.state.chat_service = FakeChatService()
+
+    first = auth_client.post("/api/v1/chat", json=_chat_payload())
+    second = auth_client.post("/api/v1/chat", json=_chat_payload())
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.headers["Retry-After"]
+
+
+def test_chat_stream_user_daily_cap_blocks_after_user_limit(auth_client: TestClient) -> None:
+    _enable_user_cap(auth_client, cap=1)
+    auth_client.app.state.chat_service = FakeChatService()
+
+    first = auth_client.post("/api/v1/chat/stream", json=_chat_payload())
+    second = auth_client.post("/api/v1/chat/stream", json=_chat_payload())
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
+def test_chat_user_daily_cap_off_by_default(auth_client: TestClient) -> None:
+    auth_client.app.state.rate_limiter = InMemoryRateLimiter()
+    auth_client.app.state.settings.rate_limit_chat_max_requests = 100
+    auth_client.app.state.settings.rate_limit_window_seconds = 60
+    auth_client.app.state.settings.ai_chat_user_daily_cap_enabled = False
+    auth_client.app.state.chat_service = FakeChatService()
+
+    statuses = [
+        auth_client.post("/api/v1/chat", json=_chat_payload()).status_code for _ in range(3)
+    ]
+
+    assert statuses == [200, 200, 200]
+
+
+def test_chat_user_daily_cap_is_per_user(auth_client: TestClient) -> None:
+    # The default auth_client user is capped at 1; a second registered user gets
+    # an independent budget (flat-per-user, keyed on the authenticated subject).
+    _enable_user_cap(auth_client, cap=1)
+    auth_client.app.state.chat_service = FakeChatService()
+
+    other = auth_client.post(
+        "/api/v1/auth/register",
+        json={"username": "user-cap-other", "password": "test-password"},
+    )
+    assert other.status_code == 201
+    other_auth = {"Authorization": f"Bearer {other.json()['access_token']}"}
+
+    first_user_first = auth_client.post("/api/v1/chat", json=_chat_payload())
+    first_user_second = auth_client.post("/api/v1/chat", json=_chat_payload())
+    other_user_first = auth_client.post("/api/v1/chat", json=_chat_payload(), headers=other_auth)
+
+    assert first_user_first.status_code == 200
+    assert first_user_second.status_code == 429
+    assert other_user_first.status_code == 200
+
+
 def test_run_chat_endpoint_uses_chat_rate_limit(auth_client: TestClient) -> None:
     _set_limit(auth_client, "chat")
     auth_client.app.state.run_chat_service = FakeRunChatService()

@@ -107,6 +107,21 @@ class Settings(BaseSettings):
     ai_chat_dev_daily_cap: int = 1
     ai_chat_dev_daily_cap_window_seconds: int = 86_400
 
+    # --- AI gateway launch per-user budget — docs/ai-gateway/pre-launch-security.md ---
+    # Per-user daily request budget on the real-spend chat path: the launch HIGH
+    # gate item. Auth already makes every chat request attributable; this caps how
+    # many a single authenticated user can make per rolling window so one account
+    # cannot drain the gateway credit (each response is already token-bounded by
+    # ai_gateway_max_tokens, so a request cap deterministically bounds per-user
+    # token spend). Flat across users for first launch — config-shaped to grow into
+    # per-tier limits later. Distinct from the GLOBAL ai_chat_dev_daily_cap_* dev
+    # backstop and the per-user burst rate_limit_chat_* limit (all apply when on).
+    # OFF by default to match the current gated demo; MUST be enabled
+    # (AI_CHAT_USER_DAILY_CAP_ENABLED=true on Render) before any prod FE exposure.
+    ai_chat_user_daily_cap_enabled: bool = False
+    ai_chat_user_daily_cap: int = 50
+    ai_chat_user_daily_cap_window_seconds: int = 86_400
+
     # --- AI gateway literature RAG — docs/ai-gateway-rag/spec.md ---
     # Variant chat retrieves gene-scoped PubMed abstract snippets from a local-first
     # vector store (D1=B: SQLite on the Render disk beside pubmed_local) when

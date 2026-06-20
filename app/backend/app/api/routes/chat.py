@@ -7,6 +7,7 @@ from app.core.deps import AuthenticatedPrincipal, require_authenticated_principa
 from app.core.rate_limit import (
     RATE_LIMIT_CHAT,
     enforce_chat_dev_daily_cap,
+    enforce_chat_user_daily_cap,
     enforce_rate_limit,
 )
 from app.schemas.chat import ChatRequest, ChatResponse
@@ -25,6 +26,7 @@ def chat(
     principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> ChatResponse:
     enforce_rate_limit(request, RATE_LIMIT_CHAT, subject=principal.user_id)
+    enforce_chat_user_daily_cap(request, subject=principal.user_id)
     enforce_chat_dev_daily_cap(request)
     service = getattr(request.app.state, "chat_service", None)
     if service is None:
@@ -42,6 +44,7 @@ def chat_stream(
     principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> StreamingResponse:
     enforce_rate_limit(request, RATE_LIMIT_CHAT, subject=principal.user_id)
+    enforce_chat_user_daily_cap(request, subject=principal.user_id)
     enforce_chat_dev_daily_cap(request)
     service = getattr(request.app.state, "chat_service", None)
     if service is None:

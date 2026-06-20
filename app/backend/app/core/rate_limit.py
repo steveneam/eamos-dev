@@ -14,6 +14,7 @@ RATE_LIMIT_AUTH = "auth"
 RATE_LIMIT_BATCH_UPLOAD = "batch_upload"
 RATE_LIMIT_CHAT = "chat"
 RATE_LIMIT_CHAT_DEV_DAILY = "chat_dev_daily"
+RATE_LIMIT_CHAT_USER_DAILY = "chat_user_daily"
 RATE_LIMIT_EVIDENCE = "evidence"
 RATE_LIMIT_LIBRARY = "library"
 RATE_LIMIT_LOOKUP = "lookup"
@@ -152,6 +153,44 @@ def enforce_chat_dev_daily_cap(request: Request) -> None:
             "Ask-Eamos daily development cap reached. This is a temporary spend "
             "guardrail while the AI gateway is in development — please try again later."
         ),
+        headers={"Retry-After": retry_after},
+    )
+
+
+def enforce_chat_user_daily_cap(request: Request, *, subject: str) -> None:
+    """Per-user daily request budget for the gateway chat path (launch gate).
+
+    The launch HIGH item from docs/ai-gateway/pre-launch-security.md: caps how many
+    chat requests a single authenticated user may make per rolling window so one
+    account cannot drain the gateway credit. Keyed on the authenticated ``subject``
+    (user id) — independent of the per-user burst ``RATE_LIMIT_CHAT`` limit and the
+    GLOBAL ``enforce_chat_dev_daily_cap`` backstop (all apply when enabled). No-op
+    unless ``ai_chat_user_daily_cap_enabled`` (default False); flat across users for
+    first launch. Reuses the shared in-memory limiter with the configured window.
+    """
+    settings = request.app.state.settings
+    if not getattr(settings, "ai_chat_user_daily_cap_enabled", False):
+        return
+
+    limiter = getattr(request.app.state, "rate_limiter", None)
+    if limiter is None:
+        limiter = InMemoryRateLimiter()
+        request.app.state.rate_limiter = limiter
+
+    max_requests = max(1, int(getattr(settings, "ai_chat_user_daily_cap", 50)))
+    window_seconds = max(1, int(getattr(settings, "ai_chat_user_daily_cap_window_seconds", 86_400)))
+    result = limiter.check(
+        [f"{RATE_LIMIT_CHAT_USER_DAILY}:subject:{_digest(subject.strip().lower())}"],
+        max_requests=max_requests,
+        window_seconds=window_seconds,
+    )
+    if result.allowed:
+        return
+
+    retry_after = str(max(1, math.ceil(result.retry_after_seconds)))
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Ask-Eamos daily limit reached for your account. Please try again tomorrow.",
         headers={"Retry-After": retry_after},
     )
 
