@@ -17,11 +17,11 @@
 - **Claude:** IDLE @ 2026-06-21 02:45 +1000 - Materialization disk seed COMPLETE over 443 (7/7 ready, all sha256-verified + metadata reconciled, no hotspot) + manifest deploy-bug fixed (`6ea2431`). main==origin/main (+ this closeout). NOT flipped: LOCAL_EVIDENCE_ENABLED/provider (M9 separate - assets ready, pipeline does not consume them yet). Detail -> PROGRESS 2026-06-21 02:34 entry + Codex CAR below + docs/deployment/materialization-lessons-learned.md; verified ephemeral-user risk -> RISKS.md; Steven flips ADMIN_MATERIALIZATION_ENABLED=false.
 
 
-- **Codex:** IDLE @ 2026-06-21 00:54 +1000 - Materialization robustness code build advanced locally before seed: added `render.yaml` runtime-path env group + Render-aware `Settings` defaults for the 8 `/var/data` paths; added pinned SG materialization manifest + `eamos_materialize_all --manifest` in-process orchestrator with idempotent verified-file skip and Supabase object/materialization reconciliation; added disabled-by-default authenticated admin HTTPS materialization trigger guarded by SHA256 admin token; added RepeatMasker compact derived artifact upload CLI + `eamos_source_import --existing-object-set repeatmasker_compact_index` registration lane. Verified targeted tests 31/31, repo-wide Ruff, touched-file Black check, `git diff --check`, `python -m graphify update .`. No Render seed, Render env mutation, provider flip, `LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG, Tier-2 upload, or live Supabase mutation occurred. **Remaining raised gap:** the 443 path does not yet run M3 clinical release-file import; M3 still needs a pooler-reachable import/apply path or a separate admin-import endpoint.
+- **Codex:** IDLE @ 2026-06-21 03:21 +1000 - M3 admin clinical-release import path committed+pushed at `13be980`: gated `POST /api/v1/admin/materialization/clinical-release/import`, staged release files tracked under `app/backend/data/source_assets`, parser missing-file errors structured/sanitized. Verified focused pytest, source parser/cache tests, real release-file dry plan (676,606 rows), Ruff, touched-file Black, staged diff-check, graphify update. No live import, deploy, Render env/provider flip, `LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG, Tier-2 upload, or Supabase mutation occurred. Parked chat/Workbench/docs files remain dirty and separate.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-21 02:45 +1000 - Claude (seed-success closeout: Codex CAR + PROGRESS entry + verified ephemeral RISKS + lessons doc; committed; lock released)
+UNLOCKED - 2026-06-21 03:23 +1000 - Codex (M3 commit/push closeout; lock released)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -450,49 +450,51 @@ Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-20 22:52 +1000 - Codex.
+Section last edited: 2026-06-21 03:21 +1000 - Codex.
 
-**Latest Codex update (2026-06-20 22:52 +1000 - Codex):**
-Fetched origin; local `main` remains at `7a34410` with no ahead/behind marker.
-The shared SG backend intentionally stays `LLM_PROVIDER=gateway`.
+**Latest Codex update (2026-06-21 03:21 +1000 - Codex):**
+Fetched origin; `main == origin/main` at `13be980` after pushing
+`feat(backend): add admin clinical release import`.
 
-Materialization M6/M7 advanced one low-blast-radius gate. Added committed
-metadata-set support to `eamos_source_import` for
-`--existing-object-set clinvar_vcf` and `repeatmasker_source`, with tests.
-Uploaded ClinVar GRCh38 VCF, `.tbi`, and upstream checksum plus the official
-RepeatMasker `rmsk.txt.gz` source to private `eamos-source-assets` by S3
-multipart, then verified object and manifest visibility with S3 head-object
-checks.
+M3 admin import path is now committed and pushed. Added
+`POST /api/v1/admin/materialization/clinical-release/import` under the existing
+authenticated admin materialization gate and admin rate limit. The route resolves
+release files from `app/backend/data/source_assets` inside the backend Docker
+context, validates/parses them before Supabase smoke/apply, applies through
+`app.state.supabase_local_model_cache_store`, and returns sanitized source
+versions + row counts only. Missing release files now raise structured
+`fixture_unavailable` errors with redacted paths.
 
-The committed Supabase apply path is still blocked from this workstation by
-TCP timeout to `aws-1-ap-southeast-2.pooler.supabase.com:5432`, so the small
-metadata registration was applied through the Supabase connector (not the M3
-bulk clinical import path). Readback confirms four private rows:
-ClinVar `clinvar_bgzip_vcf`, `clinvar_tabix_index`, `upstream_checksum`, and
-RepeatMasker `repeatmasker_source_table`, all `verified`/`approved`,
-`public_access_allowed=false`, `frontend_direct_access_allowed=false`.
-ClinVar SG materializations remain `not_materialized` with
-`render_disk_seed_not_performed`; RepeatMasker raw source is source-only with
-`runtime_uses_derived_compact_index_not_source_table`.
+The commit also tracks the exact release inputs needed by the endpoint:
+MONDO `mondo.json`, HPO `hp.json` / `phenotype.hpoa` /
+`genes_to_phenotype.txt`, ClinGen gene-validity CSV, GenCC CSV, and their
+manifests. `.gitignore` now keeps broad `app/backend/data` ignores but
+unignores only these files; `.gitattributes` marks
+`app/backend/data/source_assets/**` as non-normalized/non-diffed source data so
+checksums remain stable. GitHub accepted the push but warned `mondo.json` is
+98.45 MB (above the 50 MB recommendation, below the hard limit).
 
-Docs updated in `docs/backend-build-ledger-runtime/plan.md` and
-`materialization-plan.md`. Local preflight now reports
-`clinvar_local_adapter=ready`; live SG provider-cache still correctly reports
-dbSNP/ClinVar/RepeatMasker/phyloP as `source_ready_for_materialization` and
-`local_evidence_orchestrator=disabled` because no Render seed happened.
+Verification completed: focused materialization/source-import/rate-limit pytest
+`47/47`; clinical parser + Supabase local model cache tests `26/26`;
+`test_source_reader_proofs.py`; targeted source-asset preflight tests; real
+release-file dry plan with no apply (676,606 rows: MONDO 31,886; HPO terms
+19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen
+3,596; GenCC 29,845); `python -m ruff check app tests`; touched-file Black
+check; staged diff-check; `python -m graphify update . --force` (AST-only).
+The full `test_source_asset_preflight_cli.py` combined run still times out under
+5 minutes after completing 12 tests; targeted relevant cases passed.
 
-No Render disk seed, Render env change, provider flip,
-`LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG corpus work, Tier-2 upload, or
-`config.py` edit occurred. M3 still needs release-file import from a
-Supabase-pooler reachable host. M7 still needs derived compact artifact
-upload/register before Storage-backed RepeatMasker runtime seed.
+No live M3 import, deploy, Render disk seed, Render env change, provider flip,
+`LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG corpus work, Tier-2 upload, or live
+Supabase mutation occurred. Dirty parked chat/Workbench/docs files remain
+separate.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-20 22:52 +1000 - Codex materialization M6/M7 Storage metadata
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git -C D:/eamos fetch origin; git -C D:/eamos status --short --branch; git -C D:/eamos log -8 --oneline.
-Delta: local/origin main remain at `7a34410`; shared SG backend stays `LLM_PROVIDER=gateway`. Codex added `eamos_source_import --existing-object-set clinvar_vcf|repeatmasker_source`, uploaded ClinVar VCF/.tbi/checksum + RepeatMasker `rmsk.txt.gz` to private Storage by S3 multipart, verified S3 heads, and registered four Supabase private metadata rows as `verified`/`approved`.
-Readback: ClinVar VCF/.tbi SG materializations are `not_materialized` with `render_disk_seed_not_performed`; ClinVar checksum is non-materializing metadata; RepeatMasker raw source is source-only with `runtime_uses_derived_compact_index_not_source_table`. Local preflight sees ClinVar ready; live SG remains source-ready/not seeded for dbSNP/ClinVar/RepeatMasker/phyloP and local evidence disabled.
-Verification: source import/storage tests 26/26, Ruff, Black check, health API 21/21, targeted source-preflight cases 3/3, `git diff --check`, `python -m graphify update .` (needed longer timeout; no topology changes). Whole `test_source_asset_preflight_cli.py` timed out under 5m; targeted relevant cases passed.
-Guardrails held: no Render disk seed, Render env/provider flip, LOCAL_EVIDENCE_ENABLED flip, PubMed/RAG, Tier-2 upload, or config.py edit. Next safe gates: Render Shell seed phyloP/ClinVar/dbSNP if explicitly operating the SG disk; upload/register derived RepeatMasker compact index before RepeatMasker runtime seed; M3 still needs pooler-reachable release-file import. End clear-safe.
+# Resume prompt - 2026-06-21 03:21 +1000 - Codex M3 admin import path committed
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, then run git -C D:/eamos fetch origin; git -C D:/eamos status --short --branch; git -C D:/eamos log -8 --oneline.
+Delta: `main == origin/main` at `13be980` (`feat(backend): add admin clinical release import`). M3 endpoint is committed+pushed: `POST /api/v1/admin/materialization/clinical-release/import`, existing admin gate/rate limit, in-process `app.state.supabase_local_model_cache_store`, release-file parse before smoke/apply, sanitized counts only.
+Release files now ship from Git under `app/backend/data/source_assets` (MONDO/HPO/ClinGen/GenCC + manifests); `.gitattributes` pins them as non-normalized/non-diffed data. Real dry plan parsed 676,606 rows with no apply. GitHub warned `mondo.json` is 98.45 MB but accepted the push.
+Verification: materialization/source-import/rate-limit pytest 47/47; clinical parser + Supabase cache 26/26; source_reader_proofs; targeted source-asset preflight; real release dry plan; Ruff; touched-file Black; staged diff-check; graphify update --force. Full source_asset_preflight_cli still times out under 5m; targeted cases passed.
+Guardrails held: no live M3 import, deploy, Render disk seed/env/provider flip, LOCAL_EVIDENCE_ENABLED flip, PubMed/RAG, Tier-2 upload, or live Supabase mutation. Parked chat/Workbench/docs files remain dirty and separate. Next: deploy/run M3 only with explicit Steven path approval; gate on, call endpoint, verify sanitized counts, gate off. M9 local-evidence flip remains separate and gated. End clear-safe.
 ```
