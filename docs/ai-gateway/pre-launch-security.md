@@ -27,10 +27,11 @@ now enforce, in order:
 2. **Per-user burst limit** — `RATE_LIMIT_CHAT` (10 / window), keyed on the
    authenticated `user_id` (not just IP).
 3. **Per-user daily budget** — `enforce_chat_user_daily_cap` (`core/rate_limit.py`):
-   a per-user daily *request* cap. Because every response is already token-bounded by
-   `ai_gateway_max_tokens` (700), a request cap deterministically bounds per-user
-   token spend. Flat across users for first launch; config-shaped to grow into
-   per-tier limits later. **Env-gated, OFF by default** (`ai_chat_user_daily_cap_*`).
+   a per-user daily *request* cap (**free-tier = 10/user/day**). Because every response
+   is already token-bounded by `ai_gateway_max_tokens` (700), a request cap
+   deterministically bounds per-user token spend. Flat across users for first launch (no
+   paid tier wired into the chat path yet); config-shaped to grow into per-tier limits
+   later. **Env-gated, OFF by default** (`ai_chat_user_daily_cap_*`).
 4. **Global dev backstop** — `enforce_chat_dev_daily_cap` (cross-user spend guard for
    the dev/demo period; separate from the per-user budget above).
 
@@ -43,9 +44,9 @@ enforce_chat_dev_daily_cap(request)                             # 4. global back
 ```
 
 **Launch action (required before prod FE exposure of chat):** set
-`AI_CHAT_USER_DAILY_CAP_ENABLED=true` (and tune `AI_CHAT_USER_DAILY_CAP`, default 50)
-on the Render service. The per-user budget is OFF by default so it does not change the
-current gated demo; it is the explicit gate to flip at launch. Do **not** rely on the
+`AI_CHAT_USER_DAILY_CAP_ENABLED=true` (and tune `AI_CHAT_USER_DAILY_CAP`, free-tier
+default 10) on the Render service. The per-user budget is OFF by default so it does not
+change the current gated demo; it is the explicit gate to flip at launch. Do **not** rely on the
 gateway's spend cap alone (provider caps lag and are a blunt instrument).
 
 **Future (not launch-blocking):** per-tier budgets (free vs paid) once the user's
