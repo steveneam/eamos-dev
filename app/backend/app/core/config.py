@@ -191,8 +191,11 @@ class Settings(BaseSettings):
     local_evidence_runtime_seed_timeout_seconds: float = 1200.0
     admin_materialization_enabled: bool = False
     admin_materialization_token_sha256: str | None = None
+    # Must resolve inside the app/backend Docker context so it ships in the SG
+    # image (repo-root docs/ is outside `COPY . .`). Keep byte-identical to
+    # docs/backend-build-ledger-runtime/materialization-manifest-sg.json.
     admin_materialization_manifest_path: Path = Path(
-        "../../docs/backend-build-ledger-runtime/materialization-manifest-sg.json"
+        "app/materialization-manifest-sg.json"
     )
     admin_materialization_max_items: int = 8
     pubmed_local_enabled: bool = False
