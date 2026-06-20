@@ -18,6 +18,8 @@ from app.schemas.protein_annotation import ProteinDomainTrack
 
 logger = logging.getLogger(__name__)
 
+CLINICAL_GENE_DISEASE_STATEMENT_TIMEOUT_MS = 5_000
+
 
 class SupabaseLocalModelCacheError(RuntimeError):
     pass
@@ -705,7 +707,7 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                 report_url,
                 provenance
             from {self.clinical_clingen_table}
-            where upper(gene_symbol) = :gene
+            where gene_symbol = :gene
             order by source_date desc nulls last, disease_label asc
             limit 50
             """)
@@ -721,7 +723,7 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                 report_url,
                 provenance
             from {self.clinical_gencc_table}
-            where upper(gene_symbol) = :gene
+            where gene_symbol = :gene
             order by source_date desc nulls last, disease_title asc
             limit 50
             """)
@@ -738,6 +740,24 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                 limit 50
                 """).bindparams(bindparam("disease_ids", expanding=True))
         hpo_statement = text(f"""
+                with gene_hpo as materialized (
+                    select distinct
+                        hpo_id,
+                        gene_id
+                    from {self.clinical_hpo_gene_table}
+                    where gene_symbol = :gene
+                ),
+                disease_matches as materialized (
+                    select
+                        disease_id,
+                        disease_name,
+                        hpo_id,
+                        hpo_label,
+                        evidence,
+                        frequency
+                    from {self.clinical_hpo_disease_table}
+                    where disease_id in :disease_ids
+                )
                 select distinct
                     d.disease_id,
                     d.disease_name,
@@ -745,20 +765,22 @@ class SqlAlchemySupabaseLocalModelCacheStore:
                     d.hpo_label,
                     d.evidence,
                     d.frequency,
-                    d.provenance as disease_provenance,
-                    g.gene_id,
-                    g.provenance as gene_provenance
-                from {self.clinical_hpo_gene_table} g
-                join {self.clinical_hpo_disease_table} d
+                    g.gene_id
+                from disease_matches d
+                join gene_hpo g
                   on d.hpo_id = g.hpo_id
-                where upper(g.gene_symbol) = :gene
-                  and d.disease_id in :disease_ids
                 order by d.disease_name asc, d.hpo_label asc
                 limit 200
                 """).bindparams(bindparam("disease_ids", expanding=True))
 
         try:
             with session_scope(self.session_factory) as session:
+                session.execute(
+                    text(
+                        "set local statement_timeout = "
+                        f"{CLINICAL_GENE_DISEASE_STATEMENT_TIMEOUT_MS}"
+                    )
+                )
                 clingen_rows = [
                     dict(row)
                     for row in session.execute(
