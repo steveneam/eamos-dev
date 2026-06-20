@@ -13,6 +13,7 @@ from fastapi import HTTPException, Request, status
 RATE_LIMIT_AUTH = "auth"
 RATE_LIMIT_BATCH_UPLOAD = "batch_upload"
 RATE_LIMIT_CHAT = "chat"
+RATE_LIMIT_CHAT_DEV_DAILY = "chat_dev_daily"
 RATE_LIMIT_EVIDENCE = "evidence"
 RATE_LIMIT_LIBRARY = "library"
 RATE_LIMIT_LOOKUP = "lookup"
@@ -109,6 +110,48 @@ def enforce_rate_limit(
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         detail="Too many requests.",
+        headers={"Retry-After": retry_after},
+    )
+
+
+def enforce_chat_dev_daily_cap(request: Request) -> None:
+    """Global (cross-user) daily spend backstop for the gateway chat path.
+
+    A blunt guard that caps TOTAL chat requests in a rolling window so the AI
+    Gateway credit cannot be drained while developing against the real gateway or
+    running the gated shared-Render demo. No-op unless
+    ``ai_chat_dev_daily_cap_enabled`` (default False), so free local fake-gateway
+    iteration stays unlimited. Reuses the shared in-memory limiter with a single
+    global key and the configured window — independent of the per-user
+    ``RATE_LIMIT_CHAT`` limit (both apply) and of the launch per-user/tier budget
+    (docs/ai-gateway/pre-launch-security.md), which is separate and still pending.
+    """
+    settings = request.app.state.settings
+    if not getattr(settings, "ai_chat_dev_daily_cap_enabled", False):
+        return
+
+    limiter = getattr(request.app.state, "rate_limiter", None)
+    if limiter is None:
+        limiter = InMemoryRateLimiter()
+        request.app.state.rate_limiter = limiter
+
+    max_requests = max(1, int(getattr(settings, "ai_chat_dev_daily_cap", 1)))
+    window_seconds = max(1, int(getattr(settings, "ai_chat_dev_daily_cap_window_seconds", 86_400)))
+    result = limiter.check(
+        [f"{RATE_LIMIT_CHAT_DEV_DAILY}:global"],
+        max_requests=max_requests,
+        window_seconds=window_seconds,
+    )
+    if result.allowed:
+        return
+
+    retry_after = str(max(1, math.ceil(result.retry_after_seconds)))
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail=(
+            "Ask-Eamos daily development cap reached. This is a temporary spend "
+            "guardrail while the AI gateway is in development — please try again later."
+        ),
         headers={"Retry-After": retry_after},
     )
 

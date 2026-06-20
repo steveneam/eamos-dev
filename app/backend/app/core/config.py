@@ -94,6 +94,19 @@ class Settings(BaseSettings):
     ai_gateway_timeout_seconds: float = 30.0
     ai_gateway_max_retries: int = 3
 
+    # --- AI gateway dev daily spend-cap — docs/ai-gateway/{plan.md,local-testing.md} ---
+    # Global (cross-user) backstop on the real-spend chat path: while developing
+    # against the real Vercel AI Gateway, or running the gated shared-Render demo,
+    # cap TOTAL chat requests per rolling window so the small gateway credit cannot
+    # be drained. OFF by default — free local fake-gateway iteration stays unlimited;
+    # turn ON only for real-gateway / shared-backend scenarios. This is the DEV spend
+    # guardrail, distinct from the per-user rate_limit_chat_* limit (both apply) and
+    # from the launch-time per-user/tier budget (pre-launch-security.md), which is
+    # separate and still pending.
+    ai_chat_dev_daily_cap_enabled: bool = False
+    ai_chat_dev_daily_cap: int = 1
+    ai_chat_dev_daily_cap_window_seconds: int = 86_400
+
     # --- AI gateway literature RAG — docs/ai-gateway-rag/spec.md ---
     # Variant chat retrieves gene-scoped PubMed abstract snippets from a local-first
     # vector store (D1=B: SQLite on the Render disk beside pubmed_local) when
