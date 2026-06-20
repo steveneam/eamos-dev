@@ -194,10 +194,9 @@ class Settings(BaseSettings):
     # Must resolve inside the app/backend Docker context so it ships in the SG
     # image (repo-root docs/ is outside `COPY . .`). Keep byte-identical to
     # docs/backend-build-ledger-runtime/materialization-manifest-sg.json.
-    admin_materialization_manifest_path: Path = Path(
-        "app/materialization-manifest-sg.json"
-    )
+    admin_materialization_manifest_path: Path = Path("app/materialization-manifest-sg.json")
     admin_materialization_max_items: int = 8
+    admin_materialization_clinical_source_asset_root: Path = Path("data/source_assets")
     pubmed_local_enabled: bool = False
     pubmed_local_sqlite_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.sqlite")
     pubmed_local_manifest_path: Path = Path("./data/bio_assets/pubmed/pubmed-local.manifest.json")

@@ -1,0 +1,11 @@
+{
+  "asset_id": "clingen_gene_validity_csv",
+  "source_id": "clingen_gene_validity",
+  "source_url": "https://search.clinicalgenome.org/kb/gene-validity/download",
+  "final_url_sanitized": "https://search.clinicalgenome.org/kb/gene-validity/download",
+  "role": "clingen_gene_validity_csv",
+  "actual_size_bytes": 1095941,
+  "expected_size_bytes": 1095941,
+  "md5": "22dbd05b43261c53d7b50dfd24c54425",
+  "sha256": "bd30ad181e78499396f465c9dbc1e79aa0f5ac33a336c18c4efac041b0cd0ca8"
+}

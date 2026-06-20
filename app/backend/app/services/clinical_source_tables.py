@@ -938,7 +938,14 @@ def _normalize_curie(value: str | None) -> str:
 
 
 def _sha256_file(path: Path) -> str:
-    return sha256(path.read_bytes()).hexdigest()
+    try:
+        return sha256(path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise ClinicalSourceTableError(
+            "fixture_unavailable",
+            "clinical source table fixture is unavailable",
+            {"path": str(path)},
+        ) from exc
 
 
 def _repo_relative_path(path: Path) -> str:

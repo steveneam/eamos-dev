@@ -1,0 +1,11 @@
+{
+  "asset_id": "hpo_genes_to_phenotype",
+  "source_id": "human_phenotype_ontology",
+  "source_url": "https://purl.obolibrary.org/obo/hp/hpoa/genes_to_phenotype.txt",
+  "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/41063438/075bd655-de72-4dd8-9799-bef6eefa2671",
+  "role": "hpo_gene_phenotypes",
+  "actual_size_bytes": 20533481,
+  "expected_size_bytes": 20533481,
+  "md5": "ae3c7ece4e3dfb654f73be8077089727",
+  "sha256": "25d3e5a40203cbb4cc027747c70fcb5431bcfb26283479608a97f3d810285c7d"
+}

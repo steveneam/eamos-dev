@@ -1,0 +1,11 @@
+{
+  "asset_id": "mondo_json",
+  "source_id": "mondo_disease_ontology",
+  "source_url": "https://purl.obolibrary.org/obo/mondo.json",
+  "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/104242311/a8d214e3-189b-4dde-b0ea-a72aafb4d6a3",
+  "role": "mondo_json",
+  "actual_size_bytes": 103231823,
+  "expected_size_bytes": 103231823,
+  "md5": "27cf9a95a11bb6b5bb488bcb38eee82f",
+  "sha256": "4b6ece0b965528fadbd578b98ac95f268e833f18f1827ec58d380b2ac652e95d"
+}

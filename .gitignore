@@ -22,7 +22,29 @@ Thumbs.db
 # Demo artifacts
 *.db
 *.sqlite
-app/backend/data/
+app/backend/data/*
+!app/backend/data/source_assets/
+app/backend/data/source_assets/*
+!app/backend/data/source_assets/clingen_gene_validity/
+app/backend/data/source_assets/clingen_gene_validity/*
+!app/backend/data/source_assets/clingen_gene_validity/clingen_gene_validity.csv
+!app/backend/data/source_assets/clingen_gene_validity/clingen_gene_validity.csv.manifest.json
+!app/backend/data/source_assets/gencc_download/
+app/backend/data/source_assets/gencc_download/*
+!app/backend/data/source_assets/gencc_download/gencc-download.csv
+!app/backend/data/source_assets/gencc_download/gencc-download.csv.manifest.json
+!app/backend/data/source_assets/human_phenotype_ontology/
+app/backend/data/source_assets/human_phenotype_ontology/*
+!app/backend/data/source_assets/human_phenotype_ontology/genes_to_phenotype.txt
+!app/backend/data/source_assets/human_phenotype_ontology/genes_to_phenotype.txt.manifest.json
+!app/backend/data/source_assets/human_phenotype_ontology/hp.json
+!app/backend/data/source_assets/human_phenotype_ontology/hp.json.manifest.json
+!app/backend/data/source_assets/human_phenotype_ontology/phenotype.hpoa
+!app/backend/data/source_assets/human_phenotype_ontology/phenotype.hpoa.manifest.json
+!app/backend/data/source_assets/mondo_disease_ontology/
+app/backend/data/source_assets/mondo_disease_ontology/*
+!app/backend/data/source_assets/mondo_disease_ontology/mondo.json
+!app/backend/data/source_assets/mondo_disease_ontology/mondo.json.manifest.json
 node_modules_temp/
 
 # Notes that should stay local

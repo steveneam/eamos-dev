@@ -1,0 +1,11 @@
+{
+  "actual_size_bytes": 27701585,
+  "asset_id": "gencc_submissions_csv",
+  "expected_size_bytes": null,
+  "final_url_sanitized": "https://thegencc.org/download/action/submissions-export-csv",
+  "md5": "5733f4fa7119fa48502398feeecd1ee5",
+  "role": "gencc_submissions_csv",
+  "sha256": "efd82c943f97a837ef9616b992b1746dfb53ea031bedda038fdb9e180a5460b9",
+  "source_id": "gencc_download",
+  "source_url": "https://search.thegencc.org/download/action/submissions-export-csv"
+}

@@ -1,0 +1,11 @@
+{
+  "actual_size_bytes": 22063007,
+  "asset_id": "hpo_ontology_json",
+  "expected_size_bytes": 22063007,
+  "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/41063438/2942c605-3b05-4001-821f-4d6460b07318",
+  "md5": "9fa57f4b0bcde82666744041b836aebd",
+  "role": "hpo_ontology_terms",
+  "sha256": "cb3b756ac11d1308372136bf4f7f8db2ad1c51f64a795e09400e5ffb2a273243",
+  "source_id": "human_phenotype_ontology",
+  "source_url": "https://purl.obolibrary.org/obo/hp.json"
+}

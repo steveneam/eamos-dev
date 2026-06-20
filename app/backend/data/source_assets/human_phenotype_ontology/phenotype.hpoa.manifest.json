@@ -1,0 +1,11 @@
+{
+  "asset_id": "hpo_phenotype_hpoa",
+  "source_id": "human_phenotype_ontology",
+  "source_url": "https://purl.obolibrary.org/obo/hp/hpoa/phenotype.hpoa",
+  "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/41063438/ffe4a014-8d51-4590-b65c-23b57a6f75eb",
+  "role": "hpo_disease_phenotypes",
+  "actual_size_bytes": 35261380,
+  "expected_size_bytes": 35261380,
+  "md5": "b249dc767256e904d1e92895184009b2",
+  "sha256": "5d7aedee5f6218e9952fceba5f883df2cc4a0c1938e55d8d2616c15c517964fb"
+}
