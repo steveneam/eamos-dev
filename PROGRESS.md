@@ -1,5 +1,16 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-21 02:34 +1000 - Claude - Materialization disk seed COMPLETE over 443 (no hotspot); manifest deploy-bug fixed
+
+Steven role-swapped Claude to drive Codex's materialization commit/push/deploy + the live seed.
+
+- Committed + pushed + deployed Codex's robustness lane (`887f121`) + CLAUDE.md §5 (`d80c005`) + a deploy-bug fix (`6ea2431`: `admin_materialization_manifest_path` resolved to repo-root `docs/`, outside SG's app/backend Docker context → never shipped → 400 `manifest_unreadable`; shipped a byte-identical copy at `app/backend/app/materialization-manifest-sg.json`).
+- Set SG env: the 2 non-secret S3 vars (Claude, via Render API) + Steven rotated the leaked S3 key and set the 2 secret creds + the admin materialization vars.
+- Uploaded the RepeatMasker derived compact object to private Storage (S3 multipart, manifest key).
+- Seeded SG `/var/data` via `POST /api/v1/admin/materialization/run` (443, no hotspot, ~11 min): **ready 7/7, 0 failed, 7 metadata reconciled, all sha256 verified** — clingen 528MB, clinvar vcf+tbi, repeatmasker 701MB, phylop 9.87GB, dbsnp 29.55GB+tbi (≈40.8GB). Live provider-cache: `local_evidence_runtime_assets` 4/4 + `clingen_local` ready. Auth via a throwaway `/auth/register` user (admin token is the real gate).
+- NOT flipped: `LOCAL_EVIDENCE_ENABLED` / provider (M9 separate — assets ready but pipeline doesn't consume them yet). `ADMIN_MATERIALIZATION_ENABLED` → false after (single-use).
+- Verified finding (RISKS): eamos-local `/auth/register` users live on ephemeral `./data/app.db` (wiped per deploy); real Supabase-auth users unaffected. Two new deployment lessons captured in `docs/deployment/materialization-lessons-learned.md`. M3 clinical import still pooler-blocked (Codex lane).
+
 ## 2026-06-20 04:16 +1000 - Claude - Large coordinated release shipped + deployed + prod-verified; Supabase pooler-password incident fixed
 
 Drove the commit/push/deploy with Codex (Steven coordinating).

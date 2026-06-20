@@ -259,6 +259,23 @@ seed dry-run; canonical write-up `docs/deployment/materialization-lessons-learne
   one was transcript-leaked 2026-06-20) before seeding any multi-GB asset; treat a
   non-resumable multi-GB seed as a do-not-start condition.
 
+Verified 2026-06-21 02:39 +1000 - Claude (during the first live 443 seed):
+
+- **MED — eamos-local user accounts live on the EPHEMERAL container FS, wiped
+  every deploy.** `database_url = "sqlite+pysqlite:///./data/app.db"` resolves to
+  `/app/data/app.db` on SG (ephemeral), NOT `/var/data`. A user registered via
+  `/auth/register` authed fine, then 401'd after a redeploy (its row was gone) —
+  this bit the admin-materialization seed flow (had to re-register on the final
+  image). **Real production users are NOT affected** — they authenticate via
+  Supabase (signature-validated JWT, `_supabase_principal`, no SQLite lookup). So
+  the blast radius is eamos-local `/auth/register` accounts + any operator/admin
+  flow that registers a user then redeploys. The RENDER-aware defaults moved
+  bio-assets to `/var/data` but left `app.db` ephemeral. **Fix options (Codex's
+  auth lane):** point `DATABASE_URL` at `/var/data/eamos/app.db` so local accounts
+  persist, OR formally treat eamos-local auth as dev-only and document that real
+  auth is Supabase. Until decided, deploy-spanning admin flows must re-register on
+  the final image or use a Supabase JWT.
+
 ## Backend Launch Security Findings
 
 Section edited: 2026-05-26 20:23 +1000 - Codex.

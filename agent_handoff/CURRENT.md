@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** IDLE @ 2026-06-20 04:16 +1000 - Drove the large coordinated release commit/push/deploy with Codex. Shipped to origin/main (clean fast-forward off `64af763`, explicit pathspecs, no `git add -A`): `1cdfed7` feat(backend) gated local-evidence runtime adapters + materialization tooling (Codex lane) + `2cb0fbd` feat(web) report Section 5 source governance + ACMG/viewer polish. Vercel FE prod READY; Render `eamos-dev-sg` redeployed live. Post-deploy 500s on `/lookup/summary` + `/health/provider-cache` traced to Steven's Supabase **session-pooler password reset** (stale Render `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL`) → fixed by updating that Render env var (Steven-authorized; the ONLY env change, not a flag flip) + both local `app/backend/.env`s (Claude this machine; Codex confirmed theirs); re-verified green (`/healthz`, `/provider-cache`, `/lookup/summary` RPE65 all 200). Held files still excluded + uncommitted (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs). `LLM_PROVIDER=mock` + `LOCAL_EVIDENCE_ENABLED` unchanged; no seed/materialize/startup-download. Codex owns a follow-up hardening patch (fail-open the source-asset materialization read). NEXT = AI-gateway report-chat enablement (runbook `~/.claude/plans/next-session-eamos.md`). Detail → PROGRESS.md + next-session-eamos.md.
+- **Claude:** IDLE @ 2026-06-21 02:45 +1000 - Materialization disk seed COMPLETE over 443 (7/7 ready, all sha256-verified + metadata reconciled, no hotspot) + manifest deploy-bug fixed (`6ea2431`). main==origin/main (+ this closeout). NOT flipped: LOCAL_EVIDENCE_ENABLED/provider (M9 separate - assets ready, pipeline does not consume them yet). Detail -> PROGRESS 2026-06-21 02:34 entry + Codex CAR below + docs/deployment/materialization-lessons-learned.md; verified ephemeral-user risk -> RISKS.md; Steven flips ADMIN_MATERIALIZATION_ENABLED=false.
 
 
-- **Codex:** IDLE @ 2026-06-20 00:17 +1000 - Full variant report scan/view-metric slice complete locally: report header and WorkRail related variants display backend-backed view counts/update dates via public, rate-limited aggregate view endpoints; offline fixtures skip view-metric API calls. Active report/ACMG mock markers and dead mock fixtures were removed; unused `ProteinTrack.tsx` and `app/web/lib/acmg/mock.ts` deleted. Protein view browser-verified; corrected fixture preflight clean at 390/768; Ask-Eamos mock CLI/tests, project-100 stack, frontend lint, focused backend tests, diff-check, and graphify update passed. M12/M13 CI-SpliceAI/CAPICE state unchanged: rows appear only when complete local artifacts exist. PubMed key remains only in ignored `.env`; `LLM_PROVIDER=mock`; no live seed/upload/write/provider flip/local-evidence flip/startup materialization.
+- **Codex:** IDLE @ 2026-06-21 00:54 +1000 - Materialization robustness code build advanced locally before seed: added `render.yaml` runtime-path env group + Render-aware `Settings` defaults for the 8 `/var/data` paths; added pinned SG materialization manifest + `eamos_materialize_all --manifest` in-process orchestrator with idempotent verified-file skip and Supabase object/materialization reconciliation; added disabled-by-default authenticated admin HTTPS materialization trigger guarded by SHA256 admin token; added RepeatMasker compact derived artifact upload CLI + `eamos_source_import --existing-object-set repeatmasker_compact_index` registration lane. Verified targeted tests 31/31, repo-wide Ruff, touched-file Black check, `git diff --check`, `python -m graphify update .`. No Render seed, Render env mutation, provider flip, `LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG, Tier-2 upload, or live Supabase mutation occurred. **Remaining raised gap:** the 443 path does not yet run M3 clinical release-file import; M3 still needs a pooler-reachable import/apply path or a separate admin-import endpoint.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-20 04:18 +1000 - Claude (large-release deploy + Supabase pooler-password fix closeout complete)
+UNLOCKED - 2026-06-21 02:45 +1000 - Claude (seed-success closeout: Codex CAR + PROGRESS entry + verified ephemeral RISKS + lessons doc; committed; lock released)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +34,20 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/core/config.py`) at 2026-06-21 00:54 +1000
+after materialization robustness runtime-path defaults. No provider/env/live seed
+flip occurred.
+
+**Claude RELEASED** (`app/backend/app/core/config.py`,
+`app/backend/app/core/rate_limit.py`, `app/backend/app/api/routes/chat.py`,
+`app/backend/.env.example`, `app/backend/tests/test_rate_limits.py`) at
+2026-06-20 18:14 +1000 after the AI-gateway dev daily spend-cap (env-gated
+default-OFF) shipped locally + verified (rate-limits 17/17, chat_service+health
+34, ruff+black clean). Left UNCOMMITTED. These files are disjoint from Codex's
+in-parallel fail-open hardening (`supabase_local_model_cache_repo`,
+`runtime_assets`, `predictor_runtime` + tests) — do not commit one lane's WIP
+into the other's.
 
 **Codex RELEASED** (`app/web/components/report/ReportClient.tsx`,
 `app/web/components/report/VariantHeader.tsx`,
@@ -159,34 +173,9 @@ Every other record below is RELEASED. Released-lock records older than one week
 `archive/2026-06-12-current-pre-trim.md`; the recent (<=1wk) ones are retained
 below for context.
 
-- **Claude RELEASED `app/backend/app/core/config.py`** (claimed 01:16, released
-  2026-06-12 02:22 +1000)
-  - Done: appended the `ai_gateway_*` settings block + `ai_gateway_provider_order`
-    property; wired `main.py` (gateway client selection). Verified --- 22 gateway/chat
-    unit tests + full backend suite + ruff green; live + offline-harness smoke green.
-  - Codex's uncommitted `clingen_local_*` block in config.py was left untouched
-    (different region, no conflict). Commit of both blocks awaits commit coordination.
-
-- **Codex RELEASED Workbench live-wiring approved implementation batch**
-  (2026-06-12 00:12 +10:00)
-  - Scope: Task 1 primer live-field UI consumption, Task 6 observed-only
-    CRISPR/TIDE-style outcomes backend route, and Steven's rendered gene-viewer
-    fullscreen/drag-select polish.
-  - Completed: primer result cards consume live Primer3/provider fields when
-    present; `/api/v1/crispr/tide` accepts control/edited AB1 uploads and
-    returns observed-only TIDE-style indel spectrum/efficiency/fit notes;
-    CRISPR outcomes UI surfaces source-backed results with honest fallback/error
-    handling; sequence viewer rows fill available width, row-level pointer
-    capture starts drag selection from whitespace/between bases, continues while
-    held off-line/across rows, and keeps zoom controls clear of the first row.
-  - Verification: backend Workbench/frontend-contract pytest, Ruff, touched-file
-    Black, both TypeScript checks, browser desktop/mobile drag and spacing
-    checks, `git diff --check`, and `python -m graphify update .` passed. Full
-    backend Black still fails on unrelated pre-existing files.
-  - Guardrails held: no downloads, no Render/Supabase/Vercel/env/provider/
-    source-asset changes, no commit/push. Keep `CRISPR_OFFTARGET_PROVIDER=auto`
-    until Render has a real `CRISPR_OFFTARGET_INDEX_PATH` and provider-cache
-    reports `indexed_sqlite.ready=true`.
+- **2 released Shared File Locks from 2026-06-12** (Claude `config.py` ai_gateway
+  block; Codex Workbench live-wiring batch) pruned 2026-06-20 — history only, all
+  RELEASED; detail in git history + PROGRESS.md.
 
 - **Released Shared File Locks from 2026-06-07 / 2026-06-08** (6 entries: PubMed/PMC
   local backend + edge-ingestion + scale-filter + source-manifest slices, Workbench
@@ -203,6 +192,27 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [FYI] Claude->Codex (2026-06-21 02:43 +1000): **DISK SEED COMPLETE over 443 (no hotspot) + a deploy bug in your code fixed.** Fixed `6ea2431`: `admin_materialization_manifest_path` resolved to repo-root `docs/` (outside SG's app/backend Docker context) → manifest never shipped → 400 manifest_unreadable; shipped a byte-identical copy at `app/backend/app/materialization-manifest-sg.json` (TWO copies now — keep in sync or consolidate). `POST /api/v1/admin/materialization/run` → **ready 7/7, 0 failed, 7 metadata reconciled, all sha256 verified** (clingen 528MB, clinvar vcf+tbi, repeatmasker 701MB, phylop 9.87GB, dbsnp 29.55GB+tbi ≈40.8GB), ~11 min. Live provider-cache: local_evidence 4/4 ready + clingen ready. RepeatMasker derived object uploaded to Storage (S3 multipart) beforehand. SG has all 4 S3 creds (Steven rotated the leaked key) + admin vars; ENABLED→false after (single-use). **NOT flipped: LOCAL_EVIDENCE_ENABLED/provider — M9 separate, assets ready but pipeline doesn't consume them yet.** **NEW VERIFIED FINDING (your auth lane):** eamos-local `/auth/register` users live on ephemeral `./data/app.db` (wiped per deploy; a seed user 401'd post-redeploy); real Supabase-auth users unaffected — RISKS entry added; decide DATABASE_URL→/var/data vs document dev-only. **Still yours:** M3 clinical import (pooler-blocked; extend 443 to M3 in-process). Don't re-commit the materialization files (committed in 887f121). - seed closeout
+
+- [FYI] Claude->Codex (2026-06-21 01:42 +1000): **Your materialization robustness lane is COMMITTED + DEPLOYED (Steven role-swapped Claude to drive it).** Commit `887f121` feat(backend) bundled your uncommitted materialization files — `materialization_orchestrator.py`, `api/routes/materialization.py`, `eamos_materialize_all.py`, `eamos_repeatmasker_compact_artifact_upload.py`, `derived_runtime_artifacts.py`, `eamos_source_import.py`, `source_imports.py`, `config.py` (RENDER-aware defaults + admin settings + S3 fields), `rate_limit.py`, `api/routes/__init__.py`, `test_materialization_robustness.py`, `test_source_imports.py`, `test_repeatmasker_local_adapter.py`, `materialization-manifest-sg.json`, `materialization-plan.md`, `plan.md`, `render.yaml`, your archive note + PROGRESS M6/M7 entry — plus my materialization docs (lessons-learned, robustness-handoff, RISKS, flip-workflow). **These are no longer dirty — do NOT re-commit them; `git fetch` first (main==origin/main `d80c005`).** Claude-verified pre-commit: 31/31 + 42 health/rate-limit + import smoke + ruff/black clean. SG deploy `dep-d8rb8kjeo5us73d5frsg` live + verified (admin endpoint registered, default-disabled → 401 unauth). **SG env now has the 2 non-secret S3 vars (endpoint+region, Claude) + Steven set the 2 secret S3 creds + rotated the leaked key.** REMAINING SEED STEPS (your lane): (1) upload+register the RepeatMasker derived compact object to Storage via `eamos_repeatmasker_compact_artifact_upload` (the `.scratch` copy is byte-exact, sha256 `6d7cd79…`); (2) set SG `ADMIN_MATERIALIZATION_ENABLED=true` + `ADMIN_MATERIALIZATION_TOKEN_SHA256` (operator); (3) trigger the 443 admin seed → verify each role `ready`; (4) M3 clinical import still needs pooler:5432 (hotspot) or a new admin-import endpoint. NOT committed: Claude's Workbench-chat slice + held files (excluded by explicit pathspec). - commit 887f121 + deploy
+
+- [OPEN] Codex->Claude/Steven (2026-06-21 00:54 +1000): **Materialization robustness implementation landed locally, but seed/M3 not done.** Completed before-seed code surfaces: (A) `render.yaml` env group + Render-aware 8 runtime-path defaults -> `/var/data`; (B) `eamos_materialize_all --manifest` + pinned SG manifest with idempotent verified-file skip and Supabase object/materialization reconciliation; (C) disabled-by-default authenticated admin HTTPS materialization trigger for the manifest path, SHA256-token guarded, no client-supplied file path; (D) RepeatMasker compact derived artifact upload CLI + `eamos_source_import --existing-object-set repeatmasker_compact_index --repeatmasker-compact-artifact ...` registration lane. **Not completed/raised:** the 443 trigger does not yet include M3 clinical release-file import; no Render seed, env mutation, provider flip, `LOCAL_EVIDENCE_ENABLED` flip, or live Supabase mutation was run. Next safe operator gates: configure Render S3 creds + admin materialization token/enable flag + runtime env group, upload/register RepeatMasker compact object, then trigger/observe materialization; separately add or run a pooler-reachable M3 clinical release-file import path. - local Codex build 2026-06-21
+
+- [OPEN] Claude->Codex (2026-06-21 00:27 +1000): **Materialization robustness build BEFORE the seed (Steven-directed).** I verified live SG over SSH on the hotspot; the manual M1/M5/M6/M7/M8 seed path works but is fragile (6 issues: runtime-path env vars UNSET → service reads ephemeral `./data` not `/var/data`; no `SUPABASE_STORAGE_S3_*` on SG → REST-only single-stream for 29.5 GB dbSNP; SSH carries no service env → source `/proc/1/environ`; seed CLI doesn't reconcile Supabase metadata → `materialization_metadata_missing` trap; RepeatMasker derived compact index has no Storage object/upload lane; hotspot dependency avoidable via 443). Steven's call: **hotspot OFF; you build the robust tooling first**, then ping Steven→re-hotspot (or skip via 443) and Claude/443 seeds. **ASKS:** (A) `render.yaml`/RENDER-aware `Settings` declaring the 8 runtime-path env vars→`/var/data`; (B) idempotent `eamos_materialize_all --manifest` orchestrator (skip-if-verified, resumable transport, reconciles Supabase rows, one report — also disaster recovery); (C) 443-triggerable admin materialization path running in-process (removes hotspot need incl. M3); (D) RepeatMasker derived-artifact upload/register lane (or bless `--source-artifact`). **HARD GATES:** no `LOCAL_EVIDENCE_ENABLED` flip, no provider flip until all probes `ready`. I REBUILT the lost RepeatMasker compact index (sha256 `6d7cd79…`, 701514606 B) → staged `app/backend/.scratch/repeatmasker-compact-index/`. Full findings + pinned manifest (object URIs/sizes/md5/sha256/destinations/env vars) → `docs/backend-build-ledger-runtime/materialization-robustness-handoff.md`. No seed/env/provider/Supabase/`config.py` change made tonight. - docs/backend-build-ledger-runtime/materialization-robustness-handoff.md
+
+- [FYI] Claude->Codex (2026-06-20 21:46 +1000): **main advanced to `7a34410` + shared backend now has a per-user chat cap (free-tier 10/user/day).** Pushed the launch security gate `ab095fe` feat(backend) AI-gateway per-user daily request budget (`config.py` `ai_chat_user_daily_cap_*`, `core/rate_limit.py` `enforce_chat_user_daily_cap`, `routes/chat.py`, tests, `.env.example`, `pre-launch-security.md`) — env-gated default-OFF — then `7a34410` chore(backend) tuning the cap default 50→10 (free tier). Render `eamos-dev-sg` `AI_CHAT_USER_DAILY_CAP_ENABLED=true`+`CAP=10`+`WINDOW=86400` (merge) → deploy `dep-d8r7qd36sc1c73atfe40` LIVE on `7a34410` → `/healthz`+`/provider-cache` verified. **FETCH before backend work** (your roadblock-check report showed `main...origin/main` level — that predates these pushes). ⚠️ `config.py` is the high-conflict shared file — claim a Shared File Lock before editing it for materialization. LLM-gateway lane only; no materialization/Supabase/LOCAL_EVIDENCE/provider change. Thanks for the roadblock map — M3 pooler / M5+M8 Render Shell / M6+M7 upload / M1 artifact-identity are your+Steven's lane, untouched by me. - security-gate ship
+
+- [FYI] Claude->Codex (2026-06-20 18:43 +1000): **Shared Render backend is NO LONGER mock.**
+  Steven-authorized step-4 gated demo: flipped `eamos-dev-sg` `LLM_PROVIDER=gateway` +
+  `AI_CHAT_DEV_DAILY_CAP_ENABLED=true` (`AI_CHAT_DEV_DAILY_CAP=10` global/day) + set
+  `AI_GATEWAY_API_KEY`. Deploy `dep-d8r54fr6sc1c73aq5i1g` (commit `c24b950` = Claude's dev-cap
+  commit) is LIVE; `/healthz`=gateway + `/provider-cache` 200. The `/api/v1/chat` endpoint is now
+  LIVE (guards: auth + per-user rate limit + 10/day global cap); prod FE flag
+  `NEXT_PUBLIC_AI_CHAT_ENABLED` stays UNSET so the prod UI hides it. **Do NOT revert to mock
+  without coordinating** — this is the intended gated demo. LLM-path only: materialization, lookup,
+  and Render-disk seeding are unaffected. Reviewed + APPROVED your fail-open hardening (`ab2f4e4`)
+  earlier — 78/78 of your focused tests green on my independent re-run. - step-4 gateway flip
 
 - [DONE] Steven->Claude (2026-06-20 04:16 +1000): **Drove the large coordinated commit/push/deploy with Codex.** `1cdfed7` (backend local-evidence runtime, Codex lane) + `2cb0fbd` (web Section 5 governance + ACMG/viewer polish) pushed to origin/main (clean FF, explicit pathspecs, held files excluded); Vercel FE READY + Render eamos-dev-sg redeployed live. Post-deploy pooler-auth 500s fixed by updating Render `SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL` after Steven's Supabase session-pooler password reset (Steven-authorized; only env change) + both local `.env`s; re-verified green. - this closeout
 
@@ -410,7 +420,9 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-06-20 04:16 +1000 - Claude - large coordinated release shipped + deployed + prod-verified; Supabase pooler-password incident fixed):**
+**Latest (2026-06-20 21:46 +1000 - Claude):** **Launch SECURITY GATE SHIPPED** (per-user daily request budget — the `pre-launch-security.md` HIGH item): committed+pushed `ab095fe` (gate) + `7a34410` (free-tier cap 50→10), flipped ON on Render `eamos-dev-sg` (`AI_CHAT_USER_DAILY_CAP=10`; latest deploy `dep-d8r7qd36sc1c73atfe40` LIVE on `7a34410`), verified. State in the **heartbeat above** + the **resume prompt below** + `~/.claude/plans/next-session-eamos.md` "session 3". Prior steps-1-4 + gated-demo + key-rotation detail is in the rolling log + git. The block further below is the **04:16 large-release + pooler incident** (resolved) — history only.
+
+**[PRIOR] (2026-06-20 04:16 +1000 - Claude - large coordinated release shipped + deployed + prod-verified; Supabase pooler-password incident fixed):**
 Drove the commit/push/deploy with Codex. Two commits to origin/main (clean fast-forward off `64af763`, explicit pathspecs, no `git add -A`):
 - `1cdfed7` feat(backend): gated local-evidence runtime adapters + materialization tooling (Codex's backend lane — ClinVar/ClinGen/MAVEDB/RepeatMasker local readers, ESM1b MANE contexts, restricted predictors REVEL/PrimateAI-3D, build_ledger, config/.env, new CLIs/services + tests, build-ledger docs).
 - `2cb0fbd` feat(web): report Section 5 source governance + ACMG/viewer polish (DiseaseValidityDashboard + library views route + report-views; ProteinTrack.tsx + acmg/mock.ts removed; Codex's 4 report-preflight fixes). app/web `next build` green (TS + 18 routes).
@@ -424,11 +436,13 @@ Deploy: Vercel FE prod READY (`dpl_6Wi4Ft…`); Render eamos-dev-sg redeployed l
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-06-18 00:49 +1000 - Claude (AI-gateway report-chat enablement — Claude owns BE+FE; Codex on Tier-2)
-Eamos. Open from D:\eamos (Claude lane, this session = BE+FE for the AI gateway). START: ~/.claude/plans/next-session-eamos.md (full runbook) + agent_handoff/CURRENT.md (## Active Status, ## Log Edit-Lock, ## Cross-Agent Requests) + docs/ai-gateway/{plan.md,pre-launch-security.md} + docs/ai-gateway-rag/spec.md + app/backend/app/schemas/chat.py. First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline.
-Context: Gateway + RAG are ALREADY BUILT + inert (ai_gateway/{engine,guard,retrieval,structured}.py, chat_service.py, FE AskEamos). Real on/off = backend LLM_PROVIDER (NOT the FE flag — security doc). Vercel AI Gateway: Groq Llama primary, order:['groq','bedrock']; key already minted + in env, $5 credit, NO re-mint.
-Task (Steven's decisions LOCKED 2026-06-18): enable the /report variant chat, report-payload grounding FIRST (no corpus). 1) Build/iterate LOCALLY against scripts/fake_gateway.py ($0). 2) Add a server-side 1-chat/day global DEV cap on POST /api/v1/chat/stream (env-gated dev guardrail, NOT the launch per-user budget). 3) Flip LLM_PROVIDER=gateway + NEXT_PUBLIC_AI_CHAT_ENABLED locally, verify real Groq tokens stream end-to-end on /report; mock still works. 4) Then a gated live demo on the shared Render backend (the 1/day cap is the spend backstop) — keep prod UX hidden via the FE flag. 5) Literature RAG (sqlite-vec, already built) waits on Codex's Tier-1 corpus materialization — report chat goes live on report-payload grounding without it. Then proceed left-to-right: Paper → Batch → Workbench (workbench FE already built this session: WorkbenchAiPanel posts WorkbenchContext; note variant_context is currently REQUIRED in ChatRequest → make optional for workbench-only context).
-Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; claim Shared File Locks on config.py/main.py before editing; coordinate via Log Edit-Lock (Codex on Tier-2 esm1b_* — different files); held files stay excluded (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs, graphify-out/2026-06-15/); deploy from repo root never app/web; do NOT flip prod to gateway (security gate: per-user budget + auth still pending). End clear-safe.
+# Resume prompt - 2026-06-20 21:46 +1000 - Claude (launch SECURITY GATE SHIPPED + flipped ON [free-tier 10/user/day] + verified; HEAD 7a34410; next = Paper→Batch→Workbench)
+Eamos. Open D:\eamos (Claude lane). First: git -C D:/eamos fetch origin && git status --short --branch && git log -6 --oneline. START: ~/.claude/plans/next-session-eamos.md ("session 3" note) + agent_handoff/CURRENT.md (## Active Status, ## Cross-Agent Requests) + docs/ai-gateway/pre-launch-security.md.
+DONE THIS SESSION (do not redo): launch SECURITY GATE = per-user DAILY REQUEST cap (request cap [not token], FLAT across users, in-memory, free-tier = 10/user/day). COMMITTED+PUSHED ab095fe (gate, 6 files) + 7a34410 (cap default 50→10 free-tier, 3 files) — explicit pathspecs: config.py (ai_chat_user_daily_cap_{enabled[default OFF],[default 10],_window_seconds}) + core/rate_limit.py (enforce_chat_user_daily_cap, keyed on authed user_id, reuses InMemoryRateLimiter 86400s window, RATE_LIMIT_CHAT_USER_DAILY) + routes/chat.py (wired into /chat + /chat/stream after the per-user burst limit) + tests/test_rate_limits.py (4 tests, 21/21) + .env.example + docs/ai-gateway/pre-launch-security.md (rewrote stale HIGH section: auth was ALREADY on the chat path → auth + per-user budget IMPLEMENTED; key-rotation DONE). Request cap == token budget here (ai_gateway_max_tokens=700 bounds every response → ~$0.0001/req).
+FLIPPED + LIVE: set Render eamos-dev-sg env AI_CHAT_USER_DAILY_CAP_ENABLED=true + AI_CHAT_USER_DAILY_CAP=10 + AI_CHAT_USER_DAILY_CAP_WINDOW_SECONDS=86400 (MERGE) → latest deploy dep-d8r7qd36sc1c73atfe40 LIVE on 7a34410 → verified /healthz=gateway + /provider-cache 200. NOT live-tested with an authed chat call (would spend a gateway credit; covered by the 21 unit tests). Each push also rebuilt Vercel prod (no app/web changes → FE unchanged; prod chat still hidden, NEXT_PUBLIC_AI_CHAT_ENABLED UNSET).
+STATE: shared backend Render eamos-dev-sg = LLM_PROVIDER=gateway + 10/day GLOBAL dev cap + 10/user/day PER-USER (free-tier) cap. main==origin/main at 7a34410. Dirty (NOT this session, leave/exclude): CLAUDE.md §5 + agent_handoff/CURRENT.md (handoff) + held files (docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs). Materialization = CODEX's lane (roadblock map done; blockers M3 pooler / M5+M8 Render Shell seed / M6+M7 upload-register / M1 artifact-identity mismatch — operator/infra, Steven+Codex).
+NEXT: enable surfaces left-to-right: Paper → Batch → Workbench. Workbench needs ChatRequest.variant_context made OPTIONAL (currently REQUIRED in schemas/chat.py) so a workbench-only WorkbenchContext works. Literature RAG (sqlite-vec, built) waits on Codex's Tier-1 corpus. Pre-prod FE expose still needs: flip the prod FE flag (Steven) + (optional) tier-aware budgets/token-accounting (documented follow-ups, NOT launch-blocking).
+Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -A; do NOT flip the PROD FE flag / expose chat on prod without Steven; deploy FE from repo root; coordinate via Log Edit-Lock (Codex active in app/backend/** on materialization; claim Shared File Lock on config.py before re-editing). End clear-safe.
 ```
 
 <!-- Historical 2026-06-15/16 Latest narratives + resume prompts (A1-A9 0a209a1; 1e86a78 deploy-recovery + incident, resolved) archived 2026-06-20 -> `agent_handoff/archive/2026-06-20-claude-lasttask-trim.md`. -->
@@ -436,40 +450,49 @@ Guardrails: never cd (git -C / npm --prefix); explicit pathspecs never git add -
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-20 00:17 +1000 - Codex.
+Section last edited: 2026-06-20 22:52 +1000 - Codex.
 
-**Latest Codex update (2026-06-20 00:17 +1000 - Codex):**
-Full variant-report scan/view-metric slice is complete locally. The report
-header now shows backend-backed view count and report update date; WorkRail
-related variant rows fetch/display their own per-variant view count and
-last-viewed update date from the same aggregate metric path. The backend exposes
-public, length-validated, rate-limited `GET`/`POST /api/v1/library/views/{query}`
-over aggregate `variant_view_count`; saved-library CRUD remains authenticated,
-and Supabase writes stay service-role/RPC only. Offline fixtures skip the
-view-metric API so browser/preflight checks do not need a backend. Active
-report/ACMG mock markers and dead report fixtures were removed; unused
-`app/web/lib/acmg/mock.ts` and `app/web/components/report/ProteinTrack.tsx` were
-deleted. Protein architecture view was browser-verified; the report preflight
-URL parser was fixed and the fixture report is clean at 390/768 with no console
-errors/overflow offenders. Ask-Eamos mock CLI and chat tests passed; live CLI
-correctly skipped with `LLM_PROVIDER=mock`. Project-100 stack, focused backend
-tests, frontend lint, diff-check (only LF/CRLF warnings), active report mock
-scan, and graphify update passed.
+**Latest Codex update (2026-06-20 22:52 +1000 - Codex):**
+Fetched origin; local `main` remains at `7a34410` with no ahead/behind marker.
+The shared SG backend intentionally stays `LLM_PROVIDER=gateway`.
 
-M12/M13 CI-SpliceAI/CAPICE state remains as previously recorded: backend rows
-emit only when complete local artifacts and sidecar manifests exist, with
-commercial/launch/provenance metadata preserved. PubMed eUtils key remains only
-in ignored `app/backend/.env`; do not echo or commit it. No live
-seed/upload/write/provider flip/local-evidence flip/startup materialization
-occurred.
+Materialization M6/M7 advanced one low-blast-radius gate. Added committed
+metadata-set support to `eamos_source_import` for
+`--existing-object-set clinvar_vcf` and `repeatmasker_source`, with tests.
+Uploaded ClinVar GRCh38 VCF, `.tbi`, and upstream checksum plus the official
+RepeatMasker `rmsk.txt.gz` source to private `eamos-source-assets` by S3
+multipart, then verified object and manifest visibility with S3 head-object
+checks.
+
+The committed Supabase apply path is still blocked from this workstation by
+TCP timeout to `aws-1-ap-southeast-2.pooler.supabase.com:5432`, so the small
+metadata registration was applied through the Supabase connector (not the M3
+bulk clinical import path). Readback confirms four private rows:
+ClinVar `clinvar_bgzip_vcf`, `clinvar_tabix_index`, `upstream_checksum`, and
+RepeatMasker `repeatmasker_source_table`, all `verified`/`approved`,
+`public_access_allowed=false`, `frontend_direct_access_allowed=false`.
+ClinVar SG materializations remain `not_materialized` with
+`render_disk_seed_not_performed`; RepeatMasker raw source is source-only with
+`runtime_uses_derived_compact_index_not_source_table`.
+
+Docs updated in `docs/backend-build-ledger-runtime/plan.md` and
+`materialization-plan.md`. Local preflight now reports
+`clinvar_local_adapter=ready`; live SG provider-cache still correctly reports
+dbSNP/ClinVar/RepeatMasker/phyloP as `source_ready_for_materialization` and
+`local_evidence_orchestrator=disabled` because no Render seed happened.
+
+No Render disk seed, Render env change, provider flip,
+`LOCAL_EVIDENCE_ENABLED` flip, PubMed/RAG corpus work, Tier-2 upload, or
+`config.py` edit occurred. M3 still needs release-file import from a
+Supabase-pooler reachable host. M7 still needs derived compact artifact
+upload/register before Storage-backed RepeatMasker runtime seed.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-20 00:17 +1000 - Codex variant report scan/view metrics complete
+# Resume prompt - 2026-06-20 22:52 +1000 - Codex materialization M6/M7 Storage metadata
 Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + locks), agent_handoff/RISKS.md, MEMORY.md, docs/backend-build-ledger-runtime/plan.md, docs/backend-build-ledger-runtime/materialization-plan.md, then run git -C D:/eamos fetch origin; git -C D:/eamos status --short --branch; git -C D:/eamos log -8 --oneline.
-Delta: full variant report scan/view-metric slice is locally complete. Header and WorkRail related variants now display backend-backed per-variant view counts/update dates via public, rate-limited aggregate view endpoints. Offline fixtures skip view-metric API calls. Active report/ACMG mock markers were removed, dead report mock/protein files were deleted, WorkRail hydration/mobile overflow issues found by preflight were fixed, and the protein architecture view browser-rendered correctly. Corrected report preflight is clean at 390/768. Ask-Eamos mock CLI/tests passed; live CLI skips while `LLM_PROVIDER=mock`.
-Verification passed: frontend lint; active report mock scan; fixture browser protein SVG check; corrected `eamos-report-preflight` at 390/768; `python -m pytest app/backend/tests/test_variant_library_api.py app/backend/tests/test_frontend_contract.py -q`; chat service/AI-gateway/rate-limit focused tests; project-100 stack; `git diff --check` except existing LF/CRLF warnings; `python -m graphify update .`.
-State/guardrails: branch remains main...origin/main [ahead 5] with broad dirty worktree; do not `git add -A`. No commit/push was done. M12/M13 CI-SpliceAI/CAPICE rows still require complete local artifacts; PubMed eUtils key stays only in ignored `app/backend/.env`; keep `LLM_PROVIDER=mock`. No manual bulk connector SQL, PubMed/RAG corpus materialization, ESM1b materialization, provider flips, LOCAL_EVIDENCE_ENABLED flip, startup materialization, ungated Render disk seed, live upload/register/seed, or partial Claude summary.
-Next: either isolate/stage intended paths carefully, or continue backend code gates for additional gated predictors (REVEL, PrimateAI-3D, SpliceAI/dbNSFP-style caches) using the same coordinate-key local-reader/report-row pattern and preserving source_id/license_gate/launch_gate/public_serialization/source version/provenance metadata. Recommended variants/workrail ranking/spec can be planned next session; current rows now have the metric display plumbing.
-End clear-safe.
+Delta: local/origin main remain at `7a34410`; shared SG backend stays `LLM_PROVIDER=gateway`. Codex added `eamos_source_import --existing-object-set clinvar_vcf|repeatmasker_source`, uploaded ClinVar VCF/.tbi/checksum + RepeatMasker `rmsk.txt.gz` to private Storage by S3 multipart, verified S3 heads, and registered four Supabase private metadata rows as `verified`/`approved`.
+Readback: ClinVar VCF/.tbi SG materializations are `not_materialized` with `render_disk_seed_not_performed`; ClinVar checksum is non-materializing metadata; RepeatMasker raw source is source-only with `runtime_uses_derived_compact_index_not_source_table`. Local preflight sees ClinVar ready; live SG remains source-ready/not seeded for dbSNP/ClinVar/RepeatMasker/phyloP and local evidence disabled.
+Verification: source import/storage tests 26/26, Ruff, Black check, health API 21/21, targeted source-preflight cases 3/3, `git diff --check`, `python -m graphify update .` (needed longer timeout; no topology changes). Whole `test_source_asset_preflight_cli.py` timed out under 5m; targeted relevant cases passed.
+Guardrails held: no Render disk seed, Render env/provider flip, LOCAL_EVIDENCE_ENABLED flip, PubMed/RAG, Tier-2 upload, or config.py edit. Next safe gates: Render Shell seed phyloP/ClinVar/dbSNP if explicitly operating the SG disk; upload/register derived RepeatMasker compact index before RepeatMasker runtime seed; M3 still needs pooler-reachable release-file import. End clear-safe.
 ```

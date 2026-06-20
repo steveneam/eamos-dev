@@ -89,6 +89,32 @@ agree with the disk proof.
   lessons were captured in this new doc + memory instead of editing the locked
   runbooks.)
 
+## Lessons from the first live 443 seed (2026-06-21)
+
+Two NEW failure points only surfaced by actually running the 443 admin seed
+end-to-end (the meta-lesson again: paper-green ≠ ready):
+
+- **Runtime-input files must live inside the service's Docker build context, not
+  repo-root `docs/`.** The admin endpoint resolved its manifest from
+  `../../docs/backend-build-ledger-runtime/materialization-manifest-sg.json`,
+  which is outside SG's `app/backend` build context (`COPY . .` from
+  `rootDir: app/backend`), so the file never shipped → `POST .../admin/
+  materialization/run` returned **400 `manifest_unreadable`** on the live box
+  while passing locally. Fix: ship a byte-identical copy at
+  `app/backend/app/materialization-manifest-sg.json` + repoint the default
+  (`6ea2431`). **Pre-flight:** every file the runtime reads (manifest, fixtures,
+  configs) must be inside the build context — `grep` the Dockerfile `COPY` lines
+  and confirm.
+- **SG's user store is on the ephemeral container FS — a redeploy invalidates
+  freshly-registered users.** The admin endpoint requires an authenticated
+  principal whose `sub` exists in the user DB. A user registered via
+  `/auth/register` authed fine (403 probe), then returned **401 after the
+  manifest-fix redeploy** — the new container wiped the SQLite user row. For any
+  deploy-spanning admin/operator flow: **re-register after the final deploy**, or
+  use a deploy-surviving Supabase JWT. *Open to verify (potential prod risk):
+  whether real production users also live on the ephemeral SQLite vs durable
+  Supabase auth — if the former, that needs its own RISKS entry.*
+
 ## Folded into the live runbooks
 
 Status as of 2026-06-21 01:05 +1000 (Claude, after Codex released the Log
