@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-21 23:32 +1000 - **M9 LOCAL_EVIDENCE Phase-0 flip EXECUTED + verified STABLE** on `eamos-dev-sg` (4 flags MERGE-set → `dep-d8ru3bvlk1mc73cc82sg` live on `90865ab`; full checklist green; **15/15 healthz OK over 15 min, 0 alerts; memory flat ~667 MB / 2 GB (~31%), 1 instance for ~22 min, NO OOM/502**). Closed both M9 CARs. **Then drafted the local-evidence freshness/update-policy plan** (`docs/local-evidence-freshness/plan.md`, Draft for review) answering Codex's 23:22 CAR — phased + lane-tagged (Codex: metadata-emit/cron/refresh-runbook; Claude: report "data as of" provenance FE; principle = tier by volatility, ClinVar weekly / ClinGen monthly SLA, static set notify-only, clinical refresh stays operator+Steven-gated). **NEXT (Claude lane):** Phase 4.1 report provenance line, mock-first — HELD for Steven's go (new visible /report element) + ideally Codex's review of the freshness contract (Phase 0.1) first. Detail → rolling log session 6.
 
 
-- **Codex:** IDLE @ 2026-06-21 23:46 +1000 - local fix ready for the M9 provider-cache cosmetic blocker (`enabled` orchestrator no longer lists intentionally excluded flows as top-level blockers) + post-M9 plan/TASKS refreshed after Claude's stable M9 closeout. Verified focused tests, Ruff, Black, graphify update.
+- **Codex:** IDLE @ 2026-06-22 00:18 +1000 - M9 provider-cache cosmetic blocker fix committed/pushed/deployed (`local_evidence_orchestrator` enabled for `lookup,gene_viewer` now has no excluded-flow blockers on SG) + post-M9 plan/freshness docs committed. Phase 1 Task 1.1 M3 clinical source import preflight completed locally (676,606-row dry plan, no apply). **NEXT:** Task 1.2 live M3 import remains Steven/operator-gated; no live import, env/provider switch, PubMed/RAG, Tier-2 flip, or Supabase/Storage mutation occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-21 23:46 +1000 - Codex (post-M9 plan/context update + local orchestrator blocker fix; lock released)
+UNLOCKED - 2026-06-22 00:18 +1000 - Codex (post-M9 deploy + M3 preflight closeout; lock released)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -417,60 +417,54 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-21 22:51 +1000 - Codex.
+Section last edited: 2026-06-22 00:18 +1000 - Codex.
 
-**Latest Codex update (2026-06-21 22:51 +1000 - Codex):**
-Fetched origin; `main == origin/main` at `d09b29c`, then committed and pushed
-`90865ab` (`fix(backend): use indexed ClinVar for M9 lookup readiness`).
+**Latest Codex update (2026-06-22 00:18 +1000 - Codex):**
+Fetched origin; `main == origin/main` at `90865ab`, then committed and pushed
+`7d58c92` (`fix(backend): clear enabled local evidence blockers`). The code
+fix changes the build-ledger/provider-cache `local_evidence_orchestrator` item
+so intentionally excluded flows (`search`, `workbench`) are not surfaced as
+top-level blockers when the orchestrator is enabled for at least one approved
+flow. The commit also added/updated `docs/post-m9-flip-readiness/plan.md` and
+`docs/local-evidence-freshness/plan.md`.
 
-M9 readiness patch is now live on SG. `ClinVarIndexedLocalAdapter` performs
-bounded bgzip/tabix exact-variant ClinVar lookups under the M9 lookup gate and
-does not expose a gene-wide scan API. `ClinvarTool` prefers the local exact
-variant hit when lookup local evidence is enabled, falls back to live ClinVar on
-a local miss while carrying the local warning, and fails closed on local reader
-errors. `lookup_service` keeps gene-wide ClinVar distribution excluded while the
-M9 lookup gate is active and emits
-`clinvar_gene_distribution_excluded_pending_index` instead of request-path
-full-VCF aggregation.
+Verification completed before deploy: focused health regression for the
+enabled orchestrator blocker behavior, `tests/test_local_evidence_orchestrator.py`
+15/15 total with the new regression, local-evidence source preflight test,
+Ruff on touched Python files, Black check on touched Python files, staged
+diff-check, and `python -m graphify update .` (no code-graph topology changes).
 
-Verification completed: `test_clinvar_local_adapter.py` +
-`test_tool_invariants.py` 43/43, including direct
-`ClinVarIndexedLocalAdapter.from_settings` coverage; indexed-reader +
-local-evidence-orchestrator suite passed with expected Windows native-reader
-skips; source-cache 13/13; variant-cache 7/7; source-asset preflight
-`-k local_evidence` passed; touched-file Ruff clean; touched-file Black check
-clean with the known Python 3.10 vs 3.15 warning; staged diff-check clean;
-`python -m graphify update .` completed with no code-graph topology changes.
+Deployed via `.render-deploy-hook`; Render accepted the deploy hook (202) and
+SG rolled to the new build. Live verify passed: `/healthz` 200 with
+`llm_provider=gateway`; `/api/v1/health/provider-cache` 200 with
+`local_evidence_orchestrator.status=enabled`,
+`wired_surfaces=[lookup,gene_viewer]`, `blockers=[]`, and no `next_action`.
+`local_evidence_runtime_assets.ready=true` (4/4) and guardrails remain false:
+startup downloads, request-time materialization, source runtime scan, local
+paths, object URIs, and secret values. RPE65 lookup smoke returned 200.
 
-Deployed via `.render-deploy-hook`; Render SG deploy
-`dep-d8rtqdvavr4c73f24m20` is live on commit
-`90865ab89646ac7171700f36c55d5dfa2263c8ec`. Live verify passed: `/healthz` 200
-(`llm_provider=gateway`), `/api/v1/health/provider-cache` 200 with
-`local_evidence_runtime_assets.ready=true` and 4 ready assets,
-`clinvar_local_adapter.status=ready`,
-`clingen_local.status=ready`/`enabled=false`,
-`local_evidence_orchestrator.status=disabled`, and RPE65
-`POST /api/v1/lookup/summary` 200. No local path values, object URIs, or
-credential-shaped values were found in health/provider-cache/lookup-summary;
-provider guardrail booleans for local paths/object URIs/secrets are false.
-Current live lookup warnings do not include the ClinVar gene-distribution
-marker because `LOCAL_EVIDENCE_ENABLED=false`; focused tests prove the marker
-appears only when the lookup gate is active.
+Phase 1 Task 1.1 M3 clinical source import preflight was then run locally only.
+The real staged release-file dry plan parsed 676,606 rows with `applied=false`:
+MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene
+phenotypes 329,339; ClinGen 3,596; GenCC 29,845. Focused route/import/parser
+tests passed: admin store-required path, missing-file validation before smoke,
+sanitized route apply payload, release-file bundle path, source-import CLI dry
+plan, clinical source table parsers, and relevant source-asset preflight tests.
+The plan was corrected to reference the actual `source_imports.py` /
+`clinical_source_tables.py` modules and existing tests. No live M3 import ran.
 
-No Render env flip, `LOCAL_EVIDENCE_ENABLED` flip, `CLINGEN_LOCAL_ENABLED` flip,
-M3 import, PubMed/RAG corpus work, provider switch, Storage/Supabase mutation,
-or Tier-2 upload occurred. Parked dirty files remain excluded from the commit:
-`PROGRESS.md`, `agent_handoff/CURRENT.md`,
-`docs/proprietary/eamos-ai-gateway.md`, and
+No Render env mutation beyond the deploy hook, no provider switch, no
+Supabase/Storage mutation, no PubMed/RAG work, no Tier-2 predictor flip, and
+no search/workbench local-evidence expansion occurred. Parked dirty files remain
+excluded: `PROGRESS.md`, `docs/proprietary/eamos-ai-gateway.md`, and
 `scripts/eamos-encoding-scan.mjs`.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-21 22:51 +1000 - Codex M9 readiness patch live on SG
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, MEMORY.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: `main == origin/main` at `90865ab` (`fix(backend): use indexed ClinVar for M9 lookup readiness`); Render SG deploy `dep-d8rtqdvavr4c73f24m20` is live on that commit.
-M9 code readiness is done: local ClinVar exact-variant lookup is bounded/indexed, gene-wide ClinVar distribution remains excluded, and `clinvar_gene_distribution_excluded_pending_index` is emitted only when the lookup local-evidence gate is active.
-Verification: focused pytest suites, source-cache, variant-cache, local-evidence source preflight, Ruff, Black check, staged diff-check, graphify update, and live SG `/healthz` + provider-cache + RPE65 lookup summary all passed; no path/secret/object URI emissions found.
-Claude handoff: after Steven final go, flip only `LOCAL_EVIDENCE_ENABLED=true`, `LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW=lookup,gene_viewer`, `LOCAL_EVIDENCE_REQUIRE_REAL_APIS=true`, `CLINGEN_LOCAL_ENABLED=true`; keep search/workbench excluded; no PubMed/RAG, M3 re-import, or provider/env switch beyond those four flags. Rollback: set `LOCAL_EVIDENCE_ENABLED=false` and `CLINGEN_LOCAL_ENABLED=false`, redeploy, recheck health/provider-cache/RPE65/memory.
-Guardrails held: no env/provider flip, no live M3 import, no Supabase/Storage mutation. Parked dirty files remain excluded: PROGRESS.md, agent_handoff/CURRENT.md, docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs. End clear-safe.
+# Resume prompt - 2026-06-22 00:18 +1000 - Codex post-M9 cosmetic fix deployed + M3 preflight complete
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, MEMORY.md, docs/post-m9-flip-readiness/plan.md, docs/local-evidence-freshness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: M9 provider-cache cosmetic blocker fix committed/pushed/deployed (`local_evidence_orchestrator` enabled for `lookup,gene_viewer` now has `blockers=[]` live on SG). Post-M9 and freshness plans are committed; Phase 1 Task 1.1 M3 import preflight is locally complete.
+Verification: focused health/local-evidence tests, source-asset local-evidence preflight, Ruff, Black check, diff-check, graphify update, SG `/healthz`, SG provider-cache, RPE65 lookup smoke, M3 route/import/parser tests, and real release-file dry plan all passed. Dry plan rows: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845.
+Next: Task 1.2 live M3 clinical source import only after Steven/operator approval. Do not run it as routine follow-up; gate on, call admin endpoint, verify sanitized counts, gate off, then smoke provider-cache/lookups.
+Guardrails held: no live M3 import, no Render env/provider switch, no PubMed/RAG, no Tier-2 flip, no search/workbench local-evidence expansion, no Supabase/Storage mutation. Parked dirty files remain excluded: PROGRESS.md, docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs. End clear-safe.
 ```

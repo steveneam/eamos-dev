@@ -2,7 +2,7 @@
 
 Status: Phase 0 complete; Phases 1-6 are the active post-M9 queue
 Owner: Codex/backend after Claude-led Phase 0
-Last updated: 2026-06-21 23:42 +1000 - Codex
+Last updated: 2026-06-22 00:18 +1000 - Codex
 
 ## Source Context
 
@@ -159,7 +159,8 @@ existing 443 materialization trigger does not yet cover this import path.
 Relevant files or references:
 
 - `app/backend/app/api/routes/materialization.py`
-- `app/backend/app/services/clinical_source_import.py`
+- `app/backend/app/services/source_imports.py`
+- `app/backend/app/services/clinical_source_tables.py`
 - `app/backend/data/source_assets/**`
 - `agent_handoff/RISKS.md`
 
@@ -180,11 +181,26 @@ Acceptance criteria:
 
 Source reference: Codex M3 admin import closeout in `agent_handoff/CURRENT.md`.
 
+Outcome: LOCAL PREFLIGHT COMPLETE 2026-06-22 00:18 +1000. Codex confirmed the
+route is behind the existing admin materialization gate and token, parses
+staged release files before store smoke/apply, and returns sanitized public
+route payloads. Local dry plan parsed 676,606 rows with no apply:
+MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene
+phenotypes 329,339; ClinGen 3,596; GenCC 29,845. The live import has not run.
+Next gate remains Steven/operator approval for Task 1.2.
+
 Verify:
 
 ```powershell
 cd app/backend
-python -m pytest tests/test_materialization_routes.py tests/test_source_asset_preflight_cli.py -q
+python -m pytest `
+  tests/test_materialization_robustness.py::test_admin_clinical_release_import_requires_configured_store `
+  tests/test_materialization_robustness.py::test_admin_clinical_release_import_validates_files_before_smoke `
+  tests/test_materialization_robustness.py::test_admin_clinical_release_import_applies_rows_without_path_leak `
+  tests/test_source_imports.py::test_clinical_release_source_import_bundle_uses_staged_release_paths `
+  tests/test_source_imports.py::test_source_import_cli_plans_clinical_release_files `
+  tests/test_clinical_source_tables.py -q
+python -m app.cli.eamos_source_import --clinical-release-files --clinical-source-asset-root data/source_assets --storage-pilot none --compact
 ```
 
 Out of scope:

@@ -15,11 +15,11 @@ Each task should name:
 
 ## Current Candidate Tasks
 
-Section edited: 2026-06-21 23:42 +1000 - Codex.
+Section edited: 2026-06-22 00:18 +1000 - Codex.
 
 | Task | Suggested owner | Status | Notes |
 | ---- | --------------- | ------ | ----- |
-| Post-M9 flip readiness phases | Direct Codex | ACTIVE | Durable phased task plan recorded in `docs/post-m9-flip-readiness/plan.md`. Phase 0 M9 flip is complete/stable; next backend queue starts with M3 clinical source import preflight unless Steven explicitly reorders Tier-1 PubMed/RAG first. |
+| Post-M9 flip readiness phases | Direct Codex | ACTIVE | Durable phased task plan recorded in `docs/post-m9-flip-readiness/plan.md`. Phase 0 M9 flip is complete/stable; Phase 1 Task 1.1 M3 clinical source import preflight is locally complete. Next is Task 1.2 live M3 import only after Steven/operator approval. |
 | Direct-Codex workflow doc sync | Claude Code | DONE 2026-05-17 | Stable docs corrected; memory synced. |
 | Checkpoint commit + push | Claude Code | DONE 2026-05-17 | `9a27ef0` on `checkpoint/v2-batches-2026-05-17` (pushed); `origin/main` preserved. |
 | Review + refactor Claude's folders | Direct Codex | DONE 2026-05-17 | Behavior-preserving lint/type/refactor pass on FE-5.5 frontend surface. Verified: vitest 24/24, frontend build clean, frontend contract 40/40, eslint clean. Committed separately as `Refactor Workbench frontend surface`, not pushed at handoff time. |
