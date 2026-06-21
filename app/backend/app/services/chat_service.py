@@ -123,12 +123,18 @@ class ChatService:
             gene = report.variant_summary_rows[0].gene
         elif payload.paper and payload.paper.candidates:
             gene = payload.paper.candidates[0].gene or "this variant"
+        elif payload.batch and payload.batch.variants and payload.batch.variants[0].gene:
+            gene = payload.batch.variants[0].gene
+        elif payload.batch:
+            gene = "this cohort"
         else:
             gene = "this variant"
         if payload.workbench:
             mode = payload.workbench.active_tool
         elif payload.paper:
             mode = "paper"
+        elif payload.batch:
+            mode = "batch"
         else:
             mode = "lookup"
         return f"[mock] Asked about {gene} in {mode} mode: {payload.question}"
@@ -144,6 +150,7 @@ class ChatService:
             context = {
                 "workbench": self._workbench_context(payload),
                 "paper": self._paper_context(payload),
+                "batch": self._batch_context(payload),
                 "warnings": [],
             }
             serialized = json.dumps(context, sort_keys=True, default=str)
@@ -297,6 +304,29 @@ class ChatService:
             "candidates": [
                 candidate.model_dump(mode="json", exclude_none=True)
                 for candidate in payload.paper.candidates
+            ],
+        }
+
+    def _batch_context(self, payload: ChatRequest) -> dict[str, Any] | None:
+        # Batch (/compare) cohort scope: a bounded summary of the resolved cohort —
+        # size, source/panel/filter provenance, the classification mix, the active-
+        # panel genes with no cohort hits, and a bounded sample of the most
+        # actionable variants. Never the raw VCF/INFO; the cohort carries no patient
+        # data, so the chat can reason over the cohort shape without ever seeing a
+        # source row.
+        if payload.batch is None:
+            return None
+        batch = payload.batch
+        return {
+            "variant_count": batch.variant_count,
+            "annotated": batch.annotated,
+            "sources": batch.sources,
+            "panels": batch.panels,
+            "filters": batch.filters,
+            "classification_counts": batch.classification_counts,
+            "panel_missing_genes": batch.panel_missing_genes,
+            "variants": [
+                variant.model_dump(mode="json", exclude_none=True) for variant in batch.variants
             ],
         }
 

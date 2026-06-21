@@ -28,6 +28,11 @@ ALLOWED_CONTEXT_KEYS = frozenset(
         # their short evidence quote + source provenance. Bounded/sanitized by
         # PaperContext; the full paper body never leaves the server.
         "paper",
+        # Batch (/compare) cohort scope: a bounded cohort summary — size,
+        # source/panel/filter provenance, the classification mix, and a bounded
+        # sample of the most actionable variants. Bounded by BatchContext; the raw
+        # VCF/INFO never leaves the server (and a cohort carries no patient data).
+        "batch",
         "warnings",
         # Literature RAG (docs/ai-gateway-rag/spec.md D5): retrieved PubMed abstract
         # snippets, scoped to the variant's gene. Snippets are sanitized by retrieval

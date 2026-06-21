@@ -1352,15 +1352,36 @@ export interface PaperContext {
   sources?: string[]
 }
 
+export interface BatchVariantContext {
+  gene?: string | null
+  variant?: string | null
+  clinical_significance?: string | null
+  acmg_classification?: string | null
+  classification?: string | null
+  gnomad_af?: number | null
+}
+
+export interface BatchContext {
+  variant_count: number
+  annotated: boolean
+  sources?: string[]
+  panels?: string[]
+  filters?: string[]
+  classification_counts?: Record<string, number>
+  panel_missing_genes?: string[]
+  variants: BatchVariantContext[]
+}
+
 export interface ChatRequest {
   question: string
-  // Optional: report-less surfaces (Workbench, Paper → Variants) ground the chat
-  // in `workbench` / `paper` instead. The backend requires at least one scoped
-  // context.
+  // Optional: report-less surfaces (Workbench, Paper → Variants, Batch cohort)
+  // ground the chat in `workbench` / `paper` / `batch` instead. The backend
+  // requires at least one scoped context.
   variant_context?: ReportPayload
   history?: ChatMessage[]
   workbench?: WorkbenchContext | null
   paper?: PaperContext | null
+  batch?: BatchContext | null
 }
 
 export interface ChatResponse {

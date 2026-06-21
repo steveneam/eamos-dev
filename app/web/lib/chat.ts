@@ -148,3 +148,45 @@ export function streamPaperChat(
 ): AsyncGenerator<string> {
   return postChatStream({ question, paper, history }, 'Sign in to ask Eamos.', signal)
 }
+
+/** One cohort variant, bounded for the chat scope. Mirrors the backend
+ *  `BatchVariantContext`: identity + classification + gnomAD frequency only —
+ *  never the raw VCF row or INFO field. */
+export interface BatchVariantScope {
+  gene?: string | null
+  variant?: string | null
+  clinical_significance?: string | null
+  acmg_classification?: string | null
+  classification?: string | null
+  gnomad_af?: number | null
+}
+
+/** The Batch (/compare) cohort scope a report-less chat is grounded in — a bounded
+ *  cohort summary (size + provenance + classification mix + actionable sample).
+ *  Mirrors the backend `BatchContext`. */
+export interface BatchChatScope {
+  variant_count: number
+  annotated: boolean
+  sources?: string[]
+  panels?: string[]
+  filters?: string[]
+  classification_counts?: Record<string, number>
+  panel_missing_genes?: string[]
+  variants: BatchVariantScope[]
+}
+
+/**
+ * Streams the Batch-scoped Ask-Eamos chat: no report payload, grounded only in
+ * this cohort's bounded summary — size, source/panel/filter provenance, the
+ * classification mix, the panel genes with no hits, and a bounded sample of the
+ * most actionable variants. The chat reasons over the resolved cohort, it doesn't
+ * re-annotate (and never sees the raw VCF/INFO).
+ */
+export function streamBatchChat(
+  batch: BatchChatScope,
+  question: string,
+  history: ReportChatTurn[] = [],
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  return postChatStream({ question, batch, history }, 'Sign in to ask Eamos.', signal)
+}

@@ -10,6 +10,8 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.schemas.chat import (
+    BatchContext,
+    BatchVariantContext,
     ChatRequest,
     PaperCandidateContext,
     PaperContext,
@@ -99,6 +101,40 @@ def _paper_payload(
                     context="experimental_construct",
                     validation_status="experimental_construct",
                     evidence_quote="We engineered the RPE65 p.His241Ala substitution by site-directed mutagenesis.",
+                ),
+            ],
+        ),
+    )
+
+
+def _batch_payload(
+    question: str = "Which variants are most actionable?",
+) -> ChatRequest:
+    # A report-less, Batch-scoped request: no variant_context, just this cohort's
+    # bounded summary (size + provenance + classification mix + actionable sample).
+    return ChatRequest(
+        question=question,
+        batch=BatchContext(
+            variant_count=12,
+            annotated=True,
+            sources=["cohort.vcf"],
+            panels=["Retinal dystrophy"],
+            filters=["PASS only", "gnomAD AF ≤ 1%"],
+            classification_counts={"P": 2, "LP": 1, "VUS": 4, "unclassified": 5},
+            panel_missing_genes=["CRX", "GUCY2D"],
+            variants=[
+                BatchVariantContext(
+                    gene="RPE65",
+                    variant="NM_000329.3:c.260A>G",
+                    clinical_significance="Pathogenic",
+                    acmg_classification="Pathogenic",
+                    classification="P",
+                    gnomad_af=0.00001,
+                ),
+                BatchVariantContext(
+                    gene="ABCA4",
+                    variant="NM_000350.3:c.5882G>A",
+                    classification="VUS",
                 ),
             ],
         ),
@@ -262,6 +298,69 @@ def test_paper_only_chat_skips_literature_retrieval() -> None:
     )
 
     service.respond(_paper_payload())
+
+    # No report payload → no genes → retrieval is never attempted.
+    assert retriever.calls == []
+    context = json.loads(chain.payloads[0]["bounded_context"])
+    assert "retrieved_literature" not in context
+
+
+def test_chat_request_accepts_batch_only_context() -> None:
+    # The /compare surface grounds the chat in this cohort's bounded summary, no
+    # report payload — the scoped-context validator must accept it.
+    payload = _batch_payload()
+
+    assert payload.variant_context is None
+    assert payload.workbench is None
+    assert payload.paper is None
+    assert payload.batch is not None
+    assert payload.batch.variant_count == 12
+    assert payload.batch.variants[0].gene == "RPE65"
+
+
+def test_batch_only_mock_answer_names_batch_mode() -> None:
+    service = ChatService(settings=_settings("mock"), llm_client=None)
+
+    response = service.respond(_batch_payload("Summarise the pathogenic findings."))
+
+    assert (
+        response.answer
+        == "[mock] Asked about RPE65 in batch mode: Summarise the pathogenic findings."
+    )
+
+
+def test_batch_only_chat_builds_cohort_scoped_context() -> None:
+    chain = FakeLookupChatChain()
+    service = ChatService(settings=_settings(), llm_client=chain)
+
+    service.respond(_batch_payload())
+
+    sent = chain.payloads[0]["bounded_context"]
+    context = json.loads(sent)
+    # Scoped to the cohort summary only — no report-derived evidence blocks.
+    assert context["batch"]["variant_count"] == 12
+    assert context["batch"]["annotated"] is True
+    assert context["batch"]["classification_counts"]["P"] == 2
+    assert context["batch"]["panel_missing_genes"] == ["CRX", "GUCY2D"]
+    assert context["batch"]["variants"][0]["gene"] == "RPE65"
+    assert context["batch"]["variants"][0]["classification"] == "P"
+    # exclude_none drops the unset classification fields on the lighter sample row.
+    assert "clinical_significance" not in context["batch"]["variants"][1]
+    assert "variant_summary_rows" not in context
+    assert "call_cards" not in context
+    assert context["workbench"] is None
+    assert context["paper"] is None
+    assert "patient_id" not in sent
+
+
+def test_batch_only_chat_skips_literature_retrieval() -> None:
+    retriever = FakeRetriever([_hit()])
+    chain = FakeLookupChatChain()
+    service = ChatService(
+        settings=_settings("gateway"), llm_client=chain, literature_retriever=retriever
+    )
+
+    service.respond(_batch_payload())
 
     # No report payload → no genes → retrieval is never attempted.
     assert retriever.calls == []

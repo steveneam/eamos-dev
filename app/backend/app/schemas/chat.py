@@ -55,26 +55,63 @@ class PaperContext(BaseModel):
     sources: list[str] = Field(default_factory=list, max_length=24)
 
 
+class BatchVariantContext(BaseModel):
+    """One cohort variant, bounded + sanitized for the chat context: identity,
+    its classification (ClinVar / ACMG / the normalized 5-tier label), and gnomAD
+    frequency only. Never the raw VCF row or INFO field — and a Batch cohort
+    carries no patient data, so there is nothing PHI-shaped to strip."""
+
+    gene: str | None = Field(default=None, max_length=64)
+    variant: str | None = Field(default=None, max_length=256)
+    clinical_significance: str | None = Field(default=None, max_length=64)
+    acmg_classification: str | None = Field(default=None, max_length=64)
+    classification: str | None = Field(default=None, max_length=32)
+    gnomad_af: float | None = None
+
+
+class BatchContext(BaseModel):
+    """The /compare (Batch) Ask-Eamos scope: a bounded cohort summary — size,
+    whether it has been server-annotated, source/panel/filter provenance, the
+    classification mix, the active-panel genes with no cohort hits, and a bounded
+    sample of the most actionable variants. The chat reasons over the resolved
+    cohort; it never re-annotates and never sees the raw VCF/INFO."""
+
+    variant_count: int = Field(default=0, ge=0)
+    annotated: bool = False
+    sources: list[str] = Field(default_factory=list, max_length=24)
+    panels: list[str] = Field(default_factory=list, max_length=12)
+    filters: list[str] = Field(default_factory=list, max_length=12)
+    classification_counts: dict[str, int] = Field(default_factory=dict)
+    panel_missing_genes: list[str] = Field(default_factory=list, max_length=200)
+    variants: list[BatchVariantContext] = Field(default_factory=list, max_length=100)
+
+
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4_000)
-    # Optional so report-less surfaces (Workbench tool context, Paper → Variants;
-    # cohort contexts later) can ground a chat in their own scope. The /report
-    # surface still sends the full payload exactly as before.
+    # Optional so report-less surfaces (Workbench tool context, Paper → Variants,
+    # Batch cohort) can ground a chat in their own scope. The /report surface still
+    # sends the full payload exactly as before.
     variant_context: ReportPayload | None = None
     history: list[ChatMessage] = Field(default_factory=list, max_length=24)
     workbench: WorkbenchContext | None = None
     paper: PaperContext | None = None
+    batch: BatchContext | None = None
 
     @model_validator(mode="after")
     def _require_scoped_context(self) -> "ChatRequest":
         # Ask-Eamos is scoped per surface, never a free-floating assistant: every
         # request must carry at least one grounding context (a report payload for
-        # /report, a Workbench tool context for /workbench, or this paper's resolved
-        # candidates for /paper). This keeps the evidence-only guard meaningful and
-        # the prompt window tight.
-        if self.variant_context is None and self.workbench is None and self.paper is None:
+        # /report, a Workbench tool context for /workbench, this paper's resolved
+        # candidates for /paper, or this cohort's summary for /compare). This keeps
+        # the evidence-only guard meaningful and the prompt window tight.
+        if (
+            self.variant_context is None
+            and self.workbench is None
+            and self.paper is None
+            and self.batch is None
+        ):
             raise ValueError(
-                "ChatRequest requires a scoped context: variant_context, workbench, or paper."
+                "ChatRequest requires a scoped context: variant_context, workbench, paper, or batch."
             )
         return self
 

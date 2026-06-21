@@ -19,7 +19,9 @@ import {
   type ImportSource,
   type ParsedVariant,
 } from '@/lib/variant-file'
-import { applyFilters, cacheResolvedPanel, type ActiveFilter } from '@/lib/compare-filters'
+import { applyFilters, cacheResolvedPanel, filterChipLabel, type ActiveFilter } from '@/lib/compare-filters'
+import { CLASS_RANK, classifyVerdict, summarizeCohort } from '@/lib/batch-summary'
+import type { BatchChatScope } from '@/lib/chat'
 import { getPanel } from '@/lib/panels'
 import { collectBatchResults, createBatch, pollBatchJob, uploadBatch } from '@/lib/batch'
 import type {
@@ -95,6 +97,16 @@ function toBatchFilters(filters: ActiveFilter[]): BatchFilters {
   const af = filters.find((f) => f.kind === 'af')
   if (af?.maxAf != null) out.max_af = af.maxAf
   return out
+}
+
+// Max cohort variants sent in the Ask-Eamos bounded sample (the backend caps at
+// 100 too) — the classification mix + panel coverage still summarise the whole
+// cohort; this only bounds the per-variant list so the prompt window stays tight.
+const CHAT_SAMPLE = 60
+
+/** Drop the zero-count classes so the chat's cohort summary stays tight. */
+function countsFromDist(dist: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(dist).filter(([, n]) => n > 0))
 }
 
 function progressFromJob(job: BatchJob, usedUpload: boolean): BatchProgress {
@@ -338,6 +350,73 @@ export function CompareClient() {
     runBatch([])
   }, [searchParams, hydrated, variants.length, runBatch])
 
+  // Ask-Eamos cohort scope — a bounded summary of the resolved cohort (size +
+  // source/panel/filter provenance + classification mix + the most actionable
+  // variants), mirroring the backend BatchContext. Built from the rows the table
+  // shows: server-annotated results when present, else the scoped preview. Null
+  // until a cohort loads, so the rail's chat stays idle until there's something to
+  // ground in. Reuses the pure cohort summariser; never carries the raw VCF/INFO.
+  const batchScope: BatchChatScope | null = (() => {
+    if (variants.length === 0) return null
+    const panels = res.activePanels.map((p) => p.name)
+    const panelGenes = res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))
+    const filterLabels = filters.filter((f) => f.kind !== 'panel').map((f) => filterChipLabel(f))
+    const sources = (stash?.sources ?? []).map((s) => s.name).slice(0, 24)
+
+    if (results && results.length > 0) {
+      const rank = (r: BatchResult) =>
+        CLASS_RANK[classifyVerdict(r.acmg_classification, r.clinvar_verdict)]
+      const summary = summarizeCohort(
+        results.map((r) => ({
+          variant_key: r.variant_key,
+          gene: r.gene,
+          acmg_classification: r.acmg_classification,
+          clinvar_verdict: r.clinvar_verdict,
+        })),
+        panelGenes,
+      )
+      return {
+        variant_count: results.length,
+        annotated: true,
+        sources,
+        panels,
+        filters: filterLabels,
+        classification_counts: countsFromDist(summary.classDist),
+        panel_missing_genes: summary.panel?.missedGenes ?? [],
+        variants: results
+          .slice()
+          .sort((a, b) => rank(a) - rank(b))
+          .slice(0, CHAT_SAMPLE)
+          .map((r) => ({
+            gene: r.gene ?? null,
+            variant: r.hgvs_c ?? r.variant_key,
+            clinical_significance: r.clinvar_verdict ?? null,
+            acmg_classification: r.acmg_classification ?? null,
+            classification: classifyVerdict(r.acmg_classification, r.clinvar_verdict),
+            gnomad_af: r.gnomad_af ?? null,
+          })),
+      }
+    }
+
+    const shown = res.shown
+    const summary = summarizeCohort(
+      shown.map((v) => ({ variant_key: v.query, gene: v.gene })),
+      panelGenes,
+    )
+    return {
+      variant_count: shown.length,
+      annotated: false,
+      sources,
+      panels,
+      filters: filterLabels,
+      classification_counts: countsFromDist(summary.classDist),
+      panel_missing_genes: summary.panel?.missedGenes ?? [],
+      variants: shown
+        .slice(0, CHAT_SAMPLE)
+        .map((v) => ({ gene: v.gene ?? null, variant: v.variant ?? v.query })),
+    }
+  })()
+
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
       <TopNav right={<ModePill current="compare" />}>
@@ -359,7 +438,7 @@ export function CompareClient() {
             surface="compare"
             title="Scope"
             aiTitle="Ask Eamos"
-            aiPanel={<CompareAiPanel count={variants.length} source={stash?.source} />}
+            aiPanel={<CompareAiPanel batch={batchScope} />}
             foot={<RailFoot />}
             output={
               <div style={{ padding: '16px 22px 80px 24px' }}>
