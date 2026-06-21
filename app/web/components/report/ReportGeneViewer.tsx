@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer, geneViewerScaffoldWarnings } from '@/lib/workbench/gene-viewer-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
-import type { GeneWindowData } from '@/lib/workbench/gene-window'
+import { classLabel, type GeneWindowData } from '@/lib/workbench/gene-window'
 import type {
   GeneViewerResponse,
   ProteinAlphaMissenseHeatmap,
