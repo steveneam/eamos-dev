@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import httpx
 
+from app.services.clinvar_local import ClinVarIndexedLocalAdapter, ClinVarLocalLookup
+from app.services.local_evidence_orchestrator import LocalEvidenceRuntimeGate
 from app.services.sequence_context import genomic_variant_id_to_refseq_hgvs
 from app.tools.base import FixtureBackedTool, ToolResult
 
@@ -161,9 +165,68 @@ def _source_search_text(variant) -> str:
     return f"{gene}:{cdna}" if cdna else gene
 
 
+def _local_lookup_to_tool_result(
+    lookup: ClinVarLocalLookup,
+    *,
+    variant,
+    variant_id: str,
+) -> ToolResult:
+    record = lookup.record
+    if record is None:
+        raise ValueError("local ClinVar lookup result must include a record")
+    summary = {
+        "gene": (record.gene_symbols[0] if record.gene_symbols else getattr(variant, "gene", "")),
+        "protein_change": _protein_change_from_record(record.hgvs_aliases, variant),
+        "classification": record.classification,
+        "review_status": record.review_status,
+        "conditions": list(record.conditions),
+        "consequence": "",
+        "accession": record.accession,
+        "submitter_counts": {},
+        "dbsnp_rsid": getattr(variant, "dbsnp_rsid", None),
+    }
+    return ToolResult(
+        source="clinvar",
+        status="local",
+        request_identity={"variant_id": variant_id, "clinvar_id": record.variation_id},
+        summary=summary,
+        warnings=list(lookup.warnings),
+        raw={
+            "variant_id": record.gnomad_variant_id,
+            "accession": record.accession,
+            "variation_id": record.variation_id,
+            "classification": record.classification,
+            "review_status": record.review_status,
+            "conditions": list(record.conditions),
+            "hgvs_aliases": list(record.hgvs_aliases),
+            "gene_symbols": list(record.gene_symbols),
+            "source_id": record.provenance.source_id,
+            "source_status": "local",
+        },
+        source_url=f"https://www.ncbi.nlm.nih.gov/clinvar/variation/{record.variation_id}/",
+        source_version=record.provenance.source_version,
+    )
+
+
+def _protein_change_from_record(hgvs_aliases: tuple[str, ...], variant) -> str | None:
+    explicit = getattr(variant, "protein_change", None)
+    if explicit:
+        return explicit
+    for alias in hgvs_aliases:
+        marker = ":p."
+        if marker in alias:
+            return alias.split(marker, 1)[1]
+    return None
+
+
 class ClinvarTool(FixtureBackedTool):
     source = "clinvar"
     fixture_name = "clinvar_fixtures.json"
+
+    def __init__(self, settings) -> None:
+        super().__init__(settings)
+        self._local_adapter: ClinVarIndexedLocalAdapter | None = None
+        self._local_adapter_key: tuple[Path, Path] | None = None
 
     def get_evidence(self, variant=None) -> ToolResult:
         if not self.settings.use_real_apis or variant is None:
@@ -185,12 +248,15 @@ class ClinvarTool(FixtureBackedTool):
             return ToolResult(
                 source=self.source, status="fixture", source_url=fallback_url, **fixture
             )
+        local_result = self._get_local_evidence(variant)
+        if local_result is not None and local_result.status == "local":
+            return local_result
         try:
-            return self._fetch_live(variant)
+            live_result = self._fetch_live(variant)
         except Exception as exc:
             gene = variant.gene or ""
             search_text = _source_search_text(variant)
-            return ToolResult(
+            live_result = ToolResult(
                 source=self.source,
                 status="fallback",
                 request_identity={"search_text": search_text or gene},
@@ -199,6 +265,47 @@ class ClinvarTool(FixtureBackedTool):
                 raw=None,
                 source_url=_clinvar_search_url(search_text or gene),
             )
+        if local_result is not None:
+            live_result.warnings = [*local_result.warnings, *live_result.warnings]
+        return live_result
+
+    def _get_local_evidence(self, variant) -> ToolResult | None:
+        if not LocalEvidenceRuntimeGate.from_settings(self.settings).allows("lookup"):
+            return None
+        variant_id = getattr(variant, "genomic_hg38", None)
+        if not variant_id:
+            return ToolResult(
+                source=self.source,
+                status="missing",
+                request_identity={"search_text": _source_search_text(variant)},
+                summary=_unavailable_summary(getattr(variant, "gene", None)),
+                warnings=["clinvar_local_requires_resolved_variant_id"],
+                raw=None,
+                source_url=_clinvar_search_url(_source_search_text(variant)),
+            )
+        lookup = self._local_adapter_for_settings().lookup_variant_id(variant_id)
+        if not lookup.available or lookup.record is None:
+            return ToolResult(
+                source=self.source,
+                status="missing",
+                request_identity={"variant_id": variant_id},
+                summary=_unavailable_summary(getattr(variant, "gene", None)),
+                warnings=list(lookup.warnings),
+                raw={"local_unavailable_reason": lookup.unavailable_reason},
+                source_url=_clinvar_search_url(_source_search_text(variant)),
+            )
+        return _local_lookup_to_tool_result(lookup, variant=variant, variant_id=variant_id)
+
+    def _local_adapter_for_settings(self) -> ClinVarIndexedLocalAdapter:
+        vcf_path = Path(self.settings.clinvar_runtime_vcf_path)
+        index_path = Path(self.settings.clinvar_runtime_index_path)
+        key = (vcf_path, index_path)
+        if self._local_adapter is None or self._local_adapter_key != key:
+            if self._local_adapter is not None:
+                self._local_adapter.close()
+            self._local_adapter = ClinVarIndexedLocalAdapter.from_settings(self.settings)
+            self._local_adapter_key = key
+        return self._local_adapter
 
     def _fetch_live(self, variant) -> ToolResult:
         gene = variant.gene

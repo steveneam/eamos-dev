@@ -6,15 +6,21 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.lookup_service import _clinvar_distribution_runtime_path
+from app.services.lookup_service import (
+    CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX,
+    _clinvar_distribution_runtime_path,
+    _clinvar_gene_distribution_exclusion_warning,
+)
 from app.services.clinvar_local import (
     CLINVAR_SOURCE_ID,
+    ClinVarIndexedLocalAdapter,
     ClinVarLocalError,
     ClinVarLocalProvenance,
     ClinVarLocalStore,
     build_clinvar_gene_distribution,
     parse_clinvar_vcf,
 )
+from app.services.indexed_sources import IndexedSourceError, IndexedVcfRecord
 
 
 def test_store_provenance_records_clinvar_fixture_metadata() -> None:
@@ -123,7 +129,7 @@ def test_gene_distribution_buckets_classification_and_effect_types(tmp_path: Pat
     assert "clinvar_local_fixture_scope" not in distribution.warnings
 
 
-def test_lookup_service_requires_vcf_and_index_before_full_clinvar_distribution(
+def test_lookup_service_excludes_full_vcf_clinvar_distribution_when_m9_lookup_enabled(
     tmp_path: Path,
 ) -> None:
     vcf_path = tmp_path / "clinvar.vcf.gz"
@@ -139,16 +145,185 @@ def test_lookup_service_requires_vcf_and_index_before_full_clinvar_distribution(
     )
 
     assert _clinvar_distribution_runtime_path(settings) is None
+    assert _clinvar_gene_distribution_exclusion_warning(settings) is None
 
     index_path.write_bytes(b"index")
 
     assert _clinvar_distribution_runtime_path(settings) is None
+    assert _clinvar_gene_distribution_exclusion_warning(settings) is None
 
     settings.local_evidence_enabled = True
-    assert _clinvar_distribution_runtime_path(settings) == str(vcf_path)
+    assert _clinvar_distribution_runtime_path(settings) is None
+    assert (
+        _clinvar_gene_distribution_exclusion_warning(settings)
+        == CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX
+    )
 
     settings.local_evidence_allowed_flows_raw = "gene_viewer"
     assert _clinvar_distribution_runtime_path(settings) is None
+    assert _clinvar_gene_distribution_exclusion_warning(settings) is None
+
+
+def test_indexed_adapter_resolves_exact_clinvar_variant_without_full_vcf_parse(
+    tmp_path: Path,
+) -> None:
+    vcf_path = tmp_path / "clinvar.vcf.gz"
+    index_path = tmp_path / "clinvar.vcf.gz.tbi"
+    vcf_path.write_bytes(b"indexed-vcf")
+    index_path.write_bytes(b"index")
+    reader = _FakeIndexedClinVarReader(
+        (
+            IndexedVcfRecord(
+                requested_chrom="NC_000001.11",
+                chrom="1",
+                position=68444869,
+                record_id="VCV001421454",
+                ref="T",
+                alts=("C",),
+                info={
+                    "CLNSIG": ("Uncertain_significance",),
+                    "CLNREVSTAT": ("criteria_provided,_single_submitter",),
+                    "CLNDN": ("Retinitis_pigmentosa", "Leber_congenital_amaurosis_2"),
+                    "CLNHGVS": ("NC_000001.11:g.68444869T>C", "NM_000329.3:c.260A>G"),
+                    "GENEINFO": ("RPE65:6121",),
+                },
+                source_id=CLINVAR_SOURCE_ID,
+            ),
+        )
+    )
+    adapter = ClinVarIndexedLocalAdapter(
+        vcf_path=vcf_path,
+        index_path=index_path,
+        reader_factory=lambda _vcf, _index: reader,
+    )
+
+    lookup = adapter.lookup_variant_id("1-68444869-T-C")
+
+    assert reader.queries == [("1", 68444869)]
+    assert lookup.available is True
+    assert lookup.record is not None
+    assert lookup.record.accession == "VCV001421454"
+    assert lookup.record.gnomad_variant_id == "1-68444869-T-C"
+    assert lookup.record.classification == "Uncertain significance"
+    assert lookup.record.review_status == "criteria provided, single submitter"
+    assert lookup.record.conditions == (
+        "Retinitis pigmentosa",
+        "Leber congenital amaurosis 2",
+    )
+    assert lookup.record.gene_symbols == ("RPE65",)
+    assert lookup.record.provenance.relative_path == "runtime:clinvar.vcf.gz"
+    assert lookup.record.provenance.checksum_algorithm == "runtime_manifest"
+
+
+def test_indexed_adapter_from_settings_resolves_backend_relative_paths(
+    tmp_path: Path,
+) -> None:
+    backend_root = tmp_path / "backend"
+    vcf_rel = Path("data/bio_assets/clinvar/clinvar.vcf.gz")
+    index_rel = Path("data/bio_assets/clinvar/clinvar.vcf.gz.tbi")
+    vcf_path = backend_root / vcf_rel
+    index_path = backend_root / index_rel
+    vcf_path.parent.mkdir(parents=True)
+    vcf_path.write_bytes(b"indexed-vcf")
+    index_path.write_bytes(b"index")
+    reader = _FakeIndexedClinVarReader(
+        (
+            IndexedVcfRecord(
+                requested_chrom="1",
+                chrom="1",
+                position=68444869,
+                record_id="VCV001421454",
+                ref="T",
+                alts=("C",),
+                info={
+                    "CLNSIG": ("Uncertain_significance",),
+                    "CLNREVSTAT": ("criteria_provided,_single_submitter",),
+                    "CLNDN": ("Retinitis_pigmentosa",),
+                    "GENEINFO": ("RPE65:6121",),
+                },
+                source_id=CLINVAR_SOURCE_ID,
+            ),
+        )
+    )
+    factory_calls: list[tuple[Path, Path]] = []
+
+    def reader_factory(path: Path, index: Path) -> _FakeIndexedClinVarReader:
+        factory_calls.append((path, index))
+        return reader
+
+    adapter = ClinVarIndexedLocalAdapter.from_settings(
+        SimpleNamespace(
+            backend_root=backend_root,
+            clinvar_runtime_vcf_path=vcf_rel,
+            clinvar_runtime_index_path=index_rel,
+        ),
+        reader_factory=reader_factory,
+    )
+
+    lookup = adapter.lookup_variant_id("1-68444869-T-C")
+
+    assert factory_calls == [(vcf_path, index_path)]
+    assert reader.queries == [("1", 68444869)]
+    assert lookup.available is True
+    assert lookup.record is not None
+    assert lookup.record.accession == "VCV001421454"
+
+
+def test_indexed_adapter_distinguishes_clinvar_allele_mismatch(tmp_path: Path) -> None:
+    vcf_path = tmp_path / "clinvar.vcf.gz"
+    index_path = tmp_path / "clinvar.vcf.gz.tbi"
+    vcf_path.write_bytes(b"indexed-vcf")
+    index_path.write_bytes(b"index")
+    adapter = ClinVarIndexedLocalAdapter(
+        vcf_path=vcf_path,
+        index_path=index_path,
+        reader_factory=lambda _vcf, _index: _FakeIndexedClinVarReader(
+            (
+                IndexedVcfRecord(
+                    requested_chrom="1",
+                    chrom="1",
+                    position=101,
+                    record_id="VCV000000001",
+                    ref="A",
+                    alts=("G",),
+                    info={
+                        "CLNSIG": ("Pathogenic",),
+                        "CLNREVSTAT": ("criteria_provided",),
+                        "CLNDN": ("Example",),
+                        "GENEINFO": ("RPE65:6121",),
+                    },
+                    source_id=CLINVAR_SOURCE_ID,
+                ),
+            )
+        ),
+    )
+
+    mismatch = adapter.lookup(chrom="1", position=101, ref="A", alt="T")
+    no_hit = adapter.lookup(chrom="1", position=102, ref="A", alt="T")
+
+    assert mismatch.available is False
+    assert mismatch.unavailable_reason == "allele_mismatch"
+    assert mismatch.warnings == ("clinvar_local_allele_mismatch",)
+    assert no_hit.unavailable_reason == "variant_not_found"
+    assert no_hit.warnings == ("clinvar_local_variant_not_found",)
+
+
+def test_indexed_adapter_fail_closed_on_reader_errors(tmp_path: Path) -> None:
+    vcf_path = tmp_path / "clinvar.vcf.gz"
+    index_path = tmp_path / "clinvar.vcf.gz.tbi"
+    vcf_path.write_bytes(b"indexed-vcf")
+    index_path.write_bytes(b"index")
+    adapter = ClinVarIndexedLocalAdapter(
+        vcf_path=vcf_path,
+        index_path=index_path,
+        reader_factory=lambda _vcf, _index: _FailingIndexedClinVarReader(),
+    )
+
+    lookup = adapter.lookup_variant_id("1-101-A-G")
+
+    assert lookup.available is False
+    assert lookup.unavailable_reason == "unknown_contig"
+    assert lookup.warnings == ("clinvar_local_unknown_contig",)
 
 
 def test_lookup_accepts_contig_alias_and_vcv_or_variation_id() -> None:
@@ -350,3 +525,35 @@ def test_parser_failures_are_structured_for_malformed_vcf_rows(tmp_path: Path) -
     assert bad_position_exc.value.details == {"row": 3, "position": "bad"}
     assert duplicate_info_exc.value.code == "malformed_clinvar_vcf_row"
     assert duplicate_info_exc.value.details == {"row": 3, "field": "CLNSIG"}
+
+
+class _FakeIndexedClinVarReader:
+    def __init__(self, records: tuple[IndexedVcfRecord, ...]) -> None:
+        self.records = records
+        self.queries: list[tuple[str, int]] = []
+
+    def query_position(self, chrom: str, position: int) -> tuple[IndexedVcfRecord, ...]:
+        normalized_chrom = chrom.removeprefix("chr")
+        if normalized_chrom == "NC_000001.11":
+            normalized_chrom = "1"
+        self.queries.append((normalized_chrom, position))
+        return tuple(
+            record
+            for record in self.records
+            if record.chrom == normalized_chrom and record.position == position
+        )
+
+    def close(self) -> None:
+        return None
+
+
+class _FailingIndexedClinVarReader:
+    def query_position(self, chrom: str, position: int) -> tuple[IndexedVcfRecord, ...]:
+        raise IndexedSourceError(
+            "unknown_contig",
+            "contig is not present in indexed VCF",
+            {"requested_chrom": chrom, "position": position},
+        )
+
+    def close(self) -> None:
+        return None

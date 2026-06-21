@@ -9,6 +9,12 @@ from app.core.config import Settings
 from app.services.alphamissense_local import AlphaMissensePrediction, AlphaMissenseProvenance
 from app.services.capice import CapiceProvenance, CapiceScore
 from app.services.ci_spliceai import CiSpliceAiProvenance, CiSpliceAiScore
+from app.services.clinvar_local import (
+    CLINVAR_SOURCE_ID,
+    ClinVarLocalLookup,
+    ClinVarLocalProvenance,
+    ClinVarLocalRecord,
+)
 from app.services.esm1b_assembly import ESM1B_LICENSE_GATE
 from app.services.esm1b_local import Esm1bPrediction, Esm1bProvenance
 from app.services.predictor_runtime import (
@@ -278,6 +284,86 @@ def test_clinvar_fixture_exposes_submitter_counts() -> None:
     assert result.status == "fixture"
     assert result.summary["classification"] == "Uncertain significance"
     assert result.summary["submitter_counts"] == {"VUS": 1}
+
+
+def test_clinvar_uses_local_indexed_adapter_when_lookup_gate_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_get(*args, **kwargs):
+        raise AssertionError("live ClinVar request should not run on a local hit")
+
+    monkeypatch.setattr("app.tools.clinvar.httpx.get", fail_get)
+    tool = ClinvarTool(
+        _settings(
+            use_real_apis=True,
+            local_evidence_enabled=True,
+            local_evidence_allowed_flows_raw="lookup",
+        )
+    )
+    monkeypatch.setattr(tool, "_local_adapter_for_settings", lambda: _LocalClinVarAdapter("hit"))
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        protein_change=None,
+        genomic_hg38="1-68444869-T-C",
+        genomic_hgvs="NC_000001.11:g.68444869T>C",
+        dbsnp_rsid=None,
+        search_input_resolution=None,
+    )
+
+    result = tool.get_evidence(variant)
+
+    assert result.status == "local"
+    assert result.request_identity == {
+        "variant_id": "1-68444869-T-C",
+        "clinvar_id": "1421454",
+    }
+    assert result.summary["gene"] == "RPE65"
+    assert result.summary["classification"] == "Uncertain significance"
+    assert result.summary["review_status"] == "criteria provided, single submitter"
+    assert result.summary["conditions"] == [
+        "Retinitis pigmentosa",
+        "Leber congenital amaurosis 2",
+    ]
+    assert result.summary["accession"] == "VCV001421454"
+    assert result.raw["source_status"] == "local"
+
+
+def test_clinvar_local_miss_falls_back_to_live_with_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"esearchresult": {"idlist": []}}
+
+    monkeypatch.setattr("app.tools.clinvar.httpx.get", lambda *args, **kwargs: Response())
+    tool = ClinvarTool(
+        _settings(
+            use_real_apis=True,
+            local_evidence_enabled=True,
+            local_evidence_allowed_flows_raw="lookup",
+        )
+    )
+    monkeypatch.setattr(tool, "_local_adapter_for_settings", lambda: _LocalClinVarAdapter("miss"))
+    variant = SimpleNamespace(
+        gene="RPE65",
+        transcript_hgvs="NM_000329.3:c.260A>G",
+        genomic_hg38="1-68444869-T-C",
+        genomic_hgvs="NC_000001.11:g.68444869T>C",
+        search_input_resolution=None,
+    )
+
+    result = tool.get_evidence(variant)
+
+    assert result.status == "live"
+    assert result.request_identity == {"search_text": "NC_000001.11:g.68444869T>C"}
+    assert result.warnings[:2] == [
+        "clinvar_local_variant_not_found",
+        "clinvar_variant_not_found",
+    ]
 
 
 def test_gene_disease_real_mode_prefers_private_clinical_source_tables() -> None:
@@ -1052,3 +1138,46 @@ def test_load_fixture_missing_or_corrupt_degrades_to_empty_dict(tmp_path: Path) 
 
     assert Tool(missing).load_fixture() == {}
     assert Tool(corrupt).load_fixture() == {}
+
+
+class _LocalClinVarAdapter:
+    def __init__(self, mode: str) -> None:
+        self.mode = mode
+
+    def lookup_variant_id(self, variant_id: str) -> ClinVarLocalLookup:
+        if self.mode == "miss":
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason="variant_not_found",
+                warnings=("clinvar_local_variant_not_found",),
+            )
+        assert variant_id == "1-68444869-T-C"
+        return ClinVarLocalLookup(
+            available=True,
+            record=ClinVarLocalRecord(
+                chrom="1",
+                position=68444869,
+                ref="T",
+                alt="C",
+                gnomad_variant_id="1-68444869-T-C",
+                record_id="VCV001421454",
+                variation_id="1421454",
+                accession="VCV001421454",
+                classification="Uncertain significance",
+                review_status="criteria provided, single submitter",
+                conditions=("Retinitis pigmentosa", "Leber congenital amaurosis 2"),
+                condition_summary="Retinitis pigmentosa, Leber congenital amaurosis 2",
+                hgvs_aliases=("NC_000001.11:g.68444869T>C", "NP_000320.1:p.Asp87Gly"),
+                gene_symbols=("RPE65",),
+                provenance=ClinVarLocalProvenance(
+                    source_id=CLINVAR_SOURCE_ID,
+                    source_version="ClinVar test source",
+                    file_date=None,
+                    checksum_algorithm="runtime_manifest",
+                    checksum="not_computed_on_request_path",
+                    relative_path="runtime:clinvar.vcf.gz",
+                    record_id="VCV001421454",
+                ),
+            ),
+        )

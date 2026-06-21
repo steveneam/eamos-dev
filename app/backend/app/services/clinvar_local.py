@@ -6,12 +6,18 @@ import gzip
 from hashlib import sha256
 from pathlib import Path
 import re
-from typing import Iterable, Mapping
+import threading
+from typing import Any, Iterable, Mapping
 
 from app.core.paths import find_project_root, repo_relative_path
 from app.data_sources import DEFAULT_DATA_SOURCE_REGISTRY, DataSourceRegistry
 from app.data_sources.registry import LicenseStatus
 from app.schemas.run import CuratedVariantsDistribution
+from app.services.indexed_sources import (
+    IndexedSourceError,
+    IndexedVcfRecord,
+    PysamIndexedVcfReader,
+)
 
 CLINVAR_SOURCE_ID = "ncbi_clinvar_vcf"
 DEFAULT_CLINVAR_VCF_FIXTURE_PATH = (
@@ -194,6 +200,148 @@ class ClinVarLocalStore:
             unavailable_reason="variant_not_found",
             warnings=("clinvar_local_variant_not_found",),
         )
+
+
+class ClinVarIndexedLocalAdapter:
+    """Bounded ClinVar bgzip/tabix adapter for exact variant lookups.
+
+    This adapter intentionally exposes no gene-wide scan API. It is suitable for
+    request-path local evidence because each lookup is a one-position indexed
+    fetch with a record cap.
+    """
+
+    def __init__(
+        self,
+        *,
+        vcf_path: Path,
+        index_path: Path,
+        registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+        reader_factory: Any | None = None,
+    ) -> None:
+        self._vcf_path = vcf_path
+        self._index_path = index_path
+        self._registry = registry
+        self._reader_factory = reader_factory or _default_indexed_reader_factory
+        self._reader_lock = threading.RLock()
+        self._reader_path: tuple[Path, Path] | None = None
+        self._reader: Any | None = None
+
+    @classmethod
+    def from_settings(
+        cls,
+        settings: object,
+        *,
+        registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+        reader_factory: Any | None = None,
+    ) -> "ClinVarIndexedLocalAdapter":
+        vcf_path = _resolve_backend_path(
+            settings, Path(getattr(settings, "clinvar_runtime_vcf_path"))
+        )
+        index_path = _resolve_backend_path(
+            settings,
+            Path(getattr(settings, "clinvar_runtime_index_path")),
+        )
+        return cls(
+            vcf_path=vcf_path,
+            index_path=index_path,
+            registry=registry,
+            reader_factory=reader_factory,
+        )
+
+    def lookup_variant_id(self, variant_id: str) -> ClinVarLocalLookup:
+        parsed = _parse_gnomad_variant_id(variant_id)
+        if parsed is None:
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason="invalid_variant_id",
+                warnings=("clinvar_local_invalid_variant_id",),
+            )
+        chrom, position, ref, alt = parsed
+        return self.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+
+    def lookup(self, *, chrom: str, position: int, ref: str, alt: str) -> ClinVarLocalLookup:
+        if position < 1:
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason="invalid_coordinates",
+                warnings=("clinvar_local_invalid_coordinates",),
+            )
+        try:
+            with self._reader_lock:
+                reader = self._reader_for_ready_asset()
+                indexed_records = reader.query_position(chrom, position)
+        except IndexedSourceError as exc:
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason=exc.code,
+                warnings=(f"clinvar_local_{exc.code}",),
+            )
+
+        requested_key = _variant_key(chrom, position, ref, alt)
+        records_at_position: list[ClinVarLocalRecord] = []
+        try:
+            for indexed_record in indexed_records:
+                records_at_position.extend(
+                    _records_from_indexed_vcf_record(
+                        indexed_record,
+                        provenance=_runtime_source_provenance(self._vcf_path, self._registry),
+                    )
+                )
+        except ClinVarLocalError as exc:
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason=exc.code,
+                warnings=(f"clinvar_local_{exc.code}",),
+            )
+
+        matches = [
+            record
+            for record in records_at_position
+            if _variant_key(record.chrom, record.position, record.ref, record.alt) == requested_key
+        ]
+        if len(matches) == 1:
+            return ClinVarLocalLookup(available=True, record=matches[0])
+        if len(matches) > 1:
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason="duplicate_variant_records",
+                warnings=("clinvar_local_duplicate_variant_records",),
+            )
+        if records_at_position:
+            return ClinVarLocalLookup(
+                available=False,
+                record=None,
+                unavailable_reason="allele_mismatch",
+                warnings=("clinvar_local_allele_mismatch",),
+            )
+        return ClinVarLocalLookup(
+            available=False,
+            record=None,
+            unavailable_reason="variant_not_found",
+            warnings=("clinvar_local_variant_not_found",),
+        )
+
+    def close(self) -> None:
+        with self._reader_lock:
+            reader = self._reader
+            self._reader = None
+            self._reader_path = None
+            close = getattr(reader, "close", None)
+            if callable(close):
+                close()
+
+    def _reader_for_ready_asset(self) -> Any:
+        reader_path = (self._vcf_path, self._index_path)
+        if self._reader is None or self._reader_path != reader_path:
+            self.close()
+            self._reader = self._reader_factory(self._vcf_path, self._index_path)
+            self._reader_path = reader_path
+        return self._reader
 
 
 def build_clinvar_gene_distribution(
@@ -398,6 +546,64 @@ def _parse_vcf_row(
     )
 
 
+def _records_from_indexed_vcf_record(
+    record: IndexedVcfRecord,
+    *,
+    provenance: ClinVarLocalProvenance,
+) -> tuple[ClinVarLocalRecord, ...]:
+    chrom = _normalize_contig_alias(record.chrom)
+    ref = _normalize_allele(record.ref)
+    alts = tuple(_normalize_allele(alt) for alt in record.alts)
+    if record.position < 1 or not ref or not alts or any(not alt for alt in alts):
+        raise ClinVarLocalError(
+            "malformed_clinvar_vcf_row",
+            "ClinVar indexed VCF record has invalid coordinates or alleles",
+            {
+                "chrom": chrom,
+                "position": record.position,
+                "ref": ref,
+                "alts": alts,
+            },
+        )
+    info = _indexed_info_map(record.info)
+    record_id = _record_id(record.record_id, info)
+    classification = _decode_required_info(info, "CLNSIG", 0)
+    review_status = _decode_required_info(info, "CLNREVSTAT", 0)
+    conditions = _condition_values(info.get("CLNDN"))
+    hgvs_aliases = _hgvs_aliases(info)
+    gene_symbols = _gene_symbols(info.get("GENEINFO"))
+    accession = _normalize_vcv_accession(record_id)
+    variation_id = _variation_id(accession)
+    return tuple(
+        ClinVarLocalRecord(
+            chrom=chrom,
+            position=record.position,
+            ref=ref,
+            alt=alt,
+            gnomad_variant_id=_gnomad_variant_id(chrom, record.position, ref, alt),
+            record_id=record_id,
+            variation_id=variation_id,
+            accession=accession,
+            classification=classification,
+            review_status=review_status,
+            conditions=conditions,
+            condition_summary=", ".join(conditions) if conditions else "not provided",
+            hgvs_aliases=hgvs_aliases,
+            gene_symbols=gene_symbols,
+            provenance=ClinVarLocalProvenance(
+                source_id=provenance.source_id,
+                source_version=provenance.source_version,
+                file_date=provenance.file_date,
+                checksum_algorithm=provenance.checksum_algorithm,
+                checksum=provenance.checksum,
+                relative_path=provenance.relative_path,
+                record_id=record_id,
+            ),
+        )
+        for alt in alts
+    )
+
+
 def _parse_info(value: str, *, row_number: int) -> dict[str, str]:
     if not value or value == ".":
         raise ClinVarLocalError(
@@ -442,6 +648,44 @@ def _source_provenance(
         checksum=_sha256_file(path),
         relative_path=_repo_relative_path(path),
     )
+
+
+def _runtime_source_provenance(
+    path: Path,
+    registry: DataSourceRegistry,
+) -> ClinVarLocalProvenance:
+    record = registry.get(CLINVAR_SOURCE_ID)
+    return ClinVarLocalProvenance(
+        source_id=CLINVAR_SOURCE_ID,
+        source_version=record.source_version,
+        file_date=None,
+        checksum_algorithm="runtime_manifest",
+        checksum="not_computed_on_request_path",
+        relative_path=f"runtime:{path.name}",
+    )
+
+
+def _indexed_info_map(info: Mapping[str, object]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for key, value in info.items():
+        text = _indexed_info_text(value)
+        if text is not None:
+            out[str(key)] = text
+    return out
+
+
+def _indexed_info_text(value: object) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, (tuple, list)):
+        values = [
+            text for item in value for text in (_indexed_info_text(item),) if text is not None
+        ]
+        return "|".join(values) if values else None
+    text = str(value).strip()
+    if not text or text == ".":
+        return None
+    return text
 
 
 def _read_fixture_lines(path: Path) -> list[str]:
@@ -650,6 +894,23 @@ def _is_fixture_path(path: Path) -> bool:
         return path.resolve() == DEFAULT_CLINVAR_VCF_FIXTURE_PATH.resolve()
     except OSError:
         return path == DEFAULT_CLINVAR_VCF_FIXTURE_PATH
+
+
+def _default_indexed_reader_factory(path: Path, index_path: Path) -> PysamIndexedVcfReader:
+    return PysamIndexedVcfReader(
+        path,
+        source_id=CLINVAR_SOURCE_ID,
+        index_path=index_path,
+        max_window_bp=1,
+        max_records=64,
+    )
+
+
+def _resolve_backend_path(settings: object, path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    backend_root = Path(getattr(settings, "backend_root"))
+    return backend_root / path
 
 
 def _classification_bucket(classification: str) -> str:

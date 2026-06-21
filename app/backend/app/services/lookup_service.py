@@ -84,6 +84,9 @@ SOURCE_CACHE_PERSIST_STATUSES = {"live", "cache"}
 SOURCE_CACHE_FAILURE_STATUSES = {"fallback", "degraded", "error", "failed"}
 SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
 PUBLICATION_DATA_CACHE_VERSION = 2
+CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX = (
+    "clinvar_gene_distribution_excluded_pending_index"
+)
 STRICT_GENOMIC_CACHE_VERSION = 2
 FUNCTIONAL_EVIDENCE_CACHE_VERSION = 3
 GENE_CONTEXT_SNAPSHOT_CACHE_VERSION = 1
@@ -128,16 +131,18 @@ def _clinvar_distribution_store(vcf_path: str | None) -> ClinVarLocalStore:
     return ClinVarLocalStore(Path(vcf_path)) if vcf_path else ClinVarLocalStore()
 
 
+def _clinvar_gene_distribution_exclusion_warning(settings: Any) -> str | None:
+    if LocalEvidenceRuntimeGate.from_settings(settings).allows("lookup"):
+        return CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX
+    return None
+
+
 def _clinvar_distribution_runtime_path(settings: Any) -> str | None:
     if not LocalEvidenceRuntimeGate.from_settings(settings).allows("lookup"):
         return None
-    raw_path = getattr(settings, "clinvar_runtime_vcf_path", None)
-    raw_index_path = getattr(settings, "clinvar_runtime_index_path", None)
-    if raw_path is None:
-        return None
-    path = Path(raw_path)
-    index_path = Path(raw_index_path) if raw_index_path is not None else Path(f"{path}.tbi")
-    return str(path) if path.is_file() and index_path.is_file() else None
+    # The seeded ClinVar VCF is variant-indexed but not yet gene-distribution-indexed.
+    # Keep request-time gene-wide aggregation excluded until that bounded index exists.
+    return None
 
 
 def _local_clinvar_gene_distribution(
@@ -965,15 +970,20 @@ class LookupService:
             pubmed_articles=pubmed_articles,
             **_lookup_v2_modules(gene, cdna),
         )
-        try:
-            base_payload.curated_variants_distribution = _local_clinvar_gene_distribution(
-                gene,
-                self.settings,
-                variant_id=variant.genomic_hg38 or None,
-            )
-        except ClinVarLocalError as exc:
+        clinvar_distribution_warning = _clinvar_gene_distribution_exclusion_warning(self.settings)
+        if clinvar_distribution_warning:
             base_payload.curated_variants_distribution = None
-            warnings.append(f"clinvar_local_gene_distribution_failed:{exc.code}")
+            warnings.append(clinvar_distribution_warning)
+        else:
+            try:
+                base_payload.curated_variants_distribution = _local_clinvar_gene_distribution(
+                    gene,
+                    self.settings,
+                    variant_id=variant.genomic_hg38 or None,
+                )
+            except ClinVarLocalError as exc:
+                base_payload.curated_variants_distribution = None
+                warnings.append(f"clinvar_local_gene_distribution_failed:{exc.code}")
 
         litvar_summary = evidence_map.get("litvar2", {})
         try:
