@@ -319,7 +319,9 @@ def build_backend_build_ledger(
             runtime_wired=True,
             public_serialization_allowed=True,
             launch_gate=REVEL_LAUNCH_GATE,
-            blockers=() if predictor_statuses["revel"] == "ready" else ("score_cache_materialization",),
+            blockers=(
+                () if predictor_statuses["revel"] == "ready" else ("score_cache_materialization",)
+            ),
             wired_surfaces=("lookup", "report", "acmg_calibration"),
             next_action=(
                 None
@@ -874,6 +876,7 @@ def _local_evidence_gate_item(gate: LocalEvidenceRuntimeGate) -> BuildLedgerItem
     disabled_reasons = tuple(
         sorted({decision.reason for decision in flow_decisions if not decision.enabled})
     )
+    blockers = () if enabled_flows else disabled_reasons
     return BuildLedgerItem(
         item_id="local_evidence_orchestrator",
         label="Local evidence orchestrator gate",
@@ -890,7 +893,7 @@ def _local_evidence_gate_item(gate: LocalEvidenceRuntimeGate) -> BuildLedgerItem
         status="enabled" if enabled_flows else "disabled",
         runtime_wired=True,
         public_serialization_allowed=False,
-        blockers=disabled_reasons,
+        blockers=blockers,
         wired_surfaces=enabled_flows or LOCAL_EVIDENCE_RUNTIME_FLOWS,
         next_action=(
             None

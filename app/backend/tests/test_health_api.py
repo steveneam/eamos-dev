@@ -471,6 +471,30 @@ def test_build_ledger_marks_gene_view_ready_when_runtime_dependencies_are_ready(
     assert items["gene_view"]["next_action"] is None
 
 
+def test_build_ledger_enabled_local_evidence_omits_excluded_flow_blockers(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+        local_evidence_enabled=True,
+        local_evidence_allowed_flows_raw="lookup,gene-viewer",
+        local_evidence_require_real_apis=True,
+    )
+
+    ledger = build_ledger_module.build_backend_build_ledger(settings)
+
+    items = {item["item_id"]: item for item in ledger["items"]}
+    orchestrator = items["local_evidence_orchestrator"]
+    assert orchestrator["status"] == "enabled"
+    assert orchestrator["wired_surfaces"] == ["lookup", "gene_viewer"]
+    assert orchestrator["blockers"] == []
+    assert orchestrator["next_action"] is None
+
+
 def test_pubmed_local_startup_materialization_flag_fails_closed(tmp_path: Path) -> None:
     settings = Settings(
         upload_dir=tmp_path / "uploads",
