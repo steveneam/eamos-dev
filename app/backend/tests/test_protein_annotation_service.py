@@ -14,6 +14,7 @@ from app.data_sources.protein_assets import (
     inspect_protein_annotation_asset,
 )
 from app.data_sources.registry import DEFAULT_DATA_SOURCE_REGISTRY
+from app.schemas.gene_viewer import ProteinFeatures
 from app.schemas.protein_annotation import ProteinAnnotationRequest, ProteinDomainTrack
 from app.services.protein_annotation import (
     HmmerRuntimeStatus,
@@ -22,6 +23,7 @@ from app.services.protein_annotation import (
     normalize_protein_input,
     parse_hmmer_domtblout,
     parse_uniprot_flatfile_features,
+    protein_features_from_domain_track,
     write_uniprot_feature_index,
 )
 
@@ -666,6 +668,35 @@ def test_service_merges_rpe65_uniprot_sites_with_local_hmmer_hits(tmp_path: Path
         labels["Carotenoid oxygenase/RPE65 family"][0].description
         == "Carotenoid oxygenase/RPE65 catalytic family domain"
     )
+
+
+def test_protein_features_from_domain_track_adds_rpe65_architecture_seed() -> None:
+    features = protein_features_from_domain_track(
+        ProteinFeatures(),
+        ProteinDomainTrack(
+            status="cache_hit",
+            gene_symbol="RPE65",
+            protein_length=533,
+            features=[],
+        ),
+    )
+
+    assert features.domain_track is not None
+    assert features.domain_track.status == "cache_hit"
+    assert "bundled_protein_feature_seed:RPE65" in features.domain_track.warnings
+    assert {
+        feature.aa_start
+        for feature in features.domain_track.features
+        if feature.label == "Amphipathic helix (membrane contact)"
+    } == {110, 200}
+    assert {site.aa for site in features.active_sites} == {180, 241, 313, 527}
+    assert all(site.residue == "H" for site in features.active_sites)
+    assert {site.aa for site in features.palmitoylation} == {112, 231, 329, 330}
+    assert all(site.residue == "C" for site in features.palmitoylation)
+    assert {(region.aa_start, region.aa_end) for region in features.membrane_binding} == {
+        (110, 127),
+        (200, 215),
+    }
 
 
 def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(

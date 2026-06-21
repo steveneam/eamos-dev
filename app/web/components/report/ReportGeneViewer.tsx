@@ -188,27 +188,91 @@ function segmentTitle(seg: OverviewSeg): string {
 
 type GeneClinvarMarkerKind = 'missense' | 'truncating' | 'splice'
 
+interface SvgVariantMarkerProps {
+  kind: GeneClinvarMarkerKind
+  x: number
+  y: number
+  size: number
+  fill: string
+  stroke?: string
+  strokeWidth?: number
+  opacity?: string
+  title: string
+}
+
 interface GeneScaleTick {
   bp: number
   major: boolean
   terminal: boolean
 }
 
-function clinvarMarkerKind(v: GeneWindowData['clinvar'][number]): GeneClinvarMarkerKind {
-  if (v.splice) return 'splice'
-  const text = `${v.hgvsC} ${v.hgvsP}`.toLowerCase()
+function variantMarkerKindFromText(text: string, explicitSplice = false): GeneClinvarMarkerKind {
+  const lower = text.toLowerCase()
+  if (explicitSplice || lower.includes('splice') || /c\.[^\s]*[+-][12](?:\D|$)/.test(lower)) {
+    return 'splice'
+  }
   if (
-    text.includes('ter') ||
-    text.includes('*') ||
-    text.includes('fs') ||
-    text.includes('frameshift') ||
-    text.includes('stop') ||
-    text.includes('nonsense') ||
-    text.includes('trunc')
+    lower.includes('ter') ||
+    lower.includes('*') ||
+    lower.includes('fs') ||
+    lower.includes('frameshift') ||
+    lower.includes('stop') ||
+    lower.includes('nonsense') ||
+    lower.includes('trunc')
   ) {
     return 'truncating'
   }
   return 'missense'
+}
+
+function clinvarMarkerKind(v: GeneWindowData['clinvar'][number]): GeneClinvarMarkerKind {
+  return variantMarkerKindFromText(`${v.hgvsC} ${v.hgvsP}`, Boolean(v.splice))
+}
+
+function queriedVariantMarkerKind(v: GeneWindowData['queriedVariant']): GeneClinvarMarkerKind {
+  return variantMarkerKindFromText(`${v.hgvsC} ${v.hgvsP}`)
+}
+
+function variantMarkerKindLabel(kind: GeneClinvarMarkerKind): string {
+  if (kind === 'truncating') return 'truncating variant'
+  if (kind === 'splice') return 'splice-site variant'
+  return 'missense/coding variant'
+}
+
+function SvgVariantMarker({
+  kind,
+  x,
+  y,
+  size,
+  fill,
+  stroke,
+  strokeWidth,
+  opacity,
+  title,
+}: SvgVariantMarkerProps) {
+  const common = { fill, stroke, strokeWidth, opacity }
+  if (kind === 'truncating') {
+    return (
+      <circle cx={x} cy={y} r={size} {...common}>
+        <title>{title}</title>
+      </circle>
+    )
+  }
+  if (kind === 'splice') {
+    return (
+      <rect x={x - size} y={y - size} width={size * 2} height={size * 2} {...common}>
+        <title>{title}</title>
+      </rect>
+    )
+  }
+  return (
+    <polygon
+      points={`${x - size},${y + size} ${x + size},${y + size} ${x},${y - size}`}
+      {...common}
+    >
+      <title>{title}</title>
+    </polygon>
+  )
 }
 
 function niceStep(value: number): number {
@@ -348,6 +412,10 @@ export function ReportGeneViewer({
     if (!data || segments.length === 0) return null
     return projectCdsToPct(data.queriedVariant.cdsPos, segments)
   }, [data, segments])
+  const queriedMarkerKind = data ? queriedVariantMarkerKind(data.queriedVariant) : 'missense'
+  const queriedMarkerFill = data
+    ? (CLASS_COLOR[data.queriedVariant.classification] ?? 'var(--cls-vus-dot)')
+    : 'var(--cls-vus-dot)'
 
   // ClinVar variants live on CDS coords (or are intronic — skip those without
   // numeric cdsPos). Cluster by class for the legend.
@@ -618,13 +686,15 @@ export function ReportGeneViewer({
               stroke="var(--ink)"
               strokeWidth="2"
             />
-            <circle
-              cx={TRACK_LEFT + (variantPct / 100) * geneTrackW}
-              cy={TRACK_Y - 30}
-              r="6"
-              fill="var(--cls-path-dot)"
+            <SvgVariantMarker
+              kind={queriedMarkerKind}
+              x={TRACK_LEFT + (variantPct / 100) * geneTrackW}
+              y={TRACK_Y - 30}
+              size={6}
+              fill={queriedMarkerFill}
               stroke="var(--ink)"
-              strokeWidth="1.5"
+              strokeWidth={1.5}
+              title={`${variantLabel} | ${classLabel(data.queriedVariant.classification)} | ${variantMarkerKindLabel(queriedMarkerKind)}`}
             />
             <text
               x={clamp(
@@ -877,6 +947,8 @@ function ReportProteinView({
     1,
     proteinLength,
   )
+  const queriedMarkerKind = queriedVariantMarkerKind(data.queriedVariant)
+  const queriedMarkerFill = CLASS_COLOR[data.queriedVariant.classification] ?? 'var(--cls-vus-dot)'
   const xFor = (aa: number) =>
     PROTEIN_LEFT + ((clamp(aa, 1, proteinLength) - 1) / Math.max(1, proteinLength - 1)) * proteinTrackW
   const scaleTicks = proteinScaleTicks(proteinLength)
@@ -1186,13 +1258,15 @@ function ReportProteinView({
           stroke="var(--ink)"
           strokeWidth="1.6"
         />
-        <circle
-          cx={xFor(queriedAa)}
-          cy={PROTEIN_MARKER_Y}
-          r="6"
-          fill={CLASS_COLOR[data.queriedVariant.classification] ?? 'var(--cls-vus-dot)'}
+        <SvgVariantMarker
+          kind={queriedMarkerKind}
+          x={xFor(queriedAa)}
+          y={PROTEIN_MARKER_Y}
+          size={6}
+          fill={queriedMarkerFill}
           stroke="var(--ink)"
-          strokeWidth="1.4"
+          strokeWidth={1.4}
+          title={`${data.queriedVariant.hgvsP || `aa ${queriedAa}`} | ${classLabel(data.queriedVariant.classification)} | ${variantMarkerKindLabel(queriedMarkerKind)}`}
         />
         <text
           x={clamp(xFor(queriedAa), PROTEIN_LEFT + 58, PROTEIN_LEFT + proteinTrackW - 58)}

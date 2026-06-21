@@ -1,0 +1,130 @@
+{
+  "RPE65": {
+    "source_id": "uniprotkb_swissprot_rpe65_seed",
+    "source_name": "UniProtKB/Swiss-Prot feature seed",
+    "source_url": "https://www.uniprot.org/uniprotkb/Q16518/entry",
+    "source_release": "UniProtKB reviewed Swiss-Prot feature index seed",
+    "features": [
+      {
+        "feature_id": "uniprot-seed:Q16518:region:110-127:membrane-contact-1",
+        "kind": "region",
+        "label": "Amphipathic helix (membrane contact)",
+        "short_label": "Mem",
+        "aa_start": 110,
+        "aa_end": 127,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "RPE65 membrane-contact region",
+        "lane": "motifs"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:region:200-215:membrane-contact-2",
+        "kind": "region",
+        "label": "Amphipathic helix (membrane contact)",
+        "short_label": "Mem",
+        "aa_start": 200,
+        "aa_end": 215,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "RPE65 membrane-contact region",
+        "lane": "motifs"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:binding:180:iron",
+        "kind": "site",
+        "label": "Iron-binding site",
+        "short_label": "Fe",
+        "aa_start": 180,
+        "aa_end": 180,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Iron-binding site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:binding:241:iron",
+        "kind": "site",
+        "label": "Iron-binding site",
+        "short_label": "Fe",
+        "aa_start": 241,
+        "aa_end": 241,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Iron-binding site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:binding:313:iron",
+        "kind": "site",
+        "label": "Iron-binding site",
+        "short_label": "Fe",
+        "aa_start": 313,
+        "aa_end": 313,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Iron-binding site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:binding:527:iron",
+        "kind": "site",
+        "label": "Iron-binding site",
+        "short_label": "Fe",
+        "aa_start": 527,
+        "aa_end": 527,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Iron-binding site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:lipid:112:palmitoylation",
+        "kind": "site",
+        "label": "S-palmitoyl cysteine; in membrane form",
+        "short_label": "Palm",
+        "aa_start": 112,
+        "aa_end": 112,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Palmitoylation site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:lipid:231:palmitoylation",
+        "kind": "site",
+        "label": "S-palmitoyl cysteine; in membrane form",
+        "short_label": "Palm",
+        "aa_start": 231,
+        "aa_end": 231,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Palmitoylation site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:lipid:329:palmitoylation",
+        "kind": "site",
+        "label": "S-palmitoyl cysteine; in membrane form",
+        "short_label": "Palm",
+        "aa_start": 329,
+        "aa_end": 329,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Palmitoylation site",
+        "lane": "sites"
+      },
+      {
+        "feature_id": "uniprot-seed:Q16518:lipid:330:palmitoylation",
+        "kind": "site",
+        "label": "S-palmitoyl cysteine; in membrane form",
+        "short_label": "Palm",
+        "aa_start": 330,
+        "aa_end": 330,
+        "source": "UniProtKB/Swiss-Prot feature seed",
+        "source_accession": "Q16518",
+        "description": "Palmitoylation site",
+        "lane": "sites"
+      }
+    ]
+  }
+}

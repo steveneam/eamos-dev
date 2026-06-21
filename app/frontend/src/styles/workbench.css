@@ -2859,6 +2859,12 @@
   width: 11px; height: 11px; margin-left: -5.5px;
   border-radius: 50%; border: 1.5px solid var(--bg);
 }
+.sv-pv-headdot.shape-truncating { border-radius: 50%; }
+.sv-pv-headdot.shape-splice { border-radius: 2px; }
+.sv-pv-headdot.shape-missense {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
 .sv-pv-headdot.queried {
   width: 15px; height: 15px; margin-left: -7.5px; top: -2px;
   box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.20);
@@ -2936,7 +2942,20 @@
 .sv-pv-pt.palmitoyl { background: var(--base-C, #4a9d8f); }
 .sv-pv-pt.query {
   width: 10px; height: 10px; margin-left: -5px;
-  background: var(--ink);
+  background: #94a3b8;
+  border: 1px solid var(--bg);
+  transform: none;
+}
+.sv-pv-pt.query.p   { background: #B82B2B; }
+.sv-pv-pt.query.lp  { background: #BA7517; }
+.sv-pv-pt.query.vus { background: #94a3b8; }
+.sv-pv-pt.query.lb  { background: #6FA88F; }
+.sv-pv-pt.query.b   { background: #1D9E75; }
+.sv-pv-pt.query.shape-truncating { border-radius: 50%; }
+.sv-pv-pt.query.shape-splice { border-radius: 2px; }
+.sv-pv-pt.query.shape-missense {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
 }
 
 .sv-pv-scale { position: relative; height: 14px; margin-top: 2px; }

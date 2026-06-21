@@ -31,17 +31,39 @@ interface Lollipop {
   xPct: number
   lane: number
   cls: ClinClass
+  kind: ProteinMarkerKind
   queried: boolean
   hgvsC: string
   hgvsP: string
   cv: string
 }
 
+type ProteinMarkerKind = 'missense' | 'truncating' | 'splice'
+
 /** Consecutive variants closer than this (in % of the backbone) are stacked
  *  into higher lanes so heads + stems do not overlap. Heuristic — the view
  *  is responsive and cannot measure px without an observer. */
 const LANE_GAP_PCT = 3.4
 const MAX_LANES = 4
+
+function proteinMarkerKind(hgvsC: string, hgvsP: string, splice = false): ProteinMarkerKind {
+  const text = `${hgvsC} ${hgvsP}`.toLowerCase()
+  if (splice || text.includes('splice') || /c\.[^\s]*[+-][12](?:\D|$)/.test(text)) {
+    return 'splice'
+  }
+  if (
+    text.includes('ter') ||
+    text.includes('*') ||
+    text.includes('fs') ||
+    text.includes('frameshift') ||
+    text.includes('stop') ||
+    text.includes('nonsense') ||
+    text.includes('trunc')
+  ) {
+    return 'truncating'
+  }
+  return 'missense'
+}
 
 export function ProteinView({ data, alleleMode }: ProteinViewProps) {
   const product = alleleMode === 'variant' ? data.proteinProduct : null
@@ -110,6 +132,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
         xPct,
         lane,
         cls: v.cls,
+        kind: proteinMarkerKind(v.hgvsC, v.hgvsP, Boolean(v.splice)),
         queried: Boolean(v.queried),
         hgvsC: v.hgvsC,
         hgvsP: v.hgvsP,
@@ -138,6 +161,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
 
   const qv = data.queriedVariant
   const queriedAa = qv.codonNumber || Math.ceil(qv.cdsPos / 3) || 1
+  const queriedMarkerKind = proteinMarkerKind(qv.hgvsC, qv.hgvsP)
 
   return (
     <div className="sv-protein">
@@ -175,7 +199,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
               >
                 <span className="sv-pv-stem" style={{ height: h }} />
                 <span
-                  className={`sv-pv-headdot ${p.cls}${
+                  className={`sv-pv-headdot ${p.cls} shape-${p.kind}${
                     p.queried ? ' queried' : ''
                   }`}
                 />
@@ -261,7 +285,7 @@ export function ProteinView({ data, alleleMode }: ProteinViewProps) {
             />
           ))}
           <span
-            className="sv-pv-pt query"
+            className={`sv-pv-pt query ${qv.classification} shape-${queriedMarkerKind}`}
             style={{ left: `${pct(queriedAa)}%` }}
             title={`Queried · ${qv.hgvsC} · ${qv.hgvsP}`}
           />
