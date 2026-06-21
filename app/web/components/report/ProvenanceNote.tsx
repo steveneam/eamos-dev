@@ -17,7 +17,8 @@ const FRIENDLY: Record<string, string> = {
   clinvar_track_is_sample_bounded: 'ClinVar markers are sample-bounded',
   clinvar_track_not_live_hydrated: 'ClinVar track not live-hydrated',
   exon_intron_table_from_sample_scaffold: 'Exon/intron model from RPE65 sample scaffold',
-  exon_intron_table_window_only: 'Exon/intron model is window-only (not whole-gene)',
+  exon_intron_table_from_transcript_projection: 'Exon/intron model from transcript metadata',
+  exon_intron_table_window_only: 'Exon/intron model limited to the selected range',
   conservation_from_sample_scaffold: 'Conservation from RPE65 sample scaffold',
   conservation_unavailable: 'Conservation track unavailable',
 }
@@ -66,7 +67,7 @@ export function ProvenanceNote({ warnings, tone = 'warn' }: ProvenanceNoteProps)
         <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
       </svg>
       <span>
-        <strong style={{ fontWeight: 700 }}>Sample data:</strong> {cleaned.map(humanize).join(' · ')}
+        <strong style={{ fontWeight: 700 }}>Data notes:</strong> {cleaned.map(humanize).join(' · ')}
       </span>
     </div>
   )

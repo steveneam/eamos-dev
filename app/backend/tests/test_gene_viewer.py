@@ -243,6 +243,7 @@ class MockGenericGeneViewerSourceClient:
                 ),
             ),
             introns=(SourceTranscriptIntron(number=1, genomic_start=106, genomic_end=199),),
+            total_exons=3,
             ensembl_gene_id="ENSGGENERIC",
             transcript_aliases=("ENSTGENERIC.1", "NM_GENERIC.1", "MANE Select"),
             gene_start=90,
@@ -1176,6 +1177,37 @@ def test_source_backed_provider_uses_ensembl_transcript_for_non_rpe65_request() 
     assert source_client.variant_queries[0].resolver_transcript == "NM_GENERIC.1"
     assert response.provenance.sources[0].identifier == "NM_GENERIC.1:c.8G>A"
     assert response.provenance.warnings == ["mocked_generic_source"]
+
+
+def test_source_backed_provider_returns_metadata_transcript_projection() -> None:
+    source_client = MockGenericGeneViewerSourceClient()
+    provider = SourceBackedGeneViewerProvider(source_client=source_client)
+
+    response = provider.viewer(
+        GeneViewerRequest(
+            gene="CFTR",
+            cdna="c.8G>A",
+            allele_mode="variant",
+            window=ViewerWindowRequest(
+                kind="cds_range",
+                cds_start=7,
+                cds_end=12,
+                intron_flank_bp=0,
+            ),
+        )
+    )
+
+    projection = response.transcript_projection
+    assert projection is not None
+    assert response.summary.total_exons == 3
+    assert [(item.kind, item.exon_number, item.intron_number) for item in projection.intervals] == [
+        ("exon", 1, None),
+        ("intron", None, 1),
+        ("exon", 2, None),
+    ]
+    assert projection.coordinate_map[0].cds_start == 1
+    assert projection.coordinate_map[-1].cds_end == 12
+    assert [segment.kind for segment in response.segments] == ["exon"]
 
 
 def test_source_backed_provider_hydrates_local_protein_domain_track_from_full_cds() -> None:

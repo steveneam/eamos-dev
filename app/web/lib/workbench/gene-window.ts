@@ -155,6 +155,7 @@ export interface GeneWindowData {
   utr5Length: number
   utr3Length: number
   mrnaLength: number
+  architectureScope?: 'transcript' | 'window'
 
   exons: ExonInfo[]
   introns: IntronInfo[]

@@ -500,6 +500,11 @@ def test_gene_viewer_contract_declares_full_locus_mode(backend_ts_path):
     assert "export type ViewerDisplayBasis =" in backend_ts
     response_body = _extract_ts_interface_body(backend_ts, "GeneViewerResponse")
     assert re.search(
+        r"^\s*transcript_projection\??\s*:\s*ViewerTranscriptProjection \| null",
+        response_body,
+        re.MULTILINE,
+    )
+    assert re.search(
         r"^\s*full_locus\??\s*:\s*ViewerFullLocus \| null",
         response_body,
         re.MULTILINE,

@@ -306,6 +306,7 @@ class SourceTranscriptModel:
     strand: str
     exons: tuple[SourceTranscriptExon, ...]
     introns: tuple[SourceTranscriptIntron, ...] = ()
+    total_exons: int | None = None
     ensembl_gene_id: str | None = None
     transcript_aliases: tuple[str, ...] = ()
     species: str = "human"
@@ -968,6 +969,7 @@ class HttpGeneViewerSourceClient:
             strand=strand,
             exons=tuple(coding_exons),
             introns=tuple(introns),
+            total_exons=len(ordered_exons),
             ensembl_gene_id=str(gene_payload.get("id") or "") or None,
             transcript_aliases=tuple(
                 _transcript_aliases(
@@ -1055,6 +1057,7 @@ class SourceBackedGeneViewerProvider:
                 transcript=transcript,
                 variant=variant,
             )
+            response.transcript_projection = _source_transcript_projection(transcript_source)
             protein_features = self.source_client.fetch_protein_features(
                 transcript=transcript_source
             )
@@ -1212,7 +1215,7 @@ class SourceBackedGeneViewerProvider:
             utr5_length=source.utr5_length,
             utr3_length=source.utr3_length,
             mrna_length=source.mrna_length,
-            total_exons=len(source.exons),
+            total_exons=source.total_exons or len(source.exons),
         )
 
     def _intron_model(
@@ -1730,6 +1733,16 @@ def _full_gene_response_from_record(
         (exon.number for exon in source.exons if exon.cds_start <= variant.cds_pos <= exon.cds_end),
         None,
     )
+    transcript_projection = ViewerTranscriptProjection(
+        transcript=source.transcript,
+        strand=_schema_strand(source.strand),
+        intervals=_full_locus_projection_intervals(record=record),
+        coordinate_map=_full_locus_coordinate_map(record=record),
+        codon_starts=_full_locus_codon_starts(
+            cds_to_genomic=cds_to_genomic,
+            cds_length=source.cds_length or cds_end,
+        ),
+    )
 
     response = GeneViewerResponse(
         identity=ViewerIdentity(
@@ -1815,6 +1828,7 @@ def _full_gene_response_from_record(
                 exons=source.exons,
             ),
         ),
+        transcript_projection=transcript_projection,
         full_locus=ViewerFullLocus(
             locus=ViewerGenomicLocus(
                 chrom=source.chrom,
@@ -1824,16 +1838,7 @@ def _full_gene_response_from_record(
                 genome_build=source.genome_build,
                 sequence=locus_sequence,
             ),
-            transcript_projection=ViewerTranscriptProjection(
-                transcript=source.transcript,
-                strand=_schema_strand(source.strand),
-                intervals=_full_locus_projection_intervals(record=record),
-                coordinate_map=_full_locus_coordinate_map(record=record),
-                codon_starts=_full_locus_codon_starts(
-                    cds_to_genomic=cds_to_genomic,
-                    cds_length=source.cds_length or cds_end,
-                ),
-            ),
+            transcript_projection=transcript_projection,
             feature_intervals=_full_locus_feature_intervals(
                 record=record,
                 variant=variant,
@@ -3185,6 +3190,56 @@ def _source_window_bounds(
             status_code=HTTP_UNPROCESSABLE_ENTITY,
         )
     return start, end
+
+
+def _source_transcript_projection(source: SourceTranscriptModel) -> ViewerTranscriptProjection:
+    introns_by_number = {intron.number: intron for intron in source.introns}
+    intervals: list[ViewerTranscriptProjectionInterval] = []
+    coordinate_map: list[ViewerCoordinateMapRange] = []
+
+    for exon in source.exons:
+        intervals.append(
+            ViewerTranscriptProjectionInterval(
+                id=f"exon-{exon.number}",
+                kind="exon",
+                label=f"Exon {exon.number}",
+                genomic_start=exon.genomic_start,
+                genomic_end=exon.genomic_end,
+                strand=_schema_strand(source.strand),
+                exon_number=exon.number,
+                cds_start=exon.cds_start,
+                cds_end=exon.cds_end,
+            )
+        )
+        coordinate_map.append(
+            ViewerCoordinateMapRange(
+                genomic_start=exon.genomic_start,
+                genomic_end=exon.genomic_end,
+                cds_start=exon.cds_start,
+                cds_end=exon.cds_end,
+            )
+        )
+        intron = introns_by_number.get(exon.number)
+        if intron is None:
+            continue
+        intervals.append(
+            ViewerTranscriptProjectionInterval(
+                id=f"intron-{intron.number}",
+                kind="intron",
+                label=f"Intron {intron.number}",
+                genomic_start=intron.genomic_start,
+                genomic_end=intron.genomic_end,
+                strand=_schema_strand(source.strand),
+                intron_number=intron.number,
+            )
+        )
+
+    return ViewerTranscriptProjection(
+        transcript=source.transcript,
+        strand=_schema_strand(source.strand),
+        intervals=intervals,
+        coordinate_map=coordinate_map,
+    )
 
 
 def _strand_from_ensembl(value: Any) -> str:

@@ -2241,6 +2241,7 @@ export interface GeneViewerResponse {
   queried_variant: QueriedVariant
   sequences: ViewerSequences
   tracks: ViewerTracks
+  transcript_projection?: ViewerTranscriptProjection | null
   full_locus?: ViewerFullLocus | null
   provenance: ViewerProvenance
 }

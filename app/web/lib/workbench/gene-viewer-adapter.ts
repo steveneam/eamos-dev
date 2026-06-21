@@ -5,10 +5,9 @@
    Hybrid strategy (user-approved 2026-05-19): the backend payload is
    authoritative for everything it carries — window, queried variant,
    sequences, windowed segments, in-window ClinVar, protein features,
-   restriction sites, oligo features, summary numbers. The whole-gene
-   exon/intron table and PhyloP conservation are NOT in the contract yet,
-   so those are filled from a `scaffold` (default `RPE65_V2`) and honestly
-   reported via `geneViewerScaffoldWarnings()`.
+   restriction sites, oligo features, summary numbers. Transcript
+   architecture can come from the backend projection when requested; older
+   fixture/scaffold fallbacks remain explicit via `geneViewerScaffoldWarnings()`.
 
    Pure + side-effect free so it is unit-testable without a DOM.
 ─────────────────────────────────────────────────────────────────────── */
@@ -19,6 +18,7 @@ import type {
   GeneViewerResponse,
   ProteinProductEffect as BackendProteinProductEffect,
   VariantClassification,
+  ViewerTranscriptProjection,
 } from '../backend'
 import type { Base } from './codon-table'
 import type {
@@ -188,13 +188,21 @@ function mapProteinFeatures(
  *
  * @param resp     backend payload (live or `GENE_VIEWER_SAMPLE` fallback).
  * @param alleleMode  which sequence basis to render.
- * @param scaffold whole-gene exon/intron/conservation source. Defaults to `RPE65_V2`.
+ * @param options.scaffold whole-gene exon/intron/conservation source. Defaults to `RPE65_V2`.
+ * @param options.architecture use `transcript` to render exon/intron structure from
+ * metadata projection while keeping `windowSegments` sequence-bounded.
  */
+interface AdaptGeneViewerOptions {
+  scaffold?: GeneWindowData
+  architecture?: 'window' | 'transcript'
+}
+
 export function adaptGeneViewer(
   resp: GeneViewerResponse,
   alleleMode: AlleleMode = resp.sequences.allele_mode,
-  scaffold: GeneWindowData = RPE65_V2,
+  options: AdaptGeneViewerOptions = {},
 ): GeneWindowData {
+  const scaffold = options.scaffold ?? RPE65_V2
   const { identity, locus, summary, queried_variant: qv, tracks } = resp
   const reverse = locus.strand === '-'
   const qvCds = qv.cds_pos
@@ -260,25 +268,50 @@ export function adaptGeneViewer(
       ? (proteinProduct.effectiveProteinLength ?? rawProteinLength)
       : rawProteinLength
   const featureLimit = Math.max(1, proteinLength || rawProteinLength || 1)
-  const rawExons = canUseSampleScaffold
-    ? scaffold.exons
-    : windowSegments
-        .filter((seg): seg is Extract<WindowSegment, { kind: 'exon' }> => seg.kind === 'exon')
-        .map((seg) => ({
-          num: seg.exonNum,
-          cdsStart: seg.cdsStart,
-          cdsEnd: seg.cdsEnd,
-          genomicLen: seg.cdsEnd - seg.cdsStart + 1,
-        }))
+  const transcriptProjection = transcriptProjectionForArchitecture(resp, options.architecture)
+  const projectionExons = (transcriptProjection
+    ?.intervals
+    .filter(
+      (interval) =>
+        interval.kind === 'exon' && interval.cds_start != null && interval.cds_end != null,
+    )
+    .map((interval) => ({
+      num: interval.exon_number ?? 0,
+      cdsStart: interval.cds_start ?? 0,
+      cdsEnd: interval.cds_end ?? 0,
+      genomicLen: Math.abs(interval.genomic_end - interval.genomic_start) + 1,
+    })) ?? [])
+  const projectionIntrons = (transcriptProjection
+    ?.intervals
+    .filter((interval) => interval.kind === 'intron')
+    .map((interval) => ({
+      num: interval.intron_number ?? 0,
+      lenBp: Math.abs(interval.genomic_end - interval.genomic_start) + 1,
+    })) ?? [])
+  const usesTranscriptProjection = projectionExons.length > 0
+  const rawExons = usesTranscriptProjection
+    ? projectionExons
+    : canUseSampleScaffold
+      ? scaffold.exons
+      : windowSegments
+          .filter((seg): seg is Extract<WindowSegment, { kind: 'exon' }> => seg.kind === 'exon')
+          .map((seg) => ({
+            num: seg.exonNum,
+            cdsStart: seg.cdsStart,
+            cdsEnd: seg.cdsEnd,
+            genomicLen: seg.cdsEnd - seg.cdsStart + 1,
+          }))
   const exons = annotateExons(rawExons, proteinProduct)
-  const introns = canUseSampleScaffold
-    ? scaffold.introns
-    : windowSegments
-        .filter((seg): seg is Extract<WindowSegment, { kind: 'intron' }> => seg.kind === 'intron')
-        .map((seg) => ({
-          num: seg.intronNum,
-          lenBp: seg.totalLen,
-        }))
+  const introns = projectionIntrons?.length
+    ? projectionIntrons
+    : canUseSampleScaffold
+      ? scaffold.introns
+      : windowSegments
+          .filter((seg): seg is Extract<WindowSegment, { kind: 'intron' }> => seg.kind === 'intron')
+          .map((seg) => ({
+            num: seg.intronNum,
+            lenBp: seg.totalLen,
+          }))
 
   return {
     gene: identity.gene,
@@ -294,6 +327,7 @@ export function adaptGeneViewer(
     utr5Length: summary.utr5_length ?? (canUseSampleScaffold ? scaffold.utr5Length : 0),
     utr3Length: summary.utr3_length ?? (canUseSampleScaffold ? scaffold.utr3Length : 0),
     mrnaLength: summary.mrna_length ?? (canUseSampleScaffold ? scaffold.mrnaLength : 0),
+    architectureScope: usesTranscriptProjection || canUseSampleScaffold ? 'transcript' : 'window',
 
     exons,
     introns,
@@ -354,6 +388,14 @@ export function adaptGeneViewer(
   }
 }
 
+function transcriptProjectionForArchitecture(
+  resp: GeneViewerResponse,
+  mode: AdaptGeneViewerOptions['architecture'],
+): ViewerTranscriptProjection | null {
+  if (mode !== 'transcript') return null
+  return resp.transcript_projection ?? resp.full_locus?.transcript_projection ?? null
+}
+
 /**
  * Honest provenance for the adapted viewer: the backend payload's own
  * warnings plus synthetic warnings naming any field the adapter had to
@@ -366,8 +408,14 @@ export function geneViewerScaffoldWarnings(
   const usesSampleScaffold =
     resp.identity.gene === RPE65_V2.gene &&
     resp.identity.resolved_transcript === RPE65_V2.transcript
+  const hasTranscriptProjection = Boolean(
+    resp.transcript_projection?.intervals.some((interval) => interval.kind === 'exon') ||
+      resp.full_locus?.transcript_projection.intervals.some((interval) => interval.kind === 'exon'),
+  )
   warnings.push(
-    usesSampleScaffold
+    hasTranscriptProjection
+      ? 'exon_intron_table_from_transcript_projection'
+      : usesSampleScaffold
       ? 'exon_intron_table_from_sample_scaffold'
       : 'exon_intron_table_window_only',
   )

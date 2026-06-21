@@ -268,7 +268,7 @@ export function ReportGeneViewer({
   // Fixture/offline mode renders the bundled sample synchronously, so the
   // explicit negative-control fixture never depends on a live backend.
   const [data, setData] = useState<GeneWindowData | null>(() =>
-    demo ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant') : null,
+    demo ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant', { architecture: 'transcript' }) : null,
   )
   const [proteinTrack, setProteinTrack] = useState<ProteinDomainTrack | null>(() =>
     demo ? GENE_VIEWER_SAMPLE.tracks.protein_features.domain_track ?? null : null,
@@ -292,7 +292,7 @@ export function ReportGeneViewer({
     if (demo) {
       void Promise.resolve().then(() => {
         if (cancelled) return
-        setData(adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant'))
+        setData(adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant', { architecture: 'transcript' }))
         setProteinTrack(GENE_VIEWER_SAMPLE.tracks.protein_features.domain_track ?? null)
         setAlphaHeatmap(
           includeAlphaMissense ? GENE_VIEWER_SAMPLE.tracks.alphamissense_heatmap ?? null : null,
@@ -327,7 +327,7 @@ export function ReportGeneViewer({
     })
       .then((resp) => {
         if (cancelled) return
-        setData(adaptGeneViewer(resp, 'variant'))
+        setData(adaptGeneViewer(resp, 'variant', { architecture: 'transcript' }))
         setProteinTrack(resp.tracks.protein_features.domain_track ?? null)
         setAlphaHeatmap(resp.tracks.alphamissense_heatmap ?? null)
         setWarnings(warningsForViewer(resp))
@@ -398,6 +398,13 @@ export function ReportGeneViewer({
 
   const variantLabel = data.queriedVariant.hgvsP || data.queriedVariant.hgvsC || 'Variant'
   const totalClinvar = clinvarMarks.length
+  const architectureIsTranscript = data.architectureScope === 'transcript'
+  const exonPillLabel =
+    data.totalExons > data.exons.length
+      ? architectureIsTranscript
+        ? `${formatInt(data.exons.length)} coding / ${formatInt(data.totalExons)} exons`
+        : `${formatInt(data.exons.length)} shown / ${formatInt(data.totalExons)} exons`
+      : `${formatInt(data.totalExons || data.exons.length)} exons`
   const geneWidth = geneTrackWidth(data, totalClinvar)
   const geneTrackW = geneWidth - TRACK_LEFT - TRACK_RIGHT
   const geneScaleEnd = segments.length > 0 ? segments[segments.length - 1].transcriptEnd : data.geneLength
@@ -420,7 +427,8 @@ export function ReportGeneViewer({
           {data.geneLength > 0 && <StatPill label={`${formatInt(data.geneLength)} bp`} />}
           {data.utr5Length > 0 && <StatPill label={`5' UTR ${formatInt(data.utr5Length)} bp`} />}
           {data.utr3Length > 0 && <StatPill label={`3' UTR ${formatInt(data.utr3Length)} bp`} />}
-          <StatPill label={`${data.exons.length} exons`} />
+          <StatPill label={architectureIsTranscript ? 'transcript architecture' : 'selected range'} />
+          <StatPill label={exonPillLabel} />
           {totalClinvar > 0 && <StatPill label={`${totalClinvar} ClinVar`} />}
           <label style={toggleLabelStyle}>
             <input
@@ -437,7 +445,9 @@ export function ReportGeneViewer({
       <svg
         viewBox={`0 0 ${geneWidth} ${VIEW_H}`}
         role="img"
-        aria-label={`${data.gene} ${data.transcript} gene track with queried variant and ClinVar markers`}
+        aria-label={`${data.gene} ${data.transcript} ${
+          architectureIsTranscript ? 'transcript architecture' : 'selected-range'
+        } track with queried variant and ClinVar markers`}
         style={{ display: 'block', width: geneWidth, maxWidth: 'none', height: 'auto' }}
       >
         <style>{`

@@ -417,5 +417,6 @@ class GeneViewerResponse(BaseModel):
     queried_variant: QueriedVariant
     sequences: ViewerSequences
     tracks: ViewerTracks = Field(default_factory=ViewerTracks)
+    transcript_projection: ViewerTranscriptProjection | None = None
     full_locus: ViewerFullLocus | None = None
     provenance: ViewerProvenance = Field(default_factory=ViewerProvenance)
