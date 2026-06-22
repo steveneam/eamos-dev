@@ -699,6 +699,55 @@ def test_protein_features_from_domain_track_adds_rpe65_architecture_seed() -> No
     }
 
 
+def test_protein_features_from_domain_track_adds_brca1_curated_seed() -> None:
+    features = protein_features_from_domain_track(
+        ProteinFeatures(),
+        ProteinDomainTrack(
+            status="cache_hit",
+            gene_symbol="BRCA1",
+            protein_length=1863,
+            features=[],
+        ),
+    )
+
+    assert features.domain_track is not None
+    track = features.domain_track
+    assert track.status == "cache_hit"
+    assert "bundled_protein_feature_seed:BRCA1" in track.warnings
+    assert any(item.source_id == "curated_brca1_protein_feature_seed" for item in track.provenance)
+
+    seeded = {feature.feature_id: feature for feature in track.features}
+    assert seeded["uniprot-seed:P38398:zn-finger:24-65:ring"].short_label == "RING"
+    assert seeded["literature-seed:PMID8955125:motif:501-507:nls1"].label == (
+        "Nuclear localization signal 1"
+    )
+    assert seeded["literature-seed:PMID8955125:motif:607-614:nls2"].aa_end == 614
+    assert seeded["literature-seed:PMID26884712:region:421-701:dna-binding"].short_label == ("DBR")
+    assert seeded["literature-seed:10.5936-csbj.201204005:region:1280-1524:scd"].label == (
+        "Serine cluster domain"
+    )
+    assert seeded["uniprot-seed:P38398:region:1397-1424:palb2"].short_label == "PALB2"
+    assert seeded["uniprot-seed:P38398:mod-res:988:p-chek2"].description == (
+        "BRCA1 CHEK2 phosphorylation site"
+    )
+    assert seeded["uniprot-seed:P38398:mod-res:1387:p-atm-atr"].source_accession == ("P38398")
+    assert seeded["uniprot-seed:P38398:mod-res:1524:p-atm"].short_label == "pS1524"
+    assert seeded["uniprot-seed:P38398:domain:1642-1736:brct1"].short_label == "BRCT1"
+    assert seeded["uniprot-seed:P38398:domain:1756-1855:brct2"].short_label == "BRCT2"
+
+    domain_labels = {feature.label for feature in features.domains}
+    assert {
+        "RING-type zinc finger",
+        "Nuclear localization signal 1",
+        "Nuclear localization signal 2",
+        "DNA-binding region",
+        "Serine cluster domain",
+        "Interaction with PALB2",
+        "BRCT 1",
+        "BRCT 2",
+    }.issubset(domain_labels)
+
+
 def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(
     tmp_path: Path,
 ) -> None:
