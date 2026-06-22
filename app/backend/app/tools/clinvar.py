@@ -43,6 +43,15 @@ def _clinvar_search_url(term: str | None) -> str | None:
     return f"https://www.ncbi.nlm.nih.gov/clinvar/?term={term}"
 
 
+def _clinvar_file_date_iso(value: str | None) -> str | None:
+    if not value:
+        return None
+    text = value.strip()
+    if len(text) == 8 and text.isdigit():
+        return f"{text[0:4]}-{text[4:6]}-{text[6:8]}"
+    return text or None
+
+
 def _unavailable_summary(gene: str | None) -> dict:
     return {
         "gene": gene or "",
@@ -184,6 +193,8 @@ def _local_lookup_to_tool_result(
         "accession": record.accession,
         "submitter_counts": {},
         "dbsnp_rsid": getattr(variant, "dbsnp_rsid", None),
+        "source_version": record.provenance.source_version,
+        "upstream_released_at": _clinvar_file_date_iso(record.provenance.file_date),
     }
     return ToolResult(
         source="clinvar",

@@ -461,7 +461,12 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     assert report_payload["functional_evidence"]["total_count"] == 0
     assert report_payload["call_cards"]["cards"][0]["primary_label"] == "No Population Data"
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None
+    assert (
+        report_payload["population_frequency_detail"]["unavailable_reason"]
+        == "frequency_metrics_unavailable"
+    )
     assert profile["population_frequency"]["visual_groups"] == []
+    assert profile["population_frequency"]["unavailable_reason"] == "frequency_metrics_unavailable"
     assert "genetic_ancestry_groups_unavailable" in profile["population_frequency"]["warnings"]
     assert profile["gene_context_snapshot"]["source_status"] == "missing"
     assert profile["gene_context_snapshot"]["gene"] == gene

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import re
 from typing import Any
 
@@ -29,6 +28,7 @@ from app.schemas.run import (
 from app.services.population_frequency_section import build_population_frequency_section
 from app.services.clinical_consensus import sanitize_acmg_rationale
 from app.services.computational_calibration import calibration_field_values
+from app.services.report_data_currency import current_report_timestamp, latest_evidence_timestamp
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.report_provenance import provenance_for_source, provenance_from_evidence
 from app.services.search_input_resolver import SearchInputResolution
@@ -149,7 +149,9 @@ def _build_header(
         ensembl_transcript=ensembl_transcript,
         transcript_aliases=transcript_aliases,
         mane_select=mane_select if transcript_aliases else None,
-        updated_at=_latest_report_timestamp(evidence),
+        updated_at=latest_evidence_timestamp(evidence, evidence_map)
+        or payload.report_generated_at
+        or current_report_timestamp(),
         classification=classification,
         classification_source=classification_source,
         verification_badges=badges,
@@ -826,18 +828,6 @@ def _dedupe_text(items: list[str]) -> list[str]:
 def _first_prefixed(items: list[str], prefix: str) -> str | None:
     prefix_upper = prefix.upper()
     return next((item for item in items if item.upper().startswith(prefix_upper)), None)
-
-
-def _latest_report_timestamp(evidence: list[EvidenceSourceSummary]) -> str:
-    fetched = sorted(
-        value
-        for item in evidence
-        for value in [item.fetched_at]
-        if isinstance(value, str) and value.strip()
-    )
-    if fetched:
-        return fetched[-1]
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _dict_or_empty(value: Any) -> dict[str, Any]:

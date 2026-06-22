@@ -62,6 +62,7 @@ def build_population_frequency_section(
     if detail is None:
         return PopulationFrequencyReportSection(
             source_status=source_status or "missing",
+            unavailable_reason="detail_unavailable",
             warnings=["population_frequency_detail_unavailable"],
             provenance=[
                 provenance_for_source(
@@ -76,6 +77,8 @@ def build_population_frequency_section(
     warnings = _section_warnings(detail, groups)
     return PopulationFrequencyReportSection(
         source_status=source_status or "missing",
+        unavailable_reason=detail.unavailable_reason
+        or _section_unavailable_reason(detail, groups, source_status),
         dataset=detail.dataset,
         variant_id=detail.variant_id,
         sequencing_type=detail.sequencing_type,
@@ -454,6 +457,18 @@ def _section_warnings(
     if detail.allele_frequency is None:
         warnings.append("allele_frequency_unavailable")
     return _dedupe(warnings)
+
+
+def _section_unavailable_reason(
+    detail: PopulationFrequencyDetail,
+    groups: list[PopulationFrequencyVisualGroup],
+    source_status: str,
+) -> str | None:
+    if detail.allele_frequency is not None or groups:
+        return None
+    if source_status in {"fallback", "degraded", "error", "failed"}:
+        return "source_unavailable"
+    return "frequency_metrics_unavailable"
 
 
 def _data_state(group: PopulationFrequencyAncestryGroup) -> str:

@@ -62,10 +62,16 @@ def build_population_frequency_detail(
     warnings = list(source_warnings or [])
     if source_status in {"fallback", "degraded", "error", "failed"}:
         warnings.append(f"gnomad_source_status:{source_status}")
+    unavailable_reason = _population_unavailable_reason(
+        gnomad_summary,
+        source_status=source_status,
+        warnings=warnings,
+    )
 
     return PopulationFrequencyDetail(
         dataset=str(gnomad_summary.get("dataset") or ""),
         variant_id=str(gnomad_summary.get("variant_id") or ""),
+        unavailable_reason=unavailable_reason,
         sequencing_type=gnomad_summary.get("sequencing_type") or "unknown",
         allele_frequency=_as_float(gnomad_summary.get("allele_frequency")),
         allele_count=_as_int(gnomad_summary.get("allele_count")),
@@ -403,6 +409,35 @@ def _gnomad_provenance_label(status: str) -> str:
     if status in {"error", "failed"}:
         return "gnomAD source error"
     return "gnomAD unavailable"
+
+
+def _population_unavailable_reason(
+    summary: dict[str, Any],
+    *,
+    source_status: str,
+    warnings: list[str],
+) -> str | None:
+    has_frequency = _as_float(summary.get("allele_frequency")) is not None
+    groups = summary.get("genetic_ancestry_groups", [])
+    if not isinstance(groups, list):
+        groups = []
+    has_groups = any(
+        isinstance(item, dict)
+        and (
+            _as_float(item.get("allele_frequency", item.get("af"))) is not None
+            or _as_int(item.get("allele_count", item.get("ac"))) is not None
+        )
+        for item in groups
+    )
+    if has_frequency or has_groups:
+        return None
+    if "gnomad_variant_not_found" in warnings:
+        return "variant_not_found"
+    if source_status in {"fallback", "degraded", "error", "failed"}:
+        return "source_unavailable"
+    if not summary:
+        return "detail_unavailable"
+    return "frequency_metrics_unavailable"
 
 
 def _annotation_predictor_row(item: dict[str, Any]) -> dict[str, Any] | None:

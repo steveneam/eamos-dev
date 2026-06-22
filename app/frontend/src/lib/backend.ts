@@ -134,6 +134,8 @@ export interface EamosComputedClassification {
 
 export interface ReportPayload {
   patient_id: string
+  report_generated_at?: string | null
+  report_data_currency?: ReportDataCurrency | null
   case_label?: string | null
   report_title?: string | null
   source_filenames?: string[]
@@ -513,6 +515,26 @@ export interface LookupSectionFreshness {
   source_url?: string | null
 }
 
+// Per-asset data-currency / freshness. Mirrors the backend Phase 0.1 freshness
+// block (local-evidence-freshness plan, Task 0.1) consumed by DataCurrencyLine.
+// Optional throughout: when absent, the FE derives currency from the real
+// per-source `fetched_at` on evidence rows instead.
+export interface SourceFreshness {
+  source: string
+  label?: string | null
+  materialized_at?: string | null
+  upstream_released_at?: string | null
+  tier?: 'volatile' | 'static' | null
+  status?: 'fresh' | 'stale' | 'overdue' | 'unknown' | null
+  staleness_days?: number | null
+  source_version?: string | null
+}
+
+export interface ReportDataCurrency {
+  sources: SourceFreshness[]
+  generated_at?: string | null
+}
+
 export interface LookupSectionEnvelope {
   section_id: LookupSectionId
   status: LookupSectionStatus
@@ -862,6 +884,7 @@ export interface PopulationFrequencyDetail {
   source: string
   dataset: string
   variant_id: string
+  unavailable_reason?: string | null
   sequencing_type: PopulationSequencingType
   allele_frequency?: number | null
   allele_count?: number | null
@@ -1191,6 +1214,7 @@ export interface PopulationFrequencyReportSection {
   title: string
   detail_ref: 'population_frequency_detail'
   source_status: string
+  unavailable_reason?: string | null
   dataset: string
   genome_build: string
   variant_id: string

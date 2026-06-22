@@ -9,6 +9,7 @@ import { RailFoot } from '@/components/layout/RailFoot'
 import { VariantLibraryRail } from '@/components/report/VariantLibraryRail'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { VariantHeader } from '@/components/report/VariantHeader'
+import { DataCurrencyLine } from '@/components/report/DataCurrencyLine'
 import { VariantDecoder } from '@/components/report/VariantDecoder'
 import { AIStack } from '@/components/aistack/AIStack'
 import { ClinVarBlock } from '@/components/report/ClinVarBlock'
@@ -756,6 +757,11 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         viewMetric={activeViewMetric}
         exportSlot={<ExportMenu data={data} variant="header" />}
       />
+
+      {/* Honest data-currency disclosure (Varsome/Franklin do this). Uses the
+          backend per-asset freshness block when present, with real per-source
+          fetched_at as the fallback. */}
+      <DataCurrencyLine data={data} freshness={payload.report_data_currency ?? null} />
 
       <div className="flex flex-col gap-3.5">
         {/* Call cards sit just under the header as the at-a-glance verdicts.

@@ -335,6 +335,7 @@ class PopulationFrequencyDetail(BaseModel):
     source: str = "gnomAD"
     dataset: str = ""
     variant_id: str = ""
+    unavailable_reason: str | None = None
     sequencing_type: PopulationSequencingType = "unknown"
     allele_frequency: float | None = None
     allele_count: int | None = None
@@ -494,6 +495,8 @@ SourceStatus = Literal[
     "failed",
 ]
 ReportMatchLevel = Literal["variant_level", "gene_level", "disease_level", "unavailable"]
+ReportDataCurrencyTier = Literal["volatile", "static"]
+ReportDataCurrencyStatus = Literal["fresh", "stale", "overdue", "unknown"]
 EvidenceAssertionLevel = Literal[
     "source_asserted",
     "vcep_specified",
@@ -511,6 +514,22 @@ ExpertPanelClassification = Literal[
 ]
 ExpertPanelFreshness = Literal["fresh", "stale", "unknown"]
 ExpertPanelFreshnessReason = Literal["cache_hit", "stale_on_failure", "tile_only"]
+
+
+class ReportDataCurrencySource(BaseModel):
+    source: str
+    label: str | None = None
+    materialized_at: str | None = None
+    upstream_released_at: str | None = None
+    tier: ReportDataCurrencyTier | None = None
+    status: ReportDataCurrencyStatus | None = None
+    staleness_days: int | None = None
+    source_version: str | None = None
+
+
+class ReportDataCurrency(BaseModel):
+    generated_at: str | None = None
+    sources: list[ReportDataCurrencySource] = Field(default_factory=list)
 
 
 class SourceProvenance(BaseModel):
@@ -804,6 +823,7 @@ class PopulationFrequencyReportSection(BaseModel):
     title: str = "gnomAD Population Frequency Detail"
     detail_ref: Literal["population_frequency_detail"] = "population_frequency_detail"
     source_status: str = "missing"
+    unavailable_reason: str | None = None
     dataset: str = ""
     genome_build: str = "GRCh38"
     variant_id: str = ""
@@ -931,6 +951,8 @@ REPORT_ASSOCIATED_CONDITIONS_MAX = 100
 
 class ReportPayload(BaseModel):
     patient_id: str
+    report_generated_at: str | None = None
+    report_data_currency: ReportDataCurrency | None = None
     case_label: str | None = None
     report_title: str | None = None
     source_filenames: list[str] = Field(

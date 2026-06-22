@@ -43,6 +43,10 @@ from app.services.report_call_cards import (
     build_population_frequency_detail,
     build_variant_report_call_cards,
 )
+from app.services.report_data_currency import (
+    build_report_data_currency,
+    current_report_timestamp,
+)
 from app.services.sequence_context import SequenceContextService
 from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver
@@ -1247,6 +1251,13 @@ class LookupService:
             base_payload.limitations = draft_payload.limitations
             warnings = [*warnings, *draft_warnings]
 
+        report_generated_at = current_report_timestamp()
+        base_payload.report_generated_at = report_generated_at
+        base_payload.report_data_currency = build_report_data_currency(
+            evidence,
+            evidence_map,
+            generated_at=report_generated_at,
+        )
         base_payload.report_profile = self.report_orchestrator.build_profile(
             resolution=input_resolution,
             interpretation=search_interpretation,
