@@ -90,15 +90,20 @@ async function main() {
     else notes.push(message)
   } else {
     const rootProject = await readProjectJson(rootProjectFile)
-    if (
-      rootProject.projectName !== EXPECTED_ROOT_PROJECT.projectName ||
-      rootProject.projectId !== EXPECTED_ROOT_PROJECT.projectId
-    ) {
+    // projectId is the authoritative link identifier — always enforce it.
+    // projectName is only present in a locally-linked .vercel/project.json; Vercel's
+    // build infra regenerates the file with projectId + orgId only (no projectName),
+    // so a name check there always fails spuriously. Only enforce the name when present.
+    const idMismatch = rootProject.projectId !== EXPECTED_ROOT_PROJECT.projectId
+    const nameMismatch =
+      rootProject.projectName != null &&
+      rootProject.projectName !== EXPECTED_ROOT_PROJECT.projectName
+    if (idMismatch || nameMismatch) {
       errors.push(
         `repo-root .vercel points at ${rootProject.projectName ?? 'unknown'} (${rootProject.projectId ?? 'unknown id'}), expected ${EXPECTED_ROOT_PROJECT.projectName} (${EXPECTED_ROOT_PROJECT.projectId})`,
       )
     } else {
-      notes.push(`repo-root Vercel link OK: ${rootProject.projectName}`)
+      notes.push(`repo-root Vercel link OK: ${rootProject.projectName ?? EXPECTED_ROOT_PROJECT.projectName}`)
     }
   }
 
