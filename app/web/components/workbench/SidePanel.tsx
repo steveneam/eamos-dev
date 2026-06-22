@@ -18,11 +18,6 @@ import { TOOL_META } from './tools'
 import type { ScratchEntry } from './viewer/SequenceViewerV2'
 import type { SelectionSummary } from './viewer/viewer-types'
 
-const VARIANT_LINKS = [
-  { label: 'ClinVar', href: 'https://www.ncbi.nlm.nih.gov/clinvar/variation/99473/' },
-  { label: 'gnomAD', href: 'https://gnomad.broadinstitute.org' },
-]
-
 interface SidePanelProps {
   tool: WorkbenchTool
   data: GeneWindowData
@@ -103,6 +98,40 @@ function FeatRow({ rg, lb, rt }: { rg: string; lb: string; rt: string }) {
       <span className="rt">{rt}</span>
     </div>
   )
+}
+
+function formatBp(value: number): string {
+  return `${Math.max(0, value).toLocaleString()} bp`
+}
+
+function clinvarVariationHref(cv: string | null | undefined): string | null {
+  const numericId = cv?.replace(/\D/g, '').replace(/^0+/, '')
+  return numericId ? `https://www.ncbi.nlm.nih.gov/clinvar/variation/${numericId}/` : null
+}
+
+function variantLinks(data: GeneWindowData): Array<{ label: string; href: string }> {
+  const queried = data.clinvar.find((v) => v.queried) ??
+    data.clinvar.find((v) => v.hgvsC === data.queriedVariant.hgvsC)
+  const clinvarHref =
+    clinvarVariationHref(queried?.cv) ??
+    `https://www.ncbi.nlm.nih.gov/clinvar/?term=${encodeURIComponent(
+      `${data.gene} ${data.queriedVariant.hgvsC}`,
+    )}`
+  const gnomadHref = data.ensg
+    ? `https://gnomad.broadinstitute.org/gene/${encodeURIComponent(data.ensg)}?dataset=gnomad_r4`
+    : 'https://gnomad.broadinstitute.org'
+  return [
+    { label: queried?.cv ? 'ClinVar' : 'ClinVar search', href: clinvarHref },
+    { label: data.ensg ? 'gnomAD gene' : 'gnomAD', href: gnomadHref },
+  ]
+}
+
+function codonLabel(qv: GeneWindowData['queriedVariant']): string {
+  const codon = qv.codonNumber > 0 ? qv.codonNumber : Math.max(1, Math.ceil(qv.cdsPos / 3))
+  const ref = aaThree[qv.aaRef] ?? qv.aaRef
+  const alt = aaThree[qv.aaAlt] ?? qv.aaAlt
+  if (ref || alt) return `${codon} (${ref || '—'} → ${alt || '—'})`
+  return qv.hgvsP ? `${codon} (${qv.hgvsP})` : `${codon}`
 }
 
 function SelectionBlock({
@@ -387,6 +416,12 @@ function ViewerSide({
     product?.truncatesProtein && product.referenceProteinLength != null
       ? `${product.effectiveProteinLength ?? data.proteinLength} / ${product.referenceProteinLength} aa`
       : `${data.proteinLength} aa`
+  const links = variantLinks(data)
+  const visibleExons = new Set(
+    data.windowSegments
+      .filter((seg) => seg.kind === 'exon')
+      .map((seg) => seg.exonNum),
+  )
 
   return (
     <>
@@ -408,7 +443,7 @@ function ViewerSide({
           <Kv k="HGVS (p.)" v={qv.hgvsP} tone="warn" />
           <Kv
             k="Codon"
-            v={`${qv.codonNumber} (${aaThree[qv.aaRef] ?? qv.aaRef} → ${aaThree[qv.aaAlt] ?? qv.aaAlt})`}
+            v={codonLabel(qv)}
           />
           {product && (
             <Kv
@@ -417,10 +452,10 @@ function ViewerSide({
               tone={product.truncatesProtein ? 'warn' : undefined}
             />
           )}
-          <Kv k="Class" v="Likely Pathogenic" tone="warn" />
+          <Kv k="Class" v={classLabel(qv.classification)} tone="warn" />
         </div>
         <div className="side-links">
-          {VARIANT_LINKS.map((l) => (
+          {links.map((l) => (
             <a
               key={l.label}
               className="side-link"
@@ -445,8 +480,8 @@ function ViewerSide({
           <Kv k="Gene length" v={`${data.geneLength.toLocaleString()} bp`} />
           <Kv k="mRNA length" v={`${data.mrnaLength.toLocaleString()} bp`} />
           <Kv k="CDS" v={`c.1–c.${data.cdsLength} · ${data.cdsLength.toLocaleString()} bp`} />
-          <Kv k="5′ UTR" v={`${data.utr5Length} bp (exons 1–2)`} />
-          <Kv k="3′ UTR" v={`${data.utr3Length.toLocaleString()} bp (exon ${data.totalExons})`} />
+          <Kv k="5′ UTR" v={formatBp(data.utr5Length)} />
+          <Kv k="3′ UTR" v={formatBp(data.utr3Length)} />
           <Kv
             k="Protein"
             v={proteinLengthLabel}
@@ -481,7 +516,7 @@ function ViewerSide({
               const len = ex.cdsEnd - ex.cdsStart + 1
               const cls = [
                 'side-exon-row',
-                ex.num >= 3 && ex.num <= 5 ? 'in-window' : '',
+                visibleExons.has(ex.num) ? 'in-window' : '',
                 ex.num === activeExon ? 'current' : '',
                 ex.proteinState === 'contains_variant' ? 'contains-variant' : '',
                 ex.proteinState === 'downstream_truncated' ? 'downstream-truncated' : '',
@@ -497,6 +532,7 @@ function ViewerSide({
                     `Exon ${ex.num} · ${len} bp · ${
                       data.exonVariantCount[ex.num] || 0
                     } ClinVar variants`,
+                    visibleExons.has(ex.num) ? 'visible in current window' : '',
                     ex.proteinState === 'contains_variant' ? 'variant-applied product affected' : '',
                     ex.proteinState === 'downstream_truncated'
                       ? `${ex.lostCdsBases ?? 0} CDS bp lost from product`
@@ -576,17 +612,16 @@ function ViewerSide({
             ))}
           </>
         )}
-        <div className="side-source">Source: UniProt Q16518 · Proteins API</div>
+        <div className="side-source">Source: viewer protein feature payload</div>
       </CollapsibleSection>
 
       <CollapsibleSection title="AI note" icon={<IconSparkle size={14} />} defaultOpen={false}>
         <div className="side-info">
-          <b>Why this variant matters.</b> Codon 87 sits in the strictly
-          conserved core of the carotenoid-oxygenase domain (PhyloP 0.96). The
-          Asp→Gly swap removes a charged residue from a helical patch that
-          contacts the catalytic Fe²⁺. Two adjacent ClinVar entries (c.247
-          V83I, c.277 R93C) are also pathogenic — this region is intolerant to
-          substitution.
+          <b>Variant context.</b> Review the selected change against the
+          resolved transcript, protein feature rows, conservation track, and
+          nearby ClinVar records shown here. Domain and site calls are drawn
+          from the viewer payload so broad family annotations do not override
+          more specific feature evidence.
         </div>
       </CollapsibleSection>
     </>

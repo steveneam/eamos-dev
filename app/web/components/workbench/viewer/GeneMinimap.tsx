@@ -12,6 +12,59 @@ interface GeneMinimapProps {
   onExonClick: (exonNum: number) => void
 }
 
+type MinimapSegment =
+  | {
+      kind: 'utr5' | 'utr3'
+      key: string
+      num: number
+      startPct: number
+      widthPct: number
+      bp: number
+      units: number
+    }
+  | {
+      kind: 'exon'
+      key: string
+      num: number
+      startPct: number
+      widthPct: number
+      cdsStart: number
+      cdsEnd: number
+      bp: number
+      units: number
+      proteinState: GeneWindowData['exons'][number]['proteinState']
+      lostCdsBases: number
+    }
+  | {
+      kind: 'intron'
+      key: string
+      num: number
+      startPct: number
+      widthPct: number
+      bp: number
+      units: number
+    }
+
+type RawMinimapSegment = MinimapSegment extends infer Segment
+  ? Segment extends unknown
+    ? Omit<Segment, 'startPct' | 'widthPct'>
+    : never
+  : never
+
+function compressedIntronUnits(bp: number): number {
+  if (bp <= 0) return 0
+  return Math.min(60, Math.max(8, Math.log10(bp + 1) * 12))
+}
+
+function clinvarShape(hgvsC: string, hgvsP: string, splice = false): 'missense' | 'truncating' | 'splice' {
+  const text = `${hgvsC} ${hgvsP}`.toLowerCase()
+  if (splice || text.includes('splice') || /c\.[^\s]*[+-][12](?:\D|$)/.test(text)) return 'splice'
+  if (text.includes('ter') || text.includes('*') || text.includes('fs') || text.includes('frameshift') || text.includes('stop') || text.includes('trunc')) {
+    return 'truncating'
+  }
+  return 'missense'
+}
+
 /** Whole-transcript band: proportional exon/intron segments, optional
  *  per-exon ClinVar density bubbles, active-window flag. Port of
  *  `sv-minimap.js`. */
@@ -21,67 +74,83 @@ export const GeneMinimap = memo(function GeneMinimap({
   showDensity,
   onExonClick,
 }: GeneMinimapProps) {
-  const { segments, totalBp, exonStarts } = useMemo(() => {
-    const total =
-      data.exons.reduce((s, e) => s + (e.cdsEnd - e.cdsStart + 1), 0) +
-      data.introns.reduce((s, i) => s + i.lenBp, 0)
-    const pct = (bp: number) => (total > 0 ? (bp / total) * 100 : 0)
+  const { segments, totalUnits, exonStarts } = useMemo(() => {
     const starts = new Map<number, number>()
-    const segs: Array<
-      | {
-          kind: 'exon'
-          num: number
-          startPct: number
-          widthPct: number
-          cdsStart: number
-          cdsEnd: number
-          bp: number
-          proteinState: GeneWindowData['exons'][number]['proteinState']
-          lostCdsBases: number
-        }
-      | { kind: 'intron'; num: number; startPct: number; widthPct: number; bp: number }
-    > = []
-    let cursor = 0
+    const raw: RawMinimapSegment[] = []
+    if (data.utr5Length > 0) {
+      raw.push({ kind: 'utr5', key: 'utr5', num: 0, bp: data.utr5Length, units: Math.max(18, Math.min(42, data.utr5Length)) })
+    }
     data.exons.forEach((ex, idx) => {
       const exBp = ex.cdsEnd - ex.cdsStart + 1
-      starts.set(ex.num, cursor)
-      segs.push({
+      raw.push({
         kind: 'exon',
+        key: `e${ex.num}`,
         num: ex.num,
-        startPct: pct(cursor),
-        widthPct: pct(exBp),
         cdsStart: ex.cdsStart,
         cdsEnd: ex.cdsEnd,
         bp: exBp,
+        units: Math.max(14, Math.min(80, exBp)),
         proteinState: ex.proteinState,
         lostCdsBases: ex.lostCdsBases ?? 0,
       })
-      cursor += exBp
-      if (idx < data.introns.length) {
-        const inLen = data.introns[idx].lenBp
-        segs.push({
+      const intron = data.introns[idx]
+      if (intron) {
+        raw.push({
           kind: 'intron',
-          num: data.introns[idx].num,
-          startPct: pct(cursor),
-          widthPct: pct(inLen),
-          bp: inLen,
+          key: `i${intron.num}`,
+          num: intron.num,
+          bp: intron.lenBp,
+          units: compressedIntronUnits(intron.lenBp),
         })
-        cursor += inLen
       }
     })
-    return { segments: segs, totalBp: total, exonStarts: starts }
+    if (data.utr3Length > 0) {
+      raw.push({ kind: 'utr3', key: 'utr3', num: 0, bp: data.utr3Length, units: Math.max(18, Math.min(42, data.utr3Length)) })
+    }
+    const total = raw.reduce((sum, seg) => sum + seg.units, 0)
+    const pct = (units: number) => (total > 0 ? (units / total) * 100 : 0)
+    let cursor = 0
+    const segs = raw.map((seg): MinimapSegment => {
+      if (seg.kind === 'exon') starts.set(seg.num, cursor)
+      const positioned = {
+        ...seg,
+        startPct: pct(cursor),
+        widthPct: pct(seg.units),
+      } as MinimapSegment
+      cursor += seg.units
+      return positioned
+    })
+    return { segments: segs, totalUnits: total, exonStarts: starts }
   }, [data])
 
-  const pctOf = (bp: number) => (totalBp > 0 ? (bp / totalBp) * 100 : 0)
+  const pctOfUnits = (units: number) => (totalUnits > 0 ? (units / totalUnits) * 100 : 0)
 
-  const activeMidPct = useMemo(() => {
-    const ex = data.exons.find((e) => e.num === activeExon)
-    const start = exonStarts.get(activeExon)
-    if (!ex || start == null) return null
-    return totalBp > 0
-      ? ((start + (ex.cdsEnd - ex.cdsStart + 1) / 2) / totalBp) * 100
-      : 0
-  }, [activeExon, data.exons, exonStarts, totalBp])
+  const projectCds = (cds: number | string): number | null => {
+    if (typeof cds !== 'number') return null
+    const exon = segments.find(
+      (seg): seg is Extract<MinimapSegment, { kind: 'exon' }> =>
+        seg.kind === 'exon' && cds >= seg.cdsStart && cds <= seg.cdsEnd,
+    )
+    if (!exon) return null
+    const span = Math.max(1, exon.cdsEnd - exon.cdsStart + 1)
+    return exon.startPct + ((cds - exon.cdsStart) / span) * exon.widthPct
+  }
+
+  const queriedPct = projectCds(data.queriedVariant.cdsPos)
+  const queriedShape = clinvarShape(data.queriedVariant.hgvsC, data.queriedVariant.hgvsP)
+  const queriedLabel = data.queriedVariant.hgvsC
+  const clinvarMarks = data.clinvar
+    .map((variant) => {
+      const pct = projectCds(variant.cdsPos)
+      if (pct == null) return null
+      return {
+        pct,
+        cls: variant.cls,
+        label: variant.hgvsC || variant.hgvsP,
+        shape: clinvarShape(variant.hgvsC, variant.hgvsP, Boolean(variant.splice)),
+      }
+    })
+    .filter((mark): mark is NonNullable<typeof mark> => Boolean(mark))
 
   return (
     <div className="sv-minimap">
@@ -93,7 +162,20 @@ export const GeneMinimap = memo(function GeneMinimap({
         </span>
       </div>
 
-      {showDensity && (
+      {showDensity && clinvarMarks.length > 0 && (
+        <div className="sv-mm-clinvar" aria-label="ClinVar variants projected onto transcript">
+          {clinvarMarks.map((mark, index) => (
+            <span
+              key={`${mark.label}-${index}`}
+              className={`sv-mm-cv ${mark.cls} shape-${mark.shape}`}
+              style={{ left: `${mark.pct}%` }}
+              title={mark.label}
+            />
+          ))}
+        </div>
+      )}
+
+      {showDensity && clinvarMarks.length === 0 && (
         <div className="sv-mm-bubbles">
           {data.exons.map((ex) => {
             const count = data.exonVariantCount[ex.num] || 0
@@ -101,7 +183,7 @@ export const GeneMinimap = memo(function GeneMinimap({
             const exBp = ex.cdsEnd - ex.cdsStart + 1
             const start = exonStarts.get(ex.num)
             if (start == null) return null
-            const midPct = pctOf(start + exBp / 2)
+            const midPct = pctOfUnits(start + Math.max(14, Math.min(80, exBp)) / 2)
             const r = Math.min(11, 3 + Math.sqrt(count) * 1.2)
             return (
               <div
@@ -153,20 +235,34 @@ export const GeneMinimap = memo(function GeneMinimap({
             </button>
           ) : (
             <div
-              key={`i${s.num}`}
-              className="sv-mm-seg intron"
-              title={`Intron ${s.num} · ${s.bp.toLocaleString()} bp`}
+              key={s.key}
+              className={`sv-mm-seg ${s.kind}`}
+              title={
+                s.kind === 'intron'
+                  ? `Intron ${s.num} · ${s.bp.toLocaleString()} bp`
+                  : `${s.kind === 'utr5' ? "5'" : "3'"} UTR · ${s.bp.toLocaleString()} bp`
+              }
               style={{ left: `${s.startPct}%`, width: `${s.widthPct}%` }}
-            />
+            >
+              {s.kind === 'utr5' ? "5'" : s.kind === 'utr3' ? "3'" : null}
+            </div>
           ),
         )}
+        {queriedPct != null && (
+          <div
+            className="sv-mm-query-pin"
+            style={{ left: `${queriedPct}%` }}
+            title={`${data.queriedVariant.hgvsC} · ${data.queriedVariant.hgvsP}`}
+          >
+            <span
+              className={`sv-mm-query-head ${data.queriedVariant.classification} shape-${queriedShape}`}
+              aria-hidden="true"
+            />
+            <span className="sv-mm-query-stem" aria-hidden="true" />
+            <span className="sv-mm-query-label">{queriedLabel}</span>
+          </div>
+        )}
       </div>
-
-      {activeMidPct != null && (
-        <div className="sv-mm-flag" style={{ left: `${activeMidPct}%` }}>
-          <span>{data.queriedVariant.hgvsC.replace(/^c\./, 'c.')}</span>
-        </div>
-      )}
 
       <div className="sv-mm-bookends">
         <span className="five">5′</span>

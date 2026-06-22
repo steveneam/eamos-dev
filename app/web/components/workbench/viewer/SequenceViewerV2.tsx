@@ -14,6 +14,7 @@ import {
   buildFlatWindow,
   consequenceAt,
   posDisplay,
+  classLabel,
   type ClinvarVariant,
   type FlatBase,
   type GeneWindowData,
@@ -24,18 +25,17 @@ import {
   type Edit,
   type EditMap,
 } from '@/lib/workbench/edit-state'
-import type { Base } from '@/lib/workbench/codon-table'
-import type { AlleleMode, PrimerPair } from '@/lib/backend'
+import { aaThree, type Base } from '@/lib/workbench/codon-table'
+import type { AlleleMode, PrimerPair, ProteinDomainTrack } from '@/lib/backend'
 import type { SelectionSummary, StrandMode, TrackState } from './viewer-types'
-import { GeneMinimap } from './GeneMinimap'
 import { CodonDetail } from './CodonDetail'
-import { ProteinView } from './ProteinView'
 import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
 import { EditPopoverV2 } from './EditPopoverV2'
 import { ZoomSlider } from './ZoomSlider'
 import type { ZoomStep } from './zoom-config'
-import { IconChevron, IconGene, IconProtein, IconList } from '@/components/icons/Icon'
+import { IconChevron, IconGene, IconList } from '@/components/icons/Icon'
+import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
 import type { CSSProperties, ReactNode } from 'react'
 
 export interface ScratchEntry {
@@ -75,6 +75,8 @@ function reducedMotionScrollBehavior(): ScrollBehavior {
 
 interface SequenceViewerV2Props {
   data: GeneWindowData
+  architectureData?: GeneWindowData | null
+  architectureProteinDomainTrack?: ProteinDomainTrack | null
   trackOn: TrackState
   strandMode: StrandMode
   baseW: number
@@ -114,6 +116,8 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
   function SequenceViewerV2(
     {
       data,
+      architectureData,
+      architectureProteinDomainTrack,
       trackOn,
       strandMode,
       baseW,
@@ -176,11 +180,9 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const [popover, setPopover] = useState<{ idx: number; x: number; y: number } | null>(
       null,
     )
-    // Local collapse state for the inline protein + sequence windows. The
-    // minimap collapse is driven externally via `navCollapsed`/`onToggleMinimap`
-    // so the ZoomSlider "Hide map" button and the inline header chevron
-    // stay in sync.
-    const [proteinOpen, setProteinOpen] = useState(true)
+    // Local collapse state for the editable sequence window. The report-aligned
+    // transcript/protein overview is driven externally via
+    // `navCollapsed`/`onToggleMinimap`.
     const [sequenceOpen, setSequenceOpen] = useState(true)
 
     const exonOf = useCallback(
@@ -207,6 +209,28 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       (exon: number) => setActiveExonOverride({ key: activeExonKey, exon }),
       [activeExonKey],
     )
+    const jumpExamples = useMemo(() => {
+      const qv = data.queriedVariant
+      const cdnaExample = `c.${qv.cdsPos}`
+      const proteinExample =
+        qv.codonNumber > 0 && qv.aaRef
+          ? `p.${aaThree[qv.aaRef] ?? qv.aaRef}${qv.codonNumber}`
+          : qv.hgvsP
+            ? qv.hgvsP
+          : null
+      const exonExample = activeExon > 0 ? `exon ${activeExon}` : null
+      const sequenceExample =
+        flat
+          .filter((b) => b.kind !== 'intron-gap')
+          .map((b) => b.base.toUpperCase())
+          .join('')
+          .match(/[ATCG]{6,}/)?.[0]
+          ?.slice(0, 6) ?? null
+      return [cdnaExample, proteinExample, exonExample, sequenceExample].filter(
+        (v): v is string => Boolean(v),
+      )
+    }, [activeExon, data.queriedVariant, flat])
+    const jumpPlaceholder = `Jump to ${jumpExamples.join(' · ')}`
     const visibleExons = useMemo(
       () =>
         Array.from(
@@ -466,9 +490,11 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           if (idx >= 0) return jumpToFlatIdx(idx)
           return setJumpError(`Sequence "${q.toUpperCase()}" not found in current window.`)
         }
-        setJumpError(`Couldn't parse "${q}". Try c.260, p.Asp87, exon 4, or ATCG sequence.`)
+        setJumpError(
+          `Couldn't parse "${q}". Try ${jumpExamples.join(', ')}, or an A/C/G/T sequence.`,
+        )
       },
-      [codons, flat, jumpToCdsPos, jumpToExon, jumpToFlatIdx],
+      [codons, flat, jumpExamples, jumpToCdsPos, jumpToExon, jumpToFlatIdx],
     )
 
     const variantFlatPositions = useMemo(
@@ -828,6 +854,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           canRedo={cursor < history.length}
           editCount={edits.size}
           showHistory={showHistory}
+          searchPlaceholder={jumpPlaceholder}
           onSearchChange={setSearchQuery}
           onJumpQuery={jumpToQuery}
           onClearSearch={handleClearSearch}
@@ -839,33 +866,25 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           registerFocus={registerFocus}
         />
 
-        {/* Three stacked windows: Gene minimap → Protein view → Sequence
-            detail. Each gets a chevron header so the user can fold a window
-            down without losing the others. */}
+        {/* Report-aligned transcript/protein architecture above the editable
+            sequence detail. */}
         <SectionHeader
-          title="Gene minimap"
-          sub={`${data.gene} · ${data.totalExons} exons`}
+          title="Transcript & protein"
+          sub={`${data.gene} - ${data.transcript}`}
           open={!navCollapsed}
           onToggle={onToggleMinimap}
           icon={<IconGene size={14} />}
         />
         {!navCollapsed && (
-          <GeneMinimap
-            data={data}
-            activeExon={activeExon}
-            showDensity={trackOn.clinvar}
-            onExonClick={jumpToExon}
+          <ReportGeneViewer
+            gene={data.gene}
+            cdna={data.queriedVariant.hgvsC}
+            transcript={data.transcript}
+            initialData={architectureData ?? data}
+            proteinDomainTrack={architectureProteinDomainTrack}
+            markerClassification={classLabel(data.queriedVariant.classification)}
           />
         )}
-
-        <SectionHeader
-          title="Protein view"
-          sub={`${data.proteinLength || '—'} aa · ${alleleMode === 'variant' ? 'variant-applied' : 'reference'}`}
-          open={proteinOpen}
-          onToggle={() => setProteinOpen((o) => !o)}
-          icon={<IconProtein size={14} />}
-        />
-        {proteinOpen && <ProteinView data={data} alleleMode={alleleMode} />}
 
         {/* Sequence window — wrapped so the zoom slider can hover-reveal
             scoped to this window only (not the whole viewer box, which

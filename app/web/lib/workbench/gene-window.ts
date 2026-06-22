@@ -12,6 +12,17 @@ import { aaThree, codonTable, type Base, type EditBase } from './codon-table'
 
 export type ClinClass = 'p' | 'lp' | 'vus' | 'lb' | 'b'
 
+export function clinClassFromText(value: string | null | undefined): ClinClass | null {
+  const normalized = value?.trim().toLowerCase().replace(/[_-]+/g, ' ') ?? ''
+  if (!normalized || normalized.includes('conflicting')) return null
+  if (/\blikely pathogenic\b/.test(normalized)) return 'lp'
+  if (/\bpathogenic\b/.test(normalized)) return 'p'
+  if (/\blikely benign\b/.test(normalized)) return 'lb'
+  if (/\bbenign\b/.test(normalized)) return 'b'
+  if (/\bvus\b|uncertain significance|variant of uncertain significance/.test(normalized)) return 'vus'
+  return null
+}
+
 /** A coding exon segment. `cdsStart`/`cdsEnd` are 1-based CDS coordinates. */
 export interface ExonInfo {
   num: number
@@ -71,12 +82,23 @@ export interface DomainInfo {
   aaEnd: number
   label: string
   shortLabel?: string
+  source?: string
+  accession?: string
+  broadBackbone?: boolean
 }
 
 export interface ProteinFeatures {
   signalPeptide: { aaStart: number; aaEnd: number } | null
   transmembrane: Array<{ aaStart: number; aaEnd: number; label: string }>
-  domains: Array<{ aaStart: number; aaEnd: number; label: string }>
+  domains: Array<{
+    aaStart: number
+    aaEnd: number
+    label: string
+    shortLabel?: string
+    source?: string
+    accession?: string
+    broadBackbone?: boolean
+  }>
   activeSites: Array<{ aa: number; residue: string; label: string }>
   membraneBinding: Array<{ aaStart: number; aaEnd: number; label: string }>
   palmitoylation: Array<{ aa: number; residue: string; label: string }>

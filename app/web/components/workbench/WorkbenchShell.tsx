@@ -1,8 +1,15 @@
 'use client'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
-import type { AlleleMode, PrimerPair, WorkbenchTool } from '@/lib/backend'
-import { getGeneViewer } from '@/lib/api'
+import type {
+  AlleleMode,
+  GeneViewerRequest,
+  PrimerPair,
+  ProteinDomainTrack,
+  ViewerTrack,
+  WorkbenchTool,
+} from '@/lib/backend'
+import { getGeneViewer, lookupSummary } from '@/lib/api'
 import { adaptGeneViewer } from '@/lib/workbench/gene-viewer-adapter'
 import { adaptFullLocus, type FullLocusViewModel } from '@/lib/workbench/full-locus-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
@@ -49,6 +56,13 @@ interface WorkbenchShellProps {
 }
 
 const PANEL_TOOLS: WorkbenchTool[] = ['primer', 'crispr', 'align']
+const WORKBENCH_VIEWER_TRACKS: ViewerTrack[] = [
+  'sequence',
+  'exons',
+  'clinvar',
+  'protein_features',
+  'restriction',
+]
 
 function renderToolPanel(
   tool: WorkbenchTool,
@@ -88,6 +102,20 @@ function isDefaultViewerRequest(gene: string, cdna: string, transcript?: string)
   )
 }
 
+function summaryClassification(header: Record<string, unknown> | null | undefined): string | null {
+  const classification = header?.classification
+  return typeof classification === 'string' ? classification : null
+}
+
+function exonForQueriedVariant(data: GeneWindowData): number {
+  const cdsPos = data.queriedVariant.cdsPos
+  return (
+    data.exons.find((exon) => cdsPos >= exon.cdsStart && cdsPos <= exon.cdsEnd)?.num ??
+    data.exons[0]?.num ??
+    0
+  )
+}
+
 export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellProps) {
   const [trackOn, setTrackOn] = useState<TrackState>(DEFAULT_TRACKS)
   const [strandMode, setStrandMode] = useState<StrandMode>('both')
@@ -97,12 +125,13 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   const [exonTableOpen, setExonTableOpen] = useState(false)
   const [scratch, setScratch] = useState<ScratchEntry[]>([])
   const [selSummary, setSelSummary] = useState<SelectionSummary | null>(null)
-  const [activeExon, setActiveExon] = useState(4)
+  const viewerContextKey = `${gene}|${cdna}|${transcript ?? ''}`
+  const [activeExonFocus, setActiveExonFocus] = useState<{ key: string; exon: number } | null>(null)
 
   // ClinVar focus (clicked lollipop → Scratchpad log card). Key-stamped to the
   // variant context so it auto-clears when gene/cdna/transcript change, without
   // a setState-in-effect (mirrors the viewer's activeExonOverride pattern).
-  const clinvarKey = `${gene}|${cdna}|${transcript ?? ''}`
+  const clinvarKey = viewerContextKey
   const [clinvarFocus, setClinvarFocus] = useState<{
     key: string
     variant: ClinvarVariant | null
@@ -115,13 +144,22 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
 
   const [alleleMode, setAlleleMode] = useState<AlleleMode>('reference')
   const [viewerMode, setViewerMode] = useState<ViewerMode>('window')
-  const [data, setData] = useState<GeneWindowData | null>(() =>
-    isDefaultViewerRequest(gene, cdna, transcript)
-      ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'reference')
-      : null,
-  )
+  const [data, setData] = useState<GeneWindowData | null>(null)
+  const [architectureData, setArchitectureData] = useState<GeneWindowData | null>(null)
+  const [architectureProteinDomainTrack, setArchitectureProteinDomainTrack] =
+    useState<ProteinDomainTrack | null>(null)
   const [locusModel, setLocusModel] = useState<FullLocusViewModel | null>(null)
   const [viewerError, setViewerError] = useState<string | null>(null)
+  const activeExon =
+    data != null
+      ? activeExonFocus?.key === viewerContextKey
+        ? activeExonFocus.exon
+        : exonForQueriedVariant(data)
+      : 0
+  const setActiveExon = useCallback(
+    (exon: number) => setActiveExonFocus({ key: viewerContextKey, exon }),
+    [viewerContextKey],
+  )
 
   useEffect(() => {
     let stale = false
@@ -130,18 +168,34 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
       if (stale) return
       setViewerError(null)
       if (!defaultRequest) setData(null)
+      if (!defaultRequest) setArchitectureData(null)
+      if (!defaultRequest) setArchitectureProteinDomainTrack(null)
       if (viewerMode !== 'locus') setLocusModel(null)
     })
-    getGeneViewer({
+    const viewerRequest: GeneViewerRequest = {
       gene,
       cdna,
       transcript,
       allele_mode: alleleMode,
       window: viewerMode === 'locus' ? { kind: 'full_gene' } : undefined,
-    })
-      .then((resp) => {
+      tracks: WORKBENCH_VIEWER_TRACKS,
+    }
+    const summaryRequest = { gene, cdna, transcript, species: 'human' as const }
+    Promise.all([
+      getGeneViewer(viewerRequest),
+      lookupSummary(summaryRequest).catch(() => null),
+    ])
+      .then(([resp, summary]) => {
         if (stale) return
-        setData(adaptGeneViewer(resp, alleleMode))
+        const queriedVariantClassification = summaryClassification(summary?.header)
+        setData(adaptGeneViewer(resp, alleleMode, {
+          queriedVariantClassification,
+        }))
+        setArchitectureData(adaptGeneViewer(resp, 'variant', {
+          architecture: 'transcript',
+          queriedVariantClassification,
+        }))
+        setArchitectureProteinDomainTrack(resp.tracks.protein_features.domain_track ?? null)
         if (viewerMode === 'locus') setLocusModel(adaptFullLocus(resp))
         else setLocusModel(null)
       })
@@ -149,6 +203,10 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         if (stale) return
         if (viewerMode === 'window' && defaultRequest) {
           setData(adaptGeneViewer(GENE_VIEWER_SAMPLE, alleleMode))
+          setArchitectureData(adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant', {
+            architecture: 'transcript',
+          }))
+          setArchitectureProteinDomainTrack(GENE_VIEWER_SAMPLE.tracks.protein_features.domain_track ?? null)
           return
         }
         if (viewerMode === 'locus') {
@@ -162,6 +220,8 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
         }
         setViewerError(`Sequence unavailable for ${gene} ${cdna}`)
         setData(null)
+        setArchitectureData(null)
+        setArchitectureProteinDomainTrack(null)
       })
     return () => {
       stale = true
@@ -303,6 +363,8 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
           <SequenceViewerV2
             ref={viewerRef}
             data={data}
+            architectureData={architectureData}
+            architectureProteinDomainTrack={architectureProteinDomainTrack}
             trackOn={trackOn}
             strandMode={strandMode}
             baseW={zoomSetting.baseW}
@@ -325,6 +387,8 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
       <SequenceViewerV2
         ref={viewerRef}
         data={data}
+        architectureData={architectureData}
+        architectureProteinDomainTrack={architectureProteinDomainTrack}
         trackOn={trackOn}
         strandMode={strandMode}
         baseW={zoomSetting.baseW}

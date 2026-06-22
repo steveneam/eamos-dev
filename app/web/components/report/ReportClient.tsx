@@ -962,7 +962,14 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               gene={header.gene}
               cdna={header.cdna}
               transcript={header.transcript ?? null}
+              geneContextSnapshot={payload.report_profile?.gene_context_snapshot ?? null}
               proteinDomainTrack={reportProteinDomainTrack}
+              markerClassification={
+                payload.report_profile?.header?.classification ??
+                payload.report_profile?.acmg_worksheet?.classification ??
+                payload.acmg_classification ??
+                null
+              }
               demo={demo}
             />
           )}

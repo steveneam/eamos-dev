@@ -631,18 +631,65 @@ const Block = memo(function Block(props: BlockProps) {
     })
   }
 
+  const domainTracks =
+    data.proteinFeatures.domains.length > 0 ? data.proteinFeatures.domains : data.domains
+
+  function domains() {
+    return domainTracks.flatMap((domain, domainIndex) => {
+      const cdsStart = Math.max(1, (domain.aaStart - 1) * 3 + 1)
+      const cdsEnd = Math.max(cdsStart, domain.aaEnd * 3)
+      const hits = indices.filter((i) => {
+        const b = flat[i]
+        return b.kind === 'exon' && b.cdsPos >= cdsStart && b.cdsPos <= cdsEnd
+      })
+      if (hits.length === 0) return []
+
+      const groups: Array<{ start: number; end: number }> = []
+      let start = hits[0]
+      let end = hits[0]
+      hits.slice(1).forEach((idx) => {
+        if (idx === end + 1) {
+          end = idx
+          return
+        }
+        groups.push({ start, end })
+        start = idx
+        end = idx
+      })
+      groups.push({ start, end })
+
+      const label = domain.shortLabel ?? domain.label
+      const title = [
+        `${domain.label} · aa ${domain.aaStart}–${domain.aaEnd}`,
+        domain.source,
+        domain.accession,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+
+      return groups.map((group, groupIndex) => {
+        const left = localX(group.start)
+        const width = localX(group.end) + baseW - left
+        return (
+          <div
+            key={`domain${domainIndex}-${groupIndex}-${domain.aaStart}-${domain.aaEnd}`}
+            className={`sv-feat-bar domain${domain.broadBackbone ? ' family' : ''}`}
+            style={{ left, width }}
+            title={title}
+          >
+            {width > 72 ? label : ''}
+          </div>
+        )
+      })
+    })
+  }
+
   const row = (cls: string, height: number, children: React.ReactNode) => (
     <div className={`sv-block-row ${cls}`} style={{ height, width: w }}>
       {children}
     </div>
   )
   const blockStyle: CSSProperties = { width: Math.max(w + RIGHT_MARGIN, blockMinWidth ?? 0) }
-  const domainTrack = data.domains[0] ?? data.proteinFeatures.domains[0]
-  const domainLabel =
-    domainTrack &&
-    ('shortLabel' in domainTrack && domainTrack.shortLabel
-      ? domainTrack.shortLabel
-      : domainTrack.label)
 
   return (
     <div className="sv-block" style={blockStyle}>
@@ -682,15 +729,7 @@ const Block = memo(function Block(props: BlockProps) {
         />
       )}
       {trackOn.annotations && row('annotations', 22, annotations())}
-      {trackOn.domains &&
-        domainTrack &&
-        row(
-          'domain',
-          18,
-          <div className="sv-feat-bar domain" style={{ left: 0, width: w }}>
-            {domainLabel} (aa {domainTrack.aaStart}–{domainTrack.aaEnd})
-          </div>,
-        )}
+      {trackOn.domains && domainTracks.length > 0 && row('domain', 18, domains())}
       {trackOn.clinvar && row('clinvar', 12, clinvar())}
       {row('translation', 28, translation())}
       <div

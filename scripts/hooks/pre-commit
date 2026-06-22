@@ -11,6 +11,17 @@
 # or point git at the tracked dir:
 #   git config core.hooksPath scripts/hooks
 
+if command -v node >/dev/null 2>&1; then
+  if ! node scripts/eamos-vercel-project-guard.mjs --require-root-link; then
+    echo ""
+    echo "pre-commit: Vercel project guard failed."
+    echo "Remove app/web/.vercel and keep repo-root .vercel linked to eamos-dev."
+    exit 1
+  fi
+else
+  echo "pre-commit: node not found - skipping Vercel project guard (install Node to enable)."
+fi
+
 if git diff --cached --name-only | grep -q '^agent_handoff/CURRENT\.md$'; then
   if command -v node >/dev/null 2>&1; then
     if ! node scripts/eamos-handoff-lint.mjs; then

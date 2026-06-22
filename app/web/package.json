@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "guard:vercel": "node ../../scripts/eamos-vercel-project-guard.mjs",
+    "predev": "npm run guard:vercel",
     "dev": "next dev",
+    "prebuild": "npm run guard:vercel",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",

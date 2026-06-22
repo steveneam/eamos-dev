@@ -4,8 +4,18 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { getGeneViewer } from '@/lib/api'
 import { adaptGeneViewer, geneViewerScaffoldWarnings } from '@/lib/workbench/gene-viewer-adapter'
 import { GENE_VIEWER_SAMPLE } from '@/lib/workbench/gene-viewer-sample'
-import { classLabel, type GeneWindowData } from '@/lib/workbench/gene-window'
+import { classLabel, clinClassFromText, type ClinClass, type GeneWindowData } from '@/lib/workbench/gene-window'
+import {
+  canonicalizeProteinArchitectureFeature,
+  normalizeProteinArchitectureLane,
+  proteinArchitectureFeatureLength,
+  proteinArchitectureLaneRank,
+  selectPrimaryProteinArchitectureFeatures,
+  type ProteinArchitectureFeature,
+  type ProteinArchitectureLaneId,
+} from '@/lib/protein-architecture'
 import type {
+  GeneContextSnapshot,
   GeneViewerResponse,
   ProteinAlphaMissenseHeatmap,
   ProteinDomainTrack,
@@ -17,7 +27,10 @@ interface ReportGeneViewerProps {
   gene: string
   cdna: string
   transcript?: string | null
+  initialData?: GeneWindowData | null
+  geneContextSnapshot?: GeneContextSnapshot | null
   proteinDomainTrack?: ProteinDomainTrack | null
+  markerClassification?: string | null
   /** Offline fixture mode — render from the bundled GENE_VIEWER_SAMPLE without
    *  a network call, matching the explicit fixture report. */
   demo?: boolean
@@ -322,20 +335,169 @@ function warningsForViewer(resp: GeneViewerResponse): string[] {
   return Array.from(new Set([...geneViewerScaffoldWarnings(resp), ...trackWarnings, ...alphamissenseWarnings]))
 }
 
+function snapshotRangeLength(
+  start: number | null | undefined,
+  end: number | null | undefined,
+): number {
+  if (typeof start === 'number' && typeof end === 'number') return Math.abs(end - start) + 1
+  return 0
+}
+
+function snapshotBase(
+  value: string | null | undefined,
+): GeneWindowData['queriedVariant']['refBase'] {
+  const base = value?.trim().toUpperCase()[0]
+  return (base === 'A' || base === 'T' || base === 'C' || base === 'G' ? base : 'A') as GeneWindowData['queriedVariant']['refBase']
+}
+
+function adaptGeneContextSnapshot(
+  snapshot: GeneContextSnapshot,
+  markerClassification: string | null | undefined,
+): GeneWindowData {
+  const codingExons = snapshot.exons
+    .filter((exon) => typeof exon.cds_start === 'number' && typeof exon.cds_end === 'number')
+    .map((exon) => ({
+      num: exon.number,
+      cdsStart: exon.cds_start ?? 0,
+      cdsEnd: exon.cds_end ?? 0,
+      genomicLen:
+        exon.genomic_length ??
+        snapshotRangeLength(exon.genomic_start, exon.genomic_end) ??
+        Math.max(1, (exon.cds_end ?? 0) - (exon.cds_start ?? 0) + 1),
+    }))
+  const cdsLength =
+    snapshot.cds_length ??
+    codingExons.reduce((sum, exon) => sum + Math.max(0, exon.cdsEnd - exon.cdsStart + 1), 0)
+  const proteinTrack = snapshot.protein_domain_track
+  const proteinLength =
+    snapshot.protein_length ?? proteinTrack?.protein_length ?? Math.max(1, Math.ceil(cdsLength / 3))
+  const variant = snapshot.variant
+  const cdsPos = variant?.cds_pos ?? codingExons[0]?.cdsStart ?? 1
+  const genomicStart = snapshot.gene_start ?? 0
+  const genomicEnd = snapshot.gene_end ?? genomicStart
+  const windowSegments: GeneWindowData['windowSegments'] = snapshot.zoom_segments.map((segment) => {
+    if (segment.kind === 'exon') {
+      return {
+        kind: 'exon',
+        exonNum: segment.exon_number ?? 0,
+        cdsStart: segment.cds_start ?? 0,
+        cdsEnd: segment.cds_end ?? 0,
+        seq: segment.sequence,
+      }
+    }
+    return {
+      kind: 'intron',
+      intronNum: segment.intron_number ?? 0,
+      totalLen:
+        segment.omitted_bp +
+        segment.five_prime_sequence.length +
+        segment.three_prime_sequence.length,
+      fiveSeq: segment.five_prime_sequence,
+      threeSeq: segment.three_prime_sequence,
+    }
+  })
+  const domainFeatures = proteinTrack?.features
+    .filter((feature) => feature.aa_start > 0 && feature.aa_end >= feature.aa_start)
+    .map((feature) => ({
+      aaStart: feature.aa_start,
+      aaEnd: feature.aa_end,
+      label: feature.label,
+      shortLabel: feature.short_label ?? undefined,
+      source: feature.source ?? undefined,
+      accession: feature.accession ?? feature.source_accession ?? undefined,
+      broadBackbone: false,
+    })) ?? []
+
+  return {
+    gene: snapshot.gene,
+    transcript: snapshot.transcript ?? '',
+    ensg: snapshot.ensembl_gene_id ?? '',
+    chrom: snapshot.chromosome ?? '',
+    nativeStrand: snapshot.strand === '-' ? 'reverse' : 'forward',
+    geneLength: snapshot.gene_length ?? snapshotRangeLength(snapshot.gene_start, snapshot.gene_end),
+    totalExons: snapshot.exons.length,
+    cdsLength,
+    proteinLength,
+    utr5Length: 0,
+    utr3Length: 0,
+    mrnaLength:
+      Math.max(
+        0,
+        ...snapshot.exons.map((exon) => exon.transcript_end ?? 0),
+        ...snapshot.introns.map((intron) => intron.transcript_end ?? 0),
+      ) || cdsLength,
+    architectureScope: 'transcript',
+    exons: codingExons,
+    introns: snapshot.introns.map((intron) => ({
+      num: intron.number,
+      lenBp:
+        intron.length_bp ??
+        snapshotRangeLength(intron.genomic_start, intron.genomic_end) ??
+        1,
+    })),
+    windowSegments,
+    queriedVariant: {
+      cdsPos,
+      refBase: snapshotBase(variant?.ref),
+      altBase: snapshotBase(variant?.alt),
+      codonNumber: variant?.codon_number ?? Math.max(1, Math.ceil(cdsPos / 3)),
+      codonOffset: variant?.codon_offset ?? ((cdsPos - 1) % 3),
+      aaRef: variant?.aa_ref ?? '',
+      aaAlt: variant?.aa_alt ?? '',
+      hgvsP: variant?.hgvs_p ?? '',
+      hgvsC: variant?.hgvs_c ?? snapshot.workbench_link?.cdna ?? '',
+      classification: clinClassFromText(markerClassification) ?? 'vus',
+    },
+    clinvar: [],
+    exonVariantCount: {},
+    domains: domainFeatures,
+    proteinFeatures: {
+      signalPeptide: null,
+      transmembrane: [],
+      domains: domainFeatures,
+      activeSites: [],
+      membraneBinding: [],
+      palmitoylation: [],
+    },
+    proteinProduct: null,
+    genomicCoords: {
+      chrom: snapshot.chromosome ?? '',
+      start: genomicStart,
+      end: genomicEnd,
+      strand: snapshot.strand === '-' ? '-' : '+',
+    },
+    conservation: [],
+    restriction: [],
+    features: [],
+  }
+}
+
 export function ReportGeneViewer({
   gene,
   cdna,
   transcript,
+  initialData = null,
+  geneContextSnapshot = null,
   proteinDomainTrack = null,
+  markerClassification = null,
   demo = false,
 }: ReportGeneViewerProps) {
+  const seededData = useMemo(
+    () =>
+      initialData ??
+      (geneContextSnapshot
+        ? adaptGeneContextSnapshot(geneContextSnapshot, markerClassification)
+        : null),
+    [geneContextSnapshot, initialData, markerClassification],
+  )
+  const seededProteinTrack = proteinDomainTrack ?? geneContextSnapshot?.protein_domain_track ?? null
   // Fixture/offline mode renders the bundled sample synchronously, so the
   // explicit negative-control fixture never depends on a live backend.
   const [data, setData] = useState<GeneWindowData | null>(() =>
-    demo ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant', { architecture: 'transcript' }) : null,
+    seededData ?? (demo ? adaptGeneViewer(GENE_VIEWER_SAMPLE, 'variant', { architecture: 'transcript' }) : null),
   )
   const [proteinTrack, setProteinTrack] = useState<ProteinDomainTrack | null>(() =>
-    demo ? GENE_VIEWER_SAMPLE.tracks.protein_features.domain_track ?? null : null,
+    seededProteinTrack ?? (demo ? GENE_VIEWER_SAMPLE.tracks.protein_features.domain_track ?? null : null),
   )
   const [alphaHeatmap, setAlphaHeatmap] = useState<ProteinAlphaMissenseHeatmap | null>(() =>
     demo ? GENE_VIEWER_SAMPLE.tracks.alphamissense_heatmap ?? null : null,
@@ -346,13 +508,37 @@ export function ReportGeneViewer({
   // Provenance warnings (sample-bounded / not-live-hydrated / RPE65 scaffold)
   // surfaced as a per-section note so non-live data is never silent.
   const [warnings, setWarnings] = useState<string[]>(() =>
-    demo ? warningsForViewer(GENE_VIEWER_SAMPLE) : [],
+    seededProteinTrack?.warnings ?? (demo ? warningsForViewer(GENE_VIEWER_SAMPLE) : []),
   )
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(!demo)
+  const [loading, setLoading] = useState(!demo && seededData == null)
 
   useEffect(() => {
     let cancelled = false
+    if (initialData) {
+      void Promise.resolve().then(() => {
+        if (cancelled) return
+        setData(seededData)
+        setProteinTrack(seededProteinTrack)
+        setAlphaHeatmap(null)
+        setWarnings(seededProteinTrack?.warnings ?? [])
+        setError(null)
+        setLoading(false)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    if (seededData) {
+      void Promise.resolve().then(() => {
+        if (cancelled) return
+        setData(seededData)
+        setProteinTrack(seededProteinTrack)
+        setWarnings(seededProteinTrack?.warnings ?? [])
+        setError(null)
+        setLoading(false)
+      })
+    }
     if (demo) {
       void Promise.resolve().then(() => {
         if (cancelled) return
@@ -371,24 +557,30 @@ export function ReportGeneViewer({
     }
     void Promise.resolve().then(() => {
       if (cancelled) return
-      setLoading(true)
+      if (!seededData) setLoading(true)
       setError(null)
     })
-    getGeneViewer({
-      gene,
-      cdna,
-      transcript: transcript ?? null,
-      species: 'human',
-      allele_mode: 'variant',
-      window: {
-        kind: 'around_variant',
-        cds_flank_bp: 120,
-        intron_flank_bp: 30,
-      },
-      tracks: includeAlphaMissense
-        ? ['sequence', 'exons', 'clinvar', 'protein_features', 'alphamissense', 'restriction']
-        : ['sequence', 'exons', 'clinvar', 'protein_features', 'restriction'],
-    })
+    const fetchViewer = (requestTranscript: string | null) =>
+      getGeneViewer({
+        gene,
+        cdna,
+        transcript: requestTranscript,
+        species: 'human',
+        allele_mode: 'variant',
+        window: {
+          kind: 'around_variant',
+          cds_flank_bp: 120,
+          intron_flank_bp: 30,
+        },
+        tracks: includeAlphaMissense
+          ? ['sequence', 'exons', 'clinvar', 'protein_features', 'alphamissense', 'restriction']
+          : ['sequence', 'exons', 'clinvar', 'protein_features', 'restriction'],
+      })
+    fetchViewer(transcript ?? null)
+      .catch((err: Error) => {
+        if (!transcript) throw err
+        return fetchViewer(null)
+      })
       .then((resp) => {
         if (cancelled) return
         setData(adaptGeneViewer(resp, 'variant', { architecture: 'transcript' }))
@@ -399,13 +591,20 @@ export function ReportGeneViewer({
       })
       .catch((err: Error) => {
         if (cancelled) return
-        setError(err.message)
+        if (seededData) {
+          setData(seededData)
+          setProteinTrack(seededProteinTrack)
+          setWarnings(Array.from(new Set([...(seededProteinTrack?.warnings ?? []), err.message])))
+          setError(null)
+        } else {
+          setError(err.message)
+        }
         setLoading(false)
       })
     return () => {
       cancelled = true
     }
-  }, [gene, cdna, transcript, demo, includeAlphaMissense])
+  }, [gene, cdna, transcript, initialData, seededData, seededProteinTrack, demo, includeAlphaMissense])
 
   const segments = useMemo(() => (data ? buildSegments(data) : []), [data])
   const variantPct = useMemo(() => {
@@ -413,8 +612,11 @@ export function ReportGeneViewer({
     return projectCdsToPct(data.queriedVariant.cdsPos, segments)
   }, [data, segments])
   const queriedMarkerKind = data ? queriedVariantMarkerKind(data.queriedVariant) : 'missense'
+  const queriedMarkerClassification = data
+    ? (clinClassFromText(markerClassification) ?? data.queriedVariant.classification)
+    : 'vus'
   const queriedMarkerFill = data
-    ? (CLASS_COLOR[data.queriedVariant.classification] ?? 'var(--cls-vus-dot)')
+    ? (CLASS_COLOR[queriedMarkerClassification] ?? 'var(--cls-vus-dot)')
     : 'var(--cls-vus-dot)'
 
   // ClinVar variants live on CDS coords (or are intronic — skip those without
@@ -426,7 +628,7 @@ export function ReportGeneViewer({
       .map((v) => {
         const pct = projectCdsToPct(v.cdsPos as number, segments)
         if (pct == null) return null
-        return { pct, cls: v.cls, label: v.hgvsP || v.hgvsC, cv: v.cv, kind: clinvarMarkerKind(v) }
+        return { pct, cls: v.cls, label: v.hgvsC || v.hgvsP, cv: v.cv, kind: clinvarMarkerKind(v) }
       })
       .filter((m): m is NonNullable<typeof m> => m != null)
   }, [data, segments])
@@ -440,10 +642,23 @@ export function ReportGeneViewer({
     () => segments.find((seg) => seg.key === selectedGeneFeatureKey) ?? null,
     [segments, selectedGeneFeatureKey],
   )
-  const renderedProteinTrack = proteinDomainTrack ?? proteinTrack
+  const proteinTrackFeatureCount = proteinTrack?.features.length ?? 0
+  const propProteinTrackFeatureCount = proteinDomainTrack?.features.length ?? 0
+  // The report payload can lag the viewer payload; prefer the fresh /viewer track when it has architecture features.
+  const renderedProteinTrack =
+    proteinTrackFeatureCount > 0 || propProteinTrackFeatureCount === 0
+      ? proteinTrack ?? proteinDomainTrack
+      : proteinDomainTrack
   const renderedWarnings = useMemo(
-    () => Array.from(new Set([...warnings, ...(proteinDomainTrack?.warnings ?? [])])),
-    [warnings, proteinDomainTrack],
+    () =>
+      Array.from(
+        new Set([
+          ...warnings,
+          ...(proteinDomainTrack?.warnings ?? []),
+          ...(proteinTrack?.warnings ?? []),
+        ]),
+      ),
+    [warnings, proteinDomainTrack, proteinTrack],
   )
 
   if (loading) {
@@ -464,7 +679,7 @@ export function ReportGeneViewer({
     )
   }
 
-  const variantLabel = data.queriedVariant.hgvsP || data.queriedVariant.hgvsC || 'Variant'
+  const transcriptVariantLabel = data.queriedVariant.hgvsC || 'Variant'
   const totalClinvar = clinvarMarks.length
   const architectureIsTranscript = data.architectureScope === 'transcript'
   const exonPillLabel =
@@ -694,7 +909,7 @@ export function ReportGeneViewer({
               fill={queriedMarkerFill}
               stroke="var(--ink)"
               strokeWidth={1.5}
-              title={`${variantLabel} | ${classLabel(data.queriedVariant.classification)} | ${variantMarkerKindLabel(queriedMarkerKind)}`}
+              title={`${transcriptVariantLabel} | ${classLabel(queriedMarkerClassification)} | ${variantMarkerKindLabel(queriedMarkerKind)}`}
             />
             <text
               x={clamp(
@@ -709,7 +924,7 @@ export function ReportGeneViewer({
               fill="var(--ink)"
               fontFamily="var(--mono)"
             >
-              {variantLabel}
+              {transcriptVariantLabel}
             </text>
           </g>
         )}
@@ -848,6 +1063,7 @@ export function ReportGeneViewer({
         alphaHeatmap={alphaHeatmap}
         includeAlphaMissense={includeAlphaMissense}
         onToggleAlphaMissense={setIncludeAlphaMissense}
+        markerClassification={queriedMarkerClassification}
       />
 
       <ProvenanceNote warnings={renderedWarnings} />
@@ -855,7 +1071,7 @@ export function ReportGeneViewer({
   )
 }
 
-interface ProteinFeatureRender {
+interface ProteinFeatureRender extends ProteinArchitectureFeature {
   start: number
   end: number
   label: string
@@ -868,6 +1084,7 @@ interface ProteinFeatureRender {
   score?: number | null
   eValue?: number | null
   architecturePriority?: number
+  broadBackbone?: boolean
 }
 
 interface PackedProteinFeature extends ProteinFeatureRender {
@@ -877,7 +1094,7 @@ interface PackedProteinFeature extends ProteinFeatureRender {
   width: number
 }
 
-type ProteinLaneId = 'topology' | 'domains' | 'motifs' | 'sites' | 'other'
+type ProteinLaneId = ProteinArchitectureLaneId
 
 interface ProteinLaneDef {
   id: ProteinLaneId
@@ -898,14 +1115,17 @@ const PROTEIN_HEAT_H = 12
 // SVG. Beyond this budget we aggregate residues into mean-score bins (the band
 // is horizontally scrolled, so sub-pixel residues are not separable anyway).
 const HEAT_MAX_BINS = 800
-
 const PROTEIN_LANES: ProteinLaneDef[] = [
   { id: 'topology', label: 'Topology' },
-  { id: 'domains', label: 'Domains' },
+  { id: 'domains', label: 'Domains / regions' },
   { id: 'motifs', label: 'Motifs' },
   { id: 'sites', label: 'Sites' },
   { id: 'other', label: 'Other' },
 ]
+
+const DEFAULT_VISIBLE_PROTEIN_LANES = new Set<ProteinLaneId>(
+  PROTEIN_LANES.map((lane) => lane.id),
+)
 
 function ReportProteinView({
   data,
@@ -913,20 +1133,25 @@ function ReportProteinView({
   alphaHeatmap,
   includeAlphaMissense,
   onToggleAlphaMissense,
+  markerClassification,
 }: {
   data: GeneWindowData
   track: ProteinDomainTrack | null
   alphaHeatmap: ProteinAlphaMissenseHeatmap | null
   includeAlphaMissense: boolean
   onToggleAlphaMissense: (value: boolean) => void
+  markerClassification: ClinClass
 }) {
   const [selectedFeatureKeys, setSelectedFeatureKeys] = useState<Set<string>>(() => new Set())
   const [visibleFeatureLanes, setVisibleFeatureLanes] = useState<Set<ProteinLaneId>>(
-    () => new Set(['topology', 'domains', 'motifs']),
+    () => new Set(DEFAULT_VISIBLE_PROTEIN_LANES),
   )
   const [showProteinScale, setShowProteinScale] = useState(true)
   const trackFeatures = track?.features ?? []
-  const rawRanges = trackFeatures.length > 0 ? featuresFromTrack(trackFeatures) : featuresFromViewer(data)
+  const trackRanges = trackFeatures.length > 0 ? featuresFromTrack(trackFeatures) : []
+  const viewerRanges = featuresFromViewer(data)
+  const rawRanges = trackRanges.length > 0 ? [...trackRanges, ...viewerRanges] : viewerRanges
+  const sourceFeatureCount = trackRanges.length > 0 ? trackRanges.length : rawRanges.length
   const architectureRanges = proteinArchitectureFeatures(rawRanges)
   const ranges = architectureRanges.filter((feature) => visibleFeatureLanes.has(feature.lane))
   const summarizedFeatureCount = Math.max(0, rawRanges.length - architectureRanges.length)
@@ -948,24 +1173,21 @@ function ReportProteinView({
     proteinLength,
   )
   const queriedMarkerKind = queriedVariantMarkerKind(data.queriedVariant)
-  const queriedMarkerFill = CLASS_COLOR[data.queriedVariant.classification] ?? 'var(--cls-vus-dot)'
+  const queriedMarkerFill = CLASS_COLOR[markerClassification] ?? 'var(--cls-vus-dot)'
   const xFor = (aa: number) =>
     PROTEIN_LEFT + ((clamp(aa, 1, proteinLength) - 1) / Math.max(1, proteinLength - 1)) * proteinTrackW
   const scaleTicks = proteinScaleTicks(proteinLength)
   const sourceLabel = proteinSourceLabel(track, ranges.length > 0)
   const lanes = proteinLanesFor(architectureRanges)
-  const { packedFeatures, laneOffsets, laneRowCounts, totalHeight: laneBlockHeight } = packProteinFeatures(
+  const { packedFeatures } = packProteinFeatures(
     ranges,
     lanes,
     xFor,
   )
-  const laneY = (lane: ProteinLaneId) => laneOffsets.get(lane) ?? PROTEIN_LANE_TOP
-  const featureY = (feature: PackedProteinFeature) =>
-    laneY(feature.lane)
-  const firstLaneY = PROTEIN_LANE_TOP
-  const lastLaneBottom = PROTEIN_LANE_TOP + laneBlockHeight
+  const proteinBackboneY = PROTEIN_LANE_TOP + 28
+  const proteinBackboneH = PROTEIN_LANE_H
   // Reserve optional-track space so toggles alter visibility without resizing the figure.
-  const proteinHeatY = lastLaneBottom + 18
+  const proteinHeatY = proteinBackboneY + proteinBackboneH + 24
   const proteinScaleY = proteinHeatY + PROTEIN_HEAT_H + 24
   const proteinHeight = proteinScaleY + 34
   const legendItems = featureLegendItems(ranges)
@@ -1035,7 +1257,7 @@ function ReportProteinView({
         <div style={proteinControlsStyle}>
           <StatPill label={`${formatInt(proteinLength)} aa`} />
           <StatPill label={`${ranges.length} visible features`} />
-          {rawRanges.length > 0 && <StatPill label={`${rawRanges.length} source hits`} />}
+          {sourceFeatureCount > 0 && <StatPill label={`${sourceFeatureCount} source hits`} />}
           <label style={toggleLabelStyle}>
             <input
               type="checkbox"
@@ -1103,117 +1325,90 @@ function ReportProteinView({
           </defs>
           <rect x="0" y="0" width={proteinWidth} height={proteinHeight} rx="8" fill="var(--bg-soft)" />
 
-        {lanes.map((lane) => {
-          const y = laneY(lane.id)
-          const rowCount = laneRowCounts.get(lane.id) ?? 1
-          return (
-            <g key={lane.id}>
-              <text
-                x={PROTEIN_LEFT}
-                y={y - 8}
-                fontSize="9.5"
-                fontWeight="800"
-                fill="var(--ink-5)"
-              >
-                Protein
-              </text>
-              {Array.from({ length: rowCount }, (_, row) => {
-                const rowY = y + row * PROTEIN_LANE_H
-                return (
-                  <rect
-                    key={row}
-                    x={PROTEIN_LEFT}
-                    y={rowY}
-                    width={proteinTrackW}
-                    height={PROTEIN_LANE_H}
-                    rx="2"
-                    fill="var(--bg)"
-                    stroke="var(--ink)"
-                    strokeWidth="1.35"
-                  />
-                )
-              })}
-            </g>
-          )
-        })}
+        <g>
+          <text
+            x={PROTEIN_LEFT}
+            y={proteinBackboneY - 16}
+            fontSize="9.5"
+            fontWeight="800"
+            fill="var(--ink-5)"
+          >
+            Protein
+          </text>
+          <rect
+            x={PROTEIN_LEFT}
+            y={proteinBackboneY}
+            width={proteinTrackW}
+            height={proteinBackboneH}
+            rx="2"
+            fill="var(--bg)"
+            stroke="var(--ink)"
+            strokeWidth="1.35"
+          />
+        </g>
 
         {packedFeatures.map((feature, index) => {
-          const x = feature.x
-          const width = feature.width
-          const y = featureY(feature)
+          const pointFeature = isPointProteinFeature(feature)
+          const width = pointFeature ? Math.max(5, feature.width) : feature.width
+          const x = pointFeature
+            ? clamp(feature.x - width / 2, PROTEIN_LEFT, PROTEIN_LEFT + proteinTrackW - width)
+            : feature.x
+          const rectY = proteinBackboneY
+          const rectH = proteinBackboneH
           const color = featureColor(feature)
           const label = labelForFeatureWidth(feature, width)
-          const pointFeature = isPointProteinFeature(feature)
           const patternId = proteinFeaturePatternId(feature)
           const highlighted = selectedFeatureKeys.has(feature.legendKey)
           const stroke = highlighted ? 'rgba(225, 164, 35, 0.96)' : 'var(--ink)'
           const strokeWidth = highlighted ? 3 : 0.85
           return (
-            <g key={`${feature.kind}-${feature.start}-${feature.end}-${index}`}>
-              {pointFeature ? (
-                <>
-                  <line
-                    x1={x}
-                    y1={y - 3}
-                    x2={x}
-                    y2={y + PROTEIN_LANE_H + 3}
-                    stroke={stroke}
-                    strokeWidth={highlighted ? 2 : 1}
-                  />
-                  <circle
-                    cx={x}
-                    cy={y + PROTEIN_LANE_H / 2}
-                    r="4.2"
-                    fill={color.fill}
-                    stroke={stroke}
-                    strokeWidth={highlighted ? 2 : 1}
-                  />
-                  {patternId && (
-                    <circle
-                      cx={x}
-                      cy={y + PROTEIN_LANE_H / 2}
-                      r="4.2"
-                      fill={`url(#${patternId})`}
-                      pointerEvents="none"
-                    />
-                  )}
-                </>
-              ) : (
-                <>
-                  <rect
-                    x={x}
-                    y={y}
-                    width={width}
-                    height={PROTEIN_LANE_H}
-                    rx="2"
-                    fill={color.fill}
-                    stroke={stroke}
-                    strokeWidth={strokeWidth}
-                  />
-                  {patternId && (
-                    <rect
-                      x={x}
-                      y={y}
-                      width={width}
-                      height={PROTEIN_LANE_H}
-                      rx="2"
-                      fill={`url(#${patternId})`}
-                      pointerEvents="none"
-                    />
-                  )}
-                  {label && (
-                    <text
-                      x={x + width / 2}
-                      y={y + PROTEIN_LANE_H / 2 + 3.8}
-                      textAnchor="middle"
-                      fontSize="10.5"
-                      fontWeight="800"
-                      fill={color.text}
-                    >
-                      {label}
-                    </text>
-                  )}
-                </>
+            <g
+              key={`${feature.kind}-${feature.start}-${feature.end}-${index}`}
+              role="button"
+              tabIndex={0}
+              aria-label={featureTitle(feature)}
+              aria-pressed={highlighted}
+              style={{ cursor: 'pointer' }}
+              onClick={() => toggleFeatureKey(feature.legendKey)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  toggleFeatureKey(feature.legendKey)
+                }
+              }}
+            >
+              <rect
+                x={x}
+                y={rectY}
+                width={width}
+                height={rectH}
+                rx="2"
+                fill={color.fill}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+              />
+              {patternId && (
+                <rect
+                  x={x}
+                  y={rectY}
+                  width={width}
+                  height={rectH}
+                  rx="2"
+                  fill={`url(#${patternId})`}
+                  pointerEvents="none"
+                />
+              )}
+              {label && (
+                <text
+                  x={x + width / 2}
+                  y={rectY + rectH / 2 + 3.8}
+                  textAnchor="middle"
+                  fontSize="10.5"
+                  fontWeight="800"
+                  fill={color.text}
+                >
+                  {label}
+                </text>
               )}
               <title>{featureTitle(feature)}</title>
             </g>
@@ -1254,7 +1449,7 @@ function ReportProteinView({
           x1={xFor(queriedAa)}
           y1={PROTEIN_MARKER_Y + 6}
           x2={xFor(queriedAa)}
-          y2={firstLaneY}
+          y2={proteinBackboneY}
           stroke="var(--ink)"
           strokeWidth="1.6"
         />
@@ -1266,7 +1461,7 @@ function ReportProteinView({
           fill={queriedMarkerFill}
           stroke="var(--ink)"
           strokeWidth={1.4}
-          title={`${data.queriedVariant.hgvsP || `aa ${queriedAa}`} | ${classLabel(data.queriedVariant.classification)} | ${variantMarkerKindLabel(queriedMarkerKind)}`}
+          title={`${data.queriedVariant.hgvsP || `aa ${queriedAa}`} | ${classLabel(markerClassification)} | ${variantMarkerKindLabel(queriedMarkerKind)}`}
         />
         <text
           x={clamp(xFor(queriedAa), PROTEIN_LEFT + 58, PROTEIN_LEFT + proteinTrackW - 58)}
@@ -1336,7 +1531,7 @@ function ReportProteinView({
       {ranges.length > 0 && (
         <div style={proteinLegendStyle}>
           {lanes
-            .filter((lane) => ranges.length > 0 && lane.id === 'domains')
+            .filter((lane, index) => ranges.length > 0 && index === 0)
             .map((lane) => {
               const color = { fill: 'var(--bg)', stroke: 'var(--ink)' }
               return (
@@ -1371,7 +1566,7 @@ function ReportProteinView({
       <div style={proteinFootStyle}>
         <span>{sourceLabel}</span>
         {summarizedFeatureCount > 0 && (
-          <span>{`${summarizedFeatureCount} overlapping, alternate, or weak source hit${summarizedFeatureCount === 1 ? '' : 's'} summarized outside the primary architecture figure.`}</span>
+          <span>{`${summarizedFeatureCount} broad, overlapping, alternate, or weak source hit${summarizedFeatureCount === 1 ? '' : 's'} retained as provenance outside the primary architecture figure.`}</span>
         )}
         {hiddenFeatureCount > 0 && (
           <span>{`${hiddenFeatureCount} feature${hiddenFeatureCount === 1 ? '' : 's'} hidden by category filters.`}</span>
@@ -1466,10 +1661,12 @@ function featuresFromViewer(data: GeneWindowData): ProteinFeatureRender[] {
       start: feature.aaStart,
       end: feature.aaEnd,
       label: feature.label,
-      short: shortLabel(feature.label),
+      short: feature.shortLabel ?? shortLabel(feature.label),
       kind: 'domain',
       lane: 'domains' as const,
-      source: 'viewer protein_features',
+      source: feature.source ?? 'viewer protein_features',
+      accession: feature.accession,
+      broadBackbone: feature.broadBackbone,
       architecturePriority: 90,
     })).map(canonicalProteinFeature),
     ...data.proteinFeatures.transmembrane.map((feature) => ({
@@ -1555,135 +1752,15 @@ function proteinCanvasWidth(proteinLength: number, featureCount: number): number
 }
 
 function proteinArchitectureFeatures(features: ProteinFeatureRender[]): ProteinFeatureRender[] {
-  const selectedByLane = new Map<ProteinLaneId, ProteinFeatureRender[]>()
-
-  PROTEIN_LANES.forEach((lane) => {
-    const selected: ProteinFeatureRender[] = []
-    const laneFeatures = features.filter((feature) => feature.lane === lane.id)
-    const hasCanonicalInLane = laneFeatures.some((feature) => architecturePriority(feature) >= 70)
-    const candidates = features
-      .filter((feature) => feature.lane === lane.id)
-      .filter((feature) => isPrimaryArchitectureFeature(feature, hasCanonicalInLane))
-      .sort((a, b) => {
-        const priorityDelta = architecturePriority(b) - architecturePriority(a)
-        if (priorityDelta !== 0) return priorityDelta
-        const confidenceDelta = featureConfidence(b) - featureConfidence(a)
-        if (confidenceDelta !== 0) return confidenceDelta
-        const lengthDelta = featureLength(b) - featureLength(a)
-        if (lengthDelta !== 0) return lengthDelta
-        return a.start - b.start
-      })
-
-    candidates.forEach((candidate) => {
-      const overlapsSelected = selected.some((kept) => significantOverlap(candidate, kept))
-      if (!overlapsSelected) selected.push(candidate)
-    })
-
-    selectedByLane.set(
-      lane.id,
-      selected.sort((a, b) => a.start - b.start || a.end - b.end),
-    )
-  })
-
-  return PROTEIN_LANES.flatMap((lane) => selectedByLane.get(lane.id) ?? [])
-}
-
-function isPrimaryArchitectureFeature(feature: ProteinFeatureRender, hasCanonicalInLane: boolean): boolean {
-  if (feature.kind === 'topological_domain') return false
-  if (feature.lane !== 'domains') return true
-  if (architecturePriority(feature) >= 70) return true
-  if (hasCanonicalInLane) return false
-  const source = feature.source?.toLowerCase() ?? ''
-  if (!source.includes('hmmer')) return true
-  return (feature.score ?? 0) >= 45 && (feature.eValue ?? Number.POSITIVE_INFINITY) <= 1e-8
+  return selectPrimaryProteinArchitectureFeatures(features)
 }
 
 function canonicalProteinFeature(feature: ProteinFeatureRender): ProteinFeatureRender {
-  const text = `${feature.short} ${feature.label} ${feature.description ?? ''}`.toLowerCase()
-  const withCanonical = (
-    short: string,
-    label: string,
-    description: string,
-    architecturePriority: number,
-    lane: ProteinLaneId = feature.lane,
-  ): ProteinFeatureRender => ({
-    ...feature,
-    short,
-    label,
-    description,
-    lane,
-    architecturePriority,
-  })
-
-  if (/(fibronectin|fn3|fn\(iii\)|fn-?iii|fn iii)/.test(text)) {
-    return withCanonical('FN3', 'Fibronectin type III domain', 'Fibronectin type III domain', 96)
-  }
-  if (/(laminin\/attractin egf|laminin egf|laminegf|lamegf|laed)/.test(text)) {
-    return withCanonical('LamEGF', 'Laminin EGF-like domain', 'Laminin EGF-like domain', 98)
-  }
-  if (/(laminin g|lamg)/.test(text)) {
-    return withCanonical('LamG', 'Laminin G-like domain', 'Laminin G-like domain', 97)
-  }
-  if (/(laminin n-terminal|laminin n terminal|lamnt)/.test(text)) {
-    return withCanonical('LamNT', 'Laminin N-terminal domain', 'Laminin N-terminal domain', 97)
-  }
-  if (/(dynamin family|dynamin-type g|dynamin.*g domain)/.test(text)) {
-    return withCanonical('G domain', 'Dynamin G domain', 'Dynamin GTPase domain', 98)
-  }
-  if (/(dynamin central|middle\/stalk|middle domain|stalk domain)/.test(text)) {
-    return withCanonical('Stalk', 'Dynamin stalk domain', 'Dynamin middle/stalk domain', 96)
-  }
-  if (/(gtpase effector|ged)/.test(text)) {
-    return withCanonical('GED', 'GTPase effector domain', 'Dynamin GTPase effector domain', 97)
-  }
-  if (/(pleckstrin|ph domain)/.test(text)) {
-    return withCanonical('PH', 'PH domain', 'Pleckstrin homology domain', 97)
-  }
-  if (/(proline-rich|prd)/.test(text)) {
-    return withCanonical('PRD', 'Proline-rich domain', 'Proline-rich domain', 92)
-  }
-  if (/(fz domain|frizzled.*cysteine|wnt-binding)/.test(text)) {
-    return withCanonical('CRD', 'Frizzled cysteine-rich domain', 'WNT-binding cysteine-rich domain', 97)
-  }
-  if (/(frizzled\/smoothened|frizzled.*membrane)/.test(text)) {
-    return withCanonical('7TM', 'Frizzled/Smoothened membrane region', 'Seven-transmembrane receptor region', 94)
-  }
-  if (/pdz/.test(text)) {
-    return withCanonical('PDZ', 'PDZ-binding motif', 'PDZ-binding motif', 90)
-  }
-  if (feature.kind === 'transmembrane') {
-    return { ...feature, short: feature.short.replace(/^helical;\s*/i, 'TM'), architecturePriority: 88 }
-  }
-  if (feature.kind === 'signal_peptide') {
-    return withCanonical('SP', 'Signal peptide', 'Signal peptide', 88)
-  }
-  if (feature.kind === 'site') {
-    return { ...feature, architecturePriority: 70 }
-  }
-  return { ...feature, architecturePriority: feature.architecturePriority ?? 50 }
-}
-
-function architecturePriority(feature: ProteinFeatureRender): number {
-  return feature.architecturePriority ?? 50
-}
-
-function featureConfidence(feature: ProteinFeatureRender): number {
-  const score = feature.score ?? 0
-  const eValue = feature.eValue
-  const eValueScore =
-    eValue == null ? 0 : eValue <= 0 ? 60 : Math.max(-12, Math.min(60, -Math.log10(eValue)))
-  return eValueScore * 10 + score
+  return canonicalizeProteinArchitectureFeature(feature)
 }
 
 function featureLength(feature: ProteinFeatureRender): number {
-  return Math.max(1, feature.end - feature.start + 1)
-}
-
-function significantOverlap(a: ProteinFeatureRender, b: ProteinFeatureRender): boolean {
-  const overlap = Math.min(a.end, b.end) - Math.max(a.start, b.start) + 1
-  if (overlap <= 0) return false
-  const smaller = Math.min(featureLength(a), featureLength(b))
-  return overlap / smaller >= 0.45
+  return proteinArchitectureFeatureLength(feature)
 }
 
 function packProteinFeatures(
@@ -1738,21 +1815,15 @@ function packProteinFeatures(
 }
 
 function proteinLanesFor(features: ProteinFeatureRender[]): ProteinLaneDef[] {
-  return features.length > 0 ? [{ id: 'domains', label: 'Architecture' }] : []
+  return PROTEIN_LANES.filter((lane) => features.some((feature) => feature.lane === lane.id))
 }
 
 function normalizeProteinLane(lane: string | null | undefined, kind: string): ProteinLaneId {
-  if (lane === 'topology' || lane === 'domains' || lane === 'motifs' || lane === 'sites') return lane
-  if (kind === 'signal_peptide' || kind === 'transmembrane' || kind === 'topological_domain') return 'topology'
-  if (kind === 'motif' || kind === 'repeat' || kind === 'coiled_coil' || kind === 'low_complexity') return 'motifs'
-  if (kind === 'site' || kind === 'epitope') return 'sites'
-  if (kind === 'domain' || kind === 'family' || kind === 'region') return 'domains'
-  return 'other'
+  return normalizeProteinArchitectureLane(lane, kind)
 }
 
 function laneRank(lane: ProteinLaneId): number {
-  const index = PROTEIN_LANES.findIndex((entry) => entry.id === lane)
-  return index === -1 ? PROTEIN_LANES.length : index
+  return proteinArchitectureLaneRank(lane)
 }
 
 function laneColor(lane: ProteinLaneId): { fill: string; stroke: string; text: string } {
@@ -1772,6 +1843,35 @@ function laneColor(lane: ProteinLaneId): { fill: string; stroke: string; text: s
 }
 
 function featureColor(feature: ProteinFeatureRender): { fill: string; stroke: string; text: string } {
+  if (feature.broadBackbone || feature.kind === 'family') {
+    return {
+      fill: 'rgba(92, 107, 122, 0.12)',
+      stroke: 'rgba(92, 107, 122, 0.44)',
+      text: 'var(--ink-2)',
+    }
+  }
+  const featureText = `${feature.short} ${feature.label} ${feature.description ?? ''}`.toLowerCase()
+  if (feature.lane === 'motifs' && /membrane|amphipathic/.test(featureText)) {
+    return {
+      fill: 'rgba(80, 129, 185, 0.22)',
+      stroke: 'rgba(80, 129, 185, 0.72)',
+      text: 'var(--ink)',
+    }
+  }
+  if (feature.lane === 'sites' && /palmit/.test(featureText)) {
+    return {
+      fill: 'var(--base-C, #4a9d8f)',
+      stroke: 'rgba(37, 119, 104, 0.92)',
+      text: 'var(--bg)',
+    }
+  }
+  if (feature.lane === 'sites' && /iron|active|metal/.test(featureText)) {
+    return {
+      fill: '#BA7517',
+      stroke: 'rgba(105, 71, 22, 0.95)',
+      text: 'var(--bg)',
+    }
+  }
   if (feature.lane === 'domains') {
     return domainPaletteColor(feature)
   }
@@ -1828,11 +1928,8 @@ function isPointProteinFeature(feature: ProteinFeatureRender): boolean {
   return feature.start === feature.end || feature.kind === 'site' || (feature.kind === 'motif' && featureLength(feature) <= 5)
 }
 
-function proteinFeaturePatternId(feature: Pick<ProteinFeatureRender, 'lane'>): string | null {
-  if (feature.lane === 'topology') return 'protein-pattern-topology'
-  if (feature.lane === 'motifs') return 'protein-pattern-motifs'
-  if (feature.lane === 'sites') return 'protein-pattern-sites'
-  if (feature.lane === 'other') return 'protein-pattern-other'
+function proteinFeaturePatternId(feature: Pick<ProteinFeatureRender, 'lane' | 'kind'>): string | null {
+  if (feature.kind === 'family') return 'protein-pattern-other'
   return null
 }
 
@@ -1899,6 +1996,7 @@ function featureCategoryLegendItems(features: ProteinFeatureRender[]): Array<{
     { lane: 'domains', label: 'Domains / regions' },
     { lane: 'motifs', label: 'Motifs' },
     { lane: 'sites', label: 'Sites' },
+    { lane: 'other', label: 'Other' },
   ]
   return categories
     .filter((category) => features.some((feature) => feature.lane === category.lane))
@@ -1936,7 +2034,9 @@ function featureLegendItems(features: ProteinFeatureRender[]): Array<{
     }
     groups.set(key, {
       short: feature.short,
-      kindLabel: `architecture / ${feature.kind}`.replace(/_/g, ' '),
+      kindLabel: feature.broadBackbone
+        ? 'family / backbone'
+        : `architecture / ${feature.kind}`.replace(/_/g, ' '),
       description,
       features: [feature],
     })
@@ -1993,9 +2093,16 @@ function proteinSourceLabel(track: ProteinDomainTrack | null, hasFallbackFeature
     return track.fail_closed_reason ? `Protein architecture unavailable: ${track.fail_closed_reason}` : `Protein architecture unavailable: ${track.status}`
   }
   const sources = Array.from(new Set(track.features.map((feature) => feature.source).filter(Boolean)))
+  const hasUniprot = sources.some((source) => /uniprot/i.test(source))
+  const hasPfam = sources.some((source) => /pfam|hmmer/i.test(source))
+  const sourceSummary = [
+    hasUniprot ? 'UniProtKB/Swiss-Prot features' : null,
+    hasPfam ? (hasUniprot ? 'Pfam family support' : 'Pfam/HMMER family hits') : null,
+    ...sources.filter((source) => !/uniprot|pfam|hmmer/i.test(source)),
+  ].filter(Boolean)
   const release = track.pfam_release ?? track.uniprot_release ?? track.hmmer_release
   const status = track.status === 'partial' ? 'Source-backed partial' : 'Source-backed'
-  return [status, sources.slice(0, 2).join(' + '), release].filter(Boolean).join(' | ')
+  return [status, sourceSummary.slice(0, 3).join(' + '), release].filter(Boolean).join(' | ')
 }
 
 function clamp(v: number, lo: number, hi: number): number {

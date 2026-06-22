@@ -5,6 +5,7 @@ import { IconChevron, IconRedo, IconRemove, IconSearch, IconUndo } from '@/compo
 interface ViewerToolbarProps {
   searchQuery: string
   jumpError: string | null
+  searchPlaceholder: string
   variantCount: number
   canUndo: boolean
   canRedo: boolean
@@ -26,6 +27,7 @@ interface ViewerToolbarProps {
 export const ViewerToolbar = memo(function ViewerToolbar({
   searchQuery,
   jumpError,
+  searchPlaceholder,
   variantCount,
   canUndo,
   canRedo,
@@ -55,7 +57,7 @@ export const ViewerToolbar = memo(function ViewerToolbar({
           ref={inputRef}
           type="text"
           id="sv-search"
-          placeholder="Jump to c.260 · p.Asp87 · exon 5 · GAATTC"
+          placeholder={searchPlaceholder}
           autoComplete="off"
           spellCheck={false}
           value={searchQuery}

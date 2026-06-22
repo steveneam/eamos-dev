@@ -21,14 +21,21 @@ import type {
   ViewerTranscriptProjection,
 } from '../backend'
 import type { Base } from './codon-table'
-import type {
-  ClinClass,
-  ClinvarVariant,
-  DomainInfo,
-  GeneWindowData,
-  ProteinFeatures,
-  ProteinProductEffect,
-  WindowSegment,
+import {
+  canonicalizeProteinArchitectureFeature,
+  normalizeProteinArchitectureLane,
+  selectPrimaryProteinArchitectureFeatures,
+  type ProteinArchitectureFeature,
+} from '../protein-architecture'
+import {
+  clinClassFromText,
+  type ClinClass,
+  type ClinvarVariant,
+  type DomainInfo,
+  type GeneWindowData,
+  type ProteinFeatures,
+  type ProteinProductEffect,
+  type WindowSegment,
 } from './gene-window'
 import { RPE65_V2 } from './sample-rpe65-v2'
 
@@ -58,14 +65,19 @@ function spliceBase(seq: string, idx: number, alt: string): string {
   return seq.slice(0, idx) + alt + seq.slice(idx + 1)
 }
 
-function mapClinvar(v: BackendClinvarVariant): ClinvarVariant {
+function mapClinvar(
+  v: BackendClinvarVariant,
+  queriedHgvsC: string,
+  queriedClassification: ClinClass,
+): ClinvarVariant {
+  const queried = v.queried || v.hgvs_c === queriedHgvsC
   return {
     cdsPos: v.cds_pos,
     hgvsC: v.hgvs_c,
     hgvsP: v.hgvs_p ?? '',
-    cls: toClinClass(v.classification),
+    cls: queried ? queriedClassification : toClinClass(v.classification),
     cv: v.clinvar_id ?? '',
-    queried: v.queried,
+    queried,
     splice: v.splice,
   }
 }
@@ -129,7 +141,19 @@ function clipRange(
   return end >= start ? { aaStart: start, aaEnd: end } : null
 }
 
-function mapDomain(d: { aa_start: number; aa_end: number; label: string; short_label?: string | null }, limit: number): DomainInfo | null {
+function mapDomain(
+  d: {
+    aa_start: number
+    aa_end: number
+    label: string
+    short_label?: string | null
+    source?: string | null
+    accession?: string | null
+    source_accession?: string | null
+    broadBackbone?: boolean
+  },
+  limit: number,
+): DomainInfo | null {
   const clipped = clipRange(d.aa_start, d.aa_end, limit)
   if (!clipped) return null
   return {
@@ -137,7 +161,74 @@ function mapDomain(d: { aa_start: number; aa_end: number; label: string; short_l
     aaEnd: clipped.aaEnd,
     label: d.label,
     shortLabel: d.short_label ?? undefined,
+    source: d.source ?? undefined,
+    accession: d.accession ?? d.source_accession ?? undefined,
+    broadBackbone: d.broadBackbone,
   }
+}
+
+function mapProteinDomainBars(
+  pf: GeneViewerResponse['tracks']['protein_features'],
+  limit: number,
+): DomainInfo[] {
+  const hasSpecificProteinFeatures =
+    Boolean(pf.signal_peptide) ||
+    pf.transmembrane.length > 0 ||
+    pf.active_sites.length > 0 ||
+    pf.membrane_binding.length > 0 ||
+    pf.palmitoylation.length > 0
+  const trackFeatures = pf.domain_track?.features ?? []
+  const architectureFeatures = [
+    ...trackFeatures.map((feature): ProteinArchitectureFeature => ({
+        start: feature.aa_start,
+        end: Math.max(feature.aa_start, feature.aa_end),
+        label: feature.label,
+        short: feature.short_label ?? feature.label,
+        kind: feature.kind,
+        lane: normalizeProteinArchitectureLane(feature.lane, feature.kind),
+        description: feature.description,
+        source: feature.source,
+        accession: feature.accession ?? feature.source_accession,
+        score: feature.score,
+        eValue: feature.e_value,
+      })),
+    ...pf.domains
+      .map((d) => mapDomain(d, limit))
+      .filter((d): d is DomainInfo => Boolean(d))
+      .map((domain): ProteinArchitectureFeature => ({
+        start: domain.aaStart,
+        end: domain.aaEnd,
+        label: domain.label,
+        short: domain.shortLabel ?? domain.label,
+        kind: 'domain',
+        lane: 'domains',
+        source: domain.source ?? 'viewer protein_features',
+        accession: domain.accession,
+      })),
+  ].map(canonicalizeProteinArchitectureFeature)
+
+  if (architectureFeatures.length > 0) {
+    return selectPrimaryProteinArchitectureFeatures(architectureFeatures)
+      .filter((feature) => feature.lane === 'domains')
+      .filter((feature) => !(feature.broadBackbone && hasSpecificProteinFeatures))
+      .map((feature) =>
+        mapDomain(
+          {
+            aa_start: feature.start,
+            aa_end: feature.end,
+            label: feature.label,
+            short_label: feature.short,
+            source: feature.source,
+            accession: feature.accession,
+            broadBackbone: feature.broadBackbone,
+          },
+          limit,
+        ),
+      )
+      .filter((d): d is DomainInfo => Boolean(d))
+  }
+
+  return []
 }
 
 function mapRangeFeature(
@@ -151,6 +242,7 @@ function mapRangeFeature(
 function mapProteinFeatures(
   pf: GeneViewerResponse['tracks']['protein_features'],
   limit: number,
+  domains = mapProteinDomainBars(pf, limit),
 ): ProteinFeatures {
   return {
     signalPeptide: pf.signal_peptide
@@ -159,10 +251,7 @@ function mapProteinFeatures(
     transmembrane: pf.transmembrane
       .map((r) => mapRangeFeature(r, limit))
       .filter((r): r is NonNullable<typeof r> => Boolean(r)),
-    domains: pf.domains
-      .map((d) => mapDomain(d, limit))
-      .filter((d): d is DomainInfo => Boolean(d))
-      .map(({ aaStart, aaEnd, label }) => ({ aaStart, aaEnd, label })),
+    domains,
     activeSites: pf.active_sites
       .filter((a) => a.aa <= limit)
       .map((a) => ({
@@ -195,6 +284,7 @@ function mapProteinFeatures(
 interface AdaptGeneViewerOptions {
   scaffold?: GeneWindowData
   architecture?: 'window' | 'transcript'
+  queriedVariantClassification?: string | null
 }
 
 export function adaptGeneViewer(
@@ -313,6 +403,11 @@ export function adaptGeneViewer(
             lenBp: seg.totalLen,
           }))
 
+  const proteinDomains = mapProteinDomainBars(pf, featureLimit)
+  const proteinFeatures = mapProteinFeatures(pf, featureLimit, proteinDomains)
+  const queriedClassification =
+    clinClassFromText(options.queriedVariantClassification) ?? toClinClass(qv.classification)
+
   return {
     gene: identity.gene,
     transcript: identity.resolved_transcript,
@@ -344,17 +439,17 @@ export function adaptGeneViewer(
       aaAlt: qv.aa_alt ?? '',
       hgvsP: qv.hgvs_p ?? '',
       hgvsC: qv.hgvs_c,
-      classification: toClinClass(qv.classification),
+      classification: queriedClassification,
     },
 
-    clinvar: tracks.clinvar_variants.map(mapClinvar),
+    clinvar: tracks.clinvar_variants.map((variant) =>
+      mapClinvar(variant, qv.hgvs_c, queriedClassification),
+    ),
     exonVariantCount,
 
-    domains: pf.domains
-      .map((d) => mapDomain(d, featureLimit))
-      .filter((d): d is DomainInfo => Boolean(d)),
+    domains: proteinDomains,
 
-    proteinFeatures: mapProteinFeatures(pf, featureLimit),
+    proteinFeatures,
     proteinProduct,
 
     genomicCoords: {

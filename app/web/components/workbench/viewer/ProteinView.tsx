@@ -1,5 +1,5 @@
 'use client'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, type CSSProperties } from 'react'
 import type { AlleleMode } from '@/lib/backend'
 import {
   classLabel,
@@ -41,6 +41,40 @@ interface Lollipop {
 
 type ProteinMarkerKind = 'missense' | 'truncating' | 'splice'
 
+const CLASS_DOT_COLOR: Record<ClinClass, string> = {
+  p: 'var(--cls-path-dot)',
+  lp: 'var(--cls-lpath-dot)',
+  vus: 'var(--cls-vus-dot)',
+  lb: 'var(--cls-lben-dot)',
+  b: 'var(--cls-ben-dot)',
+}
+
+interface ProteinDomainBar {
+  aaStart: number
+  aaEnd: number
+  label: string
+  short?: string
+  source?: string
+  accession?: string
+  broadBackbone?: boolean
+}
+
+interface ProteinFeatureColor {
+  fill: string
+  stroke: string
+  text: string
+}
+
+interface ProteinLegendFeature {
+  key: string
+  kindLabel: string
+  short: string
+  label: string
+  aaStart: number
+  aaEnd: number
+  color: ProteinFeatureColor
+}
+
 /** Consecutive variants closer than this (in % of the backbone) are stacked
  *  into higher lanes so heads + stems do not overlap. Heuristic — the view
  *  is responsive and cannot measure px without an observer. */
@@ -64,6 +98,102 @@ function proteinMarkerKind(hgvsC: string, hgvsP: string, splice = false): Protei
     return 'truncating'
   }
   return 'missense'
+}
+
+function lollipopStyle(cls: ClinClass): CSSProperties {
+  return {
+    '--sv-pv-pop-color': CLASS_DOT_COLOR[cls] ?? 'var(--cls-na-dot)',
+  } as CSSProperties
+}
+
+function hashString(value: string): number {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  }
+  return hash
+}
+
+function domainPaletteKey(feature: Pick<ProteinDomainBar, 'short' | 'label'>): string {
+  const short = feature.short?.trim().toLowerCase() ?? ''
+  if (short && short.length <= 18 && !short.endsWith('...')) return short
+  return feature.label.trim().toLowerCase()
+}
+
+function domainPaletteColor(feature: Pick<ProteinDomainBar, 'short' | 'label' | 'broadBackbone'>): ProteinFeatureColor {
+  if (feature.broadBackbone) {
+    return {
+      fill: 'rgba(92, 107, 122, 0.12)',
+      stroke: 'rgba(92, 107, 122, 0.44)',
+      text: 'var(--ink-2)',
+    }
+  }
+  const palette = [
+    ['rgba(44, 123, 182, 0.18)', 'rgba(44, 123, 182, 0.58)', 'rgb(22, 78, 121)'],
+    ['rgba(86, 160, 103, 0.18)', 'rgba(72, 137, 87, 0.58)', 'rgb(39, 96, 55)'],
+    ['rgba(196, 118, 62, 0.18)', 'rgba(173, 93, 42, 0.58)', 'rgb(123, 66, 29)'],
+    ['rgba(129, 102, 181, 0.18)', 'rgba(111, 82, 164, 0.58)', 'rgb(78, 56, 125)'],
+    ['rgba(196, 87, 112, 0.16)', 'rgba(174, 66, 93, 0.56)', 'rgb(125, 45, 65)'],
+    ['rgba(37, 151, 143, 0.16)', 'rgba(26, 126, 120, 0.56)', 'rgb(20, 92, 88)'],
+    ['rgba(184, 143, 50, 0.18)', 'rgba(158, 118, 31, 0.58)', 'rgb(113, 83, 20)'],
+    ['rgba(89, 111, 173, 0.17)', 'rgba(70, 91, 151, 0.55)', 'rgb(50, 66, 112)'],
+    ['rgba(159, 104, 70, 0.17)', 'rgba(138, 82, 49, 0.55)', 'rgb(96, 58, 37)'],
+    ['rgba(90, 138, 156, 0.16)', 'rgba(70, 116, 135, 0.54)', 'rgb(47, 83, 98)'],
+  ] as const
+  const [fill, stroke, text] = palette[hashString(domainPaletteKey(feature)) % palette.length]
+  return { fill, stroke, text }
+}
+
+function shortFeatureLabel(label: string): string {
+  return label.length > 34 ? `${label.slice(0, 31)}...` : label
+}
+
+function domainLabelForWidth(domain: ProteinDomainBar, widthPct: number): string {
+  if (widthPct < 2.4) return ''
+  const label = domain.short || shortFeatureLabel(domain.label)
+  if (widthPct >= 5) return label
+  return label.length > 6 ? `${label.slice(0, 5)}...` : label
+}
+
+function groupLegendFeatures(features: ProteinLegendFeature[]): Array<{
+  key: string
+  kindLabel: string
+  short: string
+  label: string
+  coordLabel: string
+  count: number
+  color: ProteinFeatureColor
+  title: string
+}> {
+  const groups = new Map<string, ProteinLegendFeature[]>()
+  features.forEach((feature) => {
+    const groupKey = `${feature.kindLabel}|${feature.short}|${feature.label}`
+    groups.set(groupKey, [...(groups.get(groupKey) ?? []), feature])
+  })
+  return Array.from(groups.entries()).map(([key, group]) => {
+    const sorted = group.sort((a, b) => a.aaStart - b.aaStart || a.aaEnd - b.aaEnd)
+    const min = Math.min(...sorted.map((feature) => feature.aaStart))
+    const max = Math.max(...sorted.map((feature) => feature.aaEnd))
+    const ranges = sorted
+      .slice(0, 4)
+      .map((feature) =>
+        feature.aaStart === feature.aaEnd
+          ? `aa ${feature.aaStart}`
+          : `aa ${feature.aaStart}-${feature.aaEnd}`,
+      )
+      .join(', ')
+    const overflow = sorted.length > 4 ? `, +${sorted.length - 4} more` : ''
+    return {
+      key,
+      kindLabel: sorted[0].kindLabel,
+      short: sorted[0].short,
+      label: sorted[0].label,
+      coordLabel: sorted.length === 1 ? ranges : `${sorted.length}x | aa ${min}-${max}`,
+      count: sorted.length,
+      color: sorted[0].color,
+      title: `${sorted.map((feature) => `${feature.label} | aa ${feature.aaStart}-${feature.aaEnd}`).join('\n')}${overflow}`,
+    }
+  })
 }
 
 export const ProteinView = memo(function ProteinView({ data, alleleMode }: ProteinViewProps) {
@@ -100,8 +230,10 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
     return Array.from(new Set(ticks)).sort((a, b) => a - b)
   }, [protLen])
 
+  const qv = data.queriedVariant
   const { lollipops, splices } = useMemo(() => {
     const splices: GeneWindowData['clinvar'] = []
+    const queriedAa = qv.codonNumber || Math.ceil(qv.cdsPos / 3) || 1
     const coding = data.clinvar
       .filter((v) => {
         if (typeof v.cdsPos !== 'number') {
@@ -114,7 +246,23 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
         v,
         aa: Math.ceil((v.cdsPos as number) / 3),
       }))
-      .sort((a, b) => a.aa - b.aa)
+    const hasQueriedMarker = coding.some(
+      ({ v, aa }) => v.queried || (v.hgvsC === qv.hgvsC && aa === queriedAa),
+    )
+    if (!hasQueriedMarker) {
+      coding.push({
+        v: {
+          cdsPos: qv.cdsPos,
+          hgvsC: qv.hgvsC,
+          hgvsP: qv.hgvsP,
+          cls: qv.classification,
+          cv: 'queried',
+          queried: true,
+        },
+        aa: queriedAa,
+      })
+    }
+    coding.sort((a, b) => a.aa - b.aa)
 
     const laneTail: number[] = []
     const pops: Lollipop[] = coding.map(({ v, aa }) => {
@@ -144,6 +292,11 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, protLen])
 
+  const { activeSites, membraneBinding, palmitoylation, signalPeptide } =
+    data.proteinFeatures
+  const hasSpecificUniProtFeatures =
+    activeSites.length > 0 || membraneBinding.length > 0 || palmitoylation.length > 0 || Boolean(signalPeptide)
+
   // Prefer the protein-features domain list; fall back to the rich
   // top-level domain list (which may carry a short label). Normalized to a
   // uniform shape so the union does not leak into JSX.
@@ -156,18 +309,21 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
     aaEnd: d.aaEnd,
     label: d.label,
     short: (d as { shortLabel?: string }).shortLabel,
+    broadBackbone: (d as { broadBackbone?: boolean }).broadBackbone,
   }))
-  const { activeSites, membraneBinding, palmitoylation, signalPeptide } =
-    data.proteinFeatures
+    .filter((d) => !(d.broadBackbone && hasSpecificUniProtFeatures))
 
-  const qv = data.queriedVariant
-  const queriedAa = qv.codonNumber || Math.ceil(qv.cdsPos / 3) || 1
-  const queriedMarkerKind = proteinMarkerKind(qv.hgvsC, qv.hgvsP)
+  const featureCount =
+    domainBars.length +
+    activeSites.length +
+    membraneBinding.length +
+    palmitoylation.length +
+    (signalPeptide ? 1 : 0)
 
   return (
     <div className="sv-protein">
       <div className="sv-pv-head-row">
-        <span className="sv-pv-title">Protein</span>
+        <span className="sv-pv-title">Protein architecture &amp; features</span>
         <span className="sv-pv-meta">
           {data.gene} ·{' '}
           {product?.truncatesProtein
@@ -176,6 +332,7 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
           ·{' '}
           {alleleMode === 'variant' ? 'variant-applied' : 'reference'} ·{' '}
           {product?.truncatesProtein ? `${product.label} · ` : ''}
+          {featureCount} feature{featureCount === 1 ? '' : 's'} ·{' '}
           {lollipops.length} ClinVar record{lollipops.length === 1 ? '' : 's'}{' '}
           projected
           {splices.length ? ` (+${splices.length} splice/intronic)` : ''}
@@ -193,7 +350,7 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
               <div
                 key={`${p.cv || p.hgvsC}-${p.hgvsP}-${p.aa}-${i}`}
                 className="sv-pv-pop"
-                style={{ left: `${p.xPct}%`, height: h }}
+                style={{ left: `${p.xPct}%`, height: h, ...lollipopStyle(p.cls) }}
                 title={`${p.hgvsC} · ${p.hgvsP} · ${classLabel(p.cls)}${
                   p.queried ? ' · queried' : ''
                 }`}
@@ -248,7 +405,7 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
             return (
               <div
                 key={`dom${i}`}
-                className="sv-pv-domain"
+                className={`sv-pv-domain${d.broadBackbone ? ' family' : ''}`}
                 style={{ left: `${left}%`, width: `${width}%` }}
                 title={`${d.label} · aa ${d.aaStart}–${d.aaEnd}`}
               >
@@ -285,11 +442,6 @@ export const ProteinView = memo(function ProteinView({ data, alleleMode }: Prote
               title={`${p.label} · ${p.residue}${p.aa}`}
             />
           ))}
-          <span
-            className={`sv-pv-pt query ${qv.classification} shape-${queriedMarkerKind}`}
-            style={{ left: `${pct(queriedAa)}%` }}
-            title={`Queried · ${qv.hgvsC} · ${qv.hgvsP}`}
-          />
         </div>
 
         <div className="sv-pv-scale">
