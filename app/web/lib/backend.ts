@@ -465,11 +465,12 @@ export interface PaperVariantsResponse {
 // Backend-led: FE does not reshape payloads. `payload` on LookupSectionEnvelope
 // is intentionally Record<string, unknown> | null — consumers type-narrow per
 // section_id at the read site against the existing ReportPayload sub-types
-// (PublicationLiteratureshape for 'publications', ComputationalDeepDive for
-// 'computational_deep_dive', AcmgWorksheet + {narrative, source_scope} for
-// 'clingen_vcep').
+// (PublicationLiterature shape for 'publications', TherapiesTrialsSection for
+// 'therapies_trials', ComputationalDeepDive for 'computational_deep_dive',
+// AcmgWorksheet + {narrative, source_scope} for 'clingen_vcep').
 export type LookupSectionId =
   | 'publications'
+  | 'therapies_trials'
   | 'computational_deep_dive'
   | 'clingen_vcep'
 
@@ -1130,10 +1131,28 @@ export interface TrialMatch {
   matched_terms: string[]
   source_url: string
   warnings: string[]
+  matched_query_id?: string | null
+  evidence_field?: string | null
+  evidence_snippet?: string | null
+  last_update_posted_at?: string | null
+}
+
+export interface ClinicalTrialQueryExecution {
+  query_id?: string | null
+  lane?: string | null
+  query_term?: string | null
+  params: Record<string, string>
+  source_url?: string | null
+  registry_source_url?: string | null
+  registry_source_release?: string | null
+  status?: string | null
+  result_count: number
+  warnings: string[]
 }
 
 export interface TherapiesTrialsSection {
   trial_rows: TrialMatch[]
+  query_executions: ClinicalTrialQueryExecution[]
   warnings: string[]
   provenance: SourceProvenance[]
 }

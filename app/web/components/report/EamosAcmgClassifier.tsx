@@ -122,6 +122,17 @@ function LegacyCategoricalView({ data }: { data: AcmgCriteriaScaffold }) {
   )
 }
 
+const COMPUTED_WARNING_LABELS: Record<string, string> = {
+  'acmg_case_context_not_scored:PM3_phase_in_trans_required':
+    'PM3 needs confirmed phase with a second disease-causing allele before EAMOS can score it.',
+  'acmg_case_context_not_scored:PP4_phenotype_specificity_required':
+    'PP4 needs phenotype specificity or family-case context before EAMOS can score it.',
+}
+
+function computedWarningLabel(value: string): string {
+  return COMPUTED_WARNING_LABELS[value] ?? value
+}
+
 export function EamosAcmgClassifier({
   data,
   computed,
@@ -155,6 +166,25 @@ export function EamosAcmgClassifier({
               <strong style={{ color: 'var(--ink)' }}>advisory</strong>; the curated clinical classification in section 1 takes
               precedence.
             </p>
+
+            {computed.warnings?.length ? (
+              <div
+                role="note"
+                style={{
+                  margin: '0 0 14px',
+                  borderLeft: '3px solid var(--warn)',
+                  background: 'color-mix(in srgb, var(--warn) 7%, transparent)',
+                  padding: '10px 12px',
+                }}
+              >
+                <div className="eamos-kicker" style={{ marginBottom: 7 }}>Case context not scored</div>
+                <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5 }}>
+                  {computed.warnings.map((warning) => (
+                    <li key={warning}>{computedWarningLabel(warning)}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             <AcmgExplainer initialState={criteriaStateFromComputed(computed)} anchor={computed} />
 

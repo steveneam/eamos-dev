@@ -248,6 +248,144 @@ def test_tool_queries_variant_aliases_before_gene_disease_fallback(monkeypatch) 
     assert DISCOVERY_ONLY_WARNING in result.summary["trial_rows"][0]["warnings"]
 
 
+def test_abca4_tool_surfaces_tinlarebant_with_stargardt_discovery_terms(monkeypatch) -> None:
+    calls: list[str] = []
+
+    class Response:
+        def __init__(self, payload: dict[str, Any]) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return self.payload
+
+    def fake_get(url: str, *, params: dict[str, Any], timeout: float) -> Response:
+        calls.append(params.get("query.term") or f"intr:{params.get('query.intr')}")
+        assert url == "https://clinicaltrials.gov/api/v2/studies"
+        if len(calls) == 1:
+            return Response({"studies": []})
+        if params.get("query.intr") == "Tinlarebant":
+            return Response(
+                {
+                    "studies": [
+                        _study(
+                            nct_id="NCT06388083",
+                            title=(
+                                "A Phase 2/3 Study to Evaluate the Efficacy and Safety "
+                                "of Tinlarebant in Subjects With Stargardt Disease"
+                            ),
+                            status="ACTIVE_NOT_RECRUITING",
+                            phases=["PHASE2", "PHASE3"],
+                            conditions=["STGD1", "Stargardt Disease 1"],
+                            interventions=[
+                                {"type": "DRUG", "name": "Tinlarebant"},
+                                {"type": "DRUG", "name": "Placebo"},
+                            ],
+                        )
+                    ]
+                }
+            )
+        return Response(
+            {
+                "studies": [
+                    _study(
+                        nct_id="NCT07002398",
+                        title=(
+                            "Safety and Preliminary Efficacy of VG801 in Patients With "
+                            "ABCA4 Mutation-associated Retinal Dystrophy"
+                        ),
+                        conditions=["Stargardt Disease 1"],
+                        interventions=[{"type": "GENETIC", "name": "VG801"}],
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr("app.tools.clinical_trials.httpx.get", fake_get)
+    variant = SimpleNamespace(
+        gene="ABCA4",
+        transcript_hgvs="NM_000350.3:c.5461-10T>C",
+        protein_change="",
+    )
+
+    result = ClinicalTrialsTool(_settings(use_real_apis=True)).get_trial_matches(
+        variant,
+        limit=5,
+    )
+
+    assert calls[0] == '"NM_000350.3:c.5461-10T>C" OR "c.5461-10T>C"'
+    assert calls[1] == "intr:Tinlarebant"
+    rows = result.summary["trial_rows"]
+    ids = {row["nct_id"] for row in rows}
+    assert {"NCT06388083", "NCT07002398"}.issubset(ids)
+    tinlarebant = next(row for row in rows if row["nct_id"] == "NCT06388083")
+    assert tinlarebant["match_level"] == "disease_level"
+    assert "Tinlarebant" in tinlarebant["interventions"]
+    assert "Tinlarebant" in tinlarebant["matched_terms"]
+    assert tinlarebant["matched_query_id"] == "intervention_discovery:abca4:tinlarebant"
+    assert tinlarebant["evidence_field"] in {"title", "conditions", "interventions"}
+    assert result.summary["query_executions"][1]["lane"] == "intervention_discovery"
+    assert result.summary["query_executions"][1]["params"] == {"query.intr": "Tinlarebant"}
+    assert result.summary["query_executions"][1]["registry_source_url"].endswith("NCT06388083")
+    assert DISEASE_LEVEL_WARNING in tinlarebant["warnings"]
+    assert "variant_level_trial_not_found:using_lower_match_level" in result.warnings
+
+
+def test_trial_registry_generalizes_intervention_discovery_beyond_abca4(monkeypatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class Response:
+        def __init__(self, payload: dict[str, Any]) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return self.payload
+
+    def fake_get(url: str, *, params: dict[str, Any], timeout: float) -> Response:
+        calls.append(params)
+        assert url == "https://clinicaltrials.gov/api/v2/studies"
+        if params.get("query.intr") == "Sepofarsen":
+            return Response(
+                {
+                    "studies": [
+                        _study(
+                            nct_id="NCT03913143",
+                            title="Study of Sepofarsen in CEP290-Associated Retinal Dystrophy",
+                            conditions=["Leber Congenital Amaurosis 10", "LCA10"],
+                            interventions=[{"type": "DRUG", "name": "Sepofarsen"}],
+                        )
+                    ]
+                }
+            )
+        return Response({"studies": []})
+
+    monkeypatch.setattr("app.tools.clinical_trials.httpx.get", fake_get)
+    variant = SimpleNamespace(
+        gene="CEP290",
+        transcript_hgvs="NM_025114.4:c.2991+1655A>G",
+        protein_change="",
+    )
+
+    result = ClinicalTrialsTool(_settings(use_real_apis=True)).get_trial_matches(
+        variant,
+        limit=5,
+    )
+
+    rows = result.summary["trial_rows"]
+    assert [row["nct_id"] for row in rows] == ["NCT03913143"]
+    assert rows[0]["match_level"] == "disease_level"
+    assert "Sepofarsen" in rows[0]["matched_terms"]
+    assert rows[0]["matched_query_id"] == "intervention_discovery:cep290:sepofarsen"
+    assert any(call.get("query.intr") == "Sepofarsen" for call in calls)
+    assert result.summary["query_executions"][1]["registry_source_url"].endswith("NCT03913143")
+    assert "variant_level_trial_not_found:using_lower_match_level" in result.warnings
+
+
 def test_tool_degrades_source_failure_to_empty_rows(monkeypatch) -> None:
     def fail_get(*args, **kwargs):
         raise httpx.TimeoutException("clinicaltrials timeout")

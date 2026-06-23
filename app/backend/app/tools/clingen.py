@@ -144,6 +144,19 @@ class ClingenTool(FixtureBackedTool):
             local_warnings.append(f"clingen_local_unavailable:{inspection.status}")
 
         if records:
+            identity_records = _filter_variant_identity_records(records, terms)
+            if records and not identity_records:
+                local_warnings.append("clingen_local_candidate_rejected_by_variant_identity_guard")
+            if (
+                records
+                and not identity_records
+                and self.settings.use_real_apis
+                and self.settings.clingen_local_fallback_on_no_hit
+            ):
+                return None
+            records = identity_records
+
+        if records:
             return _result_from_records(
                 source=self.source,
                 status="local",
@@ -205,7 +218,7 @@ class ClingenTool(FixtureBackedTool):
                     continue
                 seen.add(key)
                 records.append(record)
-        return records
+        return _filter_variant_identity_records(records, terms)
 
 
 def _variant_terms(variant: Any) -> list[str]:
@@ -254,18 +267,105 @@ def _record_matches(record: dict[str, Any], gene: str, terms: list[str]) -> bool
     if not terms:
         return bool(gene and record_gene == gene)
 
-    searchable = " ".join(
-        str(record.get(key) or "")
-        for key in (
-            "hgvs",
-            "hgvsc",
-            "hgvsg",
-            "preferredTitle",
-            "variantTitle",
-            "summaryDesc",
-        )
-    ).lower()
-    return any(term.lower() in searchable for term in terms)
+    return _strict_variant_record_matches(record, terms)
+
+
+def _filter_variant_identity_records(
+    records: list[dict[str, Any]], terms: list[str]
+) -> list[dict[str, Any]]:
+    if not terms:
+        return records
+    return [record for record in records if _strict_variant_record_matches(record, terms)]
+
+
+def _strict_variant_record_matches(record: dict[str, Any], terms: list[str]) -> bool:
+    identity_values = [_normalize_identity_token(value) for value in _record_identity_values(record)]
+    identity_values = [value for value in identity_values if value]
+    if not identity_values:
+        return False
+
+    request_terms = [_normalize_identity_token(term) for term in terms]
+    request_terms = [term for term in request_terms if term]
+    if not request_terms:
+        return True
+
+    for term in request_terms:
+        for value in identity_values:
+            if _identity_term_matches(value, term):
+                return True
+    return False
+
+
+def _record_identity_values(record: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    identity_keys = {
+        "caid",
+        "caid",
+        "canonicalalleleid",
+        "classificationid",
+        "clinvarvariationid",
+        "cvid",
+        "hgvs",
+        "hgvsc",
+        "hgvsg",
+        "preferredtitle",
+        "preferredvartitle",
+        "varianttitle",
+        "variationid",
+    }
+
+    def collect(value: Any, key: str | None = None) -> None:
+        key_norm = _normalize_key(key)
+        if isinstance(value, dict):
+            for child_key, child in value.items():
+                collect(child, str(child_key))
+            return
+        if isinstance(value, (list, tuple, set)):
+            for child in value:
+                collect(child, key)
+            return
+        if value is None:
+            return
+        if key_norm in identity_keys or (key_norm is not None and "hgvs" in key_norm):
+            text = _text(value)
+            if text:
+                values.append(text)
+
+    collect(record)
+    return values
+
+
+def _normalize_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def _normalize_identity_token(value: Any) -> str:
+    text = str(value or "")
+    text = re.sub(r"\([^)]*\)", "", text)
+    text = re.sub(r"\s+", "", text).lower()
+    return re.sub(r"[^a-z0-9.>:_+\-*?]+", "", text)
+
+
+def _identity_term_matches(identity_value: str, request_term: str) -> bool:
+    if identity_value == request_term:
+        return True
+    start = 0
+    while True:
+        index = identity_value.find(request_term, start)
+        if index == -1:
+            return False
+        end = index + len(request_term)
+        before_ok = index == 0 or not _is_identity_token_char(identity_value[index - 1])
+        after_ok = end == len(identity_value) or not _is_identity_token_char(identity_value[end])
+        if before_ok and after_ok:
+            return True
+        start = index + 1
+
+
+def _is_identity_token_char(value: str) -> bool:
+    return value.isalnum() or value in {".", "_", "+", "-", ">", "*", "?"}
 
 
 def _result_from_records(

@@ -146,6 +146,87 @@ def test_clingen_tool_uses_local_rows_without_fixture_bleed(tmp_path: Path) -> N
     assert "clingen_local_variant_not_found" in no_hit.warnings
 
 
+def test_clingen_local_prefers_exact_variant_identity_over_narrative_mentions(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(exist_ok=True)
+    erepo_path = source_dir / "erepo.jsonl"
+    cspec_path = source_dir / "cspec.jsonl"
+    _write_jsonl(
+        erepo_path,
+        [
+            {
+                "affiliationId": "50140",
+                "approvedDate": "2026-05-26",
+                "classification": "Pathogenic",
+                "ep": "ABCA4 VCEP",
+                "gene": "ABCA4",
+                "hgvs": [
+                    "NM_000350.3:c.4253+43G>A",
+                    "NC_000001.11:g.94030953C>T",
+                    "NM_000350.3(ABCA4):c.4253+43G>A",
+                ],
+                "metCodes": ["PVS1_Strong", "PM3_Very Strong", "PP1_Moderate"],
+                "preferredVarTitle": "NM_000350.3(ABCA4):c.4253+43G>A",
+                "summaryDesc": (
+                    "Neighboring splice evidence discusses NM_000350.3:c.5461-10T>C, "
+                    "but this classification identity is c.4253+43G>A."
+                ),
+                "uuid": "2c518876-5945-4969-8772-0f5a63eb57e1",
+                "vcepId": "50140",
+                "vcepName": "ABCA4 VCEP",
+            },
+            {
+                "affiliationId": "50140",
+                "approvedDate": "2026-04-28",
+                "classification": "Pathogenic",
+                "ep": "ABCA4 VCEP",
+                "gene": "ABCA4",
+                "hgvs": [
+                    "NM_000350.3:c.5461-10T>C",
+                    "NC_000001.11:g.94011395A>G",
+                    "NM_000350.3(ABCA4):c.5461-10T>C",
+                ],
+                "metCodes": ["PVS1_Strong", "PM3_Very Strong", "PS4", "PP4"],
+                "preferredVarTitle": "NM_000350.3(ABCA4):c.5461-10T>C",
+                "summaryDesc": (
+                    "Patient mRNA/minigene evidence supports exon 39-40 skipping "
+                    "for NM_000350.3:c.5461-10T>C."
+                ),
+                "uuid": "64d8e05f-18c1-4092-9ce7-8880f952e96e",
+                "vcepId": "50140",
+                "vcepName": "ABCA4 VCEP",
+            },
+        ],
+    )
+    _write_jsonl(cspec_path, [])
+    settings = _settings(tmp_path, clingen_local_enabled=True, use_real_apis=False)
+    result = materialize_clingen_local_store(
+        settings,
+        erepo_jsonl_files=[erepo_path],
+        cspec_jsonl_files=[cspec_path],
+        source_version="ABCA4 VCEP pytest snapshot",
+        force=True,
+    )
+    assert result.ready is True
+
+    evidence = ClingenTool(settings).get_evidence(
+        SimpleNamespace(
+            gene="ABCA4",
+            transcript_hgvs="NM_000350.3:c.5461-10T>C",
+            genomic_hgvs="NC_000001.11:g.94011395A>G",
+            genomic_hg38="1-94011395-A-G",
+            protein_change="",
+        )
+    )
+
+    assert evidence.status == "local"
+    assert evidence.summary["accession"] == "64d8e05f-18c1-4092-9ce7-8880f952e96e"
+    assert evidence.summary["expert_panel"]["vcep"]["affiliation_id"] == "50140"
+    assert evidence.summary["criteria"] == ["PVS1_Strong", "PM3_Very Strong", "PS4", "PP4"]
+
+
 def test_clingen_tool_local_request_path_skips_logical_checksum(
     tmp_path: Path,
     monkeypatch,

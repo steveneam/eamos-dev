@@ -6,7 +6,9 @@ from app.schemas.lookup import LookupResponse
 from app.schemas.run import (
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
+    ClinicalTrialQueryExecution,
     ReportPayload,
+    TherapiesTrialsSection,
     VariantReportProfile,
 )
 from app.services.lookup_sections import build_lookup_section_fetch_response
@@ -32,6 +34,7 @@ def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
     assert payload["publications_callout"]["total_count"] == 3
     assert payload["publications_callout"]["scope_counts"]["gene"]["total_count"] == 816
     assert "publications_literature" not in payload
+    assert "therapies_trials" not in profile
     assert "computational_deep_dive" not in profile
     assert "expert_panel" not in profile
     assert profile["acmg_worksheet"]["classification"] == "Uncertain significance"
@@ -55,6 +58,7 @@ def test_lookup_summary_returns_m7_tile_contract_without_heavy_sections(client) 
     assert body["header"]["cdna"] == "c.260A>G"
     assert [section["section_id"] for section in body["lazy_sections"]] == [
         "publications",
+        "therapies_trials",
         "computational_deep_dive",
         "clingen_vcep",
     ]
@@ -83,7 +87,12 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
         json={
             "gene": "RPE65",
             "cdna": "c.260A>G",
-            "include": ["publications", "computational_deep_dive", "clingen_vcep"],
+            "include": [
+                "publications",
+                "therapies_trials",
+                "computational_deep_dive",
+                "clingen_vcep",
+            ],
         },
     )
 
@@ -91,7 +100,12 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     body = response.json()
     assert body["query"] == "RPE65:c.260A>G"
     sections = body["sections"]
-    assert set(sections) == {"publications", "computational_deep_dive", "clingen_vcep"}
+    assert set(sections) == {
+        "publications",
+        "therapies_trials",
+        "computational_deep_dive",
+        "clingen_vcep",
+    }
 
     publications = sections["publications"]
     assert publications["status"] == "available"
@@ -110,6 +124,19 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
         "source_url",
     }
     assert publications["freshness"]["stale_on_failure"] is False
+
+    trials = sections["therapies_trials"]
+    assert trials["section_id"] == "therapies_trials"
+    assert trials["status"] in {"available", "partial"}
+    assert "trial_rows" in trials["payload"]
+    assert "query_executions" in trials["payload"]
+    assert set(trials["freshness"]) == {
+        "fetched_at",
+        "source_version",
+        "stale_on_failure",
+        "source_status",
+        "source_url",
+    }
 
     computational = sections["computational_deep_dive"]
     assert computational["status"] == "available"
@@ -136,6 +163,42 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     )
     assert clingen["warnings"] == ["clingen_vcep_evidence_repo_source_cache_not_integrated"]
     assert clingen["freshness"]["stale_on_failure"] is False
+
+
+def test_trials_section_envelope_distinguishes_no_rows_from_missing_payload() -> None:
+    response = LookupResponse(
+        query="ABCA4:c.1A>G",
+        species="human",
+        report_payload=ReportPayload(
+            patient_id="lookup_test",
+            report_profile=VariantReportProfile(
+                therapies_trials=TherapiesTrialsSection(
+                    query_executions=[
+                        ClinicalTrialQueryExecution(
+                            query_id="gene_term:abca4",
+                            lane="gene_term",
+                            query_term="ABCA4",
+                            params={"query.term": "ABCA4"},
+                            status="ok",
+                            result_count=0,
+                        )
+                    ],
+                    warnings=["clinical_trials_no_active_matches"],
+                )
+            ),
+        ),
+        evidence=[],
+        warnings=[],
+    )
+
+    result = build_lookup_section_fetch_response(response, ["therapies_trials"])
+
+    trials = result.sections["therapies_trials"]
+    assert trials.status == "available"
+    assert trials.payload is not None
+    assert trials.payload["trial_rows"] == []
+    assert trials.payload["query_executions"][0]["query_id"] == "gene_term:abca4"
+    assert trials.warnings == ["clinical_trials_no_active_matches"]
 
 
 def test_lookup_sections_rejects_deferred_population_detail_until_m11_full(client) -> None:

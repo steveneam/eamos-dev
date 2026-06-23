@@ -1,0 +1,36 @@
+{
+  "source_name": "Eamos curated ClinicalTrials.gov discovery terminology",
+  "source_url": "https://clinicaltrials.gov/",
+  "source_release": "Curated from ClinicalTrials.gov public study records; reviewed 2026-06-23",
+  "entries": [
+    {
+      "gene": "ABCA4",
+      "disease_aliases": [
+        "Stargardt disease",
+        "Stargardt Disease 1",
+        "STGD1",
+        "ABCA4-related retinopathy"
+      ],
+      "intervention_aliases": [
+        "Tinlarebant"
+      ],
+      "source_url": "https://clinicaltrials.gov/study/NCT06388083",
+      "source_release": "ClinicalTrials.gov NCT06388083 public record reviewed 2026-06-23",
+      "match_policy": "disease_intervention_discovery"
+    },
+    {
+      "gene": "CEP290",
+      "disease_aliases": [
+        "Leber congenital amaurosis 10",
+        "CEP290-associated retinal dystrophy",
+        "LCA10"
+      ],
+      "intervention_aliases": [
+        "Sepofarsen"
+      ],
+      "source_url": "https://clinicaltrials.gov/study/NCT03913143",
+      "source_release": "ClinicalTrials.gov NCT03913143 public record reviewed 2026-06-23",
+      "match_policy": "disease_intervention_discovery"
+    }
+  ]
+}

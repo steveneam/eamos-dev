@@ -79,8 +79,8 @@ GENE_THERAPY_MAP: dict[str, str] = {
         "Check ClinicalTrials.gov for current recruitment status."
     ),
     "ABCA4": (
-        "No approved gene therapy. Phase I/II trial active (4D-150, subretinal AAV delivery) for Stargardt disease. "
-        "Check ClinicalTrials.gov for current recruitment status."
+        "No approved gene therapy identified for ABCA4-related Stargardt disease. "
+        "Use the ClinicalTrials.gov discovery rows below for current recruitment status."
     ),
 }
 
@@ -118,6 +118,42 @@ def _format_clinical_trials_summary(gene: str, rows: list[dict[str, Any]]) -> st
         title = str(row.get("title") or "Untitled clinical trial")
         lines.append(f"- {nct_id} - {phase} - {status} - {title}")
     return "\n".join(lines)
+
+
+def _clinical_trial_disease_terms(evidence_map: dict[str, dict[str, Any]]) -> list[str]:
+    gene_disease = evidence_map.get("gene_disease", {})
+    terms: list[str] = []
+    primary = _text_value(gene_disease.get("primary_condition"))
+    if primary:
+        terms.append(primary)
+    conditions = gene_disease.get("conditions")
+    if isinstance(conditions, list):
+        for condition in conditions:
+            if not isinstance(condition, dict):
+                continue
+            name = _text_value(condition.get("name"))
+            if name:
+                terms.append(name)
+    return _dedupe_values(terms)
+
+
+def _text_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _dedupe_values(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        text = item.strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
 
 
 @lru_cache(maxsize=1)
@@ -886,7 +922,10 @@ class LookupService:
                 trials_result = source_cached_result(
                     "clinical_trials",
                     lambda tool=trials_tool: tool.get_trial_matches(
-                        variant=variant, gene=gene, limit=15
+                        variant=variant,
+                        gene=gene,
+                        disease_terms=_clinical_trial_disease_terms(evidence_map),
+                        limit=15,
                     ),
                 )
                 record_result("clinical_trials", trials_result)

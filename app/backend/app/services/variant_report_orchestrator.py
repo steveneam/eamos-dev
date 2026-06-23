@@ -9,6 +9,7 @@ from app.schemas.run import (
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
     AssociatedCondition,
+    ClinicalTrialQueryExecution,
     ComputationalDeepDiveSection,
     ComputationalPredictorRow,
     DiseaseMechanismSection,
@@ -1070,6 +1071,12 @@ def _build_therapies_trials(
             trial_rows.append(TrialMatch.model_validate(item))
         except Exception:
             warnings.append("clinical_trials_row_validation_failed")
+    query_executions: list[ClinicalTrialQueryExecution] = []
+    for item in _list_of_dicts(clinical_trials.get("query_executions")):
+        try:
+            query_executions.append(ClinicalTrialQueryExecution.model_validate(item))
+        except Exception:
+            warnings.append("clinical_trials_query_execution_validation_failed")
 
     if trial_rows:
         if any(row.match_level in {"gene_level", "disease_level"} for row in trial_rows):
@@ -1081,6 +1088,7 @@ def _build_therapies_trials(
     source_url = _optional_text(clinical_trials.get("source_url"))
     return TherapiesTrialsSection(
         trial_rows=trial_rows,
+        query_executions=query_executions,
         warnings=_dedupe_text(warnings),
         provenance=[
             provenance_for_source(

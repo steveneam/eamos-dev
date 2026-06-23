@@ -29,6 +29,7 @@ LOOKUP_EAGER_RESPONSE_EXCLUDE = {
         "report_profile": {
             "computational_deep_dive": True,
             "expert_panel": True,
+            "therapies_trials": True,
         },
     }
 }

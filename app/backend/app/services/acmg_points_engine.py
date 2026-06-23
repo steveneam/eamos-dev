@@ -122,6 +122,7 @@ def compute_acmg_points(
     benign_cut: EamosComputedBenignCut = "tavtigian_2020",
     conflict_reason: str | None = None,
     vcep_id: str | None = None,
+    warnings: list[str] | None = None,
 ) -> EamosComputedClassification:
     normalized = [_normalize_application(application) for application in applications]
     _reject_deprecated_triggers(normalized)
@@ -160,6 +161,7 @@ def compute_acmg_points(
         posterior=posterior_from_net(net_points),
         benign_cut=benign_cut,
         per_criterion=[rows_by_code.get(code, _not_assessed_row(code)) for code in ALL_ACMG_CODES],
+        warnings=_dedupe_text(warnings or []),
     )
 
 
@@ -169,7 +171,10 @@ def compute_report_acmg_classification(
     evidence_statuses: dict[str, str] | None = None,
 ) -> EamosComputedClassification:
     applications = _applications_from_report(payload, evidence_map, evidence_statuses or {})
-    return compute_acmg_points(applications)
+    return compute_acmg_points(
+        applications,
+        warnings=_case_context_limit_warnings(payload, evidence_map, applications),
+    )
 
 
 def _applications_from_report(
@@ -197,6 +202,46 @@ def _applications_from_report(
         _put_application(applications, pvs1)
 
     return list(applications.values())
+
+
+def _case_context_limit_warnings(
+    payload: ReportPayload,
+    evidence_map: dict[str, dict],
+    applications: list[AcmgCriterionApplication],
+) -> list[str]:
+    triggered_codes = {application.code for application in applications}
+    warnings: list[str] = []
+    if "PM3" not in triggered_codes and _has_recessive_gene_disease(evidence_map):
+        warnings.append("acmg_case_context_not_scored:PM3_phase_in_trans_required")
+    if "PP4" not in triggered_codes and _has_gene_disease_context(evidence_map):
+        warnings.append("acmg_case_context_not_scored:PP4_phenotype_specificity_required")
+    return warnings
+
+
+def _has_gene_disease_context(evidence_map: dict[str, dict]) -> bool:
+    gene_disease = evidence_map.get("gene_disease")
+    if not isinstance(gene_disease, dict):
+        return False
+    if _optional_text(gene_disease.get("primary_condition")):
+        return True
+    return bool(_list_of_dicts(gene_disease.get("conditions")))
+
+
+def _has_recessive_gene_disease(evidence_map: dict[str, dict]) -> bool:
+    gene_disease = evidence_map.get("gene_disease")
+    if not isinstance(gene_disease, dict):
+        return False
+    inheritance_values = [_optional_text(gene_disease.get("inheritance"))]
+    for condition in _list_of_dicts(gene_disease.get("conditions")):
+        inheritance_values.append(_optional_text(condition.get("inheritance")))
+    return any(_is_recessive_inheritance(value) for value in inheritance_values)
+
+
+def _is_recessive_inheritance(value: str | None) -> bool:
+    if not value:
+        return False
+    normalized = " ".join(value.replace("_", " ").replace("-", " ").casefold().split())
+    return normalized == "ar" or "autosomal recessive" in normalized
 
 
 def _triggered_rows_by_code(
@@ -675,6 +720,18 @@ def _list_of_dicts(value: object) -> list[dict]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def _dedupe_text(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        text = item.strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
 
 
 def _first_text(value: object) -> str | None:

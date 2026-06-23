@@ -210,7 +210,12 @@ class LookupResponse(BaseModel):
     search_interpretation: SearchInputInterpretation | None = None
 
 
-LookupSectionId = Literal["publications", "computational_deep_dive", "clingen_vcep"]
+LookupSectionId = Literal[
+    "publications",
+    "therapies_trials",
+    "computational_deep_dive",
+    "clingen_vcep",
+]
 LookupSectionStatus = Literal["available", "partial", "missing"]
 
 
@@ -244,7 +249,7 @@ class LookupInitialSummaryResponse(BaseModel):
 
 
 class LookupSectionFetchRequest(LookupRequest):
-    include: list[LookupSectionId] = Field(min_length=1, max_length=3)
+    include: list[LookupSectionId] = Field(min_length=1, max_length=4)
 
     @field_validator("include")
     @classmethod

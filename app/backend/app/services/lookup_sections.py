@@ -20,6 +20,7 @@ from app.schemas.run import EvidenceSourceSummary, SourceProvenance
 SECTION_FETCH_ENDPOINT = "/api/v1/lookup/sections"
 LAZY_SECTION_ORDER: tuple[LookupSectionId, ...] = (
     "publications",
+    "therapies_trials",
     "computational_deep_dive",
     "clingen_vcep",
 )
@@ -29,6 +30,7 @@ TILE_FETCH_SECTION: dict[str, LookupSectionId] = {
 }
 SECTION_SOURCE_HINTS: dict[LookupSectionId, tuple[str, ...]] = {
     "publications": ("litvar2", "pubmed", "clinvar"),
+    "therapies_trials": ("clinical_trials",),
     "computational_deep_dive": (
         "computational_annotations",
         "spliceai",
@@ -119,6 +121,8 @@ def _section_envelope(
 ) -> LookupSectionEnvelope:
     if section_id == "publications":
         return _publications_envelope(response)
+    if section_id == "therapies_trials":
+        return _trials_envelope(response)
     if section_id == "computational_deep_dive":
         return _computational_envelope(response)
     return _clingen_vcep_envelope(response)
@@ -133,6 +137,38 @@ def _publications_envelope(response: LookupResponse) -> LookupSectionEnvelope:
         payload=section.model_dump(mode="json") if section is not None else None,
         freshness=_freshness(response, "publications"),
         warnings=list(section.warnings) if section is not None else ["publications_unavailable"],
+    )
+
+
+def _trials_envelope(response: LookupResponse) -> LookupSectionEnvelope:
+    profile = response.report_payload.report_profile
+    section = profile.therapies_trials if profile is not None else None
+    if section is None:
+        return LookupSectionEnvelope(
+            section_id="therapies_trials",
+            status="missing",
+            payload=None,
+            freshness=_freshness(response, "therapies_trials"),
+            warnings=["clinical_trials_unavailable"],
+        )
+
+    warnings = list(section.warnings)
+    status: LookupSectionStatus
+    if section.trial_rows:
+        status = "available"
+    elif "clinical_trials_no_active_matches" in warnings and section.query_executions:
+        status = "available"
+    elif warnings or section.query_executions or section.provenance:
+        status = "partial"
+    else:
+        status = "missing"
+
+    return LookupSectionEnvelope(
+        section_id="therapies_trials",
+        status=status,
+        payload=section.model_dump(mode="json"),
+        freshness=_freshness(response, "therapies_trials", provenance=section.provenance),
+        warnings=warnings,
     )
 
 

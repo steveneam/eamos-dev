@@ -497,6 +497,42 @@ def test_clinical_gene_disease_summary_merges_private_source_rows() -> None:
     }
 
 
+def test_clinical_gene_disease_summary_prefers_higher_validity_primary_condition() -> None:
+    summary = _clinical_gene_disease_summary(
+        gene="ABCA4",
+        clingen_rows=[
+            {
+                "gene_symbol": "ABCA4",
+                "gene_hgnc_id": "HGNC:34",
+                "disease_label": "age related macular degeneration 2",
+                "disease_id": "MONDO:0007932",
+                "mode_of_inheritance": "AD",
+                "classification": "Disputed",
+                "report_url": "https://search.clinicalgenome.org/kb/gene-validity/disputed",
+            },
+            {
+                "gene_symbol": "ABCA4",
+                "gene_hgnc_id": "HGNC:34",
+                "disease_label": "ABCA4-related retinopathy",
+                "disease_id": "MONDO:0800406",
+                "mode_of_inheritance": "AR",
+                "classification": "Definitive",
+                "report_url": "https://search.clinicalgenome.org/kb/gene-validity/definitive",
+            },
+        ],
+        gencc_rows=[],
+        mondo_rows=[],
+        hpo_rows=[],
+    )
+
+    assert summary is not None
+    assert summary["primary_condition"] == "ABCA4-related retinopathy"
+    assert summary["inheritance"] == "AR"
+    assert summary["gene_disease_validity"] == "Definitive"
+    assert summary["conditions"][0]["name"] == "ABCA4-related retinopathy"
+    assert summary["conditions"][-1]["name"] == "age related macular degeneration 2"
+
+
 def test_frontend_code_does_not_reference_private_cache_schema_or_service_role() -> None:
     frontend_roots = [REPO_ROOT / "app" / "web", REPO_ROOT / "app" / "frontend"]
     checked_files = 0

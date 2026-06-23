@@ -748,10 +748,28 @@ class TrialMatch(BaseModel):
     matched_terms: list[str] = Field(default_factory=list)
     source_url: str
     warnings: list[str] = Field(default_factory=list)
+    matched_query_id: str | None = None
+    evidence_field: str | None = None
+    evidence_snippet: str | None = None
+    last_update_posted_at: str | None = None
+
+
+class ClinicalTrialQueryExecution(BaseModel):
+    query_id: str | None = None
+    lane: str | None = None
+    query_term: str | None = None
+    params: dict[str, str] = Field(default_factory=dict)
+    source_url: str | None = None
+    registry_source_url: str | None = None
+    registry_source_release: str | None = None
+    status: str | None = None
+    result_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
 
 
 class TherapiesTrialsSection(BaseModel):
     trial_rows: list[TrialMatch] = Field(default_factory=list)
+    query_executions: list[ClinicalTrialQueryExecution] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
 

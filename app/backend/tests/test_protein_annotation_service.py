@@ -748,6 +748,49 @@ def test_protein_features_from_domain_track_adds_brca1_curated_seed() -> None:
     }.issubset(domain_labels)
 
 
+def test_protein_features_from_domain_track_adds_abca4_uniprot_seed() -> None:
+    features = protein_features_from_domain_track(
+        ProteinFeatures(),
+        ProteinDomainTrack(
+            status="unavailable",
+            gene_symbol="ABCA4",
+            protein_length=2273,
+            features=[],
+        ),
+    )
+
+    assert features.domain_track is not None
+    track = features.domain_track
+    assert track.status == "partial"
+    assert "bundled_protein_feature_seed:ABCA4" in track.warnings
+    assert any(item.source_id == "uniprot_abca4_protein_feature_seed" for item in track.provenance)
+
+    seeded = {feature.feature_id: feature for feature in track.features}
+    assert seeded["uniprot-seed:P78363:transmembrane:1728-1748:helix"].description == (
+        "ABCA4 transmembrane helix containing Ile1745"
+    )
+    assert seeded["uniprot-seed:P78363:domain:929-1160:abc-transporter-1"].short_label == (
+        "ABC1"
+    )
+    assert seeded["uniprot-seed:P78363:domain:1938-2170:abc-transporter-2"].short_label == (
+        "ABC2"
+    )
+    assert seeded[
+        "uniprot-seed:P78363:region:2244-2249:atp-binding-atpase"
+    ].short_label == "ATPase"
+
+    assert {(item.aa_start, item.aa_end) for item in features.transmembrane} >= {
+        (1728, 1748),
+        (1760, 1780),
+    }
+    domain_labels = {feature.label for feature in features.domains}
+    assert {
+        "ABC transporter 1",
+        "ABC transporter 2",
+        "Essential for ATP binding and ATPase activity",
+    }.issubset(domain_labels)
+
+
 def test_service_recomputes_stale_pfam_only_cache_when_uniprot_features_enabled(
     tmp_path: Path,
 ) -> None:

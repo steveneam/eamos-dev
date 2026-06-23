@@ -1,10 +1,11 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { Card } from '@/components/ui/Card'
-import type { ReportPayload, TrialMatch } from '@/lib/backend'
+import type { ReportPayload, TherapiesTrialsSection, TrialMatch } from '@/lib/backend'
 
 interface TrialsSectionProps {
   payload: ReportPayload
+  section?: TherapiesTrialsSection | null
   number?: number
   /** Optional action slot (CopyButton) forwarded to the Card header. */
   actions?: ReactNode
@@ -12,8 +13,8 @@ interface TrialsSectionProps {
 
 const VISIBLE_TRIALS = 5
 
-export function TrialsSection({ payload, number, actions }: TrialsSectionProps) {
-  const typedTrials = payload.report_profile?.therapies_trials ?? null
+export function TrialsSection({ payload, section, number, actions }: TrialsSectionProps) {
+  const typedTrials = section ?? payload.report_profile?.therapies_trials ?? null
   const trials = typedTrials?.trial_rows ?? []
   const warnings = typedTrials?.warnings ?? []
   if (trials.length === 0 && warnings.length === 0) return null

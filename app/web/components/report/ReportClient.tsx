@@ -67,6 +67,7 @@ import type {
   PublicationLiterature,
   SearchInputCandidate,
   SearchInputInterpretation,
+  TherapiesTrialsSection,
 } from '@/lib/backend'
 
 // LazySection lazy-branch hatch: section IDs that ReportBody will treat as
@@ -76,6 +77,7 @@ import type {
 // contract canary — same in dev and prod.
 const LAZY_OVERRIDE_VALID_IDS: readonly LookupSectionId[] = [
   'publications',
+  'therapies_trials',
   'computational_deep_dive',
   'clingen_vcep',
 ]
@@ -1061,26 +1063,35 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
 
         {/* 7 · Active trials & approved therapies. */}
         <div id="trials" className="scroll-mt-24" />
-        <TrialsSection
-          key={`trials-${variantKey}`}
-          payload={payload}
-          number={7}
-          actions={
-            <CopyButton
-              text={{
-                html: htmlTrials(
-                  payload,
-                  payload.report_profile?.therapies_trials?.trial_rows ?? [],
-                ),
-                text: tsvTrials(
-                  payload,
-                  payload.report_profile?.therapies_trials?.trial_rows ?? [],
-                ),
-              }}
-              label="Copy trials (paste into Excel for formatted table)"
-            />
+        <LazySection<TherapiesTrialsSection>
+          key={`trials-${variantKey}${lazyOverrides.has('therapies_trials') ? '-lazy' : ''}`}
+          eagerData={
+            lazyOverrides.has('therapies_trials')
+              ? null
+              : payload.report_profile?.therapies_trials
           }
-        />
+          sectionId="therapies_trials"
+          request={effectiveSummaryRequest ?? null}
+          unwrap={(env) => (env.payload as TherapiesTrialsSection | null) ?? null}
+          forceLoad={lazyOverrides.has('therapies_trials')}
+        >
+          {(section) => (
+            <TrialsSection
+              payload={payload}
+              section={section}
+              number={7}
+              actions={
+                <CopyButton
+                  text={{
+                    html: htmlTrials(payload, section.trial_rows ?? []),
+                    text: tsvTrials(payload, section.trial_rows ?? []),
+                  }}
+                  label="Copy trials (paste into Excel for formatted table)"
+                />
+              }
+            />
+          )}
+        </LazySection>
 
         {/* The AI evidence summary (formerly §8) now lives in the Ask-Eamos
             work-rail (docs/ai-work-rail/spec.md) — on-demand, not buried at the

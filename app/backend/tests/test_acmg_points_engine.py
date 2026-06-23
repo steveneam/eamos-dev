@@ -318,6 +318,72 @@ def test_report_adapter_uses_calibrated_pp3_strength_from_pejaver_label():
     assert row.svi_reference == "PMID:36413997"
 
 
+def test_report_adapter_warns_when_recessive_case_context_criteria_are_not_scored():
+    payload = ReportPayload(patient_id="lookup_test")
+    evidence_map = {
+        "gene_disease": {
+            "primary_condition": "ABCA4-related retinopathy",
+            "inheritance": "AR",
+            "conditions": [
+                {
+                    "name": "ABCA4-related retinopathy",
+                    "inheritance": "AR",
+                    "validity": "Definitive",
+                }
+            ],
+        }
+    }
+
+    result = compute_report_acmg_classification(payload, evidence_map, {})
+    rows = _rows_by_code(result)
+
+    assert rows["PM3"].triggered is False
+    assert rows["PP4"].triggered is False
+    assert "acmg_case_context_not_scored:PM3_phase_in_trans_required" in result.warnings
+    assert "acmg_case_context_not_scored:PP4_phenotype_specificity_required" in result.warnings
+
+
+def test_report_adapter_source_asserted_case_context_suppresses_pm3_pp4_warnings():
+    payload = ReportPayload(patient_id="lookup_test")
+    evidence_map = {
+        "gene_disease": {
+            "primary_condition": "ABCA4-related retinopathy",
+            "inheritance": "AR",
+        },
+        "clinical_consensus": {
+            "acmg_worksheet": {
+                "criteria": [
+                    {
+                        "code": "PM3",
+                        "state": "met",
+                        "strength": "Moderate",
+                        "assertion_level": "source_asserted",
+                        "source": "ABCA4 VCEP case review",
+                        "evidence_refs": ["phase:confirmed_in_trans"],
+                    },
+                    {
+                        "code": "PP4",
+                        "state": "met",
+                        "strength": "Supporting",
+                        "assertion_level": "source_asserted",
+                        "source": "ABCA4 VCEP case review",
+                        "evidence_refs": ["phenotype_score:3-7.5"],
+                    },
+                ]
+            }
+        },
+    }
+
+    result = compute_report_acmg_classification(payload, evidence_map, {})
+    rows = _rows_by_code(result)
+
+    assert result.net_points == 3
+    assert rows["PM3"].triggered is True
+    assert rows["PP4"].triggered is True
+    assert "acmg_case_context_not_scored:PM3_phase_in_trans_required" not in result.warnings
+    assert "acmg_case_context_not_scored:PP4_phenotype_specificity_required" not in result.warnings
+
+
 def test_report_adapter_uses_pvs1_only_when_lof_context_supports_nmd():
     payload = ReportPayload(
         patient_id="lookup_test",

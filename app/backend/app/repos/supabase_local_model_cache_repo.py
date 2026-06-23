@@ -1779,7 +1779,10 @@ def _clinical_gene_disease_summary(
         if phenotype["hpo_id"] and phenotype not in condition["phenotypes"]:
             condition["phenotypes"].append(phenotype)
 
-    conditions = list(conditions_by_key.values())
+    conditions = sorted(
+        conditions_by_key.values(),
+        key=_gene_disease_condition_sort_key,
+    )
     for condition in conditions:
         condition["disease_ids"] = _dedupe_text(condition["disease_ids"])
         condition["source_urls"] = _dedupe_text(condition["source_urls"])
@@ -1838,6 +1841,27 @@ def _clinical_gene_disease_summary(
         ),
         "warnings": warnings,
     }
+
+
+_GENE_DISEASE_VALIDITY_RANK = {
+    "definitive": 0,
+    "strong": 1,
+    "moderate": 2,
+    "limited": 3,
+    "supportive": 4,
+    "disputed evidence": 5,
+    "disputed": 5,
+    "refuted evidence": 6,
+    "refuted": 6,
+    "no known disease relationship": 7,
+}
+
+
+def _gene_disease_condition_sort_key(condition: dict[str, Any]) -> tuple[int, str]:
+    validity = (_row_text(condition, "validity") or "").casefold()
+    rank = _GENE_DISEASE_VALIDITY_RANK.get(validity, 8)
+    name = (_row_text(condition, "name") or "").casefold()
+    return rank, name
 
 
 def _clinical_gene_disease_provenance(

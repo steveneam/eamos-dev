@@ -329,5 +329,143 @@
         "lane": "domains"
       }
     ]
+  },
+  "ABCA4": {
+    "source_id": "uniprot_abca4_protein_feature_seed",
+    "source_name": "UniProtKB/Swiss-Prot ABCA4 protein-feature seed",
+    "source_url": "https://www.uniprot.org/uniprotkb/P78363/entry",
+    "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+    "features": [
+      {
+        "feature_id": "uniprot-seed:P78363:domain:929-1160:abc-transporter-1",
+        "kind": "domain",
+        "label": "ABC transporter 1",
+        "short_label": "ABC1",
+        "aa_start": 929,
+        "aa_end": 1160,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 ABC transporter domain 1",
+        "lane": "domains"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:topological-domain:1398-1727:extracellular",
+        "kind": "topological_domain",
+        "label": "Extracellular topological domain",
+        "short_label": "Extra",
+        "aa_start": 1398,
+        "aa_end": 1727,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 extracellular topological domain",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:transmembrane:1728-1748:helix",
+        "kind": "transmembrane",
+        "label": "Transmembrane helix",
+        "short_label": "TM",
+        "aa_start": 1728,
+        "aa_end": 1748,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 transmembrane helix containing Ile1745",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:topological-domain:1749-1759:cytoplasmic",
+        "kind": "topological_domain",
+        "label": "Cytoplasmic topological domain",
+        "short_label": "Cyto",
+        "aa_start": 1749,
+        "aa_end": 1759,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 cytoplasmic topological domain",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:transmembrane:1760-1780:helix",
+        "kind": "transmembrane",
+        "label": "Transmembrane helix",
+        "short_label": "TM",
+        "aa_start": 1760,
+        "aa_end": 1780,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 transmembrane helix",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:transmembrane:1793-1813:helix",
+        "kind": "transmembrane",
+        "label": "Transmembrane helix",
+        "short_label": "TM",
+        "aa_start": 1793,
+        "aa_end": 1813,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 transmembrane helix",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:transmembrane:1832-1852:helix",
+        "kind": "transmembrane",
+        "label": "Transmembrane helix",
+        "short_label": "TM",
+        "aa_start": 1832,
+        "aa_end": 1852,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 transmembrane helix",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:transmembrane:1874-1894:helix",
+        "kind": "transmembrane",
+        "label": "Transmembrane helix",
+        "short_label": "TM",
+        "aa_start": 1874,
+        "aa_end": 1894,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 transmembrane helix",
+        "lane": "topology"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:domain:1938-2170:abc-transporter-2",
+        "kind": "domain",
+        "label": "ABC transporter 2",
+        "short_label": "ABC2",
+        "aa_start": 1938,
+        "aa_end": 2170,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 ABC transporter domain 2",
+        "lane": "domains"
+      },
+      {
+        "feature_id": "uniprot-seed:P78363:region:2244-2249:atp-binding-atpase",
+        "kind": "region",
+        "label": "Essential for ATP binding and ATPase activity",
+        "short_label": "ATPase",
+        "aa_start": 2244,
+        "aa_end": 2249,
+        "source": "UniProtKB/Swiss-Prot feature table",
+        "source_accession": "P78363",
+        "source_release": "UniProtKB reviewed entry P78363; annotation updated 2026-06-10",
+        "description": "ABCA4 region essential for ATP binding and ATPase activity",
+        "lane": "motifs"
+      }
+    ]
   }
 }

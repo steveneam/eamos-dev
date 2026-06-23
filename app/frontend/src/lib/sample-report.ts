@@ -564,6 +564,7 @@ export const RPE65_SAMPLE: LookupResponse = {
       },
       therapies_trials: {
         trial_rows: RPE65_TRIAL_ROWS,
+        query_executions: [],
         warnings: [
           'clinical_trials_discovery_only:not_eligibility',
           'clinical_trials_gene_level_target_only',
