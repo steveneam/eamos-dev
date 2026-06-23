@@ -130,6 +130,7 @@ export interface EamosComputedClassification {
   posterior: number
   benign_cut: EamosComputedBenignCut
   per_criterion: EamosComputedCriterion[]
+  warnings?: string[]
 }
 
 export interface ReportPayload {
@@ -912,6 +913,25 @@ export type SourceStatus =
   | 'error'
   | 'failed'
 export type ReportMatchLevel = 'variant_level' | 'gene_level' | 'disease_level' | 'unavailable'
+export type ReportSectionSignalStatus = 'ready' | 'limited' | 'empty' | 'error' | 'loading'
+export type ReportSectionRelevance =
+  | 'exact_variant'
+  | 'equivalent_allele'
+  | 'protein_region'
+  | 'transcript_locus'
+  | 'gene_disease'
+  | 'disease_discovery'
+  | 'gene_discovery'
+  | 'summary'
+export type ReportSectionSourceStrength =
+  | 'expert_panel'
+  | 'curated'
+  | 'primary_db'
+  | 'literature'
+  | 'eamos_computed'
+  | 'source_mixed'
+  | 'inferred'
+  | 'unavailable'
 export type EvidenceAssertionLevel =
   | 'source_asserted'
   | 'vcep_specified'
@@ -1317,6 +1337,20 @@ export interface GeneContextSnapshot {
   warnings: string[]
 }
 
+export interface ReportSectionSignal {
+  section_id: string
+  label: string
+  priority: number
+  confidence: number
+  relevance: ReportSectionRelevance
+  source_strength: ReportSectionSourceStrength
+  status: ReportSectionSignalStatus
+  default_open: boolean
+  headline?: string | null
+  data_notes: string[]
+  source_refs: string[]
+}
+
 export interface VariantReportProfile {
   extraction_plan?: ReportExtractionPlan | null
   header?: VariantReportHeader | null
@@ -1329,6 +1363,7 @@ export interface VariantReportProfile {
   acmg_worksheet?: AcmgWorksheetLedger | null
   expert_panel?: ExpertPanelSection | null
   therapies_trials?: TherapiesTrialsSection | null
+  section_signals: ReportSectionSignal[]
   provenance: SourceProvenance[]
 }
 

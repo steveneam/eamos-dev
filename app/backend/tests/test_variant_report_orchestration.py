@@ -260,6 +260,25 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert profile["therapies_trials"]["trial_rows"] == []
     assert "structured_clinical_trials_require_live_api" in profile["therapies_trials"]["warnings"]
     assert "clinical_trials_structured_rows_unavailable" in profile["therapies_trials"]["warnings"]
+    section_signals = profile["section_signals"]
+    assert section_signals == sorted(
+        section_signals,
+        key=lambda item: (-item["priority"], item["section_id"]),
+    )
+    signals_by_id = {item["section_id"]: item for item in section_signals}
+    assert signals_by_id["population_frequency"]["relevance"] == "exact_variant"
+    assert signals_by_id["population_frequency"]["source_strength"] == "primary_db"
+    assert signals_by_id["population_frequency"]["default_open"] is True
+    assert signals_by_id["computational_deep_dive"]["default_open"] is True
+    assert signals_by_id["publications"]["default_open"] is True
+    assert signals_by_id["therapies_trials"]["relevance"] == "disease_discovery"
+    assert signals_by_id["therapies_trials"]["default_open"] is True
+    assert signals_by_id["therapies_trials"]["priority"] < signals_by_id["acmg_worksheet"][
+        "priority"
+    ]
+    assert "clinical_trials_structured_rows_unavailable" in signals_by_id["therapies_trials"][
+        "data_notes"
+    ]
     assert {item["source"] for item in profile["provenance"]} >= {"gnomad", "clinvar", "pubmed"}
     population_card = next(
         card
@@ -397,6 +416,75 @@ def test_lookup_structured_clinical_trials_flow_into_report_profile(client) -> N
     assert "clinical_trials_gene_level_target_only" in trials["warnings"]
     assert "variant_level_trial_not_found:using_lower_match_level" in trials["warnings"]
     assert trials["provenance"][0]["status"] == "live"
+
+
+def test_lookup_abca4_tinlarebant_trial_flows_into_report_profile(client) -> None:
+    class TinlarebantTrialsTool:
+        def get_trial_matches(self, *args, **kwargs):
+            warnings = [
+                "clinical_trials_variant_level_not_found",
+                "variant_level_trial_not_found:using_lower_match_level",
+            ]
+            return ToolResult(
+                source="clinical_trials",
+                status="live",
+                request_identity={
+                    "gene": "ABCA4",
+                    "variant_aliases": ["NM_000350.3:c.5461-10T>C", "c.5461-10T>C"],
+                    "selected_query": '"Tinlarebant"',
+                },
+                summary={
+                    "trial_rows": [
+                        {
+                            "nct_id": "NCT06388083",
+                            "title": (
+                                "A Phase 2/3 Study to Evaluate the Efficacy and Safety "
+                                "of Tinlarebant in Subjects With Stargardt Disease"
+                            ),
+                            "status": "ACTIVE_NOT_RECRUITING",
+                            "phase": "Phase 2/Phase 3",
+                            "conditions": ["STGD1", "Stargardt Disease 1"],
+                            "interventions": ["Tinlarebant", "Placebo"],
+                            "locations": ["Belite Study Site - US08"],
+                            "match_level": "disease_level",
+                            "matched_terms": ["Tinlarebant"],
+                            "source_url": "https://clinicaltrials.gov/study/NCT06388083",
+                            "warnings": [
+                                "clinical_trials_discovery_only:not_eligibility",
+                                "clinical_trials_disease_level_match:not_variant_specific",
+                            ],
+                        }
+                    ],
+                    "total": 1,
+                    "query_term": '"Tinlarebant"',
+                    "source_url": "https://clinicaltrials.gov/search?term=Tinlarebant",
+                    "warnings": warnings,
+                },
+                warnings=warnings,
+                raw=None,
+                source_url="https://clinicaltrials.gov/search?term=Tinlarebant",
+            )
+
+        def get_trials_summary(self, gene: str) -> str:
+            return "fallback summary should not be used"
+
+    registry = client.app.state.lookup_service.tool_registry
+    original_tool = registry["clinical_trials"]
+    registry["clinical_trials"] = TinlarebantTrialsTool()
+    try:
+        report_payload = _lookup_payload(client, "ABCA4", "c.5461-10T>C")
+    finally:
+        registry["clinical_trials"] = original_tool
+
+    trials = report_payload["report_profile"]["therapies_trials"]
+    assert len(trials["trial_rows"]) == 1
+    row = trials["trial_rows"][0]
+    assert row["nct_id"] == "NCT06388083"
+    assert row["match_level"] == "disease_level"
+    assert "Tinlarebant" in row["interventions"]
+    assert row["source_url"] == "https://clinicaltrials.gov/study/NCT06388083"
+    assert "clinical_trials_gene_level_target_only" in trials["warnings"]
+    assert "variant_level_trial_not_found:using_lower_match_level" in trials["warnings"]
 
 
 def test_lookup_cftr_leu441_frameshift_requires_confirmation_without_report_metrics(

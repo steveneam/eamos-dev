@@ -277,6 +277,7 @@ class EamosComputedClassification(BaseModel):
     posterior: float = Field(ge=0.0, le=1.0)
     benign_cut: EamosComputedBenignCut
     per_criterion: list[EamosComputedCriterion] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ReportCallBadge(BaseModel):
@@ -497,6 +498,27 @@ SourceStatus = Literal[
 ReportMatchLevel = Literal["variant_level", "gene_level", "disease_level", "unavailable"]
 ReportDataCurrencyTier = Literal["volatile", "static"]
 ReportDataCurrencyStatus = Literal["fresh", "stale", "overdue", "unknown"]
+ReportSectionSignalStatus = Literal["ready", "limited", "empty", "error", "loading"]
+ReportSectionRelevance = Literal[
+    "exact_variant",
+    "equivalent_allele",
+    "protein_region",
+    "transcript_locus",
+    "gene_disease",
+    "disease_discovery",
+    "gene_discovery",
+    "summary",
+]
+ReportSectionSourceStrength = Literal[
+    "expert_panel",
+    "curated",
+    "primary_db",
+    "literature",
+    "eamos_computed",
+    "source_mixed",
+    "inferred",
+    "unavailable",
+]
 EvidenceAssertionLevel = Literal[
     "source_asserted",
     "vcep_specified",
@@ -927,6 +949,20 @@ class GeneContextSnapshot(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class ReportSectionSignal(BaseModel):
+    section_id: str
+    label: str
+    priority: int = Field(ge=0, le=100)
+    confidence: float = Field(ge=0.0, le=1.0)
+    relevance: ReportSectionRelevance
+    source_strength: ReportSectionSourceStrength
+    status: ReportSectionSignalStatus
+    default_open: bool = False
+    headline: str | None = None
+    data_notes: list[str] = Field(default_factory=list)
+    source_refs: list[str] = Field(default_factory=list)
+
+
 class VariantReportProfile(BaseModel):
     extraction_plan: ReportExtractionPlan | None = None
     header: VariantReportHeader | None = None
@@ -939,6 +975,7 @@ class VariantReportProfile(BaseModel):
     acmg_worksheet: AcmgWorksheetLedger | None = None
     expert_panel: ExpertPanelSection | None = None
     therapies_trials: TherapiesTrialsSection | None = None
+    section_signals: list[ReportSectionSignal] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
 
 

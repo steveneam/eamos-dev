@@ -37,6 +37,7 @@ from .panels import (
 from .run import (
     EvidenceSourceSummary,
     ReportPayload,
+    ReportSectionSignal,
     RunRequest,
     RunResponse,
     RunStatus,
@@ -82,6 +83,7 @@ __all__ = [
     "RegisterRequest",
     "ReportDraftUpdatePayload",
     "ReportPayload",
+    "ReportSectionSignal",
     "ReportUploadResponse",
     "ReviewResult",
     "ReviewStatus",
