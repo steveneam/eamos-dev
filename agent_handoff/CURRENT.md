@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-24 19:25 +1000 - Next-session pillar plan and resume prompt updated after safe local commit closeout. No push/deploy.
+- **Codex:** STOPPED @ 2026-06-24 23:47 +1000 - Pushed report failure-state/protein architecture fix `f0613f7`; no deploy/Vercel command/Render env mutation/Supabase mutation.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-24 19:25 +1000 - Codex (next-session pillar plan updated)
+UNLOCKED - 2026-06-24 23:48 +1000 - Codex (report/protein closeout recorded)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,59 +427,63 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-24 19:25 +1000 - Codex.
+Section last edited: 2026-06-24 23:47 +1000 - Codex.
 
-**Latest Codex update (2026-06-24 19:17 +1000 - Codex):**
-Safe local commit split completed from the audited worktree. New local commits:
-`a12019e` report evidence framework follow-up, `94e3fb9` ClinVar
-gene-distribution artifact readiness, `e46a401` encoding-scan tooling,
-`8a33f41` proprietary AI-gateway validation wording, `45da0ea` ABCA4 viewer
-curated fallback, and `145ef67` graphify/search workflow ratchet. No push,
-deploy, Vercel/vc command, Render env mutation, provider flip, or Supabase
-mutation was run.
+**Latest Codex update (2026-06-24 23:47 +1000 - Codex):**
+Steven approved next-session pillars 1-5. Codex fetched, confirmed root
+`.vercel/project.json` remains linked to `eamos-dev`, confirmed
+`app/web/.vercel` is absent, pushed the prior local commit stack, then shipped a
+new pushed commit:
 
-Steven follow-ups handled:
-- Proprietary doc reviewed and committed. Changed content contains no actual
-  secrets; only public env names/vendor labels and fail-closed validation
-  wording were present.
-- Untracked temp payload snapshots deleted:
-  `.tmp-abca4-c5461-live-lookup.json` and
-  `.tmp-abca4-c5461-live-publications-section.json`.
-- Protein-view follow-up: live SG now returns 200 for the exact handoff payload
-  `ABCA4 c.5435T>A`, `NM_000350.3`, `variant`, `around_variant`; the earlier
-  500 was not reproducible at closeout. Local regression coverage still fixes
-  the failure mode by falling back from live provider exceptions to curated
-  ABCA4 fixture context, with bundled UniProt seed features preserved when
-  protein annotation is unavailable/fail-closed.
-- Workflow ratchet added in `AGENTS.md`: run `python -m graphify update .` with
-  a long timeout first (at least 360s), and scope routine `rg` away from
-  archive-heavy paths unless history is needed.
+- `f0613f7 fix(report): surface failure states and dedupe protein architecture`
 
-Verification completed: focused gene-viewer/protein-annotation pytest suite,
-focused ABCA4 fallback/seed pytest, Ruff, Black check, `git diff --check`,
-encoding scan (`607` text files clean), live SG ABCA4 viewer probe 200, and
-`python -m graphify update .` with the long timeout (no topology output change).
+What landed in `f0613f7`:
+- Report launch failure states: gnomAD population-frequency unavailable state
+  now renders as an explicit section instead of silently blanking; live
+  gene-viewer fallback warnings and protein-domain warnings are humanized.
+- Durable browser ratchet: `scripts/eamos-report-preflight.mjs` now waits for
+  report readiness, checks required report cards, includes `therapies_trials`
+  in lazy-section coverage, and still catches mobile overflow.
+- Protein architecture fix: added gene-agnostic duplicate collapse in
+  `app/web/lib/protein-architecture.ts`; `ReportGeneViewer` no longer
+  reintroduces non-domain protein-track features as domain entries. ABCA4 now
+  renders one `7TM x5` group and one `ATPase` feature.
+- Regression coverage: new
+  `scripts/eamos-protein-architecture-regression.mjs` plus
+  `npm --prefix app/web run test:protein-architecture` covers synthetic
+  gene-agnostic duplicate/overlap cases.
+- Product invariant ratchet: `CODEX.md` and `MEMORY.md` now state that Eamos is
+  a gene/variant-agnostic search/evidence platform; fixes must land at shared
+  normalization/selection/orchestration/source-cache boundaries with pure
+  helper coverage, not as single-gene browser-only patches.
 
-Recommended next-session pillars, in order:
-1. Release decision: decide whether to push the 7 local commits; if yes, fetch,
-   verify Vercel guard state, and push from repo root only.
-2. Launch P0 closure: data-currency end-to-end, gnomAD unavailable reason, and
-   report/gene-viewer failure states.
-3. Scientific credibility P1: ClinGen Evidence Repository source-cache,
+Verification completed: `npm --prefix app/web run test:protein-architecture`,
+`npm --prefix app/web run lint`, `git diff --check`, browser DOM count
+(`7TM` rows = 1, `ATPase` rows = 1), report preflight at 375/768 px (no
+overflow, required cards present), and `python -m graphify update .` with long
+timeout. Graphify generated files were updated locally but are rebuildable and
+not staged. No deploy/Vercel command/Render env mutation/Supabase mutation.
+
+Remaining next-session pillars:
+1. Launch P0 closure: data-currency end-to-end and any remaining
+   report/gene-viewer failure-state edge cases.
+2. Scientific credibility P1: ClinGen Evidence Repository source-cache,
    source-version pins, in-silico calibration, and ClinVar distribution artifact
    operational gap.
-4. Protein/viewer reliability: surface warnings clearly and keep protein runtime
-   enablement gated by provider-cache readiness.
-5. Operational ratchets: continue converting repeated mundane checks into
-   durable instructions or scripts.
+3. Protein/viewer reliability: continue provider-cache-gated runtime
+   enablement, but keep fixes gene-agnostic and helper-tested first.
+4. Operational ratchets: continue converting repeated checks into durable
+   scripts/instructions.
+5. UI layout follow-up: Steven asked about the large right-side desktop space;
+   likely report/work-rail layout gutter, not fixed in this commit.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-24 19:25 +1000 - Codex next-session pillars after safe local commits
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-backend-source-cache-readiness/plan.md, docs/report-evidence-framework/plan.md, docs/report-launch-readiness/assignments.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Safe local commit split is complete. Local main is ahead with: a12019e report evidence framework follow-up; 94e3fb9 ClinVar gene-distribution artifact readiness; e46a401 encoding-scan tooling; 8a33f41 proprietary AI-gateway validation wording; 45da0ea curated viewer fallback for live source failures; 145ef67 AGENTS graphify/search workflow ratchet; b7ec128 handoff/report-launch closeout; plus a next-session-pillar handoff commit if present. No push/deploy/Vercel command/Render env mutation/Supabase mutation occurred.
-Steven follow-ups: proprietary doc was reviewed, had no actual secrets in changed content, and was committed; `.tmp-abca4-c5461-live-lookup.json` and `.tmp-abca4-c5461-live-publications-section.json` were deleted. Live SG returned 200 for ABCA4 c.5435T>A viewer around_variant, so the earlier 500 was not reproducible; local regression coverage now handles the live-provider failure path with curated ABCA4 fallback and protein seed preservation.
-Next-session pillars, in order: (1) release decision: decide whether Steven wants the local commits pushed despite frontend files in the report commit; if yes, fetch first, confirm root `.vercel` remains linked to eamos-dev and `app/web/.vercel` remains absent, then push from repo root only. (2) Launch P0 closure: data-currency end-to-end, gnomAD unavailable reason/no blank section, and report/gene-viewer failure states. (3) Scientific credibility P1: ClinGen Evidence Repository source-cache, source-version pins, in-silico calibration, and ClinVar distribution artifact operational gap. (4) Protein/viewer reliability: surface warnings clearly and keep protein runtime enablement gated by provider-cache readiness. (5) Operational ratchets: convert repeated checks into durable instructions/scripts.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; use explicit pathspecs; do not add generated temp payloads; keep real ClinVar deployed-artifact generation/sync operator-gated; do not disable Supabase local-model cache as a product fix.
-Verification already passed: focused gene-viewer/protein-annotation pytest, focused ABCA4 fallback/seed pytest, Ruff, Black check, git diff --check, encoding scan, live SG ABCA4 viewer 200, and graphify AST update with long timeout. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-24 23:47 +1000 - Codex report failure-state/protein architecture closeout
+Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-backend-source-cache-readiness/plan.md, docs/report-evidence-framework/plan.md, docs/report-launch-readiness/assignments.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Prior local commit stack was pushed, then commit `f0613f7 fix(report): surface failure states and dedupe protein architecture` was pushed to origin/main. No deploy/Vercel command/Render env mutation/Supabase mutation occurred. Root `.vercel` remained linked to `eamos-dev`; `app/web/.vercel` remained absent.
+What changed: gnomAD unavailable states no longer silently blank the report section; gene-viewer/protein fallback warnings are humanized; report preflight now waits for readiness and fails if required cards disappear; protein architecture selection now collapses duplicate canonical/overlapping features in shared helper logic; ABCA4 renders one `7TM x5` group and one `ATPase`; `CODEX.md`/`MEMORY.md` now record that Eamos is gene/variant agnostic and fixes must target shared boundaries with pure helper coverage, not single-gene browser-only patches.
+Verification already passed: `npm --prefix app/web run test:protein-architecture`, `npm --prefix app/web run lint`, `git diff --check`, browser DOM count (`7TM` rows = 1, `ATPase` rows = 1), `node scripts/eamos-report-preflight.mjs --url='http://localhost:3001/report?gene=ABCA4&cdna=c.5435T%3EA' --widths=375,768 --ignore-locus-marker --timeout=120000`, and `python -m graphify update .` with long timeout. Graphify generated files are rebuildable and not staged.
+Next: continue launch P0 data-currency end-to-end and residual report/gene-viewer failure-state edges; then Scientific credibility P1 (ClinGen Evidence Repository source-cache, source-version pins, in-silico calibration, ClinVar distribution artifact operational gap); keep protein/viewer work gene-agnostic and helper-tested first. Steven also asked about large right-side desktop whitespace; likely report/work-rail layout gutter, not fixed in `f0613f7`.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; use explicit pathspecs; do not add generated temp payloads; keep real ClinVar deployed-artifact generation/sync operator-gated; do not disable Supabase local-model cache as a product fix. End clear-safe with a fresh stamped resume prompt.
 ```
