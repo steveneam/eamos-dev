@@ -26,7 +26,9 @@ from app.services.reference_genome import ReferenceWindow
 from app.services.sequence_context import normalize_sequence_query, unsupported_input_warning
 from app.services.compact_coordinate_index import CompactCoordinateIndex
 from app.services.gene_viewer import (
+    GENE_VIEWER_CURATED_FIXTURE_FALLBACK,
     GENE_VIEWER_PROVIDER_FAILED_PREFIX,
+    GENE_VIEWER_LIVE_PROVIDER_FALLBACK_PREFIX,
     GENE_VIEWER_REFERENCE_MISMATCH,
     GeneViewerError,
     GeneViewerFixtureProvider,
@@ -81,6 +83,29 @@ class FailingGeneViewerService:
 
     def build_viewer(self, _payload):
         raise self.error
+
+
+class FailingViewerProvider:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+        self.calls = 0
+
+    def viewer(self, _payload):
+        self.calls += 1
+        raise self.error
+
+
+class UnavailableProteinAnnotationService:
+    def annotate(self, request: ProteinAnnotationRequest) -> ProteinDomainTrack:
+        return ProteinDomainTrack(
+            status="unavailable",
+            fail_closed_reason="protein_annotation_disabled",
+            sequence_label=request.sequence_label,
+            gene_symbol=request.gene_symbol,
+            transcript=request.transcript,
+            protein_length=2273 if request.gene_symbol == "ABCA4" else None,
+            features=[],
+        )
 
 
 class MockOfficialGeneViewerSourceClient:
@@ -1557,6 +1582,51 @@ def test_viewer_endpoint_uses_injected_live_provider_when_real_mode_is_enabled(c
     assert {"chrom": "chr1", "start": 970, "end": 999, "strand": "-"} in (
         source_client.sequence_calls
     )
+
+
+def test_viewer_endpoint_real_mode_falls_back_to_curated_abca4_fixture(client) -> None:
+    live_provider = FailingViewerProvider(
+        GeneViewerError(
+            code=f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:RuntimeError",
+            message="simulated live source failure",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    )
+    client.app.state.gene_viewer_service = GeneViewerService(
+        settings=Settings(jwt_secret="test-secret", use_real_apis=True),
+        protein_annotation_service=UnavailableProteinAnnotationService(),
+        live_provider=live_provider,
+    )
+
+    response = client.post(
+        "/api/v1/viewer",
+        json={
+            "gene": "ABCA4",
+            "cdna": "c.5435T>A",
+            "transcript": "NM_000350.3",
+            "allele_mode": "variant",
+            "window": {"kind": "around_variant"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert live_provider.calls == 1
+    body = response.json()
+    assert body["identity"]["gene"] == "ABCA4"
+    assert body["sequences"]["allele_mode"] == "variant"
+    warnings = body["provenance"]["warnings"]
+    assert GENE_VIEWER_CURATED_FIXTURE_FALLBACK in warnings
+    assert (
+        f"{GENE_VIEWER_LIVE_PROVIDER_FALLBACK_PREFIX}:"
+        f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:RuntimeError"
+    ) in warnings
+    assert "protein_domain_track_from_local_cache" in warnings
+    track = body["tracks"]["protein_features"]["domain_track"]
+    assert track["status"] == "partial"
+    assert "bundled_protein_feature_seed:ABCA4" in track["warnings"]
+    seeded = {feature["feature_id"]: feature for feature in track["features"]}
+    assert seeded["uniprot-seed:P78363:transmembrane:1728-1748:helix"]["short_label"] == "TM"
+    assert seeded["uniprot-seed:P78363:domain:1938-2170:abc-transporter-2"]["short_label"] == "ABC2"
 
 
 def test_viewer_endpoint_full_gene_uses_fixture_fallback_in_real_mode(client) -> None:

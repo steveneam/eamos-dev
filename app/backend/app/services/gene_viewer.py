@@ -84,6 +84,8 @@ GENE_VIEWER_SERVICE_UNAVAILABLE = "workbench_viewer_service_unavailable"
 GENE_VIEWER_LIVE_UNAVAILABLE = "workbench_viewer_live_unavailable"
 GENE_VIEWER_REFERENCE_MISMATCH = unsupported_input_warning("reference_mismatch")
 GENE_VIEWER_UNSUPPORTED_VARIANT = unsupported_input_warning("variant_type")
+GENE_VIEWER_CURATED_FIXTURE_FALLBACK = "gene_viewer_curated_fixture_fallback"
+GENE_VIEWER_LIVE_PROVIDER_FALLBACK_PREFIX = "gene_viewer_live_provider_failed_fallback"
 HTTP_UNPROCESSABLE_ENTITY = 422
 AA3_TO_AA1 = {
     "Ala": "A",
@@ -270,8 +272,42 @@ class GeneViewerService:
 
     def build_viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
         if self.settings is not None and self.settings.use_real_apis:
-            return self.live_provider.viewer(payload)
+            try:
+                return self.live_provider.viewer(payload)
+            except GeneViewerError as exc:
+                fallback = self._fixture_fallback(payload, reason=exc.code)
+                if fallback is not None:
+                    return fallback
+                raise
+            except Exception as exc:
+                fallback = self._fixture_fallback(payload, reason=type(exc).__name__)
+                if fallback is not None:
+                    return fallback
+                raise GeneViewerError(
+                    code=f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                    message="Gene viewer source provider failed while building the viewer.",
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                ) from exc
         return self.fixture_provider.viewer(payload)
+
+    def _fixture_fallback(
+        self,
+        payload: GeneViewerRequest,
+        *,
+        reason: str,
+    ) -> GeneViewerResponse | None:
+        try:
+            response = self.fixture_provider.viewer(payload)
+        except GeneViewerError:
+            return None
+        response.provenance.warnings = _dedupe_warnings(
+            [
+                *response.provenance.warnings,
+                GENE_VIEWER_CURATED_FIXTURE_FALLBACK,
+                f"{GENE_VIEWER_LIVE_PROVIDER_FALLBACK_PREFIX}:{reason}",
+            ]
+        )
+        return response
 
 
 class GeneViewerProvider(Protocol):
@@ -1433,15 +1469,16 @@ def _hydrate_response_with_record_protein_track(
             allow_run=False,
         )
     )
-    if track.status not in {"available", "cache_hit", "partial"}:
-        return
     response.tracks.protein_features = protein_features_from_domain_track(
         response.tracks.protein_features,
         track,
     )
-    response.provenance.warnings = _dedupe_warnings(
-        [*response.provenance.warnings, "protein_domain_track_from_local_cache"]
-    )
+    merged_track = response.tracks.protein_features.domain_track
+    if merged_track is not None and merged_track.status in {"available", "cache_hit", "partial"}:
+        warning = "protein_domain_track_from_local_cache"
+    else:
+        warning = f"protein_domain_track_unavailable:{track.fail_closed_reason or track.status}"
+    response.provenance.warnings = _dedupe_warnings([*response.provenance.warnings, warning])
 
 
 def _hydrate_response_with_source_protein_track(
