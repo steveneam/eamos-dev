@@ -10,6 +10,11 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `python -m graphify update .` to keep the graph current (AST-only, no API cost).
+- `python -m graphify update .` routinely exceeds short/default command ceilings on
+  this repo. Run it with a long timeout (at least 360 seconds) the first time;
+  do not burn a short timeout before rerunning.
+- For routine codebase searches, scope `rg` to the current handoff/docs/source
+  files and avoid `agent_handoff/archive/` unless historical context is required.
 
 Maintenance practice:
 - Follow the Selom-style maintenance model: use cheap AST updates routinely, and run semantic extraction only when Steven explicitly asks or at deliberate release/handoff checkpoints.
