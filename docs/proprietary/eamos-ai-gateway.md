@@ -36,9 +36,11 @@ Eamos-original guardrail spine. Four cooperating pieces:
      [Search Input AI Extractor](./search-input-ai.md)).
    - **paper→variants** (`services/paper_variants.py`, `schemas/paper_variants.py`,
      `cli/eamos_paper_variants.py`): extract variant mentions from publication text,
-     then **gate each candidate through `VariantValidatorTool`** — a candidate is only
-     surfaced as `validated` when VariantValidator resolves it to a GRCh38 coordinate,
-     so hallucinated/malformed variants are dropped. Mock-first regex extractor offline.
+     then gate cDNA/genomic candidates through `EamosSearchInputResolver` and
+     protein-only candidates through source-backed candidate resolution. Candidates
+     are surfaced as validated only when a coordinate or single high-confidence
+     source-backed allele is available; ambiguous suggestions and experimental
+     constructs fail closed. Mock-first regex extractor offline.
 
 ## Why It Is Eamos-Original
 
