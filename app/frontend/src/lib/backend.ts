@@ -119,6 +119,15 @@ export interface EamosComputedCriterion {
   svi_reference?: string | null
 }
 
+export interface AcmgCaseContextLimitation {
+  code: string
+  status: 'not_scored'
+  reason: 'missing_case_context'
+  missing_inputs: string[]
+  applies_when: string[]
+  message: string
+}
+
 export interface EamosComputedClassification {
   acmg_version_pin: EamosComputedVersionPin
   net_points: number
@@ -130,6 +139,7 @@ export interface EamosComputedClassification {
   posterior: number
   benign_cut: EamosComputedBenignCut
   per_criterion: EamosComputedCriterion[]
+  limitations?: AcmgCaseContextLimitation[]
   warnings?: string[]
 }
 
@@ -962,6 +972,24 @@ export interface SourceProvenance {
   warnings: string[]
 }
 
+export interface EvidenceIdentityMatch {
+  tier:
+    | 'assertion_id'
+    | 'caid'
+    | 'clinvar_variation_id'
+    | 'vrs'
+    | 'spdi'
+    | 'genomic_hgvs'
+    | 'transcript_hgvs'
+    | 'candidate_text'
+  source_field: string
+  requested: string
+  matched: string
+  normalized_requested: string
+  normalized_matched: string
+  auto_attach_allowed: boolean
+}
+
 export interface ExpertPanelVcep {
   id: string
   name: string
@@ -988,6 +1016,7 @@ export interface ExpertPanelProvenance {
   source_version: string
   cache_record_id?: string | null
   raw_jsonld_ref?: string | null
+  identity_match?: EvidenceIdentityMatch | null
 }
 
 export interface ExpertPanelSection {

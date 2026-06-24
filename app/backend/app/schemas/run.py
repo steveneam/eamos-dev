@@ -111,6 +111,8 @@ EamosComputedTier = Literal[
 EamosComputedDirection = Literal["pathogenic", "benign"]
 EamosComputedStrength = Literal["very_strong", "strong", "moderate", "supporting"]
 EamosComputedBenignCut = Literal["tavtigian_2020", "acgs_panel"]
+AcmgCaseContextLimitationStatus = Literal["not_scored"]
+AcmgCaseContextLimitationReason = Literal["missing_case_context"]
 
 
 class PublicationSnippet(BaseModel):
@@ -266,6 +268,15 @@ class EamosComputedCriterion(BaseModel):
     svi_reference: str | None = None
 
 
+class AcmgCaseContextLimitation(BaseModel):
+    code: str
+    status: AcmgCaseContextLimitationStatus = "not_scored"
+    reason: AcmgCaseContextLimitationReason = "missing_case_context"
+    missing_inputs: list[str] = Field(default_factory=list)
+    applies_when: list[str] = Field(default_factory=list)
+    message: str
+
+
 class EamosComputedClassification(BaseModel):
     acmg_version_pin: EamosComputedVersionPin
     net_points: int
@@ -277,6 +288,7 @@ class EamosComputedClassification(BaseModel):
     posterior: float = Field(ge=0.0, le=1.0)
     benign_cut: EamosComputedBenignCut
     per_criterion: list[EamosComputedCriterion] = Field(default_factory=list)
+    limitations: list[AcmgCaseContextLimitation] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -554,6 +566,25 @@ class ReportDataCurrency(BaseModel):
     sources: list[ReportDataCurrencySource] = Field(default_factory=list)
 
 
+class EvidenceIdentityMatch(BaseModel):
+    tier: Literal[
+        "assertion_id",
+        "caid",
+        "clinvar_variation_id",
+        "vrs",
+        "spdi",
+        "genomic_hgvs",
+        "transcript_hgvs",
+        "candidate_text",
+    ]
+    source_field: str
+    requested: str
+    matched: str
+    normalized_requested: str
+    normalized_matched: str
+    auto_attach_allowed: bool
+
+
 class SourceProvenance(BaseModel):
     source: str
     status: SourceStatus
@@ -590,6 +621,7 @@ class ExpertPanelProvenance(BaseModel):
     source_version: str
     cache_record_id: str | None = None
     raw_jsonld_ref: str | None = None
+    identity_match: EvidenceIdentityMatch | None = None
 
 
 class ExpertPanelSection(BaseModel):

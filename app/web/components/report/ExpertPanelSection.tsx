@@ -42,6 +42,13 @@ function strengthSuffix(code: string, applied: string): string | null {
   return applied.slice(prefix.length)
 }
 
+function formatIdentityTier(value: string): string {
+  return value
+    .split('_')
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(' ')
+}
+
 function FreshnessChip({ data }: { data: ExpertPanelSectionData }) {
   if (data.freshness === 'fresh') return null
   if (data.freshness === 'stale') {
@@ -127,6 +134,7 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
   // Per-source verdict dot — lets a clinician read the Expert Panel's own call
   // at a glance, distinct from the headline §3 verdict.
   const dotColor = resolveClassificationConfig(classificationText).dot
+  const identityMatch = data.provenance.identity_match
 
   // Flattened block (no nested Card): lives inside the §3 Clinical evidence
   // section alongside ClinVarBlock + AcmgCriteriaFold, sharing the same
@@ -231,6 +239,14 @@ export function ExpertPanelSection({ data: dataProp }: ExpertPanelSectionProps) 
           </a>
           <span>·</span>
           <span>Fetched {formatFetchedAt(data.provenance.fetched_at)}</span>
+          {identityMatch && (
+            <>
+              <span>&middot;</span>
+              <span title={`Matched ${identityMatch.matched}`}>
+                Identity {formatIdentityTier(identityMatch.tier)} via {identityMatch.source_field}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>

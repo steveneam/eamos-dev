@@ -221,6 +221,25 @@ class ClingenTool(FixtureBackedTool):
         return _filter_variant_identity_records(records, terms)
 
 
+def cached_clingen_result_matches_variant(result: ToolResult, variant: Any) -> bool:
+    """Revalidate a cached VCEP result before it can attach to a report."""
+
+    terms = _variant_terms(variant)
+    if not terms:
+        return False
+
+    summary = result.summary if isinstance(result.summary, dict) else {}
+    for candidate in (
+        summary.get("identity_match"),
+        _nested_identity_match(summary, "expert_panel", "provenance", "identity_match"),
+    ):
+        if _identity_match_matches_terms(candidate, terms):
+            return True
+
+    records = _cached_raw_records(result.raw)
+    return bool(records and _filter_variant_identity_records(records, terms))
+
+
 def _variant_terms(variant: Any) -> list[str]:
     terms: list[str] = []
     transcript_hgvs = str(getattr(variant, "transcript_hgvs", "") or "").strip()
@@ -253,21 +272,30 @@ def _matching_fixture_records(
     records = fixture.get("records")
     if not isinstance(records, list):
         return []
-    return [
+    gene_records = [
         record
         for record in records
-        if isinstance(record, dict) and _record_matches(record, gene, terms)
+        if isinstance(record, dict) and _record_gene_matches(record, gene)
     ]
+    if not terms:
+        return gene_records
+    return _filter_variant_identity_records(gene_records, terms)
 
 
 def _record_matches(record: dict[str, Any], gene: str, terms: list[str]) -> bool:
+    if not _record_gene_matches(record, gene):
+        return False
+    if not terms:
+        record_gene = str(record.get("gene") or record.get("geneSymbol") or "").strip().upper()
+        return bool(gene and record_gene == gene)
+    return _strict_variant_record_matches(record, terms)
+
+
+def _record_gene_matches(record: dict[str, Any], gene: str) -> bool:
     record_gene = str(record.get("gene") or record.get("geneSymbol") or "").strip().upper()
     if gene and record_gene and record_gene != gene:
         return False
-    if not terms:
-        return bool(gene and record_gene == gene)
-
-    return _strict_variant_record_matches(record, terms)
+    return True
 
 
 def _filter_variant_identity_records(
@@ -275,31 +303,70 @@ def _filter_variant_identity_records(
 ) -> list[dict[str, Any]]:
     if not terms:
         return records
-    return [record for record in records if _strict_variant_record_matches(record, terms)]
+    matched: list[dict[str, Any]] = []
+    for record in records:
+        identity_match = _identity_match_for_record(record, terms)
+        if identity_match is None or not identity_match.get("auto_attach_allowed"):
+            continue
+        enriched = dict(record)
+        enriched["_eamos_identity_match"] = identity_match
+        matched.append(enriched)
+    return matched
 
 
 def _strict_variant_record_matches(record: dict[str, Any], terms: list[str]) -> bool:
-    identity_values = [_normalize_identity_token(value) for value in _record_identity_values(record)]
-    identity_values = [value for value in identity_values if value]
-    if not identity_values:
-        return False
+    identity_match = _identity_match_for_record(record, terms)
+    return bool(identity_match and identity_match.get("auto_attach_allowed"))
 
+
+def _cached_raw_records(raw: Any) -> list[dict[str, Any]]:
+    if isinstance(raw, dict):
+        records = raw.get("records")
+    else:
+        records = raw
+    if not isinstance(records, list):
+        return []
+    return [record for record in records if isinstance(record, dict)]
+
+
+def _nested_identity_match(value: dict[str, Any], *keys: str) -> Any:
+    current: Any = value
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _identity_match_matches_terms(value: Any, terms: list[str]) -> bool:
+    if not isinstance(value, dict) or value.get("auto_attach_allowed") is not True:
+        return False
     request_terms = [_normalize_identity_token(term) for term in terms]
     request_terms = [term for term in request_terms if term]
     if not request_terms:
-        return True
-
-    for term in request_terms:
-        for value in identity_values:
-            if _identity_term_matches(value, term):
-                return True
-    return False
+        return False
+    matched_values = [
+        value.get("normalized_matched"),
+        value.get("matched"),
+        value.get("normalized_requested"),
+        value.get("requested"),
+    ]
+    normalized_values = [
+        _normalize_identity_token(item) for item in matched_values if _text(item)
+    ]
+    return any(
+        _identity_term_matches(identity_value, request_term)
+        for identity_value in normalized_values
+        for request_term in request_terms
+    )
 
 
 def _record_identity_values(record: dict[str, Any]) -> list[str]:
-    values: list[str] = []
+    return [value for _, value, _ in _record_identity_values_with_fields(record)]
+
+
+def _record_identity_values_with_fields(record: dict[str, Any]) -> list[tuple[str, str, str]]:
     identity_keys = {
-        "caid",
         "caid",
         "canonicalalleleid",
         "classificationid",
@@ -308,11 +375,14 @@ def _record_identity_values(record: dict[str, Any]) -> list[str]:
         "hgvs",
         "hgvsc",
         "hgvsg",
+        "id",
         "preferredtitle",
         "preferredvartitle",
+        "uuid",
         "varianttitle",
         "variationid",
     }
+    values_with_fields: list[tuple[str, str, str]] = []
 
     def collect(value: Any, key: str | None = None) -> None:
         key_norm = _normalize_key(key)
@@ -329,10 +399,63 @@ def _record_identity_values(record: dict[str, Any]) -> list[str]:
         if key_norm in identity_keys or (key_norm is not None and "hgvs" in key_norm):
             text = _text(value)
             if text:
-                values.append(text)
+                values_with_fields.append((key or "unknown", text, _identity_tier(key_norm, text)))
 
     collect(record)
-    return values
+    return values_with_fields
+
+
+def _identity_match_for_record(
+    record: dict[str, Any],
+    terms: list[str],
+) -> dict[str, Any] | None:
+    identity_values = _record_identity_values_with_fields(record)
+    if not identity_values:
+        return None
+
+    request_terms = [(term, _normalize_identity_token(term)) for term in terms]
+    request_terms = [(term, normalized) for term, normalized in request_terms if normalized]
+    if not request_terms:
+        return None
+
+    for requested, normalized_requested in request_terms:
+        for source_field, matched, tier in identity_values:
+            normalized_matched = _normalize_identity_token(matched)
+            if not normalized_matched:
+                continue
+            if _identity_term_matches(normalized_matched, normalized_requested):
+                return {
+                    "tier": tier,
+                    "source_field": source_field,
+                    "requested": requested,
+                    "matched": matched,
+                    "normalized_requested": normalized_requested,
+                    "normalized_matched": normalized_matched,
+                    "auto_attach_allowed": tier != "candidate_text",
+                }
+    return None
+
+
+def _identity_tier(key_norm: str | None, value: str) -> str:
+    key = key_norm or ""
+    normalized = _normalize_identity_token(value)
+    if key in {"classificationid", "id", "uuid"}:
+        return "assertion_id"
+    if "caid" in key or "canonicalalleleid" in key or normalized.startswith("ca"):
+        return "caid"
+    if "clinvar" in key or "variationid" in key or key == "cvid":
+        return "clinvar_variation_id"
+    if "vrs" in key:
+        return "vrs"
+    if "spdi" in key:
+        return "spdi"
+    if ":g." in normalized or re.match(r"^(?:chr)?[0-9xy]+-\d+-[acgtn]+-[acgtn]+$", normalized):
+        return "genomic_hgvs"
+    if ":c." in normalized or re.search(r"\bc\.", normalized):
+        return "transcript_hgvs"
+    if "hgvs" in key or "title" in key:
+        return "candidate_text"
+    return "candidate_text"
 
 
 def _normalize_key(value: str | None) -> str | None:
@@ -399,12 +522,16 @@ def _summary_from_records(records: list[dict[str, Any]], gene: str | None) -> di
     if not records:
         return _unavailable_summary(gene)
     record = records[0]
+    identity_match = record.get("_eamos_identity_match")
+    if not isinstance(identity_match, dict):
+        identity_match = None
     return {
         "gene": _text(record.get("gene") or gene),
         "classification": _classification(record) or "Unavailable",
         "review_status": _review_status(record),
         "conditions": _conditions(record),
         "accession": _record_id(record),
+        "identity_match": identity_match,
         "criteria": _criteria(record),
         "assertion_method": _text(record.get("assertionMethod") or record.get("criteriaSet")),
         "source_url": _record_source_url(record, ""),
@@ -446,6 +573,9 @@ def _expert_panel(record: dict[str, Any]) -> dict[str, Any] | None:
     )
     raw_jsonld_ref = _text(nested.get("raw_jsonld_ref") or nested.get("rawJsonLdRef"))
     cache_record_id = _text(nested.get("cache_record_id") or nested.get("cacheRecordId"))
+    identity_match = record.get("_eamos_identity_match")
+    if not isinstance(identity_match, dict):
+        identity_match = None
 
     return {
         "vcep": vcep,
@@ -461,6 +591,7 @@ def _expert_panel(record: dict[str, Any]) -> dict[str, Any] | None:
             "source_version": source_version or "ClinGen Evidence Repository",
             "cache_record_id": cache_record_id,
             "raw_jsonld_ref": raw_jsonld_ref,
+            "identity_match": identity_match,
         },
         "freshness": "unknown",
         "freshness_reason": None,

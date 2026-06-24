@@ -1,6 +1,11 @@
 import { Disclosure } from '@/components/ui/Disclosure'
 import { EvidenceChip } from '@/components/ui/EvidenceChip'
-import type { AcmgCode, AcmgCriteriaScaffold, EamosComputedClassification } from '@/lib/backend'
+import type {
+  AcmgCaseContextLimitation,
+  AcmgCode,
+  AcmgCriteriaScaffold,
+  EamosComputedClassification,
+} from '@/lib/backend'
 import { criteriaStateFromComputed } from '@/lib/acmg/criteria-model'
 import { AcmgExplainer } from '@/components/acmg/AcmgExplainer'
 import { AcmgGrid } from './AcmgGrid'
@@ -133,6 +138,27 @@ function computedWarningLabel(value: string): string {
   return COMPUTED_WARNING_LABELS[value] ?? value
 }
 
+function computedLimitationKey(limitation: AcmgCaseContextLimitation): string {
+  return [
+    limitation.code,
+    limitation.reason,
+    limitation.missing_inputs.join(','),
+  ].join(':')
+}
+
+function computedCaseContextMessages(computed: EamosComputedClassification): Array<{ key: string; message: string }> {
+  if (computed.limitations?.length) {
+    return computed.limitations.map((limitation) => ({
+      key: computedLimitationKey(limitation),
+      message: limitation.message,
+    }))
+  }
+  return (computed.warnings ?? []).map((warning) => ({
+    key: warning,
+    message: computedWarningLabel(warning),
+  }))
+}
+
 export function EamosAcmgClassifier({
   data,
   computed,
@@ -142,6 +168,7 @@ export function EamosAcmgClassifier({
 }) {
   if (!computed && !data) return null
   const pct = computed ? `${(computed.posterior * 100).toFixed(1)}%` : null
+  const caseContextMessages = computed ? computedCaseContextMessages(computed) : []
 
   return (
     <div style={{ marginTop: 'var(--report-subpanel-gap)' }}>
@@ -167,7 +194,7 @@ export function EamosAcmgClassifier({
               precedence.
             </p>
 
-            {computed.warnings?.length ? (
+            {caseContextMessages.length ? (
               <div
                 role="note"
                 style={{
@@ -179,8 +206,8 @@ export function EamosAcmgClassifier({
               >
                 <div className="eamos-kicker" style={{ marginBottom: 7 }}>Case context not scored</div>
                 <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5 }}>
-                  {computed.warnings.map((warning) => (
-                    <li key={warning}>{computedWarningLabel(warning)}</li>
+                  {caseContextMessages.map((item) => (
+                    <li key={item.key}>{item.message}</li>
                   ))}
                 </ul>
               </div>

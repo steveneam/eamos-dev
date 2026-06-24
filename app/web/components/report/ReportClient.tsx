@@ -65,6 +65,7 @@ import type {
   LookupSectionId,
   ProteinDomainTrack,
   PublicationLiterature,
+  ReportSectionSignal,
   SearchInputCandidate,
   SearchInputInterpretation,
   TherapiesTrialsSection,
@@ -104,6 +105,125 @@ function ExpertPanelPartialNote() {
       Expert-panel classification is derived from the current clinical-consensus
       snapshot, not the ClinGen Evidence Repository. Full VCEP attribution lands
       when the Evidence-Repository source-cache is integrated.
+    </div>
+  )
+}
+
+const SIGNAL_ANCHORS: Record<string, string> = {
+  expert_panel: 'clinical_evidence',
+  acmg_worksheet: 'evidence_by_source',
+  population_frequency: 'population_frequency',
+  computational_deep_dive: 'evidence_by_source',
+  disease_mechanism: 'associated_conditions',
+  gene_context_snapshot: 'gene_context',
+  molecular_context: 'gene_context',
+  publications: 'publications',
+  therapies_trials: 'trials',
+}
+
+const SIGNAL_STATUS_LABEL: Record<ReportSectionSignal['status'], string> = {
+  ready: 'Ready',
+  limited: 'Limited',
+  empty: 'Empty',
+  error: 'Error',
+  loading: 'Loading',
+}
+
+function signalStatusColor(status: ReportSectionSignal['status']): string {
+  if (status === 'ready') return 'var(--teal-deep)'
+  if (status === 'limited') return 'var(--warn)'
+  if (status === 'error') return 'var(--err)'
+  return 'var(--ink-4)'
+}
+
+function ReportSignalDashboard({ signals }: { signals?: ReportSectionSignal[] | null }) {
+  const rows = (signals ?? []).slice(0, 8)
+  if (!rows.length) return null
+
+  return (
+    <div
+      aria-label="Evidence signals"
+      style={{
+        display: 'grid',
+        gap: 10,
+        padding: '12px 14px',
+        border: '0.5px solid var(--line)',
+        borderRadius: 'var(--r-md)',
+        background: 'var(--bg)',
+        boxShadow: 'var(--elev-1)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+        <div className="eamos-kicker">Evidence signals</div>
+        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>Backend-ranked sections</span>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(156px, 1fr))',
+          gap: 8,
+        }}
+      >
+        {rows.map((signal) => {
+          const anchor = SIGNAL_ANCHORS[signal.section_id]
+          const content = (
+            <>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  color: 'var(--ink)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: 1.25,
+                }}
+              >
+                <span>{signal.label}</span>
+                <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-4)', fontSize: 10 }}>
+                  {signal.priority}
+                </span>
+              </span>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginTop: 5,
+                  fontSize: 10.5,
+                  color: 'var(--ink-4)',
+                }}
+              >
+                <span style={{ color: signalStatusColor(signal.status), fontWeight: 600 }}>
+                  {SIGNAL_STATUS_LABEL[signal.status]}
+                </span>
+                <span>{signal.default_open ? 'Open' : 'Collapsed'}</span>
+              </span>
+            </>
+          )
+          const title = [signal.headline, ...signal.data_notes].filter(Boolean).join(' | ') || signal.relevance
+          const baseStyle = {
+            display: 'block',
+            minHeight: 58,
+            padding: '8px 10px',
+            border: '0.5px solid var(--line)',
+            borderRadius: 'var(--r-sm)',
+            background: signal.default_open ? 'var(--teal-tint)' : 'var(--bg-soft)',
+            textDecoration: 'none',
+          }
+          return anchor ? (
+            <a key={signal.section_id} href={`#${anchor}`} title={title} style={baseStyle}>
+              {content}
+            </a>
+          ) : (
+            <div key={signal.section_id} title={title} style={baseStyle}>
+              {content}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -770,6 +890,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             They're scannable summary; the numbered evidence sections begin
             below. */}
         <CallCardsGrid payload={payload} populationAf={populationAf} />
+        <ReportSignalDashboard signals={payload.report_profile?.section_signals} />
 
         {/* The glanceable EAMOS-computed advisory (Evidence Fingerprint + posterior
             chip), directly under the call cards. The full drawn decision (plane +

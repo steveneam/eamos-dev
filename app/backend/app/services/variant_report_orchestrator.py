@@ -13,6 +13,7 @@ from app.schemas.run import (
     ComputationalDeepDiveSection,
     ComputationalPredictorRow,
     DiseaseMechanismSection,
+    EvidenceIdentityMatch,
     EvidenceSourceSummary,
     ExpertPanelSection,
     GeneContextSnapshot,
@@ -1014,14 +1015,20 @@ def _build_expert_panel(
     clingen_evidence = _first_source_evidence(evidence, "clingen")
     freshness, freshness_reason = _expert_panel_freshness(clingen_evidence)
     provenance = panel.provenance
+    identity_match = provenance.identity_match
     if clingen_evidence is not None:
+        if identity_match is None:
+            identity_match = _evidence_identity_match(clingen_evidence)
         provenance = provenance.model_copy(
             update={
                 "fetched_at": clingen_evidence.fetched_at or provenance.fetched_at,
                 "source_version": clingen_evidence.source_version or provenance.source_version,
                 "source_url": clingen_evidence.source_url or provenance.source_url,
+                "identity_match": identity_match,
             }
         )
+    if not _identity_auto_attach_allowed(identity_match):
+        return None
     return panel.model_copy(
         update={
             "provenance": provenance,
@@ -1029,6 +1036,10 @@ def _build_expert_panel(
             "freshness_reason": freshness_reason,
         }
     )
+
+
+def _identity_auto_attach_allowed(identity_match: EvidenceIdentityMatch | None) -> bool:
+    return bool(identity_match and identity_match.auto_attach_allowed)
 
 
 def _expert_panel_freshness(
@@ -1043,6 +1054,16 @@ def _expert_panel_freshness(
     if evidence.status in {"live", "local", "fixture", "cache"}:
         return "fresh", None
     return "unknown", "tile_only"
+
+
+def _evidence_identity_match(evidence: EvidenceSourceSummary) -> EvidenceIdentityMatch | None:
+    raw = evidence.summary.get("identity_match")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return EvidenceIdentityMatch.model_validate(raw)
+    except Exception:
+        return None
 
 
 def _first_source_evidence(

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.schemas.run import (
+    AcmgCaseContextLimitation,
     EamosComputedBenignCut,
     EamosComputedClassification,
     EamosComputedConflict,
@@ -123,6 +124,7 @@ def compute_acmg_points(
     conflict_reason: str | None = None,
     vcep_id: str | None = None,
     warnings: list[str] | None = None,
+    limitations: list[AcmgCaseContextLimitation] | None = None,
 ) -> EamosComputedClassification:
     normalized = [_normalize_application(application) for application in applications]
     _reject_deprecated_triggers(normalized)
@@ -145,6 +147,12 @@ def compute_acmg_points(
     if ba1_override:
         tier = "Benign"
 
+    limitation_rows = limitations or []
+    compatibility_warnings = [
+        *[warning for warning in (warnings or [])],
+        *[_warning_for_limitation(limitation) for limitation in limitation_rows],
+    ]
+
     return EamosComputedClassification(
         acmg_version_pin=EamosComputedVersionPin(
             framework=ACMG_FRAMEWORK,
@@ -161,7 +169,8 @@ def compute_acmg_points(
         posterior=posterior_from_net(net_points),
         benign_cut=benign_cut,
         per_criterion=[rows_by_code.get(code, _not_assessed_row(code)) for code in ALL_ACMG_CODES],
-        warnings=_dedupe_text(warnings or []),
+        limitations=limitation_rows,
+        warnings=_dedupe_text(compatibility_warnings),
     )
 
 
@@ -171,9 +180,10 @@ def compute_report_acmg_classification(
     evidence_statuses: dict[str, str] | None = None,
 ) -> EamosComputedClassification:
     applications = _applications_from_report(payload, evidence_map, evidence_statuses or {})
+    limitations = _case_context_limitations(payload, evidence_map, applications)
     return compute_acmg_points(
         applications,
-        warnings=_case_context_limit_warnings(payload, evidence_map, applications),
+        limitations=limitations,
     )
 
 
@@ -204,18 +214,50 @@ def _applications_from_report(
     return list(applications.values())
 
 
-def _case_context_limit_warnings(
+def _case_context_limitations(
     payload: ReportPayload,
     evidence_map: dict[str, dict],
     applications: list[AcmgCriterionApplication],
-) -> list[str]:
+) -> list[AcmgCaseContextLimitation]:
     triggered_codes = {application.code for application in applications}
-    warnings: list[str] = []
+    limitations: list[AcmgCaseContextLimitation] = []
     if "PM3" not in triggered_codes and _has_recessive_gene_disease(evidence_map):
-        warnings.append("acmg_case_context_not_scored:PM3_phase_in_trans_required")
+        limitations.append(
+            AcmgCaseContextLimitation(
+                code="PM3",
+                missing_inputs=["affected_status", "second_allele", "phase"],
+                applies_when=["recessive_gene_disease"],
+                message=(
+                    "PM3 requires affected case context, a second disease-causing "
+                    "allele, and phase evidence before EAMOS can score it."
+                ),
+            )
+        )
     if "PP4" not in triggered_codes and _has_gene_disease_context(evidence_map):
-        warnings.append("acmg_case_context_not_scored:PP4_phenotype_specificity_required")
-    return warnings
+        limitations.append(
+            AcmgCaseContextLimitation(
+                code="PP4",
+                missing_inputs=[
+                    "phenotype_specificity",
+                    "test_scope",
+                    "alternative_cause_exclusion",
+                ],
+                applies_when=["gene_disease_context"],
+                message=(
+                    "PP4 requires phenotype specificity, test scope, and "
+                    "alternative-cause review before EAMOS can score it."
+                ),
+            )
+        )
+    return limitations
+
+
+def _warning_for_limitation(limitation: AcmgCaseContextLimitation) -> str:
+    if limitation.code == "PM3" and limitation.reason == "missing_case_context":
+        return "acmg_case_context_not_scored:PM3_phase_in_trans_required"
+    if limitation.code == "PP4" and limitation.reason == "missing_case_context":
+        return "acmg_case_context_not_scored:PP4_phenotype_specificity_required"
+    return f"acmg_case_context_not_scored:{limitation.code}_{limitation.reason}"
 
 
 def _has_gene_disease_context(evidence_map: dict[str, dict]) -> bool:

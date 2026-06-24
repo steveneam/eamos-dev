@@ -223,6 +223,16 @@ def test_clingen_local_prefers_exact_variant_identity_over_narrative_mentions(
 
     assert evidence.status == "local"
     assert evidence.summary["accession"] == "64d8e05f-18c1-4092-9ce7-8880f952e96e"
+    identity_match = evidence.summary["identity_match"]
+    assert identity_match["tier"] == "transcript_hgvs"
+    assert identity_match["source_field"] == "hgvs"
+    assert identity_match["requested"] == "NM_000350.3:c.5461-10T>C"
+    assert identity_match["matched"] == "NM_000350.3:c.5461-10T>C"
+    assert identity_match["auto_attach_allowed"] is True
+    assert (
+        evidence.summary["expert_panel"]["provenance"]["identity_match"]["source_field"]
+        == "hgvs"
+    )
     assert evidence.summary["expert_panel"]["vcep"]["affiliation_id"] == "50140"
     assert evidence.summary["criteria"] == ["PVS1_Strong", "PM3_Very Strong", "PS4", "PP4"]
 

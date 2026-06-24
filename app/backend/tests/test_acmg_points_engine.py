@@ -339,7 +339,34 @@ def test_report_adapter_warns_when_recessive_case_context_criteria_are_not_score
 
     assert rows["PM3"].triggered is False
     assert rows["PP4"].triggered is False
+    limitations = {item.code: item for item in result.limitations}
+    assert limitations["PM3"].missing_inputs == ["affected_status", "second_allele", "phase"]
+    assert limitations["PM3"].applies_when == ["recessive_gene_disease"]
+    assert limitations["PM3"].message.startswith("PM3 requires affected case context")
+    assert limitations["PP4"].missing_inputs == [
+        "phenotype_specificity",
+        "test_scope",
+        "alternative_cause_exclusion",
+    ]
+    assert limitations["PP4"].applies_when == ["gene_disease_context"]
+    assert limitations["PP4"].message.startswith("PP4 requires phenotype specificity")
     assert "acmg_case_context_not_scored:PM3_phase_in_trans_required" in result.warnings
+    assert "acmg_case_context_not_scored:PP4_phenotype_specificity_required" in result.warnings
+
+
+def test_report_adapter_does_not_emit_pm3_limitation_for_dominant_context():
+    payload = ReportPayload(patient_id="lookup_test")
+    evidence_map = {
+        "gene_disease": {
+            "primary_condition": "Dominant retinal dystrophy",
+            "inheritance": "AD",
+        }
+    }
+
+    result = compute_report_acmg_classification(payload, evidence_map, {})
+
+    assert {item.code for item in result.limitations} == {"PP4"}
+    assert "acmg_case_context_not_scored:PM3_phase_in_trans_required" not in result.warnings
     assert "acmg_case_context_not_scored:PP4_phenotype_specificity_required" in result.warnings
 
 
@@ -380,6 +407,7 @@ def test_report_adapter_source_asserted_case_context_suppresses_pm3_pp4_warnings
     assert result.net_points == 3
     assert rows["PM3"].triggered is True
     assert rows["PP4"].triggered is True
+    assert result.limitations == []
     assert "acmg_case_context_not_scored:PM3_phase_in_trans_required" not in result.warnings
     assert "acmg_case_context_not_scored:PP4_phenotype_specificity_required" not in result.warnings
 

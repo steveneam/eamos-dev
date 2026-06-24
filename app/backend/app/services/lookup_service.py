@@ -58,6 +58,7 @@ from app.services.source_cache import (
     source_cache_key,
 )
 from app.tools.base import ToolResult
+from app.tools.clingen import cached_clingen_result_matches_variant
 from app.tools.registry import STRICT_GENOMIC_PLUGINS
 
 GENE_THERAPY_MAP: dict[str, str] = {
@@ -673,6 +674,11 @@ class LookupService:
                 return False
             return True
 
+        def source_cache_result_matches_request(name: str, result: ToolResult) -> bool:
+            if name != "clingen":
+                return True
+            return cached_clingen_result_matches_variant(result, variant)
+
         def source_cached_result(name: str, producer) -> ToolResult:
             source_cache_lookup_key = source_cache_key_for(name)
             use_source_cache = source_cache_lookup_key is not None
@@ -684,7 +690,10 @@ class LookupService:
             if use_source_cache and not refresh and not skip_fresh_source_cache:
                 hit = self.source_cache_repo.get_fresh(name, source_cache_lookup_key)
                 if hit is not None:
-                    return hit.to_tool_result(status="cache", cache_status="cache_hit")
+                    hit_result = hit.to_tool_result(status="cache", cache_status="cache_hit")
+                    if source_cache_result_matches_request(name, hit_result):
+                        return hit_result
+                    warnings.append(f"source_cache_identity_mismatch:{name}")
 
             try:
                 result = producer()
@@ -692,7 +701,7 @@ class LookupService:
                 if use_source_cache:
                     stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
                     if stale is not None:
-                        return stale.to_tool_result(
+                        stale_result = stale.to_tool_result(
                             status="stale",
                             cache_status="stale_on_failure",
                             extra_warnings=[
@@ -700,12 +709,15 @@ class LookupService:
                                 f"live_fetch_failed:{type(exc).__name__}",
                             ],
                         )
+                        if source_cache_result_matches_request(name, stale_result):
+                            return stale_result
+                        warnings.append(f"source_cache_identity_mismatch:{name}")
                 raise
 
             if use_source_cache and result.status in SOURCE_CACHE_FAILURE_STATUSES:
                 stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
                 if stale is not None:
-                    return stale.to_tool_result(
+                    stale_result = stale.to_tool_result(
                         status="stale",
                         cache_status="stale_on_failure",
                         extra_warnings=[
@@ -714,6 +726,9 @@ class LookupService:
                             *result.warnings,
                         ],
                     )
+                    if source_cache_result_matches_request(name, stale_result):
+                        return stale_result
+                    result.warnings.append(f"source_cache_identity_mismatch:{name}")
 
             if (
                 use_source_cache

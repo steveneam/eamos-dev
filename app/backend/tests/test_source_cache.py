@@ -161,8 +161,22 @@ def _repo(tmp_path: Path) -> SourceCacheRepo:
     return SourceCacheRepo(session_factory)
 
 
-def _expert_panel_summary() -> dict:
+def _rpe65_identity_match() -> dict:
     return {
+        "tier": "transcript_hgvs",
+        "source_field": "hgvs",
+        "requested": "NM_000329.3:c.260A>G",
+        "matched": "NM_000329.3:c.260A>G",
+        "normalized_requested": "nm_000329.3:c.260a>g",
+        "normalized_matched": "nm_000329.3:c.260a>g",
+        "auto_attach_allowed": True,
+    }
+
+
+def _expert_panel_summary(identity_match: dict | None = None) -> dict:
+    identity_match = identity_match or _rpe65_identity_match()
+    return {
+        "identity_match": identity_match,
         "expert_panel": {
             "vcep": {
                 "id": "ClinGen:IRD",
@@ -193,6 +207,7 @@ def _expert_panel_summary() -> dict:
                 "source_version": "ClinGen Evidence Repo cached",
                 "cache_record_id": "clingen:clinvar:VCV001421454",
                 "raw_jsonld_ref": "fixture:cached-clingen",
+                "identity_match": identity_match,
             },
             "freshness": "fresh",
             "freshness_reason": "cache_hit",
@@ -475,6 +490,21 @@ def test_arbitrary_lookup_serves_stale_cache_for_selected_source_failure(
     assert gnomad.summary["allele_frequency"] == 0.00001
     assert "source_cache_stale_on_failure:gnomad" in gnomad.warnings
     assert "live_status:fallback" in gnomad.warnings
+    population = response.report_payload.report_profile.population_frequency
+    assert population is not None
+    assert population.source_status == "stale"
+    assert population.unavailable_reason is None
+    population_card = next(
+        card
+        for card in response.report_payload.call_cards.cards
+        if card.card_id == "population_frequency"
+    )
+    assert population_card.source_status == "stale"
+    currency = response.report_payload.report_data_currency
+    assert currency is not None
+    currency_sources = {source.source: source for source in currency.sources}
+    assert currency_sources["gnomad"].status == "stale"
+    assert currency_sources["gnomad"].source_version == "gnomad_r4"
 
 
 def test_clingen_vcep_cache_key_prefers_clinvar_vcv_over_hgvs() -> None:
@@ -533,6 +563,63 @@ def test_clingen_vcep_lookup_uses_fresh_source_cache(tmp_path: Path) -> None:
     assert expert_panel.provenance.source_version == "ClinGen Evidence Repo cached"
     assert expert_panel.freshness == "fresh"
     assert expert_panel.freshness_reason == "cache_hit"
+
+
+def test_clingen_vcep_lookup_rejects_identity_mismatched_source_cache(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    cache_key = "clinvar:VCV001421454"
+    mismatched_identity = {
+        **_rpe65_identity_match(),
+        "requested": "NM_000350.3:c.4253+43G>A",
+        "matched": "NM_000350.3:c.4253+43G>A",
+        "normalized_requested": "nm_000350.3:c.4253+43g>a",
+        "normalized_matched": "nm_000350.3:c.4253+43g>a",
+    }
+    repo.upsert(
+        "clingen",
+        cache_key,
+        normalized_identity={"gene": "RPE65", "clinvar_accession": "VCV001421454"},
+        request_identity={"cache_key": cache_key},
+        status="live",
+        summary=_expert_panel_summary(identity_match=mismatched_identity),
+        raw={"cached": True},
+        warnings=[],
+        source_url="https://erepo.clinicalgenome.org/evrepo/api/classifications/CA189146",
+        ttl_days=30,
+        source_version="ClinGen Evidence Repo cached",
+    )
+    clingen_tool = _StaticTool(
+        "clingen",
+        status="missing",
+        warnings=["clingen_variant_not_found"],
+    )
+    service = _service(
+        tmp_path,
+        repo,
+        tool_overrides={
+            "clinvar": _StaticTool(
+                "clinvar",
+                {
+                    "classification": "Uncertain significance",
+                    "review_status": "criteria provided, single submitter",
+                    "accession": "VCV001421454",
+                },
+                raw={"variation_set": []},
+            ),
+            "clingen": clingen_tool,
+        },
+    )
+
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    clingen = next(item for item in response.evidence if item.source == "clingen")
+    assert clingen_tool.calls == 1
+    assert clingen.status == "missing"
+    assert response.report_payload.report_profile is not None
+    assert response.report_payload.report_profile.expert_panel is None
+    assert "source_cache_identity_mismatch:clingen" in response.warnings
 
 
 def test_clingen_vcep_lookup_serves_stale_cache_when_live_source_fails(

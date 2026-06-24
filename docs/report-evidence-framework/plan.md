@@ -1,6 +1,66 @@
 # Report Evidence Framework Plan
 
-Status: Draft
+Status: Implemented with remaining verification follow-ups
+
+## Implementation Status - 2026-06-24
+
+The first backend/framework pass is committed on `origin/main` through:
+
+- `68d3fe2` - source freshness/report data currency metadata and frontend line.
+- `a0e42b7` - report evidence section signal schema and backend signal emission.
+- `0d976f1` - source-backed clinical-trial evidence, lazy trials hydration,
+  ClinGen identity guard, PM3/PP4 case-context warnings, ABCA4 protein seed,
+  and gene-disease validity sorting.
+
+Completed or mostly complete:
+
+- Task 0: audit vocabulary exists in this plan, spec, design, and
+  `section-consistency-audit.md`.
+- Task 1: backend `ReportSectionSignal` and `section_signals` are emitted,
+  mirrored into `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts`,
+  and consumed by the report UI as the Evidence signals dashboard.
+- Task 2: ClinGen narrative-only/candidate rows are rejected by the identity
+  guard, covered by focused tests, and attached rows now expose typed identity
+  match provenance.
+- Task 3: ClinicalTrials.gov query lanes, source-backed discovery registry, row
+  provenance, and Tinlarebant/NCT06388083 coverage are implemented.
+- Task 4: `therapies_trials` is now a lazy lookup section with a backend
+  envelope and frontend lazy rendering path.
+- Task 5: PM3/PP4 case-context gaps are emitted as typed
+  `AcmgCaseContextLimitation` rows and rendered with user-facing copy; warnings
+  remain as compatibility aliases and source-asserted criteria suppress the
+  limitations.
+- Task 6: ABCA4 protein seed rows are source-backed; tests prove Ile1745 is in
+  the transmembrane helix and not the ATPase region.
+- Task 7: ABCA4 `c.5461-10T>C` lazy publications/trials browser verification
+  passed locally on `http://localhost:3001`.
+
+Current small-bucket status:
+
+1. Frontend signal consumption: complete. The report now renders a compact
+   Evidence signals dashboard from `report_profile.section_signals`.
+2. Structured ACMG limitations: complete. PM3/PP4 case-context gaps use typed
+   `AcmgCaseContextLimitation` rows while preserving `warnings` aliases.
+3. Typed ClinGen identity provenance: complete. Attached ClinGen assertions
+   expose identity match tier, source field, normalized terms, and auto-attach
+   status in summary/provenance.
+4. ABCA4 second-case browser pass: partial/updated. The current fixtures use
+   `ABCA4 c.5435T>A` as the available protein-localization browser control;
+   `ABCA4 c.5234T>A` is not present in the local fixture set. On 2026-06-24,
+   Codex verified
+   `http://localhost:3001/report?gene=ABCA4&cdna=c.5435T%3EA` renders the
+   report, gene context, and full protein architecture on desktop/mobile
+   (`.tmp/task6-abca4-report-desktop.png`,
+   `.tmp/task6-abca4-report-mobile.png`). The underlying local
+   `/api/v1/viewer` request returned HTTP 500, so keep gene-viewer
+   endpoint/fallback handling as P0.3/frontend coordination unless Steven asks
+   Codex to take that lane.
+5. Cross-gene regression hardening: complete for this slice. A non-RPE65
+   report regression now sweeps section signals, trials empty-state warnings,
+   ClinGen empty-state behavior, and computed ACMG limitation absence.
+6. Documentation cleanup: complete for this slice. Remaining doc work should be
+   tied to live deployment/browser verification evidence, not new framework
+   architecture.
 
 ## Task 0 - Report-Wide Section Consistency Audit
 

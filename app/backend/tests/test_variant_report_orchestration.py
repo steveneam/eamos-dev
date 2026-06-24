@@ -107,8 +107,18 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert response.status_code == 200
     report_payload = response.json()["report_payload"]
     profile = report_payload["report_profile"]
+    assert report_payload["report_generated_at"]
+    assert report_payload["report_data_currency"]["generated_at"] == report_payload[
+        "report_generated_at"
+    ]
+    data_currency_sources = {
+        source["source"]: source for source in report_payload["report_data_currency"]["sources"]
+    }
+    assert data_currency_sources["gnomad"]["source_version"] == "gnomad_r4"
+    assert data_currency_sources["gnomad"]["status"] == "unknown"
     assert profile["header"]["gene"] == "RPE65"
     assert profile["header"]["cdna"] == "c.260A>G"
+    assert profile["header"]["updated_at"] == report_payload["report_generated_at"]
     assert profile["header"]["genomic_hg38"] == "1-68444869-T-C"
     assert profile["header"]["classification_source"] == "ClinVar"
     assert profile["interpretation_summary"]["mode"] == "deterministic"
@@ -487,6 +497,130 @@ def test_lookup_abca4_tinlarebant_trial_flows_into_report_profile(client) -> Non
     assert "variant_level_trial_not_found:using_lower_match_level" in trials["warnings"]
 
 
+def test_lookup_clingen_identity_match_flows_into_expert_panel_provenance(client) -> None:
+    class IdentityClingenTool:
+        def get_evidence(self, *args, **kwargs):
+            identity_match = {
+                "tier": "transcript_hgvs",
+                "source_field": "hgvs",
+                "requested": "NM_000350.3:c.5461-10T>C",
+                "matched": "NM_000350.3:c.5461-10T>C",
+                "normalized_requested": "nm_000350.3:c.5461-10t>c",
+                "normalized_matched": "nm_000350.3:c.5461-10t>c",
+                "auto_attach_allowed": True,
+            }
+            return ToolResult(
+                source="clingen",
+                status="local",
+                request_identity={"gene": "ABCA4"},
+                summary={
+                    "gene": "ABCA4",
+                    "classification": "Pathogenic",
+                    "review_status": "approved",
+                    "conditions": ["ABCA4-related retinopathy"],
+                    "accession": "64d8e05f-18c1-4092-9ce7-8880f952e96e",
+                    "identity_match": identity_match,
+                    "criteria": ["PVS1_Strong", "PM3_Very Strong", "PP4"],
+                    "assertion_method": "ABCA4 VCEP",
+                    "source_url": "https://erepo.clinicalgenome.org/evrepo/",
+                    "expert_panel": {
+                        "vcep": {
+                            "id": "50140",
+                            "name": "ABCA4 VCEP",
+                            "affiliation_id": "50140",
+                            "last_curated_date": "2026-04-28",
+                            "vcep_url": "https://erepo.clinicalgenome.org/evrepo/",
+                        },
+                        "final_classification": "pathogenic",
+                        "narrative": "ABCA4 VCEP assertion for NM_000350.3:c.5461-10T>C.",
+                        "criteria": [
+                            {
+                                "code": "PM3",
+                                "applied_strength": "PM3_Very Strong",
+                                "default_strength": "PM3",
+                                "state": "met",
+                                "assertion_level": "vcep_specified",
+                                "source": "ClinGen Evidence Repository",
+                                "evidence_refs": ["64d8e05f-18c1-4092-9ce7-8880f952e96e"],
+                                "warnings": [],
+                            }
+                        ],
+                        "source_scope": "ClinGen Evidence Repository - ABCA4 VCEP curation",
+                        "provenance": {
+                            "source_url": "https://erepo.clinicalgenome.org/evrepo/",
+                            "fetched_at": "2026-04-30",
+                            "source_version": "ClinGen Evidence Repository",
+                            "identity_match": identity_match,
+                        },
+                    },
+                },
+                warnings=[],
+                raw=None,
+                source_url="https://erepo.clinicalgenome.org/evrepo/",
+                source_version="ClinGen pytest snapshot",
+            )
+
+    registry = client.app.state.lookup_service.tool_registry
+    original_tool = registry["clingen"]
+    registry["clingen"] = IdentityClingenTool()
+    try:
+        report_payload = _lookup_payload(client, "ABCA4", "c.5461-10T>C")
+    finally:
+        registry["clingen"] = original_tool
+
+    provenance = report_payload["report_profile"]["expert_panel"]["provenance"]
+    assert provenance["source_version"] == "ClinGen pytest snapshot"
+    assert provenance["identity_match"]["tier"] == "transcript_hgvs"
+    assert provenance["identity_match"]["source_field"] == "hgvs"
+    assert provenance["identity_match"]["auto_attach_allowed"] is True
+
+
+def test_lookup_clingen_expert_panel_without_identity_match_does_not_attach(client) -> None:
+    class NoIdentityClingenTool:
+        def get_evidence(self, *args, **kwargs):
+            return ToolResult(
+                source="clingen",
+                status="local",
+                request_identity={"gene": "ABCA4"},
+                summary={
+                    "gene": "ABCA4",
+                    "classification": "Pathogenic",
+                    "expert_panel": {
+                        "vcep": {
+                            "id": "50140",
+                            "name": "ABCA4 VCEP",
+                            "affiliation_id": "50140",
+                            "last_curated_date": "2026-04-28",
+                            "vcep_url": "https://erepo.clinicalgenome.org/evrepo/",
+                        },
+                        "final_classification": "pathogenic",
+                        "narrative": "Narrative text mentions NM_000350.3:c.5461-10T>C.",
+                        "criteria": [],
+                        "source_scope": "ClinGen Evidence Repository - ABCA4 VCEP curation",
+                        "provenance": {
+                            "source_url": "https://erepo.clinicalgenome.org/evrepo/",
+                            "fetched_at": "2026-04-30",
+                            "source_version": "ClinGen Evidence Repository",
+                        },
+                    },
+                },
+                warnings=[],
+                raw=None,
+                source_url="https://erepo.clinicalgenome.org/evrepo/",
+                source_version="ClinGen pytest snapshot",
+            )
+
+    registry = client.app.state.lookup_service.tool_registry
+    original_tool = registry["clingen"]
+    registry["clingen"] = NoIdentityClingenTool()
+    try:
+        report_payload = _lookup_payload(client, "ABCA4", "c.5461-10T>C")
+    finally:
+        registry["clingen"] = original_tool
+
+    assert report_payload["report_profile"]["expert_panel"] is None
+
+
 def test_lookup_cftr_leu441_frameshift_requires_confirmation_without_report_metrics(
     client,
 ) -> None:
@@ -548,6 +682,10 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     assert report_payload["publications_literature"]["total_count"] == 0
     assert report_payload["functional_evidence"]["total_count"] == 0
     assert report_payload["call_cards"]["cards"][0]["primary_label"] == "No Population Data"
+    assert (
+        report_payload["call_cards"]["cards"][0]["source_status"]
+        == profile["population_frequency"]["source_status"]
+    )
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None
     assert (
         report_payload["population_frequency_detail"]["unavailable_reason"]
@@ -562,6 +700,25 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     assert (
         "gene_context_snapshot_fixture_unavailable" in profile["gene_context_snapshot"]["warnings"]
     )
+    signals = {signal["section_id"]: signal for signal in profile["section_signals"]}
+    for section_id in (
+        "expert_panel",
+        "population_frequency",
+        "computational_deep_dive",
+        "gene_context_snapshot",
+        "publications",
+        "therapies_trials",
+    ):
+        assert section_id in signals
+    assert signals["expert_panel"]["status"] == "empty"
+    assert signals["therapies_trials"]["default_open"] is True
+    assert "clinical_trials_structured_rows_unavailable" in profile["therapies_trials"][
+        "warnings"
+    ]
+    assert "clinical_trials_structured_rows_unavailable" in signals["therapies_trials"][
+        "data_notes"
+    ]
+    assert computed["limitations"] == []
 
     serialized = json.dumps(report_payload)
     for forbidden in (
