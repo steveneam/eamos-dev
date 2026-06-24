@@ -1,5 +1,100 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-24 19:17 +1000 - Codex - Safe local commit split, ABCA4 viewer fallback, and workflow ratchet
+
+Created the requested safe local commits from the audited worktree, then handled
+the proprietary-doc/tmp-file checks and the ABCA4 protein-view follow-up. No
+push, deploy, Vercel/vc command, Render env mutation, provider flip, or
+Supabase mutation was run.
+
+- Local commits now on `main`:
+  - `a12019e` `feat(report): surface evidence framework signals`
+  - `94e3fb9` `feat(clinvar): add gene distribution artifact readiness`
+  - `e46a401` `chore(tools): add encoding scan guard`
+  - `8a33f41` `docs(proprietary): clarify paper variant validation`
+  - `45da0ea` `fix(viewer): add curated fallback for live source failures`
+  - `145ef67` `docs(agents): ratchet graphify update timeout`
+- Proprietary doc check: `docs/proprietary/eamos-ai-gateway.md` contained no
+  actual secrets in the changed content; only public env names/vendor labels and
+  fail-closed validation wording. It was committed as `8a33f41`.
+- Deleted untracked live payload snapshots:
+  `.tmp-abca4-c5461-live-lookup.json` and
+  `.tmp-abca4-c5461-live-publications-section.json`.
+- Protein-view follow-up: real-mode `/api/v1/viewer` now catches live provider
+  failures and falls back to curated fixture context when available; ABCA4
+  bundled UniProt seed features can still hydrate when annotation is unavailable
+  or fail-closed. Live SG for `ABCA4 c.5435T>A` around-variant returned 200
+  during the session, so the earlier 500 was not reproducible at closeout.
+- Workflow ratchet: `AGENTS.md` now says to run `python -m graphify update .`
+  with a long timeout first (at least 360s) and to scope routine `rg` searches
+  away from archive-heavy paths unless history is required.
+
+Verification / status:
+- `python -m pytest tests/test_gene_viewer.py tests/test_protein_annotation_service.py -q`
+- Focused ABCA4 fallback/seed pytest passed after the final assertion cleanup.
+- `python -m ruff check app/services/gene_viewer.py tests/test_gene_viewer.py`
+- `python -m black --check --target-version py310 app/services/gene_viewer.py tests/test_gene_viewer.py`
+- `git diff --check` passed with only existing LF/CRLF warnings.
+- `node scripts/eamos-encoding-scan.mjs --fail-on-hit` scanned 607 text files,
+  clean.
+- `python -m graphify update .` completed with the new long timeout; no
+  code-graph topology changes were written.
+
+## 2026-06-24 00:04 +1000 - Codex - Report evidence framework handoff refresh and C-drive staging cleanup
+
+Updated handoff/progress docs after the ABCA4 evidence-framework commit/push
+and the C-drive staging cleanup. No source implementation changes, deploy,
+Vercel/vc command, provider flip, or Supabase mutation were run in this
+housekeeping pass.
+
+- Latest pushed code remains `0d976f1` (`feat(report): add source-backed trials
+  evidence`) on `main == origin/main`.
+- C-drive staging cleanup completed for assets already ready on SG Render disk:
+  deleted `C:\EamosDataStaging\clingen`,
+  `C:\EamosDataStaging\source_assets\ncbi_clinvar_vcf`,
+  `C:\EamosDataStaging\source_assets\ncbi_dbsnp_gcf_000001405_40`, and
+  `C:\EamosDataStaging\source_assets\ucsc_phylop100way_hg38`.
+- Left `C:\EamosDataStaging\esm1b` because ESM1b remains blocked/not
+  materialized, and left the small clinical-source CSV inputs
+  `clingen_gene_validity` / `gencc_download` because they are DB import inputs,
+  not Render-disk runtime assets.
+- Read-only live checks: SG provider-cache reports `clingen_local` ready/enabled
+  and local-evidence runtime assets ready 4/4. Supabase row counts confirm the
+  clinical source tables are live at release scale:
+  `clinical_clingen_gene_validity=3569` and
+  `clinical_gencc_assertions=29486`.
+- `docs/report-evidence-framework/plan.md` now has an implementation-status
+  snapshot: backend framework pieces are mostly implemented; remaining buckets
+  are frontend consumption of `section_signals`, typed ACMG limitations, typed
+  ClinGen identity provenance, ABCA4 `c.5234T>A` browser pass, cross-gene
+  regression hardening, and final docs cleanup.
+
+Verification / status:
+- `git status --short --branch` inspected. Remaining dirty files are still
+  deliberately held unless Steven explicitly asks to stage them.
+- No tests were run because this was docs/handoff housekeeping only.
+
+## 2026-06-21 21:19 +1000 - Claude - All three Ask-Eamos chat commits PUSHED + DEPLOYED + live-verified on prod
+
+Drove the coordinated commit/push/deploy (Steven re-confirmed "drive it now", overriding the prior HOLD). The Ask-Eamos surface rollout (report/workbench/paper/batch) is now live on the prod backend — but the chat stays hidden on prod FE pending the `NEXT_PUBLIC_AI_CHAT_ENABLED` flip.
+
+- **Integration (simpler than the runbook):** a fresh `git fetch` showed Codex's M9 ratchet was already merged on `origin/main` as `87af99b` (lookup_service.py + test_clinvar_local_adapter.py) → no cherry-pick needed; `codex/m9-clinvar-distribution-ratchet` == origin/main. Codex's 3 commits (`4bef748`+`87af99b`+`573b8e9`) confirmed disjoint from the chat lane (supabase_repo / lookup_service / test_clinvar / materialization docs); `merge-tree` dry-run clean.
+- **Rebase:** discarded Codex's dirty `supabase_local_model_cache_repo.py` (byte-identical to origin/main, never committed), stashed handoff/held files, `git rebase origin/main` (clean) → `bc578be`(workbench)+`d40e3bb`(paper)+`d09b29c`(batch), restored the stash. **main == origin/main.**
+- **Pre-push GREEN:** backend `test_chat_service`+`test_ai_gateway`+`test_clinvar_local_adapter` 53 passed, ruff + black clean; app/web `tsc --noEmit` + eslint clean.
+- **Deploy:** `eamos-dev-sg` has `autoDeploy=no` → triggered via the deploy hook (line-8 URL of `.render-deploy-hook`) → `dep-d8rsfmm7r5hc73eo3vug` LIVE on `d09b29c`. **Live-verified:** `/healthz`=gateway 200, `/health/provider-cache` 200, `POST /lookup/summary` RPE65 c.260A>G 200 (real pipeline, NM_000329.3 / hg38 1-68444869-T-C / MANE); Vercel prod `/` + `/report` 200.
+- **No flag flips:** `LLM_PROVIDER=gateway` + 10/day global + 10/user/day caps persist (report-chat gated demo intact); M9 / `LOCAL_EVIDENCE` / `CLINGEN_LOCAL` untouched. Held files excluded; never `git add -A`.
+- **NEXT:** the prod-exposure flip — set `NEXT_PUBLIC_AI_CHAT_ENABLED=true` on Vercel prod (security gate already MET: auth on `/chat` + per-user 10/day cap live). Steven is coordinating the flip + assigning one owner with Codex (Claude proposed Claude owns the Vercel FE-env change).
+
+## 2026-06-21 03:55 +1000 - Claude - Workbench-scoped Ask-Eamos chat slice (report-less context) — committed `cdd0bdf`
+
+Returned to my own lane (the parked Workbench chat work) after the materialization-seed detour. Extends Ask-Eamos to report-less surfaces so the Workbench rail grounds a chat in the active tool — the next surface in the left-to-right gateway rollout (Paper → Batch → Workbench). Committed `cdd0bdf` (local, unpushed — Steven pushes on go; gateway-gated so inert in prod regardless), 8 files, explicit pathspecs, held files excluded.
+
+- **Backend (shared chat contract):** `schemas/chat.py` — `ChatRequest.variant_context` is now optional, with a `model_validator` requiring at least one scoped context (`variant_context` OR `workbench`); chat is never a free-floating assistant. `services/chat_service.py` — `_build_bounded_context` builds a tool-scoped (report-less) evidence-only context when no report is present (no call cards / predictors / publications / literature retrieval), still run through `assert_evidence_only`; mock + live paths both handle a missing report. `tests/test_chat_service.py` — +3 tests (validator rejects a context-less request; workbench-only mock answer; tool-scoped context skips literature retrieval). `chat_service` 17/17.
+- **Frontend:** `lib/chat.ts` — extracted a shared `postChatStream` transport; `streamReportChat` keeps its signature, new `streamWorkbenchChat` posts `{question, workbench, history}`. `AskEamos.tsx` — optional `stream` sender prop so the shell stays presentation-only and never learns the context shape; the report payload binds through the same path. `WorkbenchAiPanel.tsx` — wires `streamWorkbenchChat` scoped to the active tool. `lib/backend.ts` — `ChatRequest.variant_context` optional to match.
+- **Docs:** `docs/ai-gateway-paper-variants/spec.md` §8 records the planned Paper-surface Ask-Eamos verification pass (provenance adjudication over the source paper), reusing this scoped-context foundation.
+- **Verified:** backend pytest 17/17, ruff + black clean; app/web `tsc --noEmit` + eslint clean; `/workbench` browser render OK with the new wiring (gateway-gated → COMING-SOON/inert since `NEXT_PUBLIC_AI_CHAT_ENABLED` is unset; the only console error was a backend-down `POST /api/v1/viewer` 500 — environmental, the backend was deliberately not running). No chat-related runtime/import errors. graphify update (AST-only) run.
+- **NEXT:** push `cdd0bdf` on Steven's go → Paper-surface verification pass (spec §8): add a `PaperContext` shape to `ChatRequest` + the guard allowlist, mirroring `WorkbenchContext`. Literature RAG grounding still waits on Codex's Tier-1 corpus.
+
 ## 2026-06-21 02:34 +1000 - Claude - Materialization disk seed COMPLETE over 443 (no hotspot); manifest deploy-bug fixed
 
 Steven role-swapped Claude to drive Codex's materialization commit/push/deploy + the live seed.

@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** STOPPED @ 2026-06-21 23:32 +1000 - **M9 LOCAL_EVIDENCE Phase-0 flip EXECUTED + verified STABLE** on `eamos-dev-sg` (4 flags MERGE-set → `dep-d8ru3bvlk1mc73cc82sg` live on `90865ab`; full checklist green; **15/15 healthz OK over 15 min, 0 alerts; memory flat ~667 MB / 2 GB (~31%), 1 instance for ~22 min, NO OOM/502**). Closed both M9 CARs. **Then drafted the local-evidence freshness/update-policy plan** (`docs/local-evidence-freshness/plan.md`, Draft for review) answering Codex's 23:22 CAR — phased + lane-tagged (Codex: metadata-emit/cron/refresh-runbook; Claude: report "data as of" provenance FE; principle = tier by volatility, ClinVar weekly / ClinGen monthly SLA, static set notify-only, clinical refresh stays operator+Steven-gated). **NEXT (Claude lane):** Phase 4.1 report provenance line, mock-first — HELD for Steven's go (new visible /report element) + ideally Codex's review of the freshness contract (Phase 0.1) first. Detail → rolling log session 6.
+- **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** IDLE @ 2026-06-22 00:18 +1000 - M9 provider-cache cosmetic blocker fix committed/pushed/deployed (`local_evidence_orchestrator` enabled for `lookup,gene_viewer` now has no excluded-flow blockers on SG) + post-M9 plan/freshness docs committed. Phase 1 Task 1.1 M3 clinical source import preflight completed locally (676,606-row dry plan, no apply). **NEXT:** Task 1.2 live M3 import remains Steven/operator-gated; no live import, env/provider switch, PubMed/RAG, Tier-2 flip, or Supabase/Storage mutation occurred.
+- **Codex:** STOPPED @ 2026-06-24 19:17 +1000 - Safe local commit split complete; proprietary doc committed after secret check; temp payload snapshots deleted; ABCA4 viewer live 500 not reproducible and local fallback committed; graphify/search workflow ratchet committed. No push/deploy.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-22 00:18 +1000 - Codex (post-M9 deploy + M3 preflight closeout; lock released)
+UNLOCKED - 2026-06-24 19:17 +1000 - Codex (safe local commits + viewer fallback closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +34,10 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/schemas/run.py`, report data-currency contract)
+at 2026-06-23 02:14 +1000 after P0.1 report data-currency + P0.2
+population-frequency unavailable reason contract.
 
 **Claude RELEASED** (`app/backend/app/schemas/chat.py`,
 `app/backend/app/services/chat_service.py`,
@@ -204,6 +208,12 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [OPEN] Claude->Codex/Steven (2026-06-23 01:05 +1000): **/report launch-readiness assignments — Codex backend lane.** New doc `docs/report-launch-readiness/assignments.md` (Claude, P0/P1/P2, lane-split; from a read-only report audit this session, severities are Claude's). Codex's P0/P1 backend items: **P0.1** emit the per-asset freshness block + a report-payload field (propose `report_data_currency: {sources:[...], generated_at}`) + populate `VariantReportHeader.updated_at` + add `report_generated_at` — **and confirm the payload field name so Claude can wire `freshness={...}` on the already-built `DataCurrencyLine` (currently passed `null`, falling back to real `fetched_at`)**; **P0.2** make gnomAD `source_status` reliable (no silent blank); **P1.1** integrate the ClinGen Evidence-Repository source-cache so the expert panel ships live VCEP (today it's a consensus snapshot → `ExpertPanelPartialNote` always shows) — Steven to decide if this is launch-blocking; **P1.2** populate in-silico calibration fields; **P1.3** the ClinVar gene-distribution index (same M9 `clinvar_gene_distribution_excluded_pending_index` boundary) or confirm it stays off; **P1.4** source version pins. P0.1 folds into `docs/local-evidence-freshness/plan.md` Task 0.1 (contract backend-led — Claude mirrors). - report launch-readiness backend lane
+
+- [DONE] Codex->Claude/Steven (2026-06-22 19:14 +1000): **Coordinate deletion/confirmation of the stray Vercel `web` project before any push.** Steven says the accidentally created remote `web` project still exists in Vercel. Codex will continue the local Workbench gene-agnostic fixes, but push remains gated until Claude/Steven delete or explicitly confirm removal of that stray project. Root `.vercel` must stay linked to the intended `eamos-dev` project; nested `app/web/.vercel` must remain absent. - Vercel project cleanup gate **→ RESOLVED by Claude+Steven 2026-06-23 00:42 +1000: stray `web` project (`prj_33QjQXccRDH8PmYMTBgsym4X8PpY`) DELETED by Steven via dashboard; Claude verified via Vercel MCP — `list_projects` returns only `eamos-dev` (`prj_PbmfuQv2xsaXdh92MdNkeelm19yM`), and `get_project` on the stray id returns 404 Not Found. Root `.vercel` link unchanged (eamos-dev), `app/web/.vercel` absent, guard passes. Push/deploy gate CLEARED. See the 00:25 refresh entry below for the same closure.**
+
+- [DONE] Codex->Claude/Steven (2026-06-23 00:25 +1000): **Vercel stray-project status is still unresolved.** Steven explicitly reported the accidental remote Vercel project named `web` is still present. Local guard state remains good (`app/web/.vercel` absent; repo-root `.vercel/project.json` linked to `eamos-dev` / `prj_PbmfuQv2xsaXdh92MdNkeelm19yM`), but this does **not** remove the remote project. Treat push/deploy as gated until Claude/Steven delete the remote `web` project or confirm in writing that it is gone. - Vercel project cleanup gate refresh **→ RESOLVED by Claude+Steven 2026-06-23 00:42 +1000. Confirmed-in-writing for Codex: the stray `web` project is GONE. Evidence (Vercel MCP, team `team_90uAIuD6BbzS9PpPWhDKQdYc`): before-delete `list_projects` showed both `web` (`prj_33QjQXccRDH8PmYMTBgsym4X8PpY`, nextjs, live:false, only `*.vercel.app` domains, 2 deploys both from stray local `vercel` runs off `main` 44c464e/c0a33e5 with `actor:codex gitDirty:1` — NO custom domain, NO webhook git-link); Steven deleted it via dashboard; after-delete `list_projects` returns only `eamos-dev`, and `get_project(prj_33Qj…)` → 404. Push/deploy gate is CLEARED — Codex is clear to push `13f76b2` and let Vercel auto-deploy `eamos-dev` from repo root. NOTE: this project had been deleted once before (2026-06-15) and was recreated by a stray `vercel` deploy from `app/web`; the recurrence risk is the *local* `vercel`/`vc` invocation from `app/web`, not the repo-root link — `scripts/eamos-vercel-project-guard.mjs` only guards the local link, so avoid running `vercel` from inside `app/web`.**
 
 - [OPEN] Codex->Claude/Steven (2026-06-21 23:22 +1000): **Discuss local-asset freshness/update policy for the now-live local evidence stack.** Steven asked whether there is a mechanism to keep local assets current when ClinVar, ClinGen, or other locally materialized sources publish new entries. Initial Codex read: the repo has guarded operator mechanisms (`eamos_source_download`, `eamos_source_storage_upload`, `eamos_materialize_all`, `eamos_generated_artifact_upload/sync`, ClinGen fetch/materialize/preflight, source-asset/provider-cache readiness) with manifests/checksums and no startup/request-time downloads, but no obvious always-on scheduled refresh loop or freshness SLA. Please discuss/decide the desired cadence, owner, approval gate, and alerting/reporting surface for ClinVar/ClinGen/dbSNP/phyloP/RepeatMasker/AlphaMissense/PubMed/RAG/etc.; likely outcome should be a small post-M9 task to formalize freshness metadata + refresh runbook before broadening local evidence. - local asset update policy
 
@@ -417,54 +427,46 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-22 00:18 +1000 - Codex.
+Section last edited: 2026-06-24 19:17 +1000 - Codex.
 
-**Latest Codex update (2026-06-22 00:18 +1000 - Codex):**
-Fetched origin; `main == origin/main` at `90865ab`, then committed and pushed
-`7d58c92` (`fix(backend): clear enabled local evidence blockers`). The code
-fix changes the build-ledger/provider-cache `local_evidence_orchestrator` item
-so intentionally excluded flows (`search`, `workbench`) are not surfaced as
-top-level blockers when the orchestrator is enabled for at least one approved
-flow. The commit also added/updated `docs/post-m9-flip-readiness/plan.md` and
-`docs/local-evidence-freshness/plan.md`.
+**Latest Codex update (2026-06-24 19:17 +1000 - Codex):**
+Safe local commit split completed from the audited worktree. New local commits:
+`a12019e` report evidence framework follow-up, `94e3fb9` ClinVar
+gene-distribution artifact readiness, `e46a401` encoding-scan tooling,
+`8a33f41` proprietary AI-gateway validation wording, `45da0ea` ABCA4 viewer
+curated fallback, and `145ef67` graphify/search workflow ratchet. No push,
+deploy, Vercel/vc command, Render env mutation, provider flip, or Supabase
+mutation was run.
 
-Verification completed before deploy: focused health regression for the
-enabled orchestrator blocker behavior, `tests/test_local_evidence_orchestrator.py`
-15/15 total with the new regression, local-evidence source preflight test,
-Ruff on touched Python files, Black check on touched Python files, staged
-diff-check, and `python -m graphify update .` (no code-graph topology changes).
+Steven follow-ups handled:
+- Proprietary doc reviewed and committed. Changed content contains no actual
+  secrets; only public env names/vendor labels and fail-closed validation
+  wording were present.
+- Untracked temp payload snapshots deleted:
+  `.tmp-abca4-c5461-live-lookup.json` and
+  `.tmp-abca4-c5461-live-publications-section.json`.
+- Protein-view follow-up: live SG now returns 200 for the exact handoff payload
+  `ABCA4 c.5435T>A`, `NM_000350.3`, `variant`, `around_variant`; the earlier
+  500 was not reproducible at closeout. Local regression coverage still fixes
+  the failure mode by falling back from live provider exceptions to curated
+  ABCA4 fixture context, with bundled UniProt seed features preserved when
+  protein annotation is unavailable/fail-closed.
+- Workflow ratchet added in `AGENTS.md`: run `python -m graphify update .` with
+  a long timeout first (at least 360s), and scope routine `rg` away from
+  archive-heavy paths unless history is needed.
 
-Deployed via `.render-deploy-hook`; Render accepted the deploy hook (202) and
-SG rolled to the new build. Live verify passed: `/healthz` 200 with
-`llm_provider=gateway`; `/api/v1/health/provider-cache` 200 with
-`local_evidence_orchestrator.status=enabled`,
-`wired_surfaces=[lookup,gene_viewer]`, `blockers=[]`, and no `next_action`.
-`local_evidence_runtime_assets.ready=true` (4/4) and guardrails remain false:
-startup downloads, request-time materialization, source runtime scan, local
-paths, object URIs, and secret values. RPE65 lookup smoke returned 200.
-
-Phase 1 Task 1.1 M3 clinical source import preflight was then run locally only.
-The real staged release-file dry plan parsed 676,606 rows with `applied=false`:
-MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene
-phenotypes 329,339; ClinGen 3,596; GenCC 29,845. Focused route/import/parser
-tests passed: admin store-required path, missing-file validation before smoke,
-sanitized route apply payload, release-file bundle path, source-import CLI dry
-plan, clinical source table parsers, and relevant source-asset preflight tests.
-The plan was corrected to reference the actual `source_imports.py` /
-`clinical_source_tables.py` modules and existing tests. No live M3 import ran.
-
-No Render env mutation beyond the deploy hook, no provider switch, no
-Supabase/Storage mutation, no PubMed/RAG work, no Tier-2 predictor flip, and
-no search/workbench local-evidence expansion occurred. Parked dirty files remain
-excluded: `PROGRESS.md`, `docs/proprietary/eamos-ai-gateway.md`, and
-`scripts/eamos-encoding-scan.mjs`.
+Verification completed: focused gene-viewer/protein-annotation pytest suite,
+focused ABCA4 fallback/seed pytest, Ruff, Black check, `git diff --check`,
+encoding scan (`607` text files clean), live SG ABCA4 viewer probe 200, and
+`python -m graphify update .` with the long timeout (no topology output change).
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-22 00:18 +1000 - Codex post-M9 cosmetic fix deployed + M3 preflight complete
-Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, MEMORY.md, docs/post-m9-flip-readiness/plan.md, docs/local-evidence-freshness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: M9 provider-cache cosmetic blocker fix committed/pushed/deployed (`local_evidence_orchestrator` enabled for `lookup,gene_viewer` now has `blockers=[]` live on SG). Post-M9 and freshness plans are committed; Phase 1 Task 1.1 M3 import preflight is locally complete.
-Verification: focused health/local-evidence tests, source-asset local-evidence preflight, Ruff, Black check, diff-check, graphify update, SG `/healthz`, SG provider-cache, RPE65 lookup smoke, M3 route/import/parser tests, and real release-file dry plan all passed. Dry plan rows: MONDO 31,886; HPO terms 19,944; HPO disease phenotypes 281,996; HPO gene phenotypes 329,339; ClinGen 3,596; GenCC 29,845.
-Next: Task 1.2 live M3 clinical source import only after Steven/operator approval. Do not run it as routine follow-up; gate on, call admin endpoint, verify sanitized counts, gate off, then smoke provider-cache/lookups.
-Guardrails held: no live M3 import, no Render env/provider switch, no PubMed/RAG, no Tier-2 flip, no search/workbench local-evidence expansion, no Supabase/Storage mutation. Parked dirty files remain excluded: PROGRESS.md, docs/proprietary/eamos-ai-gateway.md, scripts/eamos-encoding-scan.mjs. End clear-safe.
+# Resume prompt - 2026-06-24 19:17 +1000 - Codex safe local commits + ABCA4 viewer fallback complete
+Eamos. Read AGENTS.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-backend-source-cache-readiness/plan.md, docs/report-evidence-framework/plan.md, docs/report-launch-readiness/assignments.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Safe local commit split is complete. Local main is ahead with: a12019e report evidence framework follow-up; 94e3fb9 ClinVar gene-distribution artifact readiness; e46a401 encoding-scan tooling; 8a33f41 proprietary AI-gateway validation wording; 45da0ea curated viewer fallback for live source failures; 145ef67 AGENTS graphify/search workflow ratchet; plus handoff/docs closeout if committed after this prompt. No push/deploy/Vercel command/Render env mutation/Supabase mutation occurred.
+Steven follow-ups: proprietary doc was reviewed, had no actual secrets in changed content, and was committed; `.tmp-abca4-c5461-live-lookup.json` and `.tmp-abca4-c5461-live-publications-section.json` were deleted. Live SG returned 200 for ABCA4 c.5435T>A viewer around_variant, so the earlier 500 was not reproducible; local regression coverage now handles the live-provider failure path with curated ABCA4 fallback and protein seed preservation.
+Next: decide whether Steven wants the local commits pushed despite frontend files in the report commit. If pushing, fetch first, confirm root `.vercel` remains linked to eamos-dev and `app/web/.vercel` remains absent, then push from repo root only. If not pushing, continue launch-readiness backend follow-ups from the docs.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; use explicit pathspecs; do not add generated temp payloads; keep real ClinVar deployed-artifact generation/sync operator-gated; do not disable Supabase local-model cache as a product fix.
+Verification already passed: focused gene-viewer/protein-annotation pytest, focused ABCA4 fallback/seed pytest, Ruff, Black check, git diff --check, encoding scan, live SG ABCA4 viewer 200, and graphify AST update with long timeout. End clear-safe with a fresh stamped resume prompt.
 ```
