@@ -45,6 +45,21 @@ backend-led (Codex owns the schema; announce via `## Cross-Agent Requests`).
 For remaining backend work, start with global Blueprint `design-doc` → `spec`
 → `plan` (artifacts under `plans/`) before implementation, not straight code.
 
+## Product Architecture Invariant
+
+Eamos is a gene- and variant-agnostic search/evidence platform. Do not treat
+ABCA4, RPE65, USH2A, or any other named gene/variant as the product boundary.
+When fixing report, viewer, protein-architecture, source-cache, evidence, or
+search behavior, first locate the shared normalization/selection/orchestration
+boundary and make the fix there. Single-gene payloads are acceptable as
+fixtures or smoke checks only; they are not sufficient proof that the system is
+fixed.
+
+Default verification for these fixes should include a pure/helper-level
+regression with synthetic gene-agnostic inputs plus any relevant real fixture.
+Browser verification remains useful for rendering and interaction, but it must
+not be the only proof for gene-agnostic logic.
+
 ## Coordination Protocol — single home
 
 All of it — hard rules, the **CURRENT.md-only-at-major-boundaries +

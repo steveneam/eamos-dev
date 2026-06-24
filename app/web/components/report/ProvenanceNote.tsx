@@ -21,10 +21,28 @@ const FRIENDLY: Record<string, string> = {
   exon_intron_table_window_only: 'Exon/intron model limited to the selected range',
   conservation_from_sample_scaffold: 'Conservation from RPE65 sample scaffold',
   conservation_unavailable: 'Conservation track unavailable',
+  protein_domain_track_from_local_cache: 'Protein architecture from local cache',
+}
+
+const FRIENDLY_PREFIX: Array<[string, (detail: string) => string]> = [
+  [
+    'protein_domain_track_unavailable:',
+    (detail) => `Protein architecture unavailable: ${humanizeDetail(detail)}`,
+  ],
+  [
+    'gene_viewer_live_request_failed:',
+    (detail) => `Live gene-viewer request failed: ${humanizeDetail(detail)}. Rendered report snapshot.`,
+  ],
+]
+
+function humanizeDetail(value: string): string {
+  return value.replace(/_/g, ' ').replace(/:/g, ': ').trim() || 'unknown reason'
 }
 
 function humanize(code: string): string {
   if (FRIENDLY[code]) return FRIENDLY[code]
+  const prefixed = FRIENDLY_PREFIX.find(([prefix]) => code.startsWith(prefix))
+  if (prefixed) return prefixed[1](code.slice(prefixed[0].length))
   const spaced = code.replace(/_/g, ' ').trim()
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }

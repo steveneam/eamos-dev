@@ -192,11 +192,11 @@ function formatScore(score: number | null | undefined): string {
 
 function Metric({ label, value, hint, tip }: { label: string; value: string; hint?: string; tip?: string }) {
   return (
-    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '8px 10px' }}>
+    <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-sm)', background: 'var(--bg)', padding: '8px 10px', minWidth: 0 }}>
       <div className="eamos-kicker" style={tip ? { cursor: 'help', borderBottom: '1px dotted var(--ink-5)', display: 'inline-block' } : undefined} title={tip}>
         {label}
       </div>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginTop: 3, lineHeight: 1.1 }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginTop: 3, lineHeight: 1.1, maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
         {value}
       </div>
       {hint && <div style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>{hint}</div>}

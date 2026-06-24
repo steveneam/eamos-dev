@@ -335,6 +335,11 @@ function warningsForViewer(resp: GeneViewerResponse): string[] {
   return Array.from(new Set([...geneViewerScaffoldWarnings(resp), ...trackWarnings, ...alphamissenseWarnings]))
 }
 
+function viewerFetchWarning(err: Error): string {
+  const message = err.message.trim().replace(/\s+/g, ' ')
+  return `gene_viewer_live_request_failed:${message || err.name || 'unknown_error'}`
+}
+
 function snapshotRangeLength(
   start: number | null | undefined,
   end: number | null | undefined,
@@ -398,6 +403,7 @@ function adaptGeneContextSnapshot(
   })
   const domainFeatures = proteinTrack?.features
     .filter((feature) => feature.aa_start > 0 && feature.aa_end >= feature.aa_start)
+    .filter((feature) => normalizeProteinArchitectureLane(feature.lane, feature.kind) === 'domains')
     .map((feature) => ({
       aaStart: feature.aa_start,
       aaEnd: feature.aa_end,
@@ -594,7 +600,7 @@ export function ReportGeneViewer({
         if (seededData) {
           setData(seededData)
           setProteinTrack(seededProteinTrack)
-          setWarnings(Array.from(new Set([...(seededProteinTrack?.warnings ?? []), err.message])))
+          setWarnings(Array.from(new Set([...(seededProteinTrack?.warnings ?? []), viewerFetchWarning(err)])))
           setError(null)
         } else {
           setError(err.message)
@@ -1667,7 +1673,7 @@ function featuresFromViewer(data: GeneWindowData): ProteinFeatureRender[] {
       source: feature.source ?? 'viewer protein_features',
       accession: feature.accession,
       broadBackbone: feature.broadBackbone,
-      architecturePriority: 90,
+      architecturePriority: feature.broadBackbone ? 50 : 54,
     })).map(canonicalProteinFeature),
     ...data.proteinFeatures.transmembrane.map((feature) => ({
       start: feature.aaStart,

@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type {
   PopulationAgeHistogramView,
   PopulationFrequencyDatasetCell,
@@ -30,6 +30,17 @@ import { InfoPopover } from '@/components/ui/InfoHint'
 
 interface PopulationFrequencySectionProps {
   section?: PopulationFrequencyReportSection | null
+  unavailable?: PopulationFrequencyUnavailableState | null
+}
+
+interface PopulationFrequencyUnavailableState {
+  sourceStatus?: string | null
+  unavailableReason?: string | null
+  warnings?: string[]
+  variantId?: string | null
+  dataset?: string | null
+  genomeBuild?: string | null
+  sequencingType?: string | null
 }
 
 type PopulationTab = 'map' | 'ancestry' | 'age'
@@ -64,11 +75,40 @@ const WARNING_COPY: Record<string, string> = {
   per_genetic_ancestry_age_distribution_not_available: 'Age distribution is not broken down by ancestry group.',
   allele_frequency_unavailable: 'Overall allele frequency is unavailable for this variant.',
   population_frequency_detail_unavailable: 'Detailed population frequency data is unavailable.',
+  gnomad_source_status: 'gnomAD did not return a live frequency result for this lookup.',
+  source_status: 'gnomAD source status is not live for this lookup.',
+}
+
+const UNAVAILABLE_REASON_COPY: Record<string, string> = {
+  detail_unavailable: 'Detailed gnomAD population frequency data is unavailable.',
+  frequency_metrics_unavailable: 'gnomAD returned the variant but did not provide usable frequency metrics.',
+  variant_not_found: 'gnomAD has no record for this variant.',
+  source_failure: 'gnomAD could not be reached for this lookup.',
+  source_unavailable: 'gnomAD is unavailable for this lookup.',
 }
 
 function warningCopy(warning: string): string {
   const key = warning.split(':', 1)[0]
   return WARNING_COPY[warning] ?? WARNING_COPY[key] ?? warning.replace(/_/g, ' ').replace(/:/g, ': ')
+}
+
+function machineText(value: string | null | undefined): string | null {
+  if (!value) return null
+  return value.replace(/_/g, ' ').replace(/:/g, ': ').trim()
+}
+
+function unavailableReasonCopy(reason: string | null | undefined): string | null {
+  if (!reason) return null
+  return UNAVAILABLE_REASON_COPY[reason] ?? machineText(reason)
+}
+
+function sourceStatusNeedsDisclosure(status: string | null | undefined): boolean {
+  if (!status) return false
+  return !['live', 'local', 'cache', 'fixture'].includes(status.toLowerCase())
+}
+
+function uniqueWarnings(warnings: string[]): string[] {
+  return Array.from(new Set(warnings.filter(Boolean)))
 }
 
 function groupContext(group: PopulationFrequencyVisualGroup): string {
@@ -215,7 +255,7 @@ function buildAncestryFrequencyTsv(
   return [header, ...groupRows, ...overallRows].join('\n')
 }
 
-export function PopulationFrequencySection({ section }: PopulationFrequencySectionProps) {
+export function PopulationFrequencySection({ section, unavailable = null }: PopulationFrequencySectionProps) {
   const [activeTab, setActiveTab] = useState<PopulationTab>('map')
   const warnings = section?.warnings ?? []
   const groups = useMemo(
@@ -234,7 +274,14 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
     setSelectedGroupId((current) => (current === id ? null : id))
   }, [])
 
-  if (!section) return null
+  if (!section) {
+    return <PopulationUnavailableStatePanel state={unavailable ?? { sourceStatus: 'missing' }} />
+  }
+  const disclosureWarnings = uniqueWarnings(warnings)
+  const showStatusNote =
+    Boolean(section.unavailable_reason) ||
+    sourceStatusNeedsDisclosure(section.source_status) ||
+    disclosureWarnings.some((warning) => /unavailable|failed|failure|missing|gnomad_source_status/.test(warning))
 
   return (
     <div id={section.section_id} className="scroll-mt-24" data-panel-id={section.panel_id}>
@@ -265,6 +312,14 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
         </div>
       </div>
 
+      {showStatusNote && (
+        <PopulationStatusNote
+          sourceStatus={section.source_status}
+          unavailableReason={section.unavailable_reason}
+          warnings={disclosureWarnings}
+        />
+      )}
+
       <div id={section.panel_id}>
         <div>{/* tab content begins */}
           {activeTab === 'map' ? (
@@ -291,6 +346,96 @@ export function PopulationFrequencySection({ section }: PopulationFrequencySecti
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function PopulationUnavailableStatePanel({ state }: { state: PopulationFrequencyUnavailableState }) {
+  const warnings = uniqueWarnings(state.warnings ?? [])
+  const reason = unavailableReasonCopy(state.unavailableReason)
+  const status = machineText(state.sourceStatus) ?? 'missing'
+  const meta = [
+    state.variantId,
+    state.dataset,
+    state.genomeBuild,
+    state.sequencingType,
+  ].filter(Boolean).join(' | ')
+  return (
+    <div
+      role="note"
+      style={{
+        border: '0.5px solid var(--warn-bdr)',
+        borderRadius: 'var(--r-md)',
+        background: 'var(--warn-tint)',
+        color: 'var(--ink-2)',
+        padding: '14px 16px',
+        display: 'grid',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+            Frequency data unavailable
+          </div>
+          {meta && (
+            <div style={{ marginTop: 2, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', overflowWrap: 'anywhere' }}>
+              {meta}
+            </div>
+          )}
+        </div>
+        <span style={statusChipStyle}>{status}</span>
+      </div>
+      <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink-3)' }}>
+        {reason ?? 'The backend did not return source-backed gnomAD frequency metrics for this variant.'}
+      </p>
+      {warnings.length > 0 && (
+        <ul style={{ margin: 0, paddingLeft: 17, display: 'grid', gap: 4, fontSize: 11.5, lineHeight: 1.45, color: 'var(--ink-3)' }}>
+          {warnings.slice(0, 4).map((warning) => (
+            <li key={warning}>{warningCopy(warning)}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function PopulationStatusNote({
+  sourceStatus,
+  unavailableReason,
+  warnings,
+}: {
+  sourceStatus?: string | null
+  unavailableReason?: string | null
+  warnings: string[]
+}) {
+  const reason = unavailableReasonCopy(unavailableReason)
+  const status = machineText(sourceStatus)
+  const statusText = reason ?? (warnings.map(warningCopy).slice(0, 2).join(' | ') || 'No live frequency result was returned.')
+  return (
+    <div
+      role="note"
+      style={{
+        marginBottom: 14,
+        border: '0.5px solid var(--warn-bdr)',
+        borderRadius: 'var(--r-sm)',
+        background: 'var(--warn-tint)',
+        color: 'var(--ink-3)',
+        padding: '8px 10px',
+        fontSize: 11.5,
+        lineHeight: 1.45,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 10,
+        flexWrap: 'wrap',
+      }}
+    >
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+        <strong style={{ color: 'var(--ink)', fontWeight: 700 }}>gnomAD source state:</strong>{' '}
+        {statusText}
+      </span>
+      {status && <span style={statusChipStyle}>{status}</span>}
     </div>
   )
 }
@@ -1719,4 +1864,17 @@ function UnavailablePanel({ title, compact = false }: { title: string; compact?:
       {title}
     </div>
   )
+}
+
+const statusChipStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  border: '0.5px solid var(--warn-bdr)',
+  borderRadius: 999,
+  background: 'var(--bg)',
+  color: 'var(--warn)',
+  padding: '2px 7px',
+  fontSize: 10.5,
+  fontWeight: 700,
+  whiteSpace: 'nowrap',
 }

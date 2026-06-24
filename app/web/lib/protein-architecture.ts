@@ -201,9 +201,37 @@ export function selectPrimaryProteinArchitectureFeatures<T extends ProteinArchit
 
   const selected = PROTEIN_ARCHITECTURE_LANE_ORDER.flatMap((lane) => selectedByLane.get(lane) ?? [])
   const hasSpecificAnnotations = selected.some((feature) => !feature.broadBackbone)
-  return hasSpecificAnnotations
+  const withoutBroadBackbone = hasSpecificAnnotations
     ? selected.filter((feature) => !feature.broadBackbone)
     : selected
+  return collapseDuplicateProteinArchitectureFeatures(withoutBroadBackbone)
+}
+
+export function collapseDuplicateProteinArchitectureFeatures<T extends ProteinArchitectureFeature>(features: T[]): T[] {
+  const byIdentity = new Map<string, T[]>()
+  for (const feature of features) {
+    const key = proteinArchitectureIdentityKey(feature)
+    const group = byIdentity.get(key)
+    if (group) group.push(feature)
+    else byIdentity.set(key, [feature])
+  }
+
+  const collapsed: T[] = []
+  for (const group of byIdentity.values()) {
+    const kept: T[] = []
+    const candidates = [...group].sort(compareDuplicateCandidates)
+    candidates.forEach((candidate) => {
+      const duplicate = kept.some((feature) => significantOverlap(candidate, feature))
+      if (!duplicate) kept.push(candidate)
+    })
+    collapsed.push(...kept)
+  }
+  return collapsed.sort(
+    (a, b) =>
+      proteinArchitectureLaneRank(a.lane) - proteinArchitectureLaneRank(b.lane) ||
+      a.start - b.start ||
+      a.end - b.end,
+  )
 }
 
 function architecturePriority(feature: ProteinArchitectureFeature): number {
@@ -213,6 +241,23 @@ function architecturePriority(feature: ProteinArchitectureFeature): number {
   if (feature.kind === 'motif' || feature.kind === 'region') return 58
   if (feature.kind === 'transmembrane' || feature.kind === 'signal_peptide') return 60
   return 40
+}
+
+function proteinArchitectureIdentityKey(feature: ProteinArchitectureFeature): string {
+  return [feature.short, feature.label].map((value) => value.trim().toLowerCase()).join('|')
+}
+
+function compareDuplicateCandidates(a: ProteinArchitectureFeature, b: ProteinArchitectureFeature): number {
+  const priorityDelta = architecturePriority(b) - architecturePriority(a)
+  if (priorityDelta !== 0) return priorityDelta
+  if (a.broadBackbone !== b.broadBackbone) return a.broadBackbone ? 1 : -1
+  const confidenceDelta = featureConfidence(b) - featureConfidence(a)
+  if (confidenceDelta !== 0) return confidenceDelta
+  const lengthDelta = proteinArchitectureFeatureLength(a) - proteinArchitectureFeatureLength(b)
+  if (lengthDelta !== 0) return lengthDelta
+  const laneDelta = proteinArchitectureLaneRank(a.lane) - proteinArchitectureLaneRank(b.lane)
+  if (laneDelta !== 0) return laneDelta
+  return a.start - b.start || a.end - b.end
 }
 
 function featureConfidence(feature: ProteinArchitectureFeature): number {

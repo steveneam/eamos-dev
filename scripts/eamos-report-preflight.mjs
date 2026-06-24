@@ -198,19 +198,55 @@ const SCAN_FN = `
   // LazySection coverage — which DL-013 lazy-eligible sections are wrapped in
   // <LazySection> (data-lazy-section attr survives eager-mode too because the
   // wrapper always renders the sentinel during idle/loading).
-  const lazyEligible = ['publications', 'computational_deep_dive', 'clingen_vcep'];
+  const lazyEligible = ['publications', 'therapies_trials', 'computational_deep_dive', 'clingen_vcep'];
   const lazyPresent = Array.from(document.querySelectorAll('[data-lazy-section]'))
     .map((n) => n.getAttribute('data-lazy-section'));
+  const requiredReportCards = [
+    'gnomAD population frequency',
+    'Gene & locus context',
+    'Disease & curated variants',
+  ];
+  const cardTitles = Array.from(document.querySelectorAll('h2'))
+    .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
+    .filter(Boolean);
   return {
     viewport: { vw: window.innerWidth, vh: window.innerHeight, dpr: window.devicePixelRatio },
     htmlOverflow: html.scrollWidth - html.clientWidth,
     bodyOverflow: body.scrollWidth - body.clientWidth,
     offenders,
+    report: {
+      requiredCards: requiredReportCards,
+      cardTitles,
+      missingCards: requiredReportCards.filter((title) => !cardTitles.includes(title)),
+    },
     lazy: {
       eligible: lazyEligible,
       wrapped: lazyPresent,
       missing: lazyEligible.filter((id) => !lazyPresent.includes(id)),
     },
+  };
+})()
+`
+
+const REPORT_READY_FN = `
+(() => {
+  const requiredReportCards = [
+    'gnomAD population frequency',
+    'Gene & locus context',
+    'Disease & curated variants',
+  ];
+  const cardTitles = Array.from(document.querySelectorAll('h2'))
+    .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
+    .filter(Boolean);
+  const alerts = Array.from(document.querySelectorAll('[role="alert"]'))
+    .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
+    .filter(Boolean);
+  const missingCards = requiredReportCards.filter((title) => !cardTitles.includes(title));
+  return {
+    ready: missingCards.length === 0 || alerts.some((text) => /could not load|failed|error/i.test(text)),
+    missingCards,
+    cardTitles,
+    alerts: alerts.slice(0, 4),
   };
 })()
 `
@@ -370,6 +406,19 @@ async function runAtWidth(host, port, width) {
       resolve()
     }, TIMEOUT_MS)
   })
+  let reportWait = null
+  {
+    const deadline = Date.now() + TIMEOUT_MS
+    while (Date.now() < deadline) {
+      const probeRes = await cdp.send('Runtime.evaluate', {
+        expression: REPORT_READY_FN,
+        returnByValue: true,
+      })
+      reportWait = probeRes?.result?.value ?? null
+      if (reportWait?.ready) break
+      await new Promise((r) => setTimeout(r, 500))
+    }
+  }
 
   // Lazy mode: drive the scroll so IntersectionObserver fires, then poll the
   // terminal-state probe until every forced section has resolved or we've
@@ -408,7 +457,7 @@ async function runAtWidth(host, port, width) {
     await fetch(`http://${host}:${port}/json/close/${tab.id}`)
   } catch {}
   const result = evalRes?.result?.value ?? null
-  return { width, navUrl, scan: result, consoleErrors, sectionFetches, lazyResults }
+  return { width, navUrl, scan: result, consoleErrors, sectionFetches, lazyResults, reportWait }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -447,6 +496,11 @@ function formatHuman(report) {
       const mode = wrapped.length === 0 ? 'all-eager' : 'mixed'
       lines.push(
         `  LazySection: mode=${mode} · lazy-sentinels=[${wrapped.join(', ')}] · eligible=[${eligible.join(', ')}]`,
+      )
+    }
+    if (r.scan?.report) {
+      lines.push(
+        `  required report cards: missing=[${r.scan.report.missingCards.join(', ')}]`,
       )
     }
     if (r.lazyResults) {
@@ -497,6 +551,7 @@ try {
     const fixable = (r.scan?.offenders ?? []).filter(isFixable)
     if (fixable.length > 0) exit = 1
     if (r.consoleErrors.length > 0) exit = 1
+    if ((r.scan?.report?.missingCards ?? []).length > 0) exit = 1
     // Lazy mode: any forced section that did not resolve to 'ready' is a fail.
     if (r.lazyResults) {
       for (const info of Object.values(r.lazyResults)) {

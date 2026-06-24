@@ -837,10 +837,36 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
       (target) => target.section_id === sectionId,
     ) ?? null
   const populationTarget = targetFor('population_frequency')
-  const populationSection =
-    populationTarget?.match_level === 'unavailable'
-      ? null
-      : payload.report_profile?.population_frequency
+  const populationSection = payload.report_profile?.population_frequency ?? null
+  const populationCallCard =
+    payload.call_cards?.cards.find((card) => card.card_id === 'population_frequency') ?? null
+  const populationSourceStatus =
+    populationSection?.source_status ??
+    populationCallCard?.source_status ??
+    (populationTarget?.match_level === 'unavailable' ? 'missing' : null)
+  const populationUnavailableReason =
+    populationSection?.unavailable_reason ??
+    payload.population_frequency_detail?.unavailable_reason ??
+    populationTarget?.warnings?.find(Boolean) ??
+    populationCallCard?.warnings?.find(Boolean) ??
+    null
+  const populationWarnings = Array.from(
+    new Set([
+      ...(populationSection?.warnings ?? []),
+      ...(payload.population_frequency_detail?.warnings ?? []),
+      ...(populationTarget?.warnings ?? []),
+      ...(populationCallCard?.warnings ?? []),
+    ]),
+  )
+  const populationSourceUnreliable = ['failed', 'error', 'fallback', 'degraded', 'missing'].includes(
+    (populationSourceStatus ?? '').toLowerCase(),
+  )
+  const showPopulationSection = Boolean(
+    populationSection ||
+      populationTarget ||
+      populationCallCard ||
+      payload.population_frequency_detail,
+  )
   const populationAf = populationSection?.overall?.total?.allele_frequency ?? null
 
   const computedClassification = payload.eamos_computed_classification ?? null
@@ -1032,7 +1058,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         {/* 3 · Population frequency (gnomAD) — AF thermometer + constraint
             readout above the world map / ancestry / age tabs. */}
         <div id="population_frequency" className="scroll-mt-24" />
-        {populationSection && (
+        {showPopulationSection && (
           <Card
             number={3}
             title="gnomAD population frequency"
@@ -1047,8 +1073,21 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               />
             }
           >
-            <AfThermometer af={populationSection.overall?.total?.allele_frequency ?? null} evidence={data.evidence} />
-            <PopulationFrequencySection section={populationSection} />
+            {populationSection && !populationSourceUnreliable && (
+              <AfThermometer af={populationSection.overall?.total?.allele_frequency ?? null} evidence={data.evidence} />
+            )}
+            <PopulationFrequencySection
+              section={populationSection}
+              unavailable={{
+                sourceStatus: populationSourceStatus,
+                unavailableReason: populationUnavailableReason,
+                warnings: populationWarnings,
+                variantId: payload.population_frequency_detail?.variant_id ?? null,
+                dataset: payload.population_frequency_detail?.dataset ?? null,
+                genomeBuild: populationSection?.genome_build ?? null,
+                sequencingType: payload.population_frequency_detail?.sequencing_type ?? null,
+              }}
+            />
           </Card>
         )}
 

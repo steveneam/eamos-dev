@@ -778,6 +778,9 @@ const factValueStyle: CSSProperties = {
   fontSize: 12.5,
   color: 'var(--ink-2)',
   fontWeight: 650,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
 }
 
 const validityScaleStyle: CSSProperties = {
