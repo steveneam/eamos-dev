@@ -19,6 +19,10 @@ from app.data_sources import (
     SourceAssetMaterializationRecord,
 )
 from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
+from app.services.clinvar_local import (
+    DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+    materialize_clinvar_gene_distribution_index,
+)
 from app.services.predictor_runtime import (
     CAPICE_FEATURE_CACHE_ASSET_ROLE,
     CAPICE_FEATURE_CACHE_SOURCE_ID,
@@ -58,6 +62,14 @@ def test_source_asset_preflight_reports_guarded_readiness(
     monkeypatch.setenv(
         "CLINVAR_RUNTIME_INDEX_PATH",
         str(tmp_path / "missing-clinvar.vcf.gz.tbi"),
+    )
+    monkeypatch.setenv(
+        "CLINVAR_GENE_DISTRIBUTION_INDEX_PATH",
+        str(tmp_path / "missing-clinvar-gene-distribution.sqlite"),
+    )
+    monkeypatch.setenv(
+        "CLINVAR_GENE_DISTRIBUTION_MANIFEST_PATH",
+        str(tmp_path / "missing-clinvar-gene-distribution.manifest.json"),
     )
     monkeypatch.setenv(
         "REPEATMASKER_RUNTIME_INDEX_PATH",
@@ -169,6 +181,14 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert compact_index["status"] == "missing"
     assert compact_index["source_runtime_scan_allowed"] is False
     assert compact_index["startup_download_allowed"] is False
+    clinvar_gene_index = output["clinvar_gene_distribution_index"]
+    assert clinvar_gene_index["source_id"] == "eamos_clinvar_gene_distribution_index"
+    assert clinvar_gene_index["ready"] is False
+    assert clinvar_gene_index["status"] == "missing"
+    assert clinvar_gene_index["source_runtime_scan_allowed"] is False
+    assert clinvar_gene_index["startup_download_allowed"] is False
+    assert clinvar_gene_index["local_path_values_emitted"] is False
+    assert clinvar_gene_index["raw_source_rows_emitted"] is False
 
     local_evidence_runtime = output["local_evidence_runtime_assets"]
     assert local_evidence_runtime["ready"] is False
@@ -271,6 +291,40 @@ def test_source_asset_preflight_reports_compact_coordinate_index_ready_without_p
     encoded = json.dumps(output).lower()
     assert str(COMPACT_INDEX_FIXTURE).lower() not in encoded
     assert "eamos-coordinate-index" not in encoded
+
+
+def test_source_asset_preflight_reports_clinvar_gene_index_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
+    materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=index_path,
+        manifest_path=manifest_path,
+        force=True,
+    )
+    settings = Settings(
+        jwt_secret="test-secret",
+        hg38_2bit_runtime_asset_path=tmp_path / "missing-hg38.2bit",
+        clinvar_gene_distribution_index_path=index_path,
+        clinvar_gene_distribution_manifest_path=manifest_path,
+    )
+
+    output = build_source_asset_preflight_report(settings=settings)
+
+    clinvar_gene_index = output["clinvar_gene_distribution_index"]
+    assert clinvar_gene_index["ready"] is True
+    assert clinvar_gene_index["status"] == "ready"
+    assert clinvar_gene_index["schema_version"] == "eamos.clinvar_gene_distribution.v1"
+    assert clinvar_gene_index["gene_count"] == 1
+    assert clinvar_gene_index["variant_count"] == 1
+    assert clinvar_gene_index["source_runtime_scan_allowed"] is False
+    assert clinvar_gene_index["local_path_values_emitted"] is False
+    assert clinvar_gene_index["raw_source_rows_emitted"] is False
+    encoded = json.dumps(clinvar_gene_index).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "supabase://" not in encoded
 
 
 def test_source_asset_preflight_reports_ready_admin_predictors_without_paths(

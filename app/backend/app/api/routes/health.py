@@ -23,6 +23,7 @@ from app.services.pvs1_nmd import inspect_pvs1_nmd_runtime
 from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.clingen_local import inspect_clingen_local_store
+from app.services.clinvar_local import inspect_clinvar_gene_distribution_index
 from app.services.local_evidence_runtime_assets import inspect_local_evidence_runtime_assets
 from app.services.mavedb_local import inspect_mavedb_local_store
 from app.services.pubmed_local import inspect_pubmed_local_store
@@ -139,6 +140,7 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
         },
         "compact_coordinate_index": _compact_coordinate_index_health(settings),
         "clingen_local": _clingen_local_health(settings),
+        "clinvar_gene_distribution_index": _clinvar_gene_distribution_index_health(settings),
         "local_evidence_runtime_assets": _local_evidence_runtime_asset_health(settings),
         "pubmed_local": _pubmed_local_health(settings),
         "literature_embeddings": _literature_embedding_health(settings),
@@ -254,6 +256,42 @@ def _clingen_local_health(settings) -> dict[str, object]:
             "raw_source_rows_emitted": False,
             "public_serialization_allowed": True,
             "launch_gate": "clingen_local_materialization",
+        }
+
+
+def _clinvar_gene_distribution_index_health(settings) -> dict[str, object]:
+    try:
+        return inspect_clinvar_gene_distribution_index(
+            settings,
+            verify_checksum=False,
+        ).to_sanitized_dict()
+    except Exception:
+        return {
+            "source_id": "eamos_clinvar_gene_distribution_index",
+            "status": "runtime_asset_probe_failed",
+            "ready": False,
+            "schema_version": None,
+            "source_version": None,
+            "source_status": None,
+            "gene_count": 0,
+            "variant_count": 0,
+            "actual_size_bytes": None,
+            "checksum_verified": False,
+            "checksum_algorithm": None,
+            "checksum_value": None,
+            "message": "ClinVar gene-distribution index probe failed",
+            "status_notes": [],
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "source_runtime_scan_allowed": False,
+            "runtime_reader_opened": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "object_uri_values_emitted": False,
+            "raw_source_rows_emitted": False,
+            "public_serialization_allowed": True,
+            "launch_gate": "clinvar_gene_distribution_index_materialization",
+            "license_gate": None,
         }
 
 

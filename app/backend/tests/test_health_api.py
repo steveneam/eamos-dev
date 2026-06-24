@@ -16,6 +16,10 @@ from app.core.config import Settings
 from app.data_sources.runtime_assets import SourceAssetMaterializationRecord
 from app.main import create_app
 from app.services.ai_gateway.retrieval import LiteratureEmbeddingStore, LiteratureSourceRecord
+from app.services.clinvar_local import (
+    DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+    materialize_clinvar_gene_distribution_index,
+)
 from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
 from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 from app.services.predictor_runtime import (
@@ -111,6 +115,19 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert clingen_local["request_time_materialization_allowed"] is False
     assert clingen_local["local_path_values_emitted"] is False
     assert clingen_local["raw_source_rows_emitted"] is False
+    clinvar_gene_index = body["source_assets"]["clinvar_gene_distribution_index"]
+    assert clinvar_gene_index["source_id"] == "eamos_clinvar_gene_distribution_index"
+    assert clinvar_gene_index["ready"] is False
+    assert clinvar_gene_index["status"] == "missing"
+    assert clinvar_gene_index["startup_download_allowed"] is False
+    assert clinvar_gene_index["request_time_materialization_allowed"] is False
+    assert clinvar_gene_index["source_runtime_scan_allowed"] is False
+    assert clinvar_gene_index["local_path_values_emitted"] is False
+    assert clinvar_gene_index["raw_source_rows_emitted"] is False
+    assert (
+        clinvar_gene_index["launch_gate"]
+        == "clinvar_gene_distribution_index_materialization"
+    )
     literature_embeddings = body["source_assets"]["literature_embeddings"]
     assert literature_embeddings["source_id"] == "eamos_literature_embeddings"
     assert literature_embeddings["ready"] is False
@@ -241,6 +258,45 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     encoded_ledger = json.dumps(ledger).lower()
     assert "supabase://" not in encoded_ledger
     assert "service_role" not in encoded_ledger
+
+
+def test_provider_cache_health_reports_clinvar_gene_index_ready_without_paths(
+    tmp_path: Path,
+) -> None:
+    index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
+    materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=index_path,
+        manifest_path=manifest_path,
+        force=True,
+    )
+    settings = Settings(
+        upload_dir=tmp_path / "uploads",
+        final_report_dir=tmp_path / "final_reports",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'app.db').as_posix()}",
+        jwt_secret="test-secret",
+        llm_provider="mock",
+        use_real_apis=False,
+        workbench_live_design_enabled=False,
+        clinvar_gene_distribution_index_path=index_path,
+        clinvar_gene_distribution_manifest_path=manifest_path,
+    )
+
+    with TestClient(create_app(settings)) as test_client:
+        response = test_client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    index_health = response.json()["source_assets"]["clinvar_gene_distribution_index"]
+    assert index_health["source_id"] == "eamos_clinvar_gene_distribution_index"
+    assert index_health["status"] == "ready"
+    assert index_health["ready"] is True
+    assert index_health["schema_version"] == "eamos.clinvar_gene_distribution.v1"
+    assert index_health["gene_count"] == 1
+    assert index_health["variant_count"] == 1
+    assert index_health["local_path_values_emitted"] is False
+    assert index_health["raw_source_rows_emitted"] is False
+    assert str(tmp_path).lower() not in json.dumps(response.json()).lower()
 
 
 def test_provider_cache_health_reports_crispr_offtarget_index_ready_without_paths(

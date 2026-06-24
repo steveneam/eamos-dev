@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,11 +14,15 @@ from app.services.lookup_service import (
 )
 from app.services.clinvar_local import (
     CLINVAR_SOURCE_ID,
+    DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
     ClinVarIndexedLocalAdapter,
     ClinVarLocalError,
     ClinVarLocalProvenance,
     ClinVarLocalStore,
     build_clinvar_gene_distribution,
+    build_clinvar_gene_distribution_from_index,
+    inspect_clinvar_gene_distribution_index,
+    materialize_clinvar_gene_distribution_index,
     parse_clinvar_vcf,
 )
 from app.services.indexed_sources import IndexedSourceError, IndexedVcfRecord
@@ -81,6 +86,43 @@ def test_gene_distribution_aggregates_installed_local_clinvar_records() -> None:
     assert "legacy" not in distribution.subtitle.lower()
 
 
+def test_materialized_gene_distribution_index_reads_bounded_gene_payload(
+    tmp_path: Path,
+) -> None:
+    index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
+
+    inspection = materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=index_path,
+        manifest_path=manifest_path,
+        force=True,
+    )
+    distribution = build_clinvar_gene_distribution_from_index(
+        "RPE65",
+        index_path=index_path,
+        query_variant_id="1-68444869-T-C",
+    )
+
+    assert inspection.ready is True
+    assert inspection.schema_version == "eamos.clinvar_gene_distribution.v1"
+    assert inspection.gene_count == 1
+    assert inspection.variant_count == 1
+    assert distribution.source_id == CLINVAR_SOURCE_ID
+    assert distribution.source_status == "fixture_index"
+    assert distribution.total == 1
+    assert distribution.cells["vus_missense"] == 1
+    assert distribution.row_totals == {"pathogenic": 0, "vus": 1, "benign": 0}
+    assert distribution.query_cell == "vus_missense"
+    assert distribution.query_variant_id == "1-68444869-T-C"
+    assert distribution.query_accession == "VCV001421454"
+    assert distribution.query_classification == "Uncertain significance"
+    assert "clinvar_local_fixture_scope" in distribution.warnings
+    assert manifest_path.exists()
+    encoded = str(inspection.to_sanitized_dict()).lower()
+    assert str(tmp_path).lower() not in encoded
+
+
 def test_gene_distribution_buckets_classification_and_effect_types(tmp_path: Path) -> None:
     vcf_path = tmp_path / "clinvar_gene_distribution.vcf"
     vcf_path.write_text(
@@ -134,10 +176,15 @@ def test_lookup_service_excludes_full_vcf_clinvar_distribution_when_m9_lookup_en
 ) -> None:
     vcf_path = tmp_path / "clinvar.vcf.gz"
     index_path = tmp_path / "clinvar.vcf.gz.tbi"
+    distribution_index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    distribution_manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
     vcf_path.write_bytes(b"vcf")
     settings = SimpleNamespace(
+        backend_root=tmp_path,
         clinvar_runtime_vcf_path=vcf_path,
         clinvar_runtime_index_path=index_path,
+        clinvar_gene_distribution_index_path=distribution_index_path,
+        clinvar_gene_distribution_manifest_path=distribution_manifest_path,
         local_evidence_enabled=False,
         local_evidence_allowed_flows_raw="lookup",
         local_evidence_require_real_apis=True,
@@ -159,9 +206,80 @@ def test_lookup_service_excludes_full_vcf_clinvar_distribution_when_m9_lookup_en
         == CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX
     )
 
+    materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=distribution_index_path,
+        force=True,
+    )
+    assert _clinvar_distribution_runtime_path(settings) is None
+    assert (
+        _clinvar_gene_distribution_exclusion_warning(settings)
+        == CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX
+    )
+
+    materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=distribution_index_path,
+        manifest_path=distribution_manifest_path,
+        force=True,
+    )
+    assert _clinvar_distribution_runtime_path(settings) == str(distribution_index_path)
+    assert _clinvar_gene_distribution_exclusion_warning(settings) is None
+    ready = inspect_clinvar_gene_distribution_index(settings)
+    assert ready.ready is True
+
     settings.local_evidence_allowed_flows_raw = "gene_viewer"
     assert _clinvar_distribution_runtime_path(settings) is None
     assert _clinvar_gene_distribution_exclusion_warning(settings) is None
+
+
+def test_clinvar_gene_distribution_index_requires_matching_manifest(
+    tmp_path: Path,
+) -> None:
+    index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
+    materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=index_path,
+        force=True,
+    )
+    settings = SimpleNamespace(
+        backend_root=tmp_path,
+        clinvar_gene_distribution_index_path=index_path,
+        clinvar_gene_distribution_manifest_path=manifest_path,
+    )
+
+    missing = inspect_clinvar_gene_distribution_index(settings)
+    assert missing.ready is False
+    assert missing.status == "manifest_missing"
+    assert "clinvar_gene_distribution_manifest_missing" in missing.warnings
+    existing_without_manifest = materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=index_path,
+        manifest_path=manifest_path,
+        force=False,
+    )
+    assert existing_without_manifest.ready is False
+    assert existing_without_manifest.status == "manifest_missing"
+
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "artifact_id": "clinvar_gene_distribution_index",
+                "source_id": "eamos_clinvar_gene_distribution_index",
+                "upstream_source_id": CLINVAR_SOURCE_ID,
+                "schema_version": "eamos.clinvar_gene_distribution.v1",
+                "byte_size": index_path.stat().st_size,
+                "sha256": "not-the-real-checksum",
+            }
+        ),
+        encoding="utf-8",
+    )
+    mismatch = inspect_clinvar_gene_distribution_index(settings)
+    assert mismatch.ready is False
+    assert mismatch.status == "manifest_checksum_mismatch"
+    assert mismatch.checksum_verified is True
+    assert mismatch.checksum_algorithm == "sha256"
 
 
 def test_indexed_adapter_resolves_exact_clinvar_variant_without_full_vcf_parse(

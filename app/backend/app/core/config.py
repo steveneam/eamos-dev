@@ -11,6 +11,12 @@ _RENDER_RUNTIME_PATH_DEFAULTS = {
     "dbsnp_runtime_index_path": Path("/var/data/eamos/bio_assets/dbsnp/GCF_000001405.40.gz.tbi"),
     "clinvar_runtime_vcf_path": Path("/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz"),
     "clinvar_runtime_index_path": Path("/var/data/eamos/bio_assets/clinvar/clinvar.vcf.gz.tbi"),
+    "clinvar_gene_distribution_index_path": Path(
+        "/var/data/eamos/bio_assets/clinvar/clinvar-gene-distribution.sqlite"
+    ),
+    "clinvar_gene_distribution_manifest_path": Path(
+        "/var/data/eamos/bio_assets/clinvar/clinvar-gene-distribution.manifest.json"
+    ),
     "repeatmasker_runtime_index_path": Path(
         "/var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
     ),
@@ -26,6 +32,12 @@ _LOCAL_RUNTIME_PATH_DEFAULTS = {
     "dbsnp_runtime_index_path": Path("./data/bio_assets/dbsnp/GCF_000001405.40.gz.tbi"),
     "clinvar_runtime_vcf_path": Path("./data/bio_assets/clinvar/clinvar.vcf.gz"),
     "clinvar_runtime_index_path": Path("./data/bio_assets/clinvar/clinvar.vcf.gz.tbi"),
+    "clinvar_gene_distribution_index_path": Path(
+        "./data/bio_assets/clinvar/clinvar-gene-distribution.sqlite"
+    ),
+    "clinvar_gene_distribution_manifest_path": Path(
+        "./data/bio_assets/clinvar/clinvar-gene-distribution.manifest.json"
+    ),
     "repeatmasker_runtime_index_path": Path(
         "./data/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
     ),
@@ -184,6 +196,12 @@ class Settings(BaseSettings):
     dbsnp_runtime_index_path: Path = Path("./data/bio_assets/dbsnp/GCF_000001405.40.gz.tbi")
     clinvar_runtime_vcf_path: Path = Path("./data/bio_assets/clinvar/clinvar.vcf.gz")
     clinvar_runtime_index_path: Path = Path("./data/bio_assets/clinvar/clinvar.vcf.gz.tbi")
+    clinvar_gene_distribution_index_path: Path = Path(
+        "./data/bio_assets/clinvar/clinvar-gene-distribution.sqlite"
+    )
+    clinvar_gene_distribution_manifest_path: Path = Path(
+        "./data/bio_assets/clinvar/clinvar-gene-distribution.manifest.json"
+    )
     repeatmasker_runtime_index_path: Path = Path(
         "./data/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
     )
