@@ -53,6 +53,10 @@ Last updated: 2026-06-25 by Codex.
   read-only DuckDB adapter and sanitized health. The ADR resolves the open Gold
   decision: materialized Gold joins sit beside tabix/SQLite first; they do not
   replace point-lookup adapters without later benchmark proof.
+- 2026-06-25: Task 5/architecture-gate evidence advanced. The report performance
+  audit script now supports repeated cold/warm runs, aggregate p50/p95 latency
+  summaries, JSON evidence, and optional payload-size ceilings for lookup
+  responses, report payloads, section envelopes, and section payloads.
 
 ## Goal
 
@@ -103,6 +107,12 @@ be run with:
 
 ```powershell
 npm --prefix app/web run audit:report-performance -- --variant="ABCA4:c.5435T>A" --variant="RPE65:c.260A>G"
+```
+
+For gate evidence, use repeat runs and explicit payload ceilings:
+
+```powershell
+npm --prefix app/web run audit:report-performance -- --runs=3 --skip-viewer --max-report-payload-bytes=750000 --max-section-envelope-bytes=200000
 ```
 
 ## Storage and Query Strategy
@@ -413,8 +423,9 @@ Verify:
 
 - `npm --prefix app/web run lint`
 - browser verification at desktop widths only;
-- extend report preflight to assert required section slots exist before data
-  hydration finishes.
+- report preflight asserts required section slots before data hydration finishes;
+- report performance audit records repeated cold/warm p50/p95 and payload-size
+  ceilings for the selected variants.
 
 ### Task 6 - Materialize Publications and Clinical Trials
 
