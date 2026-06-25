@@ -25,6 +25,7 @@ from app.repos.evidence_submissions_repo import (
     SupabaseEvidenceSubmissionsRepo,
 )
 from app.repos.protein_annotation_cache_repo import ProteinAnnotationCacheRepo
+from app.repos.report_cache_repo import ReportCacheRepo
 from app.repos.run_repo import RunRepo
 from app.repos.subscriptions_repo import SubscriptionsRepo
 from app.repos.source_cache_repo import SourceCacheRepo
@@ -50,6 +51,7 @@ from app.services.auth import AuthService
 from app.services.batch import BatchService
 from app.services.chat_service import ChatService
 from app.services.draft_render import DraftRenderService
+from app.services.duckdb_analytical import DuckDbAnalyticalAdapter
 from app.services.final_report import FinalReportService
 from app.services.evidence_submissions import EvidenceSubmissionService
 from app.services.gene_context_snapshot import GeneContextSnapshotService
@@ -125,6 +127,7 @@ def create_app(settings=None) -> FastAPI:
     subscriptions_repo = SubscriptionsRepo(db_session_factory)
     users_repo = UsersRepo(db_session_factory)
     variant_cache_repo = VariantCacheRepo(db_session_factory)
+    report_cache_repo = ReportCacheRepo(db_session_factory)
     variant_library_repo = _build_variant_library_repo(settings, db_session_factory)
     source_cache_repo = SourceCacheRepo(db_session_factory)
     protein_annotation_cache_repo = ProteinAnnotationCacheRepo(db_session_factory)
@@ -146,6 +149,7 @@ def create_app(settings=None) -> FastAPI:
         settings=settings,
         cache_repo=protein_annotation_cache_repo,
     )
+    duckdb_analytical_adapter = DuckDbAnalyticalAdapter(settings)
     report_pdf_tool = ReportPdfTool()
     extraction_chain = build_extraction_chain(settings)
     draft_chain = build_draft_chain(settings)
@@ -213,6 +217,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
     app.state.supabase_local_model_cache_store = supabase_local_model_cache_store
     app.state.protein_annotation_service = protein_annotation_service
+    app.state.duckdb_analytical_adapter = duckdb_analytical_adapter
     app.state.gene_viewer_source_client = gene_viewer_source_client
     app.state.gene_viewer_source_provider = gene_viewer_source_provider
     app.state.gene_context_snapshot_service = gene_context_snapshot_service
@@ -271,6 +276,7 @@ def create_app(settings=None) -> FastAPI:
         rule_engine=ClinicRules(),
         draft_render_service=DraftRenderService(draft_chain),
         variant_cache_repo=variant_cache_repo,
+        report_cache_repo=report_cache_repo,
         source_cache_repo=source_cache_repo,
         settings=settings,
         sequence_context_service=sequence_context_service,

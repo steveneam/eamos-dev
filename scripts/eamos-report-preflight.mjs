@@ -26,6 +26,9 @@
 //     # to drive IntersectionObserver and reports each section's terminal
 //     # state (sentinel-stuck / ready / error). Works today against Codex's
 //     # already-shipped /api/v1/lookup/sections endpoint.
+//   node scripts/eamos-report-preflight.mjs --forbid-viewer
+//     # fail if report first paint requests /api/v1/viewer. Use this when the
+//     # lookup payload is expected to include gene_context_snapshot.
 //
 // Exit codes: 0 if no fixable offenders + no console errors + all forced lazy
 // sections resolved to `ready`. Non-zero otherwise.
@@ -61,6 +64,7 @@ const LAZY_FORCE = String(args.lazy ?? '')
   .filter(Boolean)
 const LAZY_SETTLE_MS = Number.parseInt(args['lazy-settle'] ?? '30000', 10)
 const LAZY_POLL_MS = Number.parseInt(args['lazy-poll'] ?? '500', 10)
+const FORBID_VIEWER = args['forbid-viewer'] === 'true'
 
 function buildUrl(width) {
   if (LAZY_FORCE.length === 0) return URL_BASE
@@ -362,6 +366,7 @@ async function runAtWidth(host, port, width) {
   await cdp.ready
   const consoleErrors = []
   const sectionFetches = []
+  const viewerFetches = []
   cdp.on((evt) => {
     if (evt.method === 'Runtime.exceptionThrown') {
       consoleErrors.push({
@@ -375,10 +380,13 @@ async function runAtWidth(host, port, width) {
       const url = evt.params?.request?.url ?? ''
       if (url.includes('/api/v1/lookup/sections')) {
         sectionFetches.push({ url, requestId: evt.params.requestId, status: null })
+      } else if (url.includes('/api/v1/viewer')) {
+        viewerFetches.push({ url, requestId: evt.params.requestId, status: null })
       }
     } else if (evt.method === 'Network.responseReceived') {
       const id = evt.params?.requestId
       const found = sectionFetches.find((f) => f.requestId === id)
+        ?? viewerFetches.find((f) => f.requestId === id)
       if (found) found.status = evt.params?.response?.status ?? null
     }
   })
@@ -457,7 +465,16 @@ async function runAtWidth(host, port, width) {
     await fetch(`http://${host}:${port}/json/close/${tab.id}`)
   } catch {}
   const result = evalRes?.result?.value ?? null
-  return { width, navUrl, scan: result, consoleErrors, sectionFetches, lazyResults, reportWait }
+  return {
+    width,
+    navUrl,
+    scan: result,
+    consoleErrors,
+    sectionFetches,
+    viewerFetches,
+    lazyResults,
+    reportWait,
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -470,7 +487,11 @@ function isFixable(o) {
 
 function formatHuman(report) {
   const lines = []
+  const forbidViewer = Boolean(report.forbidViewer)
   lines.push(`eamos-report-preflight · ${report.urlBase}`)
+  if (forbidViewer) {
+    lines.push('  viewer requests forbidden: true')
+  }
   if (report.lazyForced.length) {
     lines.push(`  lazy-forced sections: ${report.lazyForced.join(', ')}`)
   }
@@ -515,6 +536,12 @@ function formatHuman(report) {
         lines.push(`    ${f.status ?? 'pending'}  ${f.url.split('?')[0]}`)
       }
     }
+    if (r.viewerFetches?.length) {
+      lines.push(`  /api/v1/viewer fetches: ${r.viewerFetches.length}`)
+      for (const f of r.viewerFetches) {
+        lines.push(`    ${f.status ?? 'pending'}  ${f.url.split('?')[0]}`)
+      }
+    }
     if (r.consoleErrors.length) {
       lines.push(`  console errors:`)
       for (const e of r.consoleErrors) lines.push(`    ${e.kind}: ${e.text}`)
@@ -552,6 +579,7 @@ try {
     if (fixable.length > 0) exit = 1
     if (r.consoleErrors.length > 0) exit = 1
     if ((r.scan?.report?.missingCards ?? []).length > 0) exit = 1
+    if (FORBID_VIEWER && r.viewerFetches.length > 0) exit = 1
     // Lazy mode: any forced section that did not resolve to 'ready' is a fail.
     if (r.lazyResults) {
       for (const info of Object.values(r.lazyResults)) {
@@ -567,6 +595,7 @@ const report = {
   tool: 'eamos-report-preflight',
   urlBase: URL_BASE,
   lazyForced: LAZY_FORCE,
+  forbidViewer: FORBID_VIEWER,
   widths: WIDTHS,
   results,
 }

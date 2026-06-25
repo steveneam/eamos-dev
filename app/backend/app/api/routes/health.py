@@ -24,6 +24,7 @@ from app.services.build_ledger import build_backend_build_ledger
 from app.services.compact_coordinate_index import inspect_compact_coordinate_index
 from app.services.clingen_local import inspect_clingen_local_store
 from app.services.clinvar_local import inspect_clinvar_gene_distribution_index
+from app.services.duckdb_analytical import inspect_duckdb_analytical_adapter
 from app.services.local_evidence_runtime_assets import inspect_local_evidence_runtime_assets
 from app.services.mavedb_local import inspect_mavedb_local_store
 from app.services.pubmed_local import inspect_pubmed_local_store
@@ -141,6 +142,7 @@ def _source_asset_health(settings, materialization_store) -> dict[str, object]:
         "compact_coordinate_index": _compact_coordinate_index_health(settings),
         "clingen_local": _clingen_local_health(settings),
         "clinvar_gene_distribution_index": _clinvar_gene_distribution_index_health(settings),
+        "duckdb_analytical": _duckdb_analytical_health(settings),
         "local_evidence_runtime_assets": _local_evidence_runtime_asset_health(settings),
         "pubmed_local": _pubmed_local_health(settings),
         "literature_embeddings": _literature_embedding_health(settings),
@@ -292,6 +294,45 @@ def _clinvar_gene_distribution_index_health(settings) -> dict[str, object]:
             "public_serialization_allowed": True,
             "launch_gate": "clinvar_gene_distribution_index_materialization",
             "license_gate": None,
+        }
+
+
+def _duckdb_analytical_health(settings) -> dict[str, object]:
+    try:
+        return inspect_duckdb_analytical_adapter(settings).to_sanitized_dict()
+    except Exception:
+        return {
+            "source_id": "eamos_duckdb_analytical",
+            "status": "runtime_asset_probe_failed",
+            "ready": False,
+            "enabled": bool(getattr(settings, "duckdb_analytical_enabled", False)),
+            "available": False,
+            "schema_version": None,
+            "engine": "duckdb",
+            "access_mode": "READ_ONLY",
+            "workload_boundary": "analytical_batch_only",
+            "query_roles": [],
+            "database_present": False,
+            "database_size_bytes": None,
+            "database_path_configured": bool(
+                getattr(settings, "duckdb_analytical_database_path", None)
+            ),
+            "temp_directory_configured": bool(
+                getattr(settings, "duckdb_analytical_temp_directory", None)
+            ),
+            "memory_limit": getattr(settings, "duckdb_analytical_memory_limit", "1500MB"),
+            "threads": getattr(settings, "duckdb_analytical_threads", 2),
+            "point_lookup_engine": "tabix_sqlite_report_cache",
+            "single_coordinate_hot_path_allowed": False,
+            "request_time_materialization_allowed": False,
+            "startup_download_allowed": False,
+            "remote_httpfs_allowed": False,
+            "motherduck_allowed": False,
+            "spark_required": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "message": "DuckDB analytical adapter probe failed",
+            "notices": [],
         }
 
 

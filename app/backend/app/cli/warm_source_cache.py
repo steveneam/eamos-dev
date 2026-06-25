@@ -5,6 +5,7 @@ import json
 
 from app.core.config import Settings, ensure_runtime_dirs
 from app.core.db import build_session_factory, initialize_database
+from app.repos.report_cache_repo import ReportCacheRepo
 from app.repos.source_cache_repo import SourceCacheRepo
 from app.repos.supabase_local_model_cache_repo import (
     HybridSourceCacheRepo,
@@ -57,6 +58,7 @@ def main() -> int:
         tool_registry=build_tool_registry(settings),
         rule_engine=ClinicRules(),
         variant_cache_repo=variant_cache_repo,
+        report_cache_repo=ReportCacheRepo(session_factory),
         source_cache_repo=source_cache_repo,
         settings=settings,
     )

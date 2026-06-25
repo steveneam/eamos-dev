@@ -124,10 +124,20 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert clinvar_gene_index["source_runtime_scan_allowed"] is False
     assert clinvar_gene_index["local_path_values_emitted"] is False
     assert clinvar_gene_index["raw_source_rows_emitted"] is False
-    assert (
-        clinvar_gene_index["launch_gate"]
-        == "clinvar_gene_distribution_index_materialization"
-    )
+    assert clinvar_gene_index["launch_gate"] == "clinvar_gene_distribution_index_materialization"
+    duckdb_analytical = body["source_assets"]["duckdb_analytical"]
+    assert duckdb_analytical["source_id"] == "eamos_duckdb_analytical"
+    assert duckdb_analytical["ready"] is False
+    assert duckdb_analytical["enabled"] is False
+    assert duckdb_analytical["status"] == "disabled"
+    assert duckdb_analytical["access_mode"] == "READ_ONLY"
+    assert duckdb_analytical["point_lookup_engine"] == "tabix_sqlite_report_cache"
+    assert duckdb_analytical["single_coordinate_hot_path_allowed"] is False
+    assert duckdb_analytical["request_time_materialization_allowed"] is False
+    assert duckdb_analytical["startup_download_allowed"] is False
+    assert duckdb_analytical["remote_httpfs_allowed"] is False
+    assert duckdb_analytical["motherduck_allowed"] is False
+    assert duckdb_analytical["local_path_values_emitted"] is False
     literature_embeddings = body["source_assets"]["literature_embeddings"]
     assert literature_embeddings["source_id"] == "eamos_literature_embeddings"
     assert literature_embeddings["ready"] is False

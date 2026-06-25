@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 
-from app.schemas.lookup import LookupResponse
+from app.schemas.lookup import LookupInitialSummaryResponse, LookupResponse
+from app.schemas.lookup import LookupSectionEnvelope, LookupSectionFetchResponse
 from app.schemas.run import (
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
@@ -12,6 +13,7 @@ from app.schemas.run import (
     VariantReportProfile,
 )
 from app.services.lookup_sections import build_lookup_section_fetch_response
+from app.services.lookup_timing import LOOKUP_TIMING_HEADER, LOOKUP_TIMING_SCHEMA_VERSION
 
 
 def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
@@ -52,6 +54,7 @@ def test_lookup_summary_returns_m7_tile_contract_without_heavy_sections(client) 
     )
 
     assert response.status_code == 200
+    assert LOOKUP_TIMING_HEADER not in response.headers
     body = response.json()
     assert body["query"] == "RPE65:c.260A>G"
     assert body["header"]["gene"] == "RPE65"
@@ -79,6 +82,111 @@ def test_lookup_summary_returns_m7_tile_contract_without_heavy_sections(client) 
     assert "report_payload" not in body
     assert "publications_literature" not in serialized
     assert "functional_evidence" not in serialized
+
+
+def test_lookup_timing_diagnostics_header_is_opt_in_and_sanitized(client) -> None:
+    client.app.state.settings.lookup_timing_diagnostics_enabled = True
+
+    response = client.post(
+        "/api/v1/lookup/summary",
+        json={"gene": "RPE65", "cdna": "c.260A>G"},
+    )
+
+    assert response.status_code == 200
+    header = response.headers.get(LOOKUP_TIMING_HEADER)
+    assert header is not None
+    diagnostics = json.loads(header)
+    assert diagnostics["schema_version"] == LOOKUP_TIMING_SCHEMA_VERSION
+    assert diagnostics["total_ms"] >= 0
+    assert diagnostics["truncated"] is False
+
+    phases = {item["name"]: item for item in diagnostics["phases"]}
+    assert {"input_resolution", "strict_genomic_sources", "report_profile"} <= set(phases)
+    providers = {item["name"]: item for item in diagnostics["providers"]}
+    assert {"vep", "variant_validator", "clinvar", "litvar2"} <= set(providers)
+    assert all(item["ms"] >= 0 for item in providers.values())
+
+    serialized = json.dumps(response.json())
+    assert "report_payload" not in serialized
+    assert "data/bio_assets" not in header
+    assert "service_role" not in header
+
+
+def test_lookup_summary_route_uses_prepared_summary_method_without_full_lookup(client) -> None:
+    class SummaryOnlyService:
+        def __init__(self, settings) -> None:
+            self.settings = settings
+            self.lookup_summary_calls = 0
+            self.lookup_calls = 0
+
+        def lookup_summary(self, payload, refresh: bool = False):
+            self.lookup_summary_calls += 1
+            return LookupInitialSummaryResponse(
+                query=f"{payload.gene}:{payload.cdna}",
+                species=payload.species,
+                header={"gene": payload.gene, "cdna": payload.cdna},
+                warnings=[],
+            )
+
+        def lookup(self, *_args, **_kwargs):
+            self.lookup_calls += 1
+            raise AssertionError("summary route should not call full lookup")
+
+    service = SummaryOnlyService(client.app.state.settings)
+    client.app.state.lookup_service = service
+
+    response = client.post(
+        "/api/v1/lookup/summary",
+        json={"gene": "RPE65", "cdna": "c.260A>G"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["header"] == {"gene": "RPE65", "cdna": "c.260A>G"}
+    assert service.lookup_summary_calls == 1
+    assert service.lookup_calls == 0
+
+
+def test_lookup_sections_route_uses_prepared_sections_method_without_full_lookup(client) -> None:
+    class SectionsOnlyService:
+        def __init__(self, settings) -> None:
+            self.settings = settings
+            self.lookup_sections_calls = 0
+            self.lookup_calls = 0
+
+        def lookup_sections(self, payload, refresh: bool = False):
+            self.lookup_sections_calls += 1
+            return LookupSectionFetchResponse(
+                query=f"{payload.gene}:{payload.cdna}",
+                species=payload.species,
+                sections={
+                    "publications": LookupSectionEnvelope(
+                        section_id="publications",
+                        status="missing",
+                        payload=None,
+                        warnings=["prepared_publications_missing"],
+                    )
+                },
+                warnings=[],
+            )
+
+        def lookup(self, *_args, **_kwargs):
+            self.lookup_calls += 1
+            raise AssertionError("sections route should not call full lookup")
+
+    service = SectionsOnlyService(client.app.state.settings)
+    client.app.state.lookup_service = service
+
+    response = client.post(
+        "/api/v1/lookup/sections",
+        json={"gene": "RPE65", "cdna": "c.260A>G", "include": ["publications"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["sections"]["publications"]["warnings"] == [
+        "prepared_publications_missing"
+    ]
+    assert service.lookup_sections_calls == 1
+    assert service.lookup_calls == 0
 
 
 def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client) -> None:

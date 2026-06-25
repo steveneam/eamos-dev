@@ -10,6 +10,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "audit:report-performance": "node ../../scripts/eamos-report-performance-audit.mjs",
     "test:protein-architecture": "node ../../scripts/eamos-protein-architecture-regression.mjs",
     "gen:gnomad-map": "node scripts/build-gnomad-basemap.mjs"
   },

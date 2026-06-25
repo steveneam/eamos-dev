@@ -85,3 +85,35 @@ class VariantCacheRepo:
             if record is None:
                 return
             record.gene_context_snapshot = json.dumps(gene_context_snapshot)
+
+    def update_report_shell(
+        self,
+        query_string: str,
+        *,
+        report_shell: dict[str, Any],
+    ) -> None:
+        with session_scope(self.session_factory) as session:
+            record = session.execute(
+                select(VariantCacheRecord).where(VariantCacheRecord.query_string == query_string)
+            ).scalar_one_or_none()
+            if record is None:
+                return
+            publication_data = json.loads(record.publication_data or "{}")
+            publication_data["report_shell"] = report_shell
+            record.publication_data = json.dumps(publication_data)
+
+    def update_report_sections(
+        self,
+        query_string: str,
+        *,
+        report_sections: dict[str, Any],
+    ) -> None:
+        with session_scope(self.session_factory) as session:
+            record = session.execute(
+                select(VariantCacheRecord).where(VariantCacheRecord.query_string == query_string)
+            ).scalar_one_or_none()
+            if record is None:
+                return
+            publication_data = json.loads(record.publication_data or "{}")
+            publication_data["report_sections"] = report_sections
+            record.publication_data = json.dumps(publication_data)

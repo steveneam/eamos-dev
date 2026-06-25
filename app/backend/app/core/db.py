@@ -240,6 +240,181 @@ class VariantCacheRecord(Base):
     )
 
 
+class NormalizedVariantRecord(Base):
+    __tablename__ = "normalized_variant"
+    __table_args__ = (Index("ix_normalized_variant_gene_cdna", "gene", "cdna"),)
+
+    normalized_variant_id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    query_string: Mapped[str] = mapped_column(String(512), index=True)
+    species: Mapped[str] = mapped_column(String(32), default="human", index=True)
+    genome_build: Mapped[str] = mapped_column(String(32), default="GRCh38", index=True)
+    gene: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    cdna: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    transcript: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    protein_change: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    genomic_hg38: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    genomic_hgvs: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    identity_version: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    normalized_identity: Mapped[dict] = mapped_column(JSON, default=dict)
+    request_identity: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class ReportShellCacheRecord(Base):
+    __tablename__ = "report_shell_cache"
+    __table_args__ = (
+        UniqueConstraint(
+            "normalized_variant_id",
+            "schema_version",
+            name="uq_report_shell_cache_variant_schema",
+        ),
+        Index("ix_report_shell_cache_query_schema", "query_string", "schema_version"),
+        Index("ix_report_shell_cache_stale_after", "stale_after"),
+    )
+
+    cache_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    normalized_variant_id: Mapped[str] = mapped_column(
+        ForeignKey("normalized_variant.normalized_variant_id", ondelete="CASCADE"),
+        index=True,
+    )
+    query_string: Mapped[str] = mapped_column(String(512), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    payload_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    freshness_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list)
+    source_versions_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    stale_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class ReportSectionCacheRecord(Base):
+    __tablename__ = "report_section_cache"
+    __table_args__ = (
+        UniqueConstraint(
+            "normalized_variant_id",
+            "section_id",
+            "schema_version",
+            name="uq_report_section_cache_variant_section_schema",
+        ),
+        Index("ix_report_section_cache_query_section", "query_string", "section_id"),
+        Index("ix_report_section_cache_status", "section_id", "status"),
+        Index("ix_report_section_cache_stale_after", "stale_after"),
+    )
+
+    cache_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    normalized_variant_id: Mapped[str] = mapped_column(
+        ForeignKey("normalized_variant.normalized_variant_id", ondelete="CASCADE"),
+        index=True,
+    )
+    query_string: Mapped[str] = mapped_column(String(512), index=True)
+    species: Mapped[str] = mapped_column(String(32), default="human", index=True)
+    section_id: Mapped[str] = mapped_column(String(64), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    status: Mapped[str] = mapped_column(String(32))
+    payload_json: Mapped[dict | list | str | int | float | bool | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+    freshness_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list)
+    source_versions_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    stale_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class SourceResultCacheRecord(Base):
+    __tablename__ = "source_result_cache"
+    __table_args__ = (
+        UniqueConstraint(
+            "normalized_variant_id",
+            "source_id",
+            "schema_version",
+            name="uq_source_result_cache_variant_source_schema",
+        ),
+        Index("ix_source_result_cache_query_source", "query_string", "source_id"),
+        Index("ix_source_result_cache_status", "source_id", "status"),
+        Index("ix_source_result_cache_stale_after", "stale_after"),
+    )
+
+    cache_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    normalized_variant_id: Mapped[str] = mapped_column(
+        ForeignKey("normalized_variant.normalized_variant_id", ondelete="CASCADE"),
+        index=True,
+    )
+    query_string: Mapped[str] = mapped_column(String(512), index=True)
+    source_id: Mapped[str] = mapped_column(String(96), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    status: Mapped[str] = mapped_column(String(32))
+    payload_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    raw_json: Mapped[dict | list | str | int | float | bool | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+    freshness_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list)
+    source_versions_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    stale_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class SectionHydrationStatusRecord(Base):
+    __tablename__ = "section_hydration_status"
+    __table_args__ = (
+        UniqueConstraint(
+            "normalized_variant_id",
+            "section_id",
+            name="uq_section_hydration_status_variant_section",
+        ),
+        Index("ix_section_hydration_status_query_section", "query_string", "section_id"),
+        Index("ix_section_hydration_status_status", "section_id", "status"),
+    )
+
+    status_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    normalized_variant_id: Mapped[str] = mapped_column(
+        ForeignKey("normalized_variant.normalized_variant_id", ondelete="CASCADE"),
+        index=True,
+    )
+    query_string: Mapped[str] = mapped_column(String(512), index=True)
+    section_id: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    fail_closed_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
 class SourceCacheRecord(Base):
     __tablename__ = "source_cache"
     __table_args__ = (Index("ix_source_cache_source_key", "source", "cache_key", unique=True),)

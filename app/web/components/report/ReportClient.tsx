@@ -1232,7 +1232,15 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           }
           sectionId="therapies_trials"
           request={effectiveSummaryRequest ?? null}
-          unwrap={(env) => (env.payload as TherapiesTrialsSection | null) ?? null}
+          unwrap={(env) =>
+            (env.payload as TherapiesTrialsSection | null) ?? {
+              trial_rows: [],
+              query_executions: [],
+              provenance: [],
+              warnings:
+                env.warnings.length > 0 ? env.warnings : ['clinical_trials_unavailable'],
+            }
+          }
           forceLoad={lazyOverrides.has('therapies_trials')}
         >
           {(section) => (

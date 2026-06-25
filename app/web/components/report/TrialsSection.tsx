@@ -17,7 +17,7 @@ export function TrialsSection({ payload, section, number, actions }: TrialsSecti
   const typedTrials = section ?? payload.report_profile?.therapies_trials ?? null
   const trials = typedTrials?.trial_rows ?? []
   const warnings = typedTrials?.warnings ?? []
-  if (trials.length === 0 && warnings.length === 0) return null
+  if (typedTrials == null) return null
 
   return (
     <Card

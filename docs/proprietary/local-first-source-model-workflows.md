@@ -4,7 +4,7 @@ Status: Active backend prototype
 Type: Source-model workflow / local adapter pattern
 Owner: Codex backend
 Added: 2026-05-27 22:11 +1000 - Codex
-Last updated: 2026-06-04 02:53 +1000 - Codex
+Last updated: 2026-06-25 02:56 +1000 - Codex
 
 ## What It Does
 
@@ -56,6 +56,9 @@ contract discipline:
   cache, live providers, and restricted predictors.
 - Hydration-boundary planning for report sections so frontend summary views do
   not depend on monolithic heavy source payloads.
+- A report-cache-first analytical boundary: DuckDB/Parquet are used beside the
+  local point-lookup adapters for batch, regional, and reporting workloads, not
+  as a replacement for tabix/SQLite single-coordinate lookup.
 
 This should be treated as Eamos implementation IP. Avoid claiming it is globally
 novel unless a separate prior-art review is performed.
@@ -104,11 +107,16 @@ novel unless a separate prior-art review is performed.
   - `app/backend/tests/test_repeatmasker_local_adapter.py`
 - Lookup section-fetch sketch using the same provenance/freshness discipline:
   - `app/backend/app/services/lookup_sections.py`
+  - `app/backend/app/services/duckdb_analytical.py`
   - `app/backend/tests/test_lookup_section_fetch_contract.py`
+  - `app/backend/tests/test_duckdb_analytical.py`
 - Internal source-model orchestration layer:
   - `app/backend/app/services/local_evidence_orchestrator.py`
   - `app/backend/tests/test_local_evidence_orchestrator.py`
   - `app/backend/app/core/config.py`
+- Analytical architecture decision:
+  - `docs/data-architecture-duckdb-parquet/adr.md`
+  - `docs/data-architecture-duckdb-parquet/plan.md`
 
 ## Current Examples
 
@@ -124,6 +132,11 @@ novel unless a separate prior-art review is performed.
   local-store preference is disabled by default, requires explicit flow opt-in
   for `lookup`, `search`, `gene_viewer`, or `workbench`, and by default also
   requires `use_real_apis=True` before a runtime path can prefer local stores.
+- DuckDB/Parquet analytical lane:
+  the phase-0 read-only analytical adapter is disabled by default, exposes
+  sanitized provider-cache health, and keeps the Gold materialized-join decision
+  explicit: Gold sits beside tabix/SQLite first and can only replace point
+  lookup after later benchmark evidence and an ADR update.
 - Local evidence hardening:
   malformed local alleles fail closed before source-model composition, runtime
   gate flow tokens normalize/dedupe before decisions, ClinVar RefSeq contigs
@@ -177,3 +190,6 @@ must run in an approved Linux/Docker/WSL environment.
   acceptable for validation but not the final request-path shape.
 - Do not wire frontend or tool runtime behavior directly to these adapters until
   the backend API contract and source orchestration task explicitly approve it.
+- DuckDB/Parquet are commercial-clean implementation tools, not the proprietary
+  claim. The EAMOS-specific IP is the boundary discipline, cache/source-result
+  orchestration, and fixture/health/manifest ratchet around them.

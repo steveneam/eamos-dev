@@ -1,20 +1,26 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
 
 from sqlalchemy import select
 
 from app.core.config import Settings
 from app.core.db import (
+    NormalizedVariantRecord,
+    ReportSectionCacheRecord,
+    ReportShellCacheRecord,
+    SourceResultCacheRecord,
     VariantCacheRecord,
     build_session_factory,
     initialize_database,
     session_scope,
 )
+from app.repos.report_cache_repo import ReportCacheRepo
 from app.repos.variant_cache_repo import VariantCacheRepo
 from app.rules.clinic_rules import ClinicRules
-from app.schemas.lookup import LookupRequest
+from app.schemas.lookup import LookupRequest, LookupSectionFetchRequest
 from app.schemas.run import (
     FunctionalEvidenceCodeRestsOn,
     FunctionalEvidenceDisplayMetrics,
@@ -29,6 +35,9 @@ from app.services.lookup_service import (
     FUNCTIONAL_EVIDENCE_CACHE_VERSION,
     GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
     PUBLICATION_DATA_CACHE_VERSION,
+    REPORT_SECTION_CACHE_VERSION,
+    REPORT_SHELL_CACHE_VERSION,
+    SOURCE_RESULT_CACHE_VERSION,
     STRICT_GENOMIC_CACHE_VERSION,
     LookupService,
 )
@@ -113,6 +122,43 @@ class _ClinicalTrialsTool:
         return ""
 
 
+class _CountingClinicalTrialsTool:
+    def __init__(self, summary: dict | None = None, status: str = "live") -> None:
+        self.summary = summary or {
+            "trial_rows": [],
+            "query_executions": [
+                {
+                    "query_id": "gene_term:rpe65",
+                    "lane": "gene_term",
+                    "query_term": "RPE65",
+                    "params": {"query.term": "RPE65"},
+                    "status": "ok",
+                    "result_count": 0,
+                }
+            ],
+            "warnings": ["clinical_trials_no_active_matches"],
+            "query_term": "RPE65",
+            "source_url": "https://clinicaltrials.gov/search?term=RPE65",
+        }
+        self.status = status
+        self.calls = 0
+
+    def get_trial_matches(self, *args, **kwargs) -> ToolResult:
+        self.calls += 1
+        return ToolResult(
+            source="clinical_trials",
+            status=self.status,
+            request_identity={"gene": kwargs.get("gene")},
+            summary=self.summary,
+            warnings=list(self.summary.get("warnings", [])),
+            raw=None,
+            source_url=self.summary.get("source_url"),
+        )
+
+    def get_trials_summary(self, gene: str) -> str:
+        return ""
+
+
 class _NoopFunctionalEvidenceExtractor:
     def __init__(self, summary: FunctionalEvidenceSummary | None = None) -> None:
         self.calls = 0
@@ -121,6 +167,19 @@ class _NoopFunctionalEvidenceExtractor:
     def build_for_lookup(self, *args, **kwargs) -> FunctionalEvidenceSummary:
         self.calls += 1
         return self.summary
+
+
+def _report_cache_identity(query: str) -> dict:
+    gene, _, cdna = query.partition(":")
+    return {
+        "identity_version": 1,
+        "query_string": query,
+        "species": "human",
+        "genome_build": "GRCh38",
+        "gene": gene or None,
+        "cdna": cdna or None,
+        "request_identity": {"query": query},
+    }
 
 
 class _CountingGeneContextSnapshotService:
@@ -454,6 +513,591 @@ def test_resolved_lookup_reuses_cached_gene_context_snapshot(tmp_path: Path) -> 
     assert cached_snapshot["snapshot"]["protein_domain_track"]["features"][0]["label"] == (
         "Fibronectin type III"
     )
+
+
+def test_lookup_summary_reuses_prepared_report_shell_without_provider_calls(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    tools = {
+        "vep": _StaticTool("vep", {"most_severe_consequence": "missense_variant"}),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool(
+            "gnomad",
+            {
+                "dataset": "gnomAD v4.1",
+                "allele_frequency": 0.0000159,
+                "allele_count": 2,
+                "allele_number": 125000,
+            },
+        ),
+        "spliceai": _StaticTool(
+            "spliceai",
+            {
+                "acceptor_loss": 0.0,
+                "donor_loss": 0.0,
+                "acceptor_gain": 0.0,
+                "donor_gain": 0.0,
+            },
+        ),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool(
+            "litvar2",
+            {
+                "litvar_id": "litvar-rpe65-c260ag",
+                "total_publications": 0,
+                "articles": [],
+            },
+        ),
+        "clinical_trials": _ClinicalTrialsTool(),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+    request = LookupRequest(gene="RPE65", cdna="c.260A>G")
+
+    service.lookup(request)
+    hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    assert hit is not None
+    assert (
+        hit["publication_data"]["report_shell"]["report_shell_cache_version"]
+        == REPORT_SHELL_CACHE_VERSION
+    )
+    with session_scope(session_factory) as session:
+        assert session.execute(select(NormalizedVariantRecord)).scalars().all()
+        assert session.execute(select(ReportShellCacheRecord)).scalar_one().query_string == (
+            "RPE65:c.260A>G"
+        )
+        record = session.execute(select(VariantCacheRecord)).scalar_one()
+        publication_data = json.loads(record.publication_data)
+        publication_data.pop("report_shell")
+        record.publication_data = json.dumps(publication_data)
+    calls_before = {
+        name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)
+    }
+
+    summary = service.lookup_summary(request)
+
+    calls_after = {
+        name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)
+    }
+    assert calls_after == calls_before
+    assert summary.query == "RPE65:c.260A>G"
+    assert summary.header is not None
+    assert summary.header["gene"] == "RPE65"
+    assert summary.header["cdna"] == "c.260A>G"
+    assert {tile.tile_id for tile in summary.tiles} == {
+        "population_frequency",
+        "computational",
+        "lab_functional",
+        "clinical_consensus",
+    }
+    assert [section.section_id for section in summary.lazy_sections] == [
+        "publications",
+        "therapies_trials",
+        "computational_deep_dive",
+        "clingen_vcep",
+    ]
+
+
+def test_lookup_sections_reuses_prepared_envelopes_without_provider_calls(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    tools = {
+        "vep": _StaticTool("vep", {"most_severe_consequence": "missense_variant"}),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool(
+            "spliceai",
+            {
+                "acceptor_loss": 0.0,
+                "donor_loss": 0.0,
+                "acceptor_gain": 0.0,
+                "donor_gain": 0.0,
+            },
+        ),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool(
+            "litvar2",
+            {
+                "litvar_id": "litvar-rpe65-c260ag",
+                "total_publications": 0,
+                "articles": [],
+            },
+        ),
+        "clinical_trials": _ClinicalTrialsTool(),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+    hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
+    assert hit is not None
+    assert (
+        hit["publication_data"]["report_sections"]["report_section_cache_version"]
+        == REPORT_SECTION_CACHE_VERSION
+    )
+    with session_scope(session_factory) as session:
+        table_sections = session.execute(select(ReportSectionCacheRecord)).scalars().all()
+        assert {row.section_id for row in table_sections} >= {
+            "publications",
+            "therapies_trials",
+            "computational_deep_dive",
+            "clingen_vcep",
+        }
+        record = session.execute(select(VariantCacheRecord)).scalar_one()
+        publication_data = json.loads(record.publication_data)
+        publication_data.pop("report_sections")
+        record.publication_data = json.dumps(publication_data)
+    calls_before = {
+        name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)
+    }
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["publications"],
+        )
+    )
+
+    calls_after = {
+        name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)
+    }
+    assert calls_after == calls_before
+    assert sections.query == "RPE65:c.260A>G"
+    assert set(sections.sections) == {"publications"}
+    assert sections.sections["publications"].section_id == "publications"
+
+
+def test_lookup_sections_publication_miss_builds_only_publication_sources(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    trial_tool = _CountingClinicalTrialsTool()
+    tools = {
+        "vep": _StaticTool("vep", {"most_severe_consequence": "missense_variant"}),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool(
+            "litvar2",
+            {
+                "litvar_id": "litvar-rpe65-c260ag",
+                "total_publications": 0,
+                "articles": [],
+            },
+        ),
+        "clinical_trials": trial_tool,
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["publications"],
+        )
+    )
+
+    assert tools["vep"].calls == 0
+    assert tools["variant_validator"].calls == 0
+    assert tools["gnomad"].calls == 0
+    assert tools["spliceai"].calls == 0
+    assert tools["clinvar"].calls == 1
+    assert tools["pubmed"].calls == 1
+    assert tools["litvar2"].calls == 1
+    assert trial_tool.calls == 0
+    assert set(sections.sections) == {"publications"}
+    assert sections.sections["publications"].status == "available"
+    assert sections.sections["publications"].payload is not None
+    with session_scope(session_factory) as session:
+        source_rows = session.execute(select(SourceResultCacheRecord)).scalars().all()
+        assert {row.source_id for row in source_rows} == {"clinvar", "pubmed", "litvar2"}
+        assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
+            "publications"
+        )
+
+
+def test_lookup_sections_trials_miss_builds_only_trials_source(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    trial_tool = _CountingClinicalTrialsTool()
+    tools = {
+        "vep": _StaticTool("vep", {"most_severe_consequence": "missense_variant"}),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool("clinvar"),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
+        "clinical_trials": trial_tool,
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["therapies_trials"],
+        )
+    )
+
+    assert tools["vep"].calls == 0
+    assert tools["variant_validator"].calls == 0
+    assert tools["gnomad"].calls == 0
+    assert tools["spliceai"].calls == 0
+    assert tools["clinvar"].calls == 0
+    assert tools["pubmed"].calls == 0
+    assert tools["litvar2"].calls == 0
+    assert trial_tool.calls == 1
+    assert set(sections.sections) == {"therapies_trials"}
+    trials = sections.sections["therapies_trials"]
+    assert trials.status == "available"
+    assert trials.payload is not None
+    assert trials.payload["query_executions"][0]["query_id"] == "gene_term:rpe65"
+    with session_scope(session_factory) as session:
+        source_rows = session.execute(select(SourceResultCacheRecord)).scalars().all()
+        assert [row.source_id for row in source_rows] == ["clinical_trials"]
+        assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
+            "therapies_trials"
+        )
+
+
+def test_lookup_sections_computational_miss_uses_source_result_cache_without_provider_calls(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    query = "RPE65:c.260A>G"
+    report_repo.upsert_source_result(
+        query,
+        normalized_identity=_report_cache_identity(query),
+        source_id="computational_annotations",
+        schema_version=SOURCE_RESULT_CACHE_VERSION,
+        status="live",
+        payload={
+            "predictors": [
+                {
+                    "name": "REVEL",
+                    "score": 0.82,
+                    "source": "REVEL",
+                }
+            ],
+            "spliceai": {"max_delta": 0.12, "consequence": "acceptor_loss"},
+            "conservation": [],
+            "warnings": [],
+        },
+        raw=None,
+        warnings=[],
+        ttl_days=30,
+        freshness={"source_status": "live", "source_version": "fixture-v1"},
+        source_versions={"source_version": "fixture-v1"},
+    )
+    tools = {
+        "vep": _StaticTool("vep"),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool("clinvar"),
+        "clingen": _StaticTool("clingen"),
+        "pubmed": _StaticTool("pubmed"),
+        "litvar2": _StaticTool("litvar2"),
+        "clinical_trials": _CountingClinicalTrialsTool(),
+        "computational_annotations": _StaticTool(
+            "computational_annotations",
+            {"predictors": [{"name": "CADD PHRED", "score": 12.0}]},
+        ),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["computational_deep_dive"],
+        )
+    )
+
+    assert {name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)} == {
+        "vep": 0,
+        "variant_validator": 0,
+        "gnomad": 0,
+        "spliceai": 0,
+        "clinvar": 0,
+        "clingen": 0,
+        "pubmed": 0,
+        "litvar2": 0,
+        "computational_annotations": 0,
+    }
+    assert tools["clinical_trials"].calls == 0
+    section = sections.sections["computational_deep_dive"]
+    assert section.status == "available"
+    assert section.payload is not None
+    assert section.payload["predictors"][0]["name"] == "REVEL"
+    assert section.freshness.source_status == "cache"
+    with session_scope(session_factory) as session:
+        assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
+            "computational_deep_dive"
+        )
+
+
+def test_lookup_sections_computational_miss_builds_only_computational_source(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    tools = {
+        "vep": _StaticTool("vep"),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool("clinvar"),
+        "clingen": _StaticTool("clingen"),
+        "pubmed": _StaticTool("pubmed"),
+        "litvar2": _StaticTool("litvar2"),
+        "clinical_trials": _CountingClinicalTrialsTool(),
+        "computational_annotations": _StaticTool(
+            "computational_annotations",
+            {
+                "predictors": [
+                    {
+                        "name": "CADD PHRED",
+                        "score": 14.2,
+                        "source": "CADD",
+                    }
+                ],
+                "spliceai": {"max_delta": 0.01, "consequence": "donor_loss"},
+                "conservation": [],
+                "warnings": [],
+            },
+        ),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["computational_deep_dive"],
+        )
+    )
+
+    assert tools["computational_annotations"].calls == 1
+    assert tools["vep"].calls == 0
+    assert tools["variant_validator"].calls == 0
+    assert tools["gnomad"].calls == 0
+    assert tools["spliceai"].calls == 0
+    assert tools["clinvar"].calls == 0
+    assert tools["clingen"].calls == 0
+    assert tools["pubmed"].calls == 0
+    assert tools["litvar2"].calls == 0
+    assert tools["clinical_trials"].calls == 0
+    section = sections.sections["computational_deep_dive"]
+    assert section.status == "available"
+    assert section.payload is not None
+    assert section.payload["predictors"][0]["name"] == "CADD PHRED"
+    with session_scope(session_factory) as session:
+        source_rows = session.execute(select(SourceResultCacheRecord)).scalars().all()
+        assert {row.source_id for row in source_rows} == {"computational_annotations"}
+        assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
+            "computational_deep_dive"
+        )
+
+
+def test_lookup_sections_clingen_miss_builds_only_clinvar_and_clingen_sources(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    tools = {
+        "vep": _StaticTool("vep"),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "clingen": _StaticTool("clingen"),
+        "pubmed": _StaticTool("pubmed"),
+        "litvar2": _StaticTool("litvar2"),
+        "clinical_trials": _CountingClinicalTrialsTool(),
+        "computational_annotations": _StaticTool("computational_annotations"),
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["clingen_vcep"],
+        )
+    )
+
+    assert tools["clinvar"].calls == 1
+    assert tools["clingen"].calls == 1
+    assert tools["vep"].calls == 0
+    assert tools["variant_validator"].calls == 0
+    assert tools["gnomad"].calls == 0
+    assert tools["spliceai"].calls == 0
+    assert tools["pubmed"].calls == 0
+    assert tools["litvar2"].calls == 0
+    assert tools["computational_annotations"].calls == 0
+    assert tools["clinical_trials"].calls == 0
+    section = sections.sections["clingen_vcep"]
+    assert section.status == "partial"
+    assert section.payload is not None
+    assert section.payload["classification"] == "Uncertain significance"
+    assert section.payload["classification_source"] == "ClinVar"
+    assert section.payload["source_scope"] == "current_clinical_consensus_snapshot"
+    assert section.warnings == ["clingen_vcep_evidence_repo_source_cache_not_integrated"]
+    with session_scope(session_factory) as session:
+        source_rows = session.execute(select(SourceResultCacheRecord)).scalars().all()
+        assert {row.source_id for row in source_rows} == {"clinvar", "clingen"}
+        assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
+            "clingen_vcep"
+        )
 
 
 def test_legacy_cached_functional_evidence_rebuilds_and_refreshes_cache(

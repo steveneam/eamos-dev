@@ -11,14 +11,18 @@ from uuid import uuid4
 
 from app.rules.base import DecisionInput
 from app.schemas.lookup import (
+    LookupInitialSummaryResponse,
     LookupRequest,
     LookupResponse,
+    LookupSectionFetchRequest,
+    LookupSectionFetchResponse,
     PublicationPageRequest,
     SearchInputInterpretation,
     SearchInputParseRequest,
     SearchInputParseResponse,
 )
 from app.schemas.run import (
+    ClinicalTrialQueryExecution,
     CuratedVariantsDistribution,
     EvidenceSourceSummary,
     FunctionalEvidenceSummary,
@@ -26,6 +30,10 @@ from app.schemas.run import (
     PublicationsCallout,
     PubMedArticle,
     ReportPayload,
+    SourceProvenance,
+    TherapiesTrialsSection,
+    TrialMatch,
+    VariantReportProfile,
     VariantSummaryRow,
 )
 from app.services.clinical_consensus import ClinicalConsensusBuilder
@@ -40,6 +48,12 @@ from app.services.clinvar_local import (
 from app.services.functional_evidence import FunctionalEvidenceExtractor
 from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.local_evidence_orchestrator import LocalEvidenceRuntimeGate
+from app.services.lookup_sections import (
+    LAZY_SECTION_ORDER,
+    build_lookup_initial_summary,
+    build_lookup_section_fetch_response,
+)
+from app.services.lookup_timing import LookupTimingCollector
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
 from app.services.report_call_cards import (
     build_population_frequency_detail,
@@ -97,6 +111,16 @@ CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX = (
 STRICT_GENOMIC_CACHE_VERSION = 2
 FUNCTIONAL_EVIDENCE_CACHE_VERSION = 3
 GENE_CONTEXT_SNAPSHOT_CACHE_VERSION = 1
+REPORT_SHELL_CACHE_VERSION = 1
+REPORT_SECTION_CACHE_VERSION = 1
+SOURCE_RESULT_CACHE_VERSION = 1
+SOURCE_SPECIFIC_SECTION_IDS = frozenset(
+    {"publications", "therapies_trials", "computational_deep_dive", "clingen_vcep"}
+)
+SOURCE_RESULT_SECTION_SOURCES: dict[str, tuple[str, ...]] = {
+    "computational_deep_dive": ("computational_annotations", "spliceai"),
+    "clingen_vcep": ("clinvar", "clingen"),
+}
 
 
 @dataclass(frozen=True)
@@ -138,6 +162,16 @@ def _clinical_trial_disease_terms(evidence_map: dict[str, dict[str, Any]]) -> li
             if name:
                 terms.append(name)
     return _dedupe_values(terms)
+
+
+def _acmg_classification_snapshot(gene: str, cdna: str, clinvar: dict[str, Any]) -> str:
+    classification = clinvar.get("classification", "Unavailable")
+    review_status_text = clinvar.get("review_status", "review status unavailable")
+    return (
+        f"ClinVar currently lists {gene} {cdna} as {classification} ({review_status_text}). "
+        "This is a source snapshot only and should not be read as formal ACMG evidence-code "
+        "assignment or a final laboratory classification."
+    )
 
 
 def _text_value(value: Any) -> str | None:
@@ -195,7 +229,9 @@ def _clinvar_distribution_runtime_path(settings: Any) -> str | None:
     if not inspection.ready:
         return None
     raw_path = Path(getattr(settings, "clinvar_gene_distribution_index_path"))
-    resolved = raw_path if raw_path.is_absolute() else Path(getattr(settings, "backend_root")) / raw_path
+    resolved = (
+        raw_path if raw_path.is_absolute() else Path(getattr(settings, "backend_root")) / raw_path
+    )
     return str(resolved)
 
 
@@ -296,6 +332,125 @@ def _publication_data_cache_is_current(publication_cache: dict[str, Any]) -> boo
     return publication_cache.get("publication_data_cache_version") == PUBLICATION_DATA_CACHE_VERSION
 
 
+def _report_shell_cache_payload(summary: LookupInitialSummaryResponse) -> dict[str, Any]:
+    return {
+        "report_shell_cache_version": REPORT_SHELL_CACHE_VERSION,
+        "summary": summary.model_dump(mode="json"),
+    }
+
+
+def _summary_from_report_shell_cache(
+    publication_cache: dict[str, Any],
+) -> LookupInitialSummaryResponse | None:
+    shell = publication_cache.get("report_shell")
+    if not isinstance(shell, dict):
+        return None
+    if shell.get("report_shell_cache_version") != REPORT_SHELL_CACHE_VERSION:
+        return None
+    summary = shell.get("summary")
+    if not isinstance(summary, dict):
+        return None
+    try:
+        return LookupInitialSummaryResponse.model_validate(summary)
+    except Exception:
+        return None
+
+
+def _summary_from_report_shell_payload(
+    payload: dict[str, Any],
+) -> LookupInitialSummaryResponse | None:
+    try:
+        return LookupInitialSummaryResponse.model_validate(payload)
+    except Exception:
+        return None
+
+
+def _report_sections_cache_payload(response: LookupResponse) -> dict[str, Any]:
+    section_response = build_lookup_section_fetch_response(response, list(LAZY_SECTION_ORDER))
+    return _report_sections_cache_payload_from_response(section_response)
+
+
+def _report_sections_cache_payload_from_response(
+    response: LookupSectionFetchResponse,
+) -> dict[str, Any]:
+    return {
+        "report_section_cache_version": REPORT_SECTION_CACHE_VERSION,
+        "response": response.model_dump(mode="json"),
+    }
+
+
+def _cached_report_sections_response(
+    publication_cache: dict[str, Any],
+) -> LookupSectionFetchResponse | None:
+    cached = publication_cache.get("report_sections")
+    if not isinstance(cached, dict):
+        return None
+    if cached.get("report_section_cache_version") != REPORT_SECTION_CACHE_VERSION:
+        return None
+    response_payload = cached.get("response")
+    if not isinstance(response_payload, dict):
+        return None
+    try:
+        return LookupSectionFetchResponse.model_validate(response_payload)
+    except Exception:
+        return None
+
+
+def _sections_from_report_section_cache(
+    publication_cache: dict[str, Any],
+    include: list[str],
+) -> LookupSectionFetchResponse | None:
+    cached_response = _cached_report_sections_response(publication_cache)
+    if cached_response is None:
+        return None
+    if any(section_id not in cached_response.sections for section_id in include):
+        return None
+    return LookupSectionFetchResponse(
+        query=cached_response.query,
+        species=cached_response.species,
+        sections={section_id: cached_response.sections[section_id] for section_id in include},
+        warnings=list(cached_response.warnings),
+    )
+
+
+def _sections_from_report_section_payload(
+    payload: dict[str, Any],
+    include: list[str],
+) -> LookupSectionFetchResponse | None:
+    try:
+        cached_response = LookupSectionFetchResponse.model_validate(payload)
+    except Exception:
+        return None
+    if any(section_id not in cached_response.sections for section_id in include):
+        return None
+    return LookupSectionFetchResponse(
+        query=cached_response.query,
+        species=cached_response.species,
+        sections={section_id: cached_response.sections[section_id] for section_id in include},
+        warnings=list(cached_response.warnings),
+    )
+
+
+def _merged_report_sections_cache_payload(
+    publication_cache: dict[str, Any],
+    response: LookupSectionFetchResponse,
+) -> dict[str, Any]:
+    cached_response = _cached_report_sections_response(publication_cache)
+    if cached_response is None:
+        return _report_sections_cache_payload_from_response(response)
+
+    sections = dict(cached_response.sections)
+    sections.update(response.sections)
+    return _report_sections_cache_payload_from_response(
+        LookupSectionFetchResponse(
+            query=response.query or cached_response.query,
+            species=response.species or cached_response.species,
+            sections=sections,
+            warnings=_dedupe_values([*cached_response.warnings, *response.warnings]),
+        )
+    )
+
+
 def _strict_genomic_cache_is_current(cached_strict: dict[str, Any]) -> bool:
     if cached_strict.get("strict_genomic_cache_version") != STRICT_GENOMIC_CACHE_VERSION:
         return False
@@ -330,6 +485,30 @@ def _evidence_summary_to_result(item: dict[str, Any]) -> ToolResult:
     )
 
 
+def _source_result_cache_to_result(source_id: str, item: dict[str, Any]) -> ToolResult:
+    freshness = item.get("freshness") if isinstance(item.get("freshness"), dict) else {}
+    source_versions = (
+        item.get("source_versions") if isinstance(item.get("source_versions"), dict) else {}
+    )
+    source_status = str(freshness.get("source_status") or item.get("status") or "cache")
+    status = "stale" if freshness.get("stale_on_failure") else source_status
+    if status in {"live", "local", "fixture", "fallback"}:
+        status = "cache"
+    source_version = freshness.get("source_version") or source_versions.get("source_version")
+    return ToolResult(
+        source=source_id,
+        status=status,
+        request_identity={},
+        summary=item.get("payload") if isinstance(item.get("payload"), dict) else {},
+        warnings=list(item.get("warnings") or []),
+        raw=item.get("raw"),
+        source_url=freshness.get("source_url"),
+        fetched_at=freshness.get("fetched_at"),
+        source_version=str(source_version) if source_version else None,
+        cache_status="cache_hit",
+    )
+
+
 def _source_version_from_result(result: ToolResult) -> str | None:
     if result.source_version:
         return result.source_version
@@ -343,6 +522,76 @@ def _source_version_from_result(result: ToolResult) -> str | None:
 
 def _source_cache_token(value: str | None) -> str:
     return (value or "").strip().removeprefix("chr").lower()
+
+
+def _report_cache_identity_from_resolution(
+    *,
+    cache_key: str,
+    input_resolution: Any,
+    request: LookupRequest | LookupSectionFetchRequest,
+) -> dict[str, Any]:
+    return {
+        "identity_version": 1,
+        "query_string": cache_key,
+        "species": request.species,
+        "genome_build": "GRCh38",
+        "gene": getattr(input_resolution, "gene", None),
+        "cdna": getattr(input_resolution, "hgvs", None),
+        "transcript": getattr(input_resolution, "resolver_transcript", None),
+        "protein_change": getattr(input_resolution, "protein_change", None),
+        "genomic_hg38": getattr(input_resolution, "genomic_hg38", None),
+        "genomic_hgvs": getattr(input_resolution, "genomic_hgvs", None),
+        "request_identity": {
+            "gene": request.gene,
+            "cdna": request.cdna,
+            "transcript": request.transcript,
+            "protein_change": request.protein_change,
+        },
+    }
+
+
+def _report_cache_identity_from_response(
+    *,
+    cache_key: str,
+    response: LookupResponse,
+) -> dict[str, Any]:
+    gene, _, cdna = cache_key.partition(":")
+    summary_row = next(iter(response.report_payload.variant_summary_rows or []), None)
+    return {
+        "identity_version": 1,
+        "query_string": cache_key,
+        "species": response.species,
+        "genome_build": "GRCh38",
+        "gene": gene or None,
+        "cdna": cdna or None,
+        "transcript": getattr(summary_row, "transcript", None),
+        "protein_change": getattr(summary_row, "protein_change", None),
+        "genomic_hg38": getattr(summary_row, "genomic_hg38", None),
+        "genomic_hgvs": getattr(summary_row, "genomic_hgvs", None),
+        "request_identity": {"query": cache_key},
+    }
+
+
+def _report_cache_identity_from_variant(
+    *,
+    cache_key: str,
+    variant: Any,
+    species: str = "human",
+) -> dict[str, Any]:
+    gene, _, cdna = cache_key.partition(":")
+    return {
+        "identity_version": 1,
+        "query_string": cache_key,
+        "species": species,
+        "genome_build": "GRCh38",
+        "gene": getattr(variant, "gene", None) or gene or None,
+        "cdna": getattr(variant, "transcript_hgvs", None) or cdna or None,
+        "transcript": getattr(variant, "transcript", None),
+        "protein_change": getattr(variant, "protein_change", None),
+        "genomic_hg38": getattr(variant, "genomic_hg38", None),
+        "genomic_hgvs": getattr(variant, "genomic_hgvs", None),
+        "request_identity": {"query": cache_key},
+    }
 
 
 def _annotate_source_cached_result(name: str, result: ToolResult, *, cache_key: str) -> None:
@@ -481,6 +730,7 @@ class LookupService:
         rule_engine,
         draft_render_service=None,
         variant_cache_repo=None,
+        report_cache_repo=None,
         source_cache_repo=None,
         settings=None,
         functional_evidence_extractor=None,
@@ -492,6 +742,7 @@ class LookupService:
         self.rule_engine = rule_engine
         self.draft_render_service = draft_render_service
         self.variant_cache_repo = variant_cache_repo
+        self.report_cache_repo = report_cache_repo
         self.source_cache_repo = source_cache_repo
         self.settings = settings
         self.publication_literature = EamosProprietaryVariantLiteratureExtractor()
@@ -546,6 +797,871 @@ class LookupService:
             )
         )
 
+    def lookup_summary(
+        self,
+        request: LookupRequest,
+        refresh: bool = False,
+    ) -> LookupInitialSummaryResponse:
+        timing = (
+            LookupTimingCollector(
+                max_entries=int(
+                    getattr(self.settings, "lookup_timing_diagnostics_max_entries", 80) or 80
+                )
+            )
+            if bool(getattr(self.settings, "lookup_timing_diagnostics_enabled", False))
+            else None
+        )
+        prepared_started = timing.start() if timing is not None else 0.0
+        prepared = self._summary_from_prepared_report_shell(request, refresh=refresh)
+        if timing is not None:
+            timing.record_phase(
+                "prepared_report_shell",
+                prepared_started,
+                outcome="hit" if prepared is not None else "miss",
+            )
+        if prepared is not None:
+            if timing is not None:
+                prepared.attach_lookup_timing_header(timing.header_value())
+            return prepared
+
+        response = self.lookup(request, refresh=refresh)
+        summary = build_lookup_initial_summary(response)
+        summary.attach_lookup_timing_header(response.lookup_timing_header)
+        return summary
+
+    def _summary_from_prepared_report_shell(
+        self,
+        request: LookupRequest,
+        *,
+        refresh: bool = False,
+    ) -> LookupInitialSummaryResponse | None:
+        if (
+            refresh
+            or request.species != "human"
+            or request.raw_search_text
+            or request.selected_candidate_id
+            or self.settings is None
+            or not self.settings.use_real_apis
+            or (self.report_cache_repo is None and self.variant_cache_repo is None)
+        ):
+            return None
+
+        input_resolution = self.search_input_resolver.resolve(
+            gene=request.gene or "",
+            cdna=request.cdna or "",
+            transcript=request.transcript,
+            protein_change=request.protein_change,
+        )
+        if input_resolution.kind == "unknown":
+            return None
+        cache_key = f"{input_resolution.gene}:{input_resolution.hgvs}"
+        if self.report_cache_repo is not None:
+            table_payload = self.report_cache_repo.get_report_shell(
+                cache_key,
+                schema_version=REPORT_SHELL_CACHE_VERSION,
+                ttl_days=self.settings.cache_ttl_days,
+            )
+            if isinstance(table_payload, dict):
+                table_summary = _summary_from_report_shell_payload(table_payload)
+                if table_summary is not None:
+                    return table_summary
+
+        if self.variant_cache_repo is None:
+            return None
+        cache_hit = self.variant_cache_repo.get_fresh(cache_key, self.settings.cache_ttl_days)
+        publication_cache = (
+            cache_hit.get("publication_data", {}) if isinstance(cache_hit, dict) else {}
+        )
+        if not (
+            isinstance(publication_cache, dict)
+            and _publication_data_cache_is_current(publication_cache)
+        ):
+            return None
+        return _summary_from_report_shell_cache(publication_cache)
+
+    def _store_report_shell_cache(self, cache_key: str, response: LookupResponse) -> None:
+        if (
+            self.settings is None
+            or not self.settings.use_real_apis
+            or (self.report_cache_repo is None and self.variant_cache_repo is None)
+        ):
+            return
+        summary = build_lookup_initial_summary(response)
+        if self.report_cache_repo is not None:
+            self.report_cache_repo.upsert_report_shell(
+                cache_key,
+                normalized_identity=_report_cache_identity_from_response(
+                    cache_key=cache_key,
+                    response=response,
+                ),
+                schema_version=REPORT_SHELL_CACHE_VERSION,
+                payload=summary.model_dump(mode="json"),
+                ttl_days=self.settings.cache_ttl_days,
+            )
+        if self.variant_cache_repo is not None and hasattr(
+            self.variant_cache_repo,
+            "update_report_shell",
+        ):
+            self.variant_cache_repo.update_report_shell(
+                cache_key,
+                report_shell=_report_shell_cache_payload(summary),
+            )
+
+    def lookup_sections(
+        self,
+        request: LookupSectionFetchRequest,
+        refresh: bool = False,
+    ) -> LookupSectionFetchResponse:
+        timing = (
+            LookupTimingCollector(
+                max_entries=int(
+                    getattr(self.settings, "lookup_timing_diagnostics_max_entries", 80) or 80
+                )
+            )
+            if bool(getattr(self.settings, "lookup_timing_diagnostics_enabled", False))
+            else None
+        )
+        prepared_started = timing.start() if timing is not None else 0.0
+        prepared = self._sections_from_prepared_report_cache(request, refresh=refresh)
+        if timing is not None:
+            timing.record_phase(
+                "prepared_report_sections",
+                prepared_started,
+                outcome="hit" if prepared is not None else "miss",
+                metadata={"section_count": len(request.include)},
+            )
+        if prepared is not None:
+            if timing is not None:
+                prepared.attach_lookup_timing_header(timing.header_value())
+            return prepared
+
+        source_started = timing.start() if timing is not None else 0.0
+        source_specific = self._sections_from_source_specific_builders(
+            request,
+            refresh=refresh,
+        )
+        if timing is not None:
+            timing.record_phase(
+                "source_specific_report_sections",
+                source_started,
+                outcome="hit" if source_specific is not None else "miss",
+                metadata={"section_count": len(request.include)},
+            )
+        if source_specific is not None:
+            if timing is not None:
+                source_specific.attach_lookup_timing_header(timing.header_value())
+            return source_specific
+
+        lookup_request = LookupRequest.model_validate(request.model_dump(exclude={"include"}))
+        response = self.lookup(lookup_request, refresh=refresh)
+        sections = build_lookup_section_fetch_response(response, request.include)
+        sections.attach_lookup_timing_header(response.lookup_timing_header)
+        return sections
+
+    def _sections_from_prepared_report_cache(
+        self,
+        request: LookupSectionFetchRequest,
+        *,
+        refresh: bool = False,
+    ) -> LookupSectionFetchResponse | None:
+        if (
+            refresh
+            or request.species != "human"
+            or request.raw_search_text
+            or request.selected_candidate_id
+            or self.settings is None
+            or not self.settings.use_real_apis
+            or (self.report_cache_repo is None and self.variant_cache_repo is None)
+        ):
+            return None
+
+        input_resolution = self.search_input_resolver.resolve(
+            gene=request.gene or "",
+            cdna=request.cdna or "",
+            transcript=request.transcript,
+            protein_change=request.protein_change,
+        )
+        if input_resolution.kind == "unknown":
+            return None
+        cache_key = f"{input_resolution.gene}:{input_resolution.hgvs}"
+        if self.report_cache_repo is not None:
+            table_payload = self.report_cache_repo.get_report_sections(
+                cache_key,
+                section_ids=list(request.include),
+                schema_version=REPORT_SECTION_CACHE_VERSION,
+                ttl_days=self.settings.cache_ttl_days,
+            )
+            if isinstance(table_payload, dict):
+                table_sections = _sections_from_report_section_payload(
+                    table_payload,
+                    list(request.include),
+                )
+                if table_sections is not None:
+                    return table_sections
+
+        if self.variant_cache_repo is None:
+            return None
+        cache_hit = self.variant_cache_repo.get_fresh(cache_key, self.settings.cache_ttl_days)
+        publication_cache = (
+            cache_hit.get("publication_data", {}) if isinstance(cache_hit, dict) else {}
+        )
+        if not (
+            isinstance(publication_cache, dict)
+            and _publication_data_cache_is_current(publication_cache)
+        ):
+            return None
+        return _sections_from_report_section_cache(publication_cache, list(request.include))
+
+    def _store_report_sections_cache(self, cache_key: str, response: LookupResponse) -> None:
+        if (
+            self.settings is None
+            or not self.settings.use_real_apis
+            or (self.report_cache_repo is None and self.variant_cache_repo is None)
+        ):
+            return
+        report_sections = _report_sections_cache_payload(response)
+        if self.report_cache_repo is not None:
+            self.report_cache_repo.upsert_report_sections(
+                cache_key,
+                normalized_identity=_report_cache_identity_from_response(
+                    cache_key=cache_key,
+                    response=response,
+                ),
+                schema_version=REPORT_SECTION_CACHE_VERSION,
+                response_payload=report_sections["response"],
+                ttl_days=self.settings.cache_ttl_days,
+            )
+        if self.variant_cache_repo is not None and hasattr(
+            self.variant_cache_repo,
+            "update_report_sections",
+        ):
+            self.variant_cache_repo.update_report_sections(
+                cache_key,
+                report_sections=report_sections,
+            )
+
+    def _store_section_response_cache(
+        self,
+        cache_key: str,
+        publication_cache: dict[str, Any],
+        response: LookupSectionFetchResponse,
+    ) -> None:
+        if (
+            self.settings is None
+            or not self.settings.use_real_apis
+            or (self.report_cache_repo is None and self.variant_cache_repo is None)
+        ):
+            return
+        if self.report_cache_repo is not None:
+            self.report_cache_repo.upsert_report_sections(
+                cache_key,
+                normalized_identity={
+                    "identity_version": 1,
+                    "query_string": cache_key,
+                    "species": response.species,
+                    "genome_build": "GRCh38",
+                    "gene": cache_key.partition(":")[0] or None,
+                    "cdna": cache_key.partition(":")[2] or None,
+                    "request_identity": {"query": cache_key},
+                },
+                schema_version=REPORT_SECTION_CACHE_VERSION,
+                response_payload=response.model_dump(mode="json"),
+                ttl_days=self.settings.cache_ttl_days,
+            )
+        if self.variant_cache_repo is not None and hasattr(
+            self.variant_cache_repo,
+            "update_report_sections",
+        ):
+            self.variant_cache_repo.update_report_sections(
+                cache_key,
+                report_sections=_merged_report_sections_cache_payload(publication_cache, response),
+            )
+
+    def _store_report_source_result_cache(
+        self,
+        cache_key: str,
+        *,
+        variant: Any,
+        result: ToolResult,
+        species: str = "human",
+    ) -> None:
+        if (
+            self.settings is None
+            or not self.settings.use_real_apis
+            or self.report_cache_repo is None
+        ):
+            return
+        source_version = _source_version_from_result(result)
+        self.report_cache_repo.upsert_source_result(
+            cache_key,
+            normalized_identity=_report_cache_identity_from_variant(
+                cache_key=cache_key,
+                variant=variant,
+                species=species,
+            ),
+            source_id=result.source,
+            schema_version=SOURCE_RESULT_CACHE_VERSION,
+            status=result.status,
+            payload=result.summary or {},
+            raw=result.raw,
+            warnings=list(result.warnings),
+            ttl_days=self.settings.cache_ttl_days,
+            freshness={
+                "fetched_at": result.fetched_at,
+                "source_status": result.status,
+                "source_url": result.source_url,
+                "source_version": source_version,
+                "stale_on_failure": result.cache_status == "stale_on_failure",
+            },
+            source_versions={"source_version": source_version} if source_version else {},
+        )
+
+    def _cached_report_source_results(
+        self,
+        cache_key: str,
+        *,
+        source_ids: list[str],
+        refresh: bool,
+    ) -> dict[str, ToolResult]:
+        if (
+            refresh
+            or self.settings is None
+            or not self.settings.use_real_apis
+            or self.report_cache_repo is None
+        ):
+            return {}
+        rows = self.report_cache_repo.get_source_results(
+            cache_key,
+            source_ids=source_ids,
+            schema_version=SOURCE_RESULT_CACHE_VERSION,
+            ttl_days=self.settings.cache_ttl_days,
+        )
+        return {
+            source_id: _source_result_cache_to_result(source_id, row)
+            for source_id, row in rows.items()
+        }
+
+    def _section_source_result(
+        self,
+        source_id: str,
+        *,
+        cache_key: str,
+        variant: Any,
+        cached_source_results: dict[str, ToolResult],
+        species: str,
+        refresh: bool,
+        warnings: list[str],
+    ) -> ToolResult:
+        cached = cached_source_results.get(source_id)
+        if cached is not None:
+            return cached
+
+        tool = self.tool_registry.get(source_id)
+        if tool is None:
+            return ToolResult(
+                source=source_id,
+                status="missing",
+                request_identity={"gene": getattr(variant, "gene", None)},
+                summary={},
+                warnings=[f"{source_id}_unavailable"],
+                raw=None,
+            )
+        try:
+            if source_id == "clingen":
+                result = tool.get_evidence(variant=variant, refresh=refresh)
+            else:
+                result = tool.get_evidence(variant=variant)
+        except Exception as exc:
+            return ToolResult(
+                source=source_id,
+                status="fallback",
+                request_identity={"gene": getattr(variant, "gene", None)},
+                summary={},
+                warnings=[f"{source_id}_section_fetch_failed:{type(exc).__name__}"],
+                raw=None,
+            )
+
+        try:
+            self._store_report_source_result_cache(
+                cache_key,
+                variant=variant,
+                result=result,
+                species=species,
+            )
+        except Exception as exc:
+            warnings.append(f"source_result_cache_write_failed:{source_id}:{type(exc).__name__}")
+        return result
+
+    def _record_section_source_result(
+        self,
+        name: str,
+        result: ToolResult,
+        *,
+        evidence: list[EvidenceSourceSummary],
+        evidence_map: dict[str, dict[str, Any]],
+        evidence_raw: dict[str, Any],
+        evidence_statuses: dict[str, str],
+        warnings: list[str],
+    ) -> None:
+        evidence.append(_result_to_evidence(result))
+        evidence_map[name] = result.summary or {}
+        evidence_raw[name] = result.raw
+        evidence_statuses[name] = result.status
+        warnings.extend(result.warnings)
+
+    def _build_computational_section_profile(
+        self,
+        *,
+        cache_key: str,
+        variant: Any,
+        input_resolution: Any,
+        report_payload: ReportPayload,
+        cached_source_results: dict[str, ToolResult],
+        evidence: list[EvidenceSourceSummary],
+        evidence_map: dict[str, dict[str, Any]],
+        evidence_raw: dict[str, Any],
+        evidence_statuses: dict[str, str],
+        warnings: list[str],
+        species: str,
+        refresh: bool,
+    ) -> VariantReportProfile:
+        computational_result = self._section_source_result(
+            "computational_annotations",
+            cache_key=cache_key,
+            variant=variant,
+            cached_source_results=cached_source_results,
+            species=species,
+            refresh=refresh,
+            warnings=warnings,
+        )
+        self._record_section_source_result(
+            "computational_annotations",
+            computational_result,
+            evidence=evidence,
+            evidence_map=evidence_map,
+            evidence_raw=evidence_raw,
+            evidence_statuses=evidence_statuses,
+            warnings=warnings,
+        )
+        spliceai_result = cached_source_results.get("spliceai")
+        if spliceai_result is not None:
+            self._record_section_source_result(
+                "spliceai",
+                spliceai_result,
+                evidence=evidence,
+                evidence_map=evidence_map,
+                evidence_raw=evidence_raw,
+                evidence_statuses=evidence_statuses,
+                warnings=warnings,
+            )
+        return self.report_orchestrator.build_profile(
+            resolution=input_resolution,
+            interpretation=None,
+            payload=report_payload,
+            evidence=evidence,
+            evidence_map=evidence_map,
+            evidence_statuses=evidence_statuses,
+        )
+
+    def _build_clingen_vcep_section_profile(
+        self,
+        *,
+        cache_key: str,
+        variant: Any,
+        input_resolution: Any,
+        report_payload: ReportPayload,
+        cached_source_results: dict[str, ToolResult],
+        evidence: list[EvidenceSourceSummary],
+        evidence_map: dict[str, dict[str, Any]],
+        evidence_raw: dict[str, Any],
+        evidence_statuses: dict[str, str],
+        warnings: list[str],
+        species: str,
+        refresh: bool,
+    ) -> VariantReportProfile:
+        for source_id in ("clinvar", "clingen"):
+            result = self._section_source_result(
+                source_id,
+                cache_key=cache_key,
+                variant=variant,
+                cached_source_results=cached_source_results,
+                species=species,
+                refresh=refresh,
+                warnings=warnings,
+            )
+            if source_id == "clinvar":
+                variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
+                if variant.dbsnp_rsid:
+                    result.summary = {
+                        **(result.summary or {}),
+                        "dbsnp_rsid": variant.dbsnp_rsid,
+                    }
+                if not variant.protein_change:
+                    variant.protein_change = str(result.summary.get("protein_change") or "")
+            self._record_section_source_result(
+                source_id,
+                result,
+                evidence=evidence,
+                evidence_map=evidence_map,
+                evidence_raw=evidence_raw,
+                evidence_statuses=evidence_statuses,
+                warnings=warnings,
+            )
+
+        report_payload.acmg_classification = _acmg_classification_snapshot(
+            variant.gene,
+            input_resolution.hgvs,
+            evidence_map.get("clinvar", {}),
+        )
+        try:
+            clinical_consensus = self.clinical_consensus.build_for_lookup(
+                variant,
+                report_payload,
+                evidence_map,
+                evidence_raw=evidence_raw,
+                source_statuses=evidence_statuses,
+                allow_live=False,
+            )
+            evidence_map["clinical_consensus"] = clinical_consensus.summary
+            evidence_statuses["clinical_consensus"] = clinical_consensus.status
+            warnings.extend(clinical_consensus.warnings)
+        except Exception as exc:
+            warnings.append(f"clinical_consensus_failed:{type(exc).__name__}")
+
+        return self.report_orchestrator.build_profile(
+            resolution=input_resolution,
+            interpretation=None,
+            payload=report_payload,
+            evidence=evidence,
+            evidence_map=evidence_map,
+            evidence_statuses=evidence_statuses,
+        )
+
+    def _sections_from_source_specific_builders(
+        self,
+        request: LookupSectionFetchRequest,
+        *,
+        refresh: bool = False,
+    ) -> LookupSectionFetchResponse | None:
+        include = list(request.include)
+        if any(section_id not in SOURCE_SPECIFIC_SECTION_IDS for section_id in include):
+            return None
+        if request.species != "human" or request.raw_search_text or request.selected_candidate_id:
+            return None
+
+        input_resolution = self.search_input_resolver.resolve(
+            gene=request.gene or "",
+            cdna=request.cdna or "",
+            transcript=request.transcript,
+            protein_change=request.protein_change,
+        )
+        if input_resolution.kind == "unknown":
+            return None
+
+        gene = input_resolution.gene
+        cdna = input_resolution.hgvs
+        cache_key = f"{gene}:{cdna}"
+        cache_hit = None
+        if (
+            self.settings is not None
+            and self.settings.use_real_apis
+            and self.variant_cache_repo is not None
+            and not refresh
+        ):
+            cache_hit = self.variant_cache_repo.get_fresh(cache_key, self.settings.cache_ttl_days)
+        publication_cache = (
+            cache_hit.get("publication_data", {}) if isinstance(cache_hit, dict) else {}
+        )
+        if not (
+            isinstance(publication_cache, dict)
+            and _publication_data_cache_is_current(publication_cache)
+        ):
+            publication_cache = {}
+
+        variant = SimpleNamespace(
+            gene=gene,
+            transcript_hgvs=input_resolution.resolver_transcript_hgvs,
+            protein_change=request.protein_change or input_resolution.protein_change or "",
+            genomic_hg38=input_resolution.genomic_hg38 or "",
+            genomic_hgvs=input_resolution.genomic_hgvs or "",
+            variation_type="",
+            consequence="",
+            query_kind=input_resolution.kind,
+            dbsnp_rsid=None,
+            search_input_resolution=input_resolution,
+        )
+        evidence: list[EvidenceSourceSummary] = []
+        evidence_map: dict[str, dict[str, Any]] = {}
+        evidence_raw: dict[str, Any] = {}
+        evidence_statuses: dict[str, str] = {}
+        warnings: list[str] = list(input_resolution.warnings)
+
+        report_payload = ReportPayload(
+            patient_id=f"lookup_section_{uuid4().hex[:8]}",
+            **_lookup_v2_modules(gene, cdna),
+        )
+        source_result_ids = _dedupe_values(
+            [
+                source_id
+                for section_id in include
+                for source_id in SOURCE_RESULT_SECTION_SOURCES.get(section_id, ())
+            ]
+        )
+        cached_source_results = self._cached_report_source_results(
+            cache_key,
+            source_ids=source_result_ids,
+            refresh=refresh,
+        )
+        profile_updates: dict[str, Any] = {}
+
+        if "publications" in include:
+            literature = self._build_publications_section_literature(
+                variant,
+                publication_cache=publication_cache,
+                evidence=evidence,
+                evidence_map=evidence_map,
+                evidence_raw=evidence_raw,
+                evidence_statuses=evidence_statuses,
+                warnings=warnings,
+                cache_key=cache_key,
+                species=request.species,
+                refresh=refresh,
+            )
+            report_payload.publications_literature = literature
+
+        if "therapies_trials" in include:
+            trials_section = self._build_trials_section(
+                variant,
+                evidence=evidence,
+                warnings=warnings,
+                cache_key=cache_key,
+                species=request.species,
+            )
+            profile_updates["therapies_trials"] = trials_section
+
+        if "computational_deep_dive" in include:
+            computational_profile = self._build_computational_section_profile(
+                cache_key=cache_key,
+                variant=variant,
+                input_resolution=input_resolution,
+                report_payload=report_payload,
+                cached_source_results=cached_source_results,
+                evidence=evidence,
+                evidence_map=evidence_map,
+                evidence_raw=evidence_raw,
+                evidence_statuses=evidence_statuses,
+                warnings=warnings,
+                species=request.species,
+                refresh=refresh,
+            )
+            profile_updates["computational_deep_dive"] = (
+                computational_profile.computational_deep_dive
+            )
+
+        if "clingen_vcep" in include:
+            clingen_profile = self._build_clingen_vcep_section_profile(
+                cache_key=cache_key,
+                variant=variant,
+                input_resolution=input_resolution,
+                report_payload=report_payload,
+                cached_source_results=cached_source_results,
+                evidence=evidence,
+                evidence_map=evidence_map,
+                evidence_raw=evidence_raw,
+                evidence_statuses=evidence_statuses,
+                warnings=warnings,
+                species=request.species,
+                refresh=refresh,
+            )
+            profile_updates["acmg_worksheet"] = clingen_profile.acmg_worksheet
+            profile_updates["expert_panel"] = clingen_profile.expert_panel
+
+        if profile_updates:
+            base_profile = report_payload.report_profile or VariantReportProfile()
+            report_payload.report_profile = base_profile.model_copy(update=profile_updates)
+
+        response = build_lookup_section_fetch_response(
+            LookupResponse(
+                query=cache_key,
+                species=request.species,
+                report_payload=report_payload,
+                evidence=evidence,
+                warnings=warnings,
+            ),
+            include,
+        )
+        try:
+            self._store_section_response_cache(cache_key, publication_cache, response)
+        except Exception as exc:
+            response.warnings.append(f"report_sections_cache_write_failed:{type(exc).__name__}")
+        return response
+
+    def _build_publications_section_literature(
+        self,
+        variant,
+        *,
+        publication_cache: dict[str, Any],
+        evidence: list[EvidenceSourceSummary],
+        evidence_map: dict[str, dict[str, Any]],
+        evidence_raw: dict[str, Any],
+        evidence_statuses: dict[str, str],
+        warnings: list[str],
+        cache_key: str,
+        species: str,
+        refresh: bool,
+    ) -> PublicationLiterature:
+        cached_literature = publication_cache.get("ep_vlex")
+        if not refresh and isinstance(cached_literature, dict):
+            try:
+                return PublicationLiterature.model_validate(cached_literature)
+            except Exception:
+                warnings.append("publication_section_cached_payload_invalid")
+
+        for name in ("clinvar", "pubmed", "litvar2"):
+            tool = self.tool_registry.get(name)
+            if tool is None:
+                warnings.append(f"publication_{name}_unavailable")
+                continue
+            try:
+                if name == "pubmed":
+                    result = tool.get_evidence(variant=variant, refresh=refresh)
+                else:
+                    result = tool.get_evidence(variant=variant)
+            except Exception as exc:
+                warnings.append(f"publication_{name}_failed:{type(exc).__name__}")
+                continue
+            evidence.append(_result_to_evidence(result))
+            evidence_map[name] = result.summary or {}
+            evidence_raw[name] = result.raw
+            evidence_statuses[name] = result.status
+            warnings.extend(result.warnings)
+            try:
+                self._store_report_source_result_cache(
+                    cache_key,
+                    variant=variant,
+                    result=result,
+                    species=species,
+                )
+            except Exception as exc:
+                warnings.append(f"source_result_cache_write_failed:{name}:{type(exc).__name__}")
+            if name == "clinvar":
+                variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
+                if not variant.protein_change:
+                    variant.protein_change = str(result.summary.get("protein_change") or "")
+
+        literature = self.publication_literature.build_for_lookup(
+            variant,
+            evidence_map,
+            evidence_raw=evidence_raw,
+            source_statuses=evidence_statuses,
+            limit=5,
+        )
+        warnings.extend(literature.warnings)
+        return literature
+
+    def _build_trials_section(
+        self,
+        variant,
+        *,
+        evidence: list[EvidenceSourceSummary],
+        warnings: list[str],
+        cache_key: str,
+        species: str,
+    ) -> TherapiesTrialsSection:
+        tool = self.tool_registry.get("clinical_trials")
+        if tool is None or not hasattr(tool, "get_trial_matches"):
+            section_warning = "clinical_trials_unavailable"
+            warnings.append(section_warning)
+            return TherapiesTrialsSection(warnings=[section_warning])
+
+        try:
+            result = tool.get_trial_matches(
+                variant=variant,
+                gene=variant.gene,
+                disease_terms=[],
+                limit=15,
+            )
+        except Exception as exc:
+            result = ToolResult(
+                source="clinical_trials",
+                status="fallback",
+                request_identity={"gene": variant.gene},
+                summary={"warnings": [f"clinical_trials_fetch_failed:{type(exc).__name__}"]},
+                warnings=[f"clinical_trials_fetch_failed:{type(exc).__name__}"],
+                raw=None,
+            )
+
+        evidence.append(_result_to_evidence(result))
+        warnings.extend(result.warnings)
+        try:
+            self._store_report_source_result_cache(
+                cache_key,
+                variant=variant,
+                result=result,
+                species=species,
+            )
+        except Exception as exc:
+            warnings.append(
+                f"source_result_cache_write_failed:clinical_trials:{type(exc).__name__}"
+            )
+        summary = result.summary if isinstance(result.summary, dict) else {}
+        section_warnings = _dedupe_values(
+            [
+                *[str(item) for item in summary.get("warnings", []) if isinstance(item, str)],
+                *result.warnings,
+            ]
+        )
+
+        trial_rows: list[TrialMatch] = []
+        raw_rows = summary.get("trial_rows", [])
+        if isinstance(raw_rows, list):
+            for item in raw_rows:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    trial_rows.append(TrialMatch.model_validate(item))
+                except Exception:
+                    section_warnings.append("clinical_trials_row_validation_failed")
+
+        query_executions: list[ClinicalTrialQueryExecution] = []
+        raw_executions = summary.get("query_executions", [])
+        if isinstance(raw_executions, list):
+            for item in raw_executions:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    query_executions.append(ClinicalTrialQueryExecution.model_validate(item))
+                except Exception:
+                    section_warnings.append("clinical_trials_query_execution_validation_failed")
+
+        if trial_rows:
+            if any(row.match_level in {"gene_level", "disease_level"} for row in trial_rows):
+                section_warnings.append("clinical_trials_gene_level_target_only")
+        elif result.status in {
+            "fixture",
+            "missing",
+        } and "clinical_trials_no_active_matches" not in (section_warnings):
+            section_warnings.append("clinical_trials_structured_rows_unavailable")
+
+        query_term = _text_value(summary.get("query_term"))
+        source_url = _text_value(summary.get("source_url")) or result.source_url
+        section_warnings = _dedupe_values(section_warnings)
+        return TherapiesTrialsSection(
+            trial_rows=trial_rows,
+            query_executions=query_executions,
+            warnings=section_warnings,
+            provenance=[
+                SourceProvenance(
+                    source="ClinicalTrials.gov",
+                    status=result.status,
+                    query={"query": query_term} if query_term else {},
+                    source_url=source_url,
+                    warnings=section_warnings,
+                    version=result.source_version,
+                )
+            ],
+        )
+
     def lookup(
         self,
         request: LookupRequest,
@@ -553,6 +1669,29 @@ class LookupService:
         *,
         _evidence_context_sink: list[LookupEvidenceContext] | None = None,
     ) -> LookupResponse:
+        timing = (
+            LookupTimingCollector(
+                max_entries=int(
+                    getattr(self.settings, "lookup_timing_diagnostics_max_entries", 80) or 80
+                )
+            )
+            if bool(getattr(self.settings, "lookup_timing_diagnostics_enabled", False))
+            else None
+        )
+
+        def timing_start() -> float:
+            return timing.start() if timing is not None else 0.0
+
+        def record_phase(
+            name: str,
+            started_at: float,
+            *,
+            outcome: str = "ok",
+            metadata: dict[str, Any] | None = None,
+        ) -> None:
+            if timing is not None:
+                timing.record_phase(name, started_at, outcome=outcome, metadata=metadata)
+
         search_interpretation: SearchInputInterpretation | None = None
         if request.selected_candidate_id:
             search_interpretation = self.search_input_interpreter.from_selected_candidate(
@@ -573,13 +1712,16 @@ class LookupService:
 
         gene_input = request.gene or ""
         cdna_input = request.cdna or ""
+        phase_started = timing_start()
         input_resolution = self.search_input_resolver.resolve(
             gene=gene_input,
             cdna=cdna_input,
             transcript=request.transcript,
             protein_change=request.protein_change,
         )
+        record_phase("input_resolution", phase_started)
         if search_interpretation is not None and search_interpretation.genomic_hg38:
+            phase_started = timing_start()
             input_resolution = replace(
                 input_resolution,
                 genomic_hg38=search_interpretation.genomic_hg38,
@@ -593,6 +1735,7 @@ class LookupService:
                     ),
                 ),
             )
+            record_phase("search_interpretation_resolution", phase_started)
         gene = input_resolution.gene
         cdna = input_resolution.hgvs
         query_kind = input_resolution.kind
@@ -705,25 +1848,94 @@ class LookupService:
             return cached_clingen_result_matches_variant(result, variant)
 
         def source_cached_result(name: str, producer) -> ToolResult:
-            source_cache_lookup_key = source_cache_key_for(name)
-            use_source_cache = source_cache_lookup_key is not None
-            skip_fresh_source_cache = (
-                name == "clingen"
-                and self.settings is not None
-                and self.settings.clingen_local_enabled
-            )
-            if use_source_cache and not refresh and not skip_fresh_source_cache:
-                hit = self.source_cache_repo.get_fresh(name, source_cache_lookup_key)
-                if hit is not None:
-                    hit_result = hit.to_tool_result(status="cache", cache_status="cache_hit")
-                    if source_cache_result_matches_request(name, hit_result):
-                        return hit_result
-                    warnings.append(f"source_cache_identity_mismatch:{name}")
-
+            provider_started = timing_start()
+            result_for_timing: ToolResult | None = None
+            outcome = "producer"
+            error_type: str | None = None
+            allow_stale_on_exception = False
             try:
+                source_cache_lookup_key = source_cache_key_for(name)
+                use_source_cache = source_cache_lookup_key is not None
+                skip_fresh_source_cache = (
+                    name == "clingen"
+                    and self.settings is not None
+                    and self.settings.clingen_local_enabled
+                )
+                if use_source_cache and not refresh and not skip_fresh_source_cache:
+                    hit = self.source_cache_repo.get_fresh(name, source_cache_lookup_key)
+                    if hit is not None:
+                        hit_result = hit.to_tool_result(status="cache", cache_status="cache_hit")
+                        if source_cache_result_matches_request(name, hit_result):
+                            outcome = "source_cache_fresh_hit"
+                            result_for_timing = hit_result
+                            return hit_result
+                        warnings.append(f"source_cache_identity_mismatch:{name}")
+
+                allow_stale_on_exception = True
                 result = producer()
+                allow_stale_on_exception = False
+                result_for_timing = result
+                if use_source_cache and result.status in SOURCE_CACHE_FAILURE_STATUSES:
+                    stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
+                    if stale is not None:
+                        stale_result = stale.to_tool_result(
+                            status="stale",
+                            cache_status="stale_on_failure",
+                            extra_warnings=[
+                                f"source_cache_stale_on_failure:{name}",
+                                f"live_status:{result.status}",
+                                *result.warnings,
+                            ],
+                        )
+                        if source_cache_result_matches_request(name, stale_result):
+                            outcome = "source_cache_stale_on_failure"
+                            result_for_timing = stale_result
+                            return stale_result
+                        result.warnings.append(f"source_cache_identity_mismatch:{name}")
+
+                if (
+                    use_source_cache
+                    and result.status != "local"
+                    and should_persist_source_cache(name, result)
+                ):
+                    _annotate_source_cached_result(
+                        name,
+                        result,
+                        cache_key=source_cache_lookup_key,
+                    )
+                    self.source_cache_repo.upsert(
+                        result.source,
+                        source_cache_lookup_key,
+                        normalized_identity={
+                            "query": source_cache_lookup_key,
+                            "gene": gene,
+                            "cdna": cdna,
+                            "genomic_hg38": variant.genomic_hg38,
+                            "genomic_hgvs": variant.genomic_hgvs,
+                        },
+                        request_identity=result.request_identity,
+                        status=result.status,
+                        summary=result.summary,
+                        raw=result.raw,
+                        warnings=result.warnings,
+                        source_url=result.source_url,
+                        ttl_days=self.settings.cache_ttl_days,
+                        source_version=_source_version_from_result(result),
+                    )
+                    outcome = "producer_persisted"
+                try:
+                    self._store_report_source_result_cache(
+                        cache_key,
+                        variant=variant,
+                        result=result,
+                        species=request.species,
+                    )
+                except Exception:
+                    pass
+                return result
             except Exception as exc:
-                if use_source_cache:
+                error_type = type(exc).__name__
+                if allow_stale_on_exception and "use_source_cache" in locals() and use_source_cache:
                     stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
                     if stale is not None:
                         stale_result = stale.to_tool_result(
@@ -735,58 +1947,31 @@ class LookupService:
                             ],
                         )
                         if source_cache_result_matches_request(name, stale_result):
+                            outcome = "source_cache_stale_on_exception"
+                            result_for_timing = stale_result
                             return stale_result
                         warnings.append(f"source_cache_identity_mismatch:{name}")
                 raise
-
-            if use_source_cache and result.status in SOURCE_CACHE_FAILURE_STATUSES:
-                stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
-                if stale is not None:
-                    stale_result = stale.to_tool_result(
-                        status="stale",
-                        cache_status="stale_on_failure",
-                        extra_warnings=[
-                            f"source_cache_stale_on_failure:{name}",
-                            f"live_status:{result.status}",
-                            *result.warnings,
-                        ],
+            finally:
+                if timing is not None:
+                    timing.record_provider(
+                        name,
+                        provider_started,
+                        status=result_for_timing.status if result_for_timing is not None else None,
+                        cache_status=(
+                            result_for_timing.cache_status
+                            if result_for_timing is not None
+                            else None
+                        ),
+                        outcome="error" if error_type and result_for_timing is None else outcome,
+                        warning_count=(
+                            len(result_for_timing.warnings) if result_for_timing is not None else 0
+                        ),
+                        error_type=error_type,
                     )
-                    if source_cache_result_matches_request(name, stale_result):
-                        return stale_result
-                    result.warnings.append(f"source_cache_identity_mismatch:{name}")
-
-            if (
-                use_source_cache
-                and result.status != "local"
-                and should_persist_source_cache(name, result)
-            ):
-                _annotate_source_cached_result(
-                    name,
-                    result,
-                    cache_key=source_cache_lookup_key,
-                )
-                self.source_cache_repo.upsert(
-                    result.source,
-                    source_cache_lookup_key,
-                    normalized_identity={
-                        "query": source_cache_lookup_key,
-                        "gene": gene,
-                        "cdna": cdna,
-                        "genomic_hg38": variant.genomic_hg38,
-                        "genomic_hgvs": variant.genomic_hgvs,
-                    },
-                    request_identity=result.request_identity,
-                    status=result.status,
-                    summary=result.summary,
-                    raw=result.raw,
-                    warnings=result.warnings,
-                    source_url=result.source_url,
-                    ttl_days=self.settings.cache_ttl_days,
-                    source_version=_source_version_from_result(result),
-                )
-            return result
 
         cache_hit = None
+        phase_started = timing_start()
         if (
             self.settings is not None
             and self.settings.use_real_apis
@@ -794,6 +1979,11 @@ class LookupService:
             and not refresh
         ):
             cache_hit = self.variant_cache_repo.get_fresh(cache_key, self.settings.cache_ttl_days)
+        record_phase(
+            "variant_cache_read",
+            phase_started,
+            metadata={"hit": isinstance(cache_hit, dict) and bool(cache_hit)},
+        )
         publication_cache = (
             cache_hit.get("publication_data", {}) if isinstance(cache_hit, dict) else {}
         )
@@ -811,6 +2001,7 @@ class LookupService:
             warnings.extend(result.warnings)
 
         # Phase 1 resolves coordinates. VEP and VariantValidator may mutate the shared variant.
+        phase_started = timing_start()
         cached_strict = (cache_hit or {}).get("strict_genomic_cache", {})
         if isinstance(cached_strict, dict) and cached_strict:
             if not _strict_genomic_cache_is_current(cached_strict):
@@ -861,8 +2052,14 @@ class LookupService:
                     lambda tool=tool: tool.get_evidence(variant=variant),
                 )
                 record_result(name, result)
+        record_phase(
+            "strict_genomic_sources",
+            phase_started,
+            metadata={"cached": bool(cached_evidence)},
+        )
 
         # Phase 3 annotates with non-coordinate sources.
+        phase_started = timing_start()
         for name in (
             "clinvar",
             "clingen",
@@ -906,7 +2103,9 @@ class LookupService:
                         "dbsnp_rsid": variant.dbsnp_rsid,
                     }
             record_result(name, result)
+        record_phase("non_coordinate_sources", phase_started)
 
+        phase_started = timing_start()
         if isinstance(publication_cache, dict) and publication_cache:
             litvar_summary = publication_cache.get("summary", {})
             litvar_result = ToolResult(
@@ -925,12 +2124,18 @@ class LookupService:
                 lambda tool=litvar_tool: tool.get_evidence(variant=variant),
             )
         record_result("litvar2", litvar_result)
+        record_phase(
+            "litvar2_source",
+            phase_started,
+            metadata={"cached": isinstance(publication_cache, dict) and bool(publication_cache)},
+        )
 
         variant_row.genomic_hg38 = variant.genomic_hg38 or None
         variant_row.variation_type = variant.variation_type or None
         variant_row.consequence = variant.consequence or None
 
         # Rules engine
+        phase_started = timing_start()
         decision = self.rule_engine.evaluate(
             DecisionInput(
                 case_title=f"{gene}:{cdna}",
@@ -942,6 +2147,7 @@ class LookupService:
                 variant_summary=[variant_label],
             )
         )
+        record_phase("rules_engine", phase_started)
 
         # Variant decoder
         variant_decoder_text = decode_variant(
@@ -955,6 +2161,7 @@ class LookupService:
             f"No approved gene therapy identified for {gene}. "
             "Check ClinicalTrials.gov for active trials."
         )
+        phase_started = timing_start()
         trials_tool = self.tool_registry.get("clinical_trials")
         if trials_tool is not None:
             trial_rows: list[dict[str, Any]] = []
@@ -982,6 +2189,11 @@ class LookupService:
             therapeutic_landscape = f"{therapy_text}\n\n{trials_text}"
         else:
             therapeutic_landscape = therapy_text
+        record_phase(
+            "clinical_trials",
+            phase_started,
+            metadata={"tool_present": trials_tool is not None},
+        )
 
         # PubMed articles
         pubmed_raw = evidence_map.get("pubmed", {}).get("articles", [])
@@ -996,12 +2208,7 @@ class LookupService:
         # Classification snapshot
         clinvar = evidence_map.get("clinvar", {})
         classification = clinvar.get("classification", "Unavailable")
-        review_status_text = clinvar.get("review_status", "review status unavailable")
-        acmg_classification = (
-            f"ClinVar currently lists {gene} {cdna} as {classification} ({review_status_text}). "
-            "This is a source snapshot only and should not be read as formal ACMG evidence-code "
-            "assignment or a final laboratory classification."
-        )
+        acmg_classification = _acmg_classification_snapshot(gene, cdna, clinvar)
 
         # Evidence snapshot
         lines = list(decision.evidence_lines)
@@ -1069,6 +2276,7 @@ class LookupService:
                 warnings.append(f"clinvar_local_gene_distribution_failed:{exc.code}")
 
         litvar_summary = evidence_map.get("litvar2", {})
+        phase_started = timing_start()
         try:
             publication_literature = self.publication_literature.build_for_lookup(
                 variant,
@@ -1083,6 +2291,7 @@ class LookupService:
         except Exception as exc:
             warnings.append(f"publication_literature_failed:{type(exc).__name__}")
             base_payload.pubmed_articles = _merge_litvar_articles(pubmed_articles, litvar_summary)
+        record_phase("publication_literature", phase_started)
 
         cached_functional_evidence = (
             publication_cache.get("functional_evidence")
@@ -1097,6 +2306,7 @@ class LookupService:
                 cached_functional_evidence,
             )
         )
+        phase_started = timing_start()
         try:
             if (
                 isinstance(cached_functional_evidence, dict)
@@ -1117,7 +2327,16 @@ class LookupService:
             warnings.extend(functional_evidence.warnings)
         except Exception as exc:
             warnings.append(f"functional_evidence_failed:{type(exc).__name__}")
+        record_phase(
+            "functional_evidence",
+            phase_started,
+            metadata={
+                "cached": isinstance(cached_functional_evidence, dict)
+                and not rebuild_functional_evidence_cache
+            },
+        )
 
+        phase_started = timing_start()
         try:
             clinical_consensus = self.clinical_consensus.build_for_lookup(
                 variant,
@@ -1132,6 +2351,7 @@ class LookupService:
             warnings.extend(clinical_consensus.warnings)
         except Exception as exc:
             warnings.append(f"clinical_consensus_failed:{type(exc).__name__}")
+        record_phase("clinical_consensus", phase_started)
 
         total_count = (
             base_payload.publications_literature.total_count
@@ -1173,6 +2393,7 @@ class LookupService:
             evidence_map,
             evidence_statuses,
         )
+        phase_started = timing_start()
         sequence_context_result = self.sequence_context.resolve(
             gene=gene,
             cdna=cdna,
@@ -1187,6 +2408,7 @@ class LookupService:
         elif sequence_context_result.warnings:
             evidence_map["sequence_context"] = {"warnings": list(sequence_context_result.warnings)}
             evidence_statuses["sequence_context"] = "missing"
+        record_phase("sequence_context", phase_started)
 
         cached_gene_context = (
             (cache_hit or {}).get("gene_context_snapshot", {})
@@ -1205,6 +2427,7 @@ class LookupService:
             gene_context_snapshot_payload,
             dict,
         )
+        phase_started = timing_start()
         if isinstance(gene_context_snapshot_payload, dict):
             evidence_map["gene_context_snapshot"] = gene_context_snapshot_payload
             evidence_statuses["gene_context_snapshot"] = str(
@@ -1224,6 +2447,13 @@ class LookupService:
                 evidence_statuses["gene_context_snapshot"] = gene_context_snapshot.source_status
             except Exception as exc:
                 warnings.append(f"gene_context_snapshot_failed:{type(exc).__name__}")
+        record_phase(
+            "gene_context_snapshot",
+            phase_started,
+            metadata={
+                "cached": isinstance(cached_gene_context, dict) and bool(cached_gene_context)
+            },
+        )
         if query_kind == "unknown":
             base_payload.limitations = (
                 f"We could not parse '{cdna}' as cDNA, rsID, protein, or genomic HGVS. "
@@ -1258,6 +2488,7 @@ class LookupService:
             and gene_context_snapshot_cache is not None
             and variant.genomic_hg38
         )
+        phase_started = timing_start()
         if should_upsert_variant_cache:
             cached_names = ("vep", "variant_validator", *STRICT_GENOMIC_PLUGINS)
             evidence_by_source = {item.source: item.model_dump() for item in evidence}
@@ -1311,7 +2542,16 @@ class LookupService:
                 cache_key,
                 gene_context_snapshot=gene_context_snapshot_cache,
             )
+        record_phase(
+            "variant_cache_write",
+            phase_started,
+            metadata={
+                "upsert": should_upsert_variant_cache,
+                "gene_context_update": should_update_gene_context_snapshot_cache,
+            },
+        )
 
+        phase_started = timing_start()
         if self.draft_render_service is not None:
             draft_payload, draft_warnings = self.draft_render_service.render(
                 case_title=f"{gene}:{cdna}",
@@ -1329,7 +2569,13 @@ class LookupService:
             base_payload.recommendations = draft_payload.recommendations
             base_payload.limitations = draft_payload.limitations
             warnings = [*warnings, *draft_warnings]
+        record_phase(
+            "draft_render",
+            phase_started,
+            metadata={"enabled": self.draft_render_service is not None},
+        )
 
+        phase_started = timing_start()
         report_generated_at = current_report_timestamp()
         base_payload.report_generated_at = report_generated_at
         base_payload.report_data_currency = build_report_data_currency(
@@ -1345,6 +2591,8 @@ class LookupService:
             evidence_map=evidence_map,
             evidence_statuses=evidence_statuses,
         )
+        record_phase("report_profile", phase_started)
+        phase_started = timing_start()
         try:
             base_payload.eamos_computed_classification = compute_report_acmg_classification(
                 base_payload,
@@ -1353,6 +2601,7 @@ class LookupService:
             )
         except Exception as exc:
             warnings.append(f"eamos_computed_classification_failed:{type(exc).__name__}")
+        record_phase("eamos_computed_classification", phase_started)
 
         response = LookupResponse(
             query=f"{gene}:{cdna}",
@@ -1362,6 +2611,16 @@ class LookupService:
             warnings=[*warnings, *decision.warnings],
             search_interpretation=search_interpretation,
         )
+        try:
+            self._store_report_shell_cache(cache_key, response)
+        except Exception as exc:
+            response.warnings.append(f"report_shell_cache_write_failed:{type(exc).__name__}")
+        try:
+            self._store_report_sections_cache(cache_key, response)
+        except Exception as exc:
+            response.warnings.append(f"report_sections_cache_write_failed:{type(exc).__name__}")
+        if timing is not None:
+            response.attach_lookup_timing_header(timing.header_value())
         if _evidence_context_sink is not None:
             _evidence_context_sink.append(
                 LookupEvidenceContext(

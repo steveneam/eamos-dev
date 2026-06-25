@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
 from app.schemas.run import EvidenceSourceSummary, ReportPayload
 
@@ -208,6 +208,14 @@ class LookupResponse(BaseModel):
     evidence: list[EvidenceSourceSummary]
     warnings: list[str]
     search_interpretation: SearchInputInterpretation | None = None
+    _lookup_timing_header: str | None = PrivateAttr(default=None)
+
+    @property
+    def lookup_timing_header(self) -> str | None:
+        return self._lookup_timing_header
+
+    def attach_lookup_timing_header(self, value: str | None) -> None:
+        self._lookup_timing_header = value
 
 
 LookupSectionId = Literal[
@@ -246,6 +254,14 @@ class LookupInitialSummaryResponse(BaseModel):
     tiles: list[LookupSummaryTile] = Field(default_factory=list)
     lazy_sections: list[LookupSectionDescriptor] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    _lookup_timing_header: str | None = PrivateAttr(default=None)
+
+    @property
+    def lookup_timing_header(self) -> str | None:
+        return self._lookup_timing_header
+
+    def attach_lookup_timing_header(self, value: str | None) -> None:
+        self._lookup_timing_header = value
 
 
 class LookupSectionFetchRequest(LookupRequest):
@@ -285,6 +301,14 @@ class LookupSectionFetchResponse(BaseModel):
     species: str
     sections: dict[LookupSectionId, LookupSectionEnvelope] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
+    _lookup_timing_header: str | None = PrivateAttr(default=None)
+
+    @property
+    def lookup_timing_header(self) -> str | None:
+        return self._lookup_timing_header
+
+    def attach_lookup_timing_header(self, value: str | None) -> None:
+        self._lookup_timing_header = value
 
 
 class PublicationPageRequest(BaseModel):

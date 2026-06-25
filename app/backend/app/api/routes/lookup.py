@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
@@ -16,10 +16,7 @@ from app.schemas.lookup import (
     SearchInputParseResponse,
 )
 from app.schemas.run import PublicationLiterature
-from app.services.lookup_sections import (
-    build_lookup_initial_summary,
-    build_lookup_section_fetch_response,
-)
+from app.services.lookup_timing import LOOKUP_TIMING_HEADER
 
 router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
 
@@ -39,6 +36,7 @@ LOOKUP_EAGER_RESPONSE_EXCLUDE = {
 def variant_lookup(
     payload: LookupRequest,
     request: Request,
+    response: Response,
     refresh: bool = False,
     include_lazy_sections: bool = False,
 ) -> LookupResponse | JSONResponse:
@@ -49,16 +47,23 @@ def variant_lookup(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Lookup service is unavailable.",
         )
-    response = service.lookup(payload, refresh=refresh)
+    lookup_response = service.lookup(payload, refresh=refresh)
+    timing_header = _lookup_timing_header(service, lookup_response)
+    if timing_header:
+        response.headers[LOOKUP_TIMING_HEADER] = timing_header
     if include_lazy_sections:
-        return response
-    return JSONResponse(content=jsonable_encoder(response, exclude=LOOKUP_EAGER_RESPONSE_EXCLUDE))
+        return lookup_response
+    return JSONResponse(
+        content=jsonable_encoder(lookup_response, exclude=LOOKUP_EAGER_RESPONSE_EXCLUDE),
+        headers={LOOKUP_TIMING_HEADER: timing_header} if timing_header else None,
+    )
 
 
 @router.post("/summary", response_model=LookupInitialSummaryResponse)
 def lookup_summary(
     payload: LookupRequest,
     request: Request,
+    response: Response,
     refresh: bool = False,
 ) -> LookupInitialSummaryResponse:
     enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=_lookup_subject(payload))
@@ -68,14 +73,18 @@ def lookup_summary(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Lookup service is unavailable.",
         )
-    response = service.lookup(payload, refresh=refresh)
-    return build_lookup_initial_summary(response)
+    summary = service.lookup_summary(payload, refresh=refresh)
+    timing_header = _lookup_timing_header(service, summary)
+    if timing_header:
+        response.headers[LOOKUP_TIMING_HEADER] = timing_header
+    return summary
 
 
 @router.post("/sections", response_model=LookupSectionFetchResponse)
 def lookup_sections(
     payload: LookupSectionFetchRequest,
     request: Request,
+    response: Response,
     refresh: bool = False,
 ) -> LookupSectionFetchResponse:
     enforce_rate_limit(request, RATE_LIMIT_LOOKUP, subject=_lookup_subject(payload))
@@ -85,9 +94,11 @@ def lookup_sections(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Lookup service is unavailable.",
         )
-    lookup_payload = LookupRequest.model_validate(payload.model_dump(exclude={"include"}))
-    response = service.lookup(lookup_payload, refresh=refresh)
-    return build_lookup_section_fetch_response(response, payload.include)
+    sections = service.lookup_sections(payload, refresh=refresh)
+    timing_header = _lookup_timing_header(service, sections)
+    if timing_header:
+        response.headers[LOOKUP_TIMING_HEADER] = timing_header
+    return sections
 
 
 @router.post("/parse", response_model=SearchInputParseResponse)
@@ -144,3 +155,10 @@ def _lookup_subject(payload: LookupRequest) -> str | None:
         for part in (payload.gene, payload.cdna, payload.transcript, payload.protein_change)
         if part
     )
+
+
+def _lookup_timing_header(service, response) -> str | None:
+    settings = getattr(service, "settings", None)
+    if not bool(getattr(settings, "lookup_timing_diagnostics_enabled", False)):
+        return None
+    return getattr(response, "lookup_timing_header", None)

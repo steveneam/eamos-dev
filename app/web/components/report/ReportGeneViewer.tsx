@@ -39,10 +39,11 @@ interface ReportGeneViewerProps {
 // Slice B build 1 — read-only "report mode" genomic track for §4.
 //
 // Replaces the redundant gene-snapshot SVG + expandable transcript figures
-// inside the old GeneContextSnapshotSection. Fetches the same backend
-// /api/v1/viewer payload the Workbench uses, then projects it through the
-// shared gene-viewer adapter so the renderer reads the canonical
-// `GeneWindowData` shape. The Workbench's full SequenceViewerV2 (edit hub,
+// inside the old GeneContextSnapshotSection. The report lookup may already
+// carry a source-backed gene_context_snapshot, so first paint uses that seed and
+// only fetches /api/v1/viewer when an unseeded or expanded track needs it. The
+// shared gene-viewer adapter still owns the canonical `GeneWindowData` shape.
+// The Workbench's full SequenceViewerV2 (edit hub,
 // scratch, codon detail, popover, history) is deliberately NOT embedded —
 // the report wants a static visual, not an editor.
 //
@@ -340,6 +341,22 @@ function viewerFetchWarning(err: Error): string {
   return `gene_viewer_live_request_failed:${message || err.name || 'unknown_error'}`
 }
 
+function shouldFetchViewerPayload({
+  demo,
+  includeAlphaMissense,
+  seededData,
+  alphaHeatmap,
+}: {
+  demo: boolean
+  includeAlphaMissense: boolean
+  seededData: GeneWindowData | null
+  alphaHeatmap: ProteinAlphaMissenseHeatmap | null
+}): boolean {
+  if (demo) return false
+  if (seededData == null) return true
+  return includeAlphaMissense && alphaHeatmap == null
+}
+
 function snapshotRangeLength(
   start: number | null | undefined,
   end: number | null | undefined,
@@ -543,7 +560,13 @@ export function ReportGeneViewer({
         setWarnings(seededProteinTrack?.warnings ?? [])
         setError(null)
         setLoading(false)
+        if (!includeAlphaMissense) setAlphaHeatmap(null)
       })
+      if (!shouldFetchViewerPayload({ demo, includeAlphaMissense, seededData, alphaHeatmap })) {
+        return () => {
+          cancelled = true
+        }
+      }
     }
     if (demo) {
       void Promise.resolve().then(() => {
@@ -610,7 +633,17 @@ export function ReportGeneViewer({
     return () => {
       cancelled = true
     }
-  }, [gene, cdna, transcript, initialData, seededData, seededProteinTrack, demo, includeAlphaMissense])
+  }, [
+    gene,
+    cdna,
+    transcript,
+    initialData,
+    seededData,
+    seededProteinTrack,
+    alphaHeatmap,
+    demo,
+    includeAlphaMissense,
+  ])
 
   const segments = useMemo(() => (data ? buildSegments(data) : []), [data])
   const variantPct = useMemo(() => {

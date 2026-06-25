@@ -115,6 +115,25 @@ end-to-end (the meta-lesson again: paper-green ≠ ready):
   whether real production users also live on the ephemeral SQLite vs durable
   Supabase auth — if the former, that needs its own RISKS entry.*
 
+## DuckDB/Parquet analytical lane ratchet (2026-06-25)
+
+The Forj data-architecture standard adds an analytical lane to the existing
+runtime-asset discipline. Carry these extra rules into any Silver/Gold release
+work:
+
+- Treat DuckDB artifacts as runtime assets with manifests, checksums, and
+  provider-cache health. File presence alone is not readiness.
+- Keep DuckDB disabled until the local `.duckdb` artifact and Parquet release
+  are present on the persistent disk and health agrees.
+- Spill temp files to `/var/data/.../analytical/tmp`; do not use ephemeral
+  container storage for large scans.
+- Keep the web-tier connection read-only, memory-bounded, and thread-bounded
+  (`1500MB`, `threads=2` on the current Render class).
+- Do not run multi-GB Silver/Gold builds in startup, predeploy, or ordinary
+  request handling. Full builds belong to explicit operator jobs.
+- Keep Gold joins beside tabix/SQLite first. Replacing point-lookup adapters is
+  a later benchmark-backed ADR, not an implementation default.
+
 ## Folded into the live runbooks
 
 Status as of 2026-06-21 01:05 +1000 (Claude, after Codex released the Log

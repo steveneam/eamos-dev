@@ -21,6 +21,10 @@ _RENDER_RUNTIME_PATH_DEFAULTS = {
         "/var/data/eamos/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
     ),
     "phylop_runtime_bigwig_path": Path("/var/data/eamos/bio_assets/phylop/hg38.phyloP100way.bw"),
+    "duckdb_analytical_database_path": Path(
+        "/var/data/eamos/bio_assets/analytical/eamos-reference.duckdb"
+    ),
+    "duckdb_analytical_temp_directory": Path("/var/data/eamos/bio_assets/analytical/tmp"),
     "clingen_local_sqlite_path": Path("/var/data/eamos/bio_assets/clingen/clingen-local.sqlite"),
     "clingen_local_manifest_path": Path(
         "/var/data/eamos/bio_assets/clingen/clingen-local.manifest.json"
@@ -42,6 +46,8 @@ _LOCAL_RUNTIME_PATH_DEFAULTS = {
         "./data/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
     ),
     "phylop_runtime_bigwig_path": Path("./data/bio_assets/phylop/hg38.phyloP100way.bw"),
+    "duckdb_analytical_database_path": Path("./data/bio_assets/analytical/eamos-reference.duckdb"),
+    "duckdb_analytical_temp_directory": Path("./data/bio_assets/analytical/tmp"),
     "clingen_local_sqlite_path": Path("./data/bio_assets/clingen/clingen-local.sqlite"),
     "clingen_local_manifest_path": Path("./data/bio_assets/clingen/clingen-local.manifest.json"),
 }
@@ -112,6 +118,8 @@ class Settings(BaseSettings):
     search_input_ai_timeout_seconds: float = 8.0
     search_input_resolver_timeout_seconds: float = 5.0
     search_input_resolver_deadline_seconds: float = 8.0
+    lookup_timing_diagnostics_enabled: bool = False
+    lookup_timing_diagnostics_max_entries: int = 80
     run_chat_top_k: int = 4
     run_chat_timeout_seconds: float = 10.0
     run_chat_worker_max_workers: int = 2
@@ -206,6 +214,13 @@ class Settings(BaseSettings):
         "./data/bio_assets/repeatmasker/repeatmasker.interval-index.jsonl"
     )
     phylop_runtime_bigwig_path: Path = Path("./data/bio_assets/phylop/hg38.phyloP100way.bw")
+    duckdb_analytical_enabled: bool = False
+    duckdb_analytical_database_path: Path = Path(
+        "./data/bio_assets/analytical/eamos-reference.duckdb"
+    )
+    duckdb_analytical_temp_directory: Path = Path("./data/bio_assets/analytical/tmp")
+    duckdb_analytical_memory_limit: str = "1500MB"
+    duckdb_analytical_threads: int = 2
     local_evidence_runtime_seed_timeout_seconds: float = 1200.0
     admin_materialization_enabled: bool = False
     admin_materialization_token_sha256: str | None = None
