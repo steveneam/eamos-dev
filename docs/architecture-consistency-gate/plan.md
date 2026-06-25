@@ -1,6 +1,6 @@
 # Eamos Architecture Consistency Gate
 
-Last updated: 2026-06-25 18:08 +1000 - Codex.
+Last updated: 2026-06-25 23:59 +1000 - Codex.
 Status: Draft gate for Steven review. No code, deploy, Supabase mutation, or
 multi-GB materialization is implied by this document.
 
@@ -42,7 +42,8 @@ The current backend direction is sound:
 
 The architecture is not yet production-certified:
 
-- The Task 4/DuckDB work is still local and dirty.
+- The DuckDB/Parquet Phase 1 manifest/preflight work is local and tiny-fixture
+  only; no real corpus materialization has run.
 - The frontend still needs one shared report-section registry with stable
   skeleton, empty, partial, stale, failed, and hydrating states.
 - Older `variant_cache.publication_data` compatibility storage is still present
@@ -251,6 +252,8 @@ covered by tests.
 
 ### Task D - DuckDB/Parquet Phase 1
 
+Status: implemented locally for manifest/preflight proof; no real corpus build.
+
 Add only the artifact contract and tiny fixture preflight:
 
 - layout under `data/bio_assets/analytical/{bronze,silver,gold}/<release>/`;
@@ -263,6 +266,8 @@ Acceptance: disabled/missing/ready health states are sanitized and tests pass
 without real assets.
 
 ### Task E - Performance and Memory Proof
+
+Status: local audit evidence captured; fast cache contract target added locally.
 
 Run local and, when approved, live read-only audits:
 

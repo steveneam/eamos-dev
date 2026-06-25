@@ -21,6 +21,7 @@ from app.services.clinvar_local import (
     materialize_clinvar_gene_distribution_index,
 )
 from app.services.crispr_offtarget_index import build_spcas9_offtarget_index_from_sequences
+from app.services.duckdb_analytical import DUCKDB_ANALYTICAL_RELEASE_MANIFEST_SCHEMA_VERSION
 from app.services.esm1b_assembly import ESM1B_REGENERATION_REQUIRED_GATE
 from app.services.predictor_runtime import (
     CAPICE_FEATURE_CACHE_ASSET_ROLE,
@@ -138,6 +139,8 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert duckdb_analytical["remote_httpfs_allowed"] is False
     assert duckdb_analytical["motherduck_allowed"] is False
     assert duckdb_analytical["local_path_values_emitted"] is False
+    assert duckdb_analytical["release"]["status"] == "manifest_missing"
+    assert duckdb_analytical["release"]["local_path_values_emitted"] is False
     literature_embeddings = body["source_assets"]["literature_embeddings"]
     assert literature_embeddings["source_id"] == "eamos_literature_embeddings"
     assert literature_embeddings["ready"] is False
@@ -268,6 +271,30 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     encoded_ledger = json.dumps(ledger).lower()
     assert "supabase://" not in encoded_ledger
     assert "service_role" not in encoded_ledger
+
+
+def test_provider_cache_health_reports_duckdb_release_ready_without_paths(
+    client,
+    tmp_path: Path,
+) -> None:
+    root, manifest_path = _write_tiny_duckdb_release(tmp_path)
+    client.app.state.settings.duckdb_analytical_release_root = root
+    client.app.state.settings.duckdb_analytical_release_manifest_path = manifest_path
+
+    response = client.get("/api/v1/health/provider-cache")
+
+    assert response.status_code == 200
+    duckdb_analytical = response.json()["source_assets"]["duckdb_analytical"]
+    assert duckdb_analytical["status"] == "disabled"
+    release = duckdb_analytical["release"]
+    assert release["ready"] is True
+    assert release["status"] == "ready"
+    assert release["release_id"] == "pytest-mini"
+    assert release["layer_counts"] == {"bronze": 1, "silver": 1, "gold": 1}
+    assert release["row_count_total"] == 6
+    assert release["checksum_verified"] is False
+    assert release["local_path_values_emitted"] is False
+    assert str(tmp_path).lower() not in json.dumps(duckdb_analytical).lower()
 
 
 def test_provider_cache_health_reports_clinvar_gene_index_ready_without_paths(
@@ -1100,6 +1127,53 @@ def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
     _write_runtime_file(path, payload)
     Path(f"{path}.tbi").write_bytes(b"index")
     return path
+
+
+def _write_tiny_duckdb_release(tmp_path: Path) -> tuple[Path, Path]:
+    root = tmp_path / "analytical"
+    release_id = "pytest-mini"
+    artifacts = [
+        ("bronze", "1", "clinvar-bronze.parquet", b"bronze-clinvar\n", 1),
+        ("silver", "1", "clinvar-silver.parquet", b"silver-clinvar\n", 2),
+        ("gold", "2", "clinvar-dbsnp-gold.parquet", b"gold-join\n", 3),
+    ]
+    manifest_artifacts = []
+    for layer, chrom, filename, content, row_count in artifacts:
+        relative_path = f"{layer}/{release_id}/chrom={chrom}/{filename}"
+        path = root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        manifest_artifacts.append(
+            {
+                "path": relative_path,
+                "layer": layer,
+                "chrom": chrom,
+                "format": "parquet",
+                "schema_version": "pytest.v1",
+                "row_count": row_count,
+                "sha256": sha256(content).hexdigest(),
+            }
+        )
+
+    manifest_path = root / "manifests" / "current.manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": DUCKDB_ANALYTICAL_RELEASE_MANIFEST_SCHEMA_VERSION,
+                "release_id": release_id,
+                "source_ids": ["clinvar", "dbsnp"],
+                "source_versions": {"clinvar": "pytest", "dbsnp": "pytest"},
+                "input_checksums": {"clinvar": "sha256:fixture", "dbsnp": "sha256:fixture"},
+                "build": {"command": "pytest tiny fixture", "host": "pytest"},
+                "required_layers": ["bronze", "silver", "gold"],
+                "row_count_total": 6,
+                "artifacts": manifest_artifacts,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return root, manifest_path
 
 
 def _write_admin_predictor_manifest(

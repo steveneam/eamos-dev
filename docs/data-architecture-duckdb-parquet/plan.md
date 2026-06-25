@@ -1,7 +1,8 @@
 # DuckDB/Parquet Analytical Lane Plan
 
-Last updated: 2026-06-25 02:56 +1000 - Codex.
-Status: Phase 0 local adapter slice implemented; materialization remains operator-gated.
+Last updated: 2026-06-25 23:59 +1000 - Codex.
+Status: Phase 0 local adapter slice and Phase 1 manifest/preflight contract
+implemented locally; materialization remains operator-gated.
 
 ## Goal
 
@@ -41,7 +42,8 @@ Verify:
 
 ## Phase 1 - Artifact Contract And Preflight
 
-Status: Next backend task when resuming the DuckDB lane.
+Status: Implemented locally for manifest/checksum/row-count preflight. No real
+corpus build or serving-path dependency.
 
 Tasks:
 
@@ -51,7 +53,7 @@ Tasks:
   output checksums, row counts, schema versions, build command, and build host.
 - Add a read-only CLI preflight that validates an existing release without
   building multi-GB outputs.
-- Extend provider-cache health/build-ledger with release identity and row-count
+- Extend provider-cache health with sanitized release identity and row-count
   summaries when artifacts exist.
 
 Acceptance:
@@ -59,6 +61,9 @@ Acceptance:
 - A missing release fails closed with sanitized health.
 - A tiny fixture release can be validated in tests without `duckdb` network or
   large assets.
+- `python -m app.cli.eamos_duckdb_analytical_preflight --manifest-path ...`
+  verifies manifest layout, output checksums, and row-count totals without
+  opening a DuckDB database or materializing data.
 - No request route depends on DuckDB.
 
 ## Phase 2 - Silver Materialization

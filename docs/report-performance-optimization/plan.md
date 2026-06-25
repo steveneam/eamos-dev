@@ -1,6 +1,6 @@
 # Variant Report Performance Optimization Plan
 
-Last updated: 2026-06-25 by Codex.
+Last updated: 2026-06-25 23:59 +1000 by Codex.
 
 ## Implementation Progress
 
@@ -57,6 +57,10 @@ Last updated: 2026-06-25 by Codex.
   audit script now supports repeated cold/warm runs, aggregate p50/p95 latency
   summaries, JSON evidence, and optional payload-size ceilings for lookup
   responses, report payloads, section envelopes, and section payloads.
+- 2026-06-25: Task E test-hygiene gate advanced. `tests/test_report_cache_contract.py`
+  is now the fast named report-cache contract target, while slower
+  integration-style cases in `tests/test_variant_cache.py` are marked `slow`
+  and can be excluded with `-m "not slow"`.
 
 ## Goal
 

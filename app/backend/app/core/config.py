@@ -25,6 +25,10 @@ _RENDER_RUNTIME_PATH_DEFAULTS = {
         "/var/data/eamos/bio_assets/analytical/eamos-reference.duckdb"
     ),
     "duckdb_analytical_temp_directory": Path("/var/data/eamos/bio_assets/analytical/tmp"),
+    "duckdb_analytical_release_root": Path("/var/data/eamos/bio_assets/analytical"),
+    "duckdb_analytical_release_manifest_path": Path(
+        "/var/data/eamos/bio_assets/analytical/manifests/current.manifest.json"
+    ),
     "clingen_local_sqlite_path": Path("/var/data/eamos/bio_assets/clingen/clingen-local.sqlite"),
     "clingen_local_manifest_path": Path(
         "/var/data/eamos/bio_assets/clingen/clingen-local.manifest.json"
@@ -48,6 +52,10 @@ _LOCAL_RUNTIME_PATH_DEFAULTS = {
     "phylop_runtime_bigwig_path": Path("./data/bio_assets/phylop/hg38.phyloP100way.bw"),
     "duckdb_analytical_database_path": Path("./data/bio_assets/analytical/eamos-reference.duckdb"),
     "duckdb_analytical_temp_directory": Path("./data/bio_assets/analytical/tmp"),
+    "duckdb_analytical_release_root": Path("./data/bio_assets/analytical"),
+    "duckdb_analytical_release_manifest_path": Path(
+        "./data/bio_assets/analytical/manifests/current.manifest.json"
+    ),
     "clingen_local_sqlite_path": Path("./data/bio_assets/clingen/clingen-local.sqlite"),
     "clingen_local_manifest_path": Path("./data/bio_assets/clingen/clingen-local.manifest.json"),
 }
@@ -219,6 +227,10 @@ class Settings(BaseSettings):
         "./data/bio_assets/analytical/eamos-reference.duckdb"
     )
     duckdb_analytical_temp_directory: Path = Path("./data/bio_assets/analytical/tmp")
+    duckdb_analytical_release_root: Path = Path("./data/bio_assets/analytical")
+    duckdb_analytical_release_manifest_path: Path = Path(
+        "./data/bio_assets/analytical/manifests/current.manifest.json"
+    )
     duckdb_analytical_memory_limit: str = "1500MB"
     duckdb_analytical_threads: int = 2
     local_evidence_runtime_seed_timeout_seconds: float = 1200.0

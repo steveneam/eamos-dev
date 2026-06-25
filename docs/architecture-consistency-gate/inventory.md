@@ -1,6 +1,6 @@
 # Eamos Architecture Inventory
 
-Last updated: 2026-06-25 18:24 +1000 - Codex.
+Last updated: 2026-06-25 23:59 +1000 - Codex.
 Status: Static inventory for the architecture consistency gate. This is not a
 production sign-off, remote audit, deploy approval, or Supabase migration.
 
@@ -253,12 +253,13 @@ Gate findings for literature:
    payload-size ceilings; peak-RSS evidence still needs a local or approved
    live memory watch.
 
-6. Slow legacy integration tests are obscuring fast cache contract proof.
+6. Slow legacy integration tests no longer own the fast report-cache gate.
 
-   `tests/test_variant_cache.py` contains the new report-cache contract checks
-   and older broader integration-style cache cases in one file. The fast gate
-   should be explicit and named; slower cases should be split, marked, or moved
-   behind a deliberate slow-test target.
+   `tests/test_report_cache_contract.py` is the fast named cache/report contract
+   target. Broader integration-style cases in `tests/test_variant_cache.py` are
+   marked `slow`, so ordinary feature commits can run the contract target or
+   `tests/test_variant_cache.py -m "not slow"` instead of the full multi-minute
+   legacy file.
 
 7. Parquet conversion needs source-by-source benchmarking.
 

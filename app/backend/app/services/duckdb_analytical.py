@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+import hashlib
 import importlib
 import importlib.util
+import json
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -12,6 +14,8 @@ from app.core.config import Settings
 
 DUCKDB_ANALYTICAL_SOURCE_ID = "eamos_duckdb_analytical"
 DUCKDB_ANALYTICAL_SCHEMA_VERSION = "eamos.duckdb_analytical.v1"
+DUCKDB_ANALYTICAL_RELEASE_MANIFEST_SCHEMA_VERSION = "eamos.analytical_release_manifest.v1"
+DUCKDB_ANALYTICAL_RELEASE_LAYERS = ("bronze", "silver", "gold")
 DUCKDB_ANALYTICAL_QUERY_ROLES = (
     "bulk_variant_annotation",
     "region_cohort_aggregation",
@@ -39,6 +43,7 @@ class DuckDbAnalyticalInspection:
     query_roles: tuple[str, ...] = DUCKDB_ANALYTICAL_QUERY_ROLES
     message: str | None = None
     warnings: tuple[str, ...] = ()
+    release: Mapping[str, Any] | None = None
 
     def to_sanitized_dict(self) -> dict[str, Any]:
         return {
@@ -68,6 +73,55 @@ class DuckDbAnalyticalInspection:
             "secret_values_emitted": False,
             "local_path_values_emitted": False,
             "message": self.message,
+            "notices": list(self.warnings),
+            "release": dict(self.release or {}),
+        }
+
+
+@dataclass(frozen=True)
+class DuckDbAnalyticalReleaseInspection:
+    source_id: str
+    status: str
+    ready: bool
+    manifest_present: bool
+    release_id: str | None
+    manifest_schema_version: str | None
+    source_ids: tuple[str, ...] = ()
+    source_versions: Mapping[str, Any] | None = None
+    layer_counts: Mapping[str, int] | None = None
+    partition_count: int = 0
+    artifact_count: int = 0
+    row_count_total: int = 0
+    output_size_bytes_total: int = 0
+    checksum_verified: bool = False
+    row_count_verified: bool = False
+    warnings: tuple[str, ...] = ()
+
+    def to_sanitized_dict(self) -> dict[str, Any]:
+        return {
+            "source_id": self.source_id,
+            "status": self.status,
+            "ready": self.ready,
+            "manifest_present": self.manifest_present,
+            "release_id": self.release_id,
+            "manifest_schema_version": self.manifest_schema_version,
+            "source_ids": list(self.source_ids),
+            "source_versions": dict(self.source_versions or {}),
+            "layer_counts": dict(self.layer_counts or {}),
+            "partition_count": self.partition_count,
+            "artifact_count": self.artifact_count,
+            "row_count_total": self.row_count_total,
+            "output_size_bytes_total": self.output_size_bytes_total,
+            "checksum_verified": self.checksum_verified,
+            "row_count_verified": self.row_count_verified,
+            "layout_root": "data/bio_assets/analytical",
+            "layout_pattern": "{bronze,silver,gold}/<release>/chrom=<chrom>/",
+            "startup_download_allowed": False,
+            "request_time_materialization_allowed": False,
+            "source_runtime_scan_allowed": False,
+            "secret_values_emitted": False,
+            "local_path_values_emitted": False,
+            "object_uri_values_emitted": False,
             "notices": list(self.warnings),
         }
 
@@ -155,6 +209,10 @@ def inspect_duckdb_analytical_adapter(settings: Settings) -> DuckDbAnalyticalIns
     warnings: list[str] = []
     if threads > 2:
         warnings.append("duckdb_threads_above_render_standard_default")
+    release = inspect_duckdb_analytical_release(
+        settings,
+        verify_checksums=False,
+    ).to_sanitized_dict()
 
     if not enabled:
         return DuckDbAnalyticalInspection(
@@ -171,6 +229,7 @@ def inspect_duckdb_analytical_adapter(settings: Settings) -> DuckDbAnalyticalIns
             threads=threads,
             message="DuckDB analytical adapter disabled; tabix/SQLite remain the point lookup path.",
             warnings=tuple(warnings),
+            release=release,
         )
 
     if not available:
@@ -189,6 +248,7 @@ def inspect_duckdb_analytical_adapter(settings: Settings) -> DuckDbAnalyticalIns
             threads=threads,
             message="Install the duckdb Python package before enabling the analytical adapter.",
             warnings=tuple(warnings),
+            release=release,
         )
 
     if not database_present:
@@ -207,6 +267,7 @@ def inspect_duckdb_analytical_adapter(settings: Settings) -> DuckDbAnalyticalIns
             threads=threads,
             message="Materialize the local DuckDB database before enabling analytical reads.",
             warnings=tuple(warnings),
+            release=release,
         )
 
     temp_parent_exists = temp_directory.parent.exists()
@@ -231,6 +292,187 @@ def inspect_duckdb_analytical_adapter(settings: Settings) -> DuckDbAnalyticalIns
             else "Create the DuckDB temp-directory parent on the persistent disk."
         ),
         warnings=tuple(warnings),
+        release=release,
+    )
+
+
+def inspect_duckdb_analytical_release(
+    settings: Settings,
+    *,
+    verify_checksums: bool = True,
+) -> DuckDbAnalyticalReleaseInspection:
+    """Validate the local analytical release manifest without building artifacts."""
+
+    release_root = _settings_path(settings, settings.duckdb_analytical_release_root)
+    manifest_path = _settings_path(settings, settings.duckdb_analytical_release_manifest_path)
+    if not manifest_path.is_file():
+        return DuckDbAnalyticalReleaseInspection(
+            source_id=DUCKDB_ANALYTICAL_SOURCE_ID,
+            status="manifest_missing",
+            ready=False,
+            manifest_present=False,
+            release_id=None,
+            manifest_schema_version=None,
+            warnings=("duckdb_analytical_release_manifest_missing",),
+        )
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DuckDbAnalyticalReleaseInspection(
+            source_id=DUCKDB_ANALYTICAL_SOURCE_ID,
+            status="manifest_invalid",
+            ready=False,
+            manifest_present=True,
+            release_id=None,
+            manifest_schema_version=None,
+            warnings=("duckdb_analytical_release_manifest_unreadable",),
+        )
+    if not isinstance(manifest, dict):
+        return DuckDbAnalyticalReleaseInspection(
+            source_id=DUCKDB_ANALYTICAL_SOURCE_ID,
+            status="manifest_invalid",
+            ready=False,
+            manifest_present=True,
+            release_id=None,
+            manifest_schema_version=None,
+            warnings=("duckdb_analytical_release_manifest_not_object",),
+        )
+
+    release_id = _text_or_none(manifest.get("release_id"))
+    schema_version = _text_or_none(manifest.get("schema_version"))
+    manifest_source_ids = manifest.get("source_ids")
+    source_ids = (
+        tuple(sorted({str(value) for value in manifest_source_ids if str(value).strip()}))
+        if isinstance(manifest_source_ids, list)
+        else ()
+    )
+    source_versions = manifest.get("source_versions")
+    if not isinstance(source_versions, dict):
+        source_versions = {}
+    artifacts = manifest.get("artifacts")
+    warnings: list[str] = []
+    if schema_version != DUCKDB_ANALYTICAL_RELEASE_MANIFEST_SCHEMA_VERSION:
+        warnings.append("duckdb_analytical_release_manifest_schema_mismatch")
+    if not release_id:
+        warnings.append("duckdb_analytical_release_id_missing")
+    if not isinstance(artifacts, list) or not artifacts:
+        warnings.append("duckdb_analytical_release_artifacts_missing")
+        artifacts = []
+
+    layer_counts = {layer: 0 for layer in DUCKDB_ANALYTICAL_RELEASE_LAYERS}
+    partitions: set[tuple[str, str]] = set()
+    row_count_total = 0
+    output_size_total = 0
+    checksums_checked = 0
+    checksums_ok = 0
+    row_counts_checked = 0
+    row_counts_ok = 0
+
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            warnings.append("duckdb_analytical_release_artifact_not_object")
+            continue
+        relative_path = _text_or_none(artifact.get("path") or artifact.get("relative_path"))
+        layer = _text_or_none(artifact.get("layer"))
+        chrom = _text_or_none(artifact.get("chrom"))
+        expected_sha256 = _text_or_none(artifact.get("sha256"))
+        row_count = artifact.get("row_count")
+        if not relative_path:
+            warnings.append("duckdb_analytical_release_artifact_path_missing")
+            continue
+        safe_relative = _safe_relative_path(relative_path)
+        if safe_relative is None:
+            warnings.append("duckdb_analytical_release_artifact_path_invalid")
+            continue
+        layout = _artifact_layout(safe_relative)
+        if (
+            release_id
+            and (
+                layout is None
+                or layout["layer"] not in DUCKDB_ANALYTICAL_RELEASE_LAYERS
+                or layout["release_id"] != release_id
+                or not layout["chrom"]
+            )
+        ):
+            warnings.append("duckdb_analytical_release_artifact_layout_invalid")
+        if layer and layout is not None and layer != layout["layer"]:
+            warnings.append("duckdb_analytical_release_artifact_layer_mismatch")
+        if chrom and layout is not None and chrom != layout["chrom"]:
+            warnings.append("duckdb_analytical_release_artifact_chrom_mismatch")
+        if layout is not None and layout["layer"] in layer_counts:
+            layer_counts[layout["layer"]] += 1
+            partitions.add((layout["layer"], layout["chrom"]))
+
+        artifact_path = release_root / safe_relative
+        if not artifact_path.is_file():
+            warnings.append("duckdb_analytical_release_artifact_missing")
+            continue
+        output_size_total += artifact_path.stat().st_size
+        if verify_checksums:
+            checksums_checked += 1
+            if expected_sha256 and _sha256_file(artifact_path) == expected_sha256:
+                checksums_ok += 1
+            else:
+                warnings.append("duckdb_analytical_release_artifact_checksum_mismatch")
+        if isinstance(row_count, int) and row_count >= 0:
+            row_counts_checked += 1
+            row_counts_ok += 1
+            row_count_total += row_count
+        else:
+            warnings.append("duckdb_analytical_release_artifact_row_count_invalid")
+
+    manifest_row_count_total = manifest.get("row_count_total")
+    if isinstance(manifest_row_count_total, int) and manifest_row_count_total >= 0:
+        if manifest_row_count_total != row_count_total:
+            warnings.append("duckdb_analytical_release_manifest_row_count_mismatch")
+        else:
+            row_counts_checked += 1
+            row_counts_ok += 1
+
+    manifest_required_layers = manifest.get("required_layers")
+    required_layers = (
+        tuple(str(layer) for layer in manifest_required_layers)
+        if isinstance(manifest_required_layers, list)
+        else DUCKDB_ANALYTICAL_RELEASE_LAYERS
+    )
+    missing_layers = [
+        layer
+        for layer in required_layers
+        if layer in DUCKDB_ANALYTICAL_RELEASE_LAYERS and layer_counts.get(layer, 0) == 0
+    ]
+    if missing_layers:
+        warnings.append("duckdb_analytical_release_required_layer_missing")
+
+    checksum_verified = checksums_checked > 0 and checksums_checked == checksums_ok
+    checksum_passed = checksum_verified if verify_checksums else True
+    row_count_verified = row_counts_checked > 0 and row_counts_checked == row_counts_ok
+    blocking_warnings = list(warnings)
+    ready = (
+        bool(artifacts)
+        and schema_version == DUCKDB_ANALYTICAL_RELEASE_MANIFEST_SCHEMA_VERSION
+        and bool(release_id)
+        and not blocking_warnings
+        and checksum_passed
+        and row_count_verified
+    )
+    return DuckDbAnalyticalReleaseInspection(
+        source_id=DUCKDB_ANALYTICAL_SOURCE_ID,
+        status="ready" if ready else "validation_failed",
+        ready=ready,
+        manifest_present=True,
+        release_id=release_id,
+        manifest_schema_version=schema_version,
+        source_ids=source_ids,
+        source_versions=source_versions,
+        layer_counts=layer_counts,
+        partition_count=len(partitions),
+        artifact_count=sum(layer_counts.values()),
+        row_count_total=row_count_total,
+        output_size_bytes_total=output_size_total,
+        checksum_verified=checksum_verified,
+        row_count_verified=row_count_verified,
+        warnings=tuple(_dedupe(warnings)),
     )
 
 
@@ -243,3 +485,49 @@ def _duckdb_module_available() -> bool:
 
 def _settings_path(settings: Settings, path: Path) -> Path:
     return path if path.is_absolute() else settings.backend_root / path
+
+
+def _text_or_none(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _safe_relative_path(value: str) -> Path | None:
+    candidate = Path(value)
+    if candidate.is_absolute() or any(part == ".." for part in candidate.parts):
+        return None
+    return candidate
+
+
+def _artifact_layout(relative_path: Path) -> dict[str, str] | None:
+    parts = relative_path.parts
+    if len(parts) < 4:
+        return None
+    layer, release_id, chrom_part = parts[0], parts[1], parts[2]
+    if layer not in DUCKDB_ANALYTICAL_RELEASE_LAYERS or not chrom_part.startswith("chrom="):
+        return None
+    chrom = chrom_part.partition("=")[2]
+    if not release_id or not chrom:
+        return None
+    return {"layer": layer, "release_id": release_id, "chrom": chrom}
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result

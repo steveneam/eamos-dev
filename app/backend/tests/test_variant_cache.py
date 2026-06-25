@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from sqlalchemy import select
 
 from app.core.config import Settings
@@ -220,6 +221,7 @@ class _CountingGeneContextSnapshotService:
         )
 
 
+@pytest.mark.slow
 def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path) -> None:
     session_factory = build_session_factory(
         f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
@@ -295,6 +297,7 @@ def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path)
         assert session.execute(select(VariantCacheRecord)).scalars().all() == []
 
 
+@pytest.mark.slow
 def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
     session_factory = build_session_factory(
         f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
@@ -445,6 +448,7 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
     assert hit["publication_data"]["functional_evidence"]["total_count"] == 1
 
 
+@pytest.mark.slow
 def test_resolved_lookup_reuses_cached_gene_context_snapshot(tmp_path: Path) -> None:
     session_factory = build_session_factory(
         f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
@@ -516,6 +520,7 @@ def test_resolved_lookup_reuses_cached_gene_context_snapshot(tmp_path: Path) -> 
     )
 
 
+@pytest.mark.slow
 def test_lookup_summary_reuses_prepared_report_shell_without_provider_calls(
     tmp_path: Path,
 ) -> None:
@@ -667,6 +672,7 @@ def test_lookup_summary_reads_legacy_publication_data_shell_when_table_repo_miss
     ]
 
 
+@pytest.mark.slow
 def test_lookup_sections_reuses_prepared_envelopes_without_provider_calls(
     tmp_path: Path,
 ) -> None:
@@ -817,6 +823,7 @@ def test_lookup_sections_reads_legacy_publication_data_sections_when_table_repo_
     ]
 
 
+@pytest.mark.slow
 def test_lookup_sections_publication_miss_builds_only_publication_sources(
     tmp_path: Path,
 ) -> None:
@@ -891,6 +898,7 @@ def test_lookup_sections_publication_miss_builds_only_publication_sources(
         )
 
 
+@pytest.mark.slow
 def test_lookup_sections_trials_miss_builds_only_trials_source(
     tmp_path: Path,
 ) -> None:
@@ -954,6 +962,7 @@ def test_lookup_sections_trials_miss_builds_only_trials_source(
         )
 
 
+@pytest.mark.slow
 def test_lookup_sections_computational_miss_uses_source_result_cache_without_provider_calls(
     tmp_path: Path,
 ) -> None:
@@ -1048,6 +1057,7 @@ def test_lookup_sections_computational_miss_uses_source_result_cache_without_pro
         )
 
 
+@pytest.mark.slow
 def test_lookup_sections_computational_miss_builds_only_computational_source(
     tmp_path: Path,
 ) -> None:
@@ -1127,6 +1137,7 @@ def test_lookup_sections_computational_miss_builds_only_computational_source(
         )
 
 
+@pytest.mark.slow
 def test_lookup_sections_clingen_miss_builds_only_clinvar_and_clingen_sources(
     tmp_path: Path,
 ) -> None:
@@ -1201,6 +1212,7 @@ def test_lookup_sections_clingen_miss_builds_only_clinvar_and_clingen_sources(
         )
 
 
+@pytest.mark.slow
 def test_legacy_cached_functional_evidence_rebuilds_and_refreshes_cache(
     tmp_path: Path,
 ) -> None:
@@ -1331,6 +1343,7 @@ def test_legacy_cached_functional_evidence_rebuilds_and_refreshes_cache(
     assert cached_functional["display_metrics"]["code_rests_on"] == {"cited": 1, "total": 3}
 
 
+@pytest.mark.slow
 def test_legacy_strict_genomic_cache_rebuilds_and_refreshes_cache(tmp_path: Path) -> None:
     session_factory = build_session_factory(
         f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
@@ -1411,6 +1424,7 @@ def test_legacy_strict_genomic_cache_rebuilds_and_refreshes_cache(tmp_path: Path
     assert hit["strict_genomic_cache"]["variant"]["genomic_hg38"] == "1-68444869-T-C"
 
 
+@pytest.mark.slow
 def test_legacy_cached_ep_vlex_without_scope_counts_rebuilds_response_counts(
     tmp_path: Path,
 ) -> None:
