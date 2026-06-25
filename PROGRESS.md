@@ -6475,6 +6475,38 @@ Coordination:
 - Post-checkpoint backend changes remain uncommitted unless the user asks for
   another commit.
 
+## 2026-06-26 00:20 +1000 - Codex - Task E live performance and memory evidence
+
+Pushed the local Task D/E commits Steven requested:
+
+- `080516b feat(analytics): add DuckDB release preflight gate`
+- `0113521 docs(handoff): record task d e gates`
+
+Captured Task E live read-only performance/memory evidence without deploy,
+Render env mutation, Supabase mutation, Vercel command, or materialization.
+
+Evidence artifact:
+
+- `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`
+
+Live audit summary:
+
+- `npm --prefix app/web run audit:report-performance -- --base=https://eamos-dev-sg.onrender.com --runs=3 --skip-viewer --variant=ABCA4:c.5435T>A --variant=RPE65:c.260A>G --variant=USH2A:c.2276G>T --max-report-payload-bytes=750000 --max-section-envelope-bytes=200000 --max-section-payload-bytes=200000` passed payload ceilings.
+- ABCA4 lookup p50/p95: 5193/7410 ms; RPE65: 3868/3907 ms; USH2A: 5376/5992 ms.
+- Largest report payload was USH2A at 403884 bytes, under the 750000-byte ceiling.
+- Render memory window `2026-06-25T14:12:05Z..2026-06-25T14:17:54Z`: peak RSS 641.9 MB, 31.3% of the 2 GB cap, instance `srv-d8ctvoh9rddc73a27nb0-xcfhz`.
+- Browser preflight passed at 1280 px for ABCA4/RPE65/USH2A with no overflow, no missing required section slots/anchors, and no forbidden first-paint `/api/v1/viewer` fetch.
+- Fast timing targets passed: `pytest -m report_cache_contract` 27.9 s; `tests/test_variant_cache.py -m "not slow"` 15.1 s; `tests/test_lookup_section_fetch_contract.py` 23.2 s.
+- Live `/healthz` was ok; provider-cache was ok with local evidence runtime assets ready 4/4 and ClinGen local ready at 12690 classifications.
+
+Finding:
+
+- Live `/api/v1/lookup/sections` still returns 422 for `therapies_trials`. The local contract includes `therapies_trials`, so Task E is locally satisfied as a harness but not production-closed until Steven approves deploy and the same audit is rerun against the deployed commit.
+
+Guardrails held:
+
+- No deploy, no Render env mutation, no Supabase mutation, no Vercel command, no startup/request-time downloads, and no materialization.
+
 ## 2026-06-20 22:52 +1000 - Codex - M6/M7 Storage metadata gate
 
 Advanced the build-ledger materialization lane without runtime/provider flips.

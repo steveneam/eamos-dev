@@ -1,6 +1,6 @@
 # Variant Report Performance Optimization Plan
 
-Last updated: 2026-06-25 23:59 +1000 by Codex.
+Last updated: 2026-06-26 00:20 +1000 by Codex.
 
 ## Implementation Progress
 
@@ -61,6 +61,14 @@ Last updated: 2026-06-25 23:59 +1000 by Codex.
   is now the fast named report-cache contract target, while slower
   integration-style cases in `tests/test_variant_cache.py` are marked `slow`
   and can be excluded with `-m "not slow"`.
+- 2026-06-26: Task E live read-only evidence captured after pushing the local
+  Task D/E commits. ABCA4/RPE65/USH2A repeated audit recorded cold/warm p50/p95,
+  payload ceilings, desktop preflight, no first-paint `/api/v1/viewer` fetch,
+  fast test target timings, and Render peak RSS of 641.9 MB (31.3% of the 2 GB
+  cap). Evidence is in
+  `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`.
+  Production closeout still needs deploy-approved rerun because live
+  `/lookup/sections` still rejects `therapies_trials`.
 
 ## Goal
 

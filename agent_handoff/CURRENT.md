@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-26 00:06 +1000 - Pushed Task C/handoff commits through `9ee2b90`; Task D/E local gates committed as `080516b` (unpushed). No deploy/remote mutation/materialization. NEXT: push `080516b` if approved, or continue Task E with approved live read-only memory watch.
+- **Codex:** STOPPED @ 2026-06-26 00:31 +1000 - Steven-approved Task E evidence docs ready for commit/push; Drizzle ORM reviewed as architecture input only. No deploy/remote mutation/materialization. NEXT: deploy-approved Task E production rerun, or Task A inventory.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-26 00:06 +1000 - Codex (Task D/E local gates closeout)
+UNLOCKED - 2026-06-26 00:31 +1000 - Codex (Task E evidence docs + Drizzle architecture review)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,54 +427,57 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-26 00:06 +1000 - Codex.
+Section last edited: 2026-06-26 00:31 +1000 - Codex.
 
-**Latest Codex update (2026-06-26 00:06 +1000 - Codex):**
-Steven approved pushing the prior local Task C closeout; Codex pushed `4d41bf9`
-(`fix(report): make table report cache canonical`) and `9ee2b90`
-(`docs(handoff): record report cache closeout`) to `origin/main`.
+**Latest Codex update (2026-06-26 00:31 +1000 - Codex):**
+Steven approved pushing Task D/E local gates; Codex pushed `080516b`
+(`feat(analytics): add DuckDB release preflight gate`) and `0113521`
+(`docs(handoff): record task d e gates`) to `origin/main`.
 
-Task E and Task D local gates are implemented and committed locally as `080516b`
-(`feat(analytics): add DuckDB release preflight gate`). Task E now has a fast
-named report-cache contract target: `tests/test_report_cache_contract.py` and
-the `report_cache_contract` pytest marker. The broader integration-style cases
-in `tests/test_variant_cache.py` are marked `slow`, so ordinary commits can run
-the fast target or `tests/test_variant_cache.py -m "not slow"` instead of the
-full multi-minute legacy file.
+Steven then approved committing/pushing the Task E evidence docs. This session
+prepares that evidence package for source control and keeps deployment gated.
 
-Task D now has a manifest-driven DuckDB/Parquet analytical release preflight:
-`app.cli.eamos_duckdb_analytical_preflight` validates medallion relative paths,
-release manifest schema, source versions, output checksums, row-count totals,
-and sanitized guardrails without opening a DuckDB database, building data, or
-touching remote services. Provider-cache health now exposes sanitized
-`source_assets.duckdb_analytical.release` states for missing/ready releases.
-DuckDB remains a local embedded backend library, disabled by default, not a web
-server and not on the single-coordinate request path.
+Task E live read-only evidence is captured locally in
+`docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`, with
+plan updates in `docs/architecture-consistency-gate/plan.md`,
+`docs/report-performance-optimization/plan.md`, and `PROGRESS.md`.
 
-Verification:
-- `python -m pytest tests/test_report_cache_contract.py tests/test_duckdb_analytical.py tests/test_health_api.py::test_provider_cache_health_returns_sanitized_empty_aggregates tests/test_health_api.py::test_provider_cache_health_reports_duckdb_release_ready_without_paths tests/test_variant_cache.py -m "not slow" -q` passed (15 tests).
-- `python -m pytest -m report_cache_contract -q` passed (4 tests).
-- `python -m pytest tests/test_health_api.py -q` passed (24 tests).
-- `python -m pytest tests/test_lookup_section_fetch_contract.py -q` passed (9 tests).
-- `python -m pytest tests/test_duckdb_analytical.py tests/test_report_cache_contract.py -q` passed (10 tests).
-- `python -m ruff check app/services/duckdb_analytical.py app/cli/eamos_duckdb_analytical_preflight.py tests/test_duckdb_analytical.py tests/test_health_api.py tests/test_report_cache_contract.py tests/test_variant_cache.py` passed.
-- `python -m py_compile app/services/duckdb_analytical.py app/cli/eamos_duckdb_analytical_preflight.py tests/test_duckdb_analytical.py tests/test_health_api.py tests/test_report_cache_contract.py tests/test_variant_cache.py` passed.
-- `python -m app.cli.eamos_duckdb_analytical_preflight --compact` passed with `manifest_missing` and no mutation/path/secret guardrail leaks.
-- `git diff --check` passed.
-- `python -m graphify update .` passed (AST-only; large-graph HTML skip expected).
+Evidence summary:
+- Live audit against `https://eamos-dev-sg.onrender.com` for ABCA4 `c.5435T>A`,
+  RPE65 `c.260A>G`, and USH2A `c.2276G>T` recorded cold/warm p50/p95 and passed
+  payload ceilings (`report_payload <= 750000`, section envelope/payload
+  `<= 200000`).
+- Lookup p50/p95: ABCA4 5193/7410 ms, RPE65 3868/3907 ms, USH2A 5376/5992 ms.
+- Render memory metrics over the audit window peaked at 641.9 MB, 31.3% of the
+  2 GB cap, with no observed OOM/restart.
+- Browser preflight passed at 1280 px for ABCA4/RPE65/USH2A: no overflow, no
+  missing required slots/anchors, and no forbidden first-paint `/api/v1/viewer`
+  fetch.
+- Fast test timing passed: `pytest -m report_cache_contract` 27.9 s,
+  `tests/test_variant_cache.py -m "not slow"` 15.1 s,
+  `tests/test_lookup_section_fetch_contract.py` 23.2 s.
 
-Not done: `080516b` is not pushed; no deploy, Vercel command, Render env
-mutation, Supabase mutation, DuckDB repo clone, real corpus/materialization job,
-or live memory watch. Local shell does not currently import `duckdb`, but
-`app/backend/requirements.txt` already declares `duckdb>=1.1,<2`; Task D
-preflight intentionally works without an installed DuckDB module.
+Production gap: live `/api/v1/lookup/sections` still returns 422 for
+`therapies_trials`, showing the deployed backend is behind the pushed local
+contract. Task E is locally satisfied as a harness/evidence layer, but not
+production-closed until Steven approves deploy and the same audit is rerun
+against the deployed commit.
+
+No deploy, Vercel command, Render env mutation, Supabase mutation, DuckDB repo
+clone, real corpus/materialization job, startup/request-time download, or
+provider flip occurred.
+
+Drizzle ORM review: useful later only if Eamos adds a TypeScript-owned direct
+Postgres/Supabase data layer or wants a TS schema mirror for frontend-owned
+tables. It should not replace the current Python SQLAlchemy runtime cache/repos,
+Supabase SQL migrations/RLS posture, or DuckDB/Parquet analytical lane now.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-26 00:06 +1000 - Codex Task D/E local gates committed
-Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/session-prompts.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Prior Task C commits `4d41bf9` and `9ee2b90` were pushed to origin/main. Task D/E local gates are committed as unpushed `080516b feat(analytics): add DuckDB release preflight gate`: fast `report_cache_contract` pytest target, `slow` markers for broad variant-cache integration cases, manifest-driven DuckDB/Parquet release preflight CLI, and sanitized provider-cache release health. DuckDB stays embedded backend-only, disabled by default, and off the request path.
-Verification done: focused fast cache/DuckDB/health/lookup pytest targets; `pytest -m report_cache_contract`; Ruff; py_compile; CLI compact smoke; `git diff --check`; `python -m graphify update .`.
-Next default: push `080516b` if Steven approves, or continue Task E with an explicitly approved live read-only memory watch. No deploy/Render/Supabase/materialization occurred.
+# Resume prompt - 2026-06-26 00:31 +1000 - Codex Task E evidence docs approved
+Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/task-e-performance-memory-evidence.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Task D/E commits `080516b` and `0113521` are pushed to origin/main. Steven approved committing/pushing Task E live read-only evidence docs: ABCA4/RPE65/USH2A latency/payload audit, desktop preflight/no-viewer-fetch proof, fast test timing, and Render RSS peak 641.9 MB (31.3% of 2 GB). Drizzle ORM was reviewed read-only; no integration was implemented.
+Verification done: live `audit:report-performance --runs=3 --skip-viewer` with payload ceilings; live Render memory metrics; live report preflight for ABCA4/RPE65/USH2A; `pytest -m report_cache_contract`; `tests/test_variant_cache.py -m "not slow"`; `tests/test_lookup_section_fetch_contract.py`; live health/provider-cache read-only checks.
+Next: production-close Task E only after an explicit deploy approval and rerun, because live `/lookup/sections` still returns 422 for `therapies_trials` until the pushed local contract is deployed. Otherwise default to Task A read-only inventory.
 Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env or Supabase mutation without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC layered; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them. End clear-safe with a fresh stamped resume prompt.
 ```

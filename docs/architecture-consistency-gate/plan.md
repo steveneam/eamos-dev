@@ -1,6 +1,6 @@
 # Eamos Architecture Consistency Gate
 
-Last updated: 2026-06-25 23:59 +1000 - Codex.
+Last updated: 2026-06-26 00:20 +1000 - Codex.
 Status: Draft gate for Steven review. No code, deploy, Supabase mutation, or
 multi-GB materialization is implied by this document.
 
@@ -48,8 +48,10 @@ The architecture is not yet production-certified:
   skeleton, empty, partial, stale, failed, and hydrating states.
 - Older `variant_cache.publication_data` compatibility storage is still present
   and must not become the long-term home for new report state.
-- Full proof of "no performance issues or memory leaks" requires measured gates,
-  not code inspection.
+- Task E now has a live read-only evidence pass for ABCA4/RPE65/USH2A timing,
+  payloads, desktop preflight, fast test targets, and Render RSS. Production
+  closeout still requires a deploy-approved rerun because the deployed backend
+  still rejects `therapies_trials` section fetches.
 
 ## Gate Matrix
 
@@ -267,7 +269,7 @@ without real assets.
 
 ### Task E - Performance and Memory Proof
 
-Status: local audit evidence captured; fast cache contract target added locally.
+Status: live read-only evidence captured; production rerun pending deploy.
 
 Run local and, when approved, live read-only audits:
 
@@ -285,6 +287,13 @@ Cache/report tests have a fast, named contract target that completes quickly,
 while slower legacy integration-style cache cases are marked, split, or moved
 behind an explicit slow-test gate so normal feature commits do not depend on a
 multi-minute file-level run.
+
+Evidence: `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`
+records live ABCA4/RPE65/USH2A cold/warm p50/p95, payload ceilings, desktop
+preflight, no first-paint viewer fetch, fast test timing, and Render peak RSS
+of 641.9 MB (31.3% of the 2 GB cap). Remaining gap: live
+`/lookup/sections` still returns 422 for `therapies_trials` until the pushed
+local contract is deployed and rechecked.
 
 ### Task F - Supabase Production Readiness
 
@@ -311,6 +320,7 @@ Task E's benchmark harness exist.
 ## References
 
 - `docs/report-performance-optimization/plan.md`
+- `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`
 - `docs/data-architecture-duckdb-parquet/adr.md`
 - `docs/data-architecture-duckdb-parquet/plan.md`
 - `docs/report-backend-source-cache-readiness/plan.md`
