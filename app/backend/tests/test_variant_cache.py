@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import json
 from pathlib import Path
 
 from sqlalchemy import select
@@ -34,6 +33,8 @@ from app.schemas.protein_annotation import ProteinDomainTrack, ProteinDomainTrac
 from app.services.lookup_service import (
     FUNCTIONAL_EVIDENCE_CACHE_VERSION,
     GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
+    LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING,
+    LEGACY_REPORT_SHELL_CACHE_READ_WARNING,
     PUBLICATION_DATA_CACHE_VERSION,
     REPORT_SECTION_CACHE_VERSION,
     REPORT_SHELL_CACHE_VERSION,
@@ -581,19 +582,12 @@ def test_lookup_summary_reuses_prepared_report_shell_without_provider_calls(
     service.lookup(request)
     hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
     assert hit is not None
-    assert (
-        hit["publication_data"]["report_shell"]["report_shell_cache_version"]
-        == REPORT_SHELL_CACHE_VERSION
-    )
+    assert "report_shell" not in hit["publication_data"]
     with session_scope(session_factory) as session:
         assert session.execute(select(NormalizedVariantRecord)).scalars().all()
         assert session.execute(select(ReportShellCacheRecord)).scalar_one().query_string == (
             "RPE65:c.260A>G"
         )
-        record = session.execute(select(VariantCacheRecord)).scalar_one()
-        publication_data = json.loads(record.publication_data)
-        publication_data.pop("report_shell")
-        record.publication_data = json.dumps(publication_data)
     calls_before = {
         name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)
     }
@@ -619,6 +613,57 @@ def test_lookup_summary_reuses_prepared_report_shell_without_provider_calls(
         "therapies_trials",
         "computational_deep_dive",
         "clingen_vcep",
+    ]
+
+
+def test_lookup_summary_reads_legacy_publication_data_shell_when_table_repo_missing(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    repo.upsert(
+        "RPE65:c.260A>G",
+        litvar_id="litvar-rpe65-c260ag",
+        total_publications=0,
+        publication_data={"publication_data_cache_version": PUBLICATION_DATA_CACHE_VERSION},
+        strict_genomic_cache={"variant": {"genomic_hg38": "1-68444869-T-C"}},
+    )
+    repo.update_report_shell(
+        "RPE65:c.260A>G",
+        report_shell={
+            "report_shell_cache_version": REPORT_SHELL_CACHE_VERSION,
+            "summary": {
+                "query": "RPE65:c.260A>G",
+                "species": "human",
+                "header": {"gene": "RPE65", "cdna": "c.260A>G"},
+                "tiles": [],
+                "lazy_sections": [],
+                "warnings": ["legacy_fixture_summary"],
+            },
+        },
+    )
+    service = LookupService(
+        {},
+        ClinicRules(),
+        variant_cache_repo=repo,
+        settings=settings,
+    )
+
+    summary = service.lookup_summary(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    assert summary.query == "RPE65:c.260A>G"
+    assert summary.header == {"gene": "RPE65", "cdna": "c.260A>G"}
+    assert summary.warnings == [
+        "legacy_fixture_summary",
+        LEGACY_REPORT_SHELL_CACHE_READ_WARNING,
     ]
 
 
@@ -679,10 +724,7 @@ def test_lookup_sections_reuses_prepared_envelopes_without_provider_calls(
     service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
     hit = repo.get_fresh("RPE65:c.260A>G", ttl_days=30)
     assert hit is not None
-    assert (
-        hit["publication_data"]["report_sections"]["report_section_cache_version"]
-        == REPORT_SECTION_CACHE_VERSION
-    )
+    assert "report_sections" not in hit["publication_data"]
     with session_scope(session_factory) as session:
         table_sections = session.execute(select(ReportSectionCacheRecord)).scalars().all()
         assert {row.section_id for row in table_sections} >= {
@@ -691,10 +733,6 @@ def test_lookup_sections_reuses_prepared_envelopes_without_provider_calls(
             "computational_deep_dive",
             "clingen_vcep",
         }
-        record = session.execute(select(VariantCacheRecord)).scalar_one()
-        publication_data = json.loads(record.publication_data)
-        publication_data.pop("report_sections")
-        record.publication_data = json.dumps(publication_data)
     calls_before = {
         name: tool.calls for name, tool in tools.items() if isinstance(tool, _StaticTool)
     }
@@ -714,6 +752,69 @@ def test_lookup_sections_reuses_prepared_envelopes_without_provider_calls(
     assert sections.query == "RPE65:c.260A>G"
     assert set(sections.sections) == {"publications"}
     assert sections.sections["publications"].section_id == "publications"
+
+
+def test_lookup_sections_reads_legacy_publication_data_sections_when_table_repo_missing(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    repo.upsert(
+        "RPE65:c.260A>G",
+        litvar_id="litvar-rpe65-c260ag",
+        total_publications=0,
+        publication_data={"publication_data_cache_version": PUBLICATION_DATA_CACHE_VERSION},
+        strict_genomic_cache={"variant": {"genomic_hg38": "1-68444869-T-C"}},
+    )
+    repo.update_report_sections(
+        "RPE65:c.260A>G",
+        report_sections={
+            "report_section_cache_version": REPORT_SECTION_CACHE_VERSION,
+            "response": {
+                "query": "RPE65:c.260A>G",
+                "species": "human",
+                "sections": {
+                    "publications": {
+                        "section_id": "publications",
+                        "status": "missing",
+                        "payload": None,
+                        "freshness": {},
+                        "warnings": ["legacy_publications_missing"],
+                    },
+                },
+                "warnings": ["legacy_fixture_sections"],
+            },
+        },
+    )
+    service = LookupService(
+        {},
+        ClinicRules(),
+        variant_cache_repo=repo,
+        settings=settings,
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["publications"],
+        )
+    )
+
+    assert set(sections.sections) == {"publications"}
+    assert sections.sections["publications"].warnings == ["legacy_publications_missing"]
+    assert sections.warnings == [
+        "legacy_fixture_sections",
+        LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING,
+    ]
 
 
 def test_lookup_sections_publication_miss_builds_only_publication_sources(

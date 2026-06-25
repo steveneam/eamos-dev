@@ -114,6 +114,12 @@ GENE_CONTEXT_SNAPSHOT_CACHE_VERSION = 1
 REPORT_SHELL_CACHE_VERSION = 1
 REPORT_SECTION_CACHE_VERSION = 1
 SOURCE_RESULT_CACHE_VERSION = 1
+LEGACY_REPORT_SHELL_CACHE_READ_WARNING = (
+    "legacy_variant_publication_data_report_shell_cache_read"
+)
+LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING = (
+    "legacy_variant_publication_data_report_sections_cache_read"
+)
 SOURCE_SPECIFIC_SECTION_IDS = frozenset(
     {"publications", "therapies_trials", "computational_deep_dive", "clingen_vcep"}
 )
@@ -351,9 +357,13 @@ def _summary_from_report_shell_cache(
     if not isinstance(summary, dict):
         return None
     try:
-        return LookupInitialSummaryResponse.model_validate(summary)
+        response = LookupInitialSummaryResponse.model_validate(summary)
     except Exception:
         return None
+    response.warnings = _dedupe_values(
+        [*response.warnings, LEGACY_REPORT_SHELL_CACHE_READ_WARNING]
+    )
+    return response
 
 
 def _summary_from_report_shell_payload(
@@ -409,7 +419,9 @@ def _sections_from_report_section_cache(
         query=cached_response.query,
         species=cached_response.species,
         sections={section_id: cached_response.sections[section_id] for section_id in include},
-        warnings=list(cached_response.warnings),
+        warnings=_dedupe_values(
+            [*cached_response.warnings, LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING]
+        ),
     )
 
 
@@ -898,6 +910,7 @@ class LookupService:
                 payload=summary.model_dump(mode="json"),
                 ttl_days=self.settings.cache_ttl_days,
             )
+            return
         if self.variant_cache_repo is not None and hasattr(
             self.variant_cache_repo,
             "update_report_shell",
@@ -1031,6 +1044,7 @@ class LookupService:
                 response_payload=report_sections["response"],
                 ttl_days=self.settings.cache_ttl_days,
             )
+            return
         if self.variant_cache_repo is not None and hasattr(
             self.variant_cache_repo,
             "update_report_sections",
@@ -1068,6 +1082,7 @@ class LookupService:
                 response_payload=response.model_dump(mode="json"),
                 ttl_days=self.settings.cache_ttl_days,
             )
+            return
         if self.variant_cache_repo is not None and hasattr(
             self.variant_cache_repo,
             "update_report_sections",
