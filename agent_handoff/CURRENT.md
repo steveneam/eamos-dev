@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-24 23:47 +1000 - Pushed report failure-state/protein architecture fix `f0613f7`; no deploy/Vercel command/Render env mutation/Supabase mutation.
+- **Codex:** STOPPED @ 2026-06-25 18:17 +1000 - Architecture consistency gate captured in docs + memory with static inventory, PubMed/PMC corpus decision, and first resume prompt; no code/deploy/remote mutation/materialization. NEXT: Task A checklist closeout, then Task B report section registry/stable skeletons, or Task D tiny-fixture DuckDB/Parquet preflight if redirected.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-24 23:48 +1000 - Codex (report/protein closeout recorded)
+UNLOCKED - 2026-06-25 18:20 +1000 - Codex (architecture consistency gate handoff captured)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,63 +427,29 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-24 23:47 +1000 - Codex.
+Section last edited: 2026-06-25 18:17 +1000 - Codex.
 
-**Latest Codex update (2026-06-24 23:47 +1000 - Codex):**
-Steven approved next-session pillars 1-5. Codex fetched, confirmed root
-`.vercel/project.json` remains linked to `eamos-dev`, confirmed
-`app/web/.vercel` is absent, pushed the prior local commit stack, then shipped a
-new pushed commit:
+**Latest Codex update (2026-06-25 18:17 +1000 - Codex):**
+Steven asked to pause feature work and capture a robust, consistent architecture
+plan across backend routes, SQL/cache ownership, UI section skeletons, analysis
+lanes, PubMed/PMC corpus strategy, Supabase/Render storage boundaries,
+performance/memory proof, and production-readiness gates.
 
-- `f0613f7 fix(report): surface failure states and dedupe protein architecture`
+Artifacts added:
+- `docs/architecture-consistency-gate/plan.md`
+- `docs/architecture-consistency-gate/inventory.md`
+- `docs/architecture-consistency-gate/session-prompts.md`
+- `memory/eamos-architecture-consistency-gate.md`
+- `MEMORY.md` index entry
 
-What landed in `f0613f7`:
-- Report launch failure states: gnomAD population-frequency unavailable state
-  now renders as an explicit section instead of silently blanking; live
-  gene-viewer fallback warnings and protein-domain warnings are humanized.
-- Durable browser ratchet: `scripts/eamos-report-preflight.mjs` now waits for
-  report readiness, checks required report cards, includes `therapies_trials`
-  in lazy-section coverage, and still catches mobile overflow.
-- Protein architecture fix: added gene-agnostic duplicate collapse in
-  `app/web/lib/protein-architecture.ts`; `ReportGeneViewer` no longer
-  reintroduces non-domain protein-track features as domain entries. ABCA4 now
-  renders one `7TM x5` group and one `ATPase` feature.
-- Regression coverage: new
-  `scripts/eamos-protein-architecture-regression.mjs` plus
-  `npm --prefix app/web run test:protein-architecture` covers synthetic
-  gene-agnostic duplicate/overlap cases.
-- Product invariant ratchet: `CODEX.md` and `MEMORY.md` now state that Eamos is
-  a gene/variant-agnostic search/evidence platform; fixes must land at shared
-  normalization/selection/orchestration/source-cache boundaries with pure
-  helper coverage, not as single-gene browser-only patches.
-
-Verification completed: `npm --prefix app/web run test:protein-architecture`,
-`npm --prefix app/web run lint`, `git diff --check`, browser DOM count
-(`7TM` rows = 1, `ATPase` rows = 1), report preflight at 375/768 px (no
-overflow, required cards present), and `python -m graphify update .` with long
-timeout. Graphify generated files were updated locally but are rebuildable and
-not staged. No deploy/Vercel command/Render env mutation/Supabase mutation.
-
-Remaining next-session pillars:
-1. Launch P0 closure: data-currency end-to-end and any remaining
-   report/gene-viewer failure-state edge cases.
-2. Scientific credibility P1: ClinGen Evidence Repository source-cache,
-   source-version pins, in-silico calibration, and ClinVar distribution artifact
-   operational gap.
-3. Protein/viewer reliability: continue provider-cache-gated runtime
-   enablement, but keep fixes gene-agnostic and helper-tested first.
-4. Operational ratchets: continue converting repeated checks into durable
-   scripts/instructions.
-5. UI layout follow-up: Steven asked about the large right-side desktop space;
-   likely report/work-rail layout gutter, not fixed in this commit.
+No code path, deploy, Vercel command, Render env mutation, Supabase mutation,
+DuckDB repo clone, or real corpus/materialization job occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-24 23:47 +1000 - Codex report failure-state/protein architecture closeout
-Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-backend-source-cache-readiness/plan.md, docs/report-evidence-framework/plan.md, docs/report-launch-readiness/assignments.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Prior local commit stack was pushed, then commit `f0613f7 fix(report): surface failure states and dedupe protein architecture` was pushed to origin/main. No deploy/Vercel command/Render env mutation/Supabase mutation occurred. Root `.vercel` remained linked to `eamos-dev`; `app/web/.vercel` remained absent.
-What changed: gnomAD unavailable states no longer silently blank the report section; gene-viewer/protein fallback warnings are humanized; report preflight now waits for readiness and fails if required cards disappear; protein architecture selection now collapses duplicate canonical/overlapping features in shared helper logic; ABCA4 renders one `7TM x5` group and one `ATPase`; `CODEX.md`/`MEMORY.md` now record that Eamos is gene/variant agnostic and fixes must target shared boundaries with pure helper coverage, not single-gene browser-only patches.
-Verification already passed: `npm --prefix app/web run test:protein-architecture`, `npm --prefix app/web run lint`, `git diff --check`, browser DOM count (`7TM` rows = 1, `ATPase` rows = 1), `node scripts/eamos-report-preflight.mjs --url='http://localhost:3001/report?gene=ABCA4&cdna=c.5435T%3EA' --widths=375,768 --ignore-locus-marker --timeout=120000`, and `python -m graphify update .` with long timeout. Graphify generated files are rebuildable and not staged.
-Next: continue launch P0 data-currency end-to-end and residual report/gene-viewer failure-state edges; then Scientific credibility P1 (ClinGen Evidence Repository source-cache, source-version pins, in-silico calibration, ClinVar distribution artifact operational gap); keep protein/viewer work gene-agnostic and helper-tested first. Steven also asked about large right-side desktop whitespace; likely report/work-rail layout gutter, not fixed in `f0613f7`.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; use explicit pathspecs; do not add generated temp payloads; keep real ClinVar deployed-artifact generation/sync operator-gated; do not disable Supabase local-model cache as a product fix. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-25 18:17 +1000 - Codex architecture consistency gate ready; Task A static inventory drafted; decide Task B vs Task D
+Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/session-prompts.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Architecture consistency gate is captured as a phased plan plus static inventory. It covers backend routes, SQL/cache ownership, UI report-section registry drift, DuckDB/Parquet analytical lane, PubMed/PMC literature corpus layering, Supabase/Render storage boundaries, performance/memory proof, and production-readiness gates. No deploy, Supabase mutation, Render mutation, DuckDB repo clone, or multi-GB materialization occurred.
+Next default: finish Task A by converting the static inventory into a compact actionable checklist, then start Task B frontend report section registry/stable skeletons and extend report preflight to assert required section slots before hydration. If Steven redirects to data architecture, do Task D only: tiny-fixture DuckDB/Parquet artifact layout + manifest + read-only preflight, no real corpus build.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env or Supabase mutation without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC as layered corpus architecture: object/private storage + Parquet release layers + runtime SQLite/FTS/vector stores + report/source caches. End clear-safe with a fresh stamped resume prompt.
 ```
