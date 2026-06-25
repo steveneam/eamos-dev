@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-25 18:17 +1000 - Architecture consistency gate captured in docs + memory with static inventory, PubMed/PMC corpus decision, and first resume prompt; no code/deploy/remote mutation/materialization. NEXT: Task A checklist closeout, then Task B report section registry/stable skeletons, or Task D tiny-fixture DuckDB/Parquet preflight if redirected.
+- **Codex:** STOPPED @ 2026-06-25 18:37 +1000 - Report-cache/DuckDB Task 4 and architecture consistency gate committed+pushed (`1a80f45`, `98e35fc`); Selom note drafted; no deploy/remote mutation/materialization. NEXT: Task A checklist closeout, then Task B report section registry/stable skeletons, or Task D tiny-fixture DuckDB/Parquet preflight if redirected.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-25 18:20 +1000 - Codex (architecture consistency gate handoff captured)
+UNLOCKED - 2026-06-25 18:39 +1000 - Codex (architecture prompt and Selom note updated)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,18 +427,23 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-25 18:17 +1000 - Codex.
+Section last edited: 2026-06-25 18:37 +1000 - Codex.
 
-**Latest Codex update (2026-06-25 18:17 +1000 - Codex):**
+**Latest Codex update (2026-06-25 18:37 +1000 - Codex):**
 Steven asked to pause feature work and capture a robust, consistent architecture
 plan across backend routes, SQL/cache ownership, UI section skeletons, analysis
 lanes, PubMed/PMC corpus strategy, Supabase/Render storage boundaries,
 performance/memory proof, and production-readiness gates.
 
-Artifacts added:
+Committed and pushed:
+- `1a80f45 feat(report): cache lazy lookup sections`
+- `98e35fc docs(architecture): capture consistency gate`
+
+Architecture artifacts:
 - `docs/architecture-consistency-gate/plan.md`
 - `docs/architecture-consistency-gate/inventory.md`
 - `docs/architecture-consistency-gate/session-prompts.md`
+- `docs/architecture-consistency-gate/selom-message.md`
 - `memory/eamos-architecture-consistency-gate.md`
 - `MEMORY.md` index entry
 
@@ -447,9 +452,9 @@ DuckDB repo clone, or real corpus/materialization job occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-25 18:17 +1000 - Codex architecture consistency gate ready; Task A static inventory drafted; decide Task B vs Task D
+# Resume prompt - 2026-06-25 18:37 +1000 - Codex architecture consistency gate committed+pushed; start Task A checklist closeout
 Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/session-prompts.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Architecture consistency gate is captured as a phased plan plus static inventory. It covers backend routes, SQL/cache ownership, UI report-section registry drift, DuckDB/Parquet analytical lane, PubMed/PMC literature corpus layering, Supabase/Render storage boundaries, performance/memory proof, and production-readiness gates. No deploy, Supabase mutation, Render mutation, DuckDB repo clone, or multi-GB materialization occurred.
-Next default: finish Task A by converting the static inventory into a compact actionable checklist, then start Task B frontend report section registry/stable skeletons and extend report preflight to assert required section slots before hydration. If Steven redirects to data architecture, do Task D only: tiny-fixture DuckDB/Parquet artifact layout + manifest + read-only preflight, no real corpus build.
+Delta: Two commits were pushed to origin/main: `1a80f45 feat(report): cache lazy lookup sections` and `98e35fc docs(architecture): capture consistency gate`. The tree was clean after push. The architecture gate covers backend routes, SQL/cache ownership, UI report-section registry drift, DuckDB/Parquet analytical lane, PubMed/PMC literature corpus layering, Supabase/Render storage boundaries, performance/memory proof, slow-test hygiene, and production-readiness gates. No deploy, Supabase mutation, Render mutation, DuckDB repo clone, or multi-GB materialization occurred.
+Next default: start Task A by converting `docs/architecture-consistency-gate/inventory.md` into a compact actionable checklist with owners, gates, and pass/fail evidence; then start Task B frontend report section registry/stable skeletons and extend report preflight to assert required section slots before hydration. If Steven redirects to data architecture, do Task D only: tiny-fixture DuckDB/Parquet artifact layout + manifest + read-only preflight, no real corpus build.
 Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env or Supabase mutation without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC as layered corpus architecture: object/private storage + Parquet release layers + runtime SQLite/FTS/vector stores + report/source caches. End clear-safe with a fresh stamped resume prompt.
 ```
