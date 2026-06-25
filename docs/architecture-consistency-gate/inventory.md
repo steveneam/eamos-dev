@@ -36,6 +36,25 @@ The same skeleton should apply to lookup, analysis, workbench, and report
 sections. A route or section that cannot be mapped to this chain is a drift
 candidate.
 
+## Actionable Checklist
+
+Use this table as the Task A closeout checklist. A gate is not passed until its
+pass evidence is recorded in this repo or in a linked operator runbook. A fail
+is any missing proof, unbounded path, silent blank UI state, or remote-only claim
+without sanitized evidence.
+
+| Item | Owner | Gate | Pass evidence | Fail evidence |
+| --- | --- | --- | --- | --- |
+| Route bounds matrix | Codex/backend | Every expensive route has auth or an explicit public model, rate/input bounds, and named failure states. | Static route inventory plus focused tests for lookup, batch, workbench, chat, report/run ownership, and payment webhook behavior. | Unauthenticated or unbounded mutation/read path; unclear ownership checks; generic 500 or blank failure state. |
+| SQL and cache ownership | Codex/backend | New report/source state writes to `report_shell_cache`, `report_section_cache`, `source_result_cache`, or source-specific caches, not only `variant_cache.publication_data`. | Cache tests prove table-backed shell/section/source rows are read first and legacy JSON remains compatibility-only. | New section payload is stored only in legacy JSON, or cache key/freshness/schema version is missing. |
+| Frontend report section registry | Codex scoped implementation, Claude design review when available | Required report sections have stable desktop slots before hydration. Mobile overflow/stability is inactive until Steven explicitly reactivates it. | `REPORT_SECTION_REGISTRY` defines ids, anchors, required flags, skeleton/empty/error contracts, nav/export participation, and preflight-required slots. | Section identity exists as scattered constants, or a required desktop section disappears when data is empty, delayed, stale, or failed. |
+| Report preflight slot gate | Codex/frontend tooling | Desktop preflight fails before hydration if required report slots are missing. Sub-desktop widths are ignored. | `scripts/eamos-report-preflight.mjs` asserts registry-required slots for desktop fixtures or target URL. | Browser report renders without one of the required desktop anchors/slots and the preflight still exits 0. |
+| Performance and memory proof | Codex backend, Claude browser verification as needed | Cold/warm report paths have p50/p95, payload size, provider-call, cache-hit, duplicate-viewer-fetch, and peak-RSS evidence. | `scripts/eamos-report-performance-audit.mjs`, report preflight, focused tests, and memory-watch output are recorded with exact variants and dates. | Static code inspection is used as proof; no cold/warm distinction; no peak RSS or payload ceiling. |
+| DuckDB/Parquet artifact contract | Codex/backend | Analytical lane has tiny-fixture layout, manifest, checksum, row-count, and sanitized health proof only. | Tiny fixture preflight validates `bronze/silver/gold/<release>/chrom=<chrom>/` without real corpus materialization. | DuckDB is placed on the request path, a multi-GB build runs, or health leaks local paths/object secrets. |
+| PubMed/PMC corpus boundary | Codex/backend data lane | Literature stays layered: source objects, Parquet releases, runtime SQLite/FTS/vector stores, report/source caches. | Plan or tests show PubMed/PMC metadata, license, checksum, and runtime store boundaries; no full article blobs in Supabase Postgres. | Full text or large XML/PDF blobs are stored in Postgres, or license state is ignored. |
+| Supabase production readiness | Steven approval plus Codex/operator | Remote schema/storage changes have RLS, grants, advisors, indexes, rollback, and sanitized health proof. | Supabase advisor output, verification SQL, private storage policy review, and rollback object/version are attached to the runbook. | Remote mutation without explicit approval; service-role key in client/bundle/log; public source bucket. |
+| Operations and deployment gate | Steven/operator | No deploy, Render env mutation, Supabase mutation, startup download, or request-time materialization happens without explicit approval. | Command runbook names exact effects, dry-run/checksum proof, rollback, and expected health output. | Unapproved `vercel`/`vc`, Render env change, Supabase mutation, or startup/request-time source download. |
+
 ## Backend Route Inventory
 
 | Route family | Current endpoints | Bounds seen in static scan | Gate status |

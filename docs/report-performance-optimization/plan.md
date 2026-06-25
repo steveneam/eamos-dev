@@ -405,12 +405,14 @@ Acceptance criteria:
 
 - No report section silently vanishes because a payload is empty or delayed.
 - ABCA4, RPE65, and USH2A reports use the same section order and state model.
-- Mobile and desktop layouts keep stable dimensions during hydration.
+- Desktop report layouts keep stable section slots during hydration.
+- Mobile/sub-desktop overflow and stability gates are inactive until Steven
+  explicitly reactivates them.
 
 Verify:
 
 - `npm --prefix app/web run lint`
-- browser verification at 375, 768, and desktop widths;
+- browser verification at desktop widths only;
 - extend report preflight to assert required section slots exist before data
   hydration finishes.
 

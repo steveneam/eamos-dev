@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { WorkRailSection } from '@/components/layout/WorkRail'
 import { IconList } from '@/components/icons/Icon'
+import { REPORT_SECTION_NAV_ITEMS } from '@/lib/report-section-registry'
 
 /**
  * Scroll-spy "On this page" jump-list over the report module anchors that
@@ -11,21 +12,13 @@ import { IconList } from '@/components/icons/Icon'
  * — still a valid scroll target), so we list the fixed set and let an
  * IntersectionObserver drive the active highlight. Design §2.6 / ground-truth §6.
  */
-const ANCHORS: { id: string; label: string }[] = [
-  { id: 'clinical_evidence', label: 'Clinical evidence' },
-  { id: 'evidence_by_source', label: 'In-silico predictions' },
-  { id: 'population_frequency', label: 'Population frequency' },
-  { id: 'gene_context', label: 'Gene & locus' },
-  { id: 'associated_conditions', label: 'Disease & conditions' },
-  { id: 'publications', label: 'Publications' },
-  { id: 'trials', label: 'Trials' },
-]
-
 export function ReportSectionNav() {
   const [active, setActive] = useState<string | null>(null)
 
   useEffect(() => {
-    const els = ANCHORS.map((a) => document.getElementById(a.id)).filter((el): el is HTMLElement => Boolean(el))
+    const els = REPORT_SECTION_NAV_ITEMS
+      .map((a) => document.getElementById(a.id))
+      .filter((el): el is HTMLElement => Boolean(el))
     if (els.length === 0) return
     const obs = new IntersectionObserver(
       (entries) => {
@@ -43,7 +36,7 @@ export function ReportSectionNav() {
   return (
     <WorkRailSection title="On this page" icon={<IconList size={14} />} defaultOpen={false}>
       <nav className="lib-pagenav" aria-label="Report sections">
-        {ANCHORS.map((a) => (
+        {REPORT_SECTION_NAV_ITEMS.map((a) => (
           <button
             key={a.id}
             type="button"

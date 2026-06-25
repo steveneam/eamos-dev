@@ -1,19 +1,21 @@
 #!/usr/bin/env node
-// eamos-report-preflight — proprietary mobile-overflow + contract-coverage scan.
+// eamos-report-preflight — proprietary desktop overflow + contract-coverage scan.
 //
 // Drives a headless Chromium via the Chrome DevTools Protocol (dep-free; uses
 // Node 24's native WebSocket + fetch + child_process.spawn) to detect:
-//   • horizontal-overflow offenders at one or more viewport widths
+//   • horizontal-overflow offenders at desktop widths
 //   • LazySection coverage (which sections are present in the eager DOM vs
 //     wrapped in <LazySection>, so DL-013 lazy-eligibility drift is visible)
 //   • console errors emitted during the report render
 //
 // The scan runs against any URL that returns the /report React tree — by
-// default http://localhost:3000/report?demo (Next.js dev server).
+// default http://localhost:3000/report?fixture=rpe65-negative (Next.js dev
+// server). Sub-desktop/mobile overflow checks are disabled by Steven until he
+// explicitly reactivates them.
 //
 // Usage:
-//   node scripts/eamos-report-preflight.mjs                       # defaults
-//   node scripts/eamos-report-preflight.mjs --url=URL --widths=375,768
+//   node scripts/eamos-report-preflight.mjs                       # desktop fixture default
+//   node scripts/eamos-report-preflight.mjs --url=URL --widths=1280,1440
 //   node scripts/eamos-report-preflight.mjs --json                # machine output
 //   node scripts/eamos-report-preflight.mjs --ignore-locus-marker # filter the
 //                                                                  # known
@@ -34,7 +36,7 @@
 // sections resolved to `ready`. Non-zero otherwise.
 
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -49,11 +51,15 @@ const args = Object.fromEntries(
     return [raw.slice(0, sep), raw.slice(sep + 1)]
   }),
 )
-const URL_BASE = args.url ?? 'http://localhost:3000/report?demo'
-const WIDTHS = String(args.widths ?? '375,768')
+const URL_BASE = args.url ?? 'http://localhost:3000/report?fixture=rpe65-negative'
+const DESKTOP_MIN_WIDTH = 1024
+const RAW_WIDTHS = String(args.widths ?? '1280')
   .split(',')
   .map((n) => Number.parseInt(n, 10))
   .filter((n) => Number.isFinite(n) && n > 0)
+const WIDTHS = RAW_WIDTHS.filter((n) => n >= DESKTOP_MIN_WIDTH)
+if (WIDTHS.length === 0) WIDTHS.push(1280)
+const SKIPPED_SUB_DESKTOP_WIDTHS = RAW_WIDTHS.filter((n) => n < DESKTOP_MIN_WIDTH)
 const JSON_OUT = args.json === 'true'
 const IGNORE_LOCUS_MARKER = args['ignore-locus-marker'] === 'true'
 const REMOTE_PORT = args.port ? Number.parseInt(args.port, 10) : null
@@ -65,6 +71,21 @@ const LAZY_FORCE = String(args.lazy ?? '')
 const LAZY_SETTLE_MS = Number.parseInt(args['lazy-settle'] ?? '30000', 10)
 const LAZY_POLL_MS = Number.parseInt(args['lazy-poll'] ?? '500', 10)
 const FORBID_VIEWER = args['forbid-viewer'] === 'true'
+
+const REPORT_SECTION_REGISTRY = JSON.parse(
+  readFileSync(new URL('../app/web/lib/report-section-registry.json', import.meta.url), 'utf8'),
+).sections
+const PREFLIGHT_REQUIRED_SECTION_SLOTS = REPORT_SECTION_REGISTRY
+  .filter((section) => section.preflightRequired)
+  .map((section) => ({
+    id: section.id,
+    anchorId: section.anchorId,
+    label: section.label,
+    title: section.title,
+  }))
+const LAZY_ELIGIBLE_SECTION_IDS = REPORT_SECTION_REGISTRY
+  .map((section) => section.lazySectionId)
+  .filter(Boolean)
 
 function buildUrl(width) {
   if (LAZY_FORCE.length === 0) return URL_BASE
@@ -202,26 +223,34 @@ const SCAN_FN = `
   // LazySection coverage — which DL-013 lazy-eligible sections are wrapped in
   // <LazySection> (data-lazy-section attr survives eager-mode too because the
   // wrapper always renders the sentinel during idle/loading).
-  const lazyEligible = ['publications', 'therapies_trials', 'computational_deep_dive', 'clingen_vcep'];
+  const lazyEligible = ${JSON.stringify(LAZY_ELIGIBLE_SECTION_IDS)};
   const lazyPresent = Array.from(document.querySelectorAll('[data-lazy-section]'))
     .map((n) => n.getAttribute('data-lazy-section'));
-  const requiredReportCards = [
-    'gnomAD population frequency',
-    'Gene & locus context',
-    'Disease & curated variants',
-  ];
+  const requiredSectionSlots = ${JSON.stringify(PREFLIGHT_REQUIRED_SECTION_SLOTS)};
+  const sectionSlots = Array.from(document.querySelectorAll('[data-report-section-slot]'))
+    .map((n) => ({
+      id: n.getAttribute('data-report-section-slot'),
+      required: n.getAttribute('data-report-section-required') === 'true',
+      preflight: n.getAttribute('data-report-section-preflight') === 'true',
+      text: (n.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
+    }));
   const cardTitles = Array.from(document.querySelectorAll('h2'))
     .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
     .filter(Boolean);
+  const presentSlotIds = new Set(sectionSlots.map((slot) => slot.id).filter(Boolean));
+  const missingSlots = requiredSectionSlots.filter((slot) => !presentSlotIds.has(slot.id));
+  const missingAnchors = requiredSectionSlots.filter((slot) => !document.getElementById(slot.anchorId));
   return {
     viewport: { vw: window.innerWidth, vh: window.innerHeight, dpr: window.devicePixelRatio },
     htmlOverflow: html.scrollWidth - html.clientWidth,
     bodyOverflow: body.scrollWidth - body.clientWidth,
     offenders,
     report: {
-      requiredCards: requiredReportCards,
+      requiredSlots: requiredSectionSlots,
+      sectionSlots,
       cardTitles,
-      missingCards: requiredReportCards.filter((title) => !cardTitles.includes(title)),
+      missingSlots,
+      missingAnchors,
     },
     lazy: {
       eligible: lazyEligible,
@@ -234,21 +263,22 @@ const SCAN_FN = `
 
 const REPORT_READY_FN = `
 (() => {
-  const requiredReportCards = [
-    'gnomAD population frequency',
-    'Gene & locus context',
-    'Disease & curated variants',
-  ];
+  const requiredSectionSlots = ${JSON.stringify(PREFLIGHT_REQUIRED_SECTION_SLOTS)};
+  const presentSlotIds = new Set(
+    Array.from(document.querySelectorAll('[data-report-section-slot]'))
+      .map((n) => n.getAttribute('data-report-section-slot'))
+      .filter(Boolean)
+  );
   const cardTitles = Array.from(document.querySelectorAll('h2'))
     .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
     .filter(Boolean);
   const alerts = Array.from(document.querySelectorAll('[role="alert"]'))
     .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
     .filter(Boolean);
-  const missingCards = requiredReportCards.filter((title) => !cardTitles.includes(title));
+  const missingSlots = requiredSectionSlots.filter((slot) => !presentSlotIds.has(slot.id));
   return {
-    ready: missingCards.length === 0 || alerts.some((text) => /could not load|failed|error/i.test(text)),
-    missingCards,
+    ready: missingSlots.length === 0 || alerts.some((text) => /could not load|failed|error/i.test(text)),
+    missingSlots,
     cardTitles,
     alerts: alerts.slice(0, 4),
   };
@@ -397,7 +427,7 @@ async function runAtWidth(host, port, width) {
     width,
     height: 900,
     deviceScaleFactor: 2,
-    mobile: width <= 480,
+    mobile: false,
   })
   const navUrl = buildUrl(width)
   await cdp.send('Page.navigate', { url: navUrl })
@@ -495,6 +525,11 @@ function formatHuman(report) {
   if (report.lazyForced.length) {
     lines.push(`  lazy-forced sections: ${report.lazyForced.join(', ')}`)
   }
+  if (report.skippedSubDesktopWidths.length) {
+    lines.push(
+      `  sub-desktop widths ignored: ${report.skippedSubDesktopWidths.join(', ')} (mobile overflow gate disabled)`,
+    )
+  }
   for (const r of report.results) {
     const fixable = r.scan?.offenders?.filter(isFixable) ?? []
     lines.push('')
@@ -520,8 +555,10 @@ function formatHuman(report) {
       )
     }
     if (r.scan?.report) {
+      const missingSlots = (r.scan.report.missingSlots ?? []).map((slot) => slot.id)
+      const missingAnchors = (r.scan.report.missingAnchors ?? []).map((slot) => slot.anchorId)
       lines.push(
-        `  required report cards: missing=[${r.scan.report.missingCards.join(', ')}]`,
+        `  required report slots: missing=[${missingSlots.join(', ')}] / missing-anchors=[${missingAnchors.join(', ')}]`,
       )
     }
     if (r.lazyResults) {
@@ -578,7 +615,8 @@ try {
     const fixable = (r.scan?.offenders ?? []).filter(isFixable)
     if (fixable.length > 0) exit = 1
     if (r.consoleErrors.length > 0) exit = 1
-    if ((r.scan?.report?.missingCards ?? []).length > 0) exit = 1
+    if ((r.scan?.report?.missingSlots ?? []).length > 0) exit = 1
+    if ((r.scan?.report?.missingAnchors ?? []).length > 0) exit = 1
     if (FORBID_VIEWER && r.viewerFetches.length > 0) exit = 1
     // Lazy mode: any forced section that did not resolve to 'ready' is a fail.
     if (r.lazyResults) {
@@ -597,6 +635,7 @@ const report = {
   lazyForced: LAZY_FORCE,
   forbidViewer: FORBID_VIEWER,
   widths: WIDTHS,
+  skippedSubDesktopWidths: SKIPPED_SUB_DESKTOP_WIDTHS,
   results,
 }
 

@@ -42,6 +42,12 @@ import { reportHrefForQuery } from '@/lib/variant-search'
 import { recordReportView, type VariantViewMetric } from '@/lib/report-views'
 import { RPE65_NEGATIVE_CONTROL_SAMPLE } from '@/lib/sample-report'
 import {
+  REPORT_LAZY_SECTION_IDS,
+  REPORT_SECTION_BY_ID,
+  REPORT_SIGNAL_ANCHORS,
+  type ReportSectionId,
+} from '@/lib/report-section-registry'
+import {
   tsvDiseaseAndConditions,
   tsvEvidenceBySource,
   tsvGeneContextSnapshot,
@@ -76,12 +82,7 @@ import type {
 // synthesises a `summaryRequest` from `payload.report_profile.header` so the
 // lazy fetch actually hits `/api/v1/lookup/sections`. This is the M11/M-007
 // contract canary — same in dev and prod.
-const LAZY_OVERRIDE_VALID_IDS: readonly LookupSectionId[] = [
-  'publications',
-  'therapies_trials',
-  'computational_deep_dive',
-  'clingen_vcep',
-]
+const LAZY_OVERRIDE_VALID_IDS: readonly LookupSectionId[] = REPORT_LAZY_SECTION_IDS
 
 // Rendered for §3 when the live `clingen_vcep` section resolves to a non-
 // `available` status (today's default is `partial`: a consensus-derived
@@ -109,16 +110,121 @@ function ExpertPanelPartialNote() {
   )
 }
 
-const SIGNAL_ANCHORS: Record<string, string> = {
-  expert_panel: 'clinical_evidence',
-  acmg_worksheet: 'evidence_by_source',
-  population_frequency: 'population_frequency',
-  computational_deep_dive: 'evidence_by_source',
-  disease_mechanism: 'associated_conditions',
-  gene_context_snapshot: 'gene_context',
-  molecular_context: 'gene_context',
-  publications: 'publications',
-  therapies_trials: 'trials',
+function ReportSectionSlot({
+  sectionId,
+  children,
+}: {
+  sectionId: ReportSectionId
+  children: ReactNode
+}) {
+  const section = REPORT_SECTION_BY_ID[sectionId]
+  const required = section.requiredSlot ? 'true' : undefined
+  const preflight = section.preflightRequired ? 'true' : undefined
+
+  return (
+    <section
+      id={section.anchorId}
+      className="scroll-mt-24"
+      aria-label={section.label}
+      data-report-section-slot={section.id}
+      data-report-section-required={required}
+      data-report-section-preflight={preflight}
+    >
+      {(section.aliasAnchors ?? []).map((anchorId) => (
+        <div key={anchorId} id={anchorId} className="scroll-mt-24" data-report-section-alias={section.id} />
+      ))}
+      {children}
+    </section>
+  )
+}
+
+function ReportSectionState({
+  sectionId,
+  state,
+  detail,
+  retry,
+}: {
+  sectionId: ReportSectionId
+  state: 'loading' | 'empty' | 'failed'
+  detail?: string
+  retry?: () => void
+}) {
+  const section = REPORT_SECTION_BY_ID[sectionId]
+  const copy =
+    state === 'loading'
+      ? `Loading ${section.label.toLowerCase()}...`
+      : state === 'failed'
+        ? section.failedState
+        : section.emptyState
+
+  return (
+    <div
+      role={state === 'failed' ? 'alert' : 'status'}
+      data-report-section-state={state}
+      style={{
+        border: `0.5px solid ${state === 'failed' ? 'var(--warn-bdr)' : 'var(--line)'}`,
+        borderRadius: 8,
+        padding: '14px 16px',
+        background: state === 'failed' ? 'var(--warn-tint)' : 'var(--bg-soft)',
+        color: 'var(--ink-4)',
+        fontSize: 12,
+        lineHeight: 1.55,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+        }}
+      >
+        <span>{copy}</span>
+        {retry && (
+          <button type="button" onClick={retry} className="eamos-toggle-btn" style={{ fontSize: 11.5 }}>
+            Retry
+          </button>
+        )}
+      </div>
+      {detail && <div style={{ marginTop: 6, overflowWrap: 'anywhere' }}>{detail}</div>}
+    </div>
+  )
+}
+
+function ReportSectionSkeletonCard({ sectionId }: { sectionId: ReportSectionId }) {
+  const section = REPORT_SECTION_BY_ID[sectionId]
+  return (
+    <Card number={section.number} title={section.title} meta={section.meta}>
+      <ReportSectionState sectionId={sectionId} state="loading" />
+    </Card>
+  )
+}
+
+function ReportSectionEmptyCard({ sectionId }: { sectionId: ReportSectionId }) {
+  const section = REPORT_SECTION_BY_ID[sectionId]
+  return (
+    <Card number={section.number} title={section.title} meta={section.meta}>
+      <ReportSectionState sectionId={sectionId} state="empty" />
+    </Card>
+  )
+}
+
+function ReportSectionErrorCard({
+  sectionId,
+  message,
+  retry,
+}: {
+  sectionId: ReportSectionId
+  message: string
+  retry: () => void
+}) {
+  const section = REPORT_SECTION_BY_ID[sectionId]
+  return (
+    <Card number={section.number} title={section.title} meta={section.meta}>
+      <ReportSectionState sectionId={sectionId} state="failed" detail={message} retry={retry} />
+    </Card>
+  )
 }
 
 const SIGNAL_STATUS_LABEL: Record<ReportSectionSignal['status'], string> = {
@@ -165,7 +271,7 @@ function ReportSignalDashboard({ signals }: { signals?: ReportSectionSignal[] | 
         }}
       >
         {rows.map((signal) => {
-          const anchor = SIGNAL_ANCHORS[signal.section_id]
+          const anchor = REPORT_SIGNAL_ANCHORS[signal.section_id]
           const content = (
             <>
               <span
@@ -861,12 +967,6 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
   const populationSourceUnreliable = ['failed', 'error', 'fallback', 'degraded', 'missing'].includes(
     (populationSourceStatus ?? '').toLowerCase(),
   )
-  const showPopulationSection = Boolean(
-    populationSection ||
-      populationTarget ||
-      populationCallCard ||
-      payload.population_frequency_detail,
-  )
   const populationAf = populationSection?.overall?.total?.allele_frequency ?? null
 
   const computedClassification = payload.eamos_computed_classification ?? null
@@ -935,7 +1035,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             then the ACMG criteria fold. Leads the report (v3): the clinical
             classification is what a curator reads first. Verdict accent shows
             as the header leading dot (Card verdict prop). */}
-        <div id="clinical_evidence" className="scroll-mt-24" />
+        <ReportSectionSlot sectionId="clinical_evidence">
         <Card
           number={1}
           title="Clinical evidence"
@@ -978,6 +1078,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               env.status === 'available' ? (env.payload as ExpertPanelSectionData | null) ?? null : null
             }
             forceLoad={lazyOverrides.has('clingen_vcep')}
+            placeholder={<ReportSectionState sectionId="clinical_evidence" state="loading" />}
             emptyView={<ExpertPanelPartialNote />}
             errorView={() => <ExpertPanelPartialNote />}
           >
@@ -997,6 +1098,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />
         </Card>
+        </ReportSectionSlot>
 
         {/* 2 · In-silico predictions — engines + calibrated buckets only.
             Verdict accent and ClinVar/ACMG live in §1 Clinical evidence;
@@ -1004,7 +1106,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             clingen/gene_disease/molecular_context/computational_annotations/
             pubmed/litvar2/clinical_trials/vep is rendered elsewhere or in the
             variant header. */}
-        <div id="evidence_by_source" className="scroll-mt-24" />
+        <ReportSectionSlot sectionId="evidence_by_source">
         <Card
           number={2}
           title="In-silico predictions"
@@ -1030,6 +1132,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             request={effectiveSummaryRequest ?? null}
             unwrap={(env) => (env.payload as ComputationalDeepDiveSection | null) ?? null}
             forceLoad={lazyOverrides.has('computational_deep_dive')}
+            placeholder={<ReportSectionState sectionId="evidence_by_source" state="loading" />}
           >
             {(section) => (
               <>
@@ -1054,11 +1157,11 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             computed={computedClassification}
           />
         </Card>
+        </ReportSectionSlot>
 
         {/* 3 · Population frequency (gnomAD) — AF thermometer + constraint
             readout above the world map / ancestry / age tabs. */}
-        <div id="population_frequency" className="scroll-mt-24" />
-        {showPopulationSection && (
+        <ReportSectionSlot sectionId="population_frequency">
           <Card
             number={3}
             title="gnomAD population frequency"
@@ -1089,7 +1192,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
               }}
             />
           </Card>
-        )}
+        </ReportSectionSlot>
 
         {/* 4 · Gene & locus context — Slice B build 1 swaps the gene-snapshot
             SVG + expandable transcript figures for the new ReportGeneViewer
@@ -1098,7 +1201,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             (gnomAD constraint / ClinGen dosage / overlapping CNVs) stay.
             Source-backed protein-domain and optional AlphaMissense tracks now
             render inside ReportGeneViewer. */}
-        <div id="gene_context" className="scroll-mt-24" />
+        <ReportSectionSlot sectionId="gene_context">
         <Card
           number={4}
           title="Gene & locus context"
@@ -1144,14 +1247,14 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
 
           <MolecularContextBlock evidence={data.evidence} />
         </Card>
+        </ReportSectionSlot>
 
         {/* 5 · Disease & curated variants — disease mechanism + curated
             variant distribution + associated conditions + the new
             GeneDiseaseBlock (ClinGen Gene-Disease Validity from the
             `gene_disease` evidence row). PublicationsCallout moved to §6.
             (Renamed from old §4 "Gene context & associated conditions".) */}
-        <div id="associated_conditions" className="scroll-mt-24" />
-        <div id="curated_variants" className="scroll-mt-24" />
+        <ReportSectionSlot sectionId="associated_conditions">
         <Card
           number={5}
           title="Disease & curated variants"
@@ -1180,6 +1283,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             sectionTarget={targetFor('disease_mechanism')}
           />
         </Card>
+        </ReportSectionSlot>
 
         {/* 6 · Publication literature. */}
         {/* LazySection v1: when the backend ships `publications_literature`
@@ -1195,7 +1299,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             headless preflight runs; IO timing is exercised separately via
             vitest. Key suffix forces a clean remount on toggle so
             LazyFetchSection state resets. */}
-        <div id="publications" className="scroll-mt-24" />
+        <ReportSectionSlot sectionId="publications">
         <LazySection<PublicationLiterature>
           key={`pubs-${variantKey}${lazyOverrides.has('publications') ? '-lazy' : ''}`}
           eagerData={lazyOverrides.has('publications') ? null : payload.publications_literature}
@@ -1203,6 +1307,11 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           request={effectiveSummaryRequest ?? null}
           unwrap={(env) => (env.payload as PublicationLiterature | null) ?? null}
           forceLoad={lazyOverrides.has('publications')}
+          placeholder={<ReportSectionSkeletonCard sectionId="publications" />}
+          emptyView={<ReportSectionEmptyCard sectionId="publications" />}
+          errorView={(message, retry) => (
+            <ReportSectionErrorCard sectionId="publications" message={message} retry={retry} />
+          )}
         >
           {(lit) => (
             <PubMedSection
@@ -1220,9 +1329,10 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           )}
         </LazySection>
+        </ReportSectionSlot>
 
         {/* 7 · Active trials & approved therapies. */}
-        <div id="trials" className="scroll-mt-24" />
+        <ReportSectionSlot sectionId="trials">
         <LazySection<TherapiesTrialsSection>
           key={`trials-${variantKey}${lazyOverrides.has('therapies_trials') ? '-lazy' : ''}`}
           eagerData={
@@ -1242,6 +1352,11 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             }
           }
           forceLoad={lazyOverrides.has('therapies_trials')}
+          placeholder={<ReportSectionSkeletonCard sectionId="trials" />}
+          emptyView={<ReportSectionEmptyCard sectionId="trials" />}
+          errorView={(message, retry) => (
+            <ReportSectionErrorCard sectionId="trials" message={message} retry={retry} />
+          )}
         >
           {(section) => (
             <TrialsSection
@@ -1260,6 +1375,7 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             />
           )}
         </LazySection>
+        </ReportSectionSlot>
 
         {/* The AI evidence summary (formerly §8) now lives in the Ask-Eamos
             work-rail (docs/ai-work-rail/spec.md) — on-demand, not buried at the
