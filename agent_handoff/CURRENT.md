@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-25 18:37 +1000 - Report-cache/DuckDB Task 4 and architecture consistency gate committed+pushed (`1a80f45`, `98e35fc`); Selom note drafted; no deploy/remote mutation/materialization. NEXT: Task A checklist closeout, then Task B report section registry/stable skeletons, or Task D tiny-fixture DuckDB/Parquet preflight if redirected.
+- **Codex:** STOPPED @ 2026-06-25 19:34 +1000 - Task A/B registry-preflight and repeatable performance audit gates committed+pushed (`7f767ad`, `8ae8494`). No deploy/remote mutation/materialization. NEXT: Task C cache-boundary cleanup or Task D tiny-fixture DuckDB/Parquet if redirected; peak-RSS proof still pending a local or explicitly approved live memory watch.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-25 18:41 +1000 - Codex (architecture prompt and Selom note finalized)
+UNLOCKED - 2026-06-25 19:34 +1000 - Codex (Task A/B + audit gates committed/pushed closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,34 +427,54 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-25 18:37 +1000 - Codex.
+Section last edited: 2026-06-25 19:34 +1000 - Codex.
 
-**Latest Codex update (2026-06-25 18:37 +1000 - Codex):**
-Steven asked to pause feature work and capture a robust, consistent architecture
-plan across backend routes, SQL/cache ownership, UI section skeletons, analysis
-lanes, PubMed/PMC corpus strategy, Supabase/Render storage boundaries,
-performance/memory proof, and production-readiness gates.
+**Latest Codex update (2026-06-25 19:34 +1000 - Codex):**
+Steven approved committing/pushing the local Task A/B architecture-gate work and
+continuing. Codex committed and pushed:
 
-Committed and pushed:
-- `1a80f45 feat(report): cache lazy lookup sections`
-- `98e35fc docs(architecture): capture consistency gate`
+- `7f767ad feat(report): stabilize section registry preflight`
+- `8ae8494 feat(report): add repeatable performance audit gates`
 
-Architecture artifacts:
-- `docs/architecture-consistency-gate/plan.md`
-- `docs/architecture-consistency-gate/inventory.md`
-- `docs/architecture-consistency-gate/session-prompts.md`
-- `docs/architecture-consistency-gate/selom-message.md`
-- `memory/eamos-architecture-consistency-gate.md`
-- `MEMORY.md` index entry
+What changed:
+- Task A closeout: `docs/architecture-consistency-gate/inventory.md` now has
+  the compact owner/gate/pass/fail checklist.
+- Task B scoped implementation: `REPORT_SECTION_REGISTRY` defines the seven
+  required desktop report slots, anchors, lazy section ids, skeleton/empty/error
+  copy, nav/export participation, signal anchors, and aliases. `ReportClient`,
+  `ReportSectionNav`, and `scripts/eamos-report-preflight.mjs` now consume it.
+- Steven's directive is recorded in `MEMORY.md`,
+  `memory/eamos-mobile-overflow-gate-disabled.md`, and the report plan:
+  mobile/sub-desktop overflow and layout-stability gates stay inactive until he
+  explicitly reactivates them.
+- Architecture-gate evidence tooling advanced:
+  `scripts/eamos-report-performance-audit.mjs` now supports `--runs`/`--repeat`,
+  cold/warm aggregate p50/p95 latency stats, JSON evidence, and optional
+  payload-size ceilings for lookup responses, report payloads, section envelopes,
+  and section payloads.
 
-No code path, deploy, Vercel command, Render env mutation, Supabase mutation,
-DuckDB repo clone, or real corpus/materialization job occurred.
+Verification:
+- `npm --prefix app/web run lint` passed.
+- `node scripts/eamos-report-preflight.mjs --url=http://127.0.0.1:3001/report?fixture=rpe65-negative --widths=375,768,1280 --forbid-viewer` passed; it ignored 375/768, checked 1280 only, found no missing required slots/anchors, reported desktop overflow 0px, and made no viewer requests.
+- `node --check scripts/eamos-report-performance-audit.mjs` passed.
+- Offline repeat-run audit smoke against closed localhost port passed in human
+  and JSON modes, proving `runCount`, cold/warm phases, aggregate p50/p95, and
+  threshold metadata without live backend calls.
+- `git diff --check` passed.
+- `python -m graphify update .` passed (AST-only, long timeout); HTML export was
+  skipped by graphify's default large-graph limit, expected for Eamos.
+
+Not done: no deploy, Vercel command, Render env mutation, Supabase mutation,
+DuckDB repo clone, real corpus/materialization job, live read-only performance
+audit, or peak-RSS memory watch.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-25 18:37 +1000 - Codex architecture consistency gate committed+pushed; start Task A checklist closeout
-Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/session-prompts.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Architecture gate work is committed and pushed to origin/main; run `git log -8 --oneline` for the exact top commit. Key commits include `1a80f45 feat(report): cache lazy lookup sections`, `98e35fc docs(architecture): capture consistency gate`, and `55224cf docs(architecture): add next prompt and selom note`. The architecture gate covers backend routes, SQL/cache ownership, UI report-section registry drift, DuckDB/Parquet analytical lane, PubMed/PMC literature corpus layering, Supabase/Render storage boundaries, performance/memory proof, slow-test hygiene, and production-readiness gates. No deploy, Supabase mutation, Render mutation, DuckDB repo clone, or multi-GB materialization occurred.
-Next default: start Task A by converting `docs/architecture-consistency-gate/inventory.md` into a compact actionable checklist with owners, gates, and pass/fail evidence; then start Task B frontend report section registry/stable skeletons and extend report preflight to assert required section slots before hydration. If Steven redirects to data architecture, do Task D only: tiny-fixture DuckDB/Parquet artifact layout + manifest + read-only preflight, no real corpus build.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env or Supabase mutation without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC as layered corpus architecture: object/private storage + Parquet release layers + runtime SQLite/FTS/vector stores + report/source caches. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-25 19:34 +1000 - Codex Task A/B pushed + repeatable report audit gates
+Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/session-prompts.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Task A/B and audit-gate work are committed+pushed to origin/main: `7f767ad feat(report): stabilize section registry preflight` and `8ae8494 feat(report): add repeatable performance audit gates`. Handoff closeout may be the top metadata commit. Mobile/sub-desktop overflow gates remain disabled until Steven explicitly reactivates them.
+What changed: inventory has the compact checklist; report UI/nav/preflight share `REPORT_SECTION_REGISTRY`; preflight asserts required desktop slots/anchors and ignores sub-desktop widths; report performance audit supports `--runs`/`--repeat`, cold/warm aggregate p50/p95, JSON evidence, and optional payload-size ceilings. No live audit or memory watch was run.
+Verification done: `npm --prefix app/web run lint`; desktop-only report preflight with 375/768 ignored and 1280 passing with no viewer requests; `node --check scripts/eamos-report-performance-audit.mjs`; offline repeat-run audit smoke in human+JSON modes against closed localhost; `git diff --check`; `python -m graphify update .` passed AST-only with large-graph HTML skip expected.
+Next default: continue architecture gate Task C cache-boundary cleanup (`variant_cache.publication_data` compatibility vs table-backed `report_shell_cache`/`report_section_cache`/`source_result_cache`) or Task E measured performance/memory evidence. Peak-RSS proof still needs a local or explicitly approved live memory watch. If Steven redirects to data architecture, do Task D only: tiny-fixture DuckDB/Parquet artifact layout + manifest + read-only preflight, no real corpus build.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env or Supabase mutation without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC layered; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them. End clear-safe with a fresh stamped resume prompt.
 ```
