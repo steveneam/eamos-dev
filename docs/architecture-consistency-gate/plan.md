@@ -339,8 +339,9 @@ private Storage, secret exposure, sanitized health proof, and mutation approval.
 
 ### Task G - PubMed/LitVar2/ClinicalTrials Materialization Planning
 
-Status: planning drafted; no source download, materialization, upload,
-registration, runtime seeding, or runtime flag change performed.
+Status: planning plus local tiny-fixture gates; no source download,
+materialization, upload, registration, runtime seeding, or runtime flag change
+performed.
 
 Plan the operator-gated literature and trials materialization lane after the
 architecture inventory and Supabase runbook.
@@ -353,7 +354,9 @@ real corpus materialization.
 Evidence: `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`
 defines the planned sequence for seed manifests, PubMed-local fixture proof,
 LitVar/PubTator edge import, ClinicalTrials cache snapshots, bounded-slice
-benchmarks, and the approvals required before real materialization.
+benchmarks, and the approvals required before real materialization. The PMAT
+seed-manifest, PubMed-local, and LitVar/PubTator edge fixture gates are now
+covered by backend regressions.
 
 ## Next Recommended Move
 

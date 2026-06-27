@@ -1,11 +1,11 @@
 # PubMed, LitVar2, and ClinicalTrials Materialization Plan
 
-Last updated: 2026-06-27 18:05 +1000 - Codex.
+Last updated: 2026-06-27 18:28 +1000 - Codex.
 
 Status: planning plus local tiny-fixture gates. No real PubMed, LitVar2,
 PubTator, ClinicalTrials, Supabase, Render, or Storage materialization was run
-for this task; PMAT-002 only exercises a temporary pytest SQLite fixture from
-checked-in source fixtures.
+for this task; PMAT-002 and PMAT-003 only exercise temporary pytest SQLite
+fixtures from checked-in source fixtures plus generated edge files.
 
 ## Purpose
 
@@ -228,9 +228,39 @@ Evidence:
 
 ### PMAT-003 - LitVar/PubTator Edge Fixture Gate
 
+Status: implemented locally for generated tiny edge fixtures. No source
+download, upload, runtime seeding, remote mutation, or runtime flag change was
+run.
+
 Run fixture conversion for LitVar and PubTator edges and import the outputs into
 the PubMed-local fixture. Acceptance: edge counts and orphan skips recorded,
 variant snippets survive EP-VLEx, and no live network is used.
+
+Evidence:
+
+- `app/backend/tests/test_pubmed_seed_manifest.py` now renders the checked-in
+  PMAT seed manifest, creates temporary PubTator and LitVar fixture inputs with
+  positive and orphan PMIDs, converts them through the existing edge CLIs, and
+  imports both generated edge JSONL files into the PubMed-local fixture SQLite
+  asset.
+- PubTator conversion reports `edge_count=4` with two gene and two variant
+  edges, no network use, and sanitized output. The PubMed-local fixture imports
+  two PubTator edges and records two orphan-edge skips.
+- LitVar conversion reports `record_count=1`, `pmid_count=2`, `edge_count=12`,
+  entity counts of two gene, two rsID, and eight variant edges, no network use,
+  and sanitized output. The PubMed-local fixture imports six LitVar edges and
+  records six orphan-edge skips.
+- Combined fixture materialization reports `literature_edge_count=8`,
+  `source_file_count=3`, verified PubMed XML checksum status, and source-kind
+  counts for one PubMed baseline XML file, one PubTator edge file, and one
+  LitVar edge file.
+- Fixture preflight reports ready status, `network_used=false`, eight
+  literature edges, two PubTator orphan skips, six LitVar orphan skips, and no
+  local path or abstract values emitted.
+- Local PubMed search returns the edge-backed metadata-only PMID with both
+  `pubtator` and `litvar2_snippet` evidence fields, and EP-VLEx returns an
+  `exact_variant_snippet` sourced from the PubTator edge text.
+- `python -m pytest tests\test_pubmed_seed_manifest.py -q` passed.
 
 ### PMAT-004 - ClinicalTrials Cache Snapshot Spec
 

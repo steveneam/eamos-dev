@@ -81,8 +81,20 @@ is materialized into a temporary SQLite asset, and preflight is run against the
 temporary manifest. The fixture reports two articles, one licensed abstract, one
 metadata-only article, one deleted citation, six coverage rows, one verified
 source file, and sanitized output with no local paths, raw abstracts, or
-secrets. This remains a pytest-only fixture proof, not a real PubMed corpus
-build, upload, runtime seed, flag change, or remote mutation.
+secrets.
+
+PMAT-003 closed the no-network tiny fixture gate for generated LitVar and
+PubTator edges. The checked-in PMAT seed manifest drives temporary PubTator and
+LitVar fixture inputs with positive and orphan PMIDs. Conversion reports four
+PubTator edges and twelve LitVar edges, both with `network.used=false`; the
+PubMed-local fixture imports eight total literature edges and records two
+PubTator orphan skips plus six LitVar orphan skips. Local lookup preserves the
+edge-backed `pubtator` and `litvar2_snippet` fields, and EP-VLEx emits an
+`exact_variant_snippet` from the edge text.
+
+These remain pytest-only fixture proofs, not a real PubMed corpus build,
+LitVar/PubTator source download, upload, runtime seed, flag change, or remote
+mutation.
 
 ## Remaining PubMed/PMC Wiring Buckets - Local Proof Harness
 
