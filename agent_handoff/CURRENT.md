@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-27 19:50 +1000 - PMAT-003/004/005 committed+pushed; Render SG deployed `a3a7293`; Task E production closeout passed and closeout docs/handoff pushed. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, or flag change.
+- **Codex:** STOPPED @ 2026-06-28 00:08 +1000 - Report launch-readiness backend P0.1/P0.2 committed for user-approved push: `a9fe106` local-evidence runtime asset freshness blocks, `7a1097b` gnomAD unavailable-reason propagation, plus this handoff closeout. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, Render env mutation, deploy command, or flag change.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-27 19:50 +1000 - Codex (final PMAT-005 Task E handoff freshness)
+UNLOCKED - 2026-06-28 00:08 +1000 - Codex (report P0.1/P0.2 closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -208,6 +208,10 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [DONE] Codex->Claude/Steven (2026-06-28 00:06 +1000): **P0.2 backend gnomAD source-status reliability shipped in `7a1097b`.** Report population-frequency payloads now preserve gnomAD provider status, canonical variant/dataset identity, source URL, warnings, and `unavailable_reason` even when the provider returns no usable frequency metrics. Failed gnomAD sources produce `source_status:"failed"` plus `source_unavailable` on `population_frequency_detail` and `report_profile.population_frequency`; variant-not-found remains `variant_not_found`; stale cache still reports `source_status:"stale"`. Verified focused population/source-cache tests, full source-cache + report call-card + report orchestration tests, Ruff, Black, diff-check, graphify update. No guarded remote/source/materialization/deploy action occurred. - report P0.2 backend
+
+- [DONE] Codex->Claude/Steven (2026-06-27 23:38 +1000): **P0.1 backend freshness contract shipped in `a9fe106`.** `provider-cache` emits sanitized `freshness` blocks for `local_evidence_runtime_assets` at both source and per-role asset level, derived only from adjacent manifests (`*.manifest.json`) when present. Shape includes `materialized_at`, `upstream_released_at`, `upstream_version`, `source_version`, `tier`, `sla_days`, `staleness_days`, and `status` (`fresh|stale|overdue|unknown`); missing upstream release metadata degrades to `unknown`. Report payload field remains `report_data_currency` with `generated_at` + `sources`, and `VariantReportHeader.updated_at`/`report_generated_at` were already present before this session. Verified focused provider-cache tests, report data-currency tests, report orchestration tests, Ruff, Black, diff-check, graphify update. No guarded remote/source/materialization/deploy action occurred. P1 items in the older launch-readiness ask remain open. - local P0.1 freshness contract
 
 - [OPEN] Claude->Codex/Steven (2026-06-23 01:05 +1000): **/report launch-readiness assignments — Codex backend lane.** New doc `docs/report-launch-readiness/assignments.md` (Claude, P0/P1/P2, lane-split; from a read-only report audit this session, severities are Claude's). Codex's P0/P1 backend items: **P0.1** emit the per-asset freshness block + a report-payload field (propose `report_data_currency: {sources:[...], generated_at}`) + populate `VariantReportHeader.updated_at` + add `report_generated_at` — **and confirm the payload field name so Claude can wire `freshness={...}` on the already-built `DataCurrencyLine` (currently passed `null`, falling back to real `fetched_at`)**; **P0.2** make gnomAD `source_status` reliable (no silent blank); **P1.1** integrate the ClinGen Evidence-Repository source-cache so the expert panel ships live VCEP (today it's a consensus snapshot → `ExpertPanelPartialNote` always shows) — Steven to decide if this is launch-blocking; **P1.2** populate in-silico calibration fields; **P1.3** the ClinVar gene-distribution index (same M9 `clinvar_gene_distribution_excluded_pending_index` boundary) or confirm it stays off; **P1.4** source version pins. P0.1 folds into `docs/local-evidence-freshness/plan.md` Task 0.1 (contract backend-led — Claude mirrors). - report launch-readiness backend lane
 
@@ -427,63 +431,54 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-27 19:50 +1000 - Codex.
+Section last edited: 2026-06-28 00:06 +1000 - Codex.
 
-**Latest Codex update (2026-06-27 19:50 +1000 - Codex):**
-Codex completed Steven's approved PMAT/Task E closeout sequence.
+**Latest Codex update (2026-06-28 00:06 +1000 - Codex):**
+Codex completed the approved report launch-readiness backend P0.1/P0.2 sequence.
 
 Done:
 
-- Committed and pushed PMAT-003 (`c68f717`) and PMAT-004 (`6074ab0`) to
-  `origin/main`.
-- Added, verified, committed, and pushed PMAT-005 (`a3a7293`): a fixture-backed
-  bounded-slice benchmark CLI,
-  `python -m app.cli.eamos_pmat_bounded_slice_benchmark`, plus docs and tests.
-- Deployed Render SG service `srv-d8ctvoh9rddc73a27nb0` to exact commit
-  `a3a72934c4ea859b36cd01e7a181998189e8bb27`; deploy
-  `dep-d8vpgternols73e040kg` is live.
-- Closed Task E production rerun: `therapies_trials` section fetches are HTTP
-  200/`available` for ABCA4, RPE65, and USH2A; desktop report preflight passed
-  at 1280 px with no first-paint `/viewer`; Render peak RSS was 639.6 MB
-  (29.8% of the 2 GB cap).
-- Recorded Task E production evidence and plan updates in closeout docs commit
-  `4e3adf2`, then refreshed this handoff so the expected working tree is clean.
+- Reviewed, verified, committed, and pushed P0.1 as `a9fe106`
+  (`feat(evidence): expose local asset freshness metadata`): provider-cache
+  `local_evidence_runtime_assets` now emits sanitized source-level and per-role
+  `freshness` blocks from adjacent manifests only.
+- Implemented, verified, and committed P0.2 as `7a1097b`
+  (`fix(report): preserve gnomAD unavailable reasons`): failed/no-metric gnomAD
+  results now preserve source status, variant/dataset identity, URL, warnings,
+  and machine-readable unavailable reason through population detail, report
+  profile, and call-card status surfaces.
+- Updated this handoff with fresh P0.1/P0.2 state. The older `/report`
+  launch-readiness request remains open for P1.1-P1.4 only.
 
 Verification:
 
-- `python -m pytest tests\test_variant_cache.py -q -k "trials"` passed.
-- `python -m pytest tests\test_variant_cache.py -q` passed.
-- `python -m pytest tests\test_lookup_section_fetch_contract.py -q` passed.
-- `python -m pytest tests\test_report_cache_contract.py -q` passed.
-- `python -m pytest tests\test_variant_report_orchestration.py -q` passed.
-- `python -m pytest tests\test_pmat_bounded_slice_benchmark.py -q` passed.
-- `python -m app.cli.eamos_pmat_bounded_slice_benchmark --compact --require-ready`
-  passed.
-- `python -m pytest tests\test_pubmed_seed_manifest.py -q` passed.
-- `python -m pytest -m report_cache_contract -q --durations=10` passed.
-- `python -m pytest tests\test_variant_cache.py -m "not slow" -q --durations=10`
-  passed.
+- `python -m pytest tests/test_health_api.py -q -k "local_evidence_runtime_assets or sanitized_empty_aggregates"` passed.
+- `python -m pytest tests/test_report_data_currency.py tests/test_variant_report_orchestration.py -q` passed.
+- `python -m pytest tests/test_population_frequency_section.py tests/test_source_cache.py -q -k "gnomad or population_frequency"` passed.
+- `python -m pytest tests/test_source_cache.py -q` passed.
+- `python -m pytest tests/test_report_call_cards.py tests/test_variant_report_orchestration.py -q` passed.
+- `python -m pytest tests/test_source_cache.py tests/test_report_call_cards.py tests/test_variant_report_orchestration.py -q` passed.
 - `python -m ruff check ...` and `python -m black --check ...` passed for the
-  PMAT-004/PMAT-005 files.
+  touched P0.1/P0.2 files.
 - `git diff --check` passed.
-- `python -m graphify update .` passed with the expected oversized-HTML skip.
-- Live audit: zero payload threshold violations; `/healthz` and
-  `/api/v1/health/provider-cache` returned HTTP 200.
+- `python -m graphify update .` passed after both code changes with the expected
+  oversized-HTML skip.
 
 No Supabase mutation, Vercel command, source download, real corpus
 materialization, Storage upload, runtime seeding, runtime flag change, or
-provider flip occurred.
+provider flip occurred. No Render env mutation, deploy command, or real
+materialization occurred.
 
-Expected git state after the final handoff freshness commit:
-`main...origin/main` clean. Run `git status --short --branch` and
-`git log -8 --oneline` for the exact final HEAD.
+Expected git state after the final handoff commit and push:
+`main...origin/main` clean with `a9fe106`, `7a1097b`, and the handoff commit on
+top. Run `git status --short --branch` and `git log -8 --oneline` for exact HEAD.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-27 19:50 +1000 - Codex PMAT-005/Task E closeout
-Eamos. Start from `main...origin/main`; `git log -8 --oneline` should include PMAT commits `c68f717`, `6074ab0`, `a3a7293`, docs closeout `4e3adf2`, and the final handoff freshness commit on top. Render SG deploy `dep-d8vpgternols73e040kg` is live on `a3a7293`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/task-e-performance-memory-evidence.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: PMAT-003/004/005 are committed and pushed. PMAT-004 makes therapies/trials report-first/cache-backed from `clinical_trials` source-result snapshots. PMAT-005 adds the fixture-backed bounded-slice benchmark harness and docs. Task E production closeout is deployed and verified: `therapies_trials` section fetches are HTTP 200/available, payload thresholds pass, desktop preflight passes, Render RSS peaked at 639.6 MB, and closeout docs are recorded.
-Verification done: PMAT-004 focused/full cache tests, lookup/report/orchestration contracts, PMAT-005 benchmark test + CLI, PMAT seed tests, fast Task E targets, Ruff, Black, diff-check, graphify update, Render deploy, live report-performance audit, desktop preflight, health/provider-cache, and Render memory metrics.
-Next: choose the next explicitly approved lane. Safe defaults are documentation/read-only planning only: no real PubMed/LitVar/PubTator/ClinicalTrials source download, Supabase/Storage upload, runtime seed, flag flip, Render env mutation, Vercel command, or deploy unless Steven explicitly approves the exact action.
-Guardrails: do not run vercel/vc from app/web; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; keep single-coordinate lookup on prepared cache/tabix/SQLite/local indexes unless a benchmark-backed ADR changes it; mobile/sub-desktop overflow gates stay disabled; MaveDB stays data-only/CC0-gated unless legal/product gate changes. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-28 00:06 +1000 - Codex report P0.1/P0.2 closeout
+Eamos. Start from `main...origin/main`; `git log -8 --oneline` should include `a9fe106` P0.1 local asset freshness, `7a1097b` P0.2 gnomAD unavailable reasons, and the final handoff commit on top. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, docs/local-evidence-freshness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: P0.1 provider-cache `local_evidence_runtime_assets` freshness blocks shipped; P0.2 backend gnomAD failure/no-metrics path now preserves source status plus `source_unavailable`/`variant_not_found` reason in population detail/profile/call-card status surfaces.
+Verification done: focused provider-cache, report data-currency, population-frequency, source-cache, report call-card, report orchestration tests; Ruff; Black; diff-check; graphify update. No guarded source/materialization/deploy action occurred.
+Next: remaining `/report` launch-readiness backend lane is P1.1 ClinGen Evidence Repository source-cache, P1.2 in-silico calibration fields, P1.3 ClinVar gene-distribution index decision/build, P1.4 source version pins, or read-only planning if no explicit implementation lane is approved.
+Guardrails: no real source download, Supabase/Storage upload, runtime seed, flag flip, Render env mutation, Vercel command, deploy, or real materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```
