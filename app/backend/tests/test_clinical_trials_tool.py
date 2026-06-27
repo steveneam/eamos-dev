@@ -241,8 +241,11 @@ def test_tool_queries_variant_aliases_before_gene_disease_fallback(monkeypatch) 
     assert calls[0].startswith('"NM_000329.3:c.260A>G" OR "p.Asp87Gly"')
     assert calls[1] == 'RPE65 "Leber congenital amaurosis"'
     assert result.status == "live"
+    assert result.fetched_at
+    assert result.summary["fetched_at"] == result.fetched_at
     assert result.summary["trial_rows"][0]["match_level"] == "gene_level"
     assert result.summary["trial_rows"][0]["source_url"].endswith("/NCT01234567")
+    assert result.summary["trial_rows"][0]["fetched_at"] == result.fetched_at
     assert "clinical_trials_variant_level_not_found" in result.warnings
     assert "variant_level_trial_not_found:using_lower_match_level" in result.warnings
     assert DISCOVERY_ONLY_WARNING in result.summary["trial_rows"][0]["warnings"]
@@ -398,6 +401,8 @@ def test_tool_degrades_source_failure_to_empty_rows(monkeypatch) -> None:
     )
 
     assert result.status == "fallback"
+    assert result.fetched_at
+    assert result.summary["fetched_at"] == result.fetched_at
     assert result.summary["trial_rows"] == []
     assert result.summary["total"] == 0
     assert "clinical_trials_fetch_failed:TimeoutException" in result.warnings

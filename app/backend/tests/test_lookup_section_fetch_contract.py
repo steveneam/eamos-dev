@@ -38,7 +38,7 @@ def test_lookup_section_status_contract_accepts_registry_ui_states(status) -> No
     assert envelope.status == status
 
 
-def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
+def test_default_lookup_inlines_publications_and_omits_heavy_lazy_sections(client) -> None:
     response = client.post(
         "/api/v1/lookup",
         json={"gene": "RPE65", "cdna": "c.260A>G"},
@@ -57,13 +57,16 @@ def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:
 
     assert payload["publications_callout"]["total_count"] == 3
     assert payload["publications_callout"]["scope_counts"]["gene"]["total_count"] == 816
-    assert "publications_literature" not in payload
+    assert payload["publications_literature"]["total_count"] == 3
+    assert payload["publications_literature"]["articles"][0]["pmid"] == "38191234"
     assert "therapies_trials" not in profile
     assert "computational_deep_dive" not in profile
     assert "expert_panel" not in profile
     assert profile["acmg_worksheet"]["classification"] == "Uncertain significance"
     assert profile["acmg_worksheet"]["classification_source"] == "ClinVar"
-    assert full_payload["publications_literature"]["total_count"] == 3
+    assert full_payload["publications_literature"]["total_count"] == (
+        payload["publications_literature"]["total_count"]
+    )
     assert full_payload["report_profile"]["computational_deep_dive"]["predictors"]
     assert full_payload["report_profile"]["expert_panel"] is None
     assert len(response.content) < len(full_response.content)

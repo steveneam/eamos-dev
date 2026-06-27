@@ -22,7 +22,6 @@ router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
 
 LOOKUP_EAGER_RESPONSE_EXCLUDE = {
     "report_payload": {
-        "publications_literature": True,
         "report_profile": {
             "computational_deep_dive": True,
             "expert_panel": True,

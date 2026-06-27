@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -189,11 +190,7 @@ class ClinicalTrialsTool:
             _dedupe(
                 [
                     *_string_list(disease_terms),
-                    *[
-                        term
-                        for entry in registry_entries
-                        for term in entry["disease_aliases"]
-                    ],
+                    *[term for entry in registry_entries for term in entry["disease_aliases"]],
                 ]
             )
         )
@@ -207,7 +204,11 @@ class ClinicalTrialsTool:
                 {
                     "query_id": query.query_id,
                     "lane": query.lane,
-                    "params": dict(query.query_params) if query.query_params else {"query.term": query.query_term},
+                    "params": (
+                        dict(query.query_params)
+                        if query.query_params
+                        else {"query.term": query.query_term}
+                    ),
                     "source_url": query.registry_source_url,
                     "source_release": query.registry_source_release,
                 }
@@ -238,6 +239,7 @@ class ClinicalTrialsTool:
                 source_url=_search_url(query_plan[0].query_term),
             )
 
+        fetched_at = _utc_now_iso()
         try:
             rows, selected_query, warnings, query_executions = self._fetch_structured_live(
                 query_plan,
@@ -249,10 +251,11 @@ class ClinicalTrialsTool:
                 source="clinical_trials",
                 status="fallback",
                 request_identity=request_identity,
-                summary=_summary([], query_plan[0], warnings),
+                summary=_summary([], query_plan[0], warnings, fetched_at=fetched_at),
                 warnings=warnings,
                 raw=None,
                 source_url=_search_url(query_plan[0].query_term),
+                fetched_at=fetched_at,
             )
 
         status = "live" if rows else "missing"
@@ -268,10 +271,12 @@ class ClinicalTrialsTool:
                 selected_query or query_plan[0],
                 warnings,
                 query_executions=query_executions,
+                fetched_at=fetched_at,
             ),
             warnings=warnings,
-            raw=[row.as_dict() for row in rows],
+            raw=_trial_row_dicts(rows, fetched_at=fetched_at),
             source_url=_search_url((selected_query or query_plan[0]).query_term),
+            fetched_at=fetched_at,
         )
 
     def _fetch_structured_live(
@@ -330,7 +335,9 @@ class ClinicalTrialsTool:
         return [], None, _dedupe(warnings), query_executions
 
     def _fetch_v2_payload(self, query: ClinicalTrialQuery, *, limit: int) -> dict[str, Any]:
-        query_params = dict(query.query_params) if query.query_params else {"query.term": query.query_term}
+        query_params = (
+            dict(query.query_params) if query.query_params else {"query.term": query.query_term}
+        )
         response = httpx.get(
             CLINICAL_TRIALS_BASE_URL,
             params={
@@ -426,9 +433,10 @@ def _summary(
     warnings: list[str],
     *,
     query_executions: list[dict[str, Any]] | None = None,
+    fetched_at: str | None = None,
 ) -> dict[str, Any]:
-    return {
-        "trial_rows": [row.as_dict() for row in rows],
+    summary = {
+        "trial_rows": _trial_row_dicts(rows, fetched_at=fetched_at),
         "total": len(rows),
         "query_term": query.query_term if query else None,
         "source_url": _search_url(query.query_term) if query else None,
@@ -436,6 +444,21 @@ def _summary(
         "warnings": _dedupe(warnings),
         "disclaimer": "ClinicalTrials.gov rows are discovery links, not eligibility guidance.",
     }
+    if fetched_at:
+        summary["fetched_at"] = fetched_at
+    return summary
+
+
+def _trial_row_dicts(
+    rows: list[ClinicalTrialMatch],
+    *,
+    fetched_at: str | None = None,
+) -> list[dict[str, Any]]:
+    payloads = [row.as_dict() for row in rows]
+    if fetched_at:
+        for item in payloads:
+            item.setdefault("fetched_at", fetched_at)
+    return payloads
 
 
 def _build_query_plan(
@@ -453,7 +476,9 @@ def _build_query_plan(
                 requested_match_level="variant_level",
                 query_id=_query_id("variant_exact", gene, variant_aliases),
                 lane="variant_exact",
-                query_params=(("query.term", " OR ".join(f'"{alias}"' for alias in variant_aliases)),),
+                query_params=(
+                    ("query.term", " OR ".join(f'"{alias}"' for alias in variant_aliases)),
+                ),
                 variant_aliases=variant_aliases,
                 gene_terms=gene_terms,
                 disease_terms=disease_terms,
@@ -549,7 +574,13 @@ def _match_level(
             field_text,
             [*disease_matches, *intervention_matches],
         )
-        return "disease_level", _dedupe([*disease_matches, *intervention_matches]), [], field, snippet
+        return (
+            "disease_level",
+            _dedupe([*disease_matches, *intervention_matches]),
+            [],
+            field,
+            snippet,
+        )
 
     return "unavailable", [], [QUERY_SCOPE_WARNING], None, None
 
@@ -594,7 +625,14 @@ def _first_field_snippet(
     fields: dict[str, str],
     terms: list[str],
 ) -> tuple[str | None, str | None]:
-    for field_name in ("eligibility", "conditions", "interventions", "title", "description", "status"):
+    for field_name in (
+        "eligibility",
+        "conditions",
+        "interventions",
+        "title",
+        "description",
+        "status",
+    ):
         text = fields.get(field_name, "")
         if not text:
             continue
@@ -833,6 +871,10 @@ def _last_update_posted_at(status_module: dict[str, Any]) -> str | None:
     day = _text(struct.get("day"))
     parts = [part for part in (year, month, day) if part]
     return "-".join(parts) if parts else None
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _string_list(value: Any) -> list[str]:

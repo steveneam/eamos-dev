@@ -406,6 +406,7 @@ def test_lookup_structured_clinical_trials_flow_into_report_profile(client) -> N
                 warnings=warnings,
                 raw=None,
                 source_url="https://clinicaltrials.gov/search?term=RPE65",
+                fetched_at="2026-06-24T12:34:56Z",
             )
 
         def get_trials_summary(self, gene: str) -> str:
@@ -426,6 +427,7 @@ def test_lookup_structured_clinical_trials_flow_into_report_profile(client) -> N
     assert row["match_level"] == "gene_level"
     assert row["matched_terms"] == ["RPE65"]
     assert row["source_url"] == "https://clinicaltrials.gov/study/NCT01234567"
+    assert row["fetched_at"] == "2026-06-24T12:34:56Z"
     assert "clinical_trials_gene_level_target_only" in trials["warnings"]
     assert "variant_level_trial_not_found:using_lower_match_level" in trials["warnings"]
     assert trials["provenance"][0]["status"] == "live"

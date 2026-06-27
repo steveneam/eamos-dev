@@ -1174,6 +1174,7 @@ export interface TrialMatch {
   evidence_field?: string | null
   evidence_snippet?: string | null
   last_update_posted_at?: string | null
+  fetched_at?: string | null
 }
 
 export interface ClinicalTrialQueryExecution {

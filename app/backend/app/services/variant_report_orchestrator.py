@@ -148,7 +148,9 @@ def _build_section_signals(
             section_id="interpretation_summary",
             label="Summary",
             priority=96,
-            confidence=0.82 if interpretation_summary and interpretation_summary.fact_refs else 0.45,
+            confidence=(
+                0.82 if interpretation_summary and interpretation_summary.fact_refs else 0.45
+            ),
             relevance="summary",
             source_strength="source_mixed",
             status="ready" if interpretation_summary else "empty",
@@ -208,7 +210,9 @@ def _build_section_signals(
             priority=76 if _computational_has_data(computational_deep_dive) else 38,
             confidence=0.72 if _computational_has_data(computational_deep_dive) else 0.25,
             relevance="exact_variant",
-            source_strength="primary_db" if _computational_has_data(computational_deep_dive) else "unavailable",
+            source_strength=(
+                "primary_db" if _computational_has_data(computational_deep_dive) else "unavailable"
+            ),
             status=_data_status(
                 has_data=_computational_has_data(computational_deep_dive),
                 warnings=computational_deep_dive.warnings if computational_deep_dive else [],
@@ -224,7 +228,11 @@ def _build_section_signals(
             priority=68 if disease_mechanism and disease_mechanism.primary_condition else 36,
             confidence=0.7 if disease_mechanism and disease_mechanism.primary_condition else 0.25,
             relevance="gene_disease",
-            source_strength="curated" if disease_mechanism and disease_mechanism.primary_condition else "unavailable",
+            source_strength=(
+                "curated"
+                if disease_mechanism and disease_mechanism.primary_condition
+                else "unavailable"
+            ),
             status=_data_status(
                 has_data=bool(disease_mechanism and disease_mechanism.primary_condition),
                 warnings=disease_mechanism.warnings if disease_mechanism else [],
@@ -243,7 +251,9 @@ def _build_section_signals(
                 has_data=_gene_context_has_data(gene_context_snapshot),
             ),
             relevance="transcript_locus",
-            source_strength="curated" if _gene_context_has_data(gene_context_snapshot) else "unavailable",
+            source_strength=(
+                "curated" if _gene_context_has_data(gene_context_snapshot) else "unavailable"
+            ),
             status=_section_status(
                 gene_context_snapshot.source_status if gene_context_snapshot else "missing",
                 has_data=_gene_context_has_data(gene_context_snapshot),
@@ -259,8 +269,14 @@ def _build_section_signals(
             label="Molecular Context",
             priority=58 if _molecular_has_data(molecular_context) else 32,
             confidence=0.64 if _molecular_has_data(molecular_context) else 0.25,
-            relevance="protein_region" if molecular_context and molecular_context.domain else "transcript_locus",
-            source_strength="source_mixed" if _molecular_has_data(molecular_context) else "unavailable",
+            relevance=(
+                "protein_region"
+                if molecular_context and molecular_context.domain
+                else "transcript_locus"
+            ),
+            source_strength=(
+                "source_mixed" if _molecular_has_data(molecular_context) else "unavailable"
+            ),
             status=_data_status(
                 has_data=_molecular_has_data(molecular_context),
                 warnings=molecular_context.warnings if molecular_context else [],
@@ -279,15 +295,17 @@ def _build_section_signals(
             source_strength="literature" if payload.publications_literature else "unavailable",
             status=_data_status(
                 has_data=_publications_has_data(payload),
-                warnings=payload.publications_literature.warnings
-                if payload.publications_literature
-                else [],
+                warnings=(
+                    payload.publications_literature.warnings
+                    if payload.publications_literature
+                    else []
+                ),
             ),
             default_open=True,
             headline=_publications_headline(payload),
-            data_notes=payload.publications_literature.warnings
-            if payload.publications_literature
-            else [],
+            data_notes=(
+                payload.publications_literature.warnings if payload.publications_literature else []
+            ),
             source_refs=["publications"],
         ),
         _section_signal(
@@ -296,7 +314,9 @@ def _build_section_signals(
             priority=46 if therapies_trials and therapies_trials.trial_rows else 28,
             confidence=0.42 if therapies_trials and therapies_trials.trial_rows else 0.18,
             relevance=_trials_relevance(therapies_trials),
-            source_strength="primary_db" if therapies_trials and therapies_trials.trial_rows else "unavailable",
+            source_strength=(
+                "primary_db" if therapies_trials and therapies_trials.trial_rows else "unavailable"
+            ),
             status=_data_status(
                 has_data=bool(therapies_trials and therapies_trials.trial_rows),
                 warnings=therapies_trials.warnings if therapies_trials else [],
@@ -1086,10 +1106,14 @@ def _build_therapies_trials(
     source_status = evidence_statuses.get("clinical_trials", status)
     clinical_trials = _dict_or_empty(evidence_map.get("clinical_trials"))
     warnings = _string_list(clinical_trials.get("warnings"))
+    source_fetched_at = _optional_text(clinical_trials.get("fetched_at"))
     trial_rows: list[TrialMatch] = []
     for item in _list_of_dicts(clinical_trials.get("trial_rows")):
         try:
-            trial_rows.append(TrialMatch.model_validate(item))
+            row_payload = dict(item)
+            if source_fetched_at and not _optional_text(row_payload.get("fetched_at")):
+                row_payload["fetched_at"] = source_fetched_at
+            trial_rows.append(TrialMatch.model_validate(row_payload))
         except Exception:
             warnings.append("clinical_trials_row_validation_failed")
     query_executions: list[ClinicalTrialQueryExecution] = []

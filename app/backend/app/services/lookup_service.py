@@ -1760,6 +1760,7 @@ class LookupService:
                     f"source_result_cache_write_failed:clinical_trials:{type(exc).__name__}"
                 )
         summary = result.summary if isinstance(result.summary, dict) else {}
+        source_fetched_at = _text_value(result.fetched_at) or _text_value(summary.get("fetched_at"))
         section_warnings = _dedupe_values(
             [
                 *[str(item) for item in summary.get("warnings", []) if isinstance(item, str)],
@@ -1774,7 +1775,10 @@ class LookupService:
                 if not isinstance(item, dict):
                     continue
                 try:
-                    trial_rows.append(TrialMatch.model_validate(item))
+                    row_payload = dict(item)
+                    if source_fetched_at and not _text_value(row_payload.get("fetched_at")):
+                        row_payload["fetched_at"] = source_fetched_at
+                    trial_rows.append(TrialMatch.model_validate(row_payload))
                 except Exception:
                     section_warnings.append("clinical_trials_row_validation_failed")
 
@@ -2155,7 +2159,10 @@ class LookupService:
 
         def record_result(name: str, result: ToolResult) -> None:
             evidence.append(_result_to_evidence(result))
-            evidence_map[name] = result.summary or {}
+            summary = dict(result.summary or {})
+            if result.fetched_at and not _text_value(summary.get("fetched_at")):
+                summary["fetched_at"] = result.fetched_at
+            evidence_map[name] = summary
             evidence_raw[name] = result.raw
             evidence_statuses[name] = result.status
             warnings.extend(result.warnings)

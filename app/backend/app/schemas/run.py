@@ -784,6 +784,7 @@ class TrialMatch(BaseModel):
     evidence_field: str | None = None
     evidence_snippet: str | None = None
     last_update_posted_at: str | None = None
+    fetched_at: str | None = None
 
 
 class ClinicalTrialQueryExecution(BaseModel):
