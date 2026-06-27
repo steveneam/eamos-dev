@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-27 19:05 +1000 - PMAT-004 ClinicalTrials cache snapshot path implemented locally and verified. No deploy, remote mutation, source download, real materialization, storage upload, runtime seeding, flag change, push, or commit.
+- **Codex:** STOPPED @ 2026-06-27 19:48 +1000 - PMAT-003/004/005 committed+pushed; Render SG deployed `a3a7293`; Task E production closeout passed. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, or flag change.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-27 19:05 +1000 - Codex (PMAT-004 local closeout)
+UNLOCKED - 2026-06-27 19:48 +1000 - Codex (PMAT-005 Task E closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,53 +427,60 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-27 19:05 +1000 - Codex.
+Section last edited: 2026-06-27 19:45 +1000 - Codex.
 
-**Latest Codex update (2026-06-27 19:05 +1000 - Codex):**
-Codex implemented PMAT-004 locally after Steven approved the ClinicalTrials
-cache-snapshot option that optimizes for the section being ready with the
-variant report, not loading after scroll.
+**Latest Codex update (2026-06-27 19:45 +1000 - Codex):**
+Codex completed Steven's approved PMAT/Task E closeout sequence.
 
-PMAT-004 added:
+Done:
 
-- `LookupService.lookup()` now reads a fresh `clinical_trials`
-  `source_result_cache` row before calling the ClinicalTrials tool, so
-  `report_profile.therapies_trials` can ship in the first report payload from a
-  cached snapshot.
-- `LookupService.lookup_sections()` now maps `therapies_trials` to
-  `clinical_trials` source-result cache rows, so section hydration reuses the
-  cached snapshot instead of issuing a scroll-triggered provider call.
-- Structured no-row ClinicalTrials snapshots now render deterministic no-active
-  copy without falling through to `get_trials_summary()`, avoiding a second
-  ClinicalTrials.gov call in real mode.
-- PMAT docs now record the report-first/cache-backed loading decision and the
-  no-network/no-mutation scope.
+- Committed and pushed PMAT-003 (`c68f717`) and PMAT-004 (`6074ab0`) to
+  `origin/main`.
+- Added, verified, committed, and pushed PMAT-005 (`a3a7293`): a fixture-backed
+  bounded-slice benchmark CLI,
+  `python -m app.cli.eamos_pmat_bounded_slice_benchmark`, plus docs and tests.
+- Deployed Render SG service `srv-d8ctvoh9rddc73a27nb0` to exact commit
+  `a3a72934c4ea859b36cd01e7a181998189e8bb27`; deploy
+  `dep-d8vpgternols73e040kg` is live.
+- Closed Task E production rerun: `therapies_trials` section fetches are HTTP
+  200/`available` for ABCA4, RPE65, and USH2A; desktop report preflight passed
+  at 1280 px with no first-paint `/viewer`; Render peak RSS was 639.6 MB
+  (29.8% of the 2 GB cap).
 
 Verification:
 
 - `python -m pytest tests\test_variant_cache.py -q -k "trials"` passed.
+- `python -m pytest tests\test_variant_cache.py -q` passed.
 - `python -m pytest tests\test_lookup_section_fetch_contract.py -q` passed.
 - `python -m pytest tests\test_report_cache_contract.py -q` passed.
 - `python -m pytest tests\test_variant_report_orchestration.py -q` passed.
-- `python -m pytest tests\test_variant_cache.py -q` passed.
-- `python -m ruff check app\services\lookup_service.py tests\test_variant_cache.py` passed.
-- `python -m black --check --target-version py310 app\services\lookup_service.py tests\test_variant_cache.py` passed.
+- `python -m pytest tests\test_pmat_bounded_slice_benchmark.py -q` passed.
+- `python -m app.cli.eamos_pmat_bounded_slice_benchmark --compact --require-ready`
+  passed.
+- `python -m pytest tests\test_pubmed_seed_manifest.py -q` passed.
+- `python -m pytest -m report_cache_contract -q --durations=10` passed.
+- `python -m pytest tests\test_variant_cache.py -m "not slow" -q --durations=10`
+  passed.
+- `python -m ruff check ...` and `python -m black --check ...` passed for the
+  PMAT-004/PMAT-005 files.
 - `git diff --check` passed.
 - `python -m graphify update .` passed with the expected oversized-HTML skip.
+- Live audit: zero payload threshold violations; `/healthz` and
+  `/api/v1/health/provider-cache` returned HTTP 200.
 
-No deploy, Vercel command, Render env mutation, Supabase mutation, source
-download, real corpus materialization, Storage upload, runtime seeding, runtime
-flag flip, provider flip, push, commit, or database/server mutation occurred.
+No Supabase mutation, Vercel command, source download, real corpus
+materialization, Storage upload, runtime seeding, runtime flag change, or
+provider flip occurred.
 
-Current git state: `main...origin/main [ahead 1]` from the prior PMAT-003 local
-commit, plus uncommitted PMAT-004 local changes.
+Current git state: `main...origin/main` clean except the handoff/docs closeout
+updates in this section.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt · 2026-06-27 19:05 +1000 · Codex PMAT-004 ClinicalTrials cache snapshot
-Eamos. Start from `main...origin/main [ahead 1]` with PMAT-003 committed locally at `c68f717` and PMAT-004 uncommitted. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/pubmed-local/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: PMAT-004 implemented the report-first/cache-backed ClinicalTrials path Steven requested. `LookupService.lookup()` and `lookup_sections()` now reuse fresh `clinical_trials` source-result cache snapshots for `report_profile.therapies_trials` / `therapies_trials`, and no-active snapshots avoid a second `get_trials_summary()` live call. Docs record that scroll-triggered live ClinicalTrials loading is retry/refresh only, not the normal section-serving path.
-Verification done: trials-focused variant-cache test, full `tests\test_variant_cache.py`, lookup-section contract, report-cache contract, variant-report orchestration, Ruff, Black check, diff-check, and `python -m graphify update .` with the expected oversized-HTML skip. No deploy, remote mutation, source download, materialization, storage upload, runtime seeding, flag flip, push, or commit.
-Next requires Steven direction: approve committing/pushing the local PMAT-003+PMAT-004 state, approve PMAT-005 bounded slice benchmark plan, or explicitly approve Task E production closeout/live rerun. Do not download real sources, upload, seed runtime, mutate Supabase/Render/Vercel, deploy, or enable runtime flags without explicit approval.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env/Supabase mutation/Vercel command without explicit approval; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; do not move single-coordinate lookup off prepared cache/tabix/SQLite; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them; MaveDB stays data-only/CC0-gated unless legal/product gate changes. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-27 19:45 +1000 - Codex PMAT-005/Task E closeout
+Eamos. Start from `main...origin/main` after pushed commits `c68f717`, `6074ab0`, and `a3a7293`; Render SG deploy `dep-d8vpgternols73e040kg` is live on `a3a7293`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/task-e-performance-memory-evidence.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: PMAT-003/004/005 are committed and pushed. PMAT-004 makes therapies/trials report-first/cache-backed from `clinical_trials` source-result snapshots. PMAT-005 adds the fixture-backed bounded-slice benchmark harness and docs. Task E production closeout is deployed and verified: `therapies_trials` section fetches are HTTP 200/available, payload thresholds pass, desktop preflight passes, and Render RSS peaked at 639.6 MB.
+Verification done: PMAT-004 focused/full cache tests, lookup/report/orchestration contracts, PMAT-005 benchmark test + CLI, PMAT seed tests, fast Task E targets, Ruff, Black, diff-check, graphify update, Render deploy, live report-performance audit, desktop preflight, health/provider-cache, and Render memory metrics.
+Next: choose the next explicitly approved lane. Safe defaults are documentation/read-only planning only: no real PubMed/LitVar/PubTator/ClinicalTrials source download, Supabase/Storage upload, runtime seed, flag flip, Render env mutation, Vercel command, or deploy unless Steven explicitly approves the exact action.
+Guardrails: do not run vercel/vc from app/web; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; keep single-coordinate lookup on prepared cache/tabix/SQLite/local indexes unless a benchmark-backed ADR changes it; mobile/sub-desktop overflow gates stay disabled; MaveDB stays data-only/CC0-gated unless legal/product gate changes. End clear-safe with a fresh stamped resume prompt.
 ```

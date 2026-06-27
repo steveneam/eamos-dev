@@ -1,6 +1,6 @@
 # Variant Report Performance Optimization Plan
 
-Last updated: 2026-06-26 01:05 +1000 by Codex.
+Last updated: 2026-06-27 19:42 +1000 by Codex.
 
 ## Implementation Progress
 
@@ -69,6 +69,12 @@ Last updated: 2026-06-26 01:05 +1000 by Codex.
   `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`.
   Production closeout still needs deploy-approved rerun because live
   `/lookup/sections` still rejects `therapies_trials`.
+- 2026-06-27: Task E production closeout captured after deploying `a3a7293` to
+  Render SG (`dep-d8vpgternols73e040kg`). ABCA4/RPE65/USH2A repeated audit had
+  zero payload-threshold violations; `therapies_trials` returned HTTP 200 and
+  `available` for all three variants; desktop preflight passed at 1280 px with
+  no forbidden first-paint `/api/v1/viewer` request; Render peak RSS was
+  639.6 MB (29.8% of the 2 GB cap).
 - 2026-06-26: Task 5 local hardening completed. The existing
   `REPORT_SECTION_REGISTRY` now has a deterministic `--validate-registry`
   preflight mode, backend/FE section statuses accept the canonical UI state
@@ -107,17 +113,19 @@ The current failure mode is architectural, not a single slow provider:
 
 ## Current Evidence
 
-Read-only live audit against `https://eamos-dev-sg.onrender.com` showed:
+Latest deployed read-only audit against `https://eamos-dev-sg.onrender.com`
+showed:
 
-- ABCA4 `c.5435T>A`: `/lookup` about 5.5s warm and up to 33.8s cold-ish;
-  `/viewer` about 18.8s.
-- RPE65 `c.260A>G`: `/lookup` about 3.9s; `/viewer` about 8.8s.
-- USH2A `c.2276G>T`: `/lookup` about 7.0s and about 505 KB; `/viewer` about
-  25.5s.
-- Single lazy section fetches still cost about 4-6s because `/lookup/sections`
-  rebuilds the lookup.
-- Live `/lookup/sections` rejects `therapies_trials`, while local frontend and
-  backend contracts expect it.
+- ABCA4 `c.5435T>A`: `/lookup` p50/p95 4955/5409 ms; report payload p95
+  55,955 bytes.
+- RPE65 `c.260A>G`: `/lookup` p50/p95 4013/4162 ms; report payload p95
+  73,929 bytes.
+- USH2A `c.2276G>T`: `/lookup` p50/p95 6462/6586 ms; report payload p95
+  403,744 bytes.
+- `therapies_trials` section fetches are HTTP 200 and `available` for all
+  three variants.
+- Payload ceilings passed: report payload `<=750000` bytes, section envelope
+  `<=200000` bytes, and section payload `<=200000` bytes.
 
 The audit helper lives at `scripts/eamos-report-performance-audit.mjs` and can
 be run with:

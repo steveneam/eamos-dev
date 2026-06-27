@@ -1,6 +1,6 @@
 # Task A Architecture Inventory Findings
 
-Last updated: 2026-06-26 00:55 +1000 - Codex.
+Last updated: 2026-06-27 19:42 +1000 - Codex.
 Status: Read-only static inventory. No deploy, Render env mutation, Supabase
 mutation, Vercel command, startup/request-time download, or materialization ran.
 
@@ -64,9 +64,10 @@ Inventory scope:
    Task F must remain a read-only runbook until Steven explicitly approves a
    remote Supabase action.
 
-7. Task E production closeout remains deploy-gated.
+7. Task E production closeout is now captured.
 
-   The inventory preserves the documented live gap: deployed
-   `/api/v1/lookup/sections` still rejects `therapies_trials` until Steven
-   explicitly approves deploy and the audit is rerun against the deployed
-   contract.
+   The original static inventory preserved the pre-deploy live gap. The
+   deployed 2026-06-27 rerun now proves
+   `/api/v1/lookup/sections?include=therapies_trials` returns HTTP 200 with an
+   available payload, with timing/payload/preflight/RSS evidence recorded in
+   `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`.

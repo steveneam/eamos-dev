@@ -1,6 +1,6 @@
 # Eamos Architecture Consistency Gate
 
-Last updated: 2026-06-27 19:22 +1000 - Codex.
+Last updated: 2026-06-27 19:42 +1000 - Codex.
 Status: Local architecture gate work in progress. No deploy, Supabase mutation,
 or multi-GB materialization has been run from this plan.
 
@@ -48,10 +48,9 @@ The architecture is not yet production-certified:
   skeleton, empty, partial, stale, failed, and hydrating states.
 - Older `variant_cache.publication_data` compatibility storage is still present
   and must not become the long-term home for new report state.
-- Task E now has a live read-only evidence pass for ABCA4/RPE65/USH2A timing,
-  payloads, desktop preflight, fast test targets, and Render RSS. Production
-  closeout still requires a deploy-approved rerun because the deployed backend
-  still rejects `therapies_trials` section fetches.
+- Task E now has a deployed production closeout for ABCA4/RPE65/USH2A timing,
+  payloads, desktop preflight, fast test targets, Render RSS, and
+  `therapies_trials` section fetches.
 
 ## Gate Matrix
 
@@ -289,7 +288,7 @@ without real assets.
 
 ### Task E - Performance and Memory Proof
 
-Status: live read-only evidence captured; production rerun pending deploy.
+Status: production closeout captured after deploying `a3a7293` to Render SG.
 
 Run local and, when approved, live read-only audits:
 
@@ -309,11 +308,11 @@ behind an explicit slow-test gate so normal feature commits do not depend on a
 multi-minute file-level run.
 
 Evidence: `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`
-records live ABCA4/RPE65/USH2A cold/warm p50/p95, payload ceilings, desktop
-preflight, no first-paint viewer fetch, fast test timing, and Render peak RSS
-of 641.9 MB (31.3% of the 2 GB cap). Remaining gap: live
-`/lookup/sections` still returns 422 for `therapies_trials` until the pushed
-local contract is deployed and rechecked.
+records deployed ABCA4/RPE65/USH2A cold/warm p50/p95, payload ceilings,
+desktop preflight, no first-paint viewer fetch, fast test timing, and Render
+peak RSS of 639.6 MB (29.8% of the 2 GB cap). Live
+`/lookup/sections?include=therapies_trials` now returns HTTP 200 with an
+`available` section payload on the deployed backend.
 
 ### Task F - Supabase Production Readiness
 
