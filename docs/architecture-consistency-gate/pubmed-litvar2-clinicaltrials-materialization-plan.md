@@ -1,12 +1,14 @@
 # PubMed, LitVar2, and ClinicalTrials Materialization Plan
 
-Last updated: 2026-06-27 18:56 +1000 - Codex.
+Last updated: 2026-06-27 19:22 +1000 - Codex.
 
-Status: planning plus local tiny-fixture and cache-snapshot gates. No real
+Status: planning plus local tiny-fixture, cache-snapshot, and benchmark-contract
+gates. No real
 PubMed, LitVar2, PubTator, ClinicalTrials, Supabase, Render, or Storage
 materialization was run for this task; PMAT-002 and PMAT-003 only exercise
 temporary pytest SQLite fixtures from checked-in source fixtures plus generated
-edge files, and PMAT-004 only exercises local report/source cache rows.
+edge files, PMAT-004 only exercises local report/source cache rows, and PMAT-005
+only benchmarks the checked-in tiny fixture slice.
 
 ## Purpose
 
@@ -319,10 +321,35 @@ Evidence:
 
 ### PMAT-005 - Bounded Slice Benchmark Plan
 
+Status: implemented locally for the benchmark contract using checked-in tiny
+fixtures. No real source download, upload, runtime seeding, remote mutation,
+runtime flag change, or deploy was run.
+
 Design the representative slice benchmark before any real source build.
 Acceptance: the benchmark captures wall time, RSS, temp disk, output size,
 row-count profiles, license profiles, edge profiles, preflight time, lookup
 latency, and rollback procedure.
+
+Evidence:
+
+- `python -m app.cli.eamos_pmat_bounded_slice_benchmark --compact --require-ready`
+  stages only checked-in PMAT tiny fixtures in a temp directory, converts
+  PubTator and LitVar edges, materializes a temporary PubMed-local SQLite asset,
+  preflights it, and measures local lookup plus batch-loop latency.
+- Benchmark output includes wall-time steps, RSS checkpoints, temp-disk peak,
+  generated output sizes, row counts, license counts, edge conversion/import/
+  orphan profiles, preflight timing/checksum status, lookup p50/p95, batch
+  p50/p95, and rollback procedure.
+- The fixture profile records two articles, one licensed abstract, one
+  metadata-only article, one deleted citation, six coverage rows, three source
+  files, four converted PubTator edges, twelve converted LitVar edges, eight
+  imported literature edges, two PubTator orphan skips, and six LitVar orphan
+  skips.
+- `docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md`
+  defines the representative-slice approval gate. A future bounded real slice
+  still requires separate approval for the exact operator-staged input set and
+  remains separate from upload, registration, runtime seeding, deploy, or flag
+  enablement.
 
 ## Out Of Scope
 

@@ -1,6 +1,6 @@
 # Eamos Architecture Consistency Gate
 
-Last updated: 2026-06-27 18:56 +1000 - Codex.
+Last updated: 2026-06-27 19:22 +1000 - Codex.
 Status: Local architecture gate work in progress. No deploy, Supabase mutation,
 or multi-GB materialization has been run from this plan.
 
@@ -339,9 +339,9 @@ private Storage, secret exposure, sanitized health proof, and mutation approval.
 
 ### Task G - PubMed/LitVar2/ClinicalTrials Materialization Planning
 
-Status: planning plus local tiny-fixture/cache gates; no source download,
-materialization, upload, registration, runtime seeding, or runtime flag change
-performed.
+Status: planning plus local tiny-fixture/cache/benchmark gates; no source
+download, real materialization, upload, registration, runtime seeding, or
+runtime flag change performed.
 
 Plan the operator-gated literature and trials materialization lane after the
 architecture inventory and Supabase runbook.
@@ -355,12 +355,17 @@ Evidence: `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-mate
 defines the planned sequence for seed manifests, PubMed-local fixture proof,
 LitVar/PubTator edge import, ClinicalTrials cache snapshots, bounded-slice
 benchmarks, and the approvals required before real materialization. The PMAT
-seed-manifest, PubMed-local, LitVar/PubTator edge fixture, and ClinicalTrials
-cache-snapshot gates are now covered by backend regressions. The chosen
-ClinicalTrials loading path is report-first/cache-backed: first paint should
-receive `report_profile.therapies_trials` from a cached source result when one
-exists, and late `/lookup/sections` hydration reuses that same cache instead of
-making a scroll-triggered live registry call.
+seed-manifest, PubMed-local, LitVar/PubTator edge fixture, ClinicalTrials
+cache-snapshot, and bounded-slice benchmark-contract gates are now covered by
+backend regressions. The chosen ClinicalTrials loading path is
+report-first/cache-backed: first paint should receive
+`report_profile.therapies_trials` from a cached source result when one exists,
+and late `/lookup/sections` hydration reuses that same cache instead of making
+a scroll-triggered live registry call. PMAT-005 adds
+`python -m app.cli.eamos_pmat_bounded_slice_benchmark` and
+`docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md` so a
+future representative source slice has a required metrics and rollback
+contract before any real materialization or upload is approved.
 
 ## Next Recommended Move
 
@@ -377,6 +382,7 @@ approves that exact next action.
 - `docs/architecture-consistency-gate/task-a-findings.md`
 - `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`
 - `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`
+- `docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md`
 - `docs/data-architecture-duckdb-parquet/adr.md`
 - `docs/data-architecture-duckdb-parquet/plan.md`
 - `docs/report-backend-source-cache-readiness/plan.md`

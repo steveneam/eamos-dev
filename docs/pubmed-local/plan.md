@@ -100,9 +100,16 @@ hydrate `therapies_trials` from the same row without a provider call. Empty
 no-active ClinicalTrials snapshots now render deterministic no-active copy
 without falling through to a second live text-summary call.
 
-These remain pytest-only fixture/cache proofs, not a real PubMed corpus build,
-LitVar/PubTator/ClinicalTrials source download, upload, runtime seed, flag
-change, deploy, or remote mutation.
+PMAT-005 added the bounded-slice benchmark harness:
+`python -m app.cli.eamos_pmat_bounded_slice_benchmark --compact --require-ready`.
+It runs the checked-in PMAT tiny fixture through seed rendering, PubTator/LitVar
+edge conversion, PubMed-local materialization, preflight, local lookup latency,
+and batch-loop latency, then emits the required benchmark metrics and rollback
+procedure without local path, raw abstract, seed-row, or secret leakage.
+
+These remain pytest-only fixture/cache/benchmark-contract proofs, not a real
+PubMed corpus build, LitVar/PubTator/ClinicalTrials source download, upload,
+runtime seed, flag change, deploy, or remote mutation.
 
 ## Remaining PubMed/PMC Wiring Buckets - Local Proof Harness
 
