@@ -45,7 +45,10 @@ import {
   REPORT_LAZY_SECTION_IDS,
   REPORT_SECTION_BY_ID,
   REPORT_SIGNAL_ANCHORS,
+  reportSectionStateCopy,
+  reportSectionUiStateFromEnvelope,
   type ReportSectionId,
+  type ReportSectionUiState,
 } from '@/lib/report-section-registry'
 import {
   tsvDiseaseAndConditions,
@@ -68,6 +71,7 @@ import type {
   ExpertPanelSection as ExpertPanelSectionData,
   LookupRequest,
   LookupResponse,
+  LookupSectionEnvelope,
   LookupSectionId,
   ProteinDomainTrack,
   PublicationLiterature,
@@ -92,6 +96,7 @@ function ExpertPanelPartialNote() {
   return (
     <div
       role="note"
+      data-report-section-state="partial"
       style={{
         marginTop: 18,
         padding: '12px 14px',
@@ -142,30 +147,26 @@ function ReportSectionState({
   sectionId,
   state,
   detail,
-  retry,
+  action,
 }: {
   sectionId: ReportSectionId
-  state: 'loading' | 'empty' | 'failed'
+  state: Exclude<ReportSectionUiState, 'ready'>
   detail?: string
-  retry?: () => void
+  action?: ReactNode
 }) {
   const section = REPORT_SECTION_BY_ID[sectionId]
-  const copy =
-    state === 'loading'
-      ? `Loading ${section.label.toLowerCase()}...`
-      : state === 'failed'
-        ? section.failedState
-        : section.emptyState
+  const copy = reportSectionStateCopy(section, state)
+  const isWarningState = state === 'failed' || state === 'stale' || state === 'partial'
 
   return (
     <div
       role={state === 'failed' ? 'alert' : 'status'}
       data-report-section-state={state}
       style={{
-        border: `0.5px solid ${state === 'failed' ? 'var(--warn-bdr)' : 'var(--line)'}`,
+        border: `0.5px solid ${isWarningState ? 'var(--warn-bdr)' : 'var(--line)'}`,
         borderRadius: 8,
         padding: '14px 16px',
-        background: state === 'failed' ? 'var(--warn-tint)' : 'var(--bg-soft)',
+        background: isWarningState ? 'var(--warn-tint)' : 'var(--bg-soft)',
         color: 'var(--ink-4)',
         fontSize: 12,
         lineHeight: 1.55,
@@ -181,11 +182,7 @@ function ReportSectionState({
         }}
       >
         <span>{copy}</span>
-        {retry && (
-          <button type="button" onClick={retry} className="eamos-toggle-btn" style={{ fontSize: 11.5 }}>
-            Retry
-          </button>
-        )}
+        {action && state === 'failed' && action}
       </div>
       {detail && <div style={{ marginTop: 6, overflowWrap: 'anywhere' }}>{detail}</div>}
     </div>
@@ -193,38 +190,50 @@ function ReportSectionState({
 }
 
 function ReportSectionSkeletonCard({ sectionId }: { sectionId: ReportSectionId }) {
-  const section = REPORT_SECTION_BY_ID[sectionId]
-  return (
-    <Card number={section.number} title={section.title} meta={section.meta}>
-      <ReportSectionState sectionId={sectionId} state="loading" />
-    </Card>
-  )
+  return <ReportSectionStateCard sectionId={sectionId} state="loading" />
 }
 
 function ReportSectionEmptyCard({ sectionId }: { sectionId: ReportSectionId }) {
-  const section = REPORT_SECTION_BY_ID[sectionId]
-  return (
-    <Card number={section.number} title={section.title} meta={section.meta}>
-      <ReportSectionState sectionId={sectionId} state="empty" />
-    </Card>
-  )
+  return <ReportSectionStateCard sectionId={sectionId} state="empty" />
 }
 
 function ReportSectionErrorCard({
   sectionId,
   message,
-  retry,
+  action,
 }: {
   sectionId: ReportSectionId
   message: string
-  retry: () => void
+  action: ReactNode
+}) {
+  return <ReportSectionStateCard sectionId={sectionId} state="failed" detail={message} action={action} />
+}
+
+function ReportSectionStateCard({
+  sectionId,
+  state,
+  detail,
+  action,
+}: {
+  sectionId: ReportSectionId
+  state: Exclude<ReportSectionUiState, 'ready'>
+  detail?: string
+  action?: ReactNode
 }) {
   const section = REPORT_SECTION_BY_ID[sectionId]
   return (
     <Card number={section.number} title={section.title} meta={section.meta}>
-      <ReportSectionState sectionId={sectionId} state="failed" detail={message} retry={retry} />
+      <ReportSectionState sectionId={sectionId} state={state} detail={detail} action={action} />
     </Card>
   )
+}
+
+function stateFromEnvelope(
+  envelope: LookupSectionEnvelope,
+  fallback: Exclude<ReportSectionUiState, 'ready'> = 'partial',
+): Exclude<ReportSectionUiState, 'ready'> {
+  const state = reportSectionUiStateFromEnvelope(envelope)
+  return state === 'ready' ? fallback : state
 }
 
 const SIGNAL_STATUS_LABEL: Record<ReportSectionSignal['status'], string> = {
@@ -1080,6 +1089,18 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             forceLoad={lazyOverrides.has('clingen_vcep')}
             placeholder={<ReportSectionState sectionId="clinical_evidence" state="loading" />}
             emptyView={<ExpertPanelPartialNote />}
+            sectionStateView={(env, retryAction) => (
+              <ReportSectionState
+                sectionId="clinical_evidence"
+                state={stateFromEnvelope(env)}
+                detail={
+                  env.warnings.length > 0
+                    ? env.warnings.join(' | ')
+                    : 'ClinGen/VCEP evidence is not fully source-backed for this lookup.'
+                }
+                action={retryAction}
+              />
+            )}
             errorView={() => <ExpertPanelPartialNote />}
           >
             {(section) => <ExpertPanelSection data={section} />}
@@ -1133,6 +1154,23 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
             unwrap={(env) => (env.payload as ComputationalDeepDiveSection | null) ?? null}
             forceLoad={lazyOverrides.has('computational_deep_dive')}
             placeholder={<ReportSectionState sectionId="evidence_by_source" state="loading" />}
+            emptyView={<ReportSectionState sectionId="evidence_by_source" state="empty" />}
+            sectionStateView={(env, retryAction) => (
+              <ReportSectionState
+                sectionId="evidence_by_source"
+                state={stateFromEnvelope(env)}
+                detail={env.warnings.join(' | ') || undefined}
+                action={retryAction}
+              />
+            )}
+            errorView={(message, retryAction) => (
+              <ReportSectionState
+                sectionId="evidence_by_source"
+                state="failed"
+                detail={message}
+                action={retryAction}
+              />
+            )}
           >
             {(section) => (
               <>
@@ -1309,8 +1347,16 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           forceLoad={lazyOverrides.has('publications')}
           placeholder={<ReportSectionSkeletonCard sectionId="publications" />}
           emptyView={<ReportSectionEmptyCard sectionId="publications" />}
-          errorView={(message, retry) => (
-            <ReportSectionErrorCard sectionId="publications" message={message} retry={retry} />
+          sectionStateView={(env, retryAction) => (
+            <ReportSectionStateCard
+              sectionId="publications"
+              state={stateFromEnvelope(env)}
+              detail={env.warnings.join(' | ') || undefined}
+              action={retryAction}
+            />
+          )}
+          errorView={(message, retryAction) => (
+            <ReportSectionErrorCard sectionId="publications" message={message} action={retryAction} />
           )}
         >
           {(lit) => (
@@ -1342,20 +1388,20 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           }
           sectionId="therapies_trials"
           request={effectiveSummaryRequest ?? null}
-          unwrap={(env) =>
-            (env.payload as TherapiesTrialsSection | null) ?? {
-              trial_rows: [],
-              query_executions: [],
-              provenance: [],
-              warnings:
-                env.warnings.length > 0 ? env.warnings : ['clinical_trials_unavailable'],
-            }
-          }
+          unwrap={(env) => (env.payload as TherapiesTrialsSection | null) ?? null}
           forceLoad={lazyOverrides.has('therapies_trials')}
           placeholder={<ReportSectionSkeletonCard sectionId="trials" />}
           emptyView={<ReportSectionEmptyCard sectionId="trials" />}
-          errorView={(message, retry) => (
-            <ReportSectionErrorCard sectionId="trials" message={message} retry={retry} />
+          sectionStateView={(env, retryAction) => (
+            <ReportSectionStateCard
+              sectionId="trials"
+              state={stateFromEnvelope(env)}
+              detail={env.warnings.join(' | ') || undefined}
+              action={retryAction}
+            />
+          )}
+          errorView={(message, retryAction) => (
+            <ReportSectionErrorCard sectionId="trials" message={message} action={retryAction} />
           )}
         >
           {(section) => (

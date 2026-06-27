@@ -1,6 +1,6 @@
 # Variant Report Performance Optimization Plan
 
-Last updated: 2026-06-26 00:20 +1000 by Codex.
+Last updated: 2026-06-26 01:05 +1000 by Codex.
 
 ## Implementation Progress
 
@@ -69,6 +69,11 @@ Last updated: 2026-06-26 00:20 +1000 by Codex.
   `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`.
   Production closeout still needs deploy-approved rerun because live
   `/lookup/sections` still rejects `therapies_trials`.
+- 2026-06-26: Task 5 local hardening completed. The existing
+  `REPORT_SECTION_REGISTRY` now has a deterministic `--validate-registry`
+  preflight mode, backend/FE section statuses accept the canonical UI state
+  vocabulary, and lazy sections can render empty/partial/stale/failed registry
+  states instead of collapsing non-ready envelopes into generic errors.
 
 ## Goal
 
@@ -397,7 +402,8 @@ Evidence:
 
 ### Task 5 - Frontend Section Registry and Stable Skeletons
 
-Status: NEXT REPORT-PERFORMANCE TASK - 2026-06-25 - Codex.
+Status: COMPLETE LOCALLY FOR DESKTOP SLOT/STATE/PREFLIGHT HARDENING -
+2026-06-26 - Codex.
 
 Goal: make every report section appear in a predictable order with consistent
 loading, empty, partial, failed, and stale states.
@@ -430,6 +436,18 @@ Acceptance criteria:
 - Desktop report layouts keep stable section slots during hydration.
 - Mobile/sub-desktop overflow and stability gates are inactive until Steven
   explicitly reactivates them.
+
+Evidence:
+
+- `app/web/lib/report-section-registry.json` is the seven-section desktop
+  registry for required slots, anchors, lazy contracts, and empty/partial/
+  stale/failed copy.
+- `app/web/lib/report-section-registry.ts` normalizes section envelopes into
+  stable UI states.
+- `LazySection` supports empty and registry-state fallback rendering for
+  non-ready section envelopes.
+- `scripts/eamos-report-preflight.mjs --validate-registry --json` passes and
+  normal preflight includes the same registry validation as a failure gate.
 
 Verify:
 

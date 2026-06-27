@@ -45,8 +45,10 @@ export interface LazySectionProps<T> {
   placeholder?: ReactNode
   /** Rendered when there is no eager data and no request to drive a fetch. */
   emptyView?: ReactNode
+  /** Rendered when the backend returns a non-ready envelope without typed payload. */
+  sectionStateView?: (envelope: LookupSectionEnvelope, retryAction: ReactNode) => ReactNode
   /** Rendered when the fetch fails. Defaults include a retry button. */
-  errorView?: (message: string, retry: () => void) => ReactNode
+  errorView?: (message: string, retryAction: ReactNode) => ReactNode
   /**
    * Margin around the observer root. The default starts the fetch ~200px
    * before the section scrolls into the viewport so the network round-trip
@@ -64,6 +66,8 @@ type LoadState<T> =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'ready'; data: T }
+  | { kind: 'empty' }
+  | { kind: 'section_state'; envelope: LookupSectionEnvelope }
   | { kind: 'error'; message: string }
 
 export function LazySection<T>({
@@ -74,6 +78,7 @@ export function LazySection<T>({
   children,
   placeholder,
   emptyView,
+  sectionStateView,
   errorView,
   rootMargin = '200px',
   forceLoad = false,
@@ -91,6 +96,7 @@ export function LazySection<T>({
       unwrap={unwrap}
       placeholder={placeholder}
       emptyView={emptyView}
+      sectionStateView={sectionStateView}
       errorView={errorView}
       rootMargin={rootMargin}
       forceLoad={forceLoad}
@@ -106,7 +112,8 @@ interface LazyFetchSectionProps<T> {
   unwrap: (envelope: LookupSectionEnvelope) => T | null
   placeholder?: ReactNode
   emptyView?: ReactNode
-  errorView?: (message: string, retry: () => void) => ReactNode
+  sectionStateView?: (envelope: LookupSectionEnvelope, retryAction: ReactNode) => ReactNode
+  errorView?: (message: string, retryAction: ReactNode) => ReactNode
   rootMargin: string
   forceLoad: boolean
   children: (data: T) => ReactNode
@@ -118,6 +125,7 @@ function LazyFetchSection<T>({
   unwrap,
   placeholder,
   emptyView,
+  sectionStateView,
   errorView,
   rootMargin,
   forceLoad,
@@ -180,6 +188,14 @@ function LazyFetchSection<T>({
         }
         const data = unwrapRef.current(envelope)
         if (data == null) {
+          if (envelope.status === 'missing' || envelope.status === 'empty' || envelope.status === 'unsupported') {
+            setState({ kind: 'empty' })
+            return
+          }
+          if (sectionStateView) {
+            setState({ kind: 'section_state', envelope })
+            return
+          }
           setState({ kind: 'error', message: `Section "${sectionId}" payload could not be narrowed.` })
           return
         }
@@ -190,7 +206,12 @@ function LazyFetchSection<T>({
         const message = err instanceof Error ? err.message : 'Section fetch failed.'
         setState({ kind: 'error', message })
       })
-  }, [requestBody, sectionId])
+  }, [requestBody, sectionId, sectionStateView])
+
+  const retry = useCallback(() => {
+    fetchedRef.current = false
+    runFetch()
+  }, [runFetch])
 
   useEffect(() => {
     if (forceLoad) {
@@ -221,16 +242,14 @@ function LazyFetchSection<T>({
   }, [forceLoad, rootMargin, runFetch])
 
   if (state.kind === 'ready') return <>{children(state.data)}</>
+  if (state.kind === 'empty') return <>{emptyView ?? null}</>
+  const retryAction = <RetryAction onRetry={retry} />
   if (state.kind === 'error') {
-    const retry = () => {
-      fetchedRef.current = false
-      runFetch()
-    }
-    // False positive: `retry` reads fetchedRef.current only when invoked (a
-    // click handler), never during render.
-    // eslint-disable-next-line react-hooks/refs
-    if (errorView) return <>{errorView(state.message, retry)}</>
+    if (errorView) return <>{errorView(state.message, retryAction)}</>
     return <DefaultErrorView message={state.message} onRetry={retry} />
+  }
+  if (state.kind === 'section_state') {
+    if (sectionStateView) return <>{sectionStateView(state.envelope, retryAction)}</>
   }
 
   // idle or loading — same visual state. The sentinel must be in the DOM
@@ -244,6 +263,14 @@ function LazyFetchSection<T>({
 
 function isAbortError(err: unknown) {
   return err instanceof Error && err.name === 'AbortError'
+}
+
+function RetryAction({ onRetry }: { onRetry: () => void }) {
+  return (
+    <button type="button" onClick={onRetry} className="eamos-toggle-btn" style={{ fontSize: 11.5 }}>
+      Retry
+    </button>
+  )
 }
 
 function DefaultPlaceholder({ sectionId }: { sectionId: LookupSectionId }) {

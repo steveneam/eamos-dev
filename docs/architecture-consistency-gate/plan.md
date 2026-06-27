@@ -1,8 +1,8 @@
 # Eamos Architecture Consistency Gate
 
-Last updated: 2026-06-26 00:20 +1000 - Codex.
-Status: Draft gate for Steven review. No code, deploy, Supabase mutation, or
-multi-GB materialization is implied by this document.
+Last updated: 2026-06-26 01:05 +1000 - Codex.
+Status: Local architecture gate work in progress. No deploy, Supabase mutation,
+or multi-GB materialization has been run from this plan.
 
 ## Goal
 
@@ -238,11 +238,31 @@ state contracts.
 
 ### Task B - Section Registry and UI Stability
 
+Status: implemented locally for desktop slot/state/preflight hardening.
+
 Implement or review `REPORT_SECTION_REGISTRY` before further report UI growth.
 
-Acceptance: every required report section renders a stable slot on desktop and
-mobile before hydration, and `scripts/eamos-report-preflight.mjs` fails when a
-required slot disappears.
+Acceptance: every required report section renders a stable desktop slot before
+hydration, and `scripts/eamos-report-preflight.mjs` fails when a required slot
+disappears.
+
+Evidence:
+
+- `app/web/lib/report-section-registry.json` defines seven required desktop
+  section slots with anchor, navigation/export, lazy-section, and
+  empty/partial/stale/failed state copy.
+- `app/web/lib/report-section-registry.ts` maps backend section envelopes to
+  canonical UI states while preserving current `available`/`missing` legacy
+  statuses.
+- `LazySection` can now render empty or registry state views for non-ready
+  section envelopes instead of collapsing them into generic fetch errors.
+- `scripts/eamos-report-preflight.mjs --validate-registry` validates registry
+  shape without launching Chrome, and normal preflight now fails when registry
+  validation fails.
+
+Scope note: mobile/sub-desktop overflow and layout-stability gates remain
+disabled until Steven explicitly reactivates them. The active preflight gate is
+desktop-only.
 
 ### Task C - Cache Boundary Cleanup
 
@@ -297,6 +317,8 @@ local contract is deployed and rechecked.
 
 ### Task F - Supabase Production Readiness
 
+Status: read-only runbook drafted; no remote Supabase action performed.
+
 Before any remote schema/storage change:
 
 - search current Supabase docs/changelog for relevant breaking changes;
@@ -310,17 +332,44 @@ Before any remote schema/storage change:
 Acceptance: migration/runbook includes verification SQL and sanitized health
 proof. No remote mutation happens without explicit approval.
 
+Evidence: `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`
+defines the read-only checklist for current docs/changelog, schema inventory,
+RLS, grants/Data API exposure, FK/composite indexes, advisors, views/functions,
+private Storage, secret exposure, sanitized health proof, and mutation approval.
+
+### Task G - PubMed/LitVar2/ClinicalTrials Materialization Planning
+
+Status: planning drafted; no source download, materialization, upload,
+registration, runtime seeding, or runtime flag change performed.
+
+Plan the operator-gated literature and trials materialization lane after the
+architecture inventory and Supabase runbook.
+
+Acceptance: PubMed-local, PMC license/text overlays, LitVar/PubTator edges, and
+ClinicalTrials snapshots are split into separately approved lanes with
+tiny-fixture, benchmark, sanitization, and storage-readiness gates before any
+real corpus materialization.
+
+Evidence: `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`
+defines the planned sequence for seed manifests, PubMed-local fixture proof,
+LitVar/PubTator edge import, ClinicalTrials cache snapshots, bounded-slice
+benchmarks, and the approvals required before real materialization.
+
 ## Next Recommended Move
 
-Do Task A as a read-only inventory, then Task B if Steven wants frontend
-stability first, or Task D if Steven redirects to data architecture. Do not
-start multi-GB Parquet conversion until Task D's tiny fixture preflight and
-Task E's benchmark harness exist.
+Verify the local Task A/B/F/G artifacts, update graphify, then stop before any
+Task E deploy closeout, remote Supabase action, source download, corpus
+materialization, or DuckDB/Parquet Phase 2 work unless Steven explicitly
+approves that exact next action.
 
 ## References
 
 - `docs/report-performance-optimization/plan.md`
 - `docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`
+- `docs/architecture-consistency-gate/inventory.json`
+- `docs/architecture-consistency-gate/task-a-findings.md`
+- `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`
+- `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`
 - `docs/data-architecture-duckdb-parquet/adr.md`
 - `docs/data-architecture-duckdb-parquet/plan.md`
 - `docs/report-backend-source-cache-readiness/plan.md`

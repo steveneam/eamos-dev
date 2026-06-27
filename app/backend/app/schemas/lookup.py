@@ -224,7 +224,17 @@ LookupSectionId = Literal[
     "computational_deep_dive",
     "clingen_vcep",
 ]
-LookupSectionStatus = Literal["available", "partial", "missing"]
+LookupSectionStatus = Literal[
+    "ready",
+    "available",
+    "empty",
+    "missing",
+    "partial",
+    "hydrating",
+    "stale",
+    "failed",
+    "unsupported",
+]
 
 
 class LookupSummaryTile(BaseModel):

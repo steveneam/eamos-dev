@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-26 00:31 +1000 - Steven-approved Task E evidence docs ready for commit/push; Drizzle ORM reviewed as architecture input only. No deploy/remote mutation/materialization. NEXT: deploy-approved Task E production rerun, or Task A inventory.
+- **Codex:** STOPPED @ 2026-06-26 01:13 +1000 - Architecture gate Task A inventory, Task B desktop section-state/preflight hardening, Task F Supabase runbook, and Task G PubMed/LitVar2/ClinicalTrials materialization planning completed locally. No deploy, remote mutation, source download, or real materialization.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-26 00:31 +1000 - Codex (Task E evidence docs + Drizzle architecture review)
+UNLOCKED - 2026-06-26 01:13 +1000 - Codex (architecture gate wrap-up)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,57 +427,53 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-26 00:31 +1000 - Codex.
+Section last edited: 2026-06-26 01:13 +1000 - Codex.
 
-**Latest Codex update (2026-06-26 00:31 +1000 - Codex):**
-Steven approved pushing Task D/E local gates; Codex pushed `080516b`
-(`feat(analytics): add DuckDB release preflight gate`) and `0113521`
-(`docs(handoff): record task d e gates`) to `origin/main`.
+**Latest Codex update (2026-06-26 01:13 +1000 - Codex):**
+Steven approved doing everything up to PubMed materialization, not deploy or
+remote mutation. Codex completed the local architecture-gate sequence through
+Task G and stopped before real materialization.
 
-Steven then approved committing/pushing the Task E evidence docs. This session
-prepares that evidence package for source control and keeps deployment gated.
+Completed locally:
+- Task A read-only inventory: added
+  `docs/architecture-consistency-gate/inventory.json` and
+  `docs/architecture-consistency-gate/task-a-findings.md`; updated
+  `docs/architecture-consistency-gate/inventory.md`.
+- Task B section-registry hardening: expanded lookup section status contracts,
+  mapped backend envelopes to stable registry UI states, taught lazy sections
+  to render empty/partial/stale/failed section states, and added registry
+  validation to `scripts/eamos-report-preflight.mjs`.
+- Task F Supabase production-readiness planning: added
+  `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`
+  using read-only checks only.
+- Task G PubMed/LitVar2/ClinicalTrials planning: added
+  `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`.
+- Updated architecture/performance plans to point at the local evidence and
+  keep mobile/sub-desktop overflow gates disabled.
 
-Task E live read-only evidence is captured locally in
-`docs/architecture-consistency-gate/task-e-performance-memory-evidence.md`, with
-plan updates in `docs/architecture-consistency-gate/plan.md`,
-`docs/report-performance-optimization/plan.md`, and `PROGRESS.md`.
+Verification:
+- `node scripts\eamos-report-preflight.mjs --validate-registry --json` passed.
+- `cd app\backend; python -m pytest tests\test_lookup_section_fetch_contract.py -q`
+  passed.
+- `cd app\backend; python -m pytest tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py -q`
+  passed.
+- `npm --prefix app\web run lint` passed.
+- `git diff --check` passed.
+- `python -m graphify update .` passed with the expected oversized-HTML skip;
+  `graphify-out/graph.json` and `GRAPH_REPORT.md` were rebuilt.
 
-Evidence summary:
-- Live audit against `https://eamos-dev-sg.onrender.com` for ABCA4 `c.5435T>A`,
-  RPE65 `c.260A>G`, and USH2A `c.2276G>T` recorded cold/warm p50/p95 and passed
-  payload ceilings (`report_payload <= 750000`, section envelope/payload
-  `<= 200000`).
-- Lookup p50/p95: ABCA4 5193/7410 ms, RPE65 3868/3907 ms, USH2A 5376/5992 ms.
-- Render memory metrics over the audit window peaked at 641.9 MB, 31.3% of the
-  2 GB cap, with no observed OOM/restart.
-- Browser preflight passed at 1280 px for ABCA4/RPE65/USH2A: no overflow, no
-  missing required slots/anchors, and no forbidden first-paint `/api/v1/viewer`
-  fetch.
-- Fast test timing passed: `pytest -m report_cache_contract` 27.9 s,
-  `tests/test_variant_cache.py -m "not slow"` 15.1 s,
-  `tests/test_lookup_section_fetch_contract.py` 23.2 s.
-
-Production gap: live `/api/v1/lookup/sections` still returns 422 for
-`therapies_trials`, showing the deployed backend is behind the pushed local
-contract. Task E is locally satisfied as a harness/evidence layer, but not
-production-closed until Steven approves deploy and the same audit is rerun
-against the deployed commit.
-
-No deploy, Vercel command, Render env mutation, Supabase mutation, DuckDB repo
-clone, real corpus/materialization job, startup/request-time download, or
-provider flip occurred.
-
-Drizzle ORM review: useful later only if Eamos adds a TypeScript-owned direct
-Postgres/Supabase data layer or wants a TS schema mirror for frontend-owned
-tables. It should not replace the current Python SQLAlchemy runtime cache/repos,
-Supabase SQL migrations/RLS posture, or DuckDB/Parquet analytical lane now.
+No deploy, Vercel command, Render env mutation, Supabase mutation, source
+download, corpus materialization, Storage upload, runtime seeding, runtime flag
+flip, or provider flip occurred. Task E production closeout remains gated until
+Steven explicitly approves deploy and the live audit is rerun to confirm
+`therapies_trials` no longer returns 422.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-26 00:31 +1000 - Codex Task E evidence docs approved
-Eamos. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/task-e-performance-memory-evidence.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Task D/E commits `080516b` and `0113521` are pushed to origin/main. Steven approved committing/pushing Task E live read-only evidence docs: ABCA4/RPE65/USH2A latency/payload audit, desktop preflight/no-viewer-fetch proof, fast test timing, and Render RSS peak 641.9 MB (31.3% of 2 GB). Drizzle ORM was reviewed read-only; no integration was implemented.
-Verification done: live `audit:report-performance --runs=3 --skip-viewer` with payload ceilings; live Render memory metrics; live report preflight for ABCA4/RPE65/USH2A; `pytest -m report_cache_contract`; `tests/test_variant_cache.py -m "not slow"`; `tests/test_lookup_section_fetch_contract.py`; live health/provider-cache read-only checks.
-Next: production-close Task E only after an explicit deploy approval and rerun, because live `/lookup/sections` still returns 422 for `therapies_trials` until the pushed local contract is deployed. Otherwise default to Task A read-only inventory.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env or Supabase mutation without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC layered; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-26 01:13 +1000 - Codex Architecture Gate A/B/F/G completed locally
+Eamos. Continue from dirty local `main...origin/main` after Codex architecture-gate local work. First read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/task-a-findings.md, docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Task A inventory artifact/findings were added; Task B desktop section-state/preflight hardening was implemented; Task F Supabase production-readiness runbook was drafted read-only; Task G PubMed/LitVar2/ClinicalTrials materialization planning was drafted. Changed files include backend lookup status schema/tests, frontend LazySection/ReportClient/report-section registry/backend types, report preflight registry validation, architecture/performance docs, and handoff.
+Verification done: `node scripts\eamos-report-preflight.mjs --validate-registry --json`; `cd app\backend; python -m pytest tests\test_lookup_section_fetch_contract.py -q`; `cd app\backend; python -m pytest tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py -q`; `npm --prefix app\web run lint`; `git diff --check`; `python -m graphify update .` (passed; skipped oversized HTML as expected, rebuilt graph.json/GRAPH_REPORT.md).
+Next: review/commit the local architecture-gate changes if desired. Production-close Task E only after explicit deploy approval and rerun live audit to confirm `/lookup/sections` `therapies_trials` no longer returns 422. PubMed/LitVar2/ClinicalTrials work remains planning only; next implementation should start with seed manifest/tiny-fixture gates, not real corpus download/materialization. DuckDB/Parquet Phase 2+ stays operator-gated after tiny-fixture and benchmark planning.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env/Supabase mutation/Vercel command without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC layered; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them; Drizzle only as future TS-owned server/admin querying/schema mirror, not a replacement for Python SQLAlchemy/FastAPI. End clear-safe with a fresh stamped resume prompt.
 ```

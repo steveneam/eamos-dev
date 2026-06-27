@@ -1,5 +1,5 @@
 import registryData from './report-section-registry.json'
-import type { LookupSectionId } from '@/lib/backend'
+import type { LookupSectionEnvelope, LookupSectionId, LookupSectionStatus } from '@/lib/backend'
 
 export type ReportSectionId =
   | 'clinical_evidence'
@@ -12,6 +12,7 @@ export type ReportSectionId =
 
 export type ReportSectionLoadPolicy = 'eager' | 'lazy' | 'eager_with_lazy_panel'
 export type ReportSectionSkeleton = 'card_skeleton' | 'panel_skeleton'
+export type ReportSectionUiState = 'ready' | 'loading' | 'empty' | 'partial' | 'stale' | 'failed'
 
 export interface ReportSectionRegistryEntry {
   id: ReportSectionId
@@ -78,3 +79,38 @@ export const REPORT_SIGNAL_ANCHORS = REPORT_SECTION_REGISTRY.reduce<Record<strin
   },
   {},
 )
+
+export function reportSectionUiStateFromEnvelope(
+  envelope: Pick<LookupSectionEnvelope, 'status' | 'freshness' | 'warnings'> | null | undefined,
+): ReportSectionUiState {
+  if (!envelope) return 'empty'
+  if (envelope.freshness?.stale_on_failure || envelope.status === 'stale') return 'stale'
+  if (isFailedSectionStatus(envelope.status)) return 'failed'
+  if (isLoadingSectionStatus(envelope.status)) return 'loading'
+  if (isEmptySectionStatus(envelope.status)) return 'empty'
+  if (envelope.status === 'partial') return 'partial'
+  return 'ready'
+}
+
+export function reportSectionStateCopy(
+  section: ReportSectionRegistryEntry,
+  state: Exclude<ReportSectionUiState, 'ready'>,
+): string {
+  if (state === 'loading') return `Loading ${section.label.toLowerCase()}...`
+  if (state === 'partial') return section.partialState
+  if (state === 'stale') return section.staleState
+  if (state === 'failed') return section.failedState
+  return section.emptyState
+}
+
+function isEmptySectionStatus(status: LookupSectionStatus): boolean {
+  return status === 'empty' || status === 'missing' || status === 'unsupported'
+}
+
+function isLoadingSectionStatus(status: LookupSectionStatus): boolean {
+  return status === 'hydrating'
+}
+
+function isFailedSectionStatus(status: LookupSectionStatus): boolean {
+  return status === 'failed'
+}

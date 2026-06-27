@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from app.schemas.lookup import LookupInitialSummaryResponse, LookupResponse
 from app.schemas.lookup import LookupSectionEnvelope, LookupSectionFetchResponse
 from app.schemas.run import (
@@ -14,6 +16,26 @@ from app.schemas.run import (
 )
 from app.services.lookup_sections import build_lookup_section_fetch_response
 from app.services.lookup_timing import LOOKUP_TIMING_HEADER, LOOKUP_TIMING_SCHEMA_VERSION
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "ready",
+        "available",
+        "empty",
+        "missing",
+        "partial",
+        "hydrating",
+        "stale",
+        "failed",
+        "unsupported",
+    ],
+)
+def test_lookup_section_status_contract_accepts_registry_ui_states(status) -> None:
+    envelope = LookupSectionEnvelope(section_id="publications", status=status)
+
+    assert envelope.status == status
 
 
 def test_default_lookup_omits_m11_lazy_heavy_sections(client) -> None:

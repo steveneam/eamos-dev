@@ -1,6 +1,6 @@
 # Eamos Architecture Inventory
 
-Last updated: 2026-06-25 23:59 +1000 - Codex.
+Last updated: 2026-06-26 00:55 +1000 - Codex.
 Status: Static inventory for the architecture consistency gate. This is not a
 production sign-off, remote audit, deploy approval, or Supabase migration.
 
@@ -14,6 +14,14 @@ This inventory maps the current local Eamos skeleton across:
 - frontend report surfaces;
 - health/preflight/performance surfaces;
 - storage and analytical-artifact boundaries.
+
+Machine-readable Task A artifact:
+
+- `docs/architecture-consistency-gate/inventory.json`
+
+Current Task A findings:
+
+- `docs/architecture-consistency-gate/task-a-findings.md`
 
 It is deliberately conservative: if a property needs a live database, Supabase
 advisor run, browser pass, or load test, this file marks it as unproven instead
@@ -47,7 +55,7 @@ without sanitized evidence.
 | --- | --- | --- | --- | --- |
 | Route bounds matrix | Codex/backend | Every expensive route has auth or an explicit public model, rate/input bounds, and named failure states. | Static route inventory plus focused tests for lookup, batch, workbench, chat, report/run ownership, and payment webhook behavior. | Unauthenticated or unbounded mutation/read path; unclear ownership checks; generic 500 or blank failure state. |
 | SQL and cache ownership | Codex/backend | New report/source state writes to `report_shell_cache`, `report_section_cache`, `source_result_cache`, or source-specific caches, not only `variant_cache.publication_data`. | Cache tests prove table-backed shell/section/source rows are read first and legacy JSON remains compatibility-only. | New section payload is stored only in legacy JSON, or cache key/freshness/schema version is missing. |
-| Frontend report section registry | Codex scoped implementation, Claude design review when available | Required report sections have stable desktop slots before hydration. Mobile overflow/stability is inactive until Steven explicitly reactivates it. | `REPORT_SECTION_REGISTRY` defines ids, anchors, required flags, skeleton/empty/error contracts, nav/export participation, and preflight-required slots. | Section identity exists as scattered constants, or a required desktop section disappears when data is empty, delayed, stale, or failed. |
+| Frontend report section registry | Codex scoped implementation, Claude design review when available | Required report sections have stable desktop slots before hydration. Mobile overflow/stability is inactive until Steven explicitly reactivates it. | `REPORT_SECTION_REGISTRY` defines ids, anchors, required flags, skeleton/empty/partial/stale/failed contracts, nav/export participation, and preflight-required slots. | A required desktop section disappears when data is empty, delayed, stale, or failed, or registry/preflight parity drifts. |
 | Report preflight slot gate | Codex/frontend tooling | Desktop preflight fails before hydration if required report slots are missing. Sub-desktop widths are ignored. | `scripts/eamos-report-preflight.mjs` asserts registry-required slots for desktop fixtures or target URL. | Browser report renders without one of the required desktop anchors/slots and the preflight still exits 0. |
 | Performance and memory proof | Codex backend, Claude browser verification as needed | Cold/warm report paths have p50/p95, payload size, provider-call, cache-hit, duplicate-viewer-fetch, and peak-RSS evidence. | `scripts/eamos-report-performance-audit.mjs --runs=<n>` records cold/warm p50/p95 and payload-ceiling checks; report preflight, focused tests, and memory-watch output are recorded with exact variants and dates. | Static code inspection is used as proof; no cold/warm distinction; no peak RSS or payload ceiling. |
 | DuckDB/Parquet artifact contract | Codex/backend | Analytical lane has tiny-fixture layout, manifest, checksum, row-count, and sanitized health proof only. | Tiny fixture preflight validates `bronze/silver/gold/<release>/chrom=<chrom>/` without real corpus materialization. | DuckDB is placed on the request path, a multi-GB build runs, or health leaks local paths/object secrets. |
@@ -116,13 +124,13 @@ readiness still requires a Supabase-side migration/advisor pass for:
 
 | Surface | Current role | Gate status |
 | --- | --- | --- |
-| `ReportClient.tsx` | Main report composition, lazy override IDs, section anchors, section renders. | Needs a central section registry before more sections are added. |
+| `ReportClient.tsx` | Main report composition, lazy override IDs, section anchors, section renders. | Consumes `REPORT_SECTION_REGISTRY` for section anchors/slots; Task B should harden state mapping and registry/preflight parity. |
 | `LazySection.tsx` | IntersectionObserver-driven section fetch to `/api/v1/lookup/sections`, placeholder/error/success state. | Good generic primitive; required section slots should be registry-driven and preflight-enforced. |
 | `ReportGeneViewer.tsx` | Uses seeded viewer payload when available, otherwise fallback fetch. | Keep no-duplicate-fetch invariant under browser verification. |
-| `ReportSectionNav.tsx` | Scroll-spy navigation for report anchors. | Should consume registry metadata rather than its own hard-coded list. |
+| `ReportSectionNav.tsx` | Scroll-spy navigation for report anchors. | Consumes registry metadata. |
 | Export serializers | TSV/HTML/full report export. | Should consume section registry metadata where possible, so export coverage does not drift from UI coverage. |
 | `DataCurrencyLine.tsx` and `ProvenanceNote.tsx` | Source freshness and non-live disclosure. | Must remain visible for stale/fallback/partial states. |
-| `scripts/eamos-report-preflight.mjs` | Browser/preflight check for lazy sections and report rendering. | Extend to assert required section slots before hydration and fail on missing registry slots. |
+| `scripts/eamos-report-preflight.mjs` | Browser/preflight check for lazy sections and report rendering. | Reads registry JSON and fails when required desktop slots/anchors are missing. Task B should add registry-schema parity assertions. |
 
 Current lazy-eligible section IDs are:
 
@@ -131,8 +139,7 @@ Current lazy-eligible section IDs are:
 - `computational_deep_dive`;
 - `clingen_vcep`.
 
-Task 5 should make these IDs data, not scattered constants. The registry should
-include:
+The registry now includes:
 
 - section ID;
 - anchor ID;
@@ -220,11 +227,12 @@ Gate findings for literature:
 
 ## Findings Requiring Action
 
-1. Frontend section registry is the next consistency fix.
+1. Frontend section registry state mapping is the next consistency fix.
 
-   The report UI has the right primitives, but section identity is still spread
-   across `ReportClient`, `LazySection`, navigation, export, and preflight code.
-   That is maintainability drift waiting to happen.
+   The report UI now has a registry, stable desktop slots, and preflight slot
+   checks. Task B should close the remaining gap: runtime state mapping for
+   empty, partial, stale, failed, and hydrating states should be registry-driven
+   and contract-tested.
 
 2. Batch job create/read need a security model decision.
 

@@ -31,6 +31,8 @@
 //   node scripts/eamos-report-preflight.mjs --forbid-viewer
 //     # fail if report first paint requests /api/v1/viewer. Use this when the
 //     # lookup payload is expected to include gene_context_snapshot.
+//   node scripts/eamos-report-preflight.mjs --validate-registry
+//     # validate REPORT_SECTION_REGISTRY shape and exit without launching Chrome.
 //
 // Exit codes: 0 if no fixable offenders + no console errors + all forced lazy
 // sections resolved to `ready`. Non-zero otherwise.
@@ -71,6 +73,7 @@ const LAZY_FORCE = String(args.lazy ?? '')
 const LAZY_SETTLE_MS = Number.parseInt(args['lazy-settle'] ?? '30000', 10)
 const LAZY_POLL_MS = Number.parseInt(args['lazy-poll'] ?? '500', 10)
 const FORBID_VIEWER = args['forbid-viewer'] === 'true'
+const VALIDATE_REGISTRY = args['validate-registry'] === 'true'
 
 const REPORT_SECTION_REGISTRY = JSON.parse(
   readFileSync(new URL('../app/web/lib/report-section-registry.json', import.meta.url), 'utf8'),
@@ -86,6 +89,107 @@ const PREFLIGHT_REQUIRED_SECTION_SLOTS = REPORT_SECTION_REGISTRY
 const LAZY_ELIGIBLE_SECTION_IDS = REPORT_SECTION_REGISTRY
   .map((section) => section.lazySectionId)
   .filter(Boolean)
+const REGISTRY_VALIDATION = validateReportSectionRegistry(REPORT_SECTION_REGISTRY)
+
+if (VALIDATE_REGISTRY) {
+  const report = {
+    tool: 'eamos-report-preflight',
+    mode: 'validate-registry',
+    registryValidation: REGISTRY_VALIDATION,
+  }
+  if (JSON_OUT) {
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n')
+  } else {
+    process.stdout.write(formatRegistryValidation(report) + '\n')
+  }
+  process.exit(REGISTRY_VALIDATION.ok ? 0 : 1)
+}
+
+function validateReportSectionRegistry(sections) {
+  const errors = []
+  const warnings = []
+  const validLoadPolicies = new Set(['eager', 'lazy', 'eager_with_lazy_panel'])
+  const validSkeletons = new Set(['card_skeleton', 'panel_skeleton'])
+  const validLazyIds = new Set([
+    'publications',
+    'therapies_trials',
+    'computational_deep_dive',
+    'clingen_vcep',
+  ])
+  const requiredTextFields = [
+    'id',
+    'anchorId',
+    'label',
+    'title',
+    'meta',
+    'emptyState',
+    'partialState',
+    'failedState',
+    'staleState',
+    'eagerPayloadSelector',
+  ]
+  const ids = new Set()
+  const anchors = new Set()
+  const numbers = new Set()
+  for (const [index, section] of sections.entries()) {
+    const label = section?.id ?? `#${index}`
+    for (const field of requiredTextFields) {
+      if (typeof section?.[field] !== 'string' || section[field].trim() === '') {
+        errors.push(`${label}: missing non-empty ${field}`)
+      }
+    }
+    if (ids.has(section.id)) errors.push(`${label}: duplicate id`)
+    ids.add(section.id)
+    if (anchors.has(section.anchorId)) errors.push(`${label}: duplicate anchorId ${section.anchorId}`)
+    anchors.add(section.anchorId)
+    if (!Number.isInteger(section.number) || section.number < 1) {
+      errors.push(`${label}: number must be a positive integer`)
+    } else if (numbers.has(section.number)) {
+      errors.push(`${label}: duplicate number ${section.number}`)
+    }
+    numbers.add(section.number)
+    if (!validLoadPolicies.has(section.loadPolicy)) {
+      errors.push(`${label}: unsupported loadPolicy ${section.loadPolicy}`)
+    }
+    if (!validSkeletons.has(section.skeleton)) {
+      errors.push(`${label}: unsupported skeleton ${section.skeleton}`)
+    }
+    if (section.preflightRequired && !section.requiredSlot) {
+      errors.push(`${label}: preflightRequired sections must also be requiredSlot`)
+    }
+    if (section.loadPolicy === 'lazy' || section.loadPolicy === 'eager_with_lazy_panel') {
+      if (!validLazyIds.has(section.lazySectionId)) {
+        errors.push(`${label}: lazy load policy needs a valid lazySectionId`)
+      }
+      if (typeof section.lazyFetchContract !== 'string' || section.lazyFetchContract.trim() === '') {
+        errors.push(`${label}: lazy load policy needs lazyFetchContract`)
+      }
+    }
+    if (Array.isArray(section.aliasAnchors)) {
+      for (const alias of section.aliasAnchors) {
+        if (anchors.has(alias)) errors.push(`${label}: duplicate alias anchor ${alias}`)
+        anchors.add(alias)
+      }
+    }
+    if (!Array.isArray(section.signalIds) || section.signalIds.length === 0) {
+      warnings.push(`${label}: no signalIds registered`)
+    }
+  }
+  const sortedNumbers = [...numbers].sort((a, b) => a - b)
+  const expected = Array.from({ length: sections.length }, (_, i) => i + 1)
+  if (sortedNumbers.join(',') !== expected.join(',')) {
+    errors.push(`section numbers must be contiguous 1..${sections.length}`)
+  }
+  return {
+    ok: errors.length === 0,
+    sectionCount: sections.length,
+    requiredSlotCount: sections.filter((section) => section.requiredSlot).length,
+    preflightRequiredCount: sections.filter((section) => section.preflightRequired).length,
+    lazySectionIds: LAZY_ELIGIBLE_SECTION_IDS,
+    errors,
+    warnings,
+  }
+}
 
 function buildUrl(width) {
   if (LAZY_FORCE.length === 0) return URL_BASE
@@ -519,6 +623,13 @@ function formatHuman(report) {
   const lines = []
   const forbidViewer = Boolean(report.forbidViewer)
   lines.push(`eamos-report-preflight · ${report.urlBase}`)
+  if (report.registryValidation) {
+    lines.push(
+      `  registry: ${report.registryValidation.ok ? 'ok' : 'failed'} · sections=${report.registryValidation.sectionCount} · required=${report.registryValidation.preflightRequiredCount}`,
+    )
+    for (const error of report.registryValidation.errors) lines.push(`    registry error: ${error}`)
+    for (const warning of report.registryValidation.warnings) lines.push(`    registry warning: ${warning}`)
+  }
   if (forbidViewer) {
     lines.push('  viewer requests forbidden: true')
   }
@@ -587,6 +698,20 @@ function formatHuman(report) {
   return lines.join('\n')
 }
 
+function formatRegistryValidation(report) {
+  const validation = report.registryValidation
+  const lines = []
+  lines.push('eamos-report-preflight · registry validation')
+  lines.push(`  status: ${validation.ok ? 'ok' : 'failed'}`)
+  lines.push(`  sections: ${validation.sectionCount}`)
+  lines.push(`  required slots: ${validation.requiredSlotCount}`)
+  lines.push(`  preflight-required slots: ${validation.preflightRequiredCount}`)
+  lines.push(`  lazy sections: [${validation.lazySectionIds.join(', ')}]`)
+  for (const error of validation.errors) lines.push(`  error: ${error}`)
+  for (const warning of validation.warnings) lines.push(`  warning: ${warning}`)
+  return lines.join('\n')
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrypoint
 
@@ -607,7 +732,7 @@ try {
 }
 
 const results = []
-let exit = 0
+let exit = REGISTRY_VALIDATION.ok ? 0 : 1
 try {
   for (const w of WIDTHS) {
     const r = await runAtWidth(host, port, w)
@@ -634,6 +759,7 @@ const report = {
   urlBase: URL_BASE,
   lazyForced: LAZY_FORCE,
   forbidViewer: FORBID_VIEWER,
+  registryValidation: REGISTRY_VALIDATION,
   widths: WIDTHS,
   skippedSubDesktopWidths: SKIPPED_SUB_DESKTOP_WIDTHS,
   results,

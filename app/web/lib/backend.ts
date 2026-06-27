@@ -484,7 +484,16 @@ export type LookupSectionId =
   | 'computational_deep_dive'
   | 'clingen_vcep'
 
-export type LookupSectionStatus = 'available' | 'partial' | 'missing'
+export type LookupSectionStatus =
+  | 'ready'
+  | 'available'
+  | 'empty'
+  | 'missing'
+  | 'partial'
+  | 'hydrating'
+  | 'stale'
+  | 'failed'
+  | 'unsupported'
 
 export interface LookupSummaryTile {
   tile_id: string
