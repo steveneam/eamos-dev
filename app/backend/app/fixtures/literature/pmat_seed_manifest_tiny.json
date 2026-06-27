@@ -1,0 +1,116 @@
+{
+  "version": "2026-06-27-pmat-seed-manifest-v1",
+  "defined_at": "2026-06-27",
+  "purpose": "Tiny local-only seed manifest for PubMed, LitVar2, PubTator, and ClinicalTrials fixture gates.",
+  "corpus_label": "targeted_seed",
+  "source_scope": "tiny_fixture",
+  "sources": {
+    "pubmed_fixture": "app/backend/app/fixtures/tools/pubmed_local_sample.xml",
+    "clinical_trials_registry": "app/backend/app/fixtures/tools/clinical_trial_discovery_registry.json",
+    "materialization_plan": "docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md"
+  },
+  "guardrails": {
+    "network": "not_used",
+    "source_download": "not_used",
+    "materialization": "not_used",
+    "storage_upload": "not_used",
+    "runtime_flag_change": "not_used",
+    "free_text_clinical_payloads": "not_allowed"
+  },
+  "seeds": [
+    {
+      "seed_id": "PMAT_RPE65_C260AG_VARIANT",
+      "gene": "RPE65",
+      "scope": "variant",
+      "corpus_label": "targeted_seed",
+      "variant_aliases": {
+        "cdna": "c.260A>G",
+        "transcript": "NM_000329.3:c.260A>G",
+        "protein_change": "p.Asp87Gly",
+        "rsid": "rs1645931040",
+        "genomic_hg38": "1-68444869-T-C"
+      },
+      "literature_lanes": [
+        "pubmed",
+        "litvar2",
+        "pubtator"
+      ],
+      "clinical_trials": {
+        "disease_terms": [
+          "Leber congenital amaurosis"
+        ],
+        "intervention_terms": [
+          "Voretigene neparvovec"
+        ]
+      },
+      "source_rationale": "Positive retinal-disease fixture with existing PubMed-local XML and variant-alias coverage."
+    },
+    {
+      "seed_id": "PMAT_RPE65_GENE",
+      "gene": "RPE65",
+      "scope": "gene",
+      "corpus_label": "targeted_seed",
+      "variant_aliases": {},
+      "literature_lanes": [
+        "pubmed"
+      ],
+      "clinical_trials": {
+        "disease_terms": [
+          "Leber congenital amaurosis"
+        ],
+        "intervention_terms": []
+      },
+      "source_rationale": "Gene-level fallback fixture for local PubMed coverage rows and lower-specificity trial discovery."
+    },
+    {
+      "seed_id": "PMAT_ABCA4_C5461_10TC_VARIANT",
+      "gene": "ABCA4",
+      "scope": "variant",
+      "corpus_label": "targeted_seed",
+      "variant_aliases": {
+        "cdna": "c.5461-10T>C",
+        "transcript": "NM_000350.3:c.5461-10T>C"
+      },
+      "literature_lanes": [
+        "pubmed",
+        "litvar2",
+        "pubtator"
+      ],
+      "clinical_trials": {
+        "disease_terms": [
+          "Stargardt disease",
+          "ABCA4-related retinopathy"
+        ],
+        "intervention_terms": [
+          "Tinlarebant"
+        ]
+      },
+      "source_rationale": "Therapies/trials discovery fixture aligned to the curated ABCA4 ClinicalTrials registry entry."
+    },
+    {
+      "seed_id": "PMAT_CEP290_C2991_1655AG_VARIANT",
+      "gene": "CEP290",
+      "scope": "variant",
+      "corpus_label": "targeted_seed",
+      "variant_aliases": {
+        "cdna": "c.2991+1655A>G",
+        "transcript": "NM_025114.4:c.2991+1655A>G"
+      },
+      "literature_lanes": [
+        "pubmed",
+        "litvar2",
+        "pubtator"
+      ],
+      "clinical_trials": {
+        "disease_terms": [
+          "Leber congenital amaurosis 10",
+          "CEP290-associated retinal dystrophy"
+        ],
+        "intervention_terms": [
+          "Sepofarsen"
+        ]
+      },
+      "source_rationale": "Second retinal-disease fixture proving the seed format is not ABCA4-specific."
+    }
+  ]
+}

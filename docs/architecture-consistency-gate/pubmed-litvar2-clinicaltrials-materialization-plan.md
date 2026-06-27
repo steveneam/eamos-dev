@@ -178,9 +178,26 @@ Real materialization remains blocked until all of the following are true:
 
 ### PMAT-001 - Seed Manifest And Scope Decision
 
+Status: implemented locally for the tiny fixture contract. No source download,
+materialization, upload, runtime seeding, or runtime flag change was run.
+
 Create a reviewed seed manifest format and a checked-in tiny fixture seed file.
 Acceptance: no user/patient/request text; every seed has gene, optional variant
 aliases, scope, source rationale, and corpus label.
+
+Evidence:
+
+- `app/backend/app/fixtures/literature/pmat_seed_manifest_tiny.json` records the
+  tiny `targeted_seed` fixture for RPE65, ABCA4, and CEP290.
+- `app/backend/app/services/pubmed_seed_manifest.py` validates the JSON manifest
+  and renders the TSV query shape already consumed by PubMed-local and LitVar2
+  edge tooling.
+- `python -m app.cli.eamos_pubmed_seed_manifest --manifest-path ... --write-query-file ...`
+  validates and writes a seed TSV without network, source download,
+  materialization, upload, path leakage, or row leakage in JSON output.
+- `app/backend/tests/test_pubmed_seed_manifest.py` covers fixture validity,
+  TSV compatibility with `read_seed_queries`, sanitized reporting, and rejection
+  of user/patient/request payload fields.
 
 ### PMAT-002 - PubMed Local Fixture Gate
 
