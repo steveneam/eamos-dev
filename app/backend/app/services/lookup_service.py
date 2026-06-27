@@ -2443,11 +2443,20 @@ class LookupService:
             ),
         )
         gnomad_evidence = next((item for item in evidence if item.source == "gnomad"), None)
+        gnomad_identity = dict(gnomad_evidence.request_identity) if gnomad_evidence else None
+        if gnomad_identity is not None:
+            if not gnomad_identity.get("variant_id"):
+                gnomad_identity["variant_id"] = variant.genomic_hg38 or None
+            if not gnomad_identity.get("dataset"):
+                gnomad_identity["dataset"] = str(
+                    getattr(self.tool_registry.get("gnomad"), "DATASET", "gnomad_r4")
+                )
         base_payload.population_frequency_detail = build_population_frequency_detail(
             evidence_map.get("gnomad", {}),
             source_status=evidence_statuses.get("gnomad", ""),
             source_url=gnomad_evidence.source_url if gnomad_evidence is not None else None,
             source_warnings=gnomad_evidence.warnings if gnomad_evidence is not None else None,
+            source_identity=gnomad_identity,
         )
         base_payload.call_cards = build_variant_report_call_cards(
             base_payload,

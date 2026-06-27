@@ -35,3 +35,29 @@ def test_population_frequency_detail_marks_gnomad_variant_not_found_reason() -> 
     assert section.source_status == "live"
     assert section.unavailable_reason == "variant_not_found"
     assert "allele_frequency_unavailable" in section.warnings
+
+
+def test_population_frequency_detail_preserves_failed_source_reason() -> None:
+    detail = build_population_frequency_detail(
+        {},
+        source_status="failed",
+        source_url="https://gnomad.broadinstitute.org/variant/1-123-A-G?dataset=gnomad_r4",
+        source_warnings=["live_fetch_failed:ReadTimeout"],
+        source_identity={"variant_id": "1-123-A-G", "dataset": "gnomad_r4"},
+    )
+
+    assert detail is not None
+    assert detail.dataset == "gnomad_r4"
+    assert detail.variant_id == "1-123-A-G"
+    assert detail.unavailable_reason == "source_unavailable"
+    assert "gnomad_source_status:failed" in detail.warnings
+
+    section = build_population_frequency_section(
+        detail,
+        source_status="failed",
+        gnomad_summary={},
+    )
+
+    assert section.source_status == "failed"
+    assert section.unavailable_reason == "source_unavailable"
+    assert "allele_frequency_unavailable" in section.warnings

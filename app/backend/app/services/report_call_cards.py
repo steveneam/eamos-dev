@@ -46,7 +46,19 @@ def build_population_frequency_detail(
     source_status: str = "",
     source_url: str | None = None,
     source_warnings: list[str] | None = None,
+    source_identity: dict[str, Any] | None = None,
 ) -> PopulationFrequencyDetail | None:
+    source_identity = source_identity or {}
+    if not gnomad_summary and not (
+        source_status or source_url or source_warnings or source_identity
+    ):
+        return None
+    gnomad_summary = dict(gnomad_summary or {})
+    if source_identity:
+        gnomad_summary.setdefault("dataset", source_identity.get("dataset"))
+        gnomad_summary.setdefault("variant_id", source_identity.get("variant_id"))
+    if source_url:
+        gnomad_summary.setdefault("url", source_url)
     if not gnomad_summary:
         return None
 

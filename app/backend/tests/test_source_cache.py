@@ -211,7 +211,7 @@ def _expert_panel_summary(identity_match: dict | None = None) -> dict:
             },
             "freshness": "fresh",
             "freshness_reason": "cache_hit",
-        }
+        },
     }
 
 
@@ -737,6 +737,43 @@ def test_arbitrary_gnomad_no_hit_is_not_persisted_as_fresh_success(tmp_path: Pat
     assert gnomad.status == "live"
     assert "gnomad_variant_not_found" in gnomad.warnings
     assert repo.get_any("gnomad", "gnomad:gnomad_r4:1-68444869-t-c") is None
+
+
+def test_arbitrary_gnomad_failure_preserves_population_unavailable_reason(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    gnomad_tool = _StaticTool(
+        "gnomad",
+        {},
+        status="failed",
+        raw=None,
+        warnings=["live_fetch_failed:ReadTimeout"],
+    )
+    service = _service(tmp_path, repo, tool_overrides={"gnomad": gnomad_tool})
+
+    response = service.lookup(LookupRequest(gene="CFTR", cdna="c.1521_1523delCTT"))
+
+    gnomad = next(item for item in response.evidence if item.source == "gnomad")
+    assert gnomad_tool.calls == 1
+    assert gnomad.status == "failed"
+    assert "live_fetch_failed:ReadTimeout" in gnomad.warnings
+    detail = response.report_payload.population_frequency_detail
+    assert detail is not None
+    assert detail.dataset == "gnomad_r4"
+    assert detail.variant_id == "1-68444869-T-C"
+    assert detail.unavailable_reason == "source_unavailable"
+    assert "gnomad_source_status:failed" in detail.warnings
+    population = response.report_payload.report_profile.population_frequency
+    assert population is not None
+    assert population.source_status == "failed"
+    assert population.unavailable_reason == "source_unavailable"
+    population_card = next(
+        card
+        for card in response.report_payload.call_cards.cards
+        if card.card_id == "population_frequency"
+    )
+    assert population_card.source_status == "failed"
 
 
 def test_refresh_bypasses_fresh_source_cache_and_rewrites_on_success(tmp_path: Path) -> None:
