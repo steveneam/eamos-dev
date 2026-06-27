@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-27 19:48 +1000 - PMAT-003/004/005 committed+pushed; Render SG deployed `a3a7293`; Task E production closeout passed. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, or flag change.
+- **Codex:** STOPPED @ 2026-06-27 19:50 +1000 - PMAT-003/004/005 committed+pushed; Render SG deployed `a3a7293`; Task E production closeout passed and closeout docs/handoff pushed. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, or flag change.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-27 19:48 +1000 - Codex (PMAT-005 Task E closeout)
+UNLOCKED - 2026-06-27 19:50 +1000 - Codex (final PMAT-005 Task E handoff freshness)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,9 +427,9 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-27 19:45 +1000 - Codex.
+Section last edited: 2026-06-27 19:50 +1000 - Codex.
 
-**Latest Codex update (2026-06-27 19:45 +1000 - Codex):**
+**Latest Codex update (2026-06-27 19:50 +1000 - Codex):**
 Codex completed Steven's approved PMAT/Task E closeout sequence.
 
 Done:
@@ -446,6 +446,8 @@ Done:
   200/`available` for ABCA4, RPE65, and USH2A; desktop report preflight passed
   at 1280 px with no first-paint `/viewer`; Render peak RSS was 639.6 MB
   (29.8% of the 2 GB cap).
+- Recorded Task E production evidence and plan updates in closeout docs commit
+  `4e3adf2`, then refreshed this handoff so the expected working tree is clean.
 
 Verification:
 
@@ -472,14 +474,15 @@ No Supabase mutation, Vercel command, source download, real corpus
 materialization, Storage upload, runtime seeding, runtime flag change, or
 provider flip occurred.
 
-Current git state: `main...origin/main` clean except the handoff/docs closeout
-updates in this section.
+Expected git state after the final handoff freshness commit:
+`main...origin/main` clean. Run `git status --short --branch` and
+`git log -8 --oneline` for the exact final HEAD.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-27 19:45 +1000 - Codex PMAT-005/Task E closeout
-Eamos. Start from `main...origin/main` after pushed commits `c68f717`, `6074ab0`, and `a3a7293`; Render SG deploy `dep-d8vpgternols73e040kg` is live on `a3a7293`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/task-e-performance-memory-evidence.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: PMAT-003/004/005 are committed and pushed. PMAT-004 makes therapies/trials report-first/cache-backed from `clinical_trials` source-result snapshots. PMAT-005 adds the fixture-backed bounded-slice benchmark harness and docs. Task E production closeout is deployed and verified: `therapies_trials` section fetches are HTTP 200/available, payload thresholds pass, desktop preflight passes, and Render RSS peaked at 639.6 MB.
+# Resume prompt - 2026-06-27 19:50 +1000 - Codex PMAT-005/Task E closeout
+Eamos. Start from `main...origin/main`; `git log -8 --oneline` should include PMAT commits `c68f717`, `6074ab0`, `a3a7293`, docs closeout `4e3adf2`, and the final handoff freshness commit on top. Render SG deploy `dep-d8vpgternols73e040kg` is live on `a3a7293`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/task-e-performance-memory-evidence.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/architecture-consistency-gate/pmat-005-bounded-slice-benchmark.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: PMAT-003/004/005 are committed and pushed. PMAT-004 makes therapies/trials report-first/cache-backed from `clinical_trials` source-result snapshots. PMAT-005 adds the fixture-backed bounded-slice benchmark harness and docs. Task E production closeout is deployed and verified: `therapies_trials` section fetches are HTTP 200/available, payload thresholds pass, desktop preflight passes, Render RSS peaked at 639.6 MB, and closeout docs are recorded.
 Verification done: PMAT-004 focused/full cache tests, lookup/report/orchestration contracts, PMAT-005 benchmark test + CLI, PMAT seed tests, fast Task E targets, Ruff, Black, diff-check, graphify update, Render deploy, live report-performance audit, desktop preflight, health/provider-cache, and Render memory metrics.
 Next: choose the next explicitly approved lane. Safe defaults are documentation/read-only planning only: no real PubMed/LitVar/PubTator/ClinicalTrials source download, Supabase/Storage upload, runtime seed, flag flip, Render env mutation, Vercel command, or deploy unless Steven explicitly approves the exact action.
 Guardrails: do not run vercel/vc from app/web; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; keep single-coordinate lookup on prepared cache/tabix/SQLite/local indexes unless a benchmark-backed ADR changes it; mobile/sub-desktop overflow gates stay disabled; MaveDB stays data-only/CC0-gated unless legal/product gate changes. End clear-safe with a fresh stamped resume prompt.
