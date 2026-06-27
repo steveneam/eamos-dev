@@ -72,6 +72,18 @@ Implemented and verified after the v4 materializer:
   the planned production tier after sizing approval, and keeps the live status
   blocker on `pubmed_local_materialization`.
 
+## Status Update - 2026-06-27
+
+PMAT-002 closed the no-network tiny fixture gate for the PubMed-local
+materialization/preflight path. The checked-in PMAT seed manifest is rendered
+to the existing seed TSV shape, a copied fixture XML plus generated MD5 sidecar
+is materialized into a temporary SQLite asset, and preflight is run against the
+temporary manifest. The fixture reports two articles, one licensed abstract, one
+metadata-only article, one deleted citation, six coverage rows, one verified
+source file, and sanitized output with no local paths, raw abstracts, or
+secrets. This remains a pytest-only fixture proof, not a real PubMed corpus
+build, upload, runtime seed, flag change, or remote mutation.
+
 ## Remaining PubMed/PMC Wiring Buckets - Local Proof Harness
 
 These buckets are intentionally small enough for Claude/Codex coordination and

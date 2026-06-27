@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-27 17:59 +1000 - Pushed architecture gate `2d0bbe8` and PMAT-001 seed-manifest gate `19b0661`. No deploy, remote mutation, source download, real materialization, storage upload, runtime seeding, or flag change.
+- **Codex:** STOPPED @ 2026-06-27 18:05 +1000 - PMAT-002 tiny PubMed-local fixture materialization/preflight gate complete; MaveDB AGPL/data boundary documented in the latest `test(architecture): close PMAT fixture and MaveDB gates` commit. No deploy, remote mutation, source download, real materialization, storage upload, runtime seeding, or flag change.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-27 17:59 +1000 - Codex (PMAT-001 closeout)
+UNLOCKED - 2026-06-27 18:05 +1000 - Codex (PMAT-002 + MaveDB license note closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,39 +427,48 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-27 17:59 +1000 - Codex.
+Section last edited: 2026-06-27 18:05 +1000 - Codex.
 
-**Latest Codex update (2026-06-27 17:59 +1000 - Codex):**
-Steven approved commit/push and continued local work. Codex pushed two commits:
+**Latest Codex update (2026-06-27 18:05 +1000 - Codex):**
+Steven approved commit/push and continued local work. Codex completed PMAT-002
+locally and added a MaveDB license-boundary note.
+
+Recent pushed lineage before this closeout:
 
 - `2d0bbe8` `feat(report): harden architecture gate section states` - Task A/B/F/G
-  architecture-gate closeout, including inventory artifact/findings, desktop
-  section-state/preflight hardening, Supabase production-readiness runbook, and
-  PubMed/LitVar2/ClinicalTrials materialization plan.
-- `19b0661` `feat(literature): add PMAT seed manifest gate` - PMAT-001 local
-  seed-manifest/tiny-fixture contract for PubMed, LitVar2, PubTator, and
-  ClinicalTrials.
+  architecture-gate closeout.
+- `19b0661` `feat(literature): add PMAT seed manifest gate` - PMAT-001
+  seed-manifest/tiny-fixture contract.
+- latest `test(architecture): close PMAT fixture and MaveDB gates`
+  - PMAT-002 fixture materialization/preflight proof plus MaveDB AGPL/data
+  boundary note.
 
-PMAT-001 added:
+PMAT-002 added:
 
-- `app/backend/app/fixtures/literature/pmat_seed_manifest_tiny.json`;
-- `app/backend/app/services/pubmed_seed_manifest.py`;
-- `app/backend/app/cli/eamos_pubmed_seed_manifest.py`;
-- `app/backend/tests/test_pubmed_seed_manifest.py`;
+- a regression test in `app/backend/tests/test_pubmed_seed_manifest.py` that
+  renders the checked-in PMAT seed manifest to TSV, copies the tiny PubMed XML
+  fixture to a temp directory, generates an MD5 sidecar, materializes a temp
+  PubMed-local SQLite asset, and runs preflight with `--require-ready`;
 - plan evidence in
-  `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`.
+  `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`
+  and `docs/pubmed-local/plan.md`.
+
+MaveDB note:
+
+- `docs/mavedb-license-gate/notes.md` records the current launch boundary:
+  do not import, vendor, host, containerize, or wrap the AGPL MaveDB app/package
+  as an Eamos runtime dependency without legal approval; keep the current
+  integration data-only and CC0-gated.
+- Current code inspection confirmed Eamos materializes operator-supplied JSONL
+  through `app/backend/app/services/mavedb_local.py`, accepts only CC0 rows, and
+  has no `mavedb` package/runtime dependency.
 
 Verification:
 
-- `node scripts\eamos-report-preflight.mjs --validate-registry --json` passed.
-- `python -m pytest tests\test_lookup_section_fetch_contract.py -q` passed.
-- `python -m pytest tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py -q` passed twice around the PMAT work.
-- `npm --prefix app\web run lint` passed.
 - `python -m pytest tests\test_pubmed_seed_manifest.py -q` passed.
-- `python -m py_compile app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py` passed.
-- `python -m app.cli.eamos_pubmed_seed_manifest --manifest-path app\fixtures\literature\pmat_seed_manifest_tiny.json --compact --require-ready` passed.
-- `python -m ruff check app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py tests\test_pubmed_seed_manifest.py` passed.
-- `python -m black --check --target-version py310 app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py tests\test_pubmed_seed_manifest.py` passed.
+- `python -m pytest tests\test_pubmed_seed_manifest.py tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py tests\test_mavedb_local.py tests\test_functional_evidence.py -q` passed.
+- `python -m ruff check app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py tests\test_pubmed_seed_manifest.py tests\test_mavedb_local.py tests\test_functional_evidence.py` passed.
+- `python -m black --check --target-version py310 app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py tests\test_pubmed_seed_manifest.py tests\test_mavedb_local.py tests\test_functional_evidence.py` passed.
 - `git diff --check` passed.
 - `python -m graphify update .` passed with the expected oversized-HTML skip.
 
@@ -469,10 +478,10 @@ flag flip, or provider flip occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-27 17:59 +1000 - Codex Architecture Gate pushed + PMAT-001 local seed manifest gate
-Eamos. Start from clean `main...origin/main` after commits `2d0bbe8` and `19b0661`. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/pubmed-corpus-materialization/spec.md, docs/pubmed-local/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: pushed architecture Task A/B/F/G closeout (`2d0bbe8`) and PMAT-001 seed-manifest/tiny-fixture gate (`19b0661`). PMAT-001 added a curated tiny seed manifest, validator service, no-network CLI, and tests that render the PubMed-local TSV seed shape while rejecting user/patient/request payload fields.
-Verification done: registry validation, lookup section contract test, PubMed/LitVar/PubTator/ClinicalTrials focused tests, web lint, PMAT seed-manifest tests, py_compile, CLI compact validation, Ruff, Black check, diff-check, and `python -m graphify update .` (oversized HTML skipped as expected).
-Next: PMAT-002 only - run/document the existing PubMed-local tiny fixture materialization/preflight path using the checked-in seed manifest output; do not download real source files, upload, seed runtime, mutate Supabase/Render/Vercel, or enable runtime flags. Task E production closeout still requires explicit deploy approval and a live audit rerun.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env/Supabase mutation/Vercel command without explicit approval; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; do not move single-coordinate lookup off prepared cache/tabix/SQLite; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-27 18:05 +1000 - Codex PMAT-002 fixture gate + MaveDB license boundary
+Eamos. Start from clean `main...origin/main` after the latest `test(architecture): close PMAT fixture and MaveDB gates` commit on top of `19b0661`. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/pubmed-local/plan.md, docs/mavedb-license-gate/notes.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: PMAT-002 is closed locally. A backend regression test now drives the checked-in PMAT seed manifest through existing PubMed-local fixture materialization and preflight, proving ready temp SQLite output, verified checksum sidecar, licensed-vs-metadata-only counts, deleted count, coverage rows, and sanitized preflight output. Docs record the fixture-only evidence. A MaveDB license-gate note documents the AGPL/data boundary: do not import/vendor/host/containerize/wrap MaveDB AGPL app code without legal approval; keep Eamos MaveDB integration data-only and CC0-gated.
+Verification done: PMAT seed-manifest focused test, PubMed/LitVar/PubTator/ClinicalTrials/MaveDB/functional-evidence focused backend tests, Ruff, Black check, diff-check, and `python -m graphify update .` (oversized HTML skipped as expected).
+Next: PMAT-003 only - run the LitVar/PubTator edge tiny fixture gate and document edge counts/orphan skips/no-network behavior. Do not download real source files, upload, seed runtime, mutate Supabase/Render/Vercel, or enable runtime flags. Task E production closeout still requires explicit deploy approval and a live audit rerun.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env/Supabase mutation/Vercel command without explicit approval; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; do not move single-coordinate lookup off prepared cache/tabix/SQLite; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them; MaveDB stays data-only/CC0-gated unless legal/product gate changes. End clear-safe with a fresh stamped resume prompt.
 ```

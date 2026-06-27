@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from hashlib import md5
 import json
 from pathlib import Path
 
 import pytest
 
-from app.cli import eamos_pubmed_seed_manifest
+from app.cli import (
+    eamos_pubmed_local_materialize,
+    eamos_pubmed_local_preflight,
+    eamos_pubmed_seed_manifest,
+)
 from app.services.pubmed_local import read_seed_queries
 from app.services.pubmed_seed_manifest import (
     PubMedSeedManifestError,
@@ -15,6 +20,7 @@ from app.services.pubmed_seed_manifest import (
 
 FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 MANIFEST_PATH = FIXTURE_ROOT / "literature" / "pmat_seed_manifest_tiny.json"
+PUBMED_XML = FIXTURE_ROOT / "tools" / "pubmed_local_sample.xml"
 
 
 def test_tiny_seed_manifest_validates_and_renders_pubmed_query_tsv(tmp_path: Path) -> None:
@@ -91,6 +97,99 @@ def test_seed_manifest_cli_writes_query_file_without_leaking_paths(
     assert str(tmp_path).lower() not in encoded
     assert str(MANIFEST_PATH.parent).lower() not in encoded
     assert len(read_seed_queries(query_file)) == 4
+
+
+def test_seed_manifest_drives_pubmed_local_fixture_materialization_and_preflight(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    query_file = tmp_path / "pmat-seed.tsv"
+    seed_exit = eamos_pubmed_seed_manifest.main(
+        [
+            "--manifest-path",
+            str(MANIFEST_PATH),
+            "--write-query-file",
+            str(query_file),
+            "--compact",
+            "--require-ready",
+        ]
+    )
+    assert seed_exit == 0
+    capsys.readouterr()
+
+    xml_path = tmp_path / "pubmed25n0001.xml"
+    xml_path.write_bytes(PUBMED_XML.read_bytes())
+    xml_path.with_name(f"{xml_path.name}.md5").write_text(
+        f"{md5(xml_path.read_bytes(), usedforsecurity=False).hexdigest()}  {xml_path.name}\n",
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "pubmed-local.sqlite"
+    materialization_manifest = tmp_path / "pubmed-local.manifest.json"
+
+    materialize_exit = eamos_pubmed_local_materialize.main(
+        [
+            "--from-xml-file",
+            str(xml_path),
+            "--query-file",
+            str(query_file),
+            "--output",
+            str(db_path),
+            "--manifest",
+            str(materialization_manifest),
+            "--source-version",
+            "pmat-tiny-fixture-2026-06-27",
+            "--xml-source-kind",
+            "baseline",
+            "--verify-md5-sidecars",
+            "--compact",
+            "--require-ready",
+        ]
+    )
+
+    assert materialize_exit == 0
+    materialize_report = json.loads(capsys.readouterr().out)
+    materialization = materialize_report["materialization"]
+    assert materialize_report["guardrails"]["network"] == {"provider": None, "used": False}
+    assert materialize_report["guardrails"]["startup_download"] == "not_used"
+    assert materialize_report["guardrails"]["request_time_materialization"] == "not_used"
+    assert materialization["ready"] is True
+    assert materialization["status"] == "ready"
+    assert materialization["article_count"] == 2
+    assert materialization["licensed_abstract_count"] == 1
+    assert materialization["metadata_only_count"] == 1
+    assert materialization["deleted_count"] == 1
+    assert materialization["coverage_count"] == 6
+    assert materialization["source_file_count"] == 1
+    assert materialization["source_kind_counts"] == {"pubmed_baseline": 1}
+    assert materialization["input_checksum_status"] == "verified"
+    assert materialization["input_checksum_verified_count"] == 1
+
+    preflight_exit = eamos_pubmed_local_preflight.main(
+        [
+            "--db-path",
+            str(db_path),
+            "--manifest-path",
+            str(materialization_manifest),
+            "--compact",
+            "--require-ready",
+        ]
+    )
+
+    assert preflight_exit == 0
+    preflight_report = json.loads(capsys.readouterr().out)
+    assert preflight_report["ready"] is True
+    assert preflight_report["status"] == "ready"
+    assert preflight_report["checksum_verified"] is True
+    assert preflight_report["article_count"] == 2
+    assert preflight_report["licensed_abstract_count"] == 1
+    assert preflight_report["metadata_only_count"] == 1
+    assert preflight_report["coverage"]["queries"] == 6
+    assert preflight_report["local_path_values_emitted"] is False
+    assert preflight_report["abstract_values_emitted"] is False
+    assert preflight_report["secret_values_emitted"] is False
+    encoded = json.dumps(preflight_report).lower()
+    assert str(tmp_path).lower() not in encoded
+    assert "asp87gly variant was observed" not in encoded
 
 
 def test_seed_manifest_rejects_variant_without_pubmed_alias() -> None:

@@ -1,9 +1,11 @@
 # PubMed, LitVar2, and ClinicalTrials Materialization Plan
 
-Last updated: 2026-06-26 01:01 +1000 - Codex.
+Last updated: 2026-06-27 18:05 +1000 - Codex.
 
-Status: planning only. No PubMed, LitVar2, PubTator, ClinicalTrials,
-Supabase, Render, or Storage materialization was run for this task.
+Status: planning plus local tiny-fixture gates. No real PubMed, LitVar2,
+PubTator, ClinicalTrials, Supabase, Render, or Storage materialization was run
+for this task; PMAT-002 only exercises a temporary pytest SQLite fixture from
+checked-in source fixtures.
 
 ## Purpose
 
@@ -201,9 +203,28 @@ Evidence:
 
 ### PMAT-002 - PubMed Local Fixture Gate
 
+Status: implemented locally for the checked-in tiny fixture path. No source
+download, upload, runtime seeding, remote mutation, or runtime flag change was
+run.
+
 Run and document the existing PubMed-local fixture materialization/preflight
 commands. Acceptance: ready SQLite fixture, checksum verified, licensed versus
 metadata-only counts recorded, and sanitized output reviewed.
+
+Evidence:
+
+- `app/backend/tests/test_pubmed_seed_manifest.py` now drives the checked-in
+  PMAT seed manifest through the existing PubMed-local materializer and
+  preflight path using a copied fixture XML and generated MD5 sidecar in a temp
+  directory.
+- Fixture materialization reports ready SQLite output with `article_count=2`,
+  `licensed_abstract_count=1`, `metadata_only_count=1`, `deleted_count=1`,
+  `coverage_count=6`, `source_file_count=1`, and verified input checksum
+  status.
+- Fixture preflight reports ready status, checksum verification, matching
+  article/license counts, six coverage queries, and sanitized output with no
+  local path values, raw abstracts, or secret values emitted.
+- `python -m pytest tests\test_pubmed_seed_manifest.py -q` passed.
 
 ### PMAT-003 - LitVar/PubTator Edge Fixture Gate
 
