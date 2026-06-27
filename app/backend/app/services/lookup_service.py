@@ -114,9 +114,7 @@ GENE_CONTEXT_SNAPSHOT_CACHE_VERSION = 1
 REPORT_SHELL_CACHE_VERSION = 1
 REPORT_SECTION_CACHE_VERSION = 1
 SOURCE_RESULT_CACHE_VERSION = 1
-LEGACY_REPORT_SHELL_CACHE_READ_WARNING = (
-    "legacy_variant_publication_data_report_shell_cache_read"
-)
+LEGACY_REPORT_SHELL_CACHE_READ_WARNING = "legacy_variant_publication_data_report_shell_cache_read"
 LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING = (
     "legacy_variant_publication_data_report_sections_cache_read"
 )
@@ -124,6 +122,7 @@ SOURCE_SPECIFIC_SECTION_IDS = frozenset(
     {"publications", "therapies_trials", "computational_deep_dive", "clingen_vcep"}
 )
 SOURCE_RESULT_SECTION_SOURCES: dict[str, tuple[str, ...]] = {
+    "therapies_trials": ("clinical_trials",),
     "computational_deep_dive": ("computational_annotations", "spliceai"),
     "clingen_vcep": ("clinvar", "clingen"),
 }
@@ -151,6 +150,23 @@ def _format_clinical_trials_summary(gene: str, rows: list[dict[str, Any]]) -> st
         title = str(row.get("title") or "Untitled clinical trial")
         lines.append(f"- {nct_id} - {phase} - {status} - {title}")
     return "\n".join(lines)
+
+
+def _clinical_trials_no_rows_summary(gene: str, result: ToolResult) -> str:
+    summary = result.summary if isinstance(result.summary, dict) else {}
+    warnings = [
+        *[str(item) for item in summary.get("warnings", []) if isinstance(item, str)],
+        *result.warnings,
+    ]
+    if "clinical_trials_no_active_matches" in warnings:
+        return f"No active trials found for {gene} on ClinicalTrials.gov."
+    if result.status in {"fallback", "error", "failed"} or any(
+        warning.startswith("clinical_trials_fetch_failed") for warning in warnings
+    ):
+        return (
+            f"Clinical trials lookup unavailable for {gene}. " "Check ClinicalTrials.gov directly."
+        )
+    return "No structured ClinicalTrials.gov rows are available for this lookup."
 
 
 def _clinical_trial_disease_terms(evidence_map: dict[str, dict[str, Any]]) -> list[str]:
@@ -360,9 +376,7 @@ def _summary_from_report_shell_cache(
         response = LookupInitialSummaryResponse.model_validate(summary)
     except Exception:
         return None
-    response.warnings = _dedupe_values(
-        [*response.warnings, LEGACY_REPORT_SHELL_CACHE_READ_WARNING]
-    )
+    response.warnings = _dedupe_values([*response.warnings, LEGACY_REPORT_SHELL_CACHE_READ_WARNING])
     return response
 
 
@@ -1451,6 +1465,8 @@ class LookupService:
                 warnings=warnings,
                 cache_key=cache_key,
                 species=request.species,
+                cached_source_results=cached_source_results,
+                refresh=refresh,
             )
             profile_updates["therapies_trials"] = trials_section
 
@@ -1582,43 +1598,50 @@ class LookupService:
         warnings: list[str],
         cache_key: str,
         species: str,
+        cached_source_results: dict[str, ToolResult] | None = None,
+        refresh: bool = False,
     ) -> TherapiesTrialsSection:
+        cached_result = None if refresh else (cached_source_results or {}).get("clinical_trials")
         tool = self.tool_registry.get("clinical_trials")
-        if tool is None or not hasattr(tool, "get_trial_matches"):
+        if cached_result is None and (tool is None or not hasattr(tool, "get_trial_matches")):
             section_warning = "clinical_trials_unavailable"
             warnings.append(section_warning)
             return TherapiesTrialsSection(warnings=[section_warning])
 
-        try:
-            result = tool.get_trial_matches(
-                variant=variant,
-                gene=variant.gene,
-                disease_terms=[],
-                limit=15,
-            )
-        except Exception as exc:
-            result = ToolResult(
-                source="clinical_trials",
-                status="fallback",
-                request_identity={"gene": variant.gene},
-                summary={"warnings": [f"clinical_trials_fetch_failed:{type(exc).__name__}"]},
-                warnings=[f"clinical_trials_fetch_failed:{type(exc).__name__}"],
-                raw=None,
-            )
+        if cached_result is not None:
+            result = cached_result
+        else:
+            try:
+                result = tool.get_trial_matches(
+                    variant=variant,
+                    gene=variant.gene,
+                    disease_terms=[],
+                    limit=15,
+                )
+            except Exception as exc:
+                result = ToolResult(
+                    source="clinical_trials",
+                    status="fallback",
+                    request_identity={"gene": variant.gene},
+                    summary={"warnings": [f"clinical_trials_fetch_failed:{type(exc).__name__}"]},
+                    warnings=[f"clinical_trials_fetch_failed:{type(exc).__name__}"],
+                    raw=None,
+                )
 
         evidence.append(_result_to_evidence(result))
         warnings.extend(result.warnings)
-        try:
-            self._store_report_source_result_cache(
-                cache_key,
-                variant=variant,
-                result=result,
-                species=species,
-            )
-        except Exception as exc:
-            warnings.append(
-                f"source_result_cache_write_failed:clinical_trials:{type(exc).__name__}"
-            )
+        if cached_result is None:
+            try:
+                self._store_report_source_result_cache(
+                    cache_key,
+                    variant=variant,
+                    result=result,
+                    species=species,
+                )
+            except Exception as exc:
+                warnings.append(
+                    f"source_result_cache_write_failed:clinical_trials:{type(exc).__name__}"
+                )
         summary = result.summary if isinstance(result.summary, dict) else {}
         section_warnings = _dedupe_values(
             [
@@ -2007,6 +2030,11 @@ class LookupService:
         )
         if rebuild_publication_cache:
             publication_cache = {}
+        cached_report_source_results = self._cached_report_source_results(
+            cache_key,
+            source_ids=["clinical_trials"],
+            refresh=refresh,
+        )
 
         def record_result(name: str, result: ToolResult) -> None:
             evidence.append(_result_to_evidence(result))
@@ -2178,18 +2206,22 @@ class LookupService:
         )
         phase_started = timing_start()
         trials_tool = self.tool_registry.get("clinical_trials")
-        if trials_tool is not None:
+        cached_trials_result = cached_report_source_results.get("clinical_trials")
+        if trials_tool is not None or cached_trials_result is not None:
             trial_rows: list[dict[str, Any]] = []
-            if hasattr(trials_tool, "get_trial_matches"):
-                trials_result = source_cached_result(
-                    "clinical_trials",
-                    lambda tool=trials_tool: tool.get_trial_matches(
-                        variant=variant,
-                        gene=gene,
-                        disease_terms=_clinical_trial_disease_terms(evidence_map),
-                        limit=15,
-                    ),
-                )
+            trials_result: ToolResult | None = cached_trials_result
+            if trials_tool is not None and hasattr(trials_tool, "get_trial_matches"):
+                if trials_result is None:
+                    trials_result = source_cached_result(
+                        "clinical_trials",
+                        lambda tool=trials_tool: tool.get_trial_matches(
+                            variant=variant,
+                            gene=gene,
+                            disease_terms=_clinical_trial_disease_terms(evidence_map),
+                            limit=15,
+                        ),
+                    )
+            if trials_result is not None:
                 record_result("clinical_trials", trials_result)
                 trial_rows_raw = (
                     trials_result.summary.get("trial_rows", [])
@@ -2199,8 +2231,22 @@ class LookupService:
                 trial_rows = [row for row in trial_rows_raw if isinstance(row, dict)]
             if trial_rows:
                 trials_text = _format_clinical_trials_summary(gene, trial_rows)
-            else:
+            elif trials_result is not None and trials_result.status != "fixture":
+                trials_text = _clinical_trials_no_rows_summary(gene, trials_result)
+            elif trials_tool is not None:
                 trials_text = trials_tool.get_trials_summary(gene)
+            else:
+                trials_text = _clinical_trials_no_rows_summary(
+                    gene,
+                    ToolResult(
+                        source="clinical_trials",
+                        status="missing",
+                        request_identity={"gene": gene},
+                        summary={},
+                        warnings=["clinical_trials_unavailable"],
+                        raw=None,
+                    ),
+                )
             therapeutic_landscape = f"{therapy_text}\n\n{trials_text}"
         else:
             therapeutic_landscape = therapy_text

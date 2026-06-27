@@ -1,11 +1,12 @@
 # PubMed, LitVar2, and ClinicalTrials Materialization Plan
 
-Last updated: 2026-06-27 18:28 +1000 - Codex.
+Last updated: 2026-06-27 18:56 +1000 - Codex.
 
-Status: planning plus local tiny-fixture gates. No real PubMed, LitVar2,
-PubTator, ClinicalTrials, Supabase, Render, or Storage materialization was run
-for this task; PMAT-002 and PMAT-003 only exercise temporary pytest SQLite
-fixtures from checked-in source fixtures plus generated edge files.
+Status: planning plus local tiny-fixture and cache-snapshot gates. No real
+PubMed, LitVar2, PubTator, ClinicalTrials, Supabase, Render, or Storage
+materialization was run for this task; PMAT-002 and PMAT-003 only exercise
+temporary pytest SQLite fixtures from checked-in source fixtures plus generated
+edge files, and PMAT-004 only exercises local report/source cache rows.
 
 ## Purpose
 
@@ -125,6 +126,13 @@ subset needed by the backend.
 ClinicalTrials should not be folded into PubMed-local SQLite by default. It is
 a smaller, freshness-sensitive report source with different semantics.
 
+Steven's PMAT-004 loading decision is report-first and cache-backed. The
+therapies/trials section must be ready from the initial report payload whenever
+a ClinicalTrials snapshot exists, and `/lookup/sections?include=therapies_trials`
+must reuse the same cache snapshot when the frontend asks for a section
+envelope. A scroll-triggered live ClinicalTrials.gov call is not the normal
+serving model; it is a retry/refresh path only.
+
 1. Define a snapshot contract.
 
    Capture query plan, selected query, active/not-yet status filter,
@@ -145,6 +153,26 @@ a smaller, freshness-sensitive report source with different semantics.
    cache keyed by normalized report input and ClinicalTrials query identity.
    It should render `available`, `empty`, `stale`, `partial`, and `failed`
    section states without making serial live HTTP calls on first paint.
+
+   Local implementation note: `source_result_cache` stores the
+   `clinical_trials` tool summary, request identity, source URL, source
+   version, freshness, and warnings. Full `/api/v1/lookup` now checks this row
+   before calling `ClinicalTrialsTool.get_trial_matches()`, so
+   `report_profile.therapies_trials` can ship with the first report payload.
+   `/api/v1/lookup/sections` includes `clinical_trials` in its
+   source-result cache map and can hydrate the same section without a provider
+   call when the cached source row exists.
+
+   Section-state mapping:
+
+   - rows present -> `available`;
+   - no active matches with query executions -> `available` with empty
+     `trial_rows` and a no-active warning, not a loading skeleton;
+   - stale-on-failure freshness -> frontend `stale` state through the section
+     envelope freshness block;
+   - fetch/fallback warnings -> rendered immediately with warning state/copy;
+   - missing tool/cache -> unavailable warning, not request-time download or
+     startup materialization.
 
 4. Keep live refresh explicit.
 
@@ -264,10 +292,30 @@ Evidence:
 
 ### PMAT-004 - ClinicalTrials Cache Snapshot Spec
 
+Status: implemented locally for cache contract and no-second-call behavior. No
+ClinicalTrials source download, upload, runtime seeding, remote mutation,
+runtime flag change, or deploy was run.
+
 Specify the source-result/report-section cache key, freshness TTL, stale
 behavior, retry behavior, and status mapping for therapies/trials. Acceptance:
 first paint can show cached/empty/stale/failed section states without serial
 live HTTP.
+
+Evidence:
+
+- `LookupService.lookup()` reads a fresh `clinical_trials` source-result cache
+  row before calling the live ClinicalTrials tool, and uses that cached summary
+  to populate `report_profile.therapies_trials` in the first report payload.
+- Structured no-row ClinicalTrials results now render deterministic no-active
+  copy without falling through to `get_trials_summary()`, avoiding a second
+  ClinicalTrials.gov call in real mode.
+- `LookupService.lookup_sections()` maps `therapies_trials` to the
+  `clinical_trials` source-result cache and reuses the cached snapshot before
+  calling the live provider.
+- `app/backend/tests/test_variant_cache.py` covers both paths: full report
+  first-payload hydration from cache and therapies/trials section hydration
+  from cache, with zero `get_trial_matches()` and zero `get_trials_summary()`
+  provider calls.
 
 ### PMAT-005 - Bounded Slice Benchmark Plan
 

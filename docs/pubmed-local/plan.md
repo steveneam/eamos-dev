@@ -92,9 +92,17 @@ PubTator orphan skips plus six LitVar orphan skips. Local lookup preserves the
 edge-backed `pubtator` and `litvar2_snippet` fields, and EP-VLEx emits an
 `exact_variant_snippet` from the edge text.
 
-These remain pytest-only fixture proofs, not a real PubMed corpus build,
-LitVar/PubTator source download, upload, runtime seed, flag change, or remote
-mutation.
+PMAT-004 closed the local ClinicalTrials cache-snapshot contract for the
+report loading path. The selected model is report-first/cache-backed:
+`/api/v1/lookup` can populate `report_profile.therapies_trials` from a fresh
+`clinical_trials` source-result cache row, and `/api/v1/lookup/sections` can
+hydrate `therapies_trials` from the same row without a provider call. Empty
+no-active ClinicalTrials snapshots now render deterministic no-active copy
+without falling through to a second live text-summary call.
+
+These remain pytest-only fixture/cache proofs, not a real PubMed corpus build,
+LitVar/PubTator/ClinicalTrials source download, upload, runtime seed, flag
+change, deploy, or remote mutation.
 
 ## Remaining PubMed/PMC Wiring Buckets - Local Proof Harness
 

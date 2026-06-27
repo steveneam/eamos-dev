@@ -144,6 +144,7 @@ class _CountingClinicalTrialsTool:
         }
         self.status = status
         self.calls = 0
+        self.summary_calls = 0
 
     def get_trial_matches(self, *args, **kwargs) -> ToolResult:
         self.calls += 1
@@ -158,6 +159,7 @@ class _CountingClinicalTrialsTool:
         )
 
     def get_trials_summary(self, gene: str) -> str:
+        self.summary_calls += 1
         return ""
 
 
@@ -182,6 +184,41 @@ def _report_cache_identity(query: str) -> dict:
         "cdna": cdna or None,
         "request_identity": {"query": query},
     }
+
+
+def _seed_no_active_trials_snapshot(report_repo: ReportCacheRepo, query: str) -> None:
+    report_repo.upsert_source_result(
+        query,
+        normalized_identity=_report_cache_identity(query),
+        source_id="clinical_trials",
+        schema_version=SOURCE_RESULT_CACHE_VERSION,
+        status="live",
+        payload={
+            "trial_rows": [],
+            "query_executions": [
+                {
+                    "query_id": "gene_term:rpe65",
+                    "lane": "gene_term",
+                    "query_term": "RPE65",
+                    "params": {"query.term": "RPE65"},
+                    "status": "ok",
+                    "result_count": 0,
+                }
+            ],
+            "warnings": ["clinical_trials_no_active_matches"],
+            "query_term": "RPE65",
+            "source_url": "https://clinicaltrials.gov/search?term=RPE65",
+        },
+        raw=None,
+        warnings=["clinical_trials_no_active_matches"],
+        ttl_days=30,
+        freshness={
+            "source_status": "live",
+            "source_url": "https://clinicaltrials.gov/search?term=RPE65",
+            "source_version": "clinicaltrials-v2-snapshot",
+        },
+        source_versions={"source_version": "clinicaltrials-v2-snapshot"},
+    )
 
 
 class _CountingGeneContextSnapshotService:
@@ -960,6 +997,125 @@ def test_lookup_sections_trials_miss_builds_only_trials_source(
         assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
             "therapies_trials"
         )
+
+
+@pytest.mark.slow
+def test_lookup_sections_trials_uses_cached_snapshot_without_provider_calls(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    query = "RPE65:c.260A>G"
+    _seed_no_active_trials_snapshot(report_repo, query)
+    trial_tool = _CountingClinicalTrialsTool()
+    tools = {
+        "vep": _StaticTool("vep"),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool("clinvar"),
+        "pubmed": _StaticTool("pubmed"),
+        "litvar2": _StaticTool("litvar2"),
+        "clinical_trials": trial_tool,
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    sections = service.lookup_sections(
+        LookupSectionFetchRequest(
+            gene="RPE65",
+            cdna="c.260A>G",
+            include=["therapies_trials"],
+        )
+    )
+
+    assert trial_tool.calls == 0
+    assert trial_tool.summary_calls == 0
+    trials = sections.sections["therapies_trials"]
+    assert trials.status == "available"
+    assert trials.payload is not None
+    assert trials.payload["trial_rows"] == []
+    assert trials.payload["query_executions"][0]["query_id"] == "gene_term:rpe65"
+    assert trials.freshness.source_status == "cache"
+    assert trials.freshness.source_version == "clinicaltrials-v2-snapshot"
+    with session_scope(session_factory) as session:
+        source_rows = session.execute(select(SourceResultCacheRecord)).scalars().all()
+        assert [row.source_id for row in source_rows] == ["clinical_trials"]
+        assert session.execute(select(ReportSectionCacheRecord)).scalar_one().section_id == (
+            "therapies_trials"
+        )
+
+
+@pytest.mark.slow
+def test_lookup_report_uses_cached_trials_snapshot_on_first_payload(
+    tmp_path: Path,
+) -> None:
+    session_factory = build_session_factory(
+        f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}"
+    )
+    initialize_database(session_factory)
+    repo = VariantCacheRepo(session_factory)
+    report_repo = ReportCacheRepo(session_factory)
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    query = "RPE65:c.260A>G"
+    _seed_no_active_trials_snapshot(report_repo, query)
+    trial_tool = _CountingClinicalTrialsTool()
+    tools = {
+        "vep": _StaticTool("vep", {"most_severe_consequence": "missense_variant"}),
+        "variant_validator": _MutatingVariantValidatorTool("variant_validator"),
+        "gnomad": _StaticTool("gnomad"),
+        "spliceai": _StaticTool("spliceai"),
+        "clinvar": _StaticTool(
+            "clinvar",
+            {
+                "classification": "Uncertain significance",
+                "review_status": "criteria provided, single submitter",
+            },
+        ),
+        "pubmed": _StaticTool("pubmed", {"articles": [], "total": 0}),
+        "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
+        "clinical_trials": trial_tool,
+    }
+    service = LookupService(
+        tools,
+        ClinicRules(),
+        variant_cache_repo=repo,
+        report_cache_repo=report_repo,
+        settings=settings,
+        functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+    )
+
+    response = service.lookup(LookupRequest(gene="RPE65", cdna="c.260A>G"))
+
+    assert trial_tool.calls == 0
+    assert trial_tool.summary_calls == 0
+    trials = response.report_payload.report_profile.therapies_trials
+    assert trials is not None
+    assert trials.trial_rows == []
+    assert trials.query_executions[0].query_id == "gene_term:rpe65"
+    assert trials.provenance[0].status == "cache"
+    assert "No active trials found for RPE65 on ClinicalTrials.gov." in (
+        response.report_payload.therapeutic_landscape or ""
+    )
 
 
 @pytest.mark.slow

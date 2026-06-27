@@ -1,6 +1,6 @@
 # Eamos Architecture Consistency Gate
 
-Last updated: 2026-06-26 01:05 +1000 - Codex.
+Last updated: 2026-06-27 18:56 +1000 - Codex.
 Status: Local architecture gate work in progress. No deploy, Supabase mutation,
 or multi-GB materialization has been run from this plan.
 
@@ -219,7 +219,7 @@ Minimum decision table:
 | PubMed citations | annual baseline + update files | yes | yes, for term/license/freshness views | SQLite/FTS/vector store | literature/report/RAG |
 | PMC full text/OA | upstream objects + license manifests | yes, metadata/features only first | maybe, license-approved subsets | bounded FTS/vector subset | literature/RAG |
 | LitVar/PubTator edges | durable edge snapshots | yes | yes, PMID/entity joins | SQLite edge/term indexes | literature/report |
-| ClinicalTrials | JSON snapshot + normalized table | maybe | no until needed | source-result/report-section cache | report |
+| ClinicalTrials | JSON snapshot + normalized table | maybe | no until needed | source-result/report-section cache first | report |
 
 ## Gate Tasks
 
@@ -339,7 +339,7 @@ private Storage, secret exposure, sanitized health proof, and mutation approval.
 
 ### Task G - PubMed/LitVar2/ClinicalTrials Materialization Planning
 
-Status: planning plus local tiny-fixture gates; no source download,
+Status: planning plus local tiny-fixture/cache gates; no source download,
 materialization, upload, registration, runtime seeding, or runtime flag change
 performed.
 
@@ -355,8 +355,12 @@ Evidence: `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-mate
 defines the planned sequence for seed manifests, PubMed-local fixture proof,
 LitVar/PubTator edge import, ClinicalTrials cache snapshots, bounded-slice
 benchmarks, and the approvals required before real materialization. The PMAT
-seed-manifest, PubMed-local, and LitVar/PubTator edge fixture gates are now
-covered by backend regressions.
+seed-manifest, PubMed-local, LitVar/PubTator edge fixture, and ClinicalTrials
+cache-snapshot gates are now covered by backend regressions. The chosen
+ClinicalTrials loading path is report-first/cache-backed: first paint should
+receive `report_profile.therapies_trials` from a cached source result when one
+exists, and late `/lookup/sections` hydration reuses that same cache instead of
+making a scroll-triggered live registry call.
 
 ## Next Recommended Move
 
