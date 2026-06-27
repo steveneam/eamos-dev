@@ -1221,6 +1221,108 @@ class LookupService:
             warnings.append(f"source_result_cache_write_failed:{source_id}:{type(exc).__name__}")
         return result
 
+    def _clingen_vcep_section_source_result(
+        self,
+        *,
+        cache_key: str,
+        cdna: str,
+        variant: Any,
+        clinvar_result: ToolResult,
+        cached_source_results: dict[str, ToolResult],
+        species: str,
+        refresh: bool,
+        warnings: list[str],
+    ) -> ToolResult:
+        cached = cached_source_results.get("clingen")
+        if cached is not None:
+            return cached
+
+        source_cache_lookup_key = None
+        use_source_cache = (
+            self.settings is not None
+            and self.settings.use_real_apis
+            and self.source_cache_repo is not None
+        )
+        if use_source_cache:
+            source_cache_lookup_key = clingen_vcep_source_cache_key(
+                gene=getattr(variant, "gene", ""),
+                transcript_hgvs=getattr(variant, "transcript_hgvs", None),
+                cdna=cdna,
+                genomic_hgvs=getattr(variant, "genomic_hgvs", None),
+                genomic_hg38=getattr(variant, "genomic_hg38", None),
+                clinvar_summary=clinvar_result.summary,
+                clinvar_raw=clinvar_result.raw,
+            )
+
+        skip_fresh_source_cache = self.settings is not None and self.settings.clingen_local_enabled
+        if source_cache_lookup_key and not refresh and not skip_fresh_source_cache:
+            hit = self.source_cache_repo.get_fresh("clingen", source_cache_lookup_key)
+            if hit is not None:
+                hit_result = hit.to_tool_result(status="cache", cache_status="cache_hit")
+                if cached_clingen_result_matches_variant(hit_result, variant):
+                    return hit_result
+                warnings.append("source_cache_identity_mismatch:clingen")
+
+        result = self._section_source_result(
+            "clingen",
+            cache_key=cache_key,
+            variant=variant,
+            cached_source_results={},
+            species=species,
+            refresh=refresh,
+            warnings=warnings,
+        )
+
+        if source_cache_lookup_key and result.status in SOURCE_CACHE_FAILURE_STATUSES:
+            stale = self.source_cache_repo.get_stale("clingen", source_cache_lookup_key)
+            if stale is not None:
+                stale_result = stale.to_tool_result(
+                    status="stale",
+                    cache_status="stale_on_failure",
+                    extra_warnings=[
+                        "source_cache_stale_on_failure:clingen",
+                        f"live_status:{result.status}",
+                        *result.warnings,
+                    ],
+                )
+                if cached_clingen_result_matches_variant(stale_result, variant):
+                    return stale_result
+                result.warnings.append("source_cache_identity_mismatch:clingen")
+
+        if (
+            source_cache_lookup_key
+            and result.status != "local"
+            and result.status in SOURCE_CACHE_PERSIST_STATUSES
+            and "clingen_variant_not_found" not in result.warnings
+            and (result.summary or {}).get("expert_panel")
+            and cached_clingen_result_matches_variant(result, variant)
+        ):
+            _annotate_source_cached_result(
+                "clingen",
+                result,
+                cache_key=source_cache_lookup_key,
+            )
+            self.source_cache_repo.upsert(
+                result.source,
+                source_cache_lookup_key,
+                normalized_identity={
+                    "query": source_cache_lookup_key,
+                    "gene": getattr(variant, "gene", None),
+                    "cdna": cdna,
+                    "genomic_hg38": getattr(variant, "genomic_hg38", None),
+                    "genomic_hgvs": getattr(variant, "genomic_hgvs", None),
+                },
+                request_identity=result.request_identity,
+                status=result.status,
+                summary=result.summary,
+                raw=result.raw,
+                warnings=result.warnings,
+                source_url=result.source_url,
+                ttl_days=self.settings.cache_ttl_days,
+                source_version=_source_version_from_result(result),
+            )
+        return result
+
     def _record_section_source_result(
         self,
         name: str,
@@ -1308,16 +1410,29 @@ class LookupService:
         species: str,
         refresh: bool,
     ) -> VariantReportProfile:
+        clinvar_result: ToolResult | None = None
         for source_id in ("clinvar", "clingen"):
-            result = self._section_source_result(
-                source_id,
-                cache_key=cache_key,
-                variant=variant,
-                cached_source_results=cached_source_results,
-                species=species,
-                refresh=refresh,
-                warnings=warnings,
-            )
+            if source_id == "clingen" and clinvar_result is not None:
+                result = self._clingen_vcep_section_source_result(
+                    cache_key=cache_key,
+                    cdna=input_resolution.hgvs,
+                    variant=variant,
+                    clinvar_result=clinvar_result,
+                    cached_source_results=cached_source_results,
+                    species=species,
+                    refresh=refresh,
+                    warnings=warnings,
+                )
+            else:
+                result = self._section_source_result(
+                    source_id,
+                    cache_key=cache_key,
+                    variant=variant,
+                    cached_source_results=cached_source_results,
+                    species=species,
+                    refresh=refresh,
+                    warnings=warnings,
+                )
             if source_id == "clinvar":
                 variant.dbsnp_rsid = _extract_dbsnp_rsid(result.raw)
                 if variant.dbsnp_rsid:
@@ -1327,6 +1442,7 @@ class LookupService:
                     }
                 if not variant.protein_change:
                     variant.protein_change = str(result.summary.get("protein_change") or "")
+                clinvar_result = result
             self._record_section_source_result(
                 source_id,
                 result,

@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-28 00:08 +1000 - Report launch-readiness backend P0.1/P0.2 committed for user-approved push: `a9fe106` local-evidence runtime asset freshness blocks, `7a1097b` gnomAD unavailable-reason propagation, plus this handoff closeout. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, Render env mutation, deploy command, or flag change.
+- **Codex:** STOPPED @ 2026-06-28 00:39 +1000 - Report launch-readiness backend P1.1 lazy ClinGen VCEP source-cache path implemented locally and verified; uncommitted. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, Render env mutation, deploy command, or flag change.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-28 00:08 +1000 - Codex (report P0.1/P0.2 closeout)
+UNLOCKED - 2026-06-28 00:40 +1000 - Codex (report P1.1 source-cache closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -431,54 +431,52 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-28 00:06 +1000 - Codex.
+Section last edited: 2026-06-28 00:39 +1000 - Codex.
 
-**Latest Codex update (2026-06-28 00:06 +1000 - Codex):**
-Codex completed the approved report launch-readiness backend P0.1/P0.2 sequence.
+**Latest Codex update (2026-06-28 00:39 +1000 - Codex):**
+Codex completed a local, uncommitted `/report` launch-readiness backend P1.1
+slice for the ClinGen Evidence Repository source-cache path.
 
 Done:
 
-- Reviewed, verified, committed, and pushed P0.1 as `a9fe106`
-  (`feat(evidence): expose local asset freshness metadata`): provider-cache
-  `local_evidence_runtime_assets` now emits sanitized source-level and per-role
-  `freshness` blocks from adjacent manifests only.
-- Implemented, verified, and committed P0.2 as `7a1097b`
-  (`fix(report): preserve gnomAD unavailable reasons`): failed/no-metric gnomAD
-  results now preserve source status, variant/dataset identity, URL, warnings,
-  and machine-readable unavailable reason through population detail, report
-  profile, and call-card status surfaces.
-- Updated this handoff with fresh P0.1/P0.2 state. The older `/report`
-  launch-readiness request remains open for P1.1-P1.4 only.
+- Wired `/api/v1/lookup/sections` `clingen_vcep` hydration to consult
+  `SourceCacheRepo` with the same ClinVar-derived CAID/VCV/HGVS cache key used
+  by full `/lookup`.
+- Fresh ClinGen VCEP cache hits now return an `available` expert-panel payload
+  without calling the ClinGen tool.
+- Stale ClinGen VCEP cache rows are used only after the live/tool path fails;
+  identity-mismatched cached VCEP rows remain rejected.
+- Successful live non-local VCEP expert-panel results can populate the source
+  cache from the lazy section path.
+- Available VCEP lazy-section freshness now reflects ClinGen/VCEP evidence
+  rather than being dominated by the companion ClinVar row.
 
 Verification:
 
-- `python -m pytest tests/test_health_api.py -q -k "local_evidence_runtime_assets or sanitized_empty_aggregates"` passed.
-- `python -m pytest tests/test_report_data_currency.py tests/test_variant_report_orchestration.py -q` passed.
-- `python -m pytest tests/test_population_frequency_section.py tests/test_source_cache.py -q -k "gnomad or population_frequency"` passed.
+- `python -m pytest tests/test_source_cache.py -q -k "clingen_vcep"` passed.
 - `python -m pytest tests/test_source_cache.py -q` passed.
-- `python -m pytest tests/test_report_call_cards.py tests/test_variant_report_orchestration.py -q` passed.
-- `python -m pytest tests/test_source_cache.py tests/test_report_call_cards.py tests/test_variant_report_orchestration.py -q` passed.
-- `python -m ruff check ...` and `python -m black --check ...` passed for the
-  touched P0.1/P0.2 files.
+- `python -m pytest tests/test_lookup_section_fetch_contract.py -q` passed.
+- `python -m pytest tests/test_source_cache.py tests/test_lookup_section_fetch_contract.py -q` passed.
+- `python -m pytest tests/test_variant_report_orchestration.py -q -k "expert_panel or report_profile"` passed.
+- `python -m ruff check app/services/lookup_service.py app/services/lookup_sections.py tests/test_source_cache.py` passed.
+- `python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_sections.py tests/test_source_cache.py` passed after formatting.
 - `git diff --check` passed.
-- `python -m graphify update .` passed after both code changes with the expected
-  oversized-HTML skip.
+- `python -m graphify update .` passed with the expected oversized-HTML skip.
 
 No Supabase mutation, Vercel command, source download, real corpus
-materialization, Storage upload, runtime seeding, runtime flag change, or
-provider flip occurred. No Render env mutation, deploy command, or real
-materialization occurred.
+materialization, Storage upload, runtime seeding, runtime flag change, provider
+flip, Render env mutation, deploy command, or real materialization occurred.
 
-Expected git state after the final handoff commit and push:
-`main...origin/main` clean with `a9fe106`, `7a1097b`, and the handoff commit on
-top. Run `git status --short --branch` and `git log -8 --oneline` for exact HEAD.
+Git state: `main...origin/main`; dirty local files are the P1.1 code/test
+changes plus this handoff/progress closeout. No commit or push has been made in
+this P1.1 session.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-28 00:06 +1000 - Codex report P0.1/P0.2 closeout
-Eamos. Start from `main...origin/main`; `git log -8 --oneline` should include `a9fe106` P0.1 local asset freshness, `7a1097b` P0.2 gnomAD unavailable reasons, and the final handoff commit on top. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, docs/local-evidence-freshness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: P0.1 provider-cache `local_evidence_runtime_assets` freshness blocks shipped; P0.2 backend gnomAD failure/no-metrics path now preserves source status plus `source_unavailable`/`variant_not_found` reason in population detail/profile/call-card status surfaces.
-Verification done: focused provider-cache, report data-currency, population-frequency, source-cache, report call-card, report orchestration tests; Ruff; Black; diff-check; graphify update. No guarded source/materialization/deploy action occurred.
-Next: remaining `/report` launch-readiness backend lane is P1.1 ClinGen Evidence Repository source-cache, P1.2 in-silico calibration fields, P1.3 ClinVar gene-distribution index decision/build, P1.4 source version pins, or read-only planning if no explicit implementation lane is approved.
+# Resume prompt - 2026-06-28 00:39 +1000 - Codex report P1.1 lazy ClinGen VCEP source-cache
+Eamos. Start from `main...origin/main`; `git log -8 --oneline` should include `89bbb23`, `7a1097b`, and `a9fe106`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: local uncommitted P1.1 backend slice wires `/lookup/sections` `clingen_vcep` to ClinGen VCEP `SourceCacheRepo` with fresh-hit, stale-on-failure, identity-mismatch rejection, live-result persistence, and ClinGen-only lazy-section freshness.
+Verification done: `test_source_cache.py`, `test_lookup_section_fetch_contract.py`, focused report-orchestration profile slice, Ruff, Black, diff-check, graphify update. No guarded source/materialization/deploy action occurred.
+Next: commit this P1.1 slice if Steven approves, or continue with P1.2 in-silico calibration gaps, P1.3 ClinVar gene-distribution index launch decision/build, or P1.4 source version pins.
 Guardrails: no real source download, Supabase/Storage upload, runtime seed, flag flip, Render env mutation, Vercel command, deploy, or real materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```

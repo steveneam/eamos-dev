@@ -1,5 +1,45 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-28 00:39 +1000 - Codex - Report P1.1 lazy ClinGen VCEP source-cache
+
+Implemented a local, uncommitted backend P1.1 slice for `/report`
+launch-readiness. The lazy `/api/v1/lookup/sections` `clingen_vcep` path now
+uses the ClinGen Evidence Repository source-cache instead of always falling
+back to the partial clinical-consensus snapshot when a cached VCEP assertion is
+available.
+
+Completed:
+- Added a narrow `LookupService` helper that derives the ClinGen VCEP cache key
+  from ClinVar CAID/VCV/HGVS identity after the lazy builder fetches ClinVar.
+- Fresh `SourceCacheRepo` hits now return an available expert-panel payload
+  without calling the ClinGen tool.
+- Stale VCEP cache rows are served only after the live/tool path fails.
+- Identity-mismatched cached VCEP rows remain rejected.
+- Successful non-local live VCEP expert-panel results can populate the source
+  cache from the lazy section path.
+- Available VCEP lazy-section freshness now reflects ClinGen/VCEP evidence
+  rather than the companion ClinVar row.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_source_cache.py -q -k "clingen_vcep"` passed.
+- `cd app/backend && python -m pytest tests/test_source_cache.py -q` passed.
+- `cd app/backend && python -m pytest tests/test_lookup_section_fetch_contract.py -q` passed.
+- `cd app/backend && python -m pytest tests/test_source_cache.py tests/test_lookup_section_fetch_contract.py -q` passed.
+- `cd app/backend && python -m pytest tests/test_variant_report_orchestration.py -q -k "expert_panel or report_profile"` passed.
+- `cd app/backend && python -m ruff check app/services/lookup_service.py app/services/lookup_sections.py tests/test_source_cache.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_sections.py tests/test_source_cache.py` passed after formatting.
+- `git diff --check` passed.
+- `python -m graphify update .` passed with the expected oversized-HTML skip.
+
+Coordination:
+- No frontend edits.
+- No source download, Supabase or Storage mutation, runtime seed, flag flip,
+  Render env mutation, Vercel command, deploy, real materialization, commit, or
+  push.
+- Dirty local implementation files: `app/backend/app/services/lookup_service.py`,
+  `app/backend/app/services/lookup_sections.py`, and
+  `app/backend/tests/test_source_cache.py`.
+
 ## 2026-06-24 19:17 +1000 - Codex - Safe local commit split, ABCA4 viewer fallback, and workflow ratchet
 
 Created the requested safe local commits from the audited worktree, then handled

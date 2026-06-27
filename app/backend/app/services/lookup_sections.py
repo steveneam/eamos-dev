@@ -201,7 +201,11 @@ def _clingen_vcep_envelope(response: LookupResponse) -> LookupSectionEnvelope:
             section_id="clingen_vcep",
             status="available",
             payload=expert_panel.model_dump(mode="json"),
-            freshness=_freshness(response, "clingen_vcep"),
+            freshness=_freshness(
+                response,
+                "clingen_vcep",
+                source_hints=("clingen",),
+            ),
             warnings=[],
         )
 
@@ -236,8 +240,12 @@ def _freshness(
     section_id: LookupSectionId,
     *,
     provenance: Iterable[SourceProvenance] = (),
+    source_hints: Iterable[str] | None = None,
 ) -> LookupSectionFreshness:
-    evidence = _matching_evidence(response.evidence, SECTION_SOURCE_HINTS[section_id])
+    evidence = _matching_evidence(
+        response.evidence,
+        tuple(source_hints) if source_hints is not None else SECTION_SOURCE_HINTS[section_id],
+    )
     provenance_items = list(provenance)
     return LookupSectionFreshness(
         fetched_at=_first_text(item.fetched_at for item in evidence)
