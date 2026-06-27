@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-26 01:13 +1000 - Architecture gate Task A inventory, Task B desktop section-state/preflight hardening, Task F Supabase runbook, and Task G PubMed/LitVar2/ClinicalTrials materialization planning completed locally. No deploy, remote mutation, source download, or real materialization.
+- **Codex:** STOPPED @ 2026-06-27 17:59 +1000 - Pushed architecture gate `2d0bbe8` and PMAT-001 seed-manifest gate `19b0661`. No deploy, remote mutation, source download, real materialization, storage upload, runtime seeding, or flag change.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-26 01:13 +1000 - Codex (architecture gate wrap-up)
+UNLOCKED - 2026-06-27 17:59 +1000 - Codex (PMAT-001 closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -427,53 +427,52 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-26 01:13 +1000 - Codex.
+Section last edited: 2026-06-27 17:59 +1000 - Codex.
 
-**Latest Codex update (2026-06-26 01:13 +1000 - Codex):**
-Steven approved doing everything up to PubMed materialization, not deploy or
-remote mutation. Codex completed the local architecture-gate sequence through
-Task G and stopped before real materialization.
+**Latest Codex update (2026-06-27 17:59 +1000 - Codex):**
+Steven approved commit/push and continued local work. Codex pushed two commits:
 
-Completed locally:
-- Task A read-only inventory: added
-  `docs/architecture-consistency-gate/inventory.json` and
-  `docs/architecture-consistency-gate/task-a-findings.md`; updated
-  `docs/architecture-consistency-gate/inventory.md`.
-- Task B section-registry hardening: expanded lookup section status contracts,
-  mapped backend envelopes to stable registry UI states, taught lazy sections
-  to render empty/partial/stale/failed section states, and added registry
-  validation to `scripts/eamos-report-preflight.mjs`.
-- Task F Supabase production-readiness planning: added
-  `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`
-  using read-only checks only.
-- Task G PubMed/LitVar2/ClinicalTrials planning: added
+- `2d0bbe8` `feat(report): harden architecture gate section states` - Task A/B/F/G
+  architecture-gate closeout, including inventory artifact/findings, desktop
+  section-state/preflight hardening, Supabase production-readiness runbook, and
+  PubMed/LitVar2/ClinicalTrials materialization plan.
+- `19b0661` `feat(literature): add PMAT seed manifest gate` - PMAT-001 local
+  seed-manifest/tiny-fixture contract for PubMed, LitVar2, PubTator, and
+  ClinicalTrials.
+
+PMAT-001 added:
+
+- `app/backend/app/fixtures/literature/pmat_seed_manifest_tiny.json`;
+- `app/backend/app/services/pubmed_seed_manifest.py`;
+- `app/backend/app/cli/eamos_pubmed_seed_manifest.py`;
+- `app/backend/tests/test_pubmed_seed_manifest.py`;
+- plan evidence in
   `docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md`.
-- Updated architecture/performance plans to point at the local evidence and
-  keep mobile/sub-desktop overflow gates disabled.
 
 Verification:
+
 - `node scripts\eamos-report-preflight.mjs --validate-registry --json` passed.
-- `cd app\backend; python -m pytest tests\test_lookup_section_fetch_contract.py -q`
-  passed.
-- `cd app\backend; python -m pytest tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py -q`
-  passed.
+- `python -m pytest tests\test_lookup_section_fetch_contract.py -q` passed.
+- `python -m pytest tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py -q` passed twice around the PMAT work.
 - `npm --prefix app\web run lint` passed.
+- `python -m pytest tests\test_pubmed_seed_manifest.py -q` passed.
+- `python -m py_compile app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py` passed.
+- `python -m app.cli.eamos_pubmed_seed_manifest --manifest-path app\fixtures\literature\pmat_seed_manifest_tiny.json --compact --require-ready` passed.
+- `python -m ruff check app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py tests\test_pubmed_seed_manifest.py` passed.
+- `python -m black --check --target-version py310 app\services\pubmed_seed_manifest.py app\cli\eamos_pubmed_seed_manifest.py tests\test_pubmed_seed_manifest.py` passed.
 - `git diff --check` passed.
-- `python -m graphify update .` passed with the expected oversized-HTML skip;
-  `graphify-out/graph.json` and `GRAPH_REPORT.md` were rebuilt.
+- `python -m graphify update .` passed with the expected oversized-HTML skip.
 
 No deploy, Vercel command, Render env mutation, Supabase mutation, source
-download, corpus materialization, Storage upload, runtime seeding, runtime flag
-flip, or provider flip occurred. Task E production closeout remains gated until
-Steven explicitly approves deploy and the live audit is rerun to confirm
-`therapies_trials` no longer returns 422.
+download, real corpus materialization, Storage upload, runtime seeding, runtime
+flag flip, or provider flip occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-26 01:13 +1000 - Codex Architecture Gate A/B/F/G completed locally
-Eamos. Continue from dirty local `main...origin/main` after Codex architecture-gate local work. First read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/inventory.md, docs/architecture-consistency-gate/task-a-findings.md, docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/report-performance-optimization/plan.md, docs/data-architecture-duckdb-parquet/adr.md, docs/data-architecture-duckdb-parquet/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Task A inventory artifact/findings were added; Task B desktop section-state/preflight hardening was implemented; Task F Supabase production-readiness runbook was drafted read-only; Task G PubMed/LitVar2/ClinicalTrials materialization planning was drafted. Changed files include backend lookup status schema/tests, frontend LazySection/ReportClient/report-section registry/backend types, report preflight registry validation, architecture/performance docs, and handoff.
-Verification done: `node scripts\eamos-report-preflight.mjs --validate-registry --json`; `cd app\backend; python -m pytest tests\test_lookup_section_fetch_contract.py -q`; `cd app\backend; python -m pytest tests\test_pubmed_local.py tests\test_pubmed_litvar_edges.py tests\test_pubmed_pubtator_edges.py tests\test_clinical_trials_tool.py -q`; `npm --prefix app\web run lint`; `git diff --check`; `python -m graphify update .` (passed; skipped oversized HTML as expected, rebuilt graph.json/GRAPH_REPORT.md).
-Next: review/commit the local architecture-gate changes if desired. Production-close Task E only after explicit deploy approval and rerun live audit to confirm `/lookup/sections` `therapies_trials` no longer returns 422. PubMed/LitVar2/ClinicalTrials work remains planning only; next implementation should start with seed manifest/tiny-fixture gates, not real corpus download/materialization. DuckDB/Parquet Phase 2+ stays operator-gated after tiny-fixture and benchmark planning.
-Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env/Supabase mutation/Vercel command without explicit approval; no startup/request-time downloads; do not move single-coordinate lookup off prepared cache/tabix/SQLite; keep PubMed/PMC layered; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them; Drizzle only as future TS-owned server/admin querying/schema mirror, not a replacement for Python SQLAlchemy/FastAPI. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-27 17:59 +1000 - Codex Architecture Gate pushed + PMAT-001 local seed manifest gate
+Eamos. Start from clean `main...origin/main` after commits `2d0bbe8` and `19b0661`. Read AGENTS.md, CODEX.md, MEMORY.md, memory/eamos-architecture-consistency-gate.md, memory/eamos-mobile-overflow-gate-disabled.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/architecture-consistency-gate/plan.md, docs/architecture-consistency-gate/pubmed-litvar2-clinicaltrials-materialization-plan.md, docs/pubmed-corpus-materialization/spec.md, docs/pubmed-local/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: pushed architecture Task A/B/F/G closeout (`2d0bbe8`) and PMAT-001 seed-manifest/tiny-fixture gate (`19b0661`). PMAT-001 added a curated tiny seed manifest, validator service, no-network CLI, and tests that render the PubMed-local TSV seed shape while rejecting user/patient/request payload fields.
+Verification done: registry validation, lookup section contract test, PubMed/LitVar/PubTator/ClinicalTrials focused tests, web lint, PMAT seed-manifest tests, py_compile, CLI compact validation, Ruff, Black check, diff-check, and `python -m graphify update .` (oversized HTML skipped as expected).
+Next: PMAT-002 only - run/document the existing PubMed-local tiny fixture materialization/preflight path using the checked-in seed manifest output; do not download real source files, upload, seed runtime, mutate Supabase/Render/Vercel, or enable runtime flags. Task E production closeout still requires explicit deploy approval and a live audit rerun.
+Guardrails: no deploy unless explicitly requested; do not run vercel/vc from app/web; no Render env/Supabase mutation/Vercel command without explicit approval; no startup/request-time downloads; keep PubMed/PMC layered and license-gated; do not move single-coordinate lookup off prepared cache/tabix/SQLite; mobile/sub-desktop overflow gates stay disabled until Steven explicitly reactivates them. End clear-safe with a fresh stamped resume prompt.
 ```
