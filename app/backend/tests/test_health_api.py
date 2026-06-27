@@ -151,6 +151,29 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert literature_embeddings["local_path_values_emitted"] is False
     assert literature_embeddings["abstract_values_emitted"] is False
     assert literature_embeddings["vector_values_emitted"] is False
+    local_runtime = body["source_assets"]["local_evidence_runtime_assets"]
+    assert local_runtime["ready"] is False
+    assert local_runtime["local_path_values_emitted"] is False
+    assert local_runtime["object_uri_values_emitted"] is False
+    local_runtime_sources = {item["item_id"]: item for item in local_runtime["sources"]}
+    assert {
+        item_id: item["freshness"]["status"] for item_id, item in local_runtime_sources.items()
+    } == {
+        "dbsnp_local_adapter": "unknown",
+        "clinvar_local_adapter": "unknown",
+        "repeatmasker_local_adapter": "unknown",
+        "phylop_conservation_reader": "unknown",
+    }
+    assert local_runtime_sources["clinvar_local_adapter"]["freshness"] == {
+        "tier": "volatile",
+        "sla_days": 8,
+        "status": "unknown",
+        "staleness_days": None,
+        "materialized_at": None,
+        "upstream_released_at": None,
+        "upstream_version": None,
+        "source_version": None,
+    }
     crispr = body["providers"]["crispr"]
     assert crispr["configured_provider"] == "local_deterministic"
     assert crispr["available"] is True
@@ -941,16 +964,53 @@ def test_provider_cache_health_survives_predictor_materialization_read_failure(
 def test_provider_cache_health_reports_local_evidence_runtime_assets_without_paths(
     tmp_path: Path,
 ) -> None:
+    materialized_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    upstream_released_at = datetime.now(timezone.utc).date().isoformat()
     dbsnp_vcf = _write_indexed_runtime_file(tmp_path / "dbsnp" / "GCF_000001405.40.gz", b"vcf")
+    _write_local_evidence_manifest(
+        dbsnp_vcf,
+        source_version="dbSNP pytest",
+        materialized_at=materialized_at,
+        upstream_released_at=upstream_released_at,
+    )
+    _write_local_evidence_manifest(
+        Path(f"{dbsnp_vcf}.tbi"),
+        source_version="dbSNP pytest",
+        materialized_at=materialized_at,
+        upstream_released_at=upstream_released_at,
+    )
     clinvar_vcf = _write_indexed_runtime_file(
         tmp_path / "clinvar" / "clinvar.vcf.gz",
         b"clinvar",
+    )
+    _write_local_evidence_manifest(
+        clinvar_vcf,
+        source_version="ClinVar pytest",
+        materialized_at=materialized_at,
+        upstream_released_at=upstream_released_at,
+    )
+    _write_local_evidence_manifest(
+        Path(f"{clinvar_vcf}.tbi"),
+        source_version="ClinVar pytest",
+        materialized_at=materialized_at,
+        upstream_released_at=upstream_released_at,
     )
     repeatmasker_index = _write_runtime_file(
         tmp_path / "repeatmasker" / "repeatmasker.interval-index.jsonl",
         b"index",
     )
+    _write_local_evidence_manifest(
+        repeatmasker_index,
+        source_version="RepeatMasker pytest",
+        materialized_at=materialized_at,
+        upstream_released_at=upstream_released_at,
+    )
     phylop_bigwig = _write_runtime_file(tmp_path / "phylop" / "hg38.phyloP100way.bw", b"bw")
+    _write_local_evidence_manifest(
+        phylop_bigwig,
+        source_version="phyloP pytest",
+        materialized_at=materialized_at,
+    )
     settings = Settings(
         upload_dir=tmp_path / "uploads",
         final_report_dir=tmp_path / "final_reports",
@@ -977,6 +1037,35 @@ def test_provider_cache_health_reports_local_evidence_runtime_assets_without_pat
     assert runtime["local_path_values_emitted"] is False
     by_item = {item["item_id"]: item for item in runtime["sources"]}
     assert {item["status"] for item in by_item.values()} == {"ready"}
+    assert by_item["clinvar_local_adapter"]["freshness"] == {
+        "tier": "volatile",
+        "sla_days": 8,
+        "status": "fresh",
+        "staleness_days": 0,
+        "materialized_at": materialized_at,
+        "upstream_released_at": upstream_released_at,
+        "upstream_version": "ClinVar pytest",
+        "source_version": "ClinVar pytest",
+    }
+    assert by_item["dbsnp_local_adapter"]["freshness"]["tier"] == "static"
+    assert by_item["dbsnp_local_adapter"]["freshness"]["sla_days"] is None
+    assert by_item["dbsnp_local_adapter"]["freshness"]["status"] == "fresh"
+    assert by_item["repeatmasker_local_adapter"]["freshness"]["status"] == "fresh"
+    assert by_item["phylop_conservation_reader"]["freshness"] == {
+        "tier": "static",
+        "sla_days": None,
+        "status": "unknown",
+        "staleness_days": None,
+        "materialized_at": materialized_at,
+        "upstream_released_at": None,
+        "upstream_version": "phyloP pytest",
+        "source_version": "phyloP pytest",
+    }
+    for source in by_item.values():
+        assert "freshness" in source
+        for asset in source["assets"]:
+            assert "freshness" in asset
+            assert "manifest" not in json.dumps(asset).lower()
     ledger_items = {item["item_id"]: item for item in response.json()["build_ledger"]["items"]}
     assert ledger_items["dbsnp_local_adapter"]["status"] == "ready"
     assert ledger_items["clinvar_local_adapter"]["status"] == "ready"
@@ -1127,6 +1216,27 @@ def _write_indexed_runtime_file(path: Path, payload: bytes) -> Path:
     _write_runtime_file(path, payload)
     Path(f"{path}.tbi").write_bytes(b"index")
     return path
+
+
+def _write_local_evidence_manifest(
+    path: Path,
+    *,
+    source_version: str,
+    materialized_at: str,
+    upstream_released_at: str | None = None,
+) -> None:
+    payload = {
+        "schema_version": "pytest.local-evidence-freshness.v1",
+        "source_version": source_version,
+        "upstream_version": source_version,
+        "materialized_at": materialized_at,
+    }
+    if upstream_released_at is not None:
+        payload["upstream_released_at"] = upstream_released_at
+    path.with_suffix(path.suffix + ".manifest.json").write_text(
+        json.dumps(payload, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def _write_tiny_duckdb_release(tmp_path: Path) -> tuple[Path, Path]:
