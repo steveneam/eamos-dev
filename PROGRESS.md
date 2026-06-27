@@ -1,5 +1,41 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-28 00:59 +1000 - Codex - Report P1.1 push and P1.4 source-version pins
+
+Committed and pushed the previously verified P1.1 lazy ClinGen VCEP source-cache
+slice:
+- `710d8a5` (`fix(report): use ClinGen VCEP cache for lazy sections`) is on
+  `origin/main`.
+- Push only; no Vercel command, Render env mutation, deploy command, source
+  download, real materialization, runtime seed, Supabase/Storage mutation, or
+  flag flip was run.
+
+Continued the backend launch-readiness lane:
+- Audited P1.2 in-silico calibration. Existing backend readiness notes and tests
+  already mark it complete for supported predictors: REVEL, CADD/CADD PHRED,
+  SpliceAI, AlphaMissense, and ESM1b populate calibrated label, bucket, method,
+  and version; unsupported/unreviewed engines remain explicit-null by policy.
+- Audited P1.3 ClinVar gene-distribution index. Materializer, reader,
+  fail-closed health/preflight, manifest validation, and lookup gating already
+  exist. The remaining real ClinVar artifact build/sync is operationally guarded
+  and was not started.
+- Implemented and committed P1.4 top-level report source-version pins in
+  `d1bbdd0` (`feat(report): expose source version pins`):
+  `ReportPayload.source_versions` is now populated from sanitized
+  `report_data_currency.sources[].source_version` rows so FE/export consumers can
+  cite source versions without walking freshness rows.
+- Synced the checked-in `app/frontend/src/lib/backend.ts` contract mirror to the
+  already-broader `app/web/lib/backend.ts` `LookupSectionStatus` union; the
+  backend/frontend contract canary now passes byte-identical mirror checks.
+
+Verification:
+- `cd app/backend && python -m pytest tests/test_report_data_currency.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q` passed.
+- `cd app/backend && python -m ruff check app/schemas/run.py app/services/report_data_currency.py app/services/lookup_service.py tests/test_report_data_currency.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py` passed.
+- `cd app/backend && python -m black --check --target-version py310 app/schemas/run.py app/services/report_data_currency.py app/services/lookup_service.py tests/test_report_data_currency.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py` passed after formatting.
+- `git diff --no-index -- app/frontend/src/lib/backend.ts app/web/lib/backend.ts` passed.
+- `git diff --check` passed.
+- `python -m graphify update .` passed with the expected oversized-HTML skip.
+
 ## 2026-06-28 00:39 +1000 - Codex - Report P1.1 lazy ClinGen VCEP source-cache
 
 Implemented a local, uncommitted backend P1.1 slice for `/report`
