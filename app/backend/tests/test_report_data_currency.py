@@ -4,6 +4,7 @@ from app.schemas.lookup import SearchInputInterpretation
 from app.schemas.run import EvidenceSourceSummary, ReportPayload, VariantSummaryRow
 from app.services.report_data_currency import (
     build_report_data_currency,
+    build_source_version_pins,
     latest_evidence_timestamp,
 )
 from app.services.search_input_resolver import SearchInputResolution
@@ -77,6 +78,11 @@ def test_report_data_currency_uses_only_sanitized_evidence_freshness() -> None:
     assert gnomad.materialized_at == "2026-06-01T00:00:00+00:00"
     assert gnomad.staleness_days == 22
     assert gnomad.source_version == "gnomad_r4"
+    assert build_source_version_pins(currency) == {
+        "clinvar": "ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523",
+        "clingen": "ClinGen Evidence Repo cached",
+        "gnomad": "gnomad_r4",
+    }
 
 
 def test_latest_evidence_timestamp_prefers_latest_real_source_timestamp() -> None:

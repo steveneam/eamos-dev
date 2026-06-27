@@ -1040,6 +1040,7 @@ class ReportPayload(BaseModel):
     patient_id: str
     report_generated_at: str | None = None
     report_data_currency: ReportDataCurrency | None = None
+    source_versions: dict[str, str] = Field(default_factory=dict)
     case_label: str | None = None
     report_title: str | None = None
     source_filenames: list[str] = Field(

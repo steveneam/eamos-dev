@@ -147,6 +147,7 @@ export interface ReportPayload {
   patient_id: string
   report_generated_at?: string | null
   report_data_currency?: ReportDataCurrency | null
+  source_versions?: Record<string, string>
   case_label?: string | null
   report_title?: string | null
   source_filenames?: string[]

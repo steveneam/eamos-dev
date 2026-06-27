@@ -147,6 +147,7 @@ export interface ReportPayload {
   patient_id: string
   report_generated_at?: string | null
   report_data_currency?: ReportDataCurrency | null
+  source_versions?: Record<string, string>
   case_label?: string | null
   report_title?: string | null
   source_filenames?: string[]
@@ -484,7 +485,16 @@ export type LookupSectionId =
   | 'computational_deep_dive'
   | 'clingen_vcep'
 
-export type LookupSectionStatus = 'available' | 'partial' | 'missing'
+export type LookupSectionStatus =
+  | 'ready'
+  | 'available'
+  | 'empty'
+  | 'missing'
+  | 'partial'
+  | 'hydrating'
+  | 'stale'
+  | 'failed'
+  | 'unsupported'
 
 export interface LookupSummaryTile {
   tile_id: string

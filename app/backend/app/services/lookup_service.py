@@ -60,6 +60,7 @@ from app.services.report_call_cards import (
     build_variant_report_call_cards,
 )
 from app.services.report_data_currency import (
+    build_source_version_pins,
     build_report_data_currency,
     current_report_timestamp,
 )
@@ -2769,6 +2770,7 @@ class LookupService:
             evidence_map,
             generated_at=report_generated_at,
         )
+        base_payload.source_versions = build_source_version_pins(base_payload.report_data_currency)
         base_payload.report_profile = self.report_orchestrator.build_profile(
             resolution=input_resolution,
             interpretation=search_interpretation,

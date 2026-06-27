@@ -108,14 +108,16 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     report_payload = response.json()["report_payload"]
     profile = report_payload["report_profile"]
     assert report_payload["report_generated_at"]
-    assert report_payload["report_data_currency"]["generated_at"] == report_payload[
-        "report_generated_at"
-    ]
+    assert (
+        report_payload["report_data_currency"]["generated_at"]
+        == report_payload["report_generated_at"]
+    )
     data_currency_sources = {
         source["source"]: source for source in report_payload["report_data_currency"]["sources"]
     }
     assert data_currency_sources["gnomad"]["source_version"] == "gnomad_r4"
     assert data_currency_sources["gnomad"]["status"] == "unknown"
+    assert report_payload["source_versions"]["gnomad"] == "gnomad_r4"
     assert profile["header"]["gene"] == "RPE65"
     assert profile["header"]["cdna"] == "c.260A>G"
     assert profile["header"]["updated_at"] == report_payload["report_generated_at"]
@@ -283,12 +285,13 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert signals_by_id["publications"]["default_open"] is True
     assert signals_by_id["therapies_trials"]["relevance"] == "disease_discovery"
     assert signals_by_id["therapies_trials"]["default_open"] is True
-    assert signals_by_id["therapies_trials"]["priority"] < signals_by_id["acmg_worksheet"][
-        "priority"
-    ]
-    assert "clinical_trials_structured_rows_unavailable" in signals_by_id["therapies_trials"][
-        "data_notes"
-    ]
+    assert (
+        signals_by_id["therapies_trials"]["priority"] < signals_by_id["acmg_worksheet"]["priority"]
+    )
+    assert (
+        "clinical_trials_structured_rows_unavailable"
+        in signals_by_id["therapies_trials"]["data_notes"]
+    )
     assert {item["source"] for item in profile["provenance"]} >= {"gnomad", "clinvar", "pubmed"}
     population_card = next(
         card
@@ -712,12 +715,10 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
         assert section_id in signals
     assert signals["expert_panel"]["status"] == "empty"
     assert signals["therapies_trials"]["default_open"] is True
-    assert "clinical_trials_structured_rows_unavailable" in profile["therapies_trials"][
-        "warnings"
-    ]
-    assert "clinical_trials_structured_rows_unavailable" in signals["therapies_trials"][
-        "data_notes"
-    ]
+    assert "clinical_trials_structured_rows_unavailable" in profile["therapies_trials"]["warnings"]
+    assert (
+        "clinical_trials_structured_rows_unavailable" in signals["therapies_trials"]["data_notes"]
+    )
     assert computed["limitations"] == []
 
     serialized = json.dumps(report_payload)

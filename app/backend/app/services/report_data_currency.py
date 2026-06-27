@@ -73,6 +73,21 @@ def build_report_data_currency(
     return ReportDataCurrency(generated_at=generated_at, sources=sources)
 
 
+def build_source_version_pins(
+    currency: ReportDataCurrency | None,
+) -> dict[str, str]:
+    if currency is None:
+        return {}
+    pins: dict[str, str] = {}
+    for item in currency.sources:
+        source = _safe_source_key(item.source)
+        version = _safe_public_text(item.source_version)
+        if source is None or version is None or source in pins:
+            continue
+        pins[source] = version
+    return pins
+
+
 def latest_evidence_timestamp(
     evidence: list[EvidenceSourceSummary],
     evidence_map: dict[str, dict[str, Any]] | None = None,
