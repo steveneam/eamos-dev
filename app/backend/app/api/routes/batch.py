@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
-from app.core.rate_limit import RATE_LIMIT_BATCH_UPLOAD, enforce_rate_limit
+from app.core.rate_limit import RATE_LIMIT_BATCH_JOB, RATE_LIMIT_BATCH_UPLOAD, enforce_rate_limit
 from app.schemas.batch import (
     BATCH_MAX_VARIANTS,
     BatchCreateRequest,
@@ -43,6 +43,8 @@ async def upload_batch_file(
         upload_ref = _service(request).store_upload(
             payload,
             filename=file.filename,
+            owner_user_id=principal.user_id,
+            owner_provider=principal.provider,
             max_decompressed_bytes=size_limit,
             max_variants=BATCH_MAX_VARIANTS,
         )
@@ -64,9 +66,18 @@ async def upload_batch_file(
 
 
 @router.post("", response_model=BatchCreateResponse)
-def create_batch_job(payload: BatchCreateRequest, request: Request) -> BatchCreateResponse:
+def create_batch_job(
+    payload: BatchCreateRequest,
+    request: Request,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> BatchCreateResponse:
+    enforce_rate_limit(request, RATE_LIMIT_BATCH_JOB, subject=principal.user_id)
     try:
-        return _service(request).create_job(payload)
+        return _service(request).create_job(
+            payload,
+            owner_user_id=principal.user_id,
+            owner_provider=principal.provider,
+        )
     except KeyError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -80,9 +91,16 @@ def get_batch_job(
     request: Request,
     limit: int = 100,
     cursor: str | None = None,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> BatchJob:
     query = BatchJobQuery(limit=limit, cursor=cursor)
-    job = _service(request).get_job(job_id, limit=query.limit, cursor=query.cursor)
+    job = _service(request).get_job(
+        job_id,
+        limit=query.limit,
+        cursor=query.cursor,
+        owner_user_id=principal.user_id,
+        owner_provider=principal.provider,
+    )
     if job is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

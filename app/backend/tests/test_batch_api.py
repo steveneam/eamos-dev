@@ -29,8 +29,8 @@ COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_in
 PROJECT_100_VCF = FIXTURES_DIR / "hardening" / "project_100_mock_stack.vcf"
 
 
-def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
-    response = client.post(
+def test_batch_inline_job_dedupes_and_paginates_results(auth_client) -> None:
+    response = auth_client.post(
         "/api/v1/batch",
         json={
             "variants": [
@@ -64,7 +64,7 @@ def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
     assert created["n_input"] == 2
     assert created["n_to_lookup"] == 1
 
-    job = _wait_for_http_job(client, created["job_id"], limit=1)
+    job = _wait_for_http_job(auth_client, created["job_id"], limit=1)
     assert job["status"] == "completed"
     assert job["done"] == 1
     assert job["page"] == {"limit": 1, "next_cursor": None, "total": 1}
@@ -74,19 +74,19 @@ def test_batch_inline_job_dedupes_and_paginates_results(client) -> None:
 
 
 def test_batch_inline_job_uses_compact_coordinate_index_for_cdna_rows(
-    client,
+    auth_client,
     tmp_path: Path,
 ) -> None:
-    settings = client.app.state.settings.model_copy(
+    settings = auth_client.app.state.settings.model_copy(
         update={"coordinate_resolver_compact_index_path": COMPACT_INDEX_FIXTURE}
     )
-    client.app.state.batch_service = BatchService(
+    auth_client.app.state.batch_service = BatchService(
         upload_dir=tmp_path,
         panel_service=PanelService(),
         coordinate_resolver=build_runtime_coordinate_resolver(settings),
     )
 
-    response = client.post(
+    response = auth_client.post(
         "/api/v1/batch",
         json={
             "variants": [
@@ -103,7 +103,7 @@ def test_batch_inline_job_uses_compact_coordinate_index_for_cdna_rows(
 
     assert response.status_code == 200
     created = response.json()
-    job = _wait_for_http_job(client, created["job_id"])
+    job = _wait_for_http_job(auth_client, created["job_id"])
 
     assert job["results"][0]["variant_key"] == "1-68444869-T-C"
     assert "compact_coordinate_index_batch_resolution" in job["results"][0]["warnings"]
@@ -116,6 +116,21 @@ def test_batch_upload_requires_authentication(client) -> None:
     )
 
     assert upload.status_code == 401
+
+
+def test_batch_create_requires_authentication(client) -> None:
+    response = client.post(
+        "/api/v1/batch",
+        json={"variants": [_parsed_variant_payload("1-10-A-C")]},
+    )
+
+    assert response.status_code == 401
+
+
+def test_batch_get_requires_authentication(client) -> None:
+    response = client.get("/api/v1/batch/batch-missing")
+
+    assert response.status_code == 401
 
 
 def test_batch_upload_is_rate_limited(auth_client) -> None:
@@ -132,6 +147,23 @@ def test_batch_upload_is_rate_limited(auth_client) -> None:
 
     assert first.status_code == 200
     assert second.status_code == 429
+
+
+def test_batch_create_is_rate_limited(auth_client) -> None:
+    auth_client.app.state.settings.rate_limit_batch_job_max_requests = 1
+
+    first = auth_client.post(
+        "/api/v1/batch",
+        json={"variants": [_parsed_variant_payload("1-10-A-C", pos=10)]},
+    )
+    second = auth_client.post(
+        "/api/v1/batch",
+        json={"variants": [_parsed_variant_payload("1-11-A-C", pos=11)]},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.headers["Retry-After"]
 
 
 def test_batch_upload_rejects_oversized_file(auth_client) -> None:
@@ -201,6 +233,45 @@ def test_batch_upload_vcf_cleans_rows_and_filters_before_lookup(auth_client) -> 
     assert job["results"][0]["hgvs_c"] == "c.2858G>T"
     assert job["results"][0]["hgvs_p"] == "p.Cys953Phe"
     assert "whitespace_delimited_vcf_row_recovered" in job["results"][0]["warnings"]
+
+
+def test_batch_upload_ref_is_owner_scoped(auth_client) -> None:
+    upload = auth_client.post(
+        "/api/v1/batch/uploads",
+        files={"file": ("sample.vcf", _valid_vcf(), "text/plain")},
+    )
+    assert upload.status_code == 200
+    upload_ref = upload.json()["upload_ref"]
+
+    other_auth = _register_user_headers(auth_client, "batch-other-upload")
+    other_create = auth_client.post(
+        "/api/v1/batch",
+        json={"upload_ref": upload_ref},
+        headers=other_auth,
+    )
+    owner_create = auth_client.post(
+        "/api/v1/batch",
+        json={"upload_ref": upload_ref},
+    )
+
+    assert other_create.status_code == 404
+    assert owner_create.status_code == 200
+
+
+def test_batch_job_get_is_owner_scoped(auth_client) -> None:
+    created = auth_client.post(
+        "/api/v1/batch",
+        json={"variants": [_parsed_variant_payload("1-10-A-C")]},
+    )
+    assert created.status_code == 200
+    job_id = created.json()["job_id"]
+
+    other_auth = _register_user_headers(auth_client, "batch-other-job")
+    other_get = auth_client.get(f"/api/v1/batch/{job_id}", headers=other_auth)
+    owner_get = auth_client.get(f"/api/v1/batch/{job_id}")
+
+    assert other_get.status_code == 404
+    assert owner_get.status_code == 200
 
 
 def test_batch_service_runs_lookup_in_background_and_maps_summary(tmp_path: Path) -> None:
@@ -415,8 +486,8 @@ def test_batch_project_100_mock_vcf_uses_lookup_summary_not_info_passthrough(
     assert all(result.predictor_ensemble for result in job.results)
 
 
-def test_batch_unknown_upload_ref_returns_404(client) -> None:
-    response = client.post(
+def test_batch_unknown_upload_ref_returns_404(auth_client) -> None:
+    response = auth_client.post(
         "/api/v1/batch",
         json={"upload_ref": "batch-upload-missing"},
     )
@@ -479,6 +550,34 @@ def _valid_vcf() -> str:
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "1\t10\t.\tA\tC\t.\tPASS\tGENE=BRCA1\n"
     )
+
+
+def _parsed_variant_payload(
+    query: str,
+    *,
+    pos: int = 10,
+    gene: str = "BRCA1",
+    variant: str = "c.1A>C",
+) -> dict:
+    return {
+        "query": query,
+        "chrom": "1",
+        "pos": pos,
+        "ref": "A",
+        "alt": "C",
+        "gene": gene,
+        "variant": variant,
+        "filter": "PASS",
+    }
+
+
+def _register_user_headers(client, username: str) -> dict[str, str]:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"username": username, "password": "test-password"},
+    )
+    assert response.status_code == 201
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def _settings_with_compact_index():

@@ -103,6 +103,7 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
     rate_limit_default_max_requests: int = 60
     rate_limit_auth_max_requests: int = 20
+    rate_limit_batch_job_max_requests: int = 10
     rate_limit_batch_upload_max_requests: int = 10
     rate_limit_lookup_max_requests: int = 30
     rate_limit_chat_max_requests: int = 10

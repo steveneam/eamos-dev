@@ -49,6 +49,8 @@ class StoredUpload:
     filename: str | None
     variants: list[ParsedVariant]
     created_at_monotonic: float
+    owner_user_id: str | None = None
+    owner_provider: str | None = None
     warnings: list[str] = field(default_factory=list)
     skipped_rows: int = 0
 
@@ -65,6 +67,8 @@ class StoredBatchJob:
     done: int
     total: int
     results: list[BatchResult]
+    owner_user_id: str | None = None
+    owner_provider: str | None = None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -140,6 +144,8 @@ class BatchService:
         payload: bytes,
         *,
         filename: str | None = None,
+        owner_user_id: str | None = None,
+        owner_provider: str | None = None,
         max_decompressed_bytes: int = DEFAULT_MAX_DECOMPRESSED_BYTES,
         max_variants: int = BATCH_MAX_VARIANTS,
     ) -> str:
@@ -157,6 +163,8 @@ class BatchService:
             filename=filename,
             variants=parsed.variants,
             created_at_monotonic=self._clock(),
+            owner_user_id=owner_user_id,
+            owner_provider=owner_provider,
             warnings=parsed.warnings,
             skipped_rows=parsed.skipped_rows,
         )
@@ -166,10 +174,20 @@ class BatchService:
         self._write_upload_snapshot(stored)
         return upload_ref
 
-    def create_job(self, request: BatchCreateRequest) -> BatchCreateResponse:
+    def create_job(
+        self,
+        request: BatchCreateRequest,
+        *,
+        owner_user_id: str | None = None,
+        owner_provider: str | None = None,
+    ) -> BatchCreateResponse:
         with self._lock:
             self._prune_registries()
-            variants, warnings = self._request_variants(request)
+            variants, warnings = self._request_variants(
+                request,
+                owner_user_id=owner_user_id,
+                owner_provider=owner_provider,
+            )
         filtered, filter_warnings = self._apply_prelookup_filters(variants, request.filters)
         warnings.extend(filter_warnings)
         deduped, dedupe_warnings = _dedupe_variants(
@@ -199,6 +217,8 @@ class BatchService:
             done=done,
             total=len(results),
             results=results,
+            owner_user_id=owner_user_id,
+            owner_provider=owner_provider,
             warnings=warnings,
         )
         with self._lock:
@@ -213,11 +233,25 @@ class BatchService:
             est_seconds=job.est_seconds,
         )
 
-    def get_job(self, job_id: str, *, limit: int, cursor: str | None = None) -> BatchJob | None:
+    def get_job(
+        self,
+        job_id: str,
+        *,
+        limit: int,
+        cursor: str | None = None,
+        owner_user_id: str | None = None,
+        owner_provider: str | None = None,
+    ) -> BatchJob | None:
         with self._lock:
             self._prune_registries()
             job = self._jobs.get(job_id)
             if job is None:
+                return None
+            if not _owner_matches(
+                job,
+                owner_user_id=owner_user_id,
+                owner_provider=owner_provider,
+            ):
                 return None
             self._jobs.move_to_end(job_id)
             offset = _cursor_offset(cursor)
@@ -239,12 +273,20 @@ class BatchService:
             )
 
     def _request_variants(
-        self, request: BatchCreateRequest
+        self,
+        request: BatchCreateRequest,
+        *,
+        owner_user_id: str | None = None,
+        owner_provider: str | None = None,
     ) -> tuple[list[ParsedVariant], list[str]]:
         if request.variants is not None:
             return list(request.variants), []
         upload = self._uploads.get(request.upload_ref or "")
-        if upload is None:
+        if upload is None or not _owner_matches(
+            upload,
+            owner_user_id=owner_user_id,
+            owner_provider=owner_provider,
+        ):
             raise KeyError(request.upload_ref or "")
         self._uploads.move_to_end(request.upload_ref or "")
         warnings = list(upload.warnings)
@@ -615,6 +657,17 @@ def _merge_variant_metadata(primary: ParsedVariant, duplicate: ParsedVariant) ->
 
 def _has_value(value: Any) -> bool:
     return value is not None and value != ""
+
+
+def _owner_matches(
+    record: StoredUpload | StoredBatchJob,
+    *,
+    owner_user_id: str | None,
+    owner_provider: str | None,
+) -> bool:
+    if owner_user_id is None and owner_provider is None:
+        return True
+    return record.owner_user_id == owner_user_id and record.owner_provider == owner_provider
 
 
 def _variant_key(variant: ParsedVariant) -> str:

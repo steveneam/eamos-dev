@@ -57,7 +57,7 @@ const noop = () => {}
 type RunStatus = 'idle' | 'running' | 'done'
 
 type BatchProgress = {
-  stage: 'uploading' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'mock'
+  stage: 'uploading' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
   status?: BatchJobStatus
   jobId?: string
   done: number
@@ -134,7 +134,7 @@ export function CompareClient() {
   const [hydrated, setHydrated] = useState(false)
   const [filters, setFilters] = useState<ActiveFilter[]>([])
   const [status, setStatus] = useState<RunStatus>('idle')
-  // Server-computed batch results (real backend); null = none yet / mock-offline.
+  // Server-computed batch results; null means none yet or a failed run.
   const [results, setResults] = useState<BatchResult[] | null>(null)
   const [progress, setProgress] = useState<BatchProgress | null>(null)
   // True when the scope changed after a run — the visible output no longer matches
@@ -220,30 +220,28 @@ export function CompareClient() {
 
         if (!isCurrentRun()) return
         setProgress({
-          stage: job.job_id.startsWith('mock-') ? 'mock' : 'queued',
+          stage: 'queued',
           jobId: job.job_id,
-          done: job.job_id.startsWith('mock-') ? job.n_to_lookup : 0,
+          done: 0,
           total: job.n_to_lookup,
           nInput: job.n_input,
           nToLookup: job.n_to_lookup,
           estSeconds: job.est_seconds,
           usedUpload,
         })
-        if (!job.job_id.startsWith('mock-')) {
-          const final = await pollBatchJob(job.job_id, {
-            limit: 200,
-            onUpdate: (next) => {
-              if (isCurrentRun()) setProgress(progressFromJob(next, usedUpload))
-            },
-            shouldContinue: isCurrentRun,
-          })
-          if (!isCurrentRun()) return
-          if (final.status !== 'completed') {
-            throw new Error(final.status === 'cancelled' ? 'Batch lookup was cancelled.' : 'Batch lookup failed.')
-          }
-          const collected = await collectBatchResults(final, { limit: 200, shouldContinue: isCurrentRun })
-          if (isCurrentRun() && collected.length > 0) setResults(collected)
+        const final = await pollBatchJob(job.job_id, {
+          limit: 200,
+          onUpdate: (next) => {
+            if (isCurrentRun()) setProgress(progressFromJob(next, usedUpload))
+          },
+          shouldContinue: isCurrentRun,
+        })
+        if (!isCurrentRun()) return
+        if (final.status !== 'completed') {
+          throw new Error(final.status === 'cancelled' ? 'Batch lookup was cancelled.' : 'Batch lookup failed.')
         }
+        const collected = await collectBatchResults(final, { limit: 200, shouldContinue: isCurrentRun })
+        if (isCurrentRun() && collected.length > 0) setResults(collected)
       } catch (error) {
         if (!isCurrentRun()) return
         setProgress((prev) => ({
@@ -713,8 +711,6 @@ function LoadingCard({ progress }: { progress: BatchProgress | null }) {
           ? 'Running lookup'
           : progress?.status === 'completed' || progress?.stage === 'completed'
             ? 'Completed'
-            : progress?.stage === 'mock'
-              ? 'Preview ready'
             : 'Preparing job'
 
   return (
