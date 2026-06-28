@@ -628,7 +628,7 @@ Remaining gap:
 
 ## Follow-up: Operational ClinVar Artifact Lane
 
-Status: CONTINUED WITH DEPLOYED ARTIFACT GAP - 2026-06-28 - Codex.
+Status: LOCAL ARTIFACT BUILT WITH DEPLOYED ARTIFACT GAP - 2026-06-28 - Codex.
 
 Evidence:
 
@@ -729,3 +729,33 @@ Additional tests and checks:
   from `app/backend` - passed.
 - `python -m black --check --target-version py310 app/services/clinvar_local.py app/services/generated_source_artifacts.py app/cli/eamos_generated_artifact_upload.py app/cli/eamos_generated_artifact_sync.py tests/test_clinvar_local_adapter.py tests/test_generated_source_artifacts.py tests/test_source_asset_preflight_cli.py`
   from `app/backend` - passed.
+
+2026-06-28 real local materialization:
+
+- After committing/pushing `7c5e4b6`, Codex ran a bounded local build against the
+  already-present `app/backend/data/bio_assets/clinvar/clinvar.vcf.gz` with no
+  source download, network, upload/sync, deploy, env mutation, flag flip, or
+  runtime seed.
+- Command shape: `python -m app.cli.eamos_clinvar_gene_distribution_materialize
+  --from-vcf <local clinvar.vcf.gz> --output <local sqlite> --manifest <local
+  manifest> --force --compact --require-ready`, monitored every 30 seconds under
+  a 45-minute ceiling.
+- The materializer process exited after about 40 minutes. A wrapper log-printing
+  bug tripped on an empty stderr file after process exit, but the materializer
+  stdout and artifact inspection reported `ready=true`.
+- Result: `actual_size_bytes=737673216`, `gene_count=28936`,
+  `variant_count=4713770`, `skipped_row_count=243588`, `schema_version=
+  eamos.clinvar_gene_distribution.v1`, SHA-256
+  `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`, source
+  version `ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523`.
+- Read-only source-asset preflight sees `clinvar_gene_distribution_index` as
+  ready and plans the generated artifact for private Storage upload with
+  `upload_performed=false` and `network_used=false`. No upload/sync was run.
+- Direct runtime-reader smoke for `RPE65` + `1-68444869-T-C` returned
+  `total=1136`, row totals `benign=420`, `pathogenic=327`, `vus=389`, and
+  query metadata `VCV001421454` / `vus_noncoding` with no warnings.
+- `eamos_source_asset_preflight` now supports operator summary output formats:
+  default `--format toon`, plus `--format markdown`, `--format csv`, and full
+  machine JSON via `--format json` or legacy `--compact`. The TOON summary keeps
+  the large preflight report chat/log-friendly while preserving JSON for
+  automation.

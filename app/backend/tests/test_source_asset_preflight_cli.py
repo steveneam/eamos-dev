@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import csv
 import json
 from hashlib import md5, sha256
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
 from app.cli.eamos_source_asset_preflight import (
     _render_persistent_disk_gate_summary,
     build_source_asset_preflight_report,
+    format_source_asset_preflight_report,
     main,
 )
 from app.core.config import Settings
@@ -38,6 +41,110 @@ from app.services.predictor_runtime import (
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
 COMPACT_INDEX_FIXTURE = FIXTURES_DIR / "coordinate_index" / "eamos_coordinate_index_tiny.jsonl"
+
+
+def test_source_asset_preflight_formats_toon_summary_by_default() -> None:
+    output = format_source_asset_preflight_report(_format_fixture_report())
+
+    assert output.startswith("mode: source_asset_readiness\n")
+    assert "guardrails:\n  network: not_used" in output
+    assert "assets[4]{section,item,status,ready,count,byte_size,sha256,message}:" in output
+    assert (
+        "runtime,clinvar_gene_distribution_index,ready,true,4713770,737673216,"
+        "abc123,ClinVar gene-distribution index is ready"
+    ) in output
+    assert (
+        "generated_artifact,clinvar_gene_distribution_index,planned,true,null,737673216" in output
+    )
+    assert "supabase://" not in output
+
+
+def test_source_asset_preflight_formats_markdown_summary() -> None:
+    output = format_source_asset_preflight_report(
+        _format_fixture_report(),
+        output_format="markdown",
+    )
+
+    assert output.startswith("# Source Asset Preflight\n")
+    assert "| section | item | status | ready | count | byte_size | sha256 | message |" in output
+    assert (
+        "| runtime | clinvar_gene_distribution_index | ready | True | 4713770 | 737673216 | abc123 | ClinVar gene-distribution index is ready |"
+        in output
+    )
+
+
+def test_source_asset_preflight_formats_csv_summary() -> None:
+    output = format_source_asset_preflight_report(
+        _format_fixture_report(),
+        output_format="csv",
+    )
+
+    rows = list(csv.DictReader(StringIO(output)))
+    by_item = {row["item"]: row for row in rows}
+    assert by_item["clinvar_gene_distribution_index"]["status"] == "planned"
+    assert by_item["clinvar_gene_distribution_index"]["byte_size"] == "737673216"
+    assert by_item["generated_artifact_upload_plan"]["count"] == "1"
+
+
+def test_source_asset_preflight_json_format_preserves_full_report() -> None:
+    report = _format_fixture_report()
+
+    output = format_source_asset_preflight_report(report, output_format="json", compact=True)
+
+    parsed = json.loads(output)
+    assert parsed["generated_artifact_upload_plan"]["items"][0]["source_object_uri"].startswith(
+        "supabase://"
+    )
+
+
+def _format_fixture_report() -> dict[str, object]:
+    return {
+        "mode": "source_asset_readiness",
+        "generated_at": "2026-06-28T06:14:49+00:00",
+        "guardrails": {
+            "network": "not_used",
+            "supabase": "not_used",
+            "production_downloads": "not_used",
+            "uploads_or_imports": "not_used",
+            "runtime_local_source_wiring": "not_used",
+            "restricted_predictor_unlocks": "admin_runtime_allowed_launch_filter_later",
+        },
+        "clinvar_gene_distribution_index": {
+            "actual_size_bytes": 737_673_216,
+            "checksum_value": "abc123",
+            "gene_count": 28_936,
+            "message": "ClinVar gene-distribution index is ready",
+            "ready": True,
+            "schema_version": "eamos.clinvar_gene_distribution.v1",
+            "status": "ready",
+            "variant_count": 4_713_770,
+        },
+        "generated_artifact_upload_plan": {
+            "planned_count": 1,
+            "uploaded_count": 0,
+            "upload_performed": False,
+            "network_used": False,
+            "status_counts": {"planned": 1},
+            "items": [
+                {
+                    "artifact_id": "clinvar_gene_distribution_index",
+                    "asset_id": "clinvar_gene_distribution_sqlite",
+                    "byte_size": 737_673_216,
+                    "message": "eligible for private Storage upload",
+                    "sha256": "abc123",
+                    "source_object_uri": "supabase://eamos-source-assets/private.sqlite",
+                    "status": "planned",
+                }
+            ],
+        },
+        "predictor_runtime_assets": {
+            "alphamissense": {
+                "status": "missing_source_file",
+                "ready": False,
+                "actual_size_bytes": None,
+            }
+        },
+    }
 
 
 def test_source_asset_preflight_reports_guarded_readiness(

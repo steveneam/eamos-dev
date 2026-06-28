@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** RUNNING @ 2026-06-28 15:29 +1000 - Steven approved committing/pushing the guarded ClinVar streaming artifact patch, then starting the bounded local real ClinVar gene-distribution build. No deploy, upload/sync, env/flag change, runtime seed, or source download.
+- **Codex:** STOPPED @ 2026-06-28 16:30 +1000 - Guarded ClinVar streaming patch pushed (`7c5e4b6`); real local ClinVar gene-distribution SQLite built and verified; source-asset preflight now has TOON/Markdown/CSV summaries with JSON preserved. No upload/sync, deploy, env/flag change, runtime seed, or source download.
 
 ## Log Edit-Lock
 
-LOCKED: Codex - 2026-06-28 15:29 +1000 - agent_handoff/CURRENT.md heartbeat/closeout
+UNLOCKED - 2026-06-28 16:30 +1000 - Codex (ClinVar local artifact + preflight summary closeout)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -438,41 +438,48 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-28 15:25 +1000 - Codex.
+Section last edited: 2026-06-28 16:30 +1000 - Codex.
 
-**Latest Codex update (2026-06-28 15:25 +1000 - Codex):**
-Codex continued the guarded ClinVar P1.3 artifact lane locally. The
-gene-distribution materializer now streams VCF rows directly into SQLite,
-batches variant-row inserts, keeps only per-gene counters in memory, and still
-skips malformed rows only in the materializer path with `skipped_row_count`
-surfaced through metadata, inspection, and manifest. Strict parser/store behavior
-remains the default.
+**Latest Codex update (2026-06-28 16:30 +1000 - Codex):**
+Codex committed and pushed the guarded ClinVar streaming/generated-artifact patch
+as `7c5e4b6` (`feat(clinvar): stream gene distribution artifact builds`).
 
-Generated-artifact upload/sync tooling now recognizes
-`clinvar_gene_distribution_index` as a private generated SQLite runtime artifact
-and validates synced manifests without weakening ClinVar upstream/source
-identity checks.
+Then Codex ran the bounded local real ClinVar gene-distribution build against the
+already-present local `clinvar.vcf.gz`; no source download, network, upload/sync,
+deploy, env mutation, flag flip, or runtime seed occurred. The process exited
+after about 40 minutes and produced a ready local SQLite + sidecar manifest:
+737,673,216 bytes, 28,936 genes, 4,713,770 indexed variant rows, 243,588 skipped
+malformed materializer-only rows, schema `eamos.clinvar_gene_distribution.v1`,
+SHA-256 `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`.
 
-Verification passed: focused ClinVar materializer tests, generated-artifact
-tests, health/preflight checks, Ruff, Black check, `git diff --check`, and
-`python -m graphify update .` with the expected oversized-HTML skip. No real
-ClinVar artifact build was rerun.
+Read-only preflight now reports `clinvar_gene_distribution_index` ready and plans
+the generated artifact for private Storage upload with `network_used=false` and
+`upload_performed=false`; no upload/sync was run. A direct runtime-reader smoke
+for `RPE65` / `1-68444869-T-C` returned a bounded distribution with query
+metadata and no warnings.
 
-No Supabase mutation, Vercel command, source download, Storage upload/sync,
-runtime seeding, runtime flag change, provider flip, Render env mutation, deploy
-command, or completed real materialization occurred.
+Source-asset preflight output was also tightened for operator/chat use:
+`eamos_source_asset_preflight` now defaults to a TOON summary and supports
+`--format markdown`, `--format csv`, and full machine JSON via `--format json` or
+legacy `--compact`.
 
-Git state at handoff: `main...origin/main` is aligned. Dirty local files are the
-guarded ClinVar/source-artifact code+tests, `docs/report-backend-source-cache-readiness/plan.md`,
-`agent_handoff/CURRENT.md`, and the archived prior Codex section at
-`agent_handoff/archive/2026-06-28-codex-report-p2-clinvar-ratchet.md`.
+Verification passed: focused source-asset formatter/preflight pytest, ClinVar
+generated-artifact pytest before `7c5e4b6`, Ruff, Black check, direct TOON CLI
+smoke, direct runtime-reader smoke, `git diff --check`, and graphify update.
+
+No Supabase mutation, Storage upload/sync, Vercel command, Render env mutation,
+deploy command, runtime seed, provider flip, flag change, or source download
+occurred.
+
+Git state at handoff: `main...origin/main` should include `7c5e4b6` plus the
+closeout preflight-summary commit on top.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-28 15:25 +1000 - Codex guarded ClinVar streaming artifact lane
-Eamos. Start from `main...origin/main`; latest commits should include `c100838`, `541430d`, `d1bbdd0`, `710d8a5`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex + Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, docs/report-backend-source-cache-readiness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: ClinVar P1.3 local patch now streams gene-distribution materialization into SQLite, keeps strict parsing default, records skipped malformed rows for materialization only, and registers `clinvar_gene_distribution_index` in generated-artifact upload/sync planning. No real artifact build/upload/sync/deploy/env/flag/source-download occurred.
-Verification: focused ClinVar/generated-artifact/health/preflight pytest passed; Ruff, Black check, `git diff --check`, and `python -m graphify update .` passed. Graphify skipped oversized HTML as expected.
-Next: review/commit the local ClinVar streaming+generated-artifact patch if acceptable; only then decide whether to run a bounded real `clinvar-gene-distribution.sqlite` build with explicit timeout/progress/cleanup plan. Keep private Storage upload/sync and real materialization gated until Steven approves the exact action.
-Guardrails: no deploy, Vercel command, Render env mutation, flag flip, runtime seed, Supabase/Storage upload/sync, source download, or completed real materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-28 16:30 +1000 - Codex ClinVar local artifact built + preflight TOON summaries
+Eamos. Start from `main...origin/main`; latest commits should include `7c5e4b6`, `c100838`, `541430d`, `d1bbdd0`, `710d8a5`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex + Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, docs/report-backend-source-cache-readiness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: Guarded ClinVar streaming/generated-artifact patch is pushed in `7c5e4b6`; the real local `clinvar-gene-distribution.sqlite` was built from the existing local ClinVar VCF and verified ready (737,673,216 bytes; 28,936 genes; 4,713,770 variant rows; 243,588 skipped malformed materializer-only rows; SHA-256 `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`). `eamos_source_asset_preflight` now emits a TOON summary by default with Markdown/CSV fallbacks and JSON preserved.
+Verification: focused source-asset formatter/preflight pytest, ClinVar/generated-artifact pytest before `7c5e4b6`, Ruff, Black check, direct TOON CLI smoke, direct runtime-reader smoke, `git diff --check`, and graphify update passed. A mistyped pytest node for a nonexistent test failed once and was replaced with valid runtime/preflight checks.
+Next: if Steven approves the exact action, run private generated-artifact upload/sync planning/execution for `clinvar_gene_distribution_index`; otherwise keep the local artifact only and leave deployed environments fail-closed with pending-index status.
+Guardrails: no deploy, Vercel command, Render env mutation, flag flip, runtime seed, Supabase/Storage upload/sync, source download, or remote materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```

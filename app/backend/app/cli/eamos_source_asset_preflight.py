@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+from io import StringIO
 import json
 from collections import Counter
 from datetime import datetime, timezone
@@ -103,7 +105,20 @@ def main(argv: list[str] | None = None) -> int:
             "source/model rollout."
         )
     )
-    parser.add_argument("--compact", action="store_true", help="emit compact JSON")
+    parser.add_argument(
+        "--format",
+        choices=("toon", "markdown", "csv", "json"),
+        default="toon",
+        help=(
+            "output format for the operator summary; use json for the full machine report "
+            "(default: toon)"
+        ),
+    )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="emit compact JSON; legacy alias for --format json",
+    )
     parser.add_argument(
         "--hg38-path",
         type=Path,
@@ -149,8 +164,311 @@ def main(argv: list[str] | None = None) -> int:
         probe_materialization=args.probe_supabase_materialization,
         materialization_store=materialization_store,
     )
-    print(json.dumps(report, indent=None if args.compact else 2, sort_keys=True))
+    print(
+        format_source_asset_preflight_report(
+            report, output_format=args.format, compact=args.compact
+        )
+    )
     return 0
+
+
+def format_source_asset_preflight_report(
+    report: dict[str, Any],
+    *,
+    output_format: str = "toon",
+    compact: bool = False,
+) -> str:
+    if compact or output_format == "json":
+        return json.dumps(report, indent=None if compact else 2, sort_keys=True)
+
+    summary = build_source_asset_preflight_summary(report)
+    if output_format == "toon":
+        return _source_asset_summary_to_toon(summary)
+    if output_format == "markdown":
+        return _source_asset_summary_to_markdown(summary)
+    if output_format == "csv":
+        return _source_asset_summary_to_csv(summary)
+    raise ValueError(f"unsupported source asset preflight output format: {output_format}")
+
+
+def build_source_asset_preflight_summary(report: dict[str, Any]) -> dict[str, Any]:
+    rows = [
+        _summary_row(
+            "runtime",
+            "hg38_runtime_asset",
+            report.get("hg38_runtime_asset"),
+            count_key="actual_size_bytes",
+        ),
+        _summary_row("runtime", "compact_coordinate_index", report.get("compact_coordinate_index")),
+        _summary_row("runtime", "clingen_local", report.get("clingen_local")),
+        _summary_row(
+            "runtime",
+            "clinvar_gene_distribution_index",
+            report.get("clinvar_gene_distribution_index"),
+            count_key="variant_count",
+        ),
+        _summary_row(
+            "runtime",
+            "local_evidence_runtime_assets",
+            report.get("local_evidence_runtime_assets"),
+            count_key="ready_count",
+        ),
+        _summary_row(
+            "runtime",
+            "protein_annotation_assets",
+            report.get("protein_annotation_assets"),
+            count_key="ready_count",
+        ),
+        _summary_row(
+            "planning",
+            "source_manifest",
+            report.get("source_manifest"),
+            count_key="ready_for_download_or_import_count",
+        ),
+        _summary_row(
+            "planning",
+            "download_staging",
+            report.get("download_staging"),
+            count_key="planned_count",
+        ),
+        _summary_row(
+            "planning",
+            "private_storage_upload_plan",
+            report.get("private_storage_upload_plan"),
+            count_key="planned_count",
+        ),
+        _summary_row(
+            "planning",
+            "generated_artifact_upload_plan",
+            report.get("generated_artifact_upload_plan"),
+            count_key="planned_count",
+        ),
+        _summary_row(
+            "planning",
+            "tier2_predictor_artifact_upload_plan",
+            report.get("tier2_predictor_artifact_upload_plan"),
+            count_key="planned_count",
+        ),
+        _summary_row(
+            "gate",
+            "local_evidence_gate",
+            report.get("local_evidence_gate"),
+            count_key="allowed_flow_count",
+        ),
+        _summary_row(
+            "gate",
+            "render_persistent_disk_gate",
+            report.get("render_persistent_disk_gate"),
+        ),
+        _summary_row(
+            "probe",
+            "runtime_materialization_probe",
+            report.get("runtime_materialization_probe"),
+        ),
+        _summary_row(
+            "probe",
+            "source_asset_metadata_probe",
+            report.get("source_asset_metadata_probe"),
+        ),
+    ]
+    rows.extend(_predictor_summary_rows(report.get("predictor_runtime_assets")))
+    rows.extend(_generated_artifact_summary_rows(report.get("generated_artifact_upload_plan")))
+    return {
+        "mode": report.get("mode"),
+        "generated_at": report.get("generated_at"),
+        "guardrails": _summary_guardrails(report.get("guardrails")),
+        "rows": [row for row in rows if row is not None],
+    }
+
+
+def _summary_guardrails(value: object) -> dict[str, Any]:
+    guardrails = value if isinstance(value, dict) else {}
+    return {
+        "network": guardrails.get("network"),
+        "supabase": guardrails.get("supabase"),
+        "production_downloads": guardrails.get("production_downloads"),
+        "uploads_or_imports": guardrails.get("uploads_or_imports"),
+        "runtime_local_source_wiring": guardrails.get("runtime_local_source_wiring"),
+        "restricted_predictor_unlocks": guardrails.get("restricted_predictor_unlocks"),
+    }
+
+
+def _summary_row(
+    section: str,
+    item: str,
+    value: object,
+    *,
+    count_key: str | None = None,
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    return {
+        "section": section,
+        "item": item,
+        "status": _summary_status(value),
+        "ready": value.get("ready"),
+        "count": _summary_count(value, count_key),
+        "byte_size": value.get("actual_size_bytes") or value.get("byte_size"),
+        "sha256": value.get("checksum_value") or value.get("sha256"),
+        "message": value.get("message") or value.get("summary") or _status_counts_text(value),
+    }
+
+
+def _predictor_summary_rows(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, dict):
+        return []
+    rows: list[dict[str, Any]] = []
+    for key in ("alphamissense", "esm1b", "ci_spliceai", "capice", "revel", "primateai3d"):
+        item = value.get(key)
+        if isinstance(item, dict):
+            rows.append(_summary_row("predictor", key, item) or {})
+    return [row for row in rows if row]
+
+
+def _generated_artifact_summary_rows(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, dict):
+        return []
+    items = value.get("items")
+    if not isinstance(items, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "section": "generated_artifact",
+                "item": item.get("artifact_id"),
+                "status": item.get("status"),
+                "ready": item.get("status") == "planned",
+                "count": None,
+                "byte_size": item.get("byte_size"),
+                "sha256": item.get("sha256"),
+                "message": item.get("message"),
+            }
+        )
+    return rows
+
+
+def _summary_status(value: dict[str, Any]) -> object:
+    if "status" in value:
+        return value.get("status")
+    if value.get("ready") is True:
+        return "ready"
+    if value.get("ready") is False:
+        return "not_ready"
+    status_counts = value.get("status_counts")
+    if isinstance(status_counts, dict) and status_counts:
+        return _status_counts_text(value)
+    return None
+
+
+def _summary_count(value: dict[str, Any], count_key: str | None) -> object:
+    if count_key == "allowed_flow_count":
+        allowed_flows = value.get("allowed_flows")
+        return len(allowed_flows) if isinstance(allowed_flows, list) else None
+    if count_key:
+        return value.get(count_key)
+    for key in ("ready_count", "planned_count", "gene_count", "variant_count", "total_sources"):
+        if key in value:
+            return value.get(key)
+    return None
+
+
+def _status_counts_text(value: dict[str, Any]) -> str | None:
+    status_counts = value.get("status_counts")
+    if not isinstance(status_counts, dict) or not status_counts:
+        return None
+    return ", ".join(f"{key}={status_counts[key]}" for key in sorted(status_counts))
+
+
+def _source_asset_summary_to_toon(summary: dict[str, Any]) -> str:
+    rows = summary["rows"]
+    lines = [
+        f"mode: {_toon_scalar(summary.get('mode'))}",
+        f"generated_at: {_toon_scalar(summary.get('generated_at'))}",
+        "guardrails:",
+    ]
+    for key, value in summary["guardrails"].items():
+        lines.append(f"  {key}: {_toon_scalar(value)}")
+    lines.extend(
+        [
+            f"assets[{len(rows)}]{{section,item,status,ready,count,byte_size,sha256,message}}:",
+            *(_toon_row(row) for row in rows),
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _toon_row(row: dict[str, Any]) -> str:
+    fields = ("section", "item", "status", "ready", "count", "byte_size", "sha256", "message")
+    return "  " + ",".join(_toon_scalar(row.get(field)) for field in fields)
+
+
+def _toon_scalar(value: object) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    text = str(value)
+    if not text:
+        return '""'
+    if any(char in text for char in (",", "\n", "\r", '"')):
+        return json.dumps(text)
+    return text
+
+
+def _source_asset_summary_to_markdown(summary: dict[str, Any]) -> str:
+    lines = [
+        "# Source Asset Preflight",
+        "",
+        f"- mode: `{summary.get('mode')}`",
+        f"- generated_at: `{summary.get('generated_at')}`",
+        "- guardrails: "
+        + ", ".join(
+            f"{key}=`{value}`" for key, value in summary["guardrails"].items() if value is not None
+        ),
+        "",
+        "| section | item | status | ready | count | byte_size | sha256 | message |",
+        "| --- | --- | --- | --- | ---: | ---: | --- | --- |",
+    ]
+    for row in summary["rows"]:
+        lines.append(
+            "| "
+            + " | ".join(
+                _markdown_cell(row.get(field))
+                for field in (
+                    "section",
+                    "item",
+                    "status",
+                    "ready",
+                    "count",
+                    "byte_size",
+                    "sha256",
+                    "message",
+                )
+            )
+            + " |"
+        )
+    return "\n".join(lines)
+
+
+def _markdown_cell(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def _source_asset_summary_to_csv(summary: dict[str, Any]) -> str:
+    fields = ("section", "item", "status", "ready", "count", "byte_size", "sha256", "message")
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    for row in summary["rows"]:
+        writer.writerow({field: row.get(field) for field in fields})
+    return output.getvalue().rstrip("\n")
 
 
 def build_source_asset_preflight_report(
@@ -241,9 +559,7 @@ def build_source_asset_preflight_report(
         "local_evidence_runtime_assets": inspect_local_evidence_runtime_assets(settings),
         "compact_coordinate_index": compact_coordinate_index.to_sanitized_dict(),
         "clingen_local": clingen_local.to_sanitized_dict(),
-        "clinvar_gene_distribution_index": (
-            clinvar_gene_distribution_index.to_sanitized_dict()
-        ),
+        "clinvar_gene_distribution_index": (clinvar_gene_distribution_index.to_sanitized_dict()),
         "predictor_runtime_assets": predictor_runtime_assets,
         "protein_annotation_assets": protein_summary,
         "build_ledger": build_ledger,
