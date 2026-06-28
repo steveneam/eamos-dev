@@ -15,7 +15,7 @@ from app.services.source_storage_uploads import SourceStorageUploadMode
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Sync a generated Tier 1 SQLite artifact from an operator local file or private "
+            "Sync a generated SQLite artifact from an operator local file or private "
             "Supabase Storage object to the configured runtime path. This is an explicit "
             "off-startup action and validates checksums plus SQLite schema before replacing "
             "the runtime file."

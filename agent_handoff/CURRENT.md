@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-28 01:02 +1000 - Report launch-readiness backend P1.1 committed+pushed (`710d8a5`) and P1.4 top-level `source_versions` committed (`d1bbdd0`); P1.2/P1.3 code paths verified as already complete except the guarded real ClinVar artifact build/sync. No Supabase mutation, Vercel command, source download, real materialization, storage upload, runtime seeding, Render env mutation, deploy command, or flag change.
+- **Codex:** RUNNING @ 2026-06-28 15:29 +1000 - Steven approved committing/pushing the guarded ClinVar streaming artifact patch, then starting the bounded local real ClinVar gene-distribution build. No deploy, upload/sync, env/flag change, runtime seed, or source download.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-28 01:02 +1000 - Codex (report P1.4 source-version pins closeout)
+LOCKED: Codex - 2026-06-28 15:29 +1000 - agent_handoff/CURRENT.md heartbeat/closeout
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -34,6 +34,11 @@ takeover, proceed.
 
 Claim before editing a shared/high-conflict source/contract file (README Hard
 Rule 4); release when done.
+
+**Codex RELEASED** (`app/backend/app/schemas/run.py`,
+`app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`,
+report P2 publications/trials contract) at 2026-06-28 01:19 +1000 after
+publications eager-payload and trial row `fetched_at` contract work.
 
 **Codex RELEASED** (`app/backend/app/schemas/run.py`, report data-currency contract)
 at 2026-06-23 02:14 +1000 after P0.1 report data-currency + P0.2
@@ -433,56 +438,41 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-28 01:02 +1000 - Codex.
+Section last edited: 2026-06-28 15:25 +1000 - Codex.
 
-**Latest Codex update (2026-06-28 01:02 +1000 - Codex):**
-Codex committed+pushed P1.1 and completed the safe backend portion of the next
-launch-readiness pass through P1.4.
+**Latest Codex update (2026-06-28 15:25 +1000 - Codex):**
+Codex continued the guarded ClinVar P1.3 artifact lane locally. The
+gene-distribution materializer now streams VCF rows directly into SQLite,
+batches variant-row inserts, keeps only per-gene counters in memory, and still
+skips malformed rows only in the materializer path with `skipped_row_count`
+surfaced through metadata, inspection, and manifest. Strict parser/store behavior
+remains the default.
 
-Done:
+Generated-artifact upload/sync tooling now recognizes
+`clinvar_gene_distribution_index` as a private generated SQLite runtime artifact
+and validates synced manifests without weakening ClinVar upstream/source
+identity checks.
 
-- `710d8a5` (`fix(report): use ClinGen VCEP cache for lazy sections`) is pushed
-  to `origin/main`.
-- P1.2 in-silico calibration was audited against existing code/docs/tests and is
-  already complete for supported predictors. Unsupported/unreviewed engines
-  remain explicit-null by policy; no fabricated calibration was added.
-- P1.3 ClinVar gene-distribution code support already exists (materializer,
-  reader, health/preflight, manifest validation, lookup gating). The remaining
-  real ClinVar artifact build/sync is guarded and was not run.
-- `d1bbdd0` (`feat(report): expose source version pins`) adds
-  `ReportPayload.source_versions`, derived from sanitized
-  `report_data_currency.sources[].source_version` rows, and mirrors the field in
-  both checked-in TS backend contracts.
-- The stale `app/frontend/src/lib/backend.ts` `LookupSectionStatus` union was
-  synced to the already-broader `app/web/lib/backend.ts` contract so the canary
-  is byte-identical again.
+Verification passed: focused ClinVar materializer tests, generated-artifact
+tests, health/preflight checks, Ruff, Black check, `git diff --check`, and
+`python -m graphify update .` with the expected oversized-HTML skip. No real
+ClinVar artifact build was rerun.
 
-Verification:
+No Supabase mutation, Vercel command, source download, Storage upload/sync,
+runtime seeding, runtime flag change, provider flip, Render env mutation, deploy
+command, or completed real materialization occurred.
 
-- `python -m pytest tests/test_source_cache.py tests/test_lookup_section_fetch_contract.py -q` passed before `710d8a5`.
-- `python -m pytest tests/test_variant_report_orchestration.py -q -k "expert_panel or report_profile"` passed before `710d8a5`.
-- `python -m pytest tests/test_report_data_currency.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py -q` passed for `d1bbdd0`.
-- `python -m ruff check app/schemas/run.py app/services/report_data_currency.py app/services/lookup_service.py tests/test_report_data_currency.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py` passed.
-- `python -m black --check --target-version py310 app/schemas/run.py app/services/report_data_currency.py app/services/lookup_service.py tests/test_report_data_currency.py tests/test_variant_report_orchestration.py tests/test_frontend_contract.py` passed after formatting.
-- `git diff --no-index -- app/frontend/src/lib/backend.ts app/web/lib/backend.ts` passed.
-- `git diff --check` passed.
-- `python -m graphify update .` passed with the expected oversized-HTML skip.
-
-No Supabase mutation, Vercel command, source download, real corpus
-materialization, Storage upload, runtime seeding, runtime flag change, provider
-flip, Render env mutation, deploy command, or real materialization occurred.
-
-Git state at this handoff-doc edit: `main...origin/main [ahead 1]` with only
-`PROGRESS.md` and `agent_handoff/CURRENT.md` dirty; expected final closeout is a
-small docs commit on top of `d1bbdd0` and push, leaving `main...origin/main`
-clean.
+Git state at handoff: `main...origin/main` is aligned. Dirty local files are the
+guarded ClinVar/source-artifact code+tests, `docs/report-backend-source-cache-readiness/plan.md`,
+`agent_handoff/CURRENT.md`, and the archived prior Codex section at
+`agent_handoff/archive/2026-06-28-codex-report-p2-clinvar-ratchet.md`.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-28 01:02 +1000 - Codex report P1.1 push + P1.4 source-version pins
-Eamos. Start from `main...origin/main`; `git log -8 --oneline` should include `d1bbdd0` and `710d8a5` after the closeout push. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex section + Cross-Agent Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: P1.1 lazy ClinGen VCEP source-cache path is pushed in `710d8a5`; P1.4 top-level `ReportPayload.source_versions` is committed in `d1bbdd0`, derived from sanitized report data-currency source versions and mirrored in both TS backend contracts.
-Verification done: focused source-cache/lazy-section/report-orchestration tests for P1.1; focused report data-currency/report-orchestration/frontend-contract tests for P1.4; Ruff; Black; TS mirror diff; diff-check; graphify update. No guarded source/materialization/deploy action occurred.
-Next: P1.2 is already complete; P1.3 code support exists but real ClinVar gene-distribution artifact build/sync remains guarded and needs explicit approval for the exact materialization/sync action. Other safe backend options: P2 publications double-fetch/trials freshness or read-only launch-readiness reconciliation.
-Guardrails: no real source download, Supabase/Storage upload, runtime seed, flag flip, Render env mutation, Vercel command, deploy, or real materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-28 15:25 +1000 - Codex guarded ClinVar streaming artifact lane
+Eamos. Start from `main...origin/main`; latest commits should include `c100838`, `541430d`, `d1bbdd0`, `710d8a5`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex + Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, docs/report-backend-source-cache-readiness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
+Delta: ClinVar P1.3 local patch now streams gene-distribution materialization into SQLite, keeps strict parsing default, records skipped malformed rows for materialization only, and registers `clinvar_gene_distribution_index` in generated-artifact upload/sync planning. No real artifact build/upload/sync/deploy/env/flag/source-download occurred.
+Verification: focused ClinVar/generated-artifact/health/preflight pytest passed; Ruff, Black check, `git diff --check`, and `python -m graphify update .` passed. Graphify skipped oversized HTML as expected.
+Next: review/commit the local ClinVar streaming+generated-artifact patch if acceptable; only then decide whether to run a bounded real `clinvar-gene-distribution.sqlite` build with explicit timeout/progress/cleanup plan. Keep private Storage upload/sync and real materialization gated until Steven approves the exact action.
+Guardrails: no deploy, Vercel command, Render env mutation, flag flip, runtime seed, Supabase/Storage upload/sync, source download, or completed real materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```

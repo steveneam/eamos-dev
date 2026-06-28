@@ -628,7 +628,7 @@ Remaining gap:
 
 ## Follow-up: Operational ClinVar Artifact Lane
 
-Status: COMPLETE WITH DEPLOYED ARTIFACT GAP - 2026-06-24 - Codex.
+Status: CONTINUED WITH DEPLOYED ARTIFACT GAP - 2026-06-28 - Codex.
 
 Evidence:
 
@@ -700,3 +700,32 @@ Remaining gap:
   the ABCA4 report can render from fallback/report data, but the local
   around-variant `/api/v1/viewer` request reproduced HTTP 500 and the
   UniProt/Pfam/HMMER display merge needs redesign in the next protein-view pass.
+
+2026-06-28 continuation:
+
+- The real local ClinVar VCF exposed rows missing `CLNSIG`; strict parser
+  behavior remains the default, while the gene-distribution materializer now
+  skips malformed VCF rows explicitly and records `skipped_row_count` in index
+  metadata, readiness inspection, and the sidecar manifest.
+- The gene-distribution materializer no longer builds a full `ClinVarLocalStore`
+  before writing the artifact. It streams VCF rows, batches
+  `clinvar_gene_distribution_variant` inserts, keeps only per-gene counters in
+  memory, and computes checksums/file dates without whole-file reads.
+- `clinvar_gene_distribution_index` is registered with the generated-artifact
+  upload/sync planner as a private generated SQLite runtime artifact. This adds
+  planning and local/sync validation only; no Storage upload, private sync,
+  deploy, env mutation, flag flip, source download, or completed real artifact
+  build was performed.
+
+Additional tests and checks:
+
+- `python -m pytest tests/test_clinvar_local_adapter.py::test_materialized_gene_distribution_index_reads_bounded_gene_payload tests/test_clinvar_local_adapter.py::test_gene_distribution_materializer_skips_unusable_real_rows tests/test_clinvar_local_adapter.py::test_gene_distribution_materializer_does_not_use_full_store tests/test_clinvar_local_adapter.py::test_parser_failures_are_structured_for_malformed_vcf_rows -q`
+  from `app/backend` - passed, 4 tests.
+- `python -m pytest tests/test_generated_source_artifacts.py::test_generated_artifact_upload_plan_includes_tier1_sqlites_without_paths tests/test_generated_source_artifacts.py::test_generated_artifact_sync_accepts_clinvar_gene_distribution_index -q`
+  from `app/backend` - passed, 2 tests.
+- `python -m pytest tests/test_clinvar_local_adapter.py tests/test_generated_source_artifacts.py tests/test_health_api.py::test_provider_cache_health_reports_clinvar_gene_index_ready_without_paths tests/test_source_asset_preflight_cli.py::test_source_asset_preflight_reports_guarded_readiness tests/test_source_asset_preflight_cli.py::test_source_asset_preflight_reports_clinvar_gene_index_ready_without_paths -q`
+  from `app/backend` - passed, 31 tests.
+- `python -m ruff check app/services/clinvar_local.py app/services/generated_source_artifacts.py app/cli/eamos_generated_artifact_upload.py app/cli/eamos_generated_artifact_sync.py tests/test_clinvar_local_adapter.py tests/test_generated_source_artifacts.py tests/test_source_asset_preflight_cli.py`
+  from `app/backend` - passed.
+- `python -m black --check --target-version py310 app/services/clinvar_local.py app/services/generated_source_artifacts.py app/cli/eamos_generated_artifact_upload.py app/cli/eamos_generated_artifact_sync.py tests/test_clinvar_local_adapter.py tests/test_generated_source_artifacts.py tests/test_source_asset_preflight_cli.py`
+  from `app/backend` - passed.

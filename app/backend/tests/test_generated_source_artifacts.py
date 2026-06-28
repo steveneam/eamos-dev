@@ -10,6 +10,11 @@ from app.cli import eamos_generated_artifact_sync, eamos_generated_artifact_uplo
 from app.core.config import Settings
 from app.services.ai_gateway.retrieval import LiteratureEmbeddingStore, LiteratureSourceRecord
 from app.services.clingen_local import materialize_clingen_local_store
+from app.services.clinvar_local import (
+    DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+    inspect_clinvar_gene_distribution_index,
+    materialize_clinvar_gene_distribution_index,
+)
 from app.services.generated_source_artifacts import (
     GENERATED_SOURCE_ARTIFACT_IDS,
     build_generated_source_artifact_upload_items,
@@ -42,6 +47,10 @@ def test_generated_artifact_upload_plan_includes_tier1_sqlites_without_paths(
     assert by_artifact["clingen_local"].source_id == "eamos_clingen_local"
     assert by_artifact["pubmed_local"].source_id == "eamos_pubmed_local"
     assert by_artifact["literature_embeddings"].source_id == "eamos_literature_embeddings"
+    assert (
+        by_artifact["clinvar_gene_distribution_index"].source_id
+        == "eamos_clinvar_gene_distribution_index"
+    )
     assert all(item.object_path.startswith("generated/") for item in items)
     assert all("/sha256-" in item.object_path for item in items)
     assert all(item.content_type == "application/octet-stream" for item in items)
@@ -55,7 +64,7 @@ def test_generated_artifact_upload_plan_includes_tier1_sqlites_without_paths(
     encoded = json.dumps(result.to_sanitized_dict()).lower()
     assert str(tmp_path).lower() not in encoded
     assert "service_role" not in encoded
-    assert result.planned_count == 3
+    assert result.planned_count == 4
 
 
 def test_generated_artifact_upload_posts_asset_and_manifest(tmp_path: Path) -> None:
@@ -265,6 +274,32 @@ def test_generated_artifact_sync_rejects_schema_invalid_local_artifact(
     assert not settings.rag_sqlite_path.exists()
 
 
+def test_generated_artifact_sync_accepts_clinvar_gene_distribution_index(
+    tmp_path: Path,
+) -> None:
+    source_settings = _settings(tmp_path / "source")
+    _materialize_clinvar_gene_distribution(source_settings)
+    runtime_settings = _settings(tmp_path / "runtime")
+
+    result = materialize_generated_source_artifact(
+        runtime_settings,
+        artifact_id="clinvar_gene_distribution_index",
+        source_artifact_path=source_settings.clinvar_gene_distribution_index_path,
+    )
+
+    assert result.ready is True
+    assert result.status == "ready"
+    assert result.copied is True
+    assert result.manifest_written is True
+    assert inspect_clinvar_gene_distribution_index(runtime_settings).ready is True
+    manifest = json.loads(runtime_settings.clinvar_gene_distribution_manifest_path.read_text())
+    assert manifest["artifact_id"] == "clinvar_gene_distribution_index"
+    assert manifest["asset_id"] == "clinvar_gene_distribution_sqlite"
+    assert manifest["upstream_source_id"] == "ncbi_clinvar_vcf"
+    encoded = json.dumps(result.to_sanitized_dict()).lower()
+    assert str(tmp_path).lower() not in encoded
+
+
 def test_generated_artifact_upload_cli_plans_without_paths(capsys) -> None:
     exit_code = eamos_generated_artifact_upload.main(["--artifact", "clingen_local", "--compact"])
 
@@ -312,6 +347,12 @@ def _settings(tmp_path: Path) -> Settings:
         pubmed_local_manifest_path=tmp_path / "pubmed" / "pubmed-local.manifest.json",
         rag_sqlite_path=tmp_path / "literature" / "literature-embeddings.sqlite",
         rag_manifest_path=tmp_path / "literature" / "literature-embeddings.manifest.json",
+        clinvar_gene_distribution_index_path=(
+            tmp_path / "clinvar" / "clinvar-gene-distribution.sqlite"
+        ),
+        clinvar_gene_distribution_manifest_path=(
+            tmp_path / "clinvar" / "clinvar-gene-distribution.manifest.json"
+        ),
     )
 
 
@@ -319,6 +360,7 @@ def _materialize_all_tier1(settings: Settings, tmp_path: Path) -> None:
     _materialize_clingen(settings, tmp_path)
     _materialize_pubmed(settings, tmp_path)
     _materialize_literature(settings)
+    _materialize_clinvar_gene_distribution(settings)
 
 
 def _materialize_clingen(settings: Settings, tmp_path: Path) -> None:
@@ -393,6 +435,16 @@ def _materialize_literature(settings: Settings) -> None:
         embedding_dim=4,
         source_version="literature-test",
     )
+
+
+def _materialize_clinvar_gene_distribution(settings: Settings) -> None:
+    result = materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=settings.clinvar_gene_distribution_index_path,
+        manifest_path=settings.clinvar_gene_distribution_manifest_path,
+        force=True,
+    )
+    assert result.ready is True
 
 
 def _encoded_storage_path(object_path: str) -> str:

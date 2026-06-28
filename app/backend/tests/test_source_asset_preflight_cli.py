@@ -120,7 +120,7 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert generated_artifacts["network_used"] is False
     assert generated_artifacts["upload_performed"] is False
     assert generated_artifacts["planned_count"] == 0
-    assert generated_artifacts["status_counts"]["missing_local_file"] == 3
+    assert generated_artifacts["status_counts"]["missing_local_file"] == 4
     assert all(item["local_path_values_emitted"] is False for item in generated_artifacts["items"])
     tier2_artifacts = output["tier2_predictor_artifact_upload_plan"]
     assert tier2_artifacts["network_used"] is False

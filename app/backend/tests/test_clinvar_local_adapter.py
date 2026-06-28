@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.services import clinvar_local as clinvar_local_module
 from app.services.lookup_service import (
     CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX,
     _clinvar_distribution_runtime_path,
@@ -169,6 +170,78 @@ def test_gene_distribution_buckets_classification_and_effect_types(tmp_path: Pat
     assert distribution.query_cell == "benign_synonymous"
     assert distribution.query_accession == "VCV001421455"
     assert "clinvar_local_fixture_scope" not in distribution.warnings
+
+
+def test_gene_distribution_materializer_skips_unusable_real_rows(tmp_path: Path) -> None:
+    vcf_path = tmp_path / "clinvar_gene_distribution.vcf"
+    vcf_path.write_text(
+        "\n".join(
+            [
+                "##fileformat=VCFv4.2",
+                "##fileDate=20260627",
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+                (
+                    "1\t101\t1421454\tA\tT\t.\t.\t"
+                    "VCV=1421454;CLNSIG=Pathogenic;"
+                    "CLNREVSTAT=criteria_provided;CLNDN=Example;"
+                    "HGVS=NM_000329.3:c.1A>T|NP_000320.1:p.Trp1Ter;GENEINFO=RPE65:6121"
+                ),
+                (
+                    "1\t102\t1421455\tA\tG\t.\t.\t"
+                    "VCV=1421455;CLNREVSTAT=criteria_provided;CLNDN=Example;"
+                    "HGVS=NM_000329.3:c.2A>G;GENEINFO=RPE65:6121"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
+
+    inspection = materialize_clinvar_gene_distribution_index(
+        vcf_path=vcf_path,
+        index_path=index_path,
+        manifest_path=manifest_path,
+        force=True,
+    )
+
+    assert inspection.ready is True
+    assert inspection.skipped_row_count == 1
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["skipped_row_count"] == 1
+    distribution = build_clinvar_gene_distribution_from_index(
+        "RPE65",
+        index_path=index_path,
+        query_variant_id="1-101-A-T",
+    )
+    assert distribution.total == 1
+    assert distribution.cells["pathogenic_lof"] == 1
+    assert distribution.query_accession == "VCV001421454"
+
+
+def test_gene_distribution_materializer_does_not_use_full_store(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FailingFullStore:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            raise AssertionError("materializer must stream VCF rows instead of building a store")
+
+    monkeypatch.setattr(clinvar_local_module, "ClinVarLocalStore", FailingFullStore)
+    index_path = tmp_path / "clinvar-gene-distribution.sqlite"
+    manifest_path = tmp_path / "clinvar-gene-distribution.manifest.json"
+
+    inspection = clinvar_local_module.materialize_clinvar_gene_distribution_index(
+        vcf_path=DEFAULT_CLINVAR_VCF_FIXTURE_PATH,
+        index_path=index_path,
+        manifest_path=manifest_path,
+        force=True,
+    )
+
+    assert inspection.ready is True
+    assert inspection.gene_count == 1
+    assert inspection.variant_count == 1
 
 
 def test_lookup_service_excludes_full_vcf_clinvar_distribution_when_m9_lookup_enabled(

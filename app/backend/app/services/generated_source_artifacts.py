@@ -19,6 +19,13 @@ from app.services.ai_gateway.retrieval import (
     LiteratureEmbeddingStore,
 )
 from app.services.clingen_local import CLINGEN_LOCAL_SOURCE_ID, ClinGenLocalStore
+from app.services.clinvar_local import (
+    CLINVAR_GENE_DISTRIBUTION_INDEX_LAUNCH_GATE,
+    CLINVAR_GENE_DISTRIBUTION_INDEX_SCHEMA_VERSION,
+    CLINVAR_GENE_DISTRIBUTION_INDEX_SOURCE_ID,
+    CLINVAR_SOURCE_ID,
+    inspect_clinvar_gene_distribution_index_path,
+)
 from app.services.pubmed_local import PUBMED_LOCAL_SOURCE_ID, PubMedLocalStore
 from app.services.source_imports import DEFAULT_SOURCE_ASSET_BUCKET
 from app.services.source_storage_uploads import (
@@ -40,6 +47,7 @@ GENERATED_SOURCE_ARTIFACT_IDS = (
     "clingen_local",
     "pubmed_local",
     "literature_embeddings",
+    "clinvar_gene_distribution_index",
 )
 
 
@@ -259,6 +267,16 @@ GENERATED_SOURCE_ARTIFACTS: dict[str, GeneratedSourceArtifactDefinition] = {
         manifest_setting="rag_manifest_path",
         schema_version=LITERATURE_EMBEDDING_SCHEMA_VERSION,
         launch_gate="literature_rag_materialization",
+    ),
+    "clinvar_gene_distribution_index": GeneratedSourceArtifactDefinition(
+        artifact_id="clinvar_gene_distribution_index",
+        source_id=CLINVAR_GENE_DISTRIBUTION_INDEX_SOURCE_ID,
+        asset_id="clinvar_gene_distribution_sqlite",
+        role="generated_sqlite_runtime_store",
+        sqlite_setting="clinvar_gene_distribution_index_path",
+        manifest_setting="clinvar_gene_distribution_manifest_path",
+        schema_version=CLINVAR_GENE_DISTRIBUTION_INDEX_SCHEMA_VERSION,
+        launch_gate=CLINVAR_GENE_DISTRIBUTION_INDEX_LAUNCH_GATE,
     ),
 }
 
@@ -1061,7 +1079,7 @@ def _identity_from_artifact_file(
     )
     return _ExpectedIdentity(
         status="ready",
-        manifest_payload=identity.manifest_payload(),
+        manifest_payload=_artifact_manifest_payload(definition, identity),
         expected_size_bytes=identity.byte_size,
         expected_md5=identity.md5,
         expected_sha256=identity.sha256,
@@ -1262,7 +1280,22 @@ def _inspect_artifact_file(
             .inspect()
             .to_sanitized_dict()
         )
+    if definition.artifact_id == "clinvar_gene_distribution_index":
+        return inspect_clinvar_gene_distribution_index_path(
+            path,
+            manifest_path=manifest_path,
+        ).to_sanitized_dict()
     raise ValueError(f"unsupported generated artifact: {definition.artifact_id}")
+
+
+def _artifact_manifest_payload(
+    definition: GeneratedSourceArtifactDefinition,
+    identity: GeneratedSourceArtifactIdentity,
+) -> dict[str, Any]:
+    payload = identity.manifest_payload()
+    if definition.artifact_id == "clinvar_gene_distribution_index":
+        payload["upstream_source_id"] = CLINVAR_SOURCE_ID
+    return payload
 
 
 def _download_storage_object(

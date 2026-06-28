@@ -21,9 +21,10 @@ from app.services.source_storage_uploads import (
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Plan or upload generated Tier 1 SQLite artifacts (ClinGen local, PubMed local, "
-            "literature embeddings) to private Supabase Storage. This never builds assets, "
-            "mutates Supabase metadata rows, creates signed URLs, or flips runtime providers."
+            "Plan or upload generated SQLite artifacts (ClinGen local, PubMed local, "
+            "literature embeddings, ClinVar gene distribution) to private Supabase "
+            "Storage. This never builds assets, mutates Supabase metadata rows, creates "
+            "signed URLs, or flips runtime providers."
         )
     )
     parser.add_argument(

@@ -104,6 +104,7 @@ class ClinVarGeneDistributionIndexInspection:
     launch_gate: str | None = CLINVAR_GENE_DISTRIBUTION_INDEX_LAUNCH_GATE
     license_gate: str | None = None
     warnings: tuple[str, ...] = ()
+    skipped_row_count: int = 0
 
     def to_sanitized_dict(self) -> dict[str, object]:
         return {
@@ -132,6 +133,7 @@ class ClinVarGeneDistributionIndexInspection:
             "public_serialization_allowed": self.public_serialization_allowed,
             "launch_gate": self.launch_gate,
             "license_gate": self.license_gate,
+            "skipped_row_count": self.skipped_row_count,
         }
 
 
@@ -146,12 +148,16 @@ class ClinVarLocalStore:
         self,
         vcf_path: Path | None = None,
         registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
+        skip_malformed_rows: bool = False,
     ) -> None:
         self._vcf_path = vcf_path or DEFAULT_CLINVAR_VCF_FIXTURE_PATH
         self._source_provenance = _source_provenance(self._vcf_path, registry)
+        self._skipped_row_reasons: Counter[str] = Counter()
         self._records = parse_clinvar_vcf(
             self._vcf_path,
             provenance=self._source_provenance,
+            skip_malformed_rows=skip_malformed_rows,
+            skipped_row_reasons=self._skipped_row_reasons,
         )
         self._records_by_key: dict[tuple[str, int, str, str], ClinVarLocalRecord] = {}
         self._records_by_accession: dict[str, ClinVarLocalRecord] = {}
@@ -196,6 +202,9 @@ class ClinVarLocalStore:
 
     def records(self) -> tuple[ClinVarLocalRecord, ...]:
         return self._records
+
+    def skipped_row_count(self) -> int:
+        return sum(self._skipped_row_reasons.values())
 
     def lookup_variant_id(self, variant_id: str) -> ClinVarLocalLookup:
         parsed = _parse_gnomad_variant_id(variant_id)
@@ -594,13 +603,12 @@ def materialize_clinvar_gene_distribution_index(
     if manifest_path is not None:
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
 
-    store = ClinVarLocalStore(vcf_path, registry=registry)
     source_record = registry.get(CLINVAR_SOURCE_ID)
-    metadata = _gene_distribution_index_metadata(store, source_record)
-    gene_payloads, variant_payloads = _gene_distribution_index_payloads(
-        store,
-        source_record,
-        metadata,
+    provenance = _source_provenance(vcf_path, registry)
+    metadata = _gene_distribution_index_metadata_from_provenance(
+        vcf_path=vcf_path,
+        provenance=provenance,
+        source_record=source_record,
     )
 
     temp_path = index_path.with_name(f"{index_path.name}.tmp")
@@ -609,11 +617,27 @@ def materialize_clinvar_gene_distribution_index(
     connection: sqlite3.Connection | None = None
     try:
         connection = sqlite3.connect(temp_path)
-        _write_gene_distribution_index(
+        gene_counts, record_count, variant_count, skipped_row_reasons = (
+            _write_gene_distribution_index_from_vcf(
+                connection,
+                vcf_path=vcf_path,
+                provenance=provenance,
+            )
+        )
+        metadata["record_count"] = record_count
+        metadata["skipped_row_count"] = sum(skipped_row_reasons.values())
+        metadata["gene_count"] = len(gene_counts)
+        metadata["variant_count"] = variant_count
+        gene_payloads = _gene_distribution_payloads_from_counts(
+            gene_counts,
+            source_record=source_record,
+            metadata=metadata,
+            fixture_scope=_is_fixture_path(vcf_path),
+        )
+        _write_gene_distribution_metadata_and_genes(
             connection,
             metadata=metadata,
             gene_payloads=gene_payloads,
-            variant_payloads=variant_payloads,
         )
         connection.close()
         connection = None
@@ -724,6 +748,7 @@ def inspect_clinvar_gene_distribution_index_path(
             actual_size_bytes=actual_size_bytes,
             message="ClinVar gene-distribution index schema version is unsupported",
             source_status=_text_or_none(metadata.get("source_status")),
+            skipped_row_count=_int_value(metadata.get("skipped_row_count")),
         )
     if gene_count <= 0:
         return _gene_distribution_index_inspection(
@@ -736,6 +761,7 @@ def inspect_clinvar_gene_distribution_index_path(
             actual_size_bytes=actual_size_bytes,
             message="ClinVar gene-distribution index has no gene records",
             source_status=_text_or_none(metadata.get("source_status")),
+            skipped_row_count=_int_value(metadata.get("skipped_row_count")),
         )
     if manifest_path is not None:
         manifest_failure = _gene_distribution_manifest_failure(
@@ -766,14 +792,13 @@ def inspect_clinvar_gene_distribution_index_path(
         checksum_value=checksum_value,
         message="ClinVar gene-distribution index is ready",
         source_status=_text_or_none(metadata.get("source_status")),
-        public_serialization_allowed=bool(
-            metadata.get("public_serialization_allowed", True)
-        ),
+        public_serialization_allowed=bool(metadata.get("public_serialization_allowed", True)),
         launch_gate=(
             _text_or_none(metadata.get("launch_gate"))
             or CLINVAR_GENE_DISTRIBUTION_INDEX_LAUNCH_GATE
         ),
         license_gate=_text_or_none(metadata.get("license_gate")),
+        skipped_row_count=_int_value(metadata.get("skipped_row_count")),
     )
 
 
@@ -781,6 +806,8 @@ def parse_clinvar_vcf(
     path: Path,
     *,
     provenance: ClinVarLocalProvenance,
+    skip_malformed_rows: bool = False,
+    skipped_row_reasons: Counter[str] | None = None,
 ) -> tuple[ClinVarLocalRecord, ...]:
     lines = _read_fixture_lines(path)
     file_date = _file_date(lines) or provenance.file_date
@@ -800,21 +827,28 @@ def parse_clinvar_vcf(
                 "ClinVar VCF fixture row appeared before the #CHROM header",
                 {"path": str(path), "row": row_number},
             )
-        records.extend(
-            _parse_vcf_row(
-                line,
-                row_number=row_number,
-                header=header,
-                provenance=ClinVarLocalProvenance(
-                    source_id=provenance.source_id,
-                    source_version=provenance.source_version,
-                    file_date=file_date,
-                    checksum_algorithm=provenance.checksum_algorithm,
-                    checksum=provenance.checksum,
-                    relative_path=provenance.relative_path,
-                ),
+        try:
+            records.extend(
+                _parse_vcf_row(
+                    line,
+                    row_number=row_number,
+                    header=header,
+                    provenance=ClinVarLocalProvenance(
+                        source_id=provenance.source_id,
+                        source_version=provenance.source_version,
+                        file_date=file_date,
+                        checksum_algorithm=provenance.checksum_algorithm,
+                        checksum=provenance.checksum,
+                        relative_path=provenance.relative_path,
+                    ),
+                )
             )
-        )
+        except ClinVarLocalError as exc:
+            if skip_malformed_rows and exc.code == "malformed_clinvar_vcf_row":
+                if skipped_row_reasons is not None:
+                    skipped_row_reasons[_malformed_row_reason(exc)] += 1
+                continue
+            raise
     if header is None:
         raise ClinVarLocalError(
             "vcf_missing_header",
@@ -1000,7 +1034,7 @@ def _source_provenance(
     return ClinVarLocalProvenance(
         source_id=CLINVAR_SOURCE_ID,
         source_version=record.source_version,
-        file_date=_file_date(_read_fixture_lines(path)),
+        file_date=_file_date_from_path(path),
         checksum_algorithm="sha256",
         checksum=_sha256_file(path),
         relative_path=_repo_relative_path(path),
@@ -1046,17 +1080,34 @@ def _indexed_info_text(value: object) -> str | None:
 
 
 def _read_fixture_lines(path: Path) -> list[str]:
+    return list(_iter_vcf_lines(path))
+
+
+def _iter_vcf_lines(path: Path) -> Iterable[str]:
     try:
         if path.suffix.lower() == ".gz":
             with gzip.open(path, "rt", encoding="utf-8") as handle:
-                return handle.read().splitlines()
-        return path.read_text(encoding="utf-8").splitlines()
+                for line in handle:
+                    yield line.rstrip("\n")
+            return
+        with path.open("rt", encoding="utf-8") as handle:
+            for line in handle:
+                yield line.rstrip("\n")
     except OSError as exc:
         raise ClinVarLocalError(
             "fixture_unavailable",
             "ClinVar VCF fixture is unavailable",
             {"path": str(path)},
         ) from exc
+
+
+def _file_date_from_path(path: Path) -> str | None:
+    for line in _iter_vcf_lines(path):
+        if line.startswith("##fileDate="):
+            return line.split("=", 1)[1].strip() or None
+        if line.startswith("#CHROM"):
+            return None
+    return None
 
 
 def _gene_distribution_index_metadata(
@@ -1079,6 +1130,36 @@ def _gene_distribution_index_metadata(
         "source_checksum_algorithm": provenance.checksum_algorithm,
         "source_checksum": provenance.checksum,
         "record_count": len(store.records()),
+        "skipped_row_count": store.skipped_row_count(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "public_serialization_allowed": public_serialization_allowed,
+        "launch_gate": None,
+        "license_gate": None,
+    }
+
+
+def _gene_distribution_index_metadata_from_provenance(
+    *,
+    vcf_path: Path,
+    provenance: ClinVarLocalProvenance,
+    source_record: Any,
+) -> dict[str, object]:
+    source_status = "fixture_index" if _is_fixture_path(vcf_path) else "local_index"
+    public_serialization_allowed = (
+        source_record.license_status is LicenseStatus.PUBLIC_ALLOWED_AFTER_TERMS_REVIEW
+    )
+    return {
+        "schema_version": CLINVAR_GENE_DISTRIBUTION_INDEX_SCHEMA_VERSION,
+        "source_id": CLINVAR_SOURCE_ID,
+        "index_source_id": CLINVAR_GENE_DISTRIBUTION_INDEX_SOURCE_ID,
+        "source_version": provenance.source_version,
+        "source_url": source_record.source_url,
+        "source_status": source_status,
+        "source_file_date": provenance.file_date,
+        "source_checksum_algorithm": provenance.checksum_algorithm,
+        "source_checksum": provenance.checksum,
+        "record_count": 0,
+        "skipped_row_count": 0,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "public_serialization_allowed": public_serialization_allowed,
         "launch_gate": None,
@@ -1108,7 +1189,9 @@ def _gene_distribution_index_payloads(
         )
         gene_payloads[gene_symbol] = payload
         for record in records:
-            cell = f"{_classification_bucket(record.classification)}_{_variant_effect_bucket(record)}"
+            cell = (
+                f"{_classification_bucket(record.classification)}_{_variant_effect_bucket(record)}"
+            )
             variant_payloads.append(
                 {
                     "gene": gene_symbol,
@@ -1121,6 +1204,115 @@ def _gene_distribution_index_payloads(
     metadata["gene_count"] = len(gene_payloads)
     metadata["variant_count"] = len(variant_payloads)
     return gene_payloads, variant_payloads
+
+
+def _write_gene_distribution_index_from_vcf(
+    connection: sqlite3.Connection,
+    *,
+    vcf_path: Path,
+    provenance: ClinVarLocalProvenance,
+) -> tuple[dict[str, Counter[str]], int, int, Counter[str]]:
+    _create_gene_distribution_index_schema(connection)
+    header: list[str] | None = None
+    file_date = provenance.file_date
+    gene_counts: dict[str, Counter[str]] = {}
+    skipped_row_reasons: Counter[str] = Counter()
+    record_count = 0
+    variant_count = 0
+    variant_batch: list[dict[str, object]] = []
+
+    for row_number, line in enumerate(_iter_vcf_lines(vcf_path), start=1):
+        if not line.strip():
+            continue
+        if line.startswith("##"):
+            if line.startswith("##fileDate="):
+                file_date = line.split("=", 1)[1].strip() or file_date
+            continue
+        if line.startswith("#CHROM"):
+            header = line.lstrip("#").split("\t")
+            continue
+        if header is None:
+            raise ClinVarLocalError(
+                "vcf_missing_header",
+                "ClinVar VCF fixture row appeared before the #CHROM header",
+                {"path": str(vcf_path), "row": row_number},
+            )
+        try:
+            records = _parse_vcf_row(
+                line,
+                row_number=row_number,
+                header=header,
+                provenance=ClinVarLocalProvenance(
+                    source_id=provenance.source_id,
+                    source_version=provenance.source_version,
+                    file_date=file_date,
+                    checksum_algorithm=provenance.checksum_algorithm,
+                    checksum=provenance.checksum,
+                    relative_path=provenance.relative_path,
+                ),
+            )
+        except ClinVarLocalError as exc:
+            if exc.code == "malformed_clinvar_vcf_row":
+                skipped_row_reasons[_malformed_row_reason(exc)] += 1
+                continue
+            raise
+
+        for record in records:
+            record_count += 1
+            cell = (
+                f"{_classification_bucket(record.classification)}_"
+                f"{_variant_effect_bucket(record)}"
+            )
+            for gene_symbol in record.gene_symbols:
+                gene_counts.setdefault(gene_symbol, Counter())[cell] += 1
+                variant_count += 1
+                variant_batch.append(
+                    {
+                        "gene": gene_symbol,
+                        "variant_id": record.gnomad_variant_id,
+                        "accession": record.accession,
+                        "classification": record.classification,
+                        "cell": cell,
+                    }
+                )
+                if len(variant_batch) >= 10_000:
+                    _insert_gene_distribution_variant_rows(connection, variant_batch)
+                    variant_batch.clear()
+
+    if header is None:
+        raise ClinVarLocalError(
+            "vcf_missing_header",
+            "ClinVar VCF fixture must include a #CHROM header",
+            {"path": str(vcf_path)},
+        )
+    if record_count <= 0:
+        raise ClinVarLocalError(
+            "empty_clinvar_vcf_fixture",
+            "ClinVar VCF fixture must contain at least one usable variant row",
+            {"path": str(vcf_path), "skipped_row_count": sum(skipped_row_reasons.values())},
+        )
+    if variant_batch:
+        _insert_gene_distribution_variant_rows(connection, variant_batch)
+    return gene_counts, record_count, variant_count, skipped_row_reasons
+
+
+def _gene_distribution_payloads_from_counts(
+    gene_counts: Mapping[str, Counter[str]],
+    *,
+    source_record: Any,
+    metadata: Mapping[str, object],
+    fixture_scope: bool,
+) -> dict[str, dict[str, object]]:
+    return {
+        gene_symbol: _gene_distribution_payload_from_counts(
+            gene_symbol,
+            counts,
+            source_record=source_record,
+            metadata=metadata,
+            fixture_scope=fixture_scope,
+        )
+        for gene_symbol, counts in sorted(gene_counts.items())
+    }
 
 
 def _gene_distribution_payload_from_records(
@@ -1171,6 +1363,49 @@ def _gene_distribution_payload_from_records(
     }
 
 
+def _gene_distribution_payload_from_counts(
+    gene_symbol: str,
+    counts: Mapping[str, int],
+    *,
+    source_record: Any,
+    metadata: Mapping[str, object],
+    fixture_scope: bool,
+) -> dict[str, object]:
+    cells = {
+        f"{row}_{column}": int(counts.get(f"{row}_{column}", 0))
+        for row in CLINVAR_DISTRIBUTION_ROWS
+        for column in CLINVAR_DISTRIBUTION_COLUMNS
+    }
+    row_totals = {
+        row: sum(cells[f"{row}_{column}"] for column in CLINVAR_DISTRIBUTION_COLUMNS)
+        for row in CLINVAR_DISTRIBUTION_ROWS
+    }
+    total = sum(row_totals.values())
+    warnings = []
+    if fixture_scope:
+        warnings.append("clinvar_local_fixture_scope")
+    if not metadata.get("source_version"):
+        warnings.append("clinvar_local_source_version_missing")
+    source_status = str(metadata.get("source_status") or "local_index")
+    return {
+        "cells": cells,
+        "row_totals": row_totals,
+        "total": total,
+        "subtitle": (
+            f"{total:,} ClinVar indexed record{'s' if total != 1 else ''}"
+            f" for {gene_symbol or 'gene'}"
+        ),
+        "source_status": source_status,
+        "source_id": CLINVAR_SOURCE_ID,
+        "source_version": metadata.get("source_version"),
+        "source_url": source_record.source_url,
+        "public_serialization_allowed": metadata.get("public_serialization_allowed", True),
+        "launch_gate": metadata.get("launch_gate"),
+        "license_gate": metadata.get("license_gate"),
+        "warnings": warnings,
+    }
+
+
 def _write_gene_distribution_index(
     connection: sqlite3.Connection,
     *,
@@ -1178,8 +1413,18 @@ def _write_gene_distribution_index(
     gene_payloads: Mapping[str, Mapping[str, object]],
     variant_payloads: Iterable[Mapping[str, object]],
 ) -> None:
-    connection.executescript(
-        """
+    _create_gene_distribution_index_schema(connection)
+    _write_gene_distribution_metadata_and_genes(
+        connection,
+        metadata=metadata,
+        gene_payloads=gene_payloads,
+    )
+    _insert_gene_distribution_variant_rows(connection, variant_payloads)
+    connection.commit()
+
+
+def _create_gene_distribution_index_schema(connection: sqlite3.Connection) -> None:
+    connection.executescript("""
         create table metadata (
             key text primary key,
             value_json text not null
@@ -1198,26 +1443,37 @@ def _write_gene_distribution_index(
         );
         create index idx_clinvar_gene_distribution_variant_id
             on clinvar_gene_distribution_variant (variant_id);
-        """
-    )
+        """)
+
+
+def _write_gene_distribution_metadata_and_genes(
+    connection: sqlite3.Connection,
+    *,
+    metadata: Mapping[str, object],
+    gene_payloads: Mapping[str, Mapping[str, object]],
+) -> None:
     connection.executemany(
         "insert into metadata (key, value_json) values (?, ?)",
         ((key, json.dumps(value, sort_keys=True)) for key, value in metadata.items()),
     )
     connection.executemany(
         "insert into clinvar_gene_distribution (gene, payload_json) values (?, ?)",
-        (
-            (gene, json.dumps(payload, sort_keys=True))
-            for gene, payload in gene_payloads.items()
-        ),
+        ((gene, json.dumps(payload, sort_keys=True)) for gene, payload in gene_payloads.items()),
     )
+    connection.commit()
+
+
+def _insert_gene_distribution_variant_rows(
+    connection: sqlite3.Connection,
+    variant_payloads: Iterable[Mapping[str, object]],
+) -> None:
     connection.executemany(
         """
         insert into clinvar_gene_distribution_variant
             (gene, variant_id, accession, classification, cell)
         values (:gene, :variant_id, :accession, :classification, :cell)
         """,
-        tuple(variant_payloads),
+        variant_payloads,
     )
     connection.commit()
 
@@ -1307,10 +1563,7 @@ def _coerce_distribution_counts(value: object) -> dict[str, int]:
 
 def _coerce_row_totals(value: object, cells: Mapping[str, int]) -> dict[str, int]:
     if isinstance(value, Mapping):
-        row_totals = {
-            row: _int_value(value.get(row))
-            for row in CLINVAR_DISTRIBUTION_ROWS
-        }
+        row_totals = {row: _int_value(value.get(row)) for row in CLINVAR_DISTRIBUTION_ROWS}
         if any(row_totals.values()):
             return row_totals
     return {
@@ -1333,6 +1586,13 @@ def _int_value(value: object) -> int:
         return 0
 
 
+def _malformed_row_reason(exc: ClinVarLocalError) -> str:
+    field = _text_or_none(exc.details.get("field"))
+    if field:
+        return f"missing_or_invalid_{field.lower()}"
+    return exc.code
+
+
 def _gene_distribution_index_inspection(
     *,
     status: str,
@@ -1351,6 +1611,7 @@ def _gene_distribution_index_inspection(
     launch_gate: str | None = CLINVAR_GENE_DISTRIBUTION_INDEX_LAUNCH_GATE,
     license_gate: str | None = None,
     warnings: tuple[str, ...] = (),
+    skipped_row_count: int = 0,
 ) -> ClinVarGeneDistributionIndexInspection:
     return ClinVarGeneDistributionIndexInspection(
         source_id=CLINVAR_GENE_DISTRIBUTION_INDEX_SOURCE_ID,
@@ -1370,6 +1631,7 @@ def _gene_distribution_index_inspection(
         launch_gate=launch_gate,
         license_gate=license_gate,
         warnings=warnings,
+        skipped_row_count=skipped_row_count,
     )
 
 
@@ -1380,9 +1642,11 @@ def _gene_distribution_manifest_payload(
     return {
         "artifact_id": "clinvar_gene_distribution_index",
         "source_id": CLINVAR_GENE_DISTRIBUTION_INDEX_SOURCE_ID,
+        "asset_id": "clinvar_gene_distribution_sqlite",
         "upstream_source_id": CLINVAR_SOURCE_ID,
         "schema_version": metadata.get("schema_version"),
         "source_version": metadata.get("source_version"),
+        "skipped_row_count": metadata.get("skipped_row_count", 0),
         "byte_size": index_path.stat().st_size,
         "sha256": _sha256_file(index_path),
         "generated_at": metadata.get("generated_at"),
@@ -1414,9 +1678,8 @@ def _gene_distribution_manifest_failure(
         "variant_count": variant_count,
         "actual_size_bytes": actual_size_bytes,
         "source_status": _text_or_none(metadata.get("source_status")),
-        "public_serialization_allowed": bool(
-            metadata.get("public_serialization_allowed", True)
-        ),
+        "skipped_row_count": _int_value(metadata.get("skipped_row_count")),
+        "public_serialization_allowed": bool(metadata.get("public_serialization_allowed", True)),
         "launch_gate": (
             _text_or_none(metadata.get("launch_gate"))
             or CLINVAR_GENE_DISTRIBUTION_INDEX_LAUNCH_GATE
@@ -1479,6 +1742,16 @@ def _gene_distribution_manifest_failure(
                 warnings=(f"clinvar_gene_distribution_manifest_{key}_mismatch",),
                 **common,
             )
+
+    manifest_asset_id = manifest.get("asset_id")
+    if manifest_asset_id not in (None, "clinvar_gene_distribution_sqlite"):
+        return _gene_distribution_index_inspection(
+            status="manifest_identity_mismatch",
+            ready=False,
+            message="ClinVar gene-distribution index manifest identity is unsupported",
+            warnings=("clinvar_gene_distribution_manifest_asset_id_mismatch",),
+            **common,
+        )
 
     manifest_size = _int_value(manifest.get("byte_size"))
     if actual_size_bytes is None or manifest_size != actual_size_bytes:
@@ -1682,7 +1955,11 @@ def _grch38_ncbi_aliases(canonical_chrom: str) -> tuple[str, ...]:
 
 
 def _sha256_file(path: Path) -> str:
-    return sha256(path.read_bytes()).hexdigest()
+    digest = sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _repo_relative_path(path: Path) -> str:
