@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
+from app.core.logging import get_logger
 from app.rules.base import DecisionInput
 from app.services.lookup_service import GENE_THERAPY_MAP
 from app.services.variant_decoder import decode_variant
@@ -22,6 +23,8 @@ from app.schemas.run import (
     VariantSummaryRow,
 )
 
+logger = get_logger(__name__)
+
 
 class WorkflowService:
     def __init__(
@@ -32,6 +35,7 @@ class WorkflowService:
         rule_engine,
         draft_render_service=None,
         settings=None,
+        search_index_service=None,
     ) -> None:
         self.settings = settings
         self.reports_repo = reports_repo
@@ -39,6 +43,7 @@ class WorkflowService:
         self.tool_registry = tool_registry
         self.rule_engine = rule_engine
         self.draft_render_service = draft_render_service
+        self.search_index_service = search_index_service
         self._executor = ThreadPoolExecutor(
             max_workers=_positive_int(
                 getattr(settings, "workflow_worker_max_workers", 5),
@@ -47,7 +52,7 @@ class WorkflowService:
             thread_name_prefix="eamos-workflow",
         )
 
-    def create_run(self, payload: RunRequest) -> RunResponse:
+    def create_run(self, payload: RunRequest, *, owner_user_id: str | None = None) -> RunResponse:
         if not payload.report_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -141,7 +146,7 @@ class WorkflowService:
             warnings=warnings,
         )
 
-        return RunResponse(
+        response = RunResponse(
             run_id=run_response.run_id,
             patient_id=run_response.patient_id,
             report_ids=run_response.report_ids,
@@ -154,6 +159,16 @@ class WorkflowService:
             reviewed_at=None,
             approved_pdf_path=None,
         )
+        self._index_run(response, reports, owner_user_id=owner_user_id)
+        return response
+
+    def _index_run(self, run: RunResponse, reports, *, owner_user_id: str | None) -> None:
+        if self.search_index_service is None:
+            return
+        try:
+            self.search_index_service.index_run(run, reports=reports, owner_user_id=owner_user_id)
+        except Exception:
+            logger.exception("Search indexing failed for run %s", run.run_id)
 
     def _collect_evidence(self, primary_variant) -> tuple[
         list[EvidenceSourceSummary],

@@ -22,9 +22,12 @@ router = APIRouter(prefix="/api/v1", tags=["runs"])
 def create_run(
     payload: RunRequest,
     request: Request,
-    _current_user: AuthUser = Depends(require_authenticated_user),
+    current_user: AuthUser = Depends(require_authenticated_user),
 ) -> RunResponse:
-    return request.app.state.workflow_service.create_run(payload)
+    return request.app.state.workflow_service.create_run(
+        payload,
+        owner_user_id=current_user.user_id,
+    )
 
 
 @router.get("/runs/{run_id}", response_model=RunResponse)

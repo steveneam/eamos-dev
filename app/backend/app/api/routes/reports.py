@@ -12,6 +12,10 @@ async def upload_report(
     request: Request,
     file: UploadFile = File(...),
     report_kind: ReportKind = Form(default="test"),
-    _current_user: AuthUser = Depends(require_authenticated_user),
+    current_user: AuthUser = Depends(require_authenticated_user),
 ) -> ReportUploadResponse:
-    return await request.app.state.intake_service.ingest_upload(file, report_kind=report_kind)
+    return await request.app.state.intake_service.ingest_upload(
+        file,
+        report_kind=report_kind,
+        owner_user_id=current_user.user_id,
+    )

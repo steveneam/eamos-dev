@@ -82,6 +82,7 @@ def provider_cache_health(request: Request) -> dict[str, object]:
         "status": "ok",
         "database": "ok",
         "source_cache": source_cache,
+        "search": _search_health(request),
         "source_assets": _source_asset_health(
             settings,
             materialization_store,
@@ -100,6 +101,60 @@ def provider_cache_health(request: Request) -> dict[str, object]:
             "protein_annotation": protein_annotation_status,
         },
     }
+
+
+def _search_health(request: Request) -> dict[str, object]:
+    settings = request.app.state.settings
+    search_service = getattr(request.app.state, "search_service", None)
+    search_index_service = getattr(request.app.state, "search_index_service", None)
+    search_answer_service = getattr(request.app.state, "search_answer_service", None)
+    search_repo = getattr(request.app.state, "search_repo", None)
+    summary: dict[str, object] = {
+        "service_wired": search_service is not None,
+        "index_service_wired": search_index_service is not None,
+        "answer_enabled": bool(settings.search_answer_enabled),
+        "answer_model_configured": bool(
+            search_answer_service is not None
+            and getattr(search_answer_service, "answer_chain", None) is not None
+        ),
+        "request_time_source_scan_allowed": False,
+        "startup_backfill_allowed": False,
+        "backfill_required_for_ownerless_private_rows": False,
+    }
+    if search_repo is None:
+        summary.update(
+            {
+                "index_tables_present": False,
+                "postgres_fts_ready": False,
+                "entity_counts": {},
+                "visibility_counts": {},
+                "private_rows_without_owner_count": 0,
+                "last_indexed_at": None,
+                "status": "repo_unavailable",
+            }
+        )
+        return summary
+    try:
+        repo_summary = search_repo.health_summary()
+    except Exception:
+        summary.update(
+            {
+                "index_tables_present": False,
+                "postgres_fts_ready": False,
+                "entity_counts": {},
+                "visibility_counts": {},
+                "private_rows_without_owner_count": 0,
+                "last_indexed_at": None,
+                "status": "probe_failed",
+            }
+        )
+        return summary
+
+    ownerless_count = int(repo_summary.get("private_rows_without_owner_count") or 0)
+    summary.update(repo_summary)
+    summary["backfill_required_for_ownerless_private_rows"] = ownerless_count > 0
+    summary["status"] = "ready" if summary["service_wired"] else "service_unavailable"
+    return summary
 
 
 def _source_asset_health(settings, materialization_store) -> dict[str, object]:

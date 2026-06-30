@@ -185,6 +185,10 @@ class SearchDocumentRecord(Base):
     doc_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     source_key: Mapped[str] = mapped_column(String(96), unique=True, index=True)
     doc_type: Mapped[str] = mapped_column(String(16), index=True)
+    visibility_scope: Mapped[str] = mapped_column(
+        String(16), default="private", nullable=False, index=True
+    )
+    owner_user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     run_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     report_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     patient_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
@@ -546,6 +550,7 @@ def initialize_database(session_factory) -> None:
     _ensure_user_evidence_submission_payload_column(engine)
     _ensure_protein_annotation_cache_uniprot_release_column(engine)
     _ensure_variant_cache_gene_context_snapshot_column(engine)
+    _ensure_search_document_access_columns(engine)
     _ensure_postgres_search_indexes(engine)
 
 
@@ -570,6 +575,51 @@ def _ensure_user_evidence_submission_payload_column(engine) -> None:
         )
     with engine.begin() as connection:
         connection.execute(text(statement))
+
+
+def _ensure_search_document_access_columns(engine) -> None:
+    if "search_documents" not in inspect(engine).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("search_documents")}
+    statements: list[str] = []
+    if "visibility_scope" not in columns:
+        if engine.dialect.name == "postgresql":
+            statements.append(
+                "ALTER TABLE search_documents "
+                "ADD COLUMN IF NOT EXISTS visibility_scope VARCHAR(16) "
+                "NOT NULL DEFAULT 'private'"
+            )
+        else:
+            statements.append(
+                "ALTER TABLE search_documents "
+                "ADD COLUMN visibility_scope VARCHAR(16) NOT NULL DEFAULT 'private'"
+            )
+    if "owner_user_id" not in columns:
+        if engine.dialect.name == "postgresql":
+            statements.append(
+                "ALTER TABLE search_documents "
+                "ADD COLUMN IF NOT EXISTS owner_user_id VARCHAR(128)"
+            )
+        else:
+            statements.append("ALTER TABLE search_documents ADD COLUMN owner_user_id VARCHAR(128)")
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_search_documents_visibility_scope "
+                "ON search_documents (visibility_scope)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_search_documents_owner_user_id "
+                "ON search_documents (owner_user_id)"
+            )
+        )
 
 
 def _ensure_protein_annotation_cache_uniprot_release_column(engine) -> None:

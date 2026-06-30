@@ -5,6 +5,7 @@ import json
 from fastapi import HTTPException, status
 
 from app.schemas.search import (
+    SearchAccessContext,
     SearchAnswerRequest,
     SearchAnswerResponse,
     SearchCitation,
@@ -17,7 +18,12 @@ class SearchAnswerService:
         self.search_service = search_service
         self.answer_chain = answer_chain
 
-    def answer(self, payload: SearchAnswerRequest) -> SearchAnswerResponse:
+    def answer(
+        self,
+        payload: SearchAnswerRequest,
+        *,
+        access_context: SearchAccessContext,
+    ) -> SearchAnswerResponse:
         if not self.settings.search_answer_enabled:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -32,6 +38,7 @@ class SearchAnswerService:
         top_k = min(payload.limit, self.settings.search_answer_top_k)
         results = self.search_service.search(
             query=payload.query,
+            access_context=access_context,
             limit=top_k,
             doc_type=payload.doc_type,
             run_status=payload.run_status,

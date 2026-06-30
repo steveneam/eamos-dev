@@ -27,6 +27,7 @@ from app.repos.evidence_submissions_repo import (
 from app.repos.protein_annotation_cache_repo import ProteinAnnotationCacheRepo
 from app.repos.report_cache_repo import ReportCacheRepo
 from app.repos.run_repo import RunRepo
+from app.repos.search_repo import SearchRepo
 from app.repos.subscriptions_repo import SubscriptionsRepo
 from app.repos.source_cache_repo import SourceCacheRepo
 from app.repos.supabase_local_model_cache_repo import (
@@ -69,6 +70,9 @@ from app.services.protein_annotation import ProteinAnnotationService
 from app.services.recommendation import RecommendationService
 from app.services.report_draft import ReportDraftService
 from app.services.run_chat import RunChatService
+from app.services.search import SearchService
+from app.services.search_answer import SearchAnswerService
+from app.services.search_index import SearchIndexService
 from app.services.sequence_context import (
     EnsemblVariantSequenceResolver,
     MaterializedHg38SequenceResolver,
@@ -130,6 +134,7 @@ def create_app(settings=None) -> FastAPI:
     report_cache_repo = ReportCacheRepo(db_session_factory)
     variant_library_repo = _build_variant_library_repo(settings, db_session_factory)
     source_cache_repo = SourceCacheRepo(db_session_factory)
+    search_repo = SearchRepo(db_session_factory)
     protein_annotation_cache_repo = ProteinAnnotationCacheRepo(db_session_factory)
     supabase_local_model_cache_store = build_supabase_local_model_cache_store(settings)
     if supabase_local_model_cache_store is not None:
@@ -202,6 +207,13 @@ def create_app(settings=None) -> FastAPI:
         max_job_entries=settings.batch_job_registry_max_entries,
         entry_ttl_seconds=settings.batch_registry_ttl_seconds,
     )
+    search_service = SearchService(search_repo)
+    search_index_service = SearchIndexService(search_repo, reports_repo, run_repo)
+    search_answer_service = SearchAnswerService(
+        settings=settings,
+        search_service=search_service,
+        answer_chain=None,
+    )
 
     app.state.settings = settings
     app.state.db_session_factory = db_session_factory
@@ -214,6 +226,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.variant_cache_repo = variant_cache_repo
     app.state.variant_library_repo = variant_library_repo
     app.state.source_cache_repo = source_cache_repo
+    app.state.search_repo = search_repo
     app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
     app.state.supabase_local_model_cache_store = supabase_local_model_cache_store
     app.state.protein_annotation_service = protein_annotation_service
@@ -225,6 +238,9 @@ def create_app(settings=None) -> FastAPI:
     app.state.runtime_coordinate_resolver = runtime_coordinate_resolver
     app.state.local_evidence_orchestrator = local_evidence_orchestrator
     app.state.batch_service = batch_service
+    app.state.search_service = search_service
+    app.state.search_index_service = search_index_service
+    app.state.search_answer_service = search_answer_service
     app.state.auth_service = AuthService(settings=settings, users_repo=users_repo)
     app.state.evidence_submission_service = EvidenceSubmissionService(
         settings=settings,
@@ -236,7 +252,11 @@ def create_app(settings=None) -> FastAPI:
     )
     app.state.variant_library_service = VariantLibraryService(variant_library_repo)
     app.state.intake_service = IntakeService(
-        settings, reports_repo, report_pdf_tool, extraction_chain
+        settings,
+        reports_repo,
+        report_pdf_tool,
+        extraction_chain,
+        search_index_service=search_index_service,
     )
     app.state.workflow_service = WorkflowService(
         settings=settings,
@@ -245,8 +265,12 @@ def create_app(settings=None) -> FastAPI:
         tool_registry=tool_registry,
         rule_engine=ClinicRules(),
         draft_render_service=DraftRenderService(draft_chain),
+        search_index_service=search_index_service,
     )
-    app.state.recommendation_service = RecommendationService(run_repo)
+    app.state.recommendation_service = RecommendationService(
+        run_repo,
+        search_index_service=search_index_service,
+    )
     app.state.report_draft_service = ReportDraftService(run_repo)
     app.state.run_chat_service = RunChatService(
         settings=settings,

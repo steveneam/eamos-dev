@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-30 14:22 +1000 - Sprint B/C prelaunch code release committed, pushed, and deployed to SG Render. Browser proof remains pending because Selom was using the browser; see Codex resume block.
+- **Codex:** STOPPED @ 2026-06-30 19:49 +1000 - Search Tasks 4-5 completed (owner-scoped private search posture, readiness health, dry-run backfill), Wave 3 source asset policy/guard added, and Wave 4 first `gene_viewer.py` model extraction completed. NEXT: continue Search Task 6+ product-wide entities/index refresh breadth and the next `gene_viewer.py` source-client or fixture/full-locus extraction; Workbench browser proof remains separate.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-30 14:22 +1000 - Codex (prelaunch Sprint B/C release committed, pushed, deployed; browser proof pending)
+UNLOCKED - 2026-06-30 19:49 +1000 - Codex (search access/readiness, source asset policy, gene-viewer first fold recorded)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -409,71 +409,52 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-30 14:22 +1000 - Codex.
+Section last edited: 2026-06-30 19:49 +1000 - Codex.
 
-**Latest Codex update (2026-06-30 14:22 +1000 - Codex):**
-Sprint B Batch UX and Sprint C Workbench functional-launch work are committed,
-pushed, and deployed. Code release:
-`d5ee212 feat(prelaunch): disclose workbench and batch launch states`.
-SG Render deploy `dep-d91k7d6q1p3s73c493cg` reached `live` on commit
-`d5ee212f41956ac22be68a27a5626d984513d780`.
+**Latest Codex update (2026-06-30 19:49 +1000 - Codex):**
+Completed the next repo-structure/search sequence.
 
-Batch/Compare local UX changes in that commit: typed Batch transport errors,
-auth/expired/rate-limit/validation/unavailable/stalled issue states,
-completed-empty and scoped-zero-match states, warning preservation,
-stale-regenerate on scope changes, and visible panel launch-policy labels
-(`local launch`, `fixture`, `warning`). Signed-in Batch browser proof remains
-deferred; backend auth/owner behavior is covered by tests.
+- Search Task 4: run/report search documents now carry `visibility_scope` and
+  `owner_user_id`; newly indexed reports/runs are private owner-scoped rows.
+  Search repository queries require a server-side access context and return
+  public rows plus the caller's private rows only. Ownerless historical private
+  rows fail closed until explicitly backfilled.
+- Search Task 5: provider-cache health now includes sanitized search readiness,
+  including service wiring, table/index presence, entity/visibility counts,
+  ownerless private row backlog, last indexed timestamp, and answer status.
+  Added dry-run-first `python -m app.cli.eamos_search_index_backfill` for
+  explicit run/report index rebuilds from existing DB rows.
+- Wave 3: `docs/repo-structure/source-asset-policy.md` now defines the tracked
+  `app/backend/data/source_assets` policy. The structure guard blocks tracked
+  source asset payload/checksum files that lack `.manifest.json` sidecars or
+  live under unregistered source ids. No assets were moved or deleted.
+- Wave 4 first slice: source-backed gene-viewer models/protocols moved to
+  `app/backend/app/services/gene_viewer_models.py`; public imports from
+  `app.services.gene_viewer` remain available.
 
-Workbench changes in that commit: backend `SourceDisclosure` contract on
-Workbench response schemas; fixture/sample payloads label themselves as
-`fixture` or `fallback`; live local providers label themselves
-`local_provider`; source/index-backed paths label themselves `source_backed`.
-UI source labels are wired across Primer, CRISPR design, ssODN, off-target
-enumeration, screening primers, TIDE outcomes, and Align reference provenance.
-`/api/v1/align` now honors `workbench_live_design_enabled`, and tests include a
-non-RPE65 synthetic context proving Align is not RPE65-fixture-bound.
+Verification passed: focused search/rate-limit/structure pytest, focused
+gene-viewer/workbench pytest, Ruff, focused Black check, compileall,
+`git diff --check`, and `python -m graphify update .` with long timeout. Docker
+search tests still skip without `HSIL_DOCKER_BASE_URL`. Graph HTML export skipped
+because the graph has 17,133 nodes and exceeds the 5,000-node default limit.
 
-Readiness truth: Primer and CRISPR guide design are live local/provider paths
-when Workbench live design is enabled. ssODN is source-backed for local
-MANE/hg38 or resolved sequence-context inputs, fallback for mock windows.
-Off-target enumeration is source-backed only with the GRCh38 SpCas9 SQLite
-index; current SG provider-cache still reports off-target index missing, so live
-off-targets disclose `fallback` / `mock_cas_offinder`. Screening primers are
-source-backed only with real windows/templates. TIDE is a live observed-only
-trace analyzer, not Lindel or the NKI/TIDE NNLS solver. Browser Align keeps the
-multi-read client workflow while resolving/displaying reference provenance.
+Verification caveat: the broad
+`tests/test_health_api.py::test_provider_cache_health_returns_sanitized_empty_aggregates`
+was not used as a gate because this workspace reports
+`source_assets.clinvar_gene_distribution_index.ready=true`, while that older
+test expects it missing. Search readiness is covered by the new local search
+tests.
 
-Verification passed before commit: Workbench API/frontend-contract pytest,
-Workbench preflight/render-approval pytest, Batch/Panel pytest, Ruff, targeted
-Black on touched backend files, web TypeScript, web lint, web production build,
-focused diff-check, and `python -m graphify update .`. Combined
-Batch/Panel/Health failed only on local environment drift where
-`clinvar_gene_distribution_index.ready=true` but the health fixture test expects
-it missing.
-
-Live smokes after deploy passed: SG `/healthz` OK; provider-cache reports
-`clinvar_gene_distribution_index.ready=true`; live Primer returns
-`local_provider` / `primer3_template_specificity`; CRISPR returns
-`local_provider` / `local_deterministic_spcas9`; Align reference returns
-`source_backed` / `sequence_context_alignment_reference`; off-target
-enumeration returns labelled `fallback` / `mock_cas_offinder`. Vercel
-`/workbench?gene=RPE65&cdna=c.260A%3EG` returned 200, and the Vercel
-provider-cache proxy returned `status=ok`, `database=ok`,
-`clinvar_gene_distribution_index.ready=true`.
-
-No Vercel command, Render env mutation, provider/flag flip, raw source
-download, Supabase metadata/Storage mutation, live runtime script,
-runtime seed/sync, or destructive git occurred. Browser proof was intentionally
-deferred because Selom was using the browser.
+No cleanup deletion, Vercel command, Render env mutation, provider/flag flip,
+raw source download, Supabase metadata/Storage mutation, runtime seed/sync,
+destructive git, commit, or push occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-30 14:22 +1000 - Codex prelaunch Batch/Workbench Sprint B/C release
-Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, then docs/prelaunch-batch-workbench-readiness/{design,review,plan,resume-prompt}.md.
-Delta: `d5ee212 feat(prelaunch): disclose workbench and batch launch states` is pushed to `origin/main`. SG Render deploy `dep-d91k7d6q1p3s73c493cg` is live on `d5ee212f41956ac22be68a27a5626d984513d780`. Sprint B Batch/Compare UX and panel launch-policy labels are included. Sprint C Workbench source-disclosure contract, UI labels, Align live-design flag fix, and non-RPE65 Align test are included. Browser proof remains pending because Selom was using the browser.
-Verification: Workbench API/frontend-contract pytest, Workbench preflight/render-approval pytest, Batch/Panel pytest, Ruff, targeted Black, web TypeScript, web lint, web build, diff-check, graphify update, SG backend smokes, and Vercel HTTP smokes passed. Combined Batch/Panel/Health failed only on local health-test environment drift: local `clinvar_gene_distribution_index.ready=true` vs test expecting missing.
-Workbench truth: Primer/CRISPR guide design are live local/provider paths; ssODN is source-backed for local MANE/hg38 or sequence-context inputs and fallback for mock windows; off-targets are source-backed only with the GRCh38 SpCas9 index and currently disclose fallback on SG; screening primers depend on real windows/templates; TIDE is observed-only, not Lindel/NKI-TIDE; browser Align keeps client multi-read alignment but resolves/displays backend reference provenance.
-Next: when the browser is free, run `/workbench` browser proof for Primer, CRISPR design, ssODN, off-targets, screening primers, TIDE, and Align source labels, narrow viewport no-overflow, and clean console/issues. Then decide signed-in Batch browser proof: existing approved Supabase session, Steven-approved Auth test mutation, or documented defer.
-Guardrails: no Vercel command, Render env mutation, provider/flag flip, raw source download, Supabase metadata/Storage mutation, live runtime script, runtime seed/sync, destructive git, commit, or push unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-30 19:49 +1000 - Codex search access/readiness + Wave 3/4 closeout
+Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, and docs/search-index/{spec,plan}.md.
+Delta: Search Tasks 4-5 are done for run/report rows (owner-scoped private search, ownerless rows fail closed, readiness health, dry-run backfill); Wave 3 source-asset policy/guard added; Wave 4 started with `gene_viewer_models.py`.
+Verification: focused search/rate-limit/structure pytest, focused gene-viewer/workbench pytest, Ruff, focused Black check, compileall, `git diff --check`, and `python -m graphify update .` passed; Docker search tests skipped without `HSIL_DOCKER_BASE_URL`; graph HTML skipped due >5,000 nodes; one broad health test remains environment-sensitive because ClinVar gene index is locally ready.
+Next: continue Search Task 6+ product-wide indexed entities/index-refresh breadth or the next `gene_viewer.py` extraction (source client or fixture/full-locus helpers); Workbench browser proof remains separate.
+Guardrails: no cleanup deletion, deploy/env/provider mutation, Supabase mutation, runtime seed/sync, destructive git, commit, or push unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```

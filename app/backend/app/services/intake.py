@@ -42,6 +42,8 @@ class IntakeService:
         self,
         upload: UploadFile,
         report_kind: ReportKind = "test",
+        *,
+        owner_user_id: str | None = None,
     ) -> ReportUploadResponse:
         filename = upload.filename or "report.pdf"
         if not filename.lower().endswith(".pdf"):
@@ -101,7 +103,7 @@ class IntakeService:
         )
         self.reports_repo.save(report)
         if self.search_index_service is not None:
-            self.search_index_service.index_report(report)
+            self.search_index_service.index_report(report, owner_user_id=owner_user_id)
         return ReportUploadResponse(report=report)
 
     def _build_extracted_case(

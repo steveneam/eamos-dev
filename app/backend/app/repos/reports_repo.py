@@ -30,5 +30,14 @@ class ReportsRepo:
                 return None
             return UploadedReport.model_validate(record.report_data)
 
+    def list_all(self) -> list[UploadedReport]:
+        with session_scope(self.session_factory) as session:
+            records = (
+                session.query(ReportRecord)
+                .order_by(ReportRecord.created_at.asc(), ReportRecord.report_id.asc())
+                .all()
+            )
+            return [UploadedReport.model_validate(record.report_data) for record in records]
+
     def update(self, report: UploadedReport) -> UploadedReport:
         return self.save(report)

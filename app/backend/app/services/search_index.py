@@ -14,18 +14,28 @@ class SearchIndexService:
         self.run_repo = run_repo
         self._run_loader = getattr(run_repo, "get_run", None)
 
-    def index_report(self, report: UploadedReport) -> None:
-        document = self._build_report_document(report)
+    def index_report(self, report: UploadedReport, *, owner_user_id: str | None = None) -> None:
+        document = self._build_report_document(report, owner_user_id=owner_user_id)
         self.search_repo.upsert_document(document)
 
-    def index_run(self, run: RunResponse, reports: list[UploadedReport] | None = None) -> None:
+    def index_run(
+        self,
+        run: RunResponse,
+        reports: list[UploadedReport] | None = None,
+        *,
+        owner_user_id: str | None = None,
+    ) -> None:
         normalized_run = self._coerce_run(run)
         source_reports = reports or [
             report
             for report_id in normalized_run.report_ids
             if (report := self.reports_repo.get(report_id)) is not None
         ]
-        document = self._build_run_document(normalized_run, source_reports)
+        document = self._build_run_document(
+            normalized_run,
+            source_reports,
+            owner_user_id=owner_user_id,
+        )
         self.search_repo.upsert_document(document)
 
     def refresh_run(self, run_id: str) -> None:
@@ -43,7 +53,60 @@ class SearchIndexService:
             return RunResponse(**run)
         return RunResponse.model_validate(run)
 
-    def _build_report_document(self, report: UploadedReport) -> SearchDocumentWrite:
+    def backfill_reports_and_runs(
+        self,
+        *,
+        dry_run: bool = True,
+        owner_user_id: str | None = None,
+    ) -> dict[str, object]:
+        reports = self.reports_repo.list_all()
+        runs = self.run_repo.list_all_runs()
+        report_by_id = {report.report_id: report for report in reports}
+        report_documents = [
+            self._build_report_document(report, owner_user_id=owner_user_id) for report in reports
+        ]
+        run_documents = [
+            self._build_run_document(
+                run,
+                [
+                    report_by_id[report_id]
+                    for report_id in run.report_ids
+                    if report_id in report_by_id
+                ],
+                owner_user_id=owner_user_id,
+            )
+            for run in runs
+        ]
+        documents = [*report_documents, *run_documents]
+        ownerless_private_rows = sum(
+            1
+            for document in documents
+            if document.visibility_scope == "private" and document.owner_user_id is None
+        )
+        if not dry_run:
+            for document in documents:
+                self.search_repo.upsert_document(document)
+        return {
+            "mode": "search_index_backfill",
+            "dry_run": dry_run,
+            "reports_seen": len(reports),
+            "runs_seen": len(runs),
+            "documents_planned": len(documents),
+            "documents_indexed": 0 if dry_run else len(documents),
+            "owner_user_id_provided": bool(owner_user_id),
+            "ownerless_private_rows": ownerless_private_rows,
+            "source_downloads_performed": False,
+            "provider_calls_performed": False,
+            "supabase_mutation_performed": False,
+            "startup_backfill": False,
+        }
+
+    def _build_report_document(
+        self,
+        report: UploadedReport,
+        *,
+        owner_user_id: str | None = None,
+    ) -> SearchDocumentWrite:
         variants = [self._build_variant_write(item) for item in report.extracted_case.variants]
         identifier_parts: list[object | None] = [
             report.report_id,
@@ -66,6 +129,8 @@ class SearchIndexService:
         return SearchDocumentWrite(
             source_key=f"report:{report.report_id}",
             doc_type="report",
+            visibility_scope="private",
+            owner_user_id=owner_user_id,
             report_id=report.report_id,
             filename=report.filename,
             report_kind=report.report_kind,
@@ -91,6 +156,8 @@ class SearchIndexService:
         self,
         run: RunResponse,
         reports: list[UploadedReport],
+        *,
+        owner_user_id: str | None = None,
     ) -> SearchDocumentWrite:
         variants = self._collect_variants(reports)
         titles = [
@@ -151,6 +218,8 @@ class SearchIndexService:
         return SearchDocumentWrite(
             source_key=f"run:{run.run_id}",
             doc_type="run",
+            visibility_scope="private",
+            owner_user_id=owner_user_id,
             run_id=run.run_id,
             patient_id=run.patient_id,
             run_status=run.run_status.value,

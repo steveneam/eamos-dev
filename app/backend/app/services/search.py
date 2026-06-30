@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal, cast
 
 from app.schemas.search import (
+    SearchAccessContext,
     SearchDocType,
     SearchHit,
     SearchMatchType,
@@ -28,6 +29,7 @@ class SearchService:
     def search(
         self,
         query: str,
+        access_context: SearchAccessContext,
         limit: int = 10,
         doc_type: str | None = None,
         run_status: str | None = None,
@@ -50,18 +52,18 @@ class SearchService:
 
         if query_mode in {"id", "mixed"}:
             for record, score, match_type in self.search_repo.search_exact_ids(
-                normalized, filters, limit
+                normalized, filters, access_context, limit
             ):
                 combined[record.source_key] = (record, score, match_type)
 
         if query_mode in {"variant", "mixed"}:
             for record, score, match_type in self.search_repo.search_exact_variants(
-                query_norm, gene_norm, filters, limit
+                query_norm, gene_norm, filters, access_context, limit
             ):
                 self._merge_match(combined, record, score, match_type)
 
         for record, score, match_type in self.search_repo.search_full_text(
-            normalized, filters, limit
+            normalized, filters, access_context, limit
         ):
             self._merge_match(combined, record, score, match_type)
 
@@ -103,6 +105,7 @@ class SearchService:
     ) -> SearchHit:
         return SearchHit(
             doc_type=cast(SearchDocType, record.doc_type),
+            visibility_scope=record.visibility_scope,
             run_id=record.run_id,
             report_id=record.report_id,
             patient_id=record.patient_id,
@@ -128,9 +131,11 @@ class SearchService:
             record.summary_text,
             record.evidence_text,
             record.review_note,
-            record.raw_extracted_text,
-            record.search_text,
         ]
+        if record.visibility_scope == "private" and record.owner_user_id:
+            sources.extend([record.raw_extracted_text, record.search_text])
+        else:
+            sources.append(record.identifier_text)
         needle = query.lower()
         for source in sources:
             text = (source or "").strip()

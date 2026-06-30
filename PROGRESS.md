@@ -1,5 +1,174 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-30 19:39 +1000 - Codex - Search access/readiness, source asset policy, and gene-viewer first fold
+
+Continued the repo-structure/search sequence without deletion, deploy/env
+mutation, Supabase mutation, runtime seed/sync, destructive git, commit, or push.
+
+- Search Task 4: added explicit run/report search access posture. Search
+  documents now carry `visibility_scope` and `owner_user_id`; newly indexed
+  uploaded reports and runs are private rows owned by the authenticated user.
+  Repository queries now require a server-side access context and return public
+  rows plus the caller's private rows only. Ownerless historical private rows
+  fail closed until backfilled.
+- Search Task 5: added sanitized search readiness to provider-cache health and
+  a dry-run-first `python -m app.cli.eamos_search_index_backfill` operator
+  command for run/report backfills. Backfill reads existing DB rows only and
+  reports that no source downloads, provider calls, Supabase mutation, startup
+  backfill, or runtime seed/sync occurred.
+- Wave 3: added `docs/repo-structure/source-asset-policy.md` and a structure
+  guard requiring tracked source-asset files to live under registered source ids
+  with `.manifest.json` sidecars. No assets were moved or deleted.
+- Wave 4 first slice: extracted gene-viewer source-backed models/protocols into
+  `app/backend/app/services/gene_viewer_models.py`, preserving the public
+  `app.services.gene_viewer` import surface.
+
+Verification passed so far:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py -q`
+- `cd app/backend; python -m pytest tests/test_search_api.py tests/test_rate_limits.py -q`
+- `cd app/backend; python -m pytest tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_gene_viewer.py tests/test_workbench_api.py -q`
+- Focused compileall on changed search/gene-viewer modules.
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_search_api.py tests/test_rate_limits.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check app tests/test_search_api_local.py tests/test_structure_guard.py`
+- `cd app/backend; python -m black --check --target-version py310 ...` on changed backend files
+- `cd app/backend; python -m compileall -q app`
+- `git diff --check`
+- `python -m graphify update .` with long timeout; graph HTML skipped because
+  the graph has 17,133 nodes and exceeds the 5,000-node default visualization
+  limit.
+
+Verification caveat: the broad
+`tests/test_health_api.py::test_provider_cache_health_returns_sanitized_empty_aggregates`
+check was not used as a gate because this workspace reports
+`source_assets.clinvar_gene_distribution_index.ready=true`, while that older
+test expects the default index to be missing. Search readiness is covered by the
+new local search tests.
+
+## 2026-06-30 19:18 +1000 - Codex - Repo Wave 1 quarantine and search wiring
+
+Completed the requested Wave 1/2 resume slice without deletion, deploy/env
+mutation, Supabase mutation, runtime seed/sync, destructive git, commit, or push.
+
+- Wave 1: quarantined `app/frontend` as a frozen historical Vite reference.
+  `plans/README.md` now names `app/web` as the active Next.js frontend source
+  of truth; `plans/frontend-rebuild.md` and `plans/v2-frontend.md` are marked
+  superseded; `app/frontend/README.md` states no live CI/deploy/Vercel/browser
+  proof should depend on that folder.
+- Added a docs drift guard to `app/backend/tests/test_structure_guard.py` so
+  active source-of-truth docs cannot describe `app/frontend`/Vite as the live
+  frontend unless the document is explicitly superseded/frozen.
+- Wave 2: added non-Docker search route coverage in
+  `app/backend/tests/test_search_api_local.py`.
+- Wired existing run/report search services in normal `create_app()` startup:
+  `SearchRepo`, `SearchService`, `SearchIndexService`, and disabled-by-default
+  `SearchAnswerService`.
+- Added explicit `RATE_LIMIT_SEARCH` / `RATE_LIMIT_SEARCH_MAX_REQUESTS` route
+  limiting and applied it to `/api/v1/search` and `/api/v1/search/answer`.
+- Passed the search indexer into intake/recommendation/workflow services and
+  indexed newly created runs after the primary run write succeeds. Indexing
+  failures are logged and do not corrupt the run write.
+- Updated `docs/repo-structure/{plan.md,audit-2026-06-30.md}` and
+  `docs/search-index/{spec.md,plan.md}` with actual Wave 1/2 status.
+
+Remaining search work: explicit private/public access posture, readiness and
+backfill tooling, product-wide indexed entities, frontend search-results
+integration, grounded answer-chain tests, and approve/drop/report-payload
+index-refresh breadth.
+
+Verification passed:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py -q`
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_search_api.py tests/test_rate_limits.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check app tests/test_search_api_local.py tests/test_structure_guard.py`
+- `cd app/backend; python -m black --check --target-version py310 app/main.py app/core/config.py app/core/rate_limit.py app/api/routes/search.py app/services/workflow.py tests/test_search_api_local.py tests/test_structure_guard.py`
+- `cd app/backend; python -m compileall -q app`
+- `git diff --check`
+- `python -m graphify update .` with long timeout; graph HTML skipped because
+  the graph has 17,067 nodes and exceeds the 5,000-node default visualization
+  limit.
+
+## 2026-06-30 18:40 +1000 - Codex - Search index spec and plan
+
+Wrote durable Search Control Plane docs so the search-index work survives a
+session clear.
+
+- Added `docs/search-index/spec.md`: defines the product search index as an
+  authenticated, rate-limited, indexed control plane over known Eamos entities,
+  not a request-time source scanner. It captures the current gaps:
+  `/api/v1/search` is mounted but unwired, run creation is not indexed, the
+  search route lacks an explicit search rate-limit, and private run/report
+  search needs owner-scoped access before multi-user launch exposure.
+- Added `docs/search-index/plan.md`: breaks implementation into portable tasks:
+  characterize current behavior, wire existing run/report search in
+  `create_app()`, index run mutations, add private/public access posture, add
+  readiness/backfill tooling, evolve toward product-wide entity search,
+  integrate the live Next search bar, harden grounded AI answers, and update
+  graph/docs/handoff after slices.
+- Updated `docs/repo-structure/plan.md` and
+  `docs/repo-structure/audit-2026-06-30.md` with pointers to the new search
+  spec/plan under Wave 2.
+- Verification passed: focused `git diff --check` on the new docs and
+  repo-structure pointers. No code, schema, runtime, Supabase, deploy/env,
+  destructive git, commit, or push action occurred.
+
+## 2026-06-30 18:29 +1000 - Codex - Protein annotation structure split
+
+Continued the repo-structure cleanup sequence from
+`docs/repo-structure/plan.md` and
+`docs/repo-structure/audit-2026-06-30.md`.
+
+- Split UniProt flatfile parsing, feature index scanning/building, feature
+  labeling, and lane mapping out of
+  `app/backend/app/services/protein_annotation.py` into
+  `app/backend/app/services/protein_uniprot_features.py`.
+- Split bundled protein feature seeds and `ProteinDomainTrack` to viewer
+  `ProteinFeatures` projection into
+  `app/backend/app/services/protein_feature_projection.py`.
+- Preserved the old public import surface from
+  `app.services.protein_annotation` and added a 1000-line structure guard for
+  `protein_annotation.py`. The refactored file is now 898 lines.
+- Updated the repo-structure plan/audit with the completed slice and the next
+  sequence: `app/frontend` retirement/quarantine, docs drift guard,
+  `gene_viewer.py` package fold, then search-control-plane spec.
+- Verification passed:
+  `python -m compileall -q` on the refactored modules,
+  `cd app/backend; python -m pytest tests/test_protein_annotation_service.py tests/test_pfam_materialization_cli.py tests/test_structure_guard.py -q`,
+  focused Ruff and Black checks, focused `git diff --check`, and
+  `python -m graphify update .` with the repo-standard long timeout.
+- No cleanup/deletion, deploy/env/provider mutation, Supabase mutation, runtime
+  seed/sync, destructive git, commit, or push occurred.
+
+## 2026-06-30 17:45 +1000 - Codex - Repo structure/rot audit and guard ratchet
+
+Steven requested a whole-repo backend/frontend audit for rot, drift, stale/dead
+files, and Selom-style structure cleanup before continuing browser proof work.
+
+- Added `docs/repo-structure/plan.md`: structure policy based on the Selom
+  lesson - split by responsibility, reject hard line caps, blanket `src/`
+  moves, and barrel hubs.
+- Added `docs/repo-structure/audit-2026-06-30.md`: prioritized cleanup/refactor
+  audit covering backend, live Next frontend, frozen Vite frontend, docs/plans,
+  Supabase/security posture, tracked source assets, and ignored scratch bloat.
+- Added `app/backend/tests/test_structure_guard.py`: backend route-shape guard,
+  route module guard, frontend no-barrel/no-flat-feature-API guard, heavy static
+  browser import guard, and hotspot growth budgets.
+- Highest findings: `app/frontend` is a stale but still-runnable Vite reference
+  with duplicated/drifted code; `/api/v1/search` routes are mounted but not wired
+  in `create_app()`; backend hotspots need package folds; Workbench/report
+  frontend files need responsibility splits; `app/backend/data/source_assets`
+  tracks roughly 200 MB of clinical source data.
+- Verification passed:
+  `cd app/backend; python -m pytest tests/test_structure_guard.py -q`,
+  focused `git diff --check`, and `python -m graphify update .` with the
+  repo-standard long timeout. Graphify skipped HTML export because the graph is
+  above the default 5,000-node visualization limit.
+- No cleanup/deletion, Vercel command, Render env mutation, provider/flag flip,
+  raw source download, Supabase metadata/Storage mutation, runtime seed/sync,
+  destructive git, commit, or push occurred.
+
 ## 2026-06-30 14:11 +1000 - Codex - Workbench live metrics disclosure and gene-agnostic paths
 
 Built the Sprint C Workbench live-metrics slice locally after Steven clarified

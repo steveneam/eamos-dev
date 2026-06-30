@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 SearchDocType = Literal["report", "run"]
+SearchVisibilityScope = Literal["public", "private", "internal"]
 SearchMatchType = Literal[
     "exact_run_id",
     "exact_report_id",
@@ -17,6 +18,7 @@ SearchMatchType = Literal[
 
 class SearchHit(BaseModel):
     doc_type: SearchDocType
+    visibility_scope: SearchVisibilityScope = "private"
     run_id: str | None = None
     report_id: str | None = None
     patient_id: str | None = None
@@ -39,6 +41,11 @@ class SearchRequestFilters(BaseModel):
     doc_type: SearchDocType | None = None
     run_status: str | None = None
     review_status: str | None = None
+
+
+class SearchAccessContext(BaseModel):
+    user_id: str
+    include_internal: bool = False
 
 
 class SearchCitation(BaseModel):
@@ -82,6 +89,8 @@ class SearchVariantWrite(BaseModel):
 class SearchDocumentWrite(BaseModel):
     source_key: str
     doc_type: SearchDocType
+    visibility_scope: SearchVisibilityScope = "private"
+    owner_user_id: str | None = None
     run_id: str | None = None
     report_id: str | None = None
     patient_id: str | None = None

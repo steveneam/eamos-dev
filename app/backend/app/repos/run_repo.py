@@ -81,6 +81,15 @@ class RunRepo:
                 return None
             return _record_to_run_response(record)
 
+    def list_all_runs(self) -> list[RunResponse]:
+        with session_scope(self.session_factory) as session:
+            records = (
+                session.query(RunRecord)
+                .order_by(RunRecord.updated_at.asc(), RunRecord.run_id.asc())
+                .all()
+            )
+            return [_record_to_run_response(record) for record in records]
+
     def update_report_payload(
         self,
         run_id: str,

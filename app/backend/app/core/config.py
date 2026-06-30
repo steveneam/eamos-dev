@@ -112,6 +112,7 @@ class Settings(BaseSettings):
     rate_limit_materialization_admin_max_requests: int = 2
     rate_limit_payments_checkout_max_requests: int = 6
     rate_limit_payments_webhook_max_requests: int = 60
+    rate_limit_search_max_requests: int = 30
     rate_limit_workbench_max_requests: int = 20
     rate_limit_trust_proxy_headers: bool = False
     batch_upload_registry_max_entries: int = 128

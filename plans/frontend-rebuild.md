@@ -1,5 +1,10 @@
 # Frontend Rebuild Plan
 
+> Superseded historical plan. Do not execute for live Eamos frontend work.
+> The active frontend source of truth is the Next.js app in `app/web`.
+> `app/frontend` is a frozen Vite reference retained only for comparison until
+> Steven approves an exact deletion or regeneration task.
+
 Rebuilding the Eamos frontend to match the Claude Design mocks (`Eamos Landing Page.html` and `Eamos Report Page.html`). React/Vite stack is kept (not migrated to Next.js). Design mocks are at `c:\Users\seamegdool\Downloads\`.
 
 ## Status

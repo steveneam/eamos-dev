@@ -4,6 +4,15 @@ This React + Vite tree is a historical/reference frontend. It is stale for the
 live Eamos report surface, including the Section 2 in-silico predictor panel,
 AlphaMissense display, gene/protein viewer, and current backend contracts.
 
+Quarantine status, 2026-06-30:
+
+- No live CI, deploy, Vercel, or browser-proof workflow should depend on this
+  folder.
+- Do not mirror new product work into this tree.
+- Do not use this folder's package scripts as release verification.
+- Keep the files in place until Steven approves an exact deletion or
+  regeneration task.
+
 Use `app/web` for active `/report`, `/workbench`, account, checkout, auth, and
 production frontend work. Do not copy `app/frontend` mocks or thresholds into
 live report code without checking the current `app/web` implementation and
@@ -23,6 +32,9 @@ cd 04_demo/app/frontend
 npm install
 npm run dev
 ```
+
+The commands above are historical only. The active dev server is
+`cd app/web && npm run dev`.
 
 ## Applied layout
 

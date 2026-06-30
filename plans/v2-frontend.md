@@ -1,5 +1,10 @@
 # v2 Frontend Rebuild — Claude Code
 
+> Superseded historical plan. Do not execute for live Eamos frontend work.
+> The active frontend source of truth is the Next.js app in `app/web`.
+> `app/frontend` is a frozen Vite reference retained only for comparison until
+> Steven approves an exact deletion or regeneration task.
+
 Port three Claude Design mocks to the React/Vite frontend without migrating to Next.js. Build on existing Phase 0–2 scaffolding (tokens, fonts, base components already in place per `plans/frontend-rebuild.md`).
 
 ## Status (2026-05-15)
