@@ -1,6 +1,6 @@
 # Report Backend Launch and Source-Cache Readiness Plan
 
-Status: Complete with browser residual; operational artifact lane prepared - 2026-06-24 - Codex
+Status: Complete with browser residual; ClinVar generated artifact live on SG - 2026-06-28 - Codex
 
 ## Goal
 
@@ -628,7 +628,7 @@ Remaining gap:
 
 ## Follow-up: Operational ClinVar Artifact Lane
 
-Status: LOCAL ARTIFACT BUILT WITH DEPLOYED ARTIFACT GAP - 2026-06-28 - Codex.
+Status: LIVE SG ARTIFACT SEEDED AND READY - 2026-06-28 - Codex.
 
 Evidence:
 
@@ -759,3 +759,106 @@ Additional tests and checks:
   machine JSON via `--format json` or legacy `--compact`. The TOON summary keeps
   the large preflight report chat/log-friendly while preserving JSON for
   automation.
+
+2026-06-28 private generated-artifact upload/sync:
+
+- Steven approved the exact guarded action: private generated-artifact
+  upload/sync planning and execution for `clinvar_gene_distribution_index`.
+- Upload plan for only `clinvar_gene_distribution_index` reported one eligible
+  private Storage item: bucket `eamos-source-assets`, object path under
+  `generated/eamos_clinvar_gene_distribution_index/clinvar_gene_distribution_sqlite/`
+  with SHA-256
+  `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`,
+  byte size `737673216`, schema `eamos.clinvar_gene_distribution.v1`, and
+  source version `ClinVar GRCh38 VCF weekly release 2026-05-25 /
+  clinvar_20260523`. S3 multipart credentials were configured; REST
+  service-role write was not.
+- Executed the upload with `--upload-mode s3_multipart --upload`. Result:
+  `uploaded_count=1`, `blocked_count=0`, `failed_count=0`; the SQLite artifact
+  and checksum manifest were uploaded to private Storage. The command emitted no
+  local paths, secrets, signed URLs, public bucket fallback, Supabase metadata
+  mutation, Render env mutation, deploy, provider flip, startup download, or
+  request-time materialization.
+- First remote sync attempt used explicit `--expected-*` values and correctly
+  failed closed after download/checksum verification with
+  `runtime_probe_schema_validation_failed:manifest_identity_mismatch`, because
+  the explicit-identity path wrote a checksum-only manifest. The follow-up sync
+  used the uploaded Storage manifest as the identity source and passed:
+  `ready=true`, `downloaded=true`, `manifest_written=true`,
+  `md5_verified=true`, `sha256_verified=true`, `schema_validated=true`.
+- Post-sync verification passed: `eamos_source_asset_preflight --format toon`
+  reports `clinvar_gene_distribution_index` ready with count `4713770`, byte
+  size `737673216`, and the expected SHA-256; focused generated-artifact and
+  preflight pytest passed; a direct runtime-reader smoke for `RPE65` +
+  `1-68444869-T-C` returned `total=1136`, row totals `benign=420`,
+  `pathogenic=327`, `vus=389`, query accession `VCV001421454`, query cell
+  `vus_noncoding`, and no warnings.
+
+Remaining live-runtime boundary after upload/sync:
+
+- The durable private Storage object now exists and the local runtime path has
+  been re-synced from it, but no deploy, Render env mutation, provider flip,
+  live Render-disk seed, or live runtime materialization was run. Deployed
+  environments remain unchanged until Steven separately approves the live
+  Render-disk sync/seed and any flag/provider steps.
+
+2026-06-28 live Render-disk seed attempt:
+
+- Steven approved the exact live Render-disk seed/sync action, still excluding
+  deploy, Render env mutation, provider/flag flip, source download, Supabase
+  metadata mutation, and unreviewed source changes.
+- The app's 443 admin materialization endpoint is not usable for this artifact
+  as deployed: SG has `ADMIN_MATERIALIZATION_ENABLED=false`, the default
+  manifest path is not overridden, and the deployed manifest is the older M6-M8
+  batch without `clinvar_gene_distribution_index`.
+- Render Dashboard Shell over HTTPS is usable and reached live SG instance
+  `fl4bm`. Read-only preflight showed `/var/data/eamos` mounted with about
+  `15G` free, Python `3.12.13`, private Supabase/S3 env vars set, and the
+  ClinVar gene-distribution SQLite/manifest missing from the target disk path.
+- The committed sync command failed closed before writing any file because the
+  deployed image's `eamos_generated_artifact_sync` CLI predates the
+  `clinvar_gene_distribution_index` artifact registration. It accepts only
+  `clingen_local`, `pubmed_local`, and `literature_embeddings`; the live reader
+  exists, but the generated-artifact registry and validation branch do not.
+- Live provider-cache already exposes
+  `source_assets.clinvar_gene_distribution_index` as `ready=false`,
+  `status=missing`.
+- No disk seed, deploy, env mutation, provider/flag flip, source download,
+  Supabase metadata mutation, or one-off runtime script was run after the
+  committed CLI path failed.
+ - Next approved path should be explicit: deploy current `main` so the committed
+  generated-artifact registry/materializer branch is live, then rerun the same
+  Dashboard Shell sync command; or separately approve a one-off live runtime
+  script that injects the missing generated-artifact definition/validation branch
+  and syncs the private Storage object to disk.
+
+2026-06-28 approved deploy + live Render-disk sync:
+
+- Steven approved path A: deploy current `main` to SG, then rerun the same
+  Dashboard Shell generated-artifact sync command.
+- Render deploy `dep-d90er2lckfvc73ddmie0` reached `live` on commit
+  `e41008dfda6ea6d31f1399e0f4916d3c6d2cffba`.
+- Render Dashboard Shell reconnected to live instance `n47bw`; the committed
+  `eamos_generated_artifact_sync` CLI accepted
+  `clinvar_gene_distribution_index` and synced the private Storage object with
+  `--download-mode s3_multipart --force --require-ready --compact`.
+- Sync output was `ready=true`: `downloaded=true`, `byte_size=737673216`,
+  `manifest_written=true`, `md5_verified=true`, `sha256_verified=true`,
+  `checksum_computed=true`, `schema_validated=true`, and `warnings=[]`.
+- Live `/api/v1/health/provider-cache` now reports
+  `source_assets.clinvar_gene_distribution_index ready=true status=ready`,
+  schema `eamos.clinvar_gene_distribution.v1`, source version
+  `ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523`,
+  `gene_count=28936`, `variant_count=4713770`,
+  `actual_size_bytes=737673216`, SHA-256
+  `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`,
+  and `skipped_row_count=243588`.
+- Live RPE65 lookup smoke now consumes the index:
+  `report_payload.curated_variants_distribution.total=1136`,
+  `row_totals benign=420 / pathogenic=327 / vus=389`,
+  `source_status=local_index`, `query_accession=VCV001421454`,
+  `query_cell=vus_noncoding`, and the old
+  `clinvar_gene_distribution_excluded_pending_index` warning is absent.
+- No Vercel command, Render env mutation, provider/flag flip, raw source
+  download, public bucket fallback, signed URL, Supabase metadata mutation, or
+  one-off runtime patch script occurred.

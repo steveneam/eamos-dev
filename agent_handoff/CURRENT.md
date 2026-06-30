@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-28 16:30 +1000 - Guarded ClinVar streaming patch pushed (`7c5e4b6`); real local ClinVar gene-distribution SQLite built and verified; source-asset preflight now has TOON/Markdown/CSV summaries with JSON preserved. No upload/sync, deploy, env/flag change, runtime seed, or source download.
+- **Codex:** STOPPED @ 2026-06-30 14:22 +1000 - Sprint B/C prelaunch code release committed, pushed, and deployed to SG Render. Browser proof remains pending because Selom was using the browser; see Codex resume block.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-28 16:30 +1000 - Codex (ClinVar local artifact + preflight summary closeout)
+UNLOCKED - 2026-06-30 14:22 +1000 - Codex (prelaunch Sprint B/C release committed, pushed, deployed; browser proof pending)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -44,31 +44,9 @@ publications eager-payload and trial row `fetched_at` contract work.
 at 2026-06-23 02:14 +1000 after P0.1 report data-currency + P0.2
 population-frequency unavailable reason contract.
 
-**Claude RELEASED** (`app/backend/app/schemas/chat.py`,
-`app/backend/app/services/chat_service.py`,
-`app/backend/app/services/ai_gateway/guard.py`,
-`app/backend/tests/test_chat_service.py`) at 2026-06-21 19:53 +1000 after the
-Batch (cohort-scoped) Ask-Eamos chat slice shipped + verified + committed `1798ba1`
-(local). AI-gateway lane only; was DISJOINT from Codex's
-`supabase_local_model_cache_repo.py` / `lookup_service.py` / materialization lane
-(untouched). FE files (`app/web/lib/chat.ts`, `app/web/lib/backend.ts`,
-`app/web/components/compare/CompareAiPanel.tsx`,
-`app/web/components/compare/CompareClient.tsx`) were Claude's own FE lane.
-(Supersedes the Paper-slice `49f72cf` 04:46 release of the same four files.)
-
-**Codex RELEASED** (`app/backend/app/core/config.py`) at 2026-06-21 00:54 +1000
-after materialization robustness runtime-path defaults. No provider/env/live seed
-flip occurred.
-
-**Claude RELEASED** (`app/backend/app/core/config.py`,
-`app/backend/app/core/rate_limit.py`, `app/backend/app/api/routes/chat.py`,
-`app/backend/.env.example`, `app/backend/tests/test_rate_limits.py`) at
-2026-06-20 18:14 +1000 after the AI-gateway dev daily spend-cap (env-gated
-default-OFF) shipped locally + verified (rate-limits 17/17, chat_service+health
-34, ruff+black clean). Left UNCOMMITTED. These files are disjoint from Codex's
-in-parallel fail-open hardening (`supabase_local_model_cache_repo`,
-`runtime_assets`, `predictor_runtime` + tests) — do not commit one lane's WIP
-into the other's.
+**Older released Shared File Locks** were pruned 2026-06-30 by Codex; all are
+history only and captured in git/PROGRESS.md. Keep this section to current or
+recent lock state only.
 
 **Codex RELEASED** (`app/web/components/report/ReportClient.tsx`,
 `app/web/components/report/VariantHeader.tsx`,
@@ -194,15 +172,8 @@ Every other record below is RELEASED. Released-lock records older than one week
 `archive/2026-06-12-current-pre-trim.md`; the recent (<=1wk) ones are retained
 below for context.
 
-- **2 released Shared File Locks from 2026-06-12** (Claude `config.py` ai_gateway
-  block; Codex Workbench live-wiring batch) pruned 2026-06-20 — history only, all
-  RELEASED; detail in git history + PROGRESS.md.
-
-- **Released Shared File Locks from 2026-06-07 / 2026-06-08** (6 entries: PubMed/PMC
-  local backend + edge-ingestion + scale-filter + source-manifest slices, Workbench
-  backend contracts, CRISPR off-target backend contracts) were archived verbatim
-  2026-06-16 22:36 +1000 → `archive/2026-06-16-current-locks-trim.md` (history only;
-  all RELEASED). Trimmed to keep CURRENT.md under the handoff-lint 500-line gate.
+Older released-lock archive notes were pruned 2026-06-30 by Codex to keep this
+file under the handoff-lint live-state gate.
 
 
 ## Cross-Agent Requests
@@ -220,7 +191,7 @@ archived verbatim at
 
 - [DONE] Codex->Claude/Steven (2026-06-27 23:38 +1000): **P0.1 backend freshness contract shipped in `a9fe106`.** `provider-cache` emits sanitized `freshness` blocks for `local_evidence_runtime_assets` at both source and per-role asset level, derived only from adjacent manifests (`*.manifest.json`) when present. Shape includes `materialized_at`, `upstream_released_at`, `upstream_version`, `source_version`, `tier`, `sla_days`, `staleness_days`, and `status` (`fresh|stale|overdue|unknown`); missing upstream release metadata degrades to `unknown`. Report payload field remains `report_data_currency` with `generated_at` + `sources`, and `VariantReportHeader.updated_at`/`report_generated_at` were already present before this session. Verified focused provider-cache tests, report data-currency tests, report orchestration tests, Ruff, Black, diff-check, graphify update. No guarded remote/source/materialization/deploy action occurred. P1 items in the older launch-readiness ask remain open. - local P0.1 freshness contract
 
-- [OPEN] Claude->Codex/Steven (2026-06-23 01:05 +1000): **/report launch-readiness assignments — Codex backend lane.** New doc `docs/report-launch-readiness/assignments.md` (Claude, P0/P1/P2, lane-split; from a read-only report audit this session, severities are Claude's). Codex's P0/P1 backend items: **P0.1** emit the per-asset freshness block + a report-payload field (propose `report_data_currency: {sources:[...], generated_at}`) + populate `VariantReportHeader.updated_at` + add `report_generated_at` — **and confirm the payload field name so Claude can wire `freshness={...}` on the already-built `DataCurrencyLine` (currently passed `null`, falling back to real `fetched_at`)**; **P0.2** make gnomAD `source_status` reliable (no silent blank); **P1.1** integrate the ClinGen Evidence-Repository source-cache so the expert panel ships live VCEP (today it's a consensus snapshot → `ExpertPanelPartialNote` always shows) — Steven to decide if this is launch-blocking; **P1.2** populate in-silico calibration fields; **P1.3** the ClinVar gene-distribution index (same M9 `clinvar_gene_distribution_excluded_pending_index` boundary) or confirm it stays off; **P1.4** source version pins. P0.1 folds into `docs/local-evidence-freshness/plan.md` Task 0.1 (contract backend-led — Claude mirrors). - report launch-readiness backend lane
+- [DONE] Claude->Codex/Steven (2026-06-23 01:05 +1000; closed 2026-06-28 19:53 +1000): **/report launch-readiness assignments — Codex backend lane.** Codex-owned P0/P1 backend items are complete through the live ClinVar generated-artifact seed: P0.1 freshness/data-currency contract, P0.2 gnomAD source-status reliability, P1.1 ClinGen VCEP source-cache integration, P1.2 supported in-silico calibration fields, P1.3 ClinVar gene-distribution index live on SG, and P1.4 source-version pins. Latest live proof: SG deploy `dep-d90er2lckfvc73ddmie0` on `e41008d`; Dashboard Shell sync on instance `n47bw`; provider-cache `source_assets.clinvar_gene_distribution_index ready=true` with 28,936 genes / 4,713,770 variants / SHA-256 `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`; RPE65 full lookup has `curated_variants_distribution.source_status=local_index`, `total=1136`, `query_accession=VCV001421454`, `query_cell=vus_noncoding`, and no `clinvar_gene_distribution_excluded_pending_index` warning. Frontend/presentation follow-ups remain Claude/Steven lane decisions. - report launch-readiness backend lane
 
 - [DONE] Codex->Claude/Steven (2026-06-22 19:14 +1000): **Coordinate deletion/confirmation of the stray Vercel `web` project before any push.** Steven says the accidentally created remote `web` project still exists in Vercel. Codex will continue the local Workbench gene-agnostic fixes, but push remains gated until Claude/Steven delete or explicitly confirm removal of that stray project. Root `.vercel` must stay linked to the intended `eamos-dev` project; nested `app/web/.vercel` must remain absent. - Vercel project cleanup gate **→ RESOLVED by Claude+Steven 2026-06-23 00:42 +1000: stray `web` project (`prj_33QjQXccRDH8PmYMTBgsym4X8PpY`) DELETED by Steven via dashboard; Claude verified via Vercel MCP — `list_projects` returns only `eamos-dev` (`prj_PbmfuQv2xsaXdh92MdNkeelm19yM`), and `get_project` on the stray id returns 404 Not Found. Root `.vercel` link unchanged (eamos-dev), `app/web/.vercel` absent, guard passes. Push/deploy gate CLEARED. See the 00:25 refresh entry below for the same closure.**
 
@@ -438,48 +409,71 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-28 16:30 +1000 - Codex.
+Section last edited: 2026-06-30 14:22 +1000 - Codex.
 
-**Latest Codex update (2026-06-28 16:30 +1000 - Codex):**
-Codex committed and pushed the guarded ClinVar streaming/generated-artifact patch
-as `7c5e4b6` (`feat(clinvar): stream gene distribution artifact builds`).
+**Latest Codex update (2026-06-30 14:22 +1000 - Codex):**
+Sprint B Batch UX and Sprint C Workbench functional-launch work are committed,
+pushed, and deployed. Code release:
+`d5ee212 feat(prelaunch): disclose workbench and batch launch states`.
+SG Render deploy `dep-d91k7d6q1p3s73c493cg` reached `live` on commit
+`d5ee212f41956ac22be68a27a5626d984513d780`.
 
-Then Codex ran the bounded local real ClinVar gene-distribution build against the
-already-present local `clinvar.vcf.gz`; no source download, network, upload/sync,
-deploy, env mutation, flag flip, or runtime seed occurred. The process exited
-after about 40 minutes and produced a ready local SQLite + sidecar manifest:
-737,673,216 bytes, 28,936 genes, 4,713,770 indexed variant rows, 243,588 skipped
-malformed materializer-only rows, schema `eamos.clinvar_gene_distribution.v1`,
-SHA-256 `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`.
+Batch/Compare local UX changes in that commit: typed Batch transport errors,
+auth/expired/rate-limit/validation/unavailable/stalled issue states,
+completed-empty and scoped-zero-match states, warning preservation,
+stale-regenerate on scope changes, and visible panel launch-policy labels
+(`local launch`, `fixture`, `warning`). Signed-in Batch browser proof remains
+deferred; backend auth/owner behavior is covered by tests.
 
-Read-only preflight now reports `clinvar_gene_distribution_index` ready and plans
-the generated artifact for private Storage upload with `network_used=false` and
-`upload_performed=false`; no upload/sync was run. A direct runtime-reader smoke
-for `RPE65` / `1-68444869-T-C` returned a bounded distribution with query
-metadata and no warnings.
+Workbench changes in that commit: backend `SourceDisclosure` contract on
+Workbench response schemas; fixture/sample payloads label themselves as
+`fixture` or `fallback`; live local providers label themselves
+`local_provider`; source/index-backed paths label themselves `source_backed`.
+UI source labels are wired across Primer, CRISPR design, ssODN, off-target
+enumeration, screening primers, TIDE outcomes, and Align reference provenance.
+`/api/v1/align` now honors `workbench_live_design_enabled`, and tests include a
+non-RPE65 synthetic context proving Align is not RPE65-fixture-bound.
 
-Source-asset preflight output was also tightened for operator/chat use:
-`eamos_source_asset_preflight` now defaults to a TOON summary and supports
-`--format markdown`, `--format csv`, and full machine JSON via `--format json` or
-legacy `--compact`.
+Readiness truth: Primer and CRISPR guide design are live local/provider paths
+when Workbench live design is enabled. ssODN is source-backed for local
+MANE/hg38 or resolved sequence-context inputs, fallback for mock windows.
+Off-target enumeration is source-backed only with the GRCh38 SpCas9 SQLite
+index; current SG provider-cache still reports off-target index missing, so live
+off-targets disclose `fallback` / `mock_cas_offinder`. Screening primers are
+source-backed only with real windows/templates. TIDE is a live observed-only
+trace analyzer, not Lindel or the NKI/TIDE NNLS solver. Browser Align keeps the
+multi-read client workflow while resolving/displaying reference provenance.
 
-Verification passed: focused source-asset formatter/preflight pytest, ClinVar
-generated-artifact pytest before `7c5e4b6`, Ruff, Black check, direct TOON CLI
-smoke, direct runtime-reader smoke, `git diff --check`, and graphify update.
+Verification passed before commit: Workbench API/frontend-contract pytest,
+Workbench preflight/render-approval pytest, Batch/Panel pytest, Ruff, targeted
+Black on touched backend files, web TypeScript, web lint, web production build,
+focused diff-check, and `python -m graphify update .`. Combined
+Batch/Panel/Health failed only on local environment drift where
+`clinvar_gene_distribution_index.ready=true` but the health fixture test expects
+it missing.
 
-No Supabase mutation, Storage upload/sync, Vercel command, Render env mutation,
-deploy command, runtime seed, provider flip, flag change, or source download
-occurred.
+Live smokes after deploy passed: SG `/healthz` OK; provider-cache reports
+`clinvar_gene_distribution_index.ready=true`; live Primer returns
+`local_provider` / `primer3_template_specificity`; CRISPR returns
+`local_provider` / `local_deterministic_spcas9`; Align reference returns
+`source_backed` / `sequence_context_alignment_reference`; off-target
+enumeration returns labelled `fallback` / `mock_cas_offinder`. Vercel
+`/workbench?gene=RPE65&cdna=c.260A%3EG` returned 200, and the Vercel
+provider-cache proxy returned `status=ok`, `database=ok`,
+`clinvar_gene_distribution_index.ready=true`.
 
-Git state at handoff: `main...origin/main` should include `7c5e4b6` plus the
-closeout preflight-summary commit on top.
+No Vercel command, Render env mutation, provider/flag flip, raw source
+download, Supabase metadata/Storage mutation, live runtime script,
+runtime seed/sync, or destructive git occurred. Browser proof was intentionally
+deferred because Selom was using the browser.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-28 16:30 +1000 - Codex ClinVar local artifact built + preflight TOON summaries
-Eamos. Start from `main...origin/main`; latest commits should include `7c5e4b6`, `c100838`, `541430d`, `d1bbdd0`, `710d8a5`. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md (Codex + Requests), agent_handoff/RISKS.md, docs/report-launch-readiness/assignments.md, docs/report-backend-source-cache-readiness/plan.md, then run git fetch origin; git status --short --branch; git log -8 --oneline.
-Delta: Guarded ClinVar streaming/generated-artifact patch is pushed in `7c5e4b6`; the real local `clinvar-gene-distribution.sqlite` was built from the existing local ClinVar VCF and verified ready (737,673,216 bytes; 28,936 genes; 4,713,770 variant rows; 243,588 skipped malformed materializer-only rows; SHA-256 `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`). `eamos_source_asset_preflight` now emits a TOON summary by default with Markdown/CSV fallbacks and JSON preserved.
-Verification: focused source-asset formatter/preflight pytest, ClinVar/generated-artifact pytest before `7c5e4b6`, Ruff, Black check, direct TOON CLI smoke, direct runtime-reader smoke, `git diff --check`, and graphify update passed. A mistyped pytest node for a nonexistent test failed once and was replaced with valid runtime/preflight checks.
-Next: if Steven approves the exact action, run private generated-artifact upload/sync planning/execution for `clinvar_gene_distribution_index`; otherwise keep the local artifact only and leave deployed environments fail-closed with pending-index status.
-Guardrails: no deploy, Vercel command, Render env mutation, flag flip, runtime seed, Supabase/Storage upload/sync, source download, or remote materialization unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
+# Resume prompt - 2026-06-30 14:22 +1000 - Codex prelaunch Batch/Workbench Sprint B/C release
+Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, then docs/prelaunch-batch-workbench-readiness/{design,review,plan,resume-prompt}.md.
+Delta: `d5ee212 feat(prelaunch): disclose workbench and batch launch states` is pushed to `origin/main`. SG Render deploy `dep-d91k7d6q1p3s73c493cg` is live on `d5ee212f41956ac22be68a27a5626d984513d780`. Sprint B Batch/Compare UX and panel launch-policy labels are included. Sprint C Workbench source-disclosure contract, UI labels, Align live-design flag fix, and non-RPE65 Align test are included. Browser proof remains pending because Selom was using the browser.
+Verification: Workbench API/frontend-contract pytest, Workbench preflight/render-approval pytest, Batch/Panel pytest, Ruff, targeted Black, web TypeScript, web lint, web build, diff-check, graphify update, SG backend smokes, and Vercel HTTP smokes passed. Combined Batch/Panel/Health failed only on local health-test environment drift: local `clinvar_gene_distribution_index.ready=true` vs test expecting missing.
+Workbench truth: Primer/CRISPR guide design are live local/provider paths; ssODN is source-backed for local MANE/hg38 or sequence-context inputs and fallback for mock windows; off-targets are source-backed only with the GRCh38 SpCas9 index and currently disclose fallback on SG; screening primers depend on real windows/templates; TIDE is observed-only, not Lindel/NKI-TIDE; browser Align keeps client multi-read alignment but resolves/displays backend reference provenance.
+Next: when the browser is free, run `/workbench` browser proof for Primer, CRISPR design, ssODN, off-targets, screening primers, TIDE, and Align source labels, narrow viewport no-overflow, and clean console/issues. Then decide signed-in Batch browser proof: existing approved Supabase session, Steven-approved Auth test mutation, or documented defer.
+Guardrails: no Vercel command, Render env mutation, provider/flag flip, raw source download, Supabase metadata/Storage mutation, live runtime script, runtime seed/sync, destructive git, commit, or push unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```

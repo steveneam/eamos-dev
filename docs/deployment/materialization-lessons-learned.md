@@ -134,6 +134,44 @@ work:
 - Keep Gold joins beside tabix/SQLite first. Replacing point-lookup adapters is
   a later benchmark-backed ADR, not an implementation default.
 
+## Generated artifact operator ratchet (2026-06-28)
+
+The ClinVar gene-distribution artifact upload/sync pass added two operational
+rules for generated SQLite artifacts and source-asset preflight output:
+
+- Treat operator output formats as part of the workflow, not presentation
+  polish. A TOON/Markdown/CSV summary is only useful after the exact CLI shape
+  has been run and read. For `eamos_source_asset_preflight`, use
+  `--format toon` by itself for the chat/log-friendly summary; legacy
+  `--compact` remains the compact JSON path and should not be combined with a
+  TOON smoke when the goal is to verify human-readable output.
+- Prefer the uploaded Storage manifest sidecar as the source of identity during
+  generated-artifact sync. Passing explicit `--expected-*` overrides while a
+  full manifest exists can prove byte checksums but still leave the runtime
+  probe fail-closed with `manifest_identity_mismatch` if the written manifest is
+  identity-incomplete. The ready path is: upload SQLite + manifest, sync from the
+  private object using the manifest, then run source-asset preflight and a direct
+  runtime reader smoke.
+- Do not stop at "upload succeeded." Acceptance for a generated artifact is
+  private upload success, private sync success, restored full manifest identity,
+  health/preflight readiness, and a bounded runtime reader query against a known
+  control.
+- Treat live runtime seed commands as deployed-image compatibility checks, not
+  just transport checks. Render Dashboard Shell over HTTPS can bypass local
+  SSH/IT port blocks, but the command still runs the code already deployed on
+  the service. Before a generated-artifact seed, verify that the live CLI accepts
+  the artifact id and that the live materializer has the corresponding schema
+  validation branch; otherwise the safe path is a code deploy or a separately
+  approved one-off runtime script.
+- The 2026-06-28 ClinVar gene-distribution closeout proved the safe path:
+  deploy the image that contains the generated-artifact registry/materializer
+  branch, rerun the same Dashboard Shell sync command, then accept only when the
+  live provider-cache and a real lookup agree. The accepted SG state was
+  `source_assets.clinvar_gene_distribution_index ready=true`, 28,936 genes,
+  4,713,770 variants, byte size 737,673,216, SHA-256
+  `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`, and an
+  RPE65 lookup with `source_status=local_index` plus no pending-index warning.
+
 ## Folded into the live runbooks
 
 Status as of 2026-06-21 01:05 +1000 (Claude, after Codex released the Log

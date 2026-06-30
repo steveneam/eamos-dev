@@ -1,5 +1,246 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-30 14:11 +1000 - Codex - Workbench live metrics disclosure and gene-agnostic paths
+
+Built the Sprint C Workbench live-metrics slice locally after Steven clarified
+that fixture-bound outputs were not acceptable for launch.
+
+- Added backend `SourceDisclosure` to Workbench schemas and populated it for
+  primer, CRISPR guide, ssODN, off-target enumeration, screening-primer, TIDE,
+  alignment, trace, and alignment-reference responses.
+- Fixture/sample Workbench payloads now self-identify as `fixture` or
+  `fallback`; live local providers identify as `local_provider`, and indexed
+  off-target/reference-backed paths identify as `source_backed`.
+- Wrote the Sprint C gap spec and plan:
+  `docs/prelaunch-batch-workbench-readiness/sprint-c-workbench-live-metrics-spec.md`
+  and
+  `docs/prelaunch-batch-workbench-readiness/sprint-c-workbench-live-metrics-plan.md`.
+- Closed a real backend gap: `/api/v1/align` now honors
+  `workbench_live_design_enabled` instead of requiring global `use_real_apis`,
+  and has a non-RPE65 synthetic context test proving it is not RPE65-fixture
+  bound.
+- Workbench UI now consumes shared disclosure labels across Primer, CRISPR
+  design, ssODN, off-target enumeration, screening primers, TIDE outcomes, and
+  Align reference provenance. The Align panel resolves its reference through
+  `/api/v1/align/reference`, keeps the existing browser multi-read workflow,
+  and will not substitute the RPE65 fixture for non-default queries when the
+  backend is unavailable.
+- Current readiness truth:
+  - Primer design: live local Primer3/provider path when Workbench live design
+    is enabled; specificity and SNP masking disclose provider caveats.
+  - CRISPR guide design: live local deterministic SpCas9 provider by default;
+    advanced CRISPRScore/R models remain gated unless configured.
+  - ssODN: source-backed for local MANE/hg38 or resolved sequence-context
+    inputs; mock-window fallback remains labelled fallback.
+  - Off-target enumeration: source-backed only with the configured GRCh38
+    SpCas9 SQLite index; auto/mock fallback remains labelled fallback.
+  - Off-target screening-primer design: source-backed only with real
+    target regions/windows or caller-provided templates; mock-window output is
+    labelled fallback.
+  - TIDE: live local observed-only trace analyzer; not a Lindel predictor and
+    not the NKI/TIDE NNLS solver.
+  - Alignment: backend align/reference paths are gene/variant agnostic through
+    sequence context; browser panel now exposes reference provenance while
+    keeping client-side multi-read alignment UX.
+- Verification passed:
+  `cd app/backend; python -m pytest tests/test_workbench_api.py tests/test_frontend_contract.py -q`,
+  `cd app/backend; python -m pytest tests/test_workbench_preflight_cli.py tests/test_workbench_render_approval_bundle_cli.py -q`,
+  `cd app/backend; python -m pytest tests/test_batch_api.py tests/test_batch_panel_schemas.py tests/test_panels_api.py -q`,
+  `cd app/backend; python -m ruff check app tests`,
+  targeted backend Black check on touched Workbench files,
+  `cd app/web; npx tsc --noEmit`,
+  `cd app/web; npm run lint`,
+  `cd app/web; npm run build`, and focused `git diff --check`.
+- The combined Batch/Panel/Health sweep timed out once at 3 minutes, then failed
+  only on `tests/test_health_api.py::test_provider_cache_health_returns_sanitized_empty_aggregates`
+  because this local workspace reports `clinvar_gene_distribution_index.ready`
+  as `true` while the fixture test expects it missing. No Sprint C change touched
+  the health route or test.
+- Browser proof is intentionally pending because Selom is using the browser; do
+  not count browser verification as passed until it is run later.
+- Code release `d5ee212 feat(prelaunch): disclose workbench and batch launch states`
+  was pushed to `origin/main`. SG Render deploy
+  `dep-d91k7d6q1p3s73c493cg` reached `live` on commit
+  `d5ee212f41956ac22be68a27a5626d984513d780`.
+- Live backend smokes passed on `https://eamos-dev-sg.onrender.com`:
+  `/healthz` returned `status=ok`, provider-cache reported
+  `clinvar_gene_distribution_index.ready=true`, Primer returned
+  `source_disclosure.source_status=local_provider` with
+  `primer3_template_specificity`, CRISPR returned `local_provider` with
+  `local_deterministic_spcas9`, Align reference returned `source_backed` with
+  `sequence_context_alignment_reference`, and off-target enumeration returned
+  labelled `fallback` with `mock_cas_offinder`.
+- Vercel HTTP availability checks passed without using a browser:
+  `/workbench?gene=RPE65&cdna=c.260A%3EG` returned 200, and the Vercel proxy
+  `/api/v1/health/provider-cache` returned `status=ok`, `database=ok`, and
+  `clinvar_gene_distribution_index.ready=true`.
+- No Vercel command, Render env mutation, provider/flag flip, raw source
+  download, Supabase metadata/Storage mutation, live runtime script,
+  runtime seed/sync, or destructive git occurred.
+
+## 2026-06-28 21:13 +1000 - Codex - Batch Sprint B local UX proof on refreshed 3001
+
+Implemented the next Batch launch-readiness slice locally after Sprint A landed
+and was pushed in `f7d74c2 feat(batch): require auth for launch jobs`.
+
+- Web Batch transport now raises typed request errors for auth-required,
+  expired/missing jobs, rate limits, validation, unavailable backend, and
+  generic failures instead of collapsing transport failures into generic copy.
+- Compare Batch UI now renders explicit issue states, preserves preview rows on
+  signed-out launch attempts, shows completed-empty and scoped-zero-match empty
+  states, carries Batch warnings through to the UI, and marks scope changes as
+  stale until regeneration.
+- Panel launch policy is now visible in Batch scope controls: local/fixture/mock
+  warnings are surfaced in the panel preset list and active-scope chip as
+  `local launch`, `fixture`, or `warning`; offline/mock panel fallbacks are no
+  longer silent.
+- Refreshed and browser-verified the existing local web server at
+  `http://localhost:3001/compare`. Signed-out Generate shows `Sign-in required`
+  without creating a fake completed job, the retinal panel scope shows
+  `local launch` plus zero-match/stale-regenerate UX, and the narrow viewport
+  reports no horizontal overflow. Final Chrome console/issue stream was clean.
+- Verification passed:
+  `cd app/backend; python -m pytest tests/test_panels_api.py tests/test_batch_api.py -q`,
+  `cd app/web; npx tsc --noEmit`, `cd app/web; npm run lint`, and focused
+  `git diff --check`.
+- `python -m graphify update .` passed with the repo-standard long timeout;
+  HTML viz export was skipped because the graph is above graphify's default node
+  limit.
+- `cd app/web; npm run build` was attempted earlier and timed out after roughly
+  5 minutes; it is not counted as passed. Broad backend Black remains blocked by
+  unrelated pre-existing formatting drift outside this slice.
+- No Vercel command, Render env mutation, provider/flag flip, raw source
+  download, Supabase metadata/Storage mutation, live runtime script, runtime
+  seed/sync, destructive git, commit, or push occurred.
+
+## 2026-06-28 19:53 +1000 - Codex - ClinVar generated artifact live on SG
+
+Executed Steven-approved path A for the ClinVar gene-distribution generated
+artifact: deploy current `main` to SG, then rerun the same Render Dashboard Shell
+sync command.
+
+- Confirmed `main...origin/main` at the expected lineage:
+  `e41008d`, `7c5e4b6`, `c100838`, `541430d`, `d1bbdd0`, `710d8a5`.
+- Triggered the SG Render deploy hook through the checked-in redacting helper;
+  deploy `dep-d90er2lckfvc73ddmie0` reached `live` on commit
+  `e41008dfda6ea6d31f1399e0f4916d3c6d2cffba`.
+- Render Dashboard Shell reconnected from stale instance `fl4bm` to live instance
+  `n47bw`. Reran the guarded command:
+  `python -m app.cli.eamos_generated_artifact_sync --artifact
+  clinvar_gene_distribution_index --source-object-uri <private object>
+  --download-mode s3_multipart --force --require-ready --compact`.
+- Sync result was `ready=true`: `downloaded=true`, `destination_present=true`,
+  `byte_size=737673216`, `manifest_written=true`, `md5_verified=true`,
+  `sha256_verified=true`, `checksum_computed=true`, `schema_validated=true`,
+  no warnings. Guardrails reported no startup download, request-time
+  materialization, public fallback, signed URL, Supabase metadata mutation,
+  provider flip, Render env mutation, local-path emission, object-URI emission,
+  or secret emission.
+- Live `/api/v1/health/provider-cache` now reports
+  `source_assets.clinvar_gene_distribution_index ready=true status=ready`,
+  schema `eamos.clinvar_gene_distribution.v1`, source version
+  `ClinVar GRCh38 VCF weekly release 2026-05-25 / clinvar_20260523`,
+  `gene_count=28936`, `variant_count=4713770`,
+  `actual_size_bytes=737673216`, SHA-256
+  `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`,
+  and `skipped_row_count=243588`, with path/object/secret/raw-row emission
+  flags false.
+- Live RPE65 lookup smoke passed: `POST /api/v1/lookup/summary` and full
+  `POST /api/v1/lookup?include_lazy_sections=true` returned 200 with no
+  `clinvar_gene_distribution_excluded_pending_index` warning. Full lookup
+  populated `report_payload.curated_variants_distribution` from the local index:
+  `total=1136`, row totals `benign=420`, `pathogenic=327`, `vus=389`,
+  `source_status=local_index`, `query_accession=VCV001421454`,
+  `query_cell=vus_noncoding`.
+- `/healthz` stayed green: `status=ok`, `database=ok`,
+  `llm_provider=gateway`, `use_real_apis=true`.
+- No Vercel command, Render env mutation, provider/flag flip, raw source
+  download, public bucket fallback, signed URL, Supabase metadata mutation,
+  one-off runtime patch script, destructive git, commit, or push occurred.
+
+## 2026-06-28 19:40 +1000 - Codex - Live Render ClinVar seed path checked, blocked by deployed image
+
+Investigated Steven's reminder about the non-IT-blocked Render path before
+switching seed methods.
+
+- Confirmed two distinct 443 paths:
+  - app admin endpoint `/api/v1/admin/materialization/run`: exists, but live SG
+    has `ADMIN_MATERIALIZATION_ENABLED=false`; the token hash is configured, the
+    default manifest path is not overridden, and the deployed
+    `app/materialization-manifest-sg.json` is the older M6-M8 batch that does not
+    include `clinvar_gene_distribution_index`.
+  - Render Dashboard Shell: reachable over HTTPS in Chrome, logged in, connected
+    to live instance `fl4bm` at `/app`.
+- Live shell read-only preflight passed for the narrow artifact seed: `/var/data/eamos`
+  is mounted (`59G` size, `44G` used, `15G` available), Python is
+  `/usr/local/bin/python` `3.12.13`, `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`, and all `SUPABASE_STORAGE_S3_*` values are set,
+  and both target files under
+  `/var/data/eamos/bio_assets/clinvar/clinvar-gene-distribution.*` are missing.
+- Attempted the approved committed CLI sync shape from the live shell:
+  `python -m app.cli.eamos_generated_artifact_sync --artifact
+  clinvar_gene_distribution_index --source-object-uri <private object>
+  --download-mode s3_multipart --force --require-ready --compact`. It failed
+  before any download/write because the deployed CLI only accepts
+  `clingen_local`, `pubmed_local`, and `literature_embeddings`.
+- Live code check: `inspect_clinvar_gene_distribution_index` is present, but
+  `GENERATED_SOURCE_ARTIFACT_IDS` lacks `clinvar_gene_distribution_index`, and
+  the live generated-artifact materializer's inspection branch does not include
+  the ClinVar gene-distribution artifact. Live provider-cache already exposes
+  `source_assets.clinvar_gene_distribution_index` as `ready=false`,
+  `status=missing`.
+- No Render env mutation, deploy, provider/flag flip, source download, Supabase
+  metadata mutation, or live disk seed occurred. The sync command failed closed
+  before writing the artifact.
+
+Next exact approval needed: either deploy current `main` to SG so the committed
+generated-artifact registry/materializer branch is live, then rerun the same
+Dashboard Shell sync command; or explicitly approve a one-off live runtime script
+that injects the missing artifact definition/validation branch and downloads the
+private Storage object to the Render disk without changing app env or provider
+flags.
+
+## 2026-06-28 19:24 +1000 - Codex - ClinVar generated artifact private upload/sync
+
+Executed Steven-approved private generated-artifact planning/upload/sync for
+`clinvar_gene_distribution_index`; no deploy, Vercel command, Render env
+mutation, provider/flag flip, source download, public bucket fallback, signed URL,
+or Supabase metadata mutation was run.
+
+- Confirmed `main...origin/main` at `e41008d` with the expected lineage:
+  `e41008d`, `7c5e4b6`, `c100838`, `541430d`, `d1bbdd0`, `710d8a5`.
+- Planned only `clinvar_gene_distribution_index`: one eligible private Storage
+  object, `737673216` bytes, MD5 `5b65d1f9d9b1858053d84a03742e5764`, SHA-256
+  `efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196`, schema
+  `eamos.clinvar_gene_distribution.v1`; S3 multipart credentials configured,
+  REST service-role write key not configured.
+- Uploaded through `--upload-mode s3_multipart --upload`; result:
+  `uploaded_count=1`, `blocked_count=0`, `failed_count=0`, with the SQLite and
+  generated manifest uploaded to private bucket `eamos-source-assets`.
+- Remote sync proof: first run with explicit `--expected-*` values downloaded and
+  checksum-verified the object but failed closed with
+  `runtime_probe_schema_validation_failed:manifest_identity_mismatch` because the
+  explicit override wrote a checksum-only manifest. Reran sync from the private
+  object without identity overrides so the uploaded Storage manifest was used;
+  result `ready=true`, `downloaded=true`, `manifest_written=true`,
+  `md5_verified=true`, `sha256_verified=true`, `schema_validated=true`.
+- Post-sync checks: `eamos_source_asset_preflight --format toon` reports
+  `clinvar_gene_distribution_index` ready with count `4713770`, byte size
+  `737673216`, and expected SHA-256; focused generated-artifact/preflight pytest
+  passed; direct runtime-reader smoke for `RPE65` + `1-68444869-T-C` returned
+  `total=1136`, row totals `benign=420`, `pathogenic=327`, `vus=389`, query
+  accession `VCV001421454`, query cell `vus_noncoding`, no warnings.
+- Ratchet recorded in `docs/deployment/materialization-lessons-learned.md`:
+  operator output formats need direct troubleshooting (`--format toon` alone for
+  TOON; legacy `--compact` is JSON), and generated-artifact sync should prefer
+  the Storage manifest sidecar over explicit identity overrides when a full
+  manifest exists.
+
+Remaining: private Storage now has the durable generated artifact and the local
+runtime path was re-synced from it, but deployed environments are unchanged until
+Steven separately approves live Render-disk seed/sync and any env/flag/provider
+work.
+
 ## 2026-06-28 00:59 +1000 - Codex - Report P1.1 push and P1.4 source-version pins
 
 Committed and pushed the previously verified P1.1 lazy ClinGen VCEP source-cache
