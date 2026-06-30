@@ -1,5 +1,23 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-06-30 20:06 +1000 - Codex - Search rollout commit/push/deploy closeout
+
+Steven approved commit, push, and deploy after the local verification pass.
+Committed and pushed implementation commit `1da1bb9` to `origin/main`, then
+triggered the SG Render deploy hook.
+
+- Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` went live on commit
+  `1da1bb9d8e3e80400648696d077941a1499bebdb`.
+- Post-deploy smoke passed: SG `/healthz` ok; SG and Vercel proxy
+  `/api/v1/health/provider-cache` both report `search.status="ready"`,
+  `index_tables_present=true`, and `private_rows_without_owner_count=0`;
+  `https://eamos-dev.vercel.app` returns 200.
+- Backend status answered for the next session: search Tasks 4-5, Wave 3 source
+  asset policy, and first Wave 4 backend folds are done; broader backend work
+  remains for Search Task 6+ product-wide indexed entities/index-refresh breadth,
+  later frontend search-results integration, optional answer-chain breadth tests,
+  and continued backend folds starting with `gene_viewer.py`.
+
 ## 2026-06-30 19:39 +1000 - Codex - Search access/readiness, source asset policy, and gene-viewer first fold
 
 Continued the repo-structure/search sequence without deletion, deploy/env

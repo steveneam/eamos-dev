@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-30 19:49 +1000 - Search Tasks 4-5 completed (owner-scoped private search posture, readiness health, dry-run backfill), Wave 3 source asset policy/guard added, and Wave 4 first `gene_viewer.py` model extraction completed. NEXT: continue Search Task 6+ product-wide entities/index refresh breadth and the next `gene_viewer.py` source-client or fixture/full-locus extraction; Workbench browser proof remains separate.
+- **Codex:** STOPPED @ 2026-06-30 20:06 +1000 - Search Tasks 4-5, Wave 3 source asset policy/guard, Wave 4 first backend folds, and handoff/docs are committed and pushed (`1da1bb9` implementation plus closeout docs) with Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` live and verified. NEXT: continue Search Task 6+ product-wide entities/index refresh breadth and the next backend fold (`gene_viewer.py` source-client or fixture/full-locus helpers; then other large backend modules); Workbench browser proof remains separate.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-06-30 19:49 +1000 - Codex (search access/readiness, source asset policy, gene-viewer first fold recorded)
+UNLOCKED - 2026-06-30 20:06 +1000 - Codex (commit/push/deploy closeout recorded; backend remaining scope clarified)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -409,10 +409,10 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-06-30 19:49 +1000 - Codex.
+Section last edited: 2026-06-30 20:06 +1000 - Codex.
 
-**Latest Codex update (2026-06-30 19:49 +1000 - Codex):**
-Completed the next repo-structure/search sequence.
+**Latest Codex update (2026-06-30 20:06 +1000 - Codex):**
+Completed, committed, pushed, deployed, and live-smoked the repo-structure/search sequence.
 
 - Search Task 4: run/report search documents now carry `visibility_scope` and
   `owner_user_id`; newly indexed reports/runs are private owner-scoped rows.
@@ -431,12 +431,20 @@ Completed the next repo-structure/search sequence.
 - Wave 4 first slice: source-backed gene-viewer models/protocols moved to
   `app/backend/app/services/gene_viewer_models.py`; public imports from
   `app.services.gene_viewer` remain available.
+- Wave 4 adjacent fold: protein annotation projection and UniProt feature
+  helpers were split into focused service modules.
+- Commit/push/deploy: implementation commit `1da1bb9` is on `origin/main` and
+  Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` is live for commit
+  `1da1bb9d8e3e80400648696d077941a1499bebdb`.
 
 Verification passed: focused search/rate-limit/structure pytest, focused
 gene-viewer/workbench pytest, Ruff, focused Black check, compileall,
 `git diff --check`, and `python -m graphify update .` with long timeout. Docker
 search tests still skip without `HSIL_DOCKER_BASE_URL`. Graph HTML export skipped
 because the graph has 17,133 nodes and exceeds the 5,000-node default limit.
+Post-deploy, SG `/healthz` returns ok; SG and Vercel proxy
+`/api/v1/health/provider-cache` both report `search.status="ready"` with no
+ownerless private rows; `https://eamos-dev.vercel.app` returns 200.
 
 Verification caveat: the broad
 `tests/test_health_api.py::test_provider_cache_health_returns_sanitized_empty_aggregates`
@@ -445,16 +453,19 @@ was not used as a gate because this workspace reports
 test expects it missing. Search readiness is covered by the new local search
 tests.
 
-No cleanup deletion, Vercel command, Render env mutation, provider/flag flip,
-raw source download, Supabase metadata/Storage mutation, runtime seed/sync,
-destructive git, commit, or push occurred.
+Safe-to-clear note: yes for this Codex turn. Steven approved commit/push/deploy
+after the local verification pass. No cleanup deletion, env/provider mutation,
+Supabase mutation, runtime seed/sync, source download/materialization, or
+destructive git occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-06-30 19:49 +1000 - Codex search access/readiness + Wave 3/4 closeout
+# Resume prompt - 2026-06-30 20:06 +1000 - Codex search access/readiness deployed + backend work remaining
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, and docs/search-index/{spec,plan}.md.
-Delta: Search Tasks 4-5 are done for run/report rows (owner-scoped private search, ownerless rows fail closed, readiness health, dry-run backfill); Wave 3 source-asset policy/guard added; Wave 4 started with `gene_viewer_models.py`.
+Delta: Search Tasks 4-5 are done and deployed for run/report rows (owner-scoped private search, ownerless rows fail closed, readiness health, dry-run backfill); Wave 3 source-asset policy/guard is in place; Wave 4 backend folds started with protein helper split and `gene_viewer_models.py`.
+Commit/deploy: implementation commit `1da1bb9` pushed to `origin/main`; Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` is live for `1da1bb9d8e3e80400648696d077941a1499bebdb`; SG and Vercel proxy provider-cache report `search.status="ready"`.
 Verification: focused search/rate-limit/structure pytest, focused gene-viewer/workbench pytest, Ruff, focused Black check, compileall, `git diff --check`, and `python -m graphify update .` passed; Docker search tests skipped without `HSIL_DOCKER_BASE_URL`; graph HTML skipped due >5,000 nodes; one broad health test remains environment-sensitive because ClinVar gene index is locally ready.
-Next: continue Search Task 6+ product-wide indexed entities/index-refresh breadth or the next `gene_viewer.py` extraction (source client or fixture/full-locus helpers); Workbench browser proof remains separate.
-Guardrails: no cleanup deletion, deploy/env/provider mutation, Supabase mutation, runtime seed/sync, destructive git, commit, or push unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
+Backend status: not fully done. Done now: search Tasks 4-5, Wave 3 source asset policy, first Wave 4 backend folds. Still remaining: Search Task 6+ product-wide indexed entities/index-refresh breadth (approve/drop/report-payload and other product objects), frontend search-results integration later, answer-chain breadth/grounding tests if search answers are enabled, and continued backend package folds starting with `gene_viewer.py` source-client or fixture/full-locus helpers before moving to other large backend modules such as `workbench_design.py`, `pubmed_local.py`, and `lookup_service.py`.
+Next: continue Search Task 6+ or the next backend fold; Workbench browser proof remains separate.
+Guardrails: Steven approved commit/push/deploy for this closeout. For next session, resume normal gates: no cleanup deletion, deploy/env/provider mutation, Supabase mutation, runtime seed/sync, destructive git, commit, or push unless Steven approves the exact action. End clear-safe with a fresh stamped resume prompt.
 ```
