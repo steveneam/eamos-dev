@@ -17,7 +17,7 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-06-30 20:06 +1000 - Search Tasks 4-5, Wave 3 source asset policy/guard, Wave 4 first backend folds, and handoff/docs are committed and pushed (`1da1bb9` implementation plus closeout docs) with Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` live and verified. NEXT: continue Search Task 6+ product-wide entities/index refresh breadth and the next backend fold (`gene_viewer.py` source-client or fixture/full-locus helpers; then other large backend modules); Workbench browser proof remains separate.
+- **Codex:** STOPPED @ 2026-06-30 20:06 +1000 - Search Tasks 4-5, Wave 3 source asset policy/guard, Wave 4 first backend folds, and handoff/docs are committed and pushed (`1da1bb9` implementation plus closeout docs) with Render SG live-verified after deploy. NEXT: continue Search Task 6+ product-wide entities/index refresh breadth and the next backend fold (`gene_viewer.py` source-client or fixture/full-locus helpers; then other large backend modules); Workbench browser proof remains separate.
 
 ## Log Edit-Lock
 
@@ -433,9 +433,9 @@ Completed, committed, pushed, deployed, and live-smoked the repo-structure/searc
   `app.services.gene_viewer` remain available.
 - Wave 4 adjacent fold: protein annotation projection and UniProt feature
   helpers were split into focused service modules.
-- Commit/push/deploy: implementation commit `1da1bb9` is on `origin/main` and
-  Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` is live for commit
-  `1da1bb9d8e3e80400648696d077941a1499bebdb`.
+- Commit/push/deploy: implementation commit `1da1bb9` is on `origin/main`;
+  follow-up closeout docs are pushed; Render SG was deployed and live-smoked
+  after the implementation and docs closeout pushes.
 
 Verification passed: focused search/rate-limit/structure pytest, focused
 gene-viewer/workbench pytest, Ruff, focused Black check, compileall,
@@ -463,7 +463,7 @@ destructive git occurred.
 # Resume prompt - 2026-06-30 20:06 +1000 - Codex search access/readiness deployed + backend work remaining
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, and docs/search-index/{spec,plan}.md.
 Delta: Search Tasks 4-5 are done and deployed for run/report rows (owner-scoped private search, ownerless rows fail closed, readiness health, dry-run backfill); Wave 3 source-asset policy/guard is in place; Wave 4 backend folds started with protein helper split and `gene_viewer_models.py`.
-Commit/deploy: implementation commit `1da1bb9` pushed to `origin/main`; Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` is live for `1da1bb9d8e3e80400648696d077941a1499bebdb`; SG and Vercel proxy provider-cache report `search.status="ready"`.
+Commit/deploy: implementation commit `1da1bb9` and follow-up closeout docs are pushed to `origin/main`; Render SG was deployed after the pushes; SG and Vercel proxy provider-cache report `search.status="ready"`.
 Verification: focused search/rate-limit/structure pytest, focused gene-viewer/workbench pytest, Ruff, focused Black check, compileall, `git diff --check`, and `python -m graphify update .` passed; Docker search tests skipped without `HSIL_DOCKER_BASE_URL`; graph HTML skipped due >5,000 nodes; one broad health test remains environment-sensitive because ClinVar gene index is locally ready.
 Backend status: not fully done. Done now: search Tasks 4-5, Wave 3 source asset policy, first Wave 4 backend folds. Still remaining: Search Task 6+ product-wide indexed entities/index-refresh breadth (approve/drop/report-payload and other product objects), frontend search-results integration later, answer-chain breadth/grounding tests if search answers are enabled, and continued backend package folds starting with `gene_viewer.py` source-client or fixture/full-locus helpers before moving to other large backend modules such as `workbench_design.py`, `pubmed_local.py`, and `lookup_service.py`.
 Next: continue Search Task 6+ or the next backend fold; Workbench browser proof remains separate.

@@ -4,10 +4,10 @@
 
 Steven approved commit, push, and deploy after the local verification pass.
 Committed and pushed implementation commit `1da1bb9` to `origin/main`, then
-triggered the SG Render deploy hook.
+triggered the SG Render deploy hook. A follow-up handoff closeout docs commit
+was also pushed; the final deploy id is intentionally left out of the committed
+handoff because each docs-only closeout deploy supersedes the previous id.
 
-- Render SG deploy `dep-d91p8dvlk1mc73a6n1c0` went live on commit
-  `1da1bb9d8e3e80400648696d077941a1499bebdb`.
 - Post-deploy smoke passed: SG `/healthz` ok; SG and Vercel proxy
   `/api/v1/health/provider-cache` both report `search.status="ready"`,
   `index_tables_present=true`, and `private_rows_without_owner_count=0`;
