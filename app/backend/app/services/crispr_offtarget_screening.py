@@ -15,6 +15,7 @@ from app.schemas.workbench import (
     PrimerRequest,
     PrimerResponse,
     ScreeningPrimer,
+    SourceDisclosure,
 )
 from app.services.crispr_design import (
     hsu_mismatch_positions,
@@ -139,6 +140,13 @@ class MockCasOffinderOffTargetProvider:
         return CrisprOffTargetResponse(
             genome_build=payload.genome_build,
             sites=sites,
+            source_disclosure=SourceDisclosure(
+                source_status="fallback",
+                provider_id="mock_cas_offinder",
+                provider_label="Mock Cas-OFFinder fallback",
+                warnings=["crispr_offtarget_mock_fallback"],
+                requirements=["crispr_offtarget_index"],
+            ),
         )
 
 
@@ -159,10 +167,20 @@ class IndexedSqliteCrisprOffTargetProvider:
 
     def enumerate(self, payload: CrisprOffTargetRequest) -> CrisprOffTargetResponse:
         try:
-            return query_spcas9_offtarget_index(
+            response = query_spcas9_offtarget_index(
                 self.index_path,
                 payload,
                 max_results=self.max_results,
+            )
+            return response.model_copy(
+                update={
+                    "source_disclosure": SourceDisclosure(
+                        source_status="source_backed",
+                        provider_id="indexed_sqlite_crispr_offtarget",
+                        provider_label="Indexed GRCh38 SpCas9 off-target index",
+                        cache_status="ready",
+                    )
+                }
             )
         except CrisprOffTargetIndexUnsupported as exc:
             raise CrisprOffTargetScreeningInputError(

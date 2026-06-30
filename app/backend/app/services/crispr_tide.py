@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from difflib import SequenceMatcher
 
-from app.schemas.workbench import CrisprTideResponse, CrisprTideSpectrumBin
+from app.schemas.workbench import CrisprTideResponse, CrisprTideSpectrumBin, SourceDisclosure
 from app.services.trace_parser import ParsedTrace
 
 CRISPR_TIDE_INVALID_INPUT = "crispr_tide_invalid_input"
@@ -77,6 +77,7 @@ def analyze_crispr_tide_observed(
             warnings.append(CRISPR_TIDE_NO_INDEL_SHIFT)
         return CrisprTideResponse(
             provider_label=CRISPR_TIDE_PROVIDER_LABEL,
+            source_disclosure=_tide_source_disclosure(warnings),
             cut_site_index=cut_site_index,
             editing_efficiency=0.0,
             r_squared=_fit_proxy(
@@ -107,6 +108,7 @@ def analyze_crispr_tide_observed(
 
     return CrisprTideResponse(
         provider_label=CRISPR_TIDE_PROVIDER_LABEL,
+        source_disclosure=_tide_source_disclosure(warnings),
         cut_site_index=cut_site_index,
         editing_efficiency=round(nonzero_mass, 4),
         r_squared=_fit_proxy(window_length=window_length, mismatch_bases=mismatch_bases),
@@ -192,4 +194,14 @@ def _notes() -> str:
         "fit readout, and indel-size spectrum. It does not run the NKI/TIDE "
         "NNLS decomposition solver, does not estimate p-values, and does not "
         "include Lindel or TIDER template-directed repair prediction."
+    )
+
+
+def _tide_source_disclosure(warnings: list[str]) -> SourceDisclosure:
+    return SourceDisclosure(
+        source_status="local_provider",
+        provider_id="observed_only_tide",
+        provider_label=CRISPR_TIDE_PROVIDER_LABEL,
+        warnings=warnings,
+        requirements=["parsed_control_trace", "parsed_edited_trace"],
     )

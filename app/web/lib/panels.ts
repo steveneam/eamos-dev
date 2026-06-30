@@ -1,7 +1,9 @@
 import type { Panel, PanelResolveRequest, PanelSummary } from './backend'
-import { MOCK_PANELS, getMockPanel, buildCustomPanel } from './panels.mock'
+import { MOCK_PANELS, buildCustomPanel, getMockPanel } from './panels.mock'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? ''
+const OFFLINE_PANEL_WARNING = 'offline fixture panel catalog; backend panel service unavailable'
+const OFFLINE_RESOLVE_WARNING = 'offline fixture panel resolver; backend panel service unavailable'
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -17,9 +19,8 @@ export async function getPanels(): Promise<PanelSummary[]> {
     const data = await parseResponse<{ panels: PanelSummary[] }>(response)
     return data.panels
   } catch {
-    // Mock-first: any failure (offline → TypeError, or a 404/5xx from a dev
-    // server with no backend) degrades to the bundled catalogue.
-    return MOCK_PANELS
+    // Offline or route-missing development mode uses bundled fixture panels.
+    return MOCK_PANELS.map((panel) => withPanelWarning(panel, OFFLINE_PANEL_WARNING))
   }
 }
 
@@ -28,7 +29,8 @@ export async function getPanel(slug: string): Promise<Panel | null> {
     const response = await fetch(`${API_BASE_URL}/api/v1/panels/${encodeURIComponent(slug)}`)
     return await parseResponse<Panel>(response)
   } catch {
-    return getMockPanel(slug)
+    const panel = getMockPanel(slug)
+    return panel ? withPanelWarning(panel, OFFLINE_PANEL_WARNING) : null
   }
 }
 
@@ -47,7 +49,7 @@ export async function resolvePanel(input: PanelResolveRequest): Promise<Panel> {
       input.upload_ref ??
       ''
     const draft = buildCustomPanel(query)
-    if (draft) return draft.panel
+    if (draft) return withPanelWarning(draft.panel, OFFLINE_RESOLVE_WARNING)
     return {
       id: 'custom-fallback',
       slug: 'custom-fallback',
@@ -56,7 +58,14 @@ export async function resolvePanel(input: PanelResolveRequest): Promise<Panel> {
       version: 'draft',
       intervals_ref: 'hg38',
       genes: [],
-      warnings: ['Offline mock — no genes resolved'],
+      warnings: [OFFLINE_RESOLVE_WARNING, 'offline mock; no genes resolved'],
     }
+  }
+}
+
+function withPanelWarning<T extends { warnings: string[] }>(panel: T, warning: string): T {
+  return {
+    ...panel,
+    warnings: Array.from(new Set([...(panel.warnings ?? []), warning])),
   }
 }

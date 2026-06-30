@@ -59,4 +59,13 @@ export const ALIGN_SAMPLE: AlignApiResponseShape = {
   trace_channels: buildTraceChannels(READ),
   base_calls: READ.split(''),
   q_scores: buildQScores(READ.length),
+  source_disclosure: {
+    source_status: 'fixture',
+    provider_id: 'workbench_align_fixture',
+    provider_label: 'Workbench alignment fixture',
+    source_version: null,
+    cache_status: null,
+    warnings: ['workbench_fixture'],
+    requirements: [],
+  },
 }

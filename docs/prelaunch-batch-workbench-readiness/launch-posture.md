@@ -28,14 +28,30 @@ DuckDB/Parquet remains disabled analytical infrastructure for launch. It is
 not part of report point-lookups, Batch launch readiness, or Workbench launch
 readiness until a later benchmark-backed analytical phase.
 
-Batch is not launch-ready yet. The first launch-readiness pass is Sprint A:
-source disclosure, bearer-token transport, authenticated and owner-scoped
-create/get flows, a Batch job rate-limit scope, and removal of silent mock
-fallbacks.
+Batch safety baseline is complete and pushed in
+`f7d74c2 feat(batch): require auth for launch jobs`: source disclosure,
+bearer-token transport, authenticated and owner-scoped create/get flows, a
+Batch job rate-limit scope, and removal of silent mock fallbacks. The Sprint B
+local UI pass now handles typed failure, expiry, auth, stale-scope, and empty
+results states. Batch should still not be called fully launch-ready until the
+signed-in browser path is proven with an approved Supabase Auth test approach or
+an existing approved session.
 
 Workbench may launch as mixed source-backed/fallback only if labels are honest.
 The next Workbench work is a shared disclosure taxonomy and local functional
 proof. This posture does not enable new providers.
+
+## Panel Launch Policy
+
+Current panels remain acceptable only as warning-labeled local launch panels.
+The web Batch scope UI surfaces panel warnings in both the preset list and the
+active-scope chip, mapping known local/fixture/mock warnings to visible
+`local launch`, `fixture`, or `warning` labels.
+
+A source-backed generated panel catalog is not enabled by this posture. Build an
+offline SQLite panel artifact plus manifest/preflight only if Steven explicitly
+makes source-backed panel provenance a launch blocker. No raw panel source
+download or live panel-provider collection is approved by this note.
 
 ## Explicitly Not Enabled
 

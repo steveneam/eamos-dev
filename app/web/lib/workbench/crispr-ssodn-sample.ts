@@ -47,4 +47,13 @@ export const CRISPR_SSODN_SAMPLE: CrisprSsodnResponse = {
     genome_build: 'GRCh38',
   },
   warnings: ['crispr_ssodn_mock_genomic_window'],
+  source_disclosure: {
+    source_status: 'fallback',
+    provider_id: 'crispr_ssodn_mock_window',
+    provider_label: 'Mock genomic-window fallback',
+    source_version: null,
+    cache_status: null,
+    warnings: ['crispr_ssodn_mock_genomic_window'],
+    requirements: ['resolved_sequence_context'],
+  },
 }

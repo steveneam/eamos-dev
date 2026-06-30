@@ -9,6 +9,7 @@ import type {
 } from '@/lib/backend'
 import { designGuides } from '@/lib/api'
 import { designProviderDisclosure } from '@/lib/workbench/crispr-disclosure'
+import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 import { recommendedGuideIndex } from '@/lib/workbench/crispr-guide-ranking'
 import { mapGuide } from '@/lib/workbench/crispr-guide-map'
 import { GuideTrack } from './GuideTrack'
@@ -136,6 +137,13 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
 
   const selectedCas = CAS_OPTIONS.find((option) => option.value === cas)
   const providerDisclosure = designProviderDisclosure(res)
+  const sourceDisclosure = disclosureView(res?.source_disclosure, {
+    source_status: 'local_provider',
+    provider_id: 'local_deterministic_spcas9',
+    provider_label: 'Local deterministic SpCas9 provider',
+    warnings: ['advanced_crispr_scoring_gated'],
+    requirements: ['spcas9_ngg'],
+  })
 
   const clearComputed = () => {
     setRes(null)
@@ -265,6 +273,19 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
       </div>
 
       <div className="crispr-caveats">
+        <div className="workbench-source-line" role="note">
+          <span
+            className={`workbench-source-chip ${disclosureChipClass(sourceDisclosure.status)}`}
+          >
+            {sourceDisclosure.statusLabel}
+          </span>
+          <span>{sourceDisclosure.providerLabel}</span>
+          {sourceDisclosure.cacheStatus && (
+            <span className="workbench-source-muted">
+              {sourceDisclosure.cacheStatus}
+            </span>
+          )}
+        </div>
         <div className="help-note">
           Provider: {providerDisclosure.providerLabel}.{' '}
           {providerDisclosure.statusLine}

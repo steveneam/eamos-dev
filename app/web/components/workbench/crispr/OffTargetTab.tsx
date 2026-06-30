@@ -11,6 +11,7 @@ import type {
   CrisprScreeningPrimerTarget,
 } from '@/lib/backend'
 import { enumerateOffTargets, designScreeningPrimers } from '@/lib/api'
+import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 import { ScoreBullet } from '../ScoreBullet'
 import type { ScreenSeed } from './CrisprPanel'
 
@@ -299,9 +300,30 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
     }
   }
 
+  const offTargetDisclosure = res
+    ? disclosureView(res.source_disclosure, {
+        source_status: 'fallback',
+        provider_id: 'workbench_offtarget_unknown',
+        provider_label: 'Off-target provider metadata unavailable',
+      })
+    : null
+  const screeningDisclosure = primerRes
+    ? disclosureView(primerRes.source_disclosure, {
+        source_status: primerRes.warnings.includes('crispr_screening_mock_template')
+          ? 'fallback'
+          : 'source_backed',
+        provider_id: primerRes.warnings.includes('crispr_screening_mock_template')
+          ? 'mock_screening_primer_template'
+          : 'local_screening_primer_context',
+        provider_label: primerRes.warnings.includes('crispr_screening_mock_template')
+          ? 'Mock screening-primer template'
+          : 'Local screening-primer context',
+        warnings: primerRes.warnings,
+      })
+    : null
   const codingCount = offSites.filter((s) => s.biotype === 'protein_coding').length
   const closeCount = offSites.filter((s) => s.mismatches <= 1).length
-  const usingMock = primerRes?.warnings.includes('crispr_screening_mock_template')
+  const usingMock = screeningDisclosure?.preview ?? false
 
   const sitesTsv = res
     ? toTSV(
@@ -473,6 +495,21 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
 
       {res && (
         <>
+          {offTargetDisclosure && (
+            <div className="workbench-source-line" role="note">
+              <span
+                className={`workbench-source-chip ${disclosureChipClass(offTargetDisclosure.status)}`}
+              >
+                {offTargetDisclosure.statusLabel}
+              </span>
+              <span>{offTargetDisclosure.providerLabel}</span>
+              {offTargetDisclosure.cacheStatus && (
+                <span className="workbench-source-muted">
+                  {offTargetDisclosure.cacheStatus}
+                </span>
+              )}
+            </div>
+          )}
           <div
             className="crispr-summary"
             role="group"
@@ -770,11 +807,25 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
 
           {primerRes && (
             <>
+              {screeningDisclosure && (
+                <div className="workbench-source-line" role="note">
+                  <span
+                    className={`workbench-source-chip ${disclosureChipClass(screeningDisclosure.status)}`}
+                  >
+                    {screeningDisclosure.statusLabel}
+                  </span>
+                  <span>{screeningDisclosure.providerLabel}</span>
+                  {screeningDisclosure.cacheStatus && (
+                    <span className="workbench-source-muted">
+                      {screeningDisclosure.cacheStatus}
+                    </span>
+                  )}
+                </div>
+              )}
               {usingMock && (
                 <div className="crispr-result-note">
-                  Offline demo: screening primers are drawn from the bundled
-                  primer fixture over mock windows. Connect the backend for
-                  windows resolved against the real GRCh38 reference.
+                  {screeningDisclosure?.caveat ??
+                    'Screening primers are drawn from bundled fallback windows.'}
                 </div>
               )}
               <div className="crispr-table-wrap">

@@ -8,6 +8,7 @@ import {
   parsePrimerConstraints,
   primerErrorMessage,
 } from '@/lib/workbench/primer-form'
+import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 import { PrimerResultCard } from './PrimerResultCard'
 
 interface PrimerPanelProps {
@@ -128,6 +129,14 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
 
   // Offline mock always serves the Sanger fixture; flag the honest mismatch.
   const mockModeMismatch = res !== null && res.mode !== mode
+  const sourceDisclosure = res
+    ? disclosureView(res.source_disclosure, {
+        source_status: 'fixture',
+        provider_id: 'workbench_primer_fixture',
+        provider_label: 'Workbench primer fixture',
+        warnings: ['workbench_fixture'],
+      })
+    : null
 
   return (
     <div className="primer-panel">
@@ -259,10 +268,10 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
       )}
 
       <div className="help-note">
-        Demo serves the RPE65 c.260 fixture. Constraints and SNP-avoidance are
+        Constraints and SNP-avoidance are
         passed to the design engine; real mode runs local Primer3 with an
-        in-template specificity screen (whole-genome UCSC isPcr is opt-in,
-        M-002C — gated). This is not an NCBI Primer-BLAST validation.
+        in-template specificity screen; whole-genome UCSC isPcr remains gated.
+        This is not an NCBI Primer-BLAST validation.
       </div>
 
       {error && <div className="primer-error">{error}</div>}
@@ -276,12 +285,27 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
 
       {res && !armsUnsupported && (
         <>
-          {mockModeMismatch && (
+          {sourceDisclosure && (
+            <div className="workbench-source-line" role="note">
+              <span
+                className={`workbench-source-chip ${disclosureChipClass(sourceDisclosure.status)}`}
+              >
+                {sourceDisclosure.statusLabel}
+              </span>
+              <span>{sourceDisclosure.providerLabel}</span>
+              {sourceDisclosure.cacheStatus && (
+                <span className="workbench-source-muted">
+                  {sourceDisclosure.cacheStatus}
+                </span>
+              )}
+            </div>
+          )}
+          {(mockModeMismatch || sourceDisclosure?.preview) && (
             <div className="primer-mock-note">
-              Offline demo: the bundled fixture is Sanger, so {' '}
-              {MODES.find((m) => m.v === mode)?.label} mode is showing the
-              Sanger pairs. Connect the backend for true{' '}
-              {MODES.find((m) => m.v === mode)?.label} output.
+              {sourceDisclosure?.statusLabel}: {sourceDisclosure?.caveat}
+              {mockModeMismatch
+                ? ` The bundled fixture is Sanger, so ${MODES.find((m) => m.v === mode)?.label} mode is showing the Sanger pairs.`
+                : ''}
             </div>
           )}
           <div className="primer-feed">

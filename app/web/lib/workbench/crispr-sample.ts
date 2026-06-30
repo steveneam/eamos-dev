@@ -57,4 +57,13 @@ export const CRISPR_SAMPLE: CrisprResponse = {
     arm_lengths: { left: 60, right: 60 },
     estimated_hdr_efficiency: 0.15,
   },
+  source_disclosure: {
+    source_status: 'fixture',
+    provider_id: 'workbench_crispr_fixture',
+    provider_label: 'Workbench CRISPR fixture',
+    source_version: null,
+    cache_status: null,
+    warnings: ['workbench_fixture'],
+    requirements: [],
+  },
 }

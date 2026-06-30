@@ -1968,7 +1968,7 @@
   line-height: 1.55;
   padding: 10px 12px;
   background: var(--bg-soft);
-  border-left: 2px solid var(--teal);
+  border: 0.5px solid var(--teal-bdr);
   border-radius: var(--r-sm);
 }
 .side-info b { color: var(--ink); }
@@ -2320,9 +2320,54 @@
   padding: 10px 12px;
   background: var(--bg-soft);
   border-radius: var(--r-sm);
-  border-left: 2px solid var(--teal);
+  border: 0.5px solid var(--teal-bdr);
   margin-top: 12px;
   line-height: 1.55;
+}
+
+.workbench-source-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 12px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.workbench-source-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 0.5px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--ink-3);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.workbench-source-chip.source-backed,
+.workbench-source-chip.local-provider {
+  border-color: var(--teal-bdr);
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+}
+.workbench-source-chip.fallback,
+.workbench-source-chip.fixture,
+.workbench-source-chip.gated {
+  border-color: var(--warn-bdr);
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+.workbench-source-chip.unavailable {
+  border-color: color-mix(in oklab, var(--err) 28%, var(--line));
+  background: var(--err-tint);
+  color: var(--err);
+}
+.workbench-source-muted {
+  color: var(--ink-4);
+  font-family: var(--mono);
+  font-size: 10.5px;
 }
 
 /* ─────────────── ssODN block / strand visual ─────────────── */
@@ -2375,7 +2420,7 @@
 .align-error {
   margin-top: 10px;
   padding: 10px 12px;
-  border-left: 2px solid var(--err);
+  border: 0.5px solid color-mix(in oklab, var(--err) 28%, var(--line));
   background: var(--err-tint);
   border-radius: var(--r-sm);
   color: var(--err);
@@ -2515,7 +2560,7 @@
 }
 .align-slot-error {
   padding: 8px 10px;
-  border-left: 2px solid var(--err);
+  border: 0.5px solid color-mix(in oklab, var(--err) 28%, var(--line));
   background: var(--err-tint);
   border-radius: var(--r-sm);
   color: var(--err);
@@ -2959,7 +3004,7 @@
 .crispr-result-note {
   color: var(--ink-3);
   background: var(--bg-soft);
-  border-left: 2px solid var(--warn-bdr);
+  border: 0.5px solid var(--warn-bdr);
   border-radius: var(--r-sm);
   font-size: 11.5px;
   line-height: 1.5;
@@ -3008,7 +3053,7 @@
 .crispr-ref-anchor {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
   margin-top: 16px; padding: 8px 12px;
-  background: var(--teal-tint); border-left: 2px solid var(--teal);
+  background: var(--teal-tint); border: 0.5px solid var(--teal-bdr);
   border-radius: var(--r-sm);
 }
 .cra-label {
@@ -3154,7 +3199,7 @@
 /* The Design → Off-targets provenance note — a teal-tinted help-note so the
    seeded-from line reads as a hand-off, not a warning. */
 .crispr-seed-note {
-  border-left: 2px solid var(--teal);
+  border: 0.5px solid var(--teal-bdr);
   background: var(--teal-tint);
   color: var(--teal-deep);
   padding: 7px 10px;
@@ -3399,7 +3444,7 @@
 .primer-mock-note {
   font-size: 11.5px; color: var(--ink-3);
   background: var(--bg-soft); border-radius: var(--r-sm);
-  border-left: 2px solid var(--warn-bdr);
+  border: 0.5px solid var(--warn-bdr);
   padding: 10px 12px; margin: 14px 0 4px; line-height: 1.55;
 }
 

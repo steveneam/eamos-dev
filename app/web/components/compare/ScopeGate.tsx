@@ -267,6 +267,7 @@ function PresetList({
       <MenuLabel>Gene panel</MenuLabel>
       {catalog.map((p) => {
         const taken = activePanelSlugs.has(p.slug)
+        const statusLabel = panelStatusLabel(p.warnings)
         return (
           <MenuItem
             key={p.slug}
@@ -275,7 +276,10 @@ function PresetList({
             onDragStart={(e) => e.dataTransfer.setData(DT, JSON.stringify({ t: 'new', kind: 'panel', panelSlug: p.slug }))}
             onClick={() => onAdd('panel', { panelSlug: p.slug })}
           >
-            <span>{p.name}</span>
+            <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+              <span>{p.name}</span>
+              {statusLabel && <PanelSourceTag label={statusLabel} warnings={p.warnings} />}
+            </span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-4)' }}>
               {taken ? 'added' : `${p.gene_count} genes`}
             </span>
@@ -328,6 +332,8 @@ function FilterChip({
 }) {
   const serverSide = FILTER_META[filter.kind].serverSide
   const panel = filter.kind === 'panel' ? resolveFilterPanel(filter) : null
+  const panelWarnings = panel?.warnings ?? []
+  const panelStatus = panelStatusLabel(panelWarnings)
   return (
     <span
       onDragOver={(e) => e.preventDefault()}
@@ -364,6 +370,7 @@ function FilterChip({
         <>
           <span style={{ color: 'var(--ink-3)' }}>Region</span>
           <input
+            name="batch-region-filter"
             value={filter.region ?? ''}
             onChange={(e) => onUpdate({ region: e.target.value })}
             placeholder="chr1:1-2,000"
@@ -384,6 +391,7 @@ function FilterChip({
         <>
           <span style={{ color: 'var(--ink-3)' }}>AF ≤</span>
           <input
+            name="batch-af-filter"
             type="number"
             step="0.01"
             min="0"
@@ -404,7 +412,10 @@ function FilterChip({
           />
         </>
       ) : (
-        <span style={{ fontWeight: filter.kind === 'panel' ? 600 : 400 }}>{filterChipLabel(filter)}</span>
+        <>
+          <span style={{ fontWeight: filter.kind === 'panel' ? 600 : 400 }}>{filterChipLabel(filter)}</span>
+          {panelStatus && <PanelSourceTag label={panelStatus} warnings={panelWarnings} compact />}
+        </>
       )}
       <button
         type="button"
@@ -427,6 +438,49 @@ function FilterChip({
       >
         <IconRemove size={13} />
       </button>
+    </span>
+  )
+}
+
+function panelStatusLabel(warnings: string[] = []): string | null {
+  const text = warnings.join(' ').toLowerCase()
+  if (!text) return null
+  if (text.includes('offline') || text.includes('fixture') || text.includes('mock')) return 'fixture'
+  if (text.includes('local launch')) return 'local launch'
+  return 'warning'
+}
+
+function panelWarningTitle(warnings: string[] = []): string | undefined {
+  return warnings.length > 0 ? warnings.join('\n') : undefined
+}
+
+function PanelSourceTag({
+  label,
+  warnings,
+  compact = false,
+}: {
+  label: string
+  warnings: string[]
+  compact?: boolean
+}) {
+  return (
+    <span
+      title={panelWarningTitle(warnings)}
+      style={{
+        alignSelf: compact ? 'center' : 'flex-start',
+        padding: compact ? '0 5px' : '1px 6px',
+        borderRadius: 6,
+        border: '0.5px solid var(--warn-bdr)',
+        background: 'var(--warn-tint)',
+        color: 'var(--warn-text)',
+        fontFamily: 'var(--mono)',
+        fontSize: compact ? 9.5 : 10,
+        fontWeight: 600,
+        lineHeight: 1.45,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
     </span>
   )
 }

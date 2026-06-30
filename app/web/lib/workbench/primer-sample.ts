@@ -56,4 +56,13 @@ export const PRIMER_SAMPLE: PrimerResponse = {
       recommended: false,
     },
   ],
+  source_disclosure: {
+    source_status: 'fixture',
+    provider_id: 'workbench_primer_fixture',
+    provider_label: 'Workbench primer fixture',
+    source_version: null,
+    cache_status: null,
+    warnings: ['workbench_fixture'],
+    requirements: [],
+  },
 }

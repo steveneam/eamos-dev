@@ -11,6 +11,14 @@ PrimerTemplateStrand = Literal["Plus", "Minus"]
 SsodnProtocol = Literal["lab_genomic", "guide_pam_block"]
 SsodnOrientation = Literal["sense", "antisense"]
 SsodnStrandRequest = Literal["auto", "+", "-"]
+WorkbenchSourceStatus = Literal[
+    "source_backed",
+    "local_provider",
+    "fallback",
+    "fixture",
+    "gated",
+    "unavailable",
+]
 WORKBENCH_GENE_MAX_LENGTH = 64
 WORKBENCH_CDNA_MAX_LENGTH = 256
 WORKBENCH_USER_SEQUENCE_MAX_LENGTH = 10_000
@@ -33,6 +41,16 @@ class WorkbenchQuery(BaseModel):
     @classmethod
     def _strip_query_text(cls, value):
         return _strip_text(value)
+
+
+class SourceDisclosure(BaseModel):
+    source_status: WorkbenchSourceStatus
+    provider_id: str
+    provider_label: str
+    source_version: str | None = None
+    cache_status: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+    requirements: list[str] = Field(default_factory=list)
 
 
 class PrimerRequest(WorkbenchQuery):
@@ -94,6 +112,7 @@ class PrimerPair(BaseModel):
 class PrimerResponse(BaseModel):
     mode: PrimerMode
     pairs: list[PrimerPair] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None
 
 
 CasEnzyme = Literal["SpCas9", "SaCas9", "Cas12a"]
@@ -150,6 +169,7 @@ class CrisprResponse(BaseModel):
     cas: CasEnzyme
     guides: list[CrisprGuide] = Field(default_factory=list)
     ssodn: HdrSsodn | None = None
+    source_disclosure: SourceDisclosure | None = None
 
 
 class CrisprSsodnRequest(WorkbenchQuery):
@@ -211,6 +231,7 @@ class CrisprSsodnResponse(BaseModel):
     genome_build: str
     ssodn: CrisprSsodnDesign
     warnings: list[str] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None
 
 
 class CrisprOffTargetLocus(BaseModel):
@@ -271,6 +292,7 @@ class CrisprOffTargetSite(BaseModel):
 class CrisprOffTargetResponse(BaseModel):
     genome_build: str
     sites: list[CrisprOffTargetSite] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None
 
 
 class CrisprScreeningRegion(BaseModel):
@@ -392,6 +414,7 @@ class CrisprScreeningPrimerResponse(BaseModel):
     mode: PrimerMode
     primers: list[ScreeningPrimer] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None
 
 
 class CrisprTideSpectrumBin(BaseModel):
@@ -404,6 +427,7 @@ class CrisprTideResponse(BaseModel):
     source_backed: bool = True
     analysis_kind: Literal["tide"] = "tide"
     provider_label: str = "Eamos observed-only TIDE-style analyzer"
+    source_disclosure: SourceDisclosure | None = None
     cut_site_index: int = Field(ge=1)
     editing_efficiency: float = Field(ge=0.0, le=1.0)
     r_squared: float = Field(ge=0.0, le=1.0)
@@ -477,6 +501,7 @@ class AlignTraceResponse(BaseModel):
     het: list[AlignTraceHetCall] = Field(default_factory=list)
     noise_floor: float
     warnings: list[str] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None
 
 
 class AlignResponse(BaseModel):
@@ -488,6 +513,7 @@ class AlignResponse(BaseModel):
     trace_channels: list[TraceChannel] = Field(default_factory=list)
     base_calls: list[str] = Field(default_factory=list)
     q_scores: list[int] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None
 
 
 class AlignReferenceResponse(BaseModel):
@@ -504,3 +530,4 @@ class AlignReferenceResponse(BaseModel):
     alternate_base: str | None = None
     source: str
     warnings: list[str] = Field(default_factory=list)
+    source_disclosure: SourceDisclosure | None = None

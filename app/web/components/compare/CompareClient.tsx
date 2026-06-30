@@ -23,7 +23,7 @@ import { applyFilters, cacheResolvedPanel, filterChipLabel, type ActiveFilter } 
 import { CLASS_RANK, classifyVerdict, summarizeCohort } from '@/lib/batch-summary'
 import type { BatchChatScope } from '@/lib/chat'
 import { getPanel } from '@/lib/panels'
-import { collectBatchResults, createBatch, pollBatchJob, uploadBatch } from '@/lib/batch'
+import { BatchRequestError, collectBatchResults, createBatch, pollBatchJob, uploadBatch } from '@/lib/batch'
 import type {
   BatchFilters,
   BatchJob,
@@ -56,16 +56,28 @@ const noop = () => {}
  */
 type RunStatus = 'idle' | 'running' | 'done'
 
+type BatchProgressStage =
+  | 'uploading'
+  | BatchJobStatus
+  | 'auth'
+  | 'expired'
+  | 'rate_limited'
+  | 'validation'
+  | 'unavailable'
+  | 'stalled'
+
 type BatchProgress = {
-  stage: 'uploading' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  stage: BatchProgressStage
   status?: BatchJobStatus
   jobId?: string
   done: number
   total: number
   nInput?: number
   nToLookup?: number
+  nAfterFilters?: number
   estSeconds?: number
   usedUpload?: boolean
+  warnings?: string[]
   error?: string
 }
 
@@ -110,6 +122,12 @@ function countsFromDist(dist: Record<string, number>): Record<string, number> {
 }
 
 function progressFromJob(job: BatchJob, usedUpload: boolean): BatchProgress {
+  const error =
+    job.status === 'failed'
+      ? 'Batch lookup failed. Review the warnings, then regenerate the run.'
+      : job.status === 'cancelled'
+        ? 'Batch lookup was cancelled before completion.'
+        : undefined
   return {
     stage: job.status,
     status: job.status,
@@ -118,14 +136,70 @@ function progressFromJob(job: BatchJob, usedUpload: boolean): BatchProgress {
     total: job.total,
     nInput: job.n_input,
     nToLookup: job.n_to_lookup,
+    nAfterFilters: job.n_after_filters ?? undefined,
     estSeconds: job.est_seconds,
     usedUpload,
-    error: job.status === 'failed' ? 'Batch lookup failed.' : undefined,
+    warnings: job.warnings,
+    error,
   }
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Batch lookup failed.'
+function progressFromError(error: unknown, previous: BatchProgress | null, fallbackTotal: number): BatchProgress {
+  const base = {
+    done: previous?.done ?? 0,
+    total: previous?.total ?? fallbackTotal,
+    jobId: previous?.jobId,
+    nInput: previous?.nInput,
+    nToLookup: previous?.nToLookup,
+    nAfterFilters: previous?.nAfterFilters,
+    estSeconds: previous?.estSeconds,
+    usedUpload: previous?.usedUpload,
+    warnings: previous?.warnings,
+  }
+  if (error instanceof BatchRequestError) {
+    if (error.code === 'auth_required' || error.code === 'auth_expired') {
+      return { ...base, stage: 'auth', error: error.message }
+    }
+    if (error.code === 'not_found') {
+      return {
+        ...base,
+        stage: 'expired',
+        error: 'This Batch run is no longer available. Regenerate it to run the current cohort again.',
+      }
+    }
+    if (error.code === 'rate_limited') {
+      return { ...base, stage: 'rate_limited', error: error.message }
+    }
+    if (error.code === 'validation') {
+      return { ...base, stage: 'validation', error: error.message }
+    }
+    if (error.code === 'unavailable') {
+      return { ...base, stage: 'unavailable', error: error.message }
+    }
+    return { ...base, stage: 'failed', error: error.message }
+  }
+  const message = error instanceof Error ? error.message : 'Batch lookup failed.'
+  if (message === 'Batch lookup is still running') {
+    return {
+      ...base,
+      stage: 'stalled',
+      error: 'Batch is still running. Try again in a moment, or reduce the cohort size.',
+    }
+  }
+  return { ...base, stage: 'failed', error: message }
+}
+
+function isBatchIssue(stage?: BatchProgressStage): boolean {
+  return (
+    stage === 'failed' ||
+    stage === 'cancelled' ||
+    stage === 'auth' ||
+    stage === 'expired' ||
+    stage === 'rate_limited' ||
+    stage === 'validation' ||
+    stage === 'unavailable' ||
+    stage === 'stalled'
+  )
 }
 
 export function CompareClient() {
@@ -237,24 +311,16 @@ export function CompareClient() {
           shouldContinue: isCurrentRun,
         })
         if (!isCurrentRun()) return
+        setProgress(progressFromJob(final, usedUpload))
         if (final.status !== 'completed') {
-          throw new Error(final.status === 'cancelled' ? 'Batch lookup was cancelled.' : 'Batch lookup failed.')
+          setResults(null)
+          return
         }
         const collected = await collectBatchResults(final, { limit: 200, shouldContinue: isCurrentRun })
-        if (isCurrentRun() && collected.length > 0) setResults(collected)
+        if (isCurrentRun()) setResults(collected)
       } catch (error) {
         if (!isCurrentRun()) return
-        setProgress((prev) => ({
-          stage: 'failed',
-          done: prev?.done ?? 0,
-          total: prev?.total ?? variants.length,
-          jobId: prev?.jobId,
-          nInput: prev?.nInput,
-          nToLookup: prev?.nToLookup,
-          estSeconds: prev?.estSeconds,
-          usedUpload: prev?.usedUpload,
-          error: errorMessage(error),
-        }))
+        setProgress((prev) => progressFromError(error, prev, variants.length))
       }
       if (isCurrentRun()) setStatus('done')
     },
@@ -414,6 +480,8 @@ export function CompareClient() {
         .map((v) => ({ gene: v.gene ?? null, variant: v.variant ?? v.query })),
     }
   })()
+  const runWarnings = progress?.warnings ?? []
+  const completedEmpty = Array.isArray(results) && results.length === 0 && progress?.stage === 'completed'
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
@@ -501,9 +569,9 @@ export function CompareClient() {
                       />
                     ) : status === 'running' ? (
                       <LoadingCard progress={progress} />
-                    ) : progress?.stage === 'failed' ? (
+                    ) : isBatchIssue(progress?.stage) && progress ? (
                       <>
-                        <BatchRunError progress={progress} />
+                        <BatchRunIssue progress={progress} />
                         {res.shown.length === 0 ? (
                           <EmptyScope
                             onClear={() => changeFilters([])}
@@ -520,14 +588,23 @@ export function CompareClient() {
                           />
                         )}
                       </>
+                    ) : completedEmpty && progress ? (
+                      <>
+                        {stale && <StaleRunNotice />}
+                        <BatchEmptyRun progress={progress} onClear={() => changeFilters([])} />
+                      </>
                     ) : results && results.length > 0 ? (
-                      <BatchTable
-                        rows={results.map(rowFromResult)}
-                        annotated
-                        activePanels={res.activePanels}
-                        panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
-                        panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
-                      />
+                      <>
+                        {stale && <StaleRunNotice />}
+                        <BatchWarnings warnings={runWarnings} />
+                        <BatchTable
+                          rows={results.map(rowFromResult)}
+                          annotated
+                          activePanels={res.activePanels}
+                          panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                          panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                        />
+                      </>
                     ) : res.shown.length === 0 ? (
                       <EmptyScope
                         onClear={() => changeFilters([])}
@@ -771,30 +848,207 @@ function LoadingCard({ progress }: { progress: BatchProgress | null }) {
   )
 }
 
-function BatchRunError({ progress }: { progress: BatchProgress }) {
+function BatchRunIssue({ progress }: { progress: BatchProgress }) {
+  const copy = issueCopy(progress)
   return (
     <section
       role="alert"
       style={{
-        background: 'var(--warn-tint)',
-        border: '0.5px solid var(--warn-bdr)',
+        background: copy.tone === 'error' ? 'var(--err-tint)' : 'var(--warn-tint)',
+        border: `0.5px solid ${copy.tone === 'error' ? 'var(--err-bdr, var(--err))' : 'var(--warn-bdr)'}`,
         borderRadius: 14,
         padding: '20px 22px',
-        color: 'var(--warn-text)',
+        color: copy.tone === 'error' ? 'var(--err)' : 'var(--warn-text)',
         marginBottom: 14,
       }}
     >
-      <h2 style={{ fontSize: 14, fontWeight: 650, color: 'var(--warn-text)', margin: 0 }}>Batch lookup did not complete</h2>
+      <h2 style={{ fontSize: 14, fontWeight: 650, color: 'inherit', margin: 0 }}>{copy.title}</h2>
       <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: '7px 0 0' }}>
-        {progress.error ?? 'The backend returned a failed batch status.'}
+        {copy.body}
       </p>
       {progress.done > 0 || progress.total > 0 ? (
         <p style={{ fontFamily: 'var(--mono)', fontSize: 11.5, margin: '9px 0 0' }}>
           {progress.done} / {progress.total} variants completed
         </p>
       ) : null}
+      <BatchWarnings warnings={progress.warnings ?? []} compact />
     </section>
   )
+}
+
+function BatchEmptyRun({ progress, onClear }: { progress: BatchProgress; onClear: () => void }) {
+  const nInput = progress.nInput ?? 0
+  const nAfterFilters = progress.nAfterFilters ?? progress.nToLookup ?? 0
+  return (
+    <section
+      aria-live="polite"
+      style={{
+        background: 'var(--bg)',
+        border: '0.5px solid var(--line)',
+        borderRadius: 14,
+        padding: '22px 24px',
+        color: 'var(--ink-2)',
+      }}
+    >
+      <h2 style={{ fontFamily: 'var(--display)', fontWeight: 600, fontSize: 15, margin: 0, color: 'var(--ink)' }}>
+        No variants to annotate after filters
+      </h2>
+      <p style={{ fontSize: 13, lineHeight: 1.6, margin: '8px 0 0', color: 'var(--ink-3)' }}>
+        The Batch run completed, but the active scope removed every input variant. Widen the scope or clear the filters, then regenerate.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 11, fontSize: 11.5, color: 'var(--ink-4)' }}>
+        {nInput > 0 && <span>Input {nInput.toLocaleString()}</span>}
+        <span>After filters {nAfterFilters.toLocaleString()}</span>
+        {progress.jobId && <span style={{ fontFamily: 'var(--mono)' }}>{progress.jobId}</span>}
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        style={{
+          marginTop: 14,
+          padding: '7px 14px',
+          borderRadius: 10,
+          border: '0.5px solid var(--line-2)',
+          background: 'var(--bg)',
+          color: 'var(--ink-2)',
+          fontSize: 12.5,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        Clear all filters
+      </button>
+      <BatchWarnings warnings={progress.warnings ?? []} compact />
+    </section>
+  )
+}
+
+function StaleRunNotice() {
+  return (
+    <section
+      aria-live="polite"
+      style={{
+        background: 'var(--warn-tint)',
+        border: '0.5px solid var(--warn-bdr)',
+        borderRadius: 12,
+        padding: '10px 13px',
+        marginBottom: 12,
+        color: 'var(--warn-text)',
+        fontSize: 12.5,
+        lineHeight: 1.45,
+      }}
+    >
+      Showing the previous Batch run. Regenerate to apply the current scope.
+    </section>
+  )
+}
+
+function BatchWarnings({ warnings, compact = false }: { warnings: string[]; compact?: boolean }) {
+  const unique = Array.from(new Set(warnings.filter(Boolean)))
+  if (unique.length === 0) return null
+  const shown = unique.slice(0, compact ? 3 : 5)
+  const remaining = unique.length - shown.length
+  return (
+    <section
+      aria-label="Batch warnings"
+      style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: 8,
+        flexWrap: 'wrap',
+        margin: compact ? '12px 0 0' : '0 0 12px',
+        padding: compact ? 0 : '9px 11px',
+        borderRadius: compact ? undefined : 12,
+        border: compact ? undefined : '0.5px solid var(--line)',
+        background: compact ? undefined : 'var(--bg-soft)',
+      }}
+    >
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--ink-4)' }}>
+        Warnings
+      </span>
+      {shown.map((warning) => (
+        <span
+          key={warning}
+          title={warning}
+          style={{
+            maxWidth: 260,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontFamily: 'var(--mono)',
+            fontSize: 10.5,
+            color: 'var(--ink-3)',
+            padding: '2px 6px',
+            borderRadius: 6,
+            border: '0.5px solid var(--line-2)',
+            background: 'var(--bg)',
+          }}
+        >
+          {warning}
+        </span>
+      ))}
+      {remaining > 0 && (
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-4)' }}>+{remaining} more</span>
+      )}
+    </section>
+  )
+}
+
+function issueCopy(progress: BatchProgress): { title: string; body: string; tone: 'warn' | 'error' } {
+  if (progress.stage === 'auth') {
+    return {
+      title: 'Sign-in required',
+      body: progress.error ?? 'Sign in, then regenerate the Batch run.',
+      tone: 'warn',
+    }
+  }
+  if (progress.stage === 'expired') {
+    return {
+      title: 'Batch run expired',
+      body: progress.error ?? 'This run is no longer available. Regenerate it to annotate the current cohort again.',
+      tone: 'warn',
+    }
+  }
+  if (progress.stage === 'rate_limited') {
+    return {
+      title: 'Batch run limit reached',
+      body: progress.error ?? 'Wait a moment, then regenerate the Batch run.',
+      tone: 'warn',
+    }
+  }
+  if (progress.stage === 'validation') {
+    return {
+      title: 'Batch input was not accepted',
+      body: progress.error ?? 'Check the uploaded VCF or variant list, then regenerate.',
+      tone: 'warn',
+    }
+  }
+  if (progress.stage === 'unavailable') {
+    return {
+      title: 'Batch service unavailable',
+      body: progress.error ?? 'The backend could not accept the run. Try again after the service is available.',
+      tone: 'error',
+    }
+  }
+  if (progress.stage === 'cancelled') {
+    return {
+      title: 'Batch lookup was cancelled',
+      body: progress.error ?? 'The run stopped before completion. Regenerate to start a new run.',
+      tone: 'warn',
+    }
+  }
+  if (progress.stage === 'stalled') {
+    return {
+      title: 'Batch lookup is still running',
+      body: progress.error ?? 'Try again in a moment, or reduce the cohort size.',
+      tone: 'warn',
+    }
+  }
+  return {
+    title: 'Batch lookup failed',
+    body: progress.error ?? 'The backend returned a failed Batch status. Regenerate after checking the warnings.',
+    tone: 'error',
+  }
 }
 
 function sourceActionBtn(active: boolean): React.CSSProperties {

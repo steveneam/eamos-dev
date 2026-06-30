@@ -231,6 +231,12 @@ export async function resolveAlignReference(
     return await parseResponse<AlignReferenceResponse>(response)
   } catch (err) {
     if (err instanceof TypeError) {
+      const defaultFixtureRequest =
+        payload.gene.trim().toUpperCase() === 'RPE65' &&
+        payload.cdna.replace(/\s+/g, '') === 'c.260A>G' &&
+        (!payload.transcript ||
+          payload.transcript === GENE_VIEWER_SAMPLE.identity.resolved_transcript)
+      if (!defaultFixtureRequest) throw err
       const sampleReference = ALIGN_SAMPLE.reference ?? ''
       const sampleTargetPosition = ALIGN_SAMPLE.target_position ?? 0
       return {
@@ -247,6 +253,15 @@ export async function resolveAlignReference(
         alternate_base: null,
         source: 'fixture',
         warnings: ['workbench_backend_unavailable'],
+        source_disclosure: {
+          source_status: 'fixture',
+          provider_id: 'align_reference_fixture',
+          provider_label: 'Fixture alignment reference',
+          source_version: null,
+          cache_status: null,
+          warnings: ['workbench_backend_unavailable'],
+          requirements: [],
+        },
       }
     }
     throw err

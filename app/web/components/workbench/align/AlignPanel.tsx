@@ -1,7 +1,10 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import type { AlignReferenceResponse, SourceDisclosure } from '@/lib/backend'
+import { resolveAlignReference } from '@/lib/api'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
+import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 import { ReadRow } from './ReadRow'
 import {
   bestOrientation,
@@ -16,18 +19,37 @@ import {
 
 interface AlignPanelProps {
   data: GeneWindowData
+  gene: string
   cdna: string
+  transcript?: string
 }
 
-export function AlignPanel({ data, cdna }: AlignPanelProps) {
-  const key = `${data.gene}|${cdna}|${data.transcript}`
-  return <AlignWorkspace key={key} data={data} cdna={cdna} />
+function referenceFromResolved(response: AlignReferenceResponse): ReferenceState {
+  const region = [response.genome_build, response.genomic_hg38].filter(Boolean).join(' ')
+  const provenance = [response.gene, response.transcript, region].filter(Boolean).join(' / ')
+  return {
+    label: `${response.gene} reference window`,
+    sequence: response.reference,
+    provenance: provenance || null,
+    targetIndex: response.target_position,
+    custom: false,
+  }
 }
 
-function AlignWorkspace({ data, cdna }: AlignPanelProps) {
+export function AlignPanel({ data, gene, cdna, transcript }: AlignPanelProps) {
+  const key = `${gene}|${cdna}|${transcript ?? data.transcript}`
+  return <AlignWorkspace key={key} data={data} gene={gene} cdna={cdna} transcript={transcript} />
+}
+
+function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
   const seedReference = useMemo(() => defaultReference(data), [data])
 
   const [reference, setReference] = useState<ReferenceState>(seedReference)
+  const [referenceSourceDisclosure, setReferenceSourceDisclosure] =
+    useState<SourceDisclosure | null>(null)
+  const [referenceStatus, setReferenceStatus] = useState<'resolving' | 'ready' | 'unavailable'>(
+    'resolving',
+  )
   const [reads, setReads] = useState<ReadEntry[]>([])
   const [addError, setAddError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -40,6 +62,50 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
   const [activeMatch, setActiveMatch] = useState(0)
   const [parsing, setParsing] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const referenceFallback: Partial<SourceDisclosure> = reference.custom
+    ? {
+        source_status: 'local_provider',
+        provider_id: 'custom_alignment_reference',
+        provider_label: 'Custom alignment reference',
+      }
+    : {
+        source_status: 'local_provider',
+        provider_id: 'viewer_payload_alignment_reference',
+        provider_label: 'Viewer payload reference',
+      }
+  const referenceSource = disclosureView(referenceSourceDisclosure, referenceFallback)
+
+  useEffect(() => {
+    let stale = false
+    queueMicrotask(() => {
+      if (stale) return
+      setReference(seedReference)
+      setReferenceSourceDisclosure(null)
+      setReferenceStatus('resolving')
+    })
+    resolveAlignReference({
+      gene,
+      cdna,
+      transcript,
+      species: 'human',
+    })
+      .then((resolved) => {
+        if (stale) return
+        const fixtureReference =
+          resolved.source === 'fixture' ||
+          resolved.source_disclosure?.source_status === 'fixture'
+        if (!fixtureReference) setReference(referenceFromResolved(resolved))
+        setReferenceSourceDisclosure(resolved.source_disclosure ?? null)
+        setReferenceStatus('ready')
+      })
+      .catch(() => {
+        if (stale) return
+        setReferenceStatus('unavailable')
+      })
+    return () => {
+      stale = true
+    }
+  }, [cdna, gene, seedReference, transcript])
 
   const matches = useMemo(() => findMotif(reference.sequence, search), [reference.sequence, search])
   const searchHits = useMemo(() => {
@@ -100,6 +166,16 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
   const applyCustomReference = (text: string, label?: string) => {
     try {
       setReference(customReference(text, label))
+      setReferenceSourceDisclosure({
+        source_status: 'local_provider',
+        provider_id: 'custom_alignment_reference',
+        provider_label: 'Custom alignment reference',
+        source_version: null,
+        cache_status: null,
+        warnings: [],
+        requirements: [],
+      })
+      setReferenceStatus('ready')
       setRefEditing(false)
       setRefDraft('')
       setRefError(null)
@@ -137,7 +213,11 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
               <button
                 type="button"
                 className="align-read-btn"
-                onClick={() => setReference(seedReference)}
+                onClick={() => {
+                  setReference(seedReference)
+                  setReferenceSourceDisclosure(null)
+                  setReferenceStatus('ready')
+                }}
               >
                 Reset to {data.gene}
               </button>
@@ -154,6 +234,23 @@ function AlignWorkspace({ data, cdna }: AlignPanelProps) {
               {refEditing ? 'Cancel' : 'Edit reference'}
             </button>
           </div>
+        </div>
+        <div className="workbench-source-line" role="note">
+          <span
+            className={`workbench-source-chip ${disclosureChipClass(referenceSource.status)}`}
+          >
+            {referenceSource.statusLabel}
+          </span>
+          <span>{referenceSource.providerLabel}</span>
+          {referenceSource.cacheStatus && (
+            <span className="workbench-source-muted">{referenceSource.cacheStatus}</span>
+          )}
+          {referenceStatus === 'resolving' && (
+            <span className="workbench-source-muted">resolving backend reference</span>
+          )}
+          {referenceStatus === 'unavailable' && (
+            <span className="workbench-source-muted">backend reference unavailable</span>
+          )}
         </div>
         {refEditing && (
           <div className="align-ref-editor">

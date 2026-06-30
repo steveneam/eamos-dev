@@ -33,6 +33,7 @@ from app.schemas.workbench import (
     PrimerPair,
     PrimerRequest,
     PrimerResponse,
+    SourceDisclosure,
     TraceChannel,
 )
 from app.services.crispr_design import (
@@ -50,7 +51,9 @@ from app.services.crispr_offtarget_screening import (
     CrisprOffTargetScreeningInputError,
     CrisprOffTargetScreeningProviderUnavailable,
     IndexedSqliteCrisprOffTargetProvider,
+    MOCK_SCREENING_TEMPLATE_WARNING,
     MockCasOffinderOffTargetProvider,
+    SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING,
     ScreeningReferenceWindowProvider,
     design_screening_primers,
 )
@@ -88,6 +91,124 @@ ALIGN_MATCH_SCORE = 2
 ALIGN_MISMATCH_SCORE = -1
 ALIGN_GAP_SCORE = -2
 WorkbenchModel = TypeVar("WorkbenchModel", bound=BaseModel)
+
+
+def _with_source_disclosure(
+    response: WorkbenchModel,
+    disclosure: SourceDisclosure,
+) -> WorkbenchModel:
+    if getattr(response, "source_disclosure", None) is not None:
+        return response
+    return response.model_copy(update={"source_disclosure": disclosure})
+
+
+def _primer_source_disclosure(
+    *,
+    warnings: list[str] | None = None,
+) -> SourceDisclosure:
+    return SourceDisclosure(
+        source_status="local_provider",
+        provider_id="primer3_template_specificity",
+        provider_label="Primer3 with template specificity screen",
+        cache_status="runtime",
+        warnings=list(warnings or []),
+        requirements=["primer3_py"],
+    )
+
+
+def _crispr_design_source_disclosure(provider: CrisprDesignProvider) -> SourceDisclosure:
+    if isinstance(provider, CrisprScoreRBackedCrisprProvider):
+        return SourceDisclosure(
+            source_status="local_provider",
+            provider_id="crisprscore_r",
+            provider_label="CRISPRScore R-backed provider",
+            cache_status="runtime",
+            requirements=["r_runtime", "crisprscore_model_assets"],
+        )
+    return SourceDisclosure(
+        source_status="local_provider",
+        provider_id="local_deterministic_spcas9",
+        provider_label="Local deterministic SpCas9 provider",
+        cache_status="runtime",
+        warnings=["advanced_crispr_scoring_gated"],
+        requirements=["spcas9_ngg"],
+    )
+
+
+def _screening_primer_source_disclosure(
+    primers: list[Any],
+    *,
+    warnings: list[str],
+) -> SourceDisclosure:
+    template_sources = {getattr(primer, "template_source", "") for primer in primers}
+    if MOCK_SCREENING_TEMPLATE_WARNING in warnings or "mock_screening_window" in template_sources:
+        return SourceDisclosure(
+            source_status="fallback",
+            provider_id="crispr_screening_mock_window",
+            provider_label="Mock screening-window fallback",
+            warnings=warnings,
+            requirements=["reference_window_provider"],
+        )
+    if (
+        SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING in warnings
+        or "reference_window" in template_sources
+    ):
+        return SourceDisclosure(
+            source_status="source_backed",
+            provider_id="crispr_screening_reference_window",
+            provider_label="Reference-window screening primers",
+            cache_status="resolved",
+            warnings=warnings,
+        )
+    return SourceDisclosure(
+        source_status="local_provider",
+        provider_id="crispr_screening_template_sequence",
+        provider_label="Template-sequence screening primers",
+        cache_status="runtime",
+        warnings=warnings,
+    )
+
+
+def _align_reference_source_disclosure(
+    *,
+    source: str,
+    warnings: list[str],
+) -> SourceDisclosure:
+    if source == "fixture":
+        return SourceDisclosure(
+            source_status="fixture",
+            provider_id="align_reference_fixture",
+            provider_label="Fixture alignment reference",
+            warnings=warnings,
+        )
+    return SourceDisclosure(
+        source_status="source_backed",
+        provider_id="sequence_context_alignment_reference",
+        provider_label="Sequence-context alignment reference",
+        cache_status="resolved",
+        warnings=warnings,
+    )
+
+
+def _align_source_disclosure(*, warnings: list[str] | None = None) -> SourceDisclosure:
+    return SourceDisclosure(
+        source_status="local_provider",
+        provider_id="local_sanger_aligner",
+        provider_label="Local Sanger alignment provider",
+        cache_status="runtime",
+        warnings=list(warnings or []),
+    )
+
+
+def _trace_source_disclosure(*, warnings: list[str] | None = None) -> SourceDisclosure:
+    return SourceDisclosure(
+        source_status="local_provider",
+        provider_id="ab1_trace_parser",
+        provider_label="Local AB1 trace parser",
+        cache_status="runtime",
+        warnings=list(warnings or []),
+        requirements=["ab1_input"],
+    )
 
 
 class WorkbenchDesignError(Exception):
@@ -1845,6 +1966,10 @@ class WorkbenchDesignService:
             mode=payload.mode,
             primers=primers,
             warnings=warnings,
+            source_disclosure=_screening_primer_source_disclosure(
+                primers,
+                warnings=warnings,
+            ),
         )
 
     def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse:
@@ -1894,7 +2019,7 @@ class WorkbenchDesignService:
             ) from exc
 
     def align(self, payload: AlignRequest) -> AlignResponse:
-        if self.settings is not None and self.settings.use_real_apis:
+        if self.workbench_live_design_enabled:
             return self._align_real(payload)
         return self.fixture_provider.align(payload)
 
@@ -1935,11 +2060,19 @@ class WorkbenchDesignService:
             alternate_base=context.alternate_base,
             source=context.source,
             warnings=list(sequence_result.warnings) + list(context.warnings),
+            source_disclosure=_align_reference_source_disclosure(
+                source=context.source,
+                warnings=list(sequence_result.warnings) + list(context.warnings),
+            ),
         )
 
     def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse:
         trace = _parse_ab1_trace(payload.ab1_blob_base64)
-        return analyze_parsed_trace(trace)
+        response = analyze_parsed_trace(trace)
+        return _with_source_disclosure(
+            response,
+            _trace_source_disclosure(warnings=response.warnings),
+        )
 
     def analyze_crispr_tide(
         self,
@@ -1984,7 +2117,8 @@ class WorkbenchDesignService:
             ) from exc
 
         context = self._sequence_context_or_error(sequence_result)
-        return self.primer_provider.design(payload, context)
+        response = self.primer_provider.design(payload, context)
+        return _with_source_disclosure(response, _primer_source_disclosure())
 
     def _design_real_guides(
         self,
@@ -2007,7 +2141,11 @@ class WorkbenchDesignService:
 
         context = self._sequence_context_or_error(sequence_result, purpose="CRISPR design")
         try:
-            return self.crispr_provider.design(payload, context)
+            response = self.crispr_provider.design(payload, context)
+            return _with_source_disclosure(
+                response,
+                _crispr_design_source_disclosure(self.crispr_provider),
+            )
         except CrisprDesignInputError as exc:
             raise WorkbenchDesignError(
                 code=exc.code,
@@ -2039,7 +2177,8 @@ class WorkbenchDesignService:
 
         context = self._sequence_context_or_error(sequence_result, purpose="Sanger alignment")
         try:
-            return self.align_provider.align(payload, context)
+            response = self.align_provider.align(payload, context)
+            return _with_source_disclosure(response, _align_source_disclosure())
         except WorkbenchDesignError:
             raise
         except Exception as exc:

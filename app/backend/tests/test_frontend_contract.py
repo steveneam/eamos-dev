@@ -184,6 +184,7 @@ from app.schemas.workbench import (
     PrimerRequest,
     PrimerResponse,
     ScreeningPrimer,
+    SourceDisclosure,
     TraceChannel,
 )
 from app.schemas.panels import (
@@ -292,6 +293,7 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     ChatMessage: "ChatMessage",
     WorkbenchContext: "WorkbenchContext",
     WorkbenchEdit: "WorkbenchEdit",
+    SourceDisclosure: "SourceDisclosure",
     PrimerRequest: "PrimerRequest",
     PrimerResponse: "PrimerResponse",
     PrimerPair: "PrimerPair",

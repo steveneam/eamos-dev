@@ -1,5 +1,6 @@
 import type { CrisprResponse } from '@/lib/backend'
 import type { CrisprTideResult } from './crispr-tide-sample'
+import { disclosureView } from './source-disclosure'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -53,6 +54,29 @@ function stringList(value: unknown): string[] {
 export function designProviderDisclosure(
   result: CrisprResponse | null | undefined,
 ): CrisprDesignDisclosure {
+  const disclosure = disclosureView(result?.source_disclosure, {
+    source_status: 'local_provider',
+    provider_id: 'local_deterministic_spcas9',
+    provider_label: 'Local deterministic SpCas9 provider',
+    warnings: ['advanced_crispr_scoring_gated'],
+    requirements: ['spcas9_ngg'],
+  })
+  if (result?.source_disclosure) {
+    const sourceBacked = disclosure.operational
+    return {
+      providerLabel: disclosure.providerLabel,
+      sourceBacked,
+      statusLine: `${disclosure.statusLabel}. ${disclosure.caveat}`,
+      scoreLine:
+        disclosure.status === 'source_backed'
+          ? 'Provider metadata came from a resolved source-backed backend response.'
+          : disclosure.status === 'local_provider'
+            ? 'Scores are local/provider-reported and should not be read as genome-wide DeepHF or CFD output.'
+            : 'Scores are fixture or fallback values and should not be read as completed backend analysis.',
+      platformLine: `${PLATFORM_GATED_MODELS} remain gated unless the backend marks them available.`,
+    }
+  }
+
   const meta = asRecord(result)
   const providerLabel = firstString(
     meta.provider_label,
@@ -105,6 +129,31 @@ export function hasPredictedOutcomeData(
 export function outcomeDisclosure(
   result: CrisprTideResult | null | undefined,
 ): CrisprOutcomeDisclosure {
+  const disclosure = disclosureView(result?.source_disclosure, {
+    source_status: result?.source_backed ? 'local_provider' : 'fallback',
+    provider_id: result?.source_backed ? 'observed_only_tide' : 'frontend_tide_sample',
+    provider_label: result?.provider_label ?? 'Frontend sample/fallback',
+  })
+  if (result?.source_disclosure) {
+    const showPredicted = hasPredictedOutcomeData(result)
+    return {
+      sourceBacked: disclosure.operational,
+      sourceLabel: disclosure.providerLabel,
+      fitLabel: disclosure.operational ? 'Fit R2' : 'Sample R2',
+      seriesLabel: showPredicted ? 'observed + predicted' : 'observed-only',
+      observedLegendLabel:
+        disclosure.status === 'fallback' || disclosure.status === 'fixture'
+          ? 'Observed sample'
+          : 'Observed (TIDE)',
+      showPredicted,
+      predictionLine: showPredicted
+        ? 'Predicted bins are shown because the response includes numeric predicted values.'
+        : disclosure.operational
+          ? 'No predicted repair series is shown; the response contains observed values only.'
+          : 'Predicted repair series is hidden for fixture or fallback output.',
+    }
+  }
+
   const meta = asRecord(result)
   const analysisKind = firstString(
     meta.analysis_kind,

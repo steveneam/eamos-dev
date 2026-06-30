@@ -171,6 +171,7 @@ export function AskEamos({
         )}
         <form onSubmit={handleSubmit} className="ask-form">
           <textarea
+            name="ask-eamos-message"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

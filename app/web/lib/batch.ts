@@ -15,10 +15,32 @@ const DEFAULT_BATCH_POLL_INTERVAL_MS = 1000
 const DEFAULT_BATCH_MAX_POLLS = 720
 const BATCH_SIGN_IN_MESSAGE = 'Sign in to run Batch variant annotation.'
 
+export type BatchRequestErrorCode =
+  | 'auth_required'
+  | 'auth_expired'
+  | 'not_found'
+  | 'rate_limited'
+  | 'validation'
+  | 'unavailable'
+  | 'request_failed'
+
+export class BatchRequestError extends Error {
+  readonly status?: number
+  readonly code: BatchRequestErrorCode
+
+  constructor(message: string, opts: { status?: number; code: BatchRequestErrorCode }) {
+    super(message)
+    this.name = 'BatchRequestError'
+    this.status = opts.status
+    this.code = opts.code
+    Object.setPrototypeOf(this, BatchRequestError.prototype)
+  }
+}
+
 async function accessToken(): Promise<string> {
   const { data, error } = await createClient().auth.getSession()
   const token = data.session?.access_token
-  if (error || !token) throw new Error(BATCH_SIGN_IN_MESSAGE)
+  if (error || !token) throw new BatchRequestError(BATCH_SIGN_IN_MESSAGE, { code: 'auth_required' })
   return token
 }
 
@@ -30,10 +52,16 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.text().catch(() => '')
     if (response.status === 401) {
-      throw new Error('Your session expired. Sign in again to run Batch annotation.')
+      throw new BatchRequestError('Your session expired. Sign in again to run Batch annotation.', {
+        status: response.status,
+        code: 'auth_expired',
+      })
     }
     const detail = responseDetail(body)
-    throw new Error(detail || `Request failed with status ${response.status}`)
+    throw new BatchRequestError(detail || defaultErrorMessage(response.status), {
+      status: response.status,
+      code: errorCodeForStatus(response.status),
+    })
   }
   return (await response.json()) as T
 }
@@ -41,12 +69,39 @@ async function parseResponse<T>(response: Response): Promise<T> {
 function responseDetail(body: string): string | null {
   if (!body) return null
   try {
-    const parsed = JSON.parse(body) as { detail?: unknown }
+    const parsed = JSON.parse(body) as { detail?: unknown; message?: unknown }
     if (typeof parsed.detail === 'string') return parsed.detail
+    if (Array.isArray(parsed.detail)) {
+      const first = parsed.detail.find(
+        (item): item is { msg: string } =>
+          typeof item === 'object' &&
+          item !== null &&
+          'msg' in item &&
+          typeof (item as { msg?: unknown }).msg === 'string',
+      )
+      return first?.msg ?? null
+    }
+    if (typeof parsed.message === 'string') return parsed.message
   } catch {
-    return body
+    return body.length <= 180 ? body : null
   }
-  return body
+  return null
+}
+
+function errorCodeForStatus(status: number): BatchRequestErrorCode {
+  if (status === 404) return 'not_found'
+  if (status === 429) return 'rate_limited'
+  if (status === 422 || status === 400 || status === 413) return 'validation'
+  if (status === 503) return 'unavailable'
+  return 'request_failed'
+}
+
+function defaultErrorMessage(status: number): string {
+  if (status === 404) return 'Batch run was not found.'
+  if (status === 429) return 'Batch run limit reached. Wait a moment, then try again.'
+  if (status === 422 || status === 400 || status === 413) return 'Batch input could not be accepted.'
+  if (status === 503) return 'Batch service is unavailable.'
+  return `Request failed with status ${status}`
 }
 
 export async function createBatch(input: BatchCreateRequest): Promise<BatchCreateResponse> {

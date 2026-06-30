@@ -93,6 +93,15 @@ export const OFFTARGET_SAMPLE: CrisprOffTargetResponse = {
       on_target: false,
     },
   ],
+  source_disclosure: {
+    source_status: 'fallback',
+    provider_id: 'mock_cas_offinder',
+    provider_label: 'Mock Cas-OFFinder fallback',
+    source_version: null,
+    cache_status: null,
+    warnings: ['crispr_offtarget_mock_fallback'],
+    requirements: ['crispr_offtarget_index'],
+  },
 }
 
 /** chrN:start-end region string from a point ± flank (matches backend math). */
@@ -148,5 +157,18 @@ export function mockScreeningPrimers(
     }
   })
 
-  return { mode, primers, warnings: ['crispr_screening_mock_template'] }
+  return {
+    mode,
+    primers,
+    warnings: ['crispr_screening_mock_template'],
+    source_disclosure: {
+      source_status: 'fallback',
+      provider_id: 'crispr_screening_mock_window',
+      provider_label: 'Mock screening-window fallback',
+      source_version: null,
+      cache_status: null,
+      warnings: ['crispr_screening_mock_template'],
+      requirements: ['reference_window_provider'],
+    },
+  }
 }

@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from app.schemas.workbench import CrisprSsodnDesign, CrisprSsodnRequest, CrisprSsodnResponse
+from app.schemas.workbench import (
+    CrisprSsodnDesign,
+    CrisprSsodnRequest,
+    CrisprSsodnResponse,
+    SourceDisclosure,
+)
 from app.services.crispr_design import reverse_complement
 from app.services.reference_genome import ReferenceGenomeStoreError, TwoBitReferenceGenomeStore
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
@@ -162,6 +167,42 @@ def design_ssodn(
         genome_build=ssodn.genome_build,
         ssodn=ssodn,
         warnings=_dedupe_warnings(warnings),
+        source_disclosure=_ssodn_source_disclosure(
+            ssodn.template_source,
+            warnings=_dedupe_warnings(warnings),
+        ),
+    )
+
+
+def _ssodn_source_disclosure(
+    template_source: str,
+    *,
+    warnings: list[str],
+) -> SourceDisclosure:
+    if template_source.startswith("mock"):
+        return SourceDisclosure(
+            source_status="fallback",
+            provider_id="crispr_ssodn_mock_window",
+            provider_label="Mock genomic-window fallback",
+            warnings=warnings,
+            requirements=["resolved_sequence_context"],
+        )
+
+    if template_source == "local_mane_hg38_transcript":
+        return SourceDisclosure(
+            source_status="source_backed",
+            provider_id="local_mane_hg38_ssodn",
+            provider_label="Local MANE/hg38 ssODN context",
+            cache_status="local",
+            warnings=warnings,
+        )
+
+    return SourceDisclosure(
+        source_status="source_backed",
+        provider_id="sequence_context_ssodn",
+        provider_label="Sequence-context ssODN provider",
+        cache_status="resolved",
+        warnings=warnings,
     )
 
 

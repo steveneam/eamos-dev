@@ -66,5 +66,14 @@
       "position": 102912875,
       "on_target": false
     }
-  ]
+  ],
+  "source_disclosure": {
+    "source_status": "fallback",
+    "provider_id": "mock_cas_offinder",
+    "provider_label": "Mock Cas-OFFinder fallback",
+    "source_version": null,
+    "cache_status": null,
+    "warnings": ["crispr_offtarget_mock_fallback"],
+    "requirements": ["crispr_offtarget_index"]
+  }
 }

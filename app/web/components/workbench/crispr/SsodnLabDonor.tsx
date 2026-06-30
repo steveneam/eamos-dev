@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { CrisprSsodnDesign, CrisprSsodnResponse, SsodnOrientation } from '@/lib/backend'
 import { designSsodn } from '@/lib/api'
 import { CopyButton } from '@/components/ui/CopyButton'
+import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 
 const MIN_LEN = 60
 const MAX_LEN = 200
@@ -144,7 +145,13 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
   }, [gene, cdna, clampedLen, orientation])
 
   const ss = res?.ssodn ?? null
-  const mock = res ? isMock(res) : false
+  const sourceDisclosure = disclosureView(res?.source_disclosure, {
+    source_status: res && isMock(res) ? 'fallback' : 'source_backed',
+    provider_id: res && isMock(res) ? 'crispr_ssodn_mock_window' : 'local_mane_hg38_ssodn',
+    provider_label: res && isMock(res) ? 'Mock genomic-window fallback' : 'Local ssODN context',
+    warnings: res?.warnings ?? [],
+  })
+  const mock = res ? sourceDisclosure.preview : false
   const codon = ss ? editedCodon(ss.variant_offset, cdna) : null
   const reference = ss && codon ? deriveReference(ss, codon.offsets) : null
 
@@ -158,7 +165,7 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
               className="eamos-mock ssodn-mock-tag"
               title="Illustrative donor — the real workbook-accurate sequence comes from the genomic donor service"
             >
-              illustrative
+              {sourceDisclosure.statusLabel}
             </span>
           )}
         </span>
@@ -221,6 +228,17 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
 
       {ss && !loading && (
         <>
+          <div className="workbench-source-line" role="note">
+            <span
+              className={`workbench-source-chip ${disclosureChipClass(sourceDisclosure.status)}`}
+            >
+              {sourceDisclosure.statusLabel}
+            </span>
+            <span>{sourceDisclosure.providerLabel}</span>
+            {sourceDisclosure.cacheStatus && (
+              <span className="workbench-source-muted">{sourceDisclosure.cacheStatus}</span>
+            )}
+          </div>
           <div className="ssodn-oligo-name" title="Order name">
             {ss.oligo_name}
           </div>
@@ -273,8 +291,7 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
           </div>
           <p className="ssodn-order-note">
             Order: Sigma · SDS-PAGE purity · lyophilised · lowest yield.
-            {mock &&
-              ' Sequence shown is illustrative until the genomic donor service is reachable.'}
+            {mock && ` ${sourceDisclosure.caveat}`}
           </p>
         </>
       )}

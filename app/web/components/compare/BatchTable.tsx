@@ -554,6 +554,7 @@ function Table({
           <Th style={{ width: 36, padding: '10px 8px 10px 14px' }}>
             <input
               type="checkbox"
+              name="batch-select-all"
               aria-label="Select all rows"
               checked={headerCheckState === 'all'}
               ref={(el) => {
@@ -595,6 +596,7 @@ function Table({
               <Td style={{ padding: '10px 8px 10px 14px' }}>
                 <input
                   type="checkbox"
+                  name={`batch-row-${r.n}`}
                   aria-label={`Select ${r.gene ?? r.query}`}
                   checked={isSelected}
                   onChange={() => onToggleRow(r.key)}

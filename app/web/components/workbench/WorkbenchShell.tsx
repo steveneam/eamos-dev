@@ -68,6 +68,7 @@ function renderToolPanel(
   tool: WorkbenchTool,
   gene: string,
   cdna: string,
+  transcript: string | undefined,
   data: GeneWindowData,
   controls: {
     primerSelected: PrimerPair | null
@@ -88,7 +89,7 @@ function renderToolPanel(
     case 'crispr':
       return <CrisprPanel gene={gene} cdna={cdna} onSubTabChange={controls.onCrisprSubTab} />
     case 'align':
-      return <AlignPanel data={data} cdna={cdna} />
+      return <AlignPanel data={data} gene={gene} cdna={cdna} transcript={transcript ?? data.transcript} />
     default:
       return null
   }
@@ -414,7 +415,7 @@ export function WorkbenchShell({ tool, gene, cdna, transcript }: WorkbenchShellP
   const toolPanel = (
     <div className="tool-panel active" data-panel={tool}>
       {data ? (
-        renderToolPanel(tool, gene, cdna, data, {
+        renderToolPanel(tool, gene, cdna, transcript, data, {
           primerSelected: selectedPrimer,
           onPrimerSelect: setSelectedPrimer,
           onCrisprSubTab: handleCrisprSubTab,

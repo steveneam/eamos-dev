@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { analyzeTide } from '@/lib/api'
 import { outcomeDisclosure } from '@/lib/workbench/crispr-disclosure'
+import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 import type { CrisprTideResult } from '@/lib/workbench/crispr-tide-sample'
 import { IndelSpectrum } from './IndelSpectrum'
 
@@ -18,6 +19,14 @@ export function OutcomesTab() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const outcomeInfo = outcomeDisclosure(res)
+  const sourceDisclosure = res
+    ? disclosureView(res.source_disclosure, {
+        source_status: res.source_backed ? 'local_provider' : 'fallback',
+        provider_id: res.source_backed ? 'observed_only_tide' : 'frontend_tide_sample',
+        provider_label: outcomeInfo.sourceLabel,
+        warnings: res.warnings,
+      })
+    : null
 
   const clearComputed = () => {
     setRes(null)
@@ -135,6 +144,21 @@ export function OutcomesTab() {
 
       {res && (
         <>
+          {sourceDisclosure && (
+            <div className="workbench-source-line" role="note">
+              <span
+                className={`workbench-source-chip ${disclosureChipClass(sourceDisclosure.status)}`}
+              >
+                {sourceDisclosure.statusLabel}
+              </span>
+              <span>{sourceDisclosure.providerLabel}</span>
+              {sourceDisclosure.cacheStatus && (
+                <span className="workbench-source-muted">
+                  {sourceDisclosure.cacheStatus}
+                </span>
+              )}
+            </div>
+          )}
           <div className="ic-callouts">
             <div className="ic-stat">
               <span className="label">Editing efficiency</span>

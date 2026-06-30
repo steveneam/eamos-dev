@@ -240,6 +240,29 @@ def _context() -> SequenceContext:
     )
 
 
+def _synthetic_context(
+    *,
+    gene: str = "BRCA1",
+    cdna: str = "c.100A>G",
+    transcript: str = "NM_007294.4",
+    genomic_hg38: str = "17-43044295-A-G",
+) -> SequenceContext:
+    return SequenceContext(
+        gene=gene,
+        cdna=cdna,
+        transcript=transcript,
+        transcript_hgvs=f"{transcript}:{cdna}",
+        query_kind="cdna",
+        genome_build="GRCh38",
+        genomic_hg38=genomic_hg38,
+        window_sequence="ACGT" * 260,
+        target_offset=320,
+        reference_base="A",
+        alternate_base="G",
+        source="resolver",
+    )
+
+
 def _specificity_result(
     *,
     hits: int = 1,
@@ -298,7 +321,9 @@ def test_crispr_offtargets_route_returns_deidentified_fixture_shape(client) -> N
     assert response.status_code == 200
     body = response.json()
     assert body == _fixture("crispr_offtargets_deidentified.json")
-    assert set(body) == {"genome_build", "sites"}
+    assert set(body) == {"genome_build", "sites", "source_disclosure"}
+    assert body["source_disclosure"]["source_status"] == "fallback"
+    assert body["source_disclosure"]["provider_id"] == "mock_cas_offinder"
     assert set(body["sites"][0]) == {
         "sequence",
         "pam",
@@ -1028,7 +1053,11 @@ def test_real_mode_primer_service_uses_sequence_context_and_provider() -> None:
 
     response = service.design_primers(PrimerRequest(gene="RPE65", cdna="c.260A>G"))
 
-    assert response == PrimerResponse(mode="sanger", pairs=[])
+    assert response.mode == "sanger"
+    assert response.pairs == []
+    assert response.source_disclosure is not None
+    assert response.source_disclosure.source_status == "local_provider"
+    assert response.source_disclosure.provider_id == "primer3_template_specificity"
     assert sequence_service.calls == [
         {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
     ]
@@ -1049,7 +1078,11 @@ def test_workbench_live_design_uses_provider_without_global_real_apis() -> None:
 
     response = service.design_primers(PrimerRequest(gene="RPE65", cdna="c.260A>G"))
 
-    assert response == PrimerResponse(mode="sanger", pairs=[])
+    assert response.mode == "sanger"
+    assert response.pairs == []
+    assert response.source_disclosure is not None
+    assert response.source_disclosure.source_status == "local_provider"
+    assert response.source_disclosure.provider_id == "primer3_template_specificity"
     assert sequence_service.calls == [
         {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
     ]
@@ -1071,7 +1104,12 @@ def test_real_mode_crispr_service_uses_sequence_context_and_provider() -> None:
 
     response = service.design_guides(CrisprRequest(gene="RPE65", cdna="c.260A>G"))
 
-    assert response == CrisprResponse(cas="SpCas9", guides=[], ssodn=None)
+    assert response.cas == "SpCas9"
+    assert response.guides == []
+    assert response.ssodn is None
+    assert response.source_disclosure is not None
+    assert response.source_disclosure.source_status == "local_provider"
+    assert response.source_disclosure.provider_id == "local_deterministic_spcas9"
     assert sequence_service.calls == [
         {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
     ]
@@ -1093,7 +1131,12 @@ def test_workbench_live_design_uses_crispr_provider_without_global_real_apis() -
 
     response = service.design_guides(CrisprRequest(gene="RPE65", cdna="c.260A>G"))
 
-    assert response == CrisprResponse(cas="SpCas9", guides=[], ssodn=None)
+    assert response.cas == "SpCas9"
+    assert response.guides == []
+    assert response.ssodn is None
+    assert response.source_disclosure is not None
+    assert response.source_disclosure.source_status == "local_provider"
+    assert response.source_disclosure.provider_id == "local_deterministic_spcas9"
     assert sequence_service.calls == [
         {"gene": "RPE65", "cdna": "c.260A>G", "prefer_resolver": True}
     ]
@@ -1116,18 +1159,44 @@ def test_real_mode_align_service_uses_sequence_context_and_provider() -> None:
     payload = AlignRequest(gene="RPE65", cdna="c.260A>G", user_sequence="ACGT")
     response = service.align(payload)
 
-    assert response == AlignResponse(
-        reference="ACGT",
-        sanger_read="ACGT",
-        match_line="||||",
-        mismatch_positions=[],
-        target_position=1,
-        trace_channels=[],
-        base_calls=list("ACGT"),
-        q_scores=[],
-    )
+    assert response.reference == "ACGT"
+    assert response.sanger_read == "ACGT"
+    assert response.match_line == "||||"
+    assert response.mismatch_positions == []
+    assert response.target_position == 1
+    assert response.trace_channels == []
+    assert response.base_calls == list("ACGT")
+    assert response.q_scores == []
+    assert response.source_disclosure is not None
+    assert response.source_disclosure.source_status == "local_provider"
+    assert response.source_disclosure.provider_id == "local_sanger_aligner"
     assert sequence_service.calls == [{"gene": "RPE65", "cdna": "c.260A>G"}]
     assert align_provider.calls == [(payload, _context())]
+
+
+def test_real_mode_workbench_disclosure_is_not_rpe65_fixture_bound() -> None:
+    query = normalize_sequence_query("BRCA1", "c.100A>G")
+    sequence_service = StaticSequenceContextService(
+        SequenceContextResult(query=query, context=_synthetic_context())
+    )
+    service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=True),
+        sequence_context_service=sequence_service,
+        primer_provider=FakePrimerProvider(),
+        crispr_provider=FakeCrisprProvider(),
+    )
+
+    primer = service.design_primers(PrimerRequest(gene="BRCA1", cdna="c.100A>G"))
+    crispr = service.design_guides(CrisprRequest(gene="BRCA1", cdna="c.100A>G"))
+
+    assert primer.source_disclosure is not None
+    assert primer.source_disclosure.source_status == "local_provider"
+    assert crispr.source_disclosure is not None
+    assert crispr.source_disclosure.source_status == "local_provider"
+    assert sequence_service.calls == [
+        {"gene": "BRCA1", "cdna": "c.100A>G", "prefer_resolver": True},
+        {"gene": "BRCA1", "cdna": "c.100A>G", "prefer_resolver": True},
+    ]
 
 
 def test_real_mode_missing_sequence_context_maps_to_422(client) -> None:
@@ -1244,6 +1313,38 @@ def test_real_mode_align_route_aligns_user_sequence_to_sequence_context(client) 
     assert body["base_calls"] == list("AAACCCAGG")
     assert body["q_scores"] == []
     assert body["trace_channels"] == []
+    assert body["source_disclosure"]["source_status"] == "local_provider"
+    assert body["source_disclosure"]["provider_id"] == "local_sanger_aligner"
+
+
+def test_workbench_live_align_is_not_bound_to_global_real_apis_or_rpe65() -> None:
+    query = normalize_sequence_query("BRCA1", "c.100A>G")
+    context = _synthetic_context()
+    context.window_sequence = "GGGTTTAAACCCGGGTTT"
+    context.target_offset = 8
+    sequence_service = StaticSequenceContextService(
+        SequenceContextResult(query=query, context=context)
+    )
+    align_provider = FakeAlignProvider()
+    payload = AlignRequest(
+        gene="BRCA1",
+        cdna="c.100A>G",
+        user_sequence="TTTAAACCC",
+    )
+    service = WorkbenchDesignService(
+        settings=_settings(use_real_apis=False, workbench_live_design_enabled=True),
+        sequence_context_service=sequence_service,
+        primer_provider=FakePrimerProvider(),
+        align_provider=align_provider,
+    )
+
+    response = service.align(payload)
+
+    assert response.source_disclosure is not None
+    assert response.source_disclosure.source_status == "local_provider"
+    assert response.source_disclosure.provider_id == "local_sanger_aligner"
+    assert sequence_service.calls == [{"gene": "BRCA1", "cdna": "c.100A>G"}]
+    assert align_provider.calls == [(payload, context)]
 
 
 def test_align_reference_route_resolves_sequence_context_without_read_input(client) -> None:
@@ -1287,6 +1388,15 @@ def test_align_reference_route_resolves_sequence_context_without_read_input(clie
             alternate_base="C",
             source="resolver",
             warnings=[],
+            source_disclosure={
+                "source_status": "source_backed",
+                "provider_id": "sequence_context_alignment_reference",
+                "provider_label": "Sequence-context alignment reference",
+                "source_version": None,
+                "cache_status": "resolved",
+                "warnings": [],
+                "requirements": [],
+            },
         ).model_dump()
     )
     assert sequence_context_service.calls == [

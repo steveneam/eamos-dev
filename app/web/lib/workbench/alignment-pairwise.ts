@@ -1,3 +1,4 @@
+import type { SourceDisclosure } from '@/lib/backend'
 import type { GeneWindowData, WindowSegment } from './gene-window'
 
 export const MAX_ALIGNMENT_BASES = 1500
@@ -95,6 +96,7 @@ export interface AlignApiResponseShape {
   trace_channels?: AlignApiTraceChannel[] | null
   base_calls?: string[] | null
   q_scores?: number[] | null
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface TraceBaseCall {

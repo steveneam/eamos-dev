@@ -1568,9 +1568,28 @@ export interface PrimerPair {
   recommended?: boolean
 }
 
+export type WorkbenchSourceStatus =
+  | 'source_backed'
+  | 'local_provider'
+  | 'fallback'
+  | 'fixture'
+  | 'gated'
+  | 'unavailable'
+
+export interface SourceDisclosure {
+  source_status: WorkbenchSourceStatus
+  provider_id: string
+  provider_label: string
+  source_version?: string | null
+  cache_status?: string | null
+  warnings: string[]
+  requirements: string[]
+}
+
 export interface PrimerResponse {
   mode: PrimerMode
   pairs: PrimerPair[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 export type CasEnzyme = 'SpCas9' | 'SaCas9' | 'Cas12a'
@@ -1608,6 +1627,7 @@ export interface CrisprResponse {
   cas: CasEnzyme
   guides: CrisprGuide[]
   ssodn?: HdrSsodn | null
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface CrisprSsodnRequest {
@@ -1651,6 +1671,7 @@ export interface CrisprSsodnResponse {
   genome_build: string
   ssodn: CrisprSsodnDesign
   warnings: string[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface CrisprOffTargetLocus {
@@ -1685,6 +1706,7 @@ export interface CrisprOffTargetSite {
 export interface CrisprOffTargetResponse {
   genome_build: string
   sites: CrisprOffTargetSite[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface CrisprScreeningRegion {
@@ -1747,6 +1769,7 @@ export interface CrisprScreeningPrimerResponse {
   mode: PrimerMode
   primers: ScreeningPrimer[]
   warnings: string[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface CrisprTideSpectrumBin {
@@ -1759,6 +1782,7 @@ export interface CrisprTideResponse {
   source_backed?: boolean
   analysis_kind?: 'tide'
   provider_label?: string
+  source_disclosure?: SourceDisclosure | null
   cut_site_index: number
   editing_efficiency: number
   r_squared: number
@@ -1821,6 +1845,7 @@ export interface AlignTraceResponse {
   het: AlignTraceHetCall[]
   noise_floor: number
   warnings: string[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface AlignResponse {
@@ -1832,6 +1857,7 @@ export interface AlignResponse {
   trace_channels: TraceChannel[]
   base_calls: string[]
   q_scores: number[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 export interface AlignReferenceResponse {
@@ -1848,6 +1874,7 @@ export interface AlignReferenceResponse {
   alternate_base?: string | null
   source: string
   warnings: string[]
+  source_disclosure?: SourceDisclosure | null
 }
 
 // ─── Gene viewer (POST /api/v1/viewer) ──────────────────────────────────

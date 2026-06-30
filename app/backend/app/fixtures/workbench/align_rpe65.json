@@ -23,5 +23,14 @@
     }
   ],
   "base_calls": ["C", "G", "C", "C", "A", "T", "T", "C", "G", "G", "T", "G", "C", "G", "G", "C", "A", "T", "T", "C", "A", "A", "G", "A", "G", "A", "A", "C", "A", "A"],
-  "q_scores": [37, 40, 39, 35, 34, 38, 40, 38, 35, 35, 38, 40, 37, 42, 35, 39, 40, 37, 34, 36, 39, 39, 36, 34, 36, 40, 39, 35, 34, 37]
+  "q_scores": [37, 40, 39, 35, 34, 38, 40, 38, 35, 35, 38, 40, 37, 42, 35, 39, 40, 37, 34, 36, 39, 39, 36, 34, 36, 40, 39, 35, 34, 37],
+  "source_disclosure": {
+    "source_status": "fixture",
+    "provider_id": "workbench_align_fixture",
+    "provider_label": "Workbench alignment fixture",
+    "source_version": null,
+    "cache_status": null,
+    "warnings": ["workbench_fixture"],
+    "requirements": []
+  }
 }
