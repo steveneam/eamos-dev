@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-07-03 02:00 +1000 - Search public popularity metadata slice shipped. Implementation commit `3815137` is pushed to `origin/main` and live on Render SG deploy `dep-d938km4m0tmc73d6sa60`; focused search/library/rate-limit/contract tests, Ruff, Black, compileall, diff-check, graphify update, Render deploy confirmation, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
+- **Codex:** STOPPED @ 2026-07-03 02:22 +1000 - Search public gene/source vocabulary slice shipped. Implementation commit `90e3b70` is pushed to `origin/main` and live on Render SG deploy `dep-d938vi7avr4c73bl820g`; focused/broader search tests, contract/structure tests, Ruff, Black, compileall, diff-check, graphify update, Render deploy confirmation, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-03 02:00 +1000 - Codex (search public popularity metadata slice shipped/deployed; closeout docs updated)
+UNLOCKED - 2026-07-03 02:22 +1000 - Codex (search public gene/source vocabulary slice shipped/deployed; closeout docs updated)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -409,50 +409,49 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-07-03 02:00 +1000 - Codex.
+Section last edited: 2026-07-03 02:22 +1000 - Codex.
 
-**Latest Codex update (2026-07-03 02:00 +1000 - Codex):**
-Shipped the Search Task 6+ public popularity metadata slice. Implementation
-commit `3815137` is pushed to `origin/main` and live on Render SG deploy
-`dep-d938km4m0tmc73d6sa60`.
+**Latest Codex update (2026-07-03 02:22 +1000 - Codex):**
+Shipped the Search Task 6+ public gene/source vocabulary slice. Implementation
+commit `90e3b70` is pushed to `origin/main` and live on Render SG deploy
+`dep-d938vi7avr4c73bl820g`.
 
-- Search documents now persist scalar metadata through `metadata_json`.
-- Backend search hits expose `source_key`, `subtitle`, `target_href`, and
-  `metadata` while preserving existing route behavior.
-- Publication and trial search rows now carry provenance/routing metadata,
-  including PubMed and ClinicalTrials target URLs where identifiers are present.
-- Public variant view-count writes now best-effort index `popular_variant`
-  documents with view count, last-viewed timestamp, and `/report?q=...` targets.
-- Private saved-variant search rows now carry structured query/classification
-  metadata in addition to existing owner-scoped access behavior.
+- Public `gene` search rows are derived from already-indexed public
+  publication/trial evidence rows. They carry source-backed counts and
+  `/report?q=GENE` targets without indexing private report text or uploaded
+  clinical context.
+- Public `source` search rows are derived from sanitized
+  `report_data_currency.sources` / `source_versions` payload metadata.
+- Backend search hits now understand `gene` and `source` document types for
+  subtitles, target routing, and scalar metadata.
+- The explicit dry-run/apply search backfill path now plans and indexes public
+  publication, trial, gene, and source rows from existing run payloads while
+  continuing to report no source downloads, provider calls, Supabase mutation,
+  or startup work.
 
 Verification passed:
 
-- Focused local search and variant-library pytest.
-- Search API/rate-limit pytest; Docker-gated search cases skipped as before.
-- Structure/frontend contract pytest.
+- `tests/test_search_api_local.py` focused search pytest, now including
+  gene/source and backfill coverage.
+- Variant-library, search API, and rate-limit pytest; Docker-gated search cases
+  skipped as before.
+- Frontend contract and structure-guard pytest.
 - Ruff, Black, compileall, and `git diff --check`.
 - `python -m graphify update .` with long timeout; graph HTML skipped because
-  the graph has 17,862 nodes and exceeds the 5,000-node default visualization
+  the graph has 17,871 nodes and exceeds the 5,000-node default visualization
   threshold.
 
 Post-deploy verification:
 
-- Render API confirms `dep-d938km4m0tmc73d6sa60` live on
-  `3815137a8e5e5b21bd41ebf3737afda0ac68413e`.
-- SG OpenAPI exposes `popular_variant` and the new SearchHit metadata fields.
-- SG `/healthz` ok; SG `/api/v1/health/provider-cache` reports search ready,
-  index tables present, and zero ownerless private search rows.
-- Vercel proxy `/api/v1/health/provider-cache` reports search ready, index
-  tables present, and zero ownerless private rows.
-- `https://eamos-dev.vercel.app` returned HTTP 200 by `curl.exe`.
-
-Known verification note:
-
-- Full local `tests/test_health_api.py` still has one environment-sensitive
-  empty-health assertion that expects the ClinVar gene-distribution index to be
-  absent; this checkout has the local index present, so that combined run failed
-  there. The frontend contract canary was rerun separately and passed.
+- Render API confirms `dep-d938vi7avr4c73bl820g` live on
+  `90e3b70748fdd0b24e7df6e4515a46f8cd936294`.
+- SG OpenAPI exposes `gene`, `source`, and the rich SearchHit fields.
+- SG `/healthz` ok; SG `/api/v1/health/provider-cache` reports search
+  `status:"ready"`, index tables present, zero ownerless private rows, and
+  no request-time source scans/startup backfill.
+- Vercel proxy `/api/v1/health/provider-cache` reports the same search-ready
+  posture.
+- `https://eamos-dev.vercel.app` returned HTTP 200 by `Invoke-WebRequest`.
 
 Operational note:
 
@@ -469,11 +468,11 @@ verified, and documented.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-07-03 02:00 +1000 - Codex search public popularity metadata slice
+# Resume prompt - 2026-07-03 02:22 +1000 - Codex search public gene/source vocabulary slice
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
-Delta: implementation commit `3815137` is pushed and live on Render SG deploy `dep-d938km4m0tmc73d6sa60`; Search Task 6+ now persists search-hit metadata, exposes `source_key`/`subtitle`/`target_href`/`metadata`, and indexes public `popular_variant` rows from view-count writes without source/provider/runtime mutations.
-Verification: focused search/library pytest, search/rate-limit pytest, structure/frontend-contract pytest, Ruff, Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render deploy confirmation, SG OpenAPI schema check, SG/Vercel health/search readiness, and Vercel 200 passed. Local caveat: full `test_health_api.py` empty-health assertion still depends on local ClinVar index absence and failed here because the index is present. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
-Next: continue Search Task 6+ with broader public gene/source vocabulary or start Task 7 frontend results integration when Steven/Claude directs; optional Task 8 grounded answer-chain tests remain backend-safe.
+Delta: implementation commit `90e3b70` is pushed and live on Render SG deploy `dep-d938vi7avr4c73bl820g`; Search Task 6+ now indexes public `gene` rows from public publication/trial evidence and public `source` rows from sanitized report data-currency/source-version metadata without private report-text indexing or source/provider/runtime mutations.
+Verification: focused search pytest with gene/source/backfill coverage, library/search/rate-limit pytest, structure/frontend-contract pytest, Ruff, Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render deploy confirmation, SG OpenAPI schema check, SG/Vercel health/search readiness, and Vercel 200 passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
+Next: continue Search Control Plane with broader public product entities beyond current payload-backed rows, start Task 7 frontend results integration when Steven/Claude directs, or add backend-safe Task 8 grounded answer-chain tests.
 Guardrails: standing approval in `agent_handoff/DECISIONS.md` lets Codex commit/push/deploy when verified safe; still no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, cleanup deletion, destructive git, or secret output unless explicitly approved.
 End clear-safe with a fresh stamped resume prompt.
 ```

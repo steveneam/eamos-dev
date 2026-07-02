@@ -25,6 +25,25 @@ Verification passed locally:
 - `cd app/backend; python -m ruff check app/schemas/search.py app/services/search.py app/services/search_index.py tests/test_search_api_local.py`
 - `cd app/backend; python -m black --check --target-version py310 app/schemas/search.py app/services/search.py app/services/search_index.py tests/test_search_api_local.py`
 - `cd app/backend; python -m compileall app/schemas/search.py app/services/search.py app/services/search_index.py`
+- `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,871 nodes and exceeds the 5,000-node default
+  visualization threshold.
+
+Implementation commit `90e3b70` was pushed to `origin/main` and deployed to
+Render SG as `dep-d938vi7avr4c73bl820g`. Render API confirmed it is live on
+commit `90e3b70748fdd0b24e7df6e4515a46f8cd936294`.
+
+Post-deploy smoke passed:
+
+- SG OpenAPI `SearchHit.doc_type` exposes `gene` and `source`, and SearchHit
+  retains `source_key`, `subtitle`, `target_href`, and `metadata`.
+- SG `/healthz`: ok, database ok.
+- SG `/api/v1/health/provider-cache`: search `status:"ready"`, index tables
+  present, zero ownerless private rows, request-time source scans disabled, and
+  startup backfill disabled.
+- Vercel proxy `/api/v1/health/provider-cache`: same search-ready posture.
+- `https://eamos-dev.vercel.app` returned HTTP 200 by `Invoke-WebRequest`.
 
 ## 2026-07-03 01:47 +1000 - Codex - Search public popularity metadata slice
 
