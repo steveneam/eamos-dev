@@ -187,7 +187,9 @@ class VariantLibraryService:
 
     def record_view(self, query_id: str) -> VariantPopularity:
         try:
-            return _popularity_schema(self.repo.record_view(query_id=_normalize_id(query_id)))
+            popularity = _popularity_schema(self.repo.record_view(query_id=_normalize_id(query_id)))
+            self._index_variant_popularity(popularity)
+            return popularity
         except VariantLibraryRepoError as exc:
             raise _service_unavailable() from exc
 
@@ -262,6 +264,17 @@ class VariantLibraryService:
             )
         except Exception:
             logger.exception("Search index removal failed for saved variant %s", variant_id)
+
+    def _index_variant_popularity(self, popularity: VariantPopularity) -> None:
+        if self.search_index_service is None:
+            return
+        try:
+            self.search_index_service.index_variant_popularity(popularity)
+        except Exception:
+            logger.exception(
+                "Search indexing failed for variant popularity row %s",
+                popularity.query_id,
+            )
 
 
 def _saved_variant_record(payload: SavedVariant) -> SavedVariantRecord:

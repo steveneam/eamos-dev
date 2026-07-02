@@ -131,10 +131,13 @@ Done in this pass:
   current run/report index. Private rows are owner-filtered, ownerless private
   rows fail closed until backfilled, provider-cache health reports search
   readiness, and `eamos_search_index_backfill` provides dry-run-first rebuilds.
-- Follow-up cleanup: Search Control Plane Task 6 has its first non-run/report
-  workspace slice. Saved variant-library rows now index as owner-scoped private
+- Follow-up cleanup: Search Control Plane Task 6 has workspace and public
+  backend breadth. Saved variant-library rows now index as owner-scoped private
   `library_variant` documents on save, bulk save, whole-library replace, and
-  delete. Public/source-backed product entities remain open.
+  delete. Existing report payloads index public publication/trial rows and
+  private report-section rows. Public variant view-count writes index
+  `popular_variant` documents with view-count metadata and report targets.
+  Broader public gene/source vocabulary remains open.
 - Wave 3 data asset policy is now active in
   `docs/repo-structure/source-asset-policy.md`. The structure guard requires
   tracked files under `app/backend/data/source_assets` to live under registered
@@ -197,10 +200,11 @@ Current gene-viewer line-count ratchets:
 
 Target: `app/backend/app/services/gene_viewer.py`.
 
-Search Wave 2 has its first wiring slice complete. Continue remaining search
-work from `docs/search-index/spec.md` and `docs/search-index/plan.md`, starting
-with public/source-backed Task 6 breadth, approve/drop/report-payload refresh
-hooks, and later frontend results integration.
+Search Wave 2 has its backend wiring/access/readiness and current Task 6
+entity breadth mostly complete. Continue remaining search work from
+`docs/search-index/spec.md` and `docs/search-index/plan.md`, starting with
+broader public product entities, frontend results integration, and later
+grounded answer-chain tests.
 
 Follow-up update, 2026-06-30:
 

@@ -1,6 +1,6 @@
 # Eamos search index implementation plan
 
-Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented; Task 7+ and frontend integration remain open.
+Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities and structured result metadata; Task 7+ and frontend integration remain open.
 Spec: `docs/search-index/spec.md`.
 Related repo-structure wave: Wave 2, "Fix or retire Search".
 
@@ -28,9 +28,14 @@ Implementation update, 2026-06-30:
   publication and trial evidence rows index as public documents, and
   report-section rows index as owner-scoped private documents. Report-payload
   updates, approve, and drop refresh indexed rows best-effort.
-- Still open: richer public metadata/view-count breadth, broader product entity
-  coverage beyond the current payload-backed publication/trial/section rows,
-  frontend integration, and grounded answer-chain tests.
+- Task 6 richer metadata slice is implemented for current search rows: search
+  hits expose `source_key`, `subtitle`, `target_href`, and scalar `metadata`;
+  publication/trial rows carry PubMed/ClinicalTrials routing metadata; saved
+  variants carry query/classification metadata; public variant view-count writes
+  index `popular_variant` rows with view counts and last-viewed timestamps.
+- Still open: broader public product entity coverage beyond the current
+  payload-backed publication/trial/section/popularity rows, frontend
+  integration, and grounded answer-chain tests.
 
 ## Shared decisions before implementation
 
@@ -355,9 +360,11 @@ Out of scope:
 ## Task 6 - Evolve schemas toward product-wide entity search
 
 Status: partially done. Saved variant-library rows now index as owner-scoped
-private `library_variant` documents. Public/source-backed entity types,
-view-count metadata, publication/trial rows, source-backed report sections,
-and a stable frontend-facing richer result shape remain open.
+private `library_variant` documents. Existing report payloads index public
+publication/trial rows and private report-section rows. Public view-count writes
+index `popular_variant` documents, and search hits now expose a richer
+frontend-facing result shape. Public gene/source vocabulary and broader product
+entity coverage remain open.
 
 Goal:
 
@@ -383,6 +390,11 @@ Implementation update, 2026-07-01:
   not leave stale hits.
 - Focused API tests cover owner-only saved-variant search, delete cleanup, and
   whole-library replace refresh.
+- Search documents now persist scalar metadata, and `SearchHit` returns
+  `source_key`, `subtitle`, `target_href`, and `metadata`.
+- Public variant popularity counters index `popular_variant` documents on view
+  writes. Hits include gene/HGVS aliases, view count, last-viewed timestamp,
+  source status, and a `/report?q=...` target.
 
 Relevant files:
 
@@ -409,8 +421,8 @@ Acceptance criteria:
 
 - Search can return at least one non-run/report private workspace entity type
   from existing product writes.
-- Search can return at least one non-run/report public/source-backed entity type
-  from fixture or materialized data. (Still open.)
+- Search can return non-run/report public/source-backed/current product entity
+  types from existing payloads or view-count writes.
 - Existing run/report search clients still work.
 - Exact gene/HGVS/rsID aliases outrank plain-text mentions.
 - Frontend contract test covers the new response shape when a richer

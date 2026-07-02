@@ -1,5 +1,37 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-03 01:47 +1000 - Codex - Search public popularity metadata slice
+
+Continued Search Control Plane Task 6+ without changing provider posture,
+source materialization, Supabase state, or frontend UI behavior.
+
+- Added scalar metadata storage for indexed search documents and exposed
+  `source_key`, `subtitle`, `target_href`, and `metadata` on backend search hits.
+- Public publication and trial search rows now carry routing/provenance metadata
+  such as PubMed PMID target URLs, ClinicalTrials.gov NCT target URLs, source
+  status, match level, and fetch/update timestamps.
+- Existing public variant view-count writes now index `popular_variant` search
+  documents. Authenticated search users can find public popular variant rows by
+  gene/HGVS aliases, and hits include view count, last-viewed timestamp, and a
+  `/report?q=...` target.
+- Private saved-variant search rows now carry structured query/classification
+  metadata in addition to the existing owner-scoped access behavior.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py -q`
+- `cd app/backend; python -m pytest tests/test_search_api.py tests/test_rate_limits.py -q` (`test_search_api.py` Docker-gated cases skipped as before)
+- `cd app/backend; python -m pytest tests/test_frontend_contract.py -q`
+- `cd app/backend; python -m ruff check app/core/db.py app/schemas/search.py app/repos/search_repo.py app/services/search.py app/services/search_index.py app/services/variant_library.py tests/test_search_api_local.py`
+- `cd app/backend; python -m black --check --target-version py310 app/core/db.py app/schemas/search.py app/repos/search_repo.py app/services/search.py app/services/search_index.py app/services/variant_library.py tests/test_search_api_local.py`
+- `cd app/backend; python -m compileall app/core/db.py app/schemas/search.py app/repos/search_repo.py app/services/search.py app/services/search_index.py app/services/variant_library.py`
+- `git diff --check`
+
+Known verification note: `cd app/backend; python -m pytest tests/test_health_api.py tests/test_frontend_contract.py -q`
+ran the contract canary successfully but the combined run failed one unrelated
+local-environment assertion because this checkout has a ClinVar gene-distribution
+index present and the empty-health fixture expected `ready=false`.
+
 ## 2026-07-03 01:26 +1000 - Codex - Lookup report-payload assembly fold
 
 Continued the measured `lookup_service.py` package fold without changing route

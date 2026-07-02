@@ -7,9 +7,10 @@ from collections.abc import Sequence
 from app.schemas.report import UploadedReport
 from app.schemas.run import PubMedArticle, ReportPayload, RunResponse, TrialMatch
 from app.schemas.search import SearchDocumentWrite, SearchVariantWrite
-from app.schemas.variant_library import SavedVariant
+from app.schemas.variant_library import SavedVariant, VariantPopularity
 
 LIBRARY_VARIANT_DOC_TYPE = "library_variant"
+POPULAR_VARIANT_DOC_TYPE = "popular_variant"
 PUBLICATION_DOC_TYPE = "publication"
 TRIAL_DOC_TYPE = "trial"
 REPORT_SECTION_DOC_TYPE = "report_section"
@@ -93,6 +94,9 @@ class SearchIndexService:
                 variant_id=variant_id,
             )
         )
+
+    def index_variant_popularity(self, popularity: VariantPopularity) -> None:
+        self.search_repo.upsert_document(self._build_popular_variant_document(popularity))
 
     def _coerce_run(self, run: RunResponse) -> RunResponse:
         if isinstance(run, RunResponse):
@@ -374,6 +378,12 @@ class SearchIndexService:
                     search_text=self._join_text(
                         [identifier_text, summary_text, evidence_text, *run.warnings]
                     ),
+                    metadata={
+                        "section_id": section_id,
+                        "status": signal.status,
+                        "relevance": signal.relevance,
+                        "source_strength": signal.source_strength,
+                    },
                     variants=variants,
                 )
             )
@@ -422,6 +432,15 @@ class SearchIndexService:
             evidence_text=evidence_text,
             identifier_text=identifier_text,
             search_text=self._join_text([identifier_text, summary_text, evidence_text]),
+            metadata={
+                "pmid": article.pmid.strip(),
+                "pmcid": article.pmcid,
+                "doi": article.doi,
+                "journal": article.journal,
+                "year": article.year,
+                "publication_date": article.publication_date,
+                "source_status": article.snippet_status,
+            },
             variants=self._variant_writes_from_payload(payload, extra_terms=matched_terms),
         )
 
@@ -470,6 +489,15 @@ class SearchIndexService:
             evidence_text=evidence_text,
             identifier_text=identifier_text,
             search_text=self._join_text([identifier_text, summary_text, evidence_text]),
+            metadata={
+                "nct_id": nct_id,
+                "status": trial.status,
+                "phase": trial.phase,
+                "source_url": trial.source_url,
+                "match_level": trial.match_level,
+                "fetched_at": trial.fetched_at,
+                "last_update_posted_at": trial.last_update_posted_at,
+            },
             variants=self._variant_writes_from_payload(
                 payload,
                 extra_terms=[*trial.matched_terms, *trial.conditions, *trial.interventions],
@@ -599,6 +627,49 @@ class SearchIndexService:
             raw_extracted_text=raw_text,
             identifier_text=self._join_text(identifier_parts),
             search_text=self._join_text([*identifier_parts, summary_text, raw_text]),
+            metadata={
+                "query": variant.query,
+                "variant_id": variant.id,
+                "classification": variant.classification,
+                "hgvs_full": variant.hgvs_full,
+                "saved_at": variant.savedAt,
+            },
+            variants=[variant_write],
+        )
+
+    def _build_popular_variant_document(
+        self,
+        popularity: VariantPopularity,
+    ) -> SearchDocumentWrite:
+        query_id = popularity.query_id.strip().lower()
+        title = self._display_variant_query(query_id)
+        variant_write = self._variant_write_from_popular_query(query_id)
+        identifier_text = self._join_text([query_id, title, variant_write.gene_symbol])
+        last_viewed = popularity.last_viewed.isoformat() if popularity.last_viewed else None
+        summary_text = self._join_text(
+            [
+                title,
+                f"Public variant view count: {popularity.view_count}",
+                f"Last viewed: {last_viewed}" if last_viewed else None,
+            ]
+        )
+        evidence_text = "Eamos public variant view counter"
+        return SearchDocumentWrite(
+            source_key=self._popular_variant_source_key(query_id=query_id),
+            doc_type=POPULAR_VARIANT_DOC_TYPE,
+            visibility_scope="public",
+            report_title=title,
+            summary_text=summary_text,
+            evidence_text=evidence_text,
+            identifier_text=identifier_text,
+            search_text=self._join_text([identifier_text, summary_text, evidence_text]),
+            metadata={
+                "query": query_id,
+                "query_id": query_id,
+                "view_count": popularity.view_count,
+                "last_viewed": last_viewed,
+                "source_status": "public_view_counter",
+            },
             variants=[variant_write],
         )
 
@@ -640,6 +711,10 @@ class SearchIndexService:
         digest = hashlib.sha256(f"{owner_user_id}\x1f{variant_id}".encode("utf-8")).hexdigest()
         return f"{LIBRARY_VARIANT_DOC_TYPE}:{digest[:24]}"
 
+    def _popular_variant_source_key(self, *, query_id: str) -> str:
+        digest = hashlib.sha256(query_id.encode("utf-8")).hexdigest()
+        return f"{POPULAR_VARIANT_DOC_TYPE}:{digest[:24]}"
+
     def _report_section_source_key_prefix(self, run_id: str) -> str:
         return f"{REPORT_SECTION_DOC_TYPE}:{run_id}:"
 
@@ -669,3 +744,40 @@ class SearchIndexService:
             if match:
                 return match.group(0)
         return None
+
+    def _variant_write_from_popular_query(self, query_id: str) -> SearchVariantWrite:
+        gene = None
+        transcript_hgvs = None
+        parts = query_id.split()
+        if parts and self._looks_like_gene_symbol(parts[0]):
+            gene = parts[0].upper()
+        for part in parts[1:]:
+            if part.lower().startswith("c."):
+                transcript_hgvs = self._display_cdna(part)
+                break
+        return SearchVariantWrite(
+            gene_symbol=gene,
+            gene_symbol_norm=gene,
+            transcript_hgvs=transcript_hgvs,
+            transcript_hgvs_norm=self._normalize_identifier(transcript_hgvs),
+            protein_change=None,
+            protein_change_norm=None,
+        )
+
+    def _display_variant_query(self, query_id: str) -> str:
+        parts = query_id.split()
+        if not parts:
+            return query_id
+        display_parts = [parts[0].upper()]
+        for part in parts[1:]:
+            if part.lower().startswith("c."):
+                display_parts.append(self._display_cdna(part))
+            else:
+                display_parts.append(part)
+        return " ".join(display_parts)
+
+    def _display_cdna(self, value: str) -> str:
+        text = value.strip()
+        if not text.lower().startswith("c."):
+            return text
+        return f"{text[:2].lower()}{text[2:].upper()}"

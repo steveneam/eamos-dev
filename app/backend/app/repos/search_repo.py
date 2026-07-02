@@ -62,6 +62,7 @@ class SearchRepo:
             record.raw_extracted_text = document.raw_extracted_text
             record.identifier_text = document.identifier_text
             record.search_text = document.search_text
+            record.metadata_json = dict(document.metadata)
             record.updated_at = datetime.now(timezone.utc)
             session.add(record)
             session.flush()

@@ -383,6 +383,11 @@ def test_source_backed_publication_trial_and_section_rows_are_indexed(
             "RPE65 gene therapy in inherited retinal dystrophy",
         )
     ]
+    publication_hit = publication.json()["results"][0]
+    assert publication_hit["source_key"] == "publication:pmid:12345678"
+    assert publication_hit["target_href"] == "https://pubmed.ncbi.nlm.nih.gov/12345678/"
+    assert publication_hit["metadata"]["pmid"] == "12345678"
+    assert publication_hit["metadata"]["source_status"] == "source_backed"
 
     trial = client.get(
         "/api/v1/search",
@@ -394,6 +399,11 @@ def test_source_backed_publication_trial_and_section_rows_are_indexed(
         (item["doc_type"], item["visibility_scope"], item["title"])
         for item in trial.json()["results"]
     ] == [("trial", "public", "RPE65 retinal dystrophy registry study")]
+    trial_hit = trial.json()["results"][0]
+    assert trial_hit["source_key"] == "trial:NCT01234567"
+    assert trial_hit["target_href"] == "https://clinicaltrials.gov/study/NCT01234567"
+    assert trial_hit["metadata"]["nct_id"] == "NCT01234567"
+    assert trial_hit["metadata"]["match_level"] == "variant_level"
 
     owner_section = client.get(
         "/api/v1/search",
@@ -413,6 +423,39 @@ def test_source_backed_publication_trial_and_section_rows_are_indexed(
     )
     assert other_section.status_code == 200
     assert other_section.json()["results"] == []
+
+
+def test_variant_view_counter_indexes_public_popular_variant_metadata(
+    client: TestClient,
+) -> None:
+    headers = _auth_headers(client, "search-popular-viewer")
+    query_id = "USH2A c.2276G>T"
+
+    first = client.post(f"/api/v1/library/views/{quote(query_id, safe='')}")
+    second = client.post(f"/api/v1/library/views/{quote(query_id, safe='')}")
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["variant"]["view_count"] == 2
+
+    result = client.get(
+        "/api/v1/search",
+        params={"q": "USH2A", "doc_type": "popular_variant", "limit": 5},
+        headers=headers,
+    )
+
+    assert result.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in result.json()["results"]
+    ] == [("popular_variant", "public", "USH2A c.2276G>T")]
+    hit = result.json()["results"][0]
+    assert hit["source_key"].startswith("popular_variant:")
+    assert hit["subtitle"] == "2 views"
+    assert hit["target_href"] == f"/report?q={quote('ush2a c.2276g>t')}"
+    assert hit["metadata"]["query_id"] == "ush2a c.2276g>t"
+    assert hit["metadata"]["view_count"] == 2
+    assert hit["metadata"]["source_status"] == "public_view_counter"
+    assert hit["metadata"]["last_viewed"] is not None
 
 
 def test_run_report_payload_approve_and_drop_refresh_search_rows(client: TestClient) -> None:

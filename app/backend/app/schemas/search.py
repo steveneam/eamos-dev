@@ -5,10 +5,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+SearchMetadataValue = str | int | float | bool | None
+
 SearchDocType = Literal[
     "report",
     "run",
     "library_variant",
+    "popular_variant",
     "publication",
     "trial",
     "report_section",
@@ -24,13 +27,17 @@ SearchMatchType = Literal[
 
 
 class SearchHit(BaseModel):
+    source_key: str
     doc_type: SearchDocType
     visibility_scope: SearchVisibilityScope = "private"
     run_id: str | None = None
     report_id: str | None = None
     patient_id: str | None = None
     title: str
+    subtitle: str | None = None
     snippet: str | None = None
+    target_href: str | None = None
+    metadata: dict[str, SearchMetadataValue] = Field(default_factory=dict)
     match_type: SearchMatchType
     score: float = 0.0
     run_status: str | None = None
@@ -114,4 +121,5 @@ class SearchDocumentWrite(BaseModel):
     raw_extracted_text: str = ""
     identifier_text: str = ""
     search_text: str = ""
+    metadata: dict[str, SearchMetadataValue] = Field(default_factory=dict)
     variants: list[SearchVariantWrite] = Field(default_factory=list)

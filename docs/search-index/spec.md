@@ -1,6 +1,6 @@
 # Eamos search index spec
 
-Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, and private report sections from existing payloads; frontend integration remains planned.
+Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, private report sections from existing payloads, public popular-variant view-count entities, and structured hit metadata; frontend integration remains planned.
 Created: 2026-06-30 by Codex.
 Related structure work: `docs/repo-structure/plan.md`, Wave 2 in
 `docs/repo-structure/audit-2026-06-30.md`.
@@ -52,6 +52,11 @@ Implementation update, 2026-07-01:
 - Report-payload PATCH, approve, and drop flows refresh run/report-section
   search rows after the primary write succeeds, preserving the existing
   best-effort indexing posture.
+- Public variant view-count writes now index `popular_variant` documents with
+  gene/HGVS aliases, view-count metadata, last-viewed timestamps, and `/report`
+  targets. Search hits now expose `source_key`, `subtitle`, `target_href`, and
+  scalar `metadata` so the future results UI can route/explain hits without
+  reparsing snippets.
 
 ## What
 
@@ -291,9 +296,10 @@ Second slice:
   payloads. The search index should index what Eamos has already fetched or
   materialized, not trigger fresh source queries.
 
-Current implementation note: variant library saved rows are the first completed
-piece of this slice. View metadata, source-backed report sections,
-publication/trial rows, and public gene/source entities remain open.
+Current implementation note: variant library saved rows, view-count popularity
+rows, source-backed report sections, and publication/trial rows are completed
+pieces of this slice. Public gene/source entities and broader source-backed
+product vocabulary remain open.
 
 Later slices:
 

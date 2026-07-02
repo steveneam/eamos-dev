@@ -205,6 +205,7 @@ class SearchDocumentRecord(Base):
     raw_extracted_text: Mapped[str] = mapped_column(Text, default="")
     identifier_text: Mapped[str] = mapped_column(Text, default="")
     search_text: Mapped[str] = mapped_column(Text, default="")
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -602,6 +603,16 @@ def _ensure_search_document_access_columns(engine) -> None:
             )
         else:
             statements.append("ALTER TABLE search_documents ADD COLUMN owner_user_id VARCHAR(128)")
+    if "metadata_json" not in columns:
+        if engine.dialect.name == "postgresql":
+            statements.append(
+                "ALTER TABLE search_documents "
+                "ADD COLUMN IF NOT EXISTS metadata_json JSONB DEFAULT '{}'::jsonb"
+            )
+        else:
+            statements.append(
+                "ALTER TABLE search_documents ADD COLUMN metadata_json JSON DEFAULT '{}'"
+            )
     if statements:
         with engine.begin() as connection:
             for statement in statements:
