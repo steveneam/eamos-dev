@@ -31,6 +31,19 @@ Verification passed locally:
   because the graph has 17,747 nodes and exceeds the 5,000-node default
   visualization threshold.
 
+Implementation commit `4565b61` was pushed to `origin/main` and deployed to
+Render SG as `dep-d934m2ok1i2s73djgg80`. Render API confirmed it is live on
+commit `4565b610a4d44517c4921e8dd93383834ff4b39d`.
+
+Post-deploy smoke passed:
+
+- Eamos SG lookup smoke: USH2A `c.2276G>T` gnomAD population-frequency contract
+  present; RPE65 `c.260A>G` gnomAD absence handled without faking data.
+- SG `/healthz`: ok, database ok, `llm_provider="gateway"`.
+- SG and Vercel proxy `/api/v1/health/provider-cache`: `search.status="ready"`,
+  `index_tables_present=true`, and `private_rows_without_owner_count=0`.
+- `https://eamos-dev.vercel.app`: HTTP 200.
+
 Next measured lookup optimization targets: publication/trial section builders
 and report-payload assembly, only with focused characterization proving route,
 cache, and source-provider behavior remain unchanged.
