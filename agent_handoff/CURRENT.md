@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-07-02 21:30 +1000 - Lookup source-cache orchestration fold shipped. Implementation commit `4565b61` is pushed to `origin/main` and live on Render SG deploy `dep-d934m2ok1i2s73djgg80`; focused source-cache/lookup/report-cache tests, Ruff, Black, compileall, diff-check, graphify update, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
+- **Codex:** STOPPED @ 2026-07-03 01:06 +1000 - Lookup publication/trial builder fold shipped. Implementation commit `41b29ed` is pushed to `origin/main` and live on Render SG deploy `dep-d937rgkvikkc73e7nfkg`; focused lookup publication/trial/report-cache tests, Ruff, Black, compileall, diff-check, graphify update, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-02 21:30 +1000 - Codex (lookup source-cache orchestration fold shipped/deployed; closeout docs updated)
+UNLOCKED - 2026-07-03 01:06 +1000 - Codex (lookup publication/trial builder fold shipped/deployed; closeout docs updated)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -409,52 +409,59 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-07-02 21:30 +1000 - Codex.
+Section last edited: 2026-07-03 01:06 +1000 - Codex.
 
-**Latest Codex update (2026-07-02 21:30 +1000 - Codex):**
-Shipped the second `lookup_service.py` package-fold slice. Implementation commit
-`4565b61` is pushed to `origin/main` and live on Render SG deploy
-`dep-d934m2ok1i2s73djgg80`.
+**Latest Codex update (2026-07-03 01:06 +1000 - Codex):**
+Shipped the third `lookup_service.py` package-fold slice. Implementation commit
+`41b29ed` is pushed to `origin/main` and live on Render SG deploy
+`dep-d937rgkvikkc73e7nfkg`.
 
 - `lookup_service.py` remains the public compatibility facade and keeps the
   existing route/report behavior.
-- Lookup source-cache orchestration now lives in
-  `lookup_service_source_cache.py`: source-cache key selection, hero/general
-  source policy, fresh-hit reuse, stale-on-failure/exception fallback,
-  persistence eligibility, report source-result cache snapshot writes, identity
-  mismatch warnings, and timing-provider metadata.
-- Added direct helper tests for fresh-cache bypass, stale fallback on live
-  exception, and successful source/report cache persistence.
-- Structure guards ratchet `lookup_service.py` from 2500 to 2350 lines and
-  budget the new source-cache helper.
+- Publication/trial section assembly now lives in
+  `lookup_service_publications_trials.py`: gene therapy map, ClinicalTrials.gov
+  summary/no-row text, disease-term extraction, cached publication-section
+  reuse, publication-source hydration, trial row/query/provenance normalization,
+  therapeutic-landscape assembly, PubMed article parsing, LitVar/PubMed merge
+  fallback, dbSNP extraction, lookup publication-literature failure handling,
+  and publications callout construction.
+- Added direct helper tests for cached publication-section bypass, trial row
+  fetched-at/provenance normalization, cached therapeutic-landscape trial
+  rendering, and publications callout construction.
+- Structure guards ratchet `lookup_service.py` from 2350 to 2000 lines and
+  budget the new publication/trial helper at 500 lines.
+- Updated one stale publication integration assertion to include the current
+  zero-valued `mavedb` functional-evidence source bucket.
 
 Verification passed:
 
-- Focused helper/source-cache/structure pytest.
-- Focused report-cache, lookup-section, ClinVar adapter, and variant-cache pytest.
+- Focused helper/structure pytest.
+- Focused lookup-section, variant-report-orchestration, variant-cache,
+  report-cache, and publication integration pytest.
 - Ruff and focused Black on changed backend/test files.
 - Compileall on changed lookup modules.
 - `git diff --check`.
 - `python -m graphify update .` with long timeout; graph HTML skipped because
-  the graph has 17,747 nodes and exceeds the 5,000-node default visualization
+  the graph has 17,786 nodes and exceeds the 5,000-node default visualization
   threshold.
 
 Post-deploy verification:
 
-- Render API confirms `dep-d934m2ok1i2s73djgg80` live on
-  `4565b610a4d44517c4921e8dd93383834ff4b39d`.
-- Eamos SG lookup smoke passed: USH2A `c.2276G>T` has the expected gnomAD
-  population-frequency contract; RPE65 `c.260A>G` handles absent gnomAD data
-  without faking frequency.
-- SG `/healthz` ok; SG and Vercel proxy `/api/v1/health/provider-cache` report
-  search ready, index tables present, and zero ownerless private search rows.
-- `https://eamos-dev.vercel.app` returned HTTP 200.
+- Render API confirms `dep-d937rgkvikkc73e7nfkg` live on
+  `41b29eda450e48b7de27bff6226c4881d6f62cbe`.
+- SG `/healthz` ok; SG `/api/v1/health/provider-cache` reports search ready and
+  zero ownerless private search rows.
+- SG `/api/v1/lookup/sections` for RPE65 `c.260A>G` returned available
+  publications and available therapies/trials with trial rows.
+- SG `/api/v1/lookup` for RPE65 `c.260A>G` returned a valid report payload; live
+  source warnings remain the current expected posture for absent/timeout
+  sources.
+- Vercel proxy `/api/v1/health/provider-cache` reports search ready, index
+  tables present, and zero ownerless private rows.
+- `https://eamos-dev.vercel.app` returned HTTP 200 by `curl.exe`.
 
 Operational note:
 
-- An initial Render API `deploy_only` run (`dep-d934lluq1p3s73ed5no0`) redeployed
-  the prior `7b503b5` image and was deactivated by the correct build deploy for
-  `4565b61`. No env/provider setting changed.
 - Live caveat remains unchanged: minimal SG Workbench design calls (`/primer`,
   `/crispr`, `/align`) can still return config-gated
   `workbench_sequence_context_resolver_error`.
@@ -468,11 +475,11 @@ verified, and documented.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt · 2026-07-02 21:30 +1000 · Codex lookup source-cache orchestration fold
+# Resume prompt · 2026-07-03 01:06 +1000 · Codex lookup publication/trial builder fold
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
-Delta: implementation commit `4565b61` is pushed and live on Render SG deploy `dep-d934m2ok1i2s73djgg80`; it extracts/tests lookup source-cache orchestration into `lookup_service_source_cache.py` while preserving the public `lookup_service.py` facade and route behavior.
-Verification: helper/source-cache/structure pytest, focused report-cache/lookup-section/ClinVar/variant-cache pytest, Ruff, Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render API deploy confirmation, Eamos SG lookup smoke, SG/Vercel health/search readiness, and Vercel 200 all passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
-Next: continue measured `lookup_service.py` optimization with publication/trial section builders and report-payload assembly; or resume Search Task 6+ remaining work: richer public/view-count metadata, broader product entity search, frontend search-results integration, and optional answer-chain breadth/grounding tests.
+Delta: implementation commit `41b29ed` is pushed and live on Render SG deploy `dep-d937rgkvikkc73e7nfkg`; it extracts/tests lookup publication/trial builders into `lookup_service_publications_trials.py` while preserving the public `lookup_service.py` facade and route behavior.
+Verification: helper/structure pytest, focused lookup-section/report-orchestration/variant-cache/report-cache/publication integration pytest, Ruff, Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render API deploy confirmation, SG lookup publication/trial smoke, SG/Vercel health/search readiness, and Vercel 200 all passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
+Next: continue measured `lookup_service.py` optimization with full report-payload assembly; or resume Search Task 6+ remaining work: richer public/view-count metadata, broader product entity search, frontend search-results integration, and optional answer-chain breadth/grounding tests.
 Guardrails: standing approval in `agent_handoff/DECISIONS.md` lets Codex commit/push/deploy when verified safe; still no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, cleanup deletion, destructive git, or secret output unless explicitly approved.
 End clear-safe with a fresh stamped resume prompt.
 ```
