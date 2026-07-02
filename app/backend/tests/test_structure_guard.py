@@ -70,7 +70,10 @@ HOTSPOT_LINE_BUDGETS = {
     "app/backend/app/services/pubmed_local_license_policy.py": 75,
     "app/backend/app/services/pubmed_local_models.py": 275,
     "app/backend/app/services/pubmed_local_parsing.py": 1250,
-    "app/backend/app/services/lookup_service.py": 3000,
+    "app/backend/app/services/lookup_service.py": 2500,
+    "app/backend/app/services/lookup_service_cache.py": 425,
+    "app/backend/app/services/lookup_service_clinvar_distribution.py": 100,
+    "app/backend/app/services/lookup_service_utils.py": 50,
     "app/backend/app/services/workbench_design.py": 300,
     "app/backend/app/services/workbench_design_alignment.py": 650,
     "app/backend/app/services/workbench_design_common.py": 100,
@@ -263,3 +266,37 @@ def test_known_hotspots_do_not_grow_without_a_split() -> None:
         "Known oversized files grew. Split by responsibility or update "
         "docs/repo-structure/plan.md with a deliberate new budget: " + "; ".join(offenders)
     )
+
+
+def test_lookup_service_facade_preserves_package_fold_import_surface() -> None:
+    from app.services.lookup_service import (
+        CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX,
+        FUNCTIONAL_EVIDENCE_CACHE_VERSION,
+        GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
+        LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING,
+        LEGACY_REPORT_SHELL_CACHE_READ_WARNING,
+        PUBLICATION_DATA_CACHE_VERSION,
+        REPORT_SECTION_CACHE_VERSION,
+        REPORT_SHELL_CACHE_VERSION,
+        SOURCE_RESULT_CACHE_VERSION,
+        STRICT_GENOMIC_CACHE_VERSION,
+        GENE_THERAPY_MAP,
+        LookupService,
+        _clinvar_distribution_runtime_path,
+        _clinvar_gene_distribution_exclusion_warning,
+    )
+
+    assert LookupService.__name__ == "LookupService"
+    assert GENE_THERAPY_MAP["RPE65"]
+    assert CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX
+    assert PUBLICATION_DATA_CACHE_VERSION >= 1
+    assert STRICT_GENOMIC_CACHE_VERSION >= 1
+    assert FUNCTIONAL_EVIDENCE_CACHE_VERSION >= 1
+    assert GENE_CONTEXT_SNAPSHOT_CACHE_VERSION >= 1
+    assert REPORT_SHELL_CACHE_VERSION >= 1
+    assert REPORT_SECTION_CACHE_VERSION >= 1
+    assert SOURCE_RESULT_CACHE_VERSION >= 1
+    assert LEGACY_REPORT_SHELL_CACHE_READ_WARNING
+    assert LEGACY_REPORT_SECTIONS_CACHE_READ_WARNING
+    assert callable(_clinvar_distribution_runtime_path)
+    assert callable(_clinvar_gene_distribution_exclusion_warning)
