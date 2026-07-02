@@ -468,7 +468,7 @@ verified, and documented.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-07-03 02:22 +1000 - Codex search public gene/source vocabulary slice
+# Resume prompt · 2026-07-03 02:22 +1000 · Codex search public gene/source vocabulary slice
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
 Delta: implementation commit `90e3b70` is pushed and live on Render SG deploy `dep-d938vi7avr4c73bl820g`; Search Task 6+ now indexes public `gene` rows from public publication/trial evidence and public `source` rows from sanitized report data-currency/source-version metadata without private report-text indexing or source/provider/runtime mutations.
 Verification: focused search pytest with gene/source/backfill coverage, library/search/rate-limit pytest, structure/frontend-contract pytest, Ruff, Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render deploy confirmation, SG OpenAPI schema check, SG/Vercel health/search readiness, and Vercel 200 passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
