@@ -84,6 +84,66 @@ class SearchRepo:
                 )
             return record
 
+    def delete_document(self, *, source_key: str) -> bool:
+        with session_scope(self.session_factory) as session:
+            record = session.execute(
+                select(SearchDocumentRecord).where(SearchDocumentRecord.source_key == source_key)
+            ).scalar_one_or_none()
+            if record is None:
+                return False
+            session.execute(
+                delete(SearchVariantRecord).where(SearchVariantRecord.document_id == record.doc_id)
+            )
+            session.delete(record)
+            return True
+
+    def delete_owner_documents(self, *, doc_type: str, owner_user_id: str) -> int:
+        with session_scope(self.session_factory) as session:
+            doc_ids = list(
+                session.execute(
+                    select(SearchDocumentRecord.doc_id).where(
+                        SearchDocumentRecord.doc_type == doc_type,
+                        SearchDocumentRecord.owner_user_id == owner_user_id,
+                    )
+                ).scalars()
+            )
+            if not doc_ids:
+                return 0
+            session.execute(
+                delete(SearchVariantRecord).where(SearchVariantRecord.document_id.in_(doc_ids))
+            )
+            result = session.execute(
+                delete(SearchDocumentRecord).where(SearchDocumentRecord.doc_id.in_(doc_ids))
+            )
+            return int(result.rowcount or 0)
+
+    def delete_documents_by_source_key_prefix(self, *, source_key_prefix: str) -> int:
+        with session_scope(self.session_factory) as session:
+            doc_ids = list(
+                session.execute(
+                    select(SearchDocumentRecord.doc_id).where(
+                        SearchDocumentRecord.source_key.like(f"{source_key_prefix}%")
+                    )
+                ).scalars()
+            )
+            if not doc_ids:
+                return 0
+            session.execute(
+                delete(SearchVariantRecord).where(SearchVariantRecord.document_id.in_(doc_ids))
+            )
+            result = session.execute(
+                delete(SearchDocumentRecord).where(SearchDocumentRecord.doc_id.in_(doc_ids))
+            )
+            return int(result.rowcount or 0)
+
+    def owner_for_source_key(self, *, source_key: str) -> str | None:
+        with session_scope(self.session_factory) as session:
+            return session.execute(
+                select(SearchDocumentRecord.owner_user_id).where(
+                    SearchDocumentRecord.source_key == source_key
+                )
+            ).scalar_one_or_none()
+
     def search_exact_ids(
         self,
         query: str,

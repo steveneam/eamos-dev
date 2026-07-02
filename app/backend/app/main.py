@@ -250,7 +250,10 @@ def create_app(settings=None) -> FastAPI:
         settings=settings,
         subscriptions_repo=subscriptions_repo,
     )
-    app.state.variant_library_service = VariantLibraryService(variant_library_repo)
+    app.state.variant_library_service = VariantLibraryService(
+        variant_library_repo,
+        search_index_service=search_index_service,
+    )
     app.state.intake_service = IntakeService(
         settings,
         reports_repo,
@@ -271,7 +274,10 @@ def create_app(settings=None) -> FastAPI:
         run_repo,
         search_index_service=search_index_service,
     )
-    app.state.report_draft_service = ReportDraftService(run_repo)
+    app.state.report_draft_service = ReportDraftService(
+        run_repo,
+        search_index_service=search_index_service,
+    )
     app.state.run_chat_service = RunChatService(
         settings=settings,
         run_repo=run_repo,
@@ -284,7 +290,11 @@ def create_app(settings=None) -> FastAPI:
         llm_client=gateway_chat_client or lookup_chat_chain,
         literature_retriever=literature_retriever,
     )
-    app.state.final_report_service = FinalReportService(settings, run_repo)
+    app.state.final_report_service = FinalReportService(
+        settings,
+        run_repo,
+        search_index_service=search_index_service,
+    )
     app.state.sequence_context_service = sequence_context_service
     app.state.gene_viewer_service = GeneViewerService(
         settings=settings,

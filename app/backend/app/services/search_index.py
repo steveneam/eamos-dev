@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from collections.abc import Sequence
 
 from app.schemas.report import UploadedReport
-from app.schemas.run import RunResponse
+from app.schemas.run import PubMedArticle, ReportPayload, RunResponse, TrialMatch
 from app.schemas.search import SearchDocumentWrite, SearchVariantWrite
+from app.schemas.variant_library import SavedVariant
+
+LIBRARY_VARIANT_DOC_TYPE = "library_variant"
+PUBLICATION_DOC_TYPE = "publication"
+TRIAL_DOC_TYPE = "trial"
+REPORT_SECTION_DOC_TYPE = "report_section"
 
 
 class SearchIndexService:
@@ -26,6 +34,7 @@ class SearchIndexService:
         owner_user_id: str | None = None,
     ) -> None:
         normalized_run = self._coerce_run(run)
+        effective_owner_user_id = owner_user_id or self._existing_run_owner(normalized_run.run_id)
         source_reports = reports or [
             report
             for report_id in normalized_run.report_ids
@@ -34,9 +43,15 @@ class SearchIndexService:
         document = self._build_run_document(
             normalized_run,
             source_reports,
-            owner_user_id=owner_user_id,
+            owner_user_id=effective_owner_user_id,
         )
         self.search_repo.upsert_document(document)
+        self._replace_report_section_documents(
+            normalized_run,
+            owner_user_id=effective_owner_user_id,
+        )
+        for source_document in self._build_public_source_documents(normalized_run):
+            self.search_repo.upsert_document(source_document)
 
     def refresh_run(self, run_id: str) -> None:
         run = (
@@ -45,6 +60,39 @@ class SearchIndexService:
         if run is None:
             return
         self.index_run(run)
+
+    def index_saved_variant(self, variant: SavedVariant, *, owner_user_id: str) -> None:
+        document = self._build_saved_variant_document(variant, owner_user_id=owner_user_id)
+        self.search_repo.upsert_document(document)
+
+    def index_saved_variants(
+        self,
+        variants: Sequence[SavedVariant],
+        *,
+        owner_user_id: str,
+    ) -> None:
+        for variant in variants:
+            self.index_saved_variant(variant, owner_user_id=owner_user_id)
+
+    def replace_saved_variants(
+        self,
+        variants: Sequence[SavedVariant],
+        *,
+        owner_user_id: str,
+    ) -> None:
+        self.search_repo.delete_owner_documents(
+            doc_type=LIBRARY_VARIANT_DOC_TYPE,
+            owner_user_id=owner_user_id,
+        )
+        self.index_saved_variants(variants, owner_user_id=owner_user_id)
+
+    def remove_saved_variant(self, *, variant_id: str, owner_user_id: str) -> None:
+        self.search_repo.delete_document(
+            source_key=self._saved_variant_source_key(
+                owner_user_id=owner_user_id,
+                variant_id=variant_id,
+            )
+        )
 
     def _coerce_run(self, run: RunResponse) -> RunResponse:
         if isinstance(run, RunResponse):
@@ -243,6 +291,317 @@ class SearchIndexService:
             variants=variants,
         )
 
+    def _build_public_source_documents(self, run: RunResponse) -> list[SearchDocumentWrite]:
+        payload = run.report_payload
+        documents: list[SearchDocumentWrite] = []
+        seen_publications: set[str] = set()
+        for article in self._publication_articles(payload):
+            pmid = (article.pmid or "").strip()
+            if not pmid or pmid in seen_publications:
+                continue
+            seen_publications.add(pmid)
+            documents.append(self._build_publication_document(payload, article))
+
+        seen_trials: set[str] = set()
+        for trial in self._trial_rows(payload):
+            nct_id = (trial.nct_id or "").strip().upper()
+            if not nct_id or nct_id in seen_trials:
+                continue
+            seen_trials.add(nct_id)
+            documents.append(self._build_trial_document(payload, trial))
+        return documents
+
+    def _replace_report_section_documents(
+        self,
+        run: RunResponse,
+        *,
+        owner_user_id: str | None,
+    ) -> None:
+        if not owner_user_id:
+            return
+        prefix = self._report_section_source_key_prefix(run.run_id)
+        self.search_repo.delete_documents_by_source_key_prefix(source_key_prefix=prefix)
+        for document in self._build_report_section_documents(run, owner_user_id=owner_user_id):
+            self.search_repo.upsert_document(document)
+
+    def _build_report_section_documents(
+        self,
+        run: RunResponse,
+        *,
+        owner_user_id: str,
+    ) -> list[SearchDocumentWrite]:
+        profile = run.report_payload.report_profile
+        if profile is None:
+            return []
+        variants = self._variant_writes_from_payload(run.report_payload)
+        documents: list[SearchDocumentWrite] = []
+        for signal in profile.section_signals:
+            section_id = (signal.section_id or "").strip()
+            if not section_id:
+                continue
+            title = signal.label
+            if signal.headline:
+                title = f"{signal.label}: {signal.headline}"
+            source_refs = list(signal.source_refs)
+            data_notes = list(signal.data_notes)
+            summary_text = self._join_text(
+                [
+                    signal.label,
+                    signal.headline,
+                    signal.relevance,
+                    signal.source_strength,
+                    signal.status,
+                ]
+            )
+            evidence_text = self._join_text([*source_refs, *data_notes])
+            identifier_text = self._join_text([run.run_id, section_id, signal.label, *source_refs])
+            documents.append(
+                SearchDocumentWrite(
+                    source_key=(
+                        f"{self._report_section_source_key_prefix(run.run_id)}"
+                        f"{self._stable_token(section_id)}"
+                    ),
+                    doc_type=REPORT_SECTION_DOC_TYPE,
+                    visibility_scope="private",
+                    owner_user_id=owner_user_id,
+                    run_id=run.run_id,
+                    run_status=run.run_status.value,
+                    review_status=run.review_status.value,
+                    report_title=title,
+                    summary_text=summary_text,
+                    evidence_text=evidence_text,
+                    identifier_text=identifier_text,
+                    search_text=self._join_text(
+                        [identifier_text, summary_text, evidence_text, *run.warnings]
+                    ),
+                    variants=variants,
+                )
+            )
+        return documents
+
+    def _build_publication_document(
+        self,
+        payload: ReportPayload,
+        article: PubMedArticle,
+    ) -> SearchDocumentWrite:
+        snippet_texts = [snippet.text for snippet in article.snippets if snippet.text]
+        matched_terms = [
+            term
+            for snippet in article.snippets
+            for term in snippet.matched_terms
+            if term and term.strip()
+        ]
+        source_tags = [str(tag) for tag in article.source_tags]
+        identifier_text = self._join_text(
+            [
+                f"PMID {article.pmid}",
+                article.pmid,
+                article.pmcid,
+                article.doi,
+                *source_tags,
+                *matched_terms,
+            ]
+        )
+        summary_text = self._join_text([article.title, article.abstract, *snippet_texts])
+        evidence_text = self._join_text(
+            [
+                article.authors,
+                article.journal,
+                article.year,
+                article.publication_date,
+                article.url,
+                article.snippet_status,
+            ]
+        )
+        return SearchDocumentWrite(
+            source_key=f"{PUBLICATION_DOC_TYPE}:pmid:{article.pmid.strip()}",
+            doc_type=PUBLICATION_DOC_TYPE,
+            visibility_scope="public",
+            report_title=article.title or f"PubMed {article.pmid}",
+            summary_text=summary_text,
+            evidence_text=evidence_text,
+            identifier_text=identifier_text,
+            search_text=self._join_text([identifier_text, summary_text, evidence_text]),
+            variants=self._variant_writes_from_payload(payload, extra_terms=matched_terms),
+        )
+
+    def _build_trial_document(
+        self,
+        payload: ReportPayload,
+        trial: TrialMatch,
+    ) -> SearchDocumentWrite:
+        nct_id = trial.nct_id.strip().upper()
+        identifier_text = self._join_text(
+            [
+                nct_id,
+                trial.title,
+                *trial.conditions,
+                *trial.interventions,
+                *trial.matched_terms,
+            ]
+        )
+        summary_text = self._join_text(
+            [
+                trial.title,
+                trial.status,
+                trial.phase,
+                *trial.conditions,
+                *trial.interventions,
+                trial.evidence_snippet,
+            ]
+        )
+        evidence_text = self._join_text(
+            [
+                trial.source_url,
+                trial.match_level,
+                trial.evidence_field,
+                trial.last_update_posted_at,
+                trial.fetched_at,
+                *trial.locations,
+                *trial.warnings,
+            ]
+        )
+        return SearchDocumentWrite(
+            source_key=f"{TRIAL_DOC_TYPE}:{nct_id}",
+            doc_type=TRIAL_DOC_TYPE,
+            visibility_scope="public",
+            report_title=trial.title or nct_id,
+            summary_text=summary_text,
+            evidence_text=evidence_text,
+            identifier_text=identifier_text,
+            search_text=self._join_text([identifier_text, summary_text, evidence_text]),
+            variants=self._variant_writes_from_payload(
+                payload,
+                extra_terms=[*trial.matched_terms, *trial.conditions, *trial.interventions],
+            ),
+        )
+
+    def _publication_articles(self, payload: ReportPayload) -> list[PubMedArticle]:
+        articles: list[PubMedArticle] = []
+        if payload.publications_literature is not None:
+            articles.extend(payload.publications_literature.articles)
+        articles.extend(payload.pubmed_articles)
+        return articles
+
+    def _trial_rows(self, payload: ReportPayload) -> list[TrialMatch]:
+        if payload.report_profile is None or payload.report_profile.therapies_trials is None:
+            return []
+        return list(payload.report_profile.therapies_trials.trial_rows)
+
+    def _variant_writes_from_payload(
+        self,
+        payload: ReportPayload,
+        *,
+        extra_terms: Sequence[str] = (),
+    ) -> list[SearchVariantWrite]:
+        rows: list[SearchVariantWrite] = []
+        seen: set[tuple[str | None, str | None, str | None]] = set()
+        for variant in payload.variant_summary_rows:
+            self._append_variant_write(rows, seen, self._build_variant_write(variant))
+        for term in extra_terms:
+            variant = self._variant_write_from_term(term)
+            if variant is not None:
+                self._append_variant_write(rows, seen, variant)
+        return rows
+
+    def _append_variant_write(
+        self,
+        rows: list[SearchVariantWrite],
+        seen: set[tuple[str | None, str | None, str | None]],
+        variant: SearchVariantWrite,
+    ) -> None:
+        key = (variant.gene_symbol_norm, variant.transcript_hgvs_norm, variant.protein_change_norm)
+        if key == (None, None, None):
+            return
+        if key in seen:
+            return
+        seen.add(key)
+        rows.append(variant)
+
+    def _variant_write_from_term(self, value: str) -> SearchVariantWrite | None:
+        text = (value or "").strip()
+        if not text:
+            return None
+        lowered = text.lower()
+        gene = text.upper() if self._looks_like_gene_symbol(text) else None
+        transcript_hgvs = text if lowered.startswith("c.") or ":c." in lowered else None
+        protein_change = None
+        if lowered.startswith("p."):
+            protein_change = text
+        else:
+            protein_match = re.search(r"\bp\.[A-Za-z0-9_*?=]+", text)
+            if protein_match:
+                protein_change = protein_match.group(0)
+        if not gene and not transcript_hgvs and not protein_change:
+            return None
+        return SearchVariantWrite(
+            gene_symbol=gene,
+            gene_symbol_norm=gene,
+            transcript_hgvs=transcript_hgvs,
+            transcript_hgvs_norm=self._normalize_identifier(transcript_hgvs),
+            protein_change=protein_change,
+            protein_change_norm=self._normalize_identifier(protein_change),
+        )
+
+    def _looks_like_gene_symbol(self, value: str) -> bool:
+        return bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{1,15}", value.strip()))
+
+    def _build_saved_variant_document(
+        self,
+        variant: SavedVariant,
+        *,
+        owner_user_id: str,
+    ) -> SearchDocumentWrite:
+        title = (
+            " ".join(
+                part.strip() for part in (variant.gene, variant.variant) if part and part.strip()
+            )
+            or variant.query
+        )
+        classification = (variant.classification or "").replace("_", " ").strip()
+        transcript_hgvs = self._saved_variant_transcript_hgvs(variant)
+        protein_change = self._saved_variant_protein_change(variant)
+        variant_write = SearchVariantWrite(
+            gene_symbol=variant.gene,
+            gene_symbol_norm=variant.gene.upper() if variant.gene else None,
+            transcript_hgvs=transcript_hgvs,
+            transcript_hgvs_norm=self._normalize_identifier(transcript_hgvs),
+            protein_change=protein_change,
+            protein_change_norm=self._normalize_identifier(protein_change),
+            consequence=None,
+        )
+        identifier_parts = [
+            variant.id,
+            variant.gene,
+            variant.variant,
+            variant.query,
+            variant.hgvs_full,
+            protein_change,
+        ]
+        summary_text = self._join_text(
+            [
+                variant.query,
+                f"Classification: {classification}" if classification else None,
+                variant.hgvs_full,
+            ]
+        )
+        raw_text = (variant.raw or "").strip()
+        return SearchDocumentWrite(
+            source_key=self._saved_variant_source_key(
+                owner_user_id=owner_user_id,
+                variant_id=variant.id,
+            ),
+            doc_type=LIBRARY_VARIANT_DOC_TYPE,
+            visibility_scope="private",
+            owner_user_id=owner_user_id,
+            report_title=title,
+            summary_text=summary_text,
+            raw_extracted_text=raw_text,
+            identifier_text=self._join_text(identifier_parts),
+            search_text=self._join_text([*identifier_parts, summary_text, raw_text]),
+            variants=[variant_write],
+        )
+
     def _collect_variants(self, reports: list[UploadedReport]) -> list[SearchVariantWrite]:
         seen: set[tuple[str | None, str | None, str | None]] = set()
         rows: list[SearchVariantWrite] = []
@@ -276,3 +635,37 @@ class SearchIndexService:
         if not value:
             return None
         return "".join(value.split()).lower()
+
+    def _saved_variant_source_key(self, *, owner_user_id: str, variant_id: str) -> str:
+        digest = hashlib.sha256(f"{owner_user_id}\x1f{variant_id}".encode("utf-8")).hexdigest()
+        return f"{LIBRARY_VARIANT_DOC_TYPE}:{digest[:24]}"
+
+    def _report_section_source_key_prefix(self, run_id: str) -> str:
+        return f"{REPORT_SECTION_DOC_TYPE}:{run_id}:"
+
+    def _stable_token(self, value: str) -> str:
+        token = re.sub(r"[^a-z0-9_.:-]+", "-", value.lower()).strip("-")
+        if token:
+            return token[:48]
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+
+    def _existing_run_owner(self, run_id: str) -> str | None:
+        return self.search_repo.owner_for_source_key(source_key=f"run:{run_id}")
+
+    def _saved_variant_transcript_hgvs(self, variant: SavedVariant) -> str | None:
+        for value in (variant.hgvs_full, variant.variant, variant.query, variant.raw):
+            text = (value or "").strip()
+            lowered = text.lower()
+            if lowered.startswith("c.") or ":c." in lowered:
+                return text
+        return None
+
+    def _saved_variant_protein_change(self, variant: SavedVariant) -> str | None:
+        for value in (variant.variant, variant.query, variant.raw):
+            text = (value or "").strip()
+            if text.lower().startswith("p."):
+                return text
+            match = re.search(r"\bp\.[A-Za-z0-9_*?=]+", text)
+            if match:
+                return match.group(0)
+        return None

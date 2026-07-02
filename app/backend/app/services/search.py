@@ -174,7 +174,7 @@ class SearchService:
         return "text"
 
     def _coerce_doc_type(self, value: str | None) -> SearchDocType | None:
-        if value in {"run", "report"}:
+        if value in {"run", "report", "library_variant", "publication", "trial", "report_section"}:
             return cast(SearchDocType, value)
         return None
 

@@ -1,6 +1,6 @@
 # Eamos search index implementation plan
 
-Status: run/report wiring plus Tasks 4-5 implemented; Task 6+ remain open.
+Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented; Task 7+ and frontend integration remain open.
 Spec: `docs/search-index/spec.md`.
 Related repo-structure wave: Wave 2, "Fix or retire Search".
 
@@ -21,8 +21,16 @@ Implementation update, 2026-06-30:
 - Task 5 readiness/backfill tooling is implemented: provider-cache health has a
   sanitized search block, and `python -m app.cli.eamos_search_index_backfill`
   is dry-run-first with explicit `--apply` and optional `--owner-user-id`.
-- Still open: generalized product entities, frontend integration, grounded
-  answer-chain tests, and approve/drop/report-payload index-refresh breadth.
+- Task 6 first non-run/report workspace slice is implemented: saved
+  variant-library rows index as owner-scoped private `library_variant` search
+  documents on save, bulk save, whole-library replace, and delete.
+- Task 6 public/source-backed slice is implemented for existing run payloads:
+  publication and trial evidence rows index as public documents, and
+  report-section rows index as owner-scoped private documents. Report-payload
+  updates, approve, and drop refresh indexed rows best-effort.
+- Still open: richer public metadata/view-count breadth, broader product entity
+  coverage beyond the current payload-backed publication/trial/section rows,
+  frontend integration, and grounded answer-chain tests.
 
 ## Shared decisions before implementation
 
@@ -346,6 +354,11 @@ Out of scope:
 
 ## Task 6 - Evolve schemas toward product-wide entity search
 
+Status: partially done. Saved variant-library rows now index as owner-scoped
+private `library_variant` documents. Public/source-backed entity types,
+view-count metadata, publication/trial rows, source-backed report sections,
+and a stable frontend-facing richer result shape remain open.
+
 Goal:
 
 Expand beyond run/report search into a reusable indexed entity model for the
@@ -357,12 +370,28 @@ The current schema names `SearchDocType = Literal["report", "run"]`. That is
 too narrow for a product search bar that should find genes, variants, source
 evidence, publications, trials, and workspace records.
 
+Implementation update, 2026-07-01:
+
+- `SearchDocType` now includes `library_variant`.
+- `VariantLibraryService` receives the shared `SearchIndexService` in
+  `create_app()` and treats indexing as a logged secondary side effect.
+- `SearchIndexService` builds private `library_variant` search documents from
+  saved variants with stable hashed source keys, gene/HGVS/protein aliases, and
+  owner filtering.
+- `SearchRepo` can delete a single indexed document or all indexed documents
+  for an owner/doc-type pair so library delete and whole-document replace do
+  not leave stale hits.
+- Focused API tests cover owner-only saved-variant search, delete cleanup, and
+  whole-library replace refresh.
+
 Relevant files:
 
 - `app/backend/app/schemas/search.py`
 - `app/backend/app/core/db.py`
 - `app/backend/app/repos/search_repo.py`
 - `app/backend/app/services/search_index.py`
+- `app/backend/app/services/variant_library.py`
+- `app/backend/app/main.py`
 - `app/backend/tests/test_frontend_contract.py`
 - `app/web/lib/backend.ts`
 
@@ -378,11 +407,14 @@ Proposed approach:
 
 Acceptance criteria:
 
-- Search can return at least one non-run/report public entity type from fixture
-  data.
+- Search can return at least one non-run/report private workspace entity type
+  from existing product writes.
+- Search can return at least one non-run/report public/source-backed entity type
+  from fixture or materialized data. (Still open.)
 - Existing run/report search clients still work.
 - Exact gene/HGVS/rsID aliases outrank plain-text mentions.
-- Frontend contract test covers the new response shape.
+- Frontend contract test covers the new response shape when a richer
+  frontend-facing search result contract is introduced.
 
 Source reference:
 
@@ -392,7 +424,7 @@ Verify:
 
 ```powershell
 cd app/backend
-python -m pytest tests/test_search_api.py tests/test_frontend_contract.py -q
+python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py tests/test_frontend_contract.py -q
 ```
 
 Out of scope:

@@ -5,7 +5,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-SearchDocType = Literal["report", "run"]
+SearchDocType = Literal[
+    "report",
+    "run",
+    "library_variant",
+    "publication",
+    "trial",
+    "report_section",
+]
 SearchVisibilityScope = Literal["public", "private", "internal"]
 SearchMatchType = Literal[
     "exact_run_id",

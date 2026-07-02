@@ -1,12 +1,26 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 
 from app.cli.eamos_search_index_backfill import run_backfill
 from app.core.rate_limit import InMemoryRateLimiter
 from app.schemas.report import ExtractedCase, ExtractedVariant, UploadedReport
+from app.schemas.run import (
+    PublicationLiterature,
+    PublicationSnippet,
+    PubMedArticle,
+    ReportPayload,
+    ReportSectionSignal,
+    RunResponse,
+    RunStatus,
+    TherapiesTrialsSection,
+    TrialMatch,
+    VariantReportProfile,
+    VariantSummaryRow,
+)
 from app.schemas.search import SearchDocumentWrite
 
 
@@ -61,6 +75,118 @@ def _save_search_fixture_report(client: TestClient, report_id: str = "report_sea
         raw_extracted_text="RPE65 NM_000329.3:c.260A>G p.Asp87Gly search fixture.",
     )
     client.app.state.reports_repo.save(report)
+
+
+def _saved_library_variant_payload(**overrides) -> dict:
+    payload = {
+        "id": "ush2a:c.2276g>t",
+        "gene": "USH2A",
+        "variant": "c.2276G>T",
+        "query": "USH2A c.2276G>T",
+        "raw": "USH2A NM_206933.4:c.2276G>T p.Cys759Phe search fixture.",
+        "savedAt": 1_780_000_000_000,
+        "folderId": None,
+        "classification": "likely_pathogenic",
+        "hgvs_full": "NM_206933.4:c.2276G>T",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _source_backed_report_payload(*, summary: str = "Original indexed source summary"):
+    publication = PubMedArticle(
+        pmid="12345678",
+        title="RPE65 gene therapy in inherited retinal dystrophy",
+        authors="Example A; Example B",
+        journal="Journal of Retinal Evidence",
+        year="2025",
+        url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        abstract="RPE65 NM_000329.3:c.260A>G is discussed in a source-backed article.",
+        snippets=[
+            PublicationSnippet(
+                section="abstract",
+                text="The RPE65 c.260A>G variant appears in the source-backed abstract.",
+                matched_terms=["RPE65", "NM_000329.3:c.260A>G"],
+                source="pubmed_efetch",
+                confidence="exact_variant",
+            )
+        ],
+        source_tags=["pubmed"],
+        snippet_status="source_backed",
+    )
+    trial = TrialMatch(
+        nct_id="NCT01234567",
+        title="RPE65 retinal dystrophy registry study",
+        status="Recruiting",
+        phase="Phase 2",
+        conditions=["Inherited retinal dystrophy"],
+        interventions=["Gene therapy"],
+        locations=["Sydney"],
+        match_level="variant_level",
+        matched_terms=["RPE65", "c.260A>G"],
+        source_url="https://clinicaltrials.gov/study/NCT01234567",
+        evidence_snippet="RPE65 c.260A>G source-backed trial match.",
+        fetched_at="2026-07-01T00:00:00Z",
+    )
+    return ReportPayload(
+        patient_id="SEARCH-SOURCE-001",
+        report_title="Source-backed search fixture",
+        ai_clinical_summary=summary,
+        variant_summary_rows=[
+            VariantSummaryRow(
+                gene="RPE65",
+                transcript_hgvs="NM_000329.3:c.260A>G",
+                protein_change="p.Asp87Gly",
+                consequence="missense_variant",
+            )
+        ],
+        publications_literature=PublicationLiterature(
+            total_count=1,
+            shown_count=1,
+            articles=[publication],
+        ),
+        report_profile=VariantReportProfile(
+            therapies_trials=TherapiesTrialsSection(trial_rows=[trial]),
+            section_signals=[
+                ReportSectionSignal(
+                    section_id="publications",
+                    label="Publication Literature",
+                    priority=52,
+                    confidence=0.58,
+                    relevance="exact_variant",
+                    source_strength="literature",
+                    status="ready",
+                    headline="1 publication(s)",
+                    data_notes=["source-backed publication row indexed"],
+                    source_refs=["publications"],
+                )
+            ],
+        ),
+    )
+
+
+def _persist_source_backed_run(
+    client: TestClient,
+    *,
+    owner_user_id: str,
+    run_id: str = "run_source_backed",
+    summary: str = "Original indexed source summary",
+) -> RunResponse:
+    run = client.app.state.run_repo.create_run(
+        run_id=run_id,
+        patient_id="SEARCH-SOURCE-001",
+        report_ids=[],
+        run_status=RunStatus.completed,
+        report_payload=_source_backed_report_payload(summary=summary),
+        evidence=[],
+        warnings=[],
+    )
+    client.app.state.search_index_service.index_run(
+        run,
+        reports=[],
+        owner_user_id=owner_user_id,
+    )
+    return run
 
 
 def test_local_search_requires_authentication(client: TestClient) -> None:
@@ -232,3 +358,211 @@ def test_search_index_backfill_is_dry_run_first_and_owner_scoped(client: TestCli
     )
     assert found.status_code == 200
     assert [item["report_id"] for item in found.json()["results"]] == ["report_search_backfill"]
+
+
+def test_source_backed_publication_trial_and_section_rows_are_indexed(
+    client: TestClient,
+) -> None:
+    owner_headers, owner_user_id = _register_user(client, "search-source-owner")
+    other_headers = _auth_headers(client, "search-source-other")
+    _persist_source_backed_run(client, owner_user_id=owner_user_id)
+
+    publication = client.get(
+        "/api/v1/search",
+        params={"q": "retinal dystrophy", "doc_type": "publication", "limit": 5},
+        headers=other_headers,
+    )
+    assert publication.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in publication.json()["results"]
+    ] == [
+        (
+            "publication",
+            "public",
+            "RPE65 gene therapy in inherited retinal dystrophy",
+        )
+    ]
+
+    trial = client.get(
+        "/api/v1/search",
+        params={"q": "NCT01234567", "doc_type": "trial", "limit": 5},
+        headers=other_headers,
+    )
+    assert trial.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in trial.json()["results"]
+    ] == [("trial", "public", "RPE65 retinal dystrophy registry study")]
+
+    owner_section = client.get(
+        "/api/v1/search",
+        params={"q": "source-backed publication row", "doc_type": "report_section", "limit": 5},
+        headers=owner_headers,
+    )
+    assert owner_section.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in owner_section.json()["results"]
+    ] == [("report_section", "private", "Publication Literature: 1 publication(s)")]
+
+    other_section = client.get(
+        "/api/v1/search",
+        params={"q": "source-backed publication row", "doc_type": "report_section", "limit": 5},
+        headers=other_headers,
+    )
+    assert other_section.status_code == 200
+    assert other_section.json()["results"] == []
+
+
+def test_run_report_payload_approve_and_drop_refresh_search_rows(client: TestClient) -> None:
+    owner_headers, owner_user_id = _register_user(client, "search-refresh-owner")
+    run_id = "run_search_refresh"
+    _persist_source_backed_run(
+        client,
+        owner_user_id=owner_user_id,
+        run_id=run_id,
+        summary="Original indexed source summary",
+    )
+
+    updated = client.patch(
+        f"/api/v1/runs/{run_id}/report-payload",
+        json={"ai_clinical_summary": "Updated indexed source summary"},
+        headers=owner_headers,
+    )
+    assert updated.status_code == 200
+
+    updated_hit = client.get(
+        "/api/v1/search",
+        params={"q": "Updated indexed source summary", "doc_type": "run", "limit": 5},
+        headers=owner_headers,
+    )
+    assert updated_hit.status_code == 200
+    assert [item["run_id"] for item in updated_hit.json()["results"]] == [run_id]
+
+    approved = client.post(f"/api/v1/runs/{run_id}/approve", headers=owner_headers)
+    assert approved.status_code == 200
+    approved_hit = client.get(
+        "/api/v1/search",
+        params={
+            "q": run_id,
+            "doc_type": "run",
+            "review_status": "approved",
+            "limit": 5,
+        },
+        headers=owner_headers,
+    )
+    assert approved_hit.status_code == 200
+    assert [item["run_id"] for item in approved_hit.json()["results"]] == [run_id]
+
+    dropped = client.post(
+        f"/api/v1/runs/{run_id}/drop",
+        json={"review_note": "Search refresh drop note"},
+        headers=owner_headers,
+    )
+    assert dropped.status_code == 200
+    dropped_hit = client.get(
+        "/api/v1/search",
+        params={
+            "q": "Search refresh drop note",
+            "doc_type": "run",
+            "review_status": "dropped",
+            "limit": 5,
+        },
+        headers=owner_headers,
+    )
+    assert dropped_hit.status_code == 200
+    assert [item["run_id"] for item in dropped_hit.json()["results"]] == [run_id]
+
+
+def test_saved_library_variant_is_indexed_for_owner_search(client: TestClient) -> None:
+    owner_headers, _owner_user_id = _register_user(client, "search-library-owner")
+    other_headers, _other_user_id = _register_user(client, "search-library-other")
+
+    saved = client.post(
+        "/api/v1/library/variants",
+        json=_saved_library_variant_payload(),
+        headers=owner_headers,
+    )
+    assert saved.status_code == 201
+
+    owner_result = client.get(
+        "/api/v1/search",
+        params={"q": "USH2A", "doc_type": "library_variant", "limit": 5},
+        headers=owner_headers,
+    )
+    assert owner_result.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in owner_result.json()["results"]
+    ] == [("library_variant", "private", "USH2A c.2276G>T")]
+    assert "likely pathogenic" in owner_result.json()["results"][0]["snippet"]
+
+    other_result = client.get(
+        "/api/v1/search",
+        params={"q": "USH2A", "doc_type": "library_variant", "limit": 5},
+        headers=other_headers,
+    )
+    assert other_result.status_code == 200
+    assert other_result.json()["results"] == []
+
+    removed = client.delete(
+        f"/api/v1/library/variants/{quote('ush2a:c.2276g>t', safe='')}",
+        headers=owner_headers,
+    )
+    assert removed.status_code == 204
+
+    after_delete = client.get(
+        "/api/v1/search",
+        params={"q": "USH2A", "doc_type": "library_variant", "limit": 5},
+        headers=owner_headers,
+    )
+    assert after_delete.status_code == 200
+    assert after_delete.json()["results"] == []
+
+
+def test_library_replace_refreshes_library_variant_search_rows(client: TestClient) -> None:
+    owner_headers, _owner_user_id = _register_user(client, "search-library-replace")
+
+    replaced = client.put(
+        "/api/v1/library",
+        json={
+            "variants": [
+                _saved_library_variant_payload(
+                    id="rpe65:c.260a>g",
+                    gene="RPE65",
+                    variant="c.260A>G",
+                    query="RPE65 c.260A>G",
+                    raw="RPE65 NM_000329.3:c.260A>G p.Asp87Gly search fixture.",
+                    classification=None,
+                    hgvs_full="NM_000329.3:c.260A>G",
+                )
+            ],
+            "folders": [],
+        },
+        headers=owner_headers,
+    )
+    assert replaced.status_code == 200
+
+    found = client.get(
+        "/api/v1/search",
+        params={"q": "RPE65", "doc_type": "library_variant", "limit": 5},
+        headers=owner_headers,
+    )
+    assert found.status_code == 200
+    assert [item["title"] for item in found.json()["results"]] == ["RPE65 c.260A>G"]
+
+    cleared = client.put(
+        "/api/v1/library",
+        json={"variants": [], "folders": []},
+        headers=owner_headers,
+    )
+    assert cleared.status_code == 200
+
+    after_clear = client.get(
+        "/api/v1/search",
+        params={"q": "RPE65", "doc_type": "library_variant", "limit": 5},
+        headers=owner_headers,
+    )
+    assert after_clear.status_code == 200
+    assert after_clear.json()["results"] == []

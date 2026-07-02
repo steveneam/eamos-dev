@@ -1,6 +1,6 @@
 # Eamos search index spec
 
-Status: run/report wiring plus private search posture and readiness/backfill slice implemented; broader product search remains planned.
+Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, and private report sections from existing payloads; frontend integration remains planned.
 Created: 2026-06-30 by Codex.
 Related structure work: `docs/repo-structure/plan.md`, Wave 2 in
 `docs/repo-structure/audit-2026-06-30.md`.
@@ -32,6 +32,26 @@ Implementation update, 2026-06-30:
   configured answer chain; no answer chain is configured in normal startup.
 - Local non-Docker coverage now lives in
   `app/backend/tests/test_search_api_local.py`.
+
+Implementation update, 2026-07-01:
+
+- Search document schemas now accept `library_variant` in addition to `run` and
+  `report`.
+- Saved variant-library writes index owner-scoped private search documents for
+  individual save, bulk save, and whole-library replace. Deleting a saved
+  variant removes its search document.
+- Library-variant search uses the existing bounded search tables with stable
+  hashed source keys and variant aliases. It does not add migrations, source
+  downloads, provider calls, Supabase mutations, startup work, or frontend
+  integration.
+- Local API coverage proves saved library variants are searchable only by the
+  owning user and that replace/delete operations refresh indexed rows.
+- Public/source-backed publication and trial rows are indexed from existing run
+  report payloads as public search documents. Report-section rows are indexed
+  as owner-scoped private documents.
+- Report-payload PATCH, approve, and drop flows refresh run/report-section
+  search rows after the primary write succeeds, preserving the existing
+  best-effort indexing posture.
 
 ## What
 
@@ -270,6 +290,10 @@ Second slice:
 - Publication/trial rows that are already materialized or returned in lookup
   payloads. The search index should index what Eamos has already fetched or
   materialized, not trigger fresh source queries.
+
+Current implementation note: variant library saved rows are the first completed
+piece of this slice. View metadata, source-backed report sections,
+publication/trial rows, and public gene/source entities remain open.
 
 Later slices:
 

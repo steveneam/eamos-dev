@@ -1007,7 +1007,7 @@ def test_crispr_tide_parser_unavailable_maps_to_503(client, monkeypatch) -> None
         )
 
     monkeypatch.setattr(
-        "app.services.workbench_design.parse_ab1_bytes",
+        "app.services.workbench_design_alignment.parse_ab1_bytes",
         missing_parser,
     )
 
@@ -1504,7 +1504,7 @@ def test_real_mode_align_ab1_unsupported_file_maps_to_422(client, monkeypatch) -
         )
 
     monkeypatch.setattr(
-        "app.services.workbench_design.parse_ab1_base64",
+        "app.services.workbench_design_alignment.parse_ab1_base64",
         unsupported_trace,
     )
     client.app.state.workbench_design_service = WorkbenchDesignService(
@@ -1543,7 +1543,7 @@ def test_real_mode_align_ab1_parser_unavailable_maps_to_503(client, monkeypatch)
         )
 
     monkeypatch.setattr(
-        "app.services.workbench_design.parse_ab1_base64",
+        "app.services.workbench_design_alignment.parse_ab1_base64",
         missing_parser,
     )
     client.app.state.workbench_design_service = WorkbenchDesignService(
@@ -1685,7 +1685,9 @@ def test_large_alignment_skips_pairwise_matrix(monkeypatch) -> None:
     def fail_pairwise(**_kwargs):
         raise AssertionError("pairwise aligner should not run for oversized matrices")
 
-    monkeypatch.setattr("app.services.workbench_design._bio_pairwise_alignment", fail_pairwise)
+    monkeypatch.setattr(
+        "app.services.workbench_design_alignment._bio_pairwise_alignment", fail_pairwise
+    )
 
     cells = _align_sequences(reference="A" * sequence_length, read="A" * sequence_length)
 

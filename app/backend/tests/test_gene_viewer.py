@@ -327,6 +327,19 @@ class StaticHttpGeneViewerSourceClient(HttpGeneViewerSourceClient):
         raise AssertionError(f"Unexpected URL: {url}")
 
 
+def test_gene_viewer_facade_preserves_package_fold_import_surface() -> None:
+    assert SourceBackedGeneViewerProvider.__module__ == "app.services.gene_viewer_source_provider"
+    assert HttpGeneViewerSourceClient.__module__ == "app.services.gene_viewer_source_client"
+    assert SourceTranscriptExon.__module__ == "app.services.gene_viewer_models"
+    assert SourceTranscriptIntron.__module__ == "app.services.gene_viewer_models"
+    assert SourceTranscriptModel.__module__ == "app.services.gene_viewer_models"
+    assert TranscriptExon.__module__ == "app.services.gene_viewer_window"
+    assert TranscriptIntron.__module__ == "app.services.gene_viewer_window"
+    assert TranscriptModel.__module__ == "app.services.gene_viewer_window"
+    assert TranscriptWindowBuilder.__module__ == "app.services.gene_viewer_window"
+    assert VariantProjection.__module__ == "app.services.gene_viewer_variants"
+
+
 def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeypatch) -> None:
     class ReferenceStore:
         def __init__(self) -> None:
@@ -365,7 +378,7 @@ def test_http_gene_viewer_source_client_reads_materialized_hg38_sequence(monkeyp
         return store
 
     monkeypatch.setattr(
-        "app.services.gene_viewer.resolve_hg38_materialized_runtime_asset",
+        "app.services.gene_viewer_source_client.resolve_hg38_materialized_runtime_asset",
         lambda *_args, **_kwargs: resolved,
     )
     client = HttpGeneViewerSourceClient(
@@ -392,7 +405,7 @@ def test_http_source_client_uses_compact_coordinate_index_before_http(
     def fail_http(url: str, **_kwargs):
         raise AssertionError(f"compact coordinate index should avoid HTTP, got {url}")
 
-    monkeypatch.setattr("app.services.gene_viewer.httpx.get", fail_http)
+    monkeypatch.setattr("app.services.gene_viewer_source_client.httpx.get", fail_http)
     query = normalize_sequence_query("RPE65", "c.260A>G", "NM_000329.3")
     client = HttpGeneViewerSourceClient(
         Settings(jwt_secret="test-secret"),

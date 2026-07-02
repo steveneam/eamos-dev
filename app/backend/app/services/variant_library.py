@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
 from app.core.deps import AuthenticatedPrincipal
+from app.core.logging import get_logger
 from app.repos.variant_library_repo import (
     DEFAULT_LIBRARY_FOLDER_LIMIT,
     DEFAULT_LIBRARY_VARIANT_LIMIT,
@@ -23,10 +24,13 @@ from app.schemas.variant_library import (
     VariantPopularity,
 )
 
+logger = get_logger(__name__)
+
 
 class VariantLibraryService:
-    def __init__(self, repo) -> None:
+    def __init__(self, repo, search_index_service=None) -> None:
         self.repo = repo
+        self.search_index_service = search_index_service
 
     def get_library(
         self,
@@ -76,6 +80,7 @@ class VariantLibraryService:
                 variants=[_saved_variant_document(variant) for variant in payload.variants],
                 folders=[folder.model_dump(mode="json") for folder in payload.folders],
             )
+            self._replace_search_variants(payload.variants, principal)
             return _library_store_from_document(document)
         except VariantLibraryRepoError as exc:
             raise _service_unavailable() from exc
@@ -90,7 +95,9 @@ class VariantLibraryService:
                 user_id=principal.user_id,
                 variant=_saved_variant_record(payload),
             )
-            return _saved_variant_schema(row)
+            saved = _saved_variant_schema(row)
+            self._index_search_variant(saved, principal)
+            return saved
         except VariantLibraryNotFoundError as exc:
             raise _not_found("Folder not found.") from exc
         except VariantLibraryRepoError as exc:
@@ -106,8 +113,10 @@ class VariantLibraryService:
                 user_id=principal.user_id,
                 variants=[_saved_variant_record(variant) for variant in variants],
             )
+            saved = [_saved_variant_schema(row) for row in rows]
+            self._index_search_variants(saved, principal)
             library = self.get_library(principal)
-            return added, [_saved_variant_schema(row) for row in rows], library
+            return added, saved, library
         except VariantLibraryNotFoundError as exc:
             raise _not_found("Folder not found.") from exc
         except VariantLibraryRepoError as exc:
@@ -123,6 +132,7 @@ class VariantLibraryService:
             raise _service_unavailable() from exc
         if not removed:
             raise _not_found("Saved variant not found.")
+        self._remove_search_variant(variant_id, principal)
 
     def create_folder(self, name: str, principal: AuthenticatedPrincipal) -> Folder:
         try:
@@ -192,6 +202,66 @@ class VariantLibraryService:
             return [_popularity_schema(row) for row in self.repo.popular(limit=limit)]
         except VariantLibraryRepoError as exc:
             raise _service_unavailable() from exc
+
+    def _index_search_variant(
+        self,
+        variant: SavedVariant,
+        principal: AuthenticatedPrincipal,
+    ) -> None:
+        if self.search_index_service is None:
+            return
+        try:
+            self.search_index_service.index_saved_variant(
+                variant,
+                owner_user_id=principal.user_id,
+            )
+        except Exception:
+            logger.exception("Search indexing failed for saved variant %s", variant.id)
+
+    def _index_search_variants(
+        self,
+        variants: list[SavedVariant],
+        principal: AuthenticatedPrincipal,
+    ) -> None:
+        if self.search_index_service is None:
+            return
+        try:
+            self.search_index_service.index_saved_variants(
+                variants,
+                owner_user_id=principal.user_id,
+            )
+        except Exception:
+            logger.exception("Search indexing failed for saved variant bulk write")
+
+    def _replace_search_variants(
+        self,
+        variants: list[SavedVariant],
+        principal: AuthenticatedPrincipal,
+    ) -> None:
+        if self.search_index_service is None:
+            return
+        try:
+            self.search_index_service.replace_saved_variants(
+                variants,
+                owner_user_id=principal.user_id,
+            )
+        except Exception:
+            logger.exception("Search indexing failed for saved variant library replace")
+
+    def _remove_search_variant(
+        self,
+        variant_id: str,
+        principal: AuthenticatedPrincipal,
+    ) -> None:
+        if self.search_index_service is None:
+            return
+        try:
+            self.search_index_service.remove_saved_variant(
+                variant_id=_normalize_id(variant_id),
+                owner_user_id=principal.user_id,
+            )
+        except Exception:
+            logger.exception("Search index removal failed for saved variant %s", variant_id)
 
 
 def _saved_variant_record(payload: SavedVariant) -> SavedVariantRecord:

@@ -37,9 +37,9 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | --- | ---: | --- |
 | `app/web/components/workbench/workbench.css` | 4028 | Multiple Workbench tool style domains in one global sheet. |
 | `app/backend/app/services/gene_viewer.py` | 3497 | Fixture provider, live source client, transcript projection, full-locus geometry, protein tracks, and allele display in one module. |
-| `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. |
+| `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. Folded 2026-07-02 into a facade plus constants, models, license policy, and parser/source helpers. |
 | `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. |
-| `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. |
+| `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
 | `app/web/components/report/ReportGeneViewer.tsx` | 2487 | Report-specific viewer UI plus viewer state, adaptation, controls, and rendering. |
 
@@ -131,14 +131,29 @@ Done in this pass:
   current run/report index. Private rows are owner-filtered, ownerless private
   rows fail closed until backfilled, provider-cache health reports search
   readiness, and `eamos_search_index_backfill` provides dry-run-first rebuilds.
+- Follow-up cleanup: Search Control Plane Task 6 has its first non-run/report
+  workspace slice. Saved variant-library rows now index as owner-scoped private
+  `library_variant` documents on save, bulk save, whole-library replace, and
+  delete. Public/source-backed product entities remain open.
 - Wave 3 data asset policy is now active in
   `docs/repo-structure/source-asset-policy.md`. The structure guard requires
   tracked files under `app/backend/data/source_assets` to live under registered
   source ids and to carry `.manifest.json` sidecars.
-- Wave 4 has started with a safe first `gene_viewer.py` extraction:
-  source-backed transcript models/protocols moved to
-  `app/backend/app/services/gene_viewer_models.py` while preserving the public
-  `app.services.gene_viewer` import surface.
+- Wave 4 `gene_viewer.py` fold is now a compatibility facade plus service and
+  fixture provider. Source-backed models, source client, source provider,
+  protein/AlphaMissense track hydration, fixture records, full-locus renderer,
+  transcript-window renderer, shared errors, variants, and utilities live in
+  dedicated modules. The public `app.services.gene_viewer` import surface is
+  preserved and covered by a focused facade import test.
+- Wave 4 `workbench_design.py` fold is now a compatibility facade. Shared
+  constants/errors, protocols, fixture loading, primer/SNP/isPcr providers,
+  Sanger alignment/AB1 parsing, and service orchestration live in focused
+  `workbench_design_*` modules. Existing route/import behavior is preserved.
+- Wave 4 `pubmed_local.py` fold now separates constants, dataclass models,
+  license policy, and XML/JSONL/source-manifest/seed/domain parsing helpers
+  from the SQLite store/materialization/search facade. PubMed launch posture is
+  unchanged: no startup materialization, provider flip, source download, or
+  runtime seed/sync.
 
 Verification:
 
@@ -152,22 +167,41 @@ Current protein-annotation line-count ratchet:
 - `app/backend/app/services/protein_annotation.py`: budget 1000 lines; current
   post-format count is 898.
 
+Current gene-viewer line-count ratchets:
+
+- `app/backend/app/services/gene_viewer.py`: budget 500 lines; current
+  post-format facade count is about 330.
+- Split `gene_viewer_*` modules have their own budgets in
+  `tests/test_structure_guard.py` so the provider/protein/source-client/window
+  responsibilities cannot silently collapse back into the facade.
+- Split `workbench_design_*` and `pubmed_local_*` modules have their own
+  budgets in `tests/test_structure_guard.py`; the old monolith budgets have
+  been replaced by facade/module budgets.
+
 ### R1 - Gene viewer package fold
 
 Target: `app/backend/app/services/gene_viewer.py`.
 
 Search Wave 2 has its first wiring slice complete. Continue remaining search
 work from `docs/search-index/spec.md` and `docs/search-index/plan.md`, starting
-with private/public access posture and readiness/backfill tooling.
+with public/source-backed Task 6 breadth, approve/drop/report-payload refresh
+hooks, and later frontend results integration.
 
 Follow-up update, 2026-06-30:
 
 - First slice done: source-backed transcript models/protocols now live in
   `gene_viewer_models.py`; `gene_viewer.py` re-imports them to preserve existing
   tests and external imports.
-- Next fold should extract either `HttpGeneViewerSourceClient` into a source
-  client module or fixture-provider/full-locus helpers, but only with focused
-  characterization tests before and after.
+- Follow-up slice done, 2026-07-01: source client, shared errors, variant
+  projection, transcript window rendering, fixture-record conversion,
+  full-locus/full-gene rendering, and small utility helpers now live in focused
+  modules. The public `app.services.gene_viewer` facade still re-exports the
+  existing service/provider/model names.
+- Follow-up slice done, 2026-07-01: `SourceBackedGeneViewerProvider` now lives
+  in `gene_viewer_source_provider.py`, and protein-domain plus AlphaMissense
+  hydration helpers live in `gene_viewer_protein_tracks.py`. The facade is
+  ratcheted at 500 lines and the new public import-surface test locks the
+  compatibility behavior.
 
 Proposed package:
 
@@ -192,6 +226,9 @@ Contract:
   report/viewer tests before and after.
 - No source downloads, provider flips, or fixture rewrites.
 
+Next backend package-fold priority should move to `lookup_service.py` unless
+new gene-viewer behavior requires another targeted split.
+
 ### R2 - Workbench CSS and design split
 
 Targets:
@@ -213,16 +250,17 @@ components/workbench/viewer/viewer.css
 Backend design package candidate:
 
 ```text
-app/backend/app/services/workbench_design/
-  __init__.py
-  service.py
-  disclosure.py
-  primer.py
-  crispr.py
-  align.py
-  trace.py
-  providers.py
+app/backend/app/services/workbench_design.py              # compatibility facade
+app/backend/app/services/workbench_design_common.py       # constants/errors/shared helpers
+app/backend/app/services/workbench_design_protocols.py    # provider protocols
+app/backend/app/services/workbench_design_fixture.py      # fixture provider
+app/backend/app/services/workbench_design_primer.py       # Primer3, SNP masking, isPcr
+app/backend/app/services/workbench_design_alignment.py    # Sanger alignment + AB1 parsing
+app/backend/app/services/workbench_design_service.py      # WorkbenchDesignService orchestration
 ```
+
+Backend split status: done 2026-07-02. Frontend Workbench CSS remains open and
+is still Claude/frontend-lane work unless Steven redirects.
 
 ### R3 - PubMed local package fold
 
@@ -231,21 +269,20 @@ Target: `app/backend/app/services/pubmed_local.py`.
 Split by store/materialization/search/parser boundaries:
 
 ```text
-pubmed_local/
-  __init__.py
-  models.py
-  store.py
-  materialize.py
-  parse_xml.py
-  parse_jsonl.py
-  coverage.py
-  search.py
-  manifests.py
-  license_policy.py
+app/backend/app/services/pubmed_local.py                 # compatibility facade, store/materialization/search
+app/backend/app/services/pubmed_local_constants.py       # constants/source policy markers
+app/backend/app/services/pubmed_local_models.py          # dataclasses/schema error
+app/backend/app/services/pubmed_local_license_policy.py  # license/profile text policy
+app/backend/app/services/pubmed_local_parsing.py         # XML/JSONL/source manifest/seed/domain helpers
 ```
 
 Keep launch posture unchanged: PubMed remains API/cache unless separately
 approved.
+
+First backend split status: done 2026-07-02. Further split of SQLite schema,
+store, coverage, search, and materialization internals can happen later if this
+facade starts growing again, but the largest parser/policy mix has been pulled
+out and guarded.
 
 ### R4 - Lookup orchestration split
 
