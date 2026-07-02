@@ -22,15 +22,12 @@ from app.schemas.lookup import (
 )
 from app.schemas.run import (
     EvidenceSourceSummary,
-    FunctionalEvidenceSummary,
     PublicationLiterature,
     ReportPayload,
     VariantReportProfile,
     VariantSummaryRow,
 )
 from app.services.clinical_consensus import ClinicalConsensusBuilder
-from app.services.acmg_points_engine import compute_report_acmg_classification
-from app.services.clinvar_local import ClinVarLocalError
 from app.services.functional_evidence import FunctionalEvidenceExtractor
 from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.lookup_sections import (
@@ -48,9 +45,7 @@ from app.services.lookup_service_cache import (
     SOURCE_RESULT_CACHE_VERSION,
     STRICT_GENOMIC_CACHE_VERSION,
     annotate_source_cached_result as _annotate_source_cached_result,
-    cached_functional_evidence_is_current as _cached_functional_evidence_is_current,
     evidence_summary_to_result as _evidence_summary_to_result,
-    gene_context_snapshot_cache_is_current as _gene_context_snapshot_cache_is_current,
     hydrate_variant_from_source_result as _hydrate_variant_from_source_result,
     merged_report_sections_cache_payload as _merged_report_sections_cache_payload,
     publication_data_cache_is_current as _publication_data_cache_is_current,
@@ -71,20 +66,19 @@ from app.services.lookup_service_clinvar_distribution import (
     CLINVAR_GENE_DISTRIBUTION_EXCLUDED_PENDING_INDEX,
     clinvar_distribution_runtime_path as _clinvar_distribution_runtime_path,
     clinvar_gene_distribution_exclusion_warning as _clinvar_gene_distribution_exclusion_warning,
-    local_clinvar_gene_distribution as _local_clinvar_gene_distribution,
 )
 from app.services.lookup_service_utils import dedupe_values as _dedupe_values
 from app.services.lookup_service_utils import text_value as _text_value
 from app.services.lookup_service_publications_trials import (
     GENE_THERAPY_MAP,
-    build_lookup_publication_literature as _build_lookup_publication_literature,
-    build_publications_callout as _build_publications_callout,
     build_publications_section_literature as _build_publications_section_literature,
-    build_therapeutic_landscape as _build_therapeutic_landscape,
     build_trials_section as _build_trials_section,
     extract_dbsnp_rsid as _extract_dbsnp_rsid,
-    merge_litvar_articles as _merge_litvar_articles,
-    pubmed_articles_from_evidence_map as _pubmed_articles_from_evidence_map,
+)
+from app.services.lookup_service_report_payload import (
+    acmg_classification_snapshot as _acmg_classification_snapshot,
+    build_lookup_report_payload as _build_lookup_report_payload,
+    finalize_lookup_report_payload as _finalize_lookup_report_payload,
 )
 from app.services.lookup_service_source_cache import (
     LookupSourceCacheOrchestrator,
@@ -93,20 +87,10 @@ from app.services.lookup_service_source_cache import (
 )
 from app.services.lookup_timing import LookupTimingCollector
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
-from app.services.report_call_cards import (
-    build_population_frequency_detail,
-    build_variant_report_call_cards,
-)
-from app.services.report_data_currency import (
-    build_source_version_pins,
-    build_report_data_currency,
-    current_report_timestamp,
-)
 from app.services.sequence_context import SequenceContextService
 from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver
 from app.services.variant_report_orchestrator import VariantReportDataOrchestrator
-from app.services.variant_decoder import decode_variant
 from app.services.source_cache import clingen_vcep_source_cache_key
 from app.tools.base import ToolResult
 from app.tools.clingen import cached_clingen_result_matches_variant
@@ -152,16 +136,6 @@ class LookupWithEvidenceContext:
     response: LookupResponse
     evidence_map: dict[str, dict[str, Any]]
     evidence_statuses: dict[str, str]
-
-
-def _acmg_classification_snapshot(gene: str, cdna: str, clinvar: dict[str, Any]) -> str:
-    classification = clinvar.get("classification", "Unavailable")
-    review_status_text = clinvar.get("review_status", "review status unavailable")
-    return (
-        f"ClinVar currently lists {gene} {cdna} as {classification} ({review_status_text}). "
-        "This is a source snapshot only and should not be read as formal ACMG evidence-code "
-        "assignment or a final laboratory classification."
-    )
 
 
 @lru_cache(maxsize=1)
@@ -1460,284 +1434,45 @@ class LookupService:
         )
         record_phase("rules_engine", phase_started)
 
-        # Variant decoder
-        variant_decoder_text = decode_variant(
+        report_assembly = _build_lookup_report_payload(
             gene=gene,
-            transcript_hgvs=transcript_hgvs,
+            cdna=cdna,
             protein_change=request.protein_change,
-        )
-
-        # Therapeutic landscape - gene therapy map + clinical trials
-        phase_started = timing_start()
-        therapeutic_landscape_result = _build_therapeutic_landscape(
-            gene=gene,
+            species=request.species,
+            query_kind=query_kind,
+            input_resolution=input_resolution,
             variant=variant,
-            evidence_map=evidence_map,
-            tool_registry=self.tool_registry,
-            cached_report_source_results=cached_report_source_results,
-            source_cached_result=source_cached_result,
-            record_result=record_result,
-        )
-        therapeutic_landscape = therapeutic_landscape_result.text
-        record_phase(
-            "clinical_trials",
-            phase_started,
-            metadata={"tool_present": therapeutic_landscape_result.clinical_trials_tool_present},
-        )
-
-        # PubMed articles
-        pubmed_articles = _pubmed_articles_from_evidence_map(evidence_map)
-
-        # Classification snapshot
-        clinvar = evidence_map.get("clinvar", {})
-        classification = clinvar.get("classification", "Unavailable")
-        acmg_classification = _acmg_classification_snapshot(gene, cdna, clinvar)
-
-        # Evidence snapshot
-        lines = list(decision.evidence_lines)
-        degraded = sorted(
-            n.upper()
-            for n, s in evidence_statuses.items()
-            if s in {"fallback", "degraded", "error", "failed"}
-        )
-        if degraded:
-            lines.append(f"Source quality note: {', '.join(degraded)} evidence was not fully live.")
-        expanded_evidence = "\n".join(line for line in lines if line).strip() or None
-
-        # Clinical integration (variant-level, no patient context for Layer 1)
-        vep_data = evidence_map.get("vep", {})
-        consequence = vep_data.get("most_severe_consequence", "")
-        clinical_integration = (
-            f'{variant_label}: {consequence or "consequence pending VEP annotation"}. '
-            f"External classification: {classification}. "
-            "Interpret in the context of the clinical phenotype and family history before drawing conclusions."
-        )
-
-        recommendations = (
-            f"Confirm the reported variant {gene} {cdna} against the original sequencing data. "
-            f"{decision.next_step} "
-            "Seek specialist review before drawing clinical conclusions."
-        )
-
-        base_payload = ReportPayload(
-            patient_id=f"lookup_{uuid4().hex[:8]}",
-            case_label=None,
-            report_title=f"{gene} {cdna}",
-            source_filenames=[],
-            patient_context=None,
-            clinical_phenotype=None,
-            ai_clinical_summary=decision.recommendation,
-            variant_summary_rows=[variant_row],
-            expanded_evidence=expanded_evidence,
-            acmg_classification=acmg_classification,
-            clinical_integration=clinical_integration,
-            expected_symptoms=None,
-            recommendations=recommendations,
-            limitations=(
-                "Variant lookup report presenting publicly available database information. "
-                "No clinical recommendations are made. "
-                "All data should be independently verified before clinical use."
-            ),
-            variant_decoder=variant_decoder_text,
-            therapeutic_landscape=therapeutic_landscape,
-            pubmed_articles=pubmed_articles,
-            **_lookup_v2_modules(gene, cdna),
-        )
-        clinvar_distribution_warning = _clinvar_gene_distribution_exclusion_warning(self.settings)
-        if clinvar_distribution_warning:
-            base_payload.curated_variants_distribution = None
-            warnings.append(clinvar_distribution_warning)
-        else:
-            try:
-                base_payload.curated_variants_distribution = _local_clinvar_gene_distribution(
-                    gene,
-                    self.settings,
-                    variant_id=variant.genomic_hg38 or None,
-                )
-            except ClinVarLocalError as exc:
-                base_payload.curated_variants_distribution = None
-                warnings.append(f"clinvar_local_gene_distribution_failed:{exc.code}")
-
-        litvar_summary = evidence_map.get("litvar2", {})
-        phase_started = timing_start()
-        publication_literature = _build_lookup_publication_literature(
-            publication_literature=self.publication_literature,
-            variant=variant,
+            variant_row=variant_row,
+            variant_label=variant_label,
+            decision=decision,
+            lookup_modules=_lookup_v2_modules(gene, cdna),
+            evidence=evidence,
             evidence_map=evidence_map,
             evidence_raw=evidence_raw,
             evidence_statuses=evidence_statuses,
             warnings=warnings,
+            publication_cache=publication_cache,
+            cache_hit=cache_hit,
+            litvar_result=litvar_result,
+            tool_registry=self.tool_registry,
+            publication_literature=self.publication_literature,
+            functional_evidence=self.functional_evidence,
+            clinical_consensus=self.clinical_consensus,
+            sequence_context=self.sequence_context,
+            gene_context_snapshot=self.gene_context_snapshot,
+            settings=self.settings,
+            cached_report_source_results=cached_report_source_results,
+            source_cached_result=source_cached_result,
+            record_result=record_result,
+            timing_start=timing_start,
+            record_phase=record_phase,
         )
-        if publication_literature is not None:
-            base_payload.publications_literature = publication_literature
-            base_payload.pubmed_articles = publication_literature.articles
-        else:
-            base_payload.pubmed_articles = _merge_litvar_articles(pubmed_articles, litvar_summary)
-        record_phase("publication_literature", phase_started)
-
-        cached_functional_evidence = (
-            publication_cache.get("functional_evidence")
-            if isinstance(publication_cache, dict)
-            else None
-        )
-        rebuild_functional_evidence_cache = (
-            isinstance(publication_cache, dict)
-            and isinstance(cached_functional_evidence, dict)
-            and not _cached_functional_evidence_is_current(
-                publication_cache,
-                cached_functional_evidence,
-            )
-        )
-        phase_started = timing_start()
-        try:
-            if (
-                isinstance(cached_functional_evidence, dict)
-                and not rebuild_functional_evidence_cache
-            ):
-                functional_evidence = FunctionalEvidenceSummary.model_validate(
-                    cached_functional_evidence
-                )
-            else:
-                functional_evidence = self.functional_evidence.build_for_lookup(
-                    variant,
-                    evidence_map,
-                    evidence_raw=evidence_raw,
-                    source_statuses=evidence_statuses,
-                    allow_live=bool(self.settings is not None and self.settings.use_real_apis),
-                )
-            base_payload.functional_evidence = functional_evidence
-            warnings.extend(functional_evidence.warnings)
-        except Exception as exc:
-            warnings.append(f"functional_evidence_failed:{type(exc).__name__}")
-        record_phase(
-            "functional_evidence",
-            phase_started,
-            metadata={
-                "cached": isinstance(cached_functional_evidence, dict)
-                and not rebuild_functional_evidence_cache
-            },
-        )
-
-        phase_started = timing_start()
-        try:
-            clinical_consensus = self.clinical_consensus.build_for_lookup(
-                variant,
-                base_payload,
-                evidence_map,
-                evidence_raw=evidence_raw,
-                source_statuses=evidence_statuses,
-                allow_live=bool(self.settings is not None and self.settings.use_real_apis),
-            )
-            evidence_map["clinical_consensus"] = clinical_consensus.summary
-            evidence_statuses["clinical_consensus"] = clinical_consensus.status
-            warnings.extend(clinical_consensus.warnings)
-        except Exception as exc:
-            warnings.append(f"clinical_consensus_failed:{type(exc).__name__}")
-        record_phase("clinical_consensus", phase_started)
-
-        base_payload.publications_callout = _build_publications_callout(
-            payload=base_payload,
-            litvar_summary=litvar_summary,
-            gene=gene,
-            cdna=cdna,
-        )
-        total_count = base_payload.publications_callout.total_count
-        gnomad_evidence = next((item for item in evidence if item.source == "gnomad"), None)
-        gnomad_identity = dict(gnomad_evidence.request_identity) if gnomad_evidence else None
-        if gnomad_identity is not None:
-            if not gnomad_identity.get("variant_id"):
-                gnomad_identity["variant_id"] = variant.genomic_hg38 or None
-            if not gnomad_identity.get("dataset"):
-                gnomad_identity["dataset"] = str(
-                    getattr(self.tool_registry.get("gnomad"), "DATASET", "gnomad_r4")
-                )
-        base_payload.population_frequency_detail = build_population_frequency_detail(
-            evidence_map.get("gnomad", {}),
-            source_status=evidence_statuses.get("gnomad", ""),
-            source_url=gnomad_evidence.source_url if gnomad_evidence is not None else None,
-            source_warnings=gnomad_evidence.warnings if gnomad_evidence is not None else None,
-            source_identity=gnomad_identity,
-        )
-        base_payload.call_cards = build_variant_report_call_cards(
-            base_payload,
-            evidence_map,
-            evidence_statuses,
-        )
-        phase_started = timing_start()
-        sequence_context_result = self.sequence_context.resolve(
-            gene=gene,
-            cdna=cdna,
-            transcript=input_resolution.resolver_transcript,
-            species=request.species,
-        )
-        if sequence_context_result.context is not None:
-            evidence_map["sequence_context"] = sequence_context_result.context.model_dump(
-                mode="json"
-            )
-            evidence_statuses["sequence_context"] = sequence_context_result.context.source
-        elif sequence_context_result.warnings:
-            evidence_map["sequence_context"] = {"warnings": list(sequence_context_result.warnings)}
-            evidence_statuses["sequence_context"] = "missing"
-        record_phase("sequence_context", phase_started)
-
-        cached_gene_context = (
-            (cache_hit or {}).get("gene_context_snapshot", {})
-            if isinstance(cache_hit, dict)
-            else {}
-        )
-        if not (
-            isinstance(cached_gene_context, dict)
-            and _gene_context_snapshot_cache_is_current(cached_gene_context)
-        ):
-            cached_gene_context = {}
-        gene_context_snapshot_payload = (
-            cached_gene_context.get("snapshot") if isinstance(cached_gene_context, dict) else None
-        )
-        rebuild_gene_context_snapshot_cache = not isinstance(
-            gene_context_snapshot_payload,
-            dict,
-        )
-        phase_started = timing_start()
-        if isinstance(gene_context_snapshot_payload, dict):
-            evidence_map["gene_context_snapshot"] = gene_context_snapshot_payload
-            evidence_statuses["gene_context_snapshot"] = str(
-                gene_context_snapshot_payload.get("source_status") or "cache"
-            )
-        else:
-            gene_context_snapshot_payload = None
-            try:
-                gene_context_snapshot = self.gene_context_snapshot.build(
-                    gene=gene,
-                    cdna=cdna,
-                    transcript=input_resolution.resolver_transcript,
-                    species=request.species,
-                )
-                gene_context_snapshot_payload = gene_context_snapshot.model_dump(mode="json")
-                evidence_map["gene_context_snapshot"] = gene_context_snapshot_payload
-                evidence_statuses["gene_context_snapshot"] = gene_context_snapshot.source_status
-            except Exception as exc:
-                warnings.append(f"gene_context_snapshot_failed:{type(exc).__name__}")
-        record_phase(
-            "gene_context_snapshot",
-            phase_started,
-            metadata={
-                "cached": isinstance(cached_gene_context, dict) and bool(cached_gene_context)
-            },
-        )
-        if query_kind == "unknown":
-            base_payload.limitations = (
-                f"We could not parse '{cdna}' as cDNA, rsID, protein, or genomic HGVS. "
-                "Check the variant syntax and retry."
-            )
-
-        gene_context_snapshot_cache = (
-            {
-                "gene_context_snapshot_cache_version": GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
-                "snapshot": gene_context_snapshot_payload,
-            }
-            if gene_context_snapshot_payload is not None
-            else None
-        )
+        base_payload = report_assembly.payload
+        litvar_summary = report_assembly.litvar_summary
+        total_count = report_assembly.total_publications
+        rebuild_functional_evidence_cache = report_assembly.rebuild_functional_evidence_cache
+        gene_context_snapshot_cache = report_assembly.gene_context_snapshot_cache
+        rebuild_gene_context_snapshot_cache = report_assembly.rebuild_gene_context_snapshot_cache
         should_upsert_variant_cache = (
             self.settings is not None
             and self.settings.use_real_apis
@@ -1821,58 +1556,23 @@ class LookupService:
             },
         )
 
-        phase_started = timing_start()
-        if self.draft_render_service is not None:
-            draft_payload, draft_warnings = self.draft_render_service.render(
-                case_title=f"{gene}:{cdna}",
-                patient_context=None,
-                clinical_phenotype=None,
-                variant_summary=variant_label,
-                decision=decision,
-                evidence_statuses=evidence_statuses,
-                warnings=[*warnings, *decision.warnings],
-                base_payload=base_payload,
-            )
-            base_payload.ai_clinical_summary = draft_payload.ai_clinical_summary
-            base_payload.expanded_evidence = draft_payload.expanded_evidence
-            base_payload.clinical_integration = draft_payload.clinical_integration
-            base_payload.recommendations = draft_payload.recommendations
-            base_payload.limitations = draft_payload.limitations
-            warnings = [*warnings, *draft_warnings]
-        record_phase(
-            "draft_render",
-            phase_started,
-            metadata={"enabled": self.draft_render_service is not None},
-        )
-
-        phase_started = timing_start()
-        report_generated_at = current_report_timestamp()
-        base_payload.report_generated_at = report_generated_at
-        base_payload.report_data_currency = build_report_data_currency(
-            evidence,
-            evidence_map,
-            generated_at=report_generated_at,
-        )
-        base_payload.source_versions = build_source_version_pins(base_payload.report_data_currency)
-        base_payload.report_profile = self.report_orchestrator.build_profile(
-            resolution=input_resolution,
-            interpretation=search_interpretation,
+        _finalize_lookup_report_payload(
             payload=base_payload,
+            gene=gene,
+            cdna=cdna,
+            variant_label=variant_label,
+            decision=decision,
+            input_resolution=input_resolution,
+            search_interpretation=search_interpretation,
             evidence=evidence,
             evidence_map=evidence_map,
             evidence_statuses=evidence_statuses,
+            warnings=warnings,
+            draft_render_service=self.draft_render_service,
+            report_orchestrator=self.report_orchestrator,
+            timing_start=timing_start,
+            record_phase=record_phase,
         )
-        record_phase("report_profile", phase_started)
-        phase_started = timing_start()
-        try:
-            base_payload.eamos_computed_classification = compute_report_acmg_classification(
-                base_payload,
-                evidence_map,
-                evidence_statuses,
-            )
-        except Exception as exc:
-            warnings.append(f"eamos_computed_classification_failed:{type(exc).__name__}")
-        record_phase("eamos_computed_classification", phase_started)
 
         response = LookupResponse(
             query=f"{gene}:{cdna}",

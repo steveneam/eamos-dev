@@ -1,5 +1,34 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-03 01:26 +1000 - Codex - Lookup report-payload assembly fold
+
+Continued the measured `lookup_service.py` package fold without changing route
+contracts, source/provider posture, or the public `app.services.lookup_service`
+import surface.
+
+- Extracted full Variant Evidence Report payload assembly/finalization into
+  `lookup_service_report_payload.py`: classification snapshot text, therapeutic
+  landscape text, publication literature attachment, functional-evidence cache
+  reuse/rebuild decisions, clinical-consensus evidence tap, publications
+  callout, population-frequency detail, call cards, sequence/gene-context
+  hydration, draft-render overrides, report data-currency/source-version pins,
+  report-profile assembly, and computed ACMG layer attachment.
+- `LookupService.lookup()` now keeps source fetching, source/result cache
+  orchestration, variant-cache writes, report-cache writes, timing headers, and
+  response construction while delegating payload assembly to the helper.
+- Added focused helper tests for cached functional-evidence/gene-context reuse
+  and final report metadata/profile finalization.
+- Ratcheted `lookup_service.py` from 2000 to 1750 lines and added a 550-line
+  budget for `lookup_service_report_payload.py`.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_lookup_service_report_payload.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_cache.py tests/test_report_cache_contract.py tests/test_lookup_service_publications_trials.py tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_variant_search_integration.py::test_lookup_publications_endpoint_pages_deduped_ep_vlex_rows -q`
+- `cd app/backend; python -m ruff check app/services/lookup_service.py app/services/lookup_service_report_payload.py tests/test_lookup_service_report_payload.py tests/test_structure_guard.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_service_report_payload.py tests/test_lookup_service_report_payload.py tests/test_structure_guard.py`
+- `cd app/backend; python -m compileall app/services/lookup_service.py app/services/lookup_service_report_payload.py`
+
 ## 2026-07-03 00:59 +1000 - Codex - Lookup publication/trial builder fold
 
 Continued the measured `lookup_service.py` package fold without changing route

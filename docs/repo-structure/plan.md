@@ -38,7 +38,7 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/workbench/workbench.css` | 4028 | Multiple Workbench tool style domains in one global sheet. |
 | `app/backend/app/services/gene_viewer.py` | 3497 | Fixture provider, live source client, transcript projection, full-locus geometry, protein tracks, and allele display in one module. |
 | `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. Folded 2026-07-02 into a facade plus constants, models, license policy, and parser/source helpers. |
-| `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. 2026-07-03 fold extracted publication/trial section builders and publication callout helpers. |
+| `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. 2026-07-03 folds extracted publication/trial section builders, publication callout helpers, and full report-payload assembly/finalization. |
 | `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
 | `app/web/components/report/ReportGeneViewer.tsx` | 2487 | Report-specific viewer UI plus viewer state, adaptation, controls, and rendering. |
@@ -157,10 +157,11 @@ Done in this pass:
 - Wave 4 `lookup_service.py` folds now keep the public import surface as a
   compatibility facade while cache schema versions/codecs, source-result cache
   conversion, ClinVar gene-distribution runtime gating, shared text helpers,
-  lookup source-cache orchestration, and publication/trial section assembly live
-  in focused `lookup_service_*` modules. The main service remains a measured
-  optimization target because full report-payload assembly still lives inside
-  `lookup()`.
+  lookup source-cache orchestration, publication/trial section assembly, and
+  full report-payload assembly/finalization live in focused
+  `lookup_service_*` modules. The main service remains a measured optimization
+  target because source fetch orchestration, cache writes, section-specific
+  builders, and response/cache shell behavior still live inside `LookupService`.
 
 Verification:
 
@@ -189,7 +190,8 @@ Current gene-viewer line-count ratchets:
   pre-fold monolith size and the facade import surface is covered by a focused
   structure test. After the publication/trial fold, `lookup_service.py` is
   ratcheted at 2000 lines and `lookup_service_publications_trials.py` at 500
-  lines.
+  lines. After the report-payload assembly fold, `lookup_service.py` is
+  ratcheted at 1750 lines and `lookup_service_report_payload.py` at 550 lines.
 
 ### R1 - Gene viewer package fold
 
@@ -322,10 +324,12 @@ variant-library behavior.
 Fold status: started 2026-07-02. The cache/ClinVar helper extraction and the
 lookup source-cache orchestration extraction are complete and guarded. The
 publication/trial section builders and publication callout helpers were
-extracted on 2026-07-03 into `lookup_service_publications_trials.py`. Next safe
-lookup slices should be measured against lookup timing diagnostics and should
-target report-payload assembly without changing route contracts or
-source/provider posture.
+extracted on 2026-07-03 into `lookup_service_publications_trials.py`. Full
+Variant Evidence Report payload assembly/finalization was extracted on
+2026-07-03 into `lookup_service_report_payload.py`. Next safe lookup slices
+should target remaining source/section orchestration boundaries only with
+focused characterization proving route contracts, cache behavior, and
+source/provider posture remain unchanged.
 
 ### R5 - Report and Compare frontend decomposition
 
