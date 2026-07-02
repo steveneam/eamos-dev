@@ -466,7 +466,7 @@ verified, and documented.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-07-02 20:16 +1000 - Codex lookup service cache helper fold
+# Resume prompt · 2026-07-02 20:16 +1000 · Codex lookup service cache helper fold
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
 Delta: implementation commit `7b503b5` is pushed and live on Render SG deploy `dep-d933jh5aeets73b1un8g`; it splits lookup cache codecs/source-result conversion, ClinVar gene-distribution runtime gating, and shared helpers out of `lookup_service.py` while preserving the public facade.
 Verification: focused lookup/report-cache/ClinVar/section pytest, Ruff, focused Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render API deploy confirmation, SG/Vercel health/search readiness, SG viewer 200, and Vercel 200 all passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
