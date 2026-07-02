@@ -28,6 +28,28 @@ Verification passed locally:
 - `cd app/backend; python -m ruff check app/services/lookup_service.py app/services/lookup_service_report_payload.py tests/test_lookup_service_report_payload.py tests/test_structure_guard.py`
 - `cd app/backend; python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_service_report_payload.py tests/test_lookup_service_report_payload.py tests/test_structure_guard.py`
 - `cd app/backend; python -m compileall app/services/lookup_service.py app/services/lookup_service_report_payload.py`
+- `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,843 nodes and exceeds the 5,000-node default
+  visualization threshold.
+
+Implementation commit `075a80c` was pushed to `origin/main` and deployed to
+Render SG as `dep-d9388mbtqb8s738q9050`. Render API confirmed it is live on
+commit `075a80c0a482199434c9fe668b45b8e9a373dc96`.
+
+Post-deploy smoke passed:
+
+- SG `/healthz`: ok, database ok.
+- SG `/api/v1/health/provider-cache`: search `ready`, index tables present,
+  zero ownerless private search rows.
+- SG `/api/v1/lookup/sections` for RPE65 `c.260A>G` returned available
+  publications and available therapies/trials with 12 trial rows.
+- SG `/api/v1/lookup` for RPE65 `c.260A>G` returned a valid report payload with
+  report profile present and 12 trial rows; live source warnings remain the
+  current expected posture for absent/timeout sources.
+- Vercel proxy `/api/v1/health/provider-cache`: search `ready`, index tables
+  present, zero ownerless private rows.
+- `https://eamos-dev.vercel.app`: HTTP 200 by `curl.exe`.
 
 ## 2026-07-03 00:59 +1000 - Codex - Lookup publication/trial builder fold
 
