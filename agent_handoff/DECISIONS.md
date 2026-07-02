@@ -1,5 +1,25 @@
 # Agent Coordination Decisions
 
+## 2026-07-02: Codex Standing Commit/Push/Deploy Approval When Safe
+
+Section edited: 2026-07-02 19:13 +1000 - Codex.
+
+Decision (Steven, 2026-07-02): Codex may commit, push, and deploy after a
+slice is verified safe, without asking Steven to repeat that approval each
+time.
+
+Scope and limits:
+
+- This approves normal Codex-owned commit, push, and deploy execution after
+  verification is green and the worktree/staging set is reviewed.
+- It does not approve env/provider flips, Supabase mutations, runtime
+  seed/sync, source materialization/download/upload, destructive git, cleanup
+  deletion, or secret output.
+- DL-019 still applies: run `git status --short` first, never use `git add -A`,
+  `git add .`, or `git commit -a`, and stage explicit Codex-owned paths only.
+- Deployment still requires normal post-deploy health/live verification and
+  handoff/progress documentation.
+
 ## 2026-06-16: Tier 1 Materialization First
 
 Section edited: 2026-06-16 22:18 +1000 - Codex.

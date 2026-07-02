@@ -1,5 +1,165 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-02 19:33 +1000 - Codex - Selom backend organization pass shipped
+
+Continued the repo-wide Selom-style organization pass from the uncommitted
+Search Task 6 / gene-viewer slice. Implementation commit `3c11ed2` was pushed
+to `origin/main` and deployed to Render SG as `dep-d932uqbtqb8s73a7fr6g`; Render
+API confirmed it is live on commit `3c11ed202239ff2877a035d7f4a4095e35a94b0c`.
+
+- Search Task 6 backend breadth from the carried local slice is now committed:
+  saved library variants, public publications/trials from report payloads, and
+  private report sections are indexed with owner/visibility boundaries; report
+  payload update, approve, and drop refresh search rows best-effort.
+- `gene_viewer.py`, `workbench_design.py`, and `pubmed_local.py` are now public
+  compatibility facades over focused ownership modules. Public import/API
+  surfaces are preserved, while provider protocols, fixture handling, source
+  clients, primer/alignment design, PubMed constants/models/license policy, and
+  PubMed parsing/materialization helpers live in separate modules.
+- Structure guards now budget the facades and split modules so the large mixed
+  modules cannot silently collapse back into monoliths.
+- Repo-structure docs mark the Workbench/PubMed folds complete and identify
+  `lookup_service.py` as the next backend package-fold hotspot.
+- Steven's standing approval for Codex commit/push/deploy when safe is recorded
+  in `agent_handoff/DECISIONS.md`; the usual exclusions remain in force.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_workbench_api.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_pubmed_local.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_workbench_api.py tests/test_pubmed_local.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py tests/test_gene_viewer.py tests/test_variant_applied_model.py tests/test_workbench_api.py tests/test_pubmed_local.py tests/test_frontend_contract.py tests/test_rate_limits.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check app tests/test_workbench_api.py tests/test_pubmed_local.py tests/test_structure_guard.py`
+- Focused Black check on the changed backend modules/tests after formatting the
+  extracted files.
+- Compileall on changed backend modules with an alternate pycache prefix to
+  avoid Windows pyc locks.
+- `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,662 nodes and exceeds the 5,000-node default
+  visualization threshold.
+
+Post-deploy smoke passed:
+
+- Render API: `dep-d932uqbtqb8s73a7fr6g` live on `3c11ed2`.
+- SG `/healthz`: ok, database ok, `llm_provider="gateway"`.
+- SG and Vercel proxy `/api/v1/health/provider-cache`: `search.status="ready"`,
+  `index_tables_present=true`, and `private_rows_without_owner_count=0`.
+- SG `/api/v1/viewer` RPE65 `c.260A>G`: HTTP 200 with provenance present.
+- `https://eamos-dev.vercel.app`: HTTP 200.
+
+Live caveat:
+
+- Minimal SG Workbench design calls (`/primer`, `/crispr`, `/align`) return the
+  sanitized 422 `workbench_sequence_context_resolver_error` under the current
+  live config. Provider-cache reports `workbench_local_tools` as
+  `code_available_reference_gated`, so this is recorded as a live configuration
+  gate rather than treated as a deploy regression for this refactor.
+
+No env/provider flip, Supabase mutation, runtime seed/sync, source
+materialization/download/upload, cleanup deletion, destructive git, or secret
+output occurred.
+
+## 2026-07-01 19:45 +1000 - Codex - Timeout recovery for gene-viewer provider fold
+
+Resumed after the previous Codex turn stopped during the long cumulative backend
+pytest rerun. No cleanup deletion, commit, push, deploy/env/provider mutation,
+Supabase mutation, runtime seed/sync, source materialization, or destructive git
+occurred.
+
+- Confirmed no pytest process was still running; active Python processes were
+  uvicorn servers.
+- Completed the second `gene_viewer.py` package-fold slice: the public facade is
+  now about 330 lines, `SourceBackedGeneViewerProvider` lives in
+  `gene_viewer_source_provider.py`, and protein-domain plus AlphaMissense track
+  hydration helpers live in `gene_viewer_protein_tracks.py`.
+- Removed a stray UTF-8 BOM from `gene_viewer.py` after spotting it in the diff.
+- Repo-structure docs now move the next package-fold priority away from
+  gene-viewer and toward `workbench_design.py` or `pubmed_local.py`.
+
+Verification passed:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py tests/test_gene_viewer.py tests/test_variant_applied_model.py tests/test_workbench_api.py tests/test_frontend_contract.py tests/test_rate_limits.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check app tests`
+- `cd app/backend; python -m black --check app/services/gene_viewer.py app/services/gene_viewer_errors.py app/services/gene_viewer_fixture_records.py app/services/gene_viewer_full_locus.py app/services/gene_viewer_protein_tracks.py app/services/gene_viewer_source_client.py app/services/gene_viewer_source_provider.py app/services/gene_viewer_utils.py app/services/gene_viewer_variants.py app/services/gene_viewer_window.py tests/test_gene_viewer.py tests/test_structure_guard.py`
+- `cd app/backend; python -m compileall app/services/gene_viewer.py app/services/gene_viewer_errors.py app/services/gene_viewer_fixture_records.py app/services/gene_viewer_full_locus.py app/services/gene_viewer_protein_tracks.py app/services/gene_viewer_source_client.py app/services/gene_viewer_source_provider.py app/services/gene_viewer_utils.py app/services/gene_viewer_variants.py app/services/gene_viewer_window.py`
+- `git diff --check`
+- `python -m graphify update .` with long timeout; graph HTML was skipped
+  because the graph has 17,368 nodes and exceeds the 5,000-node default
+  visualization limit.
+
+Verification caveat:
+
+- Broad `cd app/backend; python -m black --check app tests` is still not a clean
+  repo-wide gate: it reports 10 pre-existing files that would be reformatted,
+  mostly outside this fold. The changed gene-viewer fold files pass Black check.
+
+## 2026-07-01 18:45 +1000 - Codex - Search Task 6 public rows and gene-viewer package fold
+
+Continued the Search Task 6 and gene-viewer backend fold locally without
+cleanup deletion, commit, push, deploy/env/provider mutation, Supabase mutation,
+runtime seed/sync, or source materialization.
+
+- Search Task 6 public/source-backed breadth now indexes existing run-payload
+  publications and trials as public search documents, plus owner-scoped private
+  `report_section` documents. Report payload updates, approve, and drop now
+  refresh indexed rows best-effort after the primary write succeeds.
+- The first workspace slice from earlier remains intact: saved variant-library
+  rows index as private owner-scoped `library_variant` rows on save, bulk,
+  replace, and delete.
+- `gene_viewer.py` was split by responsibility while preserving the public
+  `app.services.gene_viewer` import surface. It is now a 1,060-line facade /
+  provider module, with source client, fixture records, full-locus rendering,
+  transcript-window rendering, shared errors, variants, and utility helpers in
+  focused modules.
+- Browser proof: existing Workbench on `127.0.0.1:3001` renders the Workbench
+  shell with no console warnings/errors and no horizontal overflow, but remains
+  at `Loading sequence...` because that existing Next process is tied to an
+  older backend proxy. A fresh backend on `127.0.0.1:8002` successfully returned
+  the refactored full-gene RPE65 viewer payload directly.
+
+Verification passed:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py tests/test_gene_viewer.py tests/test_variant_applied_model.py tests/test_workbench_api.py tests/test_frontend_contract.py tests/test_rate_limits.py -q`
+- `cd app/backend; python -m pytest tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check ...` on changed backend/search/gene-viewer files and focused tests
+- `cd app/backend; python -m black --check --target-version py310 ...` on changed backend/search/gene-viewer files and focused tests
+- `cd app/backend; python -m compileall -q app`
+- `git diff --check`
+
+## 2026-07-01 17:31 +1000 - Codex - Search Task 6 first workspace entity slice
+
+Continued the backend search work without cleanup deletion, deploy/env/provider
+mutation, Supabase mutation, runtime seed/sync, destructive git, commit, or
+push.
+
+- Search Task 6 first slice: saved variant-library rows now index as
+  owner-scoped private `library_variant` search documents. Individual save,
+  bulk save, whole-library replace, and delete refresh the search index while
+  treating indexing as a logged secondary side effect so primary library writes
+  remain authoritative.
+- The existing search tables stay migration-free for this slice. Library
+  variant source keys are stable hashed keys, and the document body carries
+  gene/HGVS/protein aliases so exact gene/variant search can rank ahead of
+  plain full-text matches.
+- Focused API tests now prove saved library variants are searchable only by the
+  owning user, delete removes stale hits, and whole-library replace refreshes
+  indexed rows.
+- Broader Task 6 remains open for public/source-backed product entities,
+  view-count metadata, publication/trial/source-backed report-section rows,
+  richer frontend-facing result shape, later frontend search-results
+  integration, grounded answer-chain tests, and approve/drop/report-payload
+  refresh breadth.
+
+Verification passed:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py -q`
+- `cd app/backend; python -m pytest tests/test_search_api_local.py tests/test_variant_library_api.py tests/test_rate_limits.py tests/test_frontend_contract.py -q`
+- `cd app/backend; python -m ruff check app tests/test_search_api_local.py tests/test_variant_library_api.py`
+- `cd app/backend; python -m black --check --target-version py310 app/main.py app/schemas/search.py app/services/search.py app/services/search_index.py app/services/variant_library.py app/repos/search_repo.py tests/test_search_api_local.py tests/test_variant_library_api.py`
+- `cd app/backend; python -m compileall -q app`
+- `git diff --check`
+
 ## 2026-06-30 20:06 +1000 - Codex - Search rollout commit/push/deploy closeout
 
 Steven approved commit, push, and deploy after the local verification pass.
