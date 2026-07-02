@@ -1,5 +1,40 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-02 21:23 +1000 - Codex - Lookup source-cache orchestration fold
+
+Continued the measured `lookup_service.py` package fold without changing route
+contracts or source/provider posture.
+
+- Extracted the source-cache orchestration nested inside `LookupService.lookup()`
+  into `lookup_service_source_cache.py`.
+- The helper now owns lookup source-cache key selection, hero-versus-general
+  source policy, fresh-hit reuse, stale-on-failure/exception fallback,
+  persistence eligibility, source-result cache snapshot writes, identity
+  mismatch warnings, and timing-provider metadata.
+- `lookup_service.py` stays the compatibility facade and retains the lazy
+  section/report assembly code for later targeted slices.
+- Added direct helper tests for fresh-cache bypass, stale fallback on live
+  exception, and successful source/report cache persistence.
+- Ratcheted the `lookup_service.py` structure guard from 2500 to 2350 lines and
+  added a budget for the new source-cache helper module.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_lookup_service_source_cache.py tests/test_source_cache.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_report_cache_contract.py tests/test_lookup_section_fetch_contract.py tests/test_clinvar_local_adapter.py -q`
+- `cd app/backend; python -m pytest tests/test_variant_cache.py -q`
+- `cd app/backend; python -m ruff check app/services/lookup_service.py app/services/lookup_service_source_cache.py tests/test_lookup_service_source_cache.py tests/test_structure_guard.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_service_source_cache.py tests/test_lookup_service_source_cache.py tests/test_structure_guard.py`
+- `cd app/backend; python -m compileall app/services/lookup_service.py app/services/lookup_service_source_cache.py`
+- `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,747 nodes and exceeds the 5,000-node default
+  visualization threshold.
+
+Next measured lookup optimization targets: publication/trial section builders
+and report-payload assembly, only with focused characterization proving route,
+cache, and source-provider behavior remain unchanged.
+
 ## 2026-07-02 20:16 +1000 - Codex - Lookup service cache helper fold shipped
 
 Started the next Selom-style backend organization target after the shipped

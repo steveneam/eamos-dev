@@ -68,7 +68,6 @@ from app.services.lookup_service_cache import (
     result_to_evidence as _result_to_evidence,
     sections_from_report_section_cache as _sections_from_report_section_cache,
     sections_from_report_section_payload as _sections_from_report_section_payload,
-    source_cache_token as _source_cache_token,
     source_result_cache_to_result as _source_result_cache_to_result,
     source_version_from_result as _source_version_from_result,
     strict_genomic_cache_is_current as _strict_genomic_cache_is_current,
@@ -83,6 +82,11 @@ from app.services.lookup_service_clinvar_distribution import (
 )
 from app.services.lookup_service_utils import dedupe_values as _dedupe_values
 from app.services.lookup_service_utils import text_value as _text_value
+from app.services.lookup_service_source_cache import (
+    LookupSourceCacheOrchestrator,
+    SOURCE_CACHE_FAILURE_STATUSES,
+    SOURCE_CACHE_PERSIST_STATUSES,
+)
 from app.services.lookup_timing import LookupTimingCollector
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
 from app.services.report_call_cards import (
@@ -99,11 +103,7 @@ from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver
 from app.services.variant_report_orchestrator import VariantReportDataOrchestrator
 from app.services.variant_decoder import decode_variant
-from app.services.source_cache import (
-    clingen_vcep_source_cache_key,
-    is_hero_example_variant,
-    source_cache_key,
-)
+from app.services.source_cache import clingen_vcep_source_cache_key
 from app.tools.base import ToolResult
 from app.tools.clingen import cached_clingen_result_matches_variant
 from app.tools.registry import STRICT_GENOMIC_PLUGINS
@@ -132,9 +132,6 @@ GENE_THERAPY_MAP: dict[str, str] = {
     ),
 }
 
-SOURCE_CACHE_PERSIST_STATUSES = {"live", "cache"}
-SOURCE_CACHE_FAILURE_STATUSES = {"fallback", "degraded", "error", "failed"}
-SOURCE_CACHE_GENERAL_SOURCES = {"gnomad"}
 SOURCE_SPECIFIC_SECTION_IDS = frozenset(
     {"publications", "therapies_trials", "computational_deep_dive", "clingen_vcep"}
 )
@@ -1546,180 +1543,23 @@ class LookupService:
         warnings.extend(input_resolution.warnings)
 
         cache_key = f"{gene}:{cdna}"
-        source_key = source_cache_key(gene, cdna)
-        source_cache_enabled = (
-            self.settings is not None
-            and self.settings.use_real_apis
-            and self.source_cache_repo is not None
+        source_cache_orchestrator = LookupSourceCacheOrchestrator(
+            settings=self.settings,
+            source_cache_repo=self.source_cache_repo,
+            tool_registry=self.tool_registry,
+            report_source_result_cache_writer=self._store_report_source_result_cache,
+            cache_key=cache_key,
+            gene=gene,
+            cdna=cdna,
+            variant=variant,
+            evidence_map=evidence_map,
+            evidence_raw=evidence_raw,
+            warnings=warnings,
+            refresh=refresh,
+            species=request.species,
+            timing=timing,
         )
-        source_cache_hero_variant = is_hero_example_variant(gene, cdna)
-
-        def source_cache_key_for(name: str) -> str | None:
-            if not source_cache_enabled:
-                return None
-            if name == "clingen":
-                return clingen_vcep_source_cache_key(
-                    gene=gene,
-                    transcript_hgvs=variant.transcript_hgvs,
-                    cdna=cdna,
-                    genomic_hgvs=variant.genomic_hgvs,
-                    genomic_hg38=variant.genomic_hg38,
-                    clinvar_summary=evidence_map.get("clinvar"),
-                    clinvar_raw=evidence_raw.get("clinvar"),
-                )
-            if source_cache_hero_variant:
-                return source_key
-            if name not in SOURCE_CACHE_GENERAL_SOURCES:
-                return None
-            variant_id = _source_cache_token(variant.genomic_hg38)
-            if not variant_id:
-                return None
-            dataset = str(getattr(self.tool_registry.get("gnomad"), "DATASET", "gnomad_r4"))
-            return f"gnomad:{dataset}:{variant_id}"
-
-        def should_persist_source_cache(name: str, result: ToolResult) -> bool:
-            if result.status not in SOURCE_CACHE_PERSIST_STATUSES:
-                return False
-            if (
-                not source_cache_hero_variant
-                and name == "gnomad"
-                and "gnomad_variant_not_found" in result.warnings
-            ):
-                return False
-            if name == "clingen" and (
-                "clingen_variant_not_found" in result.warnings
-                or not (result.summary or {}).get("expert_panel")
-            ):
-                return False
-            return True
-
-        def source_cache_result_matches_request(name: str, result: ToolResult) -> bool:
-            if name != "clingen":
-                return True
-            return cached_clingen_result_matches_variant(result, variant)
-
-        def source_cached_result(name: str, producer) -> ToolResult:
-            provider_started = timing_start()
-            result_for_timing: ToolResult | None = None
-            outcome = "producer"
-            error_type: str | None = None
-            allow_stale_on_exception = False
-            try:
-                source_cache_lookup_key = source_cache_key_for(name)
-                use_source_cache = source_cache_lookup_key is not None
-                skip_fresh_source_cache = (
-                    name == "clingen"
-                    and self.settings is not None
-                    and self.settings.clingen_local_enabled
-                )
-                if use_source_cache and not refresh and not skip_fresh_source_cache:
-                    hit = self.source_cache_repo.get_fresh(name, source_cache_lookup_key)
-                    if hit is not None:
-                        hit_result = hit.to_tool_result(status="cache", cache_status="cache_hit")
-                        if source_cache_result_matches_request(name, hit_result):
-                            outcome = "source_cache_fresh_hit"
-                            result_for_timing = hit_result
-                            return hit_result
-                        warnings.append(f"source_cache_identity_mismatch:{name}")
-
-                allow_stale_on_exception = True
-                result = producer()
-                allow_stale_on_exception = False
-                result_for_timing = result
-                if use_source_cache and result.status in SOURCE_CACHE_FAILURE_STATUSES:
-                    stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
-                    if stale is not None:
-                        stale_result = stale.to_tool_result(
-                            status="stale",
-                            cache_status="stale_on_failure",
-                            extra_warnings=[
-                                f"source_cache_stale_on_failure:{name}",
-                                f"live_status:{result.status}",
-                                *result.warnings,
-                            ],
-                        )
-                        if source_cache_result_matches_request(name, stale_result):
-                            outcome = "source_cache_stale_on_failure"
-                            result_for_timing = stale_result
-                            return stale_result
-                        result.warnings.append(f"source_cache_identity_mismatch:{name}")
-
-                if (
-                    use_source_cache
-                    and result.status != "local"
-                    and should_persist_source_cache(name, result)
-                ):
-                    _annotate_source_cached_result(
-                        name,
-                        result,
-                        cache_key=source_cache_lookup_key,
-                    )
-                    self.source_cache_repo.upsert(
-                        result.source,
-                        source_cache_lookup_key,
-                        normalized_identity={
-                            "query": source_cache_lookup_key,
-                            "gene": gene,
-                            "cdna": cdna,
-                            "genomic_hg38": variant.genomic_hg38,
-                            "genomic_hgvs": variant.genomic_hgvs,
-                        },
-                        request_identity=result.request_identity,
-                        status=result.status,
-                        summary=result.summary,
-                        raw=result.raw,
-                        warnings=result.warnings,
-                        source_url=result.source_url,
-                        ttl_days=self.settings.cache_ttl_days,
-                        source_version=_source_version_from_result(result),
-                    )
-                    outcome = "producer_persisted"
-                try:
-                    self._store_report_source_result_cache(
-                        cache_key,
-                        variant=variant,
-                        result=result,
-                        species=request.species,
-                    )
-                except Exception:
-                    pass
-                return result
-            except Exception as exc:
-                error_type = type(exc).__name__
-                if allow_stale_on_exception and "use_source_cache" in locals() and use_source_cache:
-                    stale = self.source_cache_repo.get_stale(name, source_cache_lookup_key)
-                    if stale is not None:
-                        stale_result = stale.to_tool_result(
-                            status="stale",
-                            cache_status="stale_on_failure",
-                            extra_warnings=[
-                                f"source_cache_stale_on_failure:{name}",
-                                f"live_fetch_failed:{type(exc).__name__}",
-                            ],
-                        )
-                        if source_cache_result_matches_request(name, stale_result):
-                            outcome = "source_cache_stale_on_exception"
-                            result_for_timing = stale_result
-                            return stale_result
-                        warnings.append(f"source_cache_identity_mismatch:{name}")
-                raise
-            finally:
-                if timing is not None:
-                    timing.record_provider(
-                        name,
-                        provider_started,
-                        status=result_for_timing.status if result_for_timing is not None else None,
-                        cache_status=(
-                            result_for_timing.cache_status
-                            if result_for_timing is not None
-                            else None
-                        ),
-                        outcome="error" if error_type and result_for_timing is None else outcome,
-                        warning_count=(
-                            len(result_for_timing.warnings) if result_for_timing is not None else 0
-                        ),
-                        error_type=error_type,
-                    )
+        source_cached_result = source_cache_orchestrator.cached_result
 
         cache_hit = None
         phase_started = timing_start()

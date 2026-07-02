@@ -38,7 +38,7 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/workbench/workbench.css` | 4028 | Multiple Workbench tool style domains in one global sheet. |
 | `app/backend/app/services/gene_viewer.py` | 3497 | Fixture provider, live source client, transcript projection, full-locus geometry, protein tracks, and allele display in one module. |
 | `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. Folded 2026-07-02 into a facade plus constants, models, license policy, and parser/source helpers. |
-| `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. First fold 2026-07-02 extracted cache codecs, ClinVar distribution runtime helpers, and shared utility helpers behind the existing facade. |
+| `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. |
 | `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
 | `app/web/components/report/ReportGeneViewer.tsx` | 2487 | Report-specific viewer UI plus viewer state, adaptation, controls, and rendering. |
@@ -154,12 +154,13 @@ Done in this pass:
   from the SQLite store/materialization/search facade. PubMed launch posture is
   unchanged: no startup materialization, provider flip, source download, or
   runtime seed/sync.
-- Wave 4 `lookup_service.py` first fold now keeps the public import surface as
-  a compatibility facade while cache schema versions/codecs, source-result cache
-  conversion, ClinVar gene-distribution runtime gating, and shared text helpers
-  live in focused `lookup_service_*` modules. The main service remains the next
-  measured optimization target because source-cache orchestration and full
-  report-payload assembly still live inside `lookup()`.
+- Wave 4 `lookup_service.py` folds now keep the public import surface as a
+  compatibility facade while cache schema versions/codecs, source-result cache
+  conversion, ClinVar gene-distribution runtime gating, shared text helpers, and
+  lookup source-cache orchestration live in focused `lookup_service_*` modules.
+  The main service remains a measured optimization target because publication/
+  trial section builders and full report-payload assembly still live inside
+  `lookup()`.
 
 Verification:
 
@@ -316,11 +317,11 @@ lookup/
 This is high blast-radius because it touches report, cache, lazy sections, and
 variant-library behavior.
 
-First fold status: started 2026-07-02. The cache/ClinVar helper extraction is
-complete and guarded. Next safe lookup slices should be measured against lookup
-timing diagnostics and should target source-cache orchestration inside
-`lookup()`, publication/trial section builders, and report-payload assembly
-without changing route contracts or source/provider posture.
+Fold status: started 2026-07-02. The cache/ClinVar helper extraction and the
+lookup source-cache orchestration extraction are complete and guarded. Next safe
+lookup slices should be measured against lookup timing diagnostics and should
+target publication/trial section builders and report-payload assembly without
+changing route contracts or source/provider posture.
 
 ### R5 - Report and Compare frontend decomposition
 
