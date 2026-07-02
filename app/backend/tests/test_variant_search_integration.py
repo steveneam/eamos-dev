@@ -454,7 +454,12 @@ def test_lookup_fixture_mode_resolves_grch38_and_litvar_publications(client) -> 
     assert query_nearby_variant["classification"] == "vus"
     functional = payload["report_payload"]["functional_evidence"]
     assert functional["total_count"] == 1
-    assert functional["source_breakdown"] == {"clingen": 0, "clinvar": 0, "pubmed": 1}
+    assert functional["source_breakdown"] == {
+        "clingen": 0,
+        "clinvar": 0,
+        "mavedb": 0,
+        "pubmed": 1,
+    }
     assert functional["display_metrics"] == {
         "state": "uncurated",
         "primary_label": "Functional Work Found - Not ACMG-graded",

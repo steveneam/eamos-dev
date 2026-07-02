@@ -38,7 +38,7 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/workbench/workbench.css` | 4028 | Multiple Workbench tool style domains in one global sheet. |
 | `app/backend/app/services/gene_viewer.py` | 3497 | Fixture provider, live source client, transcript projection, full-locus geometry, protein tracks, and allele display in one module. |
 | `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. Folded 2026-07-02 into a facade plus constants, models, license policy, and parser/source helpers. |
-| `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. |
+| `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. 2026-07-03 fold extracted publication/trial section builders and publication callout helpers. |
 | `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
 | `app/web/components/report/ReportGeneViewer.tsx` | 2487 | Report-specific viewer UI plus viewer state, adaptation, controls, and rendering. |
@@ -156,10 +156,10 @@ Done in this pass:
   runtime seed/sync.
 - Wave 4 `lookup_service.py` folds now keep the public import surface as a
   compatibility facade while cache schema versions/codecs, source-result cache
-  conversion, ClinVar gene-distribution runtime gating, shared text helpers, and
-  lookup source-cache orchestration live in focused `lookup_service_*` modules.
-  The main service remains a measured optimization target because publication/
-  trial section builders and full report-payload assembly still live inside
+  conversion, ClinVar gene-distribution runtime gating, shared text helpers,
+  lookup source-cache orchestration, and publication/trial section assembly live
+  in focused `lookup_service_*` modules. The main service remains a measured
+  optimization target because full report-payload assembly still lives inside
   `lookup()`.
 
 Verification:
@@ -187,7 +187,9 @@ Current gene-viewer line-count ratchets:
 - Split `lookup_service_*` modules have their own budgets in
   `tests/test_structure_guard.py`; `lookup_service.py` is ratcheted below the
   pre-fold monolith size and the facade import surface is covered by a focused
-  structure test.
+  structure test. After the publication/trial fold, `lookup_service.py` is
+  ratcheted at 2000 lines and `lookup_service_publications_trials.py` at 500
+  lines.
 
 ### R1 - Gene viewer package fold
 
@@ -318,10 +320,12 @@ This is high blast-radius because it touches report, cache, lazy sections, and
 variant-library behavior.
 
 Fold status: started 2026-07-02. The cache/ClinVar helper extraction and the
-lookup source-cache orchestration extraction are complete and guarded. Next safe
+lookup source-cache orchestration extraction are complete and guarded. The
+publication/trial section builders and publication callout helpers were
+extracted on 2026-07-03 into `lookup_service_publications_trials.py`. Next safe
 lookup slices should be measured against lookup timing diagnostics and should
-target publication/trial section builders and report-payload assembly without
-changing route contracts or source/provider posture.
+target report-payload assembly without changing route contracts or
+source/provider posture.
 
 ### R5 - Report and Compare frontend decomposition
 

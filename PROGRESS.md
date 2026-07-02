@@ -1,5 +1,41 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-03 00:59 +1000 - Codex - Lookup publication/trial builder fold
+
+Continued the measured `lookup_service.py` package fold without changing route
+contracts, source/provider posture, or public import compatibility.
+
+- Extracted publication/trial section assembly into
+  `lookup_service_publications_trials.py`: gene therapy map, ClinicalTrials.gov
+  summary/no-row text, disease-term extraction, cached publication-section
+  reuse, publication-source hydration, trial-section row/query/provenance
+  normalization, therapeutic-landscape assembly, PubMed article parsing,
+  LitVar/PubMed merge fallback, dbSNP extraction, lookup publication-literature
+  failure handling, and publications callout construction.
+- `lookup_service.py` remains the compatibility facade and still re-exports
+  `GENE_THERAPY_MAP`; full route behavior is preserved.
+- Added focused helper tests for cached publication-section bypass, trial row
+  fetched-at/provenance normalization, cached therapeutic-landscape trial
+  rendering, and publications callout construction.
+- Ratcheted `lookup_service.py` from 2350 to 2000 lines and added a 500-line
+  structure budget for the new publication/trial helper.
+- Updated a stale publication integration assertion to include the current
+  zero-valued `mavedb` functional-evidence source bucket.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_lookup_service_publications_trials.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m pytest tests/test_lookup_section_fetch_contract.py tests/test_variant_report_orchestration.py tests/test_variant_cache.py tests/test_report_cache_contract.py -q`
+- `cd app/backend; python -m pytest tests/test_variant_report_publication_functional_integration.py tests/test_variant_search_integration.py::test_lookup_fixture_mode_resolves_grch38_and_litvar_publications tests/test_variant_search_integration.py::test_lookup_publications_endpoint_pages_deduped_ep_vlex_rows -q`
+- `cd app/backend; python -m ruff check app/services/lookup_service.py app/services/lookup_service_publications_trials.py tests/test_lookup_service_publications_trials.py tests/test_structure_guard.py tests/test_variant_search_integration.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_service_publications_trials.py tests/test_lookup_service_publications_trials.py tests/test_structure_guard.py tests/test_variant_search_integration.py`
+- `cd app/backend; python -m compileall app/services/lookup_service.py app/services/lookup_service_publications_trials.py`
+- `git diff --check`
+
+Next measured lookup optimization target: full report-payload assembly inside
+`LookupService.lookup()`, only with focused characterization proving route,
+cache, and source-provider behavior remain unchanged.
+
 ## 2026-07-02 21:23 +1000 - Codex - Lookup source-cache orchestration fold
 
 Continued the measured `lookup_service.py` package fold without changing route
