@@ -14,6 +14,8 @@ POPULAR_VARIANT_DOC_TYPE = "popular_variant"
 PUBLICATION_DOC_TYPE = "publication"
 TRIAL_DOC_TYPE = "trial"
 REPORT_SECTION_DOC_TYPE = "report_section"
+GENE_DOC_TYPE = "gene"
+SOURCE_DOC_TYPE = "source"
 
 
 class SearchIndexService:
@@ -129,7 +131,12 @@ class SearchIndexService:
             )
             for run in runs
         ]
-        documents = [*report_documents, *run_documents]
+        public_documents = [
+            document
+            for run in runs
+            for document in self._build_public_source_documents(self._coerce_run(run))
+        ]
+        documents = self._dedupe_documents([*report_documents, *run_documents, *public_documents])
         ownerless_private_rows = sum(
             1
             for document in documents
@@ -297,14 +304,14 @@ class SearchIndexService:
 
     def _build_public_source_documents(self, run: RunResponse) -> list[SearchDocumentWrite]:
         payload = run.report_payload
-        documents: list[SearchDocumentWrite] = []
+        evidence_documents: list[SearchDocumentWrite] = []
         seen_publications: set[str] = set()
         for article in self._publication_articles(payload):
             pmid = (article.pmid or "").strip()
             if not pmid or pmid in seen_publications:
                 continue
             seen_publications.add(pmid)
-            documents.append(self._build_publication_document(payload, article))
+            evidence_documents.append(self._build_publication_document(payload, article))
 
         seen_trials: set[str] = set()
         for trial in self._trial_rows(payload):
@@ -312,8 +319,14 @@ class SearchIndexService:
             if not nct_id or nct_id in seen_trials:
                 continue
             seen_trials.add(nct_id)
-            documents.append(self._build_trial_document(payload, trial))
-        return documents
+            evidence_documents.append(self._build_trial_document(payload, trial))
+
+        documents = [
+            *evidence_documents,
+            *self._build_gene_documents(evidence_documents),
+            *self._build_source_vocabulary_documents(payload),
+        ]
+        return self._dedupe_documents(documents)
 
     def _replace_report_section_documents(
         self,
@@ -503,6 +516,197 @@ class SearchIndexService:
                 extra_terms=[*trial.matched_terms, *trial.conditions, *trial.interventions],
             ),
         )
+
+    def _build_gene_documents(
+        self,
+        public_evidence_documents: Sequence[SearchDocumentWrite],
+    ) -> list[SearchDocumentWrite]:
+        by_gene: dict[str, dict[str, object]] = {}
+        for document in public_evidence_documents:
+            document_genes: set[str] = set()
+            for variant in document.variants:
+                gene = (variant.gene_symbol_norm or variant.gene_symbol or "").strip().upper()
+                if not gene:
+                    continue
+                document_genes.add(gene)
+                entry = by_gene.setdefault(
+                    gene,
+                    {
+                        "publication_count": 0,
+                        "trial_count": 0,
+                        "titles": set(),
+                        "aliases": set(),
+                    },
+                )
+                titles = entry["titles"]
+                aliases = entry["aliases"]
+                if isinstance(titles, set) and document.report_title:
+                    titles.add(document.report_title)
+                if isinstance(aliases, set):
+                    for value in (
+                        variant.gene_symbol,
+                        variant.transcript_hgvs,
+                        variant.protein_change,
+                    ):
+                        if value:
+                            aliases.add(value)
+            for gene in document_genes:
+                entry = by_gene[gene]
+                if document.doc_type == PUBLICATION_DOC_TYPE:
+                    entry["publication_count"] = int(entry["publication_count"]) + 1
+                elif document.doc_type == TRIAL_DOC_TYPE:
+                    entry["trial_count"] = int(entry["trial_count"]) + 1
+
+        documents: list[SearchDocumentWrite] = []
+        for gene, entry in sorted(by_gene.items()):
+            titles = sorted(str(title) for title in entry["titles"] if str(title).strip())
+            aliases = sorted(str(alias) for alias in entry["aliases"] if str(alias).strip())
+            publication_count = int(entry["publication_count"])
+            trial_count = int(entry["trial_count"])
+            summary_text = self._join_text(
+                [
+                    f"{gene} source-backed public gene vocabulary",
+                    f"{publication_count} indexed publication(s)" if publication_count else None,
+                    f"{trial_count} indexed trial(s)" if trial_count else None,
+                    *titles[:6],
+                ]
+            )
+            identifier_text = self._join_text([gene, *aliases])
+            documents.append(
+                SearchDocumentWrite(
+                    source_key=f"{GENE_DOC_TYPE}:{self._stable_token(gene)}",
+                    doc_type=GENE_DOC_TYPE,
+                    visibility_scope="public",
+                    report_title=gene,
+                    summary_text=summary_text,
+                    evidence_text=self._join_text(titles),
+                    identifier_text=identifier_text,
+                    search_text=self._join_text([identifier_text, summary_text, *titles]),
+                    metadata={
+                        "gene": gene,
+                        "publication_count": publication_count,
+                        "trial_count": trial_count,
+                        "source_status": "source_backed_public_payload",
+                        "target_href": f"/report?q={gene}",
+                    },
+                    variants=[
+                        SearchVariantWrite(
+                            gene_symbol=gene,
+                            gene_symbol_norm=gene,
+                        )
+                    ],
+                )
+            )
+        return documents
+
+    def _build_source_vocabulary_documents(
+        self,
+        payload: ReportPayload,
+    ) -> list[SearchDocumentWrite]:
+        source_rows: dict[str, dict[str, object | None]] = {}
+        if payload.report_data_currency is not None:
+            for source in payload.report_data_currency.sources:
+                source_id = (source.source or "").strip()
+                if not source_id:
+                    continue
+                source_rows[source_id] = {
+                    "source_id": source_id,
+                    "label": source.label,
+                    "materialized_at": source.materialized_at,
+                    "upstream_released_at": source.upstream_released_at,
+                    "tier": source.tier,
+                    "status": source.status,
+                    "staleness_days": source.staleness_days,
+                    "source_version": source.source_version,
+                }
+
+        for source_id, source_version in payload.source_versions.items():
+            normalized_source_id = (source_id or "").strip()
+            if not normalized_source_id or normalized_source_id == "source_version":
+                continue
+            source_rows.setdefault(
+                normalized_source_id,
+                {
+                    "source_id": normalized_source_id,
+                    "label": normalized_source_id,
+                    "materialized_at": None,
+                    "upstream_released_at": None,
+                    "tier": None,
+                    "status": None,
+                    "staleness_days": None,
+                    "source_version": source_version,
+                },
+            )
+
+        documents: list[SearchDocumentWrite] = []
+        for source_id, row in sorted(source_rows.items()):
+            label = str(row.get("label") or source_id)
+            source_version = row.get("source_version")
+            status = row.get("status")
+            tier = row.get("tier")
+            identifier_text = self._join_text([source_id, label, source_version])
+            summary_text = self._join_text(
+                [
+                    label,
+                    "Eamos source metadata",
+                    f"Status: {status}" if status else None,
+                    f"Version: {source_version}" if source_version else None,
+                ]
+            )
+            evidence_text = self._join_text(
+                [
+                    f"Tier: {tier}" if tier else None,
+                    (
+                        f"Materialized at: {row.get('materialized_at')}"
+                        if row.get("materialized_at")
+                        else None
+                    ),
+                    (
+                        f"Upstream released at: {row.get('upstream_released_at')}"
+                        if row.get("upstream_released_at")
+                        else None
+                    ),
+                    (
+                        f"Staleness days: {row.get('staleness_days')}"
+                        if row.get("staleness_days") is not None
+                        else None
+                    ),
+                ]
+            )
+            documents.append(
+                SearchDocumentWrite(
+                    source_key=f"{SOURCE_DOC_TYPE}:{self._stable_token(source_id)}",
+                    doc_type=SOURCE_DOC_TYPE,
+                    visibility_scope="public",
+                    report_title=label,
+                    summary_text=summary_text,
+                    evidence_text=evidence_text,
+                    identifier_text=identifier_text,
+                    search_text=self._join_text([identifier_text, summary_text, evidence_text]),
+                    metadata={
+                        "source_id": source_id,
+                        "label": label,
+                        "status": str(status) if status else None,
+                        "tier": str(tier) if tier else None,
+                        "source_version": str(source_version) if source_version else None,
+                        "materialized_at": (
+                            str(row.get("materialized_at")) if row.get("materialized_at") else None
+                        ),
+                        "upstream_released_at": (
+                            str(row.get("upstream_released_at"))
+                            if row.get("upstream_released_at")
+                            else None
+                        ),
+                        "staleness_days": (
+                            int(row["staleness_days"])
+                            if isinstance(row.get("staleness_days"), int)
+                            else None
+                        ),
+                        "source_status": "report_data_currency",
+                    },
+                )
+            )
+        return documents
 
     def _publication_articles(self, payload: ReportPayload) -> list[PubMedArticle]:
         articles: list[PubMedArticle] = []
@@ -701,6 +905,15 @@ class SearchIndexService:
 
     def _join_text(self, items: Sequence[object | None]) -> str:
         return "\n".join(str(item).strip() for item in items if str(item or "").strip())
+
+    def _dedupe_documents(
+        self,
+        documents: Sequence[SearchDocumentWrite],
+    ) -> list[SearchDocumentWrite]:
+        by_source_key: dict[str, SearchDocumentWrite] = {}
+        for document in documents:
+            by_source_key[document.source_key] = document
+        return list(by_source_key.values())
 
     def _normalize_identifier(self, value: str | None) -> str | None:
         if not value:

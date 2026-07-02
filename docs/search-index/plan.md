@@ -1,6 +1,6 @@
 # Eamos search index implementation plan
 
-Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities and structured result metadata; Task 7+ and frontend integration remain open.
+Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, and structured result metadata; Task 7+ and frontend integration remain open.
 Spec: `docs/search-index/spec.md`.
 Related repo-structure wave: Wave 2, "Fix or retire Search".
 
@@ -33,8 +33,14 @@ Implementation update, 2026-06-30:
   publication/trial rows carry PubMed/ClinicalTrials routing metadata; saved
   variants carry query/classification metadata; public variant view-count writes
   index `popular_variant` rows with view counts and last-viewed timestamps.
+- Task 6 public gene/source vocabulary slice is implemented for existing run
+  payloads: public `gene` rows are derived from already-indexed public
+  publication/trial evidence rows, public `source` rows are derived from
+  sanitized `report_data_currency.sources` / `source_versions` metadata, and
+  the explicit dry-run/apply backfill path includes these rows from existing
+  run payloads without source/provider/Supabase mutation.
 - Still open: broader public product entity coverage beyond the current
-  payload-backed publication/trial/section/popularity rows, frontend
+  payload-backed publication/trial/section/popularity/gene/source rows, frontend
   integration, and grounded answer-chain tests.
 
 ## Shared decisions before implementation
@@ -361,10 +367,10 @@ Out of scope:
 
 Status: partially done. Saved variant-library rows now index as owner-scoped
 private `library_variant` documents. Existing report payloads index public
-publication/trial rows and private report-section rows. Public view-count writes
-index `popular_variant` documents, and search hits now expose a richer
-frontend-facing result shape. Public gene/source vocabulary and broader product
-entity coverage remain open.
+publication/trial rows, public `gene`/`source` vocabulary rows, and private
+report-section rows. Public view-count writes index `popular_variant`
+documents, and search hits now expose a richer frontend-facing result shape.
+Broader product entity coverage remains open.
 
 Goal:
 
@@ -395,6 +401,11 @@ Implementation update, 2026-07-01:
 - Public variant popularity counters index `popular_variant` documents on view
   writes. Hits include gene/HGVS aliases, view count, last-viewed timestamp,
   source status, and a `/report?q=...` target.
+- Existing run payloads now emit public `gene` rows from already-indexed public
+  publication/trial evidence rows and public `source` rows from sanitized
+  report data-currency/source-version metadata. The explicit dry-run/apply
+  backfill path includes those rows and still reports no source downloads,
+  provider calls, or Supabase mutation.
 
 Relevant files:
 

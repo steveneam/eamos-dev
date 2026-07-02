@@ -12,6 +12,8 @@ from app.schemas.run import (
     PublicationLiterature,
     PublicationSnippet,
     PubMedArticle,
+    ReportDataCurrency,
+    ReportDataCurrencySource,
     ReportPayload,
     ReportSectionSignal,
     RunResponse,
@@ -131,6 +133,22 @@ def _source_backed_report_payload(*, summary: str = "Original indexed source sum
     return ReportPayload(
         patient_id="SEARCH-SOURCE-001",
         report_title="Source-backed search fixture",
+        report_data_currency=ReportDataCurrency(
+            generated_at="2026-07-01T00:00:00Z",
+            sources=[
+                ReportDataCurrencySource(
+                    source="gnomad",
+                    label="gnomAD population frequencies",
+                    materialized_at="2026-06-30T00:00:00Z",
+                    upstream_released_at="2026-05-01",
+                    tier="static",
+                    status="fresh",
+                    staleness_days=30,
+                    source_version="gnomAD v4.1.1",
+                )
+            ],
+        ),
+        source_versions={"gnomad": "gnomAD v4.1.1"},
         ai_clinical_summary=summary,
         variant_summary_rows=[
             VariantSummaryRow(
@@ -360,6 +378,52 @@ def test_search_index_backfill_is_dry_run_first_and_owner_scoped(client: TestCli
     assert [item["report_id"] for item in found.json()["results"]] == ["report_search_backfill"]
 
 
+def test_search_index_backfill_includes_public_gene_and_source_rows(client: TestClient) -> None:
+    headers, owner_user_id = _register_user(client, "search-backfill-source-owner")
+    client.app.state.run_repo.create_run(
+        run_id="run_search_backfill_source",
+        patient_id="SEARCH-BACKFILL-SOURCE-001",
+        report_ids=[],
+        run_status=RunStatus.completed,
+        report_payload=_source_backed_report_payload(),
+        evidence=[],
+        warnings=[],
+    )
+
+    dry_run = run_backfill(
+        apply=False,
+        owner_user_id=owner_user_id,
+        settings=client.app.state.settings,
+    )
+    assert dry_run["documents_planned"] == 5
+    assert dry_run["source_downloads_performed"] is False
+    assert dry_run["provider_calls_performed"] is False
+    assert dry_run["supabase_mutation_performed"] is False
+
+    applied = run_backfill(
+        apply=True,
+        owner_user_id=owner_user_id,
+        settings=client.app.state.settings,
+    )
+    assert applied["documents_indexed"] == 5
+
+    gene = client.get(
+        "/api/v1/search",
+        params={"q": "RPE65", "doc_type": "gene", "limit": 5},
+        headers=headers,
+    )
+    assert gene.status_code == 200
+    assert [item["source_key"] for item in gene.json()["results"]] == ["gene:rpe65"]
+
+    source = client.get(
+        "/api/v1/search",
+        params={"q": "gnomAD", "doc_type": "source", "limit": 5},
+        headers=headers,
+    )
+    assert source.status_code == 200
+    assert [item["source_key"] for item in source.json()["results"]] == ["source:gnomad"]
+
+
 def test_source_backed_publication_trial_and_section_rows_are_indexed(
     client: TestClient,
 ) -> None:
@@ -404,6 +468,40 @@ def test_source_backed_publication_trial_and_section_rows_are_indexed(
     assert trial_hit["target_href"] == "https://clinicaltrials.gov/study/NCT01234567"
     assert trial_hit["metadata"]["nct_id"] == "NCT01234567"
     assert trial_hit["metadata"]["match_level"] == "variant_level"
+
+    gene = client.get(
+        "/api/v1/search",
+        params={"q": "RPE65", "doc_type": "gene", "limit": 5},
+        headers=other_headers,
+    )
+    assert gene.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in gene.json()["results"]
+    ] == [("gene", "public", "RPE65")]
+    gene_hit = gene.json()["results"][0]
+    assert gene_hit["source_key"] == "gene:rpe65"
+    assert gene_hit["subtitle"] == "1 publication | 1 trial"
+    assert gene_hit["target_href"] == "/report?q=RPE65"
+    assert gene_hit["metadata"]["gene"] == "RPE65"
+    assert gene_hit["metadata"]["source_status"] == "source_backed_public_payload"
+
+    source = client.get(
+        "/api/v1/search",
+        params={"q": "gnomAD", "doc_type": "source", "limit": 5},
+        headers=other_headers,
+    )
+    assert source.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in source.json()["results"]
+    ] == [("source", "public", "gnomAD population frequencies")]
+    source_hit = source.json()["results"][0]
+    assert source_hit["source_key"] == "source:gnomad"
+    assert source_hit["subtitle"] == "fresh | static | gnomAD v4.1.1"
+    assert source_hit["metadata"]["source_id"] == "gnomad"
+    assert source_hit["metadata"]["source_version"] == "gnomAD v4.1.1"
+    assert source_hit["metadata"]["source_status"] == "report_data_currency"
 
     owner_section = client.get(
         "/api/v1/search",

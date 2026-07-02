@@ -137,7 +137,9 @@ Done in this pass:
   delete. Existing report payloads index public publication/trial rows and
   private report-section rows. Public variant view-count writes index
   `popular_variant` documents with view-count metadata and report targets.
-  Broader public gene/source vocabulary remains open.
+  Existing run payloads also index public `gene` rows from already-indexed
+  public publication/trial evidence and public `source` rows from sanitized
+  report data-currency/source-version metadata.
 - Wave 3 data asset policy is now active in
   `docs/repo-structure/source-asset-policy.md`. The structure guard requires
   tracked files under `app/backend/data/source_assets` to live under registered
@@ -203,8 +205,8 @@ Target: `app/backend/app/services/gene_viewer.py`.
 Search Wave 2 has its backend wiring/access/readiness and current Task 6
 entity breadth mostly complete. Continue remaining search work from
 `docs/search-index/spec.md` and `docs/search-index/plan.md`, starting with
-broader public product entities, frontend results integration, and later
-grounded answer-chain tests.
+broader public product entities beyond current payload-backed rows, frontend
+results integration, and later grounded answer-chain tests.
 
 Follow-up update, 2026-06-30:
 

@@ -1,6 +1,6 @@
 # Eamos search index spec
 
-Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, private report sections from existing payloads, public popular-variant view-count entities, and structured hit metadata; frontend integration remains planned.
+Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, private report sections from existing payloads, public popular-variant view-count entities, public gene/source vocabulary rows from existing payload metadata, and structured hit metadata; frontend integration remains planned.
 Created: 2026-06-30 by Codex.
 Related structure work: `docs/repo-structure/plan.md`, Wave 2 in
 `docs/repo-structure/audit-2026-06-30.md`.
@@ -57,6 +57,12 @@ Implementation update, 2026-07-01:
   targets. Search hits now expose `source_key`, `subtitle`, `target_href`, and
   scalar `metadata` so the future results UI can route/explain hits without
   reparsing snippets.
+- Public `gene` rows are now emitted from already-indexed public
+  publication/trial evidence rows, and public `source` rows are emitted from
+  sanitized `report_data_currency.sources` / `source_versions` payload
+  metadata. The explicit search backfill path plans and applies those rows from
+  existing run payloads without source downloads, provider calls, Supabase
+  mutation, startup work, or private report-text indexing.
 
 ## What
 
@@ -297,9 +303,9 @@ Second slice:
   materialized, not trigger fresh source queries.
 
 Current implementation note: variant library saved rows, view-count popularity
-rows, source-backed report sections, and publication/trial rows are completed
-pieces of this slice. Public gene/source entities and broader source-backed
-product vocabulary remain open.
+rows, source-backed report sections, publication/trial rows, and payload-backed
+public gene/source vocabulary rows are completed pieces of this slice. Broader
+source-backed product vocabulary beyond existing payload metadata remains open.
 
 Later slices:
 

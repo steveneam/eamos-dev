@@ -15,6 +15,8 @@ SearchDocType = Literal[
     "publication",
     "trial",
     "report_section",
+    "gene",
+    "source",
 ]
 SearchVisibilityScope = Literal["public", "private", "internal"]
 SearchMatchType = Literal[

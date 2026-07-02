@@ -1,5 +1,31 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-03 02:13 +1000 - Codex - Search public gene/source vocabulary slice
+
+Continued Search Control Plane Task 6+ without changing provider posture,
+source materialization, Supabase state, or frontend UI behavior.
+
+- Added public `gene` search rows derived from already-indexed public
+  publication/trial evidence rows. These rows expose source-backed gene routing
+  metadata without indexing private report text or uploaded clinical context.
+- Added public `source` search rows from sanitized
+  `report_data_currency.sources` / `source_versions` metadata already present
+  on report payloads.
+- Search hits now understand `gene` and `source` document types for subtitles
+  and gene `/report?q=...` targets.
+- The explicit dry-run/apply search backfill path now plans and indexes the
+  public publication, trial, gene, and source rows from existing run payloads,
+  with source/provider/Supabase mutation flags remaining false.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py -q`
+- `cd app/backend; python -m pytest tests/test_variant_library_api.py tests/test_search_api.py tests/test_rate_limits.py -q` (`test_search_api.py` Docker-gated cases skipped as before)
+- `cd app/backend; python -m pytest tests/test_frontend_contract.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check app/schemas/search.py app/services/search.py app/services/search_index.py tests/test_search_api_local.py`
+- `cd app/backend; python -m black --check --target-version py310 app/schemas/search.py app/services/search.py app/services/search_index.py tests/test_search_api_local.py`
+- `cd app/backend; python -m compileall app/schemas/search.py app/services/search.py app/services/search_index.py`
+
 ## 2026-07-03 01:47 +1000 - Codex - Search public popularity metadata slice
 
 Continued Search Control Plane Task 6+ without changing provider posture,

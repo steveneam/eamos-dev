@@ -174,6 +174,28 @@ class SearchService:
         if record.doc_type == "report_section":
             section_id = metadata.get("section_id")
             return f"Report section: {section_id}" if section_id else None
+        if record.doc_type == "gene":
+            publication_count = metadata.get("publication_count")
+            trial_count = metadata.get("trial_count")
+            parts = []
+            if isinstance(publication_count, int) and publication_count > 0:
+                suffix = "publication" if publication_count == 1 else "publications"
+                parts.append(f"{publication_count} {suffix}")
+            if isinstance(trial_count, int) and trial_count > 0:
+                suffix = "trial" if trial_count == 1 else "trials"
+                parts.append(f"{trial_count} {suffix}")
+            return " | ".join(parts) or "Source-backed gene"
+        if record.doc_type == "source":
+            parts = [
+                str(value).strip()
+                for value in (
+                    metadata.get("status"),
+                    metadata.get("tier"),
+                    metadata.get("source_version"),
+                )
+                if str(value or "").strip()
+            ]
+            return " | ".join(parts) or None
         return record.case_label or record.filename
 
     def _build_target_href(
@@ -195,6 +217,9 @@ class SearchService:
         if record.doc_type in {"library_variant", "popular_variant"}:
             report_query = metadata.get("query") or metadata.get("query_id") or record.report_title
             return f"/report?q={quote(str(report_query))}" if report_query else None
+        if record.doc_type == "gene":
+            gene = metadata.get("gene") or record.report_title
+            return f"/report?q={quote(str(gene))}" if gene else None
         return None
 
     def _source_key_suffix(self, source_key: str, marker: str) -> str | None:
@@ -258,6 +283,8 @@ class SearchService:
             "publication",
             "trial",
             "report_section",
+            "gene",
+            "source",
         }:
             return cast(SearchDocType, value)
         return None
