@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
 
 
-- **Codex:** STOPPED @ 2026-07-02 19:33 +1000 - Selom-style backend organization pass shipped. Implementation commit `3c11ed2` is pushed to `origin/main` and live on Render SG deploy `dep-d932uqbtqb8s73a7fr6g`; Search Task 6 backend breadth plus `gene_viewer.py`, `workbench_design.py`, and `pubmed_local.py` package folds are verified. Closeout docs are recorded; no env/provider/Supabase/source-materialization/destructive action occurred.
+- **Codex:** STOPPED @ 2026-07-02 20:16 +1000 - Lookup service cache helper fold shipped. Implementation commit `7b503b5` is pushed to `origin/main` and live on Render SG deploy `dep-d933jh5aeets73b1un8g`; focused lookup/cache tests, Ruff, Black, compileall, diff-check, graphify update, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-02 19:33 +1000 - Codex (Selom backend organization pass shipped/deployed; closeout docs updated)
+UNLOCKED - 2026-07-02 20:16 +1000 - Codex (lookup service cache helper fold shipped/deployed; closeout docs updated)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -409,71 +409,68 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-07-02 19:33 +1000 - Codex.
+Section last edited: 2026-07-02 20:16 +1000 - Codex.
 
-**Latest Codex update (2026-07-02 19:33 +1000 - Codex):**
-Shipped the repo-wide Selom-style backend organization pass plus the carried
-Search Task 6 backend breadth. Implementation commit `3c11ed2` is pushed to
-`origin/main` and live on Render SG deploy `dep-d932uqbtqb8s73a7fr6g`.
+**Latest Codex update (2026-07-02 20:16 +1000 - Codex):**
+Shipped the first `lookup_service.py` package-fold slice. Implementation commit
+`7b503b5` is pushed to `origin/main` and live on Render SG deploy
+`dep-d933jh5aeets73b1un8g`.
 
-- Search Task 6 backend breadth is committed: private `library_variant`, public
-  `publication`/`trial`, private `report_section`, and best-effort index refresh
-  for report-payload update, approve, and drop.
-- `gene_viewer.py`, `workbench_design.py`, and `pubmed_local.py` now preserve
-  their public import surfaces as compatibility facades while focused modules
-  own source/provider behavior, fixture conversion, protein tracks, primer
-  design, Sanger alignment, PubMed constants/models/license policy, and PubMed
-  parsing/materialization helpers.
-- Structure guards now budget the facades and split modules; repo-structure
-  docs mark the Workbench/PubMed folds complete and name `lookup_service.py` as
-  the next backend package-fold hotspot.
-- Steven's standing approval for Codex commit/push/deploy when safe is recorded
-  in `agent_handoff/DECISIONS.md`; the normal exclusions still apply.
+- `lookup_service.py` remains the public compatibility facade for
+  `LookupService`, `GENE_THERAPY_MAP`, cache version constants, legacy cache
+  warnings, and the ClinVar distribution helper aliases used by tests.
+- Cache schema versions/codecs, report shell/section cache validation,
+  source-result cache conversion, and cache identity helpers now live in
+  `lookup_service_cache.py`.
+- ClinVar gene-distribution runtime path/gating helpers now live in
+  `lookup_service_clinvar_distribution.py`.
+- Shared text/dedupe helpers now live in `lookup_service_utils.py`.
+- Structure guards ratchet `lookup_service.py` below its old monolith budget
+  and budget the new focused modules; a new import-surface test locks the
+  facade behavior.
 
 Verification passed:
 
-- Focused Workbench/PubMed/structure pytest before and after the folds.
-- Cumulative focused backend pytest across search, variant library, gene viewer,
-  Workbench, PubMed, frontend contract, rate limits, and structure guard.
-- Ruff on changed backend/test surfaces.
-- Focused Black check on changed backend modules/tests after formatting.
-- Compileall on changed backend modules with an alternate pycache prefix.
+- Focused lookup/report-cache/ClinVar/section pytest.
+- Ruff and focused Black on changed backend/test files.
+- Compileall on changed lookup modules.
 - `git diff --check`.
 - `python -m graphify update .` with long timeout; graph HTML skipped because
-  the graph has 17,662 nodes and exceeds the 5,000-node default visualization
+  the graph has 17,714 nodes and exceeds the 5,000-node default visualization
   threshold.
 
 Post-deploy verification:
 
-- Render API confirms `dep-d932uqbtqb8s73a7fr6g` live on
-  `3c11ed202239ff2877a035d7f4a4095e35a94b0c`.
+- Render API confirms `dep-d933jh5aeets73b1un8g` live on
+  `7b503b5555fe9ad152c5d4b2caa84bef9df8872e`.
 - SG `/healthz` ok; SG and Vercel proxy `/api/v1/health/provider-cache` report
   search ready, index tables present, and zero ownerless private search rows.
-- SG `/api/v1/viewer` RPE65 `c.260A>G` returned HTTP 200 with provenance.
+- SG `/api/v1/viewer` RPE65 `c.260A>G` full-gene request returned HTTP 200
+  with provenance.
 - `https://eamos-dev.vercel.app` returned HTTP 200.
 
-Live caveat:
+Live caveat remains unchanged:
 
-- Minimal SG Workbench design calls (`/primer`, `/crispr`, `/align`) currently
-  return the sanitized 422 `workbench_sequence_context_resolver_error` under
-  live config. Provider-cache reports `workbench_local_tools` as
-  `code_available_reference_gated`; this is recorded as a live configuration
-  gate, not a refactor deploy failure.
+- Minimal SG Workbench design calls (`/primer`, `/crispr`, `/align`) can return
+  the sanitized 422 `workbench_sequence_context_resolver_error` under live
+  config. Provider-cache reports `workbench_local_tools` as
+  `code_available_reference_gated`; this is a live configuration gate, not a
+  lookup refactor deploy failure.
 
 No env/provider flip, Supabase mutation, runtime seed/sync, source
-materialization/download/upload, cleanup deletion, destructive git, or secret
-output occurred.
+materialization/download/upload, cleanup deletion beyond Codex-created temp
+smoke files, destructive git, or secret output occurred.
 
 Safe-to-clear note: yes. The implementation is committed, pushed, deployed,
 verified, and documented.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt - 2026-07-02 19:33 +1000 - Codex Selom backend organization closeout
+# Resume prompt - 2026-07-02 20:16 +1000 - Codex lookup service cache helper fold
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
-Delta: implementation commit `3c11ed2` is pushed and live on Render SG deploy `dep-d932uqbtqb8s73a7fr6g`; it broadens Search Task 6 indexing and splits `gene_viewer.py`, `workbench_design.py`, and `pubmed_local.py` into compatibility facades plus focused ownership modules with structure guards.
-Verification: focused/cumulative backend pytest, Ruff, focused Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render API deploy confirmation, SG/Vercel health/search readiness, SG viewer 200, and Vercel 200 all passed. Live caveat: SG Workbench design endpoints still return config-gated `workbench_sequence_context_resolver_error`.
-Next: continue backend organization with `lookup_service.py` as the next hotspot, or resume Search Task 6+ remaining work: richer public/view-count metadata, broader product entity search, frontend search-results integration, and optional answer-chain breadth/grounding tests.
+Delta: implementation commit `7b503b5` is pushed and live on Render SG deploy `dep-d933jh5aeets73b1un8g`; it splits lookup cache codecs/source-result conversion, ClinVar gene-distribution runtime gating, and shared helpers out of `lookup_service.py` while preserving the public facade.
+Verification: focused lookup/report-cache/ClinVar/section pytest, Ruff, focused Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render API deploy confirmation, SG/Vercel health/search readiness, SG viewer 200, and Vercel 200 all passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
+Next: continue measured `lookup_service.py` optimization by extracting/testing source-cache orchestration inside `LookupService.lookup()`, then publication/trial section builders and report-payload assembly; or resume Search Task 6+ remaining work: richer public/view-count metadata, broader product entity search, frontend search-results integration, and optional answer-chain breadth/grounding tests.
 Guardrails: standing approval in `agent_handoff/DECISIONS.md` lets Codex commit/push/deploy when verified safe; still no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, cleanup deletion, destructive git, or secret output unless explicitly approved.
 End clear-safe with a fresh stamped resume prompt.
 ```

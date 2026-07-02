@@ -1,5 +1,56 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-02 20:16 +1000 - Codex - Lookup service cache helper fold shipped
+
+Started the next Selom-style backend organization target after the shipped
+Workbench/PubMed/gene-viewer folds. This slice is behavior-preserving and keeps
+`app.services.lookup_service` as the compatibility facade.
+
+- Extracted lookup cache schema versions/codecs, report shell/section cache
+  validation, source-result cache conversion, and cache identity helpers into
+  `lookup_service_cache.py`.
+- Extracted ClinVar gene-distribution runtime path/gating helpers into
+  `lookup_service_clinvar_distribution.py`.
+- Extracted shared text/dedupe helpers into `lookup_service_utils.py`.
+- Added a structure guard import-surface test so existing imports of
+  `LookupService`, `GENE_THERAPY_MAP`, cache version constants, legacy cache
+  warning constants, and ClinVar distribution helper aliases stay compatible.
+- Ratcheted `lookup_service.py` from the old 3000-line budget to 2500 lines and
+  added budgets for the focused `lookup_service_*` modules.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_structure_guard.py tests/test_report_cache_contract.py tests/test_clinvar_local_adapter.py -q`
+- `cd app/backend; python -m pytest tests/test_variant_cache.py tests/test_source_cache.py tests/test_lookup_section_fetch_contract.py -q`
+- `cd app/backend; python -m pytest tests/test_structure_guard.py tests/test_report_cache_contract.py tests/test_clinvar_local_adapter.py tests/test_variant_cache.py tests/test_source_cache.py tests/test_lookup_section_fetch_contract.py -q`
+- `cd app/backend; python -m ruff check app/services/lookup_service.py app/services/lookup_service_cache.py app/services/lookup_service_clinvar_distribution.py app/services/lookup_service_utils.py tests/test_structure_guard.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/lookup_service.py app/services/lookup_service_cache.py app/services/lookup_service_clinvar_distribution.py app/services/lookup_service_utils.py tests/test_structure_guard.py`
+- `cd app/backend; python -m compileall app/services/lookup_service.py app/services/lookup_service_cache.py app/services/lookup_service_clinvar_distribution.py app/services/lookup_service_utils.py`
+- `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,714 nodes and exceeds the 5,000-node default
+  visualization threshold.
+
+Implementation commit `7b503b5` was pushed to `origin/main` and deployed to
+Render SG as `dep-d933jh5aeets73b1un8g`. Render API confirmed it is live on
+commit `7b503b5555fe9ad152c5d4b2caa84bef9df8872e`.
+
+Post-deploy smoke passed:
+
+- SG `/healthz`: ok, database ok, `llm_provider="gateway"`.
+- SG `/api/v1/health/provider-cache`: search `ready`, index services wired,
+  index tables present, and zero ownerless private search rows.
+- SG `/api/v1/viewer` RPE65 `c.260A>G` full-gene request: HTTP 200 with
+  provenance present.
+- Vercel root `https://eamos-dev.vercel.app`: HTTP 200.
+- Vercel proxy `/api/v1/health/provider-cache`: HTTP 200, search `ready`, and
+  zero ownerless private search rows.
+
+Next measured lookup optimization target: extract/test source-cache
+orchestration inside `LookupService.lookup()`, then split publication/trial
+section builders and report-payload assembly only with timing diagnostics or
+focused characterization proving no route/source-provider behavior changed.
+
 ## 2026-07-02 19:33 +1000 - Codex - Selom backend organization pass shipped
 
 Continued the repo-wide Selom-style organization pass from the uncommitted
