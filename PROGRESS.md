@@ -26,11 +26,29 @@ Verification passed locally:
 - `cd app/backend; python -m black --check --target-version py310 app/core/db.py app/schemas/search.py app/repos/search_repo.py app/services/search.py app/services/search_index.py app/services/variant_library.py tests/test_search_api_local.py`
 - `cd app/backend; python -m compileall app/core/db.py app/schemas/search.py app/repos/search_repo.py app/services/search.py app/services/search_index.py app/services/variant_library.py`
 - `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,862 nodes and exceeds the 5,000-node default
+  visualization threshold.
 
 Known verification note: `cd app/backend; python -m pytest tests/test_health_api.py tests/test_frontend_contract.py -q`
 ran the contract canary successfully but the combined run failed one unrelated
 local-environment assertion because this checkout has a ClinVar gene-distribution
 index present and the empty-health fixture expected `ready=false`.
+
+Implementation commit `3815137` was pushed to `origin/main` and deployed to
+Render SG as `dep-d938km4m0tmc73d6sa60`. Render API confirmed it is live on
+commit `3815137a8e5e5b21bd41ebf3737afda0ac68413e`.
+
+Post-deploy smoke passed:
+
+- SG OpenAPI `SearchHit` exposes `popular_variant`, `source_key`, `subtitle`,
+  `target_href`, and `metadata`.
+- SG `/healthz`: ok, database ok.
+- SG `/api/v1/health/provider-cache`: search `ready`, index tables present,
+  zero ownerless private search rows.
+- Vercel proxy `/api/v1/health/provider-cache`: search `ready`, index tables
+  present, zero ownerless private rows.
+- `https://eamos-dev.vercel.app` returned HTTP 200 by `curl.exe`.
 
 ## 2026-07-03 01:26 +1000 - Codex - Lookup report-payload assembly fold
 
