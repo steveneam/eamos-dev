@@ -24,14 +24,14 @@ _lead: Claude · contract: FE-only presentational, no shared types (FROZEN @ 94d
 
 _Integration (wire all 3 into `ReportClient.tsx`) is a single-owner step AFTER all lanes merge — not a lane._
 
-## Search 7/8 sprint (parallel launch canceled; implemented sequentially locally)
+## Search 7/8 sprint (closed: parallel launch canceled; implemented sequentially)
 
-_lead: Codex · contract: Search response TypeScript mirror frozen in pushed commit `f7ef561` · status: A/B/C implemented sequentially in the main checkout, uncommitted as of 2026-07-04 03:32 +1000_
+_lead: Codex · contract: Search response TypeScript mirror frozen in pushed commit `f7ef561` · status: A/B/C reviewed, committed, and pushed in `319b9e7`; parked worktrees/branches cleaned 2026-07-04 09:08 +1000_
 
 The lane table below is a historical partition record, not an active sprint.
-The three `.claude/worktrees/search-*` worktrees still exist with partial
-uncommitted lane diffs and are parked only. Do not continue those lanes unless
-Steven explicitly revives them.
+The three `.claude/worktrees/search-*` worktrees and local `agent/search/*`
+branches were removed after Steven explicitly approved cleanup. Do not revive
+the parallel flow without a fresh partition and launch package.
 
 Serial pre-step before any lane forks:
 
@@ -44,9 +44,9 @@ Serial pre-step before any lane forks:
 
 | lane | owner | owns (glob) | branch | status | depends-on | merge-order |
 |------|-------|-------------|--------|--------|------------|-------------|
-| A ci-ratchets | Codex | `.github/workflows/ci.yml`; `app/backend/tests/test_pdf_text.py`; `app/backend/tests/test_source_reader_proofs.py` | `agent/search/ci-ratchets` | blocked:collapsed-to-sequential | contract-freeze | 1 |
-| B answer-hardening | Codex | `app/backend/app/services/search_answer.py`; `app/backend/tests/test_search_api_local.py`; `app/backend/tests/test_search_api.py` | `agent/search/answer-hardening` | blocked:collapsed-to-sequential | contract-freeze | 2 |
-| C results-web | Codex | `app/web/lib/search/**`; `app/web/components/search/**`; `app/web/app/search/**`; `app/web/app/api/v1/search/**`; `app/web/components/landing/LandingClient.tsx`; `app/web/components/report/ReportClient.tsx`; `app/web/lib/variant-search.ts` | `agent/search/results-web` | blocked:collapsed-to-sequential | contract-freeze | 3 |
+| A ci-ratchets | Codex | `.github/workflows/ci.yml`; `app/backend/tests/test_pdf_text.py`; `app/backend/tests/test_source_reader_proofs.py` | `agent/search/ci-ratchets` | closed:sequential `319b9e7` | contract-freeze | 1 |
+| B answer-hardening | Codex | `app/backend/app/services/search_answer.py`; `app/backend/tests/test_search_api_local.py`; `app/backend/tests/test_search_api.py` | `agent/search/answer-hardening` | closed:sequential `319b9e7` | contract-freeze | 2 |
+| C results-web | Codex | `app/web/lib/search/**`; `app/web/components/search/**`; `app/web/app/search/**`; `app/web/app/api/v1/search/**`; `app/web/components/landing/LandingClient.tsx`; `app/web/components/report/ReportClient.tsx`; `app/web/lib/variant-search.ts` | `agent/search/results-web` | closed:sequential `319b9e7` | contract-freeze | 3 |
 
 Steven launch package, after Codex confirms the contract-freeze commit is on
 local `main`:
@@ -58,8 +58,7 @@ git worktree add .claude/worktrees/search-results-web -b agent/search/results-we
 ```
 
 Historical note: this launch package was run, then canceled before lane PRs.
-Do not open new lane sessions from these worktrees unless Steven explicitly
-chooses to revive the parallel flow.
+The resulting worktrees/branches were cleaned after the sequential commit.
 
 Status vocab: `pending · in_progress · blocked:<what> · review · merged`.
 **One writer per row:** the lead owns assignments + merge-order; each owner writes only its
@@ -86,6 +85,10 @@ own `status`. Messages are append-only; you replace only your own state.
   was partially completed, and mobile live verify was skipped at Steven's wrap request. Changes are
   uncommitted pending Steven review/commit approval; no deploy/env/provider/Supabase/source/destructive
   action occurred.
+- 2026-07-04 (Codex, lead): **Search 7/8 closed.** Review found no blockers; committed/pushed
+  sequential implementation as `319b9e7` on `origin/main`, then removed the parked
+  `.claude/worktrees/search-*` worktrees and local `agent/search/*` branches after Steven's
+  explicit cleanup approval. No deploy/env/provider/Supabase/source action occurred.
 
 ---
 

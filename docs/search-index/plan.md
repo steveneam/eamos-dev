@@ -1,6 +1,6 @@
 # Eamos search index implementation plan
 
-Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, explicit clinical source asset condition/gene-disease rows, and structured result metadata. Task 7/8 design/spec/plan lives in `docs/search-results-and-answer-hardening/`; contract freeze `f7ef561` is pushed and the Search 7/8 implementation is completed sequentially but still uncommitted in the main checkout as of 2026-07-04.
+Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, explicit clinical source asset condition/gene-disease rows, and structured result metadata. Task 7/8 design/spec/plan lives in `docs/search-results-and-answer-hardening/`; contract freeze `f7ef561` is pushed and the Search 7/8 implementation is committed on `origin/main` as `319b9e7`.
 Spec: `docs/search-index/spec.md`.
 Related repo-structure wave: Wave 2, "Fix or retire Search".
 
@@ -47,8 +47,7 @@ Implementation update, 2026-06-30:
   source scans.
 - Still open: broader public product entity coverage beyond the current
   payload-backed and tracked-clinical-source rows. Search 7/8 frontend
-  integration and grounded answer-chain tests are implemented locally in the
-  main checkout but await review/commit.
+  integration and grounded answer-chain tests are committed in `319b9e7`.
 
 ## Shared decisions before implementation
 

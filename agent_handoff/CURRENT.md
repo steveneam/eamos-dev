@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-07-03 21:30 +1000 - **Mode-A dogfood RUN + VALIDATED end-to-end** (Steven-approved). 3 disjoint FE components via `isolation:worktree` subagents -> 3 `agent/*` PRs -> CI gate -> lead-run serialized merge (Steven approved each) -> prod green. First-try green, zero conflicts (`cd8f15e`/`eeaefa3`/`05e0321`). Integration `28f0e35`: wired `GeneViewerErrorBoundary` (§4, real gap); left `PopFreqEmptyState` + `InSilicoPlaceholderRows` **inert** (§3/§2 already have empty/loading UI). Portable POC report for the Forj vault -> `docs/parallel-agents/mode-a-vault-report.md`; field lessons -> `retrofit-notes.md`. `main==origin/main 918b067`, tree clean, graphify AST-updated. NEXT: Claude-lane `/report` FE launch items (open follow-up: add `tsc` to `web` CI job; Codex to skipif+drop the 2 `--deselect` backend tests). See Claude Last Task below.
 
 
-- **Codex:** STOPPED @ 2026-07-04 03:44 +1000 - Search 7/8 contract freeze is pushed (`f7ef561`), and lanes A/B/C were collapsed back into a sequential main-checkout implementation. Current Search 7/8 changes are local/uncommitted and verified by focused backend tests, Ruff, Black, web typecheck/lint, diff-check, graphify AST update, and partial desktop browser smoke. The three `.claude/worktrees/search-*` worktrees still exist with partial diffs but are parked, not active. No deploy/env/provider/Supabase/source-materialization/destructive cleanup.
+- **Codex:** STOPPED @ 2026-07-04 09:08 +1000 - User-constrained review/commit/push/cleanup closeout: Search 7/8 implementation reviewed cleanly, committed and pushed to `origin/main` as `319b9e7` (`feat(search): add authenticated results surface`), and the parked `.claude/worktrees/search-*` worktrees plus local `agent/search/*` branches were cleaned. Verification green: focused backend pytest (`43 passed, 2 skipped`), Ruff, Black, web typecheck, web lint, diff-check; prior graphify AST update remains current for code changes. No deploy/env/provider/Supabase/source-materialization/secret output.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-04 03:44 +1000 - Codex (Search 7/8 sequential wrap complete; worktrees parked)
+UNLOCKED - 2026-07-04 09:10 +1000 - Codex (Search 7/8 commit/push/cleanup closeout complete)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -415,18 +415,17 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-07-04 03:44 +1000 - Codex.
+Section last edited: 2026-07-04 09:08 +1000 - Codex.
 
-**Latest Codex update (2026-07-04 03:44 +1000 - Codex):**
-Search 7/8 is implemented sequentially in the main checkout after Steven
-canceled the spawned/terminal lane flow. The pushed contract-freeze seam is
-`f7ef561` on `origin/main`; the current implementation is local/uncommitted.
+**Latest Codex update (2026-07-04 09:08 +1000 - Codex):**
+Search 7/8 is reviewed, committed, pushed, and cleaned up. The contract-freeze
+seam remains `f7ef561`; the implementation commit is `319b9e7` on
+`origin/main` (`feat(search): add authenticated results surface`).
 
-Implemented:
+Closed:
 
 - CI ratchets: `web` CI now typechecks; backend CI no longer deselects the two
-  asset-bound tests, which now skip cleanly when optional assets/native readers
-  are absent.
+  asset-bound tests, which self-skip or build native proof assets as available.
 - Answer hardening: disabled/unconfigured answer behavior stays stable, fake
   answer-chain tests prove grounded citations, and model citations without a
   concrete returned run/report identity are dropped.
@@ -434,29 +433,23 @@ Implemented:
   variants keep `/report?gene=...&cdna=...`, and the Next search surface renders
   loading, sign-in-required, empty, rate-limited, upstream-error, and result
   states without sample fallback.
+- Cleanup: the parked `.claude/worktrees/search-*` worktrees and local
+  `agent/search/*` branches were removed after Steven's explicit approval. The
+  unrelated `.tmp/lookup-fix` worktree was left intact.
 
-Verification passed: focused backend pytest (`43 passed, 2 skipped`), backend
-Ruff/Black, `app/web` typecheck/lint, `git diff --check` (line-ending warnings
-only), and `python -m graphify update .` (18,098 nodes / 47,343 edges; HTML
-skipped over the 5,000-node default threshold). Browser desktop smoke covered
-`/search?q=RPE65` unauthenticated state, landing free-text -> `/search`, landing
-structured variant -> `/report`, and report compact structured search ->
-`/report`. Mobile browser verification was skipped because Steven asked to stop
-live verify and wrap.
-
-The three `.claude/worktrees/search-*` worktrees and `agent/search/*` branches
-still exist with partial uncommitted diffs from the canceled lane trial. They
-are parked and not active. Cleanup should use `git worktree remove` only after
-explicit Steven approval. No commit/PR/merge/deploy/env/provider flip/Supabase
-mutation/source materialization/download/upload/destructive cleanup occurred in
-this sequential pass.
+Review found no blockers. Verification passed: focused backend pytest (`43
+passed, 2 skipped`), backend Ruff/Black, `app/web` typecheck/lint, and
+`git diff --check` (line-ending warnings only). The prior Search 7/8 graphify
+AST update remains the code-change graph proof. No deploy/env/provider flip,
+Supabase mutation, source materialization/download/upload, deploy hook use, or
+secret output occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt · 2026-07-04 03:44 +1000 · Codex Search 7/8 sequential implementation review
+# Resume prompt · 2026-07-04 09:08 +1000 · Codex Search 7/8 committed and cleaned
 Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, COORDINATION.md, docs/search-results-and-answer-hardening/{design,spec,plan}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
-Delta: Search 7/8 contract freeze `f7ef561` is pushed; lanes A/B/C were collapsed and implemented sequentially in the main checkout, still local/uncommitted. Parked `.claude/worktrees/search-*` diffs are not active.
-Next: review the uncommitted main-checkout Search 7/8 diff; if Steven approves, commit/push it, then optionally clean parked worktrees/branches only with explicit approval.
-Guardrails: keep Search auth-required/read-only; no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, deploy hook use, cleanup deletion/reset, destructive git, or secret output unless explicitly approved.
+Delta: Search 7/8 is on `origin/main` at `319b9e7` after clean review/verification; parked `.claude/worktrees/search-*` worktrees and local `agent/search/*` branches are removed.
+Next: choose the next backend/search slice or deploy gate explicitly; no active Search lane/worktree remains.
+Guardrails: keep Search auth-required/read-only unless explicitly changed; no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, deploy hook use, destructive git, or secret output unless explicitly approved.
 End clear-safe with a fresh stamped resume prompt.
 ```

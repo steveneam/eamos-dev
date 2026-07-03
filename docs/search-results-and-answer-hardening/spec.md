@@ -1,8 +1,8 @@
 # Search results and answer hardening spec
 
-Status: Implemented sequentially locally on 2026-07-04; contract freeze
-`f7ef561` is pushed, while the A/B/C implementation remains uncommitted pending
-review/commit approval.
+Status: Implemented sequentially, reviewed, committed, and pushed on
+2026-07-04. Contract freeze `f7ef561`; implementation commit `319b9e7`.
+Parked Search worktrees/branches were cleaned after explicit approval.
 Created: 2026-07-04 by Codex
 
 ## What

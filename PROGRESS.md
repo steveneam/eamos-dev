@@ -1,5 +1,32 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-04 09:08 +1000 - Codex - Search 7/8 reviewed, pushed, and cleaned
+
+Reviewed the uncommitted Search 7/8 main-checkout implementation from the
+sequential pass, found no commit blockers, committed it as `319b9e7`
+(`feat(search): add authenticated results surface`), and pushed it to
+`origin/main`.
+
+- Implementation commit includes the authenticated Next `/search` results
+  surface, same-origin search proxy/helper, structured-variant routing
+  preservation, grounded answer fake-chain tests, citation identity hardening,
+  web typecheck CI ratchet, and asset-aware backend test cleanup.
+- Cleanup was explicitly approved by Steven: removed the three parked
+  `.claude/worktrees/search-*` worktrees and local `agent/search/*` branches.
+  The unrelated `.tmp/lookup-fix` worktree was left intact.
+- No deploy, env/provider flip, Supabase mutation, runtime seed/sync, source
+  materialization/download/upload, deploy hook use, or secret output occurred.
+
+Verification rerun before commit:
+
+- `cd app/backend; python -m pytest tests/test_pdf_text.py tests/test_source_reader_proofs.py tests/test_search_api_local.py tests/test_search_api.py tests/test_rate_limits.py -q`
+  -> 43 passed, 2 skipped.
+- `cd app/backend; python -m ruff check app/services/search_answer.py tests/test_search_api_local.py tests/test_search_api.py tests/test_pdf_text.py tests/test_source_reader_proofs.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/search_answer.py tests/test_search_api_local.py tests/test_search_api.py tests/test_pdf_text.py tests/test_source_reader_proofs.py`
+- `cd app/web; npx tsc --noEmit -p tsconfig.json`
+- `cd app/web; npm run lint`
+- `git diff --check` (line-ending warnings only).
+
 ## 2026-07-04 03:32 +1000 - Codex - Search 7/8 implemented sequentially
 
 Collapsed the approved Search 7/8 parallel sprint back into the main checkout

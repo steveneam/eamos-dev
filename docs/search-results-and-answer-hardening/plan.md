@@ -1,8 +1,9 @@
 # Search results and answer hardening plan
 
-Status: Implemented sequentially locally on 2026-07-04 after the parallel lane
-flow was canceled. Contract freeze `f7ef561` is pushed; A/B/C implementation is
-uncommitted in the main checkout pending review/commit approval.
+Status: Implemented sequentially, reviewed, committed, and pushed on 2026-07-04
+after the parallel lane flow was canceled. Contract freeze `f7ef561`;
+implementation commit `319b9e7`; parked Search worktrees/branches cleaned after
+explicit approval.
 Spec: `docs/search-results-and-answer-hardening/spec.md`
 Design: `docs/search-results-and-answer-hardening/design.md`
 
@@ -222,9 +223,10 @@ Out of scope:
 
 ## Task 4 - Lead integration and deploy gate
 
-Status: partially done locally. The lane merge model was canceled before PR/CI
-merge; implementation exists as uncommitted main-checkout changes. No deploy has
-been run.
+Status: done as a sequential main-checkout closeout. The lane merge model was
+canceled before PR/CI merge; implementation was reviewed, committed, and pushed
+as `319b9e7`. Parked worktrees/branches were removed after explicit approval.
+No deploy has been run.
 
 Goal:
 
