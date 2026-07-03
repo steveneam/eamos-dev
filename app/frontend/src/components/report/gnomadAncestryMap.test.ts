@@ -48,6 +48,6 @@ describe('gnomAD ancestry map anchors', () => {
     )
 
     expect(nextMap).toBe(viteMap)
-    expect(GNOMAD_ANCESTRY_MAP_VERSION).toBe('eamos-gnomad-ancestry-map-v3')
+    expect(GNOMAD_ANCESTRY_MAP_VERSION).toBe('eamos-gnomad-ancestry-map-v4')
   })
 })
