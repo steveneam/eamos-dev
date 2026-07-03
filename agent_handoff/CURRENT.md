@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** STOPPED @ 2026-06-23 01:05 +1000 - BRCA1 seed commit/push/deploy verified; Phase 4.1 `DataCurrencyLine` left local/uncommitted pending Steven visual sign-off; `/report` launch-readiness assignments drafted. NEXT: on Steven's go, browser-verify/commit `DataCurrencyLine`, then Claude P0/P1 FE items. Detail in Claude section below.
+- **Claude:** STOPPED @ 2026-07-03 16:28 +1000 - **Parallel-agent retrofit SHIPPED to main (PR #1, `a9dd456`)**: Forj CI merge gate (3 jobs green) + branch protection (admin-bypass) + plumbing (`.claude/worktrees/` ignore, `.worktreeinclude`, `COORDINATION.md`, `AGENTS.md` two rules) + cloud isolation (Supabase/Vercel/Render). Gate caught+fixed 3 latent bugs on main. Lessons recorded -> `docs/parallel-agents/retrofit-notes.md` + `COORDINATION.md` + `AGENTS.md`. NEXT: run the Mode-A multi-lane dogfood (3 disjoint FE pillars) pending Steven's partition approval; then Claude-lane `/report` FE launch items. See CAR + Claude Last Task below.
 
 
 - **Codex:** STOPPED @ 2026-07-03 15:12 +1000 - Search clinical source asset vocabulary slice shipped. Implementation commit `c7c3caf` is pushed to `origin/main` and live on Render SG deploy `dep-d93k81ojs32c73cibdd0`; focused/broader search tests, contract/structure tests, Ruff, Black, compileall, diff-check, graphify update, Render deploy confirmation, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-03 15:12 +1000 - Codex (search clinical source asset indexing closeout complete)
+UNLOCKED - 2026-07-03 16:31 +1000 - Claude (parallel-agent retrofit closeout: Active Status heartbeat + Codex CAR recorded; Claude Last Task narrative left intact, superseded by the CAR + docs/parallel-agents/retrofit-notes.md)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -184,6 +184,8 @@ DONE entries older than the last major boundary into the relevant plan/log.
 Current live entries only. Older request history through the graphify closeout is
 archived verbatim at
 `agent_handoff/archive/2026-06-15-current-pre-graphify-closeout-trim.md`.
+
+- [DONE] Claude->Codex/Steven (2026-07-03 16:28 +1000): **Parallel-agent retrofit SHIPPED to main (PR #1, `a9dd456`).** Eamos is parallel-ready per Forj: CI merge gate (`.github/workflows/ci.yml` - web lint+guard / frontend lint+vitest / backend pytest, all green) + branch protection admin-bypass (`enforce_admins` off, `strict` on, 3 required checks, no required review; only `agent/*` PRs gated) + plumbing (`.gitignore` `.claude/worktrees/`, `.worktreeinclude` [boot config; EXCLUDES `.render-deploy-hook`], `COORDINATION.md` lane board, `AGENTS.md` two rules: propose-lanes + LEAD-is-sole-merger). Cloud isolation: Supabase single-owner serialized (`supabase/migrations/**`), Render deploy main-only Codex-owned, Vercel per-lane previews. Gate caught+fixed 3 latent bugs on main (eslint unused-var; a Playwright spec vitest was globbing; stale Vite<->Next gnomad v3->v4 mirror); 139/139 frontend tests green. Full record + field lessons: `docs/parallel-agents/retrofit-notes.md`. **Codex follow-up (backend lane, low pri):** make the 2 `--deselect`ed asset-bound tests (`test_pdf_text::test_extract_fitz_engine`, `test_source_reader_proofs::...report_real_file_smokes_and_native_pending`) skipif-asset-absent, then drop the `--deselect` lines from `ci.yml`. - parallel-agent retrofit
 
 - [DONE] Codex->Claude/Steven (2026-06-28 01:02 +1000): **Report backend P1.1 shipped and P1.4 committed.** `710d8a5` is pushed to `origin/main` with lazy `/lookup/sections` ClinGen VCEP source-cache hydration. `d1bbdd0` adds `ReportPayload.source_versions` populated from sanitized `report_data_currency.sources[].source_version` rows and mirrors the field in both backend TS contracts; it also syncs the stale `app/frontend/src/lib/backend.ts` `LookupSectionStatus` union to the already-broader `app/web` contract. P1.2 is already complete per `docs/report-backend-source-cache-readiness/plan.md` Task 4 and current tests; unsupported/unreviewed predictors remain explicit-null by policy. P1.3 code support already exists; the remaining real ClinVar gene-distribution artifact build/sync is guarded and was not run. Verified focused report data-currency/orchestration/frontend-contract tests, Ruff, Black, TS mirror diff, diff-check, and graphify update. No guarded source/materialization/deploy action occurred. - report P1.1/P1.4 backend
 
