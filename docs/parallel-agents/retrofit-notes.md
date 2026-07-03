@@ -80,12 +80,40 @@
 ## Dogfood status (be precise)
 
 - **Merge gate + PR flow:** dogfooded via PR #1 (built → CI-iterated → merged → protected). ✅
-- **Multi-lane worktree flow:** designed (3 disjoint FE pillars, driven solo via worktree
-  subagents — "Mode A"), **pending partition approval** — not yet run at time of writing.
+- **Multi-lane worktree flow:** ✅ **run 2026-07-03** (Mode A — 3 disjoint FE pillars
+  `PopFreqEmptyState` / `GeneViewerErrorBoundary` / `InSilicoPlaceholderRows`, driven solo via
+  `isolation:worktree` subagents). 3 lanes → 3 `agent/*` PRs (#3/#2/#4) → CI gate → lead-run
+  serialized merge (A→B→C), Steven approved. **First-try green on all three, zero conflicts**;
+  merged linear onto `main` (`cd8f15e`/`eeaefa3`/`05e0321`) + prod deploy green. Components landed
+  inert (unimported) — `ReportClient` integration is the follow-on single-owner step.
+
+## Mode-A dogfood field lessons (2026-07-03)
+
+1. **`strict:true` = a serial rebase tax on every lane after the first.** The moment lane 1 merges,
+   lanes 2..N go stale and each needs `gh pr update-branch --rebase` + a *fresh full CI run* before
+   it can merge — even for glob-disjoint single-file adds with zero conflict risk. Real merge-path
+   cost ≈ (N−1) sequential CI cycles (~5 min backend each), not N instant merges. Kept strict (honest
+   gate); flagging the tax so future large fan-outs size it in. Don't `--admin`-bypass it — that
+   skips the very gate being tested.
+2. **CI lints `app/web` but never typechecks it.** The `web` job is `eslint` + vercel-guard only;
+   `next build` (which typechecks *even unimported* files) runs only on Vercel at deploy → a type
+   error passes CI but fails the prod deploy. The lead closed the gap with a local
+   `tsc --noEmit -p app/web/tsconfig.json` preflight in the merge gate. **Fix forward:** add a `tsc`
+   step to the `web` CI job so the gate owns this, not the lead.
+3. **`isolation:worktree` leaves litter.** Subagents that commit leave their worktree + local branch
+   behind (not auto-cleaned once "changed"), and `gh pr merge --delete-branch` can't remove a local
+   branch still "used by worktree" → noisy (harmless) error. Lead cleanup: `git worktree remove
+   --force` each lane worktree + delete leftover local `agent/*` branches after collecting the PRs.
+   Remote-branch deletion is unaffected. (Leave other agents' worktrees, e.g. Codex's, alone.)
+4. **Node-20 deprecation warning** on `actions/checkout@v4` + `setup-node@v4` + `setup-python@v5`
+   (force-run on Node 24). Non-fatal; bump action majors when convenient.
 
 ## Follow-ups
 
 - **Codex (backend lane):** make the two `--deselect`ed tests `skipif`-asset-absent, then drop the
   deselect lines from `.github/workflows/ci.yml`.
+- **Add a `tsc --noEmit` step to the `web` CI job** so the gate typechecks `app/web` itself (today
+  only Vercel's `next build` does, at deploy) — see field lesson 2. Small, high-value.
+- Bump GitHub Action majors to clear the Node-20 deprecation warning (field lesson 4).
 - Re-check warm-cache CI timing after a few runs; consider making `backend` a soft (non-required)
   check if `pip install` proves flaky.
