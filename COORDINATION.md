@@ -4,19 +4,24 @@
 `Forj/Wiki/reference/parallel-agent-workflow.md` (playbook). This file is the **live board**
 + the Eamos-specific adaptation. Keep it human-lean — do not machine-bloat it.
 
-**Status:** _no active parallel sprint._ The plumbing is inert until there are ≥2
-dependency-independent buckets meeting at one freezable contract, and Steven approves a
-partition. Agents propose the sprint (see below); Steven never designs the setup.
+**Status:** _ACTIVE — Mode-A dogfood (solo, worktree-subagent lanes)_ · started 2026-07-03.
+First real exercise of the retrofit machinery: 3 disjoint NEW report components, each on its own
+`agent/*` branch → PR → CI merge gate → lead-run serialized merge (Steven approves each). Merges
+are inert on `main` (unimported until the follow-on ReportClient integration).
 
 ---
 
 ## Live lanes
 
-_lead: — · contract: — (FROZEN @ —)_
+_lead: Claude · contract: FE-only presentational, no shared types (FROZEN @ 94def2a)_
 
 | lane | owner | owns (glob) | branch | status | depends-on | merge-order |
 |------|-------|-------------|--------|--------|------------|-------------|
-| _(none active)_ | | | | | | |
+| A popfreq-empty | Claude(wt) | `app/web/components/report/PopFreqEmptyState.tsx` | `agent/popfreq-empty-state` | pending | — | 1 |
+| B geneviewer-eb | Claude(wt) | `app/web/components/report/GeneViewerErrorBoundary.tsx` | `agent/geneviewer-errorboundary` | pending | — | 2 |
+| C insilico-rows | Claude(wt) | `app/web/components/report/InSilicoPlaceholderRows.tsx` | `agent/insilico-placeholder-rows` | pending | — | 3 |
+
+_Integration (wire all 3 into `ReportClient.tsx`) is a single-owner step AFTER all lanes merge — not a lane._
 
 Status vocab: `pending · in_progress · blocked:<what> · review · merged`.
 **One writer per row:** the lead owns assignments + merge-order; each owner writes only its
@@ -24,7 +29,9 @@ own `status`. Messages are append-only; you replace only your own state.
 
 ## Messages (append-only)
 
-- _(none yet)_
+- 2026-07-03 (Claude, lead): Mode-A dogfood launched. 3 lanes forked from `main@94def2a`, disjoint
+  new files, no shared-glob contention. Lanes push `agent/*` + open PRs; lead runs the serialized
+  gate in merge-order 1→2→3, pausing for Steven's OK before each merge.
 
 ---
 
