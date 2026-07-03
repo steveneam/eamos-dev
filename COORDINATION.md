@@ -35,8 +35,13 @@ own `status`. Messages are append-only; you replace only your own state.
 - 2026-07-03 (Claude, lead): **Sprint closed — 3/3 merged, prod green.** `strict:true` forced a
   rebase + fresh CI run per lane after the first (expected tax, not a bug). Leftover
   `isolation:worktree` worktrees + local branches cleaned up. Field lessons + a `tsc`-in-CI
-  follow-up recorded in `docs/parallel-agents/retrofit-notes.md`. Next: single-owner
-  `ReportClient` integration of the 3 inert components.
+  follow-up recorded in `docs/parallel-agents/retrofit-notes.md`.
+- 2026-07-03 (Claude, lead): **Integration done (single-owner, `28f0e35`, prod green).** Wired
+  `GeneViewerErrorBoundary` around §4 (`ReportClient`) — a real gap. `PopFreqEmptyState` +
+  `InSilicoPlaceholderRows` left **intentionally inert**: §3 already has
+  `PopulationUnavailableStatePanel`, §2 already renders catalog placeholders + a LazySection
+  loading state → wiring them would duplicate UI. Portable POC report for the Forj vault:
+  `docs/parallel-agents/mode-a-vault-report.md`. **Sprint fully closed.**
 
 ---
 

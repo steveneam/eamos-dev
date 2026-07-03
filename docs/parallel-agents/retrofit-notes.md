@@ -89,6 +89,12 @@
 
 ## Mode-A dogfood field lessons (2026-07-03)
 
+> Portable, self-contained version for the **Forj vault maintainers**:
+> [`mode-a-vault-report.md`](./mode-a-vault-report.md) — same lessons, framed as protocol
+> feedback (Mode-A launch model, strict-mode rebase tax, gate⊇deploy-checks, worktree cleanup,
+> task-selection, land-inert-integrate-later). Hand that file off; keep this one Eamos-internal.
+
+
 1. **`strict:true` = a serial rebase tax on every lane after the first.** The moment lane 1 merges,
    lanes 2..N go stale and each needs `gh pr update-branch --rebase` + a *fresh full CI run* before
    it can merge — even for glob-disjoint single-file adds with zero conflict risk. Real merge-path
