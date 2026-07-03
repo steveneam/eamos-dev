@@ -154,6 +154,13 @@ from app.schemas.run import (
     VariantReportProfile,
     VariantSummaryRow,
 )
+from app.schemas.search import (
+    SearchAnswerRequest,
+    SearchAnswerResponse,
+    SearchCitation,
+    SearchHit,
+    SearchResponse,
+)
 from app.schemas.workbench import (
     AlignReferenceRequest,
     AlignReferenceResponse,
@@ -377,6 +384,11 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     BatchJobQuery: "BatchJobQuery",
     BatchResult: "BatchResult",
     BatchJob: "BatchJob",
+    SearchHit: "SearchHit",
+    SearchResponse: "SearchResponse",
+    SearchCitation: "SearchCitation",
+    SearchAnswerRequest: "SearchAnswerRequest",
+    SearchAnswerResponse: "SearchAnswerResponse",
 }
 
 
@@ -523,6 +535,46 @@ def test_gene_viewer_contract_declares_full_locus_mode(backend_ts_path):
         window_body,
         re.MULTILINE,
     )
+
+
+@pytest.mark.parametrize(
+    "backend_ts_path",
+    _frontend_backend_ts_paths(),
+    ids=_path_id,
+)
+def test_search_contract_declares_response_and_answer_literals(backend_ts_path):
+    backend_ts = backend_ts_path.read_text(encoding="utf-8")
+
+    assert "export type SearchMetadataValue =" in backend_ts
+    assert "export type SearchDocType =" in backend_ts
+    for doc_type in (
+        "'report'",
+        "'run'",
+        "'library_variant'",
+        "'popular_variant'",
+        "'publication'",
+        "'trial'",
+        "'report_section'",
+        "'gene'",
+        "'condition'",
+        "'gene_disease'",
+        "'source'",
+    ):
+        assert doc_type in backend_ts
+
+    assert "export type SearchVisibilityScope =" in backend_ts
+    for visibility_scope in ("'public'", "'private'", "'internal'"):
+        assert visibility_scope in backend_ts
+
+    assert "export type SearchMatchType =" in backend_ts
+    for match_type in (
+        "'exact_run_id'",
+        "'exact_report_id'",
+        "'exact_patient_id'",
+        "'exact_variant'",
+        "'full_text'",
+    ):
+        assert match_type in backend_ts
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,58 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-04 00:55 +1000 - Codex - Search 7/8 approved + contract freeze
+
+Steven approved the Search 7/8 parallel sprint plan and asked for exact
+multi-terminal lane instructions with Codex as orchestrator/merger/driver.
+
+- Froze the Search response/answer TypeScript contract by mirroring the current
+  backend `app.schemas.search` response shapes into both active contract mirrors:
+  `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts`.
+- Extended `test_frontend_contract.py` to canary `SearchHit`,
+  `SearchResponse`, `SearchCitation`, `SearchAnswerRequest`, and
+  `SearchAnswerResponse`, plus the Search literal type aliases.
+- Marked Search 7/8 planning approved and Task 0 complete in
+  `docs/search-results-and-answer-hardening/*`, `docs/search-index/*`, and
+  `COORDINATION.md`; the frozen contract seam is now explicit.
+- Preserved guardrails: no backend behavior change, env/provider flip, Supabase
+  mutation, source materialization/download/upload, deploy hook use, cleanup
+  deletion, destructive git, or secret output.
+
+Verification:
+
+- `cd app/backend; python -m pytest tests/test_frontend_contract.py -q`
+- `cd app/web; npx tsc --noEmit -p tsconfig.json`
+- `git diff --check`
+- `python -m graphify update .` with long timeout; graph HTML skipped because
+  the graph has 18,035 nodes and exceeds the 5,000-node default visualization
+  threshold.
+
+## 2026-07-04 00:30 +1000 - Codex - Parallel workflow ratchets + Search 7/8 planning
+
+Documented the next Eamos parallel-agent operating refinements from Thalon's
+successful live run and the upgraded ratchet philosophy, without starting
+implementation.
+
+- Added `docs/parallel-agents/ratchet-philosophy.md` as the single durable home
+  for the strength ladder, invariant/opinion distinction, executable-ratchet
+  backlog, and fire-drill guidance.
+- Updated `AGENTS.md`, `COORDINATION.md`, and
+  `docs/parallel-agents/retrofit-notes.md` with Mode A/B guidance, frozen
+  contract discipline, lane scope review, outside-glob handoff pattern,
+  explicit Steven/lead-only actions, and Eamos' worktree-default adaptation.
+- Added a proposed-but-not-launched Search 7/8 sprint to `COORDINATION.md`:
+  serial Search contract freeze, then CI ratchets, backend answer hardening,
+  and frontend search results lanes.
+- Wrote `docs/search-results-and-answer-hardening/{design,spec,plan}.md` and
+  linked it from `docs/search-index/{spec,plan}.md`. Steven chose auth-required
+  search results for now.
+
+Verification: `git diff --check`, trailing-whitespace scan on new docs,
+`node scripts/eamos-handoff-lint.mjs` (pass with existing old-entry warnings),
+and long-timeout `python -m graphify update .` passed. No code implementation,
+env/provider/Supabase/source-materialization/deploy/destructive git action
+occurred.
+
 ## 2026-07-03 21:30 +1000 - Claude - Mode-A parallel dogfood + gene-viewer error boundary
 
 First real multi-lane run of the parallel-agent retrofit (Steven approved the

@@ -1,6 +1,6 @@
 # Eamos search index implementation plan
 
-Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, explicit clinical source asset condition/gene-disease rows, and structured result metadata; Task 7+ and frontend integration remain open.
+Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, explicit clinical source asset condition/gene-disease rows, and structured result metadata. Task 7/8 design/spec/plan now lives in `docs/search-results-and-answer-hardening/`; serial Task 0 contract freeze is implemented locally before parallel lane launch.
 Spec: `docs/search-index/spec.md`.
 Related repo-structure wave: Wave 2, "Fix or retire Search".
 
@@ -47,7 +47,9 @@ Implementation update, 2026-06-30:
   source scans.
 - Still open: broader public product entity coverage beyond the current
   payload-backed and tracked-clinical-source rows, frontend integration, and
-  grounded answer-chain tests.
+  grounded answer-chain tests. The approved Search 7/8 parallel sprint is
+  planned in `docs/search-results-and-answer-hardening/`, with the Search
+  response TypeScript mirror frozen before lane forks.
 
 ## Shared decisions before implementation
 
@@ -470,6 +472,9 @@ Out of scope:
 
 ## Task 7 - Integrate the live Next search bar
 
+Planning artifact: `docs/search-results-and-answer-hardening/spec.md` and
+`docs/search-results-and-answer-hardening/plan.md`.
+
 Goal:
 
 Connect `app/web` to index-backed search results without breaking structured
@@ -530,6 +535,9 @@ Out of scope:
 - Redesigning the whole landing/report page.
 
 ## Task 8 - Grounded AI answer hardening
+
+Planning artifact: `docs/search-results-and-answer-hardening/spec.md` and
+`docs/search-results-and-answer-hardening/plan.md`.
 
 Goal:
 

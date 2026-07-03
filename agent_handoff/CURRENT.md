@@ -17,11 +17,11 @@
 - **Claude:** STOPPED @ 2026-07-03 21:30 +1000 - **Mode-A dogfood RUN + VALIDATED end-to-end** (Steven-approved). 3 disjoint FE components via `isolation:worktree` subagents -> 3 `agent/*` PRs -> CI gate -> lead-run serialized merge (Steven approved each) -> prod green. First-try green, zero conflicts (`cd8f15e`/`eeaefa3`/`05e0321`). Integration `28f0e35`: wired `GeneViewerErrorBoundary` (§4, real gap); left `PopFreqEmptyState` + `InSilicoPlaceholderRows` **inert** (§3/§2 already have empty/loading UI). Portable POC report for the Forj vault -> `docs/parallel-agents/mode-a-vault-report.md`; field lessons -> `retrofit-notes.md`. `main==origin/main 918b067`, tree clean, graphify AST-updated. NEXT: Claude-lane `/report` FE launch items (open follow-up: add `tsc` to `web` CI job; Codex to skipif+drop the 2 `--deselect` backend tests). See Claude Last Task below.
 
 
-- **Codex:** STOPPED @ 2026-07-03 15:12 +1000 - Search clinical source asset vocabulary slice shipped. Implementation commit `c7c3caf` is pushed to `origin/main` and live on Render SG deploy `dep-d93k81ojs32c73cibdd0`; focused/broader search tests, contract/structure tests, Ruff, Black, compileall, diff-check, graphify update, Render deploy confirmation, and SG/Vercel smokes passed. No env/provider/Supabase/source-materialization/destructive action occurred.
+- **Codex:** STOPPED @ 2026-07-04 00:55 +1000 - Steven approved the Search 7/8 parallel plan; Codex froze the Search response/answer TypeScript contract, updated the approved lane board, and prepared exact Mode-B lane launch prompts with Codex as lead/orchestrator/sole merger. Verification: contract canary, web typecheck, diff-check, long-timeout graphify update. No env/provider/Supabase/source-materialization/deploy/destructive action.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-03 21:30 +1000 - Claude (Mode-A dogfood closeout: updated `COORDINATION.md` board + `docs/parallel-agents/retrofit-notes.md` + new `mode-a-vault-report.md` + this heartbeat; re-read after release, tree clean)
+UNLOCKED - 2026-07-04 00:55 +1000 - Codex (Search contract freeze + lane launch package; checks passed, graphify updated)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -415,70 +415,46 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-07-03 15:12 +1000 - Codex.
+Section last edited: 2026-07-04 00:55 +1000 - Codex.
 
-**Latest Codex update (2026-07-03 15:12 +1000 - Codex):**
-Shipped the Search Task 6+ public clinical source asset vocabulary slice.
-Implementation commit `c7c3caf` is pushed to `origin/main` and live on Render
-SG deploy `dep-d93k81ojs32c73cibdd0`.
+**Latest Codex update (2026-07-04 00:55 +1000 - Codex):**
+Steven approved the Search 7/8 parallel sprint plan. Codex completed the serial
+Search contract-freeze pre-step and prepared the launch package with Codex as
+lead/orchestrator/sole merger.
 
-- Public `condition` search rows are derived from tracked
-  MONDO/HPO/ClinGen/GenCC clinical source assets through the explicit
-  `eamos_search_index_backfill --clinical-release-files` operator path.
-- Public `gene_disease` search rows are derived from ClinGen/GenCC
-  gene-disease assertions through the same dry-run/apply path.
-- The implementation reuses the existing clinical source import bundle parser;
-  it does not index private report text, run request-time source scans, trigger
-  startup backfill, download sources, call providers, mutate Supabase, or seed
-  runtime state.
-- Backend search hits now understand `condition` and `gene_disease` document
-  types for subtitles, target routing, and scalar metadata.
+- Froze the Search response/answer TypeScript seam in both contract mirrors:
+  `app/web/lib/backend.ts` and `app/frontend/src/lib/backend.ts`.
+- Extended `app/backend/tests/test_frontend_contract.py` to canary
+  `SearchHit`, `SearchResponse`, `SearchCitation`, `SearchAnswerRequest`,
+  `SearchAnswerResponse`, and the Search literal aliases.
+- Updated `COORDINATION.md` from proposed to approved Search 7/8 lanes:
+  ci-ratchets, answer-hardening, and results-web. The frozen Search contract
+  files are explicitly out of lane scope; any lane needing them must stop and
+  re-plan with the lead.
+- Marked Task 0 complete in
+  `docs/search-results-and-answer-hardening/{design,spec,plan}.md` and linked
+  the state from `docs/search-index/{spec,plan}.md`.
 
 Verification passed:
 
-- `tests/test_search_api_local.py` focused search pytest, now including
-  clinical source asset/backfill coverage.
-- Variant-library, search API, and rate-limit pytest; Docker-gated search cases
-  skipped as before.
-- Frontend contract and structure-guard pytest.
-- Ruff, Black, compileall, and `git diff --check`.
+- `cd app/backend; python -m pytest tests/test_frontend_contract.py -q`
+- `cd app/web; npx tsc --noEmit -p tsconfig.json`
+- `git diff --check`
 - `python -m graphify update .` with long timeout; graph HTML skipped because
-  the graph has 17,903 nodes and exceeds the 5,000-node default visualization
-  threshold.
+  the graph has 18,035 nodes and exceeds the 5,000-node default visualization
+  threshold
 
-Post-deploy verification:
-
-- Render API confirms `dep-d93k81ojs32c73cibdd0` live on
-  `c7c3cafae01cb907e570cdb57b4a5024a6089099`.
-- SG OpenAPI exposes `condition`, `gene_disease`, `gene`, and `source` search
-  doc types.
-- SG `/healthz` ok; SG `/api/v1/health/provider-cache` reports search
-  `status:"ready"`, index tables present, zero ownerless private rows, and
-  no request-time source scans/startup backfill.
-- Vercel proxy `/api/v1/health/provider-cache` reports the same search-ready
-  posture.
-- `https://eamos-dev.vercel.app` returned HTTP 200 by basic PowerShell request.
-
-Operational note:
-
-- Live caveat remains unchanged: minimal SG Workbench design calls (`/primer`,
-  `/crispr`, `/align`) can still return config-gated
-  `workbench_sequence_context_resolver_error`.
-
-No env/provider flip, Supabase mutation, runtime seed/sync, source
-materialization/download/upload, cleanup deletion, destructive git, or secret
-output occurred.
-
-Safe-to-clear note: yes. The implementation is committed, pushed, deployed,
-verified, and documented.
+No backend behavior change, env/provider flip, Supabase mutation, runtime
+seed/sync, source materialization/download/upload, deploy hook use, cleanup
+deletion, destructive git action, or secret output occurred.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt · 2026-07-03 15:12 +1000 · Codex search clinical source asset vocabulary slice
-Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, docs/repo-structure/{plan,audit-2026-06-30,source-asset-policy}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
-Delta: implementation commit `c7c3caf` is pushed and live on Render SG deploy `dep-d93k81ojs32c73cibdd0`; Search Task 6+ now indexes public `condition` rows from tracked MONDO/HPO/ClinGen/GenCC clinical source assets and public `gene_disease` rows from ClinGen/GenCC assertions via explicit `eamos_search_index_backfill --clinical-release-files`, without private report-text indexing, request-time source scans, source/provider/runtime mutations, or automatic startup backfill.
-Verification: focused search pytest with clinical source asset/backfill coverage, library/search/rate-limit pytest, structure/frontend-contract pytest, Ruff, Black, compileall, `git diff --check`, long-timeout `python -m graphify update .`, Render deploy confirmation, SG OpenAPI schema check, SG/Vercel health/search readiness, and Vercel 200 passed. Live caveat unchanged: SG Workbench design endpoints can still return config-gated `workbench_sequence_context_resolver_error`.
-Next: start Search Task 7 frontend results integration when Steven/Claude directs, add backend-safe Search Task 8 grounded answer-chain tests, or add more public search entity coverage only from existing public payloads/source-import bundles without unapproved source materialization/refresh.
-Guardrails: standing approval in `agent_handoff/DECISIONS.md` lets Codex commit/push/deploy when verified safe; still no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, cleanup deletion, destructive git, or secret output unless explicitly approved.
+# Resume prompt · 2026-07-04 00:55 +1000 · Codex Search 7/8 contract freeze + launch package
+Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, COORDINATION.md, docs/parallel-agents/{retrofit-notes,ratchet-philosophy}.md, docs/search-results-and-answer-hardening/{design,spec,plan}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
+Delta: Steven approved the Search 7/8 plan; Codex froze the Search response/answer TypeScript contract in both mirrors, added contract canary coverage, and marked the three-lane sprint approved in `COORDINATION.md`.
+Verification: contract canary, web typecheck, `git diff --check`, and long-timeout `python -m graphify update .` passed. No backend behavior/env/provider/Supabase/source-materialization/deploy/destructive action occurred.
+Next: launch the three approved Mode-B worktree lanes from the frozen local `main` using Codex's exact prompts; Codex lead serializes review/merge in order A ci-ratchets -> B answer-hardening -> C results-web, pausing for Steven approval before each merge.
+Guardrails: keep Search request paths read-only and auth-required for now; no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, deploy hook use, cleanup deletion, destructive git, or secret output unless explicitly approved.
 End clear-safe with a fresh stamped resume prompt.
 ```

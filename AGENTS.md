@@ -27,6 +27,7 @@ Maintenance practice:
 
 Eamos is parallel-ready (Forj protocol). Live board + Eamos adaptation: `COORDINATION.md`.
 Protocol (read-only vault): `Forj/bones/parallel-agents.md` + `Forj/Wiki/reference/parallel-agent-workflow.md`.
+Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 
 Two standing rules:
 
@@ -41,6 +42,16 @@ Two standing rules:
    merge-order (rebase onto latest `main` → CI green → review → merge), pausing for Steven's
    explicit approval before each merge. Never merge on red. Lane ownership (who edits a glob) is
    separate from merge authority (the lead).
+
+Guidance:
+- Use Mode A for small, quick, disjoint work where one lead can comfortably run
+  worktree-subagent lanes. Use Mode B for larger work where lanes need independent
+  runtime context, longer verification, backend/cloud caution, or more than about
+  three lanes. This is guidance, not a hard threshold.
+- Freeze the shared contract before lanes fork. A lane needing to edit the frozen
+  contract means re-plan, not ad-hoc drift.
+- Review lane scope before merge (`git log --name-only main..lane`); conflicts
+  outside `COORDINATION.md` are partition leaks.
 
 End every session clear-safe — update `agent_handoff/CURRENT.md` + hand Steven a stamped
 resume prompt (protocol: `agent_handoff/README.md`).

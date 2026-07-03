@@ -205,6 +205,77 @@ export interface RunResponse {
   approved_pdf_path: string | null
 }
 
+export type SearchMetadataValue = string | number | boolean | null
+
+export type SearchDocType =
+  | 'report'
+  | 'run'
+  | 'library_variant'
+  | 'popular_variant'
+  | 'publication'
+  | 'trial'
+  | 'report_section'
+  | 'gene'
+  | 'condition'
+  | 'gene_disease'
+  | 'source'
+
+export type SearchVisibilityScope = 'public' | 'private' | 'internal'
+
+export type SearchMatchType =
+  | 'exact_run_id'
+  | 'exact_report_id'
+  | 'exact_patient_id'
+  | 'exact_variant'
+  | 'full_text'
+
+export interface SearchHit {
+  source_key: string
+  doc_type: SearchDocType
+  visibility_scope: SearchVisibilityScope
+  run_id?: string | null
+  report_id?: string | null
+  patient_id?: string | null
+  title: string
+  subtitle?: string | null
+  snippet?: string | null
+  target_href?: string | null
+  metadata: Record<string, SearchMetadataValue>
+  match_type: SearchMatchType
+  score: number
+  run_status?: string | null
+  review_status?: string | null
+  extraction_status?: string | null
+  updated_at?: string | null
+}
+
+export interface SearchResponse {
+  query: string
+  results: SearchHit[]
+}
+
+export interface SearchCitation {
+  run_id?: string | null
+  report_id?: string | null
+  title?: string | null
+}
+
+export interface SearchAnswerRequest {
+  query: string
+  limit?: number
+  doc_type?: SearchDocType | null
+  run_status?: string | null
+  review_status?: string | null
+}
+
+export interface SearchAnswerResponse {
+  query: string
+  answer: string
+  grounded: boolean
+  citations: SearchCitation[]
+  results: SearchHit[]
+}
+
 export interface ClinicianReviewPayload {
   reviewer_name?: string | null
   review_note: string

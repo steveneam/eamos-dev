@@ -3,6 +3,7 @@
 **Protocol source (read-only vault):** `Forj/bones/parallel-agents.md` (skeleton) +
 `Forj/Wiki/reference/parallel-agent-workflow.md` (playbook). This file is the **live board**
 + the Eamos-specific adaptation. Keep it human-lean — do not machine-bloat it.
+Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 
 **Status:** _Mode-A dogfood COMPLETE (merges) — 2026-07-03._ 3/3 lanes merged linear onto `main`
 (`cd8f15e`/`eeaefa3`/`05e0321`); first-try green, zero conflicts; prod deploy green. Machinery
@@ -22,6 +23,40 @@ _lead: Claude · contract: FE-only presentational, no shared types (FROZEN @ 94d
 | C insilico-rows | Claude(wt) | `app/web/components/report/InSilicoPlaceholderRows.tsx` | `agent/insilico-placeholder-rows` | merged `05e0321` | — | 3 |
 
 _Integration (wire all 3 into `ReportClient.tsx`) is a single-owner step AFTER all lanes merge — not a lane._
+
+## Search 7/8 sprint (approved; launch after serial freeze commit)
+
+_lead: Codex · contract: Search response TypeScript mirror (freeze first on `main`) · mode: B preferred for separate runtime context, Mode A acceptable if Codex is sole runtime_
+
+Serial pre-step before any lane forks:
+
+- Freeze `SearchHit` / `SearchResponse` / `SearchAnswerResponse` by mirroring
+  current backend Search schema types into `app/web/lib/backend.ts` and
+  `app/frontend/src/lib/backend.ts`, with contract canary coverage.
+- Contract freeze is the only lane-shared seam. Any lane needing to edit
+  `app/web/lib/backend.ts`, `app/frontend/src/lib/backend.ts`, or
+  `app/backend/app/schemas/search.py` means stop and re-plan with the lead.
+
+| lane | owner | owns (glob) | branch | status | depends-on | merge-order |
+|------|-------|-------------|--------|--------|------------|-------------|
+| A ci-ratchets | Codex | `.github/workflows/ci.yml`; `app/backend/tests/test_pdf_text.py`; `app/backend/tests/test_source_reader_proofs.py` | `agent/search/ci-ratchets` | approved | contract-freeze | 1 |
+| B answer-hardening | Codex | `app/backend/app/services/search_answer.py`; `app/backend/tests/test_search_api_local.py`; `app/backend/tests/test_search_api.py` | `agent/search/answer-hardening` | approved | contract-freeze | 2 |
+| C results-web | Codex | `app/web/lib/search/**`; `app/web/components/search/**`; `app/web/app/search/**`; `app/web/app/api/v1/search/**`; `app/web/components/landing/LandingClient.tsx`; `app/web/components/report/ReportClient.tsx`; `app/web/lib/variant-search.ts` | `agent/search/results-web` | approved | contract-freeze | 3 |
+
+Steven launch package, after Codex confirms the contract-freeze commit is on
+local `main`:
+
+```powershell
+git worktree add .claude/worktrees/search-ci-ratchets -b agent/search/ci-ratchets
+git worktree add .claude/worktrees/search-answer-hardening -b agent/search/answer-hardening
+git worktree add .claude/worktrees/search-results-web -b agent/search/results-web
+```
+
+Open one Codex session per worktree folder and paste the lane-specific prompt
+from the current lead chat. Lanes push their branches and mark their own row
+`review`; Codex lead is the orchestrator and only merger. If a lane needs a file
+outside its owned glob, it writes a board message and stops instead of editing
+the file.
 
 Status vocab: `pending · in_progress · blocked:<what> · review · merged`.
 **One writer per row:** the lead owns assignments + merge-order; each owner writes only its
@@ -53,11 +88,24 @@ globs, frozen contract, merge order) and hands Steven **exact copy-paste launch 
 Steven approves the partition and runs them; he never designs the setup. **3–5 lanes max;
 coupled work runs sequentially** (forcing it parallel just moves the coupling into merge conflicts).
 
-**2. Freeze the contract first.** The interface where lanes meet — the backend↔FE API types
+**2. Pick Mode A or Mode B as guidance, not dogma.**
+
+- **Mode A:** one lead runs worktree-subagent lanes. Use it for small, quick,
+  disjoint work where the lead can hold the whole sprint in one context.
+- **Mode B:** Steven opens one terminal/runtime per lane, each pointed at its own
+  worktree/branch. Use it for larger work, backend/cloud caution, longer local
+  verification, or when lanes need independent context budgets.
+
+Either mode keeps the same merge model: one lead is the sole merger, Steven
+approves seams, and lanes never merge themselves.
+
+**3. Freeze the contract first.** The interface where lanes meet — the backend↔FE API types
 (backend-led) — is committed to `main` *before* any lane forks. One owner; frozen for the
 sprint. A lane needing to edit it is the signal the partition was wrong → re-plan, don't ad-hoc edit.
+For Search 7/8, the frozen seam is the backend `SearchHit`/`SearchResponse`/`SearchAnswerResponse`
+shape mirrored into the active web contract before lanes fork.
 
-**3. Launch** (the agent hands Steven this, filled in — one terminal per lane, from `D:\eamos`):
+**4. Launch** (the agent hands Steven this, filled in — one terminal per lane, from `D:\eamos`):
 
 ```
 git worktree add .claude/worktrees/<lane> -b agent/<lane>/<task>
@@ -69,7 +117,10 @@ cd .claude/worktrees/<lane>
 claude          # start the lane agent in this worktree
 ```
 
-**4. Cloud resource isolation (Eamos-specific):**
+Codex lane sessions can use the same worktree directories; open a separate Codex
+session with its working folder set to `.claude/worktrees/<lane>`.
+
+**5. Cloud resource isolation (Eamos-specific):**
 
 - **Supabase — single-owner serialized.** Exactly ONE lane owns `supabase/migrations/**` per
   sprint; migration / durable-DB work is **never parallelized** (no two lanes migrate one shared
@@ -80,7 +131,23 @@ claude          # start the lane agent in this worktree
 - **Render — main-only, Codex-owned.** Backend deploy happens post-merge, from `main`, owned by
   Codex (the deploy hook is intentionally **not** copied into worktrees). A lane never deploys prod.
 
-**5. Merge gate — lead-run, Steven approves each seam.** One **lead** per sprint (the proposing
+**6. Lane scope rule.** One lane = one branch = one worktree = one disjoint
+glob. `COORDINATION.md` is the only expected shared conflict. Before merging,
+the lead checks lane scope with `git log --name-only main..<lane>` against the
+owned glob. A conflict or touched file outside the board is a partition leak.
+
+If a lane needs a shared surface outside its glob (for example `.github/workflows/ci.yml`
+or a frozen contract), it does not edit it directly. It ships a `.example` file
+inside its own glob or posts a board message telling the lead exactly what to
+activate in a single-owner pass.
+
+**7. Founder-only and lead-only actions are explicit.** Cloud root/IAM/billing,
+provider/env flips, Supabase mutations, source materialization/download/upload,
+deploy hook use, cleanup deletion, and branch surgery are `[Steven]` or
+lead-approved actions. Lanes scaffold around them rather than blocking or
+silently performing them.
+
+**8. Merge gate — lead-run, Steven approves each seam.** One **lead** per sprint (the proposing
 agent) is the **sole merger**; lane agents push + mark their row `review` + hand off — they never
 merge their own branch. Lane ownership (who edits a glob) ≠ merge authority (the lead). Serialized,
 one lane at a time in merge-order:
@@ -89,6 +156,12 @@ approval → lead merges → next lane rebases on new main`.
 **Never merge on red.** If two lanes touched a shared file (partition leak), a deliberate
 conflict-resolver pass reconciles it — flag both intents, keep the union, **never a silent overwrite** —
 then fix the partition so it can't recur. Stuck ~3 iterations on one error → kill the lane, reassign fresh.
+
+**9. Ratchets land with the lesson.** Each sprint promotes expensive lessons up
+the ladder in `docs/parallel-agents/ratchet-philosophy.md`: executable checks
+where possible, then structural seams, then tracked config, then docs. Tag
+ratchets as invariant or opinion so Eamos can prune stale workflow tax at
+re-charter.
 
 ---
 

@@ -123,3 +123,27 @@
 - Bump GitHub Action majors to clear the Node-20 deprecation warning (field lesson 4).
 - Re-check warm-cache CI timing after a few runs; consider making `backend` a soft (non-required)
   check if `pip install` proves flaky.
+
+## Thalon production additions adopted for Eamos (2026-07-04)
+
+Steven brought over Thalon Sprint 0's live multi-agent result: two lanes, same
+folder discipline, one-day build, zero partition violations. The transferable
+lessons are now folded into Eamos' `COORDINATION.md` and
+`docs/parallel-agents/ratchet-philosophy.md`:
+
+- Contract freeze is the real independence mechanism. A lane needing the
+  contract means re-plan.
+- One lane owns one branch, one worktree, and one disjoint glob. `COORDINATION.md`
+  is the only expected shared conflict.
+- The lead scope-checks each lane before merge with `git log --name-only`.
+- Shared-surface asks travel as `.example` files or board messages; lanes do not
+  edit out-of-glob shared files directly.
+- Founder-only actions stay explicit `[Steven]` seams.
+- Cross-lane state belongs in tracked board/handoff/decision files, not chat.
+- Ratchets are graded by strength: executable beats structural, structural beats
+  config, config beats docs, docs beat memory.
+
+The Eamos-specific difference: use worktree-per-lane as the default even though
+Thalon's same-folder run worked. Eamos has branch CI, Vercel previews, Render
+deploy authority, Supabase/cloud guardrails, and copied boot config; worktrees
+reduce accidental blast radius.
