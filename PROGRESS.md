@@ -1,5 +1,49 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-03 15:12 +1000 - Codex - Search clinical source asset vocabulary slice
+
+Continued Search Control Plane Task 6+ without changing provider posture,
+source materialization, Supabase state, or frontend UI behavior.
+
+- Added public `condition` search rows from tracked MONDO/HPO/ClinGen/GenCC
+  clinical source assets through the explicit
+  `eamos_search_index_backfill --clinical-release-files` operator path.
+- Added public `gene_disease` search rows from ClinGen/GenCC gene-disease
+  assertions through the same dry-run/apply path.
+- Reused the existing clinical source import bundle parser; no private report
+  text, request-time source scans, startup backfill, source downloads, provider
+  calls, Supabase mutation, or env/runtime seed/sync were introduced.
+- Search hits now understand `condition` and `gene_disease` document types for
+  subtitles, scalar metadata, and `/report?q=...` routing.
+
+Verification passed locally:
+
+- `cd app/backend; python -m pytest tests/test_search_api_local.py -q`
+- `cd app/backend; python -m pytest tests/test_variant_library_api.py tests/test_search_api.py tests/test_rate_limits.py -q` (`test_search_api.py` Docker-gated cases skipped as before)
+- `cd app/backend; python -m pytest tests/test_frontend_contract.py tests/test_structure_guard.py -q`
+- `cd app/backend; python -m ruff check app/schemas/search.py app/services/search.py app/services/search_index.py app/services/search_public_assets.py app/cli/eamos_search_index_backfill.py tests/test_search_api_local.py`
+- `cd app/backend; python -m black --check --target-version py310 app/schemas/search.py app/services/search.py app/services/search_index.py app/services/search_public_assets.py app/cli/eamos_search_index_backfill.py tests/test_search_api_local.py`
+- `cd app/backend; python -m compileall app/schemas/search.py app/services/search.py app/services/search_index.py app/services/search_public_assets.py app/cli/eamos_search_index_backfill.py`
+- `git diff --check`
+- `python -m graphify update .` with a long timeout; graph HTML was skipped
+  because the graph has 17,903 nodes and exceeds the 5,000-node default
+  visualization threshold.
+
+Implementation commit `c7c3caf` was pushed to `origin/main` and deployed to
+Render SG as `dep-d93k81ojs32c73cibdd0`. Render API confirmed it is live on
+commit `c7c3cafae01cb907e570cdb57b4a5024a6089099`.
+
+Post-deploy smoke passed:
+
+- SG OpenAPI exposes `condition`, `gene_disease`, `gene`, and `source` search
+  doc types.
+- SG `/healthz`: ok, database ok.
+- SG `/api/v1/health/provider-cache`: search `status:"ready"`, index tables
+  present, zero ownerless private rows, request-time source scans disabled, and
+  startup backfill disabled.
+- Vercel proxy `/api/v1/health/provider-cache`: same search-ready posture.
+- `https://eamos-dev.vercel.app` returned HTTP 200 by basic PowerShell request.
+
 ## 2026-07-03 02:13 +1000 - Codex - Search public gene/source vocabulary slice
 
 Continued Search Control Plane Task 6+ without changing provider posture,
