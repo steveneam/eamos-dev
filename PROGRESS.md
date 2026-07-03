@@ -1,5 +1,29 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-03 21:30 +1000 - Claude - Mode-A parallel dogfood + gene-viewer error boundary
+
+First real multi-lane run of the parallel-agent retrofit (Steven approved the
+partition + each merge). Proof-of-concept for "Mode A" — a solo lead driving
+disjoint worktree-subagent lanes.
+
+- Spawned 3 disjoint NEW `/report` components as `isolation:worktree` subagents,
+  each on its own `agent/*` branch -> PR -> CI merge gate -> lead-run serialized
+  rebase/verify/merge (A->B->C). First-try green, zero conflicts; merged linear
+  (`cd8f15e` `PopFreqEmptyState`, `eeaefa3` `GeneViewerErrorBoundary`,
+  `05e0321` `InSilicoPlaceholderRows`); prod deploy green.
+- Integration (`28f0e35`): wired `GeneViewerErrorBoundary` around the §4
+  `ReportGeneViewer` in `ReportClient.tsx` — a real resilience gap (a viewer
+  render throw previously white-screened the whole report). Happy-path render
+  unchanged (boundary passes children through).
+- Left `PopFreqEmptyState` + `InSilicoPlaceholderRows` **inert (unwired)**: §3
+  already has `PopulationUnavailableStatePanel`, §2 already renders catalog
+  placeholders + a LazySection loading state, so wiring them would duplicate UI.
+  They remain as reusable components.
+- Recorded field lessons -> `docs/parallel-agents/retrofit-notes.md`; wrote a
+  portable proof-of-concept report for the Forj vault maintainers ->
+  `docs/parallel-agents/mode-a-vault-report.md`. No env/provider/flag/Supabase
+  changes. `main == origin/main 918b067`.
+
 ## 2026-07-03 15:12 +1000 - Codex - Search clinical source asset vocabulary slice
 
 Continued Search Control Plane Task 6+ without changing provider posture,
