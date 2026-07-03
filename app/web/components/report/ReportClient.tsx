@@ -30,6 +30,7 @@ import { ReportLoadingState } from '@/components/report/ReportLoadingState'
 import { ExportMenu } from '@/components/report/ExportMenu'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { ReportGeneViewer } from '@/components/report/ReportGeneViewer'
+import { GeneViewerErrorBoundary } from '@/components/report/GeneViewerErrorBoundary'
 import { StickyVariantRibbon } from '@/components/report/StickyVariantRibbon'
 import { ExpertPanelSection } from '@/components/report/ExpertPanelSection'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
@@ -1267,20 +1268,22 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
           }
         >
           {header?.gene && header?.cdna && (
-            <ReportGeneViewer
-              gene={header.gene}
-              cdna={header.cdna}
-              transcript={header.transcript ?? null}
-              geneContextSnapshot={payload.report_profile?.gene_context_snapshot ?? null}
-              proteinDomainTrack={reportProteinDomainTrack}
-              markerClassification={
-                payload.report_profile?.header?.classification ??
-                payload.report_profile?.acmg_worksheet?.classification ??
-                payload.acmg_classification ??
-                null
-              }
-              demo={demo}
-            />
+            <GeneViewerErrorBoundary gene={header.gene} cdna={header.cdna}>
+              <ReportGeneViewer
+                gene={header.gene}
+                cdna={header.cdna}
+                transcript={header.transcript ?? null}
+                geneContextSnapshot={payload.report_profile?.gene_context_snapshot ?? null}
+                proteinDomainTrack={reportProteinDomainTrack}
+                markerClassification={
+                  payload.report_profile?.header?.classification ??
+                  payload.report_profile?.acmg_worksheet?.classification ??
+                  payload.acmg_classification ??
+                  null
+                }
+                demo={demo}
+              />
+            </GeneViewerErrorBoundary>
           )}
 
           <MolecularContextBlock evidence={data.evidence} />
