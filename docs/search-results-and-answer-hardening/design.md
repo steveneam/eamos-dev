@@ -1,6 +1,8 @@
 # Search results and answer hardening design
 
-Status: Approved; serial contract freeze implemented locally
+Status: Implemented sequentially locally on 2026-07-04; serial contract freeze
+`f7ef561` is pushed and the A/B/C implementation remains uncommitted pending
+review/commit approval.
 Created: 2026-07-04 by Codex
 Related: `docs/search-index/spec.md`, `docs/search-index/plan.md`,
 `COORDINATION.md`
@@ -78,6 +80,11 @@ First land a serial contract-freeze pass on `main`:
 Implementation note, 2026-07-04: the Search response and answer TypeScript
 mirror plus contract canary coverage were added as the serial pre-step. Parallel
 lanes must treat this seam as frozen.
+
+Implementation note, 2026-07-04: Steven canceled the parallel lane execution
+after the spawned-worker trial. Codex completed the CI ratchets, answer
+hardening, and frontend search results pass sequentially in the main checkout;
+the parked worktrees are no longer active lanes.
 
 Then fork parallel lanes:
 

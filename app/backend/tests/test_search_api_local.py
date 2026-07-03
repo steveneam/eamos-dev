@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -46,6 +47,61 @@ def _set_search_limit(client: TestClient, max_requests: int = 1) -> None:
     client.app.state.rate_limiter = InMemoryRateLimiter()
     client.app.state.settings.rate_limit_search_max_requests = max_requests
     client.app.state.settings.rate_limit_window_seconds = 60
+
+
+class FakeSearchAnswerChain:
+    def __init__(self, citations: list[dict[str, str | None]]) -> None:
+        self.citations = citations
+        self.invocations: list[dict[str, str]] = []
+
+    def invoke(self, payload: dict[str, str]) -> dict[str, object]:
+        self.invocations.append(payload)
+        return {
+            "answer": "The indexed RPE65 run supports a grounded answer.",
+            "grounded": True,
+            "citations": self.citations,
+        }
+
+
+def _current_user_id(client: TestClient) -> str:
+    response = client.get("/api/v1/auth/me")
+    assert response.status_code == 200
+    return response.json()["user_id"]
+
+
+def _enable_fake_search_answer(
+    client: TestClient,
+    answer_chain: FakeSearchAnswerChain | None,
+) -> None:
+    client.app.state.settings.search_answer_enabled = True
+    client.app.state.search_answer_service.answer_chain = answer_chain
+
+
+def _index_answer_fixture(client: TestClient) -> None:
+    owner_user_id = _current_user_id(client)
+    client.app.state.search_repo.upsert_document(
+        SearchDocumentWrite(
+            source_key="run:answer-grounded",
+            doc_type="run",
+            visibility_scope="private",
+            owner_user_id=owner_user_id,
+            run_id="run_answer_grounded",
+            patient_id="ANSWER-001",
+            report_title="Grounded RPE65 answer run",
+            identifier_text="ANSWER-001 run_answer_grounded RPE65 answerhardening",
+            search_text="RPE65 answerhardening grounded run evidence.",
+        )
+    )
+    client.app.state.search_repo.upsert_document(
+        SearchDocumentWrite(
+            source_key="gene:rpe65-answer",
+            doc_type="gene",
+            visibility_scope="public",
+            report_title="RPE65",
+            identifier_text="RPE65 answerhardening",
+            search_text="RPE65 answerhardening public gene row.",
+        )
+    )
 
 
 def _save_search_fixture_report(client: TestClient, report_id: str = "report_search_local") -> None:
@@ -357,6 +413,80 @@ def test_local_search_answer_stays_disabled_without_answer_chain(
 
     assert response.status_code == 503
     assert response.json()["detail"] == "AI search answers are disabled."
+
+
+def test_local_search_answer_enabled_without_chain_returns_stable_503(
+    auth_client: TestClient,
+) -> None:
+    _enable_fake_search_answer(auth_client, None)
+
+    response = auth_client.post("/api/v1/search/answer", json={"query": "RPE65"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "AI search answer model is not configured."
+
+
+def test_local_search_answer_fake_chain_returns_grounded_results_and_citations(
+    auth_client: TestClient,
+) -> None:
+    _index_answer_fixture(auth_client)
+    fake_chain = FakeSearchAnswerChain(citations=[{"run_id": "run_answer_grounded"}])
+    _enable_fake_search_answer(auth_client, fake_chain)
+
+    response = auth_client.post(
+        "/api/v1/search/answer",
+        json={"query": "answerhardening", "limit": 5},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["query"] == "answerhardening"
+    assert body["grounded"] is True
+    assert body["answer"] == "The indexed RPE65 run supports a grounded answer."
+    assert body["citations"] == [
+        {
+            "run_id": "run_answer_grounded",
+            "report_id": None,
+            "title": "Grounded RPE65 answer run",
+        }
+    ]
+    assert {
+        "run:answer-grounded",
+        "gene:rpe65-answer",
+    }.issubset({item["source_key"] for item in body["results"]})
+
+    assert len(fake_chain.invocations) == 1
+    context = json.loads(fake_chain.invocations[0]["results_context"])
+    assert {item["doc_type"] for item in context} >= {"run", "gene"}
+    assert any(item["run_id"] == "run_answer_grounded" for item in context)
+
+
+def test_local_search_answer_drops_model_citations_not_tied_to_returned_hits(
+    auth_client: TestClient,
+) -> None:
+    _index_answer_fixture(auth_client)
+    fake_chain = FakeSearchAnswerChain(
+        citations=[
+            {"run_id": "run_answer_grounded"},
+            {"run_id": "run_missing"},
+            {},
+        ]
+    )
+    _enable_fake_search_answer(auth_client, fake_chain)
+
+    response = auth_client.post(
+        "/api/v1/search/answer",
+        json={"query": "answerhardening", "limit": 5},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["citations"] == [
+        {
+            "run_id": "run_answer_grounded",
+            "report_id": None,
+            "title": "Grounded RPE65 answer run",
+        }
+    ]
 
 
 def test_run_creation_indexes_new_run_for_local_search(auth_client: TestClient) -> None:

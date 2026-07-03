@@ -78,7 +78,11 @@ class SearchAnswerService:
         )
 
         citations = []
-        allowed_pairs = {(item.run_id, item.report_id): item.title for item in results.results}
+        allowed_pairs = {
+            (item.run_id, item.report_id): item.title
+            for item in results.results
+            if item.run_id is not None or item.report_id is not None
+        }
         for item in model_output.get("citations", []):
             citation = SearchCitation.model_validate(item)
             key = (citation.run_id, citation.report_id)

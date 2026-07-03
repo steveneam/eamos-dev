@@ -4,6 +4,8 @@ import gzip
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 from app.services.source_reader_proofs import (
     SourceReaderProofStatus,
     execute_source_reader_proofs,
@@ -50,7 +52,7 @@ def test_source_reader_proofs_report_real_file_smokes_and_native_pending(
 
 
 def _write_test_sources(*, small_root: Path, large_root: Path) -> None:
-    _write_gzip(
+    _write_indexed_vcf_if_native_reader_available(
         small_root / "ncbi_clinvar_vcf" / "clinvar.vcf.gz",
         "\n".join(
             [
@@ -183,3 +185,22 @@ def _write_gzip(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(path, "wt", encoding="utf-8") as file:
         file.write(text)
+
+
+def _write_indexed_vcf_if_native_reader_available(path: Path, text: str) -> None:
+    if importlib.util.find_spec("pysam") is None:
+        _write_gzip(path, text)
+        return
+
+    plain_path = path.with_suffix("")
+    plain_path.parent.mkdir(parents=True, exist_ok=True)
+    plain_path.write_text(text, encoding="utf-8")
+    try:
+        import pysam
+
+        pysam.tabix_compress(str(plain_path), str(path), force=True)
+        pysam.tabix_index(str(path), preset="vcf", force=True)
+    except Exception as exc:  # noqa: BLE001 - optional native proof setup.
+        pytest.skip(f"native indexed VCF test asset unavailable: {type(exc).__name__}: {exc}")
+    finally:
+        plain_path.unlink(missing_ok=True)

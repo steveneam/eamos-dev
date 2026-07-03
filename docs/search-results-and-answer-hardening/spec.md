@@ -1,6 +1,8 @@
 # Search results and answer hardening spec
 
-Status: Approved; Task 0 contract freeze implemented locally
+Status: Implemented sequentially locally on 2026-07-04; contract freeze
+`f7ef561` is pushed, while the A/B/C implementation remains uncommitted pending
+review/commit approval.
 Created: 2026-07-04 by Codex
 
 ## What
@@ -67,6 +69,11 @@ Mirror them in `app/web/lib/backend.ts` and
 Extend `test_frontend_contract.py` for these fields if the existing parameter
 list does not cover them. Completed locally on 2026-07-04 with no backend
 behavior change.
+
+Implementation update, 2026-07-04: after the parallel lane flow was canceled,
+Codex implemented the CI ratchets, answer hardening, and frontend search
+results surface sequentially in the main checkout. The original worktrees are
+parked with partial uncommitted diffs and are not active lanes.
 
 ### Frontend
 

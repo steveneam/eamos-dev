@@ -24,9 +24,14 @@ _lead: Claude · contract: FE-only presentational, no shared types (FROZEN @ 94d
 
 _Integration (wire all 3 into `ReportClient.tsx`) is a single-owner step AFTER all lanes merge — not a lane._
 
-## Search 7/8 sprint (approved; launch after serial freeze commit)
+## Search 7/8 sprint (parallel launch canceled; implemented sequentially locally)
 
-_lead: Codex · contract: Search response TypeScript mirror (freeze first on `main`) · mode: B preferred for separate runtime context, Mode A acceptable if Codex is sole runtime_
+_lead: Codex · contract: Search response TypeScript mirror frozen in pushed commit `f7ef561` · status: A/B/C implemented sequentially in the main checkout, uncommitted as of 2026-07-04 03:32 +1000_
+
+The lane table below is a historical partition record, not an active sprint.
+The three `.claude/worktrees/search-*` worktrees still exist with partial
+uncommitted lane diffs and are parked only. Do not continue those lanes unless
+Steven explicitly revives them.
 
 Serial pre-step before any lane forks:
 
@@ -39,9 +44,9 @@ Serial pre-step before any lane forks:
 
 | lane | owner | owns (glob) | branch | status | depends-on | merge-order |
 |------|-------|-------------|--------|--------|------------|-------------|
-| A ci-ratchets | Codex | `.github/workflows/ci.yml`; `app/backend/tests/test_pdf_text.py`; `app/backend/tests/test_source_reader_proofs.py` | `agent/search/ci-ratchets` | approved | contract-freeze | 1 |
-| B answer-hardening | Codex | `app/backend/app/services/search_answer.py`; `app/backend/tests/test_search_api_local.py`; `app/backend/tests/test_search_api.py` | `agent/search/answer-hardening` | approved | contract-freeze | 2 |
-| C results-web | Codex | `app/web/lib/search/**`; `app/web/components/search/**`; `app/web/app/search/**`; `app/web/app/api/v1/search/**`; `app/web/components/landing/LandingClient.tsx`; `app/web/components/report/ReportClient.tsx`; `app/web/lib/variant-search.ts` | `agent/search/results-web` | approved | contract-freeze | 3 |
+| A ci-ratchets | Codex | `.github/workflows/ci.yml`; `app/backend/tests/test_pdf_text.py`; `app/backend/tests/test_source_reader_proofs.py` | `agent/search/ci-ratchets` | blocked:collapsed-to-sequential | contract-freeze | 1 |
+| B answer-hardening | Codex | `app/backend/app/services/search_answer.py`; `app/backend/tests/test_search_api_local.py`; `app/backend/tests/test_search_api.py` | `agent/search/answer-hardening` | blocked:collapsed-to-sequential | contract-freeze | 2 |
+| C results-web | Codex | `app/web/lib/search/**`; `app/web/components/search/**`; `app/web/app/search/**`; `app/web/app/api/v1/search/**`; `app/web/components/landing/LandingClient.tsx`; `app/web/components/report/ReportClient.tsx`; `app/web/lib/variant-search.ts` | `agent/search/results-web` | blocked:collapsed-to-sequential | contract-freeze | 3 |
 
 Steven launch package, after Codex confirms the contract-freeze commit is on
 local `main`:
@@ -52,11 +57,9 @@ git worktree add .claude/worktrees/search-answer-hardening -b agent/search/answe
 git worktree add .claude/worktrees/search-results-web -b agent/search/results-web
 ```
 
-Open one Codex session per worktree folder and paste the lane-specific prompt
-from the current lead chat. Lanes push their branches and mark their own row
-`review`; Codex lead is the orchestrator and only merger. If a lane needs a file
-outside its owned glob, it writes a board message and stops instead of editing
-the file.
+Historical note: this launch package was run, then canceled before lane PRs.
+Do not open new lane sessions from these worktrees unless Steven explicitly
+chooses to revive the parallel flow.
 
 Status vocab: `pending · in_progress · blocked:<what> · review · merged`.
 **One writer per row:** the lead owns assignments + merge-order; each owner writes only its
@@ -77,6 +80,12 @@ own `status`. Messages are append-only; you replace only your own state.
   `PopulationUnavailableStatePanel`, §2 already renders catalog placeholders + a LazySection
   loading state → wiring them would duplicate UI. Portable POC report for the Forj vault:
   `docs/parallel-agents/mode-a-vault-report.md`. **Sprint fully closed.**
+- 2026-07-04 (Codex, lead): Search 7/8 parallel lane execution was canceled at Steven's request
+  after the spawned-worker trial. Codex kept the pushed contract freeze (`f7ef561`) and implemented
+  lanes A/B/C sequentially in the main checkout. Local verification passed, browser desktop smoke
+  was partially completed, and mobile live verify was skipped at Steven's wrap request. Changes are
+  uncommitted pending Steven review/commit approval; no deploy/env/provider/Supabase/source/destructive
+  action occurred.
 
 ---
 

@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   web:
-    name: web (lint + vercel guard)
+    name: web (typecheck + lint + vercel guard)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,6 +30,7 @@ jobs:
           cache-dependency-path: app/web/package-lock.json
       - run: npm ci
       - run: npm run guard:vercel
+      - run: npx tsc --noEmit -p tsconfig.json
       - run: npm run lint
 
   frontend:
@@ -65,11 +66,4 @@ jobs:
           cache: pip
           cache-dependency-path: app/backend/requirements.txt
       - run: pip install -r requirements.txt
-      # Two integration tests need gitignored data assets absent on a clean CI runner
-      # (a PDF fixture; a real local source file → 'missing_local_file'). Deselected to keep
-      # the gate deterministic. FOLLOW-UP (Codex, backend lane): mark them skipif-asset-absent
-      # so they self-skip instead of being pinned here by node id.
-      - run: >
-          pytest -q
-          --deselect tests/test_pdf_text.py::test_extract_fitz_engine
-          --deselect tests/test_source_reader_proofs.py::test_source_reader_proofs_report_real_file_smokes_and_native_pending
+      - run: pytest -q

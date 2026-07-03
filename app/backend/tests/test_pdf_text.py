@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from app.core.config import Settings
 from app.services.pdf_text import extract_pdf_text
 
@@ -23,7 +25,11 @@ def test_extract_pypdf_default() -> None:
 
 
 def test_extract_fitz_engine() -> None:
-    result = extract_pdf_text(_fixture_pdf(), engine="fitz")
+    pytest.importorskip("fitz", reason="PyMuPDF/fitz is optional in clean CI")
+    fixture = _fixture_pdf()
+    if not fixture.is_file():
+        pytest.skip(f"optional PDF fixture is absent: {fixture}")
+    result = extract_pdf_text(fixture, engine="fitz")
     assert result["engine"] == "fitz"
     assert result["page_count"] >= 1
 

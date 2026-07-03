@@ -1,6 +1,8 @@
 # Search results and answer hardening plan
 
-Status: Approved; Task 0 contract freeze implemented locally
+Status: Implemented sequentially locally on 2026-07-04 after the parallel lane
+flow was canceled. Contract freeze `f7ef561` is pushed; A/B/C implementation is
+uncommitted in the main checkout pending review/commit approval.
 Spec: `docs/search-results-and-answer-hardening/spec.md`
 Design: `docs/search-results-and-answer-hardening/design.md`
 
@@ -62,6 +64,8 @@ Out of scope:
 
 ## Task 1 - CI ratchets lane
 
+Status: done locally on 2026-07-04 in the sequential main-checkout pass.
+
 Goal:
 
 Make the merge gate a stronger executable ratchet for parallel lanes.
@@ -101,6 +105,8 @@ npm run lint
 ```
 
 ## Task 2 - Backend answer hardening lane
+
+Status: done locally on 2026-07-04 in the sequential main-checkout pass.
 
 Goal:
 
@@ -148,6 +154,10 @@ Out of scope:
 - Token budgets or billing controls.
 
 ## Task 3 - Frontend search results lane
+
+Status: done locally on 2026-07-04 in the sequential main-checkout pass.
+Desktop browser smoke was run; mobile browser verification was skipped because
+Steven asked to stop live verification and wrap.
 
 Goal:
 
@@ -211,6 +221,10 @@ Out of scope:
 - AI answer UI.
 
 ## Task 4 - Lead integration and deploy gate
+
+Status: partially done locally. The lane merge model was canceled before PR/CI
+merge; implementation exists as uncommitted main-checkout changes. No deploy has
+been run.
 
 Goal:
 

@@ -39,7 +39,7 @@ import { Card, type Verdict } from '@/components/ui/Card'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { variantLookup } from '@/lib/api'
 import { cleanQuery, isLikelyUnparseable } from '@/lib/variant-format'
-import { reportHrefForQuery } from '@/lib/variant-search'
+import { reportHrefForQuery, searchHrefForQuery } from '@/lib/variant-search'
 import { recordReportView, type VariantViewMetric } from '@/lib/report-views'
 import { RPE65_NEGATIVE_CONTROL_SAMPLE } from '@/lib/sample-report'
 import {
@@ -675,7 +675,7 @@ export function ReportClient() {
   // Same freeform behaviour as the landing hero search (shared util): structured
   // "GENE c.…/p.…/rs…" → lookup; anything else → raw query for the resolver.
   const handleSearch = (raw: string) => {
-    const href = reportHrefForQuery(raw)
+    const href = searchHrefForQuery(raw)
     if (href) router.push(href)
   }
 

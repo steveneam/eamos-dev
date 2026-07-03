@@ -1,5 +1,65 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-04 03:32 +1000 - Codex - Search 7/8 implemented sequentially
+
+Collapsed the approved Search 7/8 parallel sprint back into the main checkout
+after Steven chose to stop the spawned/terminal lane flow, then implemented the
+three planned lanes sequentially without committing.
+
+- CI ratchets: `web` CI now runs `npx tsc --noEmit -p tsconfig.json`, backend
+  CI no longer deselects the two asset-bound tests, and those tests now skip
+  cleanly when optional local/native assets are absent.
+- Answer hardening: `/api/v1/search/answer` keeps stable disabled/unconfigured
+  503 behavior, fake-chain enabled tests prove grounded citations, and model
+  citations are now rejected unless tied to returned hits with a real run/report
+  identity.
+- Frontend search results: free-text queries route to `/search?q=...`,
+  structured variants keep `/report?gene=...&cdna=...`, a typed same-origin
+  search proxy/helper is in place, and the Next `/search` page renders loading,
+  sign-in-required, empty, rate-limited, backend-error, and result states with
+  safe target links and no sample fallback.
+- The three `.claude/worktrees/search-*` worktrees and their partial
+  uncommitted lane diffs remain parked and untouched; they are no longer the
+  active implementation path.
+- No commit, PR, merge, deploy, env/provider flip, Supabase mutation, source
+  materialization/download/upload, deploy hook use, destructive cleanup, or
+  secret output occurred in this sequential pass.
+
+Verification:
+
+- `cd app/backend; python -m pytest tests/test_pdf_text.py tests/test_source_reader_proofs.py tests/test_search_api_local.py tests/test_search_api.py tests/test_rate_limits.py -q`
+  -> 43 passed, 2 skipped.
+- `cd app/backend; python -m ruff check app/services/search_answer.py tests/test_search_api_local.py tests/test_search_api.py tests/test_pdf_text.py tests/test_source_reader_proofs.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/search_answer.py tests/test_search_api_local.py tests/test_search_api.py tests/test_pdf_text.py tests/test_source_reader_proofs.py`
+- `cd app/web; npx tsc --noEmit -p tsconfig.json`
+- `cd app/web; npm run lint`
+- `git diff --check`
+- `python -m graphify update .` -> 18,098 nodes / 47,343 edges; graph HTML
+  skipped because the repo exceeds the 5,000-node default visualization limit.
+- Browser desktop smoke on `http://localhost:3003`: `/search?q=RPE65`
+  unauthenticated state, landing free-text -> `/search`, landing structured
+  variant -> `/report`, and report compact structured search -> `/report`.
+  Mobile browser verification was skipped because Steven asked to stop live
+  verify and wrap.
+
+## 2026-07-04 02:12 +1000 - Codex - Search 7/8 worktrees launched; terminal lanes preferred
+
+Pushed the Search 7/8 contract-freeze seam and set up the approved lane
+worktrees, then stopped the spawned-worker trial when Steven chose separate
+terminal Codex sessions instead.
+
+- Pushed `f7ef561` (`feat(search): freeze response contract for results sprint`)
+  to `origin/main`.
+- Created three worktrees/branches from the frozen seam:
+  `agent/search/ci-ratchets`,
+  `agent/search/answer-hardening`, and `agent/search/results-web`.
+- Spawned Codex workers briefly, then shut them all down. Their partial
+  lane-scoped edits remain uncommitted in the worktrees for terminal agents to
+  inspect, continue, or replace inside their owned globs.
+- No lane committed, pushed, opened a PR, merged, deployed, flipped env/provider
+  posture, mutated Supabase, materialized/downloaded/uploaded sources, or ran
+  destructive cleanup.
+
 ## 2026-07-04 00:55 +1000 - Codex - Search 7/8 approved + contract freeze
 
 Steven approved the Search 7/8 parallel sprint plan and asked for exact

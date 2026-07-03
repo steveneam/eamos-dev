@@ -46,3 +46,12 @@ export function reportHrefForQuery(raw: string): string | null {
     : new URLSearchParams({ q: text })
   return `/report?${params.toString()}`
 }
+
+/** Build the primary app search href: structured variants -> /report, free text -> /search. */
+export function searchHrefForQuery(raw: string): string | null {
+  const text = raw.trim()
+  if (!text) return null
+  const structured = structuredVariantFromText(text)
+  if (structured) return reportHrefForQuery(text)
+  return `/search?${new URLSearchParams({ q: text }).toString()}`
+}

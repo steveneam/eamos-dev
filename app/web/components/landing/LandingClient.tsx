@@ -12,7 +12,7 @@ import { Pricing } from '@/components/landing/Pricing'
 import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
 import { Pill, PillStyles } from '@/components/landing/ui/Pill'
-import { reportHrefForQuery } from '@/lib/variant-search'
+import { searchHrefForQuery } from '@/lib/variant-search'
 import { parseVariantFile, stashCompareVariants } from '@/lib/variant-file'
 import { SAMPLE_VCF, SAMPLE_VCF_NAME } from '@/lib/sample-vcf'
 
@@ -23,7 +23,7 @@ export function LandingClient() {
   // lookup; anything else is sent as a raw query for the backend search-input
   // resolver to interpret (gene vs plain language). Shared with the report search.
   const handleSubmit = (raw: string) => {
-    const href = reportHrefForQuery(raw)
+    const href = searchHrefForQuery(raw)
     if (href) router.push(href)
   }
 
