@@ -23,6 +23,25 @@ Maintenance practice:
 - Eamos is above graphify's default 5,000-node HTML visualization threshold. Default `graphify export html` may produce an aggregated community view; when Steven wants the Selom-style full raw HTML, use `graphify export html --graph graphify-out/graph.json --node-limit 20000`.
 - Full raw HTML can be large/heavy; verify it in Chrome after export when changing visualization output.
 
+## Parallel-agent workflow
+
+Eamos is parallel-ready (Forj protocol). Live board + Eamos adaptation: `COORDINATION.md`.
+Protocol (read-only vault): `Forj/bones/parallel-agents.md` + `Forj/Wiki/reference/parallel-agent-workflow.md`.
+
+Two standing rules:
+
+1. **Propose & launch lanes.** When upcoming work has ≥2 dependency-independent buckets that
+   meet at one freezable contract, proactively propose a parallel-worktree sprint — name the
+   lanes, owned globs (one file → one owner), the frozen contract, and merge order — and hand
+   Steven exact copy-paste launch commands. He approves the partition and runs them; he never
+   designs the setup. 3–5 lanes max; run coupled work sequentially.
+2. **Agent-run merges, human-approved.** Agents execute the serialized merge gate themselves
+   (rebase onto latest `main` → CI green → review → merge), pausing for Steven's explicit
+   approval before each merge to `main`. Never merge on red; one lane at a time.
+
+End every session clear-safe — update `agent_handoff/CURRENT.md` + hand Steven a stamped
+resume prompt (protocol: `agent_handoff/README.md`).
+
 ## backend predictor wiring
 
 When Steven says "admin" for predictor work, interpret it as: Steven/backend gets all predictors wired now. Do not add account-role/auth plumbing for this. Do not postpone backend predictor integration because of commercial, launch, or licensing labels. Preserve license/provenance/launch-gate metadata on rows and health/preflight output so commercialization filtering can be decided later.
