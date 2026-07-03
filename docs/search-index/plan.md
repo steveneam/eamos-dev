@@ -1,6 +1,6 @@
 # Eamos search index implementation plan
 
-Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, and structured result metadata; Task 7+ and frontend integration remain open.
+Status: run/report wiring plus Tasks 4-5 implemented; Task 6 workspace/public/source-backed backend breadth mostly implemented, including public popular-variant view-count entities, public gene/source vocabulary rows, explicit clinical source asset condition/gene-disease rows, and structured result metadata; Task 7+ and frontend integration remain open.
 Spec: `docs/search-index/spec.md`.
 Related repo-structure wave: Wave 2, "Fix or retire Search".
 
@@ -39,9 +39,15 @@ Implementation update, 2026-06-30:
   sanitized `report_data_currency.sources` / `source_versions` metadata, and
   the explicit dry-run/apply backfill path includes these rows from existing
   run payloads without source/provider/Supabase mutation.
+- Task 6 public clinical source asset vocabulary slice is implemented behind
+  the explicit `eamos_search_index_backfill --clinical-release-files` flag:
+  tracked MONDO/HPO/ClinGen/GenCC release assets produce public `condition` and
+  `gene_disease` rows using the existing source-import parsers, without startup
+  work, source downloads, provider calls, Supabase mutation, or request-time
+  source scans.
 - Still open: broader public product entity coverage beyond the current
-  payload-backed publication/trial/section/popularity/gene/source rows, frontend
-  integration, and grounded answer-chain tests.
+  payload-backed and tracked-clinical-source rows, frontend integration, and
+  grounded answer-chain tests.
 
 ## Shared decisions before implementation
 
@@ -369,8 +375,10 @@ Status: partially done. Saved variant-library rows now index as owner-scoped
 private `library_variant` documents. Existing report payloads index public
 publication/trial rows, public `gene`/`source` vocabulary rows, and private
 report-section rows. Public view-count writes index `popular_variant`
-documents, and search hits now expose a richer frontend-facing result shape.
-Broader product entity coverage remains open.
+documents. Explicit clinical release-file backfill indexes public `condition`
+and `gene_disease` rows from tracked MONDO/HPO/ClinGen/GenCC assets. Search
+hits now expose a richer frontend-facing result shape. Broader product entity
+coverage remains open where it requires new source materialization or UI work.
 
 Goal:
 
@@ -406,6 +414,11 @@ Implementation update, 2026-07-01:
   report data-currency/source-version metadata. The explicit dry-run/apply
   backfill path includes those rows and still reports no source downloads,
   provider calls, or Supabase mutation.
+- The same explicit backfill CLI accepts `--clinical-release-files` to plan and
+  index public `condition` and `gene_disease` documents from the tracked
+  clinical source asset release files. The path reuses the MONDO/HPO/ClinGen/
+  GenCC parser stack, remains dry-run-first, and reports zero source downloads,
+  provider calls, Supabase mutation, or startup backfill.
 
 Relevant files:
 

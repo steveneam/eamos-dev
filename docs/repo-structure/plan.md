@@ -139,7 +139,11 @@ Done in this pass:
   `popular_variant` documents with view-count metadata and report targets.
   Existing run payloads also index public `gene` rows from already-indexed
   public publication/trial evidence and public `source` rows from sanitized
-  report data-currency/source-version metadata.
+  report data-currency/source-version metadata. The explicit search backfill
+  CLI can now also index public `condition` and `gene_disease` rows from
+  tracked MONDO/HPO/ClinGen/GenCC clinical source assets without source
+  downloads, provider calls, Supabase mutation, startup work, or request-time
+  source scans.
 - Wave 3 data asset policy is now active in
   `docs/repo-structure/source-asset-policy.md`. The structure guard requires
   tracked files under `app/backend/data/source_assets` to live under registered
@@ -203,10 +207,12 @@ Current gene-viewer line-count ratchets:
 Target: `app/backend/app/services/gene_viewer.py`.
 
 Search Wave 2 has its backend wiring/access/readiness and current Task 6
-entity breadth mostly complete. Continue remaining search work from
+entity breadth mostly complete, including explicit clinical-source public
+condition/gene-disease indexing. Continue remaining search work from
 `docs/search-index/spec.md` and `docs/search-index/plan.md`, starting with
-broader public product entities beyond current payload-backed rows, frontend
-results integration, and later grounded answer-chain tests.
+frontend results integration, backend-safe grounded answer-chain tests, or
+additional public entity coverage only where it does not require unapproved
+materialization/source refresh.
 
 Follow-up update, 2026-06-30:
 

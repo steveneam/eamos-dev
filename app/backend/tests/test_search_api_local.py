@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi.testclient import TestClient
@@ -205,6 +206,112 @@ def _persist_source_backed_run(
         owner_user_id=owner_user_id,
     )
     return run
+
+
+def _clinical_search_asset_root(tmp_path: Path) -> Path:
+    root = tmp_path / "source_assets"
+    (root / "mondo_disease_ontology").mkdir(parents=True)
+    (root / "human_phenotype_ontology").mkdir(parents=True)
+    (root / "clingen_gene_validity").mkdir(parents=True)
+    (root / "gencc_download").mkdir(parents=True)
+    (root / "mondo_disease_ontology" / "mondo.json").write_text(
+        """
+        {
+          "graphs": [
+            {
+              "nodes": [
+                {
+                  "id": "http://purl.obolibrary.org/obo/MONDO_0008765",
+                  "lbl": "Leber congenital amaurosis 2",
+                  "meta": {
+                    "definition": {
+                      "val": "A retinal dystrophy associated with biallelic RPE65 variants."
+                    },
+                    "xrefs": [{"val": "OMIM:204100"}]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    (root / "human_phenotype_ontology" / "hp.json").write_text(
+        """
+        {
+          "graphs": [
+            {
+              "nodes": [
+                {
+                  "id": "http://purl.obolibrary.org/obo/HP_0000510",
+                  "lbl": "Visual impairment"
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    (root / "human_phenotype_ontology" / "phenotype.hpoa").write_text(
+        "\n".join(
+            [
+                "#version: 2026-02-16",
+                "database_id\tdisease_name\tqualifier\thpo_id\treference\tevidence\tonset\t"
+                "frequency\tsex\tmodifier\taspect\tbiocuration",
+                (
+                    "OMIM:204100\tLeber congenital amaurosis 2\t\tHP:0000510\t"
+                    "PMID:1\tPCS\t\t1/2\t\t\tP\tHPO:test"
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "human_phenotype_ontology" / "genes_to_phenotype.txt").write_text(
+        "\n".join(
+            [
+                "ncbi_gene_id\tgene_symbol\thpo_id\thpo_name\tfrequency\tdisease_id",
+                "6121\tRPE65\tHP:0000510\tVisual impairment\t1/2\tOMIM:204100",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "clingen_gene_validity" / "clingen_gene_validity.csv").write_text(
+        "\n".join(
+            [
+                '"CLINGEN GENE DISEASE VALIDITY CURATIONS","","","","","","","","",""',
+                (
+                    '"GENE SYMBOL","GENE ID (HGNC)","DISEASE LABEL","DISEASE ID (MONDO)",'
+                    '"MOI","SOP","CLASSIFICATION","ONLINE REPORT","CLASSIFICATION DATE","GCEP"'
+                ),
+                (
+                    '"RPE65","HGNC:10294","Leber congenital amaurosis 2","MONDO:0008765",'
+                    '"Autosomal recessive","SOP10","Definitive","https://example.test",'
+                    '"2024-03-14","Panel"'
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "gencc_download" / "gencc-download.csv").write_text(
+        "\n".join(
+            [
+                "uuid,gene_curie,gene_symbol,disease_curie,disease_title,"
+                "classification_title,moi_title,submitter_title,submitted_as_date,"
+                "submitted_as_public_report_url",
+                "GENCC_1,HGNC:10294,RPE65,MONDO:0008765,Leber congenital amaurosis 2,"
+                "Definitive,Autosomal recessive inheritance,ClinGen,2024-03-14,"
+                "https://example.test/gencc",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return root
 
 
 def test_local_search_requires_authentication(client: TestClient) -> None:
@@ -422,6 +529,74 @@ def test_search_index_backfill_includes_public_gene_and_source_rows(client: Test
     )
     assert source.status_code == 200
     assert [item["source_key"] for item in source.json()["results"]] == ["source:gnomad"]
+
+
+def test_search_index_backfill_includes_public_clinical_source_asset_rows(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    headers = _auth_headers(client, "search-clinical-source")
+    source_asset_root = _clinical_search_asset_root(tmp_path)
+
+    dry_run = run_backfill(
+        apply=False,
+        include_clinical_source_assets=True,
+        clinical_source_asset_root=source_asset_root,
+        settings=client.app.state.settings,
+    )
+    assert dry_run["documents_planned"] == 2
+    assert dry_run["clinical_source_assets_included"] is True
+    assert dry_run["clinical_source_documents_planned"] == 2
+    assert dry_run["clinical_source_documents_indexed"] == 0
+    assert dry_run["source_downloads_performed"] is False
+    assert dry_run["provider_calls_performed"] is False
+    assert dry_run["supabase_mutation_performed"] is False
+    assert dry_run["startup_backfill"] is False
+
+    applied = run_backfill(
+        apply=True,
+        include_clinical_source_assets=True,
+        clinical_source_asset_root=source_asset_root,
+        settings=client.app.state.settings,
+    )
+    assert applied["clinical_source_documents_indexed"] == 2
+
+    condition = client.get(
+        "/api/v1/search",
+        params={"q": "Leber congenital amaurosis", "doc_type": "condition", "limit": 5},
+        headers=headers,
+    )
+    assert condition.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in condition.json()["results"]
+    ] == [("condition", "public", "Leber congenital amaurosis 2")]
+    condition_hit = condition.json()["results"][0]
+    assert condition_hit["source_key"] == "condition:mondo:0008765"
+    assert condition_hit["target_href"] == "/report?q=Leber%20congenital%20amaurosis%202"
+    assert condition_hit["metadata"]["condition_id"] == "MONDO:0008765"
+    assert condition_hit["metadata"]["hpo_phenotype_count"] == 1
+    assert condition_hit["metadata"]["gene_count"] == 1
+    assert condition_hit["metadata"]["source_status"] == "tracked_clinical_source_asset"
+
+    gene_disease = client.get(
+        "/api/v1/search",
+        params={"q": "RPE65", "doc_type": "gene_disease", "limit": 5},
+        headers=headers,
+    )
+    assert gene_disease.status_code == 200
+    assert [
+        (item["doc_type"], item["visibility_scope"], item["title"])
+        for item in gene_disease.json()["results"]
+    ] == [("gene_disease", "public", "RPE65 - Leber congenital amaurosis 2")]
+    gene_disease_hit = gene_disease.json()["results"][0]
+    assert gene_disease_hit["metadata"]["gene"] == "RPE65"
+    assert gene_disease_hit["metadata"]["disease_id"] == "MONDO:0008765"
+    assert gene_disease_hit["metadata"]["clingen_classification"] == "Definitive"
+    assert gene_disease_hit["metadata"]["gencc_assertions"] == "Definitive"
+    assert gene_disease_hit["target_href"] == (
+        "/report?q=RPE65%20Leber%20congenital%20amaurosis%202"
+    )
 
 
 def test_source_backed_publication_trial_and_section_rows_are_indexed(

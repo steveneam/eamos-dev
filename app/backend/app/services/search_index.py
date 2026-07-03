@@ -3,11 +3,14 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Sequence
+from pathlib import Path
 
 from app.schemas.report import UploadedReport
 from app.schemas.run import PubMedArticle, ReportPayload, RunResponse, TrialMatch
 from app.schemas.search import SearchDocumentWrite, SearchVariantWrite
 from app.schemas.variant_library import SavedVariant, VariantPopularity
+from app.services.search_public_assets import build_clinical_source_search_documents
+from app.services.source_imports import build_clinical_release_source_import_bundle
 
 LIBRARY_VARIANT_DOC_TYPE = "library_variant"
 POPULAR_VARIANT_DOC_TYPE = "popular_variant"
@@ -112,6 +115,8 @@ class SearchIndexService:
         *,
         dry_run: bool = True,
         owner_user_id: str | None = None,
+        include_clinical_source_assets: bool = False,
+        clinical_source_asset_root: Path | None = None,
     ) -> dict[str, object]:
         reports = self.reports_repo.list_all()
         runs = self.run_repo.list_all_runs()
@@ -136,7 +141,21 @@ class SearchIndexService:
             for run in runs
             for document in self._build_public_source_documents(self._coerce_run(run))
         ]
-        documents = self._dedupe_documents([*report_documents, *run_documents, *public_documents])
+        clinical_source_documents = (
+            self._build_clinical_source_asset_documents(
+                source_asset_root=clinical_source_asset_root,
+            )
+            if include_clinical_source_assets
+            else []
+        )
+        documents = self._dedupe_documents(
+            [
+                *report_documents,
+                *run_documents,
+                *public_documents,
+                *clinical_source_documents,
+            ]
+        )
         ownerless_private_rows = sum(
             1
             for document in documents
@@ -152,6 +171,9 @@ class SearchIndexService:
             "runs_seen": len(runs),
             "documents_planned": len(documents),
             "documents_indexed": 0 if dry_run else len(documents),
+            "clinical_source_assets_included": include_clinical_source_assets,
+            "clinical_source_documents_planned": len(clinical_source_documents),
+            "clinical_source_documents_indexed": (0 if dry_run else len(clinical_source_documents)),
             "owner_user_id_provided": bool(owner_user_id),
             "ownerless_private_rows": ownerless_private_rows,
             "source_downloads_performed": False,
@@ -159,6 +181,16 @@ class SearchIndexService:
             "supabase_mutation_performed": False,
             "startup_backfill": False,
         }
+
+    def _build_clinical_source_asset_documents(
+        self,
+        *,
+        source_asset_root: Path | None,
+    ) -> list[SearchDocumentWrite]:
+        bundle = build_clinical_release_source_import_bundle(
+            **({"source_asset_root": source_asset_root} if source_asset_root is not None else {})
+        )
+        return build_clinical_source_search_documents(bundle)
 
     def _build_report_document(
         self,

@@ -185,6 +185,31 @@ class SearchService:
                 suffix = "trial" if trial_count == 1 else "trials"
                 parts.append(f"{trial_count} {suffix}")
             return " | ".join(parts) or "Source-backed gene"
+        if record.doc_type == "condition":
+            parts = []
+            phenotype_count = metadata.get("hpo_phenotype_count")
+            gene_count = metadata.get("gene_count")
+            if isinstance(phenotype_count, int) and phenotype_count > 0:
+                suffix = "phenotype" if phenotype_count == 1 else "phenotypes"
+                parts.append(f"{phenotype_count} HPO {suffix}")
+            if isinstance(gene_count, int) and gene_count > 0:
+                suffix = "gene" if gene_count == 1 else "genes"
+                parts.append(f"{gene_count} {suffix}")
+            source_ids = metadata.get("source_ids")
+            if isinstance(source_ids, str) and source_ids:
+                parts.append(source_ids)
+            return " | ".join(parts) or "Clinical source condition"
+        if record.doc_type == "gene_disease":
+            parts = [
+                str(value).strip()
+                for value in (
+                    metadata.get("clingen_classification"),
+                    metadata.get("gencc_assertions"),
+                    metadata.get("disease_id"),
+                )
+                if str(value or "").strip()
+            ]
+            return " | ".join(parts) or "Gene-disease assertion"
         if record.doc_type == "source":
             parts = [
                 str(value).strip()
@@ -284,6 +309,8 @@ class SearchService:
             "trial",
             "report_section",
             "gene",
+            "condition",
+            "gene_disease",
             "source",
         }:
             return cast(SearchDocType, value)

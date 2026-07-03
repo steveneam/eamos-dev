@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Sequence
 
 from app.core.config import Settings
@@ -33,6 +34,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--clinical-release-files",
+        action="store_true",
+        help=(
+            "also plan/index public condition and gene-disease rows from tracked "
+            "MONDO/HPO/ClinGen/GenCC clinical source assets"
+        ),
+    )
+    parser.add_argument(
+        "--clinical-source-asset-root",
+        type=Path,
+        default=None,
+        help=(
+            "override the staged clinical source asset root for --clinical-release-files; "
+            "defaults to app/backend/data/source_assets"
+        ),
+    )
+    parser.add_argument(
         "--compact",
         action="store_true",
         help="emit single-line JSON",
@@ -44,6 +62,8 @@ def run_backfill(
     *,
     apply: bool = False,
     owner_user_id: str | None = None,
+    include_clinical_source_assets: bool = False,
+    clinical_source_asset_root: Path | None = None,
     settings: Settings | None = None,
 ) -> dict[str, object]:
     resolved_settings = settings or Settings(jwt_secret="search-index-backfill-local")
@@ -56,6 +76,8 @@ def run_backfill(
     return service.backfill_reports_and_runs(
         dry_run=not apply,
         owner_user_id=owner_user_id,
+        include_clinical_source_assets=include_clinical_source_assets,
+        clinical_source_asset_root=clinical_source_asset_root,
     )
 
 
@@ -64,6 +86,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     result = run_backfill(
         apply=bool(args.apply),
         owner_user_id=(args.owner_user_id or None),
+        include_clinical_source_assets=bool(args.clinical_release_files),
+        clinical_source_asset_root=args.clinical_source_asset_root,
     )
     indent = None if args.compact else 2
     print(json.dumps(result, indent=indent, sort_keys=True))

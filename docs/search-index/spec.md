@@ -1,6 +1,6 @@
 # Eamos search index spec
 
-Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, private report sections from existing payloads, public popular-variant view-count entities, public gene/source vocabulary rows from existing payload metadata, and structured hit metadata; frontend integration remains planned.
+Status: run/report wiring plus private search posture and readiness/backfill slice implemented; Task 6 backend breadth now covers private library variants, public publications/trials, private report sections from existing payloads, public popular-variant view-count entities, public gene/source vocabulary rows from existing payload metadata, public condition/gene-disease rows from tracked clinical source assets through an explicit backfill flag, and structured hit metadata; frontend integration remains planned.
 Created: 2026-06-30 by Codex.
 Related structure work: `docs/repo-structure/plan.md`, Wave 2 in
 `docs/repo-structure/audit-2026-06-30.md`.
@@ -63,6 +63,12 @@ Implementation update, 2026-07-01:
   metadata. The explicit search backfill path plans and applies those rows from
   existing run payloads without source downloads, provider calls, Supabase
   mutation, startup work, or private report-text indexing.
+- `python -m app.cli.eamos_search_index_backfill --clinical-release-files`
+  now also plans/applies public `condition` and `gene_disease` rows from the
+  tracked MONDO/HPO/ClinGen/GenCC clinical source assets. This reuses the
+  existing source-import parsers and remains an explicit operator action: no
+  startup backfill, source downloads, provider calls, Supabase mutation, or
+  request-time source scans.
 
 ## What
 
@@ -303,14 +309,17 @@ Second slice:
   materialized, not trigger fresh source queries.
 
 Current implementation note: variant library saved rows, view-count popularity
-rows, source-backed report sections, publication/trial rows, and payload-backed
-public gene/source vocabulary rows are completed pieces of this slice. Broader
-source-backed product vocabulary beyond existing payload metadata remains open.
+rows, source-backed report sections, publication/trial rows, payload-backed
+public gene/source vocabulary rows, and explicit clinical source asset
+`condition`/`gene_disease` rows are completed pieces of this slice. Broader
+source-backed product vocabulary remains open only where it would require new
+materialization, source refresh, or frontend surfaces.
 
 Later slices:
 
-- Public gene and disease vocabulary from approved vendored/materialized source
-  assets.
+- Additional public gene and disease vocabulary from approved
+  vendored/materialized source assets beyond the current tracked clinical source
+  asset backfill.
 - Workbench artifacts only if they are persisted as user-owned objects.
 - Paper extraction runs only after ownership and provenance are explicit.
 

@@ -16,6 +16,8 @@ SearchDocType = Literal[
     "trial",
     "report_section",
     "gene",
+    "condition",
+    "gene_disease",
     "source",
 ]
 SearchVisibilityScope = Literal["public", "private", "internal"]
