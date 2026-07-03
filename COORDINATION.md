@@ -63,10 +63,12 @@ claude          # start the lane agent in this worktree
 - **Render — main-only, Codex-owned.** Backend deploy happens post-merge, from `main`, owned by
   Codex (the deploy hook is intentionally **not** copied into worktrees). A lane never deploys prod.
 
-**5. Merge gate — agent-run, Steven approves each seam.** Serialized, one lane at a time in
-merge-order:
+**5. Merge gate — lead-run, Steven approves each seam.** One **lead** per sprint (the proposing
+agent) is the **sole merger**; lane agents push + mark their row `review` + hand off — they never
+merge their own branch. Lane ownership (who edits a glob) ≠ merge authority (the lead). Serialized,
+one lane at a time in merge-order:
 `rebase lane onto latest main → CI green (required check) → review → PAUSE for Steven's explicit
-approval → merge → next lane rebases on new main`.
+approval → lead merges → next lane rebases on new main`.
 **Never merge on red.** If two lanes touched a shared file (partition leak), a deliberate
 conflict-resolver pass reconciles it — flag both intents, keep the union, **never a silent overwrite** —
 then fix the partition so it can't recur. Stuck ~3 iterations on one error → kill the lane, reassign fresh.

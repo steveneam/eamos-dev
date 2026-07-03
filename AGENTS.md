@@ -35,9 +35,12 @@ Two standing rules:
    lanes, owned globs (one file → one owner), the frozen contract, and merge order — and hand
    Steven exact copy-paste launch commands. He approves the partition and runs them; he never
    designs the setup. 3–5 lanes max; run coupled work sequentially.
-2. **Agent-run merges, human-approved.** Agents execute the serialized merge gate themselves
-   (rebase onto latest `main` → CI green → review → merge), pausing for Steven's explicit
-   approval before each merge to `main`. Never merge on red; one lane at a time.
+2. **Lead-run merges, human-approved.** Each sprint has one **lead** (the proposing agent) — the
+   sole merger. Lane agents push their branch + mark their `COORDINATION.md` row `review` + hand
+   off; they never merge their own branch. The lead runs the serialized gate one lane at a time in
+   merge-order (rebase onto latest `main` → CI green → review → merge), pausing for Steven's
+   explicit approval before each merge. Never merge on red. Lane ownership (who edits a glob) is
+   separate from merge authority (the lead).
 
 End every session clear-safe — update `agent_handoff/CURRENT.md` + hand Steven a stamped
 resume prompt (protocol: `agent_handoff/README.md`).
