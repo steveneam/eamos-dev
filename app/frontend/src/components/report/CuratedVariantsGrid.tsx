@@ -114,7 +114,7 @@ export function CuratedVariantsGrid({ data }: CuratedVariantsGridProps) {
             <div className={`vd-cell row-label ${row.kind}`}>
               <span className="ldot" />{row.label}
             </div>
-            {row.cells.map((cell, i) => (
+            {row.cells.map((cell) => (
               <div
                 key={cell.key}
                 className={[

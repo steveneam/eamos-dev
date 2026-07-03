@@ -1,0 +1,13 @@
+# .worktreeinclude — gitignored files Claude Code copies into each new worktree so a
+# lane boots with full context. Syntax = .gitignore. Only gitignored matches are copied;
+# tracked files are never duplicated. Protocol: Forj/Wiki/reference/parallel-agent-workflow.md.
+#
+# Deliberately EXCLUDED:
+#   .render-deploy-hook  — backend deploy is main-only + Codex-owned; a worktree never
+#                          deploys shared prod.
+#   graphify-out/        — heavy + rebuildable via `python -m graphify update .`.
+#   node_modules/ .venv/ — install fresh per worktree (see the playbook's env gotcha).
+
+app/backend/.env
+app/web/.env.local
+.context/

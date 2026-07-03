@@ -67,6 +67,8 @@ node_modules_temp/
 .tools/
 .context/
 .claude/scheduled_tasks.lock
+# Parallel-agent worktrees (Forj parallel-agent protocol) — never committed
+.claude/worktrees/
 supabase/supabase/
 
 # Graphify outputs are generated and rebuildable; keep them local.
