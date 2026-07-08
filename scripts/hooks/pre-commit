@@ -1,38 +1,51 @@
 #!/bin/sh
-# eamos pre-commit — keep agent_handoff/CURRENT.md from re-bloating.
+# eamos pre-commit — commit-time guard gate.
 #
-# Runs scripts/eamos-handoff-lint.mjs only when CURRENT.md is staged. Blocks the
-# commit on a FAIL (egregious bloat: >500 lines, a >2000-char line, >4 lock
-# status lines). WARNs (>400 lines, stale released/DONE entries) print but do
-# NOT block. Degrades to a no-op if Node is unavailable.
+# Installed by scripts/install-hooks.mjs (which sets core.hooksPath=scripts/hooks),
+# so this tracked file is the hook every clone and worktree runs — no per-clone
+# copy that goes stale.
 #
-# Install (per clone, since .git/hooks is not tracked):
-#   cp scripts/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-# or point git at the tracked dir:
-#   git config core.hooksPath scripts/hooks
+# Runs three guards, each GATING the commit on a non-zero exit — the exit code is
+# the contract. Every guard is checked with an explicit `if ! guard; then exit 1`
+# block; the hook never chains guard + commit in a form that could swallow a
+# non-zero exit (the semicolon-chain trap that leaked a guarded token on
+# Thalon/Swordfish). See CI-GUARD.md.
+#
+#   1. eamos-vercel-project-guard --require-root-link   (always)
+#   2. eamos-grep-guard                                 (always — secrets + conflict markers)
+#   3. eamos-handoff-lint --strict                      (only when agent_handoff/CURRENT.md is staged)
+#
+# Degrades to a no-op (with a notice) when Node is unavailable.
 
-if command -v node >/dev/null 2>&1; then
-  if ! node scripts/eamos-vercel-project-guard.mjs --require-root-link; then
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found — skipping eamos guards (install Node to enable)."
+  exit 0
+fi
+
+# 1) Vercel project link guard — always.
+if ! node scripts/eamos-vercel-project-guard.mjs --require-root-link; then
+  echo ""
+  echo "pre-commit: Vercel project guard failed."
+  echo "Remove app/web/.vercel and keep repo-root .vercel linked to eamos-dev."
+  exit 1
+fi
+
+# 2) Secret-shape + merge-conflict-marker guard — always (scans git-tracked files).
+if ! node scripts/eamos-grep-guard.mjs; then
+  echo ""
+  echo "pre-commit: grep-guard found a secret-shaped token or conflict marker (see above)."
+  echo "Remove it from the tracked tree, then commit again."
+  exit 1
+fi
+
+# 3) Handoff anti-bloat lint (strict) — only when the live handoff file is staged.
+if git diff --cached --name-only | grep -q '^agent_handoff/CURRENT\.md$'; then
+  if ! node scripts/eamos-handoff-lint.mjs --strict; then
     echo ""
-    echo "pre-commit: Vercel project guard failed."
-    echo "Remove app/web/.vercel and keep repo-root .vercel linked to eamos-dev."
+    echo "pre-commit: agent_handoff/CURRENT.md failed handoff-lint --strict (see above)."
+    echo "Trim it to the lean form (README Hard Rule 9), then commit again."
     exit 1
   fi
-else
-  echo "pre-commit: node not found - skipping Vercel project guard (install Node to enable)."
 fi
 
-if git diff --cached --name-only | grep -q '^agent_handoff/CURRENT\.md$'; then
-  if command -v node >/dev/null 2>&1; then
-    if ! node scripts/eamos-handoff-lint.mjs; then
-      echo ""
-      echo "pre-commit: agent_handoff/CURRENT.md failed handoff-lint (see above)."
-      echo "Trim it (archive logs >1wk, collapse the Active Status heartbeat),"
-      echo "then commit again."
-      exit 1
-    fi
-  else
-    echo "pre-commit: node not found — skipping handoff-lint (install Node to enable)."
-  fi
-fi
 exit 0
