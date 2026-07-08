@@ -77,7 +77,9 @@ def record_variant_view(
     request: Request,
 ) -> VariantViewResponse:
     enforce_rate_limit(request, RATE_LIMIT_LIBRARY)
-    return VariantViewResponse(variant=_service(request).record_view(_validated_view_query_id(query_id)))
+    return VariantViewResponse(
+        variant=_service(request).record_view(_validated_view_query_id(query_id))
+    )
 
 
 @router.get("/views/{query_id:path}", response_model=VariantViewResponse)
@@ -86,7 +88,9 @@ def get_variant_view(
     request: Request,
 ) -> VariantViewResponse:
     enforce_rate_limit(request, RATE_LIMIT_LIBRARY)
-    return VariantViewResponse(variant=_service(request).get_view(_validated_view_query_id(query_id)))
+    return VariantViewResponse(
+        variant=_service(request).get_view(_validated_view_query_id(query_id))
+    )
 
 
 @router.post("/variants", response_model=SavedVariant, status_code=status.HTTP_201_CREATED)

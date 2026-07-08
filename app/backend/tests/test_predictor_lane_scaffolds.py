@@ -48,9 +48,7 @@ def test_capice_lane_is_admin_enabled_and_requires_materialized_score() -> None:
     assert missing.public_serialization_allowed is True
     assert missing.launch_gate == "capice_launch_filter_metadata"
 
-    lookup = CapiceLane().lookup(
-        CapiceScore(chrom="1", position=10, ref="A", alt="G", score=0.83)
-    )
+    lookup = CapiceLane().lookup(CapiceScore(chrom="1", position=10, ref="A", alt="G", score=0.83))
 
     assert lookup.available is True
     assert lookup.score is not None
@@ -59,9 +57,7 @@ def test_capice_lane_is_admin_enabled_and_requires_materialized_score() -> None:
 
 
 def test_capice_lane_rejects_invalid_scores() -> None:
-    lookup = CapiceLane().lookup(
-        CapiceScore(chrom="1", position=10, ref="A", alt="G", score=1.5)
-    )
+    lookup = CapiceLane().lookup(CapiceScore(chrom="1", position=10, ref="A", alt="G", score=1.5))
 
     assert lookup.available is False
     assert lookup.unavailable_reason == "capice_score_out_of_range"

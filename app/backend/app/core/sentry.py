@@ -5,6 +5,7 @@ nothing is sent. Mirrors the frontend posture (``app/web/lib/sentry.shared.ts``)
 — the queried variant (``?q=GENE:c.cdna``) and other query-string / PII data are
 scrubbed before any event leaves the process.
 """
+
 from __future__ import annotations
 
 import logging

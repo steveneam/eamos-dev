@@ -81,7 +81,7 @@ def _chat_request(args: argparse.Namespace) -> ChatRequest:
                         "protein_change": args.protein,
                         "consequence": args.consequence,
                     }
-                ]
+                ],
             },
             "history": [],
         }
@@ -115,7 +115,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             settings = None
             client = None
             mode = "live"
-            payload = {"status": "skipped", "mode": mode, "reasons": [f"settings:{type(exc).__name__}"]}
+            payload = {
+                "status": "skipped",
+                "mode": mode,
+                "reasons": [f"settings:{type(exc).__name__}"],
+            }
             print(json.dumps(payload, indent=None if args.compact else 2, sort_keys=True))
             return 0 if args.skip_if_unconfigured else 2
         client = build_gateway_chat_client(settings) or build_lookup_chat_chain(settings)
@@ -125,7 +129,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         payload = {
             "status": "skipped",
             "mode": mode,
-            "reasons": [f"no chat client for LLM_PROVIDER={settings.llm_provider!r} (gateway key / OpenAI key missing)"],
+            "reasons": [
+                f"no chat client for LLM_PROVIDER={settings.llm_provider!r} (gateway key / OpenAI key missing)"
+            ],
         }
         print(json.dumps(payload, indent=None if args.compact else 2, sort_keys=True))
         return 0 if args.skip_if_unconfigured else 2

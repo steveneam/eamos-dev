@@ -351,9 +351,7 @@ def _identity_match_matches_terms(value: Any, terms: list[str]) -> bool:
         value.get("normalized_requested"),
         value.get("requested"),
     ]
-    normalized_values = [
-        _normalize_identity_token(item) for item in matched_values if _text(item)
-    ]
+    normalized_values = [_normalize_identity_token(item) for item in matched_values if _text(item)]
     return any(
         _identity_term_matches(identity_value, request_term)
         for identity_value in normalized_values

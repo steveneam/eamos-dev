@@ -5,7 +5,10 @@ import json
 from pathlib import Path
 
 from app.core.config import Settings
-from app.services.protein_annotation import resolve_protein_runtime_path, write_uniprot_feature_index
+from app.services.protein_annotation import (
+    resolve_protein_runtime_path,
+    write_uniprot_feature_index,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
