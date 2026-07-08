@@ -32,8 +32,7 @@ class CoordinateResolver(Protocol):
         transcript: str | None = None,
         accession: str | None = None,
         clinvar_variation_id: str | None = None,
-    ) -> EamosCoordinateResolution | None:
-        ...
+    ) -> EamosCoordinateResolution | None: ...
 
 
 class Project100MockVcfError(RuntimeError):

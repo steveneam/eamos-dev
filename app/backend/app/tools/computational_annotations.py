@@ -990,9 +990,7 @@ def _merge_local_predictor_rows(
     local_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     local_names = {str(row.get("name")) for row in local_rows if row.get("name")}
-    retained_fixture_rows = [
-        row for row in fixture_rows if str(row.get("name")) not in local_names
-    ]
+    retained_fixture_rows = [row for row in fixture_rows if str(row.get("name")) not in local_names]
     return _dedupe_rows([*local_rows, *retained_fixture_rows])
 
 

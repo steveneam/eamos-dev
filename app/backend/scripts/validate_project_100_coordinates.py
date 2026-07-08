@@ -59,9 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     source_rows = _project_100_source_rows()
     variation_ids = [
-        row["clinvar_variation_id"]
-        for row in source_rows
-        if row.get("clinvar_variation_id")
+        row["clinvar_variation_id"] for row in source_rows if row.get("clinvar_variation_id")
     ]
     clinvar_summaries = _fetch_clinvar_summaries(
         variation_ids,

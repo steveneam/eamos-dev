@@ -769,15 +769,9 @@ def test_protein_features_from_domain_track_adds_abca4_uniprot_seed() -> None:
     assert seeded["uniprot-seed:P78363:transmembrane:1728-1748:helix"].description == (
         "ABCA4 transmembrane helix containing Ile1745"
     )
-    assert seeded["uniprot-seed:P78363:domain:929-1160:abc-transporter-1"].short_label == (
-        "ABC1"
-    )
-    assert seeded["uniprot-seed:P78363:domain:1938-2170:abc-transporter-2"].short_label == (
-        "ABC2"
-    )
-    assert seeded[
-        "uniprot-seed:P78363:region:2244-2249:atp-binding-atpase"
-    ].short_label == "ATPase"
+    assert seeded["uniprot-seed:P78363:domain:929-1160:abc-transporter-1"].short_label == ("ABC1")
+    assert seeded["uniprot-seed:P78363:domain:1938-2170:abc-transporter-2"].short_label == ("ABC2")
+    assert seeded["uniprot-seed:P78363:region:2244-2249:atp-binding-atpase"].short_label == "ATPase"
 
     assert {(item.aa_start, item.aa_end) for item in features.transmembrane} >= {
         (1728, 1748),

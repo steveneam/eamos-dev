@@ -90,7 +90,12 @@ class Handler(BaseHTTPRequestHandler):
         if count <= srv.fail_first:
             self._json(
                 429,
-                {"error": {"message": "Rate limited (fake). Retry.", "type": "rate_limit_exceeded"}},
+                {
+                    "error": {
+                        "message": "Rate limited (fake). Retry.",
+                        "type": "rate_limit_exceeded",
+                    }
+                },
                 extra_headers={"retry-after": "0"},
             )
             return
@@ -123,8 +128,11 @@ class Handler(BaseHTTPRequestHandler):
                     "object": "chat.completion",
                     "model": srv.model,
                     "choices": [
-                        {"index": 0, "message": {"role": "assistant", "content": text},
-                         "finish_reason": "stop"}
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": text},
+                            "finish_reason": "stop",
+                        }
                     ],
                     "usage": usage,
                     "providerMetadata": meta,
@@ -171,8 +179,12 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8799)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--model", default="meta/llama-3.3-70b")
-    ap.add_argument("--token-delay", type=float, default=0.02, help="seconds between streamed tokens")
-    ap.add_argument("--fail-first", type=int, default=0, help="429 the first N requests, then succeed")
+    ap.add_argument(
+        "--token-delay", type=float, default=0.02, help="seconds between streamed tokens"
+    )
+    ap.add_argument(
+        "--fail-first", type=int, default=0, help="429 the first N requests, then succeed"
+    )
     ap.add_argument("--status", type=int, default=0, help="always return this HTTP status")
     args = ap.parse_args()
 

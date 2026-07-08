@@ -230,8 +230,7 @@ def test_clingen_local_prefers_exact_variant_identity_over_narrative_mentions(
     assert identity_match["matched"] == "NM_000350.3:c.5461-10T>C"
     assert identity_match["auto_attach_allowed"] is True
     assert (
-        evidence.summary["expert_panel"]["provenance"]["identity_match"]["source_field"]
-        == "hgvs"
+        evidence.summary["expert_panel"]["provenance"]["identity_match"]["source_field"] == "hgvs"
     )
     assert evidence.summary["expert_panel"]["vcep"]["affiliation_id"] == "50140"
     assert evidence.summary["criteria"] == ["PVS1_Strong", "PM3_Very Strong", "PS4", "PP4"]

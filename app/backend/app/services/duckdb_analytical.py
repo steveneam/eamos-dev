@@ -386,14 +386,11 @@ def inspect_duckdb_analytical_release(
             warnings.append("duckdb_analytical_release_artifact_path_invalid")
             continue
         layout = _artifact_layout(safe_relative)
-        if (
-            release_id
-            and (
-                layout is None
-                or layout["layer"] not in DUCKDB_ANALYTICAL_RELEASE_LAYERS
-                or layout["release_id"] != release_id
-                or not layout["chrom"]
-            )
+        if release_id and (
+            layout is None
+            or layout["layer"] not in DUCKDB_ANALYTICAL_RELEASE_LAYERS
+            or layout["release_id"] != release_id
+            or not layout["chrom"]
         ):
             warnings.append("duckdb_analytical_release_artifact_layout_invalid")
         if layer and layout is not None and layer != layout["layer"]:
