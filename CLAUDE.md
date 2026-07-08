@@ -2,27 +2,34 @@
 
 Variant intelligence platform. Two active surfaces: `/report` (variant evidence report v2) and `/workbench` (sequence viewer + Primer/CRISPR/Align/Compare tools). Legacy patient report at `/runs` is frozen on the v1 design system. Full spec in `README.md`.
 
-## Collaboration model — Golden rule
+## Collaboration model — agent-agnostic (2026-07-08)
 
-**Claude for UI, Codex for Code.** Default division of labour:
+**Any agent owns the whole repo.** There is **no** fixed Claude=frontend /
+Codex=backend wall. Either agent (Claude or Codex) can edit any file and take
+charge of anything — frontend, backend, data/pipeline, docs, tests, tooling —
+plus audit and fix the *other* agent's historical work, dependencies, and
+branches (including `codex/*` / `agent/*` branches). Steven picks the active
+agent per session by **availability and usage limits**, not by task type;
+whichever agent is running takes charge of whatever the task needs, full-stack.
 
-- **Claude Code** owns the frontend: UI design, React/component work,
-  copywriting, the frontend plan (`plans/v2-frontend.md`, `app/frontend/**`).
-- **Codex** owns the backend: API, pipeline, data plumbing, the backend plan
-  (`plans/v2-backend.md`, `app/backend/**`).
+This **supersedes** the old "Claude for UI, Codex for Code" division of labour.
+Both agents have full `D:\eamos` read/write + network and run their own
+verification (frontend build/tsc/eslint/vitest + browser; backend
+pytest/ruff/black + live smoke) — the old "Codex = grunt work / can't run
+vitest/server" framing was a *plugin-era* limitation, historical only.
 
-The default, not a hard wall — the user may swap roles or ask one to
-review the other's work; follow explicit per-task instructions when given.
-Direct Codex app sessions (verified 2026-05-17) have full workspace
-read/write + network and can own substantive backend/test work with their own
-verification — the old "Codex = grunt work only / can't run vitest/server"
-framing was a *plugin-era* limitation, historical only.
+What did **not** change: the **coordination + safety machinery** stays in full
+(git-safety hard rules, shared-file + log-edit locks, no-delete/append+archive,
+schema-first contracts, the parallel-lane sprint model, clear-safe handoff).
+Agent-agnostic removes the *role wall*, not the discipline that keeps two
+agents from clobbering each other. When both agents are active at once, take
+disjoint scopes and coordinate via the locks + `COORDINATION.md` board.
 
 ### Coordination protocol — single home
 
 The full cross-agent protocol — hard rules (no-delete/append+archive,
-own-section-only, parallel-mode lanes, shared-file + log-edit locks,
-backend-led contracts, no-idle, explicit role swaps), the
+own-section handoff, agent-agnostic parallel lanes, shared-file + log-edit
+locks, schema-first contracts, no-idle), the
 **CURRENT.md-only-at-major-boundaries + replace-never-stack rule** (Hard Rule
 9), the Idle/Usage-Exhaustion Protocol, Integration Checkpoint, Stop/Break
 semantics, and the Resume-Prompt format — lives in **one place**:
@@ -53,7 +60,7 @@ line + a fenced stamped resume `Prompt:` (format in README.md).
 | Directory | What | When to read |
 | --------- | ---- | ------------ |
 | `app/` | Frontend (React/Vite/Tailwind) + Backend (FastAPI/Python) + shared contracts | All code work |
-| `plans/` | Active and historical work plans — start at `plans/README.md` for the parallel Claude Code (frontend) ↔ Codex (backend) workflow | Planning, picking up active milestones |
+| `plans/` | Active and historical work plans — start at `plans/README.md` for the agent-agnostic parallel-worktree workflow | Planning, picking up active milestones |
 | `docs/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (`proprietary/`) | Finding custom project-generated systems (EP-VLEx, search input resolution) |
 | `archive/` | Retired drafts and historical session notes (includes `archive/franklin/` once BE-1 lands) | Historical context only |
 | `.claude/` | Agent roles, conventions, output styles, skills | Workflow, agent config, conventions |

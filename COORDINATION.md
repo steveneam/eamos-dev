@@ -5,6 +5,10 @@
 + the Eamos-specific adaptation. Keep it human-lean — do not machine-bloat it.
 Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 
+**Ownership is agent-agnostic (Steven, 2026-07-08):** a lane assigns a *glob to a worktree*,
+not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
+`owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
+
 **Status:** _Mode-A dogfood COMPLETE (merges) — 2026-07-03._ 3/3 lanes merged linear onto `main`
 (`cd8f15e`/`eeaefa3`/`05e0321`); first-try green, zero conflicts; prod deploy green. Machinery
 validated end-to-end. Components landed **inert (unimported)** — the follow-on `ReportClient`
@@ -112,8 +116,9 @@ Either mode keeps the same merge model: one lead is the sole merger, Steven
 approves seams, and lanes never merge themselves.
 
 **3. Freeze the contract first.** The interface where lanes meet — the backend↔FE API types
-(backend-led) — is committed to `main` *before* any lane forks. One owner; frozen for the
-sprint. A lane needing to edit it is the signal the partition was wrong → re-plan, don't ad-hoc edit.
+(schema-first: backend Pydantic defines it, TS mirrors it) — is committed to `main` *before* any
+lane forks. One owner (any agent) for the sprint; frozen. A lane needing to edit it is the signal
+the partition was wrong → re-plan, don't ad-hoc edit.
 For Search 7/8, the frozen seam is the backend `SearchHit`/`SearchResponse`/`SearchAnswerResponse`
 shape mirrored into the active web contract before lanes fork.
 

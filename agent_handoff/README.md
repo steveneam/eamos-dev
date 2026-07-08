@@ -22,8 +22,8 @@ verbatim under `agent_handoff/archive/2026-05-18-*`._
    Shared File Locks, Cross-Agent Requests, Current State, the two
    `Last Task & Resume` sections.
 4. `agent_handoff/RISKS.md` — hazards, gated work, do-not-touch.
-5. The relevant active plan: `plans/v2-frontend.md` (Claude) or
-   `plans/v2-backend.md` (Codex); plus `plans/<feature>/` if assigned.
+5. The relevant active plan for the task (`plans/<feature>/`, or
+   `plans/v2-backend.md` for backend history) — whichever the work touches.
 6. `git status --short --branch` and `git diff --stat` — the live worktree
    truth (do **not** rely on a frozen inventory file for this).
 
@@ -36,30 +36,39 @@ verbatim under `agent_handoff/archive/2026-05-18-*`._
    brief, or `next-session-*` doc. Default-deny.** Supersede only by
    *append + archive*: copy the old content verbatim to
    `agent_handoff/archive/<date>-<slug>.md`, then write the new.
-2. **Each agent writes only its own `CURRENT.md` section** —
-   `## Claude — Last Task & Resume` / `## Codex — Last Task & Resume`. You read
-   the other's; you never rewrite it.
-3. **Parallel mode is ON.** Claude (frontend: `app/frontend/**` +
-   `plans/v2-frontend.md`) and Codex (backend: `app/backend/**` +
-   `plans/v2-backend.md`) run simultaneously on disjoint scopes. Role swaps
-   only on explicit user command, recorded in `## Active Status`.
+2. **Narrate your own work in your own `CURRENT.md` section** —
+   `## Claude — Last Task & Resume` / `## Codex — Last Task & Resume`. You
+   *may* edit or reconcile the other agent's section (e.g. when it is away, or
+   to fix a factual error) — this is agent-agnostic — but **preserve its
+   content via append+archive (Rule 1); never silently clobber a narrative.**
+   Default to writing only your own; reach into the other's only with cause.
+3. **Agent-agnostic ownership (Steven, 2026-07-08).** Any agent (Claude or
+   Codex) can own any file, any lane, full-stack (frontend + backend + data +
+   docs + tests + tooling), and may audit/fix the other agent's historical
+   work, dependencies, and branches. There is **no** fixed Claude=frontend /
+   Codex=backend wall. Steven picks the active agent by availability + usage
+   limits. When two agents run at once, they take **disjoint scopes** and
+   coordinate via the board + locks — but which agent owns which scope is not
+   fixed by role; record the split in `## Active Status` to avoid collisions.
 4. **Shared files need a lock.** Before editing a shared/high-conflict file
    (`CLAUDE.md`, `CODEX.md`, `agent_handoff/*`, `CHANGELOG.md`, `PROGRESS.md`,
    `ROADMAP.md`, `plans/README.md`, `app/frontend/src/lib/backend.ts`, backend
    schema files), claim it in `CURRENT.md` → `## Shared File Locks`; if held,
    defer or file a `## Cross-Agent Requests` entry. Never both editing one file.
-5. **Contract changes are backend-led.** Frontend never edits the
-   `app/frontend/src/lib/backend.ts` contract *shape* or backend schema; it
-   requests the change via `## Cross-Agent Requests`.
-   `test_frontend_contract.py` is the canary.
-6. **No idle waiting.** If blocked, the other agent is out of usage/context, or
-   your lane's next milestone is user-gated, follow `## Idle /
-   Usage-Exhaustion Protocol` below. Never idle; never start a gated milestone
-   to fill time.
-7. **Roles are explicit; swaps are written.** Default: Claude = frontend +
-   integration-checkpoint driver; Codex = backend + fallback driver. A swap is
-   valid only when (a) the user commands it and (b) it is written into
-   `## Active Status`. No silent swaps.
+5. **Contract changes are schema-first.** Whoever changes a payload lands the
+   backend Pydantic schema *first*, then updates the active
+   `app/web/lib/backend.ts` TS mirror (and `app/frontend/src/lib/backend.ts` if
+   touched); `test_frontend_contract.py` is the canary. This is an *ordering*
+   rule, not a role rule — the same agent can do both ends. If the other agent
+   is mid-flight on that contract surface, coordinate via `## Cross-Agent
+   Requests` + a Shared File Lock instead of editing in parallel.
+6. **No idle waiting.** If blocked, or your next milestone is user-gated,
+   follow `## Idle / Usage-Exhaustion Protocol` below. Never idle; never start a
+   gated milestone to fill time.
+7. **Ownership is by availability, not role.** There is no default FE/BE split
+   and no "swap" to authorize — any agent can take any work at any time. When
+   both agents are active simultaneously, write who owns which scope in
+   `## Active Status` so the two don't collide on the same files.
 8. **Timestamp + edit-lock on every log/handoff write.** For
    `agent_handoff/CURRENT.md`, `RISKS.md`, `TASKS.md`, `DECISIONS.md`,
    `CHANGELOG.md`, `PROGRESS.md`, `ROADMAP.md`, active `plans/*`:
@@ -128,37 +137,38 @@ verbatim under `agent_handoff/archive/2026-05-18-*`._
 
 ## Idle / Usage-Exhaustion Protocol
 
-Blocked on the other agent, they're out of usage/context, or your lane's next
-milestone is user-gated: do **not** idle, do **not** start a gated milestone.
-In your own ownership only, take the highest-value safe work:
+The next milestone is user-gated, or you're waiting on something: do **not**
+idle, do **not** start a gated milestone. Take the highest-value safe work
+(anywhere in the repo — ownership is agent-agnostic):
 
 1. **Plan ahead** — reviewable `design-doc`/`spec`/`plan` artifacts for upcoming
-   milestones in your lane (allowed even when implementation is gated).
-2. **Harden your own tree** — behavior-preserving refactor / lint / dead-code /
-   type-safety / coverage, scoped strictly to your folders, fully revertible,
-   no contract-shape change.
-3. **Mock-first** — if blocked on the other's deliverable, build/verify against
-   the mock/stub so your work integrates when they return.
+   milestones (allowed even when implementation is gated).
+2. **Harden the tree** — behavior-preserving refactor / lint / dead-code /
+   type-safety / coverage, tightly scoped, fully revertible, no
+   contract-shape change.
+3. **Mock-first** — if blocked on a not-yet-built deliverable, build/verify
+   against the mock/stub so the work integrates when it lands.
 4. **Write the precise ask** — put exactly what you need into `## Cross-Agent
-   Requests` so they execute on return, no round-trips.
-5. **Lane free time** — Claude: browser/pixel/a11y QA, visual-polish backlog,
-   component-doc tightening. Codex: backend error-path/perf hardening, security
-   review of its own surface, test hardening.
+   Requests` so the next session executes it with no round-trips.
+5. **Free-time menu** — browser/pixel/a11y QA, visual-polish backlog,
+   component-doc tightening, backend error-path/perf hardening, security review,
+   test hardening.
 
-Never in free time: gated milestones (FE-6/7/8, M-002), the other agent's
-tree, shared-contract shape, broad reformatting, commits/pushes without ask,
-speculative features. When **you** are about to run out: reach a verified
-boundary, write your own section + archive anything superseded, leave a
-prioritized pickup queue, and state in `## Cross-Agent Requests` whether the
-other agent is now blocked on you and the minimal unblock.
+Never in free time: gated milestones (FE-6/7/8, M-002), **the other agent's
+in-flight / uncommitted work** (don't stomp a live worktree or dirty tree
+without coordinating), shared-contract shape mid-flight, broad reformatting,
+commits/pushes without ask, speculative features. When **you** are about to run
+out: reach a verified boundary, write your own section + archive anything
+superseded, leave a prioritized pickup queue, and state in `## Cross-Agent
+Requests` whatever the next session needs to continue.
 
 ## Integration Checkpoint
 
 Periodic joint verification that frontend + backend still agree, run at
 milestone boundaries (not mid-task, not every task).
 
-- **Driver: Claude (default).** Fallback: Codex, only if Claude is out of
-  usage/context and the user commands the swap (record in `## Active Status`).
+- **Driver: whichever agent is active** at the milestone boundary (record it
+  in `## Active Status`).
 - Driver runs: `cd app/backend && python -m pytest
   tests/test_frontend_contract.py -q` (the contract canary) + a frontend build
   + a frontend↔backend smoke against the live/mock backend, then logs the
@@ -225,17 +235,22 @@ Project history (NOT this folder):
 
 The earlier split treated Claude as the driver and Codex as a
 backend/grunt/review delegate via a Claude Code plugin with constrained
-network/verification. **That changed:** direct Codex app sessions have verified
-full `D:\eamos` read/write, outbound network, and local frontend/backend
-verification. The old split is now a *coordination convention, not a technical
-limit* — direct Codex can own substantive backend/API/pipeline/tool/test work
-when scoped. Claude remains the default owner for UI/product/design-heavy
-frontend, context-rich planning, and visual iteration.
+network/verification. **That is fully retired.** Direct Codex app sessions have
+verified full `D:\eamos` read/write, outbound network, and local
+frontend+backend verification, exactly as Claude does. As of 2026-07-08 there
+is no role split at all: **ownership is agent-agnostic** — either agent owns any
+part of the repo, full-stack, and Steven picks the active agent by availability
++ usage limits (see Hard Rule 3).
 
-## Practical Ownership (default; user can override per task)
+## Capabilities (both agents; ownership is agent-agnostic)
 
-- **Claude Code:** frontend UI, visual design, Workbench layout, product copy,
+Neither of these is a lane — either agent can and does own any of it. Listed so
+a session knows the full surface it may be asked to take:
+
+- **Frontend:** UI, visual design, Workbench layout, product copy,
   browser/pixel iteration, frontend plans.
-- **Direct Codex:** backend APIs, evidence tools, data pipelines, schema
-  contracts, tests, live/API verification, security hardening, backend plans,
-  adversarial code review.
+- **Backend:** APIs, evidence tools, data pipelines, schema contracts, tests,
+  live/API verification, security hardening, backend plans, adversarial review.
+
+Steven assigns whichever agent is available; that agent takes whatever the task
+needs across both.

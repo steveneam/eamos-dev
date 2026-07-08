@@ -34,7 +34,12 @@ active `app/web` TypeScript contract is updated, and
 
 ## Coordination Rules
 
-1. Backend lands schema changes first.
+Ownership is **agent-agnostic** (Steven, 2026-07-08) — either agent (Claude or
+Codex) can own any plan/glob, full-stack; the "Owner" column above is historical
+attribution, not a lane. These rules are about *ordering and safety*, not roles:
+
+1. Backend lands schema changes first (schema-first contract; the same agent can
+   do both ends).
 2. Current frontend product work targets `app/web/`.
 3. Historical `app/frontend/` Vite files are not mirrored.
 4. No simultaneous edits to shared docs. Use the handoff lock protocol in

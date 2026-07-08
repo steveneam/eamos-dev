@@ -29,6 +29,13 @@ Eamos is parallel-ready (Forj protocol). Live board + Eamos adaptation: `COORDIN
 Protocol (read-only vault): `Forj/bones/parallel-agents.md` + `Forj/Wiki/reference/parallel-agent-workflow.md`.
 Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 
+**Ownership is agent-agnostic (Steven, 2026-07-08).** Any agent (Claude or Codex) can own any
+file, any lane, full-stack — frontend, backend, data/pipeline, docs, tests, tooling — and may
+audit/fix the other agent's historical work, dependencies, and branches. There is no fixed
+Claude=frontend / Codex=backend wall; Steven picks the active agent by availability + usage
+limits. Lanes below assign a *glob to a worktree*, never a discipline to an agent. Full rule +
+handoff hygiene: `agent_handoff/README.md` Hard Rule 3.
+
 Two standing rules:
 
 1. **Propose & launch lanes.** When upcoming work has ≥2 dependency-independent buckets that

@@ -298,7 +298,7 @@ This platform has a separate internal business context involving pet genetics. D
 | `app/web/` | Active Next.js frontend - `/`, `/report`, `/workbench`, account/checkout/auth |
 | `app/frontend/` | Frozen React + Vite reference. Treat as stale for live report work until it is removed or replaced with the current Next implementation. |
 | `app/backend/` | FastAPI backend — `app/` contains tools, services, schemas, routes |
-| `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the Claude Code (frontend) ↔ Codex (backend) workflow. Direct Codex app sessions have verified full workspace + outbound-network access (2026-05-17); live cross-agent coordination is in `agent_handoff/`. The plugin-mediated path ([openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)) is historical. |
+| `plans/` | Active and historical work plans. **Start at `plans/README.md`** for the agent-agnostic parallel-worktree workflow (any agent owns any part of the repo, chosen by availability; Steven 2026-07-08). Both Claude and Codex have verified full workspace + outbound-network access; live cross-agent coordination is in `agent_handoff/`. The plugin-mediated path ([openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)) is historical. |
 | `docs/proprietary/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (EP-VLEx, search input resolution) |
 | `archive/` | Retired drafts, session handoffs, historical notes — includes `archive/franklin/` (the archived Genoox tool) |
 | `.claude/agents/` | Custom subagent role definitions (architect, developer, debugger, quality-reviewer, technical-writer, ui-ux-consultant) |

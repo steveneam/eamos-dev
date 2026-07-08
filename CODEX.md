@@ -16,20 +16,25 @@ Read in order:
    Shared File Locks, Cross-Agent Requests, Current State, the
    `## Codex — Last Task & Resume` section.
 5. `agent_handoff/RISKS.md`.
-6. `plans/v2-backend.md` (backend) — plus `plans/<feature>/` if assigned.
+6. The relevant active plan (`plans/<feature>/`, or `plans/v2-backend.md` for
+   backend history) for the task at hand.
 7. `git status --short --branch` and `git diff --stat`.
 
 If the user gives a task brief inside `agent_handoff/CURRENT.md` or chat,
 follow that brief before older context.
 
-## Direct Codex Role
+## Direct Codex Role — agent-agnostic (2026-07-08)
 
-Direct Codex has verified full `D:\eamos` read/write, outbound network, and
-local frontend/backend verification. The old "Codex only does grunt work /
-can't run vitest/server" model was plugin-era history. Direct Codex can own
-substantive backend/API/pipeline/tool/test work when scoped, and runs its own
-backend verification (`pytest`, live smoke). Claude Code remains the default
-owner for UI/product/design-heavy frontend and browser/pixel iteration.
+Codex owns the **whole repo**, same as Claude. There is **no** fixed
+Claude=frontend / Codex=backend wall (Steven, 2026-07-08). Codex can edit any
+file and take charge of anything — backend, frontend, data/pipeline, docs,
+tests, tooling — and may audit/fix Claude's historical work, dependencies, and
+branches. Steven picks the active agent by **availability and usage limits**,
+not task type. Codex has verified full `D:\eamos` read/write, outbound network,
+and runs its own verification (backend `pytest`/`ruff`/`black` + live smoke;
+frontend build/`tsc`/`eslint`/`vitest` + browser when doing FE work). The old
+"Codex only does grunt work / can't run vitest/server" model was plugin-era
+history.
 
 Do not launch WSL/Linux for routine Eamos work. After the 2026-05-28 D-drive
 relocation, `vmmemWSL` exhausted host RAM and crashed the computer. Use
@@ -37,13 +42,17 @@ Windows-native checks first; WSL-native proof work requires explicit user
 approval and the `%USERPROFILE%\.wslconfig` cap (`memory=4GB`,
 `guiApplications=false`) to remain in place.
 
-Codex lane: `app/backend/**` + `plans/v2-backend.md` + the
-`## Codex — Last Task & Resume` / Active Status / Risks / Tasks sections Codex
-owns. Do not touch `app/frontend/**`, Claude's `CURRENT.md` section, or
-Claude's `next-session-*` doc (README Hard Rules 1–2). Contract changes are
-backend-led (Codex owns the schema; announce via `## Cross-Agent Requests`).
-For remaining backend work, start with global Blueprint `design-doc` → `spec`
-→ `plan` (artifacts under `plans/`) before implementation, not straight code.
+Codex can own any glob in the repo, full-stack. **Handoff hygiene still
+applies** (README Hard Rules 1–2): narrate your own work in the
+`## Codex — Last Task & Resume` section, and preserve Claude's `CURRENT.md`
+section + `next-session-*` doc via append+archive rather than silent overwrite
+— you *may* edit or reconcile them when it helps (e.g. Claude is away), never
+clobber a narrative. Contract changes are **schema-first**: land the backend
+Pydantic schema first, then update the `app/web/lib/backend.ts` TS mirror
+(`test_frontend_contract.py` is the canary); if the other agent is mid-flight
+on that surface, coordinate via `## Cross-Agent Requests` + locks. For
+substantive new work, prefer a Blueprint `design-doc` → `spec` → `plan`
+(artifacts under `plans/`) before straight code.
 
 ## Product Architecture Invariant
 
