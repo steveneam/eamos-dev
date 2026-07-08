@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** STOPPED @ 2026-07-08 22:00 +1000 - Committed+pushed Codex's 2026-07-04 tree (3 commits `d194146`/`b280075`/`136d5d5`, re-verified pytest 76 passed) + rescued Codex's hidden `.tmp/lookup-fix` WIP to `origin/codex/m9-clinvar-distribution-ratchet` (`8d1517e`) pre-migration (appears superseded → Codex to reconcile/delete, see CARs) + encoded Steven's **NEW agent-agnostic ownership rule** (any agent owns any file full-stack; old FE/BE wall retired, safety/coordination machinery kept) across the rule docs + memory. `main==origin/main`, worktree=only main, all branches 0-unpushed, no stashes. No env/provider/flag/Supabase changes. Detail → Claude Last Task below + rolling log session 8.
+- **Claude:** STOPPED @ 2026-07-08 22:45 +1000 - Committed+pushed Codex's 2026-07-04 tree (3 commits `d194146`/`b280075`/`136d5d5`, re-verified pytest 76 passed) + rescued Codex's hidden `.tmp/lookup-fix` WIP to `origin/codex/m9-clinvar-distribution-ratchet` (`8d1517e`) pre-migration (appears superseded → Codex to reconcile/delete, see CARs) + encoded Steven's **NEW agent-agnostic ownership rule** (any agent owns any file full-stack; old FE/BE wall retired, safety/coordination machinery kept) across the rule docs + memory + **DECISIONS.md** (last, vault-flagged: de-roled the 2026-07-02/06-01/DL-019 ratified decisions, substance kept). Vault confirmed it re-synced its side. `main==origin/main`, worktree=only main, all branches 0-unpushed, no stashes. No env/provider/flag/Supabase changes. Detail → Claude Last Task below + rolling log session 8.
 
 
 - **Codex:** STOPPED @ 2026-07-04 20:18 +1000 - Free in-silico predictor readiness slice shipped locally. Web-checked primary sources for CI-SpliceAI, GPN-MSA, Pangolin, AlphaMissense, ESM1b, and MaveDB. Added source registry rows for `ci_spliceai_model`, `gpn_msa_hg38_scores`, and `pangolin_splice_effect_scores`; exposed `gpn_msa` and `pangolin` as explicit fail-closed planned lanes in provider-cache, source preflight, and build ledger; wrote `docs/free-in-silico-predictors/plan.md`; updated tests. No downloads/uploads/materialization, env/provider flips, Supabase mutation, runtime seed/sync, deploy hook use, destructive git, secret output, or Obsidian write/execute/open tool use occurred. Verification green: predictor/registry/policy pytest; full health pytest; targeted source-preflight pytest; Ruff; Black; diff-check; graphify AST update.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-08 22:02 +1000 - Claude (encoded agent-agnostic ownership rule across CLAUDE/CODEX/AGENTS/COORDINATION/README/plans + memory; heartbeat + resume updated)
+UNLOCKED - 2026-07-08 22:46 +1000 - Claude (de-roled DECISIONS.md per the agent-agnostic rule; closed the vault-flagged ratified-decisions gap)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set

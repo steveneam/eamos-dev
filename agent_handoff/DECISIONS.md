@@ -1,6 +1,45 @@
 # Agent Coordination Decisions
 
-## 2026-07-02: Codex Standing Commit/Push/Deploy Approval When Safe
+## 2026-07-08: Agent-Agnostic Ownership (supersedes role-pinned lane decisions)
+
+Section edited: 2026-07-08 22:43 +1000 - Claude.
+
+Decision (Steven, 2026-07-08): **ownership is agent-agnostic.** Any agent
+(Claude or Codex) can edit any file and own everything full-stack — frontend,
+backend, data/pipeline, docs, tests, tooling — including auditing/fixing the
+other agent's historical work, dependencies, and branches. Steven picks the
+active agent by **availability and usage limits**, not by task type. The old
+Claude=frontend / Codex=backend wall is retired. Canonical: README Hard Rule 3
++ memory `feedback_agent_agnostic_ownership`; encoded in CLAUDE.md, CODEX.md,
+AGENTS.md, COORDINATION.md, agent_handoff/README.md, plans/README.md, README.md.
+
+**Effect on earlier decisions below — role-pinning superseded, substance kept.**
+Where a prior decision names a role ("Codex owns X", "Codex-owned paths",
+"Codex default staging scope = `app/backend/**`", "Claude/frontend files"),
+read the role as **the acting/owning agent**; the operational substance still
+applies to whichever agent does the work:
+
+- **2026-07-02 (Standing commit/push/deploy-when-safe):** the standing approval
+  is for **any agent**, not just Codex — commit/push/deploy after a slice is
+  verified safe, under the same guardrails (no env/provider/Supabase/materialize/
+  destructive-git/secret actions; DL-019 explicit staging).
+- **2026-06-01 (Backend Render redeploy + verify):** **deploy-ownership follows
+  the pusher** — whichever agent commits/pushes a backend change owns its Render
+  redeploy + live-verify loop (don't ping-pong). Technical facts unchanged
+  (`.render-deploy-hook`, `RENDER_API_KEY` in shell env, Render autoDeploy off).
+- **2026-05-27 (DL-019 staging):** the CORE rule stands and is agent-agnostic
+  (explicit paths only; never `git add -A`/`.`/`commit -a`; stage only the paths
+  for *your* change). The "Codex = `app/backend/**` / Claude = frontend" scope
+  bullets are retired — the durable principle is **stage only your change's
+  paths and never sweep the other agent's in-flight or unrelated work into your
+  commit** (regardless of which folder it lives in).
+
+Kept in full (only the role wall is removed): the coordination + safety
+machinery, schema-first contracts (was "backend-led" — an ordering rule, not a
+role rule), and the parallel-worktree sprint model (lead = proposing agent =
+sole merger; Steven approves each merge).
+
+## 2026-07-02: Codex Standing Commit/Push/Deploy Approval When Safe — [role-pinning SUPERSEDED 2026-07-08; see top entry]
 
 Section edited: 2026-07-02 19:13 +1000 - Codex.
 
@@ -65,7 +104,7 @@ Seeding + env wiring + the dbSNP/phyloP adapter materialization = Codex's backen
 lane. Operational reality, env vars, and the seeding sequence: see RISKS.md
 "Render Persistent Disk + Local-First Asset Seeding".
 
-## 2026-06-01: Codex Owns Backend Render Redeploys And Verification
+## 2026-06-01: Codex Owns Backend Render Redeploys And Verification — [role-pinning SUPERSEDED 2026-07-08 → deploy-ownership follows the pusher; see top entry]
 
 Section edited: 2026-06-01 03:07 +1000 - Codex.
 
@@ -138,7 +177,7 @@ Claude's Printing Press follow-up also reinforced the token-economy rationale:
 MCP tool schemas and large raw API payloads are expensive; local CLI
 summarization keeps context smaller and tends to be more reliable.
 
-## 2026-05-27: DL-019 Explicit Git Staging Rule
+## 2026-05-27: DL-019 Explicit Git Staging Rule — [core rule stands; per-agent scope bullets SUPERSEDED 2026-07-08, see top entry]
 
 Section edited: 2026-05-27 23:27 +1000 - Codex.
 
