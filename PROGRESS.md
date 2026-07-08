@@ -1,5 +1,126 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-08 21:22 +1000 - Claude - Committed + pushed Codex's uncommitted 2026-07-04 tree
+
+Re-orientation + cleanup session. Codex was away and had left its 2026-07-04
+work uncommitted in the worktree; Steven authorized Claude to clean up and
+commit/push ("a lot of it is codex stuff but you have my permission").
+
+- Re-oriented on the parallel-agent workflow (`COORDINATION.md`, `AGENTS.md`,
+  Forj vault refs) — the propose-lanes / lead-run-merges model that replaced
+  the old message-relay-via-Steven loop.
+- Landed the dirty tree as **3 clean commits, explicit pathspecs, never
+  `git add -A`**:
+  - `d194146` `feat(backend): free in-silico predictor readiness lanes
+    (gpn_msa, pangolin, ci_spliceai)` — Codex's slice: source-registry rows
+    for `ci_spliceai_model`/`gpn_msa_hg38_scores`/`pangolin_splice_effect_scores`
+    + fail-closed planned lanes in provider-cache/preflight/build-ledger +
+    `docs/free-in-silico-predictors/plan.md` (11 backend files + 1 doc).
+  - `b280075` `chore(mcp): add read-only obsidian-vault MCP server + allow/deny
+    scopes` — `.mcp.json` (localhost HTTP MCP, `${OBSIDIAN_API_KEY}` env auth) +
+    `.claude/settings.local.json` (read allowlist + write/execute/open denylist).
+    Steven chose commit-both via AskUserQuestion.
+  - This handoff-bookkeeping commit (`PROGRESS.md`, `agent_handoff/CURRENT.md`,
+    2 Codex archive files).
+- **Re-verified Codex's slice before pushing** (Claude is the pusher): focused
+  pytest `test_predictor_runtime`/`test_data_source_registry`/
+  `test_source_field_policy`/`test_health_api` = **76 passed**, ruff clean, on
+  Python 3.10 (`C:\Program Files\Python310`).
+- Cleared a stale 0-byte `.git/index.lock` (dead writer @20:06). A 4-day-old
+  orphaned `git rev-parse --show-toplevel` (PID 61868, from Codex's 2026-07-04
+  session) did **not** hold the lock and was left running.
+- No env/provider/flag/Supabase/deploy-hook actions. Backend + docs + config
+  only → Render (autoDeploy off) not redeployed; the new predictor lanes are
+  fail-closed (`available=false`, `runtime_wired=false`), so no live behavior
+  change. Vercel FE rebuild from the push is a functional no-op (no `app/web`).
+
+## 2026-07-04 19:39 +1000 - Codex - Obsidian MCP vault-side cause found
+
+Steven asked Codex to go into the Obsidian vault to find out why the fresh
+VS Code/Codex session still had no callable `obsidian-vault` namespace.
+
+- Codex tool discovery still returned zero tools for exact
+  `obsidian-vault`/read-helper queries and for broad `obsidian`.
+- Direct read-only MCP access to the local Obsidian endpoint works when the
+  Windows user-level env vars are injected into a child process:
+  `initialize` returns `obsidian-local-rest-api` v1.0.0, `tools/list` returns
+  16 tools, and the advertised tools include the intended read/search/list
+  helpers plus server-side write/side-effect tools.
+- The relevant vault note is
+  `Forj/Wiki/reference/vault-mcp-wiring.md`. It says the native Local REST API
+  `/mcp` endpoint is primary, but the HTTPS self-signed cert is load-bearing:
+  consumers need `OBSIDIAN_API_KEY` and `NODE_EXTRA_CA_CERTS` in the process
+  environment at MCP startup, or the client silently fails/disconnects.
+- This active Codex process did not inherit either `OBSIDIAN_API_KEY` or
+  `NODE_EXTRA_CA_CERTS`; the Windows user-level env vars are present, the cert
+  path exists, and a child Node process using those user-level vars connects
+  successfully over trusted HTTPS without disabling TLS.
+- Interpretation: repo/global MCP registration is intact and Obsidian's server
+  is healthy. The missing Codex namespace is most likely process-environment
+  inheritance at the Codex/VS Code host boundary, not bad `.mcp.json` wiring.
+  Fully quitting all Code/Codex host processes and relaunching from a process
+  that has the user env should be the next proof.
+- No Obsidian write/execute/open tools were called, no secret values were
+  printed, and no deploy/env/provider flip, Supabase mutation, source
+  materialization/download/upload, destructive git, or Obsidian write-tool
+  allowlisting occurred.
+
+## 2026-07-04 19:32 +1000 - Codex - Obsidian MCP chat-clear discovery checked
+
+Checked `obsidian-vault` tool discovery after Steven clarified this was a
+cleared Codex chat session, not a VS Code/Codex host restart.
+
+- Exact tool discovery for `obsidian-vault` / read helper names returned zero
+  tools.
+- Broader tool discovery did not expose an `obsidian-vault` namespace; it only
+  surfaced existing unrelated global/plugin tooling.
+- `codex mcp get obsidian-vault --json` still confirms the global streamable
+  HTTP MCP entry, bearer-env auth, and the read/search/list/path allowlist.
+- Interpretation: repo-side wiring and global Codex config remain intact, but
+  chat clear alone does not reload the MCP tool namespace. A VS Code/Codex host
+  reload or reopen is likely needed before repeating tool discovery.
+- Search 7/8 remains closed at `HEAD == origin/main == 436721e`. No deploy,
+  env/provider flip, Supabase mutation, source materialization/download/upload,
+  destructive git, Obsidian write-tool allowlisting, or secret output occurred.
+
+## 2026-07-04 19:25 +1000 - Codex - Obsidian MCP global Codex registration
+
+Steven approved adding the read-only Obsidian MCP consumer to global Codex
+config after repo-side wiring alone did not expose tools in Codex.
+
+- Ran `codex mcp add obsidian-vault --url https://127.0.0.1:27124/mcp
+  --bearer-token-env-var OBSIDIAN_API_KEY`.
+- Constrained `~/.codex/config.toml` with `enabled_tools` for read/search/list/
+  path helpers only: `vault_read`, `vault_list`, `vault_get_document_map`,
+  `search_simple`, `search_query`, `tag_list`, `command_list`,
+  `active_file_get_path`, and `periodic_note_get_path`.
+- `codex mcp get obsidian-vault --json` confirms streamable HTTP transport,
+  bearer-env auth, and the allowlist.
+- Direct Node JSON-RPC initialize smoke using the configured user env/cert
+  returned HTTP 200 over SSE with `obsidian-local-rest-api` `serverInfo`.
+- The already-running Codex session still does not hot-load the new namespace;
+  verify tool discovery from a fresh Codex session next.
+- No deploy/env/provider flip, Supabase mutation, source materialization/
+  download/upload, destructive git, Obsidian write-tool allowlisting, or secret
+  output occurred.
+
+## 2026-07-04 19:20 +1000 - Codex - Obsidian MCP Codex exposure checked
+
+Verified the post-reopen Obsidian MCP state from a fresh Codex session.
+
+- Repo-side read-only `obsidian-vault` wiring remains present in `.mcp.json`
+  and `.claude/settings.local.json`.
+- Exact Codex tool discovery for `obsidian-vault` returned zero tools.
+- Tool discovery exposed global/plugin MCPs instead (`node_repl`,
+  `chrome-devtools`, `eamos`, `supabase`). Sanitized inspection of
+  `~/.codex/config.toml` showed those global MCP sections and no Obsidian,
+  context7, render, or vercel entries.
+- Conclusion: the remaining gap is current Codex global MCP registration, not
+  the Eamos repo-side `.mcp.json` block or the Obsidian endpoint smoke.
+- No global config edit, deploy/env/provider flip, Supabase mutation, source
+  materialization/download/upload, destructive git, Obsidian write-tool
+  allowlisting, or secret output occurred.
+
 ## 2026-07-04 09:08 +1000 - Codex - Search 7/8 reviewed, pushed, and cleaned
 
 Reviewed the uncommitted Search 7/8 main-checkout implementation from the

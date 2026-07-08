@@ -14,14 +14,14 @@
 
 ## Active Status (heartbeat - set when you start and stop)
 
-- **Claude:** STOPPED @ 2026-07-03 21:30 +1000 - **Mode-A dogfood RUN + VALIDATED end-to-end** (Steven-approved). 3 disjoint FE components via `isolation:worktree` subagents -> 3 `agent/*` PRs -> CI gate -> lead-run serialized merge (Steven approved each) -> prod green. First-try green, zero conflicts (`cd8f15e`/`eeaefa3`/`05e0321`). Integration `28f0e35`: wired `GeneViewerErrorBoundary` (§4, real gap); left `PopFreqEmptyState` + `InSilicoPlaceholderRows` **inert** (§3/§2 already have empty/loading UI). Portable POC report for the Forj vault -> `docs/parallel-agents/mode-a-vault-report.md`; field lessons -> `retrofit-notes.md`. `main==origin/main 918b067`, tree clean, graphify AST-updated. NEXT: Claude-lane `/report` FE launch items (open follow-up: add `tsc` to `web` CI job; Codex to skipif+drop the 2 `--deselect` backend tests). See Claude Last Task below.
+- **Claude:** STOPPED @ 2026-07-08 21:22 +1000 - **User-constrained cleanup/commit/push closeout** (Steven-authorized; "clean up dirty stuff, commit and push if safe... a lot of it is codex stuff but you have my permission"). Re-oriented on the parallel-agent workflow (COORDINATION.md + AGENTS.md + Forj vault). Committed Codex's 2026-07-04 uncommitted tree (Codex is away) as 3 clean commits with explicit pathspecs: `d194146` free in-silico predictor readiness (gpn_msa/pangolin/ci_spliceai rows, 12 files), `b280075` read-only obsidian-vault MCP wiring (`.mcp.json` + `.claude/settings.local.json`, Steven chose commit-both), + handoff bookkeeping. Re-verified Codex's slice before push: focused pytest **76 passed** + ruff clean (Python 3.10). Removed a stale 0-byte `.git/index.lock` (dead writer from 20:06) — a 4-day-old orphaned `git rev-parse` zombie (PID 61868) was NOT holding it, left alone. No env/provider/flag/Supabase changes; backend files only so Render (autoDeploy off) unaffected, Vercel FE rebuild is a no-op. See Claude Last Task below.
 
 
-- **Codex:** STOPPED @ 2026-07-04 09:08 +1000 - User-constrained review/commit/push/cleanup closeout: Search 7/8 implementation reviewed cleanly, committed and pushed to `origin/main` as `319b9e7` (`feat(search): add authenticated results surface`), and the parked `.claude/worktrees/search-*` worktrees plus local `agent/search/*` branches were cleaned. Verification green: focused backend pytest (`43 passed, 2 skipped`), Ruff, Black, web typecheck, web lint, diff-check; prior graphify AST update remains current for code changes. No deploy/env/provider/Supabase/source-materialization/secret output.
+- **Codex:** STOPPED @ 2026-07-04 20:18 +1000 - Free in-silico predictor readiness slice shipped locally. Web-checked primary sources for CI-SpliceAI, GPN-MSA, Pangolin, AlphaMissense, ESM1b, and MaveDB. Added source registry rows for `ci_spliceai_model`, `gpn_msa_hg38_scores`, and `pangolin_splice_effect_scores`; exposed `gpn_msa` and `pangolin` as explicit fail-closed planned lanes in provider-cache, source preflight, and build ledger; wrote `docs/free-in-silico-predictors/plan.md`; updated tests. No downloads/uploads/materialization, env/provider flips, Supabase mutation, runtime seed/sync, deploy hook use, destructive git, secret output, or Obsidian write/execute/open tool use occurred. Verification green: predictor/registry/policy pytest; full health pytest; targeted source-preflight pytest; Ruff; Black; diff-check; graphify AST update.
 
 ## Log Edit-Lock
 
-UNLOCKED - 2026-07-04 09:10 +1000 - Codex (Search 7/8 commit/push/cleanup closeout complete)
+UNLOCKED - 2026-07-08 21:24 +1000 - Claude (handoff closeout: Codex's 2026-07-04 tree committed + pushed in 3 commits)
 
 
 Single mutex for shared log/handoff docs (README Hard Rule 8). Set
@@ -387,7 +387,9 @@ Prior narratives (through the 2026-05-29 LazySection section and every interveni
 session) are archived verbatim under `agent_handoff/archive/` and in the
 `2026-06-12-current-pre-trim.md` snapshot.
 
-**Latest (2026-07-03 21:30 +1000 - Claude):** **Mode-A parallel dogfood RUN + VALIDATED end-to-end** (Steven approved the partition + each merge). Spawned 3 disjoint FE components as `isolation:worktree` subagents -> 3 `agent/*` PRs -> CI merge gate -> lead-run serialized rebase->verify->merge (order A->B->C) -> prod green. **First-try green, zero conflicts**; merged linear (`cd8f15e` PopFreqEmptyState / `eeaefa3` GeneViewerErrorBoundary / `05e0321` InSilicoPlaceholderRows). Integration `28f0e35`: wired **GeneViewerErrorBoundary** around §4 `ReportGeneViewer` (real gap - no boundary existed); left **PopFreqEmptyState + InSilicoPlaceholderRows inert** (§3 already has `PopulationUnavailableStatePanel`, §2 already renders catalog placeholders + LazySection loading -> wiring = redundant UI on prod). Field lessons (strict-mode rebase tax; CI lints-but-doesn't-typecheck -> local `tsc` preflight + follow-up to add `tsc` to `web` CI; worktree litter cleanup; pick dogfood lanes disjoint+**needed**) -> `docs/parallel-agents/retrofit-notes.md`. **Portable POC report for the Forj vault maintainers -> `docs/parallel-agents/mode-a-vault-report.md`** (Steven to hand off). `main==origin/main 918b067`, tree clean, graphify AST-updated. Detail -> `~/.claude/plans/next-session-eamos.md`.
+**Latest (2026-07-08 21:22 +1000 - Claude):** **User-constrained cleanup + commit + push closeout** — re-oriented after time away, then landed Codex's uncommitted 2026-07-04 tree (Codex is away; Steven explicitly authorized committing "codex stuff"). Read the parallel-agent workflow (`COORDINATION.md` + `AGENTS.md` + Forj vault refs) to re-orient on the propose-lanes / lead-run-merges model that replaced message-relay-via-Steven. Committed as **3 clean commits, explicit pathspecs, never `git add -A`**: `d194146` `feat(backend): free in-silico predictor readiness lanes (gpn_msa, pangolin, ci_spliceai)` (11 backend files + `docs/free-in-silico-predictors/plan.md`); `b280075` `chore(mcp): add read-only obsidian-vault MCP server + allow/deny scopes` (`.mcp.json` + `.claude/settings.local.json` — Steven chose commit-BOTH via AskUserQuestion); + this handoff-bookkeeping commit (`PROGRESS.md`, this file, 2 Codex archive files). **Re-verified Codex's slice before pushing** (I'm the pusher): focused pytest `test_predictor_runtime`/`test_data_source_registry`/`test_source_field_policy`/`test_health_api` = **76 passed** + ruff clean, on Python 3.10 (`C:\Program Files\Python310`). Cleared a stale 0-byte `.git/index.lock` (dead writer @20:06); a 4-day-old orphaned `git rev-parse` (PID 61868, from Codex's 2026-07-04 session) did NOT hold it and was left alone. Pushed all 3 → `main==origin/main`. **No env/provider/flag/Supabase/deploy-hook actions**; backend-only + docs + config so Render (autoDeploy off) is untouched and the Vercel FE rebuild is a functional no-op. Detail -> `~/.claude/plans/next-session-eamos.md` (session 8).
+
+**[PRIOR - 2026-07-03 PM]:** Mode-A parallel dogfood RUN + VALIDATED end-to-end (3 `isolation:worktree` lanes -> `agent/*` PRs -> CI gate -> lead-run serialized merge -> prod green; `cd8f15e`/`eeaefa3`/`05e0321` + integration `28f0e35` wiring `GeneViewerErrorBoundary` around §4). Field lessons + POC report -> `docs/parallel-agents/{retrofit-notes,mode-a-vault-report}.md`; full detail -> `~/.claude/plans/next-session-eamos.md` session 7 + git.
 
 **[PRIOR - 2026-07-03 AM]:** Parallel-agent retrofit SHIPPED (PR #1 `a9dd456`): Forj CI merge gate + admin-bypass branch protection + worktree plumbing + Supabase/Vercel/Render cloud isolation; gate caught+fixed 3 latent bugs. Canonical: `COORDINATION.md` + `AGENTS.md` + `retrofit-notes.md`.
 
@@ -402,11 +404,11 @@ session) are archived verbatim under `agent_handoff/archive/` and in the
 
 **Resume prompt:**
 ```
-# Resume prompt - 2026-07-03 21:30 +1000 - Claude (Mode-A parallel dogfood RUN + VALIDATED; 3 lanes -> merged -> prod green; 1 of 3 integrated. main==origin/main 918b067, tree clean. NEXT = Claude-lane /report FE launch items)
-Eamos. Open D:\eamos (Claude lane). First: git -C D:/eamos fetch origin && git -C D:/eamos status --short --branch && git -C D:/eamos log -8 --oneline. START: ~/.claude/plans/next-session-eamos.md (top) + agent_handoff/CURRENT.md (## Active Status, ## Cross-Agent Requests, ## Codex section) + COORDINATION.md (sprint fully closed).
-DONE THIS SESSION (do not redo): Ran the Mode-A parallel dogfood end-to-end (Steven approved partition + each merge). 3 disjoint NEW /report components built by isolation:worktree subagents -> 3 agent/* PRs (#3/#2/#4) -> CI merge gate (first-try green, zero conflicts) -> lead-run serialized rebase->verify->merge A->B->C -> prod green. Merged linear: cd8f15e PopFreqEmptyState, eeaefa3 GeneViewerErrorBoundary, 05e0321 InSilicoPlaceholderRows. Integration commit 28f0e35: wired GeneViewerErrorBoundary around §4 ReportGeneViewer in ReportClient.tsx (real gap); LEFT PopFreqEmptyState + InSilicoPlaceholderRows INERT (unwired) because §3 already has PopulationUnavailableStatePanel and §2 already renders catalog placeholders + LazySection loading -> wiring them = redundant UI. Recorded field lessons -> docs/parallel-agents/retrofit-notes.md; wrote portable POC report for the Forj vault -> docs/parallel-agents/mode-a-vault-report.md (Steven hands off); updated COORDINATION.md board (sprint closed) + memory. graphify AST-updated. Cleaned up all 3 subagent worktrees + local branches (left Codex's .tmp/lookup-fix worktree alone).
-STATE: main==origin/main 918b067, working tree clean, 0 open PRs, 0 leftover agent/* branches/worktrees. Prod (Vercel) green on 918b067. No env/provider/flag/Supabase changes this session. The 2 inert components remain as reusable files under app/web/components/report/.
-NEXT (Claude lane): resume Claude-lane /report FE launch work — TOP pending is docs/local-evidence-freshness/plan.md Phase 4.1 (report "data as of" provenance line, MOCK-FIRST), still HELD for Steven's go + ideally Codex's Phase 0.1 contract review. Open follow-ups from the dogfood: (a) add a `tsc --noEmit` step to the `web` CI job (gate should be superset of the Vercel deploy's checks); (b) Codex to skipif-asset-absent the 2 --deselected backend tests then drop --deselect in ci.yml; (c) bump GH Action majors (Node-20 deprecation warning). Parked: literature RAG (Codex Tier-1 corpus); optional tier-aware token budgets. Freshness BACKEND lane + post-M9 phases are Codex's.
+# Resume prompt - 2026-07-08 21:22 +1000 - Claude (cleanup/commit/push closeout; landed Codex's uncommitted 2026-07-04 tree in 3 commits; main==origin/main, tree clean. NEXT = Claude-lane /report FE launch items)
+Eamos. Open D:\eamos (Claude lane). First: git -C D:/eamos fetch origin && git -C D:/eamos status --short --branch && git -C D:/eamos log -8 --oneline. START: ~/.claude/plans/next-session-eamos.md (top, session 8) + agent_handoff/CURRENT.md (## Active Status, ## Cross-Agent Requests, ## Codex section) + COORDINATION.md + AGENTS.md (parallel-agent workflow).
+DONE THIS SESSION (do not redo): Re-oriented on the parallel-agent workflow, then committed + pushed Codex's uncommitted 2026-07-04 work (Codex away; Steven authorized). 3 commits, explicit pathspecs: d194146 feat(backend) free in-silico predictor readiness (gpn_msa/pangolin/ci_spliceai rows, 11 backend files + docs/free-in-silico-predictors/plan.md); b280075 chore(mcp) read-only obsidian-vault MCP wiring (.mcp.json + .claude/settings.local.json — Steven chose commit-both); + this handoff-bookkeeping commit. Re-verified Codex's slice: focused pytest 76 passed + ruff clean (Python 3.10). Removed a stale 0-byte .git/index.lock (dead writer; a 4-day-old orphaned git rev-parse zombie PID 61868 did NOT hold it, left alone). No env/provider/flag/Supabase/deploy-hook actions; backend+docs+config only.
+STATE: main==origin/main, working tree clean (settings.local.json now committed per Steven). Render autoDeploy OFF → backend not redeployed (no runtime change; new lanes are fail-closed available=false). Vercel FE auto-rebuilt from the push = functional no-op (no app/web changes). Ask-Eamos chat LIVE on prod (per-user 10/day); M9 LOCAL_EVIDENCE live on eamos-dev-sg.
+NEXT (Claude lane): resume Claude-lane /report FE launch work — TOP pending is docs/local-evidence-freshness/plan.md Phase 4.1 (report "data as of" provenance line, MOCK-FIRST), still HELD for Steven's go + ideally Codex's Phase 0.1 contract review. Open follow-ups: (a) add a `tsc --noEmit` step to the `web` CI job; (b) Codex to skipif-asset-absent the 2 --deselected backend tests then drop --deselect in ci.yml; (c) bump GH Action majors (Node-20 deprecation). Codex's continuation: docs/free-in-silico-predictors/plan.md (CI-SpliceAI complete-artifact gate / GPN-MSA remote-range proof / Pangolin runtime decision).
 Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEVER git add -A; lead=sole merger, agent/* lanes through PR+CI, human-approved merges; never --admin-bypass the gate; don't flip flags/provider without Codex+Steven; contracts backend-led (mirror, don't invent); never run vercel from app/web, deploy from repo root; shared docs via Log Edit-Lock; never echo secrets. End clear-safe.
 ```
 
@@ -415,41 +417,60 @@ Guardrails: never cd (git -C / npm --prefix / subshell); explicit pathspecs, NEV
 ## Codex - Last Task & Resume
 
 Owner-written by **Codex only**. Claude: read, never rewrite (README Rule 1/2).
-Section last edited: 2026-07-04 09:08 +1000 - Codex.
+Section last edited: 2026-07-04 20:18 +1000 - Codex.
 
-**Latest Codex update (2026-07-04 09:08 +1000 - Codex):**
-Search 7/8 is reviewed, committed, pushed, and cleaned up. The contract-freeze
-seam remains `f7ef561`; the implementation commit is `319b9e7` on
-`origin/main` (`feat(search): add authenticated results surface`).
+**Latest Codex update (2026-07-04 20:18 +1000 - Codex):**
+Planned and started building the Free-tagged in-silico predictor readiness
+surface without operational source mutation.
 
-Closed:
+Changes:
 
-- CI ratchets: `web` CI now typechecks; backend CI no longer deselects the two
-  asset-bound tests, which self-skip or build native proof assets as available.
-- Answer hardening: disabled/unconfigured answer behavior stays stable, fake
-  answer-chain tests prove grounded citations, and model citations without a
-  concrete returned run/report identity are dropped.
-- Frontend results: free-text search routes to `/search?q=...`, structured
-  variants keep `/report?gene=...&cdna=...`, and the Next search surface renders
-  loading, sign-in-required, empty, rate-limited, upstream-error, and result
-  states without sample fallback.
-- Cleanup: the parked `.claude/worktrees/search-*` worktrees and local
-  `agent/search/*` branches were removed after Steven's explicit approval. The
-  unrelated `.tmp/lookup-fix` worktree was left intact.
+- Web-checked primary sources for the Free report catalog slots: AlphaMissense,
+  ESM1b, CI-SpliceAI, Pangolin, and GPN-MSA, plus MaveDB for the adjacent
+  functional-evidence distinction.
+- Added source registry rows for `ci_spliceai_model`, `gpn_msa_hg38_scores`, and
+  `pangolin_splice_effect_scores`.
+- Added explicit planned-runtime inspectors for `gpn_msa` and `pangolin`.
+  Provider-cache, source preflight, and build ledger now expose both as
+  fail-closed planned lanes instead of leaving them as frontend-only catalog
+  placeholders.
+- Kept semantics conservative: GPN-MSA is `remote_range_reader_planned`,
+  Pangolin is `source_decision_required`, both `available=false`,
+  `runtime_wired=false`, and `public_serialization_allowed=false`.
+- Wrote `docs/free-in-silico-predictors/plan.md` with tasks for the readiness
+  contract, CI-SpliceAI complete artifact gate, GPN-MSA remote-range proof,
+  ESM1b MIT-regenerated scores, and Pangolin runtime decision.
+- Hardened `tests/conftest.py` so health tests do not accidentally pick up a
+  real local ClinVar gene-distribution artifact from this workspace.
 
-Review found no blockers. Verification passed: focused backend pytest (`43
-passed, 2 skipped`), backend Ruff/Black, `app/web` typecheck/lint, and
-`git diff --check` (line-ending warnings only). The prior Search 7/8 graphify
-AST update remains the code-change graph proof. No deploy/env/provider flip,
-Supabase mutation, source materialization/download/upload, deploy hook use, or
-secret output occurred.
+Verification:
+
+- `cd app/backend; python -m pytest tests/test_predictor_runtime.py tests/test_data_source_registry.py tests/test_source_field_policy.py -q`
+- `cd app/backend; python -m pytest tests/test_health_api.py -q`
+- `cd app/backend; python -m pytest tests/test_source_asset_preflight_cli.py::test_source_asset_preflight_reports_guarded_readiness tests/test_source_asset_preflight_cli.py::test_source_asset_preflight_reports_ready_admin_predictors_without_paths -q`
+- `cd app/backend; python -m ruff check app/services/predictor_runtime.py app/services/build_ledger.py app/api/routes/health.py app/cli/eamos_source_asset_preflight.py app/data_sources/registry.py tests/test_predictor_runtime.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_source_field_policy.py tests/conftest.py`
+- `cd app/backend; python -m black --check --target-version py310 app/services/predictor_runtime.py app/services/build_ledger.py app/api/routes/health.py app/cli/eamos_source_asset_preflight.py app/data_sources/registry.py tests/test_predictor_runtime.py tests/test_health_api.py tests/test_source_asset_preflight_cli.py tests/test_data_source_registry.py tests/test_source_field_policy.py tests/conftest.py`
+- `git diff --check`
+- `python -m graphify update .`
+
+Notes:
+
+- Full `tests/test_source_asset_preflight_cli.py -q` exceeded 5 minutes in this
+  workspace; the two touched source-preflight tests passed.
+- No source download, upload, materialization, runtime sync, provider/env flip,
+  deploy hook, Supabase mutation, destructive git, secret output, or Obsidian
+  write/execute/open tool use occurred.
+- Previous backend/report materialisation audit archived at
+  `agent_handoff/archive/2026-07-04-codex-backend-report-materialisation-audit.md`;
+  previous Obsidian MCP handoff archived at
+  `agent_handoff/archive/2026-07-04-codex-obsidian-mcp-handoff.md`.
 
 **Latest resume prompt:**
 ```text
-# Resume prompt · 2026-07-04 09:08 +1000 · Codex Search 7/8 committed and cleaned
-Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, COORDINATION.md, docs/search-results-and-answer-hardening/{design,spec,plan}.md, docs/search-index/{spec,plan}.md, then git status --short --branch.
-Delta: Search 7/8 is on `origin/main` at `319b9e7` after clean review/verification; parked `.claude/worktrees/search-*` worktrees and local `agent/search/*` branches are removed.
-Next: choose the next backend/search slice or deploy gate explicitly; no active Search lane/worktree remains.
-Guardrails: keep Search auth-required/read-only unless explicitly changed; no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, deploy hook use, destructive git, or secret output unless explicitly approved.
+# Resume prompt - 2026-07-04 20:18 +1000 - Codex free in-silico predictor readiness
+Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, COORDINATION.md, docs/parallel-agents/{retrofit-notes,ratchet-philosophy}.md, docs/free-in-silico-predictors/plan.md, then git status --short --branch.
+Delta: Free-tagged in-silico readiness started locally. Source registry now records `ci_spliceai_model`, `gpn_msa_hg38_scores`, and `pangolin_splice_effect_scores`; provider-cache/preflight/build-ledger expose `gpn_msa` as `remote_range_reader_planned` and `pangolin` as `source_decision_required`, both fail-closed. CI-SpliceAI remains complete-artifact-gated; ESM1b remains MIT-regenerated-file-gated; AlphaMissense is the live/runtime-ready lane.
+Next: continue from `docs/free-in-silico-predictors/plan.md`: CI-SpliceAI complete artifact gate if artifacts are staged, or GPN-MSA remote-range adapter proof with fixture-only tests. Keep Pangolin to design/legal/runtime-decision until approved.
+Guardrails: keep Search auth-required/read-only unless explicitly changed; no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, deploy hook use, destructive git, secret output, or Obsidian write/execute/open tool use/allowlisting unless explicitly approved.
 End clear-safe with a fresh stamped resume prompt.
 ```
