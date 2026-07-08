@@ -1,0 +1,1726 @@
+{
+  "plan_id": "84aea4f7-07b0-4ce3-8043-a4caf9dc2725",
+  "created_at": "2026-07-08T14:35:26.540171",
+  "frozen_at": null,
+  "overview": {
+    "problem": "Assimilate the Thalon and Swordfish engineering-efficiency frameworks into Eamos across five bundles: parallel-workflow tooling (native worktree symlinks + preinstall guard + an adapted contract-window skill), agent-handoff leanness, CI/repo safety hardening + ops safety nets, a single metered LLM gateway choke point, and structural ratchet tests as the sole cross-code wiring tracker while graphify is decommissioned entirely. Every enforcement gate lands in three moves (Measure -> Conform -> Enforce) so no blocking gate ever meets a non-conforming repo.",
+    "approach": "Seven dependency-ordered waves; every enforcement gate lands in three moves (Measure -> Conform -> Enforce) so no blocking gate ever meets a non-conforming repo. W1 lands independent foundation artifacts (backend + web boundary ratchets green, repo grep-guard, hardened handoff-lint, the with_gateway_guard choke point, worktree scripts, contract-window skill, renovate) -- every tracked-file scanner CRLF-safe and every .ps1 pure ASCII for PowerShell 5.1. W2 is the CONFORM wave: M-012 reshapes CURRENT.md to the lean 5-heading zero-append form that passes strict handoff-lint, and M-017 drives the backend ruff/black residual and the web next-build to zero -- both BEFORE any gate for them is flipped. W3 ENFORCES the pre-commit hook (installer + exit-code-gated body running the strict lint), depends_on M-012 so the hook never blocks a commit on a non-conforming CURRENT.md. W4 wires the three package.json manifests (prepare -> install-hooks; preinstall worktree guard). W5 is the single CI-enforcement milestone owning ci.yml -- SHA-pin + least-priv + zizmor -- and is ENFORCE-ONLY: it depends_on M-017 (ruff/black + next-build conformed) and M-012 (handoff conformed) and only then flips each gate to blocking behind one stable aggregate 'ci' required check; it makes no Conform edits. W6 decommissions graphify across ALL surfaces (both skill dirs, both agent-hook systems, every governance copy, the memory note, the active RISKS.md line, and the ignore/scan refs), M-014/M-015/M-016 each depends_on M-013 so removal happens strictly after the boundary ratchets are enforced in CI. W7 (M-018) then scrubs every LIVE graphify reference across the 28 docs/** living specs/plans and runs the repo-wide `git grep -in graphify` completeness sweep -- proving only the dated PROGRESS.md/CHANGELOG.md build-log history and the agent_handoff/archive/** snapshots remain (docs/ is NOT blanket-tombstoned) -- with M-018 depends_on M-013 + M-014/M-015/M-016 so the final sweep runs after every sibling scrub. Each shared file gets exactly one owning milestone."
+  },
+  "planning_context": {
+    "decisions": [
+      {
+        "id": "DL-001",
+        "version": 1,
+        "decision": "Full-remove graphify; executable structural boundary ratchets become the sole cross-code wiring tracker.",
+        "reasoning": "graphify is a documentary-tier tracker plus a 510 MB artifact and an API-costed semantic pass -> executable structural tests are a higher ratchet tier, zero cost, and go red on wiring drift -> the enforcement role transfers to tests; the user chose FULL REMOVE, accepting loss of semantic navigation -> delete every graphify artifact, hook, rule, and doc reference."
+      },
+      {
+        "id": "DL-002",
+        "version": 1,
+        "decision": "Fixed ordering: boundary ratchets are green and enforced in CI BEFORE any graphify artifact or rule is removed.",
+        "reasoning": "Removing the old tracker before the replacement is enforced opens a wiring-blind window where drift ships unnoticed -> gate all graphify-removal milestones on the CI-enforcement milestone -> the decommission wave depends on the CI wave."
+      },
+      {
+        "id": "DL-003",
+        "version": 1,
+        "decision": "Every enforcement gate ships in three moves: Measure (report-only) -> Conform (drive the repo to zero) -> Enforce (flip to blocking in CI + pre-commit).",
+        "reasoning": "Flipping a blocking gate onto a non-conforming repo red-walls every PR -> measure the existing violation count first, size the Conform effort from it, reach zero, then enforce -> ruff/black and next-build gates especially need the Conform pass before the flip."
+      },
+      {
+        "id": "DL-004",
+        "version": 1,
+        "decision": "The web boundary ratchet is a node guard script (scripts/eamos-web-boundary.mjs), not a new vitest harness.",
+        "reasoning": "app/web carries no vitest config and standing one up is scope creep -> the existing test:protein-architecture shows app/web already runs node-guard checks -> implement the web boundary as a .mjs guard reusing the established eamos-*.mjs pattern."
+      },
+      {
+        "id": "DL-005",
+        "version": 1,
+        "decision": "One metered gateway choke point wraps budget-assert -> trace span -> call -> record usage -> end span; the request path uses per-user + global daily caps, the offline CLI path uses an operator/global token budget.",
+        "reasoning": "Caps live at the route layer today, not around the call, and the embed/materialize CLIs bypass them -> wrap every AIGatewayEngine call in with_gateway_guard so budget + span + usage are uniform -> keep two budget modes because forcing a per-user cap onto operator CLIs is wrong; the span ends even on error before the exception rethrows."
+      },
+      {
+        "id": "DL-006",
+        "version": 1,
+        "decision": "CURRENT.md root cause is append surfaces + local-only lint, not loose thresholds; the fix is CI-tier strict lint plus a 5-heading overwrite-whole-file form with zero append surfaces.",
+        "reasoning": "A linter already existed yet CURRENT.md drifted to 483 lines because it ran only from a local untracked hook, non-strict, only when CURRENT.md was staged -> raise the ratchet to executable tier by running strict handoff-lint in CI, and remove the append ledgers (overwrite-whole-file, history in git) so the file cannot grow."
+      },
+      {
+        "id": "DL-007",
+        "version": 1,
+        "decision": "Each shared integration file gets exactly one owning milestone (one-file-one-milestone), matching the one-web-writer-per-wave rule.",
+        "reasoning": "Many bundles touch the same shared files (ci.yml, settings.json, the three package.json, governance markdown) -> two milestones editing one file clobber each other -> group edits by owning file so ci.yml, settings.json, and the governance docs each land in a single coordinated milestone."
+      },
+      {
+        "id": "DL-008",
+        "version": 1,
+        "decision": "The settings.json worktree.symlinkDirectories block rides the gated config-decommission milestone because it shares the file with the graphify PreToolUse hooks.",
+        "reasoning": "worktree.symlinkDirectories and the graphify nudge hooks both live in .claude/settings.json, and graphify-hook removal is gated after CI enforcement -> under one-file-one-milestone both settings.json edits ride the gated milestone -> the worktree scripts and package guards land earlier so parallel work is unblocked; only the auto-symlink convenience waits."
+      },
+      {
+        "id": "DL-009",
+        "version": 1,
+        "decision": "The grep-guard scans git-tracked files only, assembles secret/conflict tokens from fragments, and its exit code gates both the pre-commit hook and a required CI check.",
+        "reasoning": "CI sees only committed files via git grep, and Swordfish leaked a guarded name because the guard's exit code never gated the commit -> Eamos scans tracked files, builds forbidden secret-shape tokens from fragments so the guard passes its own scan, and gates on exit code -> Eamos guards secret shapes + merge-conflict markers (not brand-hiding, since Eamos is the private product repo)."
+      },
+      {
+        "id": "DL-010",
+        "version": 1,
+        "decision": "Never npm install inside a worktree; a preinstall guard aborts it and installs run in the main checkout, visible to lanes via native symlinks with a junction fallback.",
+        "reasoning": "npm v7+ deletes the linked node_modules and forks the lane's dependency tree -> a preinstall guard detects a worktree via .git being a FILE and exits 1 -> installs happen once in the main checkout and worktree.symlinkDirectories (junction fallback without Developer Mode) makes them visible to every lane."
+      },
+      {
+        "id": "DL-011",
+        "version": 1,
+        "decision": "CI required-check stability comes from one aggregate 'ci' job: needs:[all] + if: always() + an explicit per-need success assertion.",
+        "reasoning": "Branch protection references a check by name and a shard/re-org renames it, and a skipped required check can silently pass -> an aggregate job that asserts every need succeeded gives one stable required name that cannot pass on a skip."
+      },
+      {
+        "id": "DL-012",
+        "version": 1,
+        "decision": "SHA-pin every GitHub Action to a digest, add least-privilege permissions blocks, add a zizmor workflow static-analysis job, and keep pins fresh with renovate.",
+        "reasoning": "Mutable @v4/@v5 tag refs are a supply-chain risk and the workflows carry no permissions block -> pin actions to digests, set 'permissions: contents: read', and lint workflows with zizmor -> renovate helpers:pinGitHubActionDigests maintains the pins so hardening does not rot."
+      },
+      {
+        "id": "DL-013",
+        "version": 1,
+        "decision": "Keep the Eamos three-lockfile structure; do not convert to a turbo/nx/pnpm unified monorepo. Assimilate tooling and leanness only.",
+        "reasoning": "A Python backend plus two JS surfaces with separate lockfiles means monorepo unification is large churn for marginal gain -> port the parallel-workflow tooling, gateway choke, ratchets, and leanness without touching the repo's structural shape."
+      },
+      {
+        "id": "DL-014",
+        "version": 1,
+        "decision": "The contract-window skill is adapted to Eamos: freeze Pydantic schemas plus both TS mirrors, additive-only, mirror-diff ratchet via the existing test_frontend_contract.py canary; drop Thalon's drizzle/zod/tenant_id/events specifics.",
+        "reasoning": "Thalon's SOP assumes drizzle/zod/tenant_id/events that Eamos lacks -> adapt the freeze targets to app/backend/app/schemas/*.py + app/web/lib/backend.ts + app/frontend/src/lib/backend.ts, keep additive-only + the mirror-diff ratchet + one lead owner per sprint, and freeze the contract at merge."
+      },
+      {
+        "id": "DL-015",
+        "version": 3,
+        "decision": "Every graphify surface is enumerated and removed, classified by half-life -- NOT blanket-excepted. SCRUBBED as live references: both skill dirs (.claude/skills/graphify + the duplicate .agents/skills/graphify), both agent-hook configs (.claude/settings.json PreToolUse + .codex/hooks.json), the nested .claude/CLAUDE.md '# graphify' trigger block, the graphify sections in CLAUDE.md/AGENTS.md/CODEX.md plus the graphify-update rule, the dedicated memory note memory/graphify-generated-output-hygiene.md and its MEMORY.md wikilink, the stale graphify-command line in agent_handoff/RISKS.md, the graphify AST-update fire-drill in docs/parallel-agents/ratchet-philosophy.md, the dead graphify-out refs in .gitignore/.worktreeinclude/scripts/eamos-encoding-scan.mjs, AND -- newly in scope -- every LIVE graphify reference in the 28 docs/** living specs/plans (procedural `python -m graphify update .` steps, `graphify update is Codex's lane`, `graphify community 537; do not touch it`, `graphify first`/`graphify-confirmed`/`graphify edge` method notes), which a repo-wide `git grep -in graphify` audit surfaced and which are living planning artifacts, NOT dated build-logs, so they are scrubbed by the new M-018. The TOMBSTONE exception is narrowed to genuinely-dated append-only build-log history ONLY: PROGRESS.md and any same-class CHANGELOG.md session entries, plus the agent_handoff/archive/** dated handoff snapshots -- rewriting a dated log falsifies the audit record. docs/ is NO LONGER blanket-tombstoned. Completeness is PROVEN by M-018's repo-wide sweep: `git grep -in graphify -- ':!PROGRESS.md' ':!CHANGELOG.md' ':!agent_handoff/archive/'` must return zero lines (agent_handoff/CURRENT.md is left graphify-free by M-012's lean reshape).",
+        "reasoning": "DL-001 mandated removing EVERY graphify artifact/hook/rule/doc reference, and an earlier pass blanket-classified ALL of docs/ as a historical tombstone -> a live repo-wide `git grep -in graphify` audit disproves that: 28 docs/** files carry LIVE graphify references (procedural `graphify update` steps, the `graphify update is Codex's lane` coordination rule, the `graphify community 537; do not touch it` instruction, `graphify first`/`graphify-confirmed` method notes) that are living planning artifacts, not dated append-only session logs -> classify strictly by half-life: only genuinely-dated build-log history (PROGRESS.md/CHANGELOG.md session entries + agent_handoff/archive/** dated snapshots) is tombstoned, because rewriting a dated log falsifies the audit record; docs/** living specs/plans are IN-SCOPE for scrub -> add M-018 to scrub every live docs/** reference AND run a repo-wide `git grep -in graphify` completeness sweep that returns only the dated tombstones, so DL-001's 'delete every doc reference' mandate is machine-provable, not asserted."
+      },
+      {
+        "id": "DL-016",
+        "version": 1,
+        "decision": "Windows / PowerShell-5.1 quirks are baked as acceptance criteria into each script the plan creates: .ps1 files are pure ASCII and run under Windows PowerShell 5.1 with no pwsh dependency (invoked as `& scripts/x.ps1`); worktree teardown uses `cmd /c \"rmdir /s /q\"`, never PS Remove-Item -Recurse; every tracked-file line scanner (backend/web boundary ratchets, grep-guard, handoff-lint) is CRLF-safe (line-start match, strip trailing CR); the pre-commit hook gates on each guard's exit code with no exit-swallowing chaining; eamos-worktree-setup verifies and re-sets repo-local git identity; and the preinstall guard aborts only when .git is a regular FILE, failing open when .git is absent or a directory.",
+        "reasoning": "Thalon burned real leaks/corruption on these exact Windows traps (a semicolon-chained guard committed and pushed a leaked token because the exit code was ignored; PS Remove-Item -Recurse followed a junction and wiped MAIN node_modules; a BOM-less .ps1 parsed as ANSI and broke; CRLF made whole-line `=======` conflict-marker matches miss and shipped committed markers) -> encode each quirk as a binding acceptance criterion on the artifact it touches so the ratchet is actually correct on this box -> the guard's fail-open-unless-.git-is-a-FILE rule additionally guarantees it cannot block a CI / Vercel / Render full-clone install."
+      },
+      {
+        "id": "DL-017",
+        "version": 1,
+        "decision": "Thalon parallel-workflow governance ports land in AGENTS.md/COORDINATION.md: the lead drives review/rebase/PR/CI-watch/merge/post-merge-wiring end-to-end (founder does only founder-only actions); launching any lane or subagent needs fresh per-session founder approval and approval covers exactly the named runs (each reviewer agent and each fix-round resume is a separate launch); Mode-B (the 'vscode method' — founder-opened terminals at lead-prepped worktrees via eamos-worktree-setup.ps1) is the preferred parallel mode; a dead lane's worktree is inspected/salvaged before any redo; and cheap provably-non-breaking (net-positive) speedups are taken in-run without trading correctness, safety, or approval protocols.",
+        "reasoning": "Eamos already has propose-lanes + LEAD-sole-merger but not the per-launch-approval, Mode-B-prep, dead-lane-salvage, or net-positive-speedup disciplines Thalon paid for (a 2-lane approval ballooned to 6 agent runs; a dead lane's worktree was nearly redone from scratch though it held committed work + global installs) -> port them as named conventions tied to the eamos-worktree-setup.ps1 tooling this plan adds -> subagent runs are the dominant spend so approval is per-launch, the worktree script is what makes Mode-B prep mechanical, and inspect-before-redo prevents duplicated work."
+      },
+      {
+        "id": "DL-018",
+        "version": 1,
+        "decision": "No AI attribution in Eamos GitHub commits or PRs; follow Thalon's convention (attribution: {commit: '', pr: ''} in .claude/settings.json plus the governance-doc rule). Founder directive 2026-07-09, OVERRIDING the earlier keep-the-Co-Authored-By-trailer guidance.",
+        "reasoning": "Founder: 'i dont want anything co-authored by ai to appear in the github, so follow thalon on that' -> the Claude Code harness auto-adds a `Co-Authored-By: Claude` commit trailer and a robot `Generated with Claude Code` PR footer, and the only clean suppression is the settings.json `attribution` block Thalon/Swordfish already use -> port it IN-SCOPE (the settings.json edit rides the settings.json-owning milestone M-014 per one-file-one-milestone, the positive rule goes in the governance docs M-015), record that it supersedes the prior Co-Authored-By mandate, and scope it going-forward only (a retroactive history scrub is a separate, destructive, out-of-scope decision)."
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "RA-001",
+        "alternative": "De-enforce but keep graphify-out/ for occasional semantic navigation of the >5000-node repo.",
+        "rejection_reason": "User chose FULL REMOVE; the semantic-navigation role is intentionally dropped in exchange for zero-cost, red-on-drift structural enforcement.",
+        "decision_ref": "DL-001"
+      },
+      {
+        "id": "RA-002",
+        "alternative": "Convert Eamos to a turbo/nx/pnpm unified monorepo.",
+        "rejection_reason": "Huge churn across a Python backend + two JS surfaces with separate lockfiles for marginal gain.",
+        "decision_ref": "DL-013"
+      },
+      {
+        "id": "RA-003",
+        "alternative": "Junction-only worktrees.",
+        "rejection_reason": "Windows-only quirk (npm v7 clobbers linked node_modules); native worktree.symlinkDirectories via Developer Mode is preferred, junction only as fallback.",
+        "decision_ref": "DL-010"
+      },
+      {
+        "id": "RA-004",
+        "alternative": "Copy Thalon's contract-window skill verbatim.",
+        "rejection_reason": "Eamos has no drizzle/zod/tenant_id/events; the SOP must be adapted to Pydantic schemas + two TS mirrors.",
+        "decision_ref": "DL-014"
+      },
+      {
+        "id": "RA-005",
+        "alternative": "Pull the full eval-as-CI-gate harness (promptfoo/DeepEval/Langfuse) now.",
+        "rejection_reason": "Deferred; only the single metered gateway choke point is pulled from the LLM bundle this cycle.",
+        "decision_ref": "DL-005"
+      },
+      {
+        "id": "RA-006",
+        "alternative": "Implement the web boundary ratchet as a new vitest harness in app/web.",
+        "rejection_reason": "app/web has no vitest config; a node guard reusing the eamos-*.mjs pattern is lighter and matches the existing test:protein-architecture idiom.",
+        "decision_ref": "DL-004"
+      },
+      {
+        "id": "RA-007",
+        "alternative": "Just loosen the handoff-lint thresholds so the 483-line CURRENT.md passes.",
+        "rejection_reason": "Treats the symptom; the root cause is append surfaces + local-only lint, fixed by CI-tier strict lint + a zero-append-surface schema.",
+        "decision_ref": "DL-006"
+      },
+      {
+        "id": "RA-008",
+        "alternative": "Recreate a CLAUDE.md == AGENTS.md hardlink (Swordfish pattern) and hash-verify after each edit.",
+        "rejection_reason": "Not applicable to Eamos: CLAUDE.md, AGENTS.md, and CODEX.md are independent files (verified distinct inodes, link count 1), not hardlinked. They are kept as synced copies edited individually; there is no hardlink to sever, so the Swordfish recreate-and-verify ratchet is unneeded here.",
+        "decision_ref": "DL-015"
+      }
+    ],
+    "constraints": [
+      "Windows: never cd; use git -C / npm --prefix / a subshell only.",
+      "Explicit pathspecs on every git add/rm; never git add -A.",
+      "Agent-agnostic ownership; shared-doc edits go through the Log Edit-Lock; schema-first contracts stay in lockstep (Pydantic app/backend/app/schemas/*.py + app/web/lib/backend.ts + app/frontend/src/lib/backend.ts).",
+      "No flag/provider/env flips without Steven; never run vercel from app/web; deploy from the repo root only; vault access is read-only; never echo secrets.",
+      "Reuse existing Eamos assets, no duplicates: extend the nine eamos-*.mjs guards, scripts/hooks/pre-commit, and scripts/eamos-handoff-lint.mjs; do not duplicate them.",
+      "agent/* lanes go through PR + CI + human-approved merge; never --admin-bypass the gate.",
+      "Surgical changes: every changed line traces to a named ported Thalon/Swordfish pattern; match existing style.",
+      "Fixed ordering (user): boundary ratchets are green + enforced in CI before any graphify artifact or rule is removed.",
+      "Native non-admin symlinks require Windows Developer Mode (SeCreateSymbolicLinkPrivilege); a junction fallback covers the no-Dev-Mode case.",
+      "Out of scope: turbo/nx/pnpm monorepo; VPS self-host / Swordfish Bucket-6 migration; the full eval-as-CI-gate harness; flag/provider/env flips; any deploy.",
+      "No Docker and no admin elevation on the IT-monitored Windows work box (founder policy): local tooling is user-scope only; heavy or Linux-only work runs in CI / cloud, never a local container.",
+      "Windows PowerShell 5.1 is the only PowerShell (no pwsh): repo .ps1 files are pure ASCII and invoked directly (& scripts/x.ps1); multi-line git messages go through a file (git commit -F <file>); never rewrite repo files via PS string surgery (UTF-8/CRLF corruption); worktree dirs are deleted with cmd /c \"rmdir /s /q\", never PS Remove-Item -Recurse."
+    ],
+    "risks": [
+      {
+        "id": "R-001",
+        "risk": "Backend ruff/black Conform effort is unknown; the linters are not even installed and the gate has never run.",
+        "mitigation": "Measure first (ruff check app/backend --statistics; black --check app/backend), size the Conform pass from the count, and keep the autoformat as its own isolated commit.",
+        "anchor": "app/backend/pyproject.toml:15-19",
+        "decision_ref": "DL-003"
+      },
+      {
+        "id": "R-002",
+        "risk": "Flipping a blocking gate onto a non-conforming repo red-walls every PR.",
+        "mitigation": "Three-move rollout; the Enforce flip is conditional on the Conform pass reaching zero.",
+        "anchor": ".github/workflows/ci.yml",
+        "decision_ref": "DL-003"
+      },
+      {
+        "id": "R-003",
+        "risk": "Removing graphify before the boundary ratchets are enforced opens a wiring-blind window.",
+        "mitigation": "Fixed ordering: every graphify-removal milestone depends on the CI-enforcement milestone.",
+        "anchor": "CLAUDE.md",
+        "decision_ref": "DL-002"
+      },
+      {
+        "id": "R-004",
+        "risk": "worktree.symlinkDirectories yields copies or junctions rather than real symlinks without Windows Developer Mode.",
+        "mitigation": "eamos-worktree-setup.ps1 provides a junction fallback and a doctor-style verify; document Developer Mode (SeCreateSymbolicLinkPrivilege) enablement.",
+        "anchor": ".claude/settings.json",
+        "decision_ref": "DL-010"
+      },
+      {
+        "id": "R-005",
+        "risk": "Consolidating the scattered gateway calls could break the offline embed/materialize CLI path, which uses a different budget model.",
+        "mitigation": "with_gateway_guard supports two budget modes; the LLM call-site inventory is pinned by test_boundary so a missed site fails the build.",
+        "anchor": "app/backend/app/services/ai_gateway/engine.py",
+        "decision_ref": "DL-005"
+      },
+      {
+        "id": "R-006",
+        "risk": "Enabling strict handoff-lint on a non-conforming CURRENT.md would red-wall commits/PRs. The --strict gate has TWO Enforce surfaces (the pre-commit hook AND the CI job), each of which must be sequenced after the single Conform.",
+        "mitigation": "M-012 (wave W-002) reshapes CURRENT.md to the lean zero-append form that passes --strict -- the CONFORM. Both Enforce surfaces are sequenced strictly after it and each declares an explicit milestone dependency on M-012: (1) the pre-commit hook eamos-handoff-lint --strict in M-010 (wave W-003, depends_on M-012) and (2) the CI strict handoff-lint job in M-013 (wave W-005, depends_on M-012). Neither Enforce surface can land in the same or an earlier wave than the M-012 Conform.",
+        "anchor": "agent_handoff/CURRENT.md",
+        "decision_ref": "DL-006"
+      },
+      {
+        "id": "R-007",
+        "risk": "A repo-wide black/ruff autoformat pass can collide with concurrent feature edits (notably the gateway consolidation).",
+        "mitigation": "The ruff/black Conform runs as the dedicated M-017 pass (wave W-002) -- a final residual format-only sweep, after each code milestone (M-001/M-002/M-006) has already left its owned files ruff/black-clean -- so the sweep is a no-op on owned files and collides with no concurrent feature edit; M-013 (wave W-005) only flips the gate to blocking, making no format edits itself.",
+        "anchor": "app/backend",
+        "decision_ref": "DL-003"
+      },
+      {
+        "id": "R-008",
+        "risk": "The preinstall worktree guard (guard-worktree-install.mjs, .git-is-a-FILE detection) could abort a legitimate npm install during a CI / Vercel / Render production build and break the deploy.",
+        "mitigation": "The guard aborts ONLY when .git is a regular FILE (a real worktree); it fails open (exit 0) when .git is absent (git archive / shallow tarball) or is a directory (a normal full clone). CI, Vercel, and Render all install from full clones (.git is a directory), so the guard never fires there; M-007 pins this with an explicit fail-open test.",
+        "anchor": "scripts/guard-worktree-install.mjs",
+        "decision_ref": "DL-016"
+      },
+      {
+        "id": "R-009",
+        "risk": "Editing repo files or line-matching them through Windows PowerShell 5.1 corrupts UTF-8 / mis-handles CRLF (BOM-less files read as ANSI; a whole-line '=======' match misses a CRLF-terminated marker; a non-ASCII .ps1 parses wrong).",
+        "mitigation": "Edit repo files via the harness Write/Edit tools, never PS string surgery; every tracked-file scanner strips a trailing CR and matches at line start; .ps1 artifacts are pure ASCII. Baked into M-002/M-003/M-004/M-005/M-007 acceptance.",
+        "anchor": "scripts/",
+        "decision_ref": "DL-016"
+      },
+      {
+        "id": "R-010",
+        "risk": "The no-AI-attribution port suppresses attribution GOING FORWARD only; Eamos's existing commit history already contains Co-Authored-By trailers.",
+        "mitigation": "Scope is new commits/PRs only (the settings.json attribution block + the governance rule). Retroactively scrubbing existing trailers requires a git history rewrite + force-push to main, which is DESTRUCTIVE -- it breaks the parallel-agent branch protection and any collaborator/worktree clones -- so it is a SEPARATE founder decision explicitly NOT in this plan unless the founder asks.",
+        "anchor": ".claude/settings.json",
+        "decision_ref": "DL-018"
+      }
+    ]
+  },
+  "invisible_knowledge": {
+    "system": "Ratchet-strength ladder (Thalon AGENTS.md, mirrored in Eamos docs/parallel-agents/ratchet-philosophy.md): executable (test/CI/constraint) > structural (seam/type/schema) > configuration (tracked settings) > documentary (rule/runbook) > memory/chat (lost). Leave every ratchet as high as it goes and route each lesson to one home, pruning the stale copy. This is WHY graphify (documentary) yields to structural boundary tests (executable), and WHY handoff-lint moves from a local hook to CI. The handoff drifted to 483 lines DESPITE a linter because the linter ran only in a local untracked hook, non-strict, only when CURRENT.md was staged, never in CI or a worktree lane; Thalon's CURRENT.md stays ~45 lines because it has zero append surfaces (overwrite-whole-file; history in git). The gateway is consolidated into one with_gateway_guard choke point so budget assertion, trace span, and usage recording are uniform across the request path (per-user + global caps) and the offline CLI path (operator/global budget). Shared integration files each get one owning milestone; ci.yml is the single enforcement surface with an aggregate stable 'ci' required check.",
+    "invariants": [
+      "Every LLM call routes through the single with_gateway_guard choke point; the LLM call-site inventory is pinned by test_boundary.py.",
+      "os.environ / os.getenv is read only in app/backend/app/core/config.py, with an enumerated exception list (core/sentry.py, cli/eamos_crispr_score_preflight.py).",
+      "Route modules stay thin: no direct import of repository or database internals.",
+      "No merge-conflict markers exist in any git-tracked file.",
+      "Every enforcement gate ships Measure -> Conform -> Enforce; a blocking gate never lands on a non-conforming repo.",
+      "The CI required check is one stable aggregate 'ci' job that cannot pass on a skipped or failed need.",
+      "grep-guard and the boundary ratchets scan git-tracked files only.",
+      "npm install never runs inside a worktree; installs happen in the main checkout and reach lanes via symlink/junction.",
+      "Schema-first contracts stay in lockstep: Pydantic app/backend/app/schemas/*.py + app/web/lib/backend.ts + app/frontend/src/lib/backend.ts; additive-only within a contract window.",
+      "The boundary ratchets are green and enforced in CI before any graphify artifact, hook, rule, or doc reference is removed.",
+      "The preinstall worktree guard aborts only when .git is a regular file; it fails open on a directory .git (normal clone) or an absent .git, so it can never block a CI/Vercel/Render production install.",
+      "Every tracked-file scanner (boundary ratchets, grep-guard, handoff-lint) is CRLF-safe: it strips a trailing CR and matches at line start, never by whole-line equality.",
+      "The graphify decommission is complete only when git grep -i graphify is empty across both skill dirs, both agent-hook configs (.claude/settings.json + .codex/hooks.json), every governance copy (CLAUDE/AGENTS/CODEX/.claude/CLAUDE), the memory note + its MEMORY.md wikilink, the active guardrail doc agent_handoff/RISKS.md, docs/parallel-agents/ratchet-philosophy.md, the ignore/scan refs, agent_handoff/CURRENT.md (graphify-free after M-012's lean reshape), AND every one of the 28 docs/** living specs/plans (scrubbed by M-018). The tombstone exception is narrowed to dated build-log history ONLY -- PROGRESS.md / CHANGELOG.md session logs and agent_handoff/archive/** dated handoff snapshots -- because rewriting a dated log falsifies the audit record; docs/ is NOT blanket-tombstoned. Completeness is PROVEN by M-018's repo-wide sweep: `git grep -in graphify -- ':!PROGRESS.md' ':!CHANGELOG.md' ':!agent_handoff/archive/'` returns zero lines.",
+      "No AI attribution in commits/PRs going forward: .claude/settings.json sets attribution.commit and attribution.pr to empty and CLAUDE.md/AGENTS.md/CODEX.md state the no-attribution rule; retroactively scrubbing existing-history trailers is explicitly out of scope (a destructive history rewrite = separate founder decision).",
+      "The 3-move ordering is encoded as explicit milestone dependencies (depends_on) the QR can verify: the Conform milestones M-017 (ruff/black residual + next-build, W-002) and M-012 (handoff, W-002) precede every Enforce surface -- M-010 depends_on M-012 (pre-commit strict lint, W-003) and M-013 depends_on {M-017, M-012} (CI gates, W-005) -- and the graphify-removal milestones M-014/M-015/M-016 each depends_on M-013 (removal only after CI enforcement). No blocking gate flips in the same or an earlier wave than the milestone that drove the repo to zero for it."
+    ],
+    "tradeoffs": [
+      "Semantic navigation of the >5000-node repo is intentionally dropped (full graphify removal) in exchange for zero-cost, red-on-drift structural enforcement.",
+      "The settings.json worktree convenience block lands late (gated with graphify-hook removal) to honor one-file-one-milestone; parallel-work capability arrives earlier via the worktree scripts and package guards.",
+      "Keeping three lockfiles (no monorepo) preserves the repo shape at the cost of forgoing unified workspace tooling.",
+      "The web boundary ratchet is a node guard rather than a test-runner suite, keeping web test infra light but placing the web ratchet outside a formal runner."
+    ]
+  },
+  "milestones": [
+    {
+      "id": "M-001",
+      "version": 1,
+      "number": 1,
+      "name": "Backend dev-dependency surface for lint tooling",
+      "files": [
+        "app/backend/requirements-dev.txt",
+        "app/backend/pyproject.toml"
+      ],
+      "flags": [],
+      "requirements": [
+        "ruff and black pinned at explicit versions in a tracked dev-deps file the CI backend job installs.",
+        "pyproject [tool.ruff] and [tool.black] line-length 100 remain the authoritative config."
+      ],
+      "acceptance_criteria": [
+        "pip install -r app/backend/requirements-dev.txt resolves ruff + black at the pinned versions and both --version calls run.",
+        "pyproject lint config is unchanged in intent (line-length 100)."
+      ],
+      "tests": [
+        "Measure baseline: ruff check app/backend --statistics and black --check app/backend produce a violation count that sizes the Conform pass."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-001-001",
+          "version": 1,
+          "file": "app/backend/requirements-dev.txt",
+          "function": null,
+          "behavior": "Pins ruff and black at explicit versions matching pyproject line-length 100 so the CI backend job installs the linters before the lint gate runs.",
+          "decision_refs": [
+            "DL-003"
+          ]
+        },
+        {
+          "id": "CI-M-001-002",
+          "version": 1,
+          "file": "app/backend/pyproject.toml",
+          "function": null,
+          "behavior": "Confirms [tool.ruff] and [tool.black] line-length 100 as the single authoritative lint configuration referenced by the dev-deps install.",
+          "decision_refs": [
+            "DL-003"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-002",
+      "version": 2,
+      "number": 2,
+      "name": "Backend structural boundary ratchet",
+      "files": [
+        "app/backend/tests/test_boundary.py"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "Pytest ratchets modeled on test_structure_guard.py: (a) route modules import no repository/database internals; (b) os.environ/getenv is read only in app/core/config.py with an enumerated exception set {core/sentry.py, cli/eamos_crispr_score_preflight.py}; (c) the LLM call-site inventory (AIGatewayEngine construct/.complete/.stream_chat/.embed) is pinned to a fixed allowlist; (d) no merge-conflict markers in tracked files.",
+        "The conflict-marker scan is CRLF-safe: it matches markers at line start (after stripping a trailing CR), not by whole-line equality, because tracked files are CRLF on this Windows box (whole-line matching of a '=======' separator misses a '=======CR' line).",
+        "test_boundary.py itself lands ruff-clean and black-clean so the M-013 residual format-conform sweep produces no diff on it (one-file-one-milestone)."
+      ],
+      "acceptance_criteria": [
+        "pytest app/backend/tests/test_boundary.py is green on the current tree.",
+        "Introducing a route->db import, a stray os.environ read, an unlisted LLM call site, or a conflict marker turns the corresponding ratchet red.",
+        "The conflict-marker ratchet still fires on a CRLF-terminated marker line (line-start match, not whole-line equality).",
+        "ruff check + black --check pass on test_boundary.py, making the M-013 sweep a no-op on it."
+      ],
+      "tests": [
+        "Green on the current tree.",
+        "Red on each of the four injected boundary violations.",
+        "ruff check + black --check pass on test_boundary.py."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-002-001",
+          "version": 1,
+          "file": "app/backend/tests/test_boundary.py",
+          "function": null,
+          "behavior": "Walks app/backend source asserting four structural ratchets: thin routes (no repo/db-internal imports), a single env reader (config.py + enumerated exceptions), a pinned LLM call-site inventory, and absence of merge-conflict markers.",
+          "decision_refs": [
+            "DL-001",
+            "DL-005"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-003",
+      "version": 2,
+      "number": 3,
+      "name": "Web structural boundary guard",
+      "files": [
+        "scripts/eamos-web-boundary.mjs"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "A node guard reusing the eamos-*.mjs pattern over git-tracked files asserts app/web boundaries: route/page modules import no server-internal/db modules; no merge-conflict markers; a backend.ts mirror-parity canary; exit 1 on any violation.",
+        "The conflict-marker scan is CRLF-safe (match at line start, strip a trailing CR), because tracked files are CRLF on this box; do not use whole-line equality against '======='."
+      ],
+      "acceptance_criteria": [
+        "node scripts/eamos-web-boundary.mjs exits 0 on the current tree and exits 1 on an injected boundary violation.",
+        "The conflict-marker check fires on a CRLF-terminated marker (not whole-line equality)."
+      ],
+      "tests": [
+        "Green (exit 0) on the current tree.",
+        "Non-zero exit on an injected app/web boundary violation."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-003-001",
+          "version": 1,
+          "file": "scripts/eamos-web-boundary.mjs",
+          "function": null,
+          "behavior": "Enumerates app/web import boundaries plus a conflict-marker scan over git-tracked files, mirroring the existing test:protein-architecture node-guard idiom, and signals pass/fail via exit code.",
+          "decision_refs": [
+            "DL-004"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-004",
+      "version": 2,
+      "number": 4,
+      "name": "Repository grep-guard (secrets + conflict markers)",
+      "files": [
+        "scripts/eamos-grep-guard.mjs"
+      ],
+      "flags": [
+        "security"
+      ],
+      "requirements": [
+        "A git-tracked-only scan whose forbidden secret-shape tokens (Bearer/sk-/vck_ per guard.py) are assembled from fragments so the guard passes its own scan; also flags merge-conflict markers; exit codes 0=clean / 1=finding / 2=error.",
+        "The secret-shape and conflict-marker scans are CRLF-safe (line-start / substring match, strip a trailing CR), because tracked files are CRLF on this box."
+      ],
+      "acceptance_criteria": [
+        "Exits clean on the current tree; exits non-zero when a secret-shaped token or a conflict marker is committed.",
+        "Detects a CRLF-terminated conflict marker and a secret token adjacent to a CR."
+      ],
+      "tests": [
+        "Clean on the current tree.",
+        "Non-zero on a planted secret-shaped token.",
+        "Non-zero on a planted conflict marker."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-004-001",
+          "version": 1,
+          "file": "scripts/eamos-grep-guard.mjs",
+          "function": null,
+          "behavior": "Runs git grep over tracked files for fragment-assembled secret-shape patterns and merge-conflict markers, communicating pass/fail through the exit code.",
+          "decision_refs": [
+            "DL-009"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-005",
+      "version": 2,
+      "number": 5,
+      "name": "Handoff-lint hardening",
+      "files": [
+        "scripts/eamos-handoff-lint.mjs"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "Thresholds tighten to the lean 5-heading form (total FAIL ~150 / WARN ~120; per-line FAIL ~800; heartbeat cap) and a resume-prompt line cap is added; --strict is the CI/hook mode and returns non-zero on any FAIL; --json/--file/--today are retained.",
+        "Line handling is CRLF-safe (split on CR?LF); the lean form's Resume-prompt block must still carry the date+time stamp line and the explicit 'safe to clear' final line -- the leanness/line-cap must not lint those two away."
+      ],
+      "acceptance_criteria": [
+        "Running --strict against the reshaped lean CURRENT.md passes; running --strict against the current 483-line file fails, proving the ratchet bites.",
+        "CRLF line endings are counted correctly, and a lean CURRENT.md whose Resume-prompt block retains the stamp + 'safe to clear' final line passes."
+      ],
+      "tests": [
+        "--strict fails on the 483-line CURRENT.md.",
+        "--strict passes on the reshaped lean CURRENT.md."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-005-001",
+          "version": 1,
+          "file": "scripts/eamos-handoff-lint.mjs",
+          "function": null,
+          "behavior": "Lowers total/line/heartbeat thresholds to the lean-form budget and adds a resume-prompt line-length cap; --strict returns non-zero on any FAIL for use in CI and the pre-commit hook.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-006",
+      "version": 2,
+      "number": 6,
+      "name": "Single metered LLM gateway choke point",
+      "files": [
+        "app/backend/app/services/ai_gateway/choke.py",
+        "app/backend/app/services/ai_gateway/engine.py",
+        "app/backend/app/services/ai_gateway/guard.py",
+        "app/backend/app/services/chat_service.py",
+        "app/backend/app/core/rate_limit.py",
+        "app/backend/app/agents/client.py",
+        "app/backend/app/services/retrieval.py",
+        "app/backend/app/services/structured.py",
+        "app/backend/app/cli/eamos_literature_embed_materialize.py"
+      ],
+      "flags": [
+        "error-handling",
+        "needs-rationale"
+      ],
+      "requirements": [
+        "with_gateway_guard(mode, budget, op, model, call) wraps budget-assert -> trace span -> call -> record usage -> end span, ending the span even on error before rethrow.",
+        "Request-path mode enforces per-user + global daily caps (rate_limit); offline CLI/materialize mode uses an operator/global token budget.",
+        "Every AIGatewayEngine .complete/.stream_chat/.embed call routes through the wrapper and the pinned call-site inventory in test_boundary matches.",
+        "Every app/backend file M-006 touches lands ruff-clean and black-clean so the M-013 residual format-conform sweep is a no-op on M-006's files (one-file-one-milestone).",
+        "Tests around the choke point stay keyless (mock provider, no live metered gateway call); the wrapper stays transport-agnostic so a future dev-transport (subscription-over-credits, build/test only) can slot in behind it without touching call sites."
+      ],
+      "acceptance_criteria": [
+        "All LLM call sites route through with_gateway_guard; over-budget fails loud; chat per-user + global cap behavior is unchanged; offline embed/materialize uses the operator budget; the test_boundary LLM-inventory ratchet is green.",
+        "ruff check + black --check pass on all app/backend files M-006 touches.",
+        "Gateway tests run keyless (mock provider); no test performs a live metered call."
+      ],
+      "tests": [
+        "Unit: over-budget raises before the call.",
+        "Unit: usage is recorded and the span ends on both success and error.",
+        "Integration: the chat path enforces per-user + global caps.",
+        "Boundary: the LLM call-site inventory stays pinned."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-006-001",
+          "version": 1,
+          "file": "app/backend/app/services/ai_gateway/choke.py",
+          "function": "with_gateway_guard",
+          "behavior": "Wraps budget-assert -> trace span -> call -> record usage -> end span with two budget modes (request per-user+global, offline operator/global), ending the span even when the call raises.",
+          "decision_refs": [
+            "DL-005"
+          ]
+        },
+        {
+          "id": "CI-M-006-002",
+          "version": 1,
+          "file": "app/backend/app/services/ai_gateway/engine.py",
+          "function": null,
+          "behavior": "Routes every AIGatewayEngine .complete/.stream_chat/.embed invocation through with_gateway_guard so budget, span, and usage recording are uniform.",
+          "decision_refs": [
+            "DL-005"
+          ]
+        },
+        {
+          "id": "CI-M-006-003",
+          "version": 1,
+          "file": "app/backend/app/core/rate_limit.py",
+          "function": null,
+          "behavior": "Exposes the per-user and global daily caps to the request-mode wrapper rather than only at the route layer.",
+          "decision_refs": [
+            "DL-005"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-007",
+      "version": 2,
+      "number": 7,
+      "name": "Worktree tooling scripts",
+      "files": [
+        "scripts/eamos-worktree-setup.ps1",
+        "scripts/guard-worktree-install.mjs"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "eamos-worktree-setup.ps1 adapts Thalon worktree-setup.ps1: symlink (native) or junction-fallback app/web/node_modules and app/frontend/node_modules from the main checkout; copy the .worktreeinclude'd gitignored files (app/backend/.env, app/web/.env.local, .context/); verify git identity + eslint + eamos-web-boundary + handoff-lint end-to-end; idempotent; refuse a non-empty real node_modules.",
+        "guard-worktree-install.mjs refuses npm install inside a worktree (detects .git is a FILE) and exits 1 with guidance.",
+        "eamos-worktree-setup.ps1 is pure ASCII and runs under Windows PowerShell 5.1 with NO pwsh dependency (invocable as & scripts/eamos-worktree-setup.ps1); it documents worktree teardown via cmd /c \"rmdir /s /q <path>\" and forbids PS Remove-Item -Recurse (which follows the junction and wipes MAIN node_modules).",
+        "The identity step verifies and, if wrong, RE-SETS the repo-local git user.name/user.email (a fresh clone/worktree otherwise inherits a hostname-guessed work address).",
+        "guard-worktree-install.mjs aborts ONLY when .git is a regular FILE; it fails open (exit 0, allows install) when .git is absent (git archive / shallow tarball) or is a directory (normal clone), so CI, Vercel, and Render full-clone installs are never blocked."
+      ],
+      "acceptance_criteria": [
+        "Running setup in a fresh worktree links both node_modules, copies the includes, and passes verification; the guard exits 1 when cwd is inside a worktree and 0 in the main checkout.",
+        "eamos-worktree-setup.ps1 contains only ASCII bytes and runs on Windows PowerShell 5.1 without pwsh.",
+        "The preinstall guard exits 0 (allows install) when .git is a directory or absent, and exits 1 only when .git is a regular file; a simulated full-clone (.git dir) and a no-.git tree both pass."
+      ],
+      "tests": [
+        "Setup is idempotent (a second run is a no-op).",
+        "guard exits 1 inside a worktree and 0 in the main checkout.",
+        "guard fails open (exit 0) on a .git directory and on an absent .git; aborts (exit 1) only on a .git regular file."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-007-001",
+          "version": 1,
+          "file": "scripts/eamos-worktree-setup.ps1",
+          "function": null,
+          "behavior": "Links the two node_modules roots (junction fallback), copies the .worktreeinclude files, and runs an identity + eslint + boundary + handoff-lint verification; idempotent and refusing a non-empty real node_modules.",
+          "decision_refs": [
+            "DL-010"
+          ]
+        },
+        {
+          "id": "CI-M-007-002",
+          "version": 1,
+          "file": "scripts/guard-worktree-install.mjs",
+          "function": null,
+          "behavior": "A preinstall ratchet that detects a worktree via .git being a FILE and exits 1 so npm install cannot fork a lane's dependency tree.",
+          "decision_refs": [
+            "DL-010"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-008",
+      "version": 1,
+      "number": 8,
+      "name": "Contract-window skill",
+      "files": [
+        ".claude/skills/contract-window/SKILL.md"
+      ],
+      "flags": [
+        "documentation"
+      ],
+      "requirements": [
+        "Adapts the Thalon contract-window SOP to Eamos: freeze app/backend Pydantic schemas (app/backend/app/schemas/*.py) plus both TS mirrors (app/web/lib/backend.ts, app/frontend/src/lib/backend.ts) before lanes fork; additive-only within the window; a mirror-diff ratchet via the existing test_frontend_contract.py canary; one owner per sprint on the lead terminal; freeze at merge; mechanical sequence branch -> contracts -> schema -> mirrors -> tests -> verify -> PR -> freeze. No drizzle/zod/tenant_id/events references."
+      ],
+      "acceptance_criteria": [
+        "SKILL.md documents the Eamos freeze targets, the additive-only invariant, the mirror-diff ratchet, the lead-owner rule, and the mechanical sequence, with no drizzle/zod/tenant_id/events content."
+      ],
+      "tests": [
+        "skip: documentation-only skill; verified by review against the freeze-target + additive-only checklist."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-008-001",
+          "version": 1,
+          "file": ".claude/skills/contract-window/SKILL.md",
+          "function": null,
+          "behavior": "Encodes the adapted contract-window SOP: Eamos freeze targets (Pydantic schemas + two TS mirrors), additive-only, mirror-diff ratchet via test_frontend_contract.py, one lead owner per sprint, and the mechanical branch->freeze sequence.",
+          "decision_refs": [
+            "DL-014"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-009",
+      "version": 1,
+      "number": 9,
+      "name": "Renovate action-pinning config",
+      "files": [
+        "renovate.json"
+      ],
+      "flags": [],
+      "requirements": [
+        "renovate.json extends config:recommended + helpers:pinGitHubActionDigests with timezone Australia/Sydney, scoped to keep the SHA-pinned GitHub Actions fresh."
+      ],
+      "acceptance_criteria": [
+        "renovate.json is valid JSON containing the pin-digests preset and complements the SHA-pinned workflows."
+      ],
+      "tests": [
+        "JSON parses and contains helpers:pinGitHubActionDigests."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-009-001",
+          "version": 1,
+          "file": "renovate.json",
+          "function": null,
+          "behavior": "Extends config:recommended and helpers:pinGitHubActionDigests with an Australia/Sydney timezone so the SHA-pinned actions are kept current.",
+          "decision_refs": [
+            "DL-012"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-010",
+      "version": 3,
+      "number": 10,
+      "name": "Pre-commit hook wiring (installer + hook body)",
+      "files": [
+        "scripts/install-hooks.mjs",
+        "scripts/hooks/pre-commit"
+      ],
+      "flags": [
+        "security"
+      ],
+      "requirements": [
+        "A tracked installer sets git core.hooksPath to scripts/hooks idempotently and degrades to a no-op when node is absent.",
+        "The pre-commit hook runs eamos-vercel-project-guard --require-root-link + eamos-grep-guard + eamos-handoff-lint --strict (when handoff files are staged), and each non-zero exit gates the commit.",
+        "The hook gates on each guard's exit code with explicit checks (set -e / if [ $? -ne 0 ]); it never chains guard + commit with a construct that ignores a non-zero exit, so a failing guard always aborts the commit (the semicolon-chaining trap that leaked a token on Thalon).",
+        "3-move discipline (DL-003) for the pre-commit ENFORCE surface: the hook's `eamos-handoff-lint --strict` step is an ENFORCE move that lands in wave W-003 strictly AFTER the M-012 CONFORM (wave W-002) reshapes CURRENT.md to the lean zero-append form that passes --strict. M-010 declares depends_on M-012 so the strict pre-commit lint can never activate before its Conform. (The same --strict lint is enforced again in CI by M-013 / wave W-005, likewise gated on the M-012 Conform.)"
+      ],
+      "acceptance_criteria": [
+        "After install-hooks, a commit carrying a planted secret/conflict marker or an over-threshold CURRENT.md is blocked; a clean commit passes.",
+        "A guard returning non-zero aborts the commit even though later hook steps follow it (the exit code is not swallowed).",
+        "The strict handoff-lint step in the installed hook is enabled only after M-012 (W-002) has conformed CURRENT.md; running the installed hook against the lean CURRENT.md passes, proving this Enforce surface never meets a non-conforming file."
+      ],
+      "tests": [
+        "install-hooks is idempotent.",
+        "A commit is blocked on a grep-guard finding.",
+        "A commit is blocked on a strict handoff-lint FAIL."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-010-001",
+          "version": 1,
+          "file": "scripts/install-hooks.mjs",
+          "function": null,
+          "behavior": "Sets git core.hooksPath to scripts/hooks idempotently, degrading to a no-op without node.",
+          "decision_refs": [
+            "DL-009"
+          ]
+        },
+        {
+          "id": "CI-M-010-002",
+          "version": 2,
+          "file": "scripts/hooks/pre-commit",
+          "function": null,
+          "behavior": "Chains the vercel-project-guard, grep-guard, and strict handoff-lint so each non-zero exit gates the commit; the strict handoff-lint step is an ENFORCE move (W-003) gated on the M-012 (W-002) CONFORM of CURRENT.md -- M-010 depends_on M-012 so the pre-commit strict lint never activates before its Conform.",
+          "decision_refs": [
+            "DL-009",
+            "DL-006",
+            "DL-003"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-012"
+      ]
+    },
+    {
+      "id": "M-011",
+      "version": 1,
+      "number": 11,
+      "name": "Package manifest wiring",
+      "files": [
+        "package.json",
+        "app/web/package.json",
+        "app/frontend/package.json"
+      ],
+      "flags": [],
+      "requirements": [
+        "Root package.json prepare runs node scripts/install-hooks.mjs so hooks install on npm install.",
+        "app/web and app/frontend preinstall run the guard-worktree-install.mjs ratchet.",
+        "app/web gains a guard:boundary script running node scripts/eamos-web-boundary.mjs, reused by CI and the pre-commit hook."
+      ],
+      "acceptance_criteria": [
+        "Root npm install runs prepare -> install-hooks; npm install inside a worktree aborts via the preinstall guard; npm run guard:boundary -w app/web runs the web boundary guard."
+      ],
+      "tests": [
+        "Root npm install installs hooks.",
+        "npm install inside a worktree aborts.",
+        "The guard:boundary script resolves and runs."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-011-001",
+          "version": 1,
+          "file": "package.json",
+          "function": null,
+          "behavior": "Registers a prepare script that installs the git hooks on npm install.",
+          "decision_refs": [
+            "DL-007"
+          ]
+        },
+        {
+          "id": "CI-M-011-002",
+          "version": 1,
+          "file": "app/web/package.json",
+          "function": null,
+          "behavior": "Registers a preinstall worktree guard and a guard:boundary script for the web boundary ratchet.",
+          "decision_refs": [
+            "DL-010",
+            "DL-004"
+          ]
+        },
+        {
+          "id": "CI-M-011-003",
+          "version": 1,
+          "file": "app/frontend/package.json",
+          "function": null,
+          "behavior": "Registers a preinstall worktree guard.",
+          "decision_refs": [
+            "DL-010"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-012",
+      "version": 1,
+      "number": 12,
+      "name": "Agent-handoff leanness",
+      "files": [
+        "agent_handoff/CURRENT.md",
+        "agent_handoff/README.md",
+        "agent_handoff/WORKTREE_INVENTORY.md",
+        "PROGRESS.md"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "CURRENT.md reshapes to the Thalon-style 5-heading lean form (Stamp / Resume prompt / Pointer / Delta / Next action) with zero append-only surfaces (overwrite-whole-file each wrap; history in git).",
+        "The append-only ledgers (Log-Edit-Lock history, Shared-File-Locks, Cross-Agent-Requests, per-agent Last-Task) relocate into PROGRESS.md; the per-agent split collapses (obsolete after agent-agnostic Hard Rule 3).",
+        "README.md shrinks to ~80 lines and its wrap ritual documents the mechanical rolling-log rotate-to-archive; the stale WORKTREE_INVENTORY.md (contradicts the README read-order 'use git status') is removed."
+      ],
+      "acceptance_criteria": [
+        "CURRENT.md is under 150 lines with the five headings and no append ledgers; eamos-handoff-lint --strict passes on it; README.md is ~80 lines; WORKTREE_INVENTORY.md is removed; the ledgers are preserved in PROGRESS.md."
+      ],
+      "tests": [
+        "eamos-handoff-lint --strict is green on the reshaped CURRENT.md."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-012-001",
+          "version": 1,
+          "file": "agent_handoff/CURRENT.md",
+          "function": null,
+          "behavior": "Reshapes to the 5-heading overwrite-whole-file form with zero append surfaces.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-012-002",
+          "version": 1,
+          "file": "agent_handoff/README.md",
+          "function": null,
+          "behavior": "Shrinks to ~80 lines and documents the mechanical rolling-log rotate-to-archive in the wrap ritual.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-012-003",
+          "version": 1,
+          "file": "PROGRESS.md",
+          "function": null,
+          "behavior": "Absorbs the relocated append-only ledgers (locks, cross-agent requests, per-agent last-task history) so CURRENT.md carries state only.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        },
+        {
+          "id": "CI-M-012-004",
+          "version": 1,
+          "file": "agent_handoff/WORKTREE_INVENTORY.md",
+          "function": null,
+          "behavior": "Removed as stale: it contradicts the README read-order that says to use git status for worktree inventory.",
+          "decision_refs": [
+            "DL-006"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null
+    },
+    {
+      "id": "M-013",
+      "version": 3,
+      "number": 13,
+      "name": "CI hardening + 3-move gate enforcement",
+      "files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/zizmor.yml"
+      ],
+      "flags": [
+        "needs-rationale",
+        "error-handling"
+      ],
+      "requirements": [
+        "Every action is SHA-pinned to a digest and every job carries a least-privilege 'permissions: contents: read' block; a zizmor workflow static-analysis job is added.",
+        "ENFORCE ONLY -- M-013 makes NO Conform edits. Every gate's Conform pass is completed in an EARLIER wave: ruff/black + web next-build by M-017 (wave W-002), strict handoff-lint by M-012 (wave W-002), and both boundary ratchets land green in wave W-001. M-013 (wave W-005) verifies the tree is at zero and only THEN flips ruff+black, next-build, grep-guard, strict handoff-lint, and both boundary ratchets to blocking. M-013 declares depends_on M-017 and M-012 so no gate flips blocking in the same or an earlier wave than the milestone that drove the repo to zero for it.",
+        "An aggregate 'ci' job needs:[all] + if: always() + an explicit per-need success assertion is the single stable required check; enforcing the boundary ratchets here satisfies the graphify-removal precondition (M-014/M-015/M-016 each depends_on M-013)."
+      ],
+      "acceptance_criteria": [
+        "A PR runs SHA-pinned least-privilege jobs; ruff+black, next build, grep-guard, strict handoff-lint, and both boundary ratchets are blocking and green on the conformed tree; the aggregate 'ci' check is the branch-protection required name and cannot pass on a skipped need.",
+        "Every gate M-013 flips to blocking was already driven to zero by an EARLIER-wave Conform milestone (ruff/black + next-build by M-017 / W-002; strict handoff-lint by M-012 / W-002; boundary ratchets green from W-001); M-013 performs no Conform edits itself, so it cannot flip a gate in the same or an earlier wave than its Conform."
+      ],
+      "tests": [
+        "Measure: ruff/black/next-build baselines captured.",
+        "Conform: violations driven to zero.",
+        "Enforce: a PR goes red when any gate fails.",
+        "The aggregate ci job fails if any need is skipped or failed."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-013-001",
+          "version": 2,
+          "file": ".github/workflows/ci.yml",
+          "function": null,
+          "behavior": "SHA-pins actions, adds least-privilege permissions, and adds the backend-lint, web-build, grep-guard, strict handoff-lint, and boundary-ratchet jobs, flipping each to blocking ONLY after its upstream Conform pass (ruff/black + next-build conformed by M-017 in W-002; strict handoff-lint conformed by M-012 in W-002; boundary ratchets green from W-001), behind one stable aggregate 'ci' required check. Enforce-only: M-013 makes no Conform edits and declares depends_on M-017 and M-012.",
+          "decision_refs": [
+            "DL-003",
+            "DL-011",
+            "DL-012",
+            "DL-002"
+          ]
+        },
+        {
+          "id": "CI-M-013-002",
+          "version": 1,
+          "file": ".github/workflows/zizmor.yml",
+          "function": null,
+          "behavior": "Runs zizmor static analysis over .github/workflows to catch workflow security regressions.",
+          "decision_refs": [
+            "DL-012"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-017",
+        "M-012"
+      ]
+    },
+    {
+      "id": "M-014",
+      "version": 4,
+      "number": 14,
+      "name": "Graphify decommission: config + worktree symlink + no-attribution settings",
+      "files": [
+        ".claude/settings.json",
+        ".codex/hooks.json"
+      ],
+      "flags": [],
+      "requirements": [
+        "The two PreToolUse graphify-nudge hooks are removed.",
+        "worktree.symlinkDirectories [app/web/node_modules, app/frontend/node_modules] is added (native symlink, Developer-Mode-gated, junction fallback via the M-007 script); the Stop tsc hook is unchanged.",
+        "The Codex-side graphify hook config .codex/hooks.json (its only PreToolUse hook runs `python -m graphify hook-check`) is removed too, mirroring the .claude/settings.json PreToolUse graphify-hook removal; the file is deleted since graphify was its sole hook.",
+        "Add the no-AI-attribution block attribution: {commit: '', pr: ''} to .claude/settings.json (the Thalon/Swordfish shape), harness-suppressing the auto-added Co-Authored-By: Claude commit trailer and the robot Generated with Claude Code PR footer for every Eamos commit/PR going forward (founder directive 2026-07-09). This block is additive and independent of the graphify-hook removal, so it may be landed as a standalone early commit even though it rides M-014 per one-file-one-milestone; the gitignored settings.local.json may mirror it locally, but the tracked settings.json is the enforced surface."
+      ],
+      "acceptance_criteria": [
+        "settings.json has no graphify hooks, carries worktree.symlinkDirectories, and keeps the Stop tsc hook.",
+        ".codex/hooks.json no longer runs any graphify hook (removed, since graphify was its only hook).",
+        ".claude/settings.json carries attribution.commit == '' and attribution.pr == ''; a new commit or PR made by any agent has no Co-Authored-By trailer and no Generated-with footer."
+      ],
+      "tests": [
+        "settings.json is valid JSON, has no graphify references, and contains worktree.symlinkDirectories."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-014-001",
+          "version": 1,
+          "file": ".claude/settings.json",
+          "function": null,
+          "behavior": "Drops the graphify PreToolUse hooks and adds worktree.symlinkDirectories for the two node_modules roots.",
+          "decision_refs": [
+            "DL-001",
+            "DL-008",
+            "DL-010"
+          ]
+        },
+        {
+          "id": "CI-M-014-002",
+          "version": 1,
+          "file": ".codex/hooks.json",
+          "function": null,
+          "behavior": "Removes the Codex-side graphify PreToolUse hook (python -m graphify hook-check); the file is deleted since graphify was its only hook.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-014-003",
+          "version": 1,
+          "file": ".claude/settings.json",
+          "function": null,
+          "behavior": "Adds attribution: {commit: '', pr: ''} to suppress the auto-added Co-Authored-By commit trailer and the Generated-with PR footer for all Eamos commits/PRs going forward (additive, independent of the graphify-hook removal in the same file).",
+          "decision_refs": [
+            "DL-018"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-013"
+      ]
+    },
+    {
+      "id": "M-015",
+      "version": 5,
+      "number": 15,
+      "name": "Graphify decommission: governance docs + parallel/contract conventions",
+      "files": [
+        "CLAUDE.md",
+        "AGENTS.md",
+        "CODEX.md",
+        ".claude/CLAUDE.md",
+        "COORDINATION.md",
+        "MEMORY.md",
+        "memory/graphify-generated-output-hygiene.md",
+        "docs/parallel-agents/ratchet-philosophy.md",
+        "agent_handoff/RISKS.md"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "All graphify sections and rules are removed: the graphify section and the 'run graphify update after code changes' rule in CLAUDE.md, the graphify section in AGENTS.md, the graphify references in MEMORY.md, and the graphify AST-update fire-drill in ratchet-philosophy.md.",
+        "The structural-boundary-ratchet-as-wiring-tracker convention replaces them; COORDINATION.md and AGENTS.md gain the parallel conventions (contract-window-as-first-lane, dependency-ordered waves, one-web-writer-per-wave, enumerated additive-only out-of-glob edits) and the ratchet-strength ladder tagging (invariant vs opinion).",
+        "The remaining graphify surfaces in this doc set are removed too: CODEX.md (its AGENTS.md description line mentions graphify), the nested .claude/CLAUDE.md '# graphify' skill-registration + /graphify trigger block, and the dedicated memory note memory/graphify-generated-output-hygiene.md (deleted, with its [[graphify-generated-output-hygiene]] wikilink pruned from MEMORY.md). CLAUDE.md, AGENTS.md, and CODEX.md are INDEPENDENT copies (verified separate inodes, NOT hardlinked), so each is edited individually and kept content-consistent.",
+        "COORDINATION.md/AGENTS.md also gain the ported Thalon parallel-workflow conventions: the lead drives review/rebase/PR/CI-watch/merge/post-merge end-to-end; launching any lane/subagent needs fresh per-session founder approval and approval covers exactly the named runs (each reviewer agent and each fix-round resume is a separate launch); Mode-B ('vscode method', founder-opened terminals at lead-prepped eamos-worktree-setup.ps1 worktrees) is the preferred parallel mode; a dead lane's worktree is inspected/salvaged before redo; and cheap provably-non-breaking (net-positive) speedups are taken in-run without trading correctness or approval.",
+        "Add the no-AI-attribution rule to CLAUDE.md, AGENTS.md, and CODEX.md (Eamos commits/PRs carry NO Co-Authored-By trailer or Generated-with footer; the trailer is harness-suppressed via the .claude/settings.json attribution block). A repo grep confirmed Eamos's tracked governance docs state NO Co-Authored-By / Generated-with rule today -- those trailers come from the Claude Code harness, not the repo -- so there is nothing to strip; the change is purely additive (stating the positive no-attribution convention).",
+        "Scrub the single active graphify reference from agent_handoff/RISKS.md (the stale `graphify update .` command line): reword/remove it so no live graphify rule or command reference remains in the active guardrail doc. The 52 graphify references in PROGRESS.md are NOT touched -- they are dated historical build-log entries covered by the narrowed historical-tombstone exception (the dated PROGRESS.md/CHANGELOG.md build-log history and the agent_handoff/archive/** dated snapshots); the docs/** living specs/plans are NOT tombstoned -- their live graphify references are scrubbed by M-018."
+      ],
+      "acceptance_criteria": [
+        "git grep -i graphify over CLAUDE.md, AGENTS.md, CODEX.md, .claude/CLAUDE.md, MEMORY.md, and memory/ is empty; the memory note is deleted and its MEMORY.md wikilink pruned; the boundary ratchets are named as the wiring tracker.",
+        "AGENTS.md/COORDINATION.md carry the lead-drives, per-launch-approval, Mode-B, dead-lane-salvage, and net-positive conventions plus the ratchet-ladder invariant/opinion tagging.",
+        "CLAUDE.md/AGENTS.md/CODEX.md state the no-AI-attribution rule; git grep for 'Co-Authored-By' and 'Generated with Claude' over tracked non-archive files finds no active attribution-mandating rule.",
+        "git grep -i graphify over agent_handoff/RISKS.md is empty (the stale command line is scrubbed); the only in-repo graphify references left after this milestone are the dated PROGRESS.md/CHANGELOG.md build-log history and the agent_handoff/archive/** dated snapshots (the docs/** living specs/plans are scrubbed separately by M-018, not tombstoned)."
+      ],
+      "tests": [
+        "git grep -i graphify over tracked docs is empty except archive tombstones."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-015-001",
+          "version": 2,
+          "file": "CLAUDE.md",
+          "function": null,
+          "behavior": "Removes the graphify section and the post-change graphify-update rule and names the structural boundary ratchets as the cross-code wiring tracker. It also adds the no-AI-attribution rule (no Co-Authored-By trailer / no Generated-with footer; harness-suppressed via .claude/settings.json).",
+          "decision_refs": [
+            "DL-001",
+            "DL-002",
+            "DL-018"
+          ]
+        },
+        {
+          "id": "CI-M-015-002",
+          "version": 3,
+          "file": "AGENTS.md",
+          "function": null,
+          "behavior": "Removes the AGENTS.md graphify section; adds the contract-window-first, dependency-ordered-waves, and one-web-writer conventions plus the ratchet-ladder invariant/opinion tagging; and adds the ported parallel-workflow governance -- lead-drives-end-to-end, fresh per-launch founder approval (each reviewer/fix-resume is a launch), Mode-B 'vscode method' via eamos-worktree-setup.ps1, dead-lane salvage, net-positive speedups. Notes CLAUDE.md/AGENTS.md/CODEX.md are independent synced copies (not hardlinked). It also adds the no-AI-attribution rule (no Co-Authored-By trailer / no Generated-with footer; harness-suppressed via .claude/settings.json).",
+          "decision_refs": [
+            "DL-014",
+            "DL-007",
+            "DL-003",
+            "DL-017",
+            "DL-018"
+          ]
+        },
+        {
+          "id": "CI-M-015-003",
+          "version": 1,
+          "file": "docs/parallel-agents/ratchet-philosophy.md",
+          "function": null,
+          "behavior": "Removes the graphify AST-update fire-drill and reframes the wiring-tracker example around the executable boundary ratchets.",
+          "decision_refs": [
+            "DL-001"
+          ]
+        },
+        {
+          "id": "CI-M-015-004",
+          "version": 2,
+          "file": "CODEX.md",
+          "function": null,
+          "behavior": "Drops the graphify mention from the AGENTS.md description line; kept in sync as an independent copy (separate inode, not hardlinked). It also adds the no-AI-attribution rule (no Co-Authored-By trailer / no Generated-with footer; harness-suppressed via .claude/settings.json).",
+          "decision_refs": [
+            "DL-001",
+            "DL-015",
+            "DL-018"
+          ]
+        },
+        {
+          "id": "CI-M-015-005",
+          "version": 1,
+          "file": ".claude/CLAUDE.md",
+          "function": null,
+          "behavior": "Removes the nested '# graphify' skill-registration block and the /graphify trigger from the nested .claude/CLAUDE.md.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-015-006",
+          "version": 1,
+          "file": "memory/graphify-generated-output-hygiene.md",
+          "function": null,
+          "behavior": "Deletes the dedicated graphify memory note and prunes its [[graphify-generated-output-hygiene]] wikilink from MEMORY.md.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-015-007",
+          "version": 1,
+          "file": "COORDINATION.md",
+          "function": null,
+          "behavior": "Adds the ported parallel-workflow conventions: lead drives review/rebase/PR/CI-watch/merge/post-merge end-to-end; fresh per-launch founder approval (each reviewer agent + fix-round resume is a separate launch); Mode-B 'vscode method' via eamos-worktree-setup.ps1; dead-lane worktree salvage before redo; net-positive in-run speedups.",
+          "decision_refs": [
+            "DL-017"
+          ]
+        },
+        {
+          "id": "CI-M-015-008",
+          "version": 2,
+          "file": "agent_handoff/RISKS.md",
+          "function": null,
+          "behavior": "Scrubs the single active stale graphify reference (the `graphify update .` command line at RISKS.md:130) from the active operational-guardrail doc so no live graphify command/rule reference survives; the dated PROGRESS.md/CHANGELOG.md build-log history and agent_handoff/archive/** snapshots are left intact under the narrowed historical-tombstone exception, while the docs/** living specs/plans are scrubbed by M-018 (not tombstoned).",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-013"
+      ]
+    },
+    {
+      "id": "M-016",
+      "version": 3,
+      "number": 16,
+      "name": "Graphify decommission: artifact deletion",
+      "files": [
+        "graphify-out/",
+        ".graphifyignore",
+        ".claude/skills/graphify/",
+        ".agents/skills/graphify/",
+        ".worktreeinclude",
+        ".gitignore",
+        "scripts/eamos-encoding-scan.mjs"
+      ],
+      "flags": [],
+      "requirements": [
+        "graphify-out/ (510 MB), .graphifyignore, .claude/skills/graphify/, and the duplicate Codex skill dir .agents/skills/graphify/ are deleted via explicit git rm -r pathspecs (never git add -A); the now-dead graphify-out/ references are pruned from .worktreeinclude, from .gitignore (the graphify-out/ ignore line), and from scripts/eamos-encoding-scan.mjs (the 'graphify-out' exclusion entry)."
+      ],
+      "acceptance_criteria": [
+        "graphify-out/, .graphifyignore, .claude/skills/graphify, and .agents/skills/graphify are absent from the tree and index; .worktreeinclude, .gitignore, and scripts/eamos-encoding-scan.mjs carry no graphify-out reference; the repo builds and all CI gates stay green post-deletion.",
+        "git status is clean after the explicit git rm pathspecs; CI is green post-deletion, with the boundary ratchets serving as the wiring tracker."
+      ],
+      "tests": [
+        "git status is clean after the explicit git rm pathspecs.",
+        "CI is green post-deletion, with the boundary ratchets serving as the wiring tracker."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-016-001",
+          "version": 1,
+          "file": "graphify-out/",
+          "function": null,
+          "behavior": "Deleted (510 MB) via an explicit git rm -r pathspec after the boundary ratchets are enforced in CI.",
+          "decision_refs": [
+            "DL-001",
+            "DL-002"
+          ]
+        },
+        {
+          "id": "CI-M-016-002",
+          "version": 1,
+          "file": ".worktreeinclude",
+          "function": null,
+          "behavior": "Prunes the graphify-out/ exclusion line that is dead once the artifact is deleted.",
+          "decision_refs": [
+            "DL-002"
+          ]
+        },
+        {
+          "id": "CI-M-016-003",
+          "version": 1,
+          "file": ".agents/skills/graphify/",
+          "function": null,
+          "behavior": "Deleted via explicit git rm -r pathspec (duplicate Codex graphify skill dir, parallel to .claude/skills/graphify/), after the boundary ratchets are enforced in CI.",
+          "decision_refs": [
+            "DL-001",
+            "DL-002",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-016-004",
+          "version": 1,
+          "file": ".gitignore",
+          "function": null,
+          "behavior": "Prunes the now-dead graphify-out/ ignore line.",
+          "decision_refs": [
+            "DL-002",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-016-005",
+          "version": 1,
+          "file": "scripts/eamos-encoding-scan.mjs",
+          "function": null,
+          "behavior": "Removes the 'graphify-out' entry from the exclusion list (dead once graphify-out/ is deleted).",
+          "decision_refs": [
+            "DL-002",
+            "DL-015"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-013"
+      ]
+    },
+    {
+      "id": "M-017",
+      "version": 1,
+      "number": 17,
+      "name": "Backend + web CONFORM pass (ruff/black residual + next-build) -- no enforce",
+      "files": [
+        "app/backend/",
+        "app/web/"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "MEASURE then CONFORM only (NO enforce): this is the dedicated Conform milestone that drives the ruff/black residual and the web next-build to zero in wave W-002, strictly BEFORE M-013 (wave W-005) flips those two gates to blocking -- exactly mirroring how M-012 (W-002) conforms the handoff before M-010 (W-003) enforces the pre-commit hook. No gate is flipped to blocking here.",
+        "Backend ruff/black residual: run a final FORMAT-ONLY ruff+black sweep over the pre-existing app/backend files as an isolated commit; it is a no-op on files owned by M-001/M-002/M-006 (which land ruff/black-clean per their one-file-one-milestone acceptance) and drives the remaining app/backend tree to zero.",
+        "Web next-build: run `next build` on app/web (Measure); if it fails, fix the build as an isolated Conform commit (excluding app/web/package.json, owned by M-011); the assumption is the build currently passes so the Conform is expected to be a no-op.",
+        "M-017 depends on M-001, M-002, and M-006 (their owned backend files must already be ruff/black-clean so the residual sweep is a no-op on them); it does not touch ci.yml (owned by M-013)."
+      ],
+      "acceptance_criteria": [
+        "After M-017, `ruff check app/backend` and `black --check app/backend` report ZERO violations across the whole app/backend tree, and `next build` on app/web succeeds -- the repo is conformed for BOTH gates before M-013 enforces them.",
+        "The residual backend format sweep produces no diff on files owned by M-001/M-002/M-006 (already clean).",
+        "No gate is flipped to blocking in M-017 (Conform-only); the blocking flip happens later in M-013 (wave W-005), which declares depends_on M-017."
+      ],
+      "tests": [
+        "Measure: ruff/black/next-build baselines captured (violation counts sized).",
+        "Conform: app/backend ruff+black at zero; next build green.",
+        "The residual sweep is a no-op on M-001/M-002/M-006-owned files."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-017-001",
+          "version": 1,
+          "file": "app/backend/",
+          "function": null,
+          "behavior": "Residual FORMAT-ONLY ruff/black conform sweep over the pre-existing app/backend files as an isolated commit; a no-op on files owned by M-001/M-002/M-006 (which land clean), it drives the remaining tree to zero in wave W-002 -- BEFORE M-013 (W-005) flips the ruff+black gate to blocking. Conform move only; no gate flip.",
+          "decision_refs": [
+            "DL-003",
+            "DL-007"
+          ]
+        },
+        {
+          "id": "CI-M-017-002",
+          "version": 1,
+          "file": "app/web/",
+          "function": null,
+          "behavior": "Measures `next build` on app/web and, if broken, conforms it as an isolated commit (excluding app/web/package.json, owned by M-011); drives the web prod-build to green in wave W-002 -- BEFORE M-013 (W-005) flips the next-build gate to blocking. Conform move only; no gate flip.",
+          "decision_refs": [
+            "DL-003"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-001",
+        "M-002",
+        "M-006"
+      ]
+    },
+    {
+      "id": "M-018",
+      "version": 2,
+      "number": 18,
+      "name": "Graphify decommission: live-doc reference scrub + repo-wide completeness sweep",
+      "files": [
+        "docs/architecture-consistency-gate/plan.md",
+        "docs/data-architecture-duckdb-parquet/plan.md",
+        "docs/local-evidence-freshness/plan.md",
+        "docs/post-m9-flip-readiness/plan.md",
+        "docs/prelaunch-batch-workbench-readiness/resume-prompt.md",
+        "docs/prelaunch-batch-workbench-readiness/sprint-c-workbench-live-metrics-plan.md",
+        "docs/repo-structure/audit-2026-06-30.md",
+        "docs/report-acmg-viz/plan.md",
+        "docs/report-acmg-viz/spec.md",
+        "docs/report-backend-source-cache-readiness/plan.md",
+        "docs/report-backend-source-cache-readiness/spec.md",
+        "docs/report-evidence-framework/design.md",
+        "docs/report-evidence-framework/plan.md",
+        "docs/report-evidence-framework/spec.md",
+        "docs/report-performance-optimization/plan.md",
+        "docs/report-redesign/plan.md",
+        "docs/search-index/plan.md",
+        "docs/search-index/spec.md",
+        "docs/search-results-and-answer-hardening/design.md",
+        "docs/search-results-and-answer-hardening/plan.md",
+        "docs/search-results-and-answer-hardening/spec.md",
+        "docs/workbench-3col/spec.md",
+        "docs/workbench-audit/PLAN.md",
+        "docs/workbench-audit/align.md",
+        "docs/workbench-audit/shell-flow.md",
+        "docs/workbench-interpretability/spec.md",
+        "docs/workbench-shell-chrome/spec.md",
+        "docs/workbench-task-a/plan.md"
+      ],
+      "flags": [
+        "needs-rationale"
+      ],
+      "requirements": [
+        "REPO-WIDE AUDIT (explicit): run `git -C D:/eamos grep -in graphify` (case-insensitive) over the WHOLE repo and CLASSIFY every hit into (a) LIVE references in specs/plans/docs that must be scrubbed/reworded to drop the now-dead graphify dependency, vs (b) genuinely-historical DATED build-log entries (PROGRESS.md/CHANGELOG.md-style session logs + agent_handoff/archive/** dated handoff snapshots) preserved as tombstones because rewriting a dated log falsifies the audit record. The audit enumerated 28 docs/** files carrying LIVE graphify references -- procedural `python -m graphify update .` steps, `graphify update is Codex's lane`, `graphify community 537; do not touch it`, `graphify first`/`graphify-confirmed`/`graphify edge` method notes -- all in-scope for scrub (they are NOT dated build-logs). Every non-tombstone graphify hit is now owned: config/hooks by M-014, governance/memory/RISKS.md/ratchet-philosophy by M-015, skill dirs/ignore/scan/artifact by M-016, agent_handoff/CURRENT.md by M-012's lean reshape (its append ledgers relocate to the PROGRESS.md tombstone), and these 28 docs/** files by M-018.",
+        "SCRUB every LIVE graphify reference in the 28 docs/** files listed on this milestone: remove or reword the procedural `graphify update` steps, the `graphify community 537; do not touch it` instruction (docs/workbench-interpretability/spec.md), the `graphify update is Codex's lane` coordination rule (docs/report-acmg-viz/spec.md), and the `graphify first`/`graphify-confirmed`/`graphify edge`/`Method: graphify` method notes (docs/workbench-audit/**, docs/workbench-3col, docs/workbench-shell-chrome, docs/workbench-task-a, docs/report-redesign) so no living spec/plan carries a graphify dependency. docs/parallel-agents/ratchet-philosophy.md is scrubbed by M-015 (CI-M-015-003), NOT here; PROGRESS.md and agent_handoff/archive/** are dated build-log tombstones and are left intact.",
+        "FIXED ORDERING (DL-002): like all graphify removal, this scrub + completeness sweep lands strictly AFTER the boundary ratchets are green and CI-enforced -- M-018 depends_on M-013 (the CI-enforcement milestone, itself depends_on M-017), and additionally depends_on M-014/M-015/M-016 so the FINAL repo-wide completeness sweep runs after every sibling graphify scrub/deletion (placed in a new wave W-007 after W-006)."
+      ],
+      "acceptance_criteria": [
+        "COMPLETENESS PROOF (machine-checkable, DL-001): after the scrub, `git -C D:/eamos grep -in graphify -- ':!PROGRESS.md' ':!CHANGELOG.md' ':!agent_handoff/archive/'` returns ZERO lines -- i.e. the ONLY surviving `git grep -i graphify` hits repo-wide are the dated PROGRESS.md/CHANGELOG.md build-log history and the agent_handoff/archive/** dated snapshots; zero live doc references remain and zero rules/hooks/config/skill/governance/memory surfaces remain.",
+        "git grep -i graphify over docs/** (excluding docs/parallel-agents/ratchet-philosophy.md, owned by M-015) is empty; the finding's named files docs/workbench-interpretability/spec.md, docs/workbench-audit/{PLAN,align,shell-flow}.md, and docs/search-index/{plan,spec}.md carry no graphify reference.",
+        "Each of the 28 docs/** files scrubbed is a living planning artifact (spec/plan/design/audit/resume-prompt), NOT a dated PROGRESS.md/CHANGELOG.md session log, so none of the scrubs rewrites a dated append-only build-log tombstone."
+      ],
+      "tests": [
+        "Repo-wide sweep: `git -C D:/eamos grep -in graphify -- ':!PROGRESS.md' ':!CHANGELOG.md' ':!agent_handoff/archive/'` returns empty (exit 1 = no match) on the scrubbed tree.",
+        "git grep -i graphify over docs/** minus docs/parallel-agents/ratchet-philosophy.md is empty."
+      ],
+      "code_intents": [
+        {
+          "id": "CI-M-018-001",
+          "version": 1,
+          "file": "docs/workbench-interpretability/spec.md",
+          "function": null,
+          "behavior": "REPO-WIDE AUDIT + COMPLETENESS SWEEP: runs `git -C D:/eamos grep -in graphify` over the whole repo, classifies every hit as live-doc-scrub vs dated-tombstone, and scrubs the headline live reference here (`(graphify community 537); do not touch it`). The sweep is the completeness gate -- it asserts `git grep -in graphify -- ':!PROGRESS.md' ':!CHANGELOG.md' ':!agent_handoff/archive/'` returns zero lines, proving DL-001's delete-every-doc-reference mandate (agent_handoff/CURRENT.md is left graphify-free by M-012's lean reshape, which relocates its append ledgers to the PROGRESS.md tombstone).",
+          "decision_refs": [
+            "DL-001",
+            "DL-015",
+            "DL-002"
+          ]
+        },
+        {
+          "id": "CI-M-018-002",
+          "version": 1,
+          "file": "docs/report-backend-source-cache-readiness/plan.md",
+          "function": null,
+          "behavior": "Scrubs the live graphify references across the report-* living specs/plans (report-acmg-viz/{plan,spec}, report-backend-source-cache-readiness/{plan,spec}, report-evidence-framework/{design,plan,spec}, report-performance-optimization/plan, report-redesign/plan): removes the procedural `python -m graphify update .` steps, the `graphify update is Codex's lane` coordination rule, the `semantic graphify pass` notes, and the `graphify edge`-confirmed method note.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-018-003",
+          "version": 1,
+          "file": "docs/search-index/plan.md",
+          "function": null,
+          "behavior": "Scrubs the live graphify references across the search-* living specs/plans (search-index/{plan,spec}, search-results-and-answer-hardening/{design,plan,spec}): removes the `graphify-out/` handoff bullets, the `python -m graphify update .` steps, and the `graphify AST update` notes.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-018-004",
+          "version": 1,
+          "file": "docs/workbench-audit/align.md",
+          "function": null,
+          "behavior": "Scrubs the live graphify references across the workbench-* living specs/plans (workbench-audit/{PLAN,align,shell-flow}, workbench-3col/spec, workbench-shell-chrome/spec, workbench-task-a/plan): removes the `Method: graphify + ...` method headers, the `graphify first`/`graphify-confirmed`/`graphify queried first` notes, and the `graphify update` housekeeping steps.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        },
+        {
+          "id": "CI-M-018-005",
+          "version": 1,
+          "file": "docs/prelaunch-batch-workbench-readiness/resume-prompt.md",
+          "function": null,
+          "behavior": "Scrubs the live graphify references across the remaining living plans (prelaunch-batch-workbench-readiness/{resume-prompt,sprint-c-workbench-live-metrics-plan}, architecture-consistency-gate/plan, data-architecture-duckdb-parquet/plan, local-evidence-freshness/plan, post-m9-flip-readiness/plan, repo-structure/audit-2026-06-30): removes the `python -m graphify update .` verify/next-action steps and the `Graphify was ...` audit line.",
+          "decision_refs": [
+            "DL-001",
+            "DL-015"
+          ]
+        }
+      ],
+      "code_changes": [],
+      "documentation": {
+        "module_comment": null,
+        "docstrings": [],
+        "function_blocks": [],
+        "inline_comments": []
+      },
+      "is_documentation_only": false,
+      "delegated_to": null,
+      "depends_on": [
+        "M-013",
+        "M-014",
+        "M-015",
+        "M-016"
+      ]
+    }
+  ],
+  "waves": [
+    {
+      "id": "W-001",
+      "milestones": [
+        "M-001",
+        "M-002",
+        "M-003",
+        "M-004",
+        "M-005",
+        "M-006",
+        "M-007",
+        "M-008",
+        "M-009"
+      ]
+    },
+    {
+      "id": "W-002",
+      "milestones": [
+        "M-012",
+        "M-017"
+      ]
+    },
+    {
+      "id": "W-003",
+      "milestones": [
+        "M-010"
+      ]
+    },
+    {
+      "id": "W-004",
+      "milestones": [
+        "M-011"
+      ]
+    },
+    {
+      "id": "W-005",
+      "milestones": [
+        "M-013"
+      ]
+    },
+    {
+      "id": "W-006",
+      "milestones": [
+        "M-014",
+        "M-015",
+        "M-016"
+      ]
+    },
+    {
+      "id": "W-007",
+      "milestones": [
+        "M-018"
+      ]
+    }
+  ],
+  "diagram_graphs": [
+    {
+      "id": "DIAG-001",
+      "type": "architecture",
+      "scope": "overview",
+      "title": "Assimilation waves and the fixed-ordering graphify gate",
+      "nodes": [
+        {
+          "id": "foundation",
+          "label": "W1 Foundation: boundary tests, grep-guard, handoff-lint, gateway choke, worktree, contract-window, renovate",
+          "type": "stage"
+        },
+        {
+          "id": "wiring",
+          "label": "W2 Conform (M-012 handoff + M-017 ruff/black+next-build) -> W3 pre-commit enforce (M-010 dep M-012) -> W4 package manifests",
+          "type": "stage"
+        },
+        {
+          "id": "ci",
+          "label": "W5 CI ENFORCE-ONLY (M-013 dep M-017+M-012): SHA-pin + least-priv + zizmor + flip 3-move gates + aggregate 'ci' check",
+          "type": "stage"
+        },
+        {
+          "id": "ratchets",
+          "label": "Boundary ratchets (backend + web)",
+          "type": "gate"
+        },
+        {
+          "id": "decommission",
+          "label": "W6 Graphify decommission: both skill dirs + both hook systems + governance + memory + 510 MB artifact; W7 (M-018) docs/** live-ref scrub + repo-wide git-grep completeness sweep (tombstone = dated PROGRESS/CHANGELOG + archive/ only)",
+          "type": "stage"
+        }
+      ],
+      "edges": [
+        {
+          "source": "foundation",
+          "target": "wiring",
+          "label": "scripts + tests ready",
+          "protocol": null
+        },
+        {
+          "source": "foundation",
+          "target": "ratchets",
+          "label": "defines",
+          "protocol": null
+        },
+        {
+          "source": "wiring",
+          "target": "ci",
+          "label": "gates wired",
+          "protocol": null
+        },
+        {
+          "source": "ratchets",
+          "target": "ci",
+          "label": "conformed + green",
+          "protocol": null
+        },
+        {
+          "source": "ci",
+          "target": "decommission",
+          "label": "boundary ratchets ENFORCED (fixed-ordering gate)",
+          "protocol": null
+        }
+      ],
+      "ascii_render": null
+    },
+    {
+      "id": "DIAG-002",
+      "type": "dataflow",
+      "scope": "invisible_knowledge",
+      "title": "Single metered gateway choke point (with_gateway_guard)",
+      "nodes": [
+        {
+          "id": "caller",
+          "label": "LLM call site (request or offline CLI)",
+          "type": "source"
+        },
+        {
+          "id": "guard",
+          "label": "with_gateway_guard",
+          "type": "wrapper"
+        },
+        {
+          "id": "budget",
+          "label": "budget-assert (per-user+global | operator)",
+          "type": "check"
+        },
+        {
+          "id": "span",
+          "label": "trace span start(op, model)",
+          "type": "span"
+        },
+        {
+          "id": "engine",
+          "label": "AIGatewayEngine call",
+          "type": "service"
+        },
+        {
+          "id": "record",
+          "label": "record usage + end span (even on error)",
+          "type": "sink"
+        }
+      ],
+      "edges": [
+        {
+          "source": "caller",
+          "target": "guard",
+          "label": "routes through",
+          "protocol": null
+        },
+        {
+          "source": "guard",
+          "target": "budget",
+          "label": "assert within budget",
+          "protocol": null
+        },
+        {
+          "source": "budget",
+          "target": "span",
+          "label": "ok -> start span",
+          "protocol": null
+        },
+        {
+          "source": "span",
+          "target": "engine",
+          "label": "invoke",
+          "protocol": null
+        },
+        {
+          "source": "engine",
+          "target": "record",
+          "label": "tokens in/out + cost",
+          "protocol": null
+        },
+        {
+          "source": "record",
+          "target": "caller",
+          "label": "result / rethrow",
+          "protocol": null
+        }
+      ],
+      "ascii_render": null
+    }
+  ],
+  "readme_entries": []
+}
