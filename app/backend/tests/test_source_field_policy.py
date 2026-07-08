@@ -88,12 +88,18 @@ def test_commercial_review_sources_deny_public_serialization() -> None:
     assert decision.reason == "commercial_license_review_required"
 
 
-def test_modern_ai_predictor_policy_allows_alpha_and_gates_esm1b_publicly() -> None:
+def test_modern_ai_predictor_policy_allows_free_reviewed_sources_and_gates_review_lanes() -> None:
     policy = SourceFieldPolicy()
 
     alpha = policy.can_serialize(
         "google_deepmind_alphamissense_hg38",
         "am_pathogenicity",
+    )
+    ci_spliceai = policy.can_serialize("ci_spliceai_model", "max_delta")
+    gpn_msa = policy.can_serialize("gpn_msa_hg38_scores", "gpn_msa_score")
+    pangolin_public = policy.can_serialize(
+        "pangolin_splice_effect_scores",
+        "pangolin_max_delta",
     )
     esm1b_public = policy.can_serialize(
         "esm1b_hg38_assembled_scores",
@@ -106,6 +112,10 @@ def test_modern_ai_predictor_policy_allows_alpha_and_gates_esm1b_publicly() -> N
     )
 
     assert alpha.allowed is True
+    assert ci_spliceai.allowed is True
+    assert gpn_msa.allowed is True
+    assert pangolin_public.allowed is False
+    assert pangolin_public.reason == "commercial_license_review_required"
     assert esm1b_public.allowed is False
     assert esm1b_public.reason == "commercial_license_review_required"
     assert esm1b_fixture.allowed is True

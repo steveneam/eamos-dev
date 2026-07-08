@@ -31,6 +31,10 @@ def app(tmp_path: Path):
         clingen_local_enabled=False,
         clingen_local_sqlite_path=tmp_path / "missing-clingen.sqlite",
         clingen_local_manifest_path=tmp_path / "missing-clingen.manifest.json",
+        clinvar_gene_distribution_index_path=tmp_path / "missing-clinvar-gene-distribution.sqlite",
+        clinvar_gene_distribution_manifest_path=(
+            tmp_path / "missing-clinvar-gene-distribution.manifest.json"
+        ),
         max_upload_mb=5,
         debug=True,
         jwt_secret="test-secret",

@@ -35,6 +35,8 @@ from app.services.predictor_runtime import (
     CAPICE_SOURCE_ID,
     CI_SPLICEAI_SOURCE_ID,
     ESM1B_SOURCE_ID,
+    GPN_MSA_SOURCE_ID,
+    PANGOLIN_SOURCE_ID,
     PRIMATEAI3D_LAUNCH_GATE,
     PRIMATEAI3D_SOURCE_ID,
     REVEL_LAUNCH_GATE,
@@ -43,6 +45,8 @@ from app.services.predictor_runtime import (
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_gpn_msa_runtime_assets,
+    inspect_pangolin_runtime_assets,
     inspect_primateai3d_runtime_assets,
     inspect_revel_runtime_assets,
 )
@@ -220,7 +224,7 @@ def build_backend_build_ledger(
             item_id="gpn_msa",
             label="GPN-MSA precomputed scores",
             group="predictor",
-            source_ids=("gpn_msa_hg38_scores",),
+            source_ids=(GPN_MSA_SOURCE_ID,),
             engine="pysam TabixFile over HTTP byte-range",
             durable_source="remote_hf_or_signed_url_with_supabase_metadata",
             runtime_source="remote_http_byte_range",
@@ -229,12 +233,37 @@ def build_backend_build_ledger(
                 "Ledger calls for zero local cache first; keep remote byte-range reads until "
                 "a measured runtime need justifies materialization."
             ),
-            status="remote_range_reader_planned",
+            status=predictor_statuses["gpn_msa"],
             runtime_wired=False,
             public_serialization_allowed=False,
             blockers=("byte_range_reader_proof", "terms_review"),
             wired_surfaces=("lookup", "report"),
             next_action="Backfill source metadata and prove HTTP range reader semantics.",
+        ),
+        BuildLedgerItem(
+            item_id="pangolin",
+            label="Pangolin splice-effect scores",
+            group="predictor",
+            source_ids=(PANGOLIN_SOURCE_ID,),
+            engine="planned local model or coordinate-keyed score cache",
+            durable_source="source_decision_required",
+            runtime_source="not_wired",
+            render_disk_role="pending_design",
+            storage_decision=(
+                "Frontend exposes Pangolin as a free splice-predictor slot, but backend "
+                "source, terms, and runtime shape still need review before any model/cache "
+                "is staged."
+            ),
+            status=predictor_statuses["pangolin"],
+            runtime_wired=False,
+            public_serialization_allowed=False,
+            blockers=(
+                "source_terms_review",
+                "runtime_design",
+                "score_cache_or_model_materialization",
+            ),
+            wired_surfaces=("lookup", "report"),
+            next_action="Choose the Pangolin source path, record terms, then add a fail-closed adapter.",
         ),
         BuildLedgerItem(
             item_id="ci_spliceai",
@@ -596,6 +625,14 @@ def _predictor_statuses(
         ),
         "ci_spliceai": _safe_admin_predictor_status(
             inspect_ci_spliceai_runtime_assets,
+            settings,
+        ),
+        "gpn_msa": _safe_admin_predictor_status(
+            inspect_gpn_msa_runtime_assets,
+            settings,
+        ),
+        "pangolin": _safe_admin_predictor_status(
+            inspect_pangolin_runtime_assets,
             settings,
         ),
         "capice": _safe_admin_predictor_status(

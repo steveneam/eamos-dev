@@ -323,6 +323,14 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert predictors["ci_spliceai"]["status"] == "score_cache_missing"
     assert predictors["ci_spliceai"]["runtime_wired"] is True
     assert predictors["ci_spliceai"]["public_serialization_allowed"] is True
+    assert predictors["gpn_msa"]["status"] == "remote_range_reader_planned"
+    assert predictors["gpn_msa"]["runtime_wired"] is False
+    assert predictors["gpn_msa"]["public_serialization_allowed"] is False
+    assert predictors["gpn_msa"]["launch_gate"] is None
+    assert predictors["pangolin"]["status"] == "source_decision_required"
+    assert predictors["pangolin"]["runtime_wired"] is False
+    assert predictors["pangolin"]["public_serialization_allowed"] is False
+    assert predictors["pangolin"]["launch_gate"] is None
     assert predictors["capice"]["status"] == "model_artifact_missing"
     assert predictors["capice"]["runtime_wired"] is True
     assert predictors["capice"]["public_serialization_allowed"] is True
@@ -354,6 +362,12 @@ def test_source_asset_preflight_reports_guarded_readiness(
     assert items["alphamissense"]["runtime_wired"] is True
     assert items["esm1b"]["runtime_wired"] is True
     assert items["ci_spliceai"]["runtime_wired"] is True
+    assert items["gpn_msa"]["status"] == "remote_range_reader_planned"
+    assert items["gpn_msa"]["runtime_wired"] is False
+    assert items["gpn_msa"]["public_serialization_allowed"] is False
+    assert items["pangolin"]["status"] == "source_decision_required"
+    assert items["pangolin"]["runtime_wired"] is False
+    assert items["pangolin"]["public_serialization_allowed"] is False
     assert items["capice"]["runtime_wired"] is True
     assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
     assert items["revel"]["runtime_wired"] is True

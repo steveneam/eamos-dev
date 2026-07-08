@@ -670,6 +670,161 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         ),
     ),
     DataSourceRecord(
+        source_id="ci_spliceai_model",
+        display_name="CI-SpliceAI offline annotation model",
+        priority="p6_free_tier_modern_splice_predictor",
+        tier="tier_1_model_and_score_cache_asset",
+        day1_status="complete_artifact_set_required",
+        files_or_api=(
+            "ci_spliceai.keras",
+            "hg38_reference.json",
+            "ci_spliceai_hg38_scores.vcf.gz",
+            "ci_spliceai_hg38_scores.vcf.gz.tbi",
+            "manifest.json",
+        ),
+        upstream_source="CI-SpliceAI offline annotation package",
+        source_url="https://github.com/YStrauch/CI-SpliceAI__Annotation",
+        source_url_status="official_offline_annotation_repo_reviewed_2026_07_04",
+        expected_size="model/reference/score-cache set; exact approved release size pending",
+        storage_target="supabase_private_storage_after_complete_artifact_review",
+        temporary_staging="offline_build_workspace",
+        adapter="ci_spliceai_local_adapter",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_day1_after_review",),
+        allowed_fields=(
+            "ds_ag",
+            "ds_al",
+            "ds_dg",
+            "ds_dl",
+            "dp_ag",
+            "dp_al",
+            "dp_dg",
+            "dp_dl",
+            "max_delta",
+            "max_component",
+            "calibrated_label",
+            "calibration_bucket",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="complete_artifact_set_with_sidecar_manifests",
+        download_approved=False,
+        source_version=None,
+        checksum_plan=(
+            "Record exact model, reference bundle, score cache, tabix index, and "
+            "sidecar manifest checksums before runtime enablement."
+        ),
+        terms_url="https://github.com/YStrauch/CI-SpliceAI__Annotation/blob/master/LICENSE",
+        terms_status=(
+            "Reviewed 2026-07-04: official offline annotation repository license is "
+            "CC BY 4.0. Hosted ci-spliceai.com service separately states it may not "
+            "be used commercially, so Eamos must self-host reviewed artifacts and "
+            "must not depend on the hosted service for production."
+        ),
+        runtime_delivery_modes=("local_path", "object_storage_local_cache", "mounted_volume"),
+        reader_requires_local_path=True,
+        reader_compatibility_proofed=True,
+        notes=(
+            "Backend/admin runtime code is present. Public launch still requires a "
+            "complete local artifact set with manifests and bounded resource proof."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="gpn_msa_hg38_scores",
+        display_name="GPN-MSA hg38 precomputed scores",
+        priority="p6_free_tier_modern_ai_predictor",
+        tier="tier_1_remote_or_object_storage_asset",
+        day1_status="remote_range_reader_planned",
+        files_or_api=("scores.tsv.bgz", "scores.tsv.bgz.tbi", "manifest.json"),
+        upstream_source="songlab/gpn-msa-hg38-scores Hugging Face dataset",
+        source_url="https://huggingface.co/datasets/songlab/gpn-msa-hg38-scores",
+        source_url_status="official_huggingface_score_dataset_reviewed_2026_07_04",
+        expected_size="81.2 GB total Hugging Face dataset as of 2026-07-04",
+        storage_target="remote_range_reader_or_private_storage_after_terms_review",
+        temporary_staging="none_until_source_identity_approved",
+        adapter="planned_http_range_or_tabix_score_reader",
+        license_status=LicenseStatus.COMMERCIAL_ALLOWED,
+        allowed_product_tiers=("public_day1_after_review",),
+        allowed_fields=(
+            "gpn_msa_score",
+            "gpn_msa_llr",
+            "calibrated_label",
+            "calibration_bucket",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="planned_static_score_cache_with_manifest_checksum",
+        download_approved=False,
+        source_version="songlab/gpn-msa-hg38-scores main; collection updated 2025-09-11",
+        checksum_plan=(
+            "Record Hugging Face commit/snapshot, scores.tsv.bgz SHA256, "
+            "scores.tsv.bgz.tbi SHA256, byte-range proof, and public row schema."
+        ),
+        terms_url="https://huggingface.co/datasets/songlab/gpn-msa-hg38-scores",
+        terms_status=(
+            "Reviewed 2026-07-04: Hugging Face dataset card lists MIT license and "
+            "documents tabix queries against a remote scores.tsv.bgz file. Runtime "
+            "still needs a byte-range reader proof and exact snapshot manifest."
+        ),
+        runtime_delivery_modes=("remote_http_byte_range", "object_storage_local_cache"),
+        reader_requires_local_path=False,
+        reader_compatibility_proofed=False,
+        notes=(
+            "Do not emit report rows until provider-cache reports a reviewed source and "
+            "the backend has a fail-closed reader/cache."
+        ),
+    ),
+    DataSourceRecord(
+        source_id="pangolin_splice_effect_scores",
+        display_name="Pangolin splice-effect scores",
+        priority="p6_free_tier_modern_ai_predictor",
+        tier="tier_1_model_or_score_cache_asset",
+        day1_status="source_and_runtime_design_required",
+        files_or_api=("model or coordinate-keyed score cache", "manifest.json"),
+        upstream_source="tkzeng/Pangolin",
+        source_url="https://github.com/tkzeng/Pangolin",
+        source_url_status="official_github_repo_reviewed_2026_07_04",
+        expected_size="pending model/cache source decision",
+        storage_target="private_storage_or_repo_dependency_after_terms_review",
+        temporary_staging="none_until_source_identity_approved",
+        adapter="planned_splice_predictor_adapter",
+        license_status=LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED,
+        allowed_product_tiers=("internal_fixture_only",),
+        allowed_fields=(
+            "pangolin_delta",
+            "pangolin_max_delta",
+            "splice_consequence",
+            "calibrated_label",
+            "calibration_bucket",
+        ),
+        restricted_fields=(),
+        checksum_required=True,
+        source_version_required=True,
+        cache_policy="planned_model_or_score_cache_with_manifest_checksum",
+        download_approved=False,
+        source_version=None,
+        checksum_plan=(
+            "Record model/cache release identity, artifact checksums, index checksums "
+            "when applicable, and runtime resource envelope before enabling."
+        ),
+        terms_url="https://github.com/tkzeng/Pangolin",
+        terms_status=(
+            "Reviewed 2026-07-04: Pangolin paper records GitHub/Zenodo availability "
+            "under GPL-3.0. It is not non-commercial, but server-side dependency, "
+            "packaging, attribution, and redistribution obligations need Eamos "
+            "architecture/legal review before runtime enablement."
+        ),
+        runtime_delivery_modes=("local_path", "object_storage_local_cache", "mounted_volume"),
+        reader_requires_local_path=True,
+        reader_compatibility_proofed=False,
+        notes=(
+            "Treat as a visible planned free slot only. It is not report-row materialized "
+            "until a backend adapter or cache exists and provider-cache is green."
+        ),
+    ),
+    DataSourceRecord(
         source_id="illumina_spliceai_precomputed_hg38",
         display_name="SpliceAI masked SNV hg38 precomputed scores",
         priority="p6_restricted_predictor",

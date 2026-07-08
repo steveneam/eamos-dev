@@ -16,6 +16,8 @@ from app.services.predictor_runtime import (
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_gpn_msa_runtime_assets,
+    inspect_pangolin_runtime_assets,
     inspect_primateai3d_runtime_assets,
     inspect_revel_runtime_assets,
 )
@@ -455,6 +457,8 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
         },
         "mavedb": inspect_mavedb_local_store(settings, verify_checksum=False).to_sanitized_dict(),
         "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
+        "gpn_msa": inspect_gpn_msa_runtime_assets(settings).to_sanitized_dict(),
+        "pangolin": inspect_pangolin_runtime_assets(settings).to_sanitized_dict(),
         "revel": inspect_revel_runtime_assets(settings).to_sanitized_dict(),
         "primateai3d": inspect_primateai3d_runtime_assets(settings).to_sanitized_dict(),
     }

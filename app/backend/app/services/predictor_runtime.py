@@ -28,6 +28,8 @@ ALPHAMISSENSE_SOURCE_ID = "google_deepmind_alphamissense_hg38"
 ALPHAMISSENSE_ASSET_ROLE = "predictor_tabix_tsv"
 ESM1B_SOURCE_ID = "esm1b_hg38_assembled_scores"
 ESM1B_ASSET_ROLE = "predictor_tabix_tsv"
+GPN_MSA_SOURCE_ID = "gpn_msa_hg38_scores"
+PANGOLIN_SOURCE_ID = "pangolin_splice_effect_scores"
 CI_SPLICEAI_SOURCE_ID = "ci_spliceai_model"
 CI_SPLICEAI_MODEL_ASSET_ROLE = "keras_model"
 CI_SPLICEAI_REFERENCE_ASSET_ROLE = "reference_bundle"
@@ -145,7 +147,7 @@ class AdminPredictorRuntimeInspection:
     source_id: str
     status: str
     available: bool
-    launch_gate: str
+    launch_gate: str | None
     status_notes: tuple[str, ...]
     components: tuple[AdminPredictorComponentInspection, ...]
     runtime_wired: bool = True
@@ -446,6 +448,44 @@ def inspect_capice_runtime_assets(settings: Settings) -> AdminPredictorRuntimeIn
         launch_gate=CAPICE_LAUNCH_GATE,
         status_notes=_capice_status_notes(components),
         components=components,
+    )
+
+
+def inspect_gpn_msa_runtime_assets(settings: Settings) -> AdminPredictorRuntimeInspection:
+    """Expose the planned GPN-MSA free-predictor lane without claiming readiness."""
+
+    return AdminPredictorRuntimeInspection(
+        source_id=GPN_MSA_SOURCE_ID,
+        status="remote_range_reader_planned",
+        available=False,
+        launch_gate=None,
+        status_notes=(
+            "source_metadata_required",
+            "byte_range_reader_proof_required",
+            "report_row_not_emitted_until_backend_cache_or_reader_exists",
+        ),
+        components=(),
+        runtime_wired=False,
+        public_serialization_allowed=False,
+    )
+
+
+def inspect_pangolin_runtime_assets(settings: Settings) -> AdminPredictorRuntimeInspection:
+    """Expose the planned Pangolin free-predictor lane without claiming readiness."""
+
+    return AdminPredictorRuntimeInspection(
+        source_id=PANGOLIN_SOURCE_ID,
+        status="source_decision_required",
+        available=False,
+        launch_gate=None,
+        status_notes=(
+            "source_and_terms_review_required",
+            "model_or_score_cache_design_required",
+            "report_row_not_emitted_until_backend_runtime_exists",
+        ),
+        components=(),
+        runtime_wired=False,
+        public_serialization_allowed=False,
     )
 
 

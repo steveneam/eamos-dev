@@ -52,11 +52,14 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 31
+    assert len(source_ids) == 34
     assert {
         "myvariant_gnomad_only",
         "google_deepmind_alphamissense_hg38",
         "esm1b_hg38_assembled_scores",
+        "ci_spliceai_model",
+        "gpn_msa_hg38_scores",
+        "pangolin_splice_effect_scores",
         "intervar_pipeline_config",
         "ncbi_clinvar_vcf",
         "ncbi_refseq_grch38_p14",
@@ -103,7 +106,7 @@ def test_protein_annotation_rows_are_commercial_allowed_but_not_runtime_approved
     assert "SignalP" in (optional_apps.terms_status or "")
 
 
-def test_modern_ai_predictor_rows_record_alpha_ready_and_esm1b_gated() -> None:
+def test_modern_ai_predictor_rows_record_free_predictor_statuses() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
 
     alphamissense = registry.get("google_deepmind_alphamissense_hg38")
@@ -120,6 +123,27 @@ def test_modern_ai_predictor_rows_record_alpha_ready_and_esm1b_gated() -> None:
     assert esm1b.allowed_product_tiers == ("internal_fixture_only",)
     assert "regeneration from the MIT model" in (esm1b.terms_status or "")
     assert esm1b.reader_compatibility_proofed is True
+
+    ci_spliceai = registry.get("ci_spliceai_model")
+    assert ci_spliceai.license_status is LicenseStatus.COMMERCIAL_ALLOWED
+    assert ci_spliceai.download_approved is False
+    assert ci_spliceai.allowed_product_tiers == ("public_day1_after_review",)
+    assert "CC BY 4.0" in (ci_spliceai.terms_status or "")
+    assert ci_spliceai.reader_compatibility_proofed is True
+
+    gpn_msa = registry.get("gpn_msa_hg38_scores")
+    assert gpn_msa.license_status is LicenseStatus.COMMERCIAL_ALLOWED
+    assert gpn_msa.download_approved is False
+    assert gpn_msa.allowed_product_tiers == ("public_day1_after_review",)
+    assert "MIT license" in (gpn_msa.terms_status or "")
+    assert gpn_msa.reader_compatibility_proofed is False
+
+    pangolin = registry.get("pangolin_splice_effect_scores")
+    assert pangolin.license_status is LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED
+    assert pangolin.download_approved is False
+    assert pangolin.allowed_product_tiers == ("internal_fixture_only",)
+    assert "GPL-3.0" in (pangolin.terms_status or "")
+    assert pangolin.reader_compatibility_proofed is False
 
 
 def test_restricted_predictor_rows_are_present_and_unlicensed() -> None:

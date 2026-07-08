@@ -31,6 +31,8 @@ from app.services.predictor_runtime import (
     CI_SPLICEAI_SOURCE_ID,
     ESM1B_ASSET_ROLE,
     ESM1B_SOURCE_ID,
+    GPN_MSA_SOURCE_ID,
+    PANGOLIN_SOURCE_ID,
     PRIMATEAI3D_LAUNCH_GATE,
     PRIMATEAI3D_SCORE_CACHE_ASSET_ROLE,
     PRIMATEAI3D_SOURCE_ID,
@@ -44,6 +46,8 @@ from app.services.predictor_runtime import (
     inspect_capice_runtime_assets,
     inspect_ci_spliceai_runtime_assets,
     inspect_esm1b_runtime_asset,
+    inspect_gpn_msa_runtime_assets,
+    inspect_pangolin_runtime_assets,
     inspect_primateai3d_runtime_assets,
     inspect_revel_runtime_assets,
 )
@@ -85,6 +89,29 @@ def test_esm1b_runtime_plan_is_gated_indexed_predictor_asset() -> None:
     assert plan.manifest_path.name == "esm1b_hg38.tsv.gz.manifest.json"
     assert plan.expected_md5 is None
     assert plan.reader_requires_local_path is True
+
+
+def test_free_planned_predictors_report_precise_not_ready_statuses() -> None:
+    settings = Settings(jwt_secret="test-secret")
+
+    gpn_msa = inspect_gpn_msa_runtime_assets(settings)
+    pangolin = inspect_pangolin_runtime_assets(settings)
+
+    assert gpn_msa.source_id == GPN_MSA_SOURCE_ID
+    assert gpn_msa.status == "remote_range_reader_planned"
+    assert gpn_msa.available is False
+    assert gpn_msa.runtime_wired is False
+    assert gpn_msa.public_serialization_allowed is False
+    assert "byte_range_reader_proof_required" in gpn_msa.status_notes
+    assert gpn_msa.components == ()
+
+    assert pangolin.source_id == PANGOLIN_SOURCE_ID
+    assert pangolin.status == "source_decision_required"
+    assert pangolin.available is False
+    assert pangolin.runtime_wired is False
+    assert pangolin.public_serialization_allowed is False
+    assert "source_and_terms_review_required" in pangolin.status_notes
+    assert pangolin.components == ()
 
 
 def test_alphamissense_preflight_reports_missing_file(tmp_path: Path) -> None:

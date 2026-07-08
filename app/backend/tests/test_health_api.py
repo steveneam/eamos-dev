@@ -195,6 +195,14 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert indexed["ci_spliceai"]["runtime_wired"] is True
     assert indexed["ci_spliceai"]["public_serialization_allowed"] is True
     assert indexed["ci_spliceai"]["launch_gate"] == "ci_spliceai_launch_filter_metadata"
+    assert indexed["gpn_msa"]["status"] == "remote_range_reader_planned"
+    assert indexed["gpn_msa"]["runtime_wired"] is False
+    assert indexed["gpn_msa"]["public_serialization_allowed"] is False
+    assert indexed["gpn_msa"]["launch_gate"] is None
+    assert indexed["pangolin"]["status"] == "source_decision_required"
+    assert indexed["pangolin"]["runtime_wired"] is False
+    assert indexed["pangolin"]["public_serialization_allowed"] is False
+    assert indexed["pangolin"]["launch_gate"] is None
     assert indexed["capice"]["status"] == "model_artifact_missing"
     assert indexed["capice"]["runtime_wired"] is True
     assert indexed["capice"]["public_serialization_allowed"] is True
@@ -240,8 +248,10 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
         "ci_spliceai",
         "esm1b",
         "gene_view",
+        "gpn_msa",
         "literature_rag_embeddings",
         "nmdetective_pvs1",
+        "pangolin",
         "primateai3d",
         "protein_pfam",
         "revel",
@@ -256,6 +266,18 @@ def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> Non
     assert items["ci_spliceai"]["runtime_wired"] is True
     assert items["ci_spliceai"]["public_serialization_allowed"] is True
     assert items["ci_spliceai"]["launch_gate"] == "ci_spliceai_launch_filter_metadata"
+    assert items["gpn_msa"]["status"] == "remote_range_reader_planned"
+    assert items["gpn_msa"]["runtime_wired"] is False
+    assert items["gpn_msa"]["public_serialization_allowed"] is False
+    assert items["gpn_msa"]["blockers"] == ["byte_range_reader_proof", "terms_review"]
+    assert items["pangolin"]["status"] == "source_decision_required"
+    assert items["pangolin"]["runtime_wired"] is False
+    assert items["pangolin"]["public_serialization_allowed"] is False
+    assert items["pangolin"]["blockers"] == [
+        "source_terms_review",
+        "runtime_design",
+        "score_cache_or_model_materialization",
+    ]
     assert items["capice"]["runtime_wired"] is True
     assert items["capice"]["public_serialization_allowed"] is True
     assert items["capice"]["launch_gate"] == "capice_launch_filter_metadata"
