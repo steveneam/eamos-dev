@@ -1,0 +1,73 @@
+{
+  "task_spec": [
+    "SUBJECT: Assimilate Thalon (E:/thalon) + Swordfish (E:/swordfish) engineering-efficiency frameworks into Eamos (D:/eamos).",
+    "In-scope bundles: (1) parallel-workflow tooling + native worktree symlinks + an adapted contract-window skill; (2) agent-handoff leanness; (3) CI/repo safety hardening + ops safety nets; (4) a single metered LLM gateway choke point; (5) structural ratchet tests as the cross-code wiring tracker REPLACING graphify (decommission graphify).",
+    "scope dirs/files: D:/eamos/.github/workflows/ci.yml; scripts/* + scripts/hooks/pre-commit; .claude/settings.json; agent_handoff/*; ~/.claude/plans/next-session-eamos.md rolling log; COORDINATION.md + AGENTS.md; app/backend (ruff/black conformance, gateway choke point, Pydantic schema-window, backend boundary tests); app/web (prod-build gate, backend.ts mirror, web boundary tests); app/frontend; package.json(s) + pyproject.toml; CLAUDE.md + graphify-out/ + .graphifyignore + .claude/skills/graphify (remove); NEW .claude/skills/contract-window",
+    "out-of-scope: converting Eamos to a turbo/nx/pnpm unified monorepo; full VPS self-host / Swordfish Bucket-6 migration (chartered but separate); the full eval-as-CI-gate harness (promptfoo/DeepEval/Langfuse) deferred; no flag/provider/env flips; no deploy",
+    "HARD PRINCIPLE: every enforcement gate ships in 3 moves - Measure (report-only, count existing violations) -> Conform (debug/refactor/lint the existing repo to zero) -> Enforce (flip to blocking in CI + pre-commit). Never flip a blocking gate onto a non-conforming repo. Size the Conform effort FROM the measured count."
+  ],
+  "constraints": [
+    "MUST: Windows; never cd (git -C / npm --prefix / subshell only)",
+    "MUST: explicit pathspecs, never git add -A",
+    "MUST: agent-agnostic ownership; shared-doc edits via Log Edit-Lock; schema-first contracts kept in lockstep (Pydantic app/backend/app/schemas/*.py + 2 TS mirrors app/web/lib/backend.ts + app/frontend/src/lib/backend.ts)",
+    "MUST NOT: flip flags/provider/env without Steven; never run vercel from app/web; deploy from repo root only; vault access read-only; never echo secrets",
+    "MUST: reuse existing Eamos assets, no dupes - Eamos already has 10 scripts/eamos-*.mjs guards, scripts/hooks/pre-commit (dormant), scripts/eamos-handoff-lint.mjs; extend/wire them, do not duplicate",
+    "MUST: agent/* lanes go through PR + CI + human-approved merge; never --admin-bypass the gate",
+    "SHOULD: surgical changes; every changed line traces to a named ported pattern; match existing style"
+  ],
+  "entry_points": [
+    ".github/workflows/ci.yml - 3 jobs (web: tsc+lint+guard:vercel / frontend: lint+vitest / backend: pytest -q ONLY). ADD: backend ruff+black gate, web prod-build (next build) gate, SHA-pin all actions + least-priv 'permissions: contents: read', zizmor workflow-lint job, handoff-lint job (on agent_handoff/**), grep-guard job, optional test shard+aggregate",
+    "app/backend/pyproject.toml:15-19 - ruff+black configured (line-length 100) but NOT enforced in CI (only pytest runs)",
+    "scripts/hooks/pre-commit - EXISTS + executable but DORMANT (git core.hooksPath unset). Wire via tracked installer (scripts/install-hooks) + npm prepare; make it run grep-guard + handoff-lint --strict",
+    "scripts/eamos-handoff-lint.mjs:41-49 - thresholds too loose (total FAIL>500, per-line FAIL>2000); runs only from local untracked .git/hooks pre-commit, non-strict, only when CURRENT.md staged -> ROOT CAUSE the file drifted. Tighten (FAIL~150 total, ~800/line, resume-prompt line cap) + run in CI",
+    "agent_handoff/CURRENT.md - 482 lines: 4 append-only ledgers (Log-Edit-Lock history, Shared-File-Locks x21, Cross-Agent-Requests x29) + 2 per-agent Last-Task sections. Reshape to Thalon 5-heading (Stamp / Resume prompt / Pointer / Delta / Next action); move ledgers to PROGRESS.md; collapse per-agent split (obsolete post agent-agnostic Hard Rule 3)",
+    "agent_handoff/{README.md 256L, RISKS.md, DECISIONS.md, TASKS.md, WORKTREE_INVENTORY.md 18L stale, archive/ on_hold/ database_webserver/ verify/} - shrink README to ~80; delete stale WORKTREE_INVENTORY.md (contradicts README read-order 'use git status'); consolidate subdirs",
+    "~/.claude/plans/next-session-eamos.md - 954-line rolling log, manual-prune never fires; add mechanical rotate-to-archive in the wrap ritual",
+    ".claude/settings.json - has hooks{Stop,PreToolUse}; ADD worktree.symlinkDirectories [app/web/node_modules, app/frontend/node_modules] (native real symlinks; needs Windows Developer Mode = SeCreateSymbolicLinkPrivilege for non-admin)",
+    "app/web/package.json + app/frontend/package.json - ADD preinstall: guard-worktree-install.mjs (refuse npm install in a worktree)",
+    "NEW scripts/eamos-worktree-setup.ps1 - adapt Thalon worktree-setup.ps1: symlink (or junction fallback) the node_modules roots, copy .worktreeinclude'd files, verify identity+lint+guard; for manual Mode-B worktrees",
+    "app/backend/app/services/ai_gateway/{engine.py,guard.py} + services/chat_service.py + core/rate_limit.py - consolidate the scattered gateway call + per-user/global daily caps into ONE metered choke point (budget-assert -> trace span -> call -> record usage -> end span), a la Thalon packages/platform/src/gateway-guard.ts withGatewayGuard; all LLM calls route through it",
+    "NEW app/backend/tests/test_boundary.py + app/web boundary vitest - structural ratchet tests: routes don't import repo/db internals; os.environ read in one config module; LLM call-sites pinned inventory; no merge-conflict markers in tracked files - the graphify wiring-tracker replacement",
+    "CLAUDE.md graphify section + graphify-out/ + .graphifyignore + .claude/skills/graphify + graphify MEMORY refs + the 'run graphify update after code changes' rule - DECOMMISSION",
+    "NEW .claude/skills/contract-window/SKILL.md - adapt Thalon's: freeze app/backend Pydantic schema + BOTH TS mirrors first, additive-only, mirror-diff ratchet test, one owner per sprint on lead terminal, freeze at merge",
+    "COORDINATION.md + AGENTS.md - add conventions: contract-window-as-first-lane, dependency-ordered waves, one-web-writer-per-wave (app/web is the shared integration point), enumerated additive-only out-of-glob edits"
+  ],
+  "rejected_alternatives": [
+    "Unified TS monorepo (turbo/nx/pnpm) - huge churn (Python backend + 2 JS surfaces with separate lockfiles), marginal gain; rejected",
+    "Junction-only worktrees - works but Windows-only quirk (npm v7 clobbers linked node_modules, not true links); prefer native worktree.symlinkDirectories via Developer Mode, junction script only as Mode-B / no-dev-mode fallback",
+    "Keep graphify as wiring source-of-truth - replaced by executable structural ratchet tests (higher ratchet tier, zero API cost, red-on-drift); graphify's only non-overlapping role is semantic navigation of a >5000-node repo (Steven leans full-remove; confirm nav loss before deleting graphify-out/)",
+    "Full eval-as-CI-gate harness now - deferred; only the single metered gateway choke point is pulled from the LLM bundle (structural ratchet tests pulled in separately as graphify's replacement)",
+    "Copy Thalon contract-window skill verbatim - rejected; Eamos has no drizzle/zod/tenant_id/events; adapt to Pydantic-schema + 2-TS-mirror freeze"
+  ],
+  "current_understanding": [
+    "Eamos = React/Vite app/frontend (legacy ref, frozen /runs) + Next.js app/web (active /report+/workbench) + FastAPI/Python app/backend + Supabase; deploys Vercel (auto from main) + Render eamos-dev-sg (autoDeploy OFF, gitignored .render-deploy-hook)",
+    "Eamos already shares the Forj parallel-agent lineage (AGENTS/COORDINATION/agent_handoff/.worktreeinclude/.mcp.json/CI merge gate) + strong ratchet/guard culture (10 scripts/eamos-*.mjs). The GAP vs Thalon/Swordfish is TOOLING + leanness, not governance",
+    "Thalon = npm-workspaces monorepo, ~1050 tests, 7 parallel sprints (most in portfolio); contract-window skill; withGatewayGuard single metered choke point; eval/ harness; structural ratchet tests; worktree-setup.ps1 + preinstall guard + native settings.json worktree.symlinkDirectories; doctor.mjs; ci-grep-guard; sharded CI + stable aggregate 'test' gate; web-build prod-build gate on PR; ratchet ladder in AGENTS.md",
+    "Swordfish = IaC/ops repo chartered to HOST Eamos ('Project 1'; guard assembles 'ea'+'mos'); ci-grep-guard + .githooks/pre-commit (added AFTER a guarded name leaked) + renovate.json + SHA-pinned/zizmor/least-priv workflows; backup-restore-drill CI (verifies content not exit codes); verify-deadman switch; doctor.ps1; runbook-executed-monthly discipline",
+    "How they track cross-code wiring WITHOUT graphify: executable structural ratchet tests enforce import boundaries + single env-reader + pinned LLM-call-site inventory + no-conflict-markers; wiring drift = red build (Thalon tests/boundary.test.ts, packages/engine gateway-boundary.test.ts, shell-inventory.test.ts, tests/board-hygiene.test.ts)"
+  ],
+  "assumptions": [
+    "Eamos = Swordfish 'Project 1' (guard token 'ea'+'mos' + >=50GB reference-disk charter foundation) - M confidence; Steven to confirm the mapping",
+    "Windows Developer Mode is the enabler for native non-admin symlinks (grants SeCreateSymbolicLinkPrivilege) that make worktree.symlinkDirectories create real symlinks - H confidence; Thalon settings.json lists them though its committed .ps1 still junctions (fallback / pre-dev-mode)",
+    "Backend has meaningful existing ruff/black violations (never CI-enforced since pyproject added) so the Conform pass is non-trivial - M-H; MEASURE first (ruff check --statistics, black --check)",
+    "next build on app/web currently passes but is not gated; a broken build could already reach Vercel (cf. known USH2A prod-OOM) - M; MEASURE",
+    "Graphify's enforcement role is fully replaceable by structural tests; only its semantic-navigation role is lost - H"
+  ],
+  "invisible_knowledge": [
+    "RATCHET STRENGTH LADDER: executable(test/CI/constraint/txn) > structural(seam/type/schema) > configuration(tracked settings) > documentary(rule/runbook) > memory/chat(lost). Leave every ratchet as high as it goes; tag each invariant (never loosened) vs opinion (revise freely); route each lesson to ONE home + prune the stale copy. (Thalon AGENTS.md:25; Eamos mirrors it as docs/parallel-agents/ratchet-philosophy.md.) This is WHY graphify (documentary) yields to structural tests, and WHY the handoff-lint must move from a local hook to CI (executable).",
+    "The handoff drifted to 482 lines DESPITE having a linter because the linter runs only in a local untracked .git/hooks/pre-commit, non-strict, only when CURRENT.md is staged - never in CI/worktree-lane/Codex session. Root cause = wiring + schema (append-only ledgers), NOT thresholds. Thalon's CURRENT.md is 45 lines because it has ZERO append surfaces (overwrite-whole-file each wrap; history in git).",
+    "Contract-window invariant: freeze the schema+contract BEFORE lanes fork; additive-only (never rename/remove/tighten outside a window); a mid-sprint contract edit = re-plan, not an ad-hoc edit. Every invariant is extended as an executable test IN THE SAME change (Thalon extends tenant-id.test.ts / events-coverage.test.ts in the window).",
+    "grep-guard must scan TRACKED files only (git grep - CI sees only committed files) AND assemble forbidden tokens from fragments ('ea'+'mos') so the guard passes its own scan. Wire as BOTH pre-commit (exit-code must gate the commit - Swordfish added theirs only after a name leaked because the guard's exit code never gated) AND a required CI check.",
+    "Never npm install inside a worktree - npm v7+ deletes the linked/junctioned node_modules and forks the lane's dependency tree. preinstall guard detects a worktree via .git being a FILE (not a dir). Installs run in the MAIN checkout only; the symlink/junction makes them visible to every lane.",
+    "Gate rollout is 3-move (Measure -> Conform -> Enforce). Flipping a blocking gate onto a non-conforming repo red-walls every PR - the ruff/black + prod-build gates especially need a Conform pass sized from the measured violation count first.",
+    "CI required-check name must stay STABLE across shard/re-org (branch protection references it by name); use an aggregate job (needs:[...] + if: always() + explicit success assert) so a skipped required check cannot silently pass."
+  ],
+  "reference_docs": [
+    "D:/eamos/CLAUDE.md - project rules incl. the graphify section to remove + coding guidelines (simplicity/surgical) + agent-agnostic + coordination pointer",
+    "D:/eamos/agent_handoff/README.md - full coordination protocol (256 lines; Hard Rules 2/3/8/9; shrink)",
+    "D:/eamos/COORDINATION.md + AGENTS.md - parallel-agent lane board + 2 standing rules (propose-lanes, LEAD-sole-merger)",
+    "D:/eamos/docs/parallel-agents/{retrofit-notes.md, ratchet-philosophy.md, mode-a-vault-report.md} - Eamos's own parallel-agent history + the ratchet ladder already imported",
+    "E:/thalon/.claude/skills/contract-window/SKILL.md - the SOP to adapt; E:/thalon/AGENTS.md (ratchet ladder rule 8/9); E:/thalon/COORDINATION.md (lane board + 30-msg lessons log); E:/thalon/scripts/{worktree-setup.ps1, guard-worktree-install.mjs, ci-grep-guard.ps1, doctor.mjs}; E:/thalon/.claude/settings.json worktree.symlinkDirectories; E:/thalon/.github/workflows/ci-guard.yml (shard+aggregate, web-build); E:/thalon/vitest.config.ts (projects); E:/thalon/packages/platform/src/gateway-guard.ts (withGatewayGuard); E:/thalon/tests/boundary.test.ts + packages/engine/src/__tests__/{gateway-boundary,shell-inventory}.test.ts (structural ratchets)",
+    "E:/swordfish/.githooks/pre-commit; E:/swordfish/renovate.json; E:/swordfish/.github/workflows/{ci-guard,zizmor,backup-restore-drill,verify-deadman}.yml; E:/swordfish/scripts/{doctor.ps1, ci-grep-guard.ps1}; E:/swordfish/runbooks/* (runbook-executed-monthly discipline)"
+  ]
+}
