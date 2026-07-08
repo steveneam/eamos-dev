@@ -25,6 +25,13 @@
     "chrome-devtools": {
       "command": "cmd",
       "args": ["/c", "npx", "-y", "chrome-devtools-mcp@latest"]
+    },
+    "obsidian-vault": {
+      "type": "http",
+      "url": "https://127.0.0.1:27124/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OBSIDIAN_API_KEY}"
+      }
     }
   }
 }
