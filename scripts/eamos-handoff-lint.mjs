@@ -9,17 +9,25 @@
 // signatures, so both agents (and an optional pre-commit hook) catch drift at
 // the moment it happens instead of at the next manual trim.
 //
-// Checks:
-//   • total line count                         (WARN >400, FAIL >500)
-//   • any single physical line too long        (FAIL >2000 chars — the
+// Checks (tuned to the lean 5-heading CURRENT.md form — history lives in git):
+//   • total line count                         (WARN >120, FAIL >150 — the lean
+//                                                form is a pointer, not a ledger)
+//   • any single physical line too long        (FAIL >800 chars — the
 //                                                giant-heartbeat anti-pattern)
-//   • Active Status bullet too long            (WARN >1500 chars — a heartbeat
+//   • Active Status bullet too long            (WARN >500 chars — a heartbeat
 //                                                should be a pointer, not a dump)
+//   • Resume-prompt fenced block too long      (WARN >15, FAIL >30 lines — a
+//                                                resume prompt is a pointer ~8
+//                                                lines; its stamp + safe-to-clear
+//                                                lines are always kept, never linted)
 //   • Log Edit-Lock status-line count          (WARN >1, FAIL >4 — it is a
 //                                                single mutex; history is git)
 //   • Shared File Lock entries older than 7d   (WARN — a released/old lock is
 //                                                history; prune to PROGRESS.md)
 //   • Cross-Agent Requests: DONE older than 7d / OPEN older than 14d  (WARN)
+//
+// Line handling is CRLF-safe (split on \r?\n) so char counts and line counts are
+// correct on this Windows box regardless of line endings.
 //
 // Usage:
 //   node scripts/eamos-handoff-lint.mjs                         # lint CURRENT.md
@@ -38,10 +46,12 @@ import { fileURLToPath } from 'node:url'
 // ─────────────────────────────────────────────────────────────────────────────
 // Thresholds (single home — tune here)
 
-const WARN_TOTAL_LINES = 400
-const FAIL_TOTAL_LINES = 500
-const FAIL_LINE_CHARS = 2000
-const WARN_HEARTBEAT_CHARS = 1500
+const WARN_TOTAL_LINES = 120
+const FAIL_TOTAL_LINES = 150
+const FAIL_LINE_CHARS = 800
+const WARN_HEARTBEAT_CHARS = 500
+const WARN_RESUME_PROMPT_LINES = 15
+const FAIL_RESUME_PROMPT_LINES = 30
 const WARN_LOCK_STATUS_LINES = 1
 const FAIL_LOCK_STATUS_LINES = 4
 const STALE_LOCK_DAYS = 7
@@ -117,6 +127,26 @@ function sections(lines) {
 function findSection(secs, prefix) {
   return secs.find((s) => s.title.startsWith(prefix)) ?? null
 }
+// Extract fenced code blocks (``` ... ```). Returns [{start, body}] where body is
+// the inner lines (fences excluded). Used to cap the resume-prompt block length.
+function fencedBlocks(allLines) {
+  const out = []
+  let cur = null
+  allLines.forEach((line, i) => {
+    if (/^\s*```/.test(line)) {
+      if (cur) {
+        out.push(cur)
+        cur = null
+      } else {
+        cur = { start: i + 1, body: [] }
+      }
+    } else if (cur) {
+      cur.body.push(line)
+    }
+  })
+  return out
+}
+
 // Group a section's body lines into bullet-led entries.
 function entries(sectionLines, bulletRe) {
   const out = []
@@ -141,7 +171,7 @@ try {
 } catch (e) {
   fail(`cannot read ${FILE}: ${e.message}`)
 }
-const lines = text.split('\n')
+const lines = text.split(/\r?\n/)
 const lineCount = lines[lines.length - 1] === '' ? lines.length - 1 : lines.length
 const secs = sections(lines)
 const findings = []
@@ -158,6 +188,21 @@ lines.forEach((line, i) => {
   if (line.length > FAIL_LINE_CHARS)
     add('FAIL', `line ${i + 1} is ${line.length} chars (> ${FAIL_LINE_CHARS}) — collapse it; state is a pointer, not a narrative dump: "${line.slice(0, 50).trim()}…"`)
 })
+
+// 2b) Resume-prompt fenced block length. A resume prompt is a pointer (~8 lines
+// per README), not a state dump. The stamp line and the "safe to clear" final
+// line are legitimate content counted within the cap, never flagged individually,
+// so a well-formed lean prompt passes.
+for (const block of fencedBlocks(lines)) {
+  const head = (block.body[0] ?? '').toLowerCase()
+  const looksResume = /resume prompt/.test(head) || block.body.some((l) => /resume prompt/i.test(l))
+  if (!looksResume) continue
+  const n = block.body.length
+  if (n > FAIL_RESUME_PROMPT_LINES)
+    add('FAIL', `resume-prompt block is ${n} lines (> ${FAIL_RESUME_PROMPT_LINES}) — a resume prompt is a pointer (~8 lines); trim to the stamp + delta + gate + safe-to-clear.`)
+  else if (n > WARN_RESUME_PROMPT_LINES)
+    add('WARN', `resume-prompt block is ${n} lines (> ${WARN_RESUME_PROMPT_LINES}) — keep it a pointer, not a state dump.`)
+}
 
 // 3) Active Status heartbeat bullets
 const as = findSection(secs, '## Active Status')
