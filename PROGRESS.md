@@ -1,5 +1,47 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-09 03:36 +1000 - Claude - Assimilation W-002 (Conform): M-017 + M-012 handoff leanness
+
+Thalon/Swordfish assimilation **Wave W-002 (Conform)**, committed local/unpushed
+(`plans/thalon-swordfish-assimilation/`).
+
+- **M-017 (backend + web conform):** ran a final format-only `black` sweep over
+  `app/backend` (13 files) as an isolated commit `1234170` — `ruff check
+  app/backend` and `black --check app/backend` now both report **zero** across
+  the whole tree, driving the gate to zero before M-013 (W-005) flips it
+  blocking. `next build` on `app/web` verified pass (no web code change). No
+  behavior change; isolated per plan risk R-007.
+- **M-012 (agent-handoff leanness):** reshaped `agent_handoff/CURRENT.md` from
+  482 lines to the lean 76-line 5-heading form (Active Status / Log Edit-Lock /
+  Resume Prompt / Pointer / Delta / Next Action) with zero append surfaces —
+  `eamos-handoff-lint --strict` passes on it. Shrunk `agent_handoff/README.md`
+  256 → ~80 lines (protocol preserved terse; wrap ritual now documents the
+  mechanical rolling-log rotate-to-archive). Removed the stale
+  `agent_handoff/WORKTREE_INVENTORY.md` (already a tombstone pointing at `git
+  status`; its 2026-05-17 snapshot remains at
+  `archive/2026-05-18-worktree-inventory.md`).
+
+**Relocated ledgers (this is their new home — CI-M-012-003).** The four
+append-only ledgers that lived in `CURRENT.md` were removed from live state; the
+**full pre-reshape file is preserved verbatim** at
+`agent_handoff/archive/2026-07-09-current-pre-m012-lean-reshape.md` (Hard Rule 1).
+Their status at relocation:
+
+- **Log Edit-Lock history / Shared File Locks:** all RELEASED — pure history,
+  captured in git + the archive snapshot. Nothing live.
+- **Cross-Agent Requests:** the only genuinely-live item carried forward →
+  **Codex to reconcile or delete `origin/codex/m9-clinvar-distribution-ratchet`**
+  (rescued m9 WIP `8d1517e`; appears superseded by main's live gene-bounded
+  `clinvar_gene_distribution_index`). The remaining OPEN CARs are either resolved
+  (backend fail-open follow-up → Codex `ab2f4e4`; Epic A A1–A12 shipped; AI-gateway
+  chat shipped/live; held-cleanup tags landed) or operator/infra-gated and tracked
+  in their own docs (local-asset freshness → `docs/local-evidence-freshness/plan.md`;
+  materialization robustness / M3–M5 seed → `docs/backend-build-ledger-runtime/`).
+  Verbatim text in the archive snapshot.
+- **Per-agent Last-Task narratives:** Claude's rolling detail lives in
+  `~/.claude/plans/next-session-eamos.md`; Codex's latest (2026-07-04 free
+  in-silico predictor readiness) is in the archive snapshot + git history.
+
 ## 2026-07-08 21:22 +1000 - Claude - Committed + pushed Codex's uncommitted 2026-07-04 tree
 
 Re-orientation + cleanup session. Codex was away and had left its 2026-07-04
