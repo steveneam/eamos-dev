@@ -80,3 +80,11 @@ Suggested first drills:
 - Search backfill dry-run command from `docs/search-index/plan.md`.
 - Handoff lint command if the current session touches handoff docs.
 - Graphify AST update command from `AGENTS.md`.
+- **Vault MCP reachability** — `node scripts/eamos-vault-mcp-preflight.mjs`
+  (Claude, 2026-07-08). Run it after wiring the `obsidian-vault` MCP, and on the
+  first launch on a new machine (migration), instead of launching an agent host
+  and guessing why the `mcp__obsidian-vault__*` tools are missing. It reproduces
+  the MCP host's Node-TLS connection path (honoring `NODE_EXTRA_CA_CERTS`,
+  without the `curl -k` shortcut that hides cert-trust failures) and prints the
+  exact 3-condition fix on red. Promotes the vault-MCP setup lesson from a
+  runbook note (documentary rung) to an executable check.
