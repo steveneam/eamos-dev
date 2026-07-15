@@ -12,8 +12,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "Set-Location 'D:\\eamos\\app\\frontend'; npx tsc --noEmit",
-            "shell": "powershell",
+            "command": "cd app/frontend && npx tsc --noEmit",
+            "shell": "bash",
             "timeout": 60,
             "statusMessage": "TypeScript type-check running..."
           }
