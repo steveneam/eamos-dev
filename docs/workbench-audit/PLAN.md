@@ -4,8 +4,8 @@
 > 2026-06-09 4-scout audit (Steven-directed): "Benchling-grade, Apple-like — audit every
 > interactable for purpose-or-remove + improve; the gene view is hard to see vs Benchling;
 > further optimise Task A." Lanes: [gene-viewer](gene-viewer.md) · [primer-crispr](primer-crispr.md)
-> · [align](align.md) · [shell-flow](shell-flow.md). Method: graphify + frontend-design +
-> ui-ux-pro-max, every finding grounded in `file:line` + the token to use.
+> · [align](align.md) · [shell-flow](shell-flow.md). Method: direct source reads +
+> frontend-design + ui-ux-pro-max, every finding grounded in `file:line` + the token to use.
 
 ## Headline
 

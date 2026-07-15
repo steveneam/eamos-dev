@@ -9,7 +9,7 @@ protocol is **not** restated here — it lives once in
 Read in order:
 
 1. `CODEX.md` (this file).
-2. `AGENTS.md` — repo-level graphify/backend predictor rules.
+2. `AGENTS.md` — repo-level workflow, ratchet, and backend predictor rules.
 3. `agent_handoff/README.md` — **the coordination protocol** (hard rules,
    locks, idle, stop/break, resume-prompt format, full read order).
 4. `agent_handoff/CURRENT.md` — live state: Active Status, Log Edit-Lock,
@@ -22,6 +22,11 @@ Read in order:
 
 If the user gives a task brief inside `agent_handoff/CURRENT.md` or chat,
 follow that brief before older context.
+
+Commits and PRs carry no AI attribution: no `Co-Authored-By` trailers and no
+"Generated with" footer. The tracked `.claude/settings.json` attribution block
+is the harness-side enforcement; strip any attribution that still appears
+before merge.
 
 ## Direct Codex Role — agent-agnostic (2026-07-08)
 

@@ -79,7 +79,8 @@ Suggested first drills:
 - CI command set from `.github/workflows/ci.yml`.
 - Search backfill dry-run command from `docs/search-index/plan.md`.
 - Handoff lint command if the current session touches handoff docs.
-- Graphify AST update command from `AGENTS.md`.
+- Backend and web structural boundary guards from `app/backend/tests/test_boundary.py`
+  and `scripts/eamos-web-boundary.mjs`.
 - **Vault MCP reachability** — `node scripts/eamos-vault-mcp-preflight.mjs`
   (Claude, 2026-07-08). Run it after wiring the `obsidian-vault` MCP, and on the
   first launch on a new machine (migration), instead of launching an agent host

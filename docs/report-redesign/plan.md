@@ -97,7 +97,7 @@ or deep-link targets.
   - **Remove** the render at **L718-722** (the JSX comment block + `<MatrixOverture key={\`matrix-${variantKey}\`} payload={payload} request={summaryRequest} />`).
   - `summaryRequest` is STILL used by `effectiveSummaryRequest`/LazySection (L613-631, L780, L835, L970) — **keep the `summaryRequest` prop and the `useMemo` at L249-264.** Only the MatrixOverture consumer goes away. Verify no unused-var lint after removal: `summaryRequest` remains referenced, so no further cleanup needed there.
 - **`components/report/MatrixOverture.tsx`** — **delete the file.**
-- **`components/report/MatrixTile.tsx`** — **delete the file** (only `MatrixOverture` imports it; confirmed by graphify edge `MatrixOverture.tsx --imports--> MatrixTile()`).
+- **`components/report/MatrixTile.tsx`** — **delete the file** (only `MatrixOverture` imports it; confirmed by repository-wide import search).
 - **`components/ui/CarouselDots.tsx`** — **KEEP.** Still imported by `CallCardsGrid.tsx` L3. Do not delete.
 - **`lib/classification.ts`** — **no change.** L9 only references `MatrixTile` in a doc comment; leave the comment or trim the stale clause (cosmetic, optional — note as dead-comment, don't expand scope).
 

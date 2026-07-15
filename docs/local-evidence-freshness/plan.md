@@ -199,4 +199,4 @@ Out of scope until the corpus exists.
   Retain the prior durable artifact across a refresh for instant rollback.
 - Every phase includes no-path / no-secret / no-object-URI verification.
 - Never `git add -A`; keep parked/held files out of commits.
-- After code changes, run `python -m graphify update .`.
+- After code changes, run the relevant structural boundary guards.

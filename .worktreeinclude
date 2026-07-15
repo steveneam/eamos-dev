@@ -5,7 +5,6 @@
 # Deliberately EXCLUDED:
 #   .render-deploy-hook  — backend deploy is main-only + Codex-owned; a worktree never
 #                          deploys shared prod.
-#   graphify-out/        — heavy + rebuildable via `python -m graphify update .`.
 #   node_modules/ .venv/ — install fresh per worktree (see the playbook's env gotcha).
 
 app/backend/.env

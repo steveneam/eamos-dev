@@ -38,7 +38,7 @@ Verify:
 
 - `python -m pytest tests/test_duckdb_analytical.py tests/test_health_api.py -q`
 - `python -m py_compile app/services/duckdb_analytical.py`
-- Ruff, Black check, `git diff --check`, `python -m graphify update .`
+- Ruff, Black check, `git diff --check`, and backend structural boundary tests.
 
 ## Phase 1 - Artifact Contract And Preflight
 

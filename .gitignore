@@ -71,7 +71,4 @@ node_modules_temp/
 .claude/worktrees/
 supabase/supabase/
 
-# Graphify outputs are generated and rebuildable; keep them local.
-graphify-out/
-
 .vercel

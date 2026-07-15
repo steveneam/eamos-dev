@@ -594,8 +594,8 @@ Keep the repo's durable state accurate after each search slice.
 
 Context:
 
-Repo instructions require graphify updates after modifying code. The handoff
-files are shared and must use the log edit-lock protocol before edits.
+Repo instructions require structural boundary checks after modifying code. The
+handoff files are shared and must use the log edit-lock protocol before edits.
 
 Relevant files:
 
@@ -604,20 +604,19 @@ Relevant files:
 - `docs/repo-structure/audit-2026-06-30.md`
 - `agent_handoff/CURRENT.md`
 - `PROGRESS.md`
-- `graphify-out/`
 
 Proposed approach:
 
 - After each code slice, update the relevant docs with actual status.
-- Run `python -m graphify update .` with at least a 360-second timeout.
+- Run the relevant structural boundary guards.
 - Update `agent_handoff/CURRENT.md` heartbeat and `PROGRESS.md` only at useful
   boundaries, using the edit lock.
 
 Acceptance criteria:
 
 - A session clear can resume from the docs and handoff without relying on chat.
-- Graphify AST graph is refreshed after code changes.
-- No semantic graph pass is run unless Steven explicitly asks.
+- Structural boundary guards pass after code changes.
+- No LLM-backed repository semantic pass is run unless Steven explicitly asks.
 
 Source reference:
 
@@ -626,7 +625,7 @@ Source reference:
 Verify:
 
 ```powershell
-python -m graphify update .
+node scripts/eamos-web-boundary.mjs
 git diff --check -- docs/search-index/spec.md docs/search-index/plan.md
 ```
 

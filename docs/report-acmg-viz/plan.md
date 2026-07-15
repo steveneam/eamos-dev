@@ -133,7 +133,7 @@ Acceptance criteria:
 Verify:
 - Focused CLI/unit tests once implemented.
 - `git diff --check`
-- `python -m graphify update .`
+- Relevant structural boundary guards.
 
 Out of scope:
 - B7 frontend rendering and runtime provider flips.

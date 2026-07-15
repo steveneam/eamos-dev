@@ -1,10 +1,9 @@
 """Structural boundary ratchets for the backend (executable wiring tracker).
 
-These four pytest ratchets are the executable-tier replacement for the retired
-graphify wiring tracker: they go red on cross-code drift instead of relying on a
-documentary graph. Each pins a boundary to a frozen allowlist so a NEW violation
-fails the build while the existing (tech-debt) exceptions do not, matching the
-ratchet philosophy in docs/parallel-agents/ratchet-philosophy.md.
+These four pytest ratchets go red on cross-code drift. Each pins a boundary to a
+frozen allowlist so a NEW violation fails the build while the existing
+(tech-debt) exceptions do not, matching the ratchet philosophy in
+docs/parallel-agents/ratchet-philosophy.md.
 
   1. Thin routes        - route modules import no NEW repository/database internals.
   2. Single env reader  - os.environ/os.getenv is read only in config.py plus an

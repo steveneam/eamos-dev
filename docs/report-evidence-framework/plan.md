@@ -330,7 +330,7 @@ cd app/backend
 python -m pytest tests/test_clingen_local.py tests/test_clinical_trials_tool.py tests/test_acmg_points_engine.py tests/test_variant_report_orchestration.py tests/test_protein_annotation_service.py tests/test_supabase_local_model_cache.py -q
 npm --prefix app/web run lint
 git diff --check
-python -m graphify update .
+node scripts/eamos-web-boundary.mjs
 ```
 
 Browser verification after implementation should use `http://localhost:3001`, not `http://127.0.0.1:3001`.

@@ -37,9 +37,9 @@ Evidence:
 
 - Read the launch-readiness assignments, source-cache readiness design/spec/plan,
   report evidence framework design/spec, handoff CARs, and risks.
-- Ran graphify query for the readiness tracks and focused source searches across
-  data currency, gnomAD population status, ClinGen source-cache/identity, in-silico
-  calibration, and ClinVar gene-distribution paths.
+- Ran focused source searches across data currency, gnomAD population status,
+  ClinGen source-cache/identity, in-silico calibration, and ClinVar
+  gene-distribution paths.
 - Confirmed current controls in tests/fixtures: ABCA4 `c.5461-10T>C` as the
   ClinGen VCEP positive control, ABCA4/RPE65 no-identity or neighboring ClinGen
   controls, RPE65 `c.260A>G` for gnomAD-negative/local-evidence regression, and
@@ -522,8 +522,6 @@ Tests and checks run:
 - `npm --prefix app/web run lint` from repo root - passed.
 - `git diff --check -- app/backend/app/services/clinvar_local.py app/backend/app/services/lookup_service.py app/backend/app/core/config.py app/backend/app/api/routes/health.py app/backend/app/cli/eamos_source_asset_preflight.py app/backend/tests/test_clinvar_local_adapter.py app/backend/tests/test_health_api.py app/backend/tests/test_source_asset_preflight_cli.py docs/report-backend-source-cache-readiness/plan.md`
   from repo root - passed with Git line-ending warnings only.
-- `python -m graphify update .` from repo root - passed; graphify updated
-  `graphify-out/graph.json` and `graphify-out/GRAPH_REPORT.md`.
 
 Remaining gap:
 
@@ -564,7 +562,7 @@ Verify:
 ```powershell
 npm --prefix app/web run lint
 git diff --check
-python -m graphify update .
+node scripts/eamos-web-boundary.mjs
 ```
 
 ## Task 7: Docs and Handoff
@@ -614,8 +612,8 @@ Tests run:
 
 - Documentation-only task closeout. Implementation verification is recorded in
   Tasks 1-6 above, including focused backend tests, `npm --prefix app/web run
-  lint`, `git diff --check`, `python -m graphify update .`, and browser
-  verification on `http://localhost:3001`.
+  lint`, `git diff --check`, and browser verification on
+  `http://localhost:3001`.
 
 Remaining gap:
 
@@ -683,10 +681,6 @@ Tests and checks run:
 - `git diff --check -- app/backend/app/services/clinvar_local.py app/backend/tests/test_clinvar_local_adapter.py app/backend/tests/test_health_api.py app/backend/tests/test_source_asset_preflight_cli.py`
   from repo root - passed with Git line-ending warnings only.
 - `npm --prefix app/web run lint` from repo root - passed.
-- `python -m graphify update .` from repo root - passed; graphify updated
-  `graphify-out/graph.json` and `graphify-out/GRAPH_REPORT.md`, and skipped
-  `graph.html` because the repo exceeds the configured visualization node
-  limit.
 
 Remaining gap:
 

@@ -14,9 +14,8 @@ bottom-left utility cluster (Claude / yorby.ai reference shots).
 Every assistant affordance ships as a **COMING SOON** placeholder; nothing here
 wires chat live.
 
-**Method run before writing:** graphify (`query "account settings nav"`,
-`query "ask eamos chat"`, `query "cite feedback dock"`, `explain "WorkRail"`) →
-ui-ux-pro-max `--domain ux` (Navigation / Sticky-nav-overlap, Focus-states High,
+**Method run before writing:** repository/source inspection → ui-ux-pro-max
+`--domain ux` (Navigation / Sticky-nav-overlap, Focus-states High,
 Keyboard-navigation High, Skip-links) + frontend-design lens → both reference
 screenshots → `DESIGN.md`, `work-rail.css`, `Icon.tsx`,
 `docs/workbench-report-sweep/workbench-chrome.md` (the ad-hoc z-stack + proposed
@@ -52,7 +51,7 @@ screenshots → `DESIGN.md`, `work-rail.css`, `Icon.tsx`,
 - **Routes that do NOT exist (net-new if linked):** `/settings`, `/billing`, `/pricing` (pricing is an anchor `/#pricing` on landing; checkout is `/checkout`).
 
 ### 1e. The shared rail (where a bottom cluster would live)
-- **`app/web/components/layout/WorkRail.tsx`** + **`work-rail.css`** — `<WorkRail>` is imported by **`ReportClient`, `CompareClient`, `WorkbenchShell`** (graphify-confirmed). A sticky flex column: `.work-rail-head` (toggle + title + action) → scrollable `.work-rail-body` (flex:1, `overflow-y:auto`). States: inline expanded (336px) ↔ collapsed icon-rail (48px, `.work-rail-stub` vertical label) ↔ `<1200px` off-canvas drawer (`transform:translateX(-100%)`, scrim, FAB). **No footer region today** — the body owns all vertical space below the head. `.wr-section` = the airy icon-led grammar (leading monochrome `Icon*` glyph, uppercase Inter label, far-right quiet `IconChevron`; groups separated by whitespace rhythm).
+- **`app/web/components/layout/WorkRail.tsx`** + **`work-rail.css`** — `<WorkRail>` is imported by **`ReportClient`, `CompareClient`, `WorkbenchShell`** (confirmed by repository-wide import search). A sticky flex column: `.work-rail-head` (toggle + title + action) → scrollable `.work-rail-body` (flex:1, `overflow-y:auto`). States: inline expanded (336px) ↔ collapsed icon-rail (48px, `.work-rail-stub` vertical label) ↔ `<1200px` off-canvas drawer (`transform:translateX(-100%)`, scrim, FAB). **No footer region today** — the body owns all vertical space below the head. `.wr-section` = the airy icon-led grammar (leading monochrome `Icon*` glyph, uppercase Inter label, far-right quiet `IconChevron`; groups separated by whitespace rhythm).
 - **z-index landscape (no `--z-*` scale exists — confirmed `grep`):** nav `.nav-wrap:50`, `TopNav` `z-50`, inline rail `:45`, drawer `:60`, scrim `:55`, **rail FAB `:50` (collides with nav)**, `CiteChip:900`, parked `.ai-pill:100`/`.ai-panel:99`, edit-popover `:50`, export-backdrop `:200`. `AuthMenu` dropdown is `z-[60]`. The workbench-chrome audit already proposes a `--z-*` scale; this dock must slot into it.
 
 ---

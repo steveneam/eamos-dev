@@ -251,7 +251,7 @@ Proposed approach:
 - Merge Task 1, then Task 2, then Task 3.
 - Scope-check each lane before merge.
 - Run focused local verification and browser proof after frontend integration.
-- Update docs and graphify AST after code changes.
+- Update docs and run structural boundary guards after code changes.
 - Deploy from `main` only after Steven approves.
 
 Acceptance criteria:
@@ -265,5 +265,4 @@ Verify:
 
 ```powershell
 git diff --check
-python -m graphify update .
 ```

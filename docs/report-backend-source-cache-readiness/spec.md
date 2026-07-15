@@ -292,7 +292,7 @@ class CuratedVariantsDistribution(BaseModel):
   present and the old exclusion warning when it is not.
 - Provider-cache/source preflight emits sanitized readiness for all new assets.
 - `npm --prefix app/web run lint`, focused backend tests, `git diff --check`,
-  and `python -m graphify update .` pass before any later commit.
+  and the structural boundary guards pass before any later commit.
 
 ## Test Matrix
 

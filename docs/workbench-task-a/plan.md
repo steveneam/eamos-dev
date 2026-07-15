@@ -11,8 +11,7 @@ design — those decisions are made:
 - `docs/workbench-shell-chrome/spec.md` → a non-scrolling `.work-rail-foot` cluster: reuse `AuthMenu.tsx` wholesale (upward popover), a COMING-SOON `IconSparkle` Ask launcher (parked), scope Cite → `/report` (TopNav button + `useCiteModal` hook), Feedback → account menu, remove the global `<CiteChip>` mount.
 - `docs/workbench-audit/shell-flow.md §4` → resolves every open question in both specs (answers reproduced in §0 below).
 
-**Method honoured.** graphify queried first (`query "workbench canvas viewer tool
-panel layout WorkRail rail foot account"`) — confirmed the canonical reuse set is
+**Method honoured.** Repository/source inspection confirmed the canonical reuse set is
 `WorkRail`/`WorkRailSection` (`components/layout/WorkRail.tsx`), `Icon.tsx`,
 `LibrarySection`, and that **no** separate account/chat module exists to reuse
 beyond `AuthMenu.tsx`. ui-ux-pro-max + frontend-design lenses are already baked
@@ -111,7 +110,7 @@ STEP 8  Viewer minimise/restore/maximise handles (CanvasHeader + stub)          
 STEP 9  Container-query (@container) panel reflow for the tool rail                 🟢
 STEP 10 <900px vertical-stack fallback + reduced-motion + a11y pass                 🟡
 ─────── HOUSEKEEPING ─────────────────────────────────────────────────────────────
-STEP 11 Reconcile DESIGN.md:559-571; demote Scratchpad "Ask" tab; graphify update  🟢
+STEP 11 Reconcile DESIGN.md:559-571; demote Scratchpad "Ask" tab; boundary checks 🟢
 ```
 
 🟡 = durable/structural/persistent-element (covered by Steven's approval of this plan).
@@ -583,9 +582,9 @@ extremes.
   `~:375-396`) to a clean **Log/Notes 2-tab strip** once the rail-foot Ask launcher
   (STEP 3) ships — one Ask home, not two ([[feedback_askeamos_parked]]). Remove the
   `'ask'` tab button + its body branch + any now-unused state. Your-own-orphan cleanup.
-- **`python -m graphify update .`** after the code lands (AST-only, no API cost) per
-  the project rule, so the graph reflects the new modules
-  (`lib/work-rail-collapse.ts`, `lib/useCiteModal.ts`, the rail-foot, the grid).
+- Run the structural boundary guards after the code lands so the new modules
+  (`lib/work-rail-collapse.ts`, `lib/useCiteModal.ts`, the rail-foot, the grid)
+  are covered by executable wiring checks.
 
 **Browser-verify.** Scratchpad shows Log / Notes only (no Ask tab); the rail-foot Ask
 launcher is the sole Ask affordance. DESIGN.md table matches the shipped shell.
@@ -633,7 +632,7 @@ case the audit flags (`tools.ts:41-46`) is **out of scope** for Task A; mention,
 | STEP 0 | rail persistence unchanged on all 3 surfaces (reload test) |
 | Part A | account popover not clipped (portal works); Cite deep-link intact on `/report`; no Cite/Feedback dock off-report; foot rides collapse + drawer |
 | Part B | primary action in view (Primer/CRISPR); mono viewer byte-identical; grid animates (no max-height jank); `tool==='viewer'` identical to today; container queries fire on rail width not viewport; <900 reverts to vertical stack; reduced-motion instant |
-| Housekeeping | DESIGN.md table matches shipped shell; Scratchpad = Log/Notes; `graphify update` run |
+| Housekeeping | DESIGN.md table matches shipped shell; Scratchpad = Log/Notes; structural boundary guards pass |
 
 Browser-verify via the `browser-verify` skill against `npm --prefix app/web run dev`
 (→ `http://localhost:3000`). **Kill the dev server at task end**

@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "preinstall": "node ../../scripts/guard-worktree-install.mjs",
+    "guard:boundary": "node ../../scripts/eamos-web-boundary.mjs",
     "guard:vercel": "node ../../scripts/eamos-vercel-project-guard.mjs",
     "predev": "npm run guard:vercel",
     "dev": "next dev",

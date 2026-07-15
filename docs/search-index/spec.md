@@ -535,7 +535,7 @@ Frontend:
 Operational:
 
 - Backfill CLI dry-run test on fixture SQLite DB.
-- Focused `python -m graphify update .` after code changes.
+- Focused structural boundary guards after code changes.
 
 ## Out of scope
 

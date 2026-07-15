@@ -39,7 +39,7 @@ It deliberately does not deploy, seed production, change Vercel/Render configura
 - No role/auth/account plumbing for this work.
 - No full clinical interpretation engine or patient eligibility matching.
 - No fabricated case context from public literature or summary prose.
-- No new LLM-backed semantic extraction pass for graphify.
+- No new LLM-backed repository semantic extraction pass.
 
 ## Proposed Design
 
@@ -209,7 +209,7 @@ Frontend additions:
 4. Add trials to the lazy section envelope and frontend lazy state renderer.
 5. Add section signals to the report profile and start consuming them in a progressive-disclosure UI pass.
 6. Convert ACMG warning strings to structured limitations while preserving `warnings` during a compatibility window.
-7. Run targeted backend pytest, frontend lint, `git diff --check`, and `python -m graphify update .`.
+7. Run targeted backend pytest, frontend lint, `git diff --check`, and the structural boundary guards.
 
 ## Open Questions
 
