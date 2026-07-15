@@ -1,3 +1,9 @@
+> ARCHIVED 2026-07-15 11:19 UTC by Codex - the stale task queue was superseded
+> by `agent_handoff/CURRENT.md -> Next Action`. Original content follows
+> verbatim.
+
+---
+
 # Agent Task Queue
 
 ## How To Use

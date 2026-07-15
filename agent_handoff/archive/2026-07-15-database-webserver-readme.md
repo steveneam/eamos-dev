@@ -1,3 +1,9 @@
+> ARCHIVED 2026-07-15 11:19 UTC by Codex - durable database and storage
+> guardrails moved to `RISKS.md` and `docs/db/supabase-inventory.md`. Original
+> content follows verbatim.
+
+---
+
 # Database / Webserver Handoff
 
 Scope: coordination notes for Supabase, backend webserver database wiring, private source storage, import jobs, cache persistence, and frontend/API boundaries.
