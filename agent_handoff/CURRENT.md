@@ -26,13 +26,13 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** ACTIVE @ 2026-07-15 13:59 UTC — PR #10 is merged and post-merge
-  main is green. Starting the queued backend CI optimization: hermetic cache
-  tests, then xdist work-steal benchmark. No deploy or cloud mutation authorized.
+- **Codex:** STOPPED @ 2026-07-15 14:22 UTC — backend-CI optimization is complete
+  on PR #11 and every GitHub check is green. The merge is paused for Steven's
+  explicit approval. No active lane and no cloud mutation authorized.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 13:59 +0000 · Codex (PR-10 merge recorded; locks released)
+UNLOCKED · 2026-07-15 14:22 +0000 · Codex (PR-11 green; merge approval pending)
 
 ## Shared File Locks
 
@@ -41,42 +41,43 @@ UNLOCKED · 2026-07-15 13:59 +0000 · Codex (PR-10 merge recorded; locks release
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 13:59 +0000 · Codex backend-CI optimization
+# Resume prompt · 2026-07-15 14:22 +0000 · Codex PR-11 merge gate
 Read CURRENT.md, agent_handoff/README.md, then audit-2026-07-15.md.
-PR #10 is rebase-merged at 5d8b76b; P0 run/report ownership is complete.
-Post-merge main CI 29421304052 is green; Python remains 3.12.
-Profile cache-test live-network waits and make those tests hermetic first.
-Then benchmark current xdist scheduling against --dist=worksteal.
-Add duration-balanced shards only if the verified backend gate stays >90s.
-Preserve test coverage and production live-resolution behavior.
+PR #11 is open at 86e2873; GitHub run 29423099999 is fully green.
+Cache suites fell 142.92s -> 17.62s with production behavior unchanged.
+Worksteal was slower, so current xdist scheduling stays; two stable shards pass.
+Required backend check now completes in ~2m08s versus the prior 3m35s.
+Wait for Steven's explicit merge approval; no second GitHub reviewer is planned.
+On approval, recheck main/CI, admin-merge PR #11, then verify post-merge CI.
 M-013 branch-policy repair and all cloud mutations remain founder-gated.
-Safe to clear: yes — main is clean and the next benchmark is reproducible.
+Safe to clear: yes — the branch is pushed, CI is green, and merge is user-gated.
 ```
 
 ## Pointer
 
-- Merged target: PR #10 at `5d8b76b`; post-merge CI `29421304052`.
-- Implementation commits on main: `5c3e2ee` and `bda710e`.
+- Open target: PR #11 at `86e2873`; CI run `29423099999` is green.
+- Base: main `9e73e31`; branch `codex/backend-ci-hermetic-worksteal`.
 - Source audit and later lanes: `docs/repo-structure/audit-2026-07-15.md`.
 
 ## Delta
 
-- PR #10 now persists server-derived owner provider/user IDs and scopes every
-  mounted run read/mutation at both service and repository boundaries.
-- Ownerless rows fail closed; startup upgrades both SQLite/Postgres and only
-  backfill unambiguous legacy local owners. Duplicate review route removed.
-- Focused affected sweep: 98 passed. Full backend pytest and all structural,
-  frontend-contract, Ruff, Black, and diff checks passed.
-- Steven chose Python 3.12; Black is pinned to `py312` with no warning.
-- Thalon, Swordfish, and Eamos all use chat approval plus admin merge override;
-  no second GitHub reviewer account will be added.
-- Durable milestone evidence is recorded at the top of `PROGRESS.md`.
+- Cache tests retain live-cache semantics but use offline coordinate, consensus,
+  and gene-context providers; 39 tests improved by 87.7% wall time.
+- Full two-worker load scheduler: 119.87s; worksteal: 125.03s, so no scheduler
+  change. SHA-256 test-ID shards cover exactly all 1,646 collected tests.
+- Local shard walls: 64.60s / 72.41s. GitHub pytest steps: 74s / 73s; total
+  shard jobs: 2m01s / 1m57s. Stable aggregator `backend (pytest)` passed in 3s.
+- Ruff, Black, 369 boundary/frontend-contract tests, web boundary, web/frontend
+  CI, and Vercel preview are green. Python remains 3.12.
+- Durable evidence and exact measurements are at the top of `PROGRESS.md`.
 
 ## Next Action
 
-- Make cache tests hermetic, then benchmark xdist `--dist=worksteal`; shard only
-  if the backend gate remains over 90s after the fix.
-- Preserve production live-source behavior and test assertions; optimize only
-  redundant network waiting and scheduling overhead.
+- Await Steven's explicit approval before merging PR #11. It is mergeable but
+  branch policy reports blocked because solo self-review cannot satisfy the
+  configured review/stale-check requirements; use the established admin override
+  only after approval.
+- If main moves, rebase and require the full PR matrix green again before merge.
+- After merge, verify main CI and refresh `PROGRESS.md` / this handoff.
 - M-013 required-check policy and all Render/Supabase/VPS mutations remain
   separately founder-gated.
