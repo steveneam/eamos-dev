@@ -26,13 +26,13 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** STOPPED @ 2026-07-15 14:22 UTC — backend-CI optimization is complete
-  on PR #11 and every GitHub check is green. The merge is paused for Steven's
-  explicit approval. No active lane and no cloud mutation authorized.
+- **Codex:** STOPPED @ 2026-07-15 14:35 UTC — Steven approved PR #11; it is
+  rebase-merged and post-merge implementation CI is green. No active lane and
+  no cloud mutation authorized. Next audit item is the P1 search-auth split.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 14:26 +0000 · Codex (PR-11 handoff finalized)
+UNLOCKED · 2026-07-15 14:35 +0000 · Codex (PR-11 merge recorded; locks released)
 
 ## Shared File Locks
 
@@ -41,25 +41,24 @@ UNLOCKED · 2026-07-15 14:26 +0000 · Codex (PR-11 handoff finalized)
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 14:26 +0000 · Codex PR-11 merge gate
-Read CURRENT.md, agent_handoff/README.md, then audit-2026-07-15.md.
-PR #11 is open; implementation commit 86e2873 plus clear-safe handoff docs.
-The latest PR-head GitHub checks are fully green at wrap.
-Cache suites fell 142.92s -> 17.62s with production behavior unchanged.
-Worksteal was slower, so current xdist scheduling stays; two stable shards pass.
-Required backend check now completes in ~2m08s versus the prior 3m35s.
-Wait for Steven's explicit merge approval; no second GitHub reviewer is planned.
-On approval, recheck main/CI, admin-merge PR #11, then verify post-merge CI.
+# Resume prompt · 2026-07-15 14:35 +0000 · Codex P1 search-auth split
+Read CURRENT.md, agent_handoff/README.md, then docs/repo-structure/audit-2026-07-15.md.
+PR #11 is rebase-merged at 5d581a8; latest main checks are green at wrap.
+Backend cache tests are hermetic and the exhaustive two-shard CI gate is live.
+Start P1 search auth: move /api/v1/search to AuthenticatedPrincipal.
+Preserve owner-scoped SearchAccessContext; do not widen report/run access.
+Add a Supabase-JWT route test plus local-token compatibility coverage.
+Use the vibe-security skill because this changes auth and user-data access.
+Python remains 3.12; no second GitHub reviewer account is planned.
 M-013 branch-policy repair and all cloud mutations remain founder-gated.
-Safe to clear: yes — the branch is pushed, CI is green, and merge is user-gated.
+Safe to clear: yes — main is clean, PR #11 is merged, and the next lane is scoped.
 ```
 
 ## Pointer
 
-- Open target: PR #11; implementation commit `86e2873`.
-- Base: main `9e73e31`; branch `codex/backend-ci-hermetic-worksteal`. Run
-  `gh pr checks 11` for the latest head rather than trusting a frozen run ID.
-- Source audit and later lanes: `docs/repo-structure/audit-2026-07-15.md`.
+- Merged target: PR #11 at `5d581a8`; post-merge run `29424019736` is green.
+- Implementation commit on main: `a336e3a`; Python remains 3.12.
+- Next lane: P1 search auth in `docs/repo-structure/audit-2026-07-15.md`.
 
 ## Delta
 
@@ -67,19 +66,19 @@ Safe to clear: yes — the branch is pushed, CI is green, and merge is user-gate
   and gene-context providers; 39 tests improved by 87.7% wall time.
 - Full two-worker load scheduler: 119.87s; worksteal: 125.03s, so no scheduler
   change. SHA-256 test-ID shards cover exactly all 1,646 collected tests.
-- Local shard walls: 64.60s / 72.41s. GitHub pytest steps: 74s / 73s; total
-  shard jobs: 2m01s / 1m57s. Stable aggregator `backend (pytest)` passed in 3s.
+- Post-merge main shard jobs passed in 1m58s / 2m04s; stable aggregator
+  `backend (pytest)` passed in 3s. Web passed in 1m10s; frontend in 31s.
 - Ruff, Black, 369 boundary/frontend-contract tests, web boundary, web/frontend
   CI, and Vercel preview are green. Python remains 3.12.
 - Durable evidence and exact measurements are at the top of `PROGRESS.md`.
 
 ## Next Action
 
-- Await Steven's explicit approval before merging PR #11. It is mergeable but
-  branch policy reports blocked because solo self-review cannot satisfy the
-  configured review/stale-check requirements; use the established admin override
-  only after approval.
-- If main moves, rebase and require the full PR matrix green again before merge.
-- After merge, verify main CI and refresh `PROGRESS.md` / this handoff.
+- Correct the active search auth split next: accept both Supabase and local
+  principals while retaining owner-scoped search access and non-enumeration.
+- Add negative cross-user coverage and both token compatibility paths before any
+  route dependency change lands.
+- Do not apply the missing live Supabase migration in this lane; that remains a
+  separate reviewed, rollback-ready founder-gated operation.
 - M-013 required-check policy and all Render/Supabase/VPS mutations remain
   separately founder-gated.

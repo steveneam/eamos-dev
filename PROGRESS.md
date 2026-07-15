@@ -37,6 +37,9 @@ Verification:
   The stable `backend (pytest)` aggregator passed in 3s, completing 2m08s after
   the workflow began versus the prior main backend job's 3m35s (about 40% less
   required-check critical-path time). Web, frontend, and Vercel preview passed.
+- Steven explicitly approved the merge. PR #11 was admin rebase-merged as
+  `5d581a8`; post-merge main run `29424019736` passed shard jobs in 1m58s and
+  2m04s, the stable backend aggregator in 3s, web in 1m10s, and frontend in 31s.
 - No production module, API contract, deploy setting, provider flag, database,
   production deployment, Render service, or Supabase resource changed.
 
