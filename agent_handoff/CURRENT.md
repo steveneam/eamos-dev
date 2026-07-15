@@ -46,62 +46,68 @@
   `main == origin/main`, tree clean after this wrap. No env/provider/flag/
   Supabase change (Vercel autoDeploy rebuilt prod on the merges — docs/config
   only). Detail → `~/.claude/plans/next-session-eamos.md` (session 13).
-- **Codex:** TAKING OVER 2026-07-15 — next: execute the founder-approved
-  `agent_handoff/` consolidation per **`plans/handoff-consolidation/plan.md`**
-  as one PR. Migration Phase 1 **PARKED** on the founder's command.
+- **Codex:** STOPPED @ 2026-07-15 11:31 UTC (21:31 AEST) — opened **PR #8**
+  for the founder-approved handoff consolidation; all GitHub/Vercel checks are
+  green and the merge is paused for Steven's explicit approval. Commits:
+  `5facc60` removes the retired Graphify `PreToolUse` hook that failed with 127;
+  `8dcff57` archives stale handoff material and adds the durable Supabase
+  inventory. Vercel CLI authentication on syd4 is verified as `steveneam`.
+  Pre-existing swordfish/migration-note worktree changes remain untouched. No
+  project env/provider/flag/Supabase/Render mutation; preview deploy only.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 10:55 UTC · Claude (wrap; own edits only)
+UNLOCKED · 2026-07-15 11:31 UTC · Codex (PR #8 green; founder merge gate)
 
 ## Resume Prompt
 
 ```text
-# Resume · 2026-07-15 10:55 UTC (20:55 AEST) · Codex takeover (Eamos, agent_handoff consolidation)
-Eamos, ~/work/eamos on syd4 (Linux/bash; every D:\ / E:\ path is dead). Read:
-agent_handoff/README.md (Hard Rules) → this CURRENT.md → RISKS.md →
-plans/handoff-consolidation/plan.md → CODEX.md/AGENTS.md. First:
-git -C ~/work/eamos fetch origin && git status -sb && gh pr list --state open.
-Delta: PR #7 merged (Linux config de-Windowsing + M-010 guard armed — was inert
-at 100644). Ask-back sent to swordfish. Founder APPROVED the agent_handoff
-consolidation "as one PR"; NEEDS-STEVEN.md add/skip deferred to swordfish's reply.
-Next: execute plans/handoff-consolidation/plan.md via branch→PR→CI-green→Steven's
-approval→admin-merge. FROZEN: never move/rename FROM-SWORDFISH.md /
-ASK-BACKS-FOR-SWORDFISH.md (swordfish watcher pins them). Hard Rule 1: rotate to
-archive/ verbatim (append+archive), never delete tracked history.
-Guardrails: NO attribution trailer (verify %(trailers) empty); never git add -A
-(explicit pathspecs); never cd; py312; backend -n auto; Vercel autoDeploy ON
-(merge→prod rebuild); Render autoDeploy OFF (don't touch hook); don't revert
-LLM_PROVIDER=gateway. Migration Phase 1 PARKED on founder's command. End clear-safe.
+# Resume prompt · 2026-07-15 11:31 +0000 · Codex PR #8 merge gate
+Eamos, ~/work/eamos on syd4. Read README.md → CURRENT.md → RISKS.md →
+plans/handoff-consolidation/plan.md. First: git fetch origin; git status -sb;
+gh pr view 8; gh pr checks 8. Delta: PR #8 is open and all checks are green.
+Commits: 5facc60 (remove failing Graphify hook) + 8dcff57 (handoff archive).
+GATE: do not merge until Steven explicitly approves; then recheck and admin-merge.
+Graphify is fully retired: never install/query/update it. Full W-006/W-007
+artifact/config/doc removal remains after PR #8, with W-004 package wiring.
+Frozen: never move/rename FROM-SWORDFISH.md / ASK-BACKS-FOR-SWORDFISH.md.
+Pre-existing channel + VPS migration-note dirt is untouched; never sweep it.
+Migration Phase 1 is PARKED. No project env/provider/Render/Supabase mutation.
 ```
 
 ## Pointer
 
-- Read next session: `agent_handoff/README.md` (Hard Rules) → this file →
-  `agent_handoff/RISKS.md` → `plans/handoff-consolidation/plan.md` →
-  `CODEX.md`/`AGENTS.md` → `git status --short --branch` + `gh pr list`.
+- Merge gate: `plans/handoff-consolidation/plan.md` → `gh pr view 8` →
+  `gh pr checks 8` → complete diff against `main`.
+- After PR #8 merges: `agent_handoff/drive-notes/Eamos RP.txt` →
+  `plans/thalon-swordfish-assimilation/plan.md` / `plan.json` milestones
+  M-011, M-014, M-015, M-016, and M-018. Do not run Graphify.
 - **Open ask-back thread:** `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`
   (2026-07-15) — awaiting swordfish's reply on `NEEDS-STEVEN.md` + fleet shape.
 
 ## Delta
 
-- First boot on syd4 complete. **PR #7 merged** (Linux config de-Windowsing +
-  M-010 guard armed — the guard was inert at `100644`; now `100755`).
-- Ask-back sent to swordfish. Founder **APPROVED** the `agent_handoff/`
-  consolidation "as one PR"; `NEEDS-STEVEN.md` add/skip **deferred to
-  swordfish's reply**. Migration Phase 1 parked on the founder's command.
-- Prod unchanged in substance: Ask-Eamos chat LIVE (per-user 10/day); M9
-  LOCAL_EVIDENCE live on `eamos-dev-sg`; Render autoDeploy off, Vercel
-  autoDeploy on (merges rebuilt prod with docs/config only).
+- **PR #8**: open, all checks green, not merged. Tracked handoff root is now
+  `CURRENT.md`, `README.md`, `DECISIONS.md`, `RISKS.md`, and the two frozen
+  swordfish channel files; retired material is preserved under `archive/`.
+- Stale Graphify Codex hook removed; next tool call verified clean. Graphify
+  package install failed before changing the environment and was not retried.
+- Vercel repo link targets `eamos-dev`; PR preview passed; VPS CLI login is
+  verified as `steveneam`.
+- Working tree still has the swordfish addendum plus untracked migration notes
+  that predated this branch. They were deliberately excluded from both commits.
+- Ask-Eamos remains live (`LLM_PROVIDER=gateway`, auth + per-user 10/day);
+  Render autoDeploy remains off. Migration Phase 1 remains founder-parked.
 
 ## Next Action
 
-- **Codex:** execute **`plans/handoff-consolidation/plan.md`** via branch → PR →
-  CI-green → Steven's approval → admin-merge. **Frozen:** never move/rename
-  `FROM-SWORDFISH.md` / `ASK-BACKS-FOR-SWORDFISH.md` (swordfish watcher pins
-  them). **Hard Rule 1:** rotate to `archive/` verbatim, never delete history.
-- **Deferred:** `NEEDS-STEVEN.md` (swordfish's fleet-pattern call); **M-013** CI
-  hardening (needs Steven's branch-protection decision); **M-006** gateway choke.
+- **Founder gate:** review PR #8 and explicitly approve or reject its merge.
+  After approval, Codex rechecks `main`/CI/scope and performs the admin merge.
+- **After PR #8:** finish full Graphify decommission (W-006/W-007) and package
+  wiring (W-004) as the separately scoped assimilation PR. Graphify is retired,
+  so never install, query, update, or regenerate it in the interim.
+- **Deferred:** `NEEDS-STEVEN.md` fleet pattern; **M-013** branch-protection/CI
+  decision; **M-006** gateway choke.
 - **Parked (founder gate):** Render→VPS asset migration Phase 1 (swordfish's
   brief in `agent_handoff/FROM-SWORDFISH.md`; plan in swordfish's
   `research/project1-asset-migration-plan-2026-07-15.md`).
