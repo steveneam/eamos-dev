@@ -34,74 +34,74 @@
 
 ## Active Status
 
-- **Claude:** STOPPED @ 2026-07-09 04:21 +1000 — assimilation **W-003 (M-010)
-  landed on main** (`cddf1e7`) via green **PR #6**; W-001+W-002 via **PR #5**.
-  Adopted the Thalon **land-via-green-PR** model (branch → PR → CI-green →
-  admin-merge; `enforce_admins off` = lead bypass by design) — no more
-  direct-to-main pushes. Pre-commit hook INSTALLED locally
-  (`core.hooksPath=scripts/hooks`; legacy `.git/hooks/pre-commit` removed).
-  `main == origin/main`; tree clean (this CURRENT.md heartbeat left uncommitted).
-  No env/provider/flag/Supabase/deploy action. Detail →
-  `~/.claude/plans/next-session-eamos.md` (session 12).
-- **Codex:** STOPPED @ 2026-07-04 20:18 +1000 — free in-silico predictor
-  readiness slice. Owes: reconcile or delete
-  `origin/codex/m9-clinvar-distribution-ratchet` (rescued m9 WIP `8d1517e`,
-  appears superseded by main's gene-bounded clinvar_gene_distribution_index).
+- **Claude:** STOPPED @ 2026-07-15 10:55 UTC (20:55 AEST) — **first boot on
+  syd4** (Linux VPS; every `D:\`/`E:\` path is dead). Landed **PR #7** (merged
+  to `main`): de-Windowsed `.mcp.json` (removed dead `obsidian-vault`, un-`cmd`'d
+  `chrome-devtools`) + `.claude/settings.json` Stop hook, and fixed the **M-010
+  pre-commit guard** — it was tracked `100644`, so git silently skipped it via
+  `core.hooksPath` on Linux (now `100755`, armed + dogfooded green). Founder-
+  approved direct-to-main housekeeping: pushed BOOT `67e7fb4`, deleted stale
+  `codex/m9` remote branch, pruned `~/.codex/config.toml` Windows trust sections.
+  **Ask-back sent to swordfish** (status + migration parked + consolidation Qs).
+  `main == origin/main`, tree clean after this wrap. No env/provider/flag/
+  Supabase change (Vercel autoDeploy rebuilt prod on the merges — docs/config
+  only). Detail → `~/.claude/plans/next-session-eamos.md` (session 13).
+- **Codex:** TAKING OVER 2026-07-15 — next: execute the founder-approved
+  `agent_handoff/` consolidation per **`plans/handoff-consolidation/plan.md`**
+  as one PR. Migration Phase 1 **PARKED** on the founder's command.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-09 04:21 +1000 · Claude (W-003 landed; own edits only)
+UNLOCKED · 2026-07-15 10:55 UTC · Claude (wrap; own edits only)
 
 ## Resume Prompt
 
 ```text
-# Resume · 2026-07-09 04:21 +1000 · Claude (Eamos, assimilation W-004 next)
-Eamos, D:\eamos. Read this file (protocol → README.md Hard Rules), RISKS.md,
-plans/thalon-swordfish-assimilation/{plan.json,plan.md}, ~/.claude/plans/
-next-session-eamos.md (session 12). First: git -C D:/eamos fetch origin &&
-git status -sb && gh pr list --state open.
-Delta: W-001/2/3 all on main (cddf1e7) via green PRs #5+#6. NEW model: land each
-wave via branch→PR→CI-green→admin-merge (enforce_admins off = lead bypass); no
-direct-to-main pushes. Pre-commit hook installed locally (core.hooksPath).
-Next: W-004 M-011 (package.json prepare/preinstall/guard:boundary) via its own PR;
-then W-005 M-013 (CI hardening — ci.yml via PR, ASK before touching branch
-protection); W-006/7 graphify decommission BLOCKED on Steven's depth choice (A
-full-remove vs B keep-nav). Guardrails: NO attribution trailer; never git add -A;
-never cd; py312; backend -n auto. End clear-safe. ok go
+# Resume · 2026-07-15 10:55 UTC (20:55 AEST) · Codex takeover (Eamos, agent_handoff consolidation)
+Eamos, ~/work/eamos on syd4 (Linux/bash; every D:\ / E:\ path is dead). Read:
+agent_handoff/README.md (Hard Rules) → this CURRENT.md → RISKS.md →
+plans/handoff-consolidation/plan.md → CODEX.md/AGENTS.md. First:
+git -C ~/work/eamos fetch origin && git status -sb && gh pr list --state open.
+Delta: PR #7 merged (Linux config de-Windowsing + M-010 guard armed — was inert
+at 100644). Ask-back sent to swordfish. Founder APPROVED the agent_handoff
+consolidation "as one PR"; NEEDS-STEVEN.md add/skip deferred to swordfish's reply.
+Next: execute plans/handoff-consolidation/plan.md via branch→PR→CI-green→Steven's
+approval→admin-merge. FROZEN: never move/rename FROM-SWORDFISH.md /
+ASK-BACKS-FOR-SWORDFISH.md (swordfish watcher pins them). Hard Rule 1: rotate to
+archive/ verbatim (append+archive), never delete tracked history.
+Guardrails: NO attribution trailer (verify %(trailers) empty); never git add -A
+(explicit pathspecs); never cd; py312; backend -n auto; Vercel autoDeploy ON
+(merge→prod rebuild); Render autoDeploy OFF (don't touch hook); don't revert
+LLM_PROVIDER=gateway. Migration Phase 1 PARKED on founder's command. End clear-safe.
 ```
 
 ## Pointer
 
-- Read next session: this file → `agent_handoff/README.md` (Hard Rules) →
-  `agent_handoff/RISKS.md` → `plans/thalon-swordfish-assimilation/plan.json`
-  (code_intents/acceptance) + `plan.md` → `~/.claude/plans/next-session-eamos.md`
-  (session 12 full list) → `git status --short --branch` + `gh pr list`.
+- Read next session: `agent_handoff/README.md` (Hard Rules) → this file →
+  `agent_handoff/RISKS.md` → `plans/handoff-consolidation/plan.md` →
+  `CODEX.md`/`AGENTS.md` → `git status --short --branch` + `gh pr list`.
+- **Open ask-back thread:** `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`
+  (2026-07-15) — awaiting swordfish's reply on `NEEDS-STEVEN.md` + fleet shape.
 
 ## Delta
 
-- Assimilation **W-001 + W-002 + W-003 all on `main`** (`cddf1e7`), each landed
-  via a green PR (Thalon model): **PR #5** (Wave-1 foundation + M-017 backend
-  black + M-012 lean CURRENT.md) and **PR #6** (M-010 pre-commit installer +
-  exit-gated guard chain + `CI-GUARD.md`). Both CI-green (web/frontend/backend);
-  merged `--admin --rebase` because branch protection needs a review a solo lead
-  can't self-provide and `enforce_admins` is off by design.
-- M-010 dogfooded through its own hook: install idempotent + legacy removed;
-  planted conflict marker → blocked; bloated CURRENT.md → blocked (--strict);
-  clean commits → pass. `CI-GUARD.md` (Steven's request) documents the gate.
-- Prod unchanged: Ask-Eamos chat LIVE (per-user 10/day); M9 LOCAL_EVIDENCE live on
-  `eamos-dev-sg`; Render autoDeploy off, Vercel autoDeploy on (PRs → previews only).
+- First boot on syd4 complete. **PR #7 merged** (Linux config de-Windowsing +
+  M-010 guard armed — the guard was inert at `100644`; now `100755`).
+- Ask-back sent to swordfish. Founder **APPROVED** the `agent_handoff/`
+  consolidation "as one PR"; `NEEDS-STEVEN.md` add/skip **deferred to
+  swordfish's reply**. Migration Phase 1 parked on the founder's command.
+- Prod unchanged in substance: Ask-Eamos chat LIVE (per-user 10/day); M9
+  LOCAL_EVIDENCE live on `eamos-dev-sg`; Render autoDeploy off, Vercel
+  autoDeploy on (merges rebuilt prod with docs/config only).
 
 ## Next Action
 
-- **W-004 M-011** (package.json wiring) via its own branch→PR: root
-  `prepare→node scripts/install-hooks.mjs`; `app/web`+`app/frontend`
-  `preinstall→node ../../scripts/guard-worktree-install.mjs`; `app/web`
-  `guard:boundary→node ../../scripts/eamos-web-boundary.mjs`.
-- Then **W-005 M-013** (ci.yml SHA-pin + zizmor + least-priv + flip gates
-  blocking) — land ci.yml via PR, but **ASK Steven before flipping the
-  branch-protection required-checks** (repo-settings change).
-- **W-006/7 graphify decommission BLOCKED** on Steven's unanswered
-  decommission-depth question: (A) full-remove (delete graphify-out ~510MB +
-  skill + all refs) vs (B) de-enforce but keep graphify-out for semantic nav.
-- Deferred: **M-006** gateway choke (focused live-prod pass).
-- Owed bookkeeping: PROGRESS.md assimilation entry (left for next session).
+- **Codex:** execute **`plans/handoff-consolidation/plan.md`** via branch → PR →
+  CI-green → Steven's approval → admin-merge. **Frozen:** never move/rename
+  `FROM-SWORDFISH.md` / `ASK-BACKS-FOR-SWORDFISH.md` (swordfish watcher pins
+  them). **Hard Rule 1:** rotate to `archive/` verbatim, never delete history.
+- **Deferred:** `NEEDS-STEVEN.md` (swordfish's fleet-pattern call); **M-013** CI
+  hardening (needs Steven's branch-protection decision); **M-006** gateway choke.
+- **Parked (founder gate):** Render→VPS asset migration Phase 1 (swordfish's
+  brief in `agent_handoff/FROM-SWORDFISH.md`; plan in swordfish's
+  `research/project1-asset-migration-plan-2026-07-15.md`).
