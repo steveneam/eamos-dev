@@ -4,105 +4,88 @@
 >
 > **Agent, on `gogogo` (or any greeting with no task): do this, unprompted.**
 > He cannot copy text out of the terminal, and he may be sending it from a
-> Telegram topic on his phone (the swordfish hermes relay cold-starts this
-> session in tmux — no one types `claude` first). So there is no prompt for him
-> to paste: **the prompt is this file.** Read, in order, then act:
+> Telegram topic on his phone. Read, in order, then act:
 > 1. this whole file (Resume Prompt → Pointer → Delta → Next Action)
 > 2. `CLAUDE.md` + `agent_handoff/README.md` (protocol) and your memory
 > 3. `git log --oneline -8` and `git status` — trust the repo, not the stamp
 >
-> Then **state the Next Action in one sentence, say what you are starting, and
-> start it.** Do not ask "shall I?" — the Next Action IS the standing approval.
-> Stop only at a founder gate (spend · irreversible · anything the protocol
-> names a founder decision).
+> Then state the Next Action in one sentence, say what you are starting, and
+> start it. Do not ask “shall I?” — the Next Action is the standing approval.
+> Stop only at a founder gate (spend, irreversible action, or anything the
+> protocol names a founder decision).
 >
-> _Boot block added 2026-07-13 at the founder's direction (by the swordfish ops
-> agent) so a relay-cold-started session resumes with no chat history. Keep it
-> at the top when you overwrite this file each wrap._
+> _Boot block added 2026-07-13 at the founder's direction. Keep it at the top
+> when overwriting this file._
 
-> **Live state only — overwrite the whole file each wrap; zero append surfaces.**
-> This is the lean 5-heading form (assimilation M-012): Active Status + Log
-> Edit-Lock are the every-session safety lines; Resume Prompt / Pointer / Delta /
-> Next Action are the state. History lives in **git + PROGRESS.md + each agent's
-> rolling log**, never here. Protocol (hard rules, locks, idle, stop/break,
-> resume format) → `agent_handoff/README.md`. Risks → `docs/operations/risks-and-guardrails.md`.
-> Worktree truth → `git status --short --branch` (not a frozen inventory file).
-> The append-only ledgers that used to live here (Log-Edit-Lock history,
-> Shared-File-Locks, Cross-Agent-Requests, per-agent Last-Task narratives) were
-> relocated to PROGRESS.md on 2026-07-09; the full pre-reshape file is archived
-> verbatim at `agent_handoff/archive/2026-07-09-current-pre-m012-lean-reshape.md`.
+> **Live state only — overwrite the whole file each wrap.** History belongs in
+> Git, `PROGRESS.md`, and the agents' rolling logs. Protocol →
+> `agent_handoff/README.md`; risks → `docs/operations/risks-and-guardrails.md`;
+> worktree truth → `git status --short --branch`.
 
 ## Active Status
 
-- **Claude:** STOPPED @ 2026-07-15 10:55 UTC (20:55 AEST) — **first boot on
-  syd4** (Linux VPS; every `D:\`/`E:\` path is dead). Landed **PR #7** (merged
-  to `main`): de-Windowsed `.mcp.json` (removed dead `obsidian-vault`, un-`cmd`'d
-  `chrome-devtools`) + `.claude/settings.json` Stop hook, and fixed the **M-010
-  pre-commit guard** — it was tracked `100644`, so git silently skipped it via
-  `core.hooksPath` on Linux (now `100755`, armed + dogfooded green). Founder-
-  approved direct-to-main housekeeping: pushed BOOT `67e7fb4`, deleted stale
-  `codex/m9` remote branch, pruned `~/.codex/config.toml` Windows trust sections.
-  **Ask-back sent to swordfish** (status + migration parked + consolidation Qs).
-  `main == origin/main`, tree clean after this wrap. No env/provider/flag/
-  Supabase change (Vercel autoDeploy rebuilt prod on the merges — docs/config
-  only). Detail → `~/.claude/plans/next-session-eamos.md` (session 13).
-- **Codex:** STOPPED @ 2026-07-15 11:42 UTC (21:42 AEST) — **PR #8** has
-  Steven's merge approval and now includes the final direct-Swordfish layout
-  alignment, both peer-mail updates, `NEEDS-STEVEN.md`, durable ledger moves,
-  and byte-faithful migration-note archives. Local guards are green. Check PR
-  truth: if open, wait for fresh green CI and admin-merge; if merged, begin the
-  separately scoped full Graphify retirement + package wiring. No project
-  env/provider/flag/Supabase/Render mutation; Vercel preview only.
+- **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
+  #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
+- **Codex:** STOPPED @ 2026-07-15 12:45 UTC — opened PR #9 from
+  `codex/graphify-retirement`. Graphify retirement, package/worktree guards,
+  Chrome MCP hardening, and the 2026-07-15 whole-repo audit are pushed. Local
+  gates are green. GitHub Actions run `29416286779` is red only because all
+  three jobs were refused before startup by the account billing/spending limit;
+  this founder action is recorded in `NEEDS-STEVEN.md`. No deploy, provider,
+  environment, database, Supabase schema, asset, resize, or cancellation
+  mutation occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 11:42 UTC · Codex (PR #8 final gate ready)
+UNLOCKED · 2026-07-15 12:45 +0000 · Codex (PR #9 published; billing gate recorded)
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 11:42 +0000 · Codex PR #8 closeout
-Eamos, ~/work/eamos on syd4. Read CURRENT.md → agent_handoff/README.md →
-plans/handoff-consolidation/plan.md. Run git fetch origin; git status -sb;
-gh pr view 8; gh pr checks 8. PR #8 has Steven's merge approval.
-If open: require every fresh check green, review scope, then admin-merge.
-If merged: start full Graphify retirement W-006/W-007 + package wiring W-004.
-Never install/query/update Graphify; remove all remaining live integration.
-M-013 stays in NEEDS-STEVEN and does not block Graphify removal.
-Peer-mail filenames are frozen. Migration Phase 1 remains founder-parked.
-No project env/provider/Render/Supabase mutation is authorized.
+# Resume prompt · 2026-07-15 12:45 +0000 · Codex PR #9 gate
+Eamos on syd4. Read CURRENT.md, agent_handoff/README.md, then
+docs/repo-structure/audit-2026-07-15.md. Check git status and PR #9.
+Actions run 29416286779 never started: GitHub blocked runners for billing/spend.
+Steven must restore Actions billing/limit; then rerun all three CI jobs.
+Require fresh green CI + Vercel and Steven's explicit approval before merge.
+After PR #9 lands, fix P0 run/report object authorization serially, with
+two-user negative tests, before search auth/schema/dependency refactors.
+Supabase and Chrome MCP are healthy; Render MCP awaits RENDER_API_KEY.
+Do not mutate Supabase/Render/VPS state without the recorded approval gates.
 ```
 
 ## Pointer
 
-- PR gate: `plans/handoff-consolidation/plan.md` → `gh pr view 8` →
-  `gh pr checks 8` → complete diff against `origin/main`.
-- After PR #8 merges: `agent_handoff/archive/2026-07-10-vps-clone-resume-prompt.txt` →
-  `plans/thalon-swordfish-assimilation/plan.md` / `plan.json` milestones
-  M-011, M-014, M-015, M-016, and M-018. Do not run Graphify.
-- Fleet queue request: `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md` (11:39 UTC)
-  → Eamos `NEEDS-STEVEN.md` ingestion remains Swordfish follow-up.
+- Review/merge gate: PR #9 → Actions run `29416286779` →
+  `agent_handoff/NEEDS-STEVEN.md`.
+- Audit and proposed Mode B lanes:
+  `docs/repo-structure/audit-2026-07-15.md`.
+- Render→VPS Phase 1 contract: `agent_handoff/FROM-SWORDFISH.md` and
+  `/home/deploy/work/swordfish/research/project1-asset-migration-plan-2026-07-15.md`.
 
 ## Delta
 
-- Handoff root exactly matches the live Swordfish convention plus its documented
-  peer-mail exceptions: CURRENT, NEEDS-STEVEN, README, both channels, archive.
-- Decisions and risks moved to `docs/governance/` and `docs/operations/`; live
-  references were repaired. Four loose migration notes are stamped archives;
-  original-body SHA-256 checks pass 4/4, including both CRLF prompts.
-- Inbound Addendum 2 is retained unmodified; outbound Swordfish reply requests
-  fleet ingestion of Eamos's queue. The stale Graphify hook no longer fires.
-- Vercel link is `eamos-dev`, CLI identity is `steveneam`, and local repo guards
-  are green. Ask-Eamos/live Render state is unchanged; migration stays parked.
+- Removed both tracked Graphify skill copies, hooks/ignores, stale memory, and
+  living-document instructions: commit `474c8b3` (2,934 net deletions).
+- Added root hook preparation, install guards, active-web boundary command, and
+  headless/isolated Chrome MCP arguments; real Chrome navigation and real
+  Supabase MCP project lookup passed.
+- Added the 470-line evidence-backed audit in `fb150c9`: 31 active source files
+  exceed 1,000 lines (34 with frozen Vite), versus none in Thalon/Swordfish;
+  P0 authorization plus P1 auth/schema/dependency/Render findings are ordered
+  ahead of cosmetic package folds.
+- Local verification: active Next lint/type/build green; frozen Vite lint and
+  139 tests green (its build failure is documented); backend Ruff/Black green,
+  pytest 1,619 passed / 20 skipped; boundary/structure ratchets green; live
+  Render health returned 200.
 
 ## Next Action
 
-- **PR #8 open:** founder approval is already recorded; require fresh green CI,
-  review the complete branch scope, then admin-merge. Never merge on red.
-- **PR #8 merged:** finish full Graphify decommission (W-006/W-007) and package
-  wiring (W-004) as the next scoped PR. Never install, query, or regenerate it.
-- **Deferred:** M-013 branch-protection/CI decision in `NEEDS-STEVEN.md`; M-006
-  gateway choke. M-013 must not block the already-approved Graphify removal.
-- **Parked (founder gate):** Render→VPS asset migration Phase 1 (swordfish's
-  brief in `agent_handoff/FROM-SWORDFISH.md`; plan in swordfish's
-  `research/project1-asset-migration-plan-2026-07-15.md`).
+- **Founder gate:** restore GitHub Actions billing/spending capacity.
+- **Then lead:** rerun PR #9 checks, review full scope, and pause for Steven's
+  explicit approval. Never merge on red.
+- **After merge:** serial P0 authorization fix first; freeze the principal/owner
+  contract before launching the four audit lanes.
+- **Render MCP:** Steven creates a Render API key and exports it as
+  `RENDER_API_KEY` outside chat; then verify read-only access. This does not
+  authorize a deploy, migration, seed, resize, or cancellation.
