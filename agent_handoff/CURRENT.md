@@ -26,22 +26,22 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** STOPPED @ 2026-07-15 13:06 UTC — explicit user-constrained merge
+- **Codex:** STOPPED @ 2026-07-15 13:22 UTC — explicit user-constrained merge
   session complete. PR #9 was rebase-merged into `main` as `a6c5671` after
   Steven's fresh approval and a green serialized gate. GitHub Actions billing
   is restored. The CI action wrappers now use their established Node-24-runtime
-  `v6` majors; run `29417353081` passed backend, frontend, and web with zero
-  annotations, and Vercel passed. No deploy, provider, environment, database,
-  Supabase schema, asset, resize, or cancellation mutation occurred.
+  `v6` majors; final `main` run `29417944226` passed backend, frontend, and web
+  with zero annotations, and Vercel passed. No deploy, provider, environment,
+  database, Supabase schema, asset, resize, or cancellation mutation occurred.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 13:07 +0000 · Codex (PR #9 merged; live state refreshed)
+UNLOCKED · 2026-07-15 13:22 +0000 · Codex (backend-CI optimization queued)
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 13:06 +0000 · Codex post-PR-9
+# Resume prompt · 2026-07-15 13:22 +0000 · Codex post-PR-9
 Eamos on syd4. Read CURRENT.md, agent_handoff/README.md, then
 docs/repo-structure/audit-2026-07-15.md. Check git status and recent main CI.
 PR #9 is merged at a6c5671: Graphify is retired, MCP startup is hardened,
@@ -49,13 +49,15 @@ the repo audit is published, and Actions wrappers use Node-24-runtime v6.
 Start the audit's serial P0 run/report object-authorization fix next.
 Freeze the principal/owner contract and add two-user negative tests first.
 Do not launch parallel refactor lanes until that shared contract is stable.
+Then optimize backend CI: remove live-network waits from cache tests, benchmark
+--dist=worksteal, and add duration-balanced shards only if the gate stays >90s.
 Supabase and Chrome MCP are healthy; Render MCP awaits RENDER_API_KEY.
 Do not mutate Supabase/Render/VPS state without the recorded approval gates.
 ```
 
 ## Pointer
 
-- Merged scope and CI evidence: PR #9 / Actions run `29417353081`.
+- Merged scope: PR #9; final `main` CI evidence: Actions run `29417944226`.
 - Audit and proposed later Mode B lanes:
   `docs/repo-structure/audit-2026-07-15.md`.
 - Render→VPS Phase 1 contract: `agent_handoff/FROM-SWORDFISH.md` and
@@ -70,6 +72,8 @@ Do not mutate Supabase/Render/VPS state without the recorded approval gates.
 - Restored GitHub Actions capacity, upgraded `checkout`, `setup-node`, and
   `setup-python` to Node-24-runtime `v6`, and verified all CI/Vercel checks green
   with zero action annotations.
+- Backend CI profiling found 1,639 tests, two CI workers, and a 5m42s gate whose
+  long tail is concentrated in cache tests that enable real-API resolution.
 - Local verification carried by the merged gate: active Next lint/type/build;
   frozen Vite lint and 139 tests; backend Ruff/Black and 1,619 passed / 20
   skipped; boundary/structure ratchets; live Render health 200.
@@ -79,6 +83,8 @@ Do not mutate Supabase/Render/VPS state without the recorded approval gates.
 - **Serial P0:** fix run/report object authorization first; freeze the
   principal/owner contract and prove two-user cross-tenant denials before any
   auth/schema/dependency refactor lanes.
+- **Then backend CI:** make cache tests hermetic, benchmark xdist
+  `--dist=worksteal`, then use duration-balanced shards only if still >90s.
 - **Founder decision still open:** M-013 aggregate required-check policy in
   `agent_handoff/NEEDS-STEVEN.md`; it does not block the P0 fix.
 - **Render MCP:** Steven creates a Render API key and exports it as
