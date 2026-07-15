@@ -32,7 +32,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 14:22 +0000 · Codex (PR-11 green; merge approval pending)
+UNLOCKED · 2026-07-15 14:26 +0000 · Codex (PR-11 handoff finalized)
 
 ## Shared File Locks
 
@@ -41,9 +41,10 @@ UNLOCKED · 2026-07-15 14:22 +0000 · Codex (PR-11 green; merge approval pending
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 14:22 +0000 · Codex PR-11 merge gate
+# Resume prompt · 2026-07-15 14:26 +0000 · Codex PR-11 merge gate
 Read CURRENT.md, agent_handoff/README.md, then audit-2026-07-15.md.
-PR #11 is open at 86e2873; GitHub run 29423099999 is fully green.
+PR #11 is open; implementation commit 86e2873 plus clear-safe handoff docs.
+The latest PR-head GitHub checks are fully green at wrap.
 Cache suites fell 142.92s -> 17.62s with production behavior unchanged.
 Worksteal was slower, so current xdist scheduling stays; two stable shards pass.
 Required backend check now completes in ~2m08s versus the prior 3m35s.
@@ -55,8 +56,9 @@ Safe to clear: yes — the branch is pushed, CI is green, and merge is user-gate
 
 ## Pointer
 
-- Open target: PR #11 at `86e2873`; CI run `29423099999` is green.
-- Base: main `9e73e31`; branch `codex/backend-ci-hermetic-worksteal`.
+- Open target: PR #11; implementation commit `86e2873`.
+- Base: main `9e73e31`; branch `codex/backend-ci-hermetic-worksteal`. Run
+  `gh pr checks 11` for the latest head rather than trusting a frozen run ID.
 - Source audit and later lanes: `docs/repo-structure/audit-2026-07-15.md`.
 
 ## Delta
