@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError, PyJWKClient, PyJWKClientError
 
+from app.core.ownership import OwnerIdentity
 from app.schemas.auth import AuthUser
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -20,6 +21,10 @@ class AuthenticatedPrincipal:
     provider: str
     token: str
     email: str | None = None
+
+    @property
+    def owner(self) -> OwnerIdentity:
+        return OwnerIdentity(provider=self.provider, user_id=self.user_id)
 
 
 def get_settings(request: Request):
@@ -51,7 +56,6 @@ def require_authenticated_user(
             ) from exc
         raise
 
-    # TODO: Add patient/run ownership checks once ownership metadata is modeled.
     return user
 
 

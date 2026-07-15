@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import HTTPException, status
 
 from app.core.logging import get_logger
+from app.core.ownership import OwnerIdentity
 from app.schemas.draft import ApproveResult, DropResult
 from app.schemas.run import RunStatus, ReviewStatus
 
@@ -19,8 +20,8 @@ class FinalReportService:
         self.run_repo = run_repo
         self.search_index_service = search_index_service
 
-    def get_pdf(self, run_id: str) -> Path:
-        run = self.run_repo.get_run(run_id)
+    def get_pdf(self, run_id: str, *, owner: OwnerIdentity) -> Path:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
         if run.review_status == ReviewStatus.dropped:
@@ -44,8 +45,8 @@ class FinalReportService:
         self._copy_reference_pdf(reference_pdf, preview_path)
         return preview_path
 
-    def approve(self, run_id: str) -> ApproveResult:
-        run = self.run_repo.get_run(run_id)
+    def approve(self, run_id: str, *, owner: OwnerIdentity) -> ApproveResult:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
         if run.review_status == ReviewStatus.dropped:
@@ -61,16 +62,22 @@ class FinalReportService:
         approved_path = self.settings.final_report_dir / f"{run_id}_final.pdf"
         self._copy_reference_pdf(self._reference_pdf_path(), approved_path)
         approved_at = datetime.now().astimezone()
-        self.run_repo.save_approved_pdf_path(run_id, str(approved_path))
-        approved = self.run_repo.approve(run_id, approved_at)
+        self.run_repo.save_approved_pdf_path(run_id, str(approved_path), owner=owner)
+        approved = self.run_repo.approve(run_id, approved_at, owner=owner)
         self._refresh_search_index(run_id)
         return approved
 
-    def drop(self, run_id: str, review_note: str | None = None) -> DropResult:
-        run = self.run_repo.get_run(run_id)
+    def drop(
+        self,
+        run_id: str,
+        review_note: str | None = None,
+        *,
+        owner: OwnerIdentity,
+    ) -> DropResult:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
-        dropped = self.run_repo.drop(run_id, drop_note=review_note)
+        dropped = self.run_repo.drop(run_id, drop_note=review_note, owner=owner)
         self._refresh_search_index(run_id)
         return dropped
 

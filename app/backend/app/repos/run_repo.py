@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 
 from app.core.db import RunRecord, session_scope
+from app.core.ownership import OwnerIdentity
 from app.schemas.draft import ApproveResult, DropResult, ReviewResult
 from app.schemas.run import RunResponse, RunStatus, ReviewStatus
 
@@ -41,6 +42,8 @@ class RunRepo:
         report_payload,
         evidence,
         warnings: list[str],
+        *,
+        owner: OwnerIdentity | None = None,
     ) -> RunResponse:
         with session_scope(self.session_factory) as session:
             record = RunRecord(
@@ -53,6 +56,8 @@ class RunRepo:
                 evidence=[item.model_dump(mode="json") for item in evidence],
                 warnings=warnings,
                 updated_at=datetime.now(timezone.utc),
+                owner_user_id=owner.user_id if owner is not None else None,
+                owner_provider=owner.provider if owner is not None else None,
             )
             session.merge(record)
 
@@ -81,6 +86,18 @@ class RunRepo:
                 return None
             return _record_to_run_response(record)
 
+    def get_run_for_owner(
+        self,
+        run_id: str,
+        *,
+        owner: OwnerIdentity,
+    ) -> RunResponse | None:
+        with session_scope(self.session_factory) as session:
+            record = self._owned_record(session, run_id, owner=owner)
+            if record is None:
+                return None
+            return _record_to_run_response(record)
+
     def list_all_runs(self) -> list[RunResponse]:
         with session_scope(self.session_factory) as session:
             records = (
@@ -96,9 +113,11 @@ class RunRepo:
         payload_updates: dict,
         review_note: str | None,
         updated_at: datetime,
+        *,
+        owner: OwnerIdentity,
     ) -> RunResponse:
         with session_scope(self.session_factory) as session:
-            record = session.get(RunRecord, run_id)
+            record = self._owned_record(session, run_id, owner=owner)
             if record is None:
                 raise KeyError(run_id)
 
@@ -115,9 +134,16 @@ class RunRepo:
             session.add(record)
             return _record_to_run_response(record)
 
-    def add_review(self, run_id: str, review_note: str, reviewed_at: datetime) -> ReviewResult:
+    def add_review(
+        self,
+        run_id: str,
+        review_note: str,
+        reviewed_at: datetime,
+        *,
+        owner: OwnerIdentity,
+    ) -> ReviewResult:
         with session_scope(self.session_factory) as session:
-            record = session.get(RunRecord, run_id)
+            record = self._owned_record(session, run_id, owner=owner)
             if record is None:
                 raise KeyError(run_id)
             record.review_status = ReviewStatus.reviewed.value
@@ -132,9 +158,15 @@ class RunRepo:
                 reviewed_at=reviewed_at,
             )
 
-    def approve(self, run_id: str, approved_at: datetime) -> ApproveResult:
+    def approve(
+        self,
+        run_id: str,
+        approved_at: datetime,
+        *,
+        owner: OwnerIdentity,
+    ) -> ApproveResult:
         with session_scope(self.session_factory) as session:
-            record = session.get(RunRecord, run_id)
+            record = self._owned_record(session, run_id, owner=owner)
             if record is None:
                 raise KeyError(run_id)
             record.review_status = ReviewStatus.approved.value
@@ -151,9 +183,15 @@ class RunRepo:
                 download_path=f"/api/v1/runs/{run_id}/pdf",
             )
 
-    def drop(self, run_id: str, drop_note: str | None = None) -> DropResult:
+    def drop(
+        self,
+        run_id: str,
+        drop_note: str | None = None,
+        *,
+        owner: OwnerIdentity,
+    ) -> DropResult:
         with session_scope(self.session_factory) as session:
-            record = session.get(RunRecord, run_id)
+            record = self._owned_record(session, run_id, owner=owner)
             if record is None:
                 raise KeyError(run_id)
             record.review_status = ReviewStatus.dropped.value
@@ -173,20 +211,43 @@ class RunRepo:
                 reviewed_at=record.reviewed_at,
             )
 
-    def save_approved_pdf_path(self, run_id: str, path: str) -> None:
+    def save_approved_pdf_path(
+        self,
+        run_id: str,
+        path: str,
+        *,
+        owner: OwnerIdentity,
+    ) -> None:
         with session_scope(self.session_factory) as session:
-            record = session.get(RunRecord, run_id)
+            record = self._owned_record(session, run_id, owner=owner)
             if record is None:
                 raise KeyError(run_id)
             record.approved_pdf_path = path
             session.add(record)
 
-    def get_approved_pdf_path(self, run_id: str) -> str | None:
+    def get_approved_pdf_path(
+        self,
+        run_id: str,
+        *,
+        owner: OwnerIdentity,
+    ) -> str | None:
         with session_scope(self.session_factory) as session:
-            record = session.get(RunRecord, run_id)
+            record = self._owned_record(session, run_id, owner=owner)
             if record is None:
                 return None
             return record.approved_pdf_path
+
+    @staticmethod
+    def _owned_record(session, run_id: str, *, owner: OwnerIdentity) -> RunRecord | None:
+        return (
+            session.query(RunRecord)
+            .filter(
+                RunRecord.run_id == run_id,
+                RunRecord.owner_user_id == owner.user_id,
+                RunRecord.owner_provider == owner.provider,
+            )
+            .one_or_none()
+        )
 
     def reset(self) -> None:
         with session_scope(self.session_factory) as session:

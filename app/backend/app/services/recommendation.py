@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 
+from app.core.ownership import OwnerIdentity
 from app.schemas.draft import ClinicianReviewPayload, ReviewResult
 
 
@@ -12,8 +13,14 @@ class RecommendationService:
         self.run_repo = run_repo
         self.search_index_service = search_index_service
 
-    def apply_review(self, run_id: str, payload: ClinicianReviewPayload) -> ReviewResult:
-        run = self.run_repo.get_run(run_id)
+    def apply_review(
+        self,
+        run_id: str,
+        payload: ClinicianReviewPayload,
+        *,
+        owner: OwnerIdentity,
+    ) -> ReviewResult:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
         if run.review_status.value == "dropped":
@@ -31,6 +38,7 @@ class RecommendationService:
             run_id=run_id,
             review_note=note,
             reviewed_at=datetime.now(timezone.utc),
+            owner=owner,
         )
         if self.search_index_service is not None:
             self.search_index_service.refresh_run(run_id)

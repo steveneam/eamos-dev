@@ -157,6 +157,8 @@ class ReportRecord(Base):
     extraction_status: Mapped[str] = mapped_column(String(32))
     report_data: Mapped[dict] = mapped_column(JSON)
     review_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    owner_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    owner_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class RunRecord(Base):
@@ -177,6 +179,8 @@ class RunRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    owner_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    owner_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class SearchDocumentRecord(Base):
@@ -548,11 +552,103 @@ def build_session_factory(database_url: str):
 def initialize_database(session_factory) -> None:
     engine = session_factory.kw["bind"]
     Base.metadata.create_all(engine)
+    _ensure_report_run_owner_columns(engine)
+    _ensure_search_document_access_columns(engine)
+    _backfill_legacy_local_resource_owners(session_factory)
     _ensure_user_evidence_submission_payload_column(engine)
     _ensure_protein_annotation_cache_uniprot_release_column(engine)
     _ensure_variant_cache_gene_context_snapshot_column(engine)
-    _ensure_search_document_access_columns(engine)
     _ensure_postgres_search_indexes(engine)
+
+
+def _ensure_report_run_owner_columns(engine) -> None:
+    table_names = set(inspect(engine).get_table_names())
+    statements: list[str] = []
+    for table_name in ("reports", "report_runs"):
+        if table_name not in table_names:
+            continue
+        columns = {column["name"] for column in inspect(engine).get_columns(table_name)}
+        for column_name, column_type in (
+            ("owner_user_id", "VARCHAR(128)"),
+            ("owner_provider", "VARCHAR(32)"),
+        ):
+            if column_name in columns:
+                continue
+            if engine.dialect.name == "postgresql":
+                statements.append(
+                    f"ALTER TABLE {table_name} "
+                    f"ADD COLUMN IF NOT EXISTS {column_name} {column_type}"
+                )
+            else:
+                statements.append(
+                    f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                )
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+
+
+def _backfill_legacy_local_resource_owners(session_factory) -> None:
+    with session_scope(session_factory) as session:
+        report_owner_rows = (
+            session.query(SearchDocumentRecord.report_id, SearchDocumentRecord.owner_user_id)
+            .join(UserRecord, SearchDocumentRecord.owner_user_id == UserRecord.user_id)
+            .filter(
+                SearchDocumentRecord.report_id.is_not(None),
+                SearchDocumentRecord.owner_user_id.is_not(None),
+            )
+            .distinct()
+            .all()
+        )
+        run_owner_rows = (
+            session.query(SearchDocumentRecord.run_id, SearchDocumentRecord.owner_user_id)
+            .join(UserRecord, SearchDocumentRecord.owner_user_id == UserRecord.user_id)
+            .filter(
+                SearchDocumentRecord.run_id.is_not(None),
+                SearchDocumentRecord.owner_user_id.is_not(None),
+            )
+            .distinct()
+            .all()
+        )
+
+        for report_id, owner_user_id in _unique_resource_owners(report_owner_rows).items():
+            session.query(ReportRecord).filter(
+                ReportRecord.report_id == report_id,
+                ReportRecord.owner_user_id.is_(None),
+                ReportRecord.owner_provider.is_(None),
+            ).update(
+                {
+                    ReportRecord.owner_user_id: owner_user_id,
+                    ReportRecord.owner_provider: "eamos",
+                },
+                synchronize_session=False,
+            )
+
+        for run_id, owner_user_id in _unique_resource_owners(run_owner_rows).items():
+            session.query(RunRecord).filter(
+                RunRecord.run_id == run_id,
+                RunRecord.owner_user_id.is_(None),
+                RunRecord.owner_provider.is_(None),
+            ).update(
+                {
+                    RunRecord.owner_user_id: owner_user_id,
+                    RunRecord.owner_provider: "eamos",
+                },
+                synchronize_session=False,
+            )
+
+
+def _unique_resource_owners(rows) -> dict[str, str]:
+    candidates: dict[str, set[str]] = {}
+    for resource_id, owner_user_id in rows:
+        if resource_id and owner_user_id:
+            candidates.setdefault(resource_id, set()).add(owner_user_id)
+    return {
+        resource_id: next(iter(owner_user_ids))
+        for resource_id, owner_user_ids in candidates.items()
+        if len(owner_user_ids) == 1
+    }
 
 
 def _ensure_user_evidence_submission_payload_column(engine) -> None:
