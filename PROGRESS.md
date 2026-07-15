@@ -32,9 +32,13 @@ Verification:
 - Full backend Ruff and Black passed across 403 Python files.
 - Backend boundary plus frontend-contract canary: 369 passed; web boundary
   clean across 241 tracked files; `git diff --check` passed.
+- PR #11 GitHub run `29423099999` passed both shards: pytest took 74s and 73s;
+  total shard jobs were 2m01s and 1m57s including duplicated setup/install.
+  The stable `backend (pytest)` aggregator passed in 3s, completing 2m08s after
+  the workflow began versus the prior main backend job's 3m35s (about 40% less
+  required-check critical-path time). Web, frontend, and Vercel preview passed.
 - No production module, API contract, deploy setting, provider flag, database,
-  Render service, or Supabase resource changed. GitHub matrix verification is
-  deferred to the branch PR.
+  production deployment, Render service, or Supabase resource changed.
 
 ## 2026-07-15 13:47 +0000 - Codex - P0 run/report object authorization verified
 
