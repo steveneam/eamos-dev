@@ -1,6 +1,6 @@
 ---
 name: contract-window
-description: Freeze the Eamos schema-first API contract before parallel lanes fork, keep the two TS mirrors in lockstep additively, and thaw at merge. Use before starting a parallel-worktree sprint or any change that touches app/backend/app/schemas/*.py or a backend.ts mirror.
+description: Freeze the Eamos schema-first API contract before parallel lanes fork, keep the active TS contract in lockstep additively, and thaw at merge. Use before starting a parallel-worktree sprint or any change that touches app/backend/app/schemas/*.py or app/web/lib/backend.ts.
 ---
 
 # Contract Window
@@ -16,14 +16,11 @@ there is no script; the ratchet is `test_frontend_contract.py`.
 
 ## Freeze targets (the contract surface)
 
-The contract is these three files kept in lockstep — the Pydantic source of truth
-plus its two TypeScript mirrors:
+The contract is the Pydantic source of truth plus its active TypeScript mirror:
 
 1. `app/backend/app/schemas/*.py` — the **authoritative** Pydantic request/response
    models. The shape is defined here first.
 2. `app/web/lib/backend.ts` — the **active** Next.js frontend TS mirror.
-3. `app/frontend/src/lib/backend.ts` — the legacy Vite TS mirror (touch only when
-   the surface it types is touched; `/runs` still consumes it).
 
 `test_frontend_contract.py` is the canary that proves the mirrors match the schema.
 
@@ -35,8 +32,7 @@ plus its two TypeScript mirrors:
   that already coded against it. A required change waits for the next window.
 - **Schema-first ordering.** Land the Pydantic schema change FIRST, then update the
   TS mirror(s) in the same logical change. Never let a mirror lead the schema.
-- **Mirror parity.** `app/web/lib/backend.ts` must stay in lockstep with the schema;
-  update `app/frontend/src/lib/backend.ts` only if the touched surface feeds `/runs`.
+- **Mirror parity.** `app/web/lib/backend.ts` must stay in lockstep with the schema.
 - **One owner per window.** Exactly one lead agent owns the contract for a sprint,
   on the lead terminal. Other lanes consume the frozen contract; they request
   additions through the lead (COORDINATION.md board + a Shared File Lock on the
@@ -48,7 +44,7 @@ plus its two TypeScript mirrors:
 1. branch    -> agent/<lane>-<slug> off up-to-date main (never edit the contract on main)
 2. contracts -> decide the additive delta; record it on the COORDINATION.md board
 3. schema    -> edit app/backend/app/schemas/<x>.py (additive); claim the Shared File Lock first
-4. mirrors   -> update app/web/lib/backend.ts (+ app/frontend/src/lib/backend.ts iff /runs)
+4. mirror    -> update app/web/lib/backend.ts
 5. tests     -> cd app/backend && python -m pytest tests/test_frontend_contract.py -q
 6. verify    -> backend pytest -q + web `npx tsc --noEmit` (mirror compiles against callers)
 7. PR        -> open agent/* PR; the CI gate + human-approved merge apply (never --admin-bypass)

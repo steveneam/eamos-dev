@@ -534,7 +534,7 @@ def test_clinical_gene_disease_summary_prefers_higher_validity_primary_condition
 
 
 def test_frontend_code_does_not_reference_private_cache_schema_or_service_role() -> None:
-    frontend_roots = [REPO_ROOT / "app" / "web", REPO_ROOT / "app" / "frontend"]
+    frontend_roots = [REPO_ROOT / "app" / "web"]
     checked_files = 0
     extensions = {".ts", ".tsx", ".js", ".jsx", ".json", ".env", ".example"}
     for root in frontend_roots:

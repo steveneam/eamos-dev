@@ -247,7 +247,6 @@ High-conflict files:
 - `agent_handoff/*`
 - `plans/*`
 - `app/web/lib/backend.ts`
-- `app/frontend/src/lib/backend.ts`
 - backend Pydantic schema files when frontend contract work is active
 
 Guardrail:
@@ -440,8 +439,8 @@ Use focused verification scaled to the task:
 
 - Backend/API/schema: `cd app/backend && python -m pytest tests/ -q`
 - Contract: `cd app/backend && python -m pytest tests/test_frontend_contract.py -q`
-- Frontend: `cd app/frontend && npm run build`
-- Frontend unit tests: `cd app/frontend && npm run test`
+- Frontend: `cd app/web && npm run build`
+- Frontend unit tests: `cd app/web && npm run test`
 - Browser/pixel checks: required after meaningful Workbench UI changes.
 
 If a check is not run, record it in `agent_handoff/CURRENT.md`.

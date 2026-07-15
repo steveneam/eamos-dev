@@ -1,5 +1,11 @@
 # Gene-viewer window — design audit (`/workbench`)
 
+> **2026-07-15 retirement note:** `GeneMinimap.tsx` and `ProteinView.tsx` had no
+> runtime importer and were removed in the verified frontend-retirement slice.
+> Their inventories below are historical evidence, not current implementation
+> instructions. Re-audit the live `SequenceViewerV2` / `FullLocusViewer` path
+> before applying any related recommendation.
+
 > **Status:** 🟡 AUDIT — review-gated. No `app/web/**` code lands until Steven OKs
 > the recommendations in §5 ([[feedback_subagent_recommendations_not_authorization]]).
 > Lane 1 of the 2026-06-09 4-scout workbench audit (frontend-design + ui-ux-pro-max).
@@ -165,4 +171,4 @@ Ranked by leverage (legibility-per-effort), per [[feedback_subagent_recommendati
 
 **Safe quick-wins (token/value only, no structural or verdict-colour change):** delete dead `.zoom-pill` (`workbench.css:154-177`); add `tabular-nums` to `.sv-vnav-count`/`.sv-hist-count`/`.sv-block-pos`/ruler; floor secondary mono labels at 10px + bump coordinate labels to `--ink-3`; swap raw `.08s/.12s/.15s` viewer transitions to `--dur-1/--dur-2`; `3/5`-style "of N" on the Tracks + ClinVar counts.
 
-**Out of scope (noted):** There is **no AlphaMissense heatmap track in the workbench viewer** — that's a `/report §2` feature. The only intensity element is the PhyloP conservation track (§3-F). The `app/frontend/src/components/workbench/` tree is the frozen Vite reference — all findings are against the live `app/web/**` Next surface.
+**Out of scope (noted):** There is **no AlphaMissense heatmap track in the workbench viewer** — that's a `/report §2` feature. The only intensity element is the PhyloP conservation track (§3-F). All findings were captured against the `app/web/**` Next surface; the unimported GeneMinimap/ProteinView findings are historical per the retirement note above.

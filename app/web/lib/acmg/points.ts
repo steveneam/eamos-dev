@@ -10,9 +10,7 @@
 // [[acmg-criteria-and-points-reference]] / ADR-0022. Do not paraphrase the rules
 // elsewhere; change them once, here, in lock-step with the backend engine.
 //
-// MIRRORED (byte-identical) to app/frontend/src/lib/acmg/points.ts, where the
-// vitest suite lives (app/web has no test runner — same arrangement as
-// lib/workbench/codon-layout.ts). Keep the two copies in sync.
+// The active Vitest coverage lives beside this module in app/web.
 
 import type { EamosComputedBenignCut, EamosComputedTier } from '@/lib/backend'
 

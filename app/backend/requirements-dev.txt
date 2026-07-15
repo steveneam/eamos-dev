@@ -1,7 +1,9 @@
 # Backend dev/lint tooling — installed by the CI backend job before the lint gate.
-# Runtime deps live in requirements.txt; this file is dev-only (linters, formatters).
+# Runtime deps live in requirements.txt; this file is dev-only (linters, formatters,
+# and the dependency advisory gate).
 #
 # Authoritative lint config is pyproject.toml ([tool.ruff] + [tool.black],
 # line-length 100) — these pins only fix the tool versions that read that config.
 ruff==0.15.13
 black==26.5.0
+pip-audit==2.10.1

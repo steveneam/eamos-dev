@@ -9,9 +9,7 @@
 // with the tier cuts + posterior delegated to lib/acmg/points.ts so the explainer
 // and the report's instruments never drift.
 //
-// MIRRORED (byte-identical) to app/frontend/src/lib/acmg/criteria-model.ts, where
-// the vitest suite lives (app/web has no runner — same arrangement as points.ts).
-// Keep the two copies in sync.
+// The active Vitest coverage lives beside this module in app/web.
 
 import type {
   EamosComputedBenignCut,

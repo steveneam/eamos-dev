@@ -1,6 +1,9 @@
 # Report Section 5 Source Governance Plan
 
-Status: draft for implementation.
+Status: superseded implementation plan. `DiseaseValidityDashboard` now owns the
+coherent Section 5 surface. The retired standalone component paths below are
+kept as historical rationale; use the live dashboard and current backend
+profile before planning another change.
 
 ## Shared Decisions
 

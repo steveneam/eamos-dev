@@ -1,0 +1,879 @@
+/* ═══════════════════ CRISPR designer (FE-6 · Blueprints 1 & 2) ═══════════════════
+   Reuses .tool-panel-head / .tool-form / .field / .btn-teal / .seg /
+   .tool-table / .ssodn-vis / .help-note. Only CRISPR-specific accents,
+   the hand-rolled guide ribbon, and the hand-rolled indel chart added. */
+
+.crispr-design, .crispr-outcomes { display: block; }
+
+.crispr-caveats {
+  display: flex; flex-direction: column; gap: 6px;
+  margin: 12px 0 0;
+}
+.crispr-caveats .help-note { margin-top: 0; }
+.crispr-result-note {
+  color: var(--ink-3);
+  background: var(--bg-soft);
+  border: 0.5px solid var(--warn-bdr);
+  border-radius: var(--r-sm);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-top: 12px;
+  padding: 8px 12px;
+}
+
+/* Static enzyme value — the design surface is SpCas9-only, so the old <select>
+   is now a read-only chip (neutral, never teal — it's locked, not selected). */
+.crispr-enzyme-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* "Preview" brand on the Outcomes tab — rides the shared .eamos-mock pill, this
+   only gives it breathing room above the form. */
+.crispr-preview-tag {
+  align-self: flex-start;
+  margin-bottom: 10px;
+}
+.crispr-design .field-input:disabled,
+.crispr-design .field-select:disabled,
+.crispr-outcomes .field-input:disabled {
+  color: var(--ink-4);
+  background: var(--bg-soft);
+}
+.crispr-table-wrap {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+.crispr-table-wrap .tool-table {
+  min-width: 920px;
+  margin-top: 0;
+}
+
+/* Reference/template anchor — echoes the Align REF row: guides are framed as
+   "designed against" an explicit reference/template. */
+.crispr-ref-anchor {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+  margin-top: 16px; padding: 8px 12px;
+  background: var(--teal-tint); border: 0.5px solid var(--teal-bdr);
+  border-radius: var(--r-sm);
+}
+.cra-label {
+  font-size: 10px; font-weight: 700; color: var(--teal-deep);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.cra-target { font-family: var(--body); font-size: 12.5px; color: var(--ink); }
+.cra-meta { font-size: 11px; color: var(--ink-4); }
+
+/* Candidate-summary roll-up (aggregate overview above the detailed table) */
+.crispr-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin-top: 12px;
+  background: var(--bg-canvas);
+  border: 0.5px solid var(--line); border-radius: var(--r-md);
+  overflow: hidden;
+}
+.cs-cell {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 7px 13px; background: var(--bg-canvas);
+}
+.cs-k {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.cs-v { font-family: var(--body); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .crispr-summary { grid-template-columns: 1fr; } }
+
+/* gRNA table: PAM amber, same accent vocabulary as ssODN. The spacer is
+   base-coloured below. */
+.tool-table td.seq .g-spacer { color: var(--teal-deep); font-weight: 600; }
+.tool-table td.seq .g-pam {
+  color: var(--warn-text); background: var(--warn-bdr);
+  box-shadow: inset 0 0 0 0.5px var(--warn);
+  padding: 1px 3px; border-radius: 3px; margin-left: 2px; font-weight: 700;
+}
+
+/* Colour-coded 20-mer — reuse the shared --base-* tokens (Align trace /
+   chromatogram / gene viewer) for a consistent base vocabulary. */
+.tool-table td.seq .g-nt { font-weight: 600; }
+.tool-table td.seq .g-nt.A { color: var(--base-A); }
+.tool-table td.seq .g-nt.T { color: var(--base-T); }
+.tool-table td.seq .g-nt.C { color: var(--base-C); }
+.tool-table td.seq .g-nt.G { color: var(--base-G); }
+.tool-table tbody tr { outline: none; }
+.tool-table tbody tr:focus-visible { box-shadow: inset 0 0 0 1.5px var(--teal); }
+
+.crispr-table-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin: 16px 0 6px;
+}
+.crispr-minfilter { display: flex; flex-direction: column; gap: 4px; min-width: 180px; }
+.crispr-minfilter input[type="range"] { accent-color: var(--teal); }
+.crispr-empty, .crispr-error { color: var(--ink-4); font-size: 12px; padding: 14px 12px; text-align: center; }
+.crispr-error {
+  color: var(--err); background: var(--err-tint);
+  border-radius: var(--r-sm); text-align: left; margin-top: 12px;
+}
+.crispr-track-h {
+  font-size: 10.5px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 18px 0 8px;
+}
+
+/* ═══════════════ CRISPR off-target screening (FE — Slice B) ═══════════════
+   Reuses .tool-table / .crispr-summary / .crispr-ref-anchor / .crispr-table-*
+   / .btn-teal / --base-*. Adds the curate bar, the pinned on-target row, the
+   mismatch cue (never colour-alone), the screening-primer table, and the
+   subtle TSV export controls. */
+
+.crispr-design .mono { font-family: var(--mono); }
+.ots-field-wide { grid-column: span 2; min-width: 0; }
+@media (max-width: 560px) { .ots-field-wide { grid-column: span 1; } }
+
+/* Mismatch cue on the base-coloured protospacer: the base keeps its --base-*
+   colour AND gains a heavier weight + a ring, so divergence from the on-target
+   guide never relies on colour alone (a11y: colour-not-only). The ring reads
+   the spec'd "ringed mismatch" and survives at small type better than a thin
+   underline (which collided with the PAM box edge). */
+.tool-table td.seq .g-nt.mm {
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1.5px var(--ink-3);
+  border-radius: 2px;
+}
+
+/* On-target row pinned at the top of the table as the intended-cut reference,
+   echoing the teal reference anchor used across the Workbench. */
+.tool-table tbody tr.ots-on-target {
+  background: var(--teal-tint);
+  box-shadow: inset 2px 0 0 var(--teal);
+}
+.tool-table tbody tr.ots-on-target:hover { background: var(--teal-tint); }
+
+/* Biotype chip — coding hits carry the relevance accent; non-coding stays muted. */
+.ots-biotype {
+  font-size: 10.5px; color: var(--ink-4);
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+}
+.ots-biotype.coding {
+  color: var(--teal-deep); background: var(--teal-tint);
+  border-color: var(--teal); font-weight: 600;
+}
+
+/* Curate bar — top-N / mismatch / coding filters, paced on the 8px rhythm. */
+.ots-curate { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 14px; }
+.ots-curate-field { display: flex; flex-direction: column; gap: 3px; }
+.ots-curate-field .field-label,
+.ots-screen-bar .field-label {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ots-curate-field input {
+  width: 64px; padding: 4px 7px; font-size: 12px;
+  font-family: var(--body);
+  border: 0.5px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-canvas); color: var(--ink);
+}
+.ots-curate-check {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--ink-3); padding-bottom: 4px;
+}
+.ots-curate-check input { accent-color: var(--teal); }
+
+/* Subtle ghost buttons for curate + export — secondary, subordinate to the
+   teal primary CTA (one primary action per surface). */
+.ots-export-btn {
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+  padding: 5px 11px; border-radius: var(--r-sm);
+  background: var(--bg-canvas); border: 0.5px solid var(--line);
+  cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.ots-export-btn:hover { color: var(--teal-deep); border-color: var(--teal); background: var(--teal-tint); }
+.ots-export-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+/* Per-row "Screen ↗" bridge button in the Design table — ghost button + a
+   trailing scope glyph that lines up with the label. */
+.crispr-screen-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+/* The Design → Off-targets provenance note — a teal-tinted help-note so the
+   seeded-from line reads as a hand-off, not a warning. */
+.crispr-seed-note {
+  border: 0.5px solid var(--teal-bdr);
+  background: var(--teal-tint);
+  color: var(--teal-deep);
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+}
+
+.ots-actions {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.ots-export-label {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ots-export { display: inline-flex; gap: 6px; }
+
+/* Screening-primer designer bar — flank window + naming + the design CTA. */
+.ots-screen-bar {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px 14px;
+  margin: 4px 0 4px;
+}
+.ots-screen-bar input[type="text"],
+.ots-screen-bar input[type="number"] {
+  width: 110px; padding: 6px 8px; font-size: 12px;
+  border: 0.5px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-canvas); color: var(--ink);
+}
+.ots-screen-bar input[type="number"] { width: 88px; font-family: var(--body); }
+.ots-screen-bar .btn-teal { margin-left: auto; }
+
+/* Screening-primer table — stacked forward/reverse cells share one line-height
+   and top alignment so the F row and R row line up across every column. */
+.ots-primer-table tbody td { vertical-align: top; line-height: 1.7; }
+.tool-table td.ots-names,
+.tool-table td.ots-primer-seq { white-space: nowrap; }
+.tool-table td.ots-primer-seq { font-family: var(--mono); font-size: 11px; color: var(--ink); }
+.tool-table td.ots-names { font-size: 11px; color: var(--ink-3); }
+
+/* Row-hover guide ribbon (hand-rolled, no track dependency) */
+.guide-track {
+  background: var(--bg-canvas);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.gt-strip {
+  display: flex; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 13px; line-height: 1.9;
+  color: var(--ink-3);
+}
+.gt-base { position: relative; padding: 1px 0.5px; }
+.gt-base.spacer { background: var(--teal-tint); color: var(--teal-deep); font-weight: 600; }
+/* PAM box — saturated amber (matches the legend swatch) so the recognition
+   site is unmistakable in the ribbon, not a pale tint lost among the bases. */
+.gt-base.pam {
+  background: var(--warn-bdr); color: var(--warn-text); font-weight: 700;
+  box-shadow: inset 0 0 0 0.5px var(--warn);
+}
+.gt-base.pam.pam-first {
+  border-top-left-radius: 3px; border-bottom-left-radius: 3px; padding-left: 1.5px;
+}
+.gt-base.pam.pam-last {
+  border-top-right-radius: 3px; border-bottom-right-radius: 3px; padding-right: 1.5px;
+}
+/* In-place "PAM" caption above the box (mirrors the viewer's locus-marker tag) */
+.gt-pam-tag {
+  position: absolute; top: -11px; left: 0; font-style: normal;
+  font-family: var(--mono); font-size: 8px; font-weight: 700; line-height: 1;
+  letter-spacing: 0.06em; color: var(--warn); white-space: nowrap;
+}
+.gt-cut {
+  position: absolute; left: -1px; top: -3px; bottom: -3px;
+  width: 2px; background: var(--err); border-radius: 1px;
+}
+.gt-legend, .ic-legend, .ssodn-meta {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin-top: 10px;
+  font-size: 11px; color: var(--ink-4);
+}
+.gt-legend span, .ic-legend span, .ssodn-meta span {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.gt-note, .ic-note { color: var(--ink-4); font-style: italic; }
+.ssodn-meta-num { margin-left: auto; font-family: var(--body); color: var(--ink-3); }
+
+/* Shared 9px swatch chip for the inline legends */
+.sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.sw.spacer, .sw.observed { background: var(--teal); }
+.sw.pam, .sw.target { background: var(--warn-bdr); }
+.sw.cut { background: var(--err); }
+.sw.correct { background: var(--teal); }
+.sw.silent, .sw.predicted { background: var(--info-dot); }
+
+/* ssODN lab-order donor (CRISPR Design) — guide-independent corrective HDR
+   donor: adjustable length, orderable single-string oligo with intronic bases
+   quieted/lowercased and the corrective edit highlighted. */
+.ssodn-donor { margin-top: 18px; }
+.ssodn-donor-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ssodn-mock-tag { margin-left: 8px; }
+.ssodn-donor-controls {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+  margin: 10px 0 12px;
+}
+.ssodn-len-field { max-width: 116px; }
+.ssodn-orient-seg { display: inline-flex; }
+.ssodn-donor-status { font-size: 12px; color: var(--ink-3); margin: 8px 0; }
+.ssodn-donor-status.error { color: var(--err); }
+.ssodn-oligo-name {
+  font-family: var(--body); font-size: 11.5px; color: var(--ink-2);
+  margin-bottom: 8px; overflow-wrap: anywhere;
+}
+.ssodn-codon-note { font-family: var(--body); font-size: 11px; color: var(--ink-3); margin-bottom: 10px; }
+.ssodn-codon-note b { color: var(--ink); }
+.ssodn-seq-block { display: flex; flex-direction: column; gap: 10px; }
+.ssodn-seq-label {
+  display: block; font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--ink-4); margin-bottom: 3px;
+}
+.ssodn-oligo-seq {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.9;
+  letter-spacing: 0.5px; word-break: break-all;
+  background: var(--bg-canvas); border: 0.5px solid var(--line);
+  border-radius: var(--r-md); padding: 12px 14px; color: var(--ink);
+}
+.ssodn-nt.intron { color: var(--ink-4); }
+/* Workbook convention: the 3 edited-codon nucleotides are UNDERLINED in teal
+   (matches the 3-arm .seq-hl-correct teal, and is deliberately NOT the amber PAM
+   highlight); the single changed base is then HIGHLIGHTED with a teal fill. */
+.ssodn-nt.codon { box-shadow: inset 0 -2px 0 var(--teal-deep); }
+.ssodn-nt.edit {
+  background: var(--teal-tint); color: var(--teal-deep);
+  font-weight: 700; border-radius: 2px;
+}
+.ssodn-oligo-legend {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  margin-top: 8px; font-size: 10.5px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.ssodn-key {
+  width: 10px; height: 10px; border-radius: 2px;
+  display: inline-block; vertical-align: -1px; margin-right: 4px;
+}
+.ssodn-key.intron { background: var(--ink-4); }
+.ssodn-key.codon { background: transparent; border: 0.5px solid var(--line); box-shadow: inset 0 -2px 0 var(--teal-deep); }
+.ssodn-key.edit { background: var(--teal-tint); border: 0.5px solid var(--teal-bdr); }
+.ssodn-oligo-meta { margin-left: auto; font-family: var(--body); }
+.ssodn-order-note { font-size: 11px; color: var(--ink-4); margin-top: 8px; font-style: italic; }
+
+/* Hand-rolled indel-spectrum chart (same approach as the PhyloP track) */
+.indel-chart {
+  background: var(--bg-canvas);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-top: 14px;
+}
+.indel-chart svg { display: block; width: 100%; height: auto; }
+.ic-grid { stroke: var(--line); stroke-width: 0.5; }
+.ic-axis { stroke: var(--ink-4); stroke-width: 0.75; }
+.ic-ytick { fill: var(--ink-4); font-size: 9px; text-anchor: end; font-family: var(--body); }
+.ic-xtick { fill: var(--ink-4); font-size: 9px; text-anchor: middle; font-family: var(--body); }
+.ic-bar.observed { fill: var(--teal); }
+.ic-bar.observed.wt { fill: var(--teal-soft); }
+.ic-bar.predicted { fill: var(--info-dot); }
+.ic-callouts {
+  display: flex; flex-wrap: wrap; gap: 22px;
+  margin: 16px 0 4px;
+}
+.ic-stat { display: flex; flex-direction: column; gap: 3px; }
+.ic-stat .label {
+  font-size: 10px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ic-stat .value { font-family: var(--body); font-size: 17px; color: var(--ink); }
+
+/* CRISPR side-panel AI-assist scaffold chips */
+.side-chips { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.side-chip {
+  font-size: 11px; color: var(--ink-3);
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+  border-radius: 100px; padding: 5px 11px; align-self: flex-start;
+}
+
+/* ═══════════════════ Primer designer (FE-6 · Primer panel) ═══════════════════
+   First reference implementation of the DESIGN.md "Dashboard Interaction
+   Language" (global --elev-* elevation + --dur-* / --ease-* motion + the
+   3-layer progressive-disclosure card). Reuses .tool-panel-head / .tool-form /
+   .field / .btn-teal / .seg / .help-note. Depth ONLY via --elev-*, motion
+   ONLY via --dur-* / --ease-* (no ad-hoc box-shadow / transition); the global
+   prefers-reduced-motion guard in index.css collapses all of it. Light
+   tokens only — no dark canvas. No emoji (★ is a text glyph). */
+
+.primer-panel { display: block; }
+
+/* The primary action is the heaviest element in the form region (principle #2). */
+.primer-go { padding: 10px 18px; font-size: 12.5px; }
+
+/* Reusable interactive-card primitive (DESIGN.md "Affordance clarity"):
+   rests --elev-1, lifts to --elev-2 on hover/focus-within. Static cards
+   never get this class. */
+.card--interactive {
+  box-shadow: var(--elev-1);
+  transition: box-shadow var(--dur-2) var(--ease-standard),
+    border-color var(--dur-2) var(--ease-standard);
+}
+.card--interactive:hover,
+.card--interactive:focus-within {
+  box-shadow: var(--elev-2);
+  border-color: var(--ink-5);
+}
+
+/* Honest single-pending loading: a static labelled phase list, no fake
+   per-stage timers (principle #4 / plan §4.3). */
+.primer-phases {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 14px;
+}
+.primer-phase {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--ink-3);
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+  border-radius: 100px; padding: 5px 12px;
+}
+.primer-phase-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px solid var(--teal); flex-shrink: 0;
+}
+
+.primer-error {
+  color: var(--err); background: var(--err-tint);
+  border-radius: var(--r-sm); margin-top: 12px;
+  padding: 14px 12px; font-size: 12px; text-align: left;
+}
+.primer-empty,
+.primer-prompt {
+  color: var(--ink-4); font-size: 12px;
+  padding: 16px 14px; text-align: center;
+  margin-top: 14px;
+  border: 0.5px dashed var(--line-2); border-radius: var(--r-md);
+}
+.primer-prompt b { color: var(--ink-2); }
+.primer-mock-note {
+  font-size: 11.5px; color: var(--ink-3);
+  background: var(--bg-soft); border-radius: var(--r-sm);
+  border: 0.5px solid var(--warn-bdr);
+  padding: 10px 12px; margin: 14px 0 4px; line-height: 1.55;
+}
+
+.primer-feed {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-top: 16px;
+}
+/* Staggered entrance, capped at 240ms total (items 5+ share the cap). */
+.primer-feed-item {
+  animation: primerEnter var(--dur-2) var(--ease-standard) both;
+}
+.primer-feed-item:nth-child(2) { animation-delay: 60ms; }
+.primer-feed-item:nth-child(3) { animation-delay: 120ms; }
+.primer-feed-item:nth-child(4) { animation-delay: 180ms; }
+.primer-feed-item:nth-child(n + 5) { animation-delay: 240ms; }
+@keyframes primerEnter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── The 3-layer progressive-disclosure card ─── */
+.primer-card {
+  position: relative;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+}
+/* Copy affordance pinned top-right of the card (matches the /report sections). */
+.primer-card-copy {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}
+.primer-card.rec { background: var(--teal-tint); border-color: var(--teal-bdr); }
+
+/* Layer 1 — decision surface */
+.primer-l1 {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap;
+  padding-right: 34px; /* clear the absolute top-right copy button */
+}
+.primer-overlay-toggle {
+  margin-left: auto; /* right-align on the Product / ΔTm foot line */
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--body);
+  font-size: 11px; font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  user-select: none;
+}
+.primer-overlay-toggle input {
+  margin: 0; accent-color: var(--teal);
+  width: 12px; height: 12px; cursor: pointer;
+}
+.primer-overlay-toggle:hover { color: var(--ink); }
+.primer-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 4px;
+  font-size: 11px; font-weight: 600;
+  border: 0.5px solid;
+}
+.primer-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+.primer-badge.tone-teal {
+  background: var(--teal-tint); color: var(--teal-deep); border-color: var(--teal-bdr);
+}
+.primer-badge.tone-teal .primer-badge-dot { background: var(--teal); }
+.primer-badge.tone-warn {
+  background: var(--warn-tint); color: var(--warn-text); border-color: var(--warn-bdr);
+}
+.primer-badge.tone-warn .primer-badge-dot { background: var(--warn); }
+.primer-badge.tone-err {
+  background: var(--err-tint); color: var(--err); border-color: var(--cls-path-bdr);
+}
+.primer-badge.tone-err .primer-badge-dot { background: var(--err); }
+.primer-l1-id {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.primer-star { color: var(--teal); font-size: 13px; }
+/* Layer 2 — primary detail */
+.primer-l2 {
+  margin-top: 12px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.primer-strand {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
+}
+.primer-strand-tag {
+  width: 18px; height: 18px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--body); font-size: 10.5px; font-weight: 600;
+  color: var(--ink-3);
+  background: var(--bg-soft); border: 0.5px solid var(--line);
+  border-radius: 4px;
+}
+.primer-seq {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.3px;
+  color: var(--ink); cursor: text;
+  user-select: all; -webkit-user-select: all;
+  word-break: break-all;
+}
+.primer-strand-m {
+  font-family: var(--body); font-size: 11px; color: var(--ink-4);
+  margin-left: auto; font-variant-numeric: tabular-nums;
+}
+.primer-strand-m b { color: var(--ink-2); font-weight: 600; }
+.primer-l2-foot {
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 7px; border-top: 0.5px solid var(--line-3);
+}
+.primer-product { font-size: 11.5px; color: var(--ink-3); }
+.primer-product b { font-family: var(--mono); color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.primer-dtm {
+  font-family: var(--body); font-size: 11.5px;
+  color: var(--ink-4); font-variant-numeric: tabular-nums;
+}
+.primer-dtm.warn { color: var(--warn); font-weight: 600; }
+
+/* Layer 3 — deep dive (hidden by default; the summary IS the affordance) */
+.primer-l3-summary {
+  margin-top: 12px;
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: transparent; border: none;
+  border-top: 0.5px solid var(--line);
+  padding: 10px 0 2px;
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.primer-l3-summary:hover { color: var(--ink); }
+.primer-chev {
+  width: 12px; height: 12px; color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+.primer-chev.open { transform: rotate(90deg); }
+.primer-l3-hint {
+  margin-left: auto;
+  font-family: var(--body); font-size: 10px; font-weight: 500;
+  color: var(--ink-4); text-transform: none; letter-spacing: 0;
+}
+/* Sanctioned size transition: grid-template-rows 0fr→1fr (DESIGN.md). */
+.primer-l3-wrap {
+  display: grid; grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-2) var(--ease-emphasized),
+    opacity var(--dur-2) var(--ease-standard);
+}
+.primer-l3-wrap.open { grid-template-rows: 1fr; opacity: 1; }
+.primer-l3-inner { min-height: 0; overflow: hidden; }
+.primer-l3-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  padding: 12px 0 4px;
+}
+.primer-l3-h {
+  margin: 0 0 8px;
+  font-size: 10.5px; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.primer-kv {
+  margin: 0;
+  display: grid; grid-template-columns: 1fr; gap: 4px;
+}
+.primer-kv > div {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 11.5px;
+}
+.primer-kv dt { color: var(--ink-4); margin: 0; }
+.primer-kv dd {
+  margin: 0; font-family: var(--body); color: var(--ink-2); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.primer-kv dd.warn { color: var(--warn); }
+.primer-notes-raw {
+  margin: 10px 0 0; font-size: 11.5px; color: var(--ink-3);
+  line-height: 1.55;
+}
+.primer-caveat {
+  margin: 8px 0 0; font-size: 11px; color: var(--ink-4);
+  font-style: italic; line-height: 1.5;
+}
+
+/* Hand-rolled explainer tooltip — no JS lib (plan §5.2 / §4.5). The trigger
+   is keyboard-reachable; its aria-label carries the full text for SR. */
+.primer-tip { position: relative; display: inline-flex; align-items: center; gap: 5px; }
+.primer-tip-q {
+  width: 14px; height: 14px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; line-height: 1;
+  color: var(--ink-4);
+  background: var(--bg-soft); border: 0.5px solid var(--line-2);
+  border-radius: 50%; cursor: help; font-family: var(--body);
+  transition: color var(--dur-1) var(--ease-standard),
+    border-color var(--dur-1) var(--ease-standard);
+}
+.primer-tip-q:hover { color: var(--ink-2); border-color: var(--ink-4); }
+.primer-tip-pop {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 5;
+  width: 230px;
+  background: var(--bg); color: var(--ink-2);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  box-shadow: var(--elev-3);
+  padding: 9px 11px;
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+  text-transform: none; letter-spacing: 0;
+  opacity: 0; visibility: hidden;
+  transform: translateY(2px);
+  transition: opacity var(--dur-1) var(--ease-standard),
+    transform var(--dur-1) var(--ease-standard),
+    visibility var(--dur-1);
+}
+.primer-tip:hover .primer-tip-pop,
+.primer-tip:focus-within .primer-tip-pop {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+
+@media (max-width: 760px) {
+  .primer-l3-grid { grid-template-columns: 1fr; gap: 14px; }
+}
+
+/* ─────────────────── FULL-GENE LOCUS VIEWER (FGV-003) ─────────────────── */
+.fl-viewer {
+  display: flex; flex-direction: column;
+  height: 100%; min-height: 0;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fl-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 10px 14px;
+  border-bottom: 0.5px solid var(--line);
+  background: var(--bg-soft);
+  font: 500 12px var(--body); color: var(--ink-3);
+  flex-shrink: 0;
+}
+.fl-header-left, .fl-header-right {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 0;
+}
+.fl-header-gene { font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
+.fl-header-sep { color: var(--ink-4); }
+.fl-header-coord, .fl-header-build, .fl-header-stat { color: var(--ink-3); }
+.fl-coord-toggle {
+  display: inline-flex; align-items: center;
+  margin-left: 4px; padding: 2px;
+  border: 0.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+}
+.fl-coord-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-4);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font: 600 10.5px var(--body);
+  cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease-standard),
+    color var(--dur-1) var(--ease-standard);
+}
+.fl-coord-toggle button:hover { color: var(--ink); }
+.fl-coord-toggle button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+}
+.fl-coord-toggle button.active {
+  background: var(--ink-2);
+  color: var(--bg);
+}
+
+.fl-scroller {
+  flex: 1; min-height: 0;
+  /* Bound the locus to a real viewport so the row list virtualizes (only the
+     on-screen window mounts) instead of growing to the full gene height and
+     page-scrolling every base — a whole-gene locus is otherwise tens of
+     thousands of base nodes (CFTR/ABCA4 → browser crash). */
+  max-height: calc(100vh - var(--nav-h) - var(--ctx-h) - 152px);
+  overflow-y: auto; overflow-x: hidden;
+  padding: 12px 14px 24px;
+  scrollbar-gutter: stable;
+  contain: layout paint style;
+  scroll-behavior: smooth;
+}
+.fl-rows { display: flex; flex-direction: column; gap: 1px; }
+
+.fl-row-anchor {
+  display: block;
+  content-visibility: auto;
+  contain-intrinsic-size: 24px;
+}
+.fl-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 80px;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 1px 0;
+  border-radius: 3px;
+  contain: layout paint;
+}
+.fl-row--has-variant {
+  background: rgba(186, 117, 23, 0.06);
+  box-shadow: inset 2px 0 0 var(--warn, #BA7517);
+}
+.fl-row-coord {
+  display: flex; flex-direction: column; align-items: flex-end;
+  font: 500 10.5px var(--body); color: var(--ink-4);
+  user-select: none;
+}
+.fl-row-coord-start { color: var(--ink-3); }
+.fl-row-band-label {
+  margin-top: 1px;
+  font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--teal);
+}
+.fl-row-end {
+  font: 500 10.5px var(--body); color: var(--ink-4);
+  text-align: left;
+  user-select: none;
+}
+.fl-row-bases {
+  display: flex; flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  font: 500 12.5px var(--mono); line-height: 1.55;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
+}
+.fl-base {
+  display: inline-block;
+  width: 1ch; text-align: center;
+  contain: paint;
+}
+.fl-base--exon { color: var(--ink); }
+.fl-base--intron { color: var(--ink-4); }
+.fl-base--utr5, .fl-base--utr3 {
+  color: var(--ink-3);
+  background: rgba(74, 157, 143, 0.08);
+}
+.fl-base--cds { color: var(--ink); font-weight: 600; }
+.fl-base--unknown { color: var(--ink-4); }
+.fl-base--pad { color: transparent; user-select: none; }
+.fl-base--codon-start {
+  border-left: 1px dotted rgba(29,158,117,0.45);
+}
+.fl-base--clinvar {
+  background: rgba(80, 129, 185, 0.18);
+  border-radius: 1px;
+}
+.fl-base--variant {
+  background: var(--warn, #BA7517);
+  color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(186, 117, 23, 0.45);
+  font-weight: 700;
+}
+
+.fl-provenance {
+  border-top: 0.5px solid var(--line);
+  background: var(--bg-soft);
+  padding: 6px 14px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  font: 500 10.5px var(--body); color: var(--ink-4);
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .fl-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .fl-header-left,
+  .fl-header-right {
+    flex-wrap: wrap;
+  }
+  .fl-row {
+    grid-template-columns: 76px minmax(0, 1fr) 52px;
+    column-gap: 8px;
+  }
+  .fl-row-band-label {
+    font-size: 8.5px;
+  }
+}
+.fl-provenance-warn {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+}
+
+.fl-unsupported {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 18px 20px;
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  font: 400 13px var(--body, sans-serif); color: var(--ink-2);
+  max-width: 540px; margin: 18px auto;
+}
+.fl-unsupported-gene { font-family: var(--body); font-weight: 700; color: var(--ink); }
+.fl-unsupported-btn {
+  align-self: flex-start;
+  padding: 7px 14px;
+  border-radius: 100px;
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  font: 600 12px var(--body); color: var(--ink);
+  cursor: pointer;
+}
+.fl-unsupported-btn:hover { background: var(--bg); border-color: var(--teal); color: var(--teal); }

@@ -1,9 +1,12 @@
 {
   "scripts": {
-    "prepare": "node scripts/install-hooks.mjs"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^6.0.1",
-    "vite": "^8.0.11"
+    "audit": "node scripts/eamos-repo-gate.mjs audit",
+    "build": "node scripts/eamos-repo-gate.mjs build",
+    "guard": "node scripts/eamos-repo-gate.mjs guard",
+    "lint": "node scripts/eamos-repo-gate.mjs lint",
+    "prepare": "node scripts/install-hooks.mjs",
+    "test": "node scripts/eamos-repo-gate.mjs test",
+    "typecheck": "node scripts/eamos-repo-gate.mjs typecheck",
+    "verify": "node scripts/eamos-repo-gate.mjs verify"
   }
 }

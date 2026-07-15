@@ -36,8 +36,8 @@ worktree truth). Read `docs/governance/decisions.md` when relevant.
    held; released locks → PROGRESS.md); if held, defer or file a Cross-Agent
    Request. Never both editing one file.
 5. **Contract changes are schema-first.** Land the backend Pydantic schema first,
-   then the `app/web/lib/backend.ts` mirror (and `app/frontend/src/lib/backend.ts`
-   if touched); `test_frontend_contract.py` is the canary. Ordering, not role.
+   then the `app/web/lib/backend.ts` mirror; `test_frontend_contract.py` is the
+   canary. Ordering, not role.
 6. **No idle waiting.** Blocked or the next milestone is user-gated → follow the
    Idle Protocol; never idle, never start a gated milestone to fill time.
 7. **Ownership is by availability, not role.** Two agents at once → take **disjoint

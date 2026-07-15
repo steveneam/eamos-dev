@@ -1290,11 +1290,8 @@ function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = false }
         </Card>
         </ReportSectionSlot>
 
-        {/* 5 · Disease & curated variants — disease mechanism + curated
-            variant distribution + associated conditions + the new
-            GeneDiseaseBlock (ClinGen Gene-Disease Validity from the
-            `gene_disease` evidence row). PublicationsCallout moved to §6.
-            (Renamed from old §4 "Gene context & associated conditions".) */}
+        {/* 5 · Disease & curated variants. DiseaseValidityDashboard owns the
+            condition navigator, gene-disease validity, and curated distribution. */}
         <ReportSectionSlot sectionId="associated_conditions">
         <Card
           number={5}

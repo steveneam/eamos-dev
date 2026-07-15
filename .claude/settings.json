@@ -6,8 +6,7 @@
   },
   "worktree": {
     "symlinkDirectories": [
-      "app/web/node_modules",
-      "app/frontend/node_modules"
+      "app/web/node_modules"
     ]
   },
   "permissions": {
@@ -22,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd app/frontend && npx tsc --noEmit",
+            "command": "cd app/web && npx tsc --noEmit -p tsconfig.json",
             "shell": "bash",
             "timeout": 60,
             "statusMessage": "TypeScript type-check running..."

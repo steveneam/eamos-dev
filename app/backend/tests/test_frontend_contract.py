@@ -1,7 +1,7 @@
 """Field-name parity test between Pydantic models and frontend TS interfaces.
 
 Every Pydantic field on the in-scope models must appear as a key on its
-matching ``export interface`` in both frontend ``backend.ts`` mirrors.
+matching ``export interface`` in the active frontend ``backend.ts`` contract.
 
 The check is asymmetric:
 - TS may carry extra fields the backend does not declare (view-only state).
@@ -9,7 +9,7 @@ The check is asymmetric:
   the rebuilt frontend cannot tolerate (ReportPage / AIStack read these names).
 
 When this test fails: rename the missing fields in ``backend.ts`` to match the
-Pydantic models, then commit both sides together.
+Pydantic models, then commit the schema and active TypeScript contract together.
 """
 
 from __future__ import annotations
@@ -420,12 +420,9 @@ BE6_REPORT_V2_FIELDS: dict[type[BaseModel], set[str]] = {
 
 
 def _frontend_backend_ts_paths() -> list[Path]:
-    # tests/ -> backend/ -> app/ -> {frontend,web}/...
+    # tests/ -> backend/ -> app/web/...
     app_root = Path(__file__).resolve().parents[2]
-    return [
-        app_root / "frontend" / "src" / "lib" / "backend.ts",
-        app_root / "web" / "lib" / "backend.ts",
-    ]
+    return [app_root / "web" / "lib" / "backend.ts"]
 
 
 def _path_id(path: Path) -> str:
@@ -476,11 +473,6 @@ def test_pydantic_field_names_present_in_typescript(model, ts_name, backend_ts_p
         f"{ts_name} in {_path_id(backend_ts_path)} is missing fields present "
         f"on {model.__name__} (Pydantic): {sorted(missing)}"
     )
-
-
-def test_frontend_backend_ts_mirrors_are_byte_identical():
-    frontend_backend_ts, next_backend_ts = _frontend_backend_ts_paths()
-    assert frontend_backend_ts.read_bytes() == next_backend_ts.read_bytes()
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,1078 @@
+/* ─────────────────── SEQUENCE VIEWER (v2) ─────────────────── */
+.viewer {
+  position: relative;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 0;
+  overflow: hidden;
+  transition: max-height .25s ease, padding .25s ease, opacity .25s;
+}
+/* Hover-revealed zoom overlay scoped to the Sequence window (NOT the
+   whole viewer box — at that scope it overlapped the Undo/Redo cluster
+   in the ViewerToolbar). Lives inside .sv-sequence-wrap; fades in when
+   the mouse is over the sequence section only. */
+.sv-sequence-wrap {
+  position: relative;
+  padding-top: 8px;
+  background: var(--bg);
+  contain: layout paint style;
+}
+.sv-zoom-overlay-seq {
+  position: absolute;
+  top: 62px;          /* clears the section-head row + sequence gutter */
+  right: 14px;
+  z-index: 5;
+  opacity: 1;         /* persistent (was hover-only) — discoverable on touch */
+  pointer-events: auto;
+  transition: opacity .18s ease;
+}
+.sv-sequence-wrap:hover .sv-zoom-overlay-seq,
+.sv-sequence-wrap:focus-within .sv-zoom-overlay-seq {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv-zoom-overlay-seq { transition: opacity .12s linear; transform: none; }
+  .align-spinner { animation: none; }
+  .fl-scroller { scroll-behavior: auto; }
+}
+.viewer.viewer-collapsed { max-height: 0; padding: 0; border: none; opacity: 0; margin-bottom: 0; }
+.viewer-loading {
+  padding: 60px;
+  text-align: center;
+  color: var(--ink-4);
+  font-family: var(--body);
+  font-size: 13px;
+}
+
+/* Primer amplicon overlay. Backend coordinates anchor the highlighted span
+   when present; otherwise the label marks a template/schematic fallback. */
+.sv-primer-amplicon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 2px;
+  padding: 0 14px;
+}
+.sv-pa-cap {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--teal-deep);
+}
+.sv-pa-tag {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+.sv-pa-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 8px;
+  border: 0.5px solid var(--teal-bdr);
+  border-radius: 4px;
+  background: var(--teal-tint);
+  overflow: hidden;
+}
+.sv-pa-track::before {
+  content: '';
+  position: absolute;
+  inset-block: 3px;
+  left: var(--pa-left, 0%);
+  width: var(--pa-width, 100%);
+  min-width: 3px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--teal) 34%, transparent);
+}
+.sv-primer-amplicon.basis-schematic .sv-pa-track::before {
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--teal) 28%, transparent) 0,
+    color-mix(in oklab, var(--teal) 28%, transparent) 6px,
+    transparent 6px,
+    transparent 10px
+  );
+}
+.sv-primer-amplicon.outside .sv-pa-track::before {
+  left: 0;
+  width: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ink-4) 18%, transparent) 0,
+    color-mix(in oklab, var(--ink-4) 18%, transparent) 5px,
+    transparent 5px,
+    transparent 9px
+  );
+}
+.sv-pa-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--body);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--teal-deep);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sv-pa-note {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--ink-4);
+}
+
+/* ── Canvas-head action cluster (track menu / strand / export) ── */
+.sv-dropdown { position: relative; }
+.sv-dropdown-btn,
+.sv-export-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  font-size: 11.5px; font-weight: 600;
+  font-family: inherit;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.sv-dropdown-btn svg,
+.sv-export-btn svg { width: 13px; height: 13px; color: var(--ink-3); }
+.sv-dropdown-btn:hover,
+.sv-export-btn:hover { border-color: var(--ink-3); background: var(--bg-soft); }
+.sv-dropdown-count {
+  font-family: var(--body); font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 100px;
+  background: var(--teal-tint); color: var(--teal-deep);
+  margin-left: 2px;
+}
+.sv-dropdown-menu {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  z-index: var(--z-popover);
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px -8px rgba(11,26,43,0.18), 0 0 0 0.5px var(--line);
+  padding: 6px;
+  min-width: 220px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sv-dropdown-menu[hidden] { display: none; }
+.sv-dropdown-menu label {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.sv-dropdown-menu label:hover { background: var(--bg-soft); }
+.sv-dropdown-menu input { accent-color: var(--teal); margin: 0; width: 12px; height: 12px; }
+
+.sv-strand-pill {
+  display: inline-flex;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 3px;
+  gap: 2px;
+}
+.sv-strand-pill button {
+  background: transparent; border: none;
+  padding: 5px 11px;
+  font-size: 11.5px; font-weight: 600;
+  font-family: var(--body);
+  color: var(--ink-3);
+  border-radius: 6px; cursor: pointer;
+}
+.sv-strand-pill button.active {
+  background: var(--bg-soft); color: var(--ink);
+  box-shadow: 0 0 0 0.5px var(--line);
+}
+
+/* ─────────────── TOOLBAR (find / jump / undo / edits) ─────────────── */
+.sv-toolbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 0.5px solid var(--line);
+  background: var(--bg-soft);
+  flex-wrap: wrap;
+}
+.sv-find {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: 100px;
+  padding: 5px 14px;
+  flex: 1 1 360px;
+  min-width: 280px;
+  position: relative;
+  transition: border-color .15s, box-shadow .15s;
+}
+.sv-find:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+.sv-find svg { width: 13px; height: 13px; color: var(--ink-4); flex-shrink: 0; }
+.sv-find input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-family: var(--body); font-size: 12px; color: var(--ink);
+  padding: 4px 0;
+}
+.sv-find input::placeholder { color: var(--ink-4); }
+.sv-find-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--ink-4);
+  font-size: 16px; cursor: pointer; padding: 0 4px;
+  line-height: 1;
+}
+.sv-find-clear:hover { color: var(--ink-2); }
+.sv-find.sv-find-error { border-color: var(--err); box-shadow: 0 0 0 3px rgba(184,43,43,0.10); }
+.sv-find-msg {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  font-family: var(--body); font-size: 11px;
+  color: var(--err);
+  padding: 6px 10px;
+  background: var(--err-tint);
+  border-radius: var(--r-sm);
+  border: 0.5px solid #f3c2c2;
+}
+
+.sv-vnav {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11.5px;
+}
+.sv-vnav-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+.sv-vnav-btn {
+  width: 24px; height: 24px;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink-3);
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.sv-vnav-btn:hover { color: var(--ink); border-color: var(--ink-3); background: var(--bg-soft); }
+.sv-vnav-btn[disabled] {
+  color: var(--ink-5);
+  border-color: var(--line);
+  background: var(--bg);
+  cursor: not-allowed;
+}
+.sv-vnav-btn[disabled]:hover {
+  color: var(--ink-5);
+  border-color: var(--line);
+  background: var(--bg);
+}
+.sv-vnav-count {
+  font-family: var(--body); font-size: 10.5px;
+  padding: 2px 8px;
+  background: var(--bg); border: 0.5px solid var(--line); border-radius: 4px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-hist {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto;
+}
+.sv-hist-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  font-size: 11.5px; font-weight: 600;
+  font-family: inherit;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.sv-hist-btn svg { width: 12px; height: 12px; color: var(--ink-3); }
+.sv-hist-btn:hover:not([disabled]) { border-color: var(--ink-3); background: var(--bg-soft); }
+.sv-hist-btn[disabled] { color: var(--ink-5); border-color: var(--line); cursor: not-allowed; }
+.sv-hist-btn[disabled] svg { color: var(--ink-5); }
+.sv-hist-count {
+  font-family: var(--body); font-size: 10.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  background: var(--bg); border: 0.5px solid var(--line); border-radius: 4px;
+  margin-left: 4px;
+}
+.sv-hist-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--body); font-size: 11px; font-weight: 600;
+  color: var(--ink-2);
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  padding: 4px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.sv-hist-toggle.on { background: var(--bg-soft); border-color: var(--ink-4); color: var(--ink); }
+.sv-hist-toggle:hover { border-color: var(--ink-3); }
+.sv-hist-reset {
+  background: none; border: none;
+  font-size: 11px; color: var(--err);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-weight: 600;
+}
+.sv-hist-reset:hover { text-decoration: underline; }
+
+/* ─────────────── SECTION HEADERS (collapse chevrons) ───────────────
+   Shared chrome above the workbench sequence detail views.
+   Each header is a full-width clickable bar that toggles its body's
+   collapsed state — the workbench windows can be folded down to just their
+   labels for vertical focus. */
+/* Airy icon-led grammar shared with the rail (.side-section-head / .wr-section-head):
+   leading monochrome glyph + uppercase Inter label + quiet far-right chevron, so the
+   canvas windows and the rail beside them read as one system. */
+.sv-section-head {
+  display: flex; align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 22px;
+  background: var(--bg-soft);
+  border-top: 0.5px solid var(--line);
+  border-bottom: 0.5px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--body);
+  font-size: 10.5px; font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  text-align: left;
+  transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard);
+}
+.sv-section-head:first-child { border-top: none; }
+.sv-section-head:hover { background: var(--bg-soft2); color: var(--ink); }
+.sv-section-head[aria-expanded="false"] { color: var(--ink-2); }
+/* Leading glyph — as sharp as the label (--ink-2); never teal. */
+.sv-section-head .sv-section-icon {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease-standard);
+}
+.sv-section-head:hover .sv-section-icon { color: var(--ink); }
+.sv-section-head .sv-section-chev {
+  width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-4);
+  transition: transform var(--dur-2) var(--ease-emphasized), color var(--dur-1) var(--ease-standard);
+  flex: 0 0 auto;
+}
+.sv-section-head:hover .sv-section-chev { color: var(--ink-2); }
+.sv-section-head .sv-section-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0;
+}
+.sv-section-head .sv-section-sub { color: var(--ink-4); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.sv-section-head[aria-expanded="false"] .sv-section-chev { transform: rotate(-90deg); }
+
+/* ─────────────── CODON DETAIL (wrapped block layout v2.1) ─────────────── */
+.sv-detail {
+  background: var(--bg-canvas);
+  padding: 76px 22px 22px;
+  display: flex; flex-direction: column;
+  gap: 22px;
+  /* Drag-to-select is our own gesture — never let the browser start a native
+     text selection inside the canvas (it raced our selection logic and made
+     the drag feel laggy / sometimes lose to text-select). */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Benchling-style internal scroll — the sequence may run thousands of bp
+     across many wrapped rows; cap the panel height and scroll inside it
+     instead of stretching the page. The ResizeObserver still measures
+     clientWidth correctly when the vertical scrollbar appears. */
+  max-height: 62vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  contain: layout paint style;
+}
+.sv-block {
+  position: relative;
+  display: flex; flex-direction: column;
+  contain: layout paint;
+}
+.sv-block-row {
+  position: relative;
+  contain: layout paint;
+}
+.sv-block-pos {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  padding-left: 12px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-align: left;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.sv-block-pos .sub {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 1px;
+  letter-spacing: 0.04em;
+}
+
+.sv-gap-sep {
+  display: flex; align-items: center; gap: 14px;
+  padding: 6px 0;
+  font-family: var(--body); font-size: 11.5px;
+  color: var(--ink-3);
+}
+.sv-gap-sep .ic { color: var(--ink-4); letter-spacing: 2px; font-size: 14px; }
+.sv-gap-sep .msg { font-style: italic; }
+.sv-gap-sep .msg b { color: var(--ink-2); font-style: normal; font-weight: 600; }
+.sv-gap-sep::before,
+.sv-gap-sep::after {
+  content: '';
+  flex: 1;
+  height: 0;
+  border-top: 0.5px dashed var(--line-2);
+}
+
+/* Ruler */
+.sv-ruler-tick {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  font-family: var(--mono); font-size: 10px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sv-ruler-tick::before {
+  content: ''; position: absolute;
+  top: 100%; left: 50%; transform: translateX(-50%);
+  width: 0.5px; height: 3px; background: var(--line-2);
+}
+
+/* Annotation bars */
+.sv-feat-bar {
+  position: absolute;
+  height: 14px;
+  border-radius: 3px;
+  border: 0.5px solid var(--line);
+  font-family: var(--body); font-size: 9px;
+  color: var(--ink-3);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  top: 50%;
+  transform: translateY(-50%);
+  letter-spacing: 0;
+}
+.sv-feat-bar.exon {
+  background: #f0ece2; border-color: #d8d0bb; color: #6b5a2a; font-weight: 600;
+}
+.sv-feat-bar.intron {
+  background: repeating-linear-gradient(45deg, var(--bg-soft) 0 5px, var(--line-3) 5px 10px);
+  border-color: var(--line-2);
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.sv-feat-bar.domain {
+  background: #efe5ee; border-color: #d4c3d4; color: #6c3a6e; font-weight: 600;
+}
+.sv-feat-bar.domain.family {
+  background: rgba(92, 107, 122, 0.12);
+  border-color: rgba(92, 107, 122, 0.44);
+  border-style: dashed;
+  color: var(--ink-2);
+}
+.sv-feat-bar.oligo {
+  background: #e8eaf2; border-color: #c3c8db; color: #3b4877;
+}
+
+/* Splice site 2bp tag (GT donor / AG acceptor) */
+.sv-splice-tag {
+  position: absolute;
+  top: 0;
+  height: 14px;
+  background: var(--warn-text);
+  color: #fff;
+  font-family: var(--body);
+  font-size: 9px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  padding: 0 4px;
+  z-index: 2;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.sv-splice-tag.donor    { border-bottom-left-radius: 0; }
+.sv-splice-tag.acceptor { border-bottom-right-radius: 0; }
+
+/* ClinVar pins */
+.sv-cv {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--bg);
+  top: 50%; margin-top: -5px;
+  transform: translateX(-50%);
+  cursor: pointer;
+  transition: transform .12s;
+  /* Lift above the sibling rails so the enlarged hit area below is clickable. */
+  z-index: 5;
+}
+/* Transparent hit area so the 10px dot is comfortably clickable (~20px). */
+.sv-cv::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+}
+.sv-cv:hover { transform: translateX(-50%) scale(1.4); }
+/* Don't let dots swallow pointer events mid edge-drag. */
+.sv-root.sv-dragging-edge .sv-cv { pointer-events: none; }
+/* ClinVar dot verdict ramp — single source = lib/classification.ts (--cls-*).
+   Was hardcoded off-ACMG hex (LP amber, VUS grey, LB sage); grey is reserved
+   for NA/conflict, so a VUS dot read as "no data". Now matches the report. */
+.sv-cv.p   { background: var(--cls-path-dot); }
+.sv-cv.lp  { background: var(--cls-lpath-dot); }
+.sv-cv.vus { background: var(--cls-vus-dot); }
+.sv-cv.lb  { background: var(--cls-lben-dot); }
+.sv-cv.b   { background: var(--cls-ben-dot); }
+.sv-cv.queried { box-shadow: 0 0 0 3px rgba(186,117,23,0.20); }
+/* Focused dot (clicked → card in the Scratchpad log): double focus ring. */
+.sv-cv.active {
+  transform: translateX(-50%) scale(1.35);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--teal-deep);
+  z-index: 6;
+}
+.sv-cv.active:hover { transform: translateX(-50%) scale(1.5); }
+
+/* Bases */
+.sv-base {
+  position: absolute;
+  top: 2px; bottom: 2px;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);            /* uniform ink — bases are NOT per-base coloured
+                                   (Benchling); colour is reserved for the AA pills
+                                   + state highlights, not the A/C/G/T letters. */
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  transition: background .08s;
+  border-radius: 2px;
+}
+.sv-base:hover { background: var(--bg-soft2); }
+.sv-root.sv-dragging-select {
+  cursor: col-resize;
+  user-select: none;
+}
+.sv-root.sv-dragging-select .sv-base {
+  transition: none;
+}
+.sv-root.sv-dragging-select .sv-selection-band,
+.sv-root.sv-dragging-select .sv-selection-handle,
+.sv-root.sv-dragging-select .sv-cv,
+.sv-root.sv-dragging-select .sv-marker-thin,
+.sv-root.sv-dragging-select .sv-ins-marker,
+.sv-root.sv-dragging-select .sv-re-bar {
+  pointer-events: none;
+}
+.sv-base.intron {
+  font-size: 11.5px;
+  color: var(--ink-4) !important;
+  font-weight: 500;
+  font-style: italic;
+}
+.sv-base.intron.splice {
+  background: var(--warn-tint);
+  color: var(--warn) !important;
+  font-style: normal;
+  font-weight: 700;
+  outline: 0.5px solid var(--warn-bdr);
+}
+.sv-base.edited {
+  background: var(--warn-tint);
+  outline: 0.5px solid var(--warn-bdr);
+  font-weight: 700;
+  color: var(--warn) !important;
+}
+.sv-base.edited.del {
+  text-decoration: line-through;
+  color: var(--err) !important;
+  outline-color: #f3c2c2;
+  background: var(--err-tint);
+}
+.sv-base.variant {
+  background: rgba(186,117,23,0.10);
+  color: var(--warn) !important;
+  font-weight: 700;
+}
+.sv-base.selected {
+  background: rgba(29,158,117,0.16);
+  outline: 0.5px solid var(--teal);
+}
+.sv-base.search-hit {
+  box-shadow: inset 0 -3px 0 var(--teal);
+}
+.sv-base.restriction-hit {
+  background: rgba(29,158,117,0.18);
+  outline: 0.5px dashed var(--teal);
+  outline-offset: -0.5px;
+}
+
+/* Complement strand row — same intensity as the top strand (not dimmed). */
+.sv-block-row.complement .sv-base {
+  cursor: default;
+}
+.sv-block-row.complement .sv-base:hover { background: transparent; }
+
+/* Translation row */
+.sv-codon {
+  position: absolute;
+  top: 0; bottom: 0;
+  /* Pills align on ONE level: every codon reserves the residue-number slot (the
+     TSX renders .sv-aa-num always, visibility-gated), so the centred pill+number
+     group is the same height everywhere — was shifting numbered codons' pills up. */
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-right: 0.5px solid var(--line-3);
+}
+.sv-codon.partial { opacity: 0.7; }
+.sv-aa {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 3px;
+  min-width: 18px;
+}
+.sv-aa.hydro { background: var(--aa-hydro); }
+.sv-aa.polar { background: var(--aa-polar); }
+.sv-aa.acid  { background: var(--aa-acid); }
+.sv-aa.basic { background: var(--aa-basic); }
+.sv-aa.aroma { background: var(--aa-aroma); }
+.sv-aa.cys   { background: var(--aa-cys); }
+.sv-aa.stop  { background: var(--aa-stop); color: #fff; }
+.sv-aa-old {
+  font-size: 8.5px;
+  color: var(--ink-4);
+  margin-left: 4px;
+  text-decoration: line-through;
+}
+.sv-aa-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.sv-codon.queried .sv-aa { outline: 1px solid var(--warn); }
+.sv-codon.changed .sv-aa { outline: 1px solid var(--warn); background: var(--warn-tint); }
+.sv-codon.frameshift .sv-aa { outline: 1px solid var(--err); background: var(--err-tint); color: var(--err); }
+
+/* Insertion marker */
+.sv-ins-marker {
+  position: absolute;
+  top: 0; bottom: 0;
+  font-family: var(--body); font-size: 9px; font-weight: 700;
+  color: var(--teal-deep);
+  background: var(--teal-tint);
+  border-left: 1px solid var(--teal);
+  padding: 0 3px;
+  display: flex; align-items: center;
+  z-index: 2;
+}
+
+/* Conservation */
+.sv-cons-bar {
+  position: absolute;
+  bottom: 4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--teal);
+  opacity: 0.55;
+}
+.sv-cons-bar.intronic { background: var(--ink-4); opacity: 0.35; }
+
+/* Restriction sites — now visible bars (clickable) instead of fragile hairlines */
+.sv-re-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 14px;
+  background: var(--bg);
+  border: 0.5px solid var(--line-2);
+  border-radius: 3px;
+  font-family: var(--body); font-size: 9px; font-weight: 600;
+  color: var(--ink-3);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: all .12s;
+}
+.sv-re-bar:hover {
+  background: var(--teal-tint);
+  border-color: var(--teal);
+  color: var(--teal-deep);
+}
+
+/* Queried-variant pin — a centered, haloed 2px rule so the queried position is
+   the loudest thing in the grid (was a near-invisible 0.5px hairline). */
+.sv-marker-thin {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--warn);
+  box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--warn) 22%, transparent);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Selection band + drag handles (cross-rail, Benchling-style) ──
+   The band sits behind the rails as a translucent column; the two edge
+   handles sit above everything and resize the selection by base/codon.
+   Per-base .selected highlights still paint inside the band. */
+.sv-selection-band {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: rgba(29, 158, 117, 0.07);
+  border-left: 1px solid var(--teal);
+  border-right: 1px solid var(--teal);
+  pointer-events: none;
+  z-index: 0;
+}
+.sv-selection-handle {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 11px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  z-index: 6;
+  touch-action: none;
+}
+.sv-selection-handle::before {
+  /* the full-height teal rail along the selection edge */
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 2.5px;
+  background: var(--teal);
+}
+.sv-selection-handle::after {
+  /* centred grab knob so the affordance reads as draggable */
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px; height: 20px;
+  background: var(--teal);
+  border: 1px solid #fff;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.sv-selection-handle:hover::before,
+.sv-selection-handle:hover::after { background: var(--teal-deep); }
+.sv-root.sv-dragging-edge { cursor: ew-resize; user-select: none; }
+.sv-root.sv-dragging-edge .sv-selection-handle { pointer-events: none; }
+.sv-root.sv-dragging-edge .sv-selection-handle::before,
+.sv-root.sv-dragging-edge .sv-selection-handle::after { background: var(--teal-deep); }
+
+/* ─────────────── EDIT HISTORY TIMELINE ─────────────── */
+.sv-history {
+  border-top: 0.5px solid var(--line);
+  background: var(--bg-soft);
+  padding: 12px 22px 14px;
+}
+.sv-history-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+}
+.sv-history-head .lbl {
+  font-size: 10px; font-weight: 600;
+  color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.sv-history-head .meta {
+  font-family: var(--body); font-size: 11px;
+  color: var(--ink-3);
+}
+.sv-history-list {
+  display: flex; flex-direction: column;
+  gap: 0;
+}
+.sv-history-row {
+  display: grid;
+  grid-template-columns: 18px 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.sv-history-row:hover { background: var(--bg); }
+.sv-history-row .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--line-2);
+}
+.sv-history-row.applied .dot { background: var(--teal); }
+.sv-history-row.current .dot {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px rgba(186,117,23,0.18);
+}
+.sv-history-row.undone { opacity: 0.45; }
+.sv-history-row.undone .dot { background: var(--ink-5); }
+.sv-history-row .num {
+  font-family: var(--body); font-size: 10px;
+  color: var(--ink-4);
+  text-align: right;
+}
+.sv-history-row .lbl { font-family: var(--body); }
+.sv-history-row .t { font-family: var(--body); font-size: 10px; color: var(--ink-4); }
+
+/* ─────────────── INLINE EDIT POP (single-base quick edit) ─────────────── */
+.sv-edit-pop {
+  position: absolute;
+  z-index: var(--z-popover);
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 12px 28px -10px rgba(11,26,43,0.20), 0 0 0 0.5px var(--line);
+  padding: 10px;
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
+}
+.sv-pop-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+  font-family: var(--body);
+}
+.sv-pop-head .pos { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.sv-pop-head .ref { font-size: 10.5px; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.06em; }
+.sv-pop-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.sv-pop-grid button {
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  padding: 6px 0;
+  border-radius: 6px;
+  font-family: var(--body); font-weight: 700; font-size: 12px;
+  color: var(--ink); cursor: pointer;
+}
+.sv-pop-grid button:hover { background: var(--bg-soft); border-color: var(--ink-3); }
+.sv-pop-grid button.active { background: var(--teal-tint); border-color: var(--teal); color: var(--teal-deep); }
+.sv-pop-grid button.del { color: var(--err); }
+.sv-pop-ins {
+  display: flex; gap: 4px;
+  margin-bottom: 8px;
+}
+.sv-pop-ins-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  border: 0.5px solid var(--line);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 5px 8px;
+  outline: none;
+  color: var(--ink);
+  letter-spacing: 0.3px;
+}
+.sv-pop-ins-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+.sv-pop-ins-btn {
+  border: 0.5px solid var(--ink-2);
+  background: var(--ink-2);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sv-pop-ins-btn:hover { background: var(--ink); }
+.sv-pop-conseq {
+  font-family: var(--body);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  padding: 6px 8px;
+  background: var(--bg-soft);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.sv-pop-conseq .cs {
+  font-family: var(--body);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9.5px;
+}
+.sv-pop-conseq .cs.missense   { background: var(--warn-tint); color: var(--warn-text); }
+.sv-pop-conseq .cs.synonymous { background: var(--teal-tint); color: var(--teal-deep); }
+.sv-pop-conseq .cs.stop       { background: var(--ink); color: var(--bg); }
+.sv-pop-conseq .cs.frameshift { background: var(--err-tint); color: var(--err); }
+.sv-pop-conseq .cs.splice     { background: #e8eaf2; color: #3b4877; }
+.sv-pop-conseq .cs.intronic   { background: var(--bg-soft); color: var(--ink-3); }
+.sv-pop-conseq .dt { color: var(--ink-3); }
+.sv-pop-conseq .dim { color: var(--ink-4); }
+.sv-pop-actions { display: flex; justify-content: flex-end; }
+.sv-pop-actions .ghost {
+  background: none; border: none;
+  font-size: 11px; color: var(--ink-4); cursor: pointer;
+  padding: 4px 8px;
+}
+.sv-pop-actions .ghost:hover { color: var(--ink-2); }
+
+/* ─────────────── EXPORT MODAL ─────────────── */
+.sv-export-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(11,26,43,0.40);
+  z-index: var(--z-modal);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  backdrop-filter: blur(2px);
+}
+.sv-export-panel {
+  background: var(--bg);
+  border-radius: var(--r-lg);
+  width: 760px; max-width: 100%;
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px -20px rgba(11,26,43,0.40);
+  border: 0.5px solid var(--line);
+}
+.sv-export-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 18px 22px 14px;
+  border-bottom: 0.5px solid var(--line);
+}
+.sv-export-head h3 {
+  font-family: var(--display);
+  font-size: 17px; font-weight: 600;
+  margin: 0 0 2px;
+  letter-spacing: -0.01em;
+}
+.sv-export-head .sub {
+  font-size: 12px; color: var(--ink-4);
+}
+.sv-export-close {
+  background: none; border: none;
+  color: var(--ink-4); cursor: pointer; padding: 4px;
+  display: flex; align-items: center;
+}
+.sv-export-close:hover { color: var(--ink-2); }
+.sv-export-close svg { width: 16px; height: 16px; }
+.sv-export-tabs {
+  display: flex; gap: 4px;
+  padding: 12px 22px 0;
+  border-bottom: 0.5px solid var(--line);
+}
+.sv-export-tabs button {
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-4);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  cursor: pointer;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  position: relative; top: 1px;
+}
+.sv-export-tabs button:hover { color: var(--ink-2); }
+.sv-export-tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--teal);
+}
+.sv-export-meta {
+  padding: 10px 22px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  background: var(--bg-soft);
+  border-bottom: 0.5px solid var(--line);
+}
+.sv-export-meta b { color: var(--ink); }
+.sv-export-out {
+  flex: 1;
+  border: none;
+  background: var(--bg-canvas);
+  font-family: var(--body);
+  font-size: 11.5px;
+  padding: 16px 22px;
+  resize: none;
+  outline: none;
+  color: var(--ink-2);
+  line-height: 1.55;
+  white-space: pre;
+  overflow: auto;
+  min-height: 280px;
+}
+.sv-export-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 22px;
+  border-top: 0.5px solid var(--line);
+  gap: 12px;
+}
+.sv-export-foot .hint {
+  font-size: 11.5px; color: var(--ink-4);
+  font-family: var(--body);
+}
+.sv-export-foot .actions { display: flex; gap: 8px; }
+
